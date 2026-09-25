@@ -17,8 +17,7 @@ using StingTools.Core;
 //       RBS_ELEC_VOLTAGE_PARAM and assigns LV/MV/HV tier.
 //  S2 - SLDNode gains SecondaryParentId + FeedType; BuildHierarchyAll does a
 //       second pass to detect dual-source nodes; FindDualSourceNodes helper.
-//  S4 - SLDNode gains RouteRef; ReadElementParams reads ELC_CONDUIT_REF /
-//       ELC_CABLE_ROUTE_REF.
+//  S4 - SLDNode gains RouteRef; ReadElementParams reads ELC_CONDUIT_ROUTE_TXT.
 //  S6 - SLDNode gains RuntimeMin; ReadElementParams reads RUNTIME_MIN for UPS
 //       equipment.
 
@@ -522,10 +521,11 @@ namespace StingTools.Core.SLD
                                  : node.SystemVoltageV <= 36000.0 ? "MV"
                                  : "HV";
 
-                // S4 — Cable route reference.
-                string route = GetParamString(fi, "ELC_CONDUIT_REF");
-                if (string.IsNullOrEmpty(route))
-                    route = GetParamString(fi, "ELC_CABLE_ROUTE_REF");
+                // S4 — Cable route reference. ELC_CONDUIT_ROUTE_TXT is the route
+                // identifier the conduit auto-router and consolidator write, and it is
+                // bound on Electrical Equipment. The ELC_CONDUIT_REF / ELC_CABLE_ROUTE_REF
+                // names read here before were defined nowhere, so no label ever had one.
+                string route = GetParamString(fi, ParamRegistry.ELC_CONDUIT_ROUTE);
                 if (!string.IsNullOrEmpty(route)) node.RouteRef = route;
 
                 // S6 — UPS autonomy time: only for UPS equipment.

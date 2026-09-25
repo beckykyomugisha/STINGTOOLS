@@ -317,6 +317,8 @@ ASS_WORKSET_TXT,1,asset-universal,<ALL>,Workset name for worksharing tracking
 ASS_ZONE_SOURCE_TXT,1,universal,<ALL>,ZONE detection source (Department/Room/Manual)
 ASS_ZONE_TXT,1,universal,<ALL>,Ass Zone Txt [ISO 19650-3:2020]
 ATEX_CLASSIFICATION_OK,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Atex Classification Ok [STING]
+ATEX_EX_RATING_TXT,4,curated-fallback,Electrical Equipment|Electrical Fixtures,Equipment Ex marking (e.g. Ex d IIC T4 Gb) checked against ATEX_ZONE_TXT by ATEX Classification.
+ATEX_ZONE_TXT,4,curated-fallback,Electrical Equipment|Electrical Fixtures,"Hazardous-area zone the equipment is installed in (Zone 0 / 1 / 2 for gas, 20 / 21 / 22 for dust) per IEC 60079-10; read by ATEX Classification."
 BI_ACCENT_COLOR_TXT,11,curated-fallback,Generic Models,Accent colour RGB [ISO 19650-1:2018]
 BI_BOTTOM_COLOR_TXT,11,curated-fallback,Generic Models,Bottom gradient color RGB [ISO 19650-1:2018]
 BI_CREATED_DATE_TXT,11,curated-fallback,Generic Models,Date image created [ISO 19650-2:2018]
@@ -1145,11 +1147,13 @@ ELC_FACTORY_QR_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable 
 ELC_FAT_CERT_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Factory Acceptance Test certificate reference [IEC 61439-1:2020]
 ELC_FEEDER_CSA_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Calculated / proposed feeder cable cross-sectional area in mm2 (distinct from circuit cable size) [STING Phase 178]
 ELC_FEEDER_RATING_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Calculated feeder breaker / fuse rating in amperes -- the upstream protective device rating [STING Phase 178]
+ELC_FEED_TYPE_TXT,4,board-level,Electrical Equipment|Electrical Circuits,Supply this board is fed from: Normal / Emergency / Both. Read by Dual-Source Validation and the SLD generator to find emergency boards and dual-fed nodes.
 ELC_FIX_TAG_1_TXT,4,tag-container,<ALL>,Elc fix tag 1
 ELC_FIX_TAG_2_TXT,4,elc-sub,Electrical Fixtures,Elc fix tag 2
 ELC_GEN_RUN_HRS_TGT_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required generator runtime (h) at full load [NFPA 110]
 ELC_GEN_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Generator test log document reference [H-27 / NFPA 110]
 ELC_IPS_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Powered from Isolated Power System (NEC 517)
+ELC_IPS_LIM_BOOL,4,board-level,Electrical Equipment|Electrical Circuits,A Line Isolation Monitor is installed on this isolated power system board (NFPA 99 7.2.2.3.3 / IEC 60364-7-710 insulation monitoring); read first by IPS Validation.
 ELC_IP_RATING_TXT,4,safe-prefix,Cable Tray Fittings|Cable Trays|Conduit Fittings|Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Fixtures,Elc Ip Rating Txt [ISO 19650-1:2018]
 ELC_IT_CARDIAC_BOOL,4,elc-sub,Electrical Fixtures,Cardiac-protected outlet (IT-network NEC 517.19)
 ELC_JB_AUTO_PLACED_BOOL,4,elc-sub,Electrical Fixtures,True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.
@@ -1238,6 +1242,8 @@ ELC_PNL_CKT_SOURCE_NAME_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,E
 ELC_PNL_CONNECTED_LOAD_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Connected Load Kw [ISO 19650-1:2018]
 ELC_PNL_CONNECTED_LOAD_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ELC_PNL_CONNECTED_LOAD_KW display mirror [auto-generated]
 ELC_PNL_DESIGNATION_NAME_TXT,4,elc-sub,Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Devices,Elc Pnl Designation Name Txt [ISO 19650-1:2018]
+ELC_PNL_ENCLOSURE_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Elec_PanelWriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code."
+ELC_PNL_FAULT_LG_KA,4,elc-sub,Electrical Equipment|Electrical Circuits,"Prospective line-to-ground (earth) fault current at this board in kA, as imported from an EasyPower study (EasyPower Import)."
 ELC_PNL_FED_FROM,4,elc-sub,Electrical Equipment|Electrical Circuits,Panel fed from source
 ELC_PNL_FED_FROM_PNL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Fed From Pnl Txt [ISO 19650-1:2018]
 ELC_PNL_IP_RATING_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Ip Rating [ISO 19650-1:2018]
@@ -1534,6 +1540,7 @@ HVC_SIZE_PREV_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duc
 HVC_SIZE_RULE_ID_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,STING_MEP_SIZING_RULES.json role + source that drove the size (e.g. 'branch|CIBSE B3') [Phase 182]
 HVC_SIZE_STALE_BOOL,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,1 when current duct size diverges >20% from the registry target for current flow + role [Phase 183]
 HVC_SIZE_STALE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_SIZE_STALE_BOOL display mirror [auto-generated]
+HVC_SPACE_TYPE_TXT,5,space-level,MEP Spaces|Rooms,"Load-profile space type id (STING_LOAD_PROFILES.json, e.g. Office) for this space or room; read by Block Load, the cross-talk audit and the ComCheck export before falling back to a name match."
 HVC_TAG_7_PARA_ANAL_DUCTS_TXT,5,tag-container,<ALL>,Anal Ducts paragraph [ISO 19650-3:2020]
 HVC_TAG_7_PARA_AT_TXT,5,tag-container,<ALL>,Air terminal paragraph container [ISO 19650-3:2020]
 HVC_TAG_7_PARA_DCTACC_TXT,5,tag-container,<ALL>,Duct accessory paragraph [ISO 19650-3:2020]
@@ -1580,11 +1587,11 @@ IFC_GLOBAL_ID_TXT,22,universal,<ALL>,Stable IFC GlobalId snapshot for cross-host
 IFC_PSET_OVERRIDE_TXT,22,universal,<ALL>,Manual IFC property set override pipe-delimited (Pset_Name=Value)
 INS_MATERIAL_TXT,5,misc-meta,<ALL>,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
 IPS_BRANCH_COMPLIANT,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Ips Branch Compliant [STING]
-LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Anti-Ligature (Door)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
+LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
 LIG_FIT_TAG,32,tag-container,<ALL>,Anti-ligature fitting ISO 19650 tag container
 LIG_FORCE_LIMIT_KG_NR,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Release threshold (kg)
 LIG_PRESSURE_REL_BOOL,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Releases under load
-LIG_PRODUCT_RATING_TXT,32,curated-fallback,Anti-Ligature (Door)|Anti-Ligature (Lighting Fixture)|Anti-Ligature (Plumbing Fixture)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade)
+LIG_PRODUCT_RATING_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Anti-ligature product rating (BS 9263 LR1..LR4 or US grade)
 LIG_SELF_CLOSE_BOOL,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Self-closing fitting
 LIG_TAG_7_PARA_TXT,32,tag-container,<ALL>,Anti-ligature TAG7 rich narrative paragraph container
 LS_NAME_TXT,11,curated-fallback,Generic Models,Line style name [ISO 19650-1:2018]
@@ -1720,6 +1727,7 @@ MGS_GAS_TYPE_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbi
 MGS_NOM_PRESS_KPA_NR,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Nominal design pressure (kPa) [BS EN ISO 7396-1]
 MGS_OUTLET_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Outlet Zone Txt [STING]
 MGS_PIPE_BRAZED_BOOL,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Brazed under inert-gas purge [HTM 02-01]
+MGS_SUPPLY_TYPE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Marks this element as a medical gas supply source and says which (VIE / Manifold / Compressor / Vacuum Plant / Cylinder); read by the MGPS schematic.
 MGS_TAG_7_PARA_TXT,29,tag-container,<ALL>,Medical gas TAG7 rich narrative paragraph container
 MGS_TU_BS5682_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Terminal unit complies with BS 5682
 MGS_TU_INDEXED_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Has gas-specific NIST/DISS indexing
@@ -1729,6 +1737,7 @@ MGS_VERIFY_DT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing F
 MGS_VERIFY_PASS_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Latest verification passed
 MGS_WORKING_PRESSURE_KPA,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Working Pressure Kpa [STING]
 MGS_ZVB_REF_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)
+MGS_ZV_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories,Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.
 MNT_ACCESS_REQUIREMENTS_TXT,9,universal-meta,<ALL>,Mnt Access Requirements [ISO 19650]
 MNT_CAL_LAST_DT,25,universal-meta,<ALL>,Last calibration date (ISO 8601) -- distinct from service date
 MNT_CAL_NEXT_DT,25,universal-meta,<ALL>,Next calibration due (ISO 8601)
@@ -2096,29 +2105,30 @@ PLM_VNT_SZ_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe
 PLM_VNT_SZ_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,PLM_VNT_SZ_NR display mirror [auto-generated]
 PLM_WELD_MAP_REF_TXT,6,safe-prefix,Flex Pipes|MEP Fabrication Pipework|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures,Pipe weld map drawing reference [BS EN ISO 15609-1:2019]
 PLM_WSFU_COUNT_INT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,IPC 2021 Water Supply Fixture Units [Phase 178b]
-PRJ_ADDRESS_2_TXT,13,universal-meta,<ALL>,Prj Address 2 Txt [ISO 19650-1:2018]
-PRJ_ADDRESS_TXT,13,universal-meta,<ALL>,Prj Address Txt [ISO 19650-1:2018]
-PRJ_AREA_NAME_TXT,13,universal-meta,<ALL>,Prj Area Name Txt [ISO 19650-1:2018]
-PRJ_CLIMATE_SITE_ID,13,universal-meta,<ALL>,Active STING climate site id resolved by ClimateRegistry (london / paris / new_york / etc.) [Phase 187]
-PRJ_CLIMATE_SITE_LABEL_TXT,13,universal-meta,<ALL>,Human-readable climate site label stamped by the DocumentOpened auto-stamp [Phase 187b]
-PRJ_COMMENTS_TXT,13,universal-meta,<ALL>,Prj Comments Txt [ISO 19650-1:2018]
-PRJ_CONSTRUCTION_PROFILE_TXT,13,universal-meta,<ALL>,Active construction profile id (PartL2021 / PartL2013 / PreRegs1990 / Passivhaus / IECC2021_CZ4 / ASHRAE901_2019_CZ5 / EnEV2014_DE)  -  drives U-values + SHGC in BlockLoadEngine [Phase 187c]
-PRJ_CORPORATE_LIBRARY_PATH_TXT,13,universal-meta,<ALL>,Path to corporate template library (network share / local seed) — overrides %APPDATA% global config [Template Manager v2]
-PRJ_CORPORATE_LIBRARY_VERSION_TXT,13,universal-meta,<ALL>,Stamped library version on this project — drift baseline vs corporate library [Template Manager v2]
-PRJ_DRAWING_NR_TXT,13,universal-meta,<ALL>,Prj Drawing Nr Txt [ISO 19650-1:2018]
-PRJ_DRAWING_SCALE_TXT,13,universal-meta,<ALL>,Prj Drawing Scale Txt [ISO 19650-1:2018]
-PRJ_DRAWING_TITLE_TXT,13,universal-meta,<ALL>,Prj Drawing Title Txt [ISO 19650-1:2018]
+PRJ_ADDRESS_2_TXT,13,universal-meta,<ALL>|Project Information,Prj Address 2 Txt [ISO 19650-1:2018]
+PRJ_ADDRESS_TXT,13,universal-meta,<ALL>|Project Information,Prj Address Txt [ISO 19650-1:2018]
+PRJ_AREA_NAME_TXT,13,universal-meta,<ALL>|Project Information,Prj Area Name Txt [ISO 19650-1:2018]
+PRJ_BUILDING_USE_TXT,13,explicit,Project Information,Declared building use / sector (Office / Healthcare / Education / Residential ...); read by ProjectSector for spare-capacity targets and by the sustainability engine.
+PRJ_CLIMATE_SITE_ID,13,universal-meta,<ALL>|Project Information,Active STING climate site id resolved by ClimateRegistry (london / paris / new_york / etc.) [Phase 187]
+PRJ_CLIMATE_SITE_LABEL_TXT,13,universal-meta,<ALL>|Project Information,Human-readable climate site label stamped by the DocumentOpened auto-stamp [Phase 187b]
+PRJ_COMMENTS_TXT,13,universal-meta,<ALL>|Project Information,Prj Comments Txt [ISO 19650-1:2018]
+PRJ_CONSTRUCTION_PROFILE_TXT,13,universal-meta,<ALL>|Project Information,Active construction profile id (PartL2021 / PartL2013 / PreRegs1990 / Passivhaus / IECC2021_CZ4 / ASHRAE901_2019_CZ5 / EnEV2014_DE)  -  drives U-values + SHGC in BlockLoadEngine [Phase 187c]
+PRJ_CORPORATE_LIBRARY_PATH_TXT,13,universal-meta,<ALL>|Project Information,Path to corporate template library (network share / local seed) — overrides %APPDATA% global config [Template Manager v2]
+PRJ_CORPORATE_LIBRARY_VERSION_TXT,13,universal-meta,<ALL>|Project Information,Stamped library version on this project — drift baseline vs corporate library [Template Manager v2]
+PRJ_DRAWING_NR_TXT,13,universal-meta,<ALL>|Project Information,Prj Drawing Nr Txt [ISO 19650-1:2018]
+PRJ_DRAWING_SCALE_TXT,13,universal-meta,<ALL>|Project Information,Prj Drawing Scale Txt [ISO 19650-1:2018]
+PRJ_DRAWING_TITLE_TXT,13,universal-meta,<ALL>|Project Information,Prj Drawing Title Txt [ISO 19650-1:2018]
 PRJ_DWG_ISSUE_PURPOSE_TXT,13,sheet-identity,Sheets,Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]
 PRJ_DWG_LOIN_LOD_TXT,13,sheet-identity,Sheets,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
 PRJ_DWG_SUITABILITY_COD_TXT,13,sheet-identity,Sheets,Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]
 PRJ_DWG_SUITABILITY_DESC_TXT,13,sheet-identity,Sheets,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
 PRJ_DWG_SUPERSEDES_TXT,13,sheet-identity,Sheets,Prj Dwg Supersedes Txt [ISO 19650-1:2018]
-PRJ_GRID_REF_TXT,13,universal-meta,<ALL>,Prj Grid Ref Txt [ISO 19650-1:2018]
-PRJ_INFORMATION_SPARE_01_TXT,13,universal-meta,<ALL>,Spare parameter 1 for PRJ_INFORMATION group
-PRJ_INFORMATION_SPARE_02_TXT,13,universal-meta,<ALL>,Spare parameter 2 for PRJ_INFORMATION group
-PRJ_ISO_STD_TXT,13,universal-meta,<ALL>,Prj Iso Std Txt [ISO 19650-1:2018]
-PRJ_NAME_TXT,13,universal-meta,<ALL>,Prj Name Txt [ISO 19650-1:2018]
-PRJ_NR_TXT,13,universal-meta,<ALL>,Prj Nr Txt [ISO 19650-1:2018]
+PRJ_GRID_REF_TXT,13,universal-meta,<ALL>|Project Information,Prj Grid Ref Txt [ISO 19650-1:2018]
+PRJ_INFORMATION_SPARE_01_TXT,13,universal-meta,<ALL>|Project Information,Spare parameter 1 for PRJ_INFORMATION group
+PRJ_INFORMATION_SPARE_02_TXT,13,universal-meta,<ALL>|Project Information,Spare parameter 2 for PRJ_INFORMATION group
+PRJ_ISO_STD_TXT,13,universal-meta,<ALL>|Project Information,Prj Iso Std Txt [ISO 19650-1:2018]
+PRJ_NAME_TXT,13,universal-meta,<ALL>|Project Information,Prj Name Txt [ISO 19650-1:2018]
+PRJ_NR_TXT,13,universal-meta,<ALL>|Project Information,Prj Nr Txt [ISO 19650-1:2018]
 PRJ_ORG_AI_EXTRACT_ENABLED_BOOL,13,project-level,Project Information,"Enable AI metadata extraction from incoming PDFs (default false, v1.2) [template engine v1.1]"
 PRJ_ORG_APPOINTING_PARTY_TXT,13,project-level,Project Information,ISO 19650 appointing party name [template engine v1.1]
 PRJ_ORG_CLASS_TXT,13,project-level,Project Information,ISO 19650 information class level (default 2) [template engine v1.1]
@@ -2159,14 +2169,14 @@ PRJ_ORG_SHEET_NUMBER_POLICY_TXT,13,project-level,Project Information,Sheet-numbe
 PRJ_ORG_SIGNATURE_PROVIDER_TXT,13,project-level,Project Information,Signature provider id (empty = signatures disabled) [template engine v1.1]
 PRJ_ORG_UNICLASS_CO_TXT,13,project-level,Project Information,"Project Uniclass 2015 Complex (Co_) classification, e.g. ""Co_25_30 Office buildings"" -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]"
 PRJ_ORG_WORKFLOW_PROFILE_TXT,13,project-level,Project Information,"Workflow profile key (default ""default"") [template engine v1.1]"
-PRJ_ORIGINATOR_COD_TXT,13,universal-meta,<ALL>,ISO 19650 originator code
-PRJ_PHASE_TXT,13,universal-meta,<ALL>,Prj Phase Txt [ISO 19650-1:2018]
-PRJ_PROJECT_COD_TXT,13,universal-meta,<ALL>,ISO 19650 project code
-PRJ_REFRIG_FLUID_TXT,13,universal-meta,<ALL>,Project refrigerant fluid id (R410A / R32 / R134a / CO2) — drives HvacRefrigerantChargeCommand lookup [Phase 187g]
-PRJ_REFRIG_IDU_MOUNTING_TXT,13,universal-meta,<ALL>,"Default IDU mounting for the project, used when HVC_IDU_MOUNTING_TXT is unset on a Space [Phase 187h]"
-PRJ_REFRIG_VENDOR_SERIES_TXT,13,universal-meta,<ALL>,"Refrigerant vendor series id for charge-table lookup (e.g. 'Daikin-VRV-5', 'Mitsubishi-CityMulti-R2', 'Toshiba-SHRMe') [Phase 187g]"
-PRJ_REV_COD_TXT,13,universal-meta,<ALL>,ISO 19650 revision code
-PRJ_RTS_CLASS_TXT,13,universal-meta,<ALL>,ASHRAE Radiant Time Series construction class (Reactive / Light / Medium / Heavy)  -  controls thermal-mass lag in BlockLoadEngine [Phase 187d]
+PRJ_ORIGINATOR_COD_TXT,13,universal-meta,<ALL>|Project Information,ISO 19650 originator code
+PRJ_PHASE_TXT,13,universal-meta,<ALL>|Project Information,Prj Phase Txt [ISO 19650-1:2018]
+PRJ_PROJECT_COD_TXT,13,universal-meta,<ALL>|Project Information,ISO 19650 project code
+PRJ_REFRIG_FLUID_TXT,13,universal-meta,<ALL>|Project Information,Project refrigerant fluid id (R410A / R32 / R134a / CO2) — drives HvacRefrigerantChargeCommand lookup [Phase 187g]
+PRJ_REFRIG_IDU_MOUNTING_TXT,13,universal-meta,<ALL>|Project Information,"Default IDU mounting for the project, used when HVC_IDU_MOUNTING_TXT is unset on a Space [Phase 187h]"
+PRJ_REFRIG_VENDOR_SERIES_TXT,13,universal-meta,<ALL>|Project Information,"Refrigerant vendor series id for charge-table lookup (e.g. 'Daikin-VRV-5', 'Mitsubishi-CityMulti-R2', 'Toshiba-SHRMe') [Phase 187g]"
+PRJ_REV_COD_TXT,13,universal-meta,<ALL>|Project Information,ISO 19650 revision code
+PRJ_RTS_CLASS_TXT,13,universal-meta,<ALL>|Project Information,ASHRAE Radiant Time Series construction class (Reactive / Light / Medium / Heavy)  -  controls thermal-mass lag in BlockLoadEngine [Phase 187d]
 PRJ_SHEET_BIM_MODE_TXT,13,sheet-identity,Sheets,"Per-sheet BIM mode marker -- ""BIM"" or ""NONBIM"" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]"
 PRJ_SHEET_FULL_REF_TXT,13,sheet-identity,Sheets,"ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. ""STG-PLNS-ZZ-01-DR-A-0001""). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]"
 PRJ_SHEET_LEVEL_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. ""01"" / ""GF"" / ""ZZ""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
@@ -2237,10 +2247,10 @@ PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,13,sheet-identity,Sheets,Structural co
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,13,sheet-identity,Sheets,Structural engineering consultant firm name [ISO 19650-1:2018]
 PRJ_TB_TOTAL_NO_SHEETS_TXT,13,sheet-identity,Sheets,Total number of sheets in this drawing package or issue [ISO 19650-1:2018]
 PRJ_TB_VARIANT_TXT,13,sheet-identity,Sheets,"Drawing variant or option code (e.g. OPT-A, BASE) [ISO 19650-1:2018]"
-PRJ_TEMPLATE_PROFILE_TXT,13,universal-meta,<ALL>,Compliance weight profile (default / working / coordination / presentation / handover / healthcare) [Template Manager v2]
-PRJ_TRACE_TOLERANCE_PCT,13,universal-meta,<ALL>,Acceptance band (percent) for HvacCompareLoadsCommand vs TRACE / HAP reference loads (default 15%) [Phase 187g]
-PRJ_VOLUME_CODE,13,universal-meta,<ALL>,ISO 19650 Volume code parsed from file name (BLD1/BLD2/SITE/etc.) [Phase 108m]
-PRJ_VOLUME_COD_TXT,13,universal-meta,<ALL>,ISO 19650 volume code
+PRJ_TEMPLATE_PROFILE_TXT,13,universal-meta,<ALL>|Project Information,Compliance weight profile (default / working / coordination / presentation / handover / healthcare) [Template Manager v2]
+PRJ_TRACE_TOLERANCE_PCT,13,universal-meta,<ALL>|Project Information,Acceptance band (percent) for HvacCompareLoadsCommand vs TRACE / HAP reference loads (default 15%) [Phase 187g]
+PRJ_VOLUME_CODE,13,universal-meta,<ALL>|Project Information,ISO 19650 Volume code parsed from file name (BLD1/BLD2/SITE/etc.) [Phase 108m]
+PRJ_VOLUME_COD_TXT,13,universal-meta,<ALL>|Project Information,ISO 19650 volume code
 PROJECT_BUDGET_UGX,13,misc-meta,<ALL>,Project budget set by cost consultant in UGX [ISO 19650-3:2020]
 PROP_ACOUSTIC_ABS,14,curated-fallback,Materials,Prop Acoustic Abs [ISO 19650-1:2018]
 PROP_CARBON_KG_M3,14,curated-fallback,Materials,Prop Carbon Kg M3 [ISO 19650-1:2018]
@@ -2467,21 +2477,21 @@ SHT_TAG_1_TXT,13,sheet,Sheets,Sheet ISO 19650 document code assembled from token
 SHT_TAG_7_TXT,13,sheet,Sheets,Sheet rich narrative description [ISO 19650-2:2018]
 SLV_ANNULAR_GAP_MM,19,curated-fallback,Generic Models,Annular gap between service and sleeve in mm
 SLV_FIRESTOP_MFR_TXT,19,curated-fallback,Generic Models,Firestop system manufacturer
-SLV_FIRESTOP_PRODUCT_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Firestop product reference
-SLV_FIRE_RATING_TXT,19,curated-fallback,Generic Models|MEP Sleeve,"Sleeve fire rating (e.g. EI60, EI120)"
-SLV_INSPECTION_DATE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Last inspection date
-SLV_MAT_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve material (steel/PVC/cast iron)
+SLV_FIRESTOP_PRODUCT_TXT,19,curated-fallback,Generic Models,Firestop product reference
+SLV_FIRE_RATING_TXT,19,curated-fallback,Generic Models,"Sleeve fire rating (e.g. EI60, EI120)"
+SLV_INSPECTION_DATE_TXT,19,curated-fallback,Generic Models,Last inspection date
+SLV_MAT_TXT,19,curated-fallback,Generic Models,Sleeve material (steel/PVC/cast iron)
 SLV_REF_TXT,19,curated-fallback,Generic Models,Sleeve reference code
-SLV_SEAL_TYPE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Seal type (intumescent/mechanical/composite)
-SLV_SERVICE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Service passing through sleeve
-SLV_STATUS_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
-SLV_SZ_MM,19,curated-fallback,Generic Models|MEP Sleeve,Sleeve size in millimetres
-SLV_SZ_TXT,19,curated-fallback,Generic Models|MEP Sleeve,SLV_SZ_MM display mirror [auto-generated]
+SLV_SEAL_TYPE_TXT,19,curated-fallback,Generic Models,Seal type (intumescent/mechanical/composite)
+SLV_SERVICE_TXT,19,curated-fallback,Generic Models,Service passing through sleeve
+SLV_STATUS_TXT,19,curated-fallback,Generic Models,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
+SLV_SZ_MM,19,curated-fallback,Generic Models,Sleeve size in millimetres
+SLV_SZ_TXT,19,curated-fallback,Generic Models,SLV_SZ_MM display mirror [auto-generated]
 SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,MEP Sleeve discipline tag container [ISO 19650-3:2020]
 SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,Sleeve paragraph container [ISO 19650-3:2020]
-SLV_TESTED_TO_TXT,19,curated-fallback,Generic Models|MEP Sleeve,"Fire test standard (BS EN 1366-3, ASTM E814)"
+SLV_TESTED_TO_TXT,19,curated-fallback,Generic Models,"Fire test standard (BS EN 1366-3, ASTM E814)"
 SLV_WALL_THICKNESS_MM,19,curated-fallback,Generic Models,Host element thickness in mm
-SLV_WALL_TYPE_TXT,19,curated-fallback,Generic Models|MEP Sleeve,Host wall or floor type
+SLV_WALL_TYPE_TXT,19,curated-fallback,Generic Models,Host wall or floor type
 SPARE_PARAM_01_TXT,11,UNRESOLVED(polluted-curated),|Generic Models,Spare parameter 01 for future use [ISO 19650-1:2018]
 SPARE_PARAM_02_TXT,11,UNRESOLVED(polluted-curated),|Generic Models,Spare parameter 02 for future use [ISO 19650-1:2018]
 SPARE_PARAM_03_TXT,11,UNRESOLVED(polluted-curated),|Generic Models,Spare parameter 03 for future use [ISO 19650-1:2018]

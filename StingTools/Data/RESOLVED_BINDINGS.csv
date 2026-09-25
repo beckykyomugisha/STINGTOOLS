@@ -317,6 +317,8 @@ ASS_WORKSET_TXT,<ALL>
 ASS_ZONE_SOURCE_TXT,<ALL>
 ASS_ZONE_TXT,<ALL>
 ATEX_CLASSIFICATION_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ATEX_EX_RATING_TXT,Electrical Equipment|Electrical Fixtures
+ATEX_ZONE_TXT,Electrical Equipment|Electrical Fixtures
 BI_ACCENT_COLOR_TXT,Generic Models
 BI_BOTTOM_COLOR_TXT,Generic Models
 BI_CREATED_DATE_TXT,Generic Models
@@ -1142,11 +1144,13 @@ ELC_FACTORY_QR_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tr
 ELC_FAT_CERT_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FEEDER_CSA_MM2,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment
 ELC_FEEDER_RATING_A,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment
+ELC_FEED_TYPE_TXT,Electrical Equipment|Electrical Circuits
 ELC_FIX_TAG_1_TXT,<ALL>
 ELC_FIX_TAG_2_TXT,Electrical Fixtures
 ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Circuits
 ELC_GEN_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
 ELC_IPS_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_IPS_LIM_BOOL,Electrical Equipment|Electrical Circuits
 ELC_IP_RATING_TXT,Cable Tray Fittings|Cable Trays|Conduit Fittings|Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Fixtures
 ELC_IT_CARDIAC_BOOL,Electrical Fixtures
 ELC_JB_AUTO_PLACED_BOOL,Electrical Fixtures
@@ -1235,6 +1239,8 @@ ELC_PNL_CKT_SOURCE_NAME_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_CONNECTED_LOAD_KW,Electrical Equipment|Electrical Circuits
 ELC_PNL_CONNECTED_LOAD_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_DESIGNATION_NAME_TXT,Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Devices
+ELC_PNL_ENCLOSURE_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_FAULT_LG_KA,Electrical Equipment|Electrical Circuits
 ELC_PNL_FED_FROM,Electrical Equipment|Electrical Circuits
 ELC_PNL_FED_FROM_PNL_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_IP_RATING_TXT,Electrical Equipment|Electrical Circuits
@@ -1531,6 +1537,7 @@ HVC_SIZE_PREV_TXT,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|D
 HVC_SIZE_RULE_ID_TXT,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures
 HVC_SIZE_STALE_BOOL,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures
 HVC_SIZE_STALE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_SPACE_TYPE_TXT,MEP Spaces|Rooms
 HVC_TAG_7_PARA_ANAL_DUCTS_TXT,<ALL>
 HVC_TAG_7_PARA_AT_TXT,<ALL>
 HVC_TAG_7_PARA_DCTACC_TXT,<ALL>
@@ -1577,11 +1584,11 @@ IFC_GLOBAL_ID_TXT,<ALL>
 IFC_PSET_OVERRIDE_TXT,<ALL>
 INS_MATERIAL_TXT,<ALL>
 IPS_BRANCH_COMPLIANT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-LIG_AREA_OBS_LOS_TXT,Anti-Ligature (Door)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
+LIG_AREA_OBS_LOS_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_FIT_TAG,<ALL>
 LIG_FORCE_LIMIT_KG_NR,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_PRESSURE_REL_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
-LIG_PRODUCT_RATING_TXT,Anti-Ligature (Door)|Anti-Ligature (Lighting Fixture)|Anti-Ligature (Plumbing Fixture)|Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
+LIG_PRODUCT_RATING_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_SELF_CLOSE_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_TAG_7_PARA_TXT,<ALL>
 LS_NAME_TXT,Generic Models
@@ -1717,6 +1724,7 @@ MGS_GAS_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medi
 MGS_NOM_PRESS_KPA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_OUTLET_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_PIPE_BRAZED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
+MGS_SUPPLY_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_TAG_7_PARA_TXT,<ALL>
 MGS_TU_BS5682_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_TU_INDEXED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
@@ -1726,6 +1734,7 @@ MGS_VERIFY_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical
 MGS_VERIFY_PASS_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_WORKING_PRESSURE_KPA,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_ZVB_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
+MGS_ZV_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories
 MNT_ACCESS_REQUIREMENTS_TXT,<ALL>
 MNT_CAL_LAST_DT,<ALL>
 MNT_CAL_NEXT_DT,<ALL>
@@ -2093,29 +2102,30 @@ PLM_VNT_SZ_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Pl
 PLM_VNT_SZ_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_WELD_MAP_REF_TXT,Flex Pipes|MEP Fabrication Pipework|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures
 PLM_WSFU_COUNT_INT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PRJ_ADDRESS_2_TXT,<ALL>
-PRJ_ADDRESS_TXT,<ALL>
-PRJ_AREA_NAME_TXT,<ALL>
-PRJ_CLIMATE_SITE_ID,<ALL>
-PRJ_CLIMATE_SITE_LABEL_TXT,<ALL>
-PRJ_COMMENTS_TXT,<ALL>
-PRJ_CONSTRUCTION_PROFILE_TXT,<ALL>
-PRJ_CORPORATE_LIBRARY_PATH_TXT,<ALL>
-PRJ_CORPORATE_LIBRARY_VERSION_TXT,<ALL>
-PRJ_DRAWING_NR_TXT,<ALL>
-PRJ_DRAWING_SCALE_TXT,<ALL>
-PRJ_DRAWING_TITLE_TXT,<ALL>
+PRJ_ADDRESS_2_TXT,<ALL>|Project Information
+PRJ_ADDRESS_TXT,<ALL>|Project Information
+PRJ_AREA_NAME_TXT,<ALL>|Project Information
+PRJ_BUILDING_USE_TXT,Project Information
+PRJ_CLIMATE_SITE_ID,<ALL>|Project Information
+PRJ_CLIMATE_SITE_LABEL_TXT,<ALL>|Project Information
+PRJ_COMMENTS_TXT,<ALL>|Project Information
+PRJ_CONSTRUCTION_PROFILE_TXT,<ALL>|Project Information
+PRJ_CORPORATE_LIBRARY_PATH_TXT,<ALL>|Project Information
+PRJ_CORPORATE_LIBRARY_VERSION_TXT,<ALL>|Project Information
+PRJ_DRAWING_NR_TXT,<ALL>|Project Information
+PRJ_DRAWING_SCALE_TXT,<ALL>|Project Information
+PRJ_DRAWING_TITLE_TXT,<ALL>|Project Information
 PRJ_DWG_ISSUE_PURPOSE_TXT,Sheets
 PRJ_DWG_LOIN_LOD_TXT,Sheets
 PRJ_DWG_SUITABILITY_COD_TXT,Sheets
 PRJ_DWG_SUITABILITY_DESC_TXT,Sheets
 PRJ_DWG_SUPERSEDES_TXT,Sheets
-PRJ_GRID_REF_TXT,<ALL>
-PRJ_INFORMATION_SPARE_01_TXT,<ALL>
-PRJ_INFORMATION_SPARE_02_TXT,<ALL>
-PRJ_ISO_STD_TXT,<ALL>
-PRJ_NAME_TXT,<ALL>
-PRJ_NR_TXT,<ALL>
+PRJ_GRID_REF_TXT,<ALL>|Project Information
+PRJ_INFORMATION_SPARE_01_TXT,<ALL>|Project Information
+PRJ_INFORMATION_SPARE_02_TXT,<ALL>|Project Information
+PRJ_ISO_STD_TXT,<ALL>|Project Information
+PRJ_NAME_TXT,<ALL>|Project Information
+PRJ_NR_TXT,<ALL>|Project Information
 PRJ_ORG_AI_EXTRACT_ENABLED_BOOL,Project Information
 PRJ_ORG_APPOINTING_PARTY_TXT,Project Information
 PRJ_ORG_CLASS_TXT,Project Information
@@ -2156,14 +2166,14 @@ PRJ_ORG_SHEET_NUMBER_POLICY_TXT,Project Information
 PRJ_ORG_SIGNATURE_PROVIDER_TXT,Project Information
 PRJ_ORG_UNICLASS_CO_TXT,Project Information
 PRJ_ORG_WORKFLOW_PROFILE_TXT,Project Information
-PRJ_ORIGINATOR_COD_TXT,<ALL>
-PRJ_PHASE_TXT,<ALL>
-PRJ_PROJECT_COD_TXT,<ALL>
-PRJ_REFRIG_FLUID_TXT,<ALL>
-PRJ_REFRIG_IDU_MOUNTING_TXT,<ALL>
-PRJ_REFRIG_VENDOR_SERIES_TXT,<ALL>
-PRJ_REV_COD_TXT,<ALL>
-PRJ_RTS_CLASS_TXT,<ALL>
+PRJ_ORIGINATOR_COD_TXT,<ALL>|Project Information
+PRJ_PHASE_TXT,<ALL>|Project Information
+PRJ_PROJECT_COD_TXT,<ALL>|Project Information
+PRJ_REFRIG_FLUID_TXT,<ALL>|Project Information
+PRJ_REFRIG_IDU_MOUNTING_TXT,<ALL>|Project Information
+PRJ_REFRIG_VENDOR_SERIES_TXT,<ALL>|Project Information
+PRJ_REV_COD_TXT,<ALL>|Project Information
+PRJ_RTS_CLASS_TXT,<ALL>|Project Information
 PRJ_SHEET_BIM_MODE_TXT,Sheets
 PRJ_SHEET_FULL_REF_TXT,Sheets
 PRJ_SHEET_LEVEL_TXT,Sheets
@@ -2234,10 +2244,10 @@ PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,Sheets
 PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT,Sheets
 PRJ_TB_TOTAL_NO_SHEETS_TXT,Sheets
 PRJ_TB_VARIANT_TXT,Sheets
-PRJ_TEMPLATE_PROFILE_TXT,<ALL>
-PRJ_TRACE_TOLERANCE_PCT,<ALL>
-PRJ_VOLUME_CODE,<ALL>
-PRJ_VOLUME_COD_TXT,<ALL>
+PRJ_TEMPLATE_PROFILE_TXT,<ALL>|Project Information
+PRJ_TRACE_TOLERANCE_PCT,<ALL>|Project Information
+PRJ_VOLUME_CODE,<ALL>|Project Information
+PRJ_VOLUME_COD_TXT,<ALL>|Project Information
 PROJECT_BUDGET_UGX,<ALL>
 PROP_ACOUSTIC_ABS,Materials
 PROP_CARBON_KG_M3,Materials
@@ -2392,21 +2402,21 @@ SHT_TAG_1_TXT,Sheets
 SHT_TAG_7_TXT,Sheets
 SLV_ANNULAR_GAP_MM,Generic Models
 SLV_FIRESTOP_MFR_TXT,Generic Models
-SLV_FIRESTOP_PRODUCT_TXT,Generic Models|MEP Sleeve
-SLV_FIRE_RATING_TXT,Generic Models|MEP Sleeve
-SLV_INSPECTION_DATE_TXT,Generic Models|MEP Sleeve
-SLV_MAT_TXT,Generic Models|MEP Sleeve
+SLV_FIRESTOP_PRODUCT_TXT,Generic Models
+SLV_FIRE_RATING_TXT,Generic Models
+SLV_INSPECTION_DATE_TXT,Generic Models
+SLV_MAT_TXT,Generic Models
 SLV_REF_TXT,Generic Models
-SLV_SEAL_TYPE_TXT,Generic Models|MEP Sleeve
-SLV_SERVICE_TXT,Generic Models|MEP Sleeve
-SLV_STATUS_TXT,Generic Models|MEP Sleeve
-SLV_SZ_MM,Generic Models|MEP Sleeve
-SLV_SZ_TXT,Generic Models|MEP Sleeve
+SLV_SEAL_TYPE_TXT,Generic Models
+SLV_SERVICE_TXT,Generic Models
+SLV_STATUS_TXT,Generic Models
+SLV_SZ_MM,Generic Models
+SLV_SZ_TXT,Generic Models
 SLV_TAG,Walls|Floors|Ceilings|Roofs|Generic Models
 SLV_TAG_7_PARA_TXT,Walls|Floors|Ceilings|Roofs|Generic Models
-SLV_TESTED_TO_TXT,Generic Models|MEP Sleeve
+SLV_TESTED_TO_TXT,Generic Models
 SLV_WALL_THICKNESS_MM,Generic Models
-SLV_WALL_TYPE_TXT,Generic Models|MEP Sleeve
+SLV_WALL_TYPE_TXT,Generic Models
 SPARE_PARAM_01_TXT,|Generic Models
 SPARE_PARAM_02_TXT,|Generic Models
 SPARE_PARAM_03_TXT,|Generic Models

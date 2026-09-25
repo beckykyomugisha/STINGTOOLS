@@ -3732,3 +3732,13 @@ PARAM	324969fd-cdf8-544b-b834-3aee08721cfa	STR_REBAR_DIM_E_MM	TEXT		16	1	Bending
 PARAM	faaa3709-5c7f-5d6e-a1ed-a9a4155c59e6	STR_REBAR_BEND_RADIUS_MM	TEXT		16	1	Scheduling radius R (mm) [BS 8666 Table 2]	1
 PARAM	43f56f0f-61bd-58d0-83ef-9b782ab05a95	BI_ACCENT_COLOR_TXT	TEXT		11	1	Accent colour RGB [ISO 19650-1:2018]	1
 PARAM	a07310e6-24ec-5507-a7c2-4b8e9b85b74c	BI_THEME_NAME_TXT	TEXT		11	1	Brand theme name [ISO 19650-1:2018]	1
+PARAM	67cd15ac-ff99-5877-9273-a549fbbf6a68	ELC_PNL_ENCLOSURE_TXT	TEXT		4	1	Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Elec_PanelWriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code.	1
+PARAM	d1a9b4fa-71a1-56e9-b8b5-32e205658092	ELC_PNL_FAULT_LG_KA	NUMBER		4	1	Prospective line-to-ground (earth) fault current at this board in kA, as imported from an EasyPower study (EasyPower Import).	1
+PARAM	8a271d62-6dba-55cb-98b7-01a766d49a6e	ELC_IPS_LIM_BOOL	YESNO		4	1	A Line Isolation Monitor is installed on this isolated power system board (NFPA 99 7.2.2.3.3 / IEC 60364-7-710 insulation monitoring); read first by IPS Validation.	1
+PARAM	cb11870c-ae72-55be-9c8b-ff05d27583c7	ELC_FEED_TYPE_TXT	TEXT		4	1	Supply this board is fed from: Normal / Emergency / Both. Read by Dual-Source Validation and the SLD generator to find emergency boards and dual-fed nodes.	1
+PARAM	8caf65dc-924d-5209-8e01-01f4832f5d6a	ATEX_ZONE_TXT	TEXT		4	1	Hazardous-area zone the equipment is installed in (Zone 0 / 1 / 2 for gas, 20 / 21 / 22 for dust) per IEC 60079-10; read by ATEX Classification.	1
+PARAM	5a2ae125-37db-5ff1-bb2a-bc0f1ed0433d	ATEX_EX_RATING_TXT	TEXT		4	1	Equipment Ex marking (e.g. Ex d IIC T4 Gb) checked against ATEX_ZONE_TXT by ATEX Classification.	1
+PARAM	2a39e7c7-e3f0-56e3-8a19-bbeb95cbfc0c	MGS_SUPPLY_TYPE_TXT	TEXT		29	1	Marks this element as a medical gas supply source and says which (VIE / Manifold / Compressor / Vacuum Plant / Cylinder); read by the MGPS schematic.	1
+PARAM	4fca49b1-69c3-542d-970c-a0bf8af48f77	MGS_ZV_ZONE_TXT	TEXT		29	1	Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.	1
+PARAM	8b7af0ba-88a7-5808-9082-0eb2ef6a58cc	HVC_SPACE_TYPE_TXT	TEXT		5	1	Load-profile space type id (STING_LOAD_PROFILES.json, e.g. Office) for this space or room; read by Block Load, the cross-talk audit and the ComCheck export before falling back to a name match.	1
+PARAM	9ad27194-1950-5205-bb3e-8d9ff117db9f	PRJ_BUILDING_USE_TXT	TEXT		13	1	Declared building use / sector (Office / Healthcare / Education / Residential ...); read by ProjectSector for spare-capacity targets and by the sustainability engine.	1

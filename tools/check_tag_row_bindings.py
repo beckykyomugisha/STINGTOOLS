@@ -93,7 +93,8 @@ def load_universal():
         if not line or line.startswith('#'):
             continue
         parts = line.split(',', 1)
-        if len(parts) == 2 and parts[1].strip() == '<ALL>':
+        # "<ALL>" or "<ALL>|Project Information" (universal plus extras).
+        if len(parts) == 2 and parts[1].strip().split('|')[0] == '<ALL>':
             out.add(parts[0].strip())
     return out
 

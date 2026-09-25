@@ -1,4 +1,5 @@
-﻿# v3.15 | 20260925 | -56 Materials rows on NON-material parameters (mostly WARN_*, plus ASS_MANUFACTURER_TXT and five CST_*): LoadSharedParamsCommand.CleanMaterialBindings strips Materials from every parameter IsMaterialRelevantParam does not recognise, so each row claimed a binding that never happened, and a material tag reading one printed blank. param_binding_resolver.py now refuses such a row.
+﻿# v3.16 | 20260925 | +16 Yes rows for ten parameters the code reads or writes and that were defined nowhere: ELC_PNL_ENCLOSURE_TXT, ELC_PNL_FAULT_LG_KA, ELC_IPS_LIM_BOOL, ELC_FEED_TYPE_TXT (Electrical Equipment); ATEX_ZONE_TXT, ATEX_EX_RATING_TXT (Electrical Equipment + Fixtures); MGS_SUPPLY_TYPE_TXT, MGS_ZV_ZONE_TXT (medical gas plant and zone valves); HVC_SPACE_TYPE_TXT (MEP Spaces + Rooms); PRJ_BUILDING_USE_TXT (Project Information). ROADMAP PNL-19, PARAM-3, PARAM-7, PARAM-8.
+# v3.15 | 20260925 | -56 Materials rows on NON-material parameters (mostly WARN_*, plus ASS_MANUFACTURER_TXT and five CST_*): LoadSharedParamsCommand.CleanMaterialBindings strips Materials from every parameter IsMaterialRelevantParam does not recognise, so each row claimed a binding that never happened, and a material tag reading one printed blank. param_binding_resolver.py now refuses such a row.
 # v3.14 | 20260924 | Resolver now honours rows marked Yes in Is_Shared (hand-authored intent) on top of its derived set, and they replace a blanket <ALL>. Flipped 17 existing rows to Yes and added 25: LPS project-level params to Project Information, lighting/photometric results to Rooms, HVAC block-load results to MEP Spaces + Rooms, home-run + circuit ref + panel name to Conduits, busbar to Cable Trays, feeder to Electrical Equipment, earthing to Project Information, circuit text to Electrical Circuits, SLD bus tier to Views.
 # v3.13 | 20260916 | +355 bindings for SCHEDULE_SPEC_all_disciplines.json fields that were declared in MR_PARAMETERS.txt and bound to NOTHING. The universal-tag plan moves discipline data off the tag and into per-category schedules, so an unbound schedule field is the same defect as an unbound tag row, relocated: an empty column instead of an empty label line. Category resolved the same way ScheduleDisciplineTagExpanderCommand resolves it.
 # v3.12 | 20260916 | +370 bindings closing the last of the tag rows that could never display. Every one names a parameter that EXISTS in MR_PARAMETERS.txt and is asked for by that category's tag spec in LABEL_DEFINITIONS.json, but was bound to other categories or to none. Unlike the 8 generic params dropped in the same pass, these were authored per-category (2-30 categories each, not 78), so the tag spec is taken as the statement of intent. tools/check_tag_row_bindings.py now holds at zero.
@@ -19658,3 +19659,19 @@ HVC_LOAD_STALE_REASON_TXT,Rooms,Instance,Yes
 ELC_EARTHING_SYSTEM_TXT,Project Information,Instance,Yes
 ELC_MET_LOCATION_TXT,Project Information,Instance,Yes
 STING_BUS_VOLTAGE_TIER,Views,Instance,Yes
+ELC_PNL_ENCLOSURE_TXT,Electrical Equipment,Instance,Yes
+ELC_PNL_FAULT_LG_KA,Electrical Equipment,Instance,Yes
+ELC_IPS_LIM_BOOL,Electrical Equipment,Instance,Yes
+ELC_FEED_TYPE_TXT,Electrical Equipment,Instance,Yes
+ATEX_ZONE_TXT,Electrical Equipment,Instance,Yes
+ATEX_ZONE_TXT,Electrical Fixtures,Instance,Yes
+ATEX_EX_RATING_TXT,Electrical Equipment,Instance,Yes
+ATEX_EX_RATING_TXT,Electrical Fixtures,Instance,Yes
+MGS_SUPPLY_TYPE_TXT,Mechanical Equipment,Instance,Yes
+MGS_SUPPLY_TYPE_TXT,Specialty Equipment,Instance,Yes
+MGS_ZV_ZONE_TXT,Pipe Accessories,Instance,Yes
+MGS_ZV_ZONE_TXT,Specialty Equipment,Instance,Yes
+MGS_ZV_ZONE_TXT,Mechanical Equipment,Instance,Yes
+HVC_SPACE_TYPE_TXT,MEP Spaces,Instance,Yes
+HVC_SPACE_TYPE_TXT,Rooms,Instance,Yes
+PRJ_BUILDING_USE_TXT,Project Information,Instance,Yes
