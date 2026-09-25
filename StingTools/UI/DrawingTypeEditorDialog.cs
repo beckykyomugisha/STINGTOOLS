@@ -84,6 +84,7 @@ namespace StingTools.UI
         private StackPanel _formHost;                    // right-hand form container
         private TextBlock _validationStrip;
         private TabControl _rootTabs;                    // top-level tab host
+        private TabItem _packsTab;                       // jumped to by reference: tab positions move when tabs are added
 
         // Slot grid column widths — header + every data row share these
         // so the column edges line up pixel-for-pixel regardless of the
@@ -389,7 +390,9 @@ namespace StingTools.UI
                 Padding = new Thickness(6),
             };
             _rootTabs.Items.Add(MakeTab("Drawing Types",   BuildDrawingTypesTab()));
-            _rootTabs.Items.Add(MakeTab("View Style Packs", BuildViewStylePacksTab()));
+            _rootTabs.Items.Add(MakeTab("All Actions",     BuildAllActionsTab()));
+            _packsTab = MakeTab("View Style Packs", BuildViewStylePacksTab());
+            _rootTabs.Items.Add(_packsTab);
             _rootTabs.Items.Add(MakeTab("Viewport Tools",   BuildViewportToolsTab()));
             _rootTabs.Items.Add(MakeTab("Sheet Tools",      BuildSheetToolsTab()));
             _rootTabs.Items.Add(MakeTab("Title Block",      BuildTitleBlockTab()));
@@ -2079,6 +2082,32 @@ namespace StingTools.UI
         }
 
         // Toolbar row for the Drawing Types tab — same dispatcher.
+        // Every action of the dock panel's DRAWING TYPES section, in its groups, so
+        // nothing drawing-type-related needs the dock panel. Built from
+        // DrawingTypeActions, which a test holds equal to the dock XAML — a button
+        // added there fails the test until it is listed, and then appears here.
+        private UIElement BuildAllActionsTab()
+        {
+            var stack = new StackPanel { Margin = new Thickness(4) };
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Everything in the dock panel's DRAWING TYPES section. Buttons run through the same "
+                     + "handler as the dock, so they behave identically.",
+                Foreground = new SolidColorBrush(FgColor), TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8),
+            });
+            foreach (var group in DrawingTypeActions.Groups())
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = group.Key, FontWeight = FontWeights.SemiBold, FontSize = 12,
+                    Foreground = new SolidColorBrush(FgColor), Margin = new Thickness(0, 6, 0, 4),
+                });
+                stack.Children.Add(BuildSectionToolbar(group.Select(a => (a.Label, a.Tag)).ToArray()));
+            }
+            return new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        }
+
         private UIElement BuildSectionToolbar((string label, string tag)[] buttons)
         {
             var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
@@ -2448,7 +2477,7 @@ namespace StingTools.UI
                     var target = (_packs ?? new List<ViewStylePack>()).FirstOrDefault(p =>
                         string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
                     if (target == null) return;
-                    _rootTabs.SelectedIndex = 1;
+                    _rootTabs.SelectedItem = _packsTab;
                     SelectPack(target);
                 }));
             DockPanel.SetDock(linkRow, Dock.Right);

@@ -23226,6 +23226,12 @@ Area boxes that every plan drawing type can share, created from seeds.
   - The colour is derived from what the box is, so nothing stored can drift.
   - Palette and discipline colours are in `STING_SCOPE_BOX_STYLE.json`, with a project
     override.
+- **Drawing Type Editor: new All Actions tab.** It offers every button in the dock panel's
+  DRAWING TYPES section, in the same groups; the editor previously exposed 8 of 42. It is
+  built from `DrawingTypeActions`, and `DrawingTypeActionsTests` reads the dock XAML and fails
+  on any difference in group, label or tag, so the two cannot drift. The dock section gained a
+  "Scope boxes" sub-group. The editor's "Edit pack" jump now selects its tab by reference,
+  because tab positions moved.
 - **Scope Box Manager** now badges area, seed and building boxes for what they are instead of
   "not STING".
 - `ParameterHelpers.GetLevelCodeForLevel` was split out of `GetLevelCode`, which now calls it,
