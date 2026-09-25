@@ -23111,6 +23111,86 @@ Two independent reviews (correctness + silent failures) of PR #977 before merge.
 Tests: +9 (Iz upper bound pass/fail, kA/amps theory, misspelt keys, VD precision). Panel
 tests 73/73. Build 0/0. Still **not exercised in Revit**.
 
+#### Completed (shared-parameter definition and binding fixes, branch `claude/param-binding-fixes`)
+
+A static audit named parameters that code writes or reads but that were undefined, bound to
+the wrong categories, or declared with the wrong type. Every item was checked at its call site
+before changing anything. Build 0/0; `StingTools.Tags.Tests` 2634/2634. **Not exercised in
+Revit.**
+
+**The binding resolver ignored hand-authored rows.** Load Params binds only from
+`RESOLVED_BINDINGS.csv`, and `tools/param_binding_resolver.py` never consulted
+`CATEGORY_BINDINGS.csv` for a parameter a prefix rule could place. So the LPS class, mesh
+size, rolling-sphere radius, Kc and risk reference that `LPS_ClassSetup` writes to
+ProjectInformation were bound to Electrical Equipment and Generic Models only, and the writes
+found no parameter; the Uganda regional `STR_*` defaults went the same way. The resolver now
+honours rows whose `Is_Shared` column reads `Yes` — the marker the hand-authored rows (LPS
+Wave 1, regional defaults) already used, as opposed to the generated `True` — as additions on
+top of its derivation, or in place of a blanket `<ALL>`. It is not applied to the rest of the
+file, which is polluted (hundreds of `BLE_*`/`CST_*` rows on Plumbing Equipment and the like).
+Three new failures instead of silence: a `Yes` row naming a category `category_enum_map` does
+not know, a `Yes` row for an undefined parameter, and a `Yes` home missing from the generated
+spec. The last was sabotage-checked (disabling the union fails the run and writes nothing).
+Two small resolver fixes ride along: a BOM on the file's first line no longer turns into a
+junk parameter key, and a derivation change that does not move a binding no longer reorders
+the committed cell. Net: +145 categories on existing parameters, 9 new parameters.
+
+**A — `ELC_CKT_NR` is TEXT.** It was NUMBER and written with values like `1,3,5`
+(`WireParamSyncCommands`, `PanelWireReconcileCommand`, `WireConfigurationDialog`) and read with
+`GetString`. GUID unchanged. **A project that already bound it as NUMBER keeps NUMBER until the
+parameter is removed and re-bound** (ROADMAP PARAM-5); the two readers now use
+`GetDisplayText` so they read either type.
+
+**B — bindings added** (all `Yes` rows): LPS project-level `ELC_LPS_*` on Project Information
+(rows already existed, now honoured) and `ELC_LPS_ZONE_TXT` on Rooms; `ELC_EMERG_COVERED_BOOL`,
+`ELC_LPD_*` and the room photometric results (`ELC_PHOTO_LUX_CALC`, `_UGR_CALC`,
+`_UNIFORMITY_NR`, `_LAST_ENGINE_TXT`, `_LAST_CALC_DATE_TXT`, `_LUX_DIALUX/ELUMTOOLS/RELUX_NR`)
+on Rooms — the electrical commands iterate `OST_Rooms` only, so no Spaces;
+`ELC_PNL_NAME_TXT` and `ELC_CIRCUIT_REF_TXT` on Conduits; `ELC_BUSBAR_CSA_MM2/RATING_A/FILL_PCT`
+and `ELC_CDT_CBL_FILL_PCT` on Cable Trays (busbar trunking is modelled as a tray);
+`ELC_FEEDER_CSA_MM2/RATING_A` on Electrical Equipment (FeederSizer stamps the fed panel);
+`HVC_PEAK_SENS_W/LAT_W/HOUR`, `HVC_OA_LS` and `HVC_LOAD_STALE_BOOL/REASON_TXT` on MEP Spaces
+and Rooms (Block Load stamps Spaces, falling back to Rooms). `HVC_PEAK_HOUR` is NUMBER and was
+written as `"14:00"`, which never parsed; it is now the hour as an integer.
+
+**C — parameters defined** (uuid5 in the STING namespace, group 4 `ELC_PWR` unless noted):
+`ELC_CONDUIT_HOME_RUN_BOOL` (YESNO) and `ELC_CONDUIT_HOME_RUN_END_TXT` on Conduits;
+`ELC_EARTHING_SYSTEM_TXT` and `ELC_MET_LOCATION_TXT` on Project Information (named resolver
+rule, so the `WARN_ELC_EARTHING_*` mirrors do not move); `ELC_CABLE_CSA_MM2_TXT`,
+`ELC_CIRCUIT_PHASE_TXT`, `ELC_CIRCUIT_DESC_TXT` on Electrical Circuits;
+`ELC_CBL_TOTAL_AREA_MM2` (NUMBER) on Conduits and Cable Trays; `STING_BUS_VOLTAGE_TIER`
+(group 27) on Views, where SLD Generate writes it. **Not defined:** `STING_VOLTAGE_TIER` and
+`STING_FEED_TYPE` — the SLD symbols are Generic Annotation families, which cannot take a
+project parameter. `SLDGenerator` now reports a missing stamp once per parameter and family
+rather than once per symbol (ROADMAP PARAM-4).
+
+**D — code repointed instead of new parameters.** `LPS_Schematic` read
+`LPS_PROTECTION_LEVEL_TXT` / `LPS_MESH_SIZE_TXT` / `LPS_COMPONENT_TYPE_TXT`, none of which
+exist, so it always drew class I, no mesh and zero components; it now reads
+`ELC_LPS_CLASS_TXT`, `ELC_LPS_MESH_SIZE_M` (raw metres, same convention as every LPS reader —
+ROADMAP PARAM-2) and `ELC_LPS_ELEMENT_TYPE_TXT` (`AIR_TERMINAL` matches `AirTerminal`), and
+says when the class was assumed. The Amtech, EasyPower and Trimble importers wrote
+`ELC_FAULT_LEVEL_KA`, `ELC_BUSBAR_RATING_TXT` and `SLD_VD_PCT`, all undefined, through
+`Parameter.Set(string)` that also returned false silently on NUMBER targets: panel fault →
+`ELC_PNL_SHORT_CIRCUIT_RATING_KA` (where FaultCurrent stamps it and the SLD label reads it),
+circuit fault → `ELC_CIR_FAULT_LEVEL_TXT`, busbar → `ELC_BUSBAR_RATING_A`, VD →
+`ELC_VLT_DROP_PCT`, all through `ParameterHelpers.SetString` with unbound/refused writes
+reported. EasyPower's line-to-ground fault has no parameter and is now reported as not stored
+(PARAM-3). The calc-seed export and panel door diagram read the busbar rating from
+`ELC_BUSBAR_RATING_A`. `GetString` on NUMBER parameters (always `""`) replaced with
+`GetDouble` / a has-value check in `ExternalExportEngine` (VD %, panel volts),
+`PanelScheduleAuditCommand` (every panel was reported missing voltage and ways),
+`CablePullListCommand` (core count, always 3), `DIALuxExportCommand` and
+`PhotometricLinkCommand` (lamp watts / lumens). All are unitless Number specs, so no unit
+conversion applies.
+
+Gates: resolver regenerate is a no-op; `sync_csv_from_txt.py` no-op; param contract OK after
+recording 13 new one-sided parameters with roles (8 input, 5 reference, none unresolved);
+param-name targets, tag-row bindings, map target types, tag-row duplicates, lying catches,
+unreachable-commands recount, token policy, path discipline, workflow wiring, doc acquisition,
+roadmap ids, docs index all pass; the workflow's inline GUID / CSV-integrity / CSV-structure
+checks and JSON validation reproduced locally and pass.
+
 #### Completed (pre-Revit cleanup, branch `claude/pre-revit-cleanup`)
 
 The work that could be coded before the next Revit session.

@@ -61,6 +61,10 @@ namespace StingTools.Commands.Electrical.Import
                 }
 
                 string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}";
+                int lgCount = records.Count(r => r.FaultKaLG.HasValue);
+                if (lgCount > 0)
+                    report += $"\n\nLine-to-ground fault levels in the file ({lgCount}) were not stored: " +
+                              "STING has no parameter for them yet (ROADMAP PARAM-3).";
                 if (warnings.Count > 0)
                     report += "\n\nWarnings:\n" + string.Join("\n", warnings.Take(10));
                 TaskDialog.Show("EasyPower Import", report);
@@ -125,28 +129,39 @@ namespace StingTools.Commands.Electrical.Import
 
         private static void StampPanel(FamilyInstance p, EasyPowerRecord r, List<string> w)
         {
-            // Use 3-phase fault as the primary SLD fault level annotation.
+            // ELC_FAULT_LEVEL_KA / SLD_VD_PCT were never defined in MR_PARAMETERS.txt,
+            // so nothing was written. The 3-phase fault at the bus goes where
+            // FaultCurrent puts it and the SLD fault label reads it
+            // (ELC_PNL_SHORT_CIRCUIT_RATING_KA); voltage drop to ELC_VLT_DROP_PCT.
+            // The line-to-ground fault has no STING parameter and is reported, not
+            // written (see Execute).
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
             if (r.FaultKa3Ph.HasValue)
-                Set(p, "ELC_FAULT_LEVEL_KA", r.FaultKa3Ph.Value.ToString("F2"), w);
-            if (r.FaultKaLG.HasValue)
-                Set(p, "ELC_FAULT_LG_KA",    r.FaultKaLG.Value.ToString("F2"), w);
+                Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa3Ph.Value.ToString("F2", inv), w);
             if (r.VdPct.HasValue)
-                Set(p, "SLD_VD_PCT", r.VdPct.Value.ToString("F1"), w);
-            if (r.VoltagePU.HasValue)
+                Set(p, "ELC_VLT_DROP_PCT", r.VdPct.Value.ToString("F1", inv), w);
+            else if (r.VoltagePU.HasValue)
             {
                 // Convert pu to % drop for the SLD label.
                 double vdPct = (1.0 - r.VoltagePU.Value) * 100.0;
-                Set(p, "SLD_VD_PCT", vdPct.ToString("F1"), w);
+                Set(p, "ELC_VLT_DROP_PCT", vdPct.ToString("F1", inv), w);
             }
         }
 
+        /// <summary>Writes through ParameterHelpers.SetString, which also writes a
+        /// unitless NUMBER parameter from its text; a failure is reported, not
+        /// swallowed.</summary>
         private static void Set(Element el, string p, string v, List<string> w)
         {
             if (string.IsNullOrEmpty(v)) return;
             var param = el.LookupParameter(p);
-            if (param == null || param.IsReadOnly) return;
-            try { param.Set(v); }
-            catch (Exception ex) { if (w.Count < 20) w.Add($"{p}@{el.Name}: {ex.Message}"); }
+            if (param == null)
+            {
+                if (w.Count < 20) w.Add($"{p} is not bound on {el.Category?.Name} — run Load Params");
+                return;
+            }
+            if (!ParameterHelpers.SetString(el, p, v, overwrite: true) && w.Count < 20)
+                w.Add($"{p}@{el.Name}: '{v}' was not written");
         }
 
         private static string Attr(XElement el, string n) => el.Attribute(n)?.Value ?? el.Element(n)?.Value;

@@ -480,7 +480,7 @@ BLE_FURN_MATERIAL_TXT,10,ble-sub,Furniture|Furniture Systems,Ble Furn Material [
 BLE_FURN_WORKSTATION_TYPE_TXT,10,ble-sub,Furniture|Furniture Systems,Ble Furn Workstation Type [ISO 19650]
 BLE_HEADROOM_MM,2,ble-sub,Rooms,General headroom clearance in mm [ISO 19650-1:2018]
 BLE_HEADROOM_TXT,2,ble-sub,Rooms,BLE_HEADROOM_MM display mirror [auto-generated]
-BLE_LIVE_LOAD_KPA,2,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Design live (variable) load kPa per EC1-1-1 / Uganda NBC by occupancy [Phase 189]
+BLE_LIVE_LOAD_KPA,2,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information|Ramps|Rooms|Stairs,Design live (variable) load kPa per EC1-1-1 / Uganda NBC by occupancy [Phase 189]
 BLE_LOAD_BEARING_ELE_BOOL,2,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Ble Load Bearing Ele Bool [ISO 19650-1:2018]
 BLE_MATERIAL_TXT,10,ble-sub,Columns|Materials,Building element material description [ISO 19650-2:2018]
 BLE_MAT_APPLICATION_TXT,2,ble-sub,Materials,Ble Mat Application Txt [ISO 19650-1:2018]
@@ -1030,10 +1030,11 @@ ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,NFPA 70
 ELC_ARC_FLASH_WORK_DIST_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]
 ELC_ATS_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ATS test log document reference [H-27]
 ELC_ATS_TIME_S_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required Automatic Transfer Switch time (s) -- NFPA 99 <=10 s for LS/CR
-ELC_BUSBAR_CSA_MM2,4,elc-sub,Electrical Equipment|Electrical Circuits,Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179]
-ELC_BUSBAR_FILL_PCT,4,elc-sub,Electrical Equipment|Electrical Circuits,Busbar trunking duct fill percentage [STING Phase 179]
-ELC_BUSBAR_RATING_A,4,elc-sub,Electrical Equipment|Electrical Circuits,Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179]
-ELC_CABLE_CSA_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable conductor cross-section for SLD annotation [Electrical SLD]
+ELC_BUSBAR_CSA_MM2,4,elc-sub,Electrical Equipment|Electrical Circuits|Cable Trays,Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179]
+ELC_BUSBAR_FILL_PCT,4,elc-sub,Electrical Equipment|Electrical Circuits|Cable Trays,Busbar trunking duct fill percentage [STING Phase 179]
+ELC_BUSBAR_RATING_A,4,elc-sub,Electrical Equipment|Electrical Circuits|Cable Trays,Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179]
+ELC_CABLE_CSA_MM2_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Circuit cable conductor CSA in mm2 as imported from Amtech / Trimble; read by SLD cable annotation and the calc-seed export.
+ELC_CABLE_CSA_TXT,4,elc-sub,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Cable conductor cross-section for SLD annotation [Electrical SLD]
 ELC_CBL_AMPACITY_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Elc Cbl Ampacity A [ISO 19650-1:2018]
 ELC_CBL_COND_SZ_SQ_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Elc Cbl Cond Sz Sq Mm [ISO 19650-1:2018]
 ELC_CBL_DERATING_FCT_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Derating Fct Nr [ISO 19650-1:2018]
@@ -1052,6 +1053,7 @@ ELC_CBL_SOURCE_FROM_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc C
 ELC_CBL_SOURCE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Source [ISO 19650-1:2018]
 ELC_CBL_SZ_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Sz Mm [ISO 19650-1:2018]
 ELC_CBL_SZ_PER_CORE_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Sz Per Core Mm [ISO 19650-1:2018]
+ELC_CBL_TOTAL_AREA_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Sum of the overall cross-sectional areas (mm2) of every cable in this conduit or tray; input to live fill % and conduit auto-size.
 ELC_CBL_TYPE_TXT,5,elc-sub,Cable Trays|Conduits|Electrical Circuits,Electrical cable type [ISO 19650-2:2018]
 ELC_CBT_FAB_TYPE_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray fabrication type
 ELC_CBT_SHOP_DRAWING_REQ_BOOL,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray shop drawing required
@@ -1064,7 +1066,7 @@ ELC_CDT_BEND_RADIUS_MM,4,elc-sub,Conduits|Conduit Fittings,Conduit bend radius
 ELC_CDT_BEND_RADIUS_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_BEND_RADIUS_MM display mirror [auto-generated]
 ELC_CDT_BREAKPOINT_TXT,4,elc-sub,Conduits|Conduit Fittings,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 _522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.
 ELC_CDT_CABLE_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)"
-ELC_CDT_CBL_FILL_PCT,4,elc-sub,Conduits|Conduit Fittings,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018]
+ELC_CDT_CBL_FILL_PCT,4,elc-sub,Conduits|Conduit Fittings|Cable Trays,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018]
 ELC_CDT_CBL_FILL_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_CBL_FILL_PCT display mirror [auto-generated]
 ELC_CDT_FAB_METHOD_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit fabrication method
 ELC_CDT_FILL_RATIO,4,elc-sub,Conduits|Conduit Fittings,Conduit fill ratio
@@ -1081,13 +1083,15 @@ ELC_CDT_SZ_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_SZ_MM display mirror 
 ELC_CDT_TAG,4,tag-container,<ALL>,Electrical conduit tag container [ISO 19650-2:2018]
 ELC_CDT_TAG_01_TXT,4,elc-sub,Conduits|Conduit Fittings,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]"
 ELC_CDT_TAG_02_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018]
+ELC_CIRCUIT_DESC_TXT,4,elc-sub,Electrical Circuits,Circuit description shown on the panel door diagram and exported by the calc-seed export.
 ELC_CIRCUIT_GROUP_TXT,4,elc-sub,Electrical Circuits,Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) -- circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.
 ELC_CIRCUIT_LABEL_TXT,4,elc-sub,Electrical Circuits,Free-text display-label override appended to SLD label after circuit ref + rating [STING Phase 175]
 ELC_CIRCUIT_NR,4,elc-sub,Electrical Circuits,Electrical circuit number
+ELC_CIRCUIT_PHASE_TXT,4,elc-sub,Electrical Circuits,Phase letter(s) of this circuit (L1 / L2 / L3 or A / B / C); drives the circuit-by-phase view filter.
 ELC_CIRCUIT_POLES_NR,4,elc-sub,Electrical Circuits,Number of poles (1/2/3/4) for circuit breakers and switches -- rendered into SLD labels [STING Phase 175]
 ELC_CIRCUIT_POLES_TXT,4,elc-sub,Electrical Circuits,ELC_CIRCUIT_POLES_NR display mirror [auto-generated]
 ELC_CIRCUIT_RATING_TXT,4,elc-sub,Electrical Circuits,Circuit / device rating string (e.g. 32A / 100A) -- rendered into SLD labels [STING Phase 175]
-ELC_CIRCUIT_REF_TXT,4,elc-sub,Electrical Circuits,Electrical circuit reference (e.g. L1 / DB1-3) -- rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175]
+ELC_CIRCUIT_REF_TXT,4,elc-sub,Electrical Circuits|Conduits,Electrical circuit reference (e.g. L1 / DB1-3) -- rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175]
 ELC_CIRCUIT_TRACE_ACTIVE,4,elc-sub,Electrical Circuits,Circuit-trace highlight flag (active element marker) [Electrical]
 ELC_CIR_BREAKER_RATING_TXT,4,elc-sub,Electrical Circuits,Protective device rating for SLD annotation [Electrical SLD]
 ELC_CIR_DESIGN_CURRENT_TXT,4,elc-sub,Electrical Circuits,Circuit design current Ib for SLD annotation [Electrical SLD]
@@ -1112,7 +1116,9 @@ ELC_CKT_PHASE_COUNT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_PHASE_COUNT_NR dis
 ELC_CKT_PWR_KW,4,elc-sub,Electrical Circuits,Elc Ckt Pwr Kw [ISO 19650-1:2018]
 ELC_CKT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_NR display mirror [auto-generated]
 ELC_CKT_VLT_V,4,elc-sub,Electrical Circuits,Elc Ckt Vlt V [ISO 19650-1:2018]
-ELC_CONDUIT_ROUTE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]
+ELC_CONDUIT_HOME_RUN_BOOL,4,elc-sub,Conduits|Conduit Fittings,Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.
+ELC_CONDUIT_HOME_RUN_END_TXT,4,elc-sub,Conduits|Conduit Fittings,Which end of this home-run conduit is at the panel: Start or End. Blank = the end with the lower X coordinate.
+ELC_CONDUIT_ROUTE_TXT,4,elc-sub,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Auto-routed conduit path identifier (AUTO:<circuit-id>) [STING Phase 179]
 ELC_CONN_TYPE_TXT,4,safe-prefix,Cable Tray Fittings|Cable Trays|Conduit Fittings|Conduits|Electrical Circuits|Electrical Connectors|Electrical Equipment|Electrical Fixtures,Electrical connector type (Plug/Terminal/Bus/Lug) [ISO 19650-1:2018]
 ELC_CPC_SZ_MM,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Circuit protective conductor size in mm2 per BS 7671
 ELC_CTR_DEPTH_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray depth/return: 50/75/100mm [ISO 19650-1:2018]
@@ -1126,8 +1132,9 @@ ELC_CTR_TAG_01_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,"Cable tray spec ta
 ELC_CTR_WIDTH_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray width: 100/150/300/450/600/900mm [ISO 19650-1:2018]
 ELC_CTR_WIDTH_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,ELC_CTR_WIDTH_MM display mirror [auto-generated]
 ELC_DIV_FCT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Div Fct Nr [ISO 19650-1:2018]
+ELC_EARTHING_SYSTEM_TXT,4,project-level,Project Information,Project earthing arrangement per BS 7671 Part 3 (TN-S / TN-C-S / TT / IT); read by the earthing diagram generator.
 ELC_EES_BRANCH_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,NFPA 99 Essential Electrical System branch: LIFE-SAF / CRIT / EQP-BR / NORMAL
-ELC_EMERG_COVERED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,"Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]"
+ELC_EMERG_COVERED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Rooms,"Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]"
 ELC_ENERGY_COST_UGX_PA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Energy Cost Ugx Pa [ISO 19650-1:2018]
 ELC_ENERGY_KWH_PA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Energy Kwh Pa [ISO 19650-1:2018]
 ELC_EQP_TAG,4,tag-container,<ALL>,Electrical equipment tag container [ISO 19650-2:2018]
@@ -1136,8 +1143,8 @@ ELC_EQP_TAG_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Elec equi
 ELC_EQUIPMENT_TYPE_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Equipment Type Txt [ISO 19650-1:2018]
 ELC_FACTORY_QR_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Electrical factory QR code label reference [ISO 19650-3:2020]
 ELC_FAT_CERT_REF_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Factory Acceptance Test certificate reference [IEC 61439-1:2020]
-ELC_FEEDER_CSA_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Calculated / proposed feeder cable cross-sectional area in mm2 (distinct from circuit cable size) [STING Phase 178]
-ELC_FEEDER_RATING_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Calculated feeder breaker / fuse rating in amperes -- the upstream protective device rating [STING Phase 178]
+ELC_FEEDER_CSA_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Calculated / proposed feeder cable cross-sectional area in mm2 (distinct from circuit cable size) [STING Phase 178]
+ELC_FEEDER_RATING_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Calculated feeder breaker / fuse rating in amperes -- the upstream protective device rating [STING Phase 178]
 ELC_FIX_TAG_1_TXT,4,tag-container,<ALL>,Elc fix tag 1
 ELC_FIX_TAG_2_TXT,4,elc-sub,Electrical Fixtures,Elc fix tag 2
 ELC_GEN_RUN_HRS_TGT_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required generator runtime (h) at full load [NFPA 110]
@@ -1153,56 +1160,57 @@ ELC_JB_UPSTREAM_REF_TXT,4,elc-sub,Electrical Fixtures,Elc Jb Upstream Ref Txt [S
 ELC_LIGHTING_GRID_SPC_MM,4,elc-sub,Lighting Fixtures|Lighting Devices,Elc Lighting Grid Spc Mm [STING]
 ELC_LIGHTING_ROOM_TYPE,4,elc-sub,Lighting Fixtures|Lighting Devices,Elc Lighting Room Type [STING]
 ELC_LIGHTING_TARGET_LUX_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Elc Lighting Target Lux Txt [STING]
-ELC_LPD_LIMIT_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices,Standard LPD limit for the room type in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
-ELC_LPD_STATUS_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]
-ELC_LPD_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated lighting power density of the room in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
+ELC_LPD_LIMIT_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Standard LPD limit for the room type in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
+ELC_LPD_STATUS_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]
+ELC_LPD_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Calculated lighting power density of the room in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
 ELC_LPS_AIRTERM_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,"LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 _5.2]"
-ELC_LPS_AIR_TERMINAL_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models,Count of air terminals / lightning rods on the protected zone
-ELC_LPS_AIR_TERMINAL_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_AIR_TERMINAL_COUNT_NR display mirror [auto-generated]
+ELC_LPS_AIR_TERMINAL_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Count of air terminals / lightning rods on the protected zone
+ELC_LPS_AIR_TERMINAL_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_AIR_TERMINAL_COUNT_NR display mirror [auto-generated]
 ELC_LPS_BOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]
-ELC_LPS_BOND_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)
-ELC_LPS_CERT_REF_TXT,4,elc-sub,Electrical Equipment|Generic Models,Certificate reference for the LPS inspection / commissioning
-ELC_LPS_CLASS_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS class per BS EN 62305 (I / II / III / IV)
-ELC_LPS_COMPLIANCE_STATUS_TXT,4,elc-sub,Electrical Equipment|Generic Models,Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)
+ELC_LPS_BOND_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)
+ELC_LPS_CERT_REF_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Certificate reference for the LPS inspection / commissioning
+ELC_LPS_CLASS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,LPS class per BS EN 62305 (I / II / III / IV)
+ELC_LPS_COMPLIANCE_STATUS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL)
 ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,4,elc-sub,Electrical Equipment|Generic Models,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)
 ELC_LPS_CONDUCTOR_CROSS_SECT_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2 display mirror [auto-generated]
 ELC_LPS_CONDUCTOR_MATERIAL_TXT,4,elc-sub,Electrical Equipment|Generic Models,Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor
 ELC_LPS_DOWNCOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 _5.3]
-ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)"
-ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR display mirror [auto-generated]
-ELC_LPS_EARTH_ELECTRODE_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models,Count of earth electrodes serving the LPS
-ELC_LPS_EARTH_ELECTRODE_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_EARTH_ELECTRODE_COUNT_NR display mirror [auto-generated]
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)"
+ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR display mirror [auto-generated]
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Count of earth electrodes serving the LPS
+ELC_LPS_EARTH_ELECTRODE_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_EARTH_ELECTRODE_COUNT_NR display mirror [auto-generated]
 ELC_LPS_EARTH_RESISTANCE_OHM,4,elc-sub,Electrical Equipment|Generic Models,Measured earth resistance in ohms (target <10 ohm per BS EN 62305)
 ELC_LPS_EARTH_RESISTANCE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_EARTH_RESISTANCE_OHM display mirror [auto-generated]
 ELC_LPS_EARTH_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]
 ELC_LPS_EARTH_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Earth electrode type (ROD / RING / FOUNDATION / MESH)
 ELC_LPS_ELEMENT_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily
-ELC_LPS_FROM_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
-ELC_LPS_INSPECTION_INTERVAL_MONTHS,4,elc-sub,Electrical Equipment|Generic Models,"Inspection interval in months (12 for class I/II, 24 for class III/IV)"
-ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_INSPECTION_INTERVAL_MONTHS display mirror [auto-generated]
-ELC_LPS_KC_FACTOR_NR,4,elc-sub,Electrical Equipment|Generic Models,Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)
-ELC_LPS_MESH_SIZE_M,4,elc-sub,Electrical Equipment|Generic Models,Air terminal mesh grid size in metres per BS EN 62305 class
-ELC_LPS_MESH_SIZE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_MESH_SIZE_M display mirror [auto-generated]
-ELC_LPS_PROJECT_NG_OVERRIDE_NR,4,elc-sub,Electrical Equipment|Generic Models,Project ground flash density Ng (flashes/km2/year) override from lightning location service
-ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,4,elc-sub,Electrical Equipment|Generic Models,Project ground flash density Ng (flashes/km2/year) override from lightning location service — TEXT display mirror for tag labels
-ELC_LPS_PROJECT_NG_OVERRIDE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_PROJECT_NG_OVERRIDE_NR display mirror [auto-generated]
+ELC_LPS_FROM_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,4,elc-sub,Electrical Equipment|Generic Models|Project Information,"Inspection interval in months (12 for class I/II, 24 for class III/IV)"
+ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_INSPECTION_INTERVAL_MONTHS display mirror [auto-generated]
+ELC_LPS_KC_FACTOR_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)
+ELC_LPS_MESH_SIZE_M,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Air terminal mesh grid size in metres per BS EN 62305 class
+ELC_LPS_MESH_SIZE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_MESH_SIZE_M display mirror [auto-generated]
+ELC_LPS_PROJECT_NG_OVERRIDE_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Project ground flash density Ng (flashes/km2/year) override from lightning location service
+ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Project ground flash density Ng (flashes/km2/year) override from lightning location service — TEXT display mirror for tag labels
+ELC_LPS_PROJECT_NG_OVERRIDE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_PROJECT_NG_OVERRIDE_NR display mirror [auto-generated]
 ELC_LPS_PROTECTION_ANGLE_DEG,4,elc-sub,Electrical Equipment|Generic Models,Protection cone half-angle in degrees per BS EN 62305 class
 ELC_LPS_PROTECTION_ANGLE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_PROTECTION_ANGLE_DEG display mirror [auto-generated]
-ELC_LPS_RISK_ASSESSMENT_TXT,4,elc-sub,Electrical Equipment|Generic Models,Risk assessment reference document per BS EN 62305-2
-ELC_LPS_ROLLING_SPHERE_RADIUS_M,4,elc-sub,Electrical Equipment|Generic Models,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60)
-ELC_LPS_ROLLING_SPHERE_RADIUS_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_ROLLING_SPHERE_RADIUS_M display mirror [auto-generated]
+ELC_LPS_RISK_ASSESSMENT_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Risk assessment reference document per BS EN 62305-2
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60)
+ELC_LPS_ROLLING_SPHERE_RADIUS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_ROLLING_SPHERE_RADIUS_M display mirror [auto-generated]
 ELC_LPS_SEPARATION_DISTANCE_MM,4,elc-sub,Electrical Equipment|Generic Models,Separation distance (s) between LPS and services in millimetres
 ELC_LPS_SEPARATION_DISTANCE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_SEPARATION_DISTANCE_MM display mirror [auto-generated]
 ELC_LPS_SPD_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]
 ELC_LPS_SURGE_PROTECTION_LVL_TXT,4,elc-sub,Electrical Equipment|Generic Models,Surge protection device level (Type 1 / Type 2 / Type 3)
 ELC_LPS_TESTCLAMP_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]
-ELC_LPS_TEST_DATE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ISO 8601 date of last LPS test / inspection
-ELC_LPS_TO_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
-ELC_LPS_ZONE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)
+ELC_LPS_TEST_DATE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ISO 8601 date of last LPS test / inspection
+ELC_LPS_TO_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
+ELC_LPS_ZONE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Project Information|Rooms,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)
 ELC_LP_CONNECTION_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Connection Type Txt [ISO 19650-1:2018]
 ELC_LP_EARTH_RES_OHMS,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Earth Res Ohms [ISO 19650-1:2018]
 ELC_LP_SOIL_RESIST_OHM_M,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Soil Resist Ohm M [ISO 19650-1:2018]
 ELC_LSC_TIER_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,NEC 517 / NFPA 99 Tier: 1 / 2 / 3
+ELC_MET_LOCATION_TXT,4,project-level,Project Information,"Location of the main earthing terminal (MET), shown on the earthing diagram."
 ELC_PANEL_MAIN_BREAKER_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Main incomer / MCCB rating label (e.g. ""250A 65kA MCCB"") used for TCC database lookup and selective coordination checks [BS 7671:2018 / STING Gap 13]"
 ELC_PANEL_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Panel Ref Txt [STING]
 ELC_PANEL_SCHEDULE_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Electrical panel schedule document reference [BS 7671:2018+A2:2022]
@@ -1211,16 +1219,16 @@ ELC_PHOTO_CCT_K,4,elc-sub,Lighting Fixtures|Lighting Devices,Correlated colour t
 ELC_PHOTO_CRI_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Colour Rendering Index Ra [CIE 13.3 / STING Phase 180]
 ELC_PHOTO_EFFICACY_LM_W,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated luminous efficacy lm / W = Lumens / Watts [STING Phase 180]
 ELC_PHOTO_FILE_PATH_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Absolute or project-relative path to the IES / LDT / GLDF photometric file bound to this fixture [STING Phase 180]
-ELC_PHOTO_LAST_CALC_DATE_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181]
-ELC_PHOTO_LAST_ENGINE_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181]
+ELC_PHOTO_LAST_CALC_DATE_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,ISO 8601 date stamp of the most recent photometric calculation [STING Phase 181]
+ELC_PHOTO_LAST_ENGINE_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Engine ID that wrote the most recent photometric result (DIALux / ElumTools / Relux / Estimate) [STING Phase 181]
 ELC_PHOTO_LUMENS_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Total luminous flux from the bound photometric file (lm) [IESNA LM-63 / EULUMDAT / STING Phase 180]
-ELC_PHOTO_LUX_CALC,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]
-ELC_PHOTO_LUX_DIALUX_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated illuminance from a DIALux evo IFC import [STING Phase 181]
-ELC_PHOTO_LUX_ELUMTOOLS_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated illuminance from ElumTools shared parameters [STING Phase 181]
-ELC_PHOTO_LUX_RELUX_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated illuminance from a Relux IFC import [STING Phase 181]
+ELC_PHOTO_LUX_CALC,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Calculated maintained illuminance at the workplane in lux [CIBSE LG7 / DIALux import / STING Phase 179]
+ELC_PHOTO_LUX_DIALUX_NR,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Calculated illuminance from a DIALux evo IFC import [STING Phase 181]
+ELC_PHOTO_LUX_ELUMTOOLS_NR,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Calculated illuminance from ElumTools shared parameters [STING Phase 181]
+ELC_PHOTO_LUX_RELUX_NR,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Calculated illuminance from a Relux IFC import [STING Phase 181]
 ELC_PHOTO_SYMMETRY_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Photometric symmetry (rotational / axial / quadrant / none) per LM-63 / EULUMDAT [STING Phase 180]
-ELC_PHOTO_UGR_CALC,4,elc-sub,Lighting Fixtures|Lighting Devices,Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]
-ELC_PHOTO_UNIFORMITY_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181]
+ELC_PHOTO_UGR_CALC,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Calculated Unified Glare Rating per the room geometry [CIE 117 / CIBSE LG7 / STING Phase 179]
+ELC_PHOTO_UNIFORMITY_NR,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Uniformity ratio (Emin / Eavg) per BS EN 12464-1 [STING Phase 181]
 ELC_PHOTO_WATTS_NR,4,elc-sub,Lighting Fixtures|Lighting Devices,Total power draw from the bound photometric file (W) [STING Phase 180]
 ELC_PNL_AIC_RATING_KA,4,elc-sub,Electrical Equipment|Electrical Circuits,Standardised AIC (Ampere Interrupting Capacity) tier in kA stamped to the panel for breaker / switchgear specification [STING Phase 178]
 ELC_PNL_CIRCUIT_GROUP_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Group key carried by a panel after the first BatchAssignCircuits run -- pins the panel to a single logical group so subsequent runs converge.
@@ -1235,7 +1243,7 @@ ELC_PNL_FED_FROM_PNL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc 
 ELC_PNL_IP_RATING_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Ip Rating [ISO 19650-1:2018]
 ELC_PNL_MAIN_BRK_A,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Main Brk A [ISO 19650-1:2018]
 ELC_PNL_MAIN_BRK_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ELC_PNL_MAIN_BRK_A display mirror [auto-generated]
-ELC_PNL_NAME_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]
+ELC_PNL_NAME_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits|Conduits,Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]
 ELC_PNL_NUM_OF_WAYS_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Num Of Ways Nr [ISO 19650-1:2018]
 ELC_PNL_NUM_OF_WAYS_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ELC_PNL_NUM_OF_WAYS_NR display mirror [auto-generated]
 ELC_PNL_PHS_COUNT_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Pnl Phs Count Nr [ISO 19650-1:2018]
@@ -1488,19 +1496,19 @@ HVC_IDU_MOUNTING_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct
 HVC_INSULATION_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Insulation [ISO 19650-1:2018]
 HVC_INS_THICKNESS_MM,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC insulation thickness in mm
 HVC_LOAD_SOURCE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Provenance string written by HvacPropagateLoadsCommand: served space + peak sensible + design OA → derived HVC_FLOW_LS [Phase 187b]
-HVC_LOAD_STALE_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]
-HVC_LOAD_STALE_REASON_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]
+HVC_LOAD_STALE_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]
+HVC_LOAD_STALE_REASON_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]
 HVC_NC_CURVE_INT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC noise criterion NC curve target [H-24]
 HVC_NOISE_LEVEL_DB,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Noise Level Db [ISO 19650]
 HVC_NOISE_LEVEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_NOISE_LEVEL_DB display mirror [auto-generated]
-HVC_OA_LS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
+HVC_OA_LS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
 HVC_OA_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_OA_LS display mirror [auto-generated]
-HVC_PEAK_HOUR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]
+HVC_PEAK_HOUR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]
 HVC_PEAK_HOUR_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_HOUR display mirror [auto-generated]
 HVC_PEAK_LAT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_LAT_W display mirror [auto-generated]
-HVC_PEAK_LAT_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space peak latent load in W from BlockLoadEngine [Phase 187]
+HVC_PEAK_LAT_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak latent load in W from BlockLoadEngine [Phase 187]
 HVC_PEAK_SENS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_SENS_W display mirror [auto-generated]
-HVC_PEAK_SENS_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space peak sensible load in W from BlockLoadEngine [Phase 187]
+HVC_PEAK_SENS_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak sensible load in W from BlockLoadEngine [Phase 187]
 HVC_PIPE_FLOWRATE_LPS,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Pipe Flowrate Lps [ISO 19650-1:2018]
 HVC_PIPE_LENGTH_M,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Pipe Length M [ISO 19650-1:2018]
 HVC_PIPE_LENGTH_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PIPE_LENGTH_M display mirror [auto-generated]
@@ -2017,8 +2025,8 @@ PLM_PRV_SET_PRESSURE_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex
 PLM_PSR_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Psr Kpa [ISO 19650-1:2018]
 PLM_PSR_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,PLM_PSR_KPA display mirror [auto-generated]
 PLM_PWR_KW,6,safe-prefix,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures,Plm Pwr Kw [ISO 19650-1:2018]
-PLM_RECIRC_DRV_KV,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]"
-PLM_RECIRC_PUMP_DUTY_LPM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain ≤5°C ΔT loop [Phase 187]
+PLM_RECIRC_DRV_KV,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,"Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]"
+PLM_RECIRC_PUMP_DUTY_LPM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain ≤5°C ΔT loop [Phase 187]
 PLM_RO_LOOP_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Belongs to dialysis Reverse Osmosis loop
 PLM_RWH_ANNUAL_YIELD_M3,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Calculated annual rainwater yield m3 [BS 8515 Phase 178b]
 PLM_RWH_ROOF_AREA_M2,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Roof contributing area for rainwater harvesting m2 [BS 8515 Phase 178b]
@@ -2041,10 +2049,10 @@ PLM_STR_MESH_SZ_MICRON_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Fl
 PLM_STR_SCREEN_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Str Screen Mat Txt [ISO 19650-1:2018]
 PLM_STR_STYLE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Str Style Txt [ISO 19650-1:2018]
 PLM_SUDS_ATTEN_VOL_M3,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,SuDS attenuation volume m3 [CIRIA C753 Phase 178b]
-PLM_SUP_DN_REQ_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Recommended supply pipe DN mm — WaterSupplySizer [Phase 188]
-PLM_SUP_DP_PAM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188]
-PLM_SUP_QD_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188]
-PLM_SUP_VEL_MPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]
+PLM_SUP_DN_REQ_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Recommended supply pipe DN mm — WaterSupplySizer [Phase 188]
+PLM_SUP_DP_PAM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188]
+PLM_SUP_QD_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188]
+PLM_SUP_VEL_MPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]
 PLM_SYS_TXT,6,safe-prefix,Flex Pipes|MEP Fabrication Pipework|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,Plumbing system code
 PLM_TAG_7_PARA_ANAL_PIPES_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Anal Pipes paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_DRAIN_TXT,6,tag-container,<ALL>,"Drainage paragraph (trap type, cleanout, vent terminals, expansion joints, strainers) [ISO 19650-3:2020]"
@@ -2493,6 +2501,7 @@ STING_5D_COST_RATE_NUM,17,universal-meta,<ALL>,Estimated unit cost rate [ISO 196
 STING_AUTO_PLACED_BOOL,27,universal-meta,<ALL>,Flags views auto-placed onto sheets by the STING production engine [STING DT v137]
 STING_BOX_LOCATION_ID,1,universal-meta,<ALL>,Phase 139.2 -- GUID linking first-fix conduit/BESA box (Construction phase) to its second-fix device (Completion phase) for two-phase placement
 STING_BRIEFCASE_EXPORT_TXT,17,universal-meta,<ALL>,Last briefcase export timestamp [ISO 19650-2:2018]
+STING_BUS_VOLTAGE_TIER,27,explicit,Views,Dominant voltage tier (LV / MV / HV) of the single line diagram drawn in this drafting view; written by SLD Generate.
 STING_CDE_STATE_TXT,27,universal-meta,<ALL>,CDE state stamp for ISO 19650-2 document lifecycle [Phase 141]
 STING_CIRCUIT_FILTER_TXT,4,universal-meta,<ALL>,Sting Circuit Filter Txt [STING]
 STING_CLUSTER_COUNT,17,universal-meta,<ALL>,Number of elements in tag cluster
@@ -2598,7 +2607,7 @@ STR_BEAM_TORSION_KNM,16,safe-prefix,Structural Framing|Structural Columns|Struct
 STR_BEAM_WEB_OPENING_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Beam Web Opening [ISO 19650]
 STR_BEARING_CAPACITY_KN_M2,16,safe-prefix,Floors|Pads|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Str Bearing Capacity Kn M2 [ISO 19650]
 STR_BEND_SCHEDULE_REF_TXT,16,safe-prefix,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers,Rebar bending schedule document reference [BS 8666:2020]
-STR_BLACK_COTTON_RISK_BOOL,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Black-cotton / expansive-clay soil presence flag — triggers shrink-swell warning during foundation sizing per BS 1377-2 [Phase 190]
+STR_BLACK_COTTON_RISK_BOOL,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,Black-cotton / expansive-clay soil presence flag — triggers shrink-swell warning during foundation sizing per BS 1377-2 [Phase 190]
 STR_BOLT_DIAMETER_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Bolt Diameter Mm [ISO 19650]
 STR_BOLT_GRADE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Bolt Grade [ISO 19650]
 STR_BOLT_TORQUE_NM_NR,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Bolt installation tightening torque in Nm [BS EN 1090-2:2018]
@@ -2650,8 +2659,8 @@ STR_FDN_TYPE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural
 STR_FDN_WATERPROOF_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Fdn Waterproof [ISO 19650]
 STR_FIRE_PROTECTION_TYPE_TXT,16,safe-prefix,Columns|Floors|Structural Columns|Structural Connections|Structural Foundations|Structural Framing|Structural Rebar|Structural Trusses,Str Fire Protection Type [ISO 19650]
 STR_FRAME_M_KNM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Design moment kNm from frame solve (DirectStiffnessMethod) at the governing end of a member [Phase 188]
-STR_GROUND_TYPE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,EC8 §3.1.2 Table 3.1 ground type A / B / C / D / E — drives seismic spectral amplification factor S [Phase 190]
-STR_IMPORTANCE_CLASS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,EC8 §4.2.5 importance class I / II / III / IV (ordinary / standard / important / essential — hospitals + emergency = IV) [Phase 190]
+STR_GROUND_TYPE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,EC8 §3.1.2 Table 3.1 ground type A / B / C / D / E — drives seismic spectral amplification factor S [Phase 190]
+STR_IMPORTANCE_CLASS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,EC8 §4.2.5 importance class I / II / III / IV (ordinary / standard / important / essential — hospitals + emergency = IV) [Phase 190]
 STR_LINE_LOAD_KN_M,16,safe-prefix,Floors|Internal Line Loads|Line Loads|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Str Line Load Kn M [ISO 19650]
 STR_LOAD_AXIAL_KN,16,safe-prefix,Floors|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar|Walls,Str Load Axial Kn [ISO 19650]
 STR_LOAD_AXIAL_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,STR_LOAD_AXIAL_KN display mirror [auto-generated]
@@ -2666,13 +2675,13 @@ STR_PROFILE_NAME_TXT,7,safe-prefix,Structural Framing|Structural Columns|Structu
 STR_PROFILE_TYPE_TXT,7,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,ArchiCAD IFC: structural section profile type I/H/L/T/C/SHS/RHS/CHS (AC_Pset_ProfileData)
 STR_PROFILE_WIDTH_MM,7,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,ArchiCAD IFC: section flange width mm (AC_Pset_ProfileData.Width)
 STR_PUNCH_UTIL_PCT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Punching shear utilisation percentage (applied shear ÷ resistance) per EC2 §6.4 — PunchingShearChecker [Phase 188]
-STR_Q_FACTOR_NR,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,"EC8 §3.2.2.5 behaviour factor q for design seismic force reduction (low ductility 1.5, medium 3.0, high 5.0) [Phase 190]"
-STR_RAIN_INTENSITY_MMH,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Design rainfall intensity mm/h for storm + SuDS sizing — Uganda regional (5-yr return event) [Phase 189]
+STR_Q_FACTOR_NR,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,"EC8 §3.2.2.5 behaviour factor q for design seismic force reduction (low ductility 1.5, medium 3.0, high 5.0) [Phase 190]"
+STR_RAIN_INTENSITY_MMH,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,Design rainfall intensity mm/h for storm + SuDS sizing — Uganda regional (5-yr return event) [Phase 189]
 STR_RBR_COVER_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Reinforcement bar cover in mm
 STR_REBAR_BARS_IN_EACH_NR,16,safe-prefix,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers,Number of bars in each member [BS 8666 col. 5]
 STR_REBAR_BEND_RADIUS_MM,16,safe-prefix,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers,Scheduling radius R (mm) [BS 8666 Table 2]
 STR_REBAR_CUT_LENGTH_MM,16,safe-prefix,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers,Cutting length of each bar (mm) [BS 8666 col. 7]
-STR_REBAR_DETAIL_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Reinforcement detail summary (top/bot count + bar size + links) per EC2 §9 — RCDesignHelper [Phase 188]
+STR_REBAR_DETAIL_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Walls,Reinforcement detail summary (top/bot count + bar size + links) per EC2 §9 — RCDesignHelper [Phase 188]
 STR_REBAR_DIM_A_MM,16,safe-prefix,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers,Bending dimension A (mm) [BS 8666 shape code]
 STR_REBAR_DIM_B_MM,16,safe-prefix,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers,Bending dimension B (mm) [BS 8666 shape code]
 STR_REBAR_DIM_C_MM,16,safe-prefix,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers,Bending dimension C (mm) [BS 8666 shape code]
@@ -2689,18 +2698,18 @@ STR_RISER_HEIGHT_MM,7,safe-prefix,Structural Framing|Structural Columns|Structur
 STR_ROBUST_STATUS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Progressive-collapse robustness status (OK / Critical / Risk-class N) per GSA / EC1-1-7 — ProgressiveCollapseChecker [Phase 188]
 STR_SECTION_MOD_Y_CM3,7,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,ArchiCAD IFC: elastic section modulus Wy cm3 (AC_Pset_ProfileData.ElasticSectionModulusY)
 STR_SECTION_PROFILE_TXT,16,safe-prefix,Analytical Members|Floors|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Str Section Profile [ISO 19650]
-STR_SEISMIC_AGR,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Reference peak ground acceleration agR /g per EC8-1 / Uganda East African Rift hazard [Phase 189]
+STR_SEISMIC_AGR,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,Reference peak ground acceleration agR /g per EC8-1 / Uganda East African Rift hazard [Phase 189]
 STR_SLAB_COVER_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Slab Cover Mm [ISO 19650]
 STR_SLAB_DEFLECTION_LIMIT_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Slab Deflection Limit [ISO 19650]
 STR_SLAB_LOAD_KN_M2,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Slab Load Kn M2 [ISO 19650]
 STR_SLAB_MESH_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Slab Mesh [ISO 19650]
 STR_SLAB_REBAR_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Slab Rebar [ISO 19650]
 STR_SLAB_TYPE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Slab Type [ISO 19650]
-STR_SOIL_BEARING_KPA,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Allowable / characteristic soil bearing capacity kPa — Uganda lateritic / volcanic / alluvial regional default [Phase 189]
+STR_SOIL_BEARING_KPA,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,Allowable / characteristic soil bearing capacity kPa — Uganda lateritic / volcanic / alluvial regional default [Phase 189]
 STR_STEEL_TAG_TXT,10,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,"Steel specification tag: grade, section size, fire protection, material [ISO 19650-2:2018]"
 STR_STRUCTURAL_USAGE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Structural Usage [ISO 19650]
 STR_SURFACE_AREA_M2_M,7,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,ArchiCAD IFC: surface area per unit length m2/m for fire casing (AC_Pset_ProfileData.SurfaceAreaPerLength)
-STR_SYSTEM_CLASS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188]
+STR_SYSTEM_CLASS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,Auto-classified structural system (Moment frame / Braced frame / Dual / Wall — concrete/steel) — StructuralSystemClassifier [Phase 188]
 STR_TAG_1_TXT,16,tag-container,<ALL>,Structural tag container
 STR_TAG_7_PARA_ANAL_LINKS_TXT,16,tag-container,<ALL>,Anal Links paragraph [ISO 19650-3:2020]
 STR_TAG_7_PARA_ANAL_MEMBERS_TXT,16,tag-container,<ALL>,Anal Members paragraph [ISO 19650-3:2020]
@@ -2744,10 +2753,10 @@ STR_WALL_TYPE_TXT,16,safe-prefix,Floors|Structural Columns|Structural Foundation
 STR_WELD_PROCEDURE_REF_TXT,16,safe-prefix,Floors|Structural Columns|Structural Connections|Structural Foundations|Structural Framing|Structural Rebar,Welding procedure specification reference [BS EN ISO 15609-1:2019]
 STR_WELD_SIZE_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Weld Size Mm [ISO 19650]
 STR_WELD_TYPE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Str Weld Type [ISO 19650]
-STR_WIND_BASIC_MPS,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,"Basic wind velocity vb,0 m/s (10-min mean at 10m, terrain Cat II) — EC1-1-4 / Uganda NBC regional [Phase 189]"
-STR_WIND_DIRECTIONAL_NR,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,EC1-1-4 §4.2 cdir wind directional factor (typically 1.0 unless project-specific wind-rose justifies reduction) [Phase 190]
-STR_WIND_PRESSURE_PA,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188]
-STR_WIND_TERRAIN_CAT_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]
+STR_WIND_BASIC_MPS,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,"Basic wind velocity vb,0 m/s (10-min mean at 10m, terrain Cat II) — EC1-1-4 / Uganda NBC regional [Phase 189]"
+STR_WIND_DIRECTIONAL_NR,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,EC1-1-4 §4.2 cdir wind directional factor (typically 1.0 unless project-specific wind-rose justifies reduction) [Phase 190]
+STR_WIND_PRESSURE_PA,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Roofs|Walls,Wind pressure Pa on element / storey per EC1-1-4 lookup — WindLoadCalculator [Phase 188]
+STR_WIND_TERRAIN_CAT_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,EC1-1-4 §4.3.2 terrain category 0 (sea) / I (lakes) / II (open) / III (suburban) / IV (city) — drives ce(z) exposure factor [Phase 190]
 STR_WLD_STRENGTH_MPA,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Weld strength in MPa
 STR_WLD_THROAT_MM,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Weld throat thickness in mm
 SUST_MAT_TAG_1_TXT,9,tag-container,<ALL>,"Sustainability tag: recycled content %, embodied carbon, recyclability [ISO 19650-1:2018]"

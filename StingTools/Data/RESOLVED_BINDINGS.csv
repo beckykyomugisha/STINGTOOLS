@@ -477,7 +477,7 @@ BLE_FURN_MATERIAL_TXT,Furniture|Furniture Systems
 BLE_FURN_WORKSTATION_TYPE_TXT,Furniture|Furniture Systems
 BLE_HEADROOM_MM,Rooms
 BLE_HEADROOM_TXT,Rooms
-BLE_LIVE_LOAD_KPA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+BLE_LIVE_LOAD_KPA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information|Ramps|Rooms|Stairs
 BLE_LOAD_BEARING_ELE_BOOL,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 BLE_MATERIAL_TXT,Columns|Materials
 BLE_MAT_APPLICATION_TXT,Materials
@@ -1027,9 +1027,10 @@ ELC_ARC_FLASH_PPE_CAT,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment|Electrical Circuits
 ELC_ATS_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
 ELC_ATS_TIME_S_NR,Electrical Equipment|Electrical Circuits
-ELC_BUSBAR_CSA_MM2,Electrical Equipment|Electrical Circuits
-ELC_BUSBAR_FILL_PCT,Electrical Equipment|Electrical Circuits
-ELC_BUSBAR_RATING_A,Electrical Equipment|Electrical Circuits
+ELC_BUSBAR_CSA_MM2,Electrical Equipment|Electrical Circuits|Cable Trays
+ELC_BUSBAR_FILL_PCT,Electrical Equipment|Electrical Circuits|Cable Trays
+ELC_BUSBAR_RATING_A,Electrical Equipment|Electrical Circuits|Cable Trays
+ELC_CABLE_CSA_MM2_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_CABLE_CSA_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CBL_AMPACITY_A,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment
 ELC_CBL_COND_SZ_SQ_MM,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment
@@ -1049,6 +1050,7 @@ ELC_CBL_SOURCE_FROM_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_SOURCE_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_SZ_MM,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_SZ_PER_CORE_MM,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_TOTAL_AREA_MM2,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_TYPE_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_CBT_FAB_TYPE_TXT,Cable Trays|Cable Tray Fittings
 ELC_CBT_SHOP_DRAWING_REQ_BOOL,Cable Trays|Cable Tray Fittings
@@ -1061,7 +1063,7 @@ ELC_CDT_BEND_RADIUS_MM,Conduits|Conduit Fittings
 ELC_CDT_BEND_RADIUS_TXT,Conduits|Conduit Fittings
 ELC_CDT_BREAKPOINT_TXT,Conduits|Conduit Fittings
 ELC_CDT_CABLE_COUNT_NR,Conduits|Conduit Fittings
-ELC_CDT_CBL_FILL_PCT,Conduits|Conduit Fittings
+ELC_CDT_CBL_FILL_PCT,Conduits|Conduit Fittings|Cable Trays
 ELC_CDT_CBL_FILL_TXT,Conduits|Conduit Fittings
 ELC_CDT_FAB_METHOD_TXT,Conduits|Conduit Fittings
 ELC_CDT_FILL_RATIO,Conduits|Conduit Fittings
@@ -1078,13 +1080,15 @@ ELC_CDT_SZ_TXT,Conduits|Conduit Fittings
 ELC_CDT_TAG,<ALL>
 ELC_CDT_TAG_01_TXT,Conduits|Conduit Fittings
 ELC_CDT_TAG_02_TXT,Conduits|Conduit Fittings
+ELC_CIRCUIT_DESC_TXT,Electrical Circuits
 ELC_CIRCUIT_GROUP_TXT,Electrical Circuits
 ELC_CIRCUIT_LABEL_TXT,Electrical Circuits
 ELC_CIRCUIT_NR,Electrical Circuits
+ELC_CIRCUIT_PHASE_TXT,Electrical Circuits
 ELC_CIRCUIT_POLES_NR,Electrical Circuits
 ELC_CIRCUIT_POLES_TXT,Electrical Circuits
 ELC_CIRCUIT_RATING_TXT,Electrical Circuits
-ELC_CIRCUIT_REF_TXT,Electrical Circuits
+ELC_CIRCUIT_REF_TXT,Electrical Circuits|Conduits
 ELC_CIRCUIT_TRACE_ACTIVE,Electrical Circuits
 ELC_CIR_BREAKER_RATING_TXT,Electrical Circuits
 ELC_CIR_DESIGN_CURRENT_TXT,Electrical Circuits
@@ -1109,6 +1113,8 @@ ELC_CKT_PHASE_COUNT_TXT,Electrical Circuits
 ELC_CKT_PWR_KW,Electrical Circuits
 ELC_CKT_TXT,Electrical Circuits
 ELC_CKT_VLT_V,Electrical Circuits
+ELC_CONDUIT_HOME_RUN_BOOL,Conduits|Conduit Fittings
+ELC_CONDUIT_HOME_RUN_END_TXT,Conduits|Conduit Fittings
 ELC_CONDUIT_ROUTE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_CONN_TYPE_TXT,Cable Tray Fittings|Cable Trays|Conduit Fittings|Conduits|Electrical Circuits|Electrical Connectors|Electrical Equipment|Electrical Fixtures
 ELC_CPC_SZ_MM,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
@@ -1123,8 +1129,9 @@ ELC_CTR_TAG_01_TXT,Cable Trays|Cable Tray Fittings
 ELC_CTR_WIDTH_MM,Cable Trays|Cable Tray Fittings
 ELC_CTR_WIDTH_TXT,Cable Trays|Cable Tray Fittings
 ELC_DIV_FCT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_EARTHING_SYSTEM_TXT,Project Information
 ELC_EES_BRANCH_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_EMERG_COVERED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_EMERG_COVERED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Rooms
 ELC_ENERGY_COST_UGX_PA,Electrical Equipment|Electrical Circuits
 ELC_ENERGY_KWH_PA,Electrical Equipment|Electrical Circuits
 ELC_EQP_TAG,<ALL>
@@ -1133,8 +1140,8 @@ ELC_EQP_TAG_02_TXT,Electrical Equipment|Electrical Circuits
 ELC_EQUIPMENT_TYPE_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FACTORY_QR_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_FAT_CERT_REF_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-ELC_FEEDER_CSA_MM2,Cable Trays|Conduits|Electrical Circuits
-ELC_FEEDER_RATING_A,Cable Trays|Conduits|Electrical Circuits
+ELC_FEEDER_CSA_MM2,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment
+ELC_FEEDER_RATING_A,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment
 ELC_FIX_TAG_1_TXT,<ALL>
 ELC_FIX_TAG_2_TXT,Electrical Fixtures
 ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Circuits
@@ -1150,56 +1157,57 @@ ELC_JB_UPSTREAM_REF_TXT,Electrical Fixtures
 ELC_LIGHTING_GRID_SPC_MM,Lighting Fixtures|Lighting Devices
 ELC_LIGHTING_ROOM_TYPE,Lighting Fixtures|Lighting Devices
 ELC_LIGHTING_TARGET_LUX_TXT,Lighting Fixtures|Lighting Devices
-ELC_LPD_LIMIT_W_PER_M2,Lighting Fixtures|Lighting Devices
-ELC_LPD_STATUS_TXT,Lighting Fixtures|Lighting Devices
-ELC_LPD_W_PER_M2,Lighting Fixtures|Lighting Devices
+ELC_LPD_LIMIT_W_PER_M2,Lighting Fixtures|Lighting Devices|Rooms
+ELC_LPD_STATUS_TXT,Lighting Fixtures|Lighting Devices|Rooms
+ELC_LPD_W_PER_M2,Lighting Fixtures|Lighting Devices|Rooms
 ELC_LPS_AIRTERM_TAG_TXT,Electrical Equipment|Generic Models
-ELC_LPS_AIR_TERMINAL_COUNT_NR,Electrical Equipment|Generic Models
-ELC_LPS_AIR_TERMINAL_COUNT_TXT,Electrical Equipment|Generic Models
+ELC_LPS_AIR_TERMINAL_COUNT_NR,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_AIR_TERMINAL_COUNT_TXT,Electrical Equipment|Generic Models|Project Information
 ELC_LPS_BOND_TAG_TXT,Electrical Equipment|Generic Models
-ELC_LPS_BOND_TYPE_TXT,Electrical Equipment|Generic Models
-ELC_LPS_CERT_REF_TXT,Electrical Equipment|Generic Models
-ELC_LPS_CLASS_TXT,Electrical Equipment|Generic Models
-ELC_LPS_COMPLIANCE_STATUS_TXT,Electrical Equipment|Generic Models
+ELC_LPS_BOND_TYPE_TXT,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing
+ELC_LPS_CERT_REF_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_CLASS_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_COMPLIANCE_STATUS_TXT,Electrical Equipment|Generic Models|Project Information
 ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,Electrical Equipment|Generic Models
 ELC_LPS_CONDUCTOR_CROSS_SECT_TXT,Electrical Equipment|Generic Models
 ELC_LPS_CONDUCTOR_MATERIAL_TXT,Electrical Equipment|Generic Models
 ELC_LPS_DOWNCOND_TAG_TXT,Electrical Equipment|Generic Models
-ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,Electrical Equipment|Generic Models
-ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT,Electrical Equipment|Generic Models
-ELC_LPS_EARTH_ELECTRODE_COUNT_NR,Electrical Equipment|Generic Models
-ELC_LPS_EARTH_ELECTRODE_COUNT_TXT,Electrical Equipment|Generic Models
+ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_EARTH_ELECTRODE_COUNT_NR,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_EARTH_ELECTRODE_COUNT_TXT,Electrical Equipment|Generic Models|Project Information
 ELC_LPS_EARTH_RESISTANCE_OHM,Electrical Equipment|Generic Models
 ELC_LPS_EARTH_RESISTANCE_TXT,Electrical Equipment|Generic Models
 ELC_LPS_EARTH_TAG_TXT,Electrical Equipment|Generic Models
 ELC_LPS_EARTH_TYPE_TXT,Electrical Equipment|Generic Models
 ELC_LPS_ELEMENT_TYPE_TXT,Electrical Equipment|Generic Models
-ELC_LPS_FROM_LPZ_TXT,Electrical Equipment|Generic Models
-ELC_LPS_INSPECTION_INTERVAL_MONTHS,Electrical Equipment|Generic Models
-ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT,Electrical Equipment|Generic Models
-ELC_LPS_KC_FACTOR_NR,Electrical Equipment|Generic Models
-ELC_LPS_MESH_SIZE_M,Electrical Equipment|Generic Models
-ELC_LPS_MESH_SIZE_TXT,Electrical Equipment|Generic Models
-ELC_LPS_PROJECT_NG_OVERRIDE_NR,Electrical Equipment|Generic Models
-ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,Electrical Equipment|Generic Models
-ELC_LPS_PROJECT_NG_OVERRIDE_TXT,Electrical Equipment|Generic Models
+ELC_LPS_FROM_LPZ_TXT,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing
+ELC_LPS_INSPECTION_INTERVAL_MONTHS,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_KC_FACTOR_NR,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_MESH_SIZE_M,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_MESH_SIZE_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_PROJECT_NG_OVERRIDE_NR,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_PROJECT_NG_OVERRIDE_NR_DISP_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_PROJECT_NG_OVERRIDE_TXT,Electrical Equipment|Generic Models|Project Information
 ELC_LPS_PROTECTION_ANGLE_DEG,Electrical Equipment|Generic Models
 ELC_LPS_PROTECTION_ANGLE_TXT,Electrical Equipment|Generic Models
-ELC_LPS_RISK_ASSESSMENT_TXT,Electrical Equipment|Generic Models
-ELC_LPS_ROLLING_SPHERE_RADIUS_M,Electrical Equipment|Generic Models
-ELC_LPS_ROLLING_SPHERE_RADIUS_TXT,Electrical Equipment|Generic Models
+ELC_LPS_RISK_ASSESSMENT_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_ROLLING_SPHERE_RADIUS_M,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_ROLLING_SPHERE_RADIUS_TXT,Electrical Equipment|Generic Models|Project Information
 ELC_LPS_SEPARATION_DISTANCE_MM,Electrical Equipment|Generic Models
 ELC_LPS_SEPARATION_DISTANCE_TXT,Electrical Equipment|Generic Models
 ELC_LPS_SPD_TAG_TXT,Electrical Equipment|Generic Models
 ELC_LPS_SURGE_PROTECTION_LVL_TXT,Electrical Equipment|Generic Models
 ELC_LPS_TESTCLAMP_TAG_TXT,Electrical Equipment|Generic Models
-ELC_LPS_TEST_DATE_TXT,Electrical Equipment|Generic Models
-ELC_LPS_TO_LPZ_TXT,Electrical Equipment|Generic Models
-ELC_LPS_ZONE_TXT,Electrical Equipment|Generic Models
+ELC_LPS_TEST_DATE_TXT,Electrical Equipment|Generic Models|Project Information
+ELC_LPS_TO_LPZ_TXT,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing
+ELC_LPS_ZONE_TXT,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Project Information|Rooms
 ELC_LP_CONNECTION_TYPE_TXT,Electrical Equipment|Generic Models
 ELC_LP_EARTH_RES_OHMS,Electrical Equipment|Generic Models
 ELC_LP_SOIL_RESIST_OHM_M,Electrical Equipment|Generic Models
 ELC_LSC_TIER_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_MET_LOCATION_TXT,Project Information
 ELC_PANEL_MAIN_BREAKER_TXT,Electrical Equipment|Electrical Circuits
 ELC_PANEL_REF_TXT,Electrical Equipment|Electrical Circuits
 ELC_PANEL_SCHEDULE_REF_TXT,Electrical Equipment|Electrical Circuits
@@ -1208,16 +1216,16 @@ ELC_PHOTO_CCT_K,Lighting Fixtures|Lighting Devices
 ELC_PHOTO_CRI_NR,Lighting Fixtures|Lighting Devices
 ELC_PHOTO_EFFICACY_LM_W,Lighting Fixtures|Lighting Devices
 ELC_PHOTO_FILE_PATH_TXT,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_LAST_CALC_DATE_TXT,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_LAST_ENGINE_TXT,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LAST_CALC_DATE_TXT,Lighting Fixtures|Lighting Devices|Rooms
+ELC_PHOTO_LAST_ENGINE_TXT,Lighting Fixtures|Lighting Devices|Rooms
 ELC_PHOTO_LUMENS_NR,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_LUX_CALC,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_LUX_DIALUX_NR,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_LUX_ELUMTOOLS_NR,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_LUX_RELUX_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_LUX_CALC,Lighting Fixtures|Lighting Devices|Rooms
+ELC_PHOTO_LUX_DIALUX_NR,Lighting Fixtures|Lighting Devices|Rooms
+ELC_PHOTO_LUX_ELUMTOOLS_NR,Lighting Fixtures|Lighting Devices|Rooms
+ELC_PHOTO_LUX_RELUX_NR,Lighting Fixtures|Lighting Devices|Rooms
 ELC_PHOTO_SYMMETRY_TXT,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_UGR_CALC,Lighting Fixtures|Lighting Devices
-ELC_PHOTO_UNIFORMITY_NR,Lighting Fixtures|Lighting Devices
+ELC_PHOTO_UGR_CALC,Lighting Fixtures|Lighting Devices|Rooms
+ELC_PHOTO_UNIFORMITY_NR,Lighting Fixtures|Lighting Devices|Rooms
 ELC_PHOTO_WATTS_NR,Lighting Fixtures|Lighting Devices
 ELC_PNL_AIC_RATING_KA,Electrical Equipment|Electrical Circuits
 ELC_PNL_CIRCUIT_GROUP_TXT,Electrical Equipment|Electrical Circuits
@@ -1232,7 +1240,7 @@ ELC_PNL_FED_FROM_PNL_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_IP_RATING_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_MAIN_BRK_A,Electrical Equipment|Electrical Circuits
 ELC_PNL_MAIN_BRK_TXT,Electrical Equipment|Electrical Circuits
-ELC_PNL_NAME_TXT,Electrical Equipment|Electrical Circuits
+ELC_PNL_NAME_TXT,Electrical Equipment|Electrical Circuits|Conduits
 ELC_PNL_NUM_OF_WAYS_NR,Electrical Equipment|Electrical Circuits
 ELC_PNL_NUM_OF_WAYS_TXT,Electrical Equipment|Electrical Circuits
 ELC_PNL_PHS_COUNT_NR,Electrical Equipment|Electrical Circuits
@@ -1485,19 +1493,19 @@ HVC_IDU_MOUNTING_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct
 HVC_INSULATION_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_INS_THICKNESS_MM,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_LOAD_SOURCE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_LOAD_STALE_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_LOAD_STALE_REASON_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_LOAD_STALE_BOOL,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms
+HVC_LOAD_STALE_REASON_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms
 HVC_NC_CURVE_INT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_NOISE_LEVEL_DB,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_NOISE_LEVEL_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_OA_LS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_OA_LS,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms
 HVC_OA_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_HOUR,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_PEAK_HOUR,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms
 HVC_PEAK_HOUR_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_PEAK_LAT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_LAT_W,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_PEAK_LAT_W,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms
 HVC_PEAK_SENS_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
-HVC_PEAK_SENS_W,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
+HVC_PEAK_SENS_W,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms
 HVC_PIPE_FLOWRATE_LPS,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes
 HVC_PIPE_LENGTH_M,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes
 HVC_PIPE_LENGTH_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
@@ -2014,8 +2022,8 @@ PLM_PRV_SET_PRESSURE_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe In
 PLM_PSR_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PSR_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PWR_KW,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures
-PLM_RECIRC_DRV_KV,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_RECIRC_PUMP_DUTY_LPM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_RECIRC_DRV_KV,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
+PLM_RECIRC_PUMP_DUTY_LPM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
 PLM_RO_LOOP_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_RWH_ANNUAL_YIELD_M3,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_RWH_ROOF_AREA_M2,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2038,10 +2046,10 @@ PLM_STR_MESH_SZ_MICRON_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe 
 PLM_STR_SCREEN_MAT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_STR_STYLE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_SUDS_ATTEN_VOL_M3,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_SUP_DN_REQ_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_SUP_DP_PAM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_SUP_QD_LPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
-PLM_SUP_VEL_MPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_SUP_DN_REQ_MM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
+PLM_SUP_DP_PAM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
+PLM_SUP_QD_LPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
+PLM_SUP_VEL_MPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
 PLM_SYS_TXT,Flex Pipes|MEP Fabrication Pipework|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures
 PLM_TAG_7_PARA_ANAL_PIPES_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_DRAIN_TXT,<ALL>
@@ -2418,6 +2426,7 @@ STING_5D_COST_RATE_NUM,<ALL>
 STING_AUTO_PLACED_BOOL,<ALL>
 STING_BOX_LOCATION_ID,<ALL>
 STING_BRIEFCASE_EXPORT_TXT,<ALL>
+STING_BUS_VOLTAGE_TIER,Views
 STING_CDE_STATE_TXT,<ALL>
 STING_CIRCUIT_FILTER_TXT,<ALL>
 STING_CLUSTER_COUNT,<ALL>
@@ -2523,7 +2532,7 @@ STR_BEAM_TORSION_KNM,Structural Framing|Structural Columns|Structural Foundation
 STR_BEAM_WEB_OPENING_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_BEARING_CAPACITY_KN_M2,Floors|Pads|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar
 STR_BEND_SCHEDULE_REF_TXT,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers
-STR_BLACK_COTTON_RISK_BOOL,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_BLACK_COTTON_RISK_BOOL,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
 STR_BOLT_DIAMETER_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_BOLT_GRADE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_BOLT_TORQUE_NM_NR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
@@ -2575,8 +2584,8 @@ STR_FDN_TYPE_TXT,Structural Framing|Structural Columns|Structural Foundations|St
 STR_FDN_WATERPROOF_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_FIRE_PROTECTION_TYPE_TXT,Columns|Floors|Structural Columns|Structural Connections|Structural Foundations|Structural Framing|Structural Rebar|Structural Trusses
 STR_FRAME_M_KNM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_GROUND_TYPE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_IMPORTANCE_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_GROUND_TYPE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
+STR_IMPORTANCE_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
 STR_LINE_LOAD_KN_M,Floors|Internal Line Loads|Line Loads|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar
 STR_LOAD_AXIAL_KN,Floors|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar|Walls
 STR_LOAD_AXIAL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
@@ -2591,13 +2600,13 @@ STR_PROFILE_NAME_TXT,Structural Framing|Structural Columns|Structural Foundation
 STR_PROFILE_TYPE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_PROFILE_WIDTH_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_PUNCH_UTIL_PCT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_Q_FACTOR_NR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_RAIN_INTENSITY_MMH,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_Q_FACTOR_NR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
+STR_RAIN_INTENSITY_MMH,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
 STR_RBR_COVER_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_REBAR_BARS_IN_EACH_NR,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers
 STR_REBAR_BEND_RADIUS_MM,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers
 STR_REBAR_CUT_LENGTH_MM,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers
-STR_REBAR_DETAIL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_REBAR_DETAIL_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Walls
 STR_REBAR_DIM_A_MM,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers
 STR_REBAR_DIM_B_MM,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers
 STR_REBAR_DIM_C_MM,Floors|Structural Area Reinforcement|Structural Columns|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Path Reinforcement|Structural Rebar|Structural Rebar Couplers
@@ -2614,18 +2623,18 @@ STR_RISER_HEIGHT_MM,Structural Framing|Structural Columns|Structural Foundations
 STR_ROBUST_STATUS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SECTION_MOD_Y_CM3,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SECTION_PROFILE_TXT,Analytical Members|Floors|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar
-STR_SEISMIC_AGR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_SEISMIC_AGR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
 STR_SLAB_COVER_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SLAB_DEFLECTION_LIMIT_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SLAB_LOAD_KN_M2,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SLAB_MESH_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SLAB_REBAR_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SLAB_TYPE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_SOIL_BEARING_KPA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_SOIL_BEARING_KPA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
 STR_STEEL_TAG_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_STRUCTURAL_USAGE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_SURFACE_AREA_M2_M,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_SYSTEM_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_SYSTEM_CLASS_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
 STR_TAG_1_TXT,<ALL>
 STR_TAG_7_PARA_ANAL_LINKS_TXT,<ALL>
 STR_TAG_7_PARA_ANAL_MEMBERS_TXT,<ALL>
@@ -2669,10 +2678,10 @@ STR_WALL_TYPE_TXT,Floors|Structural Columns|Structural Foundations|Structural Fr
 STR_WELD_PROCEDURE_REF_TXT,Floors|Structural Columns|Structural Connections|Structural Foundations|Structural Framing|Structural Rebar
 STR_WELD_SIZE_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_WELD_TYPE_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_WIND_BASIC_MPS,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_WIND_DIRECTIONAL_NR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_WIND_PRESSURE_PA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
-STR_WIND_TERRAIN_CAT_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
+STR_WIND_BASIC_MPS,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
+STR_WIND_DIRECTIONAL_NR,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
+STR_WIND_PRESSURE_PA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Roofs|Walls
+STR_WIND_TERRAIN_CAT_TXT,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information
 STR_WLD_STRENGTH_MPA,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 STR_WLD_THROAT_MM,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors
 SUST_MAT_TAG_1_TXT,<ALL>

@@ -502,6 +502,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "ELC_CABLE_CSA_MM2_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Filled from outside STING: the Amtech and Trimble importers stamp it through their local Set() helper, which this scan does not count as a write, or a person types it. Read by SLD cable annotation (SldAnnotText.P_CABLE_MM2) and the calc-seed export."
+    },
     "ELC_CBL_AMPACITY_A": {
       "state": "write_only",
       "role": "export",
@@ -547,6 +552,21 @@
       "role": "export",
       "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-ELC-Conduits\". A schedule is a real reader; this scan only sees C#."
     },
+    "ELC_CIRCUIT_DESC_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A person fills it in on the circuit; read by the panel door diagram and the calc-seed export."
+    },
+    "ELC_CIRCUIT_PHASE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A person fills it in on the circuit (L1/L2/L3); read by the circuit-by-phase view filter, which falls back to the circuit-number suffix when it is blank."
+    },
+    "ELC_CIRCUIT_REF_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A person fills it in on a conduit to mark it as carrying a circuit; read by HomeRunPlanAnnotation and the SLD traverser."
+    },
     "ELC_CKT_BRK_RATING_A": {
       "state": "write_only",
       "role": "export",
@@ -576,6 +596,21 @@
       "state": "write_only",
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
+    },
+    "ELC_CONDUIT_HOME_RUN_BOOL": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A person ticks it on the home-run conduit; read by HomeRunPlanAnnotation."
+    },
+    "ELC_CONDUIT_HOME_RUN_END_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A person sets Start/End on the home-run conduit; read by HomeRunPlanAnnotation to pick the panel end."
+    },
+    "ELC_EARTHING_SYSTEM_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A person sets the earthing arrangement (TN-S / TN-C-S / TT / IT) on Project Information; read by the earthing diagram."
     },
     "ELC_FEEDER_CSA_MM2": {
       "state": "read_only",
@@ -682,6 +717,11 @@
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Lightning Protection Register\". A schedule is a real reader; this scan only sees C#."
     },
+    "ELC_MET_LOCATION_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A person sets the MET location on Project Information; read by the earthing diagram."
+    },
     "ELC_PANEL_SCHEDULE_REF_TXT": {
       "state": "write_only",
       "role": "export",
@@ -766,6 +806,26 @@
       "state": "read_only",
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Equipment\". A schedule is a real reader; this scan only sees C#."
+    },
+    "HVC_LOAD_STALE_REASON_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by the envelope-stale updater and cleared by Block Load; carried on the Space for the engineer to see why a load is stale. HVC_LOAD_STALE_BOOL is the machine-read flag."
+    },
+    "HVC_OA_LS": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Block Load result stamped on the Space/Room for the engineer and for schedules; no STING reader."
+    },
+    "HVC_PEAK_HOUR": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Block Load result (hour of the zone peak, 0-23) stamped on the Space/Room for the engineer; no STING reader."
+    },
+    "HVC_PEAK_LAT_W": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Block Load result stamped on the Space/Room for the engineer and for schedules; no STING reader."
     },
     "HVC_PIPE_FLOWRATE_LPS": {
       "state": "write_only",
@@ -1246,6 +1306,11 @@
       "state": "write_only",
       "role": "export",
       "reason": "Bound in CATEGORY_BINDINGS v3.12 so its category's tag row can display. The consumer is a Revit TAG LABEL, which no C# scan can see — the case this tool's own header calls out. Written by StingTools, read on the drawing."
+    },
+    "STING_BUS_VOLTAGE_TIER": {
+      "state": "read_only",
+      "role": "reference",
+      "reason": "Written by SLD Generate on the drafting view through LookupParameter(...).Set, which this scan counts as a read. Nothing reads it back yet; it is there for a view filter or the drawing's reader."
     },
     "STING_COMPOUND_PARENT_ID": {
       "state": "read_only",

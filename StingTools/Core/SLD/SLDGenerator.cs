@@ -581,9 +581,20 @@ namespace StingTools.Core.SLD
                 var p = el?.LookupParameter(name);
                 if (p == null)
                 {
-                    string msg = $"STING stamp failed: {name} on element {el?.Id} — parameter not found";
-                    StingLog.Warn(msg);
-                    warnings?.Add(msg);
+                    // Reported once per parameter and family, not once per symbol.
+                    // SLD symbols are Generic Annotation families, and Revit will not
+                    // bind a project parameter to that category, so a stamp the
+                    // family does not carry itself is missing on EVERY instance —
+                    // one line per symbol buried the one fact worth reading.
+                    string fam = (el as FamilyInstance)?.Symbol?.FamilyName ?? el?.Category?.Name ?? "?";
+                    string msg = $"STING stamp skipped: {name} is not a parameter of '{fam}' " +
+                                 "(annotation symbols cannot take a project parameter; author it " +
+                                 "into the symbol family as a family parameter to record it)";
+                    if (warnings == null || !warnings.Contains(msg))
+                    {
+                        StingLog.Warn(msg);
+                        warnings?.Add(msg);
+                    }
                     return;
                 }
                 if (p.IsReadOnly)

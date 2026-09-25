@@ -120,10 +120,13 @@ namespace StingTools.Commands.Electrical.Schematics
             // switchboard or circuits-down; 2 for circuits-across).
             int slotStep = StingTools.Core.Electrical.PanelSlotReader.SlotStep(doc, chosenPanel, out bool stepKnown);
 
-            string ratingInfo = chosenPanel.LookupParameter("ELC_BUSBAR_RATING_TXT")?.AsString()
-                ?? chosenPanel
-                    .LookupParameter("Electrical - Panel Service")?.AsString()
-                ?? "";
+            // ELC_BUSBAR_RATING_TXT was never a defined parameter; the rating the
+            // importers and busbar sizing write is ELC_BUSBAR_RATING_A. An empty
+            // value falls through (AsString() gives "" for a bound-but-empty
+            // parameter, so the old ?? chain never reached its fallback).
+            string ratingInfo = StingTools.Commands.Electrical.Import.ElecCalcSeedCommand.BusbarRatingText(chosenPanel);
+            if (string.IsNullOrEmpty(ratingInfo))
+                ratingInfo = chosenPanel.LookupParameter("Electrical - Panel Service")?.AsString() ?? "";
 
             // Gather circuits whose BaseEquipment matches this panel.
             var circuits = new FilteredElementCollector(doc)
