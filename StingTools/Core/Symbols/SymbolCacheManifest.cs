@@ -62,9 +62,11 @@ namespace StingTools.Core.Symbols
         /// <para>History:
         /// 1 — pre-invalidation baseline (no sidecar was written).
         /// 2 — filled-region "vertices" and arc "startAngle"/"endAngle" key aliases;
-        ///     model-category families sized from realSizeMm instead of symbolSize.</para>
+        ///     model-category families sized from realSizeMm instead of symbolSize.
+        /// 3 — SLD annotation families carry STING_VOLTAGE_TIER / STING_FEED_TYPE as
+        ///     instance family parameters (PARAM-4), so cached SLD .rfa files rebuild.</para>
         /// </summary>
-        public const string GeneratorVersion = "2";
+        public const string GeneratorVersion = "3";
 
         [JsonProperty("generatorVersion")] public string BuiltGeneratorVersion { get; set; } = "";
         [JsonProperty("libraryVersion")]   public string LibraryVersion { get; set; } = "";

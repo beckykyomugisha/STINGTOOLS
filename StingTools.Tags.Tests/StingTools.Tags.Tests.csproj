@@ -77,6 +77,8 @@
     <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
+    <!-- TAG7 / PARAM-5: a NUMBER-bound ELC_CKT_NR reads "3", not "3.00". -->
+    <Compile Include="..\StingTools\Core\Electrical\CircuitNumberText.cs" Link="Core\Electrical\CircuitNumberText.cs" />
     <!-- ELEC-15/16: one slot-count rule (never an invented 42/24), the multi-pole
          slot step from the schedule's numbering, and panel compaction. -->
     <Compile Include="..\StingTools\Core\Electrical\PanelSlotRules.cs" Link="Core\Electrical\PanelSlotRules.cs" />

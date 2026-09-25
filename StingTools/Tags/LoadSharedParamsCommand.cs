@@ -1369,7 +1369,7 @@ namespace StingTools.Tags
         /// SearchOption.AllDirectories can scan thousands of files on broad paths
         /// like C:\ProgramData\Autodesk\, freezing Revit for minutes).
         /// </summary>
-        private static string FindMrParametersFile(string currentSpFile)
+        internal static string FindMrParametersFile(string currentSpFile)
         {
             const string fileName = "MR_PARAMETERS.txt";
 

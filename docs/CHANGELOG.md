@@ -23379,3 +23379,42 @@ path discipline OK; roadmap ids unique.
 
 Tests: +7 (typical Icn by class, assumed Icn never passes/fails, real Icn first, stale
 template detection). Panel tests 80/80. **Not exercised in Revit.**
+
+#### Completed (PARAM-4, PARAM-5 and the TAG7 circuit number, branch `claude/param-code-closeout`)
+
+- **PARAM-4 - SLD symbol stamps land.** `SLDGenerator.PlaceSymbols` stamps `STING_VOLTAGE_TIER`
+  and `STING_FEED_TYPE` on each placed SLD symbol, but the symbols are Generic Annotation
+  families and a project parameter cannot bind to that category, so the stamp never landed.
+  `SymbolLibraryCreator.BuildOne` now authors both as instance TEXT family parameters
+  (`FamilyManager.AddParameter`, Identity Data) in every annotation family built from a
+  `STING_SLD_SYMBOLS*.json` catalogue (`IsSldCatalogue`), and `CreateCompoundSymbols` does the
+  same for compound SLD symbols. `SymbolCacheManifest.GeneratorVersion` is bumped 2 -> 3 so
+  cached SLD `.rfa` files rebuild on the next symbol build instead of being served stale. For a
+  family built before the change the existing once-per-parameter-and-family warning stays, and
+  now says to rebuild the SLD symbols (Symbols > Create & standards > Rebuild or SLD) and
+  regenerate. `STING_SYMBOL_ID` / `STING_SLD_ELEMENT_ID` are shared parameters on the same
+  category and were not in scope.
+- **PARAM-5 - `Params_RebindCircuitNumberAsText`.** New command
+  (`Tags/RebindCircuitNumberAsTextCommand.cs`, `TransactionMode.Manual`) for a project that bound
+  `ELC_CKT_NR` as NUMBER before it became TEXT. It resolves `ELC_CKT_NR` from
+  `MR_PARAMETERS.txt` first (and refuses if that says anything but TEXT), reads every value as
+  text, confirms with the count, then in one transaction removes the binding and the parameter
+  element, re-binds as an instance binding on the `RESOLVED_BINDINGS.csv` categories unioned
+  with the old binding's (Load Params' rule: a rebind never takes a home away), restores the
+  values and reports before/after counts plus every element whose value did not come back.
+  Already TEXT: it says so and does nothing. Wired into `StingCommandHandler`,
+  `WorkflowEngine.ResolveCommand` / the known-tag list, and a CREATE TAGS > SETUP button beside
+  Load Params. `LoadSharedParamsCommand.FindMrParametersFile` is now `internal` for reuse.
+- **TAG7 circuit number.** On a NUMBER binding `GetDisplayText` gave "3.00", so TAG7 printed
+  "connected to circuit 3.00". New Revit-free `Core/Electrical/CircuitNumberText.FromNumber`
+  writes an integral value with no decimals and leaves a non-integral one as Revit displayed it;
+  `ParameterHelpers.GetCircuitNumberText` applies it to NUMBER storage only (TEXT is returned
+  unchanged) and the three TAG7 `ELC_CKT_NR` reads use it. The rebind command uses the same
+  helper, so "3.00" is restored as "3". `CircuitNumberTextTests` (9 cases) in
+  `StingTools.Tags.Tests`.
+
+Not run in Revit on this branch. Gates: `dotnet build -c Release` 0 errors / 0 warnings;
+`StingTools.Tags.Tests` 2657 passed / 0 failed; `check_param_contract.py --check` OK with no
+baseline change; `recount_unreachable_commands.py --check` agrees (1753 / 1728, triage doc
+updated); `check_workflow_wiring.ps1`, `check_path_discipline.ps1` and
+`check_command_doc_acquisition.ps1` pass.
