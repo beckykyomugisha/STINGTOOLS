@@ -27,6 +27,21 @@ namespace StingTools.Commands.Panels
 
     internal static class PanelExportPathHelper
     {
+        /// <summary>Parameters STING computes; their cells are exported but never imported.</summary>
+        internal static readonly HashSet<string> ComputedParams =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "ELC_CKT_CHECK_TXT" };
+
+        internal static bool IsComputedColumn(Document doc, TableSectionData body, int r, int c)
+        {
+            try
+            {
+                var id = body.GetCellParamId(r, c);
+                if (id == null || id == ElementId.InvalidElementId || id.Value < 0) return false;
+                return doc.GetElement(id) is SharedParameterElement sp && ComputedParams.Contains(sp.Name);
+            }
+            catch (Exception ex) { StingLog.Info($"IsComputedColumn r{r} c{c}: {ex.Message}"); return false; }
+        }
+
         public static string ResolveDefaultDir(Document doc)
         {
             try
@@ -48,24 +63,71 @@ namespace StingTools.Commands.Panels
     [Regeneration(RegenerationOption.Manual)]
     public class ExportPanelSchedulesToExcelCommand : IExternalCommand
     {
+        public enum ExportScope { All = 0, Active = 1, Selected = 2 }
+
+        // Snapshotted from the Electrical panel's RPRT → EXCEL ROUND-TRIP controls just
+        // before the command is raised (StingElectricalPanel.SnapshotExcelOptions). The
+        // defaults reproduce the old behaviour, so ribbon / workflow callers are unchanged.
+        public static ExportScope Scope = ExportScope.All;
+        public static bool IncludeHeader = true, IncludeBody = true, IncludeSummary = true;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            var schedules = new FilteredElementCollector(doc)
+            var all = new FilteredElementCollector(doc)
                 .OfClass(typeof(PanelScheduleView))
                 .Cast<PanelScheduleView>()
+                .Where(p => !p.IsPanelScheduleTemplate())
                 .OrderBy(p => p.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (schedules.Count == 0)
+            if (all.Count == 0)
             {
                 TaskDialog.Show("STING Panel Schedule Export",
                     "No PanelScheduleView objects in the project.\n\n" +
                     "Run 'Batch Panel Schedules' first to generate schedules per panel.");
                 return Result.Succeeded;
+            }
+
+            List<PanelScheduleView> schedules;
+            if (Scope == ExportScope.Active)
+            {
+                if (!(doc.ActiveView is PanelScheduleView act) || act.IsPanelScheduleTemplate())
+                {
+                    TaskDialog.Show("STING Panel Schedule Export",
+                        "Scope is 'Active panel', but the active view is not a panel schedule.\n\nOpen the board's panel schedule, or set Scope to 'All panels'.");
+                    return Result.Cancelled;
+                }
+                schedules = new List<PanelScheduleView> { act };
+            }
+            else if (Scope == ExportScope.Selected)
+            {
+                // Selected boards in a model view, or selected schedules in the browser.
+                var sel = new HashSet<long>();
+                try { foreach (var id in ctx.UIDoc.Selection.GetElementIds()) sel.Add(id.Value); }
+                catch (Exception ex) { StingLog.Warn($"Export selection: {ex.Message}"); }
+                schedules = all.Where(p =>
+                {
+                    if (sel.Contains(p.Id.Value)) return true;
+                    try { return sel.Contains(p.GetPanel().Value); }
+                    catch (Exception ex) { StingLog.Info($"Export GetPanel {p.Name}: {ex.Message}"); return false; }
+                }).ToList();
+                if (schedules.Count == 0)
+                {
+                    TaskDialog.Show("STING Panel Schedule Export",
+                        "Scope is 'Selected panels', but no selected element is a board or a panel schedule.\n\nSelect the boards (or their schedules in the Project Browser), or set Scope to 'All panels'.");
+                    return Result.Cancelled;
+                }
+            }
+            else schedules = all;
+
+            if (!IncludeHeader && !IncludeBody && !IncludeSummary)
+            {
+                TaskDialog.Show("STING Panel Schedule Export", "Header, Body and Summary are all unticked — nothing to export.");
+                return Result.Cancelled;
             }
 
             string defaultName = $"STING_PanelSchedules_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
@@ -141,12 +203,13 @@ namespace StingTools.Commands.Panels
                         ws.Cell(4, 2).Value = psv.Id.Value.ToString();
                         ws.Range(1, 1, 4, 1).Style.Font.Bold = true;
 
-                        int hdrRows = WriteSection(ws, psv, SectionType.Header, "HEADER", 6);
-                        int afterHeader = 6 + Math.Max(hdrRows, 0) + 3;
-                        bodyRows = WriteSection(ws, psv, SectionType.Body,
-                            "BODY (editable circuit rows)", afterHeader, out bodyCols);
-                        int afterBody = afterHeader + Math.Max(bodyRows, 0) + 3;
-                        WriteSection(ws, psv, SectionType.Summary, "SUMMARY", afterBody);
+                        int hdrRows = IncludeHeader ? WriteSection(ws, psv, SectionType.Header, "HEADER", 6) : 0;
+                        int afterHeader = 6 + Math.Max(hdrRows, 0) + (IncludeHeader ? 3 : 0);
+                        if (IncludeBody)
+                            bodyRows = WriteSection(ws, psv, SectionType.Body,
+                                "BODY (editable circuit rows)", afterHeader, out bodyCols);
+                        int afterBody = afterHeader + Math.Max(bodyRows, 0) + (IncludeBody ? 3 : 0);
+                        if (IncludeSummary) WriteSection(ws, psv, SectionType.Summary, "SUMMARY", afterBody);
 
                         ws.Columns().AdjustToContents(1, 60);
                         sheetsWritten++;
@@ -295,9 +358,12 @@ namespace StingTools.Commands.Panels
 
             int sheetsProcessed = 0, cellsWritten = 0, cellsRejected = 0,
                 cellsSkipped = 0, cellsBlankPreserved = 0, schedulesNotFound = 0,
-                colMismatchSheets = 0;
+                colMismatchSheets = 0, computedProtected = 0;
             var failures = new List<string>();
             var loadDeltas = new List<string>();
+            // Every cell actually changed, old → new: this is what "Show Last Import
+            // Diff" is for. Counts alone cannot tell the user WHAT changed.
+            var cellChanges = new List<string>();
 
             using (var tx = new Transaction(doc, "STING Import Panel Schedules"))
             {
@@ -402,11 +468,19 @@ namespace StingTools.Commands.Panels
                                     blankPreserved++;
                                     continue;
                                 }
+                                // Computed verdicts are never imported: a hand-typed "OK" in the
+                                // BS 7671 check column would read as a check that never ran.
+                                if (PanelExportPathHelper.IsComputedColumn(doc, body, r, c))
+                                {
+                                    computedProtected++;
+                                    continue;
+                                }
 
                                 try
                                 {
                                     body.SetCellText(r, c, newVal);
                                     written++;
+                                    cellChanges.Add($"{psv.Name}  row {r + 1}, col {c + 1}:  '{oldVal}' → '{newVal}'");
                                 }
                                 catch (Exception ex8)
                                 {
@@ -443,9 +517,16 @@ namespace StingTools.Commands.Panels
                  .MetricHighlight("Cells written", cellsWritten.ToString())
                  .MetricWarn("Cells rejected (read-only)", cellsRejected.ToString())
                  .MetricWarn("Empty-cell guard preserved Revit data", cellsBlankPreserved.ToString())
+                 .Metric("Computed columns not imported", computedProtected.ToString(), "BS 7671 check is written only by PNLS ✅")
                  .Metric("Cells unchanged", cellsSkipped.ToString())
                  .MetricError("Schedules not found", schedulesNotFound.ToString())
                  .MetricWarn("xlsx column-count mismatch", colMismatchSheets.ToString());
+            if (cellChanges.Count > 0)
+            {
+                panel.AddSection("CHANGES");
+                foreach (string ch in cellChanges.Take(25)) panel.Text(ch);
+                if (cellChanges.Count > 25) panel.Text($"… {cellChanges.Count - 25} more (Show Last Import Diff).");
+            }
             if (loadDeltas.Count > 0)
             {
                 panel.AddSection("LOAD CHANGES");
@@ -475,9 +556,17 @@ namespace StingTools.Commands.Panels
                     $"Cells written:    {cellsWritten}",
                     $"Cells rejected:   {cellsRejected} (read-only / Revit-managed)",
                     $"Cells preserved by blank-guard: {cellsBlankPreserved}",
-                    $"Cells skipped (out of schema):  {cellsSkipped}",
+                    $"Cells unchanged:                {cellsSkipped}",
+                    $"Computed columns not imported:  {computedProtected}",
                     ""
                 };
+                if (cellChanges.Count > 0)
+                {
+                    diff.Add("CHANGES (old → new)");
+                    diff.AddRange(cellChanges);
+                    diff.Add("");
+                }
+                else diff.Add("No cell values changed.");
                 if (loadDeltas.Count > 0)
                 {
                     diff.Add("LOAD CHANGES PER PANEL");

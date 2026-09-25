@@ -231,7 +231,7 @@ PARAM	d08c2c5d-577f-5861-b615-b1b427d573a7	ELC_CBL_SZ_MM	TEXT		4	1	Elc Cbl Sz Mm
 PARAM	b796eeed-e108-53b5-9bf7-deb0842cdea3	CBL_TYPE_TXT	TEXT		4	1	Elc Cbl Type Txt [ISO 19650-1:2018]	1
 PARAM	35d7f2c9-39b3-5cf3-867b-020dd1edb24d	ELC_CKT_CUR_A	NUMBER		4	1	Elc Ckt Cur A [ISO 19650-1:2018]	0
 PARAM	63f7f8ff-710d-55f5-bc17-d4e328162c81	ELC_CKT_CUR_TXT	TEXT		4	1	ELC_CKT_CUR_A display mirror [auto-generated]	1
-PARAM	6ad8ee51-59c2-551d-8b26-ad7194c50ec8	ELC_CKT_NR	TEXT		4	Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]	Elc Ckt Nr [ISO 19650-1:2018]	1
+PARAM	6ad8ee51-59c2-551d-8b26-ad7194c50ec8	ELC_CKT_NR	TEXT		4	1	Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]	1
 PARAM	421483f2-ce3b-58eb-ba9b-3607c0c4f477	ELC_CKT_TXT	TEXT		4	1	ELC_CKT_NR display mirror [auto-generated]	1
 PARAM	5f76851e-27eb-43b4-b026-d3cd7c408814	ELC_CONN_TYPE_TXT	TEXT		4	1	Electrical connector type (Plug/Terminal/Bus/Lug) [ISO 19650-1:2018]	1
 PARAM	e07efc49-554a-48c1-ba03-ffd28b8abca6	ELC_CTR_SZ_TXT	TEXT		4	1	Cable tray size designation [ISO 19650-1:2018]	1
@@ -3443,7 +3443,7 @@ PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b61	HVC_PEAK_SENS_W	NUMBER		5	1	Per-space
 PARAM	4b1bf255-0644-508e-b482-5d73845bef11	HVC_PEAK_SENS_TXT	TEXT		5	1	HVC_PEAK_SENS_W display mirror [auto-generated]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b62	HVC_PEAK_LAT_W	NUMBER		5	1	Per-space peak latent load in W from BlockLoadEngine [Phase 187]	1
 PARAM	7e6aaa65-e119-5704-a804-9ef2e193566c	HVC_PEAK_LAT_TXT	TEXT		5	1	HVC_PEAK_LAT_W display mirror [auto-generated]	1
-PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	NUMBER		5	1	Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	NUMBER		5	1	Hour of day of the per-space peak from BlockLoadEngine as a whole number 0-23 (14 = 14:00) [Phase 187]	1
 PARAM	aeb9e0a7-ff68-5371-b5dc-5af20e5ea79c	HVC_PEAK_HOUR_TXT	TEXT		5	1	HVC_PEAK_HOUR display mirror [auto-generated]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b64	HVC_OA_LS	NUMBER		5	1	Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]	1
 PARAM	3212ebe9-0023-5974-ac25-350b7c154756	HVC_OA_TXT	TEXT		5	1	HVC_OA_LS display mirror [auto-generated]	1

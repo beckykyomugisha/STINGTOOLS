@@ -23280,3 +23280,85 @@ Deliberately breaking each of plan merge, seed rotation and the tile count turne
 Tags.Tests: 2,686 pass. Build: 0 errors, 0 warnings. **Not run in Revit**: see ROADMAP SBP-1 to
 SBP-4. The biggest open question is whether Revit honours per-element colour overrides on scope
 boxes.
+
+#### Completed (gap review 2026-09-25: parameter file, panel card, Excel round-trip)
+
+Three independent gap reviews of what was deployed on 2026-09-24 (#977 / #978 / #980). Fixed:
+
+- **`MR_PARAMETERS.txt` had one malformed row.** The `ELC_CKT_NR` edit in #980 put the
+  description into the VISIBLE column. Revit parses VISIBLE as an integer, so the row can make
+  `OpenSharedParameterFile` reject the whole file and Load Params bind nothing. Every existing
+  gate passed it. New `SharedParamFileShapeTests` checks every PARAM row's shape (field count,
+  GUID, datatype, GROUP, VISIBLE / USERMODIFIABLE 0-1); RED 2/3 against the broken file, GREEN
+  after the fix.
+- **"Show Last Import Diff" did not show what changed.** It listed counts and load deltas only,
+  so editing a circuit description (demo step 3) showed "Cells written: 1". Every changed cell
+  is now listed old → new, in the result panel and in the diff.
+- **Excel import could overwrite the BS 7671 check column.** A hand-typed "OK" would have read
+  as a check that never ran. Computed columns (`ELC_CKT_CHECK_TXT`) are exported but never
+  imported, and the count is reported.
+- **Excel export ignored Scope and Header / Body / Summary** — "Active panel" exported every
+  schedule. The panel now snapshots them; Active needs an open panel schedule, Selected takes
+  selected boards or schedules, and each refuses with a message rather than exporting everything.
+- **PNLS panel card saved to the wrong board and wrote the enclosure type as the IP rating.**
+  The grid listed family TYPE names and Save matched the first board of that type; it now lists
+  Panel Names and saves by element id. "Enclosure Type" (default "Floor Standing") was written
+  into `ELC_PNL_IP_RATING_TXT`, so every STING schedule showed "Floor Standing" as the IP
+  rating; IP Rating now writes that parameter and the enclosure type is reported as not stored
+  (PNL-19).
+- `WORKFLOW_PanelScheduleProduction` builds the STING templates before Batch Schedules, so the
+  workflow never stops at the "create templates?" prompt. `Panel_Audit` reports boards with no
+  IP rating.
+
+Logged, not fixed: PNL-19 (enclosure parameter), PNL-20 (template/spec drift in the audit),
+PNL-21 (breaking capacity only from the family). Build 0/0. **Not exercised in Revit.**
+
+#### Completed (parameter read/write fixes after #980, branch `claude/param-read-fixes`)
+
+Follow-up to the shared-parameter binding work: code that wrote or read parameters that now
+exist, but did it wrongly. Every claim was checked at its call site first. Build 0/0;
+`StingTools.Tags.Tests` 2634/2634. **Not exercised in Revit.**
+
+- **Importer panel lookup.** The Amtech, EasyPower and Trimble importers looked up the panel by
+  `LookupParameter("RBS_PANEL_NAME")` — an enum name no parameter carries, so always null — and
+  fell back to `Element.Name`, which on a board is its family TYPE name. Circuits were matched on
+  `BaseEquipment.Name`, the same type name. Now Panel Name through
+  `get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)` (the type name kept only as a last
+  resort) and `ElectricalSystem.PanelName` for circuits. **Stamped counts are now honest:** the
+  stamp helpers return how many writes landed, a panel (or Trimble circuit) counts as stamped
+  only when that is above zero, and the report adds "matched but nothing written" and "failed
+  writes".
+- **`PanelWireReconcile` auto-correct** counted a conduit corrected whatever `SetString` returned.
+  It now counts a conduit only when every needed write landed; the rest are counted, logged and
+  named in the dialog with a Load Params hint.
+- **`ELC_CKT_NR` in TAG7.** The TAG7 technical sections (`TagConfig.Tag7.cs`, both the marked and
+  the natural builder) read the circuit number with `GetString`, which is `""` on a project that
+  still binds it as NUMBER (PARAM-5). They use `ParameterHelpers.GetDisplayText`, which answers
+  for either type. #980's note that "the two readers" were switched covered other readers, not
+  these.
+- **LPS LENGTH units (was ROADMAP PARAM-2).** `ELC_LPS_ROLLING_SPHERE_RADIUS_M`,
+  `ELC_LPS_MESH_SIZE_M` and `ELC_LPS_SEPARATION_DISTANCE_MM` are LENGTH, but were written as raw
+  metres / millimetres through `Parameter.Set(double)`, i.e. stored as feet — a 30 m sphere read
+  as 9.144 m in Properties, now visible because #980 bound them to Project Information.
+  `LpsEngine` gains `IsLengthParam` / `ToInternalIfLength` / `FromInternalIfLength` (unit from the
+  `_M` / `_MM` suffix); both `SetDouble` writers and the inline separation-distance stamp convert
+  to internal, and `LpsEngine.GetDoubleParam` (every LPS reader, including `LPS_Schematic`, the
+  LPS panel and the compliance check) and `LpsValidator.ReadDouble` convert back. Conversion
+  happens only when the spec is `SpecTypeId.Length`, so an older NUMBER binding reads and writes
+  the plain value as before. **Values already stamped by an earlier build are in the old,
+  wrong scale; re-run LPS Class Setup to rewrite them.**
+- **IPS Validation** read `IPS_PANEL_BOOL` as a fallback for `ELC_IPS_BOOL`; it is defined
+  nowhere, so the fallback is gone. The LIM check still reads `LIM_INSTALLED_BOOL` /
+  `IPS_LIM_BOOL`, also undefined — `ELC_IPS_BOOL` means "is an IPS", not "has a LIM", so it
+  cannot stand in (ROADMAP PARAM-8).
+- **`HVC_PEAK_HOUR` description** no longer says "(HH:00)": it is the hour as a whole number
+  0-23. `.txt` and `.csv` updated (`sync_csv_from_txt.py` does not carry descriptions, so the
+  CSV row was edited to match) and `docs/RESOLVED_BINDINGS.csv` regenerated for the new text.
+- **Logged, not fixed:** twelve parameter names used in code and defined nowhere (ROADMAP
+  PARAM-7), the missing LIM parameter (PARAM-8), and four pseudo-category names the binding
+  loader drops without a log line (PARAM-9 — no binding is lost today).
+
+Gates: `param_binding_resolver.py` changed only the `HVC_PEAK_HOUR` description row in
+`docs/RESOLVED_BINDINGS.csv`; `check_param_contract.py --check` OK with no baseline change;
+`find_lying_catches.py` exit 0; `recount_unreachable_commands.py --check` agrees;
+path discipline OK; roadmap ids unique.

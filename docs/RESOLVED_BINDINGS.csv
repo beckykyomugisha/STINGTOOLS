@@ -1110,7 +1110,7 @@ ELC_CKT_CUR_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_CUR_A display mirror [auto
 ELC_CKT_FINAL_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Final Txt [ISO 19650-1:2018]
 ELC_CKT_IDENTIFICATION_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Identification Txt [ISO 19650-1:2018]
 ELC_CKT_LENGTH_M,4,elc-sub,Electrical Circuits,Elc Ckt Length M [ISO 19650-1:2018]
-ELC_CKT_NR,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Devices|Lighting Fixtures,Elc Ckt Nr [ISO 19650-1:2018]
+ELC_CKT_NR,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Devices|Lighting Fixtures,"Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]"
 ELC_CKT_PHASE_COUNT_NR,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures,Elc Ckt Phase Count Nr [ISO 19650-1:2018]
 ELC_CKT_PHASE_COUNT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_PHASE_COUNT_NR display mirror [auto-generated]
 ELC_CKT_PWR_KW,4,elc-sub,Electrical Circuits,Elc Ckt Pwr Kw [ISO 19650-1:2018]
@@ -1503,7 +1503,7 @@ HVC_NOISE_LEVEL_DB,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct F
 HVC_NOISE_LEVEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_NOISE_LEVEL_DB display mirror [auto-generated]
 HVC_OA_LS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
 HVC_OA_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_OA_LS display mirror [auto-generated]
-HVC_PEAK_HOUR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]
+HVC_PEAK_HOUR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Hour of day of the per-space peak from BlockLoadEngine as a whole number 0-23 (14 = 14:00) [Phase 187]
 HVC_PEAK_HOUR_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_HOUR display mirror [auto-generated]
 HVC_PEAK_LAT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_LAT_W display mirror [auto-generated]
 HVC_PEAK_LAT_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak latent load in W from BlockLoadEngine [Phase 187]

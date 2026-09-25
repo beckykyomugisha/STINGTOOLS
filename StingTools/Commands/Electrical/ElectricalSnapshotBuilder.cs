@@ -99,7 +99,9 @@ namespace StingTools.Commands.Electrical
                     rows.Add(new PanelData
                     {
                         Id = p.Id,
-                        Name = p.Name ?? "",
+                        // The board's Panel Name, not p.Name (the family TYPE name): two
+                        // DBs of one type were indistinguishable in the PNLS grid.
+                        Name = BoardName(p),
                         Voltage = SafeStrByName(p, "Voltage", "Panel Voltage"),
                         Phase = phaseCount > 0 ? $"{phaseCount}Ph" : "",
                         Ways = wayCount,
@@ -411,6 +413,17 @@ namespace StingTools.Commands.Electrical
             }
             return "";
         }
+        private static string BoardName(FamilyInstance p)
+        {
+            try
+            {
+                string n = p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
+                if (!string.IsNullOrWhiteSpace(n)) return n;
+            }
+            catch (Exception ex) { StingLog.Info($"BoardName {p.Id.Value}: {ex.Message}"); }
+            return p.Name ?? "";
+        }
+
         private static int SafeIntByName(Element e, params string[] names)
         {
             foreach (var n in names)

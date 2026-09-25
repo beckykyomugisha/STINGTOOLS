@@ -134,11 +134,20 @@ namespace StingTools.Commands.Electrical
                 return Result.Cancelled;
             }
 
-            var panel = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
-                .WhereElementIsNotElementType()
-                .OfType<FamilyInstance>()
-                .FirstOrDefault(p => string.Equals(p.Name, snap.PanelName, StringComparison.OrdinalIgnoreCase));
+            // By element id first: the grid row carries it. By Panel Name only as a
+            // fallback — never by p.Name, which is the family TYPE name and matched the
+            // first board of that type whichever row was picked.
+            FamilyInstance panel = snap.PanelId > 0
+                ? doc.GetElement(new ElementId(snap.PanelId)) as FamilyInstance
+                : null;
+            if (panel == null)
+                panel = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                    .WhereElementIsNotElementType()
+                    .OfType<FamilyInstance>()
+                    .FirstOrDefault(p => string.Equals(
+                        p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString(),
+                        snap.PanelName, StringComparison.OrdinalIgnoreCase));
             if (panel == null)
             {
                 TaskDialog.Show("STING Electrical", $"Panel '{snap.PanelName}' not found.");
@@ -156,22 +165,29 @@ namespace StingTools.Commands.Electrical
                 //   Location  → ASS_LOC_TXT (no panel-specific equivalent exists)
                 //   Manufact. → ASS_MANUFACTURER_TXT (via ParamRegistry.MFR alias)
                 //   Fault kA  → ELC_PNL_SHORT_CIRCUIT_RATING_KA (via ELC_PNL_FAULT_KA alias)
-                //   Enclosure → ELC_PNL_IP_RATING_TXT (IP rating IS the formal
-                //               BS EN 60529 enclosure protection classification)
+                //   IP rating → ELC_PNL_IP_RATING_TXT (what the STING panel schedule
+                //               header shows) and ELC_IP_RATING_TXT (older readers).
+                //   Enclosure type (Floor Standing / Wall Mounted / Din Rail) is a
+                //   mounting type, NOT an IP code; it used to be written into the IP
+                //   column, so every schedule read "Floor Standing" as its IP rating.
+                //   There is no parameter for it yet (ROADMAP PNL-19) — not stored.
                 if (!string.IsNullOrEmpty(snap.Location))
                     ParameterHelpers.SetString(panel, "ASS_LOC_TXT", snap.Location, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.IpRating))
+                {
                     ParameterHelpers.SetString(panel, ParamRegistry.ELC_IP_RATING, snap.IpRating, overwrite: true);
+                    ParameterHelpers.SetString(panel, "ELC_PNL_IP_RATING_TXT", snap.IpRating, overwrite: true);
+                }
                 if (!string.IsNullOrEmpty(snap.Manufacturer))
                     ParameterHelpers.SetString(panel, ParamRegistry.MFR, snap.Manufacturer, overwrite: true);
                 if (!string.IsNullOrEmpty(snap.FaultKA))
                     ParameterHelpers.SetString(panel, ParamRegistry.ELC_PNL_FAULT_KA, snap.FaultKA, overwrite: true);
-                if (!string.IsNullOrEmpty(snap.Enclosure))
-                    ParameterHelpers.SetString(panel, "ELC_PNL_IP_RATING_TXT", snap.Enclosure, overwrite: true);
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Electrical", $"Saved to '{panel.Name}'.");
+            string board = panel.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
+            TaskDialog.Show("STING Electrical", $"Saved to '{(string.IsNullOrWhiteSpace(board) ? panel.Name : board)}'."
+                + (string.IsNullOrEmpty(snap.Enclosure) ? "" : $"\n\nEnclosure type '{snap.Enclosure}' is not stored yet (no parameter for it)."));
             return Result.Succeeded;
         }
     }
