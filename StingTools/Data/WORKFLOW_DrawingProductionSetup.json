@@ -1,6 +1,6 @@
 {
   "name": "DrawingProductionSetup",
-  "description": "Everything drawing production needs before the first Produce: shared parameters, STING title blocks, tag families, text and dimension styles, view templates, the AEC filter library, the named view types, presentation fills, the flow-arrow family and managed pack templates — then the catalogue pre-flight. Run once per project, and again after a template or catalogue update; every step skips what already exists. Set PRJ_ORG_SHEET_NUMBER_POLICY_TXT on Project Information first if the project numbers sheets the ISO 19650 way.",
+  "description": "Everything drawing production needs before the first Produce: shared parameters, STING title blocks, tag families, text and dimension styles, view templates, the AEC filter library, the named view types, presentation fills, the flow-arrow family and managed pack templates — then the catalogue pre-flight. Run once per project, and again after a template or catalogue update; every step skips what already exists. Choose the sheet-number policy (per drawing type, or ISO 19650) on the Project Setup Wizard's Automation page first; it writes PRJ_ORG_SHEET_NUMBER_POLICY_TXT on Project Information.",
   "rollback_on_failure": false,
   "steps": [
     {

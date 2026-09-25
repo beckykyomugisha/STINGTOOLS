@@ -2984,9 +2984,11 @@ namespace StingTools.Core
                 { "MEP Fabrication Hangers", "OST_FabricationHangers" },
                 { "MEP Fabrication Pipework", "OST_FabricationPipework" },
                 { "Mass", "OST_Mass" },
-                // NOTE: OST_Materials intentionally EXCLUDED — materials use native Revit
-                // properties (Color, Transparency, ThermalAsset, StructuralAsset) set via
-                // MaterialCommands.cs, NOT shared parameter bindings.
+                // NOTE: OST_Materials intentionally EXCLUDED from this category map. Materials
+                // do carry shared parameters (MAT_*, PROP_* …) — bound by name in
+                // LoadSharedParamsCommand.CleanMaterialBindings, not through this map — as
+                // well as the native properties MaterialCommands.cs sets (Color, Transparency,
+                // ThermalAsset, StructuralAsset).
                 { "Mechanical Control Devices", "OST_MechanicalControlDevices" },
                 { "Mechanical Equipment", "OST_MechanicalEquipment" },
                 { "Mechanical Equipment Sets", "OST_MechanicalEquipmentSets" },

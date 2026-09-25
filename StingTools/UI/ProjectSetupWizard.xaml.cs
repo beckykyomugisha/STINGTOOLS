@@ -39,6 +39,11 @@ namespace StingTools.UI
         private const int TotalPages = 8;
         private int _currentPage = 0;
 
+        // Sheet-number policy as found on the project, and how many sheets it
+        // already numbers — so the wizard can say a change renumbers nothing.
+        private string _storedSheetPolicy;
+        private int _existingSheetCount;
+
         /// <summary>Result data — populated when user clicks Run.</summary>
         public ProjectSetupData SetupData { get; private set; }
 
@@ -93,6 +98,29 @@ namespace StingTools.UI
             catch (System.Exception ex)
             {
                 StingTools.Core.StingLog.Warn($"PopulateRegionPresets: {ex.Message}");
+            }
+        }
+
+        private StingTools.Core.Drawing.SheetNumberPolicyKind ChosenSheetPolicy()
+            => StingTools.Core.Drawing.SheetNumberPolicy.Parse(
+                (cmbSheetNumberPolicy?.SelectedItem as ComboBoxItem)?.Tag as string);
+
+        private void CmbSheetNumberPolicy_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Fires during InitializeComponent, before the note exists.
+            if (txtSheetPolicyNote == null) return;
+            var chosen = ChosenSheetPolicy();
+            bool changes = StingTools.Core.Drawing.SheetNumberPolicy.Parse(_storedSheetPolicy) != chosen;
+            if (changes && _existingSheetCount > 0)
+            {
+                txtSheetPolicyNote.Text = $"This project already has {_existingSheetCount} sheet(s). They keep their "
+                    + "numbers — the policy applies to sheets produced from now on. Run DrawingTypes_Renumber to "
+                    + "renumber existing sheets; that is a document-control event, so issue a revision.";
+                txtSheetPolicyNote.Visibility = System.Windows.Visibility.Visible;
+            }
+            else
+            {
+                txtSheetPolicyNote.Visibility = System.Windows.Visibility.Collapsed;
             }
         }
 
@@ -180,6 +208,22 @@ namespace StingTools.UI
                         }
                     }
                     catch (Exception rex) { StingLog.Warn($"PrePopulate region: {rex.Message}"); }
+
+                    // Sheet-number policy: show what the project already uses, so
+                    // pressing Run without touching the picker changes nothing.
+                    try
+                    {
+                        _storedSheetPolicy = pi.LookupParameter(
+                            StingTools.Core.Drawing.SheetNumberPolicy.PolicyParameterName)?.AsString();
+                        _existingSheetCount = new FilteredElementCollector(doc)
+                            .OfClass(typeof(ViewSheet)).GetElementCount();
+                        string want = StingTools.Core.Drawing.SheetNumberPolicy.ToParameterValue(
+                            StingTools.Core.Drawing.SheetNumberPolicy.Parse(_storedSheetPolicy));
+                        foreach (ComboBoxItem item in cmbSheetNumberPolicy.Items)
+                            if (string.Equals(item.Tag as string, want, StringComparison.Ordinal))
+                                cmbSheetNumberPolicy.SelectedItem = item;
+                    }
+                    catch (Exception pex) { StingLog.Warn($"PrePopulate sheet-number policy: {pex.Message}"); }
                 }
             }
             catch (Exception ex)
@@ -1143,6 +1187,8 @@ namespace StingTools.UI
             data.CreateSheets = chkCreateSheets.IsChecked == true;
             data.CreateSections = chkCreateSections.IsChecked == true;
             data.CreateElevations = chkCreateElevations.IsChecked == true;
+            data.RunDrawingProductionSetup = chkDrawingProduction.IsChecked == true;
+            data.SheetNumberPolicy = ChosenSheetPolicy();
 
             // Page 7: Standards & Region
             data.Region = lstRegionPresets.SelectedItem as string;
@@ -1460,9 +1506,18 @@ namespace StingTools.UI
             }
             AddStep(data.CreatePhases, "Audit project phases (report only)");
             AddStep(data.EnableWorksharing, "Create worksets (35 ISO 19650)");
+            AddStep(data.RunDrawingProductionSetup, "Set up drawing production (title blocks, tags, view types, filters)");
 
             // Phase 4: Documentation
             sb.AppendLine("  Phase 4: Documentation");
+            string policyWrite = data.SheetNumberPolicy == null ? null
+                : StingTools.Core.Drawing.SheetNumberPolicy.ValueToWrite(_storedSheetPolicy, data.SheetNumberPolicy.Value);
+            string policyName = data.SheetNumberPolicy == StingTools.Core.Drawing.SheetNumberPolicyKind.Iso
+                ? "ISO 19650-2" : "per drawing type";
+            AddStep(policyWrite != null, policyWrite != null
+                ? $"Set sheet-number policy: {policyName}"
+                  + (_existingSheetCount > 0 ? $" ({_existingSheetCount} existing sheet(s) keep their numbers)" : "")
+                : $"Sheet-number policy: {policyName} (already set)");
             AddStep(data.CreateViews, $"Create views ({data.Disciplines.Count} disc x {data.Levels.Count} levels)");
             AddStep(data.CreateDependents, "Create dependent views from scope boxes");
             AddStep(data.CreateSheets, "Create sheets with viewports");
@@ -1721,6 +1776,14 @@ namespace StingTools.UI
         public bool CreateSheets { get; set; }
         public bool CreateSections { get; set; }
         public bool CreateElevations { get; set; }
+
+        /// <summary>Run the Drawing Production Setup workflow (DrawingProductionSetupCommand) at the end of Phase 3.</summary>
+        public bool RunDrawingProductionSetup { get; set; }
+
+        /// <summary>Sheet-number policy to record in PRJ_ORG_SHEET_NUMBER_POLICY_TXT. Written only when it
+        /// differs from what the project already holds (SheetNumberPolicy.ValueToWrite). Null — no one
+        /// chose — leaves the parameter alone; a default of Profile would quietly undo an ISO project.</summary>
+        public StingTools.Core.Drawing.SheetNumberPolicyKind? SheetNumberPolicy { get; set; }
 
         /// <summary>Fast setup mode — scan document first, skip bulk steps (materials, schedules, templates)
         /// when ≥80% of target already exists. Typically reduces 30+ min re-runs to under 5 min.</summary>

@@ -448,10 +448,35 @@ namespace StingTools.Temp
                     skipped++;
                 }
 
+                // Step: Drawing production — the same workflow as SETUP → DRAWING
+                // PRODUCTION. Before Phase 4 so the sheets it creates find STING
+                // title blocks and view types rather than whatever loaded first.
+                if (data.RunDrawingProductionSetup)
+                {
+                    passed += RunStep(ref stepNum, report, "Set Up Drawing Production (workflow)",
+                        () => RunCommand(new Commands.Drawing.DrawingProductionSetupCommand(), commandData, elements));
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Set Up Drawing Production — SKIPPED");
+                    skipped++;
+                }
+
                 // ════════════════════════════════════════════════════
                 // PHASE 4: DOCUMENTATION
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 4: Documentation ──");
+
+                // Step: Sheet-number policy. Here, not in Set Project Information:
+                // that runs in Phase 1, before Load Shared Parameters binds the
+                // parameter on a fresh project. Before Create Sheets, which reads it.
+                if (data.SheetNumberPolicy != null)
+                {
+                    passed += RunStep(ref stepNum, report,
+                        $"Sheet-Number Policy ({Core.Drawing.SheetNumberPolicy.ToParameterValue(data.SheetNumberPolicy.Value)})",
+                        () => WriteSheetNumberPolicy(doc, data.SheetNumberPolicy.Value, report));
+                }
 
                 // Step: Create Views (plans + RCPs per level per discipline)
                 if (data.CreateViews)
@@ -835,6 +860,40 @@ namespace StingTools.Temp
                 }
                 catch (Exception ex) { StingLog.Warn($"K-11c stamp '{name}': {ex.Message}"); }
             }
+        }
+
+        /// <summary>
+        /// Record the sheet-number policy on Project Information. Writes only a
+        /// change (SheetNumberPolicy.ValueToWrite). An unbound parameter is a
+        /// WARN with the reason in the report, not a silent success — a project
+        /// that asked for ISO numbering and got none would find out at issue.
+        /// </summary>
+        private static Result WriteSheetNumberPolicy(Document doc, Core.Drawing.SheetNumberPolicyKind chosen,
+            StringBuilder report)
+        {
+            var p = doc.ProjectInformation?.LookupParameter(Core.Drawing.SheetNumberPolicy.PolicyParameterName);
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+            {
+                string why = $"{Core.Drawing.SheetNumberPolicy.PolicyParameterName} is not a writable text parameter "
+                    + "on Project Information — enable Load Shared Parameters, or run it, then set the policy again.";
+                report.AppendLine("      " + why);
+                StingLog.Warn("ProjectSetup: " + why);
+                return Result.Failed;
+            }
+            string value = Core.Drawing.SheetNumberPolicy.ValueToWrite(p.AsString(), chosen);
+            if (value == null)
+            {
+                report.AppendLine($"      unchanged ('{p.AsString()}')");
+                return Result.Succeeded;
+            }
+            using (var tx = new Transaction(doc, "STING Set Sheet-Number Policy"))
+            {
+                tx.Start();
+                p.Set(value);
+                tx.Commit();
+            }
+            StingLog.Info($"ProjectSetup: sheet-number policy '{p.AsString()}'");
+            return Result.Succeeded;
         }
 
         private static Result SetProjectInformation(Document doc, ProjectSetupData data)

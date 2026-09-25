@@ -23190,3 +23190,41 @@ param-name targets, tag-row bindings, map target types, tag-row duplicates, lyin
 unreachable-commands recount, token policy, path discipline, workflow wiring, doc acquisition,
 roadmap ids, docs index all pass; the workflow's inline GUID / CSV-integrity / CSV-structure
 checks and JSON validation reproduced locally and pass.
+
+#### Completed (pre-Revit cleanup, branch `claude/pre-revit-cleanup`)
+
+The work that could be coded before the next Revit session.
+
+- **CI gates run locally from the workflow files.** `tools/run_ci_gates.py` reads
+  `.github/workflows/*.yml` and runs the `run:` steps of the plugin-scope workflows, so it
+  cannot drift from CI by being a hand-copied list. A workflow it has not classified (run,
+  skip-with-reason, or out of scope) exits 2. `--quick` skips the plugin build and unit tests;
+  `--list` runs nothing. It puts back any file a gate rewrote only in line endings.
+- **`<ALL>` does not reach Materials.** `CleanMaterialBindings` strips Materials from every
+  non-material parameter, but three places assumed otherwise:
+  - 56 `CATEGORY_BINDINGS.csv` Materials rows on non-material parameters (never real bindings:
+    `RESOLVED_BINDINGS` did not change) are removed, and `param_binding_resolver.py` now refuses
+    such a row.
+  - The tag-row gate counted `<ALL>` as bound on Materials, which is how `STING - Materials Tag`
+    shipped 68 unprintable rows while the gate reported zero. Fixing the gate found 6 dead
+    Materials schedule columns. The spec now keys on `MAT_CODE` / `MAT_NAME`, and
+    `ScheduleDisciplineTagExpander` honours the spec's `col1_tag` instead of hard-coding
+    `ASS_TAG_1_TXT`.
+  - Four comments claiming Materials cannot take bound parameters were corrected.
+- **DT-3 closed.** The last four `tagFamilies` keys no rule asked for were given a rule
+  (`fm-asset-location` Rooms, `pres-context-site` Site) or removed (`clar-markup` Rooms,
+  `pres-exterior-elev` Walls). `EveryTagFamilyKeyIsAskedForByARule` now fails on any unused key.
+- **DT-4 closed.** `STING_SEED_MedGasOutlet` now builds Plumbing Fixtures, the category the TU
+  tag, the alarm-panel tags, `MgasNetwork` and `MgasFlowValidator` all use. As Specialty
+  Equipment, seeded outlets could not take the TU tag and were invisible to the network.
+  Terminal-unit types carry `MGS_GAS_TYPE_TXT`, and the TU / AAP patterns now catch the right
+  seed types. The AVSU / VIE category limit and 7 unregistered seed parameters are recorded in
+  ROADMAP DT-4.
+- **Setup wizard.** A new Drawing Production group on the Automation page:
+  - A checkbox runs the drawing-production workflow at the end of Phase 3. It is off by default
+    until DT-6's Revit run.
+  - A sheet-number policy picker, written after shared parameters load. It writes only a change,
+    and a caller that never chose leaves the parameter alone.
+
+Build 0/0. Tags.Tests green. `run_ci_gates.py` green. Data and gates are verified headlessly.
+**Not exercised in Revit:** the wizard steps, the moved seed, and the new Rooms / Site rules.
