@@ -1978,7 +1978,8 @@ namespace StingTools.Temp
             {
                 Result result = action();
                 sw.Stop();
-                string status = result == Result.Succeeded ? "OK" : "WARN";
+                // Failed says FAILED: a required workflow step or a refused write is not a warning.
+                string status = result == Result.Succeeded ? "OK" : result == Result.Failed ? "FAILED" : "WARN";
                 report.AppendLine($"  {stepNum,2}. {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 StingLog.Info($"Project Setup step {stepNum}: {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 return result == Result.Succeeded ? 1 : 0;

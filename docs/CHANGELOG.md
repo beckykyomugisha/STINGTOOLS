@@ -23573,6 +23573,24 @@ Every finding of the 2026-09-25 review of the pre-Revit cleanup and the Scope Bo
   - The guide has an area-box / seed section.
   - NLP and the LLM allow-list know `ScopeBox_Planner`.
 
+- **Second review (hidden failures).**
+  - The Scope Box Planner could lock itself: a raise that threw or was not Accepted left the
+    one-action guard set, so every later click said "still working" until the dialog closed.
+  - Produce From Areas rolled back a correctly cropped plan when a type's section or 3D view
+    ignored the box. Only the plan must take the box now; the others are warnings.
+  - A box whose move succeeded but whose rotate threw was left half-moved and dropped from the
+    plan. Each box now runs in its own sub-transaction and rolls back whole.
+  - A bad style colour was also counted as "nothing to colour by".
+  - Drawing production warns when the sheet-number policy holds a value it does not
+    recognise (a typo read as per-drawing-type numbering with no trace).
+  - A failed unattended workflow writes its step-by-step report to the log; Project Setup
+    labels a failed step FAILED, not WARN.
+  - Outlet placement: a Material Takeoff's material field wins over the host element's;
+    outlet lookups ignore pipe fittings and accessories; the comment on the gas-type lookup no
+    longer claims the seed is found by it.
+  - ROADMAP MG-2: projects that already built the outlet seed keep `MAP_THEATRE_PANEL`, which
+    the network still reads as a Master Alarm Panel; the manual migration is written there.
+
 Every new guard was proved RED by sabotage, then GREEN. **Not exercised in Revit:** the
 planner's Revit half (SBP-1, SBP-2, SBP-5), outlet placement per family type, the material
 takeoff and the wizard.

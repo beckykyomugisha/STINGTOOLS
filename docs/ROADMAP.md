@@ -211,6 +211,17 @@ both. Options if swaps prove common: an updater that restamps the gas on a type 
 separate type-level `MGS_TU_GAS_TXT` the TU tag reads. Neither is built. The per-type default
 behaviour itself has not been checked in Revit.
 
+**MG-2 · Projects that already built the outlet seed keep the old theatre panel.** The type
+`MAP_THEATRE_PANEL` (product code `MAP`) was renamed `THEATRE_GAS_PANEL` / `TGP` on 2026-09-25,
+because `MgasNetwork` (line 91) reads product code `MAP` as a Master Alarm Panel. *Build Seeds*
+in Missing Only mode skips a seed whose `.rfa` exists, and a family reload never deletes a type
+the project already holds, so placed theatre panels stay `MAP` and keep counting as a Master
+Alarm Panel. The same applies to projects that built the seed as Specialty Equipment before
+DT-4. Nothing migrates this: in such a project, run *Build Seeds → Rebuild All*, swap the
+theatre-panel instances to `THEATRE_GAS_PANEL`, then purge `MAP_THEATRE_PANEL`. A migration
+step (or a `Symbols_DriftDetect` finding for a seed type the spec no longer declares) would make
+it automatic.
+
 **DT-6 · Needs a Revit run (2026-09-24 setup / view-type / material-tag work).** Run SETUP →
 DRAWING PRODUCTION → *Set up drawing production* on a fresh project and check each step
 completes without a dialog blocking the chain (`TitleBlock_CreateAll` has never run unattended

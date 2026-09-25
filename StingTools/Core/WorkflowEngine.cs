@@ -1189,6 +1189,11 @@ namespace StingTools.Core
             outcome.Cancelled = cancelled;
             outcome.Report = report.ToString();
 
+            // Unattended, nobody sees the dialog and most callers discard the outcome, so a
+            // failure's step-by-step detail would exist nowhere. Put it in the log.
+            if (!attended && outcome.IsFailure)
+                StingLog.Warn($"Workflow '{preset.Name}' (unattended) failed:\n{outcome.Report}");
+
             if (attended)
             {
                 TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");

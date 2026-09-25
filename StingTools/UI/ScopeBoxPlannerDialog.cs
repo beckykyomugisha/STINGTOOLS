@@ -487,8 +487,23 @@ namespace StingTools.UI
             if (_pending != null) { _status.Text = $"Still working on '{_pendingTitle}' — '{title}' was not started."; return; }
             _pendingTitle = title; _pending = work; _reloadAfter = reload;
             _status.Text = title + "…";
-            try { _event.Raise(); }
-            catch (Exception ex) { StingLog.Error($"ScopeBoxPlanner {title}", ex); _status.Text = $"{title} could not start: {ex.Message}"; }
+            // Only Execute clears _pending, and it only runs for an Accepted request. A throw or a
+            // Denied / TimedOut raise would otherwise lock every later action until the planner closed.
+            try
+            {
+                var status = _event.Raise();
+                if (status != ExternalEventRequest.Accepted)
+                {
+                    _pending = null; _pendingTitle = null;
+                    _status.Text = $"{title} could not start (Revit answered {status}) — try again.";
+                }
+            }
+            catch (Exception ex)
+            {
+                _pending = null; _pendingTitle = null;
+                StingLog.Error($"ScopeBoxPlanner {title}", ex);
+                _status.Text = $"{title} could not start: {ex.Message}";
+            }
         }
 
         private void OnCreate(object s, RoutedEventArgs e)

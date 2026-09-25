@@ -256,6 +256,10 @@ namespace StingTools.Core.Drawing
                 if (b.Status == PlannedBoxStatus.Mismatch) { report.Add($"{b.Name}: {b.StatusNote}."); continue; }
                 if (b.Status != PlannedBoxStatus.New && b.Status != PlannedBoxStatus.Moved) continue;
                 ElementId made = null;
+                // One sub-transaction per box: a move whose rotate throws, or a copy whose rename
+                // fails, rolls back whole instead of leaving a half-moved box or a stray copy.
+                var sub = new SubTransaction(doc);
+                sub.Start();
                 try
                 {
                     if (b.Status == PlannedBoxStatus.Moved)
@@ -294,11 +298,22 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex)
                 {
-                    // An unnamed or half-placed copy would be a stray duplicate of the seed. Remove it.
-                    if (made != null) { try { doc.Delete(made); } catch (Exception dex) { StingLog.Warn($"ScopeBox cleanup '{b.Name}': {dex.Message}"); } }
+                    // Undo this box whole: a half-moved box or an unnamed copy of the seed.
+                    try { if (sub.HasStarted() && !sub.HasEnded()) sub.RollBack(); }
+                    catch (Exception rex) { StingLog.Warn($"ScopeBox rollback '{b.Name}': {rex.Message}"); }
                     result.Failed.Add(b.Name);
-                    report.Add($"{b.Name}: failed ({ex.Message})" + (made != null ? " — the copy was removed." : "."));
+                    result.Moved.Remove(b.Name);
+                    result.Created.Remove(b.Name);
+                    report.Add($"{b.Name}: failed ({ex.Message}) — " + (b.Status == PlannedBoxStatus.Moved
+                        ? "the box was put back." : made != null ? "the copy was removed." : "nothing was changed."));
                     StingLog.Error($"ScopeBoxRevit.Create '{b.Name}'", ex);
+                }
+                finally
+                {
+                    // The success path and every early `continue` end here: keep what was done.
+                    try { if (sub.HasStarted() && !sub.HasEnded()) sub.Commit(); }
+                    catch (Exception cex) { StingLog.Warn($"ScopeBox sub-commit '{b.Name}': {cex.Message}"); }
+                    sub.Dispose();
                 }
             }
             return result;
@@ -384,7 +399,7 @@ namespace StingTools.Core.Drawing
                 foreach (var b in boxes)
                 {
                     var ogs = new OverrideGraphicSettings();
-                    bool colour = false;
+                    bool colour = false, bad = false;
                     if (colours.TryGetValue(b.Name ?? "", out var hex))
                     {
                         if (ScopeBoxStyle.TryParseHex(hex, out var cr, out var cg, out var cb))
@@ -393,12 +408,13 @@ namespace StingTools.Core.Drawing
                             ogs.SetProjectionLineWeight(weight);
                             colour = true;
                         }
-                        else badHex++;
+                        else { badHex++; bad = true; }
                     }
                     try
                     {
                         v.SetElementOverrides(b.Id, ogs);
-                        if (colour) r.Coloured++; else r.Cleared++;
+                        // A bad colour is reported on its own line, not as "nothing to colour by".
+                        if (colour) r.Coloured++; else if (!bad) r.Cleared++;
                     }
                     catch (Exception ex) { refused++; StingLog.Warn($"ScopeBox colour '{b.Name}' in '{v.Name}': {ex.Message}"); }
                 }

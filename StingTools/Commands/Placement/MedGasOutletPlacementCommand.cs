@@ -60,7 +60,10 @@ namespace StingTools.Commands.Placement
             => StingTools.Standards.NFPA99.NFPA99Standards.NominalGasPressureKPa.TryGetValue(gas, out double kpa) ? kpa : double.NaN;
 
         /// <summary>
-        /// The symbol for one gas: a type stamped with the gas wins; then a keyword match.
+        /// The symbol for one gas: first a type that carries the gas as a TYPE parameter (some
+        /// manufacturer families do); then a keyword match. STING's own seed never matches the
+        /// first step — its MGS_GAS_TYPE_TXT is an instance parameter a FamilySymbol cannot
+        /// read (ROADMAP MG-1) — so it is found by its TERMINAL_UNIT_* type names, exact only.
         /// Keywords are matched in order and whole-name-first, so "TERMINAL_UNIT_N2" does
         /// not pick up TERMINAL_UNIT_N2O.
         /// </summary>

@@ -368,8 +368,15 @@ namespace StingTools.Core.Drawing
                                 new DrawingContext { Level = it.Level, ScopeBox = it.Box, Tag = area }, opts);
                             // A view the box could not crop is not a produced drawing of that area.
                             // Undo this item and count it, rather than report an uncropped view as made.
-                            bool cropped = pr.ViewIds.Count > 0 && pr.ViewIds.All(vid =>
-                                doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId() == it.Box.Id);
+                            // The plan is the area drawing, so it must take the box. A type's other
+                            // views (a coordination type's 3D or section) may ignore it: warn, keep.
+                            bool BoxCrops(ElementId vid) =>
+                                doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId() == it.Box.Id;
+                            var planIds = pr.ViewIds.Where(vid => doc.GetElement(vid) is ViewPlan).ToList();
+                            bool cropped = planIds.Count > 0 && planIds.All(BoxCrops);
+                            if (cropped)
+                                foreach (var vid in pr.ViewIds.Where(vid => !(doc.GetElement(vid) is ViewPlan) && !BoxCrops(vid)))
+                                    warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: '{doc.GetElement(vid)?.Name}' is not cropped to the box (kept — only its plan must be).");
                             if (!cropped)
                             {
                                 t.RollBack();
