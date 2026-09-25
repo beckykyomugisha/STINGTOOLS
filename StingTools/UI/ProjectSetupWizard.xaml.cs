@@ -43,6 +43,8 @@ namespace StingTools.UI
         // already numbers — so the wizard can say a change renumbers nothing.
         private string _storedSheetPolicy;
         private int _existingSheetCount;
+        // The picker's tag after pre-population: still showing it at Run means nobody chose.
+        private string _prePopulatedSheetPolicyTag;
 
         /// <summary>Result data — populated when user clicks Run.</summary>
         public ProjectSetupData SetupData { get; private set; }
@@ -101,9 +103,11 @@ namespace StingTools.UI
             }
         }
 
+        private string PickedSheetPolicyTag()
+            => (cmbSheetNumberPolicy?.SelectedItem as ComboBoxItem)?.Tag as string;
+
         private StingTools.Core.Drawing.SheetNumberPolicyKind ChosenSheetPolicy()
-            => StingTools.Core.Drawing.SheetNumberPolicy.Parse(
-                (cmbSheetNumberPolicy?.SelectedItem as ComboBoxItem)?.Tag as string);
+            => StingTools.Core.Drawing.SheetNumberPolicy.Parse(PickedSheetPolicyTag());
 
         private void CmbSheetNumberPolicy_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -111,17 +115,20 @@ namespace StingTools.UI
             if (txtSheetPolicyNote == null) return;
             var chosen = ChosenSheetPolicy();
             bool changes = StingTools.Core.Drawing.SheetNumberPolicy.Parse(_storedSheetPolicy) != chosen;
+            var notes = new List<string>();
+            // Parse reads an unknown value as per-drawing-type numbering; say so rather
+            // than showing it as if the project had chosen that.
+            if (!string.IsNullOrWhiteSpace(_storedSheetPolicy)
+                && !StingTools.Core.Drawing.SheetNumberPolicy.IsRecognised(_storedSheetPolicy))
+                notes.Add($"The project holds '{_storedSheetPolicy.Trim()}', which is not a sheet-number policy STING "
+                    + "recognises, so sheets are numbered per drawing type. Pick a policy to record a real one.");
             if (changes && _existingSheetCount > 0)
-            {
-                txtSheetPolicyNote.Text = $"This project already has {_existingSheetCount} sheet(s). They keep their "
+                notes.Add($"This project already has {_existingSheetCount} sheet(s). They keep their "
                     + "numbers — the policy applies to sheets produced from now on. Run DrawingTypes_Renumber to "
-                    + "renumber existing sheets; that is a document-control event, so issue a revision.";
-                txtSheetPolicyNote.Visibility = System.Windows.Visibility.Visible;
-            }
-            else
-            {
-                txtSheetPolicyNote.Visibility = System.Windows.Visibility.Collapsed;
-            }
+                    + "renumber existing sheets; that is a document-control event, so issue a revision.");
+            txtSheetPolicyNote.Text = string.Join("\n\n", notes);
+            txtSheetPolicyNote.Visibility = notes.Count > 0
+                ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
         }
 
         private void LstRegionPresets_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -222,6 +229,8 @@ namespace StingTools.UI
                         foreach (ComboBoxItem item in cmbSheetNumberPolicy.Items)
                             if (string.Equals(item.Tag as string, want, StringComparison.Ordinal))
                                 cmbSheetNumberPolicy.SelectedItem = item;
+                        _prePopulatedSheetPolicyTag = PickedSheetPolicyTag();
+                        CmbSheetNumberPolicy_SelectionChanged(null, null);   // show an unrecognised stored value
                     }
                     catch (Exception pex) { StingLog.Warn($"PrePopulate sheet-number policy: {pex.Message}"); }
                 }
@@ -1188,7 +1197,8 @@ namespace StingTools.UI
             data.CreateSections = chkCreateSections.IsChecked == true;
             data.CreateElevations = chkCreateElevations.IsChecked == true;
             data.RunDrawingProductionSetup = chkDrawingProduction.IsChecked == true;
-            data.SheetNumberPolicy = ChosenSheetPolicy();
+            data.SheetNumberPolicy = StingTools.Core.Drawing.SheetNumberPolicy.ChosenOrNull(
+                PickedSheetPolicyTag(), _prePopulatedSheetPolicyTag);
 
             // Page 7: Standards & Region
             data.Region = lstRegionPresets.SelectedItem as string;
@@ -1512,12 +1522,14 @@ namespace StingTools.UI
             sb.AppendLine("  Phase 4: Documentation");
             string policyWrite = data.SheetNumberPolicy == null ? null
                 : StingTools.Core.Drawing.SheetNumberPolicy.ValueToWrite(_storedSheetPolicy, data.SheetNumberPolicy.Value);
-            string policyName = data.SheetNumberPolicy == StingTools.Core.Drawing.SheetNumberPolicyKind.Iso
-                ? "ISO 19650-2" : "per drawing type";
+            string policyName = (data.SheetNumberPolicy ?? StingTools.Core.Drawing.SheetNumberPolicy.Parse(_storedSheetPolicy))
+                == StingTools.Core.Drawing.SheetNumberPolicyKind.Iso ? "ISO 19650-2" : "per drawing type";
             AddStep(policyWrite != null, policyWrite != null
                 ? $"Set sheet-number policy: {policyName}"
                   + (_existingSheetCount > 0 ? $" ({_existingSheetCount} existing sheet(s) keep their numbers)" : "")
-                : $"Sheet-number policy: {policyName} (already set)");
+                : data.SheetNumberPolicy == null
+                    ? $"Sheet-number policy: {policyName} (not changed — nothing picked)"
+                    : $"Sheet-number policy: {policyName} (already set)");
             AddStep(data.CreateViews, $"Create views ({data.Disciplines.Count} disc x {data.Levels.Count} levels)");
             AddStep(data.CreateDependents, "Create dependent views from scope boxes");
             AddStep(data.CreateSheets, "Create sheets with viewports");

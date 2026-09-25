@@ -358,16 +358,65 @@ namespace StingTools.Core
             return (issues.Count == 0, issues);
         }
 
+        /// <summary>What an unattended run did, for the caller to report in its own words.</summary>
+        public sealed class WorkflowOutcome
+        {
+            public string PresetName { get; set; }
+            public int TotalSteps { get; set; }
+            public int Passed { get; set; }
+            public int Failed { get; set; }
+            public int Skipped { get; set; }
+            public bool Cancelled { get; set; }
+            /// <summary>The full step-by-step report the attended run shows in its dialog.</summary>
+            public string Report { get; set; }
+            /// <summary>A required step failed or the run was cancelled. Optional failures count as skipped.</summary>
+            public bool IsFailure => Failed > 0 || Cancelled;
+            public string Summary =>
+                $"{PresetName}: {Passed}/{TotalSteps} steps OK, {Skipped} skipped, {Failed} failed" +
+                (Cancelled ? " (cancelled)" : "");
+        }
+
+        // A workflow run from inside another (a step that is itself a workflow, or the
+        // project setup wizard) must not stop the outer run with its own report dialog.
+        [ThreadStatic] private static int _presetDepth;
+
         /// <summary>
-        /// Execute a workflow preset with progress reporting and cancellation.
+        /// Execute a workflow preset with progress reporting and cancellation, and show
+        /// the report. Nested inside another run it is unattended (see the overload).
         /// </summary>
         public static Result ExecutePreset(WorkflowPreset preset,
             ExternalCommandData commandData, ElementSet elements)
+            => ExecutePreset(preset, commandData, elements, showReport: true, out _);
+
+        /// <summary>
+        /// Execute a workflow preset. With <paramref name="showReport"/> false (or when
+        /// nested in another run) no report dialog is shown, the outcome is returned for
+        /// the caller to present, and the result is Failed when any REQUIRED step failed
+        /// or the run was cancelled. An attended run keeps its historical result
+        /// (Succeeded when any step passed): its dialog has already said what failed,
+        /// and a Failed result would make Revit raise a second, generic error.
+        /// </summary>
+        public static Result ExecutePreset(WorkflowPreset preset,
+            ExternalCommandData commandData, ElementSet elements,
+            bool showReport, out WorkflowOutcome outcome)
         {
+            bool attended = showReport && _presetDepth == 0;
+            _presetDepth++;
+            try { return ExecutePresetCore(preset, commandData, elements, attended, out outcome); }
+            finally { _presetDepth--; }
+        }
+
+        private static Result ExecutePresetCore(WorkflowPreset preset,
+            ExternalCommandData commandData, ElementSet elements,
+            bool attended, out WorkflowOutcome outcome)
+        {
+            outcome = new WorkflowOutcome { PresetName = preset?.Name ?? "", TotalSteps = preset?.Steps?.Count ?? 0 };
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null)
             {
-                TaskDialog.Show("Workflow", "No document is open.");
+                outcome.Failed = 1;
+                outcome.Report = "No document is open.";
+                if (attended) TaskDialog.Show("Workflow", "No document is open.");
                 return Result.Failed;
             }
             Document doc = ctx.Doc;
@@ -1134,10 +1183,19 @@ namespace StingTools.Core
             if (cancelled) report.AppendLine("  ⚠ Cancelled by user (Escape)");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
 
-            TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");
-            td.MainInstruction = $"{preset.Name}: {passed}/{preset.Steps.Count} steps complete";
-            td.MainContent = report.ToString();
-            td.Show();
+            outcome.Passed = passed;
+            outcome.Failed = failed;
+            outcome.Skipped = skipped;
+            outcome.Cancelled = cancelled;
+            outcome.Report = report.ToString();
+
+            if (attended)
+            {
+                TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");
+                td.MainInstruction = $"{preset.Name}: {passed}/{preset.Steps.Count} steps complete";
+                td.MainContent = report.ToString();
+                td.Show();
+            }
 
             StingLog.Info($"Workflow '{preset.Name}' complete: {passed}/{preset.Steps.Count} OK, " +
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
@@ -1255,6 +1313,7 @@ namespace StingTools.Core
                 StingLog.Warn($"Workflow log save failed: {logEx.Message}");
             }
 
+            if (!attended) return outcome.IsFailure ? Result.Failed : Result.Succeeded;
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }
 
