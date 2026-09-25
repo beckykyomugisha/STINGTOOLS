@@ -52,9 +52,8 @@ namespace StingTools.Commands.Electrical.Schematics
             string protLevel = projInfo == null ? "" : ParameterHelpers.GetString(projInfo, LpsParams.CLASS_TXT).Trim();
             bool classAssumed = string.IsNullOrEmpty(protLevel);
             if (classAssumed) protLevel = "I";
-            // ELC_LPS_MESH_SIZE_M holds metres as the raw double (LpsClassSetup's
-            // SetDouble and every LPS reader use the same convention), so read it
-            // the same way rather than through the parameter's display units.
+            // ELC_LPS_MESH_SIZE_M is LENGTH (internal feet); GetDoubleParam converts
+            // it to metres, and returns the plain value on an older NUMBER binding.
             double meshM = projInfo == null ? 0 : LpsEngine.GetDoubleParam(projInfo, LpsParams.MESH_SIZE_M);
             string meshSize = meshM > 0 ? $"{meshM:0.##} m" : "";
 

@@ -838,7 +838,7 @@ namespace StingTools.Core.Lightning
                 if (p == null || !p.HasValue) return 0.0;
                 switch (p.StorageType)
                 {
-                    case StorageType.Double:  return p.AsDouble();
+                    case StorageType.Double:  return FromInternalIfLength(p, paramName, p.AsDouble());
                     case StorageType.Integer: return p.AsInteger();
                     case StorageType.String:
                         if (double.TryParse(p.AsString(), out double v)) return v;
@@ -848,6 +848,52 @@ namespace StingTools.Core.Lightning
             }
             catch (Exception ex) { StingLog.Warn($"GetDoubleParam {paramName}: {ex.Message}"); return 0.0; }
         }
+
+        // ── LENGTH-typed LPS parameters ────────────────────────────────────
+        // ELC_LPS_ROLLING_SPHERE_RADIUS_M, ELC_LPS_MESH_SIZE_M and
+        // ELC_LPS_SEPARATION_DISTANCE_MM are LENGTH in MR_PARAMETERS.txt, and Revit
+        // stores a length in internal feet. Writing a raw 30 (metres) through
+        // Parameter.Set(double) stored 30 ft, which Revit then shows as 9.144 m.
+        // The unit the caller works in comes from the name's suffix (_MM or _M).
+        // Conversion happens only when the parameter really is a Length spec, so a
+        // project still carrying an older unitless NUMBER binding reads and writes
+        // the plain value it always did.
+
+        /// <summary>The unit a caller of this LPS parameter works in: millimetres
+        /// for a <c>_MM</c> suffix, metres otherwise.</summary>
+        public static ForgeTypeId LengthUnitFor(string paramName) =>
+            paramName != null && paramName.EndsWith("_MM", StringComparison.OrdinalIgnoreCase)
+                ? UnitTypeId.Millimeters
+                : UnitTypeId.Meters;
+
+        /// <summary>True when the parameter is a Double with a Length spec.</summary>
+        public static bool IsLengthParam(Parameter p)
+        {
+            try
+            {
+                return p != null && p.StorageType == StorageType.Double &&
+                       p.Definition?.GetDataType() == SpecTypeId.Length;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IsLengthParam {p?.Definition?.Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>Internal feet → the caller's metres / millimetres, for a Length
+        /// parameter only; any other value is returned unchanged.</summary>
+        public static double FromInternalIfLength(Parameter p, string paramName, double internalValue) =>
+            IsLengthParam(p)
+                ? UnitUtils.ConvertFromInternalUnits(internalValue, LengthUnitFor(paramName))
+                : internalValue;
+
+        /// <summary>The caller's metres / millimetres → internal feet, for a Length
+        /// parameter only; any other value is returned unchanged.</summary>
+        public static double ToInternalIfLength(Parameter p, string paramName, double value) =>
+            IsLengthParam(p)
+                ? UnitUtils.ConvertToInternalUnits(value, LengthUnitFor(paramName))
+                : value;
 
         private static JObject LoadJson(string fileName)
         {

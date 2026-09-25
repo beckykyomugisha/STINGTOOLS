@@ -3443,7 +3443,7 @@ PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b61	HVC_PEAK_SENS_W	NUMBER		5	1	Per-space
 PARAM	4b1bf255-0644-508e-b482-5d73845bef11	HVC_PEAK_SENS_TXT	TEXT		5	1	HVC_PEAK_SENS_W display mirror [auto-generated]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b62	HVC_PEAK_LAT_W	NUMBER		5	1	Per-space peak latent load in W from BlockLoadEngine [Phase 187]	1
 PARAM	7e6aaa65-e119-5704-a804-9ef2e193566c	HVC_PEAK_LAT_TXT	TEXT		5	1	HVC_PEAK_LAT_W display mirror [auto-generated]	1
-PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	NUMBER		5	1	Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	NUMBER		5	1	Hour of day of the per-space peak from BlockLoadEngine as a whole number 0-23 (14 = 14:00) [Phase 187]	1
 PARAM	aeb9e0a7-ff68-5371-b5dc-5af20e5ea79c	HVC_PEAK_HOUR_TXT	TEXT		5	1	HVC_PEAK_HOUR display mirror [auto-generated]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b64	HVC_OA_LS	NUMBER		5	1	Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]	1
 PARAM	3212ebe9-0023-5974-ac25-350b7c154756	HVC_OA_TXT	TEXT		5	1	HVC_OA_LS display mirror [auto-generated]	1

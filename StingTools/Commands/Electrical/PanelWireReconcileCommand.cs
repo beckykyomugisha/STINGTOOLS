@@ -340,7 +340,8 @@ namespace StingTools.Commands.Electrical
         private static void AutoCorrect(Document doc, List<WireReconcileItem> mismatches)
         {
             if (mismatches.Count == 0) return;
-            int corrected = 0;
+            int corrected = 0, failed = 0;
+            var failures = new List<string>();
 
             try
             {
@@ -354,24 +355,43 @@ namespace StingTools.Commands.Electrical
                         var conduit = doc.GetElement(item.ConduitId);
                         if (conduit == null) continue;
 
-                        if (!string.IsNullOrEmpty(item.ActualPanelName))
-                            ParameterHelpers.SetString(conduit, "ELC_PNL_NAME_TXT", item.ActualPanelName, overwrite: true);
+                        // SetString returns false when the parameter is absent, read-only
+                        // or refuses the value. A conduit is corrected only when every
+                        // write it needed landed; anything else is counted and named.
+                        bool ok = true;
+                        var missed = new List<string>();
+                        if (!string.IsNullOrEmpty(item.ActualPanelName) &&
+                            !ParameterHelpers.SetString(conduit, "ELC_PNL_NAME_TXT", item.ActualPanelName, overwrite: true))
+                        { ok = false; missed.Add("ELC_PNL_NAME_TXT"); }
 
-                        if (!string.IsNullOrEmpty(item.ActualCircuitNr))
-                            ParameterHelpers.SetString(conduit, "ELC_CKT_NR", item.ActualCircuitNr, overwrite: true);
+                        if (!string.IsNullOrEmpty(item.ActualCircuitNr) &&
+                            !ParameterHelpers.SetString(conduit, "ELC_CKT_NR", item.ActualCircuitNr, overwrite: true))
+                        { ok = false; missed.Add("ELC_CKT_NR"); }
 
-                        corrected++;
+                        if (ok) corrected++;
+                        else
+                        {
+                            failed++;
+                            string line = $"conduit {item.ConduitId}: {string.Join(", ", missed)} not written";
+                            StingLog.Warn($"PanelWireReconcile.AutoCorrect: {line}");
+                            if (failures.Count < 10) failures.Add(line);
+                        }
                     }
                     catch (Exception ex)
                     {
+                        failed++;
                         StingLog.Warn($"PanelWireReconcile.AutoCorrect: conduit {item.ConduitId}: {ex.Message}");
+                        if (failures.Count < 10) failures.Add($"conduit {item.ConduitId}: {ex.Message}");
                     }
                 }
 
                 t.Commit();
-                StingLog.Info($"PanelWireReconcile: auto-corrected {corrected}/{mismatches.Count} conduit(s).");
-                TaskDialog.Show("STING — Panel Reconcile",
-                    $"Auto-correct complete.\n{corrected}/{mismatches.Count} conduit parameter(s) updated.");
+                StingLog.Info($"PanelWireReconcile: auto-corrected {corrected}/{mismatches.Count} conduit(s), {failed} failed.");
+                string msg = $"Auto-correct complete.\n{corrected}/{mismatches.Count} conduit(s) updated.";
+                if (failed > 0)
+                    msg += $"\n{failed} conduit(s) NOT updated — is ELC_PNL_NAME_TXT / ELC_CKT_NR bound on Conduits? " +
+                           "Run Load Params.\n\n" + string.Join("\n", failures);
+                TaskDialog.Show("STING — Panel Reconcile", msg);
             }
             catch (Exception ex)
             {

@@ -38,7 +38,7 @@ namespace StingTools.Commands.Electrical.Import
                     return Result.Succeeded;
                 }
 
-                int stamped = 0, notFound = 0;
+                int stamped = 0, notFound = 0, nothingWritten = 0, failedWrites = 0, circuitWrites = 0;
                 var warnings = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING Amtech Import"))
@@ -49,20 +49,25 @@ namespace StingTools.Commands.Electrical.Import
                     {
                         if (panelIndex.TryGetValue(rec.PanelName, out var panel))
                         {
-                            StampPanel(panel, rec, warnings);
-                            stamped++;
+                            // A panel counts as stamped only when at least one value
+                            // actually landed — every Set can fail (unbound, read-only).
+                            int written = StampPanel(panel, rec, warnings, ref failedWrites);
+                            if (written > 0) stamped++;
+                            else nothingWritten++;
                         }
                         else
                         {
                             notFound++;
                             if (notFound <= 5) warnings.Add($"Panel not found: '{rec.PanelName}'");
                         }
-                        StampCircuits(doc, rec, warnings);
+                        circuitWrites += StampCircuits(doc, rec, warnings, ref failedWrites);
                     }
                     tx.Commit();
                 }
 
-                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}";
+                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
+                                $"\nPanels matched but nothing written: {nothingWritten}" +
+                                $"\nCircuit values written: {circuitWrites}  Failed writes: {failedWrites}";
                 if (warnings.Count > 0)
                     report += "\n\nWarnings:\n" + string.Join("\n", warnings.Take(10));
                 TaskDialog.Show("Amtech Import", report);
@@ -113,15 +118,22 @@ namespace StingTools.Commands.Electrical.Import
         private static Dictionary<string, FamilyInstance> BuildPanelIndex(Document doc)
         {
             var idx = new Dictionary<string, FamilyInstance>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in new FilteredElementCollector(doc)
+            var boards = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilyInstance))
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
-                .Cast<FamilyInstance>())
+                .Cast<FamilyInstance>()
+                .ToList();
+            // Panel Name is the built-in RBS_ELEC_PANEL_NAME. LookupParameter("RBS_PANEL_NAME")
+            // passed an enum name that no parameter carries, so it always returned null and
+            // the index fell back to p.Name — the family TYPE name, shared by every board of
+            // that type. Panel Name first; the type name only as a last resort.
+            foreach (var p in boards)
             {
-                if (!idx.ContainsKey(p.Name)) idx[p.Name] = p;
-                string pn = p.LookupParameter("RBS_PANEL_NAME")?.AsString() ?? "";
+                string pn = p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString() ?? "";
                 if (!string.IsNullOrEmpty(pn) && !idx.ContainsKey(pn)) idx[pn] = p;
             }
+            foreach (var p in boards)
+                if (!idx.ContainsKey(p.Name)) idx[p.Name] = p;
             return idx;
         }
 
@@ -135,47 +147,67 @@ namespace StingTools.Commands.Electrical.Import
         //   voltage drop (%)     -> ELC_VLT_DROP_PCT (the ELC_CKT_VD_PCT alias)
         //   circuit fault level  -> ELC_CIR_FAULT_LEVEL_TXT (the SLD fault label's
         //                           first choice on a circuit)
-        private static void StampPanel(FamilyInstance p, AmtechRecord r, List<string> w)
+        /// <summary>Returns how many values were written; failures are added to
+        /// <paramref name="failed"/> and to the warnings.</summary>
+        private static int StampPanel(FamilyInstance p, AmtechRecord r, List<string> w, ref int failed)
         {
-            Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa?.ToString("F2", Inv) ?? "", w);
-            Set(p, "ELC_BUSBAR_RATING_A", r.BusbarRating.HasValue ? r.BusbarRating.Value.ToString("F0", Inv) : "", w);
-            Set(p, "ELC_VLT_DROP_PCT",    r.VoltageDrop?.ToString("F1", Inv) ?? "", w);
+            int n = 0;
+            n += Tally(Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa?.ToString("F2", Inv) ?? "", w), ref failed);
+            n += Tally(Set(p, "ELC_BUSBAR_RATING_A", r.BusbarRating.HasValue ? r.BusbarRating.Value.ToString("F0", Inv) : "", w), ref failed);
+            n += Tally(Set(p, "ELC_VLT_DROP_PCT",    r.VoltageDrop?.ToString("F1", Inv) ?? "", w), ref failed);
+            return n;
+        }
+
+        /// <summary>1 for a write that landed, 0 otherwise; a failed write (false)
+        /// is counted. null means there was nothing to write.</summary>
+        private static int Tally(bool? result, ref int failed)
+        {
+            if (result == true) return 1;
+            if (result == false) failed++;
+            return 0;
         }
 
         private static readonly System.Globalization.CultureInfo Inv =
             System.Globalization.CultureInfo.InvariantCulture;
 
-        private static void StampCircuits(Document doc, AmtechRecord rec, List<string> w)
+        /// <summary>Returns how many circuit values were written.</summary>
+        private static int StampCircuits(Document doc, AmtechRecord rec, List<string> w, ref int failed)
         {
-            if (rec.Circuits.Count == 0) return;
+            if (rec.Circuits.Count == 0) return 0;
+            int n = 0;
             foreach (var sys in new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>())
             {
-                if (!string.Equals(sys.BaseEquipment?.Name, rec.PanelName, StringComparison.OrdinalIgnoreCase)) continue;
+                // sys.PanelName is the feeding board's Panel Name; BaseEquipment.Name
+                // is that board's family TYPE name and never matched an export.
+                if (!string.Equals(sys.PanelName, rec.PanelName, StringComparison.OrdinalIgnoreCase)) continue;
                 var m = rec.Circuits.FirstOrDefault(c =>
                     string.Equals(c.Ref, sys.CircuitNumber, StringComparison.OrdinalIgnoreCase));
                 if (m == null) continue;
-                if (m.FaultKa.HasValue)    Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", m.FaultKa.Value.ToString("F2", Inv), w);
-                if (!string.IsNullOrEmpty(m.CsaMm2)) Set(sys, "ELC_CABLE_CSA_MM2_TXT", m.CsaMm2, w);
-                if (m.VoltageDrop.HasValue) Set(sys, "ELC_VLT_DROP_PCT", m.VoltageDrop.Value.ToString("F1", Inv), w);
+                if (m.FaultKa.HasValue)    n += Tally(Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", m.FaultKa.Value.ToString("F2", Inv), w), ref failed);
+                if (!string.IsNullOrEmpty(m.CsaMm2)) n += Tally(Set(sys, "ELC_CABLE_CSA_MM2_TXT", m.CsaMm2, w), ref failed);
+                if (m.VoltageDrop.HasValue) n += Tally(Set(sys, "ELC_VLT_DROP_PCT", m.VoltageDrop.Value.ToString("F1", Inv), w), ref failed);
             }
+            return n;
         }
 
         /// <summary>Writes through ParameterHelpers.SetString, which also writes a
         /// unitless NUMBER parameter from its text. A parameter that is absent, read-only
         /// or refuses the value is reported, not skipped silently — Parameter.Set(string)
-        /// on a NUMBER parameter just returned false, and nothing said so.</summary>
-        private static void Set(Element el, string p, string v, List<string> w)
+        /// on a NUMBER parameter just returned false, and nothing said so.
+        /// Returns null when there was nothing to write, true when written, false on failure.</summary>
+        private static bool? Set(Element el, string p, string v, List<string> w)
         {
-            if (string.IsNullOrEmpty(v)) return;
+            if (string.IsNullOrEmpty(v)) return null;
             var param = el.LookupParameter(p);
             if (param == null)
             {
                 if (w.Count < 20) w.Add($"{p} is not bound on {el.Category?.Name} — run Load Params");
-                return;
+                return false;
             }
-            if (!ParameterHelpers.SetString(el, p, v, overwrite: true) && w.Count < 20)
-                w.Add($"{p}@{el.Name}: '{v}' was not written");
+            if (ParameterHelpers.SetString(el, p, v, overwrite: true)) return true;
+            if (w.Count < 20) w.Add($"{p}@{el.Name}: '{v}' was not written");
+            return false;
         }
         private static string Attr(XElement el, string n) => el.Attribute(n)?.Value ?? el.Element(n)?.Value;
         private static double? ParseD(string s) =>
