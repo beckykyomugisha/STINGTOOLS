@@ -23190,3 +23190,53 @@ param-name targets, tag-row bindings, map target types, tag-row duplicates, lyin
 unreachable-commands recount, token policy, path discipline, workflow wiring, doc acquisition,
 roadmap ids, docs index all pass; the workflow's inline GUID / CSV-integrity / CSV-structure
 checks and JSON validation reproduced locally and pass.
+
+#### Completed (parameter read/write fixes after #980, branch `claude/param-read-fixes`)
+
+Follow-up to the shared-parameter binding work: code that wrote or read parameters that now
+exist, but did it wrongly. Every claim was checked at its call site first. Build 0/0;
+`StingTools.Tags.Tests` 2634/2634. **Not exercised in Revit.**
+
+- **Importer panel lookup.** The Amtech, EasyPower and Trimble importers looked up the panel by
+  `LookupParameter("RBS_PANEL_NAME")` — an enum name no parameter carries, so always null — and
+  fell back to `Element.Name`, which on a board is its family TYPE name. Circuits were matched on
+  `BaseEquipment.Name`, the same type name. Now Panel Name through
+  `get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)` (the type name kept only as a last
+  resort) and `ElectricalSystem.PanelName` for circuits. **Stamped counts are now honest:** the
+  stamp helpers return how many writes landed, a panel (or Trimble circuit) counts as stamped
+  only when that is above zero, and the report adds "matched but nothing written" and "failed
+  writes".
+- **`PanelWireReconcile` auto-correct** counted a conduit corrected whatever `SetString` returned.
+  It now counts a conduit only when every needed write landed; the rest are counted, logged and
+  named in the dialog with a Load Params hint.
+- **`ELC_CKT_NR` in TAG7.** The TAG7 technical sections (`TagConfig.Tag7.cs`, both the marked and
+  the natural builder) read the circuit number with `GetString`, which is `""` on a project that
+  still binds it as NUMBER (PARAM-5). They use `ParameterHelpers.GetDisplayText`, which answers
+  for either type. #980's note that "the two readers" were switched covered other readers, not
+  these.
+- **LPS LENGTH units (was ROADMAP PARAM-2).** `ELC_LPS_ROLLING_SPHERE_RADIUS_M`,
+  `ELC_LPS_MESH_SIZE_M` and `ELC_LPS_SEPARATION_DISTANCE_MM` are LENGTH, but were written as raw
+  metres / millimetres through `Parameter.Set(double)`, i.e. stored as feet — a 30 m sphere read
+  as 9.144 m in Properties, now visible because #980 bound them to Project Information.
+  `LpsEngine` gains `IsLengthParam` / `ToInternalIfLength` / `FromInternalIfLength` (unit from the
+  `_M` / `_MM` suffix); both `SetDouble` writers and the inline separation-distance stamp convert
+  to internal, and `LpsEngine.GetDoubleParam` (every LPS reader, including `LPS_Schematic`, the
+  LPS panel and the compliance check) and `LpsValidator.ReadDouble` convert back. Conversion
+  happens only when the spec is `SpecTypeId.Length`, so an older NUMBER binding reads and writes
+  the plain value as before. **Values already stamped by an earlier build are in the old,
+  wrong scale; re-run LPS Class Setup to rewrite them.**
+- **IPS Validation** read `IPS_PANEL_BOOL` as a fallback for `ELC_IPS_BOOL`; it is defined
+  nowhere, so the fallback is gone. The LIM check still reads `LIM_INSTALLED_BOOL` /
+  `IPS_LIM_BOOL`, also undefined — `ELC_IPS_BOOL` means "is an IPS", not "has a LIM", so it
+  cannot stand in (ROADMAP PARAM-8).
+- **`HVC_PEAK_HOUR` description** no longer says "(HH:00)": it is the hour as a whole number
+  0-23. `.txt` and `.csv` updated (`sync_csv_from_txt.py` does not carry descriptions, so the
+  CSV row was edited to match) and `docs/RESOLVED_BINDINGS.csv` regenerated for the new text.
+- **Logged, not fixed:** twelve parameter names used in code and defined nowhere (ROADMAP
+  PARAM-7), the missing LIM parameter (PARAM-8), and four pseudo-category names the binding
+  loader drops without a log line (PARAM-9 — no binding is lost today).
+
+Gates: `param_binding_resolver.py` changed only the `HVC_PEAK_HOUR` description row in
+`docs/RESOLVED_BINDINGS.csv`; `check_param_contract.py --check` OK with no baseline change;
+`find_lying_catches.py` exit 0; `recount_unreachable_commands.py --check` agrees;
+path discipline OK; roadmap ids unique.

@@ -45,7 +45,7 @@ namespace StingTools.Commands.Electrical.Import
                     return Result.Succeeded;
                 }
 
-                int stamped = 0, notFound = 0;
+                int stamped = 0, notFound = 0, nothingWritten = 0, failedWrites = 0;
                 var warnings = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING Trimble Import"))
@@ -57,8 +57,10 @@ namespace StingTools.Commands.Electrical.Import
                         string key = MakeKey(rec.PanelName, rec.CircuitNumber);
                         if (circuitIndex.TryGetValue(key, out var sys))
                         {
-                            StampCircuit(sys, rec, warnings);
-                            stamped++;
+                            // Counted only when at least one value actually landed.
+                            int written = StampCircuit(sys, rec, warnings, ref failedWrites);
+                            if (written > 0) stamped++;
+                            else nothingWritten++;
                         }
                         else
                         {
@@ -69,7 +71,8 @@ namespace StingTools.Commands.Electrical.Import
                     tx.Commit();
                 }
 
-                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}";
+                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
+                                $"\nCircuits matched but nothing written: {nothingWritten}  Failed writes: {failedWrites}";
                 if (warnings.Count > 0)
                     report += "\n\nWarnings:\n" + string.Join("\n", warnings.Take(10));
                 TaskDialog.Show("Trimble Import", report);
@@ -161,38 +164,55 @@ namespace StingTools.Commands.Electrical.Import
             foreach (var sys in new FilteredElementCollector(doc)
                 .OfClass(typeof(ElectricalSystem)).Cast<ElectricalSystem>())
             {
-                string key = MakeKey(sys.BaseEquipment?.Name ?? "", sys.CircuitNumber ?? "");
+                // sys.PanelName is the feeding board's Panel Name, which is what an export
+                // names; BaseEquipment.Name is that board's family TYPE name and never matched.
+                string key = MakeKey(sys.PanelName ?? "", sys.CircuitNumber ?? "");
                 if (!idx.ContainsKey(key)) idx[key] = sys;
             }
             return idx;
         }
 
-        private static void StampCircuit(ElectricalSystem sys, TrimbleRecord r, List<string> w)
+        /// <summary>Returns how many values were written; failed writes are added to
+        /// <paramref name="failed"/> and the warnings.</summary>
+        private static int StampCircuit(ElectricalSystem sys, TrimbleRecord r, List<string> w, ref int failed)
         {
-            if (!string.IsNullOrEmpty(r.CsaMm2))   Set(sys, "ELC_CABLE_CSA_MM2_TXT", r.CsaMm2, w);
+            int n = 0;
+            if (!string.IsNullOrEmpty(r.CsaMm2))   n += Tally(Set(sys, "ELC_CABLE_CSA_MM2_TXT", r.CsaMm2, w), ref failed);
             // ELC_FAULT_LEVEL_KA / SLD_VD_PCT were never defined in MR_PARAMETERS.txt;
             // a circuit's fault level lives in ELC_CIR_FAULT_LEVEL_TXT (the SLD fault
             // label's first choice) and its voltage drop in ELC_VLT_DROP_PCT.
             var inv = System.Globalization.CultureInfo.InvariantCulture;
-            if (r.FaultKa.HasValue)                  Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", r.FaultKa.Value.ToString("F2", inv), w);
-            if (r.VoltageDrop.HasValue)              Set(sys, "ELC_VLT_DROP_PCT",        r.VoltageDrop.Value.ToString("F1", inv), w);
-            if (!string.IsNullOrEmpty(r.Rating))    Set(sys, "ELC_CIRCUIT_RATING_TXT", r.Rating, w);
+            if (r.FaultKa.HasValue)                  n += Tally(Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", r.FaultKa.Value.ToString("F2", inv), w), ref failed);
+            if (r.VoltageDrop.HasValue)              n += Tally(Set(sys, "ELC_VLT_DROP_PCT",        r.VoltageDrop.Value.ToString("F1", inv), w), ref failed);
+            if (!string.IsNullOrEmpty(r.Rating))    n += Tally(Set(sys, "ELC_CIRCUIT_RATING_TXT", r.Rating, w), ref failed);
+            return n;
+        }
+
+        /// <summary>1 for a write that landed, 0 otherwise; a failed write (false)
+        /// is counted. null means there was nothing to write.</summary>
+        private static int Tally(bool? result, ref int failed)
+        {
+            if (result == true) return 1;
+            if (result == false) failed++;
+            return 0;
         }
 
         /// <summary>Writes through ParameterHelpers.SetString, which also writes a
         /// unitless NUMBER parameter from its text; a failure is reported, not
-        /// swallowed.</summary>
-        private static void Set(Element el, string p, string v, List<string> w)
+        /// swallowed. Returns null when there was nothing to write, true when
+        /// written, false on failure.</summary>
+        private static bool? Set(Element el, string p, string v, List<string> w)
         {
-            if (string.IsNullOrEmpty(v)) return;
+            if (string.IsNullOrEmpty(v)) return null;
             var param = el.LookupParameter(p);
             if (param == null)
             {
                 if (w.Count < 20) w.Add($"{p} is not bound on {el.Category?.Name} — run Load Params");
-                return;
+                return false;
             }
-            if (!ParameterHelpers.SetString(el, p, v, overwrite: true) && w.Count < 20)
-                w.Add($"{p}: '{v}' was not written");
+            if (ParameterHelpers.SetString(el, p, v, overwrite: true)) return true;
+            if (w.Count < 20) w.Add($"{p}: '{v}' was not written");
+            return false;
         }
 
         private static string MakeKey(string panel, string circuit) =>

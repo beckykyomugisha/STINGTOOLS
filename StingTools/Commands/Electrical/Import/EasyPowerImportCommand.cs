@@ -37,7 +37,7 @@ namespace StingTools.Commands.Electrical.Import
                     return Result.Succeeded;
                 }
 
-                int stamped = 0, notFound = 0;
+                int stamped = 0, notFound = 0, nothingWritten = 0, failedWrites = 0;
                 var warnings = new List<string>();
 
                 using (var tx = new Transaction(doc, "STING EasyPower Import"))
@@ -48,8 +48,10 @@ namespace StingTools.Commands.Electrical.Import
                     {
                         if (panelIndex.TryGetValue(rec.BusName, out var panel))
                         {
-                            StampPanel(panel, rec, warnings);
-                            stamped++;
+                            // Counted only when at least one value actually landed.
+                            int written = StampPanel(panel, rec, warnings, ref failedWrites);
+                            if (written > 0) stamped++;
+                            else nothingWritten++;
                         }
                         else
                         {
@@ -60,7 +62,8 @@ namespace StingTools.Commands.Electrical.Import
                     tx.Commit();
                 }
 
-                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}";
+                string report = $"Records: {records.Count}  Stamped: {stamped}  Unmatched: {notFound}" +
+                                $"\nPanels matched but nothing written: {nothingWritten}  Failed writes: {failedWrites}";
                 int lgCount = records.Count(r => r.FaultKaLG.HasValue);
                 if (lgCount > 0)
                     report += $"\n\nLine-to-ground fault levels in the file ({lgCount}) were not stored: " +
@@ -115,20 +118,30 @@ namespace StingTools.Commands.Electrical.Import
         private static Dictionary<string, FamilyInstance> BuildPanelIndex(Document doc)
         {
             var idx = new Dictionary<string, FamilyInstance>(StringComparer.OrdinalIgnoreCase);
-            foreach (var p in new FilteredElementCollector(doc)
+            var boards = new FilteredElementCollector(doc)
                 .OfClass(typeof(FamilyInstance))
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
-                .Cast<FamilyInstance>())
+                .Cast<FamilyInstance>()
+                .ToList();
+            // Panel Name is the built-in RBS_ELEC_PANEL_NAME. LookupParameter("RBS_PANEL_NAME")
+            // passed an enum name that no parameter carries, so it always returned null and
+            // the index fell back to p.Name — the family TYPE name, shared by every board of
+            // that type. Panel Name first; the type name only as a last resort.
+            foreach (var p in boards)
             {
-                if (!idx.ContainsKey(p.Name)) idx[p.Name] = p;
-                string pn = p.LookupParameter("RBS_PANEL_NAME")?.AsString() ?? "";
+                string pn = p.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString() ?? "";
                 if (!string.IsNullOrEmpty(pn) && !idx.ContainsKey(pn)) idx[pn] = p;
             }
+            foreach (var p in boards)
+                if (!idx.ContainsKey(p.Name)) idx[p.Name] = p;
             return idx;
         }
 
-        private static void StampPanel(FamilyInstance p, EasyPowerRecord r, List<string> w)
+        /// <summary>Returns how many values were written; failed writes are added to
+        /// <paramref name="failed"/> and the warnings.</summary>
+        private static int StampPanel(FamilyInstance p, EasyPowerRecord r, List<string> w, ref int failed)
         {
+            int n = 0;
             // ELC_FAULT_LEVEL_KA / SLD_VD_PCT were never defined in MR_PARAMETERS.txt,
             // so nothing was written. The 3-phase fault at the bus goes where
             // FaultCurrent puts it and the SLD fault label reads it
@@ -137,31 +150,43 @@ namespace StingTools.Commands.Electrical.Import
             // written (see Execute).
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             if (r.FaultKa3Ph.HasValue)
-                Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa3Ph.Value.ToString("F2", inv), w);
+                n += Tally(Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa3Ph.Value.ToString("F2", inv), w), ref failed);
             if (r.VdPct.HasValue)
-                Set(p, "ELC_VLT_DROP_PCT", r.VdPct.Value.ToString("F1", inv), w);
+                n += Tally(Set(p, "ELC_VLT_DROP_PCT", r.VdPct.Value.ToString("F1", inv), w), ref failed);
             else if (r.VoltagePU.HasValue)
             {
                 // Convert pu to % drop for the SLD label.
                 double vdPct = (1.0 - r.VoltagePU.Value) * 100.0;
-                Set(p, "ELC_VLT_DROP_PCT", vdPct.ToString("F1", inv), w);
+                n += Tally(Set(p, "ELC_VLT_DROP_PCT", vdPct.ToString("F1", inv), w), ref failed);
             }
+            return n;
+        }
+
+        /// <summary>1 for a write that landed, 0 otherwise; a failed write (false)
+        /// is counted. null means there was nothing to write.</summary>
+        private static int Tally(bool? result, ref int failed)
+        {
+            if (result == true) return 1;
+            if (result == false) failed++;
+            return 0;
         }
 
         /// <summary>Writes through ParameterHelpers.SetString, which also writes a
         /// unitless NUMBER parameter from its text; a failure is reported, not
-        /// swallowed.</summary>
-        private static void Set(Element el, string p, string v, List<string> w)
+        /// swallowed. Returns null when there was nothing to write, true when
+        /// written, false on failure.</summary>
+        private static bool? Set(Element el, string p, string v, List<string> w)
         {
-            if (string.IsNullOrEmpty(v)) return;
+            if (string.IsNullOrEmpty(v)) return null;
             var param = el.LookupParameter(p);
             if (param == null)
             {
                 if (w.Count < 20) w.Add($"{p} is not bound on {el.Category?.Name} — run Load Params");
-                return;
+                return false;
             }
-            if (!ParameterHelpers.SetString(el, p, v, overwrite: true) && w.Count < 20)
-                w.Add($"{p}@{el.Name}: '{v}' was not written");
+            if (ParameterHelpers.SetString(el, p, v, overwrite: true)) return true;
+            if (w.Count < 20) w.Add($"{p}@{el.Name}: '{v}' was not written");
+            return false;
         }
 
         private static string Attr(XElement el, string n) => el.Attribute(n)?.Value ?? el.Element(n)?.Value;

@@ -14,8 +14,8 @@
 //  * NFPA 99 §7.2.2.3.3 / IEC 60364-7-710.531.3.1: an IPS needs a Line Isolation
 //    Monitor / insulation monitoring device — checked from the LIM parameter.
 //
-// IPS panels: ELC_IPS_BOOL (MR_PARAMETERS) or IPS_PANEL_BOOL = 1, or a family
-// name containing "IPS" / "Isolated Power".
+// IPS panels: ELC_IPS_BOOL (MR_PARAMETERS) = Yes, or a family name containing
+// "IPS" / "Isolated Power".
 
 using System;
 using System.Collections.Generic;
@@ -50,7 +50,7 @@ namespace StingTools.Commands.Electrical.Validation
 
             // ── Locate IPS panels ────────────────────────────────────────────
             // An IPS panel is any electrical equipment element where either:
-            //   • the custom shared parameter IPS_PANEL_BOOL is set to 1, or
+            //   • the shared parameter ELC_IPS_BOOL is Yes, or
             //   • the family name contains "IPS" or "Isolated Power".
             var ipsPanels = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
@@ -60,7 +60,10 @@ namespace StingTools.Commands.Electrical.Validation
                 {
                     try
                     {
-                        var p = fi.LookupParameter("ELC_IPS_BOOL") ?? fi.LookupParameter("IPS_PANEL_BOOL");
+                        // ELC_IPS_BOOL ("Powered from Isolated Power System") is the defined
+                        // flag. IPS_PANEL_BOOL was read as a fallback but is defined nowhere
+                        // in MR_PARAMETERS.txt, so nothing ever bound or wrote it.
+                        var p = fi.LookupParameter("ELC_IPS_BOOL");
                         if (p != null && p.StorageType == StorageType.Integer && p.AsInteger() == 1) return true;
                     }
                     catch { /* parameter absent — proceed to name check */ }
@@ -130,7 +133,9 @@ namespace StingTools.Commands.Electrical.Validation
                     bool limFound = false;
                     try
                     {
-                        // No LIM parameter exists in MR_PARAMETERS.txt; these are family-level names.
+                        // No LIM parameter exists in MR_PARAMETERS.txt; these are family-level
+                        // names. ELC_IPS_BOOL says the board IS an IPS, not that it has a LIM,
+                        // so it cannot stand in. A defined LIM parameter is ROADMAP PARAM-8.
                         var limParam = panel.LookupParameter("LIM_INSTALLED_BOOL")
                                     ?? panel.LookupParameter("IPS_LIM_BOOL");
                         limFound = limParam != null && limParam.StorageType == StorageType.Integer && limParam.AsInteger() != 0;
