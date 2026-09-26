@@ -123,7 +123,7 @@ The hand-maintained checklists below predate that pipeline. They are still the
 only coverage for their areas, but none is gated — treat each as a point-in-time
 artefact and check its date before trusting a step:
 
-`SMOKE_TEST_ConduitSleeve.md` · `SMOKE_TEST_PM_COMPLETE.md` · `ELECTRICAL_SMOKETEST_CHECKLIST.md` ·
+`SMOKE_TEST_ConduitSleeve.md` · `SMOKE_TEST_PM_COMPLETE.md` · `ELECTRICAL_SMOKETEST_CHECKLIST.md` · `MEP_SMOKETEST_CHECKLIST.md` ·
 `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` · `PR306_MANUAL_QA.md` · `GOLD_CONSOLIDATED_SWEEP_CHECKLIST.md`
 
 ## KUT mobilisation pack (issued documents + their generators)

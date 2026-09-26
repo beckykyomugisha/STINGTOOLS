@@ -33,6 +33,14 @@ namespace StingTools.Commands.Hvac
     [Regeneration(RegenerationOption.Manual)]
     public class HvacBlockLoadCommand : IExternalCommand
     {
+        /// <summary>
+        /// null = the panel decides (cooling unless the load code names heating);
+        /// true / false forces cooling / heating. The load-code combo on the LOADS
+        /// tab has never been wired to the handler, so without the heating
+        /// subclass below a heating pass could not be reached from the UI.
+        /// </summary>
+        protected virtual bool? ForceCooling => null;
+
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
@@ -45,8 +53,8 @@ namespace StingTools.Commands.Hvac
                 var site = ClimateRegistry.ActiveSite(doc);
                 // Snapshot the header context atomically (Phase 187c).
                 var snap = StingHvacCommandHandler.Snapshot();
-                bool cooling = string.IsNullOrEmpty(snap.LoadCode)
-                            || !snap.LoadCode.ToLowerInvariant().Contains("heat");
+                bool cooling = ForceCooling ?? (string.IsNullOrEmpty(snap.LoadCode)
+                            || !snap.LoadCode.ToLowerInvariant().Contains("heat"));
                 string scope = snap.Scope ?? "Project";
 
                 var envStats = new EnvelopeBuildStats();
@@ -504,5 +512,17 @@ namespace StingTools.Commands.Hvac
             }
             catch (Exception ex) { StingLog.Warn($"Block-load read {name} on {el.Id}: {ex.Message}"); return 0; }
         }
+    }
+
+    /// <summary>
+    /// Hvac_BlockLoadHeating — the same engine on the heating design day.
+    /// Stamps NRG_HEATING_LOAD_W (heat loss, positive) and leaves the cooling
+    /// stamps alone.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class HvacBlockLoadHeatingCommand : HvacBlockLoadCommand
+    {
+        protected override bool? ForceCooling => false;
     }
 }

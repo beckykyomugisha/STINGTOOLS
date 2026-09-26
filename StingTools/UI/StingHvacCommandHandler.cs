@@ -281,6 +281,8 @@ namespace StingTools.UI
                     case "Hvac_FanStaticReport":
                         // Gap 2.3 — index-run total-static / fan external static report.
                         Run<StingTools.Commands.Hvac.HvacFanStaticReportCommand>(app); break;
+                    case "Hvac_BlockLoadHeating":
+                        Run<StingTools.Commands.Hvac.HvacBlockLoadHeatingCommand>(app); break;
                     case "Hvac_BlockLoad":
                         // STING-design-engines (this phase): peak-pick block load
                         // with location-aware climate site + diversity factor.

@@ -23712,3 +23712,10 @@ coverage for the duct, Hardy Cross, NC, refrigerant and expansion-vessel kernels
 Plugin build 0 errors / 0 warnings; all test projects pass; the workflow-wiring, dispatch-parity,
 path-discipline, lying-catch, doc/app-acquisition, command-census and drawing-type checksum gates
 pass. **Not exercised in Revit** — MEPG-7 lists what to run first.
+
+Follow-up on the same branch: the heating pass above could not be reached — the LOADS tab's
+load-code combo is not wired to the handler, so the code always read "ASHRAE_90_1" — and now has a
+**Heating load** button (`Hvac_BlockLoadHeating`, `HvacBlockLoadHeatingCommand`). `Hvac_PushSnapshot`
+had a handler case and no button; it is now on RPRT and in `ResolveCommand` (removed from the
+dispatch-parity baseline). The Revit checklist for all of this is
+[`MEP_SMOKETEST_CHECKLIST.md`](MEP_SMOKETEST_CHECKLIST.md).

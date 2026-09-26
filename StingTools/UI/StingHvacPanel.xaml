@@ -823,6 +823,9 @@
                             <Button Style="{StaticResource HvacPrimaryBtn}" Content="Block load"
                                     Tag="Hvac_BlockLoad" Click="Cmd_Click"
                                     ToolTip="STING block-load engine: peak-pick at system level + diversity factor (location-aware)"/>
+                            <Button Style="{StaticResource HvacPrimaryBtn}" Content="Heating load"
+                                    Tag="Hvac_BlockLoadHeating" Click="Cmd_Click"
+                                    ToolTip="Block load on the heating design day: stamps NRG_HEATING_LOAD_W (heat loss) and fills the Heating column; cooling stamps are left alone"/>
                             <Button Style="{StaticResource HvacPrimaryBtn}" Content="Propagate"
                                     Tag="Hvac_PropagateLoads" Click="Cmd_Click"
                                     ToolTip="Stamp HVC_FLOW_LS on ducts from served space's peak (Phase 187b bridge to AutoSize)"/>
@@ -1017,6 +1020,9 @@
                             <Button Style="{StaticResource HvacActionBtn}" Content="Publish to server"
                                     Tag="Hvac_PublishToServer" Click="Cmd_Click"
                                     ToolTip="Push panel BlockLoad / NC / refrigerant results to Planscape Server (Phase 187d)"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Push snapshots"
+                                    Tag="Hvac_PushSnapshot" Click="Cmd_Click"
+                                    ToolTip="Push drift / loads / sizing snapshots from this panel to the Planscape server for the mobile HVAC dashboard"/>
                             <Button Style="{StaticResource HvacWarnBtn}" Content="Reload all profiles"
                                     Tag="Hvac_ReloadProfiles" Click="Cmd_Click"
                                     ToolTip="Reload load profiles + construction + acoustic + climate + MEP sizing in one shot (Phase 187c)"/>

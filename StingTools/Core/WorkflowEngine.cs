@@ -1782,6 +1782,8 @@ namespace StingTools.Core
                 case "Hvac_RunAllValidators": return new Commands.Validation.RunAllValidatorsCommand();
                 // WORKFLOW_HVACDesign.json
                 case "Hvac_BlockLoad": return new Commands.Hvac.HvacBlockLoadCommand();
+                case "Hvac_BlockLoadHeating": return new Commands.Hvac.HvacBlockLoadHeatingCommand();
+                case "Hvac_PushSnapshot": return new Commands.Hvac.HvacPushSnapshotCommand();
                 case "Hvac_PropagateLoads": return new Commands.Hvac.HvacPropagateLoadsCommand();
                 case "Hvac_ConnectionAudit": return new Temp.MEPConnectionAuditCommand();
                 case "Hvac_DetectStaleSizes": return new Commands.Hvac.HvacDetectStaleSizesCommand();
