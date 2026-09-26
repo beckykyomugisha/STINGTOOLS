@@ -30,7 +30,11 @@
     <Compile Include="..\StingTools\Core\Fire\SprinklerHydraulics.cs" Link="Linked\SprinklerHydraulics.cs" />
     <Compile Include="..\StingTools\Core\Fire\StairPressurisation.cs" Link="Linked\StairPressurisation.cs" />
     <Compile Include="..\StingTools\Core\Gas\GasPipeSizer.cs" Link="Linked\GasPipeSizer.cs" />
+    <Compile Include="..\StingTools\Core\Mep\Networks\PipeNetwork.cs" Link="Linked\PipeNetwork.cs" />
+    <Compile Include="..\StingTools\Core\Fire\SprinklerNetworkHydraulics.cs" Link="Linked\SprinklerNetworkHydraulics.cs" />
+    <Compile Include="..\StingTools\Core\Gas\GasNetworkCheck.cs" Link="Linked\GasNetworkCheck.cs" />
     <Compile Include="..\StingTools\Core\Plumbing\IsometricProjection.cs" Link="Linked\IsometricProjection.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\PumpDutyCurve.cs" Link="Linked\PumpDutyCurve.cs" />
     <Compile Include="..\StingTools\Core\Plumbing\ExpansionVesselSizer.cs" Link="Linked\ExpansionVesselSizer.cs" />
     <Compile Include="..\StingTools\Core\Calc\DuctFrictionSolver.cs" Link="Linked\DuctFrictionSolver.cs" />
     <Compile Include="..\StingTools\Core\Calc\HardyCrossSolver.cs" Link="Linked\HardyCrossSolver.cs" />

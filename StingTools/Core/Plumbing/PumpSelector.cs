@@ -56,7 +56,12 @@ namespace StingTools.Core.Plumbing
         public double RatedHeadM            { get; set; }
         public double PowerKw               { get; set; }
         public double EfficiencyPct         { get; set; }
+        /// <summary>True only when the duty was checked on published curve points.</summary>
         public bool   DutyPointWithinCurve  { get; set; }
+        /// <summary>Head at the duty flow from the curve, m (NaN without a curve).</summary>
+        public double HeadAtDutyM           { get; set; } = double.NaN;
+        /// <summary>The pump meets the duty (on its curve, or by rated point when it has none).</summary>
+        public bool   Qualifies             { get; set; }
         public double MarginPct             { get; set; }
         public string CatalogueRef          { get; set; } = "";
         public string Notes                 { get; set; } = "";
@@ -97,6 +102,8 @@ namespace StingTools.Core.Plumbing
         [JsonProperty("efficiencyPct")] public double EfficiencyPct  { get; set; }
         [JsonProperty("catalogueRef")]  public string CatalogueRef   { get; set; } = "";
         [JsonProperty("notes")]         public string Notes          { get; set; } = "";
+        /// <summary>Optional points read off the manufacturer's curve. When present the duty is checked on the curve.</summary>
+        [JsonProperty("curve")]         public List<PumpCurvePoint> Curve { get; set; } = new List<PumpCurvePoint>();
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -216,12 +223,16 @@ namespace StingTools.Core.Plumbing
             }
 
             // Filter: rated flow >= duty AND rated head >= duty
+            // A pump with a published curve is judged at the duty flow on that
+            // curve; one with only a rated point by the old rule (rated flow and
+            // head both at or above the duty), and its match says so.
             var candidates = entries
-                .Where(e => e.RatedFlowLps >= duty.FlowLps && e.RatedHeadM >= duty.HeadM)
-                .OrderByDescending(e => e.EfficiencyPct)
-                .ThenBy(e => e.RatedFlowLps)
-                .Take(3)
                 .Select(e => ToMatch(e, duty))
+                .Where(m => m.Qualifies)
+                .OrderByDescending(m => m.DutyPointWithinCurve)
+                .ThenByDescending(m => m.EfficiencyPct)
+                .ThenBy(m => m.MarginPct)
+                .Take(3)
                 .ToList();
 
             result.Candidates.AddRange(candidates);
@@ -359,11 +370,11 @@ namespace StingTools.Core.Plumbing
                 string json = File.ReadAllText(filePath);
                 var catalogue = JsonConvert.DeserializeObject<PumpCatalogueFile>(json);
                 var pumps = (catalogue?.Pumps ?? new List<PumpCatalogueEntry>())
-                    .Where(e => e != null && e.RatedFlowLps > 0 && e.RatedHeadM > 0).ToList();
+                    .Where(e => e != null && ((e.RatedFlowLps > 0 && e.RatedHeadM > 0) || PumpDutyCurve.Clean(e.Curve).Count >= 2)).ToList();
                 int dropped = (catalogue?.Pumps?.Count ?? 0) - pumps.Count;
                 if (dropped > 0)
                     warnings?.Add($"{Path.GetFileName(filePath)}: {dropped} entr{(dropped == 1 ? "y" : "ies")} " +
-                                  "without a rated flow and head ignored.");
+                                  "with neither a rated point nor two curve points ignored.");
                 sources?.Add(filePath);
                 return pumps;
             }
@@ -376,9 +387,25 @@ namespace StingTools.Core.Plumbing
 
         private static PumpMatch ToMatch(PumpCatalogueEntry e, PumpDutyPoint duty)
         {
+            var curve = PumpDutyCurve.Check(e.Curve, duty.FlowLps, duty.HeadM);
+            if (curve.WithinCurve)
+                return new PumpMatch
+                {
+                    Manufacturer = e.Manufacturer, Model = e.Model, Series = e.Series,
+                    RatedFlowLps = e.RatedFlowLps, RatedHeadM = e.RatedHeadM, PowerKw = e.PowerKw,
+                    EfficiencyPct = double.IsNaN(curve.EfficiencyAtDutyPct) ? e.EfficiencyPct : curve.EfficiencyAtDutyPct,
+                    DutyPointWithinCurve = true,
+                    MarginPct = curve.HeadMarginPct,
+                    HeadAtDutyM = curve.HeadAtDutyM,
+                    Qualifies = curve.Meets,
+                    CatalogueRef = e.CatalogueRef,
+                    Notes = string.IsNullOrEmpty(e.Notes) ? "Checked on the published curve" : e.Notes
+                };
+
             double headMarginPct = duty.HeadM > 0
                 ? (e.RatedHeadM - duty.HeadM) / duty.HeadM * 100.0
                 : 0;
+            bool hasCurve = PumpDutyCurve.Clean(e.Curve).Count >= 2;
             return new PumpMatch
             {
                 Manufacturer        = e.Manufacturer,
@@ -388,10 +415,15 @@ namespace StingTools.Core.Plumbing
                 RatedHeadM          = e.RatedHeadM,
                 PowerKw             = e.PowerKw,
                 EfficiencyPct       = e.EfficiencyPct,
-                DutyPointWithinCurve= true,
+                // Rated point only: whether the duty sits on the pump's curve is unknown.
+                DutyPointWithinCurve= false,
                 MarginPct           = headMarginPct,
+                HeadAtDutyM         = double.NaN,
+                // A curve that exists but does not reach the duty flow disqualifies.
+                Qualifies           = !hasCurve && e.RatedFlowLps >= duty.FlowLps && e.RatedHeadM >= duty.HeadM,
                 CatalogueRef        = e.CatalogueRef,
-                Notes               = e.Notes
+                Notes               = hasCurve ? "Duty flow is off the published curve"
+                                    : "Rated point only — check the duty on the manufacturer's curve"
             };
         }
 

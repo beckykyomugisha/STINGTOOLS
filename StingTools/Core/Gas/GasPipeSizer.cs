@@ -209,6 +209,8 @@ namespace StingTools.Core.Gas
         /// <summary>Length the drop is computed over: pipe length + fitting equivalent length.</summary>
         private static double HydraulicLength(FlowNode n, double boreMm)
         {
+            double b = boreMm > 0 ? boreMm : n.DiameterMm;
+            if (n.EquivLengthAtBore != null && b > 0) return n.LengthM + n.EquivLengthAtBore(b);
             double eq = n.EquivLengthDiameters > 0 && (boreMm > 0 || n.DiameterMm > 0)
                 ? n.EquivLengthDiameters * (boreMm > 0 ? boreMm : n.DiameterMm) / 1000.0
                 : n.EquivLengthM;

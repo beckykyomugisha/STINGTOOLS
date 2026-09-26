@@ -40,6 +40,12 @@ namespace StingTools.Core.Plumbing
         public string SystemFilter       { get; set; } = "";
         /// <summary>Pipes with less fall than this are treated as level (no fall label), %.</summary>
         public double MinSlopePct        { get; set; } = 0.05;
+        /// <summary>Valve bow-tie length on paper, mm.</summary>
+        public double ValveSymbolPaperMm { get; set; } = 4;
+        /// <summary>Tee / cross junction dot radius on paper, mm.</summary>
+        public double JunctionDotPaperMm { get; set; } = 0.8;
+        /// <summary>Draw valves, junction dots and fixture labels.</summary>
+        public bool   DrawSymbols        { get; set; } = true;
     }
 
     public class PlumbingIsometricViewResult
@@ -51,6 +57,9 @@ namespace StingTools.Core.Plumbing
         public int       PipesDrawn   { get; set; }
         public int       Labels       { get; set; }
         public int       Risers       { get; set; }
+        public int       Valves       { get; set; }
+        public int       Junctions    { get; set; }
+        public int       Terminals    { get; set; }
     }
 
     public class PlumbingIsometricResult
@@ -227,6 +236,8 @@ namespace StingTools.Core.Plumbing
                 catch (Exception ex) { warnings.Add($"Pipe {s.Id}: label failed — {ex.Message}"); }
             }
 
+            if (opts.DrawSymbols) DrawSymbols(doc, view, segs, proj, opts, textTypeId, vr, warnings);
+
             if (textTypeId != ElementId.InvalidElementId)
             {
                 double k = opts.ViewScale > 0 ? opts.ViewScale : 50;
@@ -239,6 +250,77 @@ namespace StingTools.Core.Plumbing
             else warnings.Add("No text note type in the project — pipes drawn without labels.");
 
             return vr;
+        }
+
+        /// <summary>
+        /// Valves (pipe accessories) as bow-ties along their pipe, tees and
+        /// crosses as dots, and each fixture or piece of equipment at the end
+        /// of a run labelled with its type — found through the connectors of
+        /// the pipes drawn, so only this system's items appear.
+        /// </summary>
+        private static void DrawSymbols(Document doc, View view, List<IsoSegmentInput> segs, IsoProjectionResult proj,
+            PlumbingIsometricOptions opts, ElementId textTypeId, PlumbingIsometricViewResult vr, List<string> warnings)
+        {
+            double k = (opts.ViewScale > 0 ? opts.ViewScale : 50) * MmToFt;
+            var seen = new HashSet<long>();
+            foreach (var s in segs)
+            {
+                if (!long.TryParse(s.Id, out long pid)) continue;
+                if (!(doc.GetElement(new ElementId(pid)) is Pipe pipe)) continue;
+                var cs = pipe.ConnectorManager?.Connectors;
+                if (cs == null) continue;
+                foreach (Connector c in cs)
+                {
+                    if (!c.IsConnected) continue;
+                    foreach (Connector rf in c.AllRefs)
+                    {
+                        if (!(rf.Owner is FamilyInstance fi) || !seen.Add(fi.Id.Value)) continue;
+                        try
+                        {
+                            var bic = (BuiltInCategory)(fi.Category?.Id.Value ?? 0);
+                            var at = rf.Origin;
+                            var centre = proj.ToSheet(new IsoPoint3(at.X, at.Y, at.Z));
+                            if (bic == BuiltInCategory.OST_PipeAccessory)
+                            {
+                                var dir3 = pipe.Location is LocationCurve lc && lc.Curve is Line ln ? ln.Direction : XYZ.BasisX;
+                                var dir = proj.DirectionOnSheet(new IsoPoint3(dir3.X, dir3.Y, dir3.Z));
+                                foreach (var (a, b) in IsometricProjection.ValveSymbol(centre, dir, opts.ValveSymbolPaperMm * k))
+                                    TryLine(doc, view, a, b, warnings);
+                                vr.Valves++;
+                            }
+                            else if (bic == BuiltInCategory.OST_PipeFitting)
+                            {
+                                int ports = fi.MEPModel?.ConnectorManager?.Connectors?.Size ?? 0;
+                                if (ports < 3) continue;                       // elbows, couplings: the lines meet
+                                double rad = opts.JunctionDotPaperMm * k;
+                                var ctr = new XYZ(centre.U, centre.V, 0);
+                                doc.Create.NewDetailCurve(view, Arc.Create(ctr, rad, 0, 2 * Math.PI, XYZ.BasisX, XYZ.BasisY));
+                                vr.Junctions++;
+                            }
+                            else if (bic == BuiltInCategory.OST_PlumbingFixtures || bic == BuiltInCategory.OST_MechanicalEquipment
+                                     || bic == BuiltInCategory.OST_PlumbingEquipment || bic == BuiltInCategory.OST_Sprinklers)
+                            {
+                                if (textTypeId == ElementId.InvalidElementId) continue;
+                                string label = fi.Symbol?.Name ?? fi.Name;
+                                string mark = fi.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                                if (!string.IsNullOrWhiteSpace(mark)) label = mark + " " + label;
+                                TextNote.Create(doc, view.Id, new XYZ(centre.U + 2 * k, centre.V - 2 * k, 0), label, textTypeId);
+                                vr.Terminals++;
+                            }
+                        }
+                        catch (Exception ex) { warnings.Add($"Symbol for {fi.Id}: {ex.Message}"); }
+                    }
+                }
+            }
+        }
+
+        private static void TryLine(Document doc, View view, IsoPoint2 a, IsoPoint2 b, List<string> warnings)
+        {
+            var p0 = new XYZ(a.U, a.V, 0);
+            var p1 = new XYZ(b.U, b.V, 0);
+            if (p0.DistanceTo(p1) < doc.Application.ShortCurveTolerance) return;
+            try { doc.Create.NewDetailCurve(view, Line.CreateBound(p0, p1)); }
+            catch (Exception ex) { warnings.Add($"Symbol line: {ex.Message}"); }
         }
 
         /// <summary>Delete the detail curves and text notes a previous run left in the view.</summary>

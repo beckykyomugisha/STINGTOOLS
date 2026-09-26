@@ -29,6 +29,8 @@ namespace StingTools.Core.Mep.Networks
         public double EquivLengthM { get; set; }
         /// <summary>Equivalent length expressed in bores, used when the node is resized. 0 = fixed <see cref="EquivLengthM"/>.</summary>
         public double EquivLengthDiameters { get; set; }
+        /// <summary>Equivalent length (m) as a function of bore (mm) — a per-size table. Wins over <see cref="EquivLengthDiameters"/> when set.</summary>
+        public Func<double, double> EquivLengthAtBore { get; set; }
         /// <summary>Internal bore, mm. 0 = unknown (inherits from the parent pipe when solved).</summary>
         public double DiameterMm { get; set; }
         /// <summary>Elevation of the node's downstream point, m.</summary>
@@ -96,7 +98,9 @@ namespace StingTools.Core.Mep.Networks
                         d = n.Descendants().FirstOrDefault(c => c.Kind == FlowNodeKind.Pipe && c.DiameterMm > 0)?.DiameterMm ?? 0;
                     n.DiameterMm = d;
                 }
-                if (n.EquivLengthDiameters > 0 && n.DiameterMm > 0)
+                if (n.EquivLengthAtBore != null && n.DiameterMm > 0)
+                    n.EquivLengthM = n.EquivLengthAtBore(n.DiameterMm);
+                else if (n.EquivLengthDiameters > 0 && n.DiameterMm > 0)
                     n.EquivLengthM = n.EquivLengthDiameters * n.DiameterMm / 1000.0;
             }
         }

@@ -96,7 +96,10 @@ namespace StingTools.Commands.Plumbing
                             PumpSelector.WritePumpData(ctx.Doc, pumpEl.Id, result.BestMatch, duty);
                             report.Add($"OK  {pumpEl.Name,-30} => {result.BestMatch.Manufacturer} {result.BestMatch.Model} " +
                                        $"({result.BestMatch.RatedFlowLps:F2} l/s @ {result.BestMatch.RatedHeadM:F1} m, " +
-                                       $"{result.BestMatch.EfficiencyPct:F0}% eff)");
+                                       $"{result.BestMatch.EfficiencyPct:F0}% eff, " +
+                                       (result.BestMatch.DutyPointWithinCurve
+                                           ? $"{result.BestMatch.HeadAtDutyM:F1} m on curve at duty)"
+                                           : "rated point only — check the curve)"));
                             written++;
                         }
                         else if (result.HasValidDuty)

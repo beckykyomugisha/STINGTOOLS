@@ -579,7 +579,8 @@ namespace StingTools.Commands.Plumbing
             panel.AddSection("VIEWS");
             foreach (var v in result.Views)
                 panel.Text($"{v.ViewName}{(v.Reused ? " (redrawn)" : "")} — {v.PipesDrawn} pipes, " +
-                           $"{v.Risers} risers/drops, {v.Labels} labels");
+                           $"{v.Risers} risers/drops, {v.Labels} labels, {v.Valves} valves, " +
+                           $"{v.Junctions} tees/crosses, {v.Terminals} fixtures labelled");
             if (result.Warnings.Any())
             {
                 panel.AddSection("WARNINGS");
@@ -587,7 +588,7 @@ namespace StingTools.Commands.Plumbing
             }
             panel.AddSection("NEXT")
                  .Text("Place the view on a sheet from the SHEETS tab (drawing type 'plumb-drainage-A1-1to100').")
-                 .Text("Labels show DN and, on graded runs, the fall as 1:N. Fittings are not drawn separately.");
+                 .Text("Labels show DN and, on graded runs, the fall as 1:N. Valves are bow-ties, tees and crosses dots, fixtures labelled by mark and type. Isometrics are not to scale by convention.");
             panel.Show();
 
             OpenView(ctx, result.Views[0].ViewId);

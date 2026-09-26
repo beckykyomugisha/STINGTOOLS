@@ -49,6 +49,7 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 | ☐ | CALCS → **NC predict** (`Hvac_NcPredict`) | [RO] | select the whole AHU → diffuser run → **Expect** elements listed fan-first in the per-element breakdown regardless of selection order; a **Confidence** line; a **BASIS** section | MEPG-4 |
 | ☐ | same, with a fan family matched in `STING_FAN_SPECTRA.json` and a silencer matched in `STING_SILENCER_DATA.json`, run in a Space | [RO] | → **Expect** "DESIGN BASIS" only when no input was assumed | |
 | ☐ | same, selecting two disconnected runs | [RO] | → **Expect** a BASIS line "Selection is not one connected duct run" | |
+| ☐ | same, a rectangular duct running through the receiving Space | [RO] | → **Expect** a BASIS line on breakout with the wall mass assumed, a "Breakout Lw" row, and a higher NC than the same run outside the room | MEPG-4 |
 | ☐ | CALCS → **Refrigerant size** (`Hvac_RefrigSize`) | [RO] | Liquid leg, lift −10 m, mode **Reversible** → note ΔP; repeat with **Cooling only** → **Expect** the trace shows a static head **debit** in both (outdoor unit below, liquid rising); with lift **+10 m** and Cooling only → a **credit** | MEPG-5 |
 | ☐ | same, Suction leg, allowance 1.10 then 1.30 | [RO] | → **Expect** subtitle shows the allowance; ΔP rises by the ratio | |
 | ☐ | CALCS → **Psychro coil** (`Hvac_PsychroCoil`) | [RO] | defaults → **Expect** outdoor defaults from the climate site; four states in the table; sensible + latent = total; ADP below the off-coil dry bulb; bypass factor between 0 and 1 | |
@@ -62,13 +63,14 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 
 | ✓ | Button / tag | Mode | Pre → Action → **Expect** | Note |
 |---|---|---|---|---|
-| ☐ | DOCS → **Plumbing Isometric** (`Plumb_Isometric`) | [M] | select one pipe on the water system → **Expect** a drafting view `STING ISO - <system>` opens; one line per pipe; DN labels; riser drawn vertical; "NOT TO SCALE" title | MEPG-3 |
+| ☐ | DOCS → **Plumbing Isometric** (`Plumb_Isometric`) | [M] | select one pipe on the water system → **Expect** a drafting view `STING ISO - <system>` opens; one line per pipe; DN labels; riser drawn vertical; valves as bow-ties along their pipe; tees as dots; fixtures labelled; "NOT TO SCALE" title | MEPG-3 |
 | ☐ | same, run again | [M] | → **Expect** the SAME view redrawn ("(redrawn)" in the result), no second view, no doubled lines | |
 | ☐ | same, drainage branch with a fall | [M] | → **Expect** labels such as `DN100 1:40` on graded runs only | |
 | ☐ | same, nothing selected in a 3D view | [M] | → **Expect** one view per system in that view | |
 | ☐ | Pump select (`Plumb_PumpSelect`), no catalogue | [M] | → **Expect** "Duty only (no match)" rows; `PLM_PUMP_DUTY_HEAD_M` / `_FLOW_LPS` written; `PLM_PUMP_MODEL_TXT` **not** written; CATALOGUE section says none loaded | MEPG-2. The failure this guards: "STING Placeholder" pumps written as a selection. |
 | ☐ | same, with `_BIM_COORD/pump_catalogue.json` holding one pump that covers the duty | [M] | → **Expect** that pump selected and its model written; the file listed under CATALOGUE | |
 | ☐ | same, pump on a system with no pipe flow | [M] | → **Expect** "no design flow" and nothing written | |
+| ☐ | same, catalogue pump with `curve` points whose rated point covers the duty but whose curve does not | [M] | → **Expect** that pump NOT selected; a pump whose curve does cover it selected with "m on curve at duty" | MEPG-2 |
 | ☐ | Booster set (`Plumb_BoosterSet`), no catalogue | [RO] | → **Expect** the RECOMMENDED PUMP section states that no catalogue pump covers the duty | |
 | ☐ | Placement Center → **Plumbing Router** (uses `PlumbingFixtureRouter`) in a project with a pipe type but **no piping system type** | [M] | → **Expect** a failure line "no piping system type", no exception | Router guard. Repeat with a fixture hosted off-level: the pipe lands on the nearest level below. |
 | ☐ | SPECIALTY → **Sprinkler Hydraulics** (`Fire_SprinklerHydraulics`) | [RO] | select the design-area heads + the alarm valve → OH1 → **Expect** source flow ≈ Σ head flows; source pressure; most remote head = the furthest head; heads table lowest pressure first; CSV path shown | MEPG-7 |
@@ -76,11 +78,21 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 | ☐ | same, one head deselected so heads × area < area of operation | [RO] | → **Expect** a warning naming the shortfall | |
 | ☐ | same, supply pressure below the demand | [RO] | → **Expect** "INADEQUATE" in red | |
 | ☐ | same, selection = heads only (no source) | [RO] | → **Expect** a message asking for exactly one source element | |
-| ☐ | same, on a gridded (looped) system | [RO] | → **Expect** a warning counting loop connections; the result is a tree approximation | MEPG-9 |
+| ☐ | same, on a gridded (looped) system | [RO] | → **Expect** subtitle "network method (N loops)"; every head at or above "needs"; source flow = Σ head flows; the CSV has a `_network` suffix | MEPG-9 |
+| ☐ | same, a head screwed straight into a tee | [RO] | → **Expect** the head still listed (merged with the tee node), not lost | |
 | ☐ | SPECIALTY → **Gas Pipe Sizing** (`Gas_SizePipes`) | [RO] | select the meter → NG, copper, "Check the modelled sizes" → **Expect** every appliance listed with kW and m³/h; worst-appliance drop vs 1 mbar | |
 | ☐ | same, "Size and report only" | [RO] | → **Expect** a size per pipe; worst appliance within 1 mbar; nothing changed in the model | |
 | ☐ | same, "Size and apply the sizes to the pipes" | [M] | → **Expect** "Pipes resized N"; pipes now at the reported sizes; any size the pipe type lacks listed as a warning, not silently snapped | Undo afterwards. |
 | ☐ | same, an appliance with no heat-input parameter | [RO] | → **Expect** it listed as "NO LOAD" and named in a warning | |
+| ☐ | same, on a ring main (looped) | [RO] | → **Expect** subtitle "looped installation … network check"; a sizing request is refused with a warning and the modelled sizes checked | MEPG-9 |
+
+## Electrical panel
+
+| ✓ | Button / tag | Mode | Pre → Action → **Expect** | Note |
+|---|---|---|---|---|
+| ☐ | Conduit auto-route → **Avoid structure (A\*)** | [M] | cables in the manifest; a structural column between a load and its panel → **Expect** the conduit goes round the column in straight, axis-aligned runs (not one conduit per 200 mm); the report lists "A\* obstacle-avoiding × N" | MEPG-11 |
+| ☐ | same, load on a different level from the panel | [M] | → **Expect** a vertical riser through the slab (floors are not obstacles); slab penetration stamped | |
+| ☐ | same, **Rectilinear L/Z** | [M] | → **Expect** the old L/Z runs; report says no obstacle avoidance | |
 
 ## Drawing types
 

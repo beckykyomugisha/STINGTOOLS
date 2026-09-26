@@ -72,6 +72,27 @@ namespace StingTools.Mep.Tests
             Assert.Equal(80, d.KFactorToSi(80), 9);             // already SI
         }
 
+        [Fact]
+        public void PerSizeTableWinsOverBoresWhereItCoversTheBore()
+        {
+            string overlay = @"{ ""fittingEquivalentLengthsM"": { ""Elbow"": [[25, 0.76], [32, 1.0], [50, 1.5]] } }";
+            var d = SprinklerDesignData.Parse(RepoData.Read("STING_SPRINKLER_DESIGN.json"), overlay);
+            Assert.Equal(0.76, d.EquivalentLengthM("Elbow", 20), 9);        // first row covering 20 mm
+            Assert.Equal(1.0, d.EquivalentLengthM("Elbow", 27.3), 9);
+            Assert.Equal(30 * 80 / 1000.0, d.EquivalentLengthM("Elbow", 80), 9);   // beyond the table: bores rule
+            Assert.Equal(60 * 27.3 / 1000.0, d.EquivalentLengthM("Tee", 27.3), 9); // no table for tees
+            Assert.Empty(d.Validate());
+        }
+
+        [Fact]
+        public void TreeNodesUseThePerSizeTableAfterInheritingTheirBore()
+        {
+            var main = new FlowNode { Id = "m", Kind = FlowNodeKind.Pipe, LengthM = 5, DiameterMm = 36 };
+            var elbow = main.Add(new FlowNode { Id = "e", Kind = FlowNodeKind.Fitting, EquivLengthDiameters = 30, EquivLengthAtBore = b => b < 40 ? 1.2 : 2.0 });
+            FlowTreeUtil.ResolveInheritedBores(main);
+            Assert.Equal(1.2, elbow.EquivLengthM, 9);
+        }
+
         [Theory]
         [InlineData("Elbow", 30)]
         [InlineData("Tee", 60)]
@@ -141,6 +162,29 @@ namespace StingTools.Mep.Tests
             }, new IsoProjectionOptions { MinLabelledLength = 1.0 });
             Assert.True(r.Segments.Single(s => s.Id == "long").ShowLabel);
             Assert.False(r.Segments.Single(s => s.Id == "short").ShowLabel);
+        }
+
+        [Fact]
+        public void PointsLandOnTheSameSheetAsTheSegments()
+        {
+            var r = IsometricProjection.Project(new[] { Seg("a", 100, 100, 0, 110, 100, 3) }, new IsoProjectionOptions { FitTo = 2.0 });
+            var end = r.ToSheet(new IsoPoint3(110, 100, 3));
+            var seg = r.Segments.Single();
+            Assert.Equal(seg.End.U, end.U, 9);
+            Assert.Equal(seg.End.V, end.V, 9);
+        }
+
+        [Fact]
+        public void ValveIsABowTieCentredOnThePipe()
+        {
+            var edges = IsometricProjection.ValveSymbol(new IsoPoint2(5, 5), new IsoPoint2(1, 0), 4);
+            Assert.Equal(6, edges.Count);
+            // Every triangle has its apex at the centre and its base 2 either side along the pipe.
+            var pts = edges.SelectMany(e => new[] { e.A, e.B }).ToList();
+            Assert.Equal(3.0, pts.Min(p => p.U), 9);
+            Assert.Equal(7.0, pts.Max(p => p.U), 9);
+            Assert.Equal(4, edges.Count(e => (e.A.U == 5 && e.A.V == 5) || (e.B.U == 5 && e.B.V == 5)));
+            Assert.Empty(IsometricProjection.ValveSymbol(new IsoPoint2(0, 0), new IsoPoint2(0, 0), 4));
         }
 
         [Fact]

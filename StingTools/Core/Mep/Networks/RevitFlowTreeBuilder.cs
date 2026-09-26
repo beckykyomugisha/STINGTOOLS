@@ -34,6 +34,8 @@ namespace StingTools.Core.Mep.Networks
         public Action<Element, FlowNode> ReadTerminal { get; set; }
         /// <summary>Equivalent length in bores for a fitting part type or "Valve".</summary>
         public Func<string, double> EquivalentBores { get; set; } = _ => 0;
+        /// <summary>Equivalent length in metres for (part type or "Valve", bore mm). When set it wins over EquivalentBores — the per-size tables.</summary>
+        public Func<string, double, double> EquivalentLengthM { get; set; }
         /// <summary>Hazen-Williams C for a pipe (0 = solver default).</summary>
         public Func<Pipe, double> HazenWilliamsC { get; set; } = _ => 0;
         public int MaxElements { get; set; } = 20000;
@@ -91,8 +93,8 @@ namespace StingTools.Core.Mep.Networks
             // Each undirected loop edge is seen from both ends.
             result.LoopConnections = loops / 2;
             if (result.LoopConnections > 0)
-                result.Warnings.Add($"{result.LoopConnections} loop connection(s) found. The calculation treats the " +
-                                    "network as a tree and ignores them; a looped or gridded system needs a looped solver.");
+                result.Warnings.Add($"{result.LoopConnections} loop connection(s) found — the tree view of this " +
+                                    "network ignores them; use RevitPipeNetworkBuilder and the network solver.");
 
             // Keep only elements on a source → terminal path.
             var needed = new HashSet<long> { source.Id.Value };
@@ -124,14 +126,14 @@ namespace StingTools.Core.Mep.Networks
             return result;
         }
 
-        private static bool Traversable(Element e)
+        internal static bool Traversable(Element e)
         {
             if (e is Pipe || e is FlexPipe) return true;
             var bic = (BuiltInCategory)(e.Category?.Id.Value ?? 0);
             return bic == BuiltInCategory.OST_PipeFitting || bic == BuiltInCategory.OST_PipeAccessory;
         }
 
-        private static IEnumerable<Element> Neighbours(Element e)
+        internal static IEnumerable<Element> Neighbours(Element e)
         {
             ConnectorSet cs = (e as MEPCurve)?.ConnectorManager?.Connectors
                            ?? (e as FamilyInstance)?.MEPModel?.ConnectorManager?.Connectors;
@@ -174,11 +176,13 @@ namespace StingTools.Core.Mep.Networks
                 if (!isSource) n.Kind = FlowNodeKind.Fitting;
                 string part = ((el as FamilyInstance)?.MEPModel as Autodesk.Revit.DB.Mechanical.MechanicalFitting)?.PartType.ToString() ?? "";
                 n.EquivLengthDiameters = opts.EquivalentBores?.Invoke(part) ?? 0;
+                if (opts.EquivalentLengthM != null) n.EquivLengthAtBore = b => opts.EquivalentLengthM(part, b);
             }
             else if (bic == BuiltInCategory.OST_PipeAccessory)
             {
                 if (!isSource) n.Kind = FlowNodeKind.Accessory;
                 n.EquivLengthDiameters = opts.EquivalentBores?.Invoke("Valve") ?? 0;
+                if (opts.EquivalentLengthM != null) n.EquivLengthAtBore = b => opts.EquivalentLengthM("Valve", b);
             }
             else if (!isSource) n.Kind = FlowNodeKind.Junction;
             return n;
@@ -231,7 +235,7 @@ namespace StingTools.Core.Mep.Networks
             return bb != null ? (bb.Min + bb.Max) / 2 : null;
         }
 
-        private static string Describe(Element el)
+        internal static string Describe(Element el)
         {
             string name = el.Name ?? "";
             string cat = el.Category?.Name ?? "";

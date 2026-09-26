@@ -23703,7 +23703,7 @@ Follows a review of the non-electrical MEP work; open items are ROADMAP MEPG-1 �
   `fire-section-A1-1to50`, `fire-detail-A3-1to20`, style pack `corp-standard-fire`, routing
   `FP/*/SPRINKLER|PLAN|SECTION|DETAIL`. Checksums stamped.
 
-**Tests.** New `StingTools.Mep.Tests` (62 declared, 68 cases): psychrometrics against the ASHRAE
+**Tests.** New `StingTools.Mep.Tests` (62 declared, 68 cases at that commit): psychrometrics against the ASHRAE
 tables, sprinkler, gas and pressurisation hand calculations, duct friction against Colebrook,
 Hardy Cross, NC rating, refrigerant lift and allowance, expansion vessels, isometric projection,
 and `Validate()` over the three shipped design-data files including a project override. First
@@ -23719,3 +23719,38 @@ load-code combo is not wired to the handler, so the code always read "ASHRAE_90_
 had a handler case and no button; it is now on RPRT and in `ResolveCommand` (removed from the
 dispatch-parity baseline). The Revit checklist for all of this is
 [`MEP_SMOKETEST_CHECKLIST.md`](MEP_SMOKETEST_CHECKLIST.md).
+
+#### Completed (MEPG follow-up — every code-closable MEPG item, same branch)
+
+- **MEPG-9 looped networks.** `Core/Mep/Networks/PipeNetwork.cs`: a graph of junctions and links
+  with a nodal Newton solver whose steps are solved by Jacobi-preconditioned conjugate gradients
+  (the Jacobian is SPD). `SprinklerNetworkHydraulics` finds the lowest source pressure that gives
+  every operating head its requirement (bisection over the network solve); `GasNetworkCheck`
+  checks ring mains. `RevitPipeNetworkBuilder` keeps every connection: connections are junctions,
+  two-port elements are links, multi-port fittings / terminals / the source are nodes (heads
+  screwed straight into a fitting are merged and their K-factors added), dead ends pruned. The
+  sprinkler and gas commands switch to it when the connector walk finds loops. Tests: the network
+  method equals the hand method on a single head and agrees within 1 % on a branched tree;
+  parallel pipes split as d^(4.87/1.85) (water) and d^2.5 (gas); a 2 × 2 grid is symmetric and
+  conserves flow. Per-size fitting equivalent lengths (`fittingEquivalentLengthsM`) are supported
+  in both design files and win over the bores rule; they ship empty.
+- **MEPG-4 breakout.** `NcPredictionEngine.RectangularBreakoutTlDb` / `BreakoutLw` (ASHRAE
+  rectangular-duct method in its IP form, TL floored at 10·log(S/A)); `Hvac_NcPredict` flags
+  rectangular straight ducts whose mid-point is inside the receiving Space/Room and lists the
+  assumed wall mass.
+- **MEPG-2 pump curves.** `PumpDutyCurve` (Revit-free): catalogue entries may carry curve points;
+  the duty is judged on the curve at the duty flow, with efficiency interpolated.
+- **MEPG-3 isometric symbols.** Valves as bow-ties along their pipe, tees and crosses as dots,
+  fixtures and equipment labelled; `IsometricProjectionResult.ToSheet` places any 3D point on the
+  same sheet as the pipes.
+- **MEPG-11 A\* conduit routing** is an opt-in route method. `ConduitRouteEngine.OrthogonalRoute`
+  makes every leg axis-aligned and merges straight runs (was one conduit per 200 mm voxel with
+  diagonal end legs); start/end cells are released from obstacle clearance; floors are no longer
+  obstacles (their bounding boxes blocked every riser). The report names the method per run.
+- **MEPG-5** closed by decision (no two-phase suction model: a working suction line is
+  superheated vapour plus oil). **MEPG-7, MEPG-8, MEPG-10** stay open: they need a Revit session
+  or the printed standards.
+
+Tests: `StingTools.Mep.Tests` 87 cases, `StingTools.Routing.Tests` 80. Plugin build 0/0.
+**Not exercised in Revit** — `MEP_SMOKETEST_CHECKLIST.md` gained the steps for all of the above.
+

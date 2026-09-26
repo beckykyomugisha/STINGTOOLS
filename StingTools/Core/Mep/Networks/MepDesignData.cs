@@ -61,6 +61,38 @@ namespace StingTools.Core.Mep.Networks
             }
         }
 
+        /// <summary>
+        /// "fittingEquivalentLengthsM": { "Elbow": [[boreUpToMm, metres], …], … } —
+        /// the standard's per-size table. Rows sorted by bore; the first row whose
+        /// bore limit is at or above the pipe's bore applies.
+        /// </summary>
+        public static void MergeTables(Dictionary<string, List<(double bore, double m)>> map, JToken t)
+        {
+            if (!(t is JObject o)) return;
+            foreach (var p in o.Properties())
+            {
+                if (p.Name.StartsWith("_") || !(p.Value is JArray rows)) continue;
+                var list = new List<(double, double)>();
+                foreach (var row in rows.OfType<JArray>())
+                    if (row.Count >= 2) list.Add((D(row[0], 0), D(row[1], 0)));
+                map[p.Name] = list.Where(x => x.Item1 > 0 && x.Item2 >= 0).OrderBy(x => x.Item1).ToList();
+            }
+        }
+
+        /// <summary>Metres from a per-size table, or null when no table (or no row) covers the part and bore.</summary>
+        public static double? TableLength(Dictionary<string, List<(double bore, double m)>> tables, string partType, double boreMm)
+        {
+            if (tables.Count == 0 || boreMm <= 0) return null;
+            List<(double bore, double m)> rows = null;
+            if (!string.IsNullOrEmpty(partType))
+                foreach (var kv in tables)
+                    if (kv.Key != "Default" && partType.IndexOf(kv.Key, StringComparison.OrdinalIgnoreCase) >= 0) { rows = kv.Value; break; }
+            if (rows == null) tables.TryGetValue("Default", out rows);
+            if (rows == null || rows.Count == 0) return null;
+            foreach (var r in rows) if (boreMm <= r.bore + 1e-9) return r.m;
+            return null;                                       // larger than the table: fall back to bores
+        }
+
         /// <summary>Equivalent bores for a Revit part type name, falling back to "Default".</summary>
         public static double Bores(Dictionary<string, double> map, string partType)
         {
@@ -94,6 +126,9 @@ namespace StingTools.Core.Mep.Networks
         public double PipeVelocityLimitMs { get; set; } = 10;
         public double ValveVelocityLimitMs { get; set; } = 6;
         public Dictionary<string, double> FittingEquivalentBores { get; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Optional per-size equivalent lengths (the standard's tables), which win over the bores rule.</summary>
+        public Dictionary<string, List<(double bore, double m)>> FittingEquivalentLengthsM { get; } =
+            new Dictionary<string, List<(double bore, double m)>>(StringComparer.OrdinalIgnoreCase);
         public List<string> KFactorParameters { get; } = new List<string>();
         public double UsKFactorBelow { get; set; } = 30;
         public List<string> Sources { get; } = new List<string>();
@@ -127,6 +162,7 @@ namespace StingTools.Core.Mep.Networks
                 ValveVelocityLimitMs = J.D(v["valve"], ValveVelocityLimitMs);
             }
             J.MergeMap(FittingEquivalentBores, j["fittingEquivalentBores"]);
+            J.MergeTables(FittingEquivalentLengthsM, j["fittingEquivalentLengthsM"]);
             if (j["kFactorParameters"] != null) J.MergeStrings(KFactorParameters, j["kFactorParameters"]);
             UsKFactorBelow = J.D(j["usKFactorBelow"], UsKFactorBelow);
         }
@@ -137,6 +173,10 @@ namespace StingTools.Core.Mep.Networks
             ?? Hazards.FirstOrDefault();
 
         public double EquivalentBores(string partType) => J.Bores(FittingEquivalentBores, partType);
+
+        /// <summary>Equivalent length in metres: the per-size table when it covers the bore, else bores × bore.</summary>
+        public double EquivalentLengthM(string partType, double boreMm)
+            => J.TableLength(FittingEquivalentLengthsM, partType, boreMm) ?? EquivalentBores(partType) * boreMm / 1000.0;
 
         public double DefaultC => HazenWilliamsC.TryGetValue("default", out var c) && c > 0 ? c : 120;
 
@@ -190,6 +230,9 @@ namespace StingTools.Core.Mep.Networks
         public List<GasPipeSeries> PipeSeries { get; } = new List<GasPipeSeries>();
         public string DefaultSeriesId { get; set; } = "";
         public Dictionary<string, double> FittingEquivalentBores { get; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Optional per-size equivalent lengths (the standard's tables), which win over the bores rule.</summary>
+        public Dictionary<string, List<(double bore, double m)>> FittingEquivalentLengthsM { get; } =
+            new Dictionary<string, List<(double bore, double m)>>(StringComparer.OrdinalIgnoreCase);
         public List<string> ApplianceLoadParameters { get; } = new List<string>();
         public List<string> Sources { get; } = new List<string>();
 
@@ -234,10 +277,15 @@ namespace StingTools.Core.Mep.Networks
             });
             if (j["defaultSeriesId"] != null) DefaultSeriesId = J.S(j["defaultSeriesId"]);
             J.MergeMap(FittingEquivalentBores, j["fittingEquivalentBores"]);
+            J.MergeTables(FittingEquivalentLengthsM, j["fittingEquivalentLengthsM"]);
             if (j["applianceLoadParameters"] != null) J.MergeStrings(ApplianceLoadParameters, j["applianceLoadParameters"]);
         }
 
         public double EquivalentBores(string partType) => J.Bores(FittingEquivalentBores, partType);
+
+        /// <summary>Equivalent length in metres: the per-size table when it covers the bore, else bores × bore.</summary>
+        public double EquivalentLengthM(string partType, double boreMm)
+            => J.TableLength(FittingEquivalentLengthsM, partType, boreMm) ?? EquivalentBores(partType) * boreMm / 1000.0;
 
         public GasProperties Gas(string id) =>
             Gases.FirstOrDefault(g => string.Equals(g.Id, id, StringComparison.OrdinalIgnoreCase))

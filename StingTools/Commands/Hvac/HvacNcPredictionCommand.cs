@@ -115,6 +115,7 @@ namespace StingTools.Commands.Hvac
                 else if (roomSource.Contains("default α"))
                     assumptions.Add("Room absorption defaulted — finishes carry no absorption data");
 
+                MarkBreakout(doc, ids, path, assumptions);
                 var result = NcPredictionEngine.Compute(path, room);
 
                 var panel = StingResultPanel.Create("HVAC — NC Prediction");
@@ -146,8 +147,13 @@ namespace StingTools.Commands.Hvac
                 panel.AddSection("BASIS");
                 if (assumptions.Count == 0) panel.Text("No assumed inputs.");
                 foreach (var a in assumptions) panel.Text("Assumed: " + a);
-                panel.Text("Not modelled: duct breakout (sound through duct walls), crosstalk, " +
-                           "and plant-room airborne paths. Treat NC as the duct-borne path only.");
+                panel.Text(result.HasBreakout
+                    ? "Includes breakout from ducts inside the room (ASHRAE rectangular-duct method). " +
+                      "Not modelled: crosstalk (use Cross-talk audit) and plant-room airborne paths."
+                    : "No breakout: no rectangular duct in the selection runs through the room. " +
+                      "Not modelled: crosstalk (use Cross-talk audit) and plant-room airborne paths.");
+                if (result.HasBreakout)
+                    panel.Text("Breakout Lw (63 Hz–8 kHz): " + string.Join(" / ", result.BreakoutLw.AsArray().Select(d => d.ToString("F0"))));
 
                 panel.AddSection("PER-ELEMENT BREAKDOWN");
                 foreach (var pe in result.PerElement)
@@ -376,7 +382,9 @@ namespace StingTools.Commands.Hvac
                     {
                         Kind = ElementKind.StraightDuct,
                         Label = double.IsNaN(v) ? $"Straight duct {len:F1} m (no flow)" : $"Straight duct {len:F1} m @ {v:F1} m/s",
-                        LengthM = len, VelocityMs = v, AreaM2 = areaM2
+                        LengthM = len, VelocityMs = v, AreaM2 = areaM2,
+                        WidthMm = dia > 0 ? 0 : w, HeightMm = dia > 0 ? 0 : h,
+                        ElementIdValue = el.Id.Value
                     };
                 }
                 if (bic == BuiltInCategory.OST_DuctFitting)
@@ -555,6 +563,42 @@ namespace StingTools.Commands.Hvac
         /// query <c>Document.GetSpaceAtPoint</c> (falling back to
         /// <c>GetRoomAtPoint</c>). Returns null when nothing resolves.
         /// </summary>
+        /// <summary>Galvanised steel 0.8 mm × 7850 kg/m³. Used for breakout when the duct carries no wall data.</summary>
+        private const double DefaultDuctWallKgM2 = 6.28;
+
+        /// <summary>
+        /// Flag the rectangular straight ducts whose mid-point lies inside the
+        /// receiving Space/Room: sound breaking out of their walls reaches the
+        /// listener directly and is added to the terminal's sound (MEPG-4).
+        /// </summary>
+        private static void MarkBreakout(Document doc, List<ElementId> ids, List<PathElement> path, List<string> assumptions)
+        {
+            try
+            {
+                var spatial = FindReceiverSpatial(doc, ids);
+                if (spatial == null) return;
+                int flagged = 0, round = 0;
+                foreach (var pe in path.Where(p => p.Kind == ElementKind.StraightDuct && p.ElementIdValue > 0))
+                {
+                    var el = doc.GetElement(new ElementId(pe.ElementIdValue));
+                    if (!(el?.Location is LocationCurve lc) || lc.Curve == null) continue;
+                    var mid = lc.Curve.Evaluate(0.5, true);
+                    bool inside = spatial is Space sp ? sp.IsPointInSpace(mid)
+                                : spatial is Autodesk.Revit.DB.Architecture.Room rm && rm.IsPointInRoom(mid);
+                    if (!inside) continue;
+                    if (pe.WidthMm <= 0 || pe.HeightMm <= 0) { round++; continue; }
+                    pe.BreakoutIntoRoom = true;
+                    pe.WallMassKgM2 = DefaultDuctWallKgM2;
+                    flagged++;
+                }
+                if (flagged > 0)
+                    assumptions.Add($"{flagged} duct(s) inside the room: breakout computed with 0.8 mm galvanised walls ({DefaultDuctWallKgM2:F1} kg/m²)");
+                if (round > 0)
+                    assumptions.Add($"{round} round duct(s) inside the room: breakout not computed (round ducts break out far less)");
+            }
+            catch (Exception ex) { StingLog.Warn($"NC breakout: {ex.Message}"); }
+        }
+
         private static SpatialElement FindReceiverSpatial(Document doc, List<ElementId> ids)
         {
             try

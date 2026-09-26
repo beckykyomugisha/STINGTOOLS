@@ -158,6 +158,41 @@ namespace StingTools.Mep.Tests
         }
 
         [Fact]
+        public void RectangularBreakoutTransmissionLossMatchesTheAshraeForm()
+        {
+            // 600 × 300 mm, 6.28 kg/m² (0.8 mm steel): f_L = 24120/√(a·b) ≈ 1444 Hz.
+            Assert.Equal(27.672, NcPredictionEngine.RectangularBreakoutTlDb(250, 600, 300, 6.28), 2);    // below f_L
+            Assert.Equal(37.207, NcPredictionEngine.RectangularBreakoutTlDb(2000, 600, 300, 6.28), 2);   // above f_L
+        }
+
+        [Fact]
+        public void BreakoutNeverExceedsTheInDuctPower()
+        {
+            var lwIn = OctaveBand.FromArray(new[] { 80.0, 80, 80, 80, 80, 80, 80, 80 });
+            // Very light, very long duct: the floor TL = 10·log10(S/A) caps breakout at Lw_in.
+            var bo = NcPredictionEngine.BreakoutLw(lwIn, 600, 300, 50, 0.5);
+            for (int i = 0; i < 8; i++) Assert.True(bo[i] <= lwIn[i] + 1e-9);
+        }
+
+        [Fact]
+        public void BreakoutOnlyAddsWhenTheDuctIsInTheRoom()
+        {
+            var fan = OctaveBand.FromArray(new[] { 85.0, 85, 85, 85, 85, 85, 85, 85 });
+            PathElement Duct(bool inRoom) => new PathElement
+            {
+                Kind = ElementKind.StraightDuct, LengthM = 5, WidthMm = 600, HeightMm = 300,
+                WallMassKgM2 = 6.28, BreakoutIntoRoom = inRoom
+            };
+            var room = Office;
+            var outside = NcPredictionEngine.Compute(new List<PathElement> { new PathElement { Kind = ElementKind.Fan, SourceLw = fan }, Duct(false) }, room);
+            var inside = NcPredictionEngine.Compute(new List<PathElement> { new PathElement { Kind = ElementKind.Fan, SourceLw = fan }, Duct(true) }, room);
+            Assert.False(outside.HasBreakout);
+            Assert.True(inside.HasBreakout);
+            for (int i = 0; i < 8; i++) Assert.True(inside.RoomLw[i] >= outside.RoomLw[i]);
+            Assert.True(inside.RoomLw.Hz125 > outside.RoomLw.Hz125 + 0.1);
+        }
+
+        [Fact]
         public void OffTheTopOfTheCurvesIsFlaggedNotReportedAs65()
         {
             var loud = OctaveBand.FromArray(new[] { 90.0, 90, 90, 90, 90, 90, 90, 90 });
@@ -217,6 +252,51 @@ namespace StingTools.Mep.Tests
             Assert.False(r.Ok);
             Assert.NotEmpty(r.Warnings);
         }
+    }
+
+    public class PumpCurveTests
+    {
+        private static readonly PumpCurvePoint[] Curve =
+        {
+            new PumpCurvePoint { FlowLps = 0,   HeadM = 30, EfficiencyPct = 0 },
+            new PumpCurvePoint { FlowLps = 2.0, HeadM = 28, EfficiencyPct = 55 },
+            new PumpCurvePoint { FlowLps = 4.0, HeadM = 22, EfficiencyPct = 70 },
+            new PumpCurvePoint { FlowLps = 6.0, HeadM = 12, EfficiencyPct = 60 },
+        };
+
+        [Fact]
+        public void HeadAtDutyIsInterpolatedOnTheCurve()
+        {
+            var c = PumpDutyCurve.Check(Curve, 3.0, 20);
+            Assert.True(c.WithinCurve);
+            Assert.Equal(25.0, c.HeadAtDutyM, 9);                    // midway 28 → 22
+            Assert.Equal(62.5, c.EfficiencyAtDutyPct, 9);
+            Assert.Equal(25.0, c.HeadMarginPct, 9);
+            Assert.True(c.Meets);
+        }
+
+        [Fact]
+        public void ARatedPointAboveTheDutyCanStillMissItOnTheCurve()
+        {
+            // Rated 6 L/s @ 12 m "covers" 5 L/s @ 20 m by the rated-point rule,
+            // but the curve gives only 17 m at 5 L/s.
+            var c = PumpDutyCurve.Check(Curve, 5.0, 20);
+            Assert.True(c.WithinCurve);
+            Assert.Equal(17.0, c.HeadAtDutyM, 9);
+            Assert.False(c.Meets);
+        }
+
+        [Fact]
+        public void DutyOffTheCurveIsNotWithinCurve()
+        {
+            var c = PumpDutyCurve.Check(Curve, 7.0, 5);
+            Assert.False(c.WithinCurve);
+            Assert.False(c.Meets);
+        }
+
+        [Fact]
+        public void EfficiencyIsNaNWhereTheCurvePublishesNone()
+            => Assert.True(double.IsNaN(PumpDutyCurve.Check(Curve, 1.0, 10).EfficiencyAtDutyPct));
     }
 
     public class ExpansionVesselTests

@@ -57,6 +57,25 @@ namespace StingTools.Commands.Electrical.Routing
                 return Result.Failed;
             }
 
+            // Route method. The A* router avoids structural columns and
+            // framing; it is opt-in because it has not yet been run in Revit
+            // (ROADMAP MEPG-11 / ELEC-7).
+            var methodDlg = new TaskDialog("STING Auto-Route")
+            {
+                MainInstruction = "Route method",
+                MainContent = "Rectilinear L/Z is the proven path: along X at the load's elevation, rise/drop, then along Y. " +
+                              "Avoid structure routes around structural columns and beams (A* on a 200 mm grid) and " +
+                              "falls back to L/Z for any run it cannot solve. Neither checks clashes with other services.",
+                CommonButtons = TaskDialogCommonButtons.Cancel
+            };
+            methodDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Rectilinear L/Z");
+            methodDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Avoid structure (A*)");
+            var methodPick = methodDlg.Show();
+            if (methodPick != TaskDialogResult.CommandLink1 && methodPick != TaskDialogResult.CommandLink2)
+                return Result.Cancelled;
+            bool useAStar = methodPick == TaskDialogResult.CommandLink2;
+            var methodCounts = new Dictionary<string, int>();
+
             // ELC-7: resolve each cable to its circuit by element id, then
             // source + destination, then panel + circuit number — never by a
             // bare circuit number, which repeats on every panel. The old
@@ -143,7 +162,12 @@ namespace StingTools.Commands.Electrical.Routing
                         }
 
                         double diamMm = ConduitRouteEngine.SelectConduitDiameterMm(
-                            new List<StingCable> { cable });                        var segments = ConduitRouteEngine.ComputeRoute(startPt, endPt, diamMm, cable.CircuitId);
+                            new List<StingCable> { cable });
+                        string routeMethod = "rectilinear L/Z";
+                        var segments = useAStar
+                            ? ConduitRouteEngine.ComputeRouteAdvanced(doc, startPt, endPt, diamMm, cable.CircuitId, out routeMethod)
+                            : ConduitRouteEngine.ComputeRoute(startPt, endPt, diamMm, cable.CircuitId);
+                        methodCounts[routeMethod] = methodCounts.TryGetValue(routeMethod, out var mc) ? mc + 1 : 1;
 
                         // BS 7671 §522.8.5 — max 3 bends between draw-in
                         // points. Pre-flight: if the proposed run exceeds
@@ -394,14 +418,12 @@ namespace StingTools.Commands.Electrical.Routing
             sb.AppendLine($"Junction boxes auto-placed: {junctionBoxes}.");
             sb.AppendLine($"Slab penetrations stamped: {penetrations}.");
             sb.AppendLine();
-            // Honest about the method: the live path is the fixed rectilinear
-            // L/Z of ConduitRouteEngine.ComputeRoute. The A* voxel router
-            // (ComputeRouteAdvanced) is NOT used — it emits one conduit per
-            // 200 mm voxel with no colinear merge, can seat the start/end on an
-            // obstacle cell, and joins the exact endpoints to cell centres with
-            // non-orthogonal legs. See ROADMAP ELEC-7.
-            sb.AppendLine("Route method: fixed rectilinear L/Z path (along X at the load's elevation, vertical rise/drop, then along Y to the panel). " +
-                          "No obstacle or clash avoidance was performed — review every run in Revit.");
+            // Say which method each run actually used: A* falls back to L/Z per run.
+            sb.AppendLine("Route method: " + (methodCounts.Count == 0 ? "none (nothing routed)"
+                : string.Join(", ", methodCounts.Select(kv => $"{kv.Key} × {kv.Value}"))) + ".");
+            sb.AppendLine(useAStar
+                ? "A* avoided structural columns and framing only — not other services, walls or ceilings. Review every run in Revit."
+                : "No obstacle or clash avoidance was performed — review every run in Revit.");
             sb.Append("Penetration parameters stamped — FRP_PENETRATION family will install over each marked point once the family ships.");
 
             TaskDialog.Show("STING Auto-Route", sb.ToString());

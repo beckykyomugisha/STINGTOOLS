@@ -96,7 +96,8 @@ namespace StingTools.Commands.Gas
                 {
                     TerminalPredicate = IsAppliance,
                     ReadTerminal = (el, node) => node.LoadKw = ReadLoadKw(el, data),
-                    EquivalentBores = data.EquivalentBores
+                    EquivalentBores = data.EquivalentBores,
+                    EquivalentLengthM = data.EquivalentLengthM
                 };
                 var tree = RevitFlowTreeBuilder.Build(doc, source, opts);
                 warnings.AddRange(tree.Warnings);
@@ -105,6 +106,16 @@ namespace StingTools.Commands.Gas
                     TaskDialog.Show(Title, "No appliance is connected to the selected element through pipework.\n\n" +
                                            string.Join("\n", warnings.Take(8)));
                     return Result.Failed;
+                }
+
+                // A ring main or other looped installation is checked on the full
+                // network (MEPG-9). Sizing is only defined for a tree, so a looped
+                // installation is checked as modelled and the report says so.
+                if (tree.LoopConnections > 0)
+                {
+                    warnings.RemoveAll(w => w.Contains("loop connection"));
+                    if (mode != 0) warnings.Add("The installation is looped: sizing applies to trees only, so the modelled sizes were checked instead.");
+                    return RunNetworkCheck(doc, source, opts, data, gas, warnings);
                 }
 
                 var res = mode == 0 ? GasPipeSizer.Check(tree.Root, gas) : GasPipeSizer.Size(tree.Root, gas, series.Sizes);
@@ -129,6 +140,45 @@ namespace StingTools.Commands.Gas
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        private static Result RunNetworkCheck(Document doc, Element source, FlowTreeBuildOptions opts,
+            GasDesignData data, GasProperties gas, List<string> warnings)
+        {
+            var built = RevitPipeNetworkBuilder.Build(doc, source, opts, (el, node) => node.LoadKw = ReadLoadKw(el, data));
+            warnings.AddRange(built.Warnings);
+            var res = GasNetworkCheck.Check(built.Network, gas);
+            warnings.AddRange(res.Warnings);
+            if (res.Appliances.Count == 0)
+            {
+                TaskDialog.Show(Title, "The network check could not run:\n\n" + string.Join("\n", warnings.Take(12)));
+                return Result.Failed;
+            }
+            var panel = StingResultPanel.Create("Gas Pipe Sizing");
+            panel.SetSubtitle($"{gas.Label} · looped installation ({res.Loops} loop{(res.Loops == 1 ? "" : "s")}) · " +
+                              $"network check · allowance {gas.MaxDropMbar:0.##} mbar");
+            var s = panel.AddSection("RESULT")
+                 .Metric("Total heat input", $"{res.TotalLoadKw:F1} kW")
+                 .Metric("Total flow", $"{res.TotalFlowM3h:F2} m³/h (no diversity)");
+            if (res.Ok) s.MetricHighlight("Worst appliance", $"{res.WorstDropMbar:F2} mbar — within allowance", res.WorstAppliance?.Label);
+            else s.MetricError("Worst appliance", $"{res.WorstDropMbar:F2} mbar — OVER {gas.MaxDropMbar:0.##} mbar", res.WorstAppliance?.Label);
+            panel.AddSection("APPLIANCES").Table(new[] { "Appliance", "kW", "m³/h", "mbar" },
+                res.Appliances.OrderByDescending(a => a.DropMbar)
+                   .Select(a => new[] { a.Node.Label, a.Node.LoadKw > 0 ? $"{a.Node.LoadKw:F1}" : "NO LOAD", $"{a.FlowM3h:F2}", $"{a.DropMbar:F3}" }).ToList());
+            panel.AddSection("PIPES").Table(new[] { "Pipe", "Bore mm", "m³/h", "mbar", "m/s" },
+                res.Links.Where(l => l.Link.Kind == NetLinkKind.Pipe).OrderByDescending(l => l.DropMbar).Take(40)
+                   .Select(l => new[] { l.Link.Label, $"{l.Link.BoreMm:F1}", $"{l.FlowM3h:F2}", $"{l.DropMbar:F3}", $"{l.VelocityMs:F1}" }).ToList());
+            var basis = panel.AddSection("BASIS");
+            basis.Text("Network method: node pressures solved by Newton's method on continuity with Pole's-formula links; " +
+                       "each appliance draws its full heat input. Flow in a ring divides by resistance.");
+            foreach (var src in data.Sources) basis.Text("Data: " + src);
+            if (warnings.Count > 0)
+            {
+                var w = panel.AddSection("WARNINGS");
+                foreach (var line in warnings.Distinct().Take(20)) w.Text(line);
+            }
+            panel.Show();
+            return res.Converged ? Result.Succeeded : Result.Failed;
         }
 
         /// <summary>An appliance is any connected family instance that is not pipework.</summary>

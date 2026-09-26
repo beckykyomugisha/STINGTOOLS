@@ -92,6 +92,24 @@ namespace StingTools.Core.Plumbing
         public double Height => MaxV - MinV;
         /// <summary>Uniform factor applied by FitTo (1 when not fitted).</summary>
         public double Scale { get; set; } = 1.0;
+        /// <summary>Projected minimum subtracted before scaling; with Scale this maps any other point onto the sheet.</summary>
+        public double OriginU { get; set; }
+        public double OriginV { get; set; }
+
+        /// <summary>Place a 3D point (a valve, a fixture) on the same sheet as the segments.</summary>
+        public IsoPoint2 ToSheet(IsoPoint3 p)
+        {
+            var q = IsometricProjection.Project(p);
+            return new IsoPoint2((q.U - OriginU) * Scale, (q.V - OriginV) * Scale);
+        }
+
+        /// <summary>Direction of a 3D vector on the sheet, unit length (0,0 when the vector is zero).</summary>
+        public IsoPoint2 DirectionOnSheet(IsoPoint3 v)
+        {
+            var q = IsometricProjection.Project(v);
+            double len = Math.Sqrt(q.U * q.U + q.V * q.V);
+            return len < 1e-12 ? new IsoPoint2(0, 0) : new IsoPoint2(q.U / len, q.V / len);
+        }
         public int    Dropped { get; set; }
     }
 
@@ -144,6 +162,8 @@ namespace StingTools.Core.Plumbing
             double extent = Math.Max(maxU - minU, maxV - minV);
             double k = opts.FitTo > 0 && extent > 0 ? opts.FitTo / extent : 1.0;
             result.Scale = k;
+            result.OriginU = minU;
+            result.OriginV = minV;
 
             // Translate so the drawing starts at (0,0), then scale.
             IsoPoint2 Norm(IsoPoint2 p) => new IsoPoint2((p.U - minU) * k, (p.V - minV) * k);
@@ -165,6 +185,32 @@ namespace StingTools.Core.Plumbing
             result.MaxU = (maxU - minU) * k;
             result.MaxV = (maxV - minV) * k;
             return result;
+        }
+
+        /// <summary>
+        /// A valve drawn as the usual bow-tie: two triangles meeting at the
+        /// valve's centre, their bases across the pipe. <paramref name="dir"/>
+        /// is the pipe direction on the sheet (unit); <paramref name="size"/>
+        /// the overall length along the pipe. Returns the six edges.
+        /// </summary>
+        public static List<(IsoPoint2 A, IsoPoint2 B)> ValveSymbol(IsoPoint2 centre, IsoPoint2 dir, double size)
+        {
+            var edges = new List<(IsoPoint2, IsoPoint2)>();
+            double len = Math.Sqrt(dir.U * dir.U + dir.V * dir.V);
+            if (len < 1e-12 || size <= 0) return edges;
+            double du = dir.U / len, dv = dir.V / len;          // along the pipe
+            double nu = -dv, nv = du;                           // across the pipe
+            double h = size / 2, w = size / 3;
+            IsoPoint2 P(double along, double across) => new IsoPoint2(centre.U + du * along + nu * across, centre.V + dv * along + nv * across);
+            foreach (double side in new[] { -1.0, 1.0 })
+            {
+                var b1 = P(side * h, w);
+                var b2 = P(side * h, -w);
+                edges.Add((centre, b1));
+                edges.Add((b1, b2));
+                edges.Add((b2, centre));
+            }
+            return edges;
         }
 
         /// <summary>

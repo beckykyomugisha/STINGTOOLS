@@ -83,6 +83,7 @@ namespace StingTools.Commands.Fire
                 {
                     ReadTerminal = (el, node) => node.KFactor = ReadKFactor(el, data, warnings),
                     EquivalentBores = data.EquivalentBores,
+                    EquivalentLengthM = data.EquivalentLengthM,
                     HazenWilliamsC = pipe => PipeC(pipe, data)
                 };
                 foreach (var h in heads) opts.TerminalIds.Add(h.Id.Value);
@@ -99,6 +100,15 @@ namespace StingTools.Commands.Fire
                 criteria.AreaPerHeadM2 = form.Get("area");
                 if (criteria.AreaPerHeadM2 > hazard.MaxAreaPerHeadM2 && hazard.MaxAreaPerHeadM2 > 0)
                     warnings.Add($"Area per head {criteria.AreaPerHeadM2:F1} m² exceeds the {hazard.MaxAreaPerHeadM2:F0} m² maximum for {hazard.Id}.");
+
+                // A looped or gridded installation is solved on the full network
+                // (MEPG-9); the tree hand method only applies when there are no loops.
+                if (tree.LoopConnections > 0)
+                {
+                    warnings.RemoveAll(w => w.Contains("loop connection"));
+                    return RunNetwork(doc, source, opts, data, hazard, criteria, form.Get("supplyP"), warnings, ref message);
+                }
+
                 var res = SprinklerHydraulics.Solve(tree.Root, criteria);
                 warnings.AddRange(res.Warnings);
                 if (!res.Ok)
@@ -120,6 +130,78 @@ namespace StingTools.Commands.Fire
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        private static Result RunNetwork(Document doc, Element source, FlowTreeBuildOptions opts, SprinklerDesignData data,
+            SprinklerHazard hazard, SprinklerDesignCriteria criteria, double supplyP, List<string> warnings, ref string message)
+        {
+            var built = RevitPipeNetworkBuilder.Build(doc, source, opts,
+                (el, node) => node.KFactor = ReadKFactor(el, data, warnings));
+            warnings.AddRange(built.Warnings);
+            var res = SprinklerNetworkHydraulics.Solve(built.Network, criteria);
+            warnings.AddRange(res.Warnings);
+            if (res.Heads.Count == 0)
+            {
+                TaskDialog.Show(Title, "The network calculation could not run:\n\n" + string.Join("\n", warnings.Take(12)));
+                return Result.Failed;
+            }
+
+            string csv = null;
+            try
+            {
+                csv = StingPaths.ExportFile(doc, "Schedule", "SprinklerHydraulics_" + hazard.Id + "_network", ".csv");
+                var sb = new StringBuilder();
+                sb.AppendLine("Kind,ElementId,Label,Flow_Lpm,Pressure_bar,Required_bar,Friction_bar,Velocity_ms,Bore_mm,Length_m,EquivLength_m,OverVelocity");
+                foreach (var h in res.Heads)
+                    sb.AppendLine(string.Join(",", "Head", h.Node.ElementId, Csv(h.Node.Label), F(h.FlowLpm), F(h.PressureBar, "0.000"),
+                        F(h.RequiredBar, "0.000"), "", "", "", "", "", ""));
+                foreach (var l in res.Links)
+                    sb.AppendLine(string.Join(",", l.Link.Kind.ToString(), l.Link.ElementId, Csv(l.Link.Label), F(l.FlowLpm), "", "",
+                        F(l.FrictionBar, "0.0000"), F(l.VelocityMs, "0.00"), F(l.Link.BoreMm), F(l.Link.LengthM, "0.00"),
+                        F(l.Link.EquivLengthM, "0.00"), l.OverVelocity ? "YES" : ""));
+                File.WriteAllText(csv, sb.ToString(), new UTF8Encoding(true));
+            }
+            catch (Exception ex) { warnings.Add($"CSV export failed: {ex.Message}"); csv = null; }
+
+            var panel = StingResultPanel.Create("Sprinkler Hydraulics");
+            panel.SetSubtitle($"{hazard.Id} {hazard.Label} · {hazard.DensityMmMin:0.##} mm/min · {res.Heads.Count} heads · " +
+                              $"network method ({res.Loops} loop{(res.Loops == 1 ? "" : "s")})");
+            panel.AddSection("DEMAND AT SOURCE")
+                 .MetricHighlight("Flow", $"{res.SourceFlowLpm:F0} L/min ({res.SourceFlowLpm / 60.0:F1} L/s)")
+                 .MetricHighlight("Pressure", $"{res.SourcePressureBar:F2} bar")
+                 .Metric("Min flow per head", $"{res.MinHeadFlowLpm:F1} L/min ({res.AreaPerHeadM2:F1} m² × {hazard.DensityMmMin:0.##} mm/min)")
+                 .Metric("Min head pressure", $"{hazard.MinHeadPressureBar:F2} bar")
+                 .Metric("Most remote head", res.MostRemoteHead?.Node.Label ?? "—");
+            if (supplyP > 0)
+            {
+                var s = panel.AddSection("SUPPLY CHECK");
+                string basis = $"supply pressure entered for {res.SourceFlowLpm:F0} L/min";
+                if (supplyP >= res.SourcePressureBar) s.Metric("Available vs required", $"{supplyP:F2} ≥ {res.SourcePressureBar:F2} bar — adequate", basis);
+                else s.MetricError("Available vs required", $"{supplyP:F2} < {res.SourcePressureBar:F2} bar — INADEQUATE", basis);
+            }
+            panel.AddSection("HEADS (lowest margin first)").Table(new[] { "Head", "K", "bar", "needs", "L/min" },
+                res.Heads.OrderBy(h => h.PressureBar - h.RequiredBar).Take(40)
+                   .Select(h => new[] { h.Node.Label, $"{h.Node.KFactor:F0}", $"{h.PressureBar:F2}", $"{h.RequiredBar:F2}", $"{h.FlowLpm:F1}" }).ToList());
+            panel.AddSection("FASTEST PIPES").Table(new[] { "Element", "Bore mm", "L/min", "m/s", "Δp bar" },
+                res.Links.OrderByDescending(l => l.VelocityMs).Take(15)
+                   .Select(l => new[] { l.Link.Label, $"{l.Link.BoreMm:F0}", $"{l.FlowLpm:F0}", $"{l.VelocityMs:F2}", $"{l.FrictionBar:F3}" }).ToList());
+            var basisSec = panel.AddSection("BASIS");
+            basisSec.Text("Network method: node pressures solved by Newton's method on continuity with Hazen-Williams links " +
+                          "(6.05×10⁵·Q^1.85·L/(C^1.85·d^4.87)); heads as orifices q = K√p; the source pressure is the lowest " +
+                          "that gives every operating head its required pressure.");
+            basisSec.Text($"Pruned {built.PrunedNodes} dead-end node(s) (closed branches and non-operating heads' pipework).");
+            basisSec.Text("Multi-port fittings' equivalent length is shared among the pipes they join (approximation).");
+            if (hazard.Verify) basisSec.Text($"Hazard {hazard.Id} figures are marked verify — check against the standard in force before relying on the result.");
+            foreach (var src in data.Sources) basisSec.Text("Data: " + src);
+            if (!string.IsNullOrEmpty(csv)) basisSec.Text("CSV: " + csv);
+            if (warnings.Count > 0)
+            {
+                var w = panel.AddSection("WARNINGS");
+                foreach (var line in warnings.Distinct().Take(20)) w.Text(line);
+            }
+            panel.Show();
+            if (!res.Ok) message = "Network solver did not converge — see WARNINGS.";
+            return res.Ok ? Result.Succeeded : Result.Failed;
         }
 
         private static bool IsSprinkler(Element e)
