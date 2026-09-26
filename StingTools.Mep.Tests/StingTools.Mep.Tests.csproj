@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <!-- Revit-free tests for the MEP calculation kernels: psychrometrics,
+         sprinkler hydraulics, gas sizing, stair pressurisation, duct friction,
+         Hardy Cross, NC prediction, refrigerant sizing, expansion vessels and
+         the pipework isometric projection — plus Validate() over the SHIPPED
+         design-data files, so a mistyped key fails here instead of becoming a
+         silent default in Revit. No Revit assemblies: the two Revit-typed
+         surfaces the linked files touch are shimmed in TestHelpers/. -->
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <Nullable>disable</Nullable>
+    <NoWarn>CS0067;CS0168;CS8632;CS0108</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\StingTools\Core\Hvac\Psychrometrics.cs" Link="Linked\Psychrometrics.cs" />
+    <Compile Include="..\StingTools\Core\Mep\Networks\FlowTree.cs" Link="Linked\FlowTree.cs" />
+    <Compile Include="..\StingTools\Core\Mep\Networks\MepDesignData.cs" Link="Linked\MepDesignData.cs" />
+    <Compile Include="..\StingTools\Core\Fire\SprinklerHydraulics.cs" Link="Linked\SprinklerHydraulics.cs" />
+    <Compile Include="..\StingTools\Core\Fire\StairPressurisation.cs" Link="Linked\StairPressurisation.cs" />
+    <Compile Include="..\StingTools\Core\Gas\GasPipeSizer.cs" Link="Linked\GasPipeSizer.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\IsometricProjection.cs" Link="Linked\IsometricProjection.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\ExpansionVesselSizer.cs" Link="Linked\ExpansionVesselSizer.cs" />
+    <Compile Include="..\StingTools\Core\Calc\DuctFrictionSolver.cs" Link="Linked\DuctFrictionSolver.cs" />
+    <Compile Include="..\StingTools\Core\Calc\HardyCrossSolver.cs" Link="Linked\HardyCrossSolver.cs" />
+    <Compile Include="..\StingTools\Core\Acoustic\OctaveBand.cs" Link="Linked\OctaveBand.cs" />
+    <Compile Include="..\StingTools\Core\Acoustic\NcPredictionEngine.cs" Link="Linked\NcPredictionEngine.cs" />
+    <Compile Include="..\StingTools\Core\Refrigerant\RefrigerantProperties.cs" Link="Linked\RefrigerantProperties.cs" />
+    <Compile Include="..\StingTools\Core\Refrigerant\RefrigerantPipeSolver.cs" Link="Linked\RefrigerantPipeSolver.cs" />
+    <Compile Include="..\StingTools\Core\Refrigerant\RefrigerantVendorLimits.cs" Link="Linked\RefrigerantVendorLimits.cs" />
+  </ItemGroup>
+
+</Project>

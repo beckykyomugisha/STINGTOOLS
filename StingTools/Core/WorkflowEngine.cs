@@ -1771,6 +1771,11 @@ namespace StingTools.Core
                 case "Hvac_HardyCross": return new Commands.Routing.HardyCrossCommand();
                 case "Hvac_ValidateFills": return new Commands.Routing.ValidateFillsCommand();
                 case "Hvac_NcPredict": return new Commands.Hvac.HvacNcPredictionCommand();
+                // MEP design engines (2026-09): interactive — each opens a form.
+                case "Hvac_PsychroCoil": return new Commands.Hvac.HvacPsychroCoilCommand();
+                case "Fire_StairPressurisation": return new Commands.Fire.StairPressurisationCommand();
+                case "Fire_SprinklerHydraulics": return new Commands.Fire.SprinklerHydraulicsCommand();
+                case "Gas_SizePipes": return new Commands.Gas.GasPipeSizingCommand();
                 case "Hvac_PressureClassAudit": return new Commands.Hvac.HvacPressureClassAuditCommand();
                 case "Hvac_Ventilation": return new Commands.StandardsExt.VentilationCommand();
                 case "Hvac_AutoFireDamper": return new Commands.RoutingExt.AutoFireDamperCommand();

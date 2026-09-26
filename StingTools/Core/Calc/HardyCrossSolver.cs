@@ -458,8 +458,12 @@ namespace StingTools.Core.Calc
             }
 
             // h_pipe = f · (L / D) · (v²/2g)  with g cancelled → units of J/kg (m²/s²).
-            double hPipe = f * (p.LengthM / p.DiameterM) * 0.5 * v * Math.Abs(v);
-            double hFit  = p.FittingLossK * 0.5 * v * Math.Abs(v);
+            // Magnitudes here; the sign of the flow is applied ONCE below. These
+            // used to be v·|v| (already signed) and then multiplied by Sign(v)
+            // again, so a pipe carrying flow against its drawn direction reported
+            // a positive loss and a loop through it could never balance.
+            double hPipe = f * (p.LengthM / p.DiameterM) * 0.5 * v * v;
+            double hFit  = p.FittingLossK * 0.5 * v * v;
             // Control-valve / PICV term (Tier-3 3.2). Additive, guarded — zero
             // unless the pipe carries valve data. ΔP is computed in the same
             // specific-energy units (ΔP/ρ = J/kg) so it stacks on hPipe/hFit

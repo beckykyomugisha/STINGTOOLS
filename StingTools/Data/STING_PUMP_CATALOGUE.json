@@ -1,0 +1,15 @@
+{
+  "_readme": "Corporate pump catalogue for Plumb_PumpSelect and Plumb_BoosterSet. Ships EMPTY on purpose: STING does not invent pump data. Add entries from manufacturer curves here, or per project in <project>/_BIM_COORD/pump_catalogue.json (same shape; project entries replace corporate ones with the same manufacturer + model). An entry needs ratedFlowLps > 0 and ratedHeadM > 0 to be considered. The duty point is written to the pump even when nothing here matches it.",
+  "_example": {
+    "manufacturer": "<manufacturer>",
+    "model": "<model>",
+    "series": "<series>",
+    "ratedFlowLps": 0.0,
+    "ratedHeadM": 0.0,
+    "powerKw": 0.0,
+    "efficiencyPct": 0.0,
+    "catalogueRef": "<datasheet reference>",
+    "notes": ""
+  },
+  "pumps": []
+}

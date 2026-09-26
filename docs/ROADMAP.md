@@ -70,6 +70,26 @@ a stale copper-resistance column (hot values used by the IEC 60909 and Zs paths)
 fed single-phase boards, an adiabatic check resting on an invented clearing time, silent
 audit defaults, a merge-time type collision, and the seams listed in the CHANGELOG.
 
+## MEP design engines — gap review and fix round (2026-09-26)
+
+A review of the non-electrical MEP work, then a fix round on `claude/laughing-mccarthy-mgxwyh`
+(see CHANGELOG). The plugin builds 0/0 and `StingTools.Mep.Tests` covers the Revit-free half.
+**Nothing below has been run in Revit.** "Closed" means closed in code and tests.
+
+| ID | Status | What changed · what is still open |
+|---|---|---|
+| MEPG-1 | ~~Heating pass overwrote cooling~~ **Closed** | `Hvac_BlockLoad` in heating mode stamped its (negative) heat loss into `HVC_PEAK_SENS_W`, which PropagateLoads / SelectIdus / CompareLoads / gbXML read as cooling, and showed it in the Cooling column. Heating now stamps `NRG_HEATING_LOAD_W` as a positive demand; each pass fills its own grid column and reads the other back. **Open:** one click still runs one pass. |
+| MEPG-2 | ~~Invented pumps~~ **Closed** | `PumpSelector` returned "STING Placeholder" pumps when no catalogue existed (and none shipped), and floored an unknown flow at 0.1 L/s. Now: no catalogue → no candidates and a warning; the duty is still written; a project catalogue at `_BIM_COORD/pump_catalogue.json` layers over the (empty, documented) corporate file. **Open:** no manufacturer data ships — it must come from the project. |
+| MEPG-3 | ~~Isometric was an instruction panel~~ **Closed** | `Plumb_Isometric` draws a per-system isometric (DN + fall labels, risers) into `STING ISO - <system>` drafting views, redrawn in place on re-run. **Open:** fittings are not drawn as symbols; views are NTS. |
+| MEPG-4 | **Relabelled** | NC prediction grades itself DESIGN BASIS or INDICATIVE and lists every assumed input; path order follows the connectors from the fan; fittings take the duct velocity instead of a flat 5 m/s; "above NC 65" no longer reads as NC 65. **Open:** duct breakout and crosstalk are not modelled. |
+| MEPG-5 | ~~Liquid lift sign~~ **Closed** | The refrigerant solver credited liquid lift for an outdoor unit BELOW the indoor units, which in cooling is uphill. Now an operating mode (reversible = uphill worst case, the default) decides the sign; the suction allowance is an input. **Open:** no two-phase (Lockhart-Martinelli) model. |
+| MEPG-6 | ~~Hardy Cross reverse flow~~ **Closed** | Head loss applied the flow's sign twice, so a pipe carrying flow against its drawn direction reported a positive loss and its loop could not balance. Test was red before the fix. |
+| MEPG-7 | **New, needs Revit** | Sprinkler hydraulics (`Fire_SprinklerHydraulics`), gas pipe sizing (`Gas_SizePipes`), stair pressurisation (`Fire_StairPressurisation`) and a psychrometric coil check (`Hvac_PsychroCoil`). The calculations are tested; the connector walk (`RevitFlowTreeBuilder`), K-factor / heat-input reads and the gas "apply sizes" write have not run in Revit. |
+| MEPG-8 | **Open (data)** | Hazard densities, minimum head pressures, the Class A/B pressurisation criteria and the door leakage areas ship marked `verify`: check them against the BS EN 12845 / BS EN 12101-6 editions in force and set the leakage allowance from the fire strategy. |
+| MEPG-9 | **Open** | Sprinklers and gas are solved as trees; a looped or gridded network is reported (loop count) but not solved. Fittings use equivalent length in bores, an approximation of the standards' per-size tables. |
+| MEPG-10 | **Open** | Fire-suppression drawing types exist (`fire-sprinkler-layout-A1-1to100`, `fire-section-A1-1to50`, `fire-detail-A3-1to20`, style pack `corp-standard-fire`, routing `FP/*/SPRINKLER|PLAN|SECTION|DETAIL`) but have not produced a sheet in Revit. |
+| MEPG-11 | **Open** | Electrical items from ELEC-1/3/7 are unchanged: one BS 7671 cable table, IEEE 1584-2002 arc flash, conduit routing without obstacle avoidance. They need the printed standards, not code. |
+
 ## Scope Box Planner (2026-09-24)
 
 Built on `claude/scope-box-planner`: area boxes (`STING-AREA::`) sized from the drawing types'
@@ -1041,7 +1061,9 @@ Recorded while aligning the revision subsystem (see CHANGELOG Phase 199).
 
 Recorded while making the MEP drawing types print-ready (see CHANGELOG Phase 198).
 
-- **Fire suppression drawing types (fast-follow).** Only fire *detection* exists today. There are no
+- ~~**Fire suppression drawing types (fast-follow).**~~ **Done 2026-09-26 (MEPG-10)** — the three types, the
+  `corp-standard-fire` pack and the `FP` routing rules below now ship; not yet produced in Revit. Original note:
+  Only fire *detection* exists today. There are no
   sprinkler / suppression **layout**, **section**, or **detail** drawing types (corporate DrawingType +
   routing + a fire style pack). Author them as a fast-follow so a fire-suppression package is
   drop-a-view print-ready like M/E/P. Scope: a `corp-standard-fire` style pack (sprinklers + fire-alarm

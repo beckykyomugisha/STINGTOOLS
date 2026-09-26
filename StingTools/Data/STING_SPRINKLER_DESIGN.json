@@ -1,0 +1,23 @@
+{
+  "_schema": "STING_SPRINKLER_DESIGN",
+  "_version": "1.0",
+  "_readme": "Design data for Fire_SprinklerHydraulics. Project override: <project>/_BIM_COORD/sprinkler_design.json (same shape; hazards replace by id, other sections by key). Every hazard is marked verify=true: the figures are the commonly published BS EN 12845 values and MUST be checked against the edition in force and the insurer's rules (e.g. LPC) before the result is relied on. The command shows the verify flag on its output.",
+  "hazards": [
+    { "id": "LH",   "label": "Light Hazard",               "densityMmMin": 2.25, "designAreaM2": 84,  "minHeadPressureBar": 0.70, "maxAreaPerHeadM2": 21, "verify": true, "source": "BS EN 12845 design density / area of operation tables" },
+    { "id": "OH1",  "label": "Ordinary Hazard Group 1",    "densityMmMin": 5.0,  "designAreaM2": 72,  "minHeadPressureBar": 0.35, "maxAreaPerHeadM2": 12, "verify": true, "source": "BS EN 12845 design density / area of operation tables" },
+    { "id": "OH2",  "label": "Ordinary Hazard Group 2",    "densityMmMin": 5.0,  "designAreaM2": 144, "minHeadPressureBar": 0.35, "maxAreaPerHeadM2": 12, "verify": true, "source": "BS EN 12845 design density / area of operation tables" },
+    { "id": "OH3",  "label": "Ordinary Hazard Group 3",    "densityMmMin": 5.0,  "designAreaM2": 216, "minHeadPressureBar": 0.35, "maxAreaPerHeadM2": 12, "verify": true, "source": "BS EN 12845 design density / area of operation tables" },
+    { "id": "OH4",  "label": "Ordinary Hazard Group 4",    "densityMmMin": 5.0,  "designAreaM2": 360, "minHeadPressureBar": 0.35, "maxAreaPerHeadM2": 12, "verify": true, "source": "BS EN 12845 design density / area of operation tables" },
+    { "id": "HHP1", "label": "High Hazard Process Group 1","densityMmMin": 7.5,  "designAreaM2": 260, "minHeadPressureBar": 0.50, "maxAreaPerHeadM2": 9,  "verify": true, "source": "BS EN 12845 design density / area of operation tables" },
+    { "id": "HHP2", "label": "High Hazard Process Group 2","densityMmMin": 10.0, "designAreaM2": 260, "minHeadPressureBar": 0.50, "maxAreaPerHeadM2": 9,  "verify": true, "source": "BS EN 12845 design density / area of operation tables" },
+    { "id": "HHP3", "label": "High Hazard Process Group 3","densityMmMin": 12.5, "designAreaM2": 260, "minHeadPressureBar": 0.50, "maxAreaPerHeadM2": 9,  "verify": true, "source": "BS EN 12845 design density / area of operation tables" }
+  ],
+  "defaultHazardId": "OH1",
+  "hazenWilliamsC": { "default": 120, "steel": 120, "galvanised": 120, "copper": 140, "stainless": 140, "cpvc": 150 },
+  "velocityLimitsMs": { "pipe": 10.0, "valve": 6.0 },
+  "_fittingNote": "Equivalent length of a fitting or valve in internal bores. An approximation: the standard's equivalent-length tables are per size and per fitting; replace with those where the result is close to the supply.",
+  "fittingEquivalentBores": { "Elbow": 30, "Tee": 60, "Cross": 60, "Transition": 5, "Coupling": 0, "Union": 0, "Valve": 8, "Default": 10 },
+  "kFactorParameters": [ "K-Factor", "K Factor" ],
+  "_kFactorNote": "Revit's built-in Sprinkler K-Factor is a plain number. Values below usKFactorBelow are read as US units (gpm/psi^0.5) and multiplied by 14.4 to give L/min/bar^0.5.",
+  "usKFactorBelow": 30
+}

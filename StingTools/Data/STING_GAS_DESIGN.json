@@ -1,0 +1,35 @@
+{
+  "_schema": "STING_GAS_DESIGN",
+  "_version": "1.0",
+  "_readme": "Design data for Gas_SizePipes (low-pressure installation pipework, Pole's formula). Project override: <project>/_BIM_COORD/gas_design.json (gases and series replace by id). Calorific values and relative densities vary with supply; take the gas transporter's declared values. The drop budget is from the meter outlet (or LPG regulator outlet) to each appliance inlet.",
+  "gases": [
+    { "id": "NG",  "label": "Natural gas (2nd family)", "relativeDensity": 0.60, "calorificValueMJm3": 38.7, "maxDropMbar": 1.0, "verify": false, "source": "BS 6891: 1 mbar meter-to-appliance allowance; typical gross CV" },
+    { "id": "LPG", "label": "LPG — propane (3rd family)", "relativeDensity": 1.52, "calorificValueMJm3": 95.0, "maxDropMbar": 2.5, "verify": true, "source": "Typical propane properties; confirm the allowance against BS 5482-1 / the supplier" }
+  ],
+  "defaultGasId": "NG",
+  "pipeSeries": [
+    { "id": "COPPER-EN1057", "label": "Copper, BS EN 1057 R250", "sizes": [
+      { "label": "15 mm",  "nominalMm": 15, "outerDiameterMm": 15,  "boreMm": 13.6 },
+      { "label": "22 mm",  "nominalMm": 22, "outerDiameterMm": 22,  "boreMm": 20.2 },
+      { "label": "28 mm",  "nominalMm": 28, "outerDiameterMm": 28,  "boreMm": 26.2 },
+      { "label": "35 mm",  "nominalMm": 35, "outerDiameterMm": 35,  "boreMm": 32.6 },
+      { "label": "42 mm",  "nominalMm": 42, "outerDiameterMm": 42,  "boreMm": 39.6 },
+      { "label": "54 mm",  "nominalMm": 54, "outerDiameterMm": 54,  "boreMm": 51.6 }
+    ]},
+    { "id": "STEEL-EN10255-M", "label": "Steel, BS EN 10255 medium", "sizes": [
+      { "label": "DN15",  "nominalMm": 15, "outerDiameterMm": 21.3,  "boreMm": 16.1 },
+      { "label": "DN20",  "nominalMm": 20, "outerDiameterMm": 26.9,  "boreMm": 21.7 },
+      { "label": "DN25",  "nominalMm": 25, "outerDiameterMm": 33.7,  "boreMm": 27.3 },
+      { "label": "DN32",  "nominalMm": 32, "outerDiameterMm": 42.4,  "boreMm": 36.0 },
+      { "label": "DN40",  "nominalMm": 40, "outerDiameterMm": 48.3,  "boreMm": 41.9 },
+      { "label": "DN50",  "nominalMm": 50, "outerDiameterMm": 60.3,  "boreMm": 53.0 },
+      { "label": "DN65",  "nominalMm": 65, "outerDiameterMm": 76.1,  "boreMm": 68.8 },
+      { "label": "DN80",  "nominalMm": 80, "outerDiameterMm": 88.9,  "boreMm": 80.8 },
+      { "label": "DN100", "nominalMm": 100, "outerDiameterMm": 114.3, "boreMm": 105.3 }
+    ]}
+  ],
+  "defaultSeriesId": "COPPER-EN1057",
+  "_fittingNote": "Equivalent length in internal bores. An approximation of the per-fitting tables in BS 6891 / IGEM/UP/2.",
+  "fittingEquivalentBores": { "Elbow": 30, "Tee": 60, "Cross": 60, "Transition": 5, "Coupling": 0, "Union": 0, "Valve": 10, "Default": 10 },
+  "applianceLoadParameters": [ "Gas Load (kW)", "Heat Input (kW)", "Gas Rate kW", "HVC_CAPACITY_KW" ]
+}

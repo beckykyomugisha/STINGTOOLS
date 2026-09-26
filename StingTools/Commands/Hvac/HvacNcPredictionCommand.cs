@@ -6,11 +6,18 @@
 // NcPredictionEngine to accumulate attenuation + regenerated noise
 // along the path and renders the breakdown in a StingResultPanel.
 //
-// For now the fan-source sound power is approximated from the
-// upstream duct's velocity (Madison's fan-noise empirical formula):
-//     Lw = 67 + 10·log10(Q) + 10·log10(ΔP)
-// where Q in L/s, ΔP in Pa. A future phase will read the actual
-// manufacturer Lw spectrum from a fan-curve sidecar.
+// Fan sound power comes from STING_FAN_SPECTRA.json (manufacturer octave
+// spectra, matched by family name). Without a match it is approximated from
+// the path flow and pressure (Madison's empirical formula):
+//     Lw = 67 + 10·log10(Q) + 10·log10(ΔP)      Q in L/s, ΔP in Pa
+// Every value the command has to assume (fan spectrum, silencer IL, fitting
+// velocity, terminal, receiver room) is listed in a BASIS section, and the
+// result is graded DESIGN BASIS only when none was needed. An NC figure built
+// on defaults is indicative and says so.
+//
+// Path order follows the duct connectors (upstream = the end carrying the
+// most air), not element-id order: regenerated noise is attenuated only by
+// what lies downstream of it, so order changes the answer.
 
 using System;
 using System.Collections.Generic;
@@ -51,7 +58,8 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                var path = BuildPathFromSelection(doc, ids, out double pathFlowLs, out double pathDpPa);
+                var assumptions = new List<string>();
+                var path = BuildPathFromSelection(doc, ids, out double pathFlowLs, out double pathDpPa, assumptions);
                 if (path.Count == 0)
                 {
                     TaskDialog.Show("STING HVAC — NC Prediction",
@@ -84,6 +92,10 @@ namespace StingTools.Commands.Hvac
                         fanLwTotal - 4, fanLwTotal - 6, fanLwTotal - 10, fanLwTotal - 14
                     });
                     fanLabel = $"Synthetic fan (Lw≈{fanLwTotal:F0} dB) — add manufacturer spectrum via STING_FAN_SPECTRA.json";
+                    assumptions.Add(pathFlowLs > 0 && pathDpPa > 0
+                        ? $"Fan Lw estimated from path Q {pathFlowLs:F0} L/s and ΔP {pathDpPa:F0} Pa — no STING_FAN_SPECTRA.json match" +
+                          (string.IsNullOrEmpty(fanFamilyName) ? " (no fan in selection)" : $" for '{fanFamilyName}'")
+                        : "Fan Lw set to 80 dB — no path flow/pressure and no STING_FAN_SPECTRA.json match");
                 }
 
                 path.Insert(0, new PathElement
@@ -98,13 +110,22 @@ namespace StingTools.Commands.Hvac
                 // Falls back to the legacy hardcoded 100 m³ / α=0.2 cube when
                 // no space is resolvable. The path used is surfaced below.
                 var room = ResolveRoomReceiver(doc, ids, out string roomSource);
+                if (roomSource.StartsWith("fallback", StringComparison.OrdinalIgnoreCase))
+                    assumptions.Add("Receiver room assumed (100 m³, α 0.20) — no Space/Room found at the terminal");
+                else if (roomSource.Contains("default α"))
+                    assumptions.Add("Room absorption defaulted — finishes carry no absorption data");
 
                 var result = NcPredictionEngine.Compute(path, room);
 
                 var panel = StingResultPanel.Create("HVAC — NC Prediction");
                 panel.SetSubtitle($"path {path.Count - 1} segments · flow {pathFlowLs:F0} L/s · ΔP {pathDpPa:F0} Pa · room V={room.VolumeM3:F0} m³ ({roomSource})");
+                string grade = assumptions.Count == 0
+                    ? "DESIGN BASIS — manufacturer and model data throughout"
+                    : $"INDICATIVE — {assumptions.Count} assumed input(s); see BASIS";
                 panel.AddSection("RESULT")
-                     .Metric("Predicted NC", $"NC {result.NcRating}")
+                     .Metric("Predicted NC", NcCurves.ExceedsAll(result.RoomLp)
+                         ? "above NC 65 (off the tabulated curves)" : $"NC {result.NcRating}")
+                     .Metric("Confidence",   grade)
                      .Metric("Fan Lw (1 kHz)", $"{fanSpectrum.Hz1000:F0} dB")
                      .Metric("Room Lw (1 kHz)", $"{result.RoomLw.Hz1000:F0} dB")
                      .Metric("Room Lp (1 kHz)", $"{result.RoomLp.Hz1000:F0} dB");
@@ -122,6 +143,12 @@ namespace StingTools.Commands.Hvac
                 for (int i = 0; i < bands.Length; i++)
                     panel.Text($"{bands[i]:F0} Hz: Lp = {lp[i]:F1} dB");
 
+                panel.AddSection("BASIS");
+                if (assumptions.Count == 0) panel.Text("No assumed inputs.");
+                foreach (var a in assumptions) panel.Text("Assumed: " + a);
+                panel.Text("Not modelled: duct breakout (sound through duct walls), crosstalk, " +
+                           "and plant-room airborne paths. Treat NC as the duct-borne path only.");
+
                 panel.AddSection("PER-ELEMENT BREAKDOWN");
                 foreach (var pe in result.PerElement)
                 {
@@ -134,8 +161,8 @@ namespace StingTools.Commands.Hvac
                            $"direct + reverberant room model. Room from {roomSource} — " +
                            "volume + surface area + finish-derived absorption when a Revit " +
                            "Space/Room is resolvable, else the legacy 100 m³ / α=0.20 cube. " +
-                           "Synthetic fan Lw derived from path Q+ΔP — replace with manufacturer " +
-                           "spectrum for definitive NC.");
+                           "Fan and silencer spectra from STING_FAN_SPECTRA.json / " +
+                           "STING_SILENCER_DATA.json when matched.");
                 panel.Show();
 
                 try
@@ -181,17 +208,22 @@ namespace StingTools.Commands.Hvac
         /// </summary>
         private static List<PathElement> BuildPathFromSelection(
             Document doc, List<ElementId> ids,
-            out double maxFlowLs, out double sumDpPa)
+            out double maxFlowLs, out double sumDpPa, List<string> assumptions)
         {
             var list = new List<PathElement>();
             maxFlowLs = 0;
             sumDpPa = 0;
-            foreach (var id in ids.OrderBy(i => i.Value))
+            var ordered = OrderAlongConnectors(doc, ids, out bool connected);
+            if (!connected && ordered.Count > 1)
+                assumptions.Add("Selection is not one connected duct run — path order by element id");
+            foreach (var id in ordered)
             {
                 var el = doc.GetElement(id);
                 if (el == null) continue;
                 var pe = TryToPathElement(el);
                 if (pe == null) continue;
+                if (pe.Kind == ElementKind.Silencer && pe.Label.EndsWith("(default IL spectrum)"))
+                    assumptions.Add($"Silencer '{el.Name}' uses a generic IL spectrum — no STING_SILENCER_DATA.json match");
 
                 if (pe.Kind == ElementKind.StraightDuct)
                 {
@@ -204,10 +236,38 @@ namespace StingTools.Commands.Hvac
                 }
                 list.Add(pe);
             }
+            // Fittings, dampers and terminals carry no flow of their own in
+            // the model: give each the velocity of the nearest duct upstream
+            // (else downstream). Only when the run has no duct velocity at
+            // all does the old 5 m/s stand, and then it is reported.
+            int defaulted = 0;
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (!double.IsNaN(list[i].VelocityMs)) continue;
+                double v = double.NaN;
+                for (int j = i - 1; j >= 0 && double.IsNaN(v); j--)
+                    if (list[j].Kind == ElementKind.StraightDuct) v = list[j].VelocityMs;
+                for (int j = i + 1; j < list.Count && double.IsNaN(v); j++)
+                    if (list[j].Kind == ElementKind.StraightDuct) v = list[j].VelocityMs;
+                if (double.IsNaN(v))
+                {
+                    v = list[i].Kind == ElementKind.Diffuser ? 3.0 : 5.0;
+                    // A straight duct's velocity feeds no correlation; only
+                    // fittings, dampers and terminals regenerate noise from it.
+                    if (list[i].Kind != ElementKind.StraightDuct) defaulted++;
+                }
+                list[i].VelocityMs = v;
+            }
+            if (defaulted > 0)
+                assumptions.Add($"{defaulted} fitting/terminal velocit{(defaulted == 1 ? "y" : "ies")} defaulted (5 m/s fittings, 3 m/s terminals) — no duct velocity on the run");
+            foreach (var pe in list.Where(p => p.Kind == ElementKind.Diffuser && p.AreaM2 == 0.05))
+                assumptions.Add($"Terminal '{pe.Label}' face area 0.05 m² and 3 m/s face velocity assumed for end reflection");
+
             // If we got no terminal in the selection, add a synthetic one
             // so the result panel still includes end-reflection.
             if (!list.Any(p => p.Kind == ElementKind.Diffuser))
             {
+                assumptions.Add("No terminal in the selection — a 0.05 m², 3 m/s terminal was assumed");
                 list.Add(new PathElement
                 {
                     Kind = ElementKind.Diffuser,
@@ -217,6 +277,78 @@ namespace StingTools.Commands.Hvac
                 });
             }
             return list;
+        }
+
+        /// <summary>
+        /// Order the selected elements along their shared connectors, starting
+        /// from the end of the chain that carries the most air (the fan side).
+        /// <paramref name="connected"/> is false when the selection is not a
+        /// single chain; the id order is then kept for the unreached remainder.
+        /// </summary>
+        private static List<ElementId> OrderAlongConnectors(Document doc, List<ElementId> ids, out bool connected)
+        {
+            connected = false;
+            var set = new HashSet<long>(ids.Select(i => i.Value));
+            var adj = new Dictionary<long, HashSet<long>>();
+            foreach (var id in ids)
+            {
+                var n = new HashSet<long>();
+                try
+                {
+                    var el = doc.GetElement(id);
+                    ConnectorSet cs = (el as MEPCurve)?.ConnectorManager?.Connectors
+                                   ?? (el as FamilyInstance)?.MEPModel?.ConnectorManager?.Connectors;
+                    if (cs != null)
+                        foreach (Connector c in cs)
+                        {
+                            if (!c.IsConnected) continue;
+                            foreach (Connector r in c.AllRefs)
+                            {
+                                long other = r.Owner?.Id?.Value ?? -1;
+                                if (other != id.Value && set.Contains(other)) n.Add(other);
+                            }
+                        }
+                }
+                catch (Exception ex) { StingLog.Warn($"NC path adjacency {id}: {ex.Message}"); }
+                adj[id.Value] = n;
+            }
+
+            double Flow(long v)
+            {
+                try
+                {
+                    var el = doc.GetElement(new ElementId(v));
+                    double q = MepUnits.ReadAirFlowLs(el, "HVC_FLOW_LS");
+                    if (q <= 0) q = MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                    return q;
+                }
+                catch { return 0; }   // optional read: fittings carry no flow parameter
+            }
+
+            var ends = adj.Where(kv => kv.Value.Count <= 1).Select(kv => kv.Key).ToList();
+            if (ends.Count == 0) return ids.OrderBy(i => i.Value).ToList();
+            bool IsPlant(long v) =>
+                doc.GetElement(new ElementId(v))?.Category?.Id.Value == (long)BuiltInCategory.OST_MechanicalEquipment;
+            bool IsTerminal(long v) =>
+                doc.GetElement(new ElementId(v))?.Category?.Id.Value == (long)BuiltInCategory.OST_DuctTerminal;
+            // Fan/AHU end first; never start at a terminal; then the end carrying most air.
+            long start = ends.OrderByDescending(IsPlant).ThenBy(IsTerminal)
+                             .ThenByDescending(Flow).ThenBy(v => v).First();
+
+            var order = new List<long>();
+            var seen = new HashSet<long>();
+            long cur = start;
+            while (seen.Add(cur))
+            {
+                order.Add(cur);
+                long next = adj[cur].Where(v => !seen.Contains(v)).DefaultIfEmpty(-1).Min();
+                if (next < 0) break;
+                cur = next;
+            }
+            connected = order.Count == ids.Count;
+            foreach (var id in ids.OrderBy(i => i.Value))
+                if (!seen.Contains(id.Value)) order.Add(id.Value);
+            return order.Select(v => new ElementId(v)).ToList();
         }
 
         private static PathElement TryToPathElement(Element el)
@@ -236,14 +368,14 @@ namespace StingTools.Commands.Hvac
                         : (w > 0 && h > 0 ? w * h * 1e-6 : 0.05);
                     double flowLs = MepUnits.ReadAirFlowLs(el, "HVC_FLOW_LS");
                     if (flowLs <= 0) flowLs = MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
-                    double v = (areaM2 > 0 && flowLs > 0) ? (flowLs * 1e-3) / areaM2 : 3.0;
+                    double v = (areaM2 > 0 && flowLs > 0) ? (flowLs * 1e-3) / areaM2 : double.NaN;
                     double len = 0;
                     if (duct.Location is LocationCurve lc && lc.Curve != null)
                         len = UnitUtils.ConvertFromInternalUnits(lc.Curve.Length, UnitTypeId.Meters);
                     return new PathElement
                     {
                         Kind = ElementKind.StraightDuct,
-                        Label = $"Straight duct {len:F1} m @ {v:F1} m/s",
+                        Label = double.IsNaN(v) ? $"Straight duct {len:F1} m (no flow)" : $"Straight duct {len:F1} m @ {v:F1} m/s",
                         LengthM = len, VelocityMs = v, AreaM2 = areaM2
                     };
                 }
@@ -255,7 +387,7 @@ namespace StingTools.Commands.Hvac
                              : nm.Contains("tee")    ? ElementKind.Tee
                              : nm.Contains("damper") ? ElementKind.Damper
                              :                         ElementKind.Elbow;
-                    return new PathElement { Kind = kind, Label = el.Name, VelocityMs = 5.0 };
+                    return new PathElement { Kind = kind, Label = el.Name, VelocityMs = double.NaN };
                 }
                 if (bic == BuiltInCategory.OST_DuctAccessory)
                 {
@@ -277,7 +409,7 @@ namespace StingTools.Commands.Hvac
                             SilencerILdB = il
                         };
                     }
-                    return new PathElement { Kind = ElementKind.Damper, Label = el.Name, VelocityMs = 5.0 };
+                    return new PathElement { Kind = ElementKind.Damper, Label = el.Name, VelocityMs = double.NaN };
                 }
                 if (bic == BuiltInCategory.OST_DuctTerminal)
                 {

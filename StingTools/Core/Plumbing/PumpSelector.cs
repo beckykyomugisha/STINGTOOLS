@@ -8,7 +8,12 @@
 //   • +20% safety margin on total head
 //
 // SelectPump:
-//   • Loads STING_PUMP_CATALOGUE.json from the data directory
+//   • Loads STING_PUMP_CATALOGUE.json from the data directory, layered with
+//     the project's _BIM_COORD/pump_catalogue.json (project entries win by
+//     manufacturer + model)
+//   • An empty catalogue yields NO candidates and a warning. It never
+//     invents pumps: the synthetic "STING Placeholder" entries it used to
+//     return were written onto pump families as if they were a selection.
 //   • Matches pumps where RatedFlow ≥ duty.Flow AND RatedHead ≥ duty.Head
 //   • Ranks by efficiency desc, then by rated size asc (closest oversize)
 //   • Returns top 3 candidates + best match
@@ -66,6 +71,12 @@ namespace StingTools.Core.Plumbing
         public double          TotalIndexHeadM   { get; set; }
         public double          StaticHeadM       { get; set; }
         public double          FrictionHeadM     { get; set; }
+        /// <summary>Number of catalogue entries considered (0 = no catalogue loaded).</summary>
+        public int             CatalogueEntries  { get; set; }
+        /// <summary>Files the catalogue was read from, corporate first.</summary>
+        public List<string>    CatalogueSources  { get; } = new List<string>();
+        /// <summary>True when the duty point has a usable flow and head.</summary>
+        public bool            HasValidDuty => Duty != null && Duty.FlowLps > 0 && Duty.HeadM > 0;
     }
 
     // Internal JSON catalogue shape
@@ -162,6 +173,15 @@ namespace StingTools.Core.Plumbing
         /// </summary>
         public static PumpSelectionResult SelectPump(
             PumpDutyPoint duty, string cataloguePath = null)
+            => SelectPump(duty, cataloguePath, null);
+
+        /// <summary>
+        /// Match against the corporate catalogue layered with the project
+        /// override at <c>_BIM_COORD/pump_catalogue.json</c> (when
+        /// <paramref name="doc"/> is supplied).
+        /// </summary>
+        public static PumpSelectionResult SelectPump(
+            PumpDutyPoint duty, string cataloguePath, Document doc)
         {
             var result = new PumpSelectionResult
             {
@@ -172,12 +192,27 @@ namespace StingTools.Core.Plumbing
             };
 
             if (duty == null) { result.Warnings.Add("Null duty point."); return result; }
+            if (duty.FlowLps <= 0)
+            {
+                result.Warnings.Add("No design flow for this system — Revit carries no pipe flow on it. " +
+                                    "Run the supply sizing (Plumb_SizeSupply) or enter the duty manually.");
+                return result;
+            }
 
-            var entries = LoadCatalogue(cataloguePath, result.Warnings);
+            var entries = LoadCatalogue(cataloguePath, result.Warnings, result.CatalogueSources);
+            string projectPath = ProjectCataloguePath(doc);
+            if (!string.IsNullOrEmpty(projectPath) && File.Exists(projectPath))
+            {
+                var project = LoadCatalogue(projectPath, result.Warnings, result.CatalogueSources);
+                entries = MergeCatalogues(entries, project);
+            }
+            result.CatalogueEntries = entries.Count;
             if (entries.Count == 0)
             {
-                result.Warnings.Add("Pump catalogue empty or not found — using synthetic fallback.");
-                entries = SyntheticCatalogue(duty);
+                result.Warnings.Add("No pump catalogue entries loaded. Add manufacturer data to " +
+                                    "STING_PUMP_CATALOGUE.json or the project's _BIM_COORD/pump_catalogue.json. " +
+                                    "The duty point is still reported and can be written to the pump.");
+                return result;
             }
 
             // Filter: rated flow >= duty AND rated head >= duty
@@ -206,7 +241,11 @@ namespace StingTools.Core.Plumbing
         public static bool WritePumpData(Document doc, ElementId pumpId,
             PumpMatch match, PumpDutyPoint duty)
         {
-            if (doc == null || pumpId == null || match == null || duty == null) return false;
+            // match may be null: the duty point is worth recording even when
+            // no catalogue entry covers it; the model is written only for a
+            // real match.
+            if (doc == null || pumpId == null || duty == null) return false;
+            if (duty.FlowLps <= 0 || duty.HeadM <= 0) return false;
             try
             {
                 var el = doc.GetElement(pumpId);
@@ -215,8 +254,9 @@ namespace StingTools.Core.Plumbing
                 bool ok = true;
                 ok &= TryWriteDouble(el, ParamRegistry.PLM_PUMP_DUTY_HEAD_M,   duty.HeadM);
                 ok &= TryWriteDouble(el, ParamRegistry.PLM_PUMP_DUTY_FLOW_LPS, duty.FlowLps);
-                ok &= TryWriteString(el, ParamRegistry.PLM_PUMP_MODEL,
-                    $"{match.Manufacturer} {match.Model}".Trim());
+                if (match != null)
+                    ok &= TryWriteString(el, ParamRegistry.PLM_PUMP_MODEL,
+                        $"{match.Manufacturer} {match.Model}".Trim());
                 return ok;
             }
             catch (Exception ex)
@@ -273,13 +313,39 @@ namespace StingTools.Core.Plumbing
                     catch { }
                 }
 
-                double picked = mainFlowLps > 0 ? mainFlowLps : maxFlowLps;
-                return Math.Max(picked, 0.1);
+                // 0 means "no flow on this system" — the caller reports it.
+                // It used to be floored at 0.1 L/s (0.5 on error), which
+                // sized a real pump for a flow nobody had calculated.
+                return mainFlowLps > 0 ? mainFlowLps : maxFlowLps;
             }
-            catch { return 0.5; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PumpSelector.EstimateDesignFlow({systemName}): {ex.Message}");
+                return 0;
+            }
         }
 
-        private static List<PumpCatalogueEntry> LoadCatalogue(string path, List<string> warnings)
+        private static string ProjectCataloguePath(Document doc)
+        {
+            if (doc == null) return null;
+            try { return StingPaths.MetaFile(doc, "_BIM_COORD", "pump_catalogue.json"); }
+            catch (Exception ex) { StingLog.Warn($"PumpSelector: project catalogue path: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Project entries replace corporate ones with the same manufacturer + model; others are added.</summary>
+        internal static List<PumpCatalogueEntry> MergeCatalogues(
+            List<PumpCatalogueEntry> corporate, List<PumpCatalogueEntry> project)
+        {
+            string Key(PumpCatalogueEntry e) =>
+                ((e.Manufacturer ?? "").Trim() + "|" + (e.Model ?? "").Trim()).ToUpperInvariant();
+            var merged = new Dictionary<string, PumpCatalogueEntry>();
+            foreach (var e in corporate ?? new List<PumpCatalogueEntry>()) merged[Key(e)] = e;
+            foreach (var e in project   ?? new List<PumpCatalogueEntry>()) merged[Key(e)] = e;
+            return merged.Values.ToList();
+        }
+
+        private static List<PumpCatalogueEntry> LoadCatalogue(string path, List<string> warnings,
+            List<string> sources = null)
         {
             try
             {
@@ -292,51 +358,20 @@ namespace StingTools.Core.Plumbing
 
                 string json = File.ReadAllText(filePath);
                 var catalogue = JsonConvert.DeserializeObject<PumpCatalogueFile>(json);
-                return catalogue?.Pumps ?? new List<PumpCatalogueEntry>();
+                var pumps = (catalogue?.Pumps ?? new List<PumpCatalogueEntry>())
+                    .Where(e => e != null && e.RatedFlowLps > 0 && e.RatedHeadM > 0).ToList();
+                int dropped = (catalogue?.Pumps?.Count ?? 0) - pumps.Count;
+                if (dropped > 0)
+                    warnings?.Add($"{Path.GetFileName(filePath)}: {dropped} entr{(dropped == 1 ? "y" : "ies")} " +
+                                  "without a rated flow and head ignored.");
+                sources?.Add(filePath);
+                return pumps;
             }
             catch (Exception ex)
             {
                 warnings?.Add($"PumpSelector.LoadCatalogue: {ex.Message}");
                 return new List<PumpCatalogueEntry>();
             }
-        }
-
-        /// <summary>
-        /// Synthetic catalogue used when the JSON file is absent.
-        /// Provides representative entries across the duty range for the
-        /// designer to review — not actual products.
-        /// </summary>
-        private static List<PumpCatalogueEntry> SyntheticCatalogue(PumpDutyPoint duty)
-        {
-            double q = duty.FlowLps;
-            double h = duty.HeadM;
-            return new List<PumpCatalogueEntry>
-            {
-                new PumpCatalogueEntry
-                {
-                    Manufacturer = "STING Placeholder",
-                    Model        = "PMP-S",
-                    Series       = "Standard",
-                    RatedFlowLps = q * 1.10,
-                    RatedHeadM   = h * 1.10,
-                    PowerKw      = q * h * RhoG / (0.65 * 1000.0),
-                    EfficiencyPct= 65,
-                    CatalogueRef = "VERIFY IN CATALOGUE",
-                    Notes        = "Synthetic entry — replace with real pump selection"
-                },
-                new PumpCatalogueEntry
-                {
-                    Manufacturer = "STING Placeholder",
-                    Model        = "PMP-M",
-                    Series       = "Standard",
-                    RatedFlowLps = q * 1.25,
-                    RatedHeadM   = h * 1.20,
-                    PowerKw      = q * h * RhoG / (0.70 * 1000.0),
-                    EfficiencyPct= 70,
-                    CatalogueRef = "VERIFY IN CATALOGUE",
-                    Notes        = "Synthetic entry — replace with real pump selection"
-                }
-            };
         }
 
         private static PumpMatch ToMatch(PumpCatalogueEntry e, PumpDutyPoint duty)

@@ -750,6 +750,16 @@
                                 Tag="Plumbing_MaterialAudit" Click="Cmd_Click" HorizontalAlignment="Stretch"
                                 ToolTip="Material × jointing × service compatibility + galvanic-pair walk + WRAS check."/>
 
+                        <TextBlock Text="FIRE SPRINKLERS (BS EN 12845 / NFPA 13)" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Sprinkler Hydraulics" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Fire_SprinklerHydraulics" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Select the design-area heads + one source element (valve set / riser / pump). Tree hydraulic calc: demand flow and pressure at the source, most remote head, velocities."/>
+
+                        <TextBlock Text="GAS (BS 6891 / IGEM/UP/2)" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
+                        <Button Content="Gas Pipe Sizing" Style="{StaticResource PlumbActionBtn}"
+                                Tag="Gas_SizePipes" Click="Cmd_Click" HorizontalAlignment="Stretch"
+                                ToolTip="Select the meter / ECV / first pipe. Pole's formula: check modelled sizes or size (and optionally apply) to the drop allowance."/>
+
                         <TextBlock Text="MED GAS / LAB / POOL" Style="{StaticResource PlumbSectionHeader}" Margin="0,8,0,2"/>
                         <TextBlock Text="Med gas (HTM 02-01) lives in the HEALTHCARE tab (Mgas suite). Lab water + pool — future enhancement."
                                    FontSize="10" Foreground="{DynamicResource PanelFg}" Opacity="0.7"
@@ -874,9 +884,9 @@
                             <Button Content="Plumbing BOQ" Style="{StaticResource PlumbActionBtn}"
                                     Tag="Plumb_BOQ" Click="Cmd_Click"
                                     ToolTip="Pipes (m) + fittings (nr) + accessories (nr) — full BoQ row dump."/>
-                            <Button Content="Plumbing Isometric (drawing-type)" Style="{StaticResource PlumbActionBtn}"
+                            <Button Content="Plumbing Isometric" Style="{StaticResource PlumbActionBtn}"
                                     Tag="Plumb_Isometric" Click="Cmd_Click"
-                                    ToolTip="Routes through DrawingTypeRegistry — plumb-drainage-A1-1to100 / plumb-supply-A1-1to100."/>
+                                    ToolTip="Draws a pipework isometric per system into a drafting view (STING ISO - &lt;system&gt;): DN + fall labels. Scope: selection, else active view, else model."/>
                         </WrapPanel>
                         <Expander Header="BOQ ROWS" Style="{StaticResource PlumbExpander}">
                             <DataGrid x:Name="BoqGrid" AutoGenerateColumns="False" CanUserAddRows="False"

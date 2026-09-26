@@ -23633,3 +23633,82 @@ Three independent reviews (correctness, silent failure, data consistency) of wha
   shipped; counts in earlier entries corrected.
 
 Build 0/0; all tests and gates pass (see PR). **Not exercised in Revit.**
+
+#### Completed (MEP design engines — gap review and fix round, branch `claude/laughing-mccarthy-mgxwyh`)
+
+Follows a review of the non-electrical MEP work; open items are ROADMAP MEPG-1 … MEPG-11.
+
+**Defects fixed**
+- **Block load, heating pass** (`Commands/Hvac/HvacBlockLoadCommand.cs`). A heating run wrote its
+  peak — negative, the heat leaving the space — into `HVC_PEAK_SENS_W`, the parameter every
+  downstream command reads as the cooling duty, and into the LOADS grid's Cooling column; every
+  row then read "no load". Heating now stamps `NRG_HEATING_LOAD_W` (an existing NUMBER parameter
+  bound to every category) as a positive demand, leaves the cooling stamps and the stale flag
+  alone, and each pass fills its own column while reading the other back. Diversity is now
+  computed for heating too (it was forced to 1.0 by a `sumPeaks > 0` guard).
+- **Hardy Cross reverse flow** (`Core/Calc/HardyCrossSolver.cs`). Head loss was `v·|v|` and then
+  multiplied by `Sign(v)` again, so a pipe carrying flow against its drawn direction reported a
+  positive loss and its loop could not balance. `HardyCrossTests.PipeDrawnAgainstTheFlowSettlesAtANegativeFlow`
+  was red before the fix and green after.
+- **Refrigerant liquid lift** (`Core/Refrigerant/RefrigerantPipeSolver.cs`). An outdoor unit below
+  the indoor units was credited static head on the liquid line; in cooling that liquid flows
+  uphill. New `RefrigerantOperatingMode` (Reversible = uphill worst case, default; CoolingOnly;
+  HeatingOnly) sets the sign, shown in the trace. The flat 10 % suction multiplier is now the
+  `SuctionDpMultiplier` input; both are on the sizing dialog.
+- **Pump selection** (`Core/Plumbing/PumpSelector.cs`). With no catalogue — and none shipped — it
+  returned invented "STING Placeholder" pumps, which were written onto pump families as a
+  selection; an unknown flow was floored at 0.1 L/s. Now no catalogue means no candidates and a
+  warning, the real duty is still written, and `_BIM_COORD/pump_catalogue.json` layers over an
+  empty, documented `STING_PUMP_CATALOGUE.json`.
+- **NC prediction** (`Commands/Hvac/HvacNcPredictionCommand.cs`). Graded DESIGN BASIS or
+  INDICATIVE with every assumed input listed (synthetic fan, generic silencer, defaulted room,
+  terminal area); path order follows the connectors from the fan instead of element-id order;
+  fittings and dampers take the adjacent duct's velocity rather than a flat 5 m/s; a spectrum off
+  the top of the curves reads "above NC 65" (`NcCurves.ExceedsAll`) instead of "NC 65".
+- **Plumbing router** (`Core/Routing/PlumbingFixtureRouter.cs`). `Pipe.Create` was passed
+  `InvalidElementId` when no pipe type, system type or level resolved; each is now resolved (level
+  from the nearest level below) or the segment is reported failed with the reason. The four
+  `TODO-VERIFY-API` markers are resolved — the calls compile against the Revit 2025 reference
+  assemblies.
+- **HVAC snapshot push** summed heating and cooling into one "total kW"; now the governing one.
+  Its header promised five snapshot kinds; it pushes three and now says so.
+
+**Built**
+- **Plumbing isometric** (`Plumb_Isometric`). Was an instruction panel. Now draws one isometric per
+  piping system into a `STING ISO - <system>` drafting view: DN labels, fall as 1:N on graded runs,
+  risers counted, fitted to the paper and marked NOT TO SCALE; re-running redraws the same view.
+  Revit-free projection in `Core/Plumbing/IsometricProjection.cs`.
+- **Psychrometrics** (`Core/Hvac/Psychrometrics.cs`, `Hvac_PsychroCoil`, HVAC → CALCS). ASHRAE
+  Fundamentals Ch. 1: Hyland-Wexler saturation, humidity ratio, enthalpy, dew point, wet bulb,
+  altitude pressure; mixing, cooling coil (total / sensible / latent, ADP, bypass factor, SHR,
+  condensate) and a room supply-airflow check. Outdoor air defaults to the project climate site.
+- **Sprinkler hydraulics** (`Core/Fire/SprinklerHydraulics.cs`, `Fire_SprinklerHydraulics`,
+  Plumbing → SPECIALTY). Tree method: head demand from density × area per head and K-factor,
+  Hazen-Williams (EN 12845 form), static head, junction balancing by equivalent K; reports the
+  source flow and pressure, the most remote head, velocities and a supply check; CSV export.
+- **Gas pipe sizing** (`Core/Gas/GasPipeSizer.cs`, `Gas_SizePipes`, Plumbing → SPECIALTY). Pole's
+  formula; checks modelled sizes or sizes every source→appliance path to the drop allowance
+  (natural gas 1 mbar) and can apply nominal sizes to the pipes, reading each size back.
+- **Stair pressurisation** (`Core/Fire/StairPressurisation.cs`, `Fire_StairPressurisation`,
+  HVAC → SYS). BS EN 12101-6 method: leakage `Q = 0.83·A·ΔP^½`, open-door airflow, governing
+  case, leakage allowance, door opening force; door counts from a selected stair room.
+- **Shared pieces.** `Core/Mep/Networks/FlowTree.cs` (Revit-free source-rooted tree),
+  `RevitFlowTreeBuilder` (connector walk from a source to the terminals; loops reported, not
+  hidden), `MepDesignData` (explicit JSON parsing with `Validate()`, corporate + `_BIM_COORD`
+  override layering) and `UI/StingFormDialog.cs` (a declarative numeric/choice input form).
+- **Data.** `STING_SPRINKLER_DESIGN.json`, `STING_GAS_DESIGN.json`,
+  `STING_SMOKE_CONTROL_DESIGN.json`, `STING_PUMP_CATALOGUE.json`. Standards figures that must be
+  checked against the edition in force are marked `verify` and shown on every result.
+- **Fire-suppression drawing types** (Phase 198 deferred item): `fire-sprinkler-layout-A1-1to100`,
+  `fire-section-A1-1to50`, `fire-detail-A3-1to20`, style pack `corp-standard-fire`, routing
+  `FP/*/SPRINKLER|PLAN|SECTION|DETAIL`. Checksums stamped.
+
+**Tests.** New `StingTools.Mep.Tests` (62 declared, 68 cases): psychrometrics against the ASHRAE
+tables, sprinkler, gas and pressurisation hand calculations, duct friction against Colebrook,
+Hardy Cross, NC rating, refrigerant lift and allowance, expansion vessels, isometric projection,
+and `Validate()` over the three shipped design-data files including a project override. First
+coverage for the duct, Hardy Cross, NC, refrigerant and expansion-vessel kernels.
+
+Plugin build 0 errors / 0 warnings; all test projects pass; the workflow-wiring, dispatch-parity,
+path-discipline, lying-catch, doc/app-acquisition, command-census and drawing-type checksum gates
+pass. **Not exercised in Revit** — MEPG-7 lists what to run first.

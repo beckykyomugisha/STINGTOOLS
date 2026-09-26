@@ -338,6 +338,10 @@ namespace StingTools.UI
                         // STING-design-engines: refrigerant pipe sizing for R410A,
                         // R32, R134a, CO2 with oil-return + vendor envelope checks.
                         Run<StingTools.Commands.Hvac.HvacRefrigerantSizeCommand>(app); break;
+                    case "Hvac_PsychroCoil":
+                        Run<StingTools.Commands.Hvac.HvacPsychroCoilCommand>(app); break;
+                    case "Fire_StairPressurisation":
+                        Run<StingTools.Commands.Fire.StairPressurisationCommand>(app); break;
                     case "Hvac_ClimateInspect":
                         Run<StingTools.Commands.Hvac.HvacClimateInspectCommand>(app); break;
                     case "Hvac_ClimateReload":

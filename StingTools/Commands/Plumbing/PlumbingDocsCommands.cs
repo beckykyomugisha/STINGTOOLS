@@ -2,8 +2,8 @@
 //
 // Plumb_PipeSchedule    — pipe schedule grouped by system + DN.
 // Plumb_BOQ             — full plumbing BOQ via PlumbingBOQBuilder.
-// Plumb_ManholeSchedule — placeholder schedule from PLM_DRN_INV_* params.
-// Plumb_Isometric       — drafting-view stub: notes drawing-type routing.
+// Plumb_ManholeSchedule — chamber schedule: PLM_DRN_INV_* stamps, else connector inverts.
+// Plumb_Isometric       — per-system pipework isometric in a drafting view.
 // Plumb_CommPack        — generates commissioning shell file index.
 
 using System;
@@ -528,7 +528,14 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    /// <summary>
+    /// Plumb_Isometric — draws one pipework isometric per piping system into a
+    /// drafting view ("STING ISO - &lt;system&gt;") via PlumbingIsometricGenerator.
+    /// Scope: the selected pipes (plus every pipe on the systems of any selected
+    /// pipe or fixture), else every pipe visible in the active view, else the
+    /// whole model. Re-running redraws the same views.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class PlumbIsometricCommand : IExternalCommand
     {
@@ -536,19 +543,107 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
+            var doc = ctx.Doc;
+
+            string scope;
+            var pipes = CollectScope(ctx, out scope);
+            if (pipes.Count == 0)
+            {
+                TaskDialog.Show("STING Plumbing — Isometric",
+                    "No pipes found. Select pipes (or a fixture on a piping system), or open a view that shows pipework.");
+                return Result.Cancelled;
+            }
+
+            var opts = new PlumbingIsometricOptions();
+            PlumbingIsometricResult result;
+            using (var tx = new Transaction(doc, "STING Plumbing Isometric"))
+            {
+                tx.Start();
+                result = PlumbingIsometricGenerator.Generate(doc, pipes, opts);
+                if (result.Views.Count == 0)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("STING Plumbing — Isometric",
+                        "No isometric could be drawn.\n\n" + string.Join("\n", result.Warnings.Take(8)));
+                    return Result.Failed;
+                }
+                tx.Commit();
+            }
 
             var panel = StingResultPanel.Create("Plumbing Isometric");
-            panel.SetSubtitle("Routes through DrawingTypeRegistry (plumb-drainage-A1-1to100 / plumb-supply-A1-1to100)");
-            panel.AddSection("STATUS")
-                 .Metric("Drawing-type routing","Active")
-                 .Metric("Default profile",     "plumb-drainage-A1-1to100");
-            panel.AddSection("USAGE")
-                 .Text("1. Run Plumb_FullAudit to refresh PLM_ params.")
-                 .Text("2. Select pipes belonging to one system.")
-                 .Text("3. Use the SHEETS tab → Create From Template → 'plumb-drainage-A1-1to100'.")
-                 .Text("4. The SheetTemplateEngine will stamp invert levels and apply the corporate title block.");
+            panel.SetSubtitle($"{result.Views.Count} view(s) · scope: {scope} · NOT TO SCALE, fitted to {opts.FitToPaperMm:F0} mm at 1:{opts.ViewScale}");
+            panel.AddSection("SUMMARY")
+                 .Metric("Pipes considered", result.PipesConsidered.ToString())
+                 .Metric("Pipes skipped",    result.PipesSkipped.ToString())
+                 .Metric("Views drawn",      result.Views.Count.ToString());
+            panel.AddSection("VIEWS");
+            foreach (var v in result.Views)
+                panel.Text($"{v.ViewName}{(v.Reused ? " (redrawn)" : "")} — {v.PipesDrawn} pipes, " +
+                           $"{v.Risers} risers/drops, {v.Labels} labels");
+            if (result.Warnings.Any())
+            {
+                panel.AddSection("WARNINGS");
+                foreach (var w in result.Warnings.Take(15)) panel.Text(w);
+            }
+            panel.AddSection("NEXT")
+                 .Text("Place the view on a sheet from the SHEETS tab (drawing type 'plumb-drainage-A1-1to100').")
+                 .Text("Labels show DN and, on graded runs, the fall as 1:N. Fittings are not drawn separately.");
             panel.Show();
+
+            OpenView(ctx, result.Views[0].ViewId);
             return Result.Succeeded;
+        }
+
+        /// <summary>Open the first drawn view. Optional convenience: the views exist either way.</summary>
+        private static void OpenView(StingCommandContext ctx, ElementId viewId)
+        {
+            try
+            {
+                if (ctx.Doc.GetElement(viewId) is View v && ctx.UIDoc != null) ctx.UIDoc.RequestViewChange(v);
+            }
+            catch (Exception ex) { StingLog.Warn($"PlumbIsometric: open view: {ex.Message}"); }
+        }
+
+        private static List<Pipe> CollectScope(StingCommandContext ctx, out string scope)
+        {
+            var doc = ctx.Doc;
+            var picked = ctx.UIDoc?.Selection?.GetElementIds()?.Select(id => doc.GetElement(id))
+                             .Where(e => e != null).ToList() ?? new List<Element>();
+            if (picked.Count > 0)
+            {
+                // A selected pipe or fixture stands for its whole system.
+                var systemIds = new HashSet<long>();
+                var direct = new Dictionary<long, Pipe>();
+                foreach (var e in picked)
+                {
+                    if (e is Pipe p)
+                    {
+                        direct[p.Id.Value] = p;
+                        if (p.MEPSystem != null) systemIds.Add(p.MEPSystem.Id.Value);
+                    }
+                    else if (e is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
+                    {
+                        foreach (Connector c in fi.MEPModel.ConnectorManager.Connectors)
+                            if (c.MEPSystem != null) systemIds.Add(c.MEPSystem.Id.Value);
+                    }
+                }
+                foreach (var p in new FilteredElementCollector(doc).OfClass(typeof(Pipe)).Cast<Pipe>())
+                    if (p.MEPSystem != null && systemIds.Contains(p.MEPSystem.Id.Value)) direct[p.Id.Value] = p;
+                if (direct.Count > 0)
+                {
+                    scope = $"selection ({systemIds.Count} system(s))";
+                    return direct.Values.ToList();
+                }
+            }
+
+            if (ctx.HasGraphicalView && !(ctx.ActiveView is ViewDrafting))
+            {
+                var inView = new FilteredElementCollector(doc, ctx.ActiveView.Id).OfClass(typeof(Pipe)).Cast<Pipe>().ToList();
+                if (inView.Count > 0) { scope = $"active view '{ctx.ActiveView.Name}'"; return inView; }
+            }
+
+            scope = "whole model";
+            return new FilteredElementCollector(doc).OfClass(typeof(Pipe)).Cast<Pipe>().ToList();
         }
     }
 

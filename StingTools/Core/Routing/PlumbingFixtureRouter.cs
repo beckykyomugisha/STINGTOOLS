@@ -13,9 +13,11 @@ using StingTools.Core;
 //     (CIBSE Guide G / IPC) branches.
 //   • Stamp connection parameters on each pipe and fixture for traceability.
 //
-// All Revit API calls are guarded with TODO-VERIFY-API comments; the
-// implementation targets Revit 2025/2026/2027 API surfaces. Build and
-// verify in Revit before merging to main.
+// API surfaces (Pipe.Create, NewFamilyInstance, FlowDirectionType, pipe
+// diameter in internal feet) compile against the Revit 2025 reference
+// assemblies. Pipe.Create rejects an invalid system type, pipe type or
+// level, so each is resolved or the segment is reported as a failure with
+// the reason — never passed through as InvalidElementId.
 
 using System;
 using System.Collections.Generic;
@@ -347,16 +349,29 @@ namespace StingTools.Core.Routing
 
             // ── Level ElementId from fixture ──
             ElementId levelId = ElementId.InvalidElementId;
-            try { levelId = fixture.LevelId; } catch { }
+            try { levelId = fixture.LevelId; }
+            catch (Exception ex) { StingLog.Warn($"PlumbingFixtureRouter: LevelId of {fixture?.Id}: {ex.Message}"); }
+            if (levelId == null || levelId == ElementId.InvalidElementId)
+                levelId = NearestLevelBelow(doc, start.Z);
+
+            string missing = pipeTypeId == null || pipeTypeId == ElementId.InvalidElementId ? "pipe type"
+                           : systemTypeId == null || systemTypeId == ElementId.InvalidElementId ? "piping system type"
+                           : levelId == ElementId.InvalidElementId ? "level"
+                           : null;
+            if (missing != null)
+            {
+                r.Warning = $"No {missing} available — pipe not created.";
+                result.Failures++;
+                result.FailureMessages.Add($"Fixture {fixture?.Id}: no {missing} in the project; {svc} pipe not created.");
+                return r;
+            }
 
             try
             {
-                // TODO-VERIFY-API: Pipe.Create signature matches Revit 2025 API.
-                // Pipe pipe = Pipe.Create(doc, systemTypeId, pipeTypeId, levelId, start, end);
                 Pipe pipe = Pipe.Create(
                     doc,
-                    systemTypeId ?? ElementId.InvalidElementId,
-                    pipeTypeId   ?? ElementId.InvalidElementId,
+                    systemTypeId,
+                    pipeTypeId,
                     levelId,
                     start,
                     end);
@@ -386,7 +401,7 @@ namespace StingTools.Core.Routing
                     XYZ aavPt = new XYZ(start.X, start.Y, start.Z + (500.0 * MmToFt));
                     try
                     {
-                        // TODO-VERIFY-API: doc.Create.NewFamilyInstance for AAV placement.
+                        // Unhosted placement at a point: suits a non-hosted AAV family.
                         var aav = doc.Create.NewFamilyInstance(
                             aavPt,
                             aavSymbol,
@@ -456,6 +471,16 @@ namespace StingTools.Core.Routing
         // Fixture classification helpers
         // ──────────────────────────────────────────────────────────────
 
+        /// <summary>The highest level at or below <paramref name="zFt"/>, else the lowest level.</summary>
+        private static ElementId NearestLevelBelow(Document doc, double zFt)
+        {
+            var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.Elevation).ToList();
+            if (levels.Count == 0) return ElementId.InvalidElementId;
+            var below = levels.LastOrDefault(l => l.Elevation <= zFt + 1e-6);
+            return (below ?? levels[0]).Id;
+        }
+
         private static bool IsSoilFixture(string cat, string fam)
             => cat.IndexOf("Plumbing", StringComparison.OrdinalIgnoreCase) >= 0
                && (fam.IndexOf("WC",      StringComparison.OrdinalIgnoreCase) >= 0
@@ -500,7 +525,6 @@ namespace StingTools.Core.Routing
                 return PlumbingServiceType.SoilWaste;
 
             // Revit connector flow direction: In = supply (to fixture), Out = waste (from fixture).
-            // TODO-VERIFY-API: FlowDirection enum values confirmed for Revit 2025.
             try
             {
                 if (conn.Direction == FlowDirectionType.Out)
@@ -765,7 +789,7 @@ namespace StingTools.Core.Routing
         {
             try
             {
-                // TODO-VERIFY-API: Revit 2025 stores pipe diameter in internal feet.
+                // Pipe diameter is stored in internal units (feet).
                 double diaFt = nomDiaMm * MmToFt;
                 var p = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
                 if (p != null && !p.IsReadOnly) p.Set(diaFt);

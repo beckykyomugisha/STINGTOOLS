@@ -434,6 +434,9 @@
                                     Tag="Hvac_SystemAudit" Click="Cmd_Click" ToolTip="Audit MEP system topology"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Auto-FD"
                                     Tag="Hvac_AutoFireDamper" Click="Cmd_Click" ToolTip="Auto-place fire dampers at fire-rated boundaries"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Stair press."
+                                    Tag="Fire_StairPressurisation" Click="Cmd_Click"
+                                    ToolTip="BS EN 12101-6 stair pressurisation: leakage + open-door airflow, fan supply, door opening force. Select the stair room first to count its doors."/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Re-flow"
                                     Tag="Mep_SystemTracer" Click="Cmd_Click" ToolTip="Re-trace MEP system flows"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Balance"
@@ -586,10 +589,13 @@
                                     Tag="Mep_VibroAcoustic" Click="Cmd_Click" ToolTip="Duct-borne NC rating (legacy)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="NC predict"
                                     Tag="Hvac_NcPredict" Click="Cmd_Click"
-                                    ToolTip="VDI 2081 / ASHRAE A48 NC prediction from duct selection (regenerated + breakout)"/>
+                                    ToolTip="VDI 2081 / ASHRAE A48 NC prediction from a duct selection (attenuation + regenerated noise; breakout not modelled). Graded indicative when inputs are assumed."/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Refrigerant size"
                                     Tag="Hvac_RefrigSize" Click="Cmd_Click"
                                     ToolTip="Size R410A / R32 / R134a / CO₂ pipes with oil-return + vendor envelope checks"/>
+                            <Button Style="{StaticResource HvacActionBtn}" Content="Psychro coil"
+                                    Tag="Hvac_PsychroCoil" Click="Cmd_Click"
+                                    ToolTip="Mix outdoor + return air, cool to a leaving state: coil total/sensible/latent, ADP, bypass factor, SHR, condensate (ASHRAE Fundamentals Ch.1)"/>
                             <Button Style="{StaticResource HvacActionBtn}" Content="Refrig → duct"
                                     Tag="Hvac_PropagateRefrigToDuct" Click="Cmd_Click"
                                     ToolTip="Auto-stamp HVC_FLOW_LS on supply ducts of ducted refrigerant IDUs from capacity (Phase 187e)"/>

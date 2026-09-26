@@ -138,6 +138,7 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
   | Connectivity | 0 | empty project |
   | **Acc** (new 2026-09-10) | **60** | ✅ **67 cases, 0 failing** — the ACC surface had zero coverage until then |
+  | **Mep** (new 2026-09-26) | **62** | ✅ **68 cases, 0 failing** — psychrometrics, sprinkler, gas, pressurisation, duct friction, Hardy Cross, NC, refrigerant, isometric, shipped design data |
 
   Only the **Boq** and **Acc** rows were re-measured on 2026-09-10 (declared via the same
   `[Fact]`/`[Theory]` census `.github/workflows/stingtools-unit-tests.yml` runs; cases via
@@ -2114,8 +2115,8 @@ the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
 2. **`BlockLoadEngine` is sensible-load focused.** Latent is calculated but the design-day model is simplified (single sinusoid for outdoor temp, ASHRAE Clear Sky for solar, no thermal-mass storage / RTS lag). For comparison-grade results against TRACE / HAP, fold in a per-orientation Radiant Time Series — the input data structures already support per-segment orientation.
-3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators. Breakout (TL through duct walls) is NOT yet implemented — the engine's docstring previously claimed it; references are now phrased as attenuation + regen only.
-4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc. Negative-lift (liquid going DOWN) doesn't credit the recovered head back to the ΔP budget yet.
+3. **`NcPredictionEngine` fan and silencer spectra** come from `STING_FAN_SPECTRA.json` / `STING_SILENCER_DATA.json` when the family matches; otherwise a synthetic fan (path Q + ΔP) or a generic silencer is used, and `Hvac_NcPredict` grades the result INDICATIVE and lists each assumed input (MEPG-4). Breakout (TL through duct walls) and crosstalk are NOT implemented.
+4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The suction allowance is an input (`SuctionDpMultiplier`, default 1.10), not a Lockhart-Martinelli calc. Liquid static head follows `RefrigerantOperatingMode`: Reversible (default) always debits |lift|; CoolingOnly / HeatingOnly credit a downhill run (MEPG-5).
 5. **Climate site list ships 42 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
 6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
 7. **Block-load `HVC_PEAK_*` stamps are TEXT-typed.** Reads via SetString; future projects that want to drive Revit schedules with HVACPower-typed params will need a SetDouble path + matching MR_PARAMETERS rebinding.

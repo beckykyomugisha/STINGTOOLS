@@ -67,7 +67,9 @@ namespace StingTools.Commands.Plumbing
             bool autoMode = pick == TaskDialogResult.CommandLink1;
             string cataloguePath = StingToolsApp.FindDataFile("STING_PUMP_CATALOGUE.json");
             var report = new List<string>();
-            int written = 0, failed = 0;
+            var warnings = new List<string>();
+            int written = 0, dutyOnly = 0, failed = 0, catalogueEntries = 0;
+            var catalogueSources = new List<string>();
 
             using (var tx = new Transaction(ctx.Doc, "STING Plumbing Pump Select"))
             {
@@ -83,7 +85,12 @@ namespace StingTools.Commands.Plumbing
                             ? PumpSelector.CalculateDutyPoint(ctx.Doc, network, sysName)
                             : PumpSelector.CalculateDutyPointSimple(20.0, 5.0, 1.0);
 
-                        var result = PumpSelector.SelectPump(duty, cataloguePath);
+                        var result = PumpSelector.SelectPump(duty, cataloguePath, ctx.Doc);
+                        catalogueEntries = Math.Max(catalogueEntries, result.CatalogueEntries);
+                        foreach (var src in result.CatalogueSources)
+                            if (!catalogueSources.Contains(src)) catalogueSources.Add(src);
+                        foreach (var w in result.Warnings)
+                            if (!warnings.Contains(w)) warnings.Add(w);
                         if (result.BestMatch != null)
                         {
                             PumpSelector.WritePumpData(ctx.Doc, pumpEl.Id, result.BestMatch, duty);
@@ -92,9 +99,17 @@ namespace StingTools.Commands.Plumbing
                                        $"{result.BestMatch.EfficiencyPct:F0}% eff)");
                             written++;
                         }
+                        else if (result.HasValidDuty)
+                        {
+                            // No catalogue entry covers it, but the duty point is
+                            // real: record it so the pump can be selected by hand.
+                            PumpSelector.WritePumpData(ctx.Doc, pumpEl.Id, null, duty);
+                            report.Add($"DUTY {pumpEl.Name,-29} => {duty.FlowLps:F2} l/s @ {duty.HeadM:F1} m written; no catalogue match");
+                            dutyOnly++;
+                        }
                         else
                         {
-                            report.Add($"--- {pumpEl.Name,-30} => no match for {duty.FlowLps:F2} l/s @ {duty.HeadM:F1} m");
+                            report.Add($"--- {pumpEl.Name,-30} => no design flow on '{sysName}' — nothing written");
                             failed++;
                         }
                     }
@@ -111,15 +126,25 @@ namespace StingTools.Commands.Plumbing
             panel.SetSubtitle($"{pumps.Count} pump(s) scanned · BS EN 806-3");
             panel.AddSection("SUMMARY")
                  .Metric("Pumps found",          pumps.Count.ToString())
-                 .Metric("Sized + written",       written.ToString())
-                 .Metric("No catalogue match",    failed.ToString());
+                 .Metric("Selected + written",    written.ToString())
+                 .Metric("Duty only (no match)",  dutyOnly.ToString())
+                 .Metric("No design flow",        failed.ToString())
+                 .Metric("Catalogue entries",     catalogueEntries.ToString());
             if (report.Any())
             {
                 panel.AddSection("RESULTS (first 40)");
                 foreach (var line in report.Take(40)) panel.Text(line);
             }
-            if (string.IsNullOrEmpty(cataloguePath))
-                panel.AddSection("NOTE").Text("STING_PUMP_CATALOGUE.json not found — built-in fallback catalogue used.");
+            if (warnings.Any())
+            {
+                panel.AddSection("WARNINGS");
+                foreach (var w in warnings.Take(10)) panel.Text(w);
+            }
+            panel.AddSection("CATALOGUE")
+                 .Text(catalogueSources.Any()
+                     ? string.Join("\n", catalogueSources)
+                     : "No catalogue file loaded. Pumps are never invented: add entries to " +
+                       "STING_PUMP_CATALOGUE.json or <project>/_BIM_COORD/pump_catalogue.json.");
             panel.Show();
             return Result.Succeeded;
         }
@@ -157,7 +182,7 @@ namespace StingTools.Commands.Plumbing
 
             string cataloguePath = StingToolsApp.FindDataFile("STING_PUMP_CATALOGUE.json");
             var duty     = PumpSelector.CalculateDutyPointSimple(staticHead, frictionHead, qdLps);
-            var selection = PumpSelector.SelectPump(duty, cataloguePath);
+            var selection = PumpSelector.SelectPump(duty, cataloguePath, ctx.Doc);
 
             var panel = StingResultPanel.Create("Booster Set Sizing (BS EN 806-3)");
             panel.SetSubtitle($"Sigma LU = {totalLu:F1}  Qd = {qdLps:F2} l/s  {levels.Count} levels");
@@ -181,6 +206,12 @@ namespace StingTools.Commands.Plumbing
                      .Metric("Rated head",   $"{m.RatedHeadM:F1} m")
                      .Metric("Power",        $"{m.PowerKw:F2} kW")
                      .Metric("Efficiency",   $"{m.EfficiencyPct:F0}%");
+            }
+            else
+            {
+                panel.AddSection("RECOMMENDED PUMP")
+                     .Text(selection.Warnings.FirstOrDefault()
+                           ?? "No catalogue pump covers this duty — select against the duty above.");
             }
             panel.AddSection("STANDARDS")
                  .Text("BS EN 806-3:2006 ss5.5 — Booster systems")

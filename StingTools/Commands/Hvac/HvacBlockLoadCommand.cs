@@ -74,7 +74,10 @@ namespace StingTools.Commands.Hvac
                 var results = BlockLoadEngine.Run(zones, site, cooling, rts, doc);
                 double grand = results.Sum(r => r.BlockSensibleW);
                 double sumPeaks = results.Sum(r => r.SumOfPeaksSensibleW);
-                double diversity = sumPeaks > 0 ? grand / sumPeaks : 1.0;
+                // Heating peaks come back negative (heat loss); show demand.
+                double shownGrand    = cooling ? grand    : HeatLossW(grand);
+                double shownSumPeaks = cooling ? sumPeaks : HeatLossW(sumPeaks);
+                double diversity = Math.Abs(sumPeaks) > 0 ? grand / sumPeaks : 1.0;   // same sign both passes
 
                 // Stamp per-space peaks back onto Revit so schedules see them.
                 int stamped = 0;
@@ -91,22 +94,41 @@ namespace StingTools.Commands.Hvac
                             if (el == null) continue;
                             try
                             {
-                                if (ParameterHelpers.SetString(el, "HVC_PEAK_SENS_W",
-                                    $"{z.PeakSensibleW:F0}", overwrite: true)) stamped++;
-                                ParameterHelpers.SetString(el, "HVC_PEAK_LAT_W",
-                                    $"{z.PeakLatentW:F0}", overwrite: true);
-                                // HVC_PEAK_HOUR is a NUMBER parameter: "14:00" does not
-                                // parse as one, so the hour was refused on every run.
-                                ParameterHelpers.SetString(el, "HVC_PEAK_HOUR",
-                                    z.PeakHour.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                    overwrite: true);
+                                // Cooling and heating peaks land in DIFFERENT
+                                // parameters. HVC_PEAK_SENS_W is read as the
+                                // cooling duty by PropagateLoads, SelectIdus,
+                                // CompareLoads and the gbXML import; a heating
+                                // pass used to overwrite it with a (negative)
+                                // heat-loss figure. See HeatingPeakParam.
+                                if (cooling)
+                                {
+                                    if (ParameterHelpers.SetString(el, "HVC_PEAK_SENS_W",
+                                        $"{z.PeakSensibleW:F0}", overwrite: true)) stamped++;
+                                    ParameterHelpers.SetString(el, "HVC_PEAK_LAT_W",
+                                        $"{z.PeakLatentW:F0}", overwrite: true);
+                                    // HVC_PEAK_HOUR is a NUMBER parameter: "14:00" does not
+                                    // parse as one, so the hour was refused on every run.
+                                    ParameterHelpers.SetString(el, "HVC_PEAK_HOUR",
+                                        z.PeakHour.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                        overwrite: true);
+                                }
+                                else
+                                {
+                                    if (ParameterHelpers.SetString(el, HeatingPeakParam,
+                                        $"{HeatLossW(z.PeakSensibleW):F0}", overwrite: true)) stamped++;
+                                }
                                 ParameterHelpers.SetString(el, "HVC_OA_LS",
                                     $"{z.OaLs:F1}", overwrite: true);
                                 // Phase 187f — clear the stale flag that the
                                 // envelope IUpdater may have set since the
-                                // previous BlockLoad run.
-                                ParameterHelpers.SetInt(el, "HVC_LOAD_STALE_BOOL", 0, overwrite: true);
-                                ParameterHelpers.SetString(el, "HVC_LOAD_STALE_REASON_TXT", "", overwrite: true);
+                                // previous BlockLoad run. Only a cooling pass
+                                // clears it: the stale flag guards the cooling
+                                // stamps every downstream command reads.
+                                if (cooling)
+                                {
+                                    ParameterHelpers.SetInt(el, "HVC_LOAD_STALE_BOOL", 0, overwrite: true);
+                                    ParameterHelpers.SetString(el, "HVC_LOAD_STALE_REASON_TXT", "", overwrite: true);
+                                }
                             }
                             catch (Exception ex) { StingLog.Warn($"Block-load stamp {el.Id}: {ex.Message}"); }
                         }
@@ -120,12 +142,12 @@ namespace StingTools.Commands.Hvac
                                   $"ρ={site.AirDensityCoolingKgM3():F3} kg/m³ · " +
                                   $"{(cooling ? "Cooling" : "Heating")} · RTS={rts} · scope={scope}");
                 panel.AddSection("BUILDING TOTAL")
-                     .Metric("Block (peak) sensible", $"{grand / 1000:F1} kW")
-                     .Metric("Σ per-zone peaks",     $"{sumPeaks / 1000:F1} kW")
+                     .Metric(cooling ? "Block (peak) sensible" : "Block (peak) heat loss", $"{shownGrand / 1000:F1} kW")
+                     .Metric("Σ per-zone peaks",     $"{shownSumPeaks / 1000:F1} kW")
                      .Metric("Diversity factor",     $"{diversity:F2}")
                      .Metric("Spaces sized",         zones.Count.ToString())
                      .Metric("Skipped (no data)",    skipped.ToString())
-                     .Metric("Stamped HVC_PEAK_*",   stamped.ToString());
+                     .Metric(cooling ? "Stamped HVC_PEAK_*" : $"Stamped {HeatingPeakParam}", stamped.ToString());
 
                 // Tier-2 2.4 — surface the active design-day assumptions so an
                 // override is visibly in effect (defaults shown when none set).
@@ -196,25 +218,34 @@ namespace StingTools.Commands.Hvac
                     var p = StingHvacPanel.Instance;
                     if (p != null)
                     {
-                        p.PushRunRow($"Block-load ({grand / 1000:F0} kW, div {diversity:F2})", "⬤");
+                        p.PushRunRow($"Block-load {(cooling ? "cooling" : "heating")} ({shownGrand / 1000:F0} kW, div {diversity:F2})", "⬤");
 
                         // Phase 187b — populate the previously-empty LoadsTab grid.
                         // Replace the contents wholesale so re-runs reflect the latest pass.
                         p.SpaceLoadRows.Clear();
+                        // Each pass fills its own column; the other column is
+                        // read back from the stamp the other pass left, so the
+                        // grid shows both once both passes have run.
                         foreach (var z in results.SelectMany(r => r.Zones)
-                                                .OrderByDescending(r => r.PeakSensibleW))
+                                                .OrderByDescending(r => Math.Abs(r.PeakSensibleW)))
                         {
+                            var el = doc.GetElement(new ElementId(ParseLong(z.ZoneId)));
+                            double coolKw = cooling ? z.PeakSensibleW / 1000.0
+                                                    : ReadStampW(el, "HVC_PEAK_SENS_W") / 1000.0;
+                            double heatKw = cooling ? ReadStampW(el, HeatingPeakParam) / 1000.0
+                                                    : HeatLossW(z.PeakSensibleW) / 1000.0;
+                            double thisPassKw = cooling ? coolKw : heatKw;
                             string warn = "";
-                            if (z.PeakSensibleW <= 0) warn = "no load";
-                            else if (z.OaLs <= 0)     warn = "no OA";
+                            if (thisPassKw <= 0) warn = "no load";
+                            else if (z.OaLs <= 0) warn = "no OA";
                             p.SpaceLoadRows.Add(new HvacSpaceLoadRow
                             {
                                 SpaceName = z.ZoneName,
                                 SpaceType = z.SystemId,
                                 AreaM2    = z.AreaM2,
                                 People    = 0,                                  // populated in F-3 phase
-                                HeatingKw = 0,                                  // cooling-only pass for now
-                                CoolingKw = z.PeakSensibleW / 1000.0,
+                                HeatingKw = heatKw,
+                                CoolingKw = coolKw,
                                 OAls      = z.OaLs,
                                 Warning   = warn
                             });
@@ -441,6 +472,37 @@ namespace StingTools.Commands.Hvac
         private static long ParseLong(string s)
         {
             return long.TryParse(s, out long v) ? v : -1;
+        }
+
+        /// <summary>
+        /// Where a heating pass stamps its per-space peak. NRG_HEATING_LOAD_W
+        /// ("design heating load W") is an existing NUMBER parameter bound to
+        /// every category, so no new binding is needed. Kept apart from
+        /// HVC_PEAK_SENS_W, which every downstream command reads as cooling.
+        /// </summary>
+        internal const string HeatingPeakParam = "NRG_HEATING_LOAD_W";
+
+        /// <summary>
+        /// The engine reports a heating peak as the most-negative hourly
+        /// sensible balance (heat leaving the space). Stamps and the panel
+        /// show heat loss as a positive demand.
+        /// </summary>
+        internal static double HeatLossW(double peakSensibleW) => Math.Max(0.0, -peakSensibleW);
+
+        /// <summary>Read a W stamp written by an earlier pass; 0 when absent or unreadable.</summary>
+        private static double ReadStampW(Element el, string name)
+        {
+            if (el == null) return 0;
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Double) return p.AsDouble();
+                if (p.StorageType == StorageType.Integer) return p.AsInteger();
+                return double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"Block-load read {name} on {el.Id}: {ex.Message}"); return 0; }
         }
     }
 }

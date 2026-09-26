@@ -63,7 +63,7 @@ namespace StingTools.Commands.Hvac
                 var panel = StingResultPanel.Create($"HVAC — {input.RefrigerantId} {input.Leg}");
                 panel.SetSubtitle(
                     $"{fluid.Label} · Tsat={fluid.SuctionSatTempC}/{fluid.CondSatTempC} °C · " +
-                    $"capacity {input.CapacityKw:F1} kW · L_eq {input.EquivLengthM:F0} m · lift {input.LiftM:F0} m");
+                    $"capacity {input.CapacityKw:F1} kW · L_eq {input.EquivLengthM:F0} m · lift {input.LiftM:F0} m · {input.Mode}" + (input.Leg == RefrigerantLeg.Suction ? $" · suction ×{input.SuctionDpMultiplier:F2}" : ""));
 
                 if (result.Ok)
                 {
