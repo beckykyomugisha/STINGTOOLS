@@ -24446,3 +24446,19 @@ A review of how drawing types choose and size tags. The tag family names the shi
 - **Tests.** `TagColorSchemeNamesTests`: alias resolution; the engine's scheme tables carry exactly the listed names (parsed from `TagStyleEngine.cs`); every pack scheme resolves or is a listed gap. The pack test was checked failing on an injected misspelling.
 - **Open (ROADMAP TAGSCHEME-1).** Eight pack schemes have no implementation.
 - **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,638 passing. The four gates pass. Not exercised in Revit.
+
+#### TAGSCHEME-1 closed: the healthcare style packs' tag colour schemes exist
+
+- **Eight pack schemes had no implementation.** Applying the healthcare packs (and the clarification pack) wrote a scheme name no engine table carried, so tags kept their style. They now exist in `TagStyleEngine`.
+- **Each reads the parameter its audit already uses, with that parameter's vocabulary.** A new `StyleVariable.Parameter` names the parameter to read (`VariableColorScheme.ParameterName`):
+  - MedicalGas: `MGS_GAS_TYPE_TXT` (O2, N2O, MA4, MA7, N2, CO2, HE, VAC, AGSS), in HTM 02-01 identification colours; oxygen white is drawn light grey.
+  - Pressure: `CLN_PRESS_REGIME_TXT` (POS, NEG, NEUTRAL, as the HTM design table and `PressureRegimeValidator` use).
+  - ElectricalSupply: `ELC_EES_BRANCH_TXT`, with both code spellings `NFPA99Standards.ParseBranch` accepts.
+  - FireRating: fire resistance minutes (`ParamRegistry.FIRE_RATING`, a number; "60.0" matches "60").
+  - Radiation: `RAD_BARRIER_TYPE_TXT` (PRIMARY, SECONDARY, SCATTER, LEAKAGE).
+  - AntiLigature: `CLN_LIG_RISK_LVL_TXT` levels 1–5.
+  - WaterSafety: the system token (DCW/CWS, DHW/HWS, HWR/DHWR, TMV).
+  - "RAG Status" (clarification pack) is an alias of the lifecycle Status scheme, which already reads green/amber/red.
+- **Values are normalised before matching** (`TagColorSchemeNames.NormaliseValue`): trimmed, and numbers written without trailing zeros or units. Tag styles use the ISO 2.5 mm row and catalogue colours only.
+- **Tests.** Every pack scheme must now resolve (the known-gap list is gone). New tests hold every scheme tag style to the catalogue's styles and colours, and every parameter scheme to a parameter in `MR_PARAMETERS.txt`; both were checked failing on an injected `YELLOW` and a misspelt parameter.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.

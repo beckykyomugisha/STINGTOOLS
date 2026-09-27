@@ -109,6 +109,9 @@ namespace StingTools.Tags
         Function,
         /// <summary>Color by ASS_LOC_TXT (BLD1/BLD2/BLD3/EXT).</summary>
         Location,
+        /// <summary>Color by the parameter named in <see cref="VariableColorScheme.ParameterName"/>
+        /// (healthcare schemes: gas type, pressure regime, EES branch, fire rating...).</summary>
+        Parameter,
     }
 
     /// <summary>
@@ -120,6 +123,8 @@ namespace StingTools.Tags
         public string Name { get; set; }
         public string Description { get; set; }
         public StyleVariable Variable { get; set; }
+        /// <summary>The parameter read when <see cref="Variable"/> is <see cref="StyleVariable.Parameter"/>.</summary>
+        public string ParameterName { get; set; }
         /// <summary>Maps variable values to element colors.</summary>
         public Dictionary<string, Color> ValueColors { get; set; } = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
         /// <summary>Maps variable values to tag text styles.</summary>
@@ -477,7 +482,110 @@ namespace StingTools.Tags
                 },
             };
 
+            AddParameterSchemes(d);
             return d;
+        }
+
+        private static Dictionary<string, Color> Colors(params (string v, int r, int g, int b)[] rows)
+        {
+            var m = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+            foreach (var x in rows) m[x.v] = new Color((byte)x.r, (byte)x.g, (byte)x.b);
+            return m;
+        }
+
+        private static Dictionary<string, StylePreset> Styles(params (string v, string style, string colour)[] rows)
+        {
+            var m = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase);
+            foreach (var x in rows)
+                m[x.v] = new StylePreset { Name = x.v, Size = Core.Drawing.IsoTagText.DefaultSize, Style = x.style, Color = x.colour };
+            return m;
+        }
+
+        /// <summary>
+        /// Schemes the healthcare style packs name. Each reads the parameter the pack's
+        /// validators and commands already use, with that parameter's own value
+        /// vocabulary, so a colour means what the audit reports. Values are compared
+        /// after TagColorSchemeNames.NormaliseValue (trimmed; "60.0" and "60" match).
+        /// Tag styles stay on the ISO 2.5 mm row. Unmapped values get the scheme
+        /// default (grey element, plain black tag).
+        /// </summary>
+        private static void AddParameterSchemes(Dictionary<string, VariableColorScheme> d)
+        {
+            // HTM 02-01 / BS EN ISO 32 gas identification. MGS_GAS_TYPE_TXT vocabulary:
+            // O2 MA4 MA7 N2O N2 CO2 HE VAC (MedGasOutletPlacementCommand, HealthcareMaterialGate)
+            // plus AGSS. White (O2) is drawn light grey so it shows on a white sheet.
+            d["MedicalGas"] = new VariableColorScheme
+            {
+                Name = "MedicalGas", Description = "Medical gas by type (HTM 02-01; MGS_GAS_TYPE_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "MGS_GAS_TYPE_TXT",
+                ValueColors = Colors(("O2", 190, 190, 190), ("N2O", 0, 90, 200), ("MA4", 40, 40, 40), ("MA7", 90, 90, 90),
+                    ("N2", 0, 0, 0), ("CO2", 130, 130, 130), ("HE", 140, 90, 40), ("VAC", 230, 190, 0), ("AGSS", 140, 60, 170)),
+                ValueStyles = Styles(("O2", "BOLD", "BLACK"), ("N2O", "BOLD", "BLUE"), ("MA4", "NOM", "BLACK"), ("MA7", "ITALIC", "BLACK"),
+                    ("N2", "NOM", "BLACK"), ("CO2", "NOM", "GREY"), ("HE", "NOM", "ORANGE"), ("VAC", "BOLD", "ORANGE"), ("AGSS", "BOLD", "PURPLE")),
+            };
+
+            // HTM 03-01 pressure regime. CLN_PRESS_REGIME_TXT vocabulary: POS / NEG / NEUTRAL
+            // (HTMStandards design table; PressureRegimeValidator compares against it).
+            d["Pressure"] = new VariableColorScheme
+            {
+                Name = "Pressure", Description = "Room pressure regime (HTM 03-01; CLN_PRESS_REGIME_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "CLN_PRESS_REGIME_TXT",
+                ValueColors = Colors(("POS", 0, 110, 220), ("NEG", 220, 40, 40), ("NEUTRAL", 150, 150, 150)),
+                ValueStyles = Styles(("POS", "BOLD", "BLUE"), ("NEG", "BOLD", "RED"), ("NEUTRAL", "NOM", "GREY")),
+            };
+
+            // NFPA 99 / HTM 06-01 essential electrical branches. ELC_EES_BRANCH_TXT codes as
+            // NFPA99Standards.ParseBranch reads them: LIFE-SAF/LS, CRIT/CR, EQP-BR/EQ, NORMAL/N.
+            d["ElectricalSupply"] = new VariableColorScheme
+            {
+                Name = "ElectricalSupply", Description = "Essential electrical branch (NFPA 99 / HTM 06-01; ELC_EES_BRANCH_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "ELC_EES_BRANCH_TXT",
+                ValueColors = Colors(("LIFE-SAF", 220, 30, 30), ("LS", 220, 30, 30), ("CRIT", 255, 140, 0), ("CR", 255, 140, 0),
+                    ("EQP-BR", 230, 190, 0), ("EQ", 230, 190, 0), ("NORMAL", 150, 150, 150), ("N", 150, 150, 150)),
+                ValueStyles = Styles(("LIFE-SAF", "BOLD", "RED"), ("LS", "BOLD", "RED"), ("CRIT", "BOLD", "ORANGE"), ("CR", "BOLD", "ORANGE"),
+                    ("EQP-BR", "NOM", "ORANGE"), ("EQ", "NOM", "ORANGE"), ("NORMAL", "NOM", "GREY"), ("N", "NOM", "GREY")),
+            };
+
+            // Fire resistance in minutes (ParamRegistry.FIRE_RATING, a NUMBER: "60.0" reads as "60").
+            d["FireRating"] = new VariableColorScheme
+            {
+                Name = "FireRating", Description = "Fire resistance in minutes (HTM 05-02 / BS 9999)",
+                Variable = StyleVariable.Parameter, ParameterName = ParamRegistry.FIRE_RATING,
+                ValueColors = Colors(("30", 255, 200, 0), ("60", 255, 140, 0), ("90", 230, 70, 30), ("120", 200, 0, 0), ("240", 130, 0, 60)),
+                ValueStyles = Styles(("30", "NOM", "ORANGE"), ("60", "BOLD", "ORANGE"), ("90", "NOM", "RED"), ("120", "BOLD", "RED"), ("240", "BOLDITALIC", "RED")),
+            };
+
+            // NCRP 147 barrier type. RAD_BARRIER_TYPE_TXT vocabulary: PRIMARY / SECONDARY /
+            // SCATTER / LEAKAGE (MR_PARAMETERS description; RadShieldValidator).
+            d["Radiation"] = new VariableColorScheme
+            {
+                Name = "Radiation", Description = "Radiation barrier type (NCRP 147; RAD_BARRIER_TYPE_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "RAD_BARRIER_TYPE_TXT",
+                ValueColors = Colors(("PRIMARY", 200, 0, 160), ("SECONDARY", 150, 60, 180), ("SCATTER", 255, 140, 0), ("LEAKAGE", 150, 150, 150)),
+                ValueStyles = Styles(("PRIMARY", "BOLD", "PURPLE"), ("SECONDARY", "NOM", "PURPLE"), ("SCATTER", "NOM", "ORANGE"), ("LEAKAGE", "ITALIC", "GREY")),
+            };
+
+            // Ligature risk level. CLN_LIG_RISK_LVL_TXT holds a number (BehaviouralHealthAuditCommand
+            // parses it; the Healthcare tab's minimum defaults to 3): higher is higher risk.
+            d["AntiLigature"] = new VariableColorScheme
+            {
+                Name = "AntiLigature", Description = "Ligature risk level 1-5 (CLN_LIG_RISK_LVL_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "CLN_LIG_RISK_LVL_TXT",
+                ValueColors = Colors(("1", 76, 175, 80), ("2", 160, 200, 60), ("3", 255, 193, 7), ("4", 255, 120, 0), ("5", 200, 0, 160)),
+                ValueStyles = Styles(("1", "NOM", "GREEN"), ("2", "NOM", "GREEN"), ("3", "NOM", "ORANGE"), ("4", "BOLD", "ORANGE"), ("5", "BOLD", "PURPLE")),
+            };
+
+            // HTM 04-01 water services by system token (the codes TagConfig assigns:
+            // DCW/CWS cold, DHW/HWS hot; HWR/DHWR return and TMV mixed where a project uses them).
+            d["WaterSafety"] = new VariableColorScheme
+            {
+                Name = "WaterSafety", Description = "Water services for HTM 04-01 (system token)",
+                Variable = StyleVariable.System,
+                ValueColors = Colors(("DCW", 0, 110, 220), ("CWS", 0, 110, 220), ("DHW", 220, 40, 40), ("HWS", 220, 40, 40),
+                    ("HWR", 230, 190, 0), ("DHWR", 230, 190, 0), ("TMV", 0, 160, 80)),
+                ValueStyles = Styles(("DCW", "NOM", "BLUE"), ("CWS", "NOM", "BLUE"), ("DHW", "BOLD", "RED"), ("HWS", "BOLD", "RED"),
+                    ("HWR", "NOM", "ORANGE"), ("DHWR", "NOM", "ORANGE"), ("TMV", "BOLD", "GREEN")),
+            };
         }
 
         /// <summary>
@@ -917,6 +1025,15 @@ namespace StingTools.Tags
         /// <summary>
         /// Get the element's value for a given style variable.
         /// </summary>
+        public static string GetVariableValue(Element el, VariableColorScheme scheme)
+        {
+            if (scheme == null) return "";
+            string raw = scheme.Variable == StyleVariable.Parameter
+                ? ParameterHelpers.GetDisplayText(el, scheme.ParameterName)
+                : GetVariableValue(el, scheme.Variable);
+            return Core.Drawing.TagColorSchemeNames.NormaliseValue(raw);
+        }
+
         public static string GetVariableValue(Element el, StyleVariable variable)
         {
             return variable switch
@@ -948,7 +1065,7 @@ namespace StingTools.Tags
 
             foreach (var el in elements)
             {
-                string value = GetVariableValue(el, scheme.Variable);
+                string value = GetVariableValue(el, scheme);
                 Color color = null;
 
                 if (!string.IsNullOrEmpty(value) && scheme.ValueColors.TryGetValue(value, out Color vc))
@@ -1000,7 +1117,7 @@ namespace StingTools.Tags
             {
                 var typeId = inst.GetTypeId();
                 if (typeId == ElementId.InvalidElementId || typeVariables.ContainsKey(typeId)) continue;
-                string value = GetVariableValue(inst, scheme.Variable);
+                string value = GetVariableValue(inst, scheme);
                 if (!string.IsNullOrEmpty(value))
                     typeVariables[typeId] = value;
             }
@@ -1088,7 +1205,7 @@ namespace StingTools.Tags
 
             foreach (var el in elements)
             {
-                string value = GetVariableValue(el, scheme.Variable);
+                string value = GetVariableValue(el, scheme);
                 if (string.IsNullOrEmpty(value)) continue;
 
                 if (scheme.ValueBoxColors.TryGetValue(value, out BoxColorPreset boxPreset))

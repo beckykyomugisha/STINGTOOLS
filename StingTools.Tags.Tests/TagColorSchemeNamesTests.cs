@@ -27,7 +27,9 @@ namespace StingTools.Tags.Tests
         [InlineData("mono", "Mono")]
         [InlineData("STING Discipline", "Discipline")]
         [InlineData("Zone", "Zone")]
-        [InlineData("MedicalGas", null)]
+        [InlineData("MedicalGas", "MedicalGas")]
+        [InlineData("RAG Status", "Status")]
+        [InlineData("NoSuchScheme", null)]
         [InlineData("", null)]
         public void Names_and_aliases_resolve(string name, string canonical)
             => Assert.Equal(canonical, TagColorSchemeNames.Resolve(name));
@@ -42,21 +44,53 @@ namespace StingTools.Tags.Tests
             Assert.Equal(TagColorSchemeNames.Variable.OrderBy(x => x), variable.OrderBy(x => x));
         }
 
-        // Pack schemes that no engine table carries yet (ROADMAP TAGSCHEME-1). This list may
-        // only shrink: a new unknown name fails the test instead of silently doing nothing.
-        private static readonly string[] NotYetImplemented =
-            { "RAG Status", "MedicalGas", "Pressure", "ElectricalSupply", "FireRating", "Radiation", "AntiLigature", "WaterSafety" };
-
         [Fact]
-        public void Every_style_pack_tag_scheme_resolves_or_is_a_known_gap()
+        public void Every_style_pack_tag_scheme_resolves()
         {
             var root = JObject.Parse(File.ReadAllText(Repo("StingTools", "Data", "STING_VIEW_STYLE_PACKS.json")));
             var names = root["stylePacks"].Select(p => (string)p["tagColorScheme"]).Where(n => !string.IsNullOrWhiteSpace(n)).ToList();
             Assert.True(names.Count > 10, $"only {names.Count} pack tag schemes found");
-            var bad = names.Where(n => TagColorSchemeNames.Resolve(n) == null && !NotYetImplemented.Contains(n)).Distinct().ToList();
+            var bad = names.Where(n => TagColorSchemeNames.Resolve(n) == null).Distinct().ToList();
             Assert.True(bad.Count == 0, "Unknown tag colour schemes: " + string.Join(", ", bad));
-            // A gap that has been implemented must leave the list.
-            foreach (var gap in NotYetImplemented) Assert.Null(TagColorSchemeNames.Resolve(gap));
+        }
+
+        [Theory]
+        [InlineData("60", "60")]
+        [InlineData("60.0", "60")]
+        [InlineData(" 120 min", "120")]
+        [InlineData("POS", "POS")]
+        [InlineData("LIFE-SAF", "LIFE-SAF")]
+        [InlineData("2.5BOLD", "2.5BOLD")]
+        [InlineData(null, "")]
+        public void Values_are_normalised_before_matching(string raw, string expected)
+            => Assert.Equal(expected, TagColorSchemeNames.NormaliseValue(raw));
+
+        // Every tag style a scheme picks must be a row the tag families carry: a colour
+        // outside the catalogue (YELLOW was one) switches nothing.
+        [Fact]
+        public void Scheme_tag_styles_use_catalogue_styles_and_colours()
+        {
+            var cat = JObject.Parse(File.ReadAllText(Repo("StingTools", "Data", "tag_style_catalogue.json")));
+            var colours = cat["colours"].Select(t => (string)t).ToHashSet();
+            var styles = cat["styles"].Select(t => (string)t).ToHashSet();
+            string src = File.ReadAllText(Repo("StingTools", "Tags", "TagStyleEngine.cs"));
+            var used = Regex.Matches(src, @"\(""[^""]+"",\s*""([A-Z]+)"",\s*""([A-Z]+)""\)")
+                .Select(m => (style: m.Groups[1].Value, colour: m.Groups[2].Value)).ToList();
+            Assert.True(used.Count >= 40, $"only {used.Count} parameter-scheme styles found");
+            var bad = used.Where(u => !styles.Contains(u.style) || !colours.Contains(u.colour)).Distinct().ToList();
+            Assert.True(bad.Count == 0, "Not in the tag style catalogue: " + string.Join(", ", bad));
+        }
+
+        // A parameter scheme reading a parameter the project cannot bind would colour nothing.
+        [Fact]
+        public void Parameter_schemes_read_shared_parameters()
+        {
+            string src = File.ReadAllText(Repo("StingTools", "Tags", "TagStyleEngine.cs"));
+            string shared = File.ReadAllText(Repo("StingTools", "Data", "MR_PARAMETERS.txt"));
+            var names = Regex.Matches(src, @"ParameterName\s*=\s*""([A-Z0-9_]+)""").Select(m => m.Groups[1].Value).ToList();
+            Assert.True(names.Count >= 5, $"only {names.Count} parameter schemes found");
+            var missing = names.Where(n => !Regex.IsMatch(shared, @"\t" + n + @"\t")).ToList();
+            Assert.True(missing.Count == 0, "Not in MR_PARAMETERS.txt: " + string.Join(", ", missing));
         }
     }
 }

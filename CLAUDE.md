@@ -2593,7 +2593,7 @@ Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parame
 - **Discipline tag styles** come from `Data/tag_style_catalogue.json` (`defaults_per_discipline`); the Tag Style Engine's Discipline scheme and the `TAG_STYLE_RULES.json` Discipline preset follow it (a test holds them together)
 
 ### Built-in Color Schemes
-Discipline, Warm, Cool, Red, Yellow, Blue, Monochrome, Dark — each scheme maps discipline codes to specific element graphic overrides and optionally switches tag text styles to match.
+Discipline, Warm, Cool, Red, Yellow, Blue, Mono, Dark — each maps discipline codes to element graphic overrides and optionally switches tag text styles to match. Colour-by-value schemes: System, Status, Zone, Level, Location, Function, plus the healthcare pack schemes MedicalGas (`MGS_GAS_TYPE_TXT`), Pressure (`CLN_PRESS_REGIME_TXT`), ElectricalSupply (`ELC_EES_BRANCH_TXT`), FireRating (fire resistance minutes), Radiation (`RAD_BARRIER_TYPE_TXT`), AntiLigature (`CLN_LIG_RISK_LVL_TXT`) and WaterSafety (system token). Names and aliases ("Monochrome", "STING Discipline", "RAG Status" → Status) resolve through `Core/Drawing/TagColorSchemeNames`; an unknown name is logged, never silently ignored.
 
 ### Tag Style Commands (9)
 
