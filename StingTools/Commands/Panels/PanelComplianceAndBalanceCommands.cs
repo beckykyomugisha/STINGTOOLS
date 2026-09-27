@@ -66,7 +66,7 @@ namespace StingTools.Commands.Panels
             // The circuit does not say what cable it is, so Iz is the highest It any shipped
             // copper table gives for its size (Bs7671Data.MaxTabulatedIt): a fail is then
             // certain, and a pass still leaves derating unchecked.
-            var tables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
+            var tables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
             var rows = new List<Row>();
             int written = 0, unbound = 0, writeFailed = 0;
             var view = doc.ActiveView;
@@ -182,13 +182,15 @@ namespace StingTools.Commands.Panels
             var own = csa > 0 ? rec.FindTable(tables) : null;
             if (own != null) it = Bs7671Data.TabulatedIt(own, csa, ph);
             if (it > 0)
-                izBasis = $"Table {own.Id} ({rec}, recorded on the circuit) It for {csa:0.#} mm², 30 °C, ungrouped";
+                izBasis = $"{own.Cite()} ({rec}, recorded on the circuit) It for {csa:0.#} mm², 30 °C, ungrouped";
             else
             {
                 Bs7671CapacityTable from = null;
                 it = tables != null && csa > 0 ? tables.MaxTabulatedIt("Cu", csa, ph, out from) : 0;
-                if (from != null)
-                    izBasis = $"highest tabulated It for {csa:0.#} mm² Cu in any shipped table (Table {from.Id} method {from.InstallMethod}, " +
+                if (tables != null && !string.IsNullOrEmpty(tables.LoadError))
+                    izBasis = tables.LoadError;
+                else if (from != null)
+                    izBasis = $"highest tabulated It for {csa:0.#} mm² Cu in any {(tables.HasProjectLayer ? "loaded (project-layered)" : "shipped")} table ({from.Cite()} method {from.InstallMethod}, " +
                               $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — no complete cable record on the circuit";
             }
             row.Iz = it > 0 ? it : (double?)null;

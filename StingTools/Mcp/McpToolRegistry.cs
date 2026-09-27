@@ -447,7 +447,8 @@ namespace StingTools.Mcp
                     "READ-ONLY. Pure BS 7671 / NEC cable-sizing calculator — no Revit model needed. Given a " +
                     "single circuit's electrical inputs, returns the recommended conductor size, design current, " +
                     "voltage drop %, VD compliance, and the next standard breaker. loadKW and lengthM are " +
-                    "required. Numeric inputs are in engineering units (kW, V, m, °C, mm²). " +
+                    "required. Numeric inputs are in engineering units (kW, V, m, °C, mm²). Uses the corporate " +
+                    "BS 7671 tables, never a project wire-table override (the result says so in tableOrigin). " +
                     "Example: {loadKW:7.2, voltageV:230, lengthM:35, phases:1, standard:'BS7671'}.",
                 InputSchema = JObject.Parse(@"{
                     ""type"": ""object"",

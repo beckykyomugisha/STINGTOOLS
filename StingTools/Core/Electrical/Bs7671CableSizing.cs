@@ -67,7 +67,36 @@ namespace StingTools.Core.Electrical
         public double MaxConductorTempC { get; set; }
         public string InstallMethod { get; set; }  // "C"
         public List<Bs7671CapacityRow> Rows { get; } = new List<Bs7671CapacityRow>();
+
+        /// <summary>Corporate (the shipped, source-checked transcription) or Project (from a
+        /// project's _BIM_COORD/bs7671_wire_tables.json override — ELEC-21).</summary>
+        public Bs7671Origin Origin { get; set; } = Bs7671Origin.Corporate;
+        /// <summary>Project tables: where the figures came from (the override's "source").</summary>
+        public string SourceNote { get; set; }
+        /// <summary>Project tables: the corporate table id this one replaced, if any.</summary>
+        public string ReplacedCorporateId { get; set; }
+        /// <summary>Project tables: the two-source attestation, when one was given and valid.</summary>
+        public string TwoSourceCheckNote { get; set; }
+
+        /// <summary>How reports cite this table. Corporate: "Table 4D2A". Project: says so,
+        /// with what it replaced and its source, so project data never reads as corporate.</summary>
+        public string Cite()
+        {
+            if (Origin == Bs7671Origin.Corporate) return $"Table {Id}";
+            var s = new StringBuilder($"project table {Id} (");
+            if (!string.IsNullOrEmpty(ReplacedCorporateId)) s.Append($"replaces corporate Table {ReplacedCorporateId}; ");
+            s.Append($"source: {SourceNote}");
+            if (!string.IsNullOrEmpty(TwoSourceCheckNote)) s.Append($"; two-source check: {TwoSourceCheckNote}");
+            return s.Append(')').ToString();
+        }
+
+        /// <summary>How reports cite the voltage-drop companion table.</summary>
+        public string CiteVoltDrop()
+            => Origin == Bs7671Origin.Corporate ? $"Table {VoltDropTable}" : $"project table {VoltDropTable}";
     }
+
+    /// <summary>Where a table or factor came from.</summary>
+    public enum Bs7671Origin { Corporate, Project }
 
     /// <summary>The Appendix 4 data the sizer runs on — parsed from STING_WIRE_TABLES.json.</summary>
     public sealed class Bs7671Data
@@ -82,6 +111,32 @@ namespace StingTools.Core.Electrical
         public double SemiEnclosedFuseCf { get; set; } = 0.725;
 
         public const string DefaultCableType = "Multicore";
+
+        // ── Provenance (ELEC-21). Filled by Bs7671TableLayering; empty for plain FromJson. ──
+        /// <summary>Set when the data cannot be trusted (a malformed project override, or a
+        /// missing corporate file). The sizer refuses with it; nothing is substituted.</summary>
+        public string LoadError { get; set; }
+        public List<string> Warnings { get; } = new List<string>();
+        /// <summary>The project override file applied, or null.</summary>
+        public string OverrideFile { get; set; }
+        public bool HasProjectLayer { get; set; }
+        /// <summary>Human-readable list of what the project layer replaced, added or removed.</summary>
+        public List<string> ProjectChanges { get; } = new List<string>();
+        /// <summary>Lookup keys (see <see cref="Key"/>) the project layer removed.</summary>
+        public HashSet<string> RemovedKeys { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Insulations whose Table 4B1 row came from the project layer.</summary>
+        public HashSet<string> AmbientFromProject { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Arrangements whose Table 4C1 row came from the project layer.</summary>
+        public HashSet<string> GroupingFromProject { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        public bool CfFromProject { get; set; }
+
+        /// <summary>The lookup identity of a table: what <see cref="FindTable"/> matches on.</summary>
+        public static string Key(string conductor, string insulation, string cableType, string method)
+            => string.Join("|", (conductor ?? "").Trim().ToUpperInvariant(), (insulation ?? "").Trim().ToUpperInvariant(),
+                           (string.IsNullOrWhiteSpace(cableType) ? DefaultCableType : cableType.Trim()).ToUpperInvariant(),
+                           NormaliseMethod(method));
+
+        public static string Key(Bs7671CapacityTable t) => Key(t.Conductor, t.Insulation, t.CableType, t.InstallMethod);
 
         /// <summary>
         /// BS 7671 reference-method letter for a method code. The IEC sub-codes the panels
@@ -145,57 +200,70 @@ namespace StingTools.Core.Electrical
             if (sec == null) return d;
 
             foreach (var t in (sec["capacityTables"] as JArray ?? new JArray()).OfType<JObject>())
-            {
-                var table = new Bs7671CapacityTable
-                {
-                    Id = (string)t["id"],
-                    VoltDropTable = (string)t["voltDropTable"],
-                    Description = (string)t["description"],
-                    Conductor = (string)t["conductor"],
-                    Insulation = (string)t["insulation"],
-                    MaxConductorTempC = t["maxConductorTempC"]?.Value<double>() ?? 0,
-                    InstallMethod = (string)t["installMethod"],
-                    CableType = (string)t["cableType"] ?? DefaultCableType,
-                };
-                foreach (var r in (t["sizes"] as JArray ?? new JArray()).OfType<JObject>())
-                {
-                    bool verified = Bool(r["verified"]);
-                    table.Rows.Add(new Bs7671CapacityRow
-                    {
-                        CsaMm2 = Num(r["csaMm2"]),
-                        It1ph = Num(r["It_1ph"]),
-                        It3ph = Num(r["It_3ph"]),
-                        MvAm1ph = Num(r["mVAm_1ph"]),
-                        MvAm3ph = Num(r["mVAm_3ph"]),
-                        Verified = verified,
-                        MvVerified = r["mvVerified"] == null || r["mvVerified"].Type == JTokenType.Null ? verified : Bool(r["mvVerified"]),
-                    });
-                }
-                table.Rows.Sort((a, b) => a.CsaMm2.CompareTo(b.CsaMm2));
-                d.Tables.Add(table);
-            }
+                d.Tables.Add(ParseTable(t, strictFlags: false));
 
             if (sec["ambientTemperatureFactors"] is JObject amb)
                 foreach (var p in amb.Properties().Where(p => !p.Name.StartsWith("_") && p.Value is JObject))
-                {
-                    var map = new SortedDictionary<double, double>();
-                    foreach (var q in ((JObject)p.Value).Properties())
-                        map[double.Parse(q.Name, CultureInfo.InvariantCulture)] = q.Value.Value<double>();
-                    d.Ambient[p.Name] = map;
-                }
+                    d.Ambient[p.Name] = ParseAmbient((JObject)p.Value);
 
             if (sec["groupingFactors"] is JObject grp)
                 foreach (var p in grp.Properties().Where(p => !p.Name.StartsWith("_") && p.Value is JObject))
-                {
-                    var map = new SortedDictionary<int, double>();
-                    foreach (var q in ((JObject)p.Value).Properties())
-                        map[int.Parse(q.Name, CultureInfo.InvariantCulture)] = q.Value.Value<double>();
-                    d.Grouping[p.Name] = map;
-                }
+                    d.Grouping[p.Name] = ParseGrouping((JObject)p.Value);
 
             if (sec["semiEnclosedFuseFactorCf"] != null)
                 d.SemiEnclosedFuseCf = sec["semiEnclosedFuseFactorCf"].Value<double>();
             return d;
+        }
+
+        /// <summary>One capacity table. <paramref name="strictFlags"/> (project data): a row's
+        /// mvVerified must be stated — it does NOT default to verified, which would quietly
+        /// mark an override's mV/A/m as checked.</summary>
+        internal static Bs7671CapacityTable ParseTable(JObject t, bool strictFlags)
+        {
+            var table = new Bs7671CapacityTable
+            {
+                Id = (string)t["id"],
+                VoltDropTable = (string)t["voltDropTable"],
+                Description = (string)t["description"],
+                Conductor = (string)t["conductor"],
+                Insulation = (string)t["insulation"],
+                MaxConductorTempC = t["maxConductorTempC"]?.Value<double>() ?? 0,
+                InstallMethod = (string)t["installMethod"],
+                CableType = (string)t["cableType"] ?? DefaultCableType,
+            };
+            foreach (var r in (t["sizes"] as JArray ?? new JArray()).OfType<JObject>())
+            {
+                bool verified = Bool(r["verified"]);
+                bool mvAbsent = r["mvVerified"] == null || r["mvVerified"].Type == JTokenType.Null;
+                table.Rows.Add(new Bs7671CapacityRow
+                {
+                    CsaMm2 = Num(r["csaMm2"]),
+                    It1ph = Num(r["It_1ph"]),
+                    It3ph = Num(r["It_3ph"]),
+                    MvAm1ph = Num(r["mVAm_1ph"]),
+                    MvAm3ph = Num(r["mVAm_3ph"]),
+                    Verified = verified,
+                    MvVerified = mvAbsent ? (!strictFlags && verified) : Bool(r["mvVerified"]),
+                });
+            }
+            table.Rows.Sort((a, b) => a.CsaMm2.CompareTo(b.CsaMm2));
+            return table;
+        }
+
+        internal static SortedDictionary<double, double> ParseAmbient(JObject o)
+        {
+            var map = new SortedDictionary<double, double>();
+            foreach (var q in o.Properties().Where(q => !q.Name.StartsWith("_")))
+                map[double.Parse(q.Name, CultureInfo.InvariantCulture)] = q.Value.Value<double>();
+            return map;
+        }
+
+        internal static SortedDictionary<int, double> ParseGrouping(JObject o)
+        {
+            var map = new SortedDictionary<int, double>();
+            foreach (var q in o.Properties().Where(q => !q.Name.StartsWith("_")))
+                map[int.Parse(q.Name, CultureInfo.InvariantCulture)] = q.Value.Value<double>();
+            return map;
         }
 
         // A null cell (not transcribed) reads as 0, which the sizer treats as "not carried".
@@ -261,6 +329,10 @@ namespace StingTools.Core.Electrical
         public bool UnverifiedVoltDrop { get; set; }
         /// <summary>Tables, factors and assumptions used — for the derivation note.</summary>
         public string Basis { get; set; } = "";
+        /// <summary>The capacity table came from the project override, not the corporate file.</summary>
+        public bool ProjectTable { get; set; }
+        /// <summary>Ca, Cg or Cf came from the project override.</summary>
+        public bool ProjectFactors { get; set; }
     }
 
     public static class Bs7671CableSizer
@@ -270,6 +342,8 @@ namespace StingTools.Core.Electrical
             var r = new Bs7671SizingResult();
             if (input == null) return Refuse(r, "No input.");
             r.DesignCurrentA = input.DesignCurrentA;
+            if (data != null && !string.IsNullOrEmpty(data.LoadError))
+                return Refuse(r, data.LoadError);
             if (data == null || data.Tables.Count == 0)
                 return Refuse(r, "STING_WIRE_TABLES.json has no bs7671Appendix4 capacity tables; nothing was sized.");
             if (input.DesignCurrentA <= 0) return Refuse(r, "Design current Ib must be > 0.");
@@ -282,6 +356,10 @@ namespace StingTools.Core.Electrical
             string cableType = string.IsNullOrWhiteSpace(input.CableType) ? Bs7671Data.DefaultCableType : input.CableType.Trim();
 
             var table = data.FindTable(material, insulation, method, cableType);
+            if (table == null && data.RemovedKeys.Contains(Bs7671Data.Key(material, insulation, cableType, method)))
+                return Refuse(r,
+                    $"The project override {data.OverrideFile} removes the table for {material} / {insulation} / {cableType} / " +
+                    $"reference method {method}; nothing was sized. Supply a replacement there, or remove the entry.");
             if (table == null)
             {
                 string have = string.Join(", ", data.Tables.Select(t =>
@@ -314,6 +392,7 @@ namespace StingTools.Core.Electrical
                 caNote = key != ta ? $" (ta {ta:0} °C read at the {key:0} °C row)" : "";
             }
             r.Ca = ca;
+            bool caProject = data.AmbientFromProject.Contains(insulation);
 
             // ── Cg — Table 4C1 ──────────────────────────────────────────────────
             int n = Math.Max(1, input.GroupedCircuits);
@@ -333,12 +412,18 @@ namespace StingTools.Core.Electrical
                 cgNote = $"{n} circuits {arr}" + (key != n ? $" (read at the {key}-circuit row)" : "");
             }
             r.Cg = cg;
+            bool cgProject = n > 1 && data.GroupingFromProject.Contains(
+                string.IsNullOrWhiteSpace(input.GroupingArrangement) ? "Bunched" : input.GroupingArrangement);
 
             double ci = input.Ci > 0 && input.Ci <= 1.0 ? input.Ci : 1.0;
             r.Ci = ci;
             double extra = input.ExtraDerate > 0 && input.ExtraDerate <= 1.0 ? input.ExtraDerate : 1.0;
             double cf = input.SemiEnclosedFuse ? data.SemiEnclosedFuseCf : 1.0;
             r.Cf = cf;
+            bool cfProject = input.SemiEnclosedFuse && data.CfFromProject;
+            r.ProjectTable = table.Origin == Bs7671Origin.Project;
+            r.ProjectFactors = caProject || cgProject || cfProject;
+            const string po = " [project override]";
 
             // ── In ≥ Ib ─────────────────────────────────────────────────────────
             int[] ratings = input.DeviceRatingsA ?? new int[0];
@@ -369,18 +454,18 @@ namespace StingTools.Core.Electrical
             }
 
             string head =
-                $"BS 7671 Appendix 4, Table {table.Id} ({table.Description}, method {table.InstallMethod}, " +
-                $"{(threePh ? "three-phase" : "single-phase")} column, {table.CableType}) + Table {table.VoltDropTable} mV/A/m. " +
+                $"BS 7671 Appendix 4, {table.Cite()} ({table.Description}, method {table.InstallMethod}, " +
+                $"{(threePh ? "three-phase" : "single-phase")} column, {table.CableType}) + {table.CiteVoltDrop()} mV/A/m. " +
                 $"Ib={input.DesignCurrentA:0.0} A; In={inA} A {input.DeviceLabel} (In ≥ Ib, Reg 433.1.1). " +
-                $"Ca={ca:0.00} Table 4B1 {insulation}{caNote}; Cg={cg:0.00} Table 4C1 ({cgNote}); Ci={ci:0.00}" +
+                $"Ca={ca:0.00} Table 4B1 {insulation}{caNote}{(caProject ? po : "")}; Cg={cg:0.00} Table 4C1 ({cgNote}){(cgProject ? po : "")}; Ci={ci:0.00}" +
                 (extra < 1.0 ? $"; user derate={extra:0.00}" : "") +
-                $"; Cf={cf:0.000}{(input.SemiEnclosedFuse ? " (BS 3036 semi-enclosed fuse)" : "")}. " +
+                $"; Cf={cf:0.000}{(input.SemiEnclosedFuse ? " (BS 3036 semi-enclosed fuse)" : "")}{(cfProject ? po : "")}. " +
                 $"Required It ≥ In/(Ca·Cg·Ci{(extra < 1.0 ? "·derate" : "")}·Cf) = {requiredIt:0.0} A.";
 
             if (capacityOnly == null)
             {
                 r.Basis = head;
-                return Refuse(r, $"No size in Table {table.Id} has It ≥ {requiredIt:0.0} A (largest tabulated " +
+                return Refuse(r, $"No size in {table.Cite()} has It ≥ {requiredIt:0.0} A (largest tabulated " +
                                  $"{table.Rows.Last().CsaMm2:0} mm²). Parallel cables are not sized here.");
             }
             r.CapacityOnlyCsaMm2 = capacityOnly.CsaMm2;
@@ -390,7 +475,7 @@ namespace StingTools.Core.Electrical
                 string why = $"{capacityOnly.CsaMm2:0.#} mm² carries the current, but no size with tabulated " +
                              $"mV/A/m keeps voltage drop within {limit:0.0}% over {input.LengthM:0} m.";
                 if (noMv.Count > 0)
-                    why += $" Table {table.VoltDropTable} mV/A/m is not carried for " +
+                    why += $" {table.CiteVoltDrop()} mV/A/m is not carried for " +
                            string.Join(", ", noMv.Select(c => $"{c:0.#}")) + " mm² — add it from the printed " +
                            "standard to STING_WIRE_TABLES.json; the sizer will not estimate voltage drop.";
                 return Refuse(r, why);
@@ -414,7 +499,14 @@ namespace StingTools.Core.Electrical
             sb.Append($". VD = {r.MvAm:0.###} mV/A/m × {input.DesignCurrentA:0.0} A × {input.LengthM:0.#} m = " +
                       $"{r.VoltDropV:0.00} V = {r.VoltDropPct:0.00}% of {input.VoltageV:0} V (limit {limit:0.0}%; " +
                       "tabulated mV/A/m at max conductor temperature, not corrected for load).");
-            if (r.UnverifiedRow)
+            if (r.UnverifiedRow && r.ProjectTable)
+            {
+                string what = r.UnverifiedCapacity && r.UnverifiedVoltDrop ? "It and mV/A/m"
+                            : r.UnverifiedCapacity ? "It" : "mV/A/m";
+                sb.Append($" VERIFY: the {winner.CsaMm2:0.#} mm² {what} (project table {table.Id}) is single-source " +
+                          $"project data (source: {table.SourceNote}) — confirm against that source before issue.");
+            }
+            else if (r.UnverifiedRow)
             {
                 string what = r.UnverifiedCapacity && r.UnverifiedVoltDrop ? $"It (Table {table.Id}) and mV/A/m (Table {table.VoltDropTable})"
                             : r.UnverifiedCapacity ? $"It (Table {table.Id})" : $"mV/A/m (Table {table.VoltDropTable})";
@@ -422,6 +514,8 @@ namespace StingTools.Core.Electrical
                           "source — confirm against the printed BS 7671 before issue.");
             }
             sb.Append(" Not checked here: adiabatic (Reg 434.5.2), Zs / disconnection time, VD upstream of the circuit origin.");
+            if (r.ProjectTable || r.ProjectFactors)
+                sb.Append($" Sized on PROJECT data from {data.OverrideFile}, not the corporate BS 7671 transcription.");
             r.Basis = sb.ToString();
             return r;
         }

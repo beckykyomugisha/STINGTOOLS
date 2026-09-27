@@ -42,7 +42,8 @@ namespace StingTools.Commands.Electrical.CableSizer
                     VDLimitPct = snap.VDLimitPct <= 0 ? 3.0 : snap.VDLimitPct,
                     Standard = snap.Standard ?? "BS7671",
                 };
-                var result = CableSizerEngine.Calculate(input);
+                var result = CableSizerEngine.Calculate(input,
+                    CableSizerEngine.Bs7671Tables(commandData.Application.ActiveUIDocument?.Document));
                 StingElectricalCommandHandler.LastCableSizeResult = result;
                 StingElectricalCommandHandler.ActivePanel?.RefreshCableResult(result);
                 return Result.Succeeded;

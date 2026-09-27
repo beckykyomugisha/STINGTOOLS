@@ -87,7 +87,15 @@ namespace StingTools.Commands.Electrical
             var inputs = VdInputsFrom(sys);
             manifest.Add(cable);
 
-            var vd = VoltageDropSolver.Solve(new VoltageDropQuery
+            // The same Appendix 4 tables the BS 7671 cable sizer reads, project override included.
+            // An invalid override, or one that removes this table, gives no figure: falling back to
+            // the built-in corporate copy would report a drop the project has said not to use.
+            var bsTables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
+            string vdBlock = !string.IsNullOrEmpty(bsTables.LoadError) ? bsTables.LoadError
+                : bsTables.RemovedKeys.Contains(StingTools.Core.Electrical.Bs7671Data.Key("Cu", "PVC70", StingTools.Core.Electrical.Bs7671Data.DefaultCableType, "C"))
+                    ? $"the project override {bsTables.OverrideFile} removes the PVC70 method C table" : null;
+            var vd = vdBlock != null ? new VoltageDropResult { Refusal = vdBlock, Basis = vdBlock }
+                : VoltageDropSolver.Solve(new VoltageDropQuery
             {
                 CsaMm2 = cable.CsaMm2,
                 LoadAmps = inputs.Amps,
@@ -96,8 +104,7 @@ namespace StingTools.Commands.Electrical
                 ThreePhase = inputs.ThreePhase,
                 Material = cable.ConductorMaterial,
             },
-            // The same Appendix 4 table the BS 7671 cable sizer reads.
-            StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables()?.FindTable("Cu", "PVC70", "C"));
+            bsTables.FindTable("Cu", "PVC70", "C"));
             cable.VoltageDropPct = vd.VoltDropPct;
 
             manifest.Save(doc);

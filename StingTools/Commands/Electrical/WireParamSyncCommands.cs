@@ -600,6 +600,7 @@ namespace StingTools.Commands.Electrical
             if (ctx == null) { message = "No document open."; return Result.Failed; }
             var uidoc = ctx.UIDoc;
             var doc   = ctx.Doc;
+            StingTools.Core.Electrical.Bs7671Data bsTables = null;
 
             var selIds = uidoc.Selection.GetElementIds();
             IList<Element> conduits = selIds.Count > 0
@@ -666,7 +667,7 @@ namespace StingTools.Commands.Electrical
                         Standard       = activeStandard,
                     };
 
-                    var result = CableSizerEngine.Calculate(input);
+                    var result = CableSizerEngine.Calculate(input, bsTables ??= CableSizerEngine.Bs7671Tables(doc));
                     if (result == null) continue;
                     bool assumed = string.IsNullOrWhiteSpace(method);
                     // A refusal must not be written to the model as a zero CSA.

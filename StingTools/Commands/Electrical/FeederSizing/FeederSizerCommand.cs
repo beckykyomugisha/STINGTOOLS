@@ -60,7 +60,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
             CollectInputs(root, settings, inputs, isRoot: true);
 
             var wireTables = WireTableSet.Load(StingToolsApp.DataPath);
-            var results = FeederSizerEngine.CalculateAll(inputs, wireTables);
+            var results = FeederSizerEngine.CalculateAll(inputs, wireTables,
+                StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc));
             LastResults = results;
 
             int written = 0, vdFails = 0, notSized = 0, onDefaults = 0;

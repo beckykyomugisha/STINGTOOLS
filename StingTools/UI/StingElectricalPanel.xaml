@@ -974,6 +974,9 @@
                                 </DataGrid>
                                 <TextBlock x:Name="txtWireRefBasis" TextWrapping="Wrap" FontSize="9" Opacity="0.8" Margin="0,2"
                                            Text="BS 7671 Appendix 4 Table 4D2A (It) / 4D2B (mV/A/m), copper PVC 70 °C, multicore, method C."/>
+                                <Button Content="⟳ Reload wire tables" Style="{StaticResource ElecToolBtn}"
+                                        Tag="Cable_ReloadTables" Click="Cmd_Click" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                        ToolTip="Re-read STING_WIRE_TABLES.json and the project override _BIM_COORD/bs7671_wire_tables.json, and report what is in force"/>
                             </StackPanel>
                         </Expander>
 

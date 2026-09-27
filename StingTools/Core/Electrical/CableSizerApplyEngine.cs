@@ -126,6 +126,9 @@ namespace StingTools.Core.Electrical
 
             var result = new CableSizingApplyResult();
             List<ElectricalSystem> circuits = CollectCircuits(doc, scope);
+            // The tables in force for this document, project override included (ELEC-21).
+            var bsTables = CableSizerEngine.Bs7671Tables(doc);
+            if (!string.IsNullOrEmpty(bsTables.LoadError)) result.Errors.Add(bsTables.LoadError);
             result.Inspected = circuits.Count;
 
             // Compute proposals (pure). Nothing is written here.
@@ -137,7 +140,7 @@ namespace StingTools.Core.Electrical
                     CableSizeInput input = MapInput(sys, assumptions, out string skipReason);
                     if (input == null) { result.Skipped.Add($"{sys.Id.Value}: {skipReason}"); continue; }
 
-                    CableSizeResult r = CableSizerEngine.Calculate(input);
+                    CableSizeResult r = CableSizerEngine.Calculate(input, bsTables);
                     if (r == null || r.RecommendedCsaMm2 <= 0)
                     {
                         result.Skipped.Add($"{sys.Id.Value}: " +

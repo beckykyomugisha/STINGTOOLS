@@ -599,6 +599,8 @@ namespace StingTools.Tags
                 "ElecArcFlash", "ArcFlash", "Arc flash hazard and fault current analysis"),
             (@"\b(sld|single\s+line\s+diagram|elec\s+schematic|one\s+line\s+diag)\b",
                 "ElecSLD", "SLD", "Generate single-line diagram for electrical distribution"),
+            (@"\b(reload\s+(wire|cable)\s+tables?|(wire|cable)\s+tables?\s+(reload|override))\b",
+                "Cable_ReloadTables", "CableSize", "Reload the BS 7671 wire tables and the project override"),
             (@"\b(cable\s+siz(ing)?|conductor\s+siz|wire\s+siz(ing)?)\b",
                 "ElecCableSize", "CableSize", "Size electrical cables to BS 7671"),
             (@"\b(earth(ing)?|bond(ing)?|cpc\s+siz|protective\s+conductor)\b",

@@ -257,6 +257,8 @@ namespace StingTools.UI
                     ApplyCableSizeToCircuit(app, doc); break;
                 case "Cable_ConduitFill":
                     RunConduitFill(); break;
+                case "Cable_ReloadTables":
+                    RunCommand<StingTools.Commands.Electrical.CableSizer.WireTablesReloadCommand>(app); break;
 
                 // ── LITE ─────────────────────────────────────────────
                 case "Lite_Refresh":

@@ -36,6 +36,9 @@ namespace StingTools.Commands.Electrical
                 snap.RoomTargets = BuildRoomTargets(doc);
                 // Matches the grid's default selection (copper / PVC 70 °C / method C =
                 // Table 4D2A, the one shipped Appendix 4 table).
+                // Remember where this document's project wire-table override lives, so the
+                // grid's later refreshes (on the UI thread, no Document) read the same tables.
+                LastWireTableOverridePath = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.OverridePath(doc);
                 snap.WireRefRows = BuildWireRefRows("Cu", "PVC70", "C", out string wireRefBasis);
                 snap.WireRefBasis = wireRefBasis;
                 snap.ComplianceItems = BuildCompliance(doc);
@@ -282,7 +285,18 @@ namespace StingTools.Commands.Electrical
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method, out string basis)
             => BuildWireRefRows(material, insulation, method, StingTools.Core.Electrical.Bs7671Data.DefaultCableType, out basis);
 
+        /// <summary>The project wire-table override path of the document last snapshotted.
+        /// Null before any snapshot, when the grid shows the corporate tables.</summary>
+        internal static string LastWireTableOverridePath { get; set; }
+
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method,
+                                                        string cableType, out string basis)
+            => BuildWireRefRows(StingTools.Commands.Electrical.CableSizer.CableSizerEngine
+                                    .Bs7671TablesForOverridePath(LastWireTableOverridePath),
+                                material, insulation, method, cableType, out basis);
+
+        public static List<WireRefRow> BuildWireRefRows(StingTools.Core.Electrical.Bs7671Data data,
+                                                        string material, string insulation, string method,
                                                         string cableType, out string basis)
         {
             if (string.IsNullOrEmpty(cableType)) cableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
@@ -290,8 +304,20 @@ namespace StingTools.Commands.Electrical
             basis = "";
             try
             {
-                var data = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
+                if (data != null && !string.IsNullOrEmpty(data.LoadError))
+                {
+                    basis = data.LoadError;
+                    rows.Add(new WireRefRow { Size = "—", Imax1Ph = "project override invalid", Imax3Ph = "", Mv1Ph = "", Mv3Ph = "" });
+                    return rows;
+                }
                 var table = data?.FindTable(material, insulation, method, cableType);
+                if (table == null && data != null
+                    && data.RemovedKeys.Contains(StingTools.Core.Electrical.Bs7671Data.Key(material, insulation, cableType, method)))
+                {
+                    basis = $"The project override {data.OverrideFile} removes the table for {material} / {insulation} / {cableType} / method {method}.";
+                    rows.Add(new WireRefRow { Size = "—", Imax1Ph = "removed by project", Imax3Ph = "", Mv1Ph = "", Mv3Ph = "" });
+                    return rows;
+                }
                 if (table == null)
                 {
                     string have = data == null || data.Tables.Count == 0
@@ -319,8 +345,10 @@ namespace StingTools.Commands.Electrical
                         Mv3Ph = $"{r.MvAm3ph:0.###}",
                     });
                 }
-                basis = $"BS 7671 Appendix 4 Table {table.Id} (It, A — {table.Description}, method {table.InstallMethod}, " +
-                        $"30 °C, ungrouped) and Table {table.VoltDropTable} (mV/A/m: 2-core 1-ph / 3–4-core 3-ph)." +
+                basis = $"BS 7671 Appendix 4 {table.Cite()} (It, A — {table.Description}, method {table.InstallMethod}, " +
+                        $"30 °C, ungrouped) and {table.CiteVoltDrop()} (mV/A/m: 2-core 1-ph / 3–4-core 3-ph)." +
+                        (table.Origin == StingTools.Core.Electrical.Bs7671Origin.Project
+                            ? $" PROJECT data from {data.OverrideFile}, not the corporate transcription." : "") +
                         (unverifiedIt > 0 ? $" * It on {unverifiedIt} row(s) has one source — verify before use." : "") +
                         (unverifiedMv > 0 ? $" † mV/A/m on {unverifiedMv} row(s) has one source — verify before use." : "");
             }
