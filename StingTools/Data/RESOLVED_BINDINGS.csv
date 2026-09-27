@@ -1023,11 +1023,11 @@ DS_TICK_SIZE_NR,Generic Models
 DS_TYPE_TXT,Generic Models
 DS_UNITS_FORMAT_TXT,Generic Models
 ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_ELECTRODE_TXT,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_PPE_CAT,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment|Electrical Circuits
-ELC_ARC_FLASH_ELECTRODE_TXT,Electrical Equipment
 ELC_ATS_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
 ELC_ATS_TIME_S_NR,Electrical Equipment|Electrical Circuits
 ELC_BUSBAR_CSA_MM2,Electrical Equipment|Electrical Circuits|Cable Trays
