@@ -668,15 +668,6 @@ namespace StingTools.Docs
                 }
             }
 
-            // "Export linked models" is a checkbox on the IFC card that RunIfc never
-            // read — links were left out whatever it said. Warn until it is wired
-            // (the exporter's linked-file option differs across Revit 2025–2027 and
-            // has not been verified in Revit).
-            if ((profile.Formats & ExportFormats.IFC) != 0 && profile.Ifc.ExportLinkedModels)
-                issues.Add(Warn("IFC_LINKS_NOT_EXPORTED",
-                    "IFC 'Export linked models' is not implemented — linked models will NOT be in the IFC. " +
-                    "Export each link from its own model."));
-
             // NWC availability
             if ((profile.Formats & ExportFormats.NWC) != 0)
             {
@@ -1118,6 +1109,7 @@ namespace StingTools.Docs
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
+                ApplyPdfLayout(opts, profile.Pdf);
 
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
 
@@ -1264,6 +1256,7 @@ namespace StingTools.Docs
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
+                ApplyPdfLayout(opts, profile.Pdf);
 
                 bool ok = doc.Export(folder, ordered.Select(v => v.Id).ToList(), opts);
                 row.OutputPath = Path.Combine(folder, stem + ".pdf");
@@ -1336,6 +1329,30 @@ namespace StingTools.Docs
             "BlackAndWhite" => ColorDepthType.BlackLine,
             _               => ColorDepthType.Color,
         };
+
+        /// <summary>Paper placement and zoom from the profile (DOCX-4 — both were saved
+        /// and ignored, so every PDF came out centred at fit-to-page).</summary>
+        private static void ApplyPdfLayout(PDFExportOptions opts, PdfExportSettings pdf)
+        {
+            try
+            {
+                if (string.Equals(pdf.PaperPlacement, "Offset", StringComparison.OrdinalIgnoreCase))
+                {
+                    opts.PaperPlacement = PaperPlacementType.LowerLeft;
+                    opts.OriginOffsetX = pdf.OffsetXmm / 304.8;   // API stores feet
+                    opts.OriginOffsetY = pdf.OffsetYmm / 304.8;
+                }
+                else opts.PaperPlacement = PaperPlacementType.Center;
+
+                if (string.Equals(pdf.Zoom, "Percent", StringComparison.OrdinalIgnoreCase))
+                {
+                    opts.ZoomType = ZoomType.Zoom;
+                    opts.ZoomPercentage = Math.Max(10, Math.Min(500, pdf.ZoomPercent));
+                }
+                else opts.ZoomType = ZoomType.FitToPage;
+            }
+            catch (Exception ex) { StingLog.Warn($"PDF layout options: {ex.Message}"); }
+        }
 
         // ── DWG pipeline ────────────────────────────────────────────────────────
 
@@ -1421,6 +1438,28 @@ namespace StingTools.Docs
             // Only ModelSpaceOnly — which explicitly wants geometry and no paper space — merges.
             opts.MergedViews = profile.Dwg.OutputMode == DwgOutputMode.ModelSpaceOnly;
             opts.FileVersion = MapDwgVersion(profile.Dwg.DwgVersion);
+
+            // Coordinates and layers (DOCX-4: both were saved and ignored).
+            opts.SharedCoords = string.Equals(profile.Dwg.CoordinateSystem, "Shared", StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(profile.Dwg.CoordinateSystem, "Survey", StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                switch ((profile.Dwg.LayerMappingMode ?? "").Trim().ToUpperInvariant())
+                {
+                    case "STANDARD":
+                        if (!string.IsNullOrWhiteSpace(profile.Dwg.LayerStandard))
+                            opts.LayerMapping = profile.Dwg.LayerStandard.Trim();
+                        break;
+                    case "CUSTOM":
+                        if (File.Exists(profile.Dwg.LayerCustomMappingFile ?? ""))
+                            opts.LayerMapping = profile.Dwg.LayerCustomMappingFile;
+                        else
+                            StingLog.Warn($"DWG layer mapping file not found: '{profile.Dwg.LayerCustomMappingFile}' — using the export setup's layers.");
+                        break;
+                    // ByCategory: keep the export setup's own mapping.
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DWG layer mapping: {ex.Message}"); }
             return opts;
         }
 
@@ -1601,6 +1640,15 @@ namespace StingTools.Docs
                         .Cast<Phase>().FirstOrDefault(p => p.Name == profile.Ifc.PhaseName);
                     if (phase != null) opts.AddOption("ActivePhaseId", phase.Id.ToString());
                 }
+                // Coordinate base (DOCX-4). The IFC exporter's SitePlacement option:
+                // 0 shared (survey), 2 project base point, 3 internal origin.
+                string site = (profile.Ifc.CoordinateOrigin ?? "Project").Trim().ToUpperInvariant() switch
+                {
+                    "SURVEY" or "SHARED" => "0",
+                    "INTERNAL" => "3",
+                    _ => "2",
+                };
+                opts.AddOption("SitePlacement", site);
 
                 using (var t = new Transaction(doc, "STING IFC export"))
                 {
@@ -1664,8 +1712,8 @@ namespace StingTools.Docs
                         PixelSize = 2400,
                         ImageResolution = MapImageDpi(profile.Image.Dpi),
                         ExportRange = ExportRange.SetOfViews,
-                        HLRandWFViewsFileType = MapImageType(profile.Image.Format),
-                        ShadowViewsFileType = MapImageType(profile.Image.Format),
+                        HLRandWFViewsFileType = MapImageType(profile.Image.Format, profile.Image.JpegQuality),
+                        ShadowViewsFileType = MapImageType(profile.Image.Format, profile.Image.JpegQuality),
                     };
                     io.SetViewsAndSheets(new List<ElementId> { v.Id });
                     doc.ExportImage(io);
@@ -1704,9 +1752,11 @@ namespace StingTools.Docs
             _      => ImageResolution.DPI_600,
         };
 
-        private static ImageFileType MapImageType(string fmt) => fmt.ToUpperInvariant() switch
+        private static ImageFileType MapImageType(string fmt, int jpegQuality = 100) => fmt.ToUpperInvariant() switch
         {
-            "JPEG" => ImageFileType.JPEGLossless,
+            "JPEG" => jpegQuality >= 90 ? ImageFileType.JPEGLossless
+                    : jpegQuality >= 60 ? ImageFileType.JPEGMedium
+                    : ImageFileType.JPEGSmallest,
             "TIFF" => ImageFileType.TIFF,
             _      => ImageFileType.PNG,
         };
@@ -1715,6 +1765,8 @@ namespace StingTools.Docs
             ExportRunResult result, Action<string> tick, Func<bool> cancel)
         {
             var opts = new DGNExportOptions();
+            opts.FileVersion = string.Equals(profile.Dgn?.Version, "V7", StringComparison.OrdinalIgnoreCase)
+                ? DGNFileFormat.DGNVersion7 : DGNFileFormat.DGNVersion8;
             foreach (var eid in ids)
             {
                 if (cancel != null && cancel()) return;
@@ -1765,12 +1817,12 @@ namespace StingTools.Docs
                     vs.Insert(v);
                     if (profile.Dwf.DwfX)
                     {
-                        var dx = new DWFXExportOptions();
+                        var dx = new DWFXExportOptions { ExportingAreas = profile.Dwf.IncludeRoomBoundaries };
                         ok = doc.Export(folder, stem, vs, dx);
                     }
                     else
                     {
-                        var dw = new DWFExportOptions();
+                        var dw = new DWFExportOptions { ExportingAreas = profile.Dwf.IncludeRoomBoundaries };
                         ok = doc.Export(folder, stem, vs, dw);
                     }
 
@@ -1919,21 +1971,48 @@ namespace StingTools.Docs
                 string folder = profile.Output.LocalFolder;
                 if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return;
                 string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                // CSV only — ReportFormat ("XLSX") has never been honoured, so the
-                // report is always a CSV whatever the profile says.
-                string path = Path.Combine(folder, $"STING_Export_Report_{stamp}.csv");
+                string[] header = { "Format", "SheetNumber", "SheetTitle", "OutputPath", "Bytes", "Success", "Error", "DurationMs" };
+                bool xlsx = string.Equals(profile.Output.ReportFormat, "XLSX", StringComparison.OrdinalIgnoreCase);
+                string path = Path.Combine(folder, $"STING_Export_Report_{stamp}.{(xlsx ? "xlsx" : "csv")}");
 
-                using var w = new StreamWriter(path);
-                w.WriteLine("Format,SheetNumber,SheetTitle,OutputPath,Bytes,Success,Error,DurationMs");
-                foreach (var r in result.Rows)
+                if (xlsx)
                 {
-                    w.WriteLine(string.Join(",", new[]
+                    // ReportFormat defaulted to XLSX and was ignored — every report was CSV.
+                    using var wb = new ClosedXML.Excel.XLWorkbook();
+                    var ws = wb.Worksheets.Add("Export");
+                    for (int c = 0; c < header.Length; c++) ws.Cell(1, c + 1).Value = header[c];
+                    int rowIx = 2;
+                    foreach (var r in result.Rows)
                     {
-                        Csv(r.Format), Csv(r.SheetNumber), Csv(r.SheetTitle),
-                        Csv(r.OutputPath), r.FileSizeBytes.ToString(),
-                        r.Success ? "1" : "0", Csv(r.Error),
-                        ((long)r.Duration.TotalMilliseconds).ToString(),
-                    }));
+                        ws.Cell(rowIx, 1).Value = r.Format ?? "";
+                        ws.Cell(rowIx, 2).Value = r.SheetNumber ?? "";
+                        ws.Cell(rowIx, 3).Value = r.SheetTitle ?? "";
+                        ws.Cell(rowIx, 4).Value = r.OutputPath ?? "";
+                        ws.Cell(rowIx, 5).Value = r.FileSizeBytes;
+                        ws.Cell(rowIx, 6).Value = r.Success ? "OK" : "FAILED";
+                        ws.Cell(rowIx, 7).Value = r.Error ?? "";
+                        ws.Cell(rowIx, 8).Value = (long)r.Duration.TotalMilliseconds;
+                        rowIx++;
+                    }
+                    ws.Row(1).Style.Font.Bold = true;
+                    ws.SheetView.FreezeRows(1);
+                    ws.Columns().AdjustToContents();
+                    wb.SaveAs(path);
+                }
+                else
+                {
+                    using var w = new StreamWriter(path);
+                    w.WriteLine(string.Join(",", header));
+                    foreach (var r in result.Rows)
+                    {
+                        w.WriteLine(string.Join(",", new[]
+                        {
+                            Csv(r.Format), Csv(r.SheetNumber), Csv(r.SheetTitle),
+                            Csv(r.OutputPath), r.FileSizeBytes.ToString(),
+                            r.Success ? "1" : "0", Csv(r.Error),
+                            ((long)r.Duration.TotalMilliseconds).ToString(),
+                        }));
+                    }
                 }
                 result.ReportPath = path;
                 StingLog.Info($"Export report written: {path}");

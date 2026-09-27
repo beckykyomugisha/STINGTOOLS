@@ -546,8 +546,8 @@ namespace StingTools.UI
             if ((_profile.Formats & ExportFormats.DWG)   != 0) _formatOptionsHost.Children.Add(BuildDwgOptions());
             if ((_profile.Formats & ExportFormats.IFC)   != 0) _formatOptionsHost.Children.Add(BuildIfcOptions());
             if ((_profile.Formats & ExportFormats.NWC)   != 0) _formatOptionsHost.Children.Add(BuildNwcOptions());
-            if ((_profile.Formats & ExportFormats.DGN)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("DGN", "Default DGN export options applied."));
-            if ((_profile.Formats & ExportFormats.DWF)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("DWF", "DWFx default options applied."));
+            if ((_profile.Formats & ExportFormats.DGN)   != 0) _formatOptionsHost.Children.Add(BuildDgnOptions());
+            if ((_profile.Formats & ExportFormats.DWF)   != 0) _formatOptionsHost.Children.Add(BuildDwfOptions());
             if ((_profile.Formats & ExportFormats.Image) != 0) _formatOptionsHost.Children.Add(BuildImageOptions());
             if ((_profile.Formats & ExportFormats.XML)   != 0) _formatOptionsHost.Children.Add(BuildXmlOptions());
         }
@@ -650,6 +650,15 @@ namespace StingTools.UI
             wmRows.TextChanged += (_, __) => { if (int.TryParse(wmRows.Text, out int n) && n > 0) _profile.Pdf.WatermarkTileRows = n; };
             sp.Children.Add(LabelFor("Tile rows", wmRows));
 
+            // Placement and zoom (were saved in the profile but never applied).
+            sp.Children.Add(LabelFor("Paper placement", BindCombo(new[] { "Centre", "Offset" },
+                _profile.Pdf.PaperPlacement, v => _profile.Pdf.PaperPlacement = v)));
+            sp.Children.Add(LabelFor("Offset X (mm, Offset only)", BindNumber(_profile.Pdf.OffsetXmm, v => _profile.Pdf.OffsetXmm = v)));
+            sp.Children.Add(LabelFor("Offset Y (mm, Offset only)", BindNumber(_profile.Pdf.OffsetYmm, v => _profile.Pdf.OffsetYmm = v)));
+            sp.Children.Add(LabelFor("Zoom", BindCombo(new[] { "Fit", "Percent" },
+                _profile.Pdf.Zoom, v => _profile.Pdf.Zoom = v)));
+            sp.Children.Add(LabelFor("Zoom % (Percent only)", BindNumber(_profile.Pdf.ZoomPercent, v => _profile.Pdf.ZoomPercent = (int)Math.Round(v))));
+
             return card;
         }
 
@@ -684,7 +693,8 @@ namespace StingTools.UI
             });
 
             var version = new ComboBox();
-            foreach (var v in new[] { "AC2018", "AC2013", "AC2010", "AC2007", "AC2004" }) version.Items.Add(v);
+            // No AC2004: Revit 2025+ has no R2004, so it silently exported the default version.
+            foreach (var v in new[] { "AC2018", "AC2013", "AC2010", "AC2007" }) version.Items.Add(v);
             version.SelectedItem = _profile.Dwg.DwgVersion;
             version.SelectionChanged += (_, __) => _profile.Dwg.DwgVersion = version.SelectedItem?.ToString() ?? "AC2018";
             sp.Children.Add(LabelFor("DWG version", version));
@@ -692,6 +702,16 @@ namespace StingTools.UI
             var layoutTpl = new TextBox { Text = _profile.Dwg.LayoutNameTemplate };
             layoutTpl.TextChanged += (_, __) => _profile.Dwg.LayoutNameTemplate = layoutTpl.Text;
             sp.Children.Add(LabelFor("Layout tab name template", layoutTpl));
+
+            sp.Children.Add(LabelFor("Coordinates", BindCombo(new[] { "Project", "Shared" },
+                _profile.Dwg.CoordinateSystem, v => _profile.Dwg.CoordinateSystem = v)));
+            sp.Children.Add(LabelFor("Layers", BindCombo(new[] { "ByCategory", "Standard", "Custom" },
+                _profile.Dwg.LayerMappingMode, v => _profile.Dwg.LayerMappingMode = v)));
+            sp.Children.Add(LabelFor("Layer standard (Standard)", BindCombo(new[] { "AIA", "BS1192", "ISO13567", "CP83" },
+                _profile.Dwg.LayerStandard, v => _profile.Dwg.LayerStandard = v)));
+            var layerFile = new TextBox { Text = _profile.Dwg.LayerCustomMappingFile ?? "" };
+            layerFile.TextChanged += (_, __) => _profile.Dwg.LayerCustomMappingFile = layerFile.Text;
+            sp.Children.Add(LabelFor("Layer mapping file (Custom)", layerFile));
 
             sp.Children.Add(BindCheck("Fall back to individual files if merge fails",
                 () => _profile.Dwg.FallbackOnMergeFailure, v => _profile.Dwg.FallbackOnMergeFailure = v));
@@ -753,7 +773,11 @@ namespace StingTools.UI
                 _profile.Ifc.PhaseName = phase.SelectedIndex == 0 ? null : phase.SelectedItem?.ToString();
             sp.Children.Add(LabelFor("Phase", phase));
 
-            sp.Children.Add(BindCheck("Export linked models", () => _profile.Ifc.ExportLinkedModels, v => _profile.Ifc.ExportLinkedModels = v));
+            // "Export linked models" was removed: RunIfc never read it, and a linked
+            // document cannot host the transaction the IFC exporter runs in. Export each
+            // link from its own model — it files into its discipline folder by name.
+            sp.Children.Add(LabelFor("Coordinates", BindCombo(new[] { "Project", "Survey", "Internal" },
+                _profile.Ifc.CoordinateOrigin, v => _profile.Ifc.CoordinateOrigin = v)));
 
             return card;
         }
@@ -774,7 +798,49 @@ namespace StingTools.UI
             dpi.SelectedItem = _profile.Image.Dpi;
             dpi.SelectionChanged += (_, __) => { if (int.TryParse(dpi.SelectedItem?.ToString(), out int n)) _profile.Image.Dpi = n; };
             sp.Children.Add(LabelFor("DPI", dpi));
+            sp.Children.Add(LabelFor("JPEG quality (≥90 lossless, ≥60 medium)",
+                BindNumber(_profile.Image.JpegQuality, v => _profile.Image.JpegQuality = (int)Math.Round(v))));
 
+            return card;
+        }
+
+        /// <summary>A combo over fixed values, bound to a string setting.</summary>
+        private ComboBox BindCombo(string[] values, string current, Action<string> write)
+        {
+            var cb = new ComboBox();
+            foreach (var v in values) cb.Items.Add(v);
+            cb.SelectedItem = values.FirstOrDefault(v => string.Equals(v, current, StringComparison.OrdinalIgnoreCase)) ?? values[0];
+            cb.SelectionChanged += (_, __) => write(cb.SelectedItem?.ToString() ?? values[0]);
+            return cb;
+        }
+
+        /// <summary>A text box bound to a number; invalid text is ignored, not saved.</summary>
+        private TextBox BindNumber(double current, Action<double> write)
+        {
+            var tb = new TextBox { Text = current.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+            tb.TextChanged += (_, __) =>
+            {
+                if (double.TryParse(tb.Text, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v)) write(v);
+            };
+            return tb;
+        }
+
+        private Border BuildDgnOptions()
+        {
+            var card = NewSection("DGN — Version");
+            var sp = (StackPanel)card.Child;
+            sp.Children.Add(LabelFor("Version", BindCombo(new[] { "V8", "V7" },
+                _profile.Dgn.Version, v => _profile.Dgn.Version = v)));
+            return card;
+        }
+
+        private Border BuildDwfOptions()
+        {
+            var card = NewSection("DWF — Format & content");
+            var sp = (StackPanel)card.Child;
+            sp.Children.Add(BindCheck("DWFx (else DWF)", () => _profile.Dwf.DwfX, v => _profile.Dwf.DwfX = v));
+            sp.Children.Add(BindCheck("Include rooms and areas", () => _profile.Dwf.IncludeRoomBoundaries, v => _profile.Dwf.IncludeRoomBoundaries = v));
             return card;
         }
 
@@ -1035,6 +1101,8 @@ namespace StingTools.UI
             var rSp = (StackPanel)report.Child;
             rSp.Children.Add(BindCheck("Generate report", () => _profile.Output.GenerateReport, v => _profile.Output.GenerateReport = v));
             rSp.Children.Add(BindCheck("Open report when done", () => _profile.Output.OpenReportWhenDone, v => _profile.Output.OpenReportWhenDone = v));
+            rSp.Children.Add(LabelFor("Report format", BindCombo(new[] { "XLSX", "CSV" },
+                _profile.Output.ReportFormat, v => _profile.Output.ReportFormat = v)));
             sp.Children.Add(report);
 
             return new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -1237,6 +1305,9 @@ namespace StingTools.UI
                 var ids = ExportCenterEngine.ResolveSet(_doc, set, out int missing);
                 var idSet = new HashSet<long>(ids.Select(e => e.Value));
                 foreach (var r in _rows) r.IsChecked = idSet.Contains(r.Id);
+                // The set's saved search text was stored and never restored.
+                if (!set.BuiltIn && _searchBox != null && set.FilterText != null && _searchBox.Text != set.FilterText)
+                    _searchBox.Text = set.FilterText;
                 if (missing > 0) UpdateStatusLine($"{missing} sheets in set were not found in this model.");
                 else UpdateStatusLine();
             }

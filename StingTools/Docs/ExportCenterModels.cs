@@ -89,13 +89,14 @@ namespace StingTools.Docs
         public string HiddenLineMode { get; set; } = "Auto";   // Vector / Raster / Auto
         public string ColourScheme { get; set; } = "Colour";   // Colour / Greyscale / BlackAndWhite
         public int RasterDpi { get; set; } = 300;
+        /// <summary>Centre / Offset (lower-left + OffsetXmm/OffsetYmm). PDFExportOptions.PaperPlacement.</summary>
         public string PaperPlacement { get; set; } = "Centre"; // Centre / Offset
         public double OffsetXmm { get; set; }
         public double OffsetYmm { get; set; }
+        /// <summary>Fit / Percent (ZoomPercent). PDFExportOptions.ZoomType.</summary>
         public string Zoom { get; set; } = "Fit";
         public int ZoomPercent { get; set; } = 100;
 
-        public string Printer { get; set; } = "RevitNative";   // RevitNative / PDF24 / SystemDefault
 
         public bool ApplyWatermark { get; set; }
         public string WatermarkText { get; set; } = "DRAFT";
@@ -124,14 +125,12 @@ namespace StingTools.Docs
     {
         public DwgOutputMode OutputMode { get; set; } = DwgOutputMode.OnePerSheet;
         public string ExportSetupName { get; set; } = "<in-session>";
-        public string LayerMappingMode { get; set; } = "ByCategory";  // ByCategory / Standard / Custom
-        public string LayerStandard { get; set; } = "AIA";            // AIA / BS1192 / Custom
+        /// <summary>ByCategory (Revit / export setup default) / Standard (LayerStandard) /
+        /// Custom (LayerCustomMappingFile) — BaseExportOptions.LayerMapping.</summary>
+        public string LayerMappingMode { get; set; } = "ByCategory";
+        public string LayerStandard { get; set; } = "AIA";            // AIA / BS1192 / ISO13567 / CP83
         public string LayerCustomMappingFile { get; set; }
-        public string LineworkSource { get; set; } = "Revit";         // Revit / ExportSetup
         public string CoordinateSystem { get; set; } = "Project";     // Project / Shared / Survey
-        public string LinkedModelMode { get; set; } = "Embed";        // Embed / XRefs / Ignore
-        public bool BindRasterImages { get; set; }
-        public bool RunAuditAfterExport { get; set; }
         public string DwgVersion { get; set; } = "AC2018";            // AC2018 / AC2013 / AC2010 / AC2007 / AC2004
 
         public string LayoutNameTemplate { get; set; } = "{SheetNumber}";
@@ -148,9 +147,9 @@ namespace StingTools.Docs
         public string ExportSetupName { get; set; } = "<in-session>";
         public string Schema { get; set; } = "IFC4";            // IFC2x3 / IFC4 / IFC4x3
         public string PhaseName { get; set; }
-        public bool ExportLinkedModels { get; set; }
         public string Classification { get; set; } = "None";    // Uniclass / OmniClass / None
         public string Geometry { get; set; } = "BRep";          // Solid / BRep / Triangulated
+        /// <summary>Project / Survey / Internal — the IFC exporter's "SitePlacement" option.</summary>
         public string CoordinateOrigin { get; set; } = "Project"; // Project / Survey / Internal
     }
 
@@ -165,21 +164,21 @@ namespace StingTools.Docs
     {
         public string Format { get; set; } = "PNG";              // JPEG / PNG / TIFF
         public int Dpi { get; set; } = 300;
-        public string ColourDepth { get; set; } = "RGB24";       // RGB24 / Grey8
+        /// <summary>JPEG only: ≥90 lossless, ≥60 medium, else smallest (ImageFileType).</summary>
         public int JpegQuality { get; set; } = 85;
-        public bool TransparentBackground { get; set; }
     }
 
     public class DgnExportSettings
     {
+        /// <summary>V8 or V7 (DGNExportOptions.FileVersion). Revit's DGN export has no
+        /// coordinate-system option; the seed file decides it.</summary>
         public string Version { get; set; } = "V8";
-        public string CoordinateSystem { get; set; } = "Project";
     }
 
     public class DwfExportSettings
     {
+        /// <summary>DWFExportOptions.ExportingAreas — rooms and areas as geometry.</summary>
         public bool IncludeRoomBoundaries { get; set; } = true;
-        public bool IncludeMarkupGeometry { get; set; } = true;
         public bool DwfX { get; set; } = true;
     }
 
@@ -210,13 +209,10 @@ namespace StingTools.Docs
         /// receives the export report.</summary>
         public bool RouteByProjectStructure { get; set; }
 
-        // CDE only
-        public string CdeStateOnUpload { get; set; } = "Shared";
+        // CDE
         public SuitabilityCode CdeSuitability { get; set; } = SuitabilityCode.S2;
+        /// <summary>Record each exported sheet file in the project's document register.</summary>
         public bool CdeAutoRegister { get; set; } = true;
-        public bool CdeTriggerWorkflow { get; set; }
-        public string CdeWorkflowPreset { get; set; } = "deliverable_issue_default";
-        public bool CdeNotifyTeam { get; set; } = true;
 
         // Naming — default to ISO 19650-2 full template; ExportCenterEngine
         // auto-populates {ProjectCode} / {Originator} / {Volume} / {Level} /
@@ -224,13 +220,12 @@ namespace StingTools.Docs
         // sheet STING_* params, and the stamped DrawingType (Phase 113).
         public string NamingTemplate { get; set; } =
             "{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}";
-        public string NamingSeparator { get; set; } = "-";
         public FilenameConflictMode ConflictMode { get; set; } = FilenameConflictMode.AutoRename;
         public string IllegalCharReplacement { get; set; } = "-";
 
         // Report
         public bool GenerateReport { get; set; } = true;
-        public string ReportFormat { get; set; } = "XLSX";       // XLSX / CSV
+        public string ReportFormat { get; set; } = "XLSX";       // XLSX / CSV (both honoured)
         public bool OpenReportWhenDone { get; set; }
 
         /// <summary>Record per-sheet last-exported revision + path so the
@@ -246,8 +241,6 @@ namespace StingTools.Docs
         public ExportSelectionKind Kind { get; set; } = ExportSelectionKind.Sheets;
         public List<string> ElementIds { get; set; } = new();
         public string FilterText { get; set; }
-        public string SortColumn { get; set; }
-        public bool SortAscending { get; set; } = true;
         public bool BuiltIn { get; set; }
     }
 
