@@ -4677,6 +4677,16 @@ namespace StingTools.Temp
         {
             var v = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             void Put(string key, string val) { if (!string.IsNullOrEmpty(val)) v[key] = val; }
+            // First parameter with a value, in the unit its name states.
+            string First(params string[] names)
+            {
+                foreach (var n in names)
+                {
+                    string s = ParameterHelpers.GetValueText(el, n);
+                    if (!string.IsNullOrWhiteSpace(s) && s != "0") return s;
+                }
+                return "";
+            }
 
             // Identity
             Put("material", GetMaterialName(doc, el));
@@ -4711,34 +4721,35 @@ namespace StingTools.Temp
             PutDim(el, v, "sill_height", "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM");
             PutDim(el, v, "size",        "ASS_SIZE_TXT");
             PutDim(el, v, "diameter",    "ASS_SIZE_TXT");
-            PutDim(el, v, "airflow",     "HVC_AIRFLOW_LS_NR");
-            PutDim(el, v, "rating",      "ELC_EQP_LOAD_KW_NR", "ELC_EQP_AMPS_NR");
-            PutDim(el, v, "voltage",     "ELC_EQP_VOLTS_NR");
-            PutDim(el, v, "phases",      "ELC_EQP_PHASE_NR");
+            PutDim(el, v, "airflow",     ParamRegistry.HVC_AIRFLOW);
+            PutDim(el, v, "rating",      "ELC_PWR_KW");
+            PutDim(el, v, "voltage",     "ELC_VOLTAGE_V");
+            PutDim(el, v, "phases",      "ELC_CKT_PHASE_COUNT_NR");
 
             // Specs / standards
-            Put("fire_rating", ParameterHelpers.GetString(el, "BLE_FIRE_RATING_TXT"));
+            Put("fire_rating", ParameterHelpers.GetString(el, "PER_FIRE_RATING_TXT"));
             Put("standard", ResolveWorkmanshipStandard(categoryName));
             Put("finish", ParameterHelpers.GetString(el, "ASS_FINISH_TXT"));
-            Put("insulation", ParameterHelpers.GetString(el, "BLE_INSULATION_TXT"));
-            Put("substrate", ParameterHelpers.GetString(el, "BLE_SUBSTRATE_TXT"));
-            Put("fixings", ParameterHelpers.GetString(el, "ASS_FIXINGS_TXT"));
-            Put("frame_material", ParameterHelpers.GetString(el, "BLE_FRAME_MATERIAL_TXT"));
-            Put("hardware", ParameterHelpers.GetString(el, "BLE_HARDWARE_TXT"));
-            Put("glass_spec", ParameterHelpers.GetString(el, "BLE_GLASS_SPEC_TXT"));
+            Put("insulation", ParameterHelpers.GetString(el, "BLE_WALL_INSULATION_TXT"));
+            // substrate / fixings / edge trim have no parameter anywhere; the names read
+            // here before were never defined, so they are no longer read.
+            Put("frame_material", ParameterHelpers.GetString(el, "PER_FRAME_MATERIAL_TXT"));
+            Put("hardware", First("BLE_DOOR_HARDWARE_SPECIFICATION_TXT", "BLE_CASEWORK_HARDWARE_TXT"));
+            Put("glass_spec", First("ARC_GLAZING_SPEC_TXT", "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT", "BLE_DOOR_GLAZING_TYPE_TXT", "BLE_PANEL_GLASS_TYPE_TXT"));
             Put("door_type", typeName);
             Put("window_type", typeName);
             Put("foundation_type", typeName);
             Put("terminal_type", typeName);
-            Put("concrete_spec", ParameterHelpers.GetString(el, "STR_CONCRETE_GRADE_TXT"));
-            Put("reinforcement", ParameterHelpers.GetString(el, "STR_REBAR_SPEC_TXT"));
-            Put("section_size", ParameterHelpers.GetString(el, "STR_SECTION_SIZE_TXT"));
+            Put("concrete_spec", ParameterHelpers.GetString(el, "BLE_STRUCT_CONCRETE_GRADE_TXT"));
+            Put("reinforcement", ParameterHelpers.GetString(el, "STR_REBAR_DETAIL_TXT"));
+            Put("section_size", ParameterHelpers.GetString(el, "STR_SECTION_PROFILE_TXT"));
             Put("equipment_type", typeName);
             Put("furniture_type", typeName);
             Put("casework_type", typeName);
-            Put("worktop_material", ParameterHelpers.GetString(el, "BLE_WORKTOP_MATERIAL_TXT"));
-            Put("edge_trim", ParameterHelpers.GetString(el, "BLE_EDGE_TRIM_TXT"));
-            Put("spacing", ParameterHelpers.GetString(el, "ASS_SPACING_MM_NR"));
+            Put("worktop_material", ParameterHelpers.GetString(el, "BLE_CASEWORK_MATERIAL_TXT"));
+            // Support / hanger / baluster / rib spacing, all in mm.
+            Put("spacing", First("PLM_PPE_SUPPORTS_SPACING_MM", "HVC_DCT_SUPPORTS_SPACING_MM", "ELC_CDT_SUPPORT_SPACING_MM",
+                                 "ELC_CBT_SUPPORT_SPACING_MM", "STING_HANGER_SPACING_MM", "BLE_RAILING_BALUSTER_SPACING_MM", "BLE_SLAB_RIB_SPACING_MM"));
             Put("dimensions", BuildDimensionSummary(v));
 
             // User-provided descriptions (last resort)
@@ -4876,11 +4887,12 @@ namespace StingTools.Temp
             if (v.ContainsKey(key)) return;
             foreach (string pName in paramNames)
             {
-                string s = ParameterHelpers.GetString(el, pName);
+                // GetValueText: most of these are LENGTH / NUMBER, where GetString returned "".
+                string s = ParameterHelpers.GetValueText(el, pName);
                 if (!string.IsNullOrEmpty(s) && s != "0")
                 {
                     // If numeric, round to sensible precision
-                    if (double.TryParse(s, out double d))
+                    if (double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d))
                         s = Math.Round(d, 1).ToString("0.#");
                     v[key] = s;
                     return;
@@ -4991,7 +5003,7 @@ namespace StingTools.Temp
             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-            string fireRating = ParameterHelpers.GetString(el, "PER_FIRE_RATING_HR");
+            string fireRating = ParameterHelpers.GetValueText(el, "PER_FIRE_RATING_HR");
             string material = GetMaterialName(doc, el);
 
             // System/function descriptions

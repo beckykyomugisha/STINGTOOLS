@@ -24185,3 +24185,98 @@ multicore or hid unchecked values.
   schedule text.
 - **Not exercised in Revit.** Rebuild the panel schedule templates (`Panel_TemplatesCreate`) to
   pick up the VD column change.
+
+#### Parameters read by the wrong name or as blank text (2026-09-27)
+
+A sweep of every literal parameter name in the plugin against the shared-parameter files, and of
+every `GetString` read against the parameter's data type.
+
+- **Numbers read as text were blank.** `ParameterHelpers.GetString` returns "" for anything not
+  stored as text, so about 120 reads of NUMBER, LENGTH, AREA, INTEGER, YES/NO and CURRENCY
+  parameters always came back empty. The biggest effect was the TAG7 narrative: U-values,
+  velocities, wall and door sizes, stair geometry, panel breakers, lamp wattage, lead thickness
+  and fire ratings never appeared. The BOQ paragraph dimensions (width, height, thickness) were
+  also always blank.
+  - New `ParameterHelpers.GetValueText` reads any storage as plain invariant text in the unit the
+    name states: LENGTH in mm (m when the name ends `_M`), AREA in m², VOLUME in m³, electrical
+    quantities through `ElecUnits`, other numbers as stored. TEXT reads exactly as `GetString`.
+  - TAG7, the BOQ paragraph builder, the COBie/asset exports, the tie-in and LPS registers, the
+    labour-hours and handover exports, the UL penetration matcher and the display-mode sentinel
+    use it. Parsers that assumed the local culture now parse invariantly or use `GetDouble`.
+  - Behaviour change: HVAC Refresh no longer overwrites a capacity the user entered, and the tag
+    display-mode initialisation no longer re-runs on every tag, because both checks now see the
+    stored value.
+- **System names that do not exist.** Fabrication grouping, cut lists, the workspace filter pills,
+  the duct spec check and the HVAC panel read `HVC_SYS_TXT`, `ELC_SYS_TXT` and a concatenation of
+  three names, so ducts and conduits had no system. `Core/Mep/ServiceSystemName.Read` is now the
+  one reader: `PLM_SYS_TXT`, `MEC_SYS_TXT`, Revit's system name, then the tag's SYS token.
+- **Other wrong names.**
+  - TAG7 medical gas and radiation text: `MGS_DESIGN_FLOW_LPM_NR` (l/min, not L/s),
+    `MGS_NOM_PRESS_KPA_NR`, `MGS_OUTLET_ZONE_TXT`, `RAD_BARRIER_TYPE_TXT`, `RAD_WORKLOAD_MAWK_NR`.
+    The outlet count had no parameter and is dropped.
+  - HVAC panel spools: `AssyParams` weight, fitting count and total length (the `ASSY_*` names
+    never existed, so every spool read "?").
+  - Produce-and-export sheet register: the CDE state from `PRJ_TB_DELIVERABLE_CDE_TXT`, blank when
+    unstamped. It read a nonexistent name and reported every sheet as "WIP".
+  - Fill validator and fill heat map: pipe and duct velocity from `PLM_VEL_MPS` / `HVC_VEL_MPS`;
+    the velocity checks never ran.
+  - Plumbing joint type, sheet Uniclass code, HVAC carbon report kW, carbon tracker mass, and the
+    BOQ paragraph performance and dimension fields.
+- **Left open.** About 60 names remain that no parameter file defines. Most are family parameters
+  or deliberate fallbacks; the few that silence a check are listed in ROADMAP PARAM-10.
+- **Gate.** `check_param_contract.py` counts `GetValueText` as a read; six user-entered inputs
+  that are now read were recorded as inputs.
+- **Tests.** 3,576 passing, including the name-suffix unit rule and invariant formatting. Not
+  exercised in Revit.
+
+#### PARAM-10 closed, and measured values written in the wrong unit (2026-09-27)
+
+- **Checks that never ran.**
+  - The Spec validator's cable voltage check read two undefined names. It now compares the
+    circuit voltage with the cable's rated voltage in the new `ELC_CBL_RATED_V_NR` (U of U0/U,
+    entered from the cable specification). Circuits with no rating are reported in one line.
+  - The carbon stage tracker stamped 0 for any stage whose input was missing, and its A4, B6 and
+    C1 inputs read undefined names. Now:
+    - A4 uses mass × the project setting `CARBON_A4_DISTANCE_KM` (not calculated when unset).
+    - B6 reads `ELC_ENERGY_KWH_PA`.
+    - C1 reads the computed volume.
+    - Mass comes from `ASS_WEIGHT_KG`, else volume × the material library density.
+    - C2 distance is `CARBON_C2_DISTANCE_KM` (default 50 km, as before).
+    - A stage that cannot be calculated is cleared, not set to 0, and the report says how
+      many elements each stage covers.
+  - The architecture cover audit read "FIRE_RATING" and "ANALYTICAL_HEAT_TRANSFER" as
+    parameter names, so it reported every wall as missing both. It reads the type's Fire
+    Rating and heat transfer coefficient, then STING's fields.
+  - `MepA_CableSizeApply` ran a second, generic cable sizer and wrote to a parameter that does
+    not exist, so it never wrote anything. It now previews, confirms and applies through the
+    BS 7671 apply engine, the same one the MCP tool uses. A non-BS 7671 panel standard is
+    refused with the reason.
+- **Parameters the code read but no file defined.** Thirteen are now defined and bound where
+  their readers look. Among them: the standards region (the region picker told users to "load
+  shared params" for a parameter that did not exist), base currency, disciplines, the material
+  sign-off suitability and the supply voltage (Project Information); the gases a clinical room
+  needs (Med Gas Outlet placement asked users to set it); the air system per space (Block
+  Load); fixture kind (connector completeness check); conduit cable manifest (v4 fill check);
+  maintenance access side; plaster faces.
+- **Renamed reads.** HVAC panel manufacturer and model (`ASS_MANUFACTURER_TXT` /
+  `ASS_MODEL_NR_TXT`), fan static fitting reference (`HVC_PROD_REF_TXT`), sheet discipline in the
+  drawing register (`SHT_DISC_TXT`), the carbon heat map (the tracker's stamp before the
+  family figure), BOQ paragraph hardware, glazing, reinforcement and spacing. Substrate,
+  fixings and edge trim have no parameter and are no longer read.
+- **BOQ descriptions no longer invent values.** With no data the template text says "as
+  structural specification" instead of C25/30 concrete, and "as lighting design" instead of
+  300 lux.
+- **Values written in the wrong unit.**
+  - Both hanger placers wrote millimetres straight into LENGTH parameters, which Revit stores
+    in feet, so a 3,000 mm spacing was saved as 3,000 ft.
+  - A mm setter in the routing support placer always divided by 304.8, so the NUMBER
+    parameter `HVC_DCT_INSULATION_THK_MM` stored 0.082 for 25 mm.
+  - The foundation sizer, the column pipeline and the room-area mapping passed measured
+    values to `SetString`, which refuses them, so foundation size and depth, column size and
+    room area were never written.
+  - New `ParameterHelpers.SetDoubleInNamedUnit`, the counterpart of `GetValueText`, writes a
+    value given in the unit its name states to whatever the parameter is: feet for a LENGTH,
+    unchanged for a NUMBER, invariant text for TEXT.
+- **Gate.** `check_param_contract.py` counts `SetDoubleInNamedUnit` as a write.
+- **Tests.** 3,576 passing. Not exercised in Revit. Run Load Shared Parameters to bind the
+  new parameters.

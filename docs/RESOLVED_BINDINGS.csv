@@ -519,6 +519,7 @@ BLE_PARK_BAY_LENGTH_MM,2,ble-sub,Parking,Parking bay length in mm [ISO 19650-1:2
 BLE_PARK_BAY_WIDTH_MM,2,ble-sub,Parking,Parking bay width in mm [ISO 19650-1:2018]
 BLE_PARK_EV_CHARGING_BOOL,2,ble-sub,Parking,EV charging point provided [ISO 19650-1:2018]
 BLE_PARK_TYPE_TXT,2,ble-sub,Parking,Parking bay type classification [ISO 19650-1:2018]
+BLE_PLASTER_FACES_NR,10,wall-level,Walls|Curtain Panels|Curtain Wall Mullions,"Number of wall faces plastered, 0 to 2. The compound take-off prices plaster on this many faces; blank = 2."
 BLE_PLASTER_TYPE_TXT,2,ble-sub,Walls|Floors|Ceilings|Roofs|Rooms,Plaster type specification [ISO 19650-2:2018]
 BLE_RAILING_BALUSTER_SPACING_MM,2,ble-sub,Railings,Railing baluster spacing in mm [ISO 19650-1:2018]
 BLE_RAILING_HEIGHT_MM,2,ble-sub,Handrails|Railings|Top Rails,Railing height in mm [ISO 19650-1:2018]
@@ -1056,6 +1057,7 @@ ELC_CBL_NR_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Nr Txt
 ELC_CBL_NUM_CABLES_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Num Cables [ISO 19650]
 ELC_CBL_NUM_OF_CORES_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Num Of Cores Nr [ISO 19650-1:2018]
 ELC_CBL_NUM_OF_CORES_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,ELC_CBL_NUM_OF_CORES_NR display mirror [auto-generated]
+ELC_CBL_RATED_V_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"Cable rated voltage U in volts, the higher figure of U0/U (500 for 300/500 V, 750 for 450/750 V, 1000 for 0.6/1 kV). Entered from the cable specification; the Spec validator checks it against the circuit voltage."
 ELC_CBL_SOURCE_FROM_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Source From Txt [ISO 19650-1:2018]
 ELC_CBL_SOURCE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Source [ISO 19650-1:2018]
 ELC_CBL_SZ_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Sz Mm [ISO 19650-1:2018]
@@ -1073,6 +1075,7 @@ ELC_CDT_BEND_RADIUS_MM,4,elc-sub,Conduits|Conduit Fittings,Conduit bend radius
 ELC_CDT_BEND_RADIUS_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_BEND_RADIUS_MM display mirror [auto-generated]
 ELC_CDT_BREAKPOINT_TXT,4,elc-sub,Conduits|Conduit Fittings,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 _522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.
 ELC_CDT_CABLE_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)"
+ELC_CDT_CABLE_MANIFEST_TXT,4,elc-sub,Conduits|Conduit Fittings,"Cables in this conduit as csa:count pairs, comma-separated (for example 2.5:3,4:2; add /S for solid conductors). Read by the v4 conduit fill check."
 ELC_CDT_CBL_FILL_PCT,4,elc-sub,Conduits|Conduit Fittings|Cable Trays,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018]
 ELC_CDT_CBL_FILL_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_CBL_FILL_PCT display mirror [auto-generated]
 ELC_CDT_FAB_METHOD_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit fabrication method
@@ -1547,6 +1550,7 @@ HVC_SIZE_RULE_ID_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|
 HVC_SIZE_STALE_BOOL,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,1 when current duct size diverges >20% from the registry target for current flow + role [Phase 183]
 HVC_SIZE_STALE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_SIZE_STALE_BOOL display mirror [auto-generated]
 HVC_SPACE_TYPE_TXT,5,space-level,MEP Spaces|Rooms,"Load-profile space type id (STING_LOAD_PROFILES.json, e.g. Office) for this space or room; read by Block Load, the cross-talk audit and the ComCheck export before falling back to a name match."
+HVC_SYSTEM_ID_TXT,5,space-level,MEP Spaces|Rooms,Air system that serves this space (for example AHU-01). Block Load groups spaces by it; blank falls back to the space's HVAC zone.
 HVC_TAG_7_PARA_ANAL_DUCTS_TXT,5,tag-container,<ALL>,Anal Ducts paragraph [ISO 19650-3:2020]
 HVC_TAG_7_PARA_AT_TXT,5,tag-container,<ALL>,Air terminal paragraph container [ISO 19650-3:2020]
 HVC_TAG_7_PARA_DCTACC_TXT,5,tag-container,<ALL>,Duct accessory paragraph [ISO 19650-3:2020]
@@ -1729,6 +1733,7 @@ MGS_AAP_REF_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing
 MGS_DESIGN_FLOW_LPM_NR,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,"Design flow l/min, free air [HTM 02-01]"
 MGS_DIVERSITY_PCT_NR,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Diversity factor (%) [HTM 02-01 sizing]
 MGS_EQP_TAG,29,tag-container,<ALL>,Medical gas equipment ISO 19650 tag container
+MGS_GAS_REQUIREMENT_TXT,29,space-level,MEP Spaces|Rooms,"Medical gases a clinical room needs, comma-separated codes (O2, VAC, AIR, N2O, AGSS). Read by Med Gas Outlet placement."
 MGS_GAS_TYPE_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99]
 MGS_NOM_PRESS_KPA_NR,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Nominal design pressure (kPa) [BS EN ISO 7396-1]
 MGS_OUTLET_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Outlet Zone Txt [STING]
@@ -1744,6 +1749,7 @@ MGS_VERIFY_PASS_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plu
 MGS_WORKING_PRESSURE_KPA,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Working Pressure Kpa [STING]
 MGS_ZVB_REF_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)
 MGS_ZV_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories,Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.
+MNT_ACCESS_DIR_TXT,9,equipment-level,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment,"Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or ALL. Read by the maintenance clash check."
 MNT_ACCESS_REQUIREMENTS_TXT,9,universal-meta,<ALL>,Mnt Access Requirements [ISO 19650]
 MNT_CAL_LAST_DT,25,universal-meta,<ALL>,Last calibration date (ISO 8601) -- distinct from service date
 MNT_CAL_NEXT_DT,25,universal-meta,<ALL>,Next calibration due (ISO 8601)
@@ -1975,6 +1981,7 @@ PLM_EXP_JOINT_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pi
 PLM_EXP_JOINT_PRESSURE_RATING_BAR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exp Joint Pressure Rating Bar [ISO 19650-1:2018]
 PLM_FACADE_WTR_PENETRATION_RESIST_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Facade Wtr Penetration Resist Nr [ISO 19650-1:2018]
 PLM_FIXTURE_LOAD_UNIT_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Fixture Load Unit [ISO 19650]
+PLM_FIX_TYPE_TXT,6,fixture-level,Plumbing Fixtures,"Plumbing fixture kind (WC, BASIN, SINK, SHOWER, URINAL, BIDET, BATH ...). The connector completeness check uses it to know how many connectors the fixture needs."
 PLM_FLOW_LS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Flow Ls [STING]
 PLM_FLOW_RATE_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plumbing flow rate in litres per second
 PLM_FLUID_CATEGORY_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,BS EN 1717 fluid category 1-5 [Phase 178b]
@@ -2040,6 +2047,7 @@ PLM_PRV_SET_PRESSURE_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex
 PLM_PSR_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Psr Kpa [ISO 19650-1:2018]
 PLM_PSR_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,PLM_PSR_KPA display mirror [auto-generated]
 PLM_PWR_KW,6,safe-prefix,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures,Plm Pwr Kw [ISO 19650-1:2018]
+PLM_RECIRC_DELTA_T_K,6,project-level,Project Information,"Hot water recirculation design temperature drop around the loop, K. Read by the recirculation loop balancer; blank uses its default."
 PLM_RECIRC_DRV_KV,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,"Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]"
 PLM_RECIRC_PUMP_DUTY_LPM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain ≤5°C ΔT loop [Phase 187]
 PLM_RO_LOOP_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Belongs to dialysis Reverse Osmosis loop
@@ -2129,6 +2137,7 @@ PRJ_DWG_LOIN_LOD_TXT,13,sheet-identity,Sheets,"Level of Information Need / Level
 PRJ_DWG_SUITABILITY_COD_TXT,13,sheet-identity,Sheets,Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]
 PRJ_DWG_SUITABILITY_DESC_TXT,13,sheet-identity,Sheets,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
 PRJ_DWG_SUPERSEDES_TXT,13,sheet-identity,Sheets,Prj Dwg Supersedes Txt [ISO 19650-1:2018]
+PRJ_ELC_SUPPLY_VOLTAGE_TXT,13,project-level,Project Information,Electrical supply voltage and phases chosen in Project Setup (for example 400/230 V 3-phase). Recorded for schedules and title blocks.
 PRJ_GRID_REF_TXT,13,universal-meta,<ALL>|Project Information,Prj Grid Ref Txt [ISO 19650-1:2018]
 PRJ_INFORMATION_SPARE_01_TXT,13,universal-meta,<ALL>|Project Information,Spare parameter 1 for PRJ_INFORMATION group
 PRJ_INFORMATION_SPARE_02_TXT,13,universal-meta,<ALL>|Project Information,Spare parameter 2 for PRJ_INFORMATION group
@@ -2142,6 +2151,8 @@ PRJ_ORG_CLIENT_NAME_TXT,13,project-level,Project Information,Client name for thi
 PRJ_ORG_COMPANY_ADDRESS_TXT,13,project-level,Project Information,"Producing company address (default Kampala, Uganda) [template engine v1.1]"
 PRJ_ORG_COMPANY_NAME_TXT,13,project-level,Project Information,Producing company name (default Planscape Limited) [template engine v1.1]
 PRJ_ORG_COORD_SYSTEM_TXT,13,project-level,Project Information,"Project geodetic coordinate system, e.g. ""OS GB / British National Grid"" / ""WGS 84 UTM 36N"" / ""Uganda Cassini-Soldner"" -- surveyors / GIS reference [BS 7666-2:2006]"
+PRJ_ORG_CURRENCY_TXT,13,project-level,Project Information,"Project base currency as an ISO 4217 code (UGX, GBP, USD). Read by the material cost cells to normalise prices to one currency."
+PRJ_ORG_DISCIPLINES_TXT,13,project-level,Project Information,"Disciplines in the project, comma-separated (ARCH, STRUCT, MECH, ELEC, PLUMB, MEP). The BIM Coordination Center shows its HVAC tab when MECH, HVAC or MEP is listed."
 PRJ_ORG_GROUND_LEVEL_TXT,13,project-level,Project Information,"Project finished ground level reference, e.g. ""+114.250 m AOD"" -- survey datum for the project [BS EN ISO 4463-1:2021]"
 PRJ_ORG_HEALTH_AE_ELEC_TXT,13,project-level,Project Information,Authorising Engineer -- Electrical
 PRJ_ORG_HEALTH_AE_MGAS_TXT,13,project-level,Project Information,Authorising Engineer -- Medical Gas
@@ -2159,6 +2170,7 @@ PRJ_ORG_HEALTH_OR_INT,13,project-level,Project Information,Operating room count
 PRJ_ORG_HEALTH_PACK_PROFILE_TXT,13,project-level,Project Information,Healthcare pack profile (acute / community / mental / standalone) for validator gating
 PRJ_ORG_HEALTH_QE_TXT,13,project-level,Project Information,Qualified Expert (radiation)
 PRJ_ORG_LEAD_APPOINTED_PARTY_TXT,13,project-level,Project Information,ISO 19650 lead appointed party (default Planscape Limited) [template engine v1.1]
+PRJ_ORG_MAT_SIGNOFF_SUIT_TXT,13,project-level,Project Information,Lowest ISO 19650 suitability (S1 to S7) at which the material coverage gate requires material sign-off. Blank = S2.
 PRJ_ORG_ORIGINATOR_CODE_TXT,13,project-level,Project Information,ISO 19650 originator code (default PLNS) [template engine v1.1]
 PRJ_ORG_PARTICIPANTS_TXT,13,project-level,Project Information,Semicolon-separated participants list [template engine v1.1]
 PRJ_ORG_PHASE_TXT,13,project-level,Project Information,ISO 19650 project phase code (default DE) [template engine v1.1]
@@ -2258,6 +2270,7 @@ PRJ_TRACE_TOLERANCE_PCT,13,universal-meta,<ALL>|Project Information,Acceptance b
 PRJ_VOLUME_CODE,13,universal-meta,<ALL>|Project Information,ISO 19650 Volume code parsed from file name (BLD1/BLD2/SITE/etc.) [Phase 108m]
 PRJ_VOLUME_COD_TXT,13,universal-meta,<ALL>|Project Information,ISO 19650 volume code
 PROJECT_BUDGET_UGX,13,misc-meta,<ALL>,Project budget set by cost consultant in UGX [ISO 19650-3:2020]
+PROJECT_REGION,13,project-level,Project Information,Active standards region (the Standards Region picker writes it; a sidecar JSON backs it up). Read on document open to select the region's standards and units.
 PROP_ACOUSTIC_ABS,14,curated-fallback,Materials,Prop Acoustic Abs [ISO 19650-1:2018]
 PROP_CARBON_KG_M3,14,curated-fallback,Materials,Prop Carbon Kg M3 [ISO 19650-1:2018]
 PROP_COMP_STRENGTH_MPA,14,curated-fallback,Materials,Prop Comp Strength Mpa [ISO 19650-1:2018]

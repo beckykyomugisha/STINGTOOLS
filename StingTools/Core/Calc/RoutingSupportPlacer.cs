@@ -174,11 +174,11 @@ namespace StingTools.Core.Calc
             {
                 TrySetString(fi, "STING_HANGER_HOST_ID",      c.HostRun?.Value.ToString() ?? "");
                 TrySetString(fi, "STING_HANGER_ANCHOR_TXT",   c.AnchorType ?? "GENERIC");
-                TrySetDoubleRaw(fi, "STING_HANGER_STRUT_LEN_MM", c.StrutRodMm);
-                TrySetDoubleRaw(fi, "STING_HANGER_SPACING_MM",   c.MaxSpanMm);
+                ParameterHelpers.SetDoubleInNamedUnit(fi, "STING_HANGER_STRUT_LEN_MM", c.StrutRodMm);
+                ParameterHelpers.SetDoubleInNamedUnit(fi, "STING_HANGER_SPACING_MM",   c.MaxSpanMm);
                 TrySetInt   (fi, "STING_HANGER_TRAPEZE_BOOL", c.OnTrapeze ? 1 : 0);
                 TrySetDoubleRaw(fi, "STING_HANGER_POINT_LOAD_KG", c.PointLoadKg);
-                TrySetDoubleRaw(fi, "STING_HANGER_ROD_DIA_MM",   c.RodDiameterMm);
+                ParameterHelpers.SetDoubleInNamedUnit(fi, "STING_HANGER_ROD_DIA_MM",   c.RodDiameterMm);
                 TrySetString(fi, "STING_HANGER_ROD_IMPERIAL", c.RodImperial ?? "");
                 TrySetInt   (fi, "STING_HANGER_COUPLER_BOOL", c.RodNeedsCoupler ? 1 : 0);
                 TrySetString(fi, "STING_HANGER_BASIS_TXT",   c.SpacingBasis ?? "");
@@ -211,19 +211,11 @@ namespace StingTools.Core.Calc
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
-        // Length-as-mm setter — converts to internal feet for Length params.
+        // mm value: converted to feet only when the parameter is a LENGTH. It used to
+        // divide by 304.8 always, so a NUMBER parameter such as HVC_DCT_INSULATION_THK_MM
+        // stored 0.082 for 25 mm.
         private static void TrySetDoubleMm(Element el, string param, double valMm)
-        {
-            try
-            {
-                var p = el.LookupParameter(param);
-                if (p == null || p.IsReadOnly) return;
-                if (p.StorageType == StorageType.Double) p.Set(valMm / 304.8);
-                else if (p.StorageType == StorageType.String)
-                    p.Set(valMm.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-        }
+            => ParameterHelpers.SetDoubleInNamedUnit(el, param, valMm);
 
         private static void TrySetInt(Element el, string param, int val)
         {

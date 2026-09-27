@@ -105,7 +105,7 @@ namespace StingTools.Commands.Hvac
                     {
                         string klass = ClassifyEquipment(e);
                         double kw = ReadDouble(e, ParamRegistry.HVC_CAPACITY_KW);
-                        if (kw <= 0) kw = ReadDouble(e, "ELC_LOAD_KW");
+                        if (kw <= 0) kw = ReadDouble(e, "ELC_PWR_KW");
                         if (kw <= 0) continue;
 
                         double factor = _embodiedKgCo2ePerKw.TryGetValue(klass, out var f)

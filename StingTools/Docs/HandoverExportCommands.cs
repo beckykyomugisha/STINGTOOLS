@@ -1655,7 +1655,7 @@ namespace StingTools.Docs
                         string installDate = ParameterHelpers.GetString(el, ParamRegistry.INSTALL_DATE);
                         // ASS_CST_TOTAL_UGX_NR has no public ParamRegistry constant yet;
                         // hardcoded by design until the cost-tracking params get promoted.
-                        string costStr = ParameterHelpers.GetString(el, "ASS_CST_TOTAL_UGX_NR");
+                        string costStr = ParameterHelpers.GetValueText(el, "ASS_CST_TOTAL_UGX_NR");
                         string gridRef = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
 
                         compWriter.Write(Esc(tag1 ?? el.Name ?? el.Id.ToString()));

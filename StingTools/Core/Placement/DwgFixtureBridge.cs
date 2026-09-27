@@ -520,20 +520,7 @@ namespace StingTools.Core.Placement
         /// is unbound / read-only. Mirrors FixturePlacementEngine.TrySetDoubleMm semantics
         /// (Double param stored in feet, String/Integer fall back).</summary>
         private static void TrySetMntHgtMm(Element el, double valueMm)
-        {
-            try
-            {
-                var p = el?.LookupParameter("MNT_HGT_MM");
-                if (p == null || p.IsReadOnly) return;
-                switch (p.StorageType)
-                {
-                    case StorageType.Double:  p.Set(valueMm * MmToFt); break;
-                    case StorageType.String:  p.Set(valueMm.ToString("F1")); break;
-                    case StorageType.Integer: p.Set((int)Math.Round(valueMm)); break;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.TrySetMntHgtMm={valueMm}: {ex.Message}"); }
-        }
+            => ParameterHelpers.SetDoubleInNamedUnit(el, "MNT_HGT_MM", valueMm); // feet for a LENGTH, invariant text otherwise
 
         /// <summary>F4 — non-blocking range validation: warn (one rolled-up line) when a
         /// captured fixture's mounting height falls outside its HeightStandard's Min/Max.

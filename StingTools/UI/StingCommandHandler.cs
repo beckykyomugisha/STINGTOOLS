@@ -6477,7 +6477,7 @@ namespace StingTools.UI
                     string name = (sheet.Name ?? "").Replace(",", ";");
                     string rev = (sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "").Replace(",", ";");
                     string issueDate = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION_DATE)?.AsString() ?? "";
-                    string disc = ParameterHelpers.GetString(sheet, "SHEET_DISCIPLINE") ?? "";
+                    string disc = ParameterHelpers.GetString(sheet, "SHT_DISC_TXT") ?? "";
                     string drawn = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
                     string check = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
                     string approved = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
@@ -9018,11 +9018,11 @@ namespace StingTools.UI
                     // Cross-read size parameter
                     string size = "";
                     if (discipline == "Pipe")
-                        size = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE);
+                        size = ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_SIZE);
                     else if (discipline == "Duct")
                         size = ParameterHelpers.GetString(el, "HVC_DCT_SZ_TXT");
                     else
-                        size = ParameterHelpers.GetString(el, "ELC_CDT_SZ_MM");
+                        size = ParameterHelpers.GetValueText(el, "ELC_CDT_SZ_MM");
                     if (!string.IsNullOrEmpty(size))
                         ParameterHelpers.SetIfEmpty(el, "ASS_TIEIN_SIZE_TXT", size);
 
@@ -9053,7 +9053,7 @@ namespace StingTools.UI
                 string size = ParameterHelpers.GetString(elem, "ASS_TIEIN_SIZE_TXT");
                 string status = ParameterHelpers.GetString(elem, "ASS_TIEIN_STATUS_TXT");
                 string phase = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
-                string connected = ParameterHelpers.GetString(elem, "ASS_TIEIN_CONNECTED_BOOL");
+                string connected = ParameterHelpers.GetValueText(elem, "ASS_TIEIN_CONNECTED_BOOL") switch { "1" => "Yes", "0" => "No", var v => v };
                 string catName = elem.Category?.Name ?? "";
                 string level = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
 
@@ -9268,10 +9268,10 @@ namespace StingTools.UI
 
                 string cls       = ParameterHelpers.GetString(el, "ELC_LPS_CLASS_TXT");
                 string lpz       = ParameterHelpers.GetString(el, "ELC_LPS_ZONE_TXT");
-                string ohm       = ParameterHelpers.GetString(el, "ELC_LPS_EARTH_RESISTANCE_OHM");
-                string crossMm2  = ParameterHelpers.GetString(el, "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2");
+                string ohm       = ParameterHelpers.GetValueText(el, "ELC_LPS_EARTH_RESISTANCE_OHM");
+                string crossMm2  = ParameterHelpers.GetValueText(el, "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2");
                 string material  = ParameterHelpers.GetString(el, "ELC_LPS_CONDUCTOR_MATERIAL_TXT");
-                string downN     = ParameterHelpers.GetString(el, "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR");
+                string downN     = ParameterHelpers.GetValueText(el, "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR");
                 string testDate  = ParameterHelpers.GetString(el, "ELC_LPS_TEST_DATE_TXT");
                 string bond      = ParameterHelpers.GetString(el, "ELC_LPS_BOND_TYPE_TXT");
                 string verdict   = ParameterHelpers.GetString(el, "ELC_LPS_COMPLIANCE_STATUS_TXT");
