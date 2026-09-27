@@ -495,7 +495,9 @@ namespace StingTools.Model
             try
             {
                 ParameterHelpers.SetString(col, "STR_COL_SECTION_TXT", $"{widthMm:F0}×{widthMm:F0}mm", overwrite: true);
-                ParameterHelpers.SetString(col, "STR_COL_SIZE_MM",     $"{widthMm:F0}",                overwrite: true);
+                // LENGTH: SetString refused the text, so the size was never written.
+                ParameterHelpers.SetDoubleInNamedUnit(col, "STR_COL_SIZE_MM", widthMm);
+                ParameterHelpers.SetString(col, "STR_COL_SIZE_TXT",    $"{widthMm:F0}×{widthMm:F0}",   overwrite: true);
                 ParameterHelpers.SetString(col, "STR_LOAD_AXIAL_KN",    $"{axialKN:F0}",                overwrite: true);
                 r.StampsWritten++;
             }

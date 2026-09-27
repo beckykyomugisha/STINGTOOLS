@@ -342,14 +342,64 @@ namespace StingTools.Core
         private static double DoubleInNamedUnit(Parameter p, string paramName)
         {
             double raw = p.AsDouble();
-            ForgeTypeId spec = p.Definition?.GetDataType();
-            ForgeTypeId unit = null;
-            if (spec == SpecTypeId.Length)
-                unit = UnitValueText.LengthNameIsMetres(paramName) ? UnitTypeId.Meters : UnitTypeId.Millimeters;
-            else if (spec == SpecTypeId.Area) unit = UnitTypeId.SquareMeters;
-            else if (spec == SpecTypeId.Volume) unit = UnitTypeId.CubicMeters;
-            else unit = Electrical.ElecUnits.SiUnitFor(p);
+            ForgeTypeId unit = NamedUnit(p, paramName);
             return unit == null ? raw : UnitUtils.ConvertFromInternalUnits(raw, unit);
+        }
+
+        /// <summary>The unit a Double parameter's value is expressed in by STING's naming
+        /// convention, or null when it is stored as given (NUMBER, CURRENCY, …).</summary>
+        private static ForgeTypeId NamedUnit(Parameter p, string paramName)
+        {
+            ForgeTypeId spec = p.Definition?.GetDataType();
+            if (spec == SpecTypeId.Length)
+                return UnitValueText.LengthNameIsMetres(paramName) ? UnitTypeId.Meters : UnitTypeId.Millimeters;
+            if (spec == SpecTypeId.Area) return UnitTypeId.SquareMeters;
+            if (spec == SpecTypeId.Volume) return UnitTypeId.CubicMeters;
+            return Electrical.ElecUnits.SiUnitFor(p);
+        }
+
+        /// <summary>
+        /// Write <paramref name="value"/>, given in the unit the parameter's NAME states
+        /// (mm for <c>_MM</c>, m for <c>_M</c>, m², m³, V / VA / W / A), to whatever the
+        /// parameter is: a LENGTH is converted to internal feet, a NUMBER stored as given,
+        /// TEXT written as invariant text, an INTEGER rounded. The counterpart of
+        /// <see cref="GetValueText"/>. Writing a millimetre figure straight into a LENGTH
+        /// stores it as feet (3000 mm became 3000 ft); dividing by 304.8 regardless
+        /// shrinks a NUMBER parameter 304.8 times. This checks which it is.
+        /// </summary>
+        public static bool SetDoubleInNamedUnit(Element el, string paramName, double value, bool overwrite = true)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName) || double.IsNaN(value) || double.IsInfinity(value)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                if (!overwrite && p.HasValue)
+                {
+                    bool empty = p.StorageType == StorageType.String
+                        ? string.IsNullOrEmpty(p.AsString())
+                        : p.StorageType == StorageType.Double ? p.AsDouble() == 0
+                        : p.StorageType == StorageType.Integer && p.AsInteger() == 0;
+                    if (!empty) return false;
+                }
+                switch (p.StorageType)
+                {
+                    case StorageType.Double:
+                        ForgeTypeId unit = NamedUnit(p, paramName);
+                        return p.Set(unit == null ? value : UnitUtils.ConvertToInternalUnits(value, unit));
+                    case StorageType.String:
+                        return p.Set(UnitValueText.Invariant(value));
+                    case StorageType.Integer:
+                        return p.Set((int)Math.Round(value));
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("SetDoubleInNamedUnit", $"SetDoubleInNamedUnit({paramName}) on {el.Id}: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Read an integer parameter with fallback. Handles Integer, Double, String storage.</summary>
@@ -3219,9 +3269,10 @@ namespace StingTools.Core
                 double areaSqFt = room.Area;
                 if (areaSqFt > 0)
                 {
-                    string areaM2 = (areaSqFt * 0.092903).ToString("F2",
-                        System.Globalization.CultureInfo.InvariantCulture);
-                    written += SetIfEmptyInt(el, ParamRegistry.ROOM_AREA, areaM2);
+                    // ASS_ROOM_AREA_SQ_M is an AREA parameter, which refuses text, so this
+                    // was never written. Set it through its unit (m² → internal ft²).
+                    if (ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.ROOM_AREA, areaSqFt * 0.09290304, overwrite: false))
+                        written++;
                 }
 
                 // Room Department

@@ -202,8 +202,8 @@ namespace StingTools.UI
                         Tag = tag, Type = klass,
                         CapacityKw = kw, FlowLs = flowLs,
                         System = system, StatusDot = dot,
-                        Manufacturer = ReadString(e, "MAN_NAME_TXT"),
-                        Model        = ReadString(e, "MAN_MODEL_TXT")
+                        Manufacturer = ReadString(e, "ASS_MANUFACTURER_TXT"),
+                        Model        = ReadString(e, "ASS_MODEL_NR_TXT")
                     });
                 }
                 catch (Exception ex) { StingLog.Warn($"Equipment row {e?.Id}: {ex.Message}"); }

@@ -282,6 +282,11 @@
       "role": "input",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
     },
+    "BLE_DOOR_HARDWARE_SPECIFICATION_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "BLE_FLR_LD_CAP_KPA": {
       "state": "read_only",
       "role": "input",
@@ -1088,9 +1093,9 @@
       "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
     },
     "MNT_HGT_MM": {
-      "state": "read_only",
-      "role": "export",
-      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Devices Schedule\". A schedule is a real reader; this scan only sees C#."
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by the fixture, matrix and DWG placement engines as the mounting height they placed at. Carried for schedules and the properties palette; placement reads heights from its rules, not back from this."
     },
     "PER_SUST_CARBON_FOOTPRINT_KG": {
       "state": "read_only",
@@ -1447,6 +1452,11 @@
       "role": "export",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
     },
+    "STR_COL_SIZE_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by the structural sizing engines and read by the matching tag family label in LABEL_DEFINITIONS.json. The tag is the reader; there is no C# reader by design."
+    },
     "STR_CONN_CAPACITY_KN": {
       "state": "read_only",
       "role": "input",
@@ -1472,10 +1482,20 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "STR_FDN_DEPTH_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by the foundation sizer beside STR_FDN_DEPTH_MM as the display figure for tags and schedules; no C# reader by design."
+    },
     "STR_FDN_SIZE_MM": {
       "state": "write_only",
       "role": "export",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
+    "STR_FDN_SIZE_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by the structural sizing engines and read by the matching tag family label in LABEL_DEFINITIONS.json. The tag is the reader; there is no C# reader by design."
     },
     "STR_FRAME_M_KNM": {
       "state": "write_only",
@@ -1503,11 +1523,6 @@
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "STR_Q_FACTOR_NR": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
-    },
-    "STR_REBAR_DETAIL_TXT": {
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."

@@ -111,7 +111,10 @@ namespace StingTools.Core.Visualization
             foreach (var el in col)
             {
                 double v = 0;
-                var p = el.LookupParameter("STING_CO2_KG");
+                // The tracker/BOQ stamp first; STING_CO2_KG is the family-authored figure.
+                var p = el.LookupParameter(ParamRegistry.CBN_A1_A3_KG_CO2E);
+                if (p == null || !p.HasValue) p = el.LookupParameter("CST_EMBODIED_CARBON_KG");
+                if (p == null || !p.HasValue) p = el.LookupParameter("STING_CO2_KG");
                 if (p != null && p.HasValue)
                 {
                     try
