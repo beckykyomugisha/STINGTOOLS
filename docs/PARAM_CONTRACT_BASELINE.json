@@ -512,6 +512,26 @@
       "role": "input",
       "reason": "Set by the user on a panel to state its IEEE 1584-2018 electrode configuration; read by ArcFlashCommand. Blank = VCB assumed and noted on the label."
     },
+    "ELC_ARC_FLASH_ENCL_D_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 enclosure depth in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
+    "ELC_ARC_FLASH_ENCL_H_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 enclosure height in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
+    "ELC_ARC_FLASH_ENCL_W_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 enclosure width in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
+    "ELC_ARC_FLASH_GAP_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 conductor gap in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
     "ELC_ARC_FLASH_WORK_DIST_MM": {
       "state": "read_only",
       "role": "input",
@@ -526,11 +546,6 @@
       "state": "write_only",
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cable Schedule\". A schedule is a real reader; this scan only sees C#."
-    },
-    "ELC_CBL_INSTALL_METHOD_TXT": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cable List\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CBL_NUM_OF_CORES_NR": {
       "state": "read_only",

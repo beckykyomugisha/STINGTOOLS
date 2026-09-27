@@ -64,6 +64,8 @@ relying on any of it.
 | ELEC-18 | ~~Flow units~~ **Closed** | HVAC panel, BOQ and MEP-design flows converted via `UnitUtils`. |
 | ELEC-19 | **Open (design)** | `MapBuiltIn` still takes the target unit from the parameter-name suffix; explicit per-mapping units would be sturdier. |
 | ELEC-20 | ~~Small items~~ **Closed** | IPS check rewritten (10 kVA IT transformer + LIM; leakage deferred to commissioning test); dual-source reports missing parameters instead of failing; kVA labels. |
+| ELEC-21 | **Open** | `STING_WIRE_TABLES.json` has no project override and is cached for the Revit session (`CableSizerEngine.Bs7671Tables`), unlike every other STING registry (`_BIM_COORD/*.json` + a Reload command). A project that must use a manufacturer's ratings or a newer amendment cannot, and an edit to the corporate file needs a Revit restart. An override should add or replace whole tables by id + method + cable type, and keep each row's `verified` / `mvVerified` flags, so it cannot quietly mark unchecked data as checked. |
+| ELEC-22 | **Open (design)** | Two voltage-drop methods write the same parameter (`ELC_CKT_VD_PCT`). The CABLE tab's Apply uses BS 7671 Appendix 4 mV/A/m; `Calc_VoltageDrop` uses BS EN 60228 resistance with a temperature correction and no reactance. Whichever ran last wins, and the Circuit Check reads it. Either one method should own the parameter, or the method should be recorded next to the value. |
 
 Cross-check round (three independent reviewers over the merged branch) found and fixed:
 a stale copper-resistance column (hot values used by the IEC 60909 and Zs paths), arc flash

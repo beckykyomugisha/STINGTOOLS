@@ -156,7 +156,7 @@ namespace StingTools.Commands.Panels
             return Result.Succeeded;
         }
 
-        private const string IzSummary = "the highest tabulated It for the circuit's size in any shipped copper table, 30 °C, ungrouped (the cable is not known, so a pass leaves derating and cable type unchecked)";
+        private const string IzSummary = "the tabulated It of the cable recorded on the circuit (method, insulation, cable type, stamped when a size is applied); without a complete record, the highest It for the size in any shipped copper table. Both at 30 °C, ungrouped, so a pass leaves derating unchecked";
 
         private static Row Evaluate(Document doc, ElectricalSystem sys, Bs7671Data tables, VDOptionsSnapshot opts)
         {
@@ -174,12 +174,24 @@ namespace StingTools.Commands.Panels
             try { wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""; }
             catch (Exception ex) { StingLog.Info($"Check wire: {ex.Message}"); }
             double csa = WireSizeParser.ParseCsaMm2(wire);
-            Bs7671CapacityTable from = null;
-            double it = tables != null && csa > 0 ? tables.MaxTabulatedIt("Cu", csa, poles >= 3 ? 3 : 1, out from) : 0;
+            int ph = poles >= 3 ? 3 : 1;
+            string izBasis = "";
+            double it = 0;
+            // The cable recorded when a size was applied, when all of it is known.
+            var rec = CircuitCableRecord.Read(sys);
+            var own = csa > 0 ? rec.FindTable(tables) : null;
+            if (own != null) it = Bs7671Data.TabulatedIt(own, csa, ph);
+            if (it > 0)
+                izBasis = $"Table {own.Id} ({rec}, recorded on the circuit) It for {csa:0.#} mm², 30 °C, ungrouped";
+            else
+            {
+                Bs7671CapacityTable from = null;
+                it = tables != null && csa > 0 ? tables.MaxTabulatedIt("Cu", csa, ph, out from) : 0;
+                if (from != null)
+                    izBasis = $"highest tabulated It for {csa:0.#} mm² Cu in any shipped table (Table {from.Id} method {from.InstallMethod}, " +
+                              $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — no complete cable record on the circuit";
+            }
             row.Iz = it > 0 ? it : (double?)null;
-            string izBasis = from == null ? "" :
-                $"highest tabulated It for {csa:0.#} mm² Cu in any shipped table (Table {from.Id} method {from.InstallMethod}, " +
-                $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — the cable itself is not known";
 
             var vdp = sys.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
             if (vdp != null && vdp.HasValue && vdp.StorageType == StorageType.Double) row.Vd = vdp.AsDouble();

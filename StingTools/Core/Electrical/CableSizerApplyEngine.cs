@@ -189,6 +189,9 @@ namespace StingTools.Core.Electrical
 
                         if (csa) result.WroteCsaNum++;
                         if (vd)  result.WroteVdNum++;
+                        // The cable the size assumes, so later checks read it back.
+                        if (csa) CircuitCableRecord.Write(circuit, assumptions.InstallMethod,
+                                                          assumptions.Insulation, assumptions.CableType);
                         if (csa || vd) result.Written++;
                         else result.Skipped.Add($"{id.Value}: result params not bound on the circuit " +
                                                 $"({P_CSA_NUM} / {P_VD_NUM}) — run Load Shared Parameters");

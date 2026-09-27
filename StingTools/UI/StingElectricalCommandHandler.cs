@@ -690,17 +690,17 @@ namespace StingTools.UI
                             if (r.ProposedBreakerA > 0)
                                 ParameterHelpers.SetString(sys, "ELC_CKT_BRK_RATING_A",
                                     $"{r.ProposedBreakerA}", overwrite: true);
-                            if (r.DesignCurrentA > 0)
+                            // Ampacity is the cable's capacity Iz (It × Ca·Cg·Ci), not the design
+                            // current Ib that used to be written here; the Cable Schedule shows it.
+                            double iz = r.EffectiveCapacityIzA > 0 ? r.EffectiveCapacityIzA : r.TabulatedCapacityA;
+                            if (iz > 0)
                                 ParameterHelpers.SetString(sys, "ELC_CBL_AMPACITY_A",
-                                    $"{r.DesignCurrentA:0.0}", overwrite: true);
+                                    $"{iz:0.0}", overwrite: true);
                             if (input != null)
                             {
-                                if (!string.IsNullOrEmpty(input.InstallMethod))
-                                    ParameterHelpers.SetString(sys, "ELC_CBL_INSTALL_METHOD_TXT",
-                                        input.InstallMethod, overwrite: true);
-                                if (!string.IsNullOrEmpty(input.Insulation))
-                                    ParameterHelpers.SetString(sys, "ELC_CBL_INS_TYPE_TXT",
-                                        input.Insulation, overwrite: true);
+                                // Recorded so later checks judge the circuit on its own table.
+                                StingTools.Core.Electrical.CircuitCableRecord.Write(sys,
+                                    input.InstallMethod, input.Insulation, input.CableType);
                                 if (input.LengthM > 0)
                                     ParameterHelpers.SetString(sys, "ELC_CKT_LENGTH_M",
                                         $"{input.LengthM:0.0}", overwrite: true);

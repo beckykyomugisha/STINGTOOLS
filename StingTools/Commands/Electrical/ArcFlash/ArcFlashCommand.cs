@@ -136,6 +136,12 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         EquipmentClass = cls,
                         WorkingDistanceMm = overrideMm,   // 0 → class default
                         Electrode = ReadElectrodeOverride(panel),   // null → VCB, noted on the label
+                        // Per-board IEEE 1584-2018 geometry; 0 = the class's typical value,
+                        // which the engine notes on the label.
+                        GapMm = ReadMmOverride(panel, panel.LookupParameter("ELC_ARC_FLASH_GAP_MM")),
+                        EnclosureHeightMm = ReadMmOverride(panel, panel.LookupParameter("ELC_ARC_FLASH_ENCL_H_MM")),
+                        EnclosureWidthMm = ReadMmOverride(panel, panel.LookupParameter("ELC_ARC_FLASH_ENCL_W_MM")),
+                        EnclosureDepthMm = ReadMmOverride(panel, panel.LookupParameter("ELC_ARC_FLASH_ENCL_D_MM")),
                         ClearingTimeS = fixedClearingS
                     };
 
@@ -311,17 +317,27 @@ namespace StingTools.Commands.Electrical.ArcFlash
 
         /// <summary>Per-equipment working-distance override (ELC_ARC_FLASH_WORK_DIST_MM); 0 = class default.</summary>
         private static double ReadWorkingDistanceOverride(FamilyInstance panel)
+            => ReadMmOverride(panel, panel.LookupParameter("ELC_ARC_FLASH_WORK_DIST_MM"));
+
+        /// <summary>A per-equipment millimetre value held as text or a number; 0 when absent,
+        /// blank, unparseable or not positive (the engine then uses and notes the typical value).</summary>
+        private static double ReadMmOverride(FamilyInstance panel, Parameter p)
         {
+            string name = p?.Definition?.Name ?? "";
             try
             {
-                var p = panel.LookupParameter("ELC_ARC_FLASH_WORK_DIST_MM");
-                if (p == null) return 0;
-                if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.String
-                    && double.TryParse(p.AsString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double ov))
-                    return ov;
+                if (p == null || !p.HasValue) return 0;
+                if (p.StorageType == StorageType.Double) return p.AsDouble() > 0 ? p.AsDouble() : 0;
+                if (p.StorageType == StorageType.String)
+                {
+                    string s = (p.AsString() ?? "").Trim();
+                    if (s.Length == 0) return 0;
+                    if (double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out double ov) && ov > 0)
+                        return ov;
+                    StingLog.Warn($"ArcFlash {panel.Name}: {name} '{s}' is not a positive number in mm — typical value used");
+                }
             }
-            catch (Exception ex) { StingLog.Warn($"ArcFlash WD override {panel.Name}: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"ArcFlash {name} on {panel.Name}: {ex.Message}"); }
             return 0;
         }
 

@@ -15859,6 +15859,10 @@ ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment,Instance,True
 ELC_ARC_FLASH_PPE_CAT,Electrical Equipment,Instance,True
 ELC_ARC_FLASH_WORK_DIST_MM,Electrical Equipment,Instance,True
 ELC_ARC_FLASH_ELECTRODE_TXT,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_GAP_MM,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_ENCL_H_MM,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_ENCL_W_MM,Electrical Equipment,Instance,True
+ELC_ARC_FLASH_ENCL_D_MM,Electrical Equipment,Instance,True
 ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment,Instance,True
 ELC_SEL_COORD_VERIFIED_BOOL,Electrical Equipment,Instance,True
 ELC_BUSBAR_CSA_MM2,Electrical Equipment,Instance,True

@@ -1,4 +1,4 @@
-# v6.8 | 3648 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3652 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3657,3 +3657,7 @@ Generic Models,MGS_SUPPLY_TYPE_TXT,2a39e7c7-e3f0-56e3-8a19-bbeb95cbfc0c,TEXT,MGS
 Generic Models,MGS_ZV_ZONE_TXT,4fca49b1-69c3-542d-970c-a0bf8af48f77,TEXT,MGS_SYSTEMS,Instance,Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.,False,,,MULTI,1,0
 Generic Models,HVC_SPACE_TYPE_TXT,8b7af0ba-88a7-5808-9082-0eb2ef6a58cc,TEXT,HVC_SYSTEMS,Instance,"Load-profile space type id (STING_LOAD_PROFILES.json, e.g. Office) for this space or room; read by Block Load, the cross-talk audit and the ComCheck export before falling back to a name match.",False,,,MULTI,1,0
 Generic Models,PRJ_BUILDING_USE_TXT,9ad27194-1950-5205-bb3e-8d9ff117db9f,TEXT,PRJ_INFORMATION,Instance,Declared building use / sector (Office / Healthcare / Education / Residential ...); read by ProjectSector for spare-capacity targets and by the sustainability engine.,False,,,MULTI,1,0
+Generic Models,ELC_ARC_FLASH_GAP_MM,a2e7f8d9-100e-5179-9179-10000000000e,TEXT,ELC_PWR,Instance,"IEEE 1584-2018 conductor gap in mm - blank = the typical gap for the equipment class, noted on the label [STING MEPG-11]",False,,,MULTI,1,0
+Generic Models,ELC_ARC_FLASH_ENCL_H_MM,a2e7f8d9-100f-5179-9179-10000000000f,TEXT,ELC_PWR,Instance,"IEEE 1584-2018 enclosure height in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",False,,,MULTI,1,0
+Generic Models,ELC_ARC_FLASH_ENCL_W_MM,a2e7f8d9-1010-5179-9179-100000000010,TEXT,ELC_PWR,Instance,"IEEE 1584-2018 enclosure width in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",False,,,MULTI,1,0
+Generic Models,ELC_ARC_FLASH_ENCL_D_MM,a2e7f8d9-1011-5179-9179-100000000011,TEXT,ELC_PWR,Instance,"IEEE 1584-2018 enclosure depth in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",False,,,MULTI,1,0

@@ -107,13 +107,23 @@ namespace StingTools.Commands.Electrical
                         {
                             string wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? "";
                             double csa = StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(wire);
-                            if (csa > 0 && table != null)
+                            // Prefer the cable recorded on the circuit when a size was applied.
+                            var rec = StingTools.Core.Electrical.CircuitCableRecord.Read(sys);
+                            var own = csa > 0 ? rec.FindTable(
+                                StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(), mat) : null;
+                            double ownIt = own != null ? StingTools.Core.Electrical.Bs7671Data.TabulatedIt(own, csa, phases) : 0;
+                            if (ownIt > 0)
+                            {
+                                iz = ownIt;
+                                izBasis = $"Table {own.Id} ({rec}, recorded on the circuit) It for {csa:0.#} mm², 30 °C, ungrouped";
+                            }
+                            else if (csa > 0 && table != null)
                             {
                                 double it = StingTools.Core.Electrical.Bs7671Data.TabulatedIt(table, csa, phases);
                                 if (it > 0)
                                 {
                                     iz = it;
-                                    izBasis = $"Table {table.Id} {mat}/{ins} {cableType} method {method} It for {csa:0.#} mm², 30 °C, ungrouped";
+                                    izBasis = $"Table {table.Id} {mat}/{ins} {cableType} method {method} It for {csa:0.#} mm², 30 °C, ungrouped (CABLE tab assumption)";
                                 }
                                 else izBasis = $"{csa:0.#} mm² not in Table {table.Id}";
                             }

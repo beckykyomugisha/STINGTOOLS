@@ -24081,3 +24081,30 @@ multicore or hid unchecked values.
 - **Tests.** 3,438 passing. Every picker combination resolves to its table, and those with no
   table resolve to none.
 - **Not exercised in Revit.**
+
+#### Electrical flexibility, automation and integration review (2026-09-27)
+
+- **The cable a circuit was sized with is recorded and read back.** Checks that run later now
+  judge a circuit against its own table.
+  - New `Core/Electrical/CircuitCableRecord` stamps install method, insulation and cable type
+    (`ELC_CBL_INSTALL_METHOD_TXT`, `ELC_CBL_INS_TYPE_TXT`, `ELC_CBL_TYPE_TXT`) when a size is
+    applied, from both the CABLE tab's Apply and `CableSizerApplyEngine`. Cable type was
+    previously never written, and nothing read the other two.
+  - The Circuit Check and the breaker sizer use the recorded cable's table when all three are
+    recorded, and say so. Otherwise they fall back as before: the Circuit Check to the highest It
+    in any table, the breaker sizer to the CABLE tab's assumption.
+- **`ELC_CBL_AMPACITY_A` now holds Iz, not the design current Ib.** Apply had been writing Ib into
+  the ampacity column of the Cable Schedule.
+- **Arc flash reads board geometry.**
+  - Four new board parameters feed the IEEE 1584-2018 engine: `ELC_ARC_FLASH_GAP_MM` and
+    `ELC_ARC_FLASH_ENCL_H_MM` / `_W_MM` / `_D_MM`. The engine always accepted them, but the
+    command never passed them, so every board was calculated at its class's typical size.
+  - A blank value still uses the typical one.
+  - A typical gap is now noted on the label, as the typical enclosure already was.
+- **The Circuit Check runs in the Electrical Submission and Electrical QA workflows**, after
+  voltage drop. It had been in no workflow.
+- **Recorded, not fixed:** ELEC-21 (the wire tables have no project override or reload) and
+  ELEC-22 (two voltage-drop methods write one parameter).
+- **Tests.** 3,506 passing. The engine uses supplied geometry and assumes nothing, and notes a
+  typical gap when none is given.
+- **Not exercised in Revit.**
