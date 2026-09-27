@@ -23841,3 +23841,36 @@ Plugin build 0/0; repo gates pass. **Not exercised in Revit.** Checklist rows we
   - The rule is never below the 70 °C table.
   - Red check: changing one shipped value fails the pinning test.
 - Details are in `docs/ELECTRICAL_STANDARDS_SOURCES.md`. **Not exercised in Revit.**
+
+#### BS 7671 tables: second sources and transcribed voltage drop (2026-09-27)
+
+Research agents searched public GitHub transcriptions again, since the network is still
+GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
+
+- **Current ratings.** 122 more rows are two-source checked. The new second sources are the
+  Hong Kong EMSD CoP 2020 Appendix 6 tables (llano1025/calEng, committed before the first
+  source existed) and a BS 7671:2018 Table 4E4A transcription (HansEJC).
+  - Now fully checked: 4D1A C, 4D4A and 4E4A methods C and E, and 4E4A D1 1.5–120 mm².
+  - Also checked: every cell the first two sources had disagreed on.
+  - Still single source: 4D4A D1/D2, 4E4A D2 and 4E4A D1 150–300 mm².
+  - One new disagreement is noted on its row (4D2A E 400 mm²: 705 vs 715).
+- **Voltage drop.** All four multicore tables (4D2B, 4D4B, 4E2B, 4E4B) now carry z at every
+  size, from the HK transcription.
+  - Two-source checked: 4D2B / 4D4B ≤ 16 mm², and 4E4B ≤ 16 mm², 25–120 and 400 mm².
+  - The derived 4E2B / 4E4B values shipped earlier the same day are replaced. The transcribed
+    values are all at or below the derived bound, which confirms it was conservative.
+  - The 4D2B ≥ 25 mm² figures entered with no source were replaced by the HK values; they had
+    differed by 0.01–0.02 at 95–240 mm². `VoltageDropSolver.BuiltIn4D2B` follows them.
+  - The derived-values mechanism (`voltDropBasis` / `VoltDropDerived`) is removed now that
+    nothing uses it.
+- **What now sizes.** XLPE and armoured cables size at 25 mm² and above. Single-core
+  ≥ 25 mm² stays refused, because its two sources disagree in almost every cell.
+- **Table 4C1.** The ladder row carries its 2-circuit factor, 0.87.
+- **Tests.** `StingTools.Tags.Tests` has 3,418 passing.
+  - XLPE and armoured XLPE sizing at 25 mm².
+  - Single-core refusal.
+  - Pinned 4E4B values with their checking flags.
+  - Every multicore row carries voltage drop.
+  - Transcribed values stay at or below the resistance bound.
+  - Red check: changing one 4E4B value fails the pinning test.
+- **Not exercised in Revit.**
