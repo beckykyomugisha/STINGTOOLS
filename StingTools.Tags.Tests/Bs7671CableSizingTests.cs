@@ -307,17 +307,77 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Xlpe_sizes_on_capacity_but_is_refused_for_want_of_voltage_drop_data()
+        public void Xlpe_up_to_16mm2_sizes_on_derived_voltage_drop_and_says_so()
         {
-            // 4E2A method C: 1.0 mm² 19 A ✗, 1.5 mm² 24 A ✓ — but Table 4E2B is not carried,
-            // so no size can be checked for voltage drop and none is selected.
+            // 4E2A method C: 1.0 mm² 19 A ✗, 1.5 mm² 24 A ✓. Derived 4E2B 1.5 mm² = 31 mV/A/m:
+            // 31 × 20 × 10 / 1000 = 6.2 V = 2.70 % of 230 V ≤ 5 %.
             var i = Pvc(20, 10, 5.0);
             i.Insulation = "XLPE90";
             var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(1.5, r.CsaMm2);
+            Assert.Equal(31.0, r.MvAm);
+            Assert.Equal(6.2, r.VoltDropV, 6);
+            Assert.True(r.UnverifiedVoltDrop);
+            Assert.True(r.VoltDropDerived);
+            Assert.Contains("DERIVED, NOT TRANSCRIBED", r.Basis);
+        }
+
+        [Fact]
+        public void Xlpe_25mm2_and_above_is_still_refused_for_want_of_voltage_drop_data()
+        {
+            // Ib 110 → In 125 → 16 mm² (107 A) ✗, 25 mm² (138 A) ✓ — no mV/A/m carried from 25 mm².
+            var i = Pvc(110, 10, 5.0);
+            i.Insulation = "XLPE90";
+            var r = Bs7671CableSizer.Size(i, Data());
             Assert.False(r.Sized);
-            Assert.Equal(1.5, r.CapacityOnlyCsaMm2);
-            Assert.Contains("4E2B mV/A/m is not carried", r.Refusal);
-            Assert.Contains("will not estimate voltage drop", r.Refusal);
+            Assert.Equal(25.0, r.CapacityOnlyCsaMm2);
+            Assert.Contains("4E2B mV/A/m is not carried for 25", r.Refusal);
+        }
+
+        // The derivation rule for the 4E2B / 4E4B values ≤ 16 mm², in one place: BS EN 60228
+        // R20 (the VoltageDropEngine table) corrected to θ, × 2 or √3, rounded UP to 2 s.f.
+        private static double DerivedMv(double csa, double theta, bool threePhase)
+        {
+            double r = VoltageDropEngine.TemperatureCorrection(VoltageDropEngine.BaseResistanceMohmPerM(csa, "Cu"), theta);
+            double x = (threePhase ? Math.Sqrt(3) : 2.0) * r;
+            double step = Math.Pow(10, Math.Floor(Math.Log10(x)) - 1);
+            return Math.Round(Math.Ceiling(Math.Round(x / step, 9)) * step, 6);
+        }
+
+        [Fact]
+        public void Derivation_rule_never_understates_the_printed_70C_table()
+        {
+            // Applied at 70 °C the rule must not fall below the two-source-checked Table 4D2B —
+            // the evidence that the derived 90 °C values err on the safe side.
+            var rows = Data().FindTable("Cu", "PVC70", "C").Rows.Where(r => r.CsaMm2 <= 16 && r.MvVerified).ToList();
+            Assert.Equal(7, rows.Count);
+            foreach (var r in rows)
+            {
+                Assert.True(DerivedMv(r.CsaMm2, 70, false) >= r.MvAm1ph, $"{r.CsaMm2} mm² 1-ph");
+                Assert.True(DerivedMv(r.CsaMm2, 70, true) >= r.MvAm3ph, $"{r.CsaMm2} mm² 3-ph");
+            }
+        }
+
+        [Fact]
+        public void Shipped_XLPE_voltage_drop_is_exactly_the_derivation_and_never_verified()
+        {
+            var tables = Data().Tables.Where(t => t.Id == "4E2A" || t.Id == "4E4A").ToList();
+            Assert.Equal(8, tables.Count);
+            int n = 0;
+            foreach (var t in tables)
+            {
+                Assert.Contains("DERIVED, NOT TRANSCRIBED", t.VoltDropBasis);
+                foreach (var r in t.Rows)
+                {
+                    Assert.False(r.MvVerified);
+                    if (r.CsaMm2 > 16) { Assert.Equal(0, r.MvAm1ph); Assert.Equal(0, r.MvAm3ph); continue; }
+                    Assert.Equal(DerivedMv(r.CsaMm2, 90, false), r.MvAm1ph, 6);
+                    Assert.Equal(DerivedMv(r.CsaMm2, 90, true), r.MvAm3ph, 6);
+                    n++;
+                }
+            }
+            Assert.Equal(52, n);
         }
 
         [Fact]
