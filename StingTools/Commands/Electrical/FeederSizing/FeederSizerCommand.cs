@@ -88,8 +88,10 @@ namespace StingTools.Commands.Electrical.FeederSizing
                             $"{r.ProposedCsaMm2:0.#}", overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_RATING_A,
                             $"{r.ProposedRatingA:0}", overwrite: true);
-                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_CKT_VD_PCT,
-                            $"{r.ActualVDPct:0.00}", overwrite: true);
+                        // The sizer's own figure for the cable it chose, on the fed board: A4-SIZED
+                        // (feeders are sized to BS 7671 Appendix 4 — see CollectInputs).
+                        StingTools.Core.Electrical.CircuitVoltageDropModel.StampForeign(panel, r.ActualVDPct,
+                            $"{StingTools.Core.Electrical.CircuitVoltageDrop.CodeA4Sized} feeder {r.CsaLabel} from the feeder sizer; {r.Basis}");
                         written++;
                         if (!r.VDCompliant) vdFails++;
                     }

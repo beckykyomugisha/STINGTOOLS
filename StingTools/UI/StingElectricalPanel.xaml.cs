@@ -567,6 +567,7 @@ namespace StingTools.UI
                     CurrentA = c.CurrentA,
                     LoadKW = c.LoadKW,
                     VoltDropPct = c.VoltDropPct,
+                    VdUpperBound = c.VdUpperBound,
                     WireSize = c.WireSize,
                     LengthM = c.LengthM,
                     IsSpare = c.IsSpare,
@@ -727,6 +728,8 @@ namespace StingTools.UI
         public double CurrentA { get; set; }
         public double LoadKW { get; set; }
         public double VoltDropPct { get; set; }
+        /// <summary>VoltDropPct is an A4-MAX upper bound (no cable recorded on the circuit).</summary>
+        public bool VdUpperBound { get; set; }
         public string WireSize { get; set; }
         public double LengthM { get; set; }
         public bool IsSpare { get; set; }
@@ -735,7 +738,7 @@ namespace StingTools.UI
 
         public string CurrentDisplay => CurrentA > 0 ? $"{CurrentA:0.0}" : "—";
         public string LoadDisplay    => LoadKW    > 0 ? $"{LoadKW:0.00}" : "—";
-        public string VDDisplay      => VoltDropPct > 0 ? $"{VoltDropPct:0.0}" : "—";
+        public string VDDisplay      => VoltDropPct > 0 ? $"{(VdUpperBound ? "≤" : "")}{VoltDropPct:0.0}" : "—";
         public string LengthDisplay  => LengthM   > 0 ? $"{LengthM:0.0}" : "—";
     }
 
@@ -863,6 +866,8 @@ namespace StingTools.UI
         public double CurrentA { get; set; }
         public double LoadKW { get; set; }
         public double VoltDropPct { get; set; }
+        /// <summary>VoltDropPct is an A4-MAX upper bound (no cable recorded on the circuit).</summary>
+        public bool VdUpperBound { get; set; }
         public string WireSize { get; set; }
         public double LengthM { get; set; }
         public bool IsSpare { get; set; }

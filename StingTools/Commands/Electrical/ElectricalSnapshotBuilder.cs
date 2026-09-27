@@ -131,6 +131,9 @@ namespace StingTools.Commands.Electrical
                         if (sys.SystemType != ElectricalSystemType.PowerCircuit) continue;
                     }
                     catch { /* unknown system type — include cautiously */ }
+                    // The stamped drop with its basis (ELEC-22): NONE and pre-basis values show "—".
+                    var vdStamp = StingTools.Core.Electrical.CircuitVoltageDropModel.ReadStamp(sys);
+                    bool vdShown = vdStamp.Pct.HasValue && vdStamp.Method != StingTools.Core.Electrical.VdMethod.Legacy;
                     rows.Add(new CircuitData
                     {
                         Id = sys.Id,
@@ -140,7 +143,8 @@ namespace StingTools.Commands.Electrical
                         Phase = ReadCircuitPhase(sys),
                         CurrentA = SafeDouble(sys, BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM),
                         LoadKW = TrySafe(() => StingTools.Core.Electrical.ElecUnits.VAFromInternal(sys.ApparentLoad) / 1000.0),
-                        VoltDropPct = 0,
+                        VoltDropPct = vdShown ? vdStamp.Pct.Value : 0,
+                        VdUpperBound = vdShown && vdStamp.Method == StingTools.Core.Electrical.VdMethod.Appendix4Envelope,
                         WireSize = SafeStr(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM),
                         LengthM = TrySafe(() => sys.Length * 0.3048),
                         IsSpare = false,
@@ -384,11 +388,21 @@ namespace StingTools.Commands.Electrical
                 var vds = VoltageDropCommand.Calculate(doc, opts.Standard, opts.LightingLimitPct, opts.OtherLimitPct,
                                                        opts.Material, opts.OperatingTempC);
                 int bad = vds.Count(v => v.ExceedsThreshold);
+                int maybe = vds.Count(v => v.PossiblyExceeds);
+                int notCalc = vds.Count(v => !v.HasValue);
                 if (bad > 0)
                     items.Add(new ComplianceItemViewModel
                     { Icon = "⚠", Severity = "warn",
                       Message = $"{bad} circuit(s) exceed the voltage-drop threshold." });
-                else
+                if (maybe > 0)
+                    items.Add(new ComplianceItemViewModel
+                    { Icon = "⚠", Severity = "warn",
+                      Message = $"{maybe} circuit(s) may exceed the voltage-drop limit (upper bound — no cable recorded; apply a cable size)." });
+                if (notCalc > 0)
+                    items.Add(new ComplianceItemViewModel
+                    { Icon = "⚠", Severity = "warn",
+                      Message = $"{notCalc} circuit(s) have no voltage drop (missing length, load, voltage or size)." });
+                if (bad + maybe + notCalc == 0)
                     items.Add(new ComplianceItemViewModel
                     { Icon = "✅", Severity = "info",
                       Message = $"Voltage drop within limits across {vds.Count} circuit(s)." });

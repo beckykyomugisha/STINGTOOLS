@@ -43,7 +43,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                     Standard = snap.Standard ?? "BS7671",
                 };
                 var result = CableSizerEngine.Calculate(input,
-                    CableSizerEngine.Bs7671Tables(commandData.Application.ActiveUIDocument?.Document));
+                    CableSizerEngine.Bs7671Tables(ParameterHelpers.GetContext(commandData)?.Doc));
                 StingElectricalCommandHandler.LastCableSizeResult = result;
                 StingElectricalCommandHandler.ActivePanel?.RefreshCableResult(result);
                 return Result.Succeeded;

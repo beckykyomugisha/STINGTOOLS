@@ -147,6 +147,10 @@ def resolve(n,desc,depth=0):
     # type, IPS Validation's LIM flag). The broad ELEC set would put them on every
     # conduit and tray.
     if n in ("ELC_FEED_TYPE_TXT","ELC_IPS_LIM_BOOL"): return "ELEC_EQUIP","board-level"
+    # The voltage-drop basis goes wherever its value goes: ELC_VLT_DROP_PCT is on
+    # circuits and boards (the feeder sizer stamps a feeder's drop on the board it
+    # feeds). The ELC_CKT_ sub-rule alone would leave a board's figure unexplained.
+    if n=="ELC_CKT_VD_BASIS_TXT": return "ELEC_EQUIP","vd-basis"
     # A load-profile space type describes a space, not HVAC plant: Block Load and
     # the cross-talk audit read it on MEP Spaces, Block Load and ComCheck on Rooms.
     if n=="HVC_SPACE_TYPE_TXT": return "SPACE_ROOM","space-level"

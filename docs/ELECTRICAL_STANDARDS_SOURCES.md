@@ -139,6 +139,44 @@ differed by 0.01–0.02 at 95–240 mm².
   2-circuit factor is 0.87 (A and three IEC transcriptions). The 0.88 once reported against it
   is the perforated-tray row.
 
+### Project tables (ELEC-21)
+
+A project can override the corporate tables in `_BIM_COORD/bs7671_wire_tables.json`
+(schema `sting.bs7671WireTables.override/1`). What it may do, and what it may not:
+
+- **Replace, add or remove whole capacity tables**, keyed by conductor, insulation, cable type
+  and reference method. A supplied table replaces the corporate one entirely; rows are not
+  merged, because a table mixing corporate and manufacturer rows is one no source printed.
+- **Override Table 4B1, Table 4C1 and Cf.** Factors must lie in (0, 1.5]; Cf in (0, 1].
+- **Every project row is single-source (VERIFY)** unless the table carries a `twoSourceCheck`
+  naming at least two distinct sources, who checked, and when. A row that claims `verified`
+  without one is downgraded and the reload says so.
+- **Every project table needs a source**, on the table or the file.
+- **One error refuses the whole file.** The sizers then refuse too, naming the file and the
+  error; the corporate tables are not used as a substitute.
+- **Project data never reads as BS 7671's own.** Every basis cites "project table …
+  (replaces corporate Table …; source …; two-source check …)" and ends "Sized on PROJECT data".
+- `Cable_ReloadTables` (CABLE tab) re-reads both files and lists what is in force.
+- The copper fault-current tables and conduit areas are corporate only.
+
+## Voltage drop basis (ELEC-22)
+
+`ELC_VLT_DROP_PCT` is written by one resolver (`Core/Electrical/CircuitVoltageDrop`), and
+`ELC_CKT_VD_BASIS_TXT` beside it says how:
+
+| Code | Meaning | Can the Circuit Check use it? |
+|---|---|---|
+| `A4` | Appendix 4 mV/A/m from the table of the cable recorded on the circuit | Pass or fail |
+| `A4-MAX` | No complete cable record: the highest mV/A/m any loaded table gives for the size — an upper bound | Pass only; over the limit is NOT CHECKED |
+| `A4-SIZED` | A sizer's figure for the cable it chose (feeder sizer, on the board) | Not read by the Check |
+| `R60228` | BS EN 60228 conductor resistance (NEC circuits) | No |
+| `IMPORT` | A figure from Amtech, EasyPower or Trimble; method unknown | No |
+| `NONE` | Not calculated, and why | No |
+| blank | Written before the basis existed | No |
+
+The Circuit Check does not read the stamped figure at all: it resolves each circuit afresh
+from its route length, Ib, voltage and recorded cable.
+
 ## IEEE 1584-2018
 
 ### Sources

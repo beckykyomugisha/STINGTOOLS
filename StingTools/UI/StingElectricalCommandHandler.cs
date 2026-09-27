@@ -640,7 +640,8 @@ namespace StingTools.UI
                         "Select an ElectricalSystem or panel circuit before applying.");
                     return;
                 }
-                int circuits = 0, wireWrites = 0, ratingWrites = 0, stingStamps = 0;
+                int circuits = 0, wireWrites = 0, ratingWrites = 0, stingStamps = 0, vdNone = 0;
+                var vdTables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
                 using (var tx = new Transaction(doc, "STING Apply Cable Size"))
                 {
                     tx.Start();
@@ -687,8 +688,19 @@ namespace StingTools.UI
                         {
                             ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_CSA_MM2,
                                 $"{r.RecommendedCsaMm2:0.#}", overwrite: true);
-                            ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_VD_PCT,
-                                $"{r.ActualVoltDropPct:0.00}", overwrite: true);
+                            // Voltage drop is not written from the sizer's own figure: the length
+                            // and load there are the CABLE tab's, not the circuit's. It is resolved
+                            // from the circuit's own Ib / length / voltage, for the size and cable
+                            // just applied (ELEC-22) — NONE with the reason when those are missing.
+                            var vdIn = StingTools.Core.Electrical.CircuitVoltageDropModel.Read(sys,
+                                input?.Standard ?? "BS7671", input?.Material ?? "Cu");
+                            vdIn.CsaMm2 = r.RecommendedCsaMm2;
+                            if (input != null)
+                            { vdIn.InstallMethod = input.InstallMethod; vdIn.Insulation = input.Insulation; vdIn.CableType = input.CableType; }
+                            var vdOut = StingTools.Core.Electrical.CircuitVoltageDrop.Resolve(vdIn, vdTables,
+                                StingTools.Core.Electrical.CircuitVoltageDropModel.Resistance());
+                            StingTools.Core.Electrical.CircuitVoltageDropModel.Stamp(sys, vdOut);
+                            if (!vdOut.HasValue) vdNone++;
                             if (r.ProposedBreakerA > 0)
                                 ParameterHelpers.SetString(sys, "ELC_CKT_BRK_RATING_A",
                                     $"{r.ProposedBreakerA}", overwrite: true);
@@ -720,9 +732,10 @@ namespace StingTools.UI
                     $"Cable size applied to {circuits} circuit(s).\n\n" +
                     $"• Wire size written: {wireWrites}\n" +
                     $"• Breaker rating written: {ratingWrites}\n" +
-                    $"• STING params stamped: {stingStamps}\n\n" +
-                    $"Recommendation: {r.CsaLabel} @ {r.ProposedBreakerA}A " +
-                    $"(VD {r.ActualVoltDropPct:0.00}%)");
+                    $"• STING params stamped: {stingStamps}\n" +
+                    (vdNone > 0 ? $"• Voltage drop not calculated on {vdNone} circuit(s) (missing length, load or voltage — see ELC_CKT_VD_BASIS_TXT)\n" : "") +
+                    $"\nRecommendation: {r.CsaLabel} @ {r.ProposedBreakerA}A " +
+                    $"(VD {r.ActualVoltDropPct:0.00}% on the CABLE tab's length and load; each circuit's own drop is stamped from its route)");
             }
             catch (Exception ex) { StingLog.Warn($"ApplyCableSize: {ex.Message}"); }
         }

@@ -185,6 +185,8 @@ namespace StingTools.Commands.Electrical.Import
             n += Tally(Set(p, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", r.FaultKa?.ToString("F2", Inv) ?? "", w), ref failed);
             n += Tally(Set(p, "ELC_BUSBAR_RATING_A", r.BusbarRating.HasValue ? r.BusbarRating.Value.ToString("F0", Inv) : "", w), ref failed);
             n += Tally(Set(p, "ELC_VLT_DROP_PCT",    r.VoltageDrop?.ToString("F1", Inv) ?? "", w), ref failed);
+            // Say where the figure came from (ELEC-22); not counted as a separate value.
+            if (r.VoltageDrop.HasValue) Set(p, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("Amtech"), w);
             return n;
         }
 
@@ -216,7 +218,11 @@ namespace StingTools.Commands.Electrical.Import
                 if (m == null) continue;
                 if (m.FaultKa.HasValue)    n += Tally(Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", m.FaultKa.Value.ToString("F2", Inv), w), ref failed);
                 if (!string.IsNullOrEmpty(m.CsaMm2)) n += Tally(Set(sys, "ELC_CABLE_CSA_MM2_TXT", m.CsaMm2, w), ref failed);
-                if (m.VoltageDrop.HasValue) n += Tally(Set(sys, "ELC_VLT_DROP_PCT", m.VoltageDrop.Value.ToString("F1", Inv), w), ref failed);
+                if (m.VoltageDrop.HasValue)
+                {
+                    n += Tally(Set(sys, "ELC_VLT_DROP_PCT", m.VoltageDrop.Value.ToString("F1", Inv), w), ref failed);
+                    Set(sys, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("Amtech"), w);
+                }
             }
             return n;
         }

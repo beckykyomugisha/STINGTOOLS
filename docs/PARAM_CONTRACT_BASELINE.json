@@ -607,11 +607,6 @@
       "role": "export",
       "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
-    "ELC_CKT_LENGTH_M": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
-    },
     "ELC_CKT_PHASE_COUNT_NR": {
       "state": "write_only",
       "role": "export",

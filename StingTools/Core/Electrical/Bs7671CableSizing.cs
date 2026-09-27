@@ -191,6 +191,27 @@ namespace StingTools.Core.Electrical
             return best;
         }
 
+        /// <summary>
+        /// The highest mV/A/m any loaded table gives for this conductor, size and phase
+        /// column, and which table gave it. With no cable record on a circuit this bounds
+        /// its voltage drop from above: a drop at or under the limit on this figure is under
+        /// it on any loaded table; a drop over it proves nothing. 0 when no table carries it.
+        /// </summary>
+        public double MaxTabulatedMvAm(string material, double csaMm2, int phases, out Bs7671CapacityTable from)
+        {
+            from = null;
+            double best = 0;
+            foreach (var t in Tables)
+            {
+                if (!string.Equals(t.Conductor, material, StringComparison.OrdinalIgnoreCase)) continue;
+                var row = t.Rows.FirstOrDefault(x => Math.Abs(x.CsaMm2 - csaMm2) < 1e-6);
+                if (row == null) continue;
+                double mv = phases == 3 ? row.MvAm3ph : row.MvAm1ph;
+                if (mv > best) { best = mv; from = t; }
+            }
+            return best;
+        }
+
         /// <summary>Parse the <c>bs7671Appendix4</c> section. Returns an empty set (which
         /// makes the sizer refuse) when the section is absent — never a fallback table.</summary>
         public static Bs7671Data FromJson(JObject root)

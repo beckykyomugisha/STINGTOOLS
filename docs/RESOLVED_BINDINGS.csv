@@ -1122,6 +1122,7 @@ ELC_CKT_PHASE_COUNT_NR,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipme
 ELC_CKT_PHASE_COUNT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_PHASE_COUNT_NR display mirror [auto-generated]
 ELC_CKT_PWR_KW,4,elc-sub,Electrical Circuits,Elc Ckt Pwr Kw [ISO 19650-1:2018]
 ELC_CKT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_NR display mirror [auto-generated]
+ELC_CKT_VD_BASIS_TXT,4,vd-basis,Electrical Equipment|Electrical Circuits,"How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed."
 ELC_CKT_VLT_V,4,elc-sub,Electrical Circuits,Elc Ckt Vlt V [ISO 19650-1:2018]
 ELC_CONDUIT_HOME_RUN_BOOL,4,elc-sub,Conduits|Conduit Fittings,Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.
 ELC_CONDUIT_HOME_RUN_END_TXT,4,elc-sub,Conduits|Conduit Fittings,Which end of this home-run conduit is at the panel: Start or End. Blank = the end with the lower X coordinate.

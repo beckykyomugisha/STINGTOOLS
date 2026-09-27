@@ -21891,6 +21891,18 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CKT_VD_BASIS_TXT",
+      "guid": "e66e86de-f5a7-5525-81b7-5ae0f76d3889",
+      "description": "How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed.",
+      "datatype": "TEXT",
+      "group_id": 4,
+      "group_name": "ELC_PWR",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
       "param_name": "ELC_CONDUIT_HOME_RUN_BOOL",
       "guid": "a4c24cde-c13c-542e-9466-5a5c46beb012",
       "description": "Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.",

@@ -21,7 +21,8 @@ namespace StingTools.Commands.Electrical.CableSizer
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData?.Application?.ActiveUIDocument?.Document;
+            // The dock panel dispatches with commandData == null; GetContext resolves either way.
+            var doc = ParameterHelpers.GetContext(commandData)?.Doc;
             if (doc == null) { message = "No document open."; return Result.Failed; }
 
             CableSizerEngine.InvalidateCache();

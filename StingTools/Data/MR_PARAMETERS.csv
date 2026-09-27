@@ -1,4 +1,4 @@
-# v6.8 | 3652 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3653 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3661,3 +3661,4 @@ Generic Models,ELC_ARC_FLASH_GAP_MM,a2e7f8d9-100e-5179-9179-10000000000e,TEXT,EL
 Generic Models,ELC_ARC_FLASH_ENCL_H_MM,a2e7f8d9-100f-5179-9179-10000000000f,TEXT,ELC_PWR,Instance,"IEEE 1584-2018 enclosure height in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",False,,,MULTI,1,0
 Generic Models,ELC_ARC_FLASH_ENCL_W_MM,a2e7f8d9-1010-5179-9179-100000000010,TEXT,ELC_PWR,Instance,"IEEE 1584-2018 enclosure width in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",False,,,MULTI,1,0
 Generic Models,ELC_ARC_FLASH_ENCL_D_MM,a2e7f8d9-1011-5179-9179-100000000011,TEXT,ELC_PWR,Instance,"IEEE 1584-2018 enclosure depth in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",False,,,MULTI,1,0
+Generic Models,ELC_CKT_VD_BASIS_TXT,e66e86de-f5a7-5525-81b7-5ae0f76d3889,TEXT,ELC_PWR,Instance,"How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed.",False,,,MULTI,1,0
