@@ -19,15 +19,20 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-25
+## Counts — re-derived 2026-09-26
 
-- **Total IExternalCommand classes**: **1759**
-- **Reached by a dispatch layer**: **1734**
+- **Total IExternalCommand classes**: **1763**
+- **Reached by a dispatch layer**: **1738**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1759; the script fails if they stop adding up.
+The four buckets partition all 1763; the script fails if they stop adding up.
+
+**+4 on 2026-09-26 (MEP design engines)**, reached from the HVAC and Plumbing panels, their handlers and
+`WorkflowEngine.ResolveCommand`: `Hvac_PsychroCoil` (`HvacPsychroCoilCommand`), `Fire_StairPressurisation`
+(`StairPressurisationCommand`), `Fire_SprinklerHydraulics` (`SprinklerHydraulicsCommand`) and `Gas_SizePipes`
+(`GasPipeSizingCommand`). The unreachable and ambiguous buckets are unchanged.
 
 **+1 on 2026-09-25 (PARAM-5)**, reached from CREATE TAGS → SETUP (beside Load Params), the
 handler and `WorkflowEngine.ResolveCommand`: `Params_RebindCircuitNumberAsText`

@@ -1,7 +1,9 @@
 // ConduitRouteEngineTests — pure-logic regression tests for the
 // rectilinear routing engine + bend-counting helpers.
 
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Commands.Electrical.Routing;
 using Xunit;
@@ -251,5 +253,49 @@ namespace StingTools.Routing.Tests
         {
             Assert.Equal(expectedOd, ConduitRouteEngine.EstimateCableOdMm(csa));
         }
-    }
+    
+        // ── OrthogonalRoute (A* post-processing, ROADMAP MEPG-11) ──────────
+
+        private static bool AxisAligned(RouteSegment s)
+        {
+            var d = s.End - s.Start;
+            int moving = (Math.Abs(d.X) > 1e-9 ? 1 : 0) + (Math.Abs(d.Y) > 1e-9 ? 1 : 0) + (Math.Abs(d.Z) > 1e-9 ? 1 : 0);
+            return moving == 1;
+        }
+
+        [Fact]
+        public void OrthogonalRoute_StraightCellRunBecomesOneSegment()
+        {
+            var cells = Enumerable.Range(1, 10).Select(i => new XYZ(i, 0, 0)).ToList();
+            var segs = ConduitRouteEngine.OrthogonalRoute(new XYZ(0, 0, 0), cells, new XYZ(11, 0, 0), 20, "c");
+            Assert.Single(segs);
+            Assert.Equal(11.0, segs[0].End.X, 9);
+        }
+
+        [Fact]
+        public void OrthogonalRoute_EveryLegIsAxisAlignedAndEndsAreExact()
+        {
+            var start = new XYZ(0.1, 0.2, 0.3);
+            var end = new XYZ(3.3, 2.4, 1.7);
+            var cells = new List<XYZ> { new XYZ(0.5, 0.5, 0.5), new XYZ(1.5, 0.5, 0.5), new XYZ(2.5, 0.5, 0.5),
+                                        new XYZ(2.5, 1.5, 0.5), new XYZ(2.5, 2.5, 0.5), new XYZ(2.5, 2.5, 1.5) };
+            var segs = ConduitRouteEngine.OrthogonalRoute(start, cells, end, 20, "c");
+            Assert.All(segs, s => Assert.True(AxisAligned(s)));
+            Assert.Equal(0.0, segs[0].Start.DistanceTo(start), 9);
+            Assert.Equal(0.0, segs[segs.Count - 1].End.DistanceTo(end), 9);
+            for (int i = 1; i < segs.Count; i++) Assert.Equal(0.0, segs[i].Start.DistanceTo(segs[i - 1].End), 9);
+            // Consecutive segments never continue in the same direction (they were merged).
+            for (int i = 1; i < segs.Count; i++)
+                Assert.True((segs[i].End - segs[i].Start).Normalize().DotProduct((segs[i - 1].End - segs[i - 1].Start).Normalize()) < 0.999);
+        }
+
+        [Fact]
+        public void OrthogonalRoute_NoCellsFallsBackToAnAxisAlignedDogLeg()
+        {
+            var segs = ConduitRouteEngine.OrthogonalRoute(new XYZ(0, 0, 0), new List<XYZ>(), new XYZ(2, 3, 1), 20, "c");
+            Assert.Equal(3, segs.Count);
+            Assert.All(segs, s => Assert.True(AxisAligned(s)));
+            Assert.Equal(2, ConduitRouteEngine.CountBends(segs));
+        }
+}
 }

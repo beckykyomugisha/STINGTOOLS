@@ -42,6 +42,17 @@ namespace StingTools.Core.Acoustic
         public OctaveBand SourceLw { get; set; }
         /// <summary>Silencer insertion-loss per octave (Silencer only). dB.</summary>
         public OctaveBand SilencerILdB { get; set; }
+
+        // ── Breakout (StraightDuct only) ──
+        /// <summary>True when this duct runs through the receiving room, so sound breaking out of its walls reaches the listener.</summary>
+        public bool   BreakoutIntoRoom { get; set; }
+        /// <summary>Rectangular duct width / height, mm. 0 = not rectangular (no breakout computed).</summary>
+        public double WidthMm      { get; set; }
+        public double HeightMm     { get; set; }
+        /// <summary>Duct wall surface mass, kg/m² (0.8 mm galvanised steel ≈ 6.3).</summary>
+        public double WallMassKgM2 { get; set; }
+        /// <summary>Model element id, for callers that map results back.</summary>
+        public long   ElementIdValue { get; set; }
     }
 
     public class RoomReceiver
@@ -67,6 +78,9 @@ namespace StingTools.Core.Acoustic
         public OctaveBand RoomLw             { get; set; }
         public OctaveBand RoomLp             { get; set; }
         public int NcRating                  { get; set; }
+        /// <summary>Sound power breaking out of ducts inside the room (energy sum); included in RoomLw.</summary>
+        public OctaveBand BreakoutLw         { get; set; }
+        public bool HasBreakout              { get; set; }
         public List<(string Element, OctaveBand AttenDb, OctaveBand RegenLw)> PerElement { get; }
             = new List<(string, OctaveBand, OctaveBand)>();
     }
@@ -113,6 +127,8 @@ namespace StingTools.Core.Acoustic
             var lw = fan.SourceLw;
             var totalAtten = new OctaveBand();
             var totalRegen = new OctaveBand();
+            var breakout = new OctaveBand();
+            bool anyBreakout = false;
 
             // 2. Walk subsequent elements
             foreach (var e in path)
@@ -126,6 +142,12 @@ namespace StingTools.Core.Acoustic
                     case ElementKind.StraightDuct:
                         for (int i = 0; i < 8; i++)
                             atten[i] = RectStraightUnlinedDbPerM[i] * e.LengthM;
+                        if (e.BreakoutIntoRoom && e.WidthMm > 0 && e.HeightMm > 0 && e.WallMassKgM2 > 0 && e.LengthM > 0)
+                        {
+                            var bo = BreakoutLw(lw, e.WidthMm, e.HeightMm, e.LengthM, e.WallMassKgM2);
+                            breakout = anyBreakout ? OctaveBand.AddLevels(breakout, bo) : bo;
+                            anyBreakout = true;
+                        }
                         break;
                     case ElementKind.Elbow:
                         for (int i = 0; i < 8; i++) atten[i] = Elbow90UnlinedDb[i];
@@ -163,6 +185,12 @@ namespace StingTools.Core.Acoustic
                 r.PerElement.Add((string.IsNullOrEmpty(e.Label) ? e.Kind.ToString() : e.Label, atten, regen));
             }
 
+            if (anyBreakout)
+            {
+                r.BreakoutLw = breakout;
+                r.HasBreakout = true;
+                lw = OctaveBand.AddLevels(lw, breakout);
+            }
             r.RoomLw = lw;
             r.RoomLp = RoomLwToLp(lw, room);
             r.TotalAttenuationDb = totalAtten;
@@ -192,6 +220,43 @@ namespace StingTools.Core.Acoustic
             var lp = new OctaveBand();
             for (int i = 0; i < 8; i++) lp[i] = lw[i] + delta;
             return lp;
+        }
+
+        // ── Breakout ────────────────────────────────────────────────
+        // ASHRAE Handbook (HVAC Applications, "Noise and Vibration Control")
+        // method for rectangular sheet-metal ducts, in its native IP units:
+        //   f_L    = 24 120 / √(a·b)                       Hz, a b in inches
+        //   TL_out = 10·log10(f·q² / (a+b)) + 17           f < f_L
+        //   TL_out = 20·log10(q·f) − 31                    f ≥ f_L
+        //   Lw_out = Lw_in + 10·log10(S/A) − TL_out
+        // q duct-wall mass lb/ft², S = 24·L·(a+b) radiating area in², A = a·b
+        // cross-section in², L ft. TL_out is floored at 10·log10(S/A): the
+        // breakout power cannot exceed the power travelling in the duct.
+        // Round ducts break out far less and are not modelled.
+
+        public static double RectangularBreakoutTlDb(double freqHz, double widthMm, double heightMm, double massKgM2)
+        {
+            double a = widthMm / 25.4, b = heightMm / 25.4;
+            double q = massKgM2 * 0.204816;                   // kg/m² → lb/ft²
+            double fL = 24120.0 / Math.Sqrt(a * b);
+            return freqHz < fL
+                ? 10 * Math.Log10(freqHz * q * q / (a + b)) + 17
+                : 20 * Math.Log10(q * freqHz) - 31;
+        }
+
+        public static OctaveBand BreakoutLw(OctaveBand lwIn, double widthMm, double heightMm, double lengthM, double massKgM2)
+        {
+            double a = widthMm / 25.4, b = heightMm / 25.4;
+            double lFt = lengthM * 3.28084;
+            double s = 24 * lFt * (a + b), area = a * b;
+            double areaRatioDb = 10 * Math.Log10(s / area);
+            var o = new OctaveBand();
+            for (int i = 0; i < 8; i++)
+            {
+                double tl = Math.Max(RectangularBreakoutTlDb(OctaveBand.CentreFrequencies[i], widthMm, heightMm, massKgM2), areaRatioDb);
+                o[i] = lwIn[i] + areaRatioDb - tl;
+            }
+            return o;
         }
 
         // ── Regenerated noise correlations ──────────────────────────

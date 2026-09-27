@@ -13,9 +13,16 @@
 //
 // Pressure drop uses Darcy-Weisbach with a Blasius f for smooth copper:
 //     ΔP = f · (L_eq / D) · ½ ρ v²,   f = 0.316 / Re^0.25 (turbulent).
-// Two-phase effects on suction (small amount of flash from line losses)
-// are accounted for by a 10 % multiplier — for full Lockhart-Martinelli
-// you'd need a state engine.
+// Suction ΔP is multiplied by SuctionDpMultiplier (default 1.10) as an
+// allowance for entrained oil and liquid; it is an input, reported in the
+// trace, not a hidden constant. A Lockhart-Martinelli two-phase calculation
+// needs vapour quality along the line, which this solver does not model.
+//
+// Liquid-line static head follows the direction the liquid actually flows.
+// Cooling: ODU → IDU, so an ODU above the IDU gains head. Heating (heat
+// pump): IDU → ODU, the reverse. A reversible system is sized for the worse
+// of the two, i.e. |lift| is always a debit — the default, because VRF/VRV
+// systems are almost always heat pumps.
 //
 // Output: chosen diameter, velocity, ΔP, lift/length compliance.
 
@@ -25,6 +32,17 @@ using System.Linq;
 
 namespace StingTools.Core.Refrigerant
 {
+    /// <summary>Which way the liquid line runs in service. Decides the sign of its static head.</summary>
+    public enum RefrigerantOperatingMode
+    {
+        /// <summary>Heat pump: liquid flows both ways; size for the uphill case.</summary>
+        Reversible = 0,
+        /// <summary>Liquid flows outdoor unit → indoor unit.</summary>
+        CoolingOnly = 1,
+        /// <summary>Liquid flows indoor unit → outdoor unit.</summary>
+        HeatingOnly = 2
+    }
+
     public class RefrigerantSizingInput
     {
         public string RefrigerantId   { get; set; } = "R410A";
@@ -48,6 +66,15 @@ namespace StingTools.Core.Refrigerant
         /// for EEV systems with deliberate sub-cooling control.
         /// </summary>
         public double SubcoolingReserveK { get; set; } = 5.0;
+
+        /// <summary>Liquid-flow direction in service; decides whether lift debits or credits the liquid ΔP budget.</summary>
+        public RefrigerantOperatingMode Mode { get; set; } = RefrigerantOperatingMode.Reversible;
+
+        /// <summary>
+        /// Allowance on suction-line friction for entrained oil and liquid
+        /// (1.10 = +10 %). Values below 1 are treated as 1.
+        /// </summary>
+        public double SuctionDpMultiplier { get; set; } = 1.10;
 
         /// <summary>
         /// Optional vendor series id (e.g. "Daikin-VRV-5", "Mitsubishi-CityMulti-R2").
@@ -108,6 +135,22 @@ namespace StingTools.Core.Refrigerant
         public const double CopperWallMm = 1.0;        // typical L-grade ACR copper
         public const double GravityMs2   = 9.81;
 
+        /// <summary>
+        /// Static-head change on the liquid line, kPa: positive = a debit
+        /// (liquid rises along its flow), negative = a credit (it falls).
+        /// <paramref name="liftM"/> is outdoor-unit height above the indoor unit.
+        /// </summary>
+        public static double LiquidStaticHeadKpa(double rhoKgM3, double liftM, RefrigerantOperatingMode mode)
+        {
+            double perM = rhoKgM3 * GravityMs2 / 1000.0;
+            switch (mode)
+            {
+                case RefrigerantOperatingMode.CoolingOnly: return -perM * liftM;   // ODU → IDU
+                case RefrigerantOperatingMode.HeatingOnly: return  perM * liftM;   // IDU → ODU
+                default:                                    return  perM * Math.Abs(liftM);
+            }
+        }
+
         public static RefrigerantSizingResult Size(RefrigerantSizingInput input)
         {
             var r = new RefrigerantSizingResult
@@ -151,9 +194,14 @@ namespace StingTools.Core.Refrigerant
             //
             // We sign-track the lift and let the budget go either way.
             double liftKpa = input.Leg == RefrigerantLeg.Liquid
-                ? rho * GravityMs2 * input.LiftM / 1000.0
+                ? LiquidStaticHeadKpa(rho, input.LiftM, input.Mode)
                 : 0;
             r.LiftPenaltyKpa = liftKpa;
+            if (input.Leg == RefrigerantLeg.Liquid && Math.Abs(input.LiftM) > 0)
+                r.Trace.Add((0, 0, liftKpa,
+                    $"static head {(liftKpa >= 0 ? "debit" : "credit")} {Math.Abs(liftKpa):F1} kPa " +
+                    $"(lift {input.LiftM:+0.0;-0.0} m, {input.Mode})"));
+            double suctionMult = Math.Max(1.0, input.SuctionDpMultiplier);
             double dpBudgetKpa = Math.Max(input.MaxPressureDropKpa - liftKpa, 1.0);
 
             double maxDpBudgetPa = dpBudgetKpa * 1000;
@@ -182,8 +230,8 @@ namespace StingTools.Core.Refrigerant
                     ? 64.0 / Math.Max(re, 1.0)
                     : 0.316 / Math.Pow(re, 0.25);   // Blasius smooth-pipe
                 double dpPa = f * (input.EquivLengthM / d) * 0.5 * rho * v * v;
-                // Suction-side two-phase multiplier (rough).
-                if (input.Leg == RefrigerantLeg.Suction) dpPa *= 1.10;
+                // Suction-side allowance for entrained oil / liquid (input).
+                if (input.Leg == RefrigerantLeg.Suction) dpPa *= suctionMult;
                 double dpKpa = dpPa / 1000.0;
 
                 if (dpPa > maxDpBudgetPa)

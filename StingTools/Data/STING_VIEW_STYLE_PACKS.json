@@ -1601,6 +1601,230 @@
       ]
     },
     {
+      "id": "corp-standard-fire",
+      "name": "Corporate Fire Suppression Plan",
+      "description": "Single-discipline fire suppression production plan. Sprinklers, sprinkler / riser pipework (through the fire filters) and fire-alarm devices bold in fire red (#C00000); every other MEP discipline and the arch/struct shell halftoned grey (#808080) as background. Grids / rooms / matchline kept.",
+      "extends": "corp-base",
+      "origin": "corporate",
+      "templateMode": "managed",
+      "managedFields": [
+        "scale",
+        "detailLevel",
+        "discipline",
+        "visualStyle",
+        "phaseFilter"
+      ],
+      "discipline": "Fire Protection",
+      "visualStyle": "HiddenLine",
+      "tagColorScheme": "STING Discipline",
+      "viewTemplate": "STING - Fire Protection Plan",
+      "detailLevel": "Fine",
+      "scaleHint": "1:100",
+      "colorScheme": "Discipline",
+      "vgOverrides": {
+        "Electrical Equipment": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Electrical Fixtures": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Lighting Fixtures": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Lighting Devices": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Conduits": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Conduit Fittings": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Cable Trays": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Cable Tray Fittings": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Wires": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Communication Devices": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Data Devices": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Security Devices": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Nurse Call Devices": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Telephone Devices": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Fire Alarm Devices": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#C00000",
+          "projWeight": 3
+        },
+        "Ducts": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Duct Fittings": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Air Terminals": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Mechanical Equipment": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Pipes": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Pipe Fittings": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Plumbing Fixtures": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Sprinklers": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#C00000",
+          "projWeight": 4
+        },
+        "Walls": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 2
+        },
+        "Structural Columns": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 2
+        },
+        "Structural Framing": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Floors": {
+          "visible": true,
+          "halftone": true,
+          "projColor": "#808080",
+          "projWeight": 1
+        },
+        "Ceilings": {
+          "visible": false
+        },
+        "Rooms": {
+          "visible": true,
+          "projColor": "#1976D2",
+          "projWeight": 1,
+          "transparency": 80
+        },
+        "Pipe Accessories": {
+          "visible": true,
+          "halftone": false,
+          "projColor": "#C00000",
+          "projWeight": 2
+        }
+      },
+      "filterRules": [
+        {
+          "name": "STING - Fire: Wet Sprinkler"
+        },
+        {
+          "name": "STING - Fire: Dry Sprinkler"
+        },
+        {
+          "name": "STING - Fire: Gas Suppression"
+        },
+        {
+          "name": "STING - Fire: Wet Riser"
+        },
+        {
+          "name": "STING - Fire: Dry Riser"
+        },
+        {
+          "name": "STING - Fire: Compartment Walls"
+        },
+        {
+          "name": "STING - Fire: Compartment Floors"
+        }
+      ]
+    },
+    {
       "id": "corp-fabrication-shop",
       "name": "Fabrication Shop Drawing",
       "description": "Workshop-floor look. Bold mono pipework / ductwork; structural and walls halftoned; ordinate dimensions.",
