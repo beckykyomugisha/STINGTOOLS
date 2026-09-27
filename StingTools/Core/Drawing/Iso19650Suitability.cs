@@ -27,6 +27,7 @@
 // Revit-free, so it is unit-tested.
 
 using System;
+using System.Linq;
 using System.Collections.Generic;
 
 namespace StingTools.Core.Drawing
@@ -161,13 +162,16 @@ namespace StingTools.Core.Drawing
             if (s.Length == 0) return "";
 
             // The code is a letter followed by a digit, at the start of a token.
-            foreach (var token in s.Split(new[] { ' ', '-', '/', ',', ':', '\t' },
-                                          StringSplitOptions.RemoveEmptyEntries))
-            {
-                string t = Clean(token);
+            // Letter+digit codes win over the letter-only ones (CR, AB, AR): those
+            // are ordinary two-letter words and initials, so "AR" in a note must not
+            // outrank an "S3" elsewhere in the same text.
+            var tokens = s.Split(new[] { ' ', '-', '/', ',', ':', '\t' },
+                                 StringSplitOptions.RemoveEmptyEntries)
+                          .Select(Clean).ToList();
+            foreach (var t in tokens)
                 if (t.Length == 2 && char.IsLetter(t[0]) && char.IsDigit(t[1]) && IsKnown(t)) return t;
+            foreach (var t in tokens)
                 if (t == "CR" || t == "AB" || t == "AR") return t;
-            }
             return "";
         }
 

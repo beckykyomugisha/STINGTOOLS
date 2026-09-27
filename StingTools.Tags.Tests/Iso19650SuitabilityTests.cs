@@ -84,6 +84,13 @@ namespace StingTools.Tags.Tests
             Assert.Equal("", Iso19650Suitability.ExtractCode("S9 - something"));
         }
 
+        [Theory]
+        [InlineData("AR team note - S3", "S3")]   // the letter+digit code wins
+        [InlineData("CR / A1", "A1")]
+        [InlineData("Archive (AR)", "AR")]        // a letter-only code on its own still reads
+        public void A_letter_digit_code_outranks_a_letter_only_word(string raw, string expected)
+            => Assert.Equal(expected, Iso19650Suitability.ExtractCode(raw));
+
         [Fact]
         public void The_three_facts_agree_when_derived_from_one_code()
         {

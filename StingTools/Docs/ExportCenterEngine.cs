@@ -932,7 +932,9 @@ namespace StingTools.Docs
             {
                 var state = LoadState(doc);
                 var byKey = (state.LastExports ?? new List<SheetExportRecord>())
-                    .ToDictionary(r => r.SheetUniqueId + "|" + r.Format, r => r);
+                    .Where(r => r != null)
+                    .GroupBy(r => r.SheetUniqueId + "|" + r.Format)
+                    .ToDictionary(g => g.Key, g => g.Last());   // a hand-edited file with a repeat must not stop stamping
 
                 foreach (var r in result.Rows.Where(x => x.Success && !string.IsNullOrEmpty(x.OutputPath)))
                 {
@@ -1089,6 +1091,32 @@ namespace StingTools.Docs
             return root;
         }
 
+        /// <summary>Folder for one file made from several sheets (combined PDF,
+        /// multi-layout DWG).
+        ///
+        /// The group's name is a label, not a discipline: "All" and custom group names
+        /// used to be passed as the discipline, so a combined set landed in an "All"
+        /// folder, and a group was filed under the first sheet's CDE state whatever
+        /// the others said. The file goes in a discipline folder only when every sheet
+        /// in it shares that discipline, and in a CDE state only when every sheet
+        /// shares that state; otherwise it stays one level up, where it is visible.</summary>
+        private static string SubFolderForGroup(Document doc, ExportProfile p, string format, List<View> views)
+        {
+            var sheets = (views ?? new List<View>()).OfType<ViewSheet>().ToList();
+            string disc = null;
+            var discs = sheets.Select(s => SheetDiscipline(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (discs.Count == 1) disc = discs[0];
+
+            View stateFrom = null;
+            var states = sheets.Select(SheetCdeState).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (sheets.Count > 0 && states.Count == 1) stateFrom = sheets[0];
+
+            // SubFolderFor reads the discipline from the view when none is passed; a
+            // mixed group must not inherit the first sheet's, so pass "Other" (which
+            // it treats as none) rather than null.
+            return SubFolderFor(doc, p, format, stateFrom, disc ?? "Other");
+        }
+
         /// <summary>CDE state a sheet's own suitability code puts it in, or null when
         /// the sheet carries no recognised code.</summary>
         public static string SheetCdeState(ViewSheet sheet)
@@ -1225,7 +1253,7 @@ namespace StingTools.Docs
                 case PdfCombineMode.OnePerDiscipline:
                 {
                     var groups = sheets.OfType<ViewSheet>()
-                        .GroupBy(s => GetDisciplinePrefix(s.SheetNumber))
+                        .GroupBy(s => SheetDiscipline(s))
                         .ToList();
                     foreach (var g in groups)
                     {
@@ -1430,8 +1458,7 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(doc, profile, "PDF", views[0],
-                    profile.Output.SplitByDisciplineSubFolder || profile.Output.RouteByProjectStructure ? groupName : null);
+                string folder = SubFolderForGroup(doc, profile, "PDF", views);
                 string stem = Sanitise(
                     ResolveNaming(doc, views[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
                     profile.Output.IllegalCharReplacement);
@@ -1719,8 +1746,7 @@ namespace StingTools.Docs
                 // Step 2: AutoCAD-COM merge (ExportCenterDwgMerger). Falls through
                 // to the staged per-sheet output if AutoCAD isn't installed and
                 // the profile permits fallback.
-                string outFolder = SubFolderFor(doc, profile, "DWG", sheets[0],
-                    profile.Output.SplitByDisciplineSubFolder || profile.Output.RouteByProjectStructure ? groupName : null);
+                string outFolder = SubFolderForGroup(doc, profile, "DWG", sheets);
                 string outName = Sanitise(
                     ResolveNaming(doc, sheets[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
                     profile.Output.IllegalCharReplacement);

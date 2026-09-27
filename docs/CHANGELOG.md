@@ -24311,3 +24311,20 @@ the same rule implemented several times, with the copies disagreeing.
   into the project structure.
 - **Deployment:** the server change needs a redeploy before the plugin's A1 publishes are
   accepted by production.
+
+#### Self-review of the 2026-09-27 document-control work
+
+A cross-check of the eleven commits above against the code they describe. Defects found and fixed:
+
+- **Combined exports were filed by their group name.** A one-per-set PDF or all-in-one DWG passed "All" (or a custom group's name) as the discipline, so in routed mode, or with discipline sub-folders on, it could land in an "All" folder. It also took its CDE state from the first sheet alone. `SubFolderForGroup` now files a combined file in a discipline folder only when every sheet shares that discipline, and in a CDE state only when every sheet shares that state. Otherwise it stays one level up.
+- **One-per-discipline PDF grouping read the sheet number only.** Single-sheet routing also reads the ISO role and the title (`SheetDiscipline`), so a sheet could be grouped under one discipline and filed under another. Both now use the same rule.
+- **`Iso19650Suitability.ExtractCode` let a letter-only word outrank a real code.** "AR team note - S3" returned AR, which files the document as ARCHIVE. Letter+digit codes are now tried first. A new test failed on the old code (2 of 4) and passes after the fix.
+- **Last-export stamping** threw on a state file with a repeated sheet/format key, which stopped stamping for the whole run. Duplicates now keep the last record.
+- **Docs.** CLAUDE.md called `SheetNumberEngine` "the one sheet-number builder" beside a new line naming `SheetNumbering.NextNumber` as the Sheet Manager's. Both statements were partly true, because there are two grammars. That is now said, and the gap is logged as ROADMAP DOCX-12. ROADMAP DOCX-8 still said 23 bare export calls remain; after DOCX-11 there are 17 in 16 files. The per-file register write is logged as DOCX-13.
+
+Checked and found consistent:
+- The plugin's `DefaultFor` and the server's `DefaultSuitability` agree (S0 / S3 / A1 / AR).
+- `GetStorePath` shows no dialog.
+- The build and test figures quoted above match what was run.
+
+Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,560 passing. The path-discipline, doc-acquisition, workflow-wiring and export-routing gates all pass. Not exercised in Revit.
