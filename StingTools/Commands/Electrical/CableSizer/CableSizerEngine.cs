@@ -24,10 +24,12 @@ namespace StingTools.Commands.Electrical.CableSizer
         public string InstallMethod { get; set; } = "C";
         /// <summary>Conductor material — "Cu" or "Al".</summary>
         public string Material { get; set; } = "Cu";
-        /// <summary>"PVC70" | "XLPE90" | "LSOH90" | "THWN90". Defaults to PVC70 because BS 7671
-        /// Table 4D2A (70 °C thermoplastic multicore) is the only Appendix 4 capacity table
-        /// shipped; any other insulation is refused on the BS 7671 path until its table is added.</summary>
+        /// <summary>"PVC70" | "XLPE90" | "LSOH90" | "THWN90". On the BS 7671 path a combination
+        /// with no Appendix 4 table in STING_WIRE_TABLES.json is refused, not approximated.</summary>
         public string Insulation { get; set; } = "PVC70";
+        /// <summary>BS 7671 cable type: "Multicore" (4D2A/4E2A), "SingleCore" (4D1A) or
+        /// "ArmouredMulticore" (4D4A/4E4A).</summary>
+        public string CableType { get; set; } = "Multicore";
         public double VDLimitPct { get; set; } = 3.0;
         /// <summary>"BS7671" | "NEC" | "IEC60364".</summary>
         public string Standard { get; set; } = "BS7671";
@@ -241,6 +243,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                 InstallMethod = input.InstallMethod,
                 Insulation = input.Insulation,
                 Material = input.Material,
+                CableType = input.CableType,
                 AmbientTempC = input.AmbientTempC,
                 GroupedCircuits = input.GroupedCircuits,
                 GroupingArrangement = input.GroupingArrangement,

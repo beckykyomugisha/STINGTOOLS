@@ -20,9 +20,24 @@ namespace StingTools.Commands.Electrical.ArcFlash
         Cable
     }
 
+    public enum ArcFlashMethod
+    {
+        /// <summary>IEEE 1584-2018 (0.208–15 kV, five electrode configurations, enclosure-size correction). Default.</summary>
+        Ieee1584_2018,
+        /// <summary>IEEE 1584-2002 LV model (superseded) — kept for comparison with older studies.</summary>
+        Ieee1584_2002
+    }
+
     /// <summary>Inputs to one arc-flash calculation. SI / engineering units as named.</summary>
     public sealed class ArcFlashInput
     {
+        public ArcFlashMethod Method { get; set; } = ArcFlashMethod.Ieee1584_2018;
+        /// <summary>IEEE 1584-2018 electrode configuration; null = VCB for enclosed classes, VOA for open air.</summary>
+        public ElectrodeConfiguration? Electrode { get; set; }
+        /// <summary>Enclosure height / width / depth, mm (IEEE 1584-2018). 0 = the class's typical size.</summary>
+        public double EnclosureHeightMm { get; set; }
+        public double EnclosureWidthMm { get; set; }
+        public double EnclosureDepthMm { get; set; }
         /// <summary>Three-phase bolted fault current Ibf at the equipment, kA.</summary>
         public double BoltedFaultKa { get; set; }
         /// <summary>System line-to-line voltage, V.</summary>
@@ -34,6 +49,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
         /// <summary>Bus gap, mm. 0 = class default.</summary>
         public double GapMm { get; set; }
         /// <summary>
+        /// IEEE 1584-2002 only (the 2018 model has no grounding term).
         /// True = solidly grounded (K2 = −0.113). False = ungrounded / high-resistance
         /// grounded (K2 = 0), which gives ~30 % more energy and is the conservative choice
         /// when the earthing arrangement is not confirmed.
@@ -50,6 +66,11 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// no energy value exists and nothing numeric may be written.</summary>
     public sealed class ArcFlashResult
     {
+        /// <summary>The method and its standing — every value this result carries must be shown with it.</summary>
+        public string Basis                 { get; set; } = ArcFlashEngine.Basis;
+        public string ElectrodeConfiguration{ get; set; } = "";
+        /// <summary>IEEE 1584-2018 enclosure-size correction factor (1 for open air / 2002).</summary>
+        public double EnclosureCf           { get; set; } = 1.0;
         public bool   Calculated            { get; set; }
         public string NotCalculatedReason   { get; set; } = "";
         public double ArcingCurrentKa       { get; set; }
@@ -72,28 +93,28 @@ namespace StingTools.Commands.Electrical.ArcFlash
     }
 
     /// <summary>
-    /// Pure-math arc-flash engine — no Revit API. Implements the IEEE 1584-2002
-    /// empirical model for 0.208–1 kV three-phase systems.
+    /// Pure-math arc-flash engine — no Revit API. Default method: IEEE 1584-2018
+    /// (<see cref="Ieee1584_2018"/>), 0.208–15 kV three-phase, with the enclosure size and
+    /// electrode configuration taken from the equipment class's typical values unless
+    /// given. The IEEE 1584-2002 LV model below is kept as an option for comparison with
+    /// older studies (ROADMAP ELEC-1 records why an earlier "2018 regression" was removed:
+    /// it was fabricated; the 2018 coefficients now come from four agreeing transcriptions
+    /// and reproduce the standard's Annex D examples).
     ///
-    /// Why 2002 and not 2018: the 2018 model needs coefficient tables (k1..k13 per
-    /// electrode configuration and voltage band, enclosure-size correction, variation
-    /// factor) that cannot be reproduced reliably without the standard in hand. The
-    /// previous "2018 regression" in this file was fabricated — its energy FELL as
-    /// fault current rose (ROADMAP ELEC-1). The 2002 model is compact, fully published
-    /// and physically monotonic. It is SUPERSEDED, so every number this engine produces
-    /// is indicative only — see <see cref="Basis"/>.
-    ///
-    /// Scope refused rather than guessed: V &gt; 1 kV (MV model not implemented),
-    /// V &lt; 208 V, and bolted fault outside 0.7–106 kA (outside the 2002 test range).
+    /// Scope refused rather than guessed: anything outside the model's clause 4.2 ranges,
+    /// an unknown clearing time, an enclosure narrower than 4 × the gap.
     /// </summary>
     public static class ArcFlashEngine
     {
-        /// <summary>The calculation basis. Must accompany every value this engine produces.</summary>
+        /// <summary>The calculation basis of the default method. Must accompany every value produced.</summary>
         public const string Basis =
-            "IEEE 1584-2002 (superseded by 2018 — indicative, verify with a licensed study before specifying PPE)";
+            "IEEE 1584-2018 (coefficients cross-checked against published implementations, not the printed standard — confirm with a licensed study before specifying PPE)";
 
         /// <summary>Short form for column headings and schedule names.</summary>
-        public const string BasisShort = "IEEE 1584-2002 indicative";
+        public const string BasisShort = "IEEE 1584-2018";
+
+        public const string Basis2002 =
+            "IEEE 1584-2002 (superseded by 2018 — indicative, verify with a licensed study before specifying PPE)";
 
         /// <summary>IEEE 1584-2002 calculation factor Cf for voltages ≤ 1 kV.</summary>
         public const double CfLowVoltage = 1.5;
@@ -217,12 +238,14 @@ namespace StingTools.Commands.Electrical.ArcFlash
         /// </param>
         public static ArcFlashResult Calculate(ArcFlashInput input, Func<double, double> clearingTimeAtArcingKa = null)
         {
-            var r = new ArcFlashResult();
+            if (input != null && input.Method == ArcFlashMethod.Ieee1584_2018)
+                return Calculate2018(input, clearingTimeAtArcingKa);
+            var r = new ArcFlashResult { Basis = Basis2002 };
             if (input == null) return NotCalculated(r, "no input");
 
             double v = input.VoltageV;
             if (!(v > 0)) return NotCalculated(r, "system voltage unknown");
-            if (v > 1000.0) return NotCalculated(r, $"{v:0} V is above 1 kV — MV model not implemented");
+            if (v > 1000.0) return NotCalculated(r, $"{v:0} V is above 1 kV — outside the 2002 LV model (use IEEE 1584-2018)");
             if (v < 208.0) return NotCalculated(r, $"{v:0} V is below the IEEE 1584-2002 range (208 V – 15 kV)");
             double ibf = input.BoltedFaultKa;
             if (!(ibf > 0)) return NotCalculated(r, "bolted fault current unknown");
@@ -284,6 +307,96 @@ namespace StingTools.Commands.Electrical.ArcFlash
             return r;
         }
 
+        // ── IEEE 1584-2018 ───────────────────────────────────────────────
+
+        /// <summary>Typical gap, enclosure H × W × D and working distance (mm) for a class at a
+        /// voltage, from the IEEE 1584-2018 typical-equipment values (≥ 2 transcriptions agree).
+        /// Depth 0 = not stated: treated as deeper than 203.2 mm, the higher-energy reading.
+        /// Returns false when the standard gives no typical value (open air).</summary>
+        public static bool Typical2018(ArcEquipmentClass c, double vocKv,
+            out double gapMm, out double hMm, out double wMm, out double dMm, out double workMm)
+        {
+            gapMm = hMm = wMm = dMm = workMm = 0;
+            bool lv = vocKv <= 0.6, mv5 = vocKv <= 5.0;
+            switch (c)
+            {
+                case ArcEquipmentClass.Switchgear:
+                    if (lv) { gapMm = 32; hMm = wMm = dMm = 508; workMm = 609.6; }
+                    else if (mv5) { gapMm = 104; hMm = wMm = dMm = 914.4; workMm = 914.4; }
+                    else { gapMm = 152; hMm = 1143; wMm = 762; dMm = 762; workMm = 914.4; }
+                    return true;
+                case ArcEquipmentClass.PanelMcc:
+                    if (lv) { gapMm = 25; hMm = 355.6; wMm = 304.8; dMm = 0; workMm = 457.2; }
+                    else if (mv5) { gapMm = 104; hMm = wMm = dMm = 660.4; workMm = 914.4; }
+                    else { gapMm = 152; hMm = wMm = dMm = 914.4; workMm = 914.4; }
+                    return true;
+                case ArcEquipmentClass.Cable:
+                    gapMm = 13; hMm = 355.6; wMm = 304.8; dMm = 0; workMm = 457.2;
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private static ArcFlashResult Calculate2018(ArcFlashInput input, Func<double, double> clearingTimeAtArcingKa)
+        {
+            var r = new ArcFlashResult { Basis = Basis };
+            double v = input.VoltageV;
+            if (!(v > 0)) return NotCalculated(r, "system voltage unknown");
+            if (!(input.BoltedFaultKa > 0)) return NotCalculated(r, "bolted fault current unknown");
+            double kv = v / 1000.0;
+            var cls = input.EquipmentClass;
+            var ec = input.Electrode ?? (cls == ArcEquipmentClass.OpenAir ? ElectrodeConfiguration.VOA : ElectrodeConfiguration.VCB);
+            r.ElectrodeConfiguration = ec.ToString();
+            if (input.Electrode == null)
+                r.Notes.Add($"electrode configuration {ec} assumed — VCBB or HCB can give higher energy; set it where known");
+
+            bool hasTypical = Typical2018(cls, kv, out double tg, out double th, out double tw, out double td, out double twd);
+            double gap = input.GapMm > 0 ? input.GapMm : tg;
+            double dist = input.WorkingDistanceMm > 0 ? input.WorkingDistanceMm : twd;
+            if (gap <= 0) return NotCalculated(r, "no typical gap for this equipment class — set the gap");
+            if (dist <= 0) return NotCalculated(r, "no typical working distance for this equipment class — set it");
+            double h = input.EnclosureHeightMm > 0 ? input.EnclosureHeightMm : th;
+            double w = input.EnclosureWidthMm > 0 ? input.EnclosureWidthMm : tw;
+            double d = input.EnclosureDepthMm > 0 ? input.EnclosureDepthMm : td;
+            if (hasTypical && (input.EnclosureHeightMm <= 0 || input.EnclosureWidthMm <= 0))
+                r.Notes.Add($"typical {cls} enclosure {h:0} × {w:0} mm assumed");
+            if (d <= 0)
+            {
+                d = double.PositiveInfinity;
+                r.Notes.Add("enclosure depth not stated — taken as deeper than 203.2 mm (the higher-energy reading)");
+            }
+            r.GapMm = gap; r.WorkingDistanceMm = dist;
+
+            bool capped = false;
+            Func<double, double> tMs = iaKa =>
+            {
+                double s = clearingTimeAtArcingKa != null ? clearingTimeAtArcingKa(iaKa) : input.ClearingTimeS;
+                if (double.IsNaN(s) || s <= 0) return double.NaN;
+                if (s > MaxArcDurationS) { capped = true; s = MaxArcDurationS; }
+                return s * 1000.0;
+            };
+            var x = Ieee1584_2018.Calculate(ec, kv, input.BoltedFaultKa, gap, dist, h, w, d, tMs);
+            if (!x.Calculated) return NotCalculated(r, x.NotCalculatedReason);
+            if (capped) r.Notes.Add($"clearing time capped at {MaxArcDurationS:0} s (IEEE 1584 guidance)");
+            if (input.SolidlyGrounded) r.Notes.Add("grounding has no term in IEEE 1584-2018");
+
+            r.Calculated = true;
+            r.EnclosureCf = x.EnclosureCf;
+            r.ArcingCurrentKa = x.Full.ArcingCurrentKa;
+            r.ReducedArcingCurrentKa = x.Reduced.ArcingCurrentKa;
+            r.ClearingTimeS = x.Full.ArcDurationMs / 1000.0;
+            r.ReducedClearingTimeS = x.Reduced.ArcDurationMs / 1000.0;
+            r.ReducedCaseGoverns = x.ReducedCaseGovernsEnergy;
+            if (r.ReducedCaseGoverns) r.Notes.Add("reduced arcing-current case governs");
+            r.GoverningClearingTimeS = (r.ReducedCaseGoverns ? x.Reduced : x.Full).ArcDurationMs / 1000.0;
+            r.IncidentEnergyJcm2 = x.IncidentEnergyJcm2;
+            r.IncidentEnergyCalCm2 = x.IncidentEnergyJcm2 / JoulesPerCalorie;
+            r.BoundaryMm = x.BoundaryMm;
+            r.PpeCategory = PpeCategory(r.IncidentEnergyCalCm2);
+            return r;
+        }
+
         private static ArcFlashResult NotCalculated(ArcFlashResult r, string reason)
         {
             r.Calculated = false;
@@ -305,7 +418,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                        $"Panel: {panelName}\n" +
                        $"Reason: {r?.NotCalculatedReason ?? "no result"}\n" +
                        "A licensed arc-flash study is required.\n" +
-                       $"Basis: {Basis}";
+                       $"Basis: {r?.Basis ?? Basis}";
 
             string danger = r.PpeCategory < 0 ? "DANGER — EXCEEDS 40 cal/cm²" : $"PPE Category {r.PpeCategory} (by incident energy)";
             return "ARC FLASH HAZARD — INDICATIVE\n" +
@@ -314,9 +427,9 @@ namespace StingTools.Commands.Electrical.ArcFlash
                    $"Incident Energy: {r.IncidentEnergyCalCm2:0.00} cal/cm² at {r.WorkingDistanceMm:0} mm\n" +
                    $"Arc Flash Boundary: {r.BoundaryMm:0} mm\n" +
                    $"Clearing time: {r.GoverningClearingTimeS * 1000:0} ms ({clearingTimeSource})\n" +
-                   $"Gap: {r.GapMm:0} mm\n" +
+                   $"Gap: {r.GapMm:0} mm" + (string.IsNullOrEmpty(r.ElectrodeConfiguration) ? "" : $"   Electrodes: {r.ElectrodeConfiguration}") + "\n" +
                    $"{danger}\n" +
-                   $"Basis: {Basis}";
+                   $"Basis: {r.Basis}";
         }
     }
 }

@@ -507,6 +507,11 @@
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cost Summary - Material Takeoff\". A schedule is a real reader; this scan only sees C#."
     },
+    "ELC_ARC_FLASH_ELECTRODE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 electrode configuration; read by ArcFlashCommand. Blank = VCB assumed and noted on the label."
+    },
     "ELC_ARC_FLASH_WORK_DIST_MM": {
       "state": "read_only",
       "role": "input",

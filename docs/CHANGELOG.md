@@ -23778,3 +23778,45 @@ A self-review of the PR found these defects and inconsistencies. Each is now fix
   - Untouched placeholder outdoor values are now flagged in the report.
 
 Plugin build 0/0. **Not exercised in Revit.** The checklist rows are updated.
+
+#### BS 7671 Appendix 4 tables and IEEE 1584-2018 arc flash (2026-09-27)
+
+Closes the code part of MEPG-11 and advances ELEC-1 / ELEC-3. The figures came from public
+transcriptions, cross-checked source against source. Neither standard was read in print. Every
+source and discrepancy is listed in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
+
+- **BS 7671 cable sizer data.** New tables:
+  - 4D1A (single-core PVC, methods A/B/C/F).
+  - 4D2A methods A/B/E, alongside C.
+  - 4D4A and 4E4A (armoured, methods C/E/D1/D2).
+  - 4E2A (XLPE, A/B/C/E).
+  - 4C1 perforated-tray and ladder rows.
+- **Per-row flags.** Each row carries `verified` (It) and `mvVerified` (mV/A/m). Older data
+  with a single flag still reads it for both.
+- **Sizer behaviour.**
+  - A cable type (Multicore / SingleCore / ArmouredMulticore) picks the table.
+  - IEC method codes A1/A2/B1/B2 map to BS methods A/B.
+  - A size with no mV/A/m carried cannot be chosen; the refusal names the missing table.
+  - VERIFY now says whether It, voltage drop or both are unchecked.
+- **Cable sizer panel.** Gains a cable-type combo and methods D1/D2.
+- **Existing 4D2A C rows ≥ 25 mm².** It is now two-source checked; mV/A/m still is not.
+- **IEEE 1584-2018** (`Commands/Electrical/ArcFlash/Ieee1584_2018.cs`, Revit-free) is now the
+  default method.
+  - It covers 0.208–15 kV, five electrode configurations and the enclosure-size correction.
+  - The reduced arcing current (VarCf) is a second case with its own clearing time.
+  - Refusals outside the clause 4.2 ranges, and for an enclosure narrower than 4 × the gap.
+  - Typical gap, enclosure and working distance by class and voltage band, each assumption
+    noted on the label.
+  - A new shared parameter, `ELC_ARC_FLASH_ELECTRODE_TXT`, overrides the electrode
+    configuration.
+  - The 2002 model is kept as `ArcFlashMethod.Ieee1584_2002`.
+- **Tests (`StingTools.Tags.Tests`, 3,406 passing).**
+  - Annex D.1 / D.2 intermediate and final values.
+  - 600 rows of the official IEEE spreadsheet results.
+  - The DataPort reduced-case point.
+  - Scope refusals, and the engine defaults.
+  - The new BS tables, the flags and the refusals.
+  - Red check: a wrong Table 3 coefficient fails 64 tests.
+
+Plugin build 0/0; repo gates pass. **Not exercised in Revit.** Checklist rows were added to
+`MEP_SMOKETEST_CHECKLIST.md`.

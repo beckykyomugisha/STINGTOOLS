@@ -1026,6 +1026,7 @@ DS_TICK_SIZE_NR,11,curated-fallback,Generic Models,Tick mark size in mm [ISO 196
 DS_TYPE_TXT,11,curated-fallback,Generic Models,Dimension type [ISO 19650-1:2018]
 DS_UNITS_FORMAT_TXT,11,curated-fallback,Generic Models,Units format [ISO 19650-1:2018]
 ELC_ARC_FLASH_BOUNDARY_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179]
+ELC_ARC_FLASH_ELECTRODE_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA - blank = VCB assumed and noted on the label [STING MEPG-11]
 ELC_ARC_FLASH_IE_CAL_CM2,4,elc-sub,Electrical Equipment|Electrical Circuits,Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]
 ELC_ARC_FLASH_LABEL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]
 ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]

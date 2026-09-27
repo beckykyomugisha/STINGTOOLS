@@ -197,6 +197,9 @@ already wired. Six offline tasks, and an explicit list of what must stay manual 
 `HEALTHCARE_PACK_DESIGN.md` · the seven healthcare work prompts — intent at the date each was written, check against `CHANGELOG.md` before assuming any of it shipped: `HEALTHCARE_ACCURACY_FIXES_PROMPT.md` · `HEALTHCARE_CHANGELOG_ROADMAP_FIX_PROMPT.md` · `HEALTHCARE_COMPLETENESS_FIXES_PROMPT.md` · `HEALTHCARE_DEFERRED_IMPLEMENTATION_PROMPT.md` · `HEALTHCARE_GAP_FIXES_PROMPT.md` · `HEALTHCARE_PHASE199_FIXES_PROMPT.md` · `HEALTHCARE_PROFILE_COVERAGE_PROMPT.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md` (⛔ historical — the `WORKFLOW_GateAudit.json` it specifies has been deleted; `WORKFLOW_KUT_GateAudit.json` is the gate-audit chain) · `PROMPT_KUT_SMOKE_TEST_RECONCILIATION.md`
 `HEALTHCARE_PACK_DESIGN.md` · `PROMPT_KUT_PHASE_192_IMPLEMENTATION.md`
 
+✅ `ELECTRICAL_STANDARDS_SOURCES.md` — where the BS 7671 Appendix 4 tables and the IEEE 1584-2018
+coefficients came from, and which rows are two-source checked
+
 ## Tagging — current
 
 - [Universal tag conformance](UNIVERSAL_TAG_CONFORMANCE.md) ✅ — the four code contracts the universal tag does not yet meet

@@ -72,7 +72,7 @@ namespace StingTools.Tags.Tests
         public void Worked_example_through_Calculate_matches_hand_calculation()
         {
             var r = ArcFlashEngine.Calculate(new ArcFlashInput
-            {
+            { Method = ArcFlashMethod.Ieee1584_2002,
                 BoltedFaultKa = 25, VoltageV = 400, EquipmentClass = ArcEquipmentClass.PanelMcc,
                 WorkingDistanceMm = 455, GapMm = 25, SolidlyGrounded = true, ClearingTimeS = 0.1
             });
@@ -146,13 +146,13 @@ namespace StingTools.Tags.Tests
             double prevE = 0;
             foreach (double ibf in new[] { 1.0, 5.0, 10.0, 25.0, 50.0, 100.0 })
             {
-                var r = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = ibf, VoltageV = 400, ClearingTimeS = 0.1 });
+                var r = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = ibf, VoltageV = 400, ClearingTimeS = 0.1 });
                 Assert.True(r.Calculated);
                 Assert.True(r.IncidentEnergyCalCm2 > prevE, $"E fell at {ibf} kA");
                 prevE = r.IncidentEnergyCalCm2;
             }
-            var fast = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 0.05 });
-            var slow = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 0.5 });
+            var fast = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 0.05 });
+            var slow = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 0.5 });
             Assert.True(slow.IncidentEnergyCalCm2 > fast.IncidentEnergyCalCm2);
         }
 
@@ -162,7 +162,7 @@ namespace StingTools.Tags.Tests
             double prevDb = 0, prevE = 0;
             foreach (double t in new[] { 0.02, 0.05, 0.1, 0.3, 1.0, 2.0 })
             {
-                var r = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = t });
+                var r = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = t });
                 Assert.True(r.IncidentEnergyCalCm2 > prevE);
                 Assert.True(r.BoundaryMm > prevDb);
                 prevE = r.IncidentEnergyCalCm2; prevDb = r.BoundaryMm;
@@ -179,7 +179,7 @@ namespace StingTools.Tags.Tests
             // ~0.85^1.081 × 10 ≈ 8.4× worse and must be the one reported.
             double iaFull = ArcFlashEngine.ArcingCurrentKa(25, 0.4, 25, true);
             var r = ArcFlashEngine.Calculate(
-                new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400, SolidlyGrounded = true },
+                new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, SolidlyGrounded = true },
                 ia => ia >= iaFull * 0.99 ? 0.05 : 0.5);
             Assert.True(r.Calculated);
             Assert.True(r.ReducedCaseGoverns);
@@ -190,8 +190,8 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Clearing_time_is_capped_at_two_seconds_with_a_note()
         {
-            var capped = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 60 });
-            var two    = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 2 });
+            var capped = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 60 });
+            var two    = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 2 });
             Assert.Equal(two.IncidentEnergyCalCm2, capped.IncidentEnergyCalCm2, 9);
             Assert.Contains(capped.Notes, n => n.Contains("capped"));
         }
@@ -199,7 +199,7 @@ namespace StingTools.Tags.Tests
         // ── Refusals: no number is better than a wrong one ─────────────────
 
         [Theory]
-        [InlineData(11000, 25, 0.1)]   // MV — not implemented
+        [InlineData(11000, 25, 0.1)]   // MV — outside the 2002 LV model
         [InlineData(120, 25, 0.1)]     // below 208 V
         [InlineData(0, 25, 0.1)]       // voltage unknown (the old code defaulted to 240 V)
         [InlineData(400, 0.5, 0.1)]    // below 0.7 kA
@@ -207,7 +207,7 @@ namespace StingTools.Tags.Tests
         [InlineData(400, 25, 0)]       // clearing time unknown
         public void Out_of_scope_inputs_are_not_calculated(double v, double ibf, double t)
         {
-            var r = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = ibf, VoltageV = v, ClearingTimeS = t });
+            var r = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = ibf, VoltageV = v, ClearingTimeS = t });
             Assert.False(r.Calculated);
             Assert.False(string.IsNullOrWhiteSpace(r.NotCalculatedReason));
             Assert.Equal(0, r.IncidentEnergyCalCm2);
@@ -216,7 +216,7 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Unknown_clearing_time_from_lookup_is_not_calculated()
         {
-            var r = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400 }, _ => double.NaN);
+            var r = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400 }, _ => double.NaN);
             Assert.False(r.Calculated);
         }
 
@@ -237,8 +237,8 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Every_label_carries_the_2002_indicative_basis()
         {
-            var ok = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 0.1 });
-            var bad = ArcFlashEngine.Calculate(new ArcFlashInput { BoltedFaultKa = 25, VoltageV = 0, ClearingTimeS = 0.1 });
+            var ok = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 400, ClearingTimeS = 0.1 });
+            var bad = ArcFlashEngine.Calculate(new ArcFlashInput { Method = ArcFlashMethod.Ieee1584_2002, BoltedFaultKa = 25, VoltageV = 0, ClearingTimeS = 0.1 });
             string a = ArcFlashEngine.FormatLabel("DB-1", 400, ArcEquipmentClass.PanelMcc, ok, "fixed");
             string b = ArcFlashEngine.FormatLabel("DB-2", 0, ArcEquipmentClass.PanelMcc, bad, "");
             foreach (var s in new[] { a, b })

@@ -2959,6 +2959,7 @@ PARAM	a2e7f8d9-1001-5179-9179-100000000001	ELC_ARC_FLASH_IE_CAL_CM2	TEXT		4	1	Ca
 PARAM	a2e7f8d9-1002-5179-9179-100000000002	ELC_ARC_FLASH_BOUNDARY_MM	TEXT		4	1	Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179]	1
 PARAM	a2e7f8d9-1003-5179-9179-100000000003	ELC_ARC_FLASH_PPE_CAT	TEXT		4	1	NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]	1
 PARAM	a2e7f8d9-1004-5179-9179-100000000004	ELC_ARC_FLASH_WORK_DIST_MM	TEXT		4	1	Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]	1
+PARAM	a2e7f8d9-100d-5179-9179-10000000000d	ELC_ARC_FLASH_ELECTRODE_TXT	TEXT		4	1	IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA - blank = VCB assumed and noted on the label [STING MEPG-11]	1
 PARAM	a2e7f8d9-1005-5179-9179-100000000005	ELC_ARC_FLASH_LABEL_TXT	TEXT		4	1	Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]	1
 PARAM	a2e7f8d9-1006-5179-9179-100000000006	ELC_SEL_COORD_VERIFIED_BOOL	YESNO		4	1	Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]	1
 PARAM	a2e7f8d9-1007-5179-9179-100000000007	ELC_BUSBAR_CSA_MM2	TEXT		4	1	Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179]	1
