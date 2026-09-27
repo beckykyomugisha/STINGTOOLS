@@ -23908,3 +23908,15 @@ GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOUR
 - **Tests.** Single-core 110 A now sizes at 35 mm², 1.25 mV/A/m. 4D1B values are pinned by
   arrangement. Every table must carry voltage drop at every size. 3,423 passing.
 - **Not exercised in Revit.**
+
+#### Removed the unused `BS7671Standards` lookup class (2026-09-27)
+
+- `StingTools.Standards/BS7671/BS7671Standards.cs` had no callers. Nothing referenced the class
+  or its namespace, including the Headless and Dynamo projects and every `<Compile Include>`.
+  Its hand-typed tables were unsafe:
+  - `GetVoltageDrop` returned 1.0 for any size it did not list.
+  - Three-phase drop was single-phase × 0.866.
+  - Its single-phase figures at 70 mm² and above matched no 4D1B column.
+- The file is deleted. Checked tables are in `StingTools/Data/STING_WIRE_TABLES.json`, read
+  through `Bs7671Data` / `Bs7671CableSizer`.
+- `StingTools.Standards` and the plugin build; 3,424 tests pass.
