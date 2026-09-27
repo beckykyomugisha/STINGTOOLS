@@ -24386,3 +24386,30 @@ Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,560 p
   - Server warnings and compliance tests: 22 passing.
   - Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass.
   - Not exercised in Revit.
+
+#### Drawing Type editor ↔ tagging alignment (ISO 3098 / ISO 19650)
+
+A review of how drawing types choose and size tags. The tag family names the shipped drawing types use (68 across `tagFamilies` and rule `tagFamily`) were already all ones Create Tag Families builds, and each pairs with its category. The defects were around them.
+
+- **The editor offered tag families that do not exist.** Its tag family picker suggested `Iso19650Vocabulary.CommonTagFamilies` (`STING_TAG_ROOM`, `STING_TAG_DOOR` …); none was ever built. "Add category mapping" inserted `NewCategory0 → STING_TAG_FAMILY`.
+  - The pickers now list `TagFamilyConfig.AllFamilyNames()`, the creator's own table.
+  - A new mapping row is a real category with its STING family (`TagFamilyConfig.FamilyNameForCategoryName`).
+  - The dead list is deleted, so a stale reference is a compile error.
+- **Rules without a tag family could get a stock Revit tag.** 50+ shipped AutoTag rules (Doors, Windows, Stairs, Railings, Casework, Structural …) name no family and their drawing type maps none. `AnnotationRunner.ResolveTagTypeId` then took the first loaded tag of the category, often Revit's stock tag, which does not show the ISO 19650 asset tag. The order is now:
+  1. The named family (unchanged).
+  2. `CategoryTagStyles`. This used to be unreachable, because it ran after the any-tag fallback.
+  3. The STING family built for the category.
+  4. Any loaded tag of the category, now with a warning that it may not show the ISO tag.
+- **`TagCategoryFor` knew nine categories.** Walls, pipes, ducts, conduits, trays, sprinklers and 30+ others mapped to their own host category. So the category-match check never held, and the any-tag fallback could never find their tags. It now covers every category a STING tag family is built for. All names were checked against the Revit 2025 API.
+- **Tag text height did not follow ISO 3098.** The default shrank with the scale: 2 mm at 1:100, 1 mm at 1:200 / 1:500. Revit prints annotation at family size whatever the view scale, so small-scale plans got illegible text.
+  - The default is now 2.5 mm, and 3.5 mm on A0.
+  - The default is never snapped down to a variant below the paper's minimum (2.5 mm A0–A3, 1.8 mm A4) while a legible one is loaded.
+  - The editor gains a "Tag text height" control, with the ISO 3098 heights 1.8 / 2.5 / 3.5 / 5 / 7 / 10 mm. There was no control for `tagTextSizeMm` at all.
+  - New validator check DT-106 warns on an explicit non-ISO or below-minimum size.
+  - Drawing-type checksums are unchanged (96 correct), since no serialised field changed.
+- **Tests.**
+  - `IsoTagTextSizeTests`.
+  - `DrawingTypeTagFamilyGateTests`: every tag family a shipped drawing type names must be one the creator builds. It was verified failing on an injected `STING_TAG_DOOR`.
+  - `TagSizeVariantTests` updated to the ISO rule.
+- **Open (ROADMAP TAGISO-1).** The Tag Style Engine matrix still offers 2 and 3 mm, which are not ISO 3098 heights.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,602 passing. The four gates pass. Not exercised in Revit.

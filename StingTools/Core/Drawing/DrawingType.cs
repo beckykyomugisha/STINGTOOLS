@@ -163,33 +163,57 @@ namespace StingTools.Core.Drawing
         [JsonConverter(typeof(TolerantScaleConverter))]
         public int Scale { get; set; } = 100; // 1:N  (0 = not applicable, e.g. "NA" for 3D/presentation)
 
-        /// <summary>Tag text height in mm for this drawing type. 0 = derive from Scale via
-        /// <see cref="EffectiveTagTextSizeMm"/>. Selects the tag size-variant family (label text
-        /// types 1mm … 5mm) the drawing producer should place for this drawing.</summary>
+        /// <summary>Tag text height in mm for this drawing type, as printed on the sheet.
+        /// 0 = the ISO 3098 default for the paper size (<see cref="EffectiveTagTextSizeMm"/>).
+        /// Selects the tag size-variant family or type the runner places.</summary>
         [JsonProperty("tagTextSizeMm")] public double TagTextSizeMm { get; set; } = 0;
 
-        /// <summary>Resolve the tag text size (mm): explicit <see cref="TagTextSizeMm"/> if set,
-        /// else a sensible default from the view Scale. Always returns one of the 8 canonical
-        /// authored sizes (1.0/1.5/2.0/2.5/3.0/3.5/4.0/5.0 mm). ISO default is 2.5 mm at 1:50.</summary>
+        /// <summary>ISO 3098-0 nominal lettering heights (mm), a √2 series.</summary>
+        public static readonly double[] IsoLetteringHeightsMm = { 1.8, 2.5, 3.5, 5.0, 7.0, 10.0 };
+
+        /// <summary>Smallest tag text STING accepts without a warning for a paper size:
+        /// 2.5 mm on A0–A3, 1.8 mm on A4 — the usual ISO 3098 / BS 8888 guidance for notes
+        /// and annotation. A project that has agreed otherwise sets tagTextSizeMm and
+        /// accepts the warning.</summary>
+        public static double IsoMinimumTagSizeMm(string paperSize)
+            => string.Equals((paperSize ?? "").Trim(), "A4", global::System.StringComparison.OrdinalIgnoreCase) ? 1.8 : 2.5;
+
+        /// <summary>The tag text height for this drawing (mm on paper): explicit
+        /// <see cref="TagTextSizeMm"/> if set, else 3.5 mm on A0 and 2.5 mm on every other
+        /// sheet.
+        ///
+        /// Not derived from the scale. Revit sizes annotation text on the printed sheet, so
+        /// a 1:200 plan prints its tags exactly as large as a 1:50 one; the old scale ladder
+        /// gave 1:100 plans 2 mm and 1:200 / 1:500 plans 1 mm text, which is below every ISO
+        /// 3098 lettering height and unreadable on a plotted A1. A dense small-scale drawing
+        /// is thinned with tag depth and rules, not with smaller letters.</summary>
         public double EffectiveTagTextSizeMm()
         {
             if (TagTextSizeMm > 0) return TagTextSizeMm;
-            int n = Scale;
-            if (n <= 0)   return 2.5;   // NA (3D / presentation) → ISO default
-            if (n <= 5)   return 5.0;
-            if (n <= 10)  return 4.0;
-            if (n <= 20)  return 3.5;
-            if (n <= 25)  return 3.0;
-            if (n <= 50)  return 2.5;
-            if (n <= 100) return 2.0;
-            if (n <= 150) return 1.5;
-            return 1.0;                 // 1:200 and smaller
+            return string.Equals((PaperSize ?? "").Trim(), "A0", global::System.StringComparison.OrdinalIgnoreCase)
+                ? 3.5 : 2.5;
         }
 
-        /// <summary>The 8 canonical authored tag text sizes (mm). A size-variant tag family and a
-        /// Label text-type is authored for each. Used to snap a scale-derived size to a size that
-        /// actually exists when fewer than 8 variants have been built.</summary>
-        public static readonly double[] CanonicalTagSizesMm = { 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0 };
+        /// <summary>Why this drawing type's explicit tag text size is outside ISO 3098, or
+        /// null when it is fine (or not set). Revit-free so it is unit-tested; the validator
+        /// reports it as DT-106.</summary>
+        public string IsoTagSizeIssue()
+        {
+            if (TagTextSizeMm <= 0) return null;
+            double min = IsoMinimumTagSizeMm(PaperSize);
+            string size = TagSizeToken(TagTextSizeMm);
+            if (TagTextSizeMm < min - 1e-9)
+                return $"tagTextSizeMm {size} is below the {TagSizeToken(min)} minimum for {PaperSize ?? "this"} sheets (ISO 3098).";
+            foreach (var h in IsoLetteringHeightsMm)
+                if (global::System.Math.Abs(h - TagTextSizeMm) < 1e-9) return null;
+            return $"tagTextSizeMm {size} is not an ISO 3098 lettering height (1.8, 2.5, 3.5, 5, 7, 10 mm).";
+        }
+
+        /// <summary>Tag text sizes a size-variant family or type may be authored at (mm).
+        /// Includes the non-ISO 1/1.5/2/3/4 mm sizes older libraries were built with, so
+        /// those are still recognised; <see cref="NearestAvailableTagSizeMm"/> will not
+        /// choose one below the ISO minimum while a compliant size is loaded.</summary>
+        public static readonly double[] CanonicalTagSizesMm = { 1.0, 1.5, 1.8, 2.0, 2.5, 3.0, 3.5, 4.0, 5.0, 7.0 };
 
         /// <summary>Canonical label text-type / size token for a mm size (e.g. 2.5 → "2.5mm",
         /// 2 → "2mm"), matching the authored tag text-type names ("1mm", "1.5mm", … "5mm").
@@ -197,21 +221,29 @@ namespace StingTools.Core.Drawing
         public static string TagSizeToken(double mm) =>
             mm.ToString("0.###", global::System.Globalization.CultureInfo.InvariantCulture) + "mm";
 
-        /// <summary>Snap <see cref="EffectiveTagTextSizeMm"/> to the nearest size that has actually
-        /// been authored, so a 1:200 view never asks for a 1mm family that was never built. Pass the
-        /// mm sizes you have built (e.g. new[]{2.5, 3.5}); ties resolve to the larger (more legible)
-        /// size. Null/empty <paramref name="availableSizesMm"/> means "assume all 8 exist" and returns
-        /// the raw effective size.</summary>
+        /// <summary>Snap <see cref="EffectiveTagTextSizeMm"/> to a size that has actually been
+        /// authored. Sizes below <see cref="IsoMinimumTagSizeMm"/> for this paper are only used
+        /// when nothing at or above it is loaded; among the rest the nearest wins, ties to the
+        /// larger (more legible). Null/empty <paramref name="availableSizesMm"/> means "assume
+        /// it exists" and returns the effective size.</summary>
         public double NearestAvailableTagSizeMm(System.Collections.Generic.IEnumerable<double> availableSizesMm)
         {
             double want = EffectiveTagTextSizeMm();
             if (availableSizesMm == null) return want;
+            var sizes = new System.Collections.Generic.List<double>();
+            foreach (double s in availableSizesMm) if (s > 0) sizes.Add(s);
+            if (sizes.Count == 0) return want;
+
+            // An explicit size below the minimum is the project's decision; only the default
+            // is protected from being snapped down to illegible text.
+            double floor = TagTextSizeMm > 0 ? 0 : IsoMinimumTagSizeMm(PaperSize);
+            var legible = sizes.FindAll(s => s >= floor - 1e-9);
+            var pool = legible.Count > 0 ? legible : sizes;
+
             double best = 0; double bestDelta = double.MaxValue;
-            foreach (double s in availableSizesMm)
+            foreach (double s in pool)
             {
-                if (s <= 0) continue;
                 double d = global::System.Math.Abs(s - want);
-                // Nearest wins; on a tie prefer the larger size (more legible on the sheet).
                 if (d < bestDelta || (d == bestDelta && s > best)) { best = s; bestDelta = d; }
             }
             return best > 0 ? best : want;

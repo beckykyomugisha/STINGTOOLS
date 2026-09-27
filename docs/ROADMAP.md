@@ -1960,9 +1960,17 @@ family authoring — no geometry / connector topology was invented.
 | GAP-SYM-09 | **Symbol authoring backlog** — 53 unique family names referenced by concept `standardMappings` are not defined in any catalogue (of 799 concept refs, 276 dangle: 0 prefix-fixable after this pass, 218 view-context overrides that now degrade to the base family via P8a, and 58 genuinely-absent refs → 53 unique). These are specialty glyphs that must be hand-authored per standard plate: **Hazardous-area (19)** ATEX 2014/34/EU + IEC/BS EN 60079 + DSEAR zone/Ex markers (concepts `ELEC_ATEX_*`, `SLD_ATEX_*`); **Medical gas (16)** HTM 02-01 / ISO 7396 / NFPA 99 O₂·N₂O·Air·Vac·CO₂·AGSS outlets (`ELEC_MG_*`); **Lightning protection (7)** BS EN 62305 / NFPA 780 air-terminal / down-conductor / earth-electrode / bonding-bar (`SLD_LPS_*` under BS/NFPA); **Phase sequence (4)** IEC 60034-8 / BS 7671 ABC/ACB (`SLD_PHASE_SEQUENCE_*`); **Other (7)** `ELEC_DB`, `ELEC_FCU_DEVICE`, `SLD_DB_DOWNSTREAM` (+IEEE), `PLM_PUMP_INLINE`, `SLD_RCBO_COMPOUND`, `SLD_STAR_DELTA_STARTER`. | 1–2 weeks | Requires authoring ~53 standard-accurate symbol definitions across ATEX / medical-gas / LPS / motor-control domains, each verified against its standard plate. `Symbols_Validate` (check 1b) is the tracking mechanism — the "absent" count should trend to 0 as these are authored. |
 
 ### Tag text-size variants (Option 2 — per-drawing sizing)
-`DrawingType.TagTextSizeMm` (0 = derive) + `EffectiveTagTextSizeMm()` resolve a per-view tag size
-from the drawing scale, returning one of 8 canonical sizes (1.0/1.5/2.0/2.5/3.0/3.5/4.0/5.0 mm;
-ISO default 2.5 mm at 1:50). `DrawingType.TagSizeToken(mm)` → the "2.5mm" text-type/size-family token.
+`DrawingType.TagTextSizeMm` (0 = default) + `EffectiveTagTextSizeMm()` resolve the printed tag size.
+**Changed 2026-09-27 (ISO 3098):** the default no longer shrinks with the scale (it gave 2 mm at 1:100
+and 1 mm at 1:200 / 1:500, below every ISO 3098 height — Revit prints annotation at family size
+whatever the view scale). It is now 2.5 mm, 3.5 mm on A0; the default is never snapped down to a
+variant below the paper's minimum (2.5 mm A0–A3, 1.8 mm A4) while a legible one is loaded; the editor
+sets it (ISO 3098 heights 1.8 / 2.5 / 3.5 / 5 / 7 / 10 mm); DT-106 warns on an explicit non-ISO or
+below-minimum size. `DrawingType.TagSizeToken(mm)` → the "2.5mm" text-type/size-family token.
+Author **2.5 mm and 3.5 mm** variants first — they cover every shipped drawing type.
+- **TAGISO-1 (open):** the Tag Style Engine matrix (`TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) offers 2 / 2.5 / 3 /
+  3.5 mm. 2 and 3 mm are not ISO 3098 heights; retiring them changes every tag family's type
+  catalogue and needs Revit, so it is logged rather than done.
 **Pending (needs Revit + propagation):**
 - Human authors the 8 label **text types** (`1.0mm`…`5.0mm`) on the universal master; because a
   single label's text size is a Type property (not param-drivable), selectable size = **one

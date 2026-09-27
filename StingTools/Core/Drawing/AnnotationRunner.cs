@@ -1173,20 +1173,65 @@ namespace StingTools.Core.Drawing
                 stats.Warnings.Add($"{catKey}: {unmeasured} element(s) could not be measured for minSizeMm and were tagged anyway.");
         }
 
-        private static BuiltInCategory TagCategoryFor(BuiltInCategory host)
+        /// <summary>The tag category that tags <paramref name="host"/>. Covers every
+        /// category a STING tag family is built for; the previous nine-entry switch
+        /// returned the HOST category for walls, pipes, ducts, conduits, trays,
+        /// sprinklers and the rest, so the "a tag of this category" fallback could
+        /// never find one and the category-match check in ResolveTagTypeId never held.
+        /// Unknown hosts still return themselves.</summary>
+        internal static BuiltInCategory TagCategoryFor(BuiltInCategory host)
         {
             switch (host)
             {
-                case BuiltInCategory.OST_Rooms:                return BuiltInCategory.OST_RoomTags;
-                case BuiltInCategory.OST_Doors:                return BuiltInCategory.OST_DoorTags;
-                case BuiltInCategory.OST_Windows:              return BuiltInCategory.OST_WindowTags;
-                case BuiltInCategory.OST_MechanicalEquipment:  return BuiltInCategory.OST_MechanicalEquipmentTags;
-                case BuiltInCategory.OST_ElectricalEquipment:  return BuiltInCategory.OST_ElectricalEquipmentTags;
-                case BuiltInCategory.OST_PlumbingFixtures:     return BuiltInCategory.OST_PlumbingFixtureTags;
-                case BuiltInCategory.OST_LightingFixtures:     return BuiltInCategory.OST_LightingFixtureTags;
-                case BuiltInCategory.OST_PipeFitting:          return BuiltInCategory.OST_PipeFittingTags;
-                case BuiltInCategory.OST_StructuralFraming:    return BuiltInCategory.OST_StructuralFramingTags;
-                default:                                       return host;
+                case BuiltInCategory.OST_Rooms:                  return BuiltInCategory.OST_RoomTags;
+                case BuiltInCategory.OST_Areas:                  return BuiltInCategory.OST_AreaTags;
+                case BuiltInCategory.OST_MEPSpaces:              return BuiltInCategory.OST_MEPSpaceTags;
+                case BuiltInCategory.OST_Doors:                  return BuiltInCategory.OST_DoorTags;
+                case BuiltInCategory.OST_Windows:                return BuiltInCategory.OST_WindowTags;
+                case BuiltInCategory.OST_Walls:                  return BuiltInCategory.OST_WallTags;
+                case BuiltInCategory.OST_Floors:                 return BuiltInCategory.OST_FloorTags;
+                case BuiltInCategory.OST_Ceilings:               return BuiltInCategory.OST_CeilingTags;
+                case BuiltInCategory.OST_Roofs:                  return BuiltInCategory.OST_RoofTags;
+                case BuiltInCategory.OST_Stairs:                 return BuiltInCategory.OST_StairsTags;
+                case BuiltInCategory.OST_StairsRailing:
+                case BuiltInCategory.OST_Railings:               return BuiltInCategory.OST_StairsRailingTags;
+                case BuiltInCategory.OST_Ramps:                  return BuiltInCategory.OST_RampTags;
+                case BuiltInCategory.OST_CurtainWallPanels:      return BuiltInCategory.OST_CurtainWallPanelTags;
+                case BuiltInCategory.OST_Casework:               return BuiltInCategory.OST_CaseworkTags;
+                case BuiltInCategory.OST_Furniture:              return BuiltInCategory.OST_FurnitureTags;
+                case BuiltInCategory.OST_Parking:                return BuiltInCategory.OST_ParkingTags;
+                case BuiltInCategory.OST_Site:                   return BuiltInCategory.OST_SiteTags;
+                case BuiltInCategory.OST_GenericModel:           return BuiltInCategory.OST_GenericModelTags;
+                case BuiltInCategory.OST_SpecialityEquipment:    return BuiltInCategory.OST_SpecialityEquipmentTags;
+                case BuiltInCategory.OST_MedicalEquipment:       return BuiltInCategory.OST_MedicalEquipmentTags;
+                case BuiltInCategory.OST_StructuralColumns:      return BuiltInCategory.OST_StructuralColumnTags;
+                case BuiltInCategory.OST_StructuralFraming:      return BuiltInCategory.OST_StructuralFramingTags;
+                case BuiltInCategory.OST_StructuralFoundation:   return BuiltInCategory.OST_StructuralFoundationTags;
+                case BuiltInCategory.OST_Rebar:                  return BuiltInCategory.OST_RebarTags;
+                case BuiltInCategory.OST_MechanicalEquipment:    return BuiltInCategory.OST_MechanicalEquipmentTags;
+                case BuiltInCategory.OST_DuctCurves:             return BuiltInCategory.OST_DuctTags;
+                case BuiltInCategory.OST_DuctFitting:            return BuiltInCategory.OST_DuctFittingTags;
+                case BuiltInCategory.OST_DuctAccessory:          return BuiltInCategory.OST_DuctAccessoryTags;
+                case BuiltInCategory.OST_DuctTerminal:           return BuiltInCategory.OST_DuctTerminalTags;
+                case BuiltInCategory.OST_PipeCurves:             return BuiltInCategory.OST_PipeTags;
+                case BuiltInCategory.OST_PipeFitting:            return BuiltInCategory.OST_PipeFittingTags;
+                case BuiltInCategory.OST_PipeAccessory:          return BuiltInCategory.OST_PipeAccessoryTags;
+                case BuiltInCategory.OST_PlumbingFixtures:       return BuiltInCategory.OST_PlumbingFixtureTags;
+                case BuiltInCategory.OST_Sprinklers:             return BuiltInCategory.OST_SprinklerTags;
+                case BuiltInCategory.OST_ElectricalEquipment:    return BuiltInCategory.OST_ElectricalEquipmentTags;
+                case BuiltInCategory.OST_ElectricalFixtures:     return BuiltInCategory.OST_ElectricalFixtureTags;
+                case BuiltInCategory.OST_LightingFixtures:       return BuiltInCategory.OST_LightingFixtureTags;
+                case BuiltInCategory.OST_LightingDevices:        return BuiltInCategory.OST_LightingDeviceTags;
+                case BuiltInCategory.OST_Conduit:                return BuiltInCategory.OST_ConduitTags;
+                case BuiltInCategory.OST_ConduitFitting:         return BuiltInCategory.OST_ConduitFittingTags;
+                case BuiltInCategory.OST_CableTray:              return BuiltInCategory.OST_CableTrayTags;
+                case BuiltInCategory.OST_CableTrayFitting:       return BuiltInCategory.OST_CableTrayFittingTags;
+                case BuiltInCategory.OST_FireAlarmDevices:       return BuiltInCategory.OST_FireAlarmDeviceTags;
+                case BuiltInCategory.OST_CommunicationDevices:   return BuiltInCategory.OST_CommunicationDeviceTags;
+                case BuiltInCategory.OST_DataDevices:            return BuiltInCategory.OST_DataDeviceTags;
+                case BuiltInCategory.OST_NurseCallDevices:       return BuiltInCategory.OST_NurseCallDeviceTags;
+                case BuiltInCategory.OST_SecurityDevices:        return BuiltInCategory.OST_SecurityDeviceTags;
+                default:                                         return host;
             }
         }
 
@@ -1339,19 +1384,7 @@ namespace StingTools.Core.Drawing
                 }
             }
 
-            // 2. First loaded tag of the host's tag category (project default)
-            if (result == null || result == ElementId.InvalidElementId)
-            {
-                var fallback = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .FirstOrDefault(fs => fs.Category != null
-                        && fs.Category.CategoryType == CategoryType.Annotation
-                        && fs.Category.Id.Value == (long)TagCategoryFor(hostCategory));
-                if (fallback != null) result = fallback.Id;
-            }
-
-            // 3. CategoryTagStyles fallback: check the active view's DrawingType pack.
+            // 2. CategoryTagStyles: check the active view's DrawingType pack.
             if (result == null || result == ElementId.InvalidElementId)
             {
                 try
@@ -1382,6 +1415,47 @@ namespace StingTools.Core.Drawing
                     }
                 }
                 catch { /* resolver must never throw */ }
+            }
+
+            // 3. The STING family built for this category ("STING - Door Tag"). Before
+            //    this, a drawing type with no tagFamilies entry for a category — 50+
+            //    shipped AutoTag rules — got whatever tag of the category happened to
+            //    load first, usually Revit's stock tag, which does not show the ISO 19650
+            //    asset tag. The STING family carries the tag containers the pipeline writes.
+            if (result == null || result == ElementId.InvalidElementId)
+            {
+                string stingName = Tags.TagFamilyConfig.CategoryTemplateMap.ContainsKey(hostCategory)
+                    ? Tags.TagFamilyConfig.GetFamilyName(hostCategory) : null;
+                if (!string.IsNullOrEmpty(stingName))
+                {
+                    var wantCat = (long)TagCategoryFor(hostCategory);
+                    var sting = new FilteredElementCollector(doc)
+                        .OfClass(typeof(FamilySymbol))
+                        .Cast<FamilySymbol>()
+                        .Where(fs => string.Equals(fs.FamilyName, stingName, StringComparison.OrdinalIgnoreCase))
+                        .OrderByDescending(fs => fs.Category != null && fs.Category.Id.Value == wantCat)
+                        .FirstOrDefault();
+                    if (sting != null) result = sting.Id;
+                }
+            }
+
+            // 4. Last resort: the first loaded tag of the host's tag category. Said out loud,
+            //    because a non-STING tag does not display the ISO 19650 tag.
+            if (result == null || result == ElementId.InvalidElementId)
+            {
+                var fallback = new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol))
+                    .Cast<FamilySymbol>()
+                    .FirstOrDefault(fs => fs.Category != null
+                        && fs.Category.CategoryType == CategoryType.Annotation
+                        && fs.Category.Id.Value == (long)TagCategoryFor(hostCategory));
+                if (fallback != null)
+                {
+                    result = fallback.Id;
+                    stats?.Warnings.Add(
+                        $"{catKey}: no STING tag family loaded — used '{fallback.FamilyName}', which may not " +
+                        "show the ISO 19650 tag. Load it with Create Tag Families / Load Tag Families.");
+                }
             }
 
             return result ?? ElementId.InvalidElementId;

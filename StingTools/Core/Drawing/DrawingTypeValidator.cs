@@ -272,6 +272,12 @@ namespace StingTools.Core.Drawing
             // ── ACC-03: crop strategy must be sensible for the view type ──
             ValidateCropForPurpose(dt, r);
 
+            // DT-106: tag text height against ISO 3098 (the default is always compliant).
+            var tagSizeIssue = dt.IsoTagSizeIssue();
+            if (tagSizeIssue != null)
+                r.Add(ValidationSeverity.Warning, "DT-106", tagSizeIssue,
+                    "Clear tagTextSizeMm to use the ISO default (2.5 mm; 3.5 mm on A0), or set 2.5 / 3.5 / 5 mm.");
+
             // ── ACC-04: every ${PRJ_ORG_xxx} referenced by TitleBlockParams
             //   must already be bound on ProjectInformation; otherwise the
             //   applier would silently substitute an empty string.

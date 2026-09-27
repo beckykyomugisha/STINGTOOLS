@@ -358,23 +358,8 @@ namespace StingTools.Core.Drawing
             "Issue Status — {rev}",
         };
 
-        // ── Tag families (STING category → tag-family map) ──
-        public static readonly string[] CommonTagFamilies =
-        {
-            "STING_TAG_ROOM",
-            "STING_TAG_DOOR",
-            "STING_TAG_WINDOW",
-            "STING_TAG_WALL",
-            "STING_TAG_FLOOR",
-            "STING_TAG_CEILING",
-            "STING_TAG_HVAC",
-            "STING_TAG_PIPE",
-            "STING_TAG_DUCT",
-            "STING_TAG_ELECTRICAL",
-            "STING_TAG_LIGHTING",
-            "STING_TAG_PLUMBING",
-            "STING_TAG_FIRE",
-            "STING_TAG_GENERIC",
-        };
+        // Tag family names are not listed here. They come from the families the tag
+        // creator builds (Tags.TagFamilyConfig.AllFamilyNames). A list of "STING_TAG_ROOM"
+        // style names used to live here; none of them was ever built.
     }
 }

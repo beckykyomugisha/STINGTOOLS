@@ -2618,6 +2618,19 @@ namespace StingTools.UI
                 pack.DenseUntilScale,  v => pack.DenseUntilScale = v,
                 tooltip: "View scale ≤ this value → full annotation. Coarser → grid dims only. Empty = always full."));
 
+            // ── Tag text height (ISO 3098). Stored on the drawing type, not the pack. ──
+            // There was no control for tagTextSizeMm, so every drawing took the size
+            // derived from its scale. Printed size, independent of the view scale.
+            const string isoDefault = "ISO default (2.5 mm; 3.5 mm on A0)";
+            var sizeItems = new[] { isoDefault }
+                .Concat(DrawingType.IsoLetteringHeightsMm.Select(DrawingType.TagSizeToken)).ToArray();
+            string currentSize = _current.TagTextSizeMm > 0 ? DrawingType.TagSizeToken(_current.TagTextSizeMm) : isoDefault;
+            body.Children.Add(LabeledCombo("Tag text height", sizeItems, currentSize, v =>
+            {
+                var mm = TagSizeVariant.ParseToken(v);
+                _current.TagTextSizeMm = mm ?? 0;
+            }));
+
             // ── Tag families + per-category Depth (Change 4 + 5) ──
             body.Children.Add(BuildTagFamiliesGrid(pack));
 
@@ -3005,7 +3018,7 @@ namespace StingTools.UI
             var cats   = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
                                KnownTaggableCategories).ToArray();
             var fams   = Merge(ProjectAssetPicker.TagFamilyNames(_doc),
-                               Iso19650Vocabulary.CommonTagFamilies).ToArray();
+                               Tags.TagFamilyConfig.AllFamilyNames()).ToArray();
 
             var enabled = MakeChk(rule.Enabled, b => rule.Enabled = b);
             var cat     = SmallCombo(rule.Category, v => rule.Category = v, cats);
@@ -3059,8 +3072,13 @@ namespace StingTools.UI
 
             host.Children.Add(MakeSmallBtn("＋ Add category mapping", () =>
             {
-                var key = "NewCategory" + pack.TagFamilies.Count;
-                pack.TagFamilies[key] = "STING_TAG_FAMILY";
+                // A real category and the STING family built for it, not a placeholder:
+                // "STING_TAG_FAMILY" named nothing, so a row left as added tagged with
+                // whatever tag happened to load first.
+                var key = KnownTaggableCategories.FirstOrDefault(c => !pack.TagFamilies.ContainsKey(c)
+                                                                   && Tags.TagFamilyConfig.FamilyNameForCategoryName(c) != null)
+                          ?? "NewCategory" + pack.TagFamilies.Count;
+                pack.TagFamilies[key] = Tags.TagFamilyConfig.FamilyNameForCategoryName(key) ?? "";
                 RenderForm();
             }));
             return host;
@@ -3099,7 +3117,7 @@ namespace StingTools.UI
             var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
                              KnownTaggableCategories).ToArray();
             var fams = Merge(ProjectAssetPicker.TagFamilyNames(_doc),
-                             Iso19650Vocabulary.CommonTagFamilies).ToArray();
+                             Tags.TagFamilyConfig.AllFamilyNames()).ToArray();
 
             // Category combo — rename-key-preserves-value semantics.
             var k = SmallCombo(catKey, newKey =>

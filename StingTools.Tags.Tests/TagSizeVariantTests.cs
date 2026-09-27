@@ -4,10 +4,10 @@ using Xunit;
 namespace StingTools.Tags.Tests
 {
     /// <summary>
-    /// Tag text size per drawing. DrawingType.EffectiveTagTextSizeMm decided the
-    /// size (2.5 mm at 1:50, 2 mm at 1:100 …) and nothing placed tags by it. The
-    /// runner now swaps in a size variant — inert until variants exist, so these
-    /// pin both the choice and the "no variants → base, unchanged" guarantee.
+    /// Tag text size per drawing. DrawingType.EffectiveTagTextSizeMm decides the
+    /// printed size (ISO 3098: 2.5 mm, 3.5 mm on A0; it used to shrink with the scale
+    /// down to 1 mm) and the runner swaps in a size variant — inert until variants
+    /// exist, so these pin both the choice and the "no variants → base" guarantee.
     /// </summary>
     public class TagSizeVariantTests
     {
@@ -45,8 +45,8 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Nearest_built_size_when_the_ideal_was_never_authored()
         {
-            // 1:200 wants 1.0 mm; only 2.5 and 3.5 built → 2.5, not nothing.
-            Assert.Equal(2.5, TagSizeVariant.Choose(At(200), new[] { 2.5, 3.5 }, null).SizeMm);
+            // 1:200 wants 2.5 mm like every A1 drawing; only 3.5 and 5 built → 3.5, not nothing.
+            Assert.Equal(3.5, TagSizeVariant.Choose(At(200), new[] { 3.5, 5.0 }, null).SizeMm);
         }
 
         [Fact]
@@ -57,9 +57,9 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Type_variants_are_used_when_there_are_no_family_variants()
         {
-            var c = TagSizeVariant.Choose(At(100), null, new[] { 2.0, 3.5 });
+            var c = TagSizeVariant.Choose(At(100), null, new[] { 2.5, 3.5 });
             Assert.Equal(TagSizeVariant.Kind.Type, c.Kind);
-            Assert.Equal(2.0, c.SizeMm);
+            Assert.Equal(2.5, c.SizeMm);
         }
 
         [Fact]
