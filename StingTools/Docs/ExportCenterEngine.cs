@@ -28,9 +28,140 @@ namespace StingTools.Docs
 
     public static class ExportCenterEngine
     {
-        // ── State persistence (project_config.json: key "ExportCenter") ─────────
+        // ── State persistence ───────────────────────────────────────────────────
+        //
+        // Two homes (DOCX-2). USER-level — profiles, the last profile, ODA path, recent
+        // folders — stays in project_config.json under "ExportCenter", because a profile
+        // is a reusable recipe. PROJECT-level — saved sets (ElementIds), last-export
+        // records, scheduled jobs and the save-trigger opt-in — lives in
+        // <project>/_data/coord/export_center.json. All of it used to be in the one
+        // shared file, so a saved set from project A resolved to arbitrary elements in
+        // project B and "Changed Since Last Export" mixed two projects' history.
+        //
+        // An unsaved model has no project folder and keeps the old single-file behaviour.
 
         private const string ConfigKey = "ExportCenter";
+        private const string ProjectStateFile = "export_center.json";
+
+        /// <summary>The per-project half of <see cref="ExportCenterState"/>.</summary>
+        private sealed class ProjectExportState
+        {
+            public int SchemaVersion { get; set; } = 1;
+            public List<ExportSavedSet> SavedSets { get; set; } = new();
+            public List<ScheduledExport> ScheduledExports { get; set; } = new();
+            public bool EnableSaveTriggeredSchedules { get; set; }
+            public List<SheetExportRecord> LastExports { get; set; } = new();
+            public string LastOutputFolder { get; set; }
+        }
+
+        private static string ProjectStatePath(Document doc)
+        {
+            try { return doc == null ? null : StingPaths.MetaFile(doc, "_BIM_COORD", ProjectStateFile); }
+            catch (Exception ex) { StingLog.Warn($"Export Centre project state path: {ex.Message}"); return null; }
+        }
+
+        /// <summary>State for <paramref name="doc"/>: user-level settings plus this
+        /// project's own sets, records and schedules. With no document (or an unsaved
+        /// one), the single shared file as before.</summary>
+        public static ExportCenterState LoadState(Document doc)
+        {
+            var st = LoadState();
+            string path = ProjectStatePath(doc);
+            if (string.IsNullOrEmpty(path)) return st;
+            try
+            {
+                ProjectExportState proj;
+                if (File.Exists(path))
+                    proj = JsonConvert.DeserializeObject<ProjectExportState>(File.ReadAllText(path)) ?? new ProjectExportState();
+                else
+                {
+                    proj = MigrateProjectState(doc, st);
+                    WriteProjectState(path, proj);
+                }
+                var builtIns = st.SavedSets.Where(x => x.BuiltIn).ToList();
+                st.SavedSets = builtIns.Concat(proj.SavedSets ?? new List<ExportSavedSet>()).ToList();
+                st.ScheduledExports = proj.ScheduledExports ?? new List<ScheduledExport>();
+                st.EnableSaveTriggeredSchedules = proj.EnableSaveTriggeredSchedules;
+                st.LastExports = proj.LastExports ?? new List<SheetExportRecord>();
+                st.LastOutputFolder = proj.LastOutputFolder;
+            }
+            catch (Exception ex) { StingLog.Warn($"Export Centre project state load: {ex.Message}"); }
+            return st;
+        }
+
+        /// <summary>First load in a project: keep only what provably belongs to it — sets
+        /// whose every id is a view in this model, last-export records for sheets that
+        /// exist here, schedules whose set survived, and a last folder inside this
+        /// project. The shared file is left untouched for other projects to migrate from.</summary>
+        private static ProjectExportState MigrateProjectState(Document doc, ExportCenterState legacy)
+        {
+            var proj = new ProjectExportState();
+            foreach (var set in legacy.SavedSets.Where(x => !x.BuiltIn))
+            {
+                bool all = set.ElementIds.Count > 0 && set.ElementIds.All(id =>
+                    long.TryParse(id, out long raw) && doc.GetElement(new ElementId(raw)) is View);
+                if (all) proj.SavedSets.Add(set);
+                else StingLog.Info($"Export Centre migration: saved set '{set.Name}' does not belong to this model — not carried over.");
+            }
+            foreach (var r in legacy.LastExports ?? new List<SheetExportRecord>())
+                if (!string.IsNullOrEmpty(r.SheetUniqueId) && doc.GetElement(r.SheetUniqueId) is ViewSheet)
+                    proj.LastExports.Add(r);
+            var setNames = new HashSet<string>(proj.SavedSets.Select(x => x.Name)
+                .Concat(legacy.SavedSets.Where(x => x.BuiltIn).Select(x => x.Name)), StringComparer.OrdinalIgnoreCase);
+            foreach (var sch in legacy.ScheduledExports ?? new List<ScheduledExport>())
+                if (string.IsNullOrEmpty(sch.SetName) || setNames.Contains(sch.SetName)) proj.ScheduledExports.Add(sch);
+            try
+            {
+                string root = ProjectFolderEngine.GetRootPath(doc);
+                if (!string.IsNullOrEmpty(root) && !string.IsNullOrEmpty(legacy.LastOutputFolder) &&
+                    Path.GetFullPath(legacy.LastOutputFolder).StartsWith(Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
+                    proj.LastOutputFolder = legacy.LastOutputFolder;
+            }
+            catch (Exception ex) { StingLog.Warn($"Export Centre migration folder: {ex.Message}"); }
+            StingLog.Info($"Export Centre state migrated for this project: {proj.SavedSets.Count} set(s), " +
+                          $"{proj.LastExports.Count} last-export record(s), {proj.ScheduledExports.Count} schedule(s).");
+            return proj;
+        }
+
+        private static void WriteProjectState(string path, ProjectExportState proj)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            OutputLocationHelper.WriteAllTextAtomic(path, JsonConvert.SerializeObject(proj, Formatting.Indented));
+        }
+
+        /// <summary>Save for <paramref name="doc"/>: the project half to the project file,
+        /// the user half to project_config.json — whose legacy project fields are left as
+        /// they were so unmigrated projects can still carry theirs over.</summary>
+        public static void SaveState(ExportCenterState st, Document doc)
+        {
+            string path = ProjectStatePath(doc);
+            if (string.IsNullOrEmpty(path)) { SaveState(st); return; }
+            try
+            {
+                WriteProjectState(path, new ProjectExportState
+                {
+                    SavedSets = st.SavedSets.Where(x => !x.BuiltIn).ToList(),
+                    ScheduledExports = st.ScheduledExports ?? new List<ScheduledExport>(),
+                    EnableSaveTriggeredSchedules = st.EnableSaveTriggeredSchedules,
+                    LastExports = st.LastExports ?? new List<SheetExportRecord>(),
+                    LastOutputFolder = st.LastOutputFolder,
+                });
+
+                string cfg = TagConfig.ConfigSource;
+                if (string.IsNullOrEmpty(cfg)) return;
+                JObject root = File.Exists(cfg) ? JObject.Parse(File.ReadAllText(cfg)) : new JObject();
+                var prev = root[ConfigKey] as JObject;
+                var user = JObject.FromObject(st);
+                foreach (var key in new[] { "SavedSets", "ScheduledExports", "EnableSaveTriggeredSchedules", "LastExports", "LastOutputFolder" })
+                {
+                    if (prev != null && prev[key] != null) user[key] = prev[key];
+                    else user.Remove(key);
+                }
+                root[ConfigKey] = user;
+                File.WriteAllText(cfg, root.ToString(Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"Export Centre state save: {ex.Message}"); }
+        }
 
         public static ExportCenterState LoadState()
         {
@@ -192,7 +323,7 @@ namespace StingTools.Docs
                     // ISO 19650 re-issue — only the drawings that moved go out. Records
                     // are stamped post-run when the profile's Output.StampLastExport is
                     // on (default). Salvaged from claude/dreamy-maxwell-prlg44.
-                    var state = LoadState();
+                    var state = LoadState(doc);
                     var byUid = (state.LastExports ?? new List<SheetExportRecord>())
                         .GroupBy(r => r.SheetUniqueId)
                         .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ExportedUtc).First());
@@ -612,6 +743,21 @@ namespace StingTools.Docs
             }
             catch (Exception ex) { issues.Add(Warn("FOLDER_CHECK", ex.Message)); }
 
+            // Profiles are shared across projects (DOCX-2) and carry an absolute folder,
+            // so a profile last used on another job points into THAT job's folders.
+            try
+            {
+                string root = doc != null ? ProjectFolderEngine.GetRootPath(doc) : null;
+                string folder = profile.Output.LocalFolder;
+                if (!profile.Output.RouteByProjectStructure && !string.IsNullOrEmpty(root) &&
+                    !string.IsNullOrEmpty(folder) && Path.IsPathRooted(folder) &&
+                    !Path.GetFullPath(folder).StartsWith(Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
+                    issues.Add(Warn("OUTSIDE_PROJECT",
+                        $"Output folder is outside this project ({root}): {folder}. " +
+                        "Press Auto, or tick 'File into the project structure', to export into this project."));
+            }
+            catch (Exception ex) { StingLog.Warn($"Preflight project-folder check: {ex.Message}"); }
+
             // Filename collisions across the projected set
             try
             {
@@ -765,6 +911,7 @@ namespace StingTools.Docs
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
             StampLastExports(doc, profile, result);
+            RegisterExports(doc, profile, result);
             return Finalize(profile, result);
         }
 
@@ -782,7 +929,7 @@ namespace StingTools.Docs
             if (result == null || result.Cancelled) return;
             try
             {
-                var state = LoadState();
+                var state = LoadState(doc);
                 var byKey = (state.LastExports ?? new List<SheetExportRecord>())
                     .ToDictionary(r => r.SheetUniqueId + "|" + r.Format, r => r);
 
@@ -804,9 +951,53 @@ namespace StingTools.Docs
                 }
 
                 state.LastExports = byKey.Values.ToList();
-                SaveState(state);
+                SaveState(state, doc);
             }
             catch (Exception ex) { StingLog.Warn($"Last-export stamp: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// DOCX-6: record each exported file in the project's document register
+        /// (BIMManagerEngine.AutoRegisterExport — the same register the Document Manager
+        /// and the unified register read), when Output.CdeAutoRegister is on. The setting
+        /// defaulted to true and nothing read it, so Export Centre output reached the
+        /// Document Manager only as loose files with no suitability or revision.
+        ///
+        /// A sheet's PDF is registered under its ISO document number, so it lines up with
+        /// the deliverable of the same number; every other rendition (DWG, image …) is
+        /// matched by file name, so it gets its own row instead of overwriting the PDF's.
+        /// Suitability, revision and CDE state come from the sheet.
+        /// </summary>
+        private static void RegisterExports(Document doc, ExportProfile profile, ExportRunResult result)
+        {
+            if (doc == null || profile?.Output == null || !profile.Output.CdeAutoRegister) return;
+            if (result == null || result.Cancelled) return;
+            int n = 0;
+            foreach (var r in result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? "")))
+            {
+                try
+                {
+                    var sheet = ResolveSheet(doc, r.SheetId);
+                    string code = null, rev = null, docNumber = null, title = r.SheetTitle;
+                    if (sheet != null)
+                    {
+                        code = SheetSuitabilityCode(sheet);
+                        rev = GetCurrentRevision(doc, sheet).rev;
+                        DecomposeSheetIdentifier(sheet, out string id);
+                        if (string.Equals(r.Format, "PDF", StringComparison.OrdinalIgnoreCase))
+                            docNumber = id ?? sheet.SheetNumber;
+                        title = $"{sheet.SheetNumber} - {sheet.Name}";
+                    }
+                    string state = Core.Drawing.Iso19650Suitability.CdeStateFor(code) ?? "WIP";
+                    string type = r.Format is "IFC" or "NWC" ? "M3" : "DR";
+                    BIMManager.BIMManagerEngine.AutoRegisterExport(doc, r.OutputPath, type,
+                        $"{title} ({r.Format})", code ?? Core.Drawing.Iso19650Suitability.DefaultFor(state),
+                        rev, state, docNumber);
+                    n++;
+                }
+                catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber}/{r.Format}: {ex.Message}"); }
+            }
+            if (n > 0) StingLog.Info($"Export Centre: {n} file(s) recorded in the document register.");
         }
 
         /// <summary>Resolve a ViewSheet from an ExportResultRow.SheetId string

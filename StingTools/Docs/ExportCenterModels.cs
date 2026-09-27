@@ -69,7 +69,10 @@ namespace StingTools.Docs
     public enum FilenameConflictMode { Skip, Overwrite, AutoRename, Ask }
 
     /// <summary>Document approval suitability code (BS EN ISO 19650-2 §A.2).</summary>
-    public enum SuitabilityCode { S0, S1, S2, S3, S4, S6, S7, A1, A2, A3, AB, B1, B2, B3, CR }
+    /// <summary>ISO 19650 suitability codes. Persisted as integers, so new codes are
+    /// APPENDED — inserting S5 after S4 would silently change every saved profile.</summary>
+    public enum SuitabilityCode { S0, S1, S2, S3, S4, S6, S7, A1, A2, A3, AB, B1, B2, B3, CR,
+                                  S5, A4, A5, B4, B5, B6, AR }
 
     // ── PDF settings ────────────────────────────────────────────────────────────
 

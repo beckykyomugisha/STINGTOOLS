@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -37,7 +38,7 @@ namespace StingTools.Docs
             if (doc == null) return 0;
 
             ExportCenterState state;
-            try { state = ExportCenterEngine.LoadState(); }
+            try { state = ExportCenterEngine.LoadState(doc); }
             catch (Exception ex) { StingLog.Warn($"ScheduledExportRunner load: {ex.Message}"); return 0; }
 
             if (fromSave && !state.EnableSaveTriggeredSchedules) return 0;
@@ -99,7 +100,7 @@ namespace StingTools.Docs
             }
 
             if (dirty)
-                try { ExportCenterEngine.SaveState(state); }
+                try { ExportCenterEngine.SaveState(state, doc); }
                 catch (Exception ex) { StingLog.Warn($"ScheduledExportRunner save: {ex.Message}"); }
 
             return ran;
@@ -111,9 +112,20 @@ namespace StingTools.Docs
         private static void Reschedule(ScheduledExport sch, DateTime now)
         {
             Func<DateTime, DateTime> step;
+            var weekDays = sch.WeeklyDays ?? new List<DayOfWeek>();
             switch ((sch.Repeat ?? "Once").Trim().ToLowerInvariant())
             {
                 case "daily":   step = d => d.AddDays(1);   break;
+                // Weekly with chosen days steps a day at a time to the next chosen day
+                // (in local time, where the user picked them); none chosen = every 7 days.
+                case "weekly" when weekDays.Count > 0:
+                    step = d =>
+                    {
+                        var local = d.ToLocalTime();
+                        do { local = local.AddDays(1); } while (!weekDays.Contains(local.DayOfWeek));
+                        return local.ToUniversalTime();
+                    };
+                    break;
                 case "weekly":  step = d => d.AddDays(7);   break;
                 case "monthly": step = d => d.AddMonths(1); break;
                 default:        sch.Enabled = false;        return; // "Once" — disable after running
@@ -121,6 +133,32 @@ namespace StingTools.Docs
             var next = sch.NextRunUtc == default ? now : sch.NextRunUtc;
             do { next = step(next); } while (next <= now);
             sch.NextRunUtc = next;
+        }
+    }
+
+    /// <summary>
+    /// Runs due scheduled exports after a save, once Revit is idle (DOCX-3). The
+    /// save-trigger opt-in was read by RunDue but nothing ever called it with
+    /// fromSave:true. Queued from StingToolsApp.OnDocumentSaved; running the export
+    /// inside the save event itself would be too early and would block the save.
+    /// </summary>
+    public sealed class ScheduledExportJob : IIdlingJob
+    {
+        private readonly Document _doc;
+        public ScheduledExportJob(Document doc) { _doc = doc; }
+        public string Name => "ScheduledExports";
+        public int Priority => 4;
+        public int BudgetMs => 1;
+        public bool Execute(UIApplication uiApp)
+        {
+            try
+            {
+                if (_doc == null || !_doc.IsValidObject) return true;
+                int ran = ScheduledExportRunner.RunDue(_doc, fromSave: true);
+                if (ran > 0) StingLog.Info($"Save-triggered scheduled exports: {ran} job(s) ran for {_doc.Title}.");
+            }
+            catch (Exception ex) { StingLog.Warn($"ScheduledExportJob: {ex.Message}"); }
+            return true;
         }
     }
 

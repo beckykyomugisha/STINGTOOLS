@@ -99,7 +99,7 @@ namespace StingTools.UI
             _uiDoc = uiDoc ?? throw new ArgumentNullException(nameof(uiDoc));
             _doc = uiDoc.Document;
 
-            _state = ExportCenterEngine.LoadState();
+            _state = ExportCenterEngine.LoadState(_doc);
             _profile = ResolveStartingProfile();
 
             InitWindowChrome();
@@ -384,6 +384,7 @@ namespace StingTools.UI
             setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             setRow.Children.Add(new TextBlock { Text = "Set:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
 
@@ -403,6 +404,14 @@ namespace StingTools.UI
             manageBtn.Click += OnManageSetsClick;
             Grid.SetColumn(manageBtn, 3);
             setRow.Children.Add(manageBtn);
+
+            // Scheduled exports had a model, a runner and a command but no way to
+            // create one — nothing wrote ScheduledExports (DOCX-3).
+            var schedBtn = new Button { Content = "⏱ Schedule…", Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2),
+                ToolTip = "Run this profile on this set later, or on a repeat. Jobs belong to this project." };
+            schedBtn.Click += OnScheduleClick;
+            Grid.SetColumn(schedBtn, 4);
+            setRow.Children.Add(schedBtn);
 
             Grid.SetRow(setRow, 1);
             topBar.Children.Add(setRow);
@@ -1440,6 +1449,17 @@ namespace StingTools.UI
                 if (_profile?.Output == null) return;
                 if (!force && !string.IsNullOrWhiteSpace(_profile.Output.LocalFolder)) return;
 
+                // The suitability the selected sheets actually carry (most common code),
+                // not a hidden profile default that had no control and was always S2.
+                var codes = _rows.Where(r => r.IsChecked)
+                    .Select(r => _doc.GetElement(new ElementId(r.Id)) as ViewSheet)
+                    .Where(v => v != null)
+                    .Select(ExportCenterEngine.SheetSuitabilityCode)
+                    .Where(c => !string.IsNullOrEmpty(c))
+                    .GroupBy(c => c).OrderByDescending(g => g.Count()).FirstOrDefault();
+                if (codes != null && Enum.TryParse<SuitabilityCode>(codes.Key, out var sc))
+                    _profile.Output.CdeSuitability = sc;
+
                 string folder = ResolveCdeFolder(_profile.Output.CdeSuitability);
                 if (string.IsNullOrEmpty(folder)) return;
 
@@ -1523,7 +1543,7 @@ namespace StingTools.UI
             _state.SavedSets.Add(set);
             _setCombo.Items.Add(name);
             _setCombo.SelectedIndex = _state.SavedSets.Count - 1;
-            ExportCenterEngine.SaveState(_state);
+            ExportCenterEngine.SaveState(_state, _doc);
         }
 
         private void OnManageSetsClick(object _, RoutedEventArgs __)
@@ -1548,11 +1568,122 @@ namespace StingTools.UI
                 _state.SavedSets.RemoveAt(i);
                 lb.Items.RemoveAt(i);
                 _setCombo.Items.RemoveAt(i);
-                ExportCenterEngine.SaveState(_state);
+                ExportCenterEngine.SaveState(_state, _doc);
             };
             var sp = new StackPanel { Margin = new Thickness(10) };
             sp.Children.Add(lb); sp.Children.Add(del);
             dlg.Content = sp;
+            dlg.ShowDialog();
+        }
+
+        // ── Scheduled exports ────────────────────────────────────────────────────
+
+        private void OnScheduleClick(object _, RoutedEventArgs __)
+        {
+            var dlg = new Window
+            {
+                Title = "Scheduled exports — this project",
+                Width = 560, Height = 520, Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            };
+            var sp = new StackPanel { Margin = new Thickness(12) };
+
+            bool profileSaved = _state.Profiles.Any(p => string.Equals(p.Name, _profile.Name, StringComparison.OrdinalIgnoreCase));
+            sp.Children.Add(new TextBlock
+            {
+                Text = $"Profile: {_profile.Name}" + (profileSaved ? "" : "  — not saved; save the profile first"),
+                FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap,
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "A job runs the SAVED profile, so later edits to it apply to the job.",
+                FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 6), TextWrapping = TextWrapping.Wrap,
+            });
+
+            var setBox = new ComboBox();
+            foreach (var st in _state.SavedSets) setBox.Items.Add(st.Name);
+            setBox.SelectedIndex = Math.Max(0, _setCombo.SelectedIndex);
+            sp.Children.Add(LabelFor("Set", setBox));
+
+            var repeat = new ComboBox();
+            foreach (var r in new[] { "Once", "Daily", "Weekly", "Monthly" }) repeat.Items.Add(r);
+            repeat.SelectedIndex = 1;
+            sp.Children.Add(LabelFor("Repeat", repeat));
+
+            var days = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+            var dayChecks = new List<(DayOfWeek day, CheckBox cb)>();
+            foreach (DayOfWeek d in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+                                            DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday })
+            {
+                var cb = new CheckBox { Content = d.ToString().Substring(0, 3), Margin = new Thickness(0, 0, 8, 0) };
+                dayChecks.Add((d, cb)); days.Children.Add(cb);
+            }
+            sp.Children.Add(LabelFor("Weekly on (Weekly only; none = every 7 days)", days));
+
+            var first = DateTime.Now.AddHours(1);
+            var firstBox = new TextBox { Text = new DateTime(first.Year, first.Month, first.Day, first.Hour, 0, 0).ToString("yyyy-MM-dd HH:mm") };
+            sp.Children.Add(LabelFor("First run (local time, yyyy-MM-dd HH:mm)", firstBox));
+
+            var onSave = new CheckBox
+            {
+                Content = "Run due jobs when this model is saved",
+                IsChecked = _state.EnableSaveTriggeredSchedules, Margin = new Thickness(0, 6, 0, 0),
+                ToolTip = "Off: due jobs run only from the 'Run schedules' command. On: after each save, once Revit is idle.",
+            };
+            onSave.Checked += (_, __) => { _state.EnableSaveTriggeredSchedules = true; ExportCenterEngine.SaveState(_state, _doc); };
+            onSave.Unchecked += (_, __) => { _state.EnableSaveTriggeredSchedules = false; ExportCenterEngine.SaveState(_state, _doc); };
+            sp.Children.Add(onSave);
+
+            var list = new ListBox { Height = 150, Margin = new Thickness(0, 8, 0, 0) };
+            void RefreshList()
+            {
+                list.Items.Clear();
+                foreach (var j in _state.ScheduledExports)
+                    list.Items.Add($"{(j.Enabled ? "●" : "○")} {j.ProfileName} · {j.SetName} · {j.Repeat}" +
+                                   (j.Repeat == "Weekly" && j.WeeklyDays?.Count > 0 ? " (" + string.Join(",", j.WeeklyDays.Select(d => d.ToString().Substring(0, 3))) + ")" : "") +
+                                   $" · next {j.NextRunUtc.ToLocalTime():yyyy-MM-dd HH:mm}" +
+                                   (string.IsNullOrEmpty(j.LastResult) ? "" : $" · last: {j.LastResult}"));
+            }
+            RefreshList();
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+            var add = new Button { Content = "Add job", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 6, 0), IsEnabled = profileSaved };
+            var del = new Button { Content = "Delete selected", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 6, 0) };
+            var close = new Button { Content = "Close", Padding = new Thickness(10, 3, 10, 3), IsCancel = true };
+            add.Click += (_, __) =>
+            {
+                if (!DateTime.TryParseExact(firstBox.Text.Trim(), "yyyy-MM-dd HH:mm",
+                        System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal, out var local))
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("Schedule", "First run must be yyyy-MM-dd HH:mm.");
+                    return;
+                }
+                var job = new ScheduledExport
+                {
+                    ProfileName = _profile.Name,
+                    SetName = setBox.SelectedItem?.ToString(),
+                    Repeat = repeat.SelectedItem?.ToString() ?? "Once",
+                    NextRunUtc = local.ToUniversalTime(),
+                    WeeklyDays = dayChecks.Where(x => x.cb.IsChecked == true).Select(x => x.day).ToList(),
+                };
+                _state.ScheduledExports.Add(job);
+                ExportCenterEngine.SaveState(_state, _doc);
+                RefreshList();
+            };
+            del.Click += (_, __) =>
+            {
+                int i = list.SelectedIndex;
+                if (i < 0 || i >= _state.ScheduledExports.Count) return;
+                _state.ScheduledExports.RemoveAt(i);
+                ExportCenterEngine.SaveState(_state, _doc);
+                RefreshList();
+            };
+            close.Click += (_, __) => dlg.Close();
+            buttons.Children.Add(add); buttons.Children.Add(del); buttons.Children.Add(close);
+
+            sp.Children.Add(list);
+            sp.Children.Add(buttons);
+            dlg.Content = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             dlg.ShowDialog();
         }
 
@@ -1662,7 +1793,7 @@ namespace StingTools.UI
             if (!string.IsNullOrEmpty(_profile.Output.LocalFolder))
                 _state.LastOutputFolder = _profile.Output.LocalFolder;
             _state.LastNamingTemplate = _profile.Output.NamingTemplate;
-            ExportCenterEngine.SaveState(_state);
+            ExportCenterEngine.SaveState(_state, _doc);
         }
 
         // ── Tiny helpers ────────────────────────────────────────────────────────
