@@ -415,9 +415,10 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Armoured_single_source_rows_are_flagged_on_capacity()
+        public void Armoured_in_ground_capacity_is_two_source_checked()
         {
-            // 4D4A method D2 (direct in ground) still has one source: 1.5 mm² 22 A ≥ 20 A.
+            // 4D4A method D2 (direct in ground): 1.5 mm² 22 A ≥ 20 A. The BS transcription
+            // equals IEC 60364-5-52 D2 in two IEC transcriptions, so nothing is flagged.
             var i = Pvc(20, 5, 5.0);
             i.CableType = "ArmouredMulticore";
             i.InstallMethod = "D2";
@@ -425,9 +426,19 @@ namespace StingTools.Tags.Tests
             Assert.True(r.Sized, r.Refusal);
             Assert.Equal(1.5, r.CsaMm2);
             Assert.Equal(22.0, r.TabulatedItA);
-            Assert.True(r.UnverifiedCapacity);
+            Assert.False(r.UnverifiedCapacity);
             Assert.False(r.UnverifiedVoltDrop);   // 4D4B ≤ 16 mm² is two-source checked
-            Assert.Contains("VERIFY: the 1.5 mm² It (Table 4D4A) has not been checked", r.Basis);
+            Assert.DoesNotContain("VERIFY", r.Basis);
+        }
+
+        [Fact]
+        public void Every_capacity_row_is_two_source_checked()
+        {
+            // No It value is left on a single source. A row added later without a second
+            // source must set verified:false, which this test then reports.
+            foreach (var t in Data().Tables)
+                Assert.All(t.Rows, r => Assert.True(r.Verified,
+                    $"{t.Id} {t.InstallMethod} {r.CsaMm2} mm² It is single-source"));
         }
 
         [Fact]
