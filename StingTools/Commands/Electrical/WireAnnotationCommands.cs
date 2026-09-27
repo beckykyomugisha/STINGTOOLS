@@ -390,7 +390,7 @@ namespace StingTools.Commands.Electrical
             {
                 var p = conduit.LookupParameter("ELC_WIRE_CSA_MM2_NUM");
                 if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, "ELC_WIRE_CSA_MM2_NUM"),
+                    double.TryParse(ParameterHelpers.GetValueText(conduit, "ELC_WIRE_CSA_MM2_NUM"),
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out csa);
                 } else if (p.StorageType == StorageType.Double) {
@@ -449,7 +449,7 @@ namespace StingTools.Commands.Electrical
             {
                 var p = conduit.LookupParameter("ELC_CDT_CBL_FILL_PCT");
                 if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, "ELC_CDT_CBL_FILL_PCT"),
+                    double.TryParse(ParameterHelpers.GetValueText(conduit, "ELC_CDT_CBL_FILL_PCT"),
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out fill2);
                 } else if (p.StorageType == StorageType.Double) {

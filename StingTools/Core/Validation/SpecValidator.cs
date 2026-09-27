@@ -96,7 +96,7 @@ namespace StingTools.Core.Validation
                 foreach (var el in col)
                 {
                     string mat = ReadString(el, "HVC_DCT_MAT_TXT");
-                    string sys = ReadString(el, "HVC_SYS_TXT");
+                    string sys = StingTools.Core.Mep.ServiceSystemName.Read(el);
                     if (string.IsNullOrEmpty(sys)) continue;
                     if (string.IsNullOrEmpty(mat))
                     {

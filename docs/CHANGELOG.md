@@ -24185,3 +24185,46 @@ multicore or hid unchecked values.
   schedule text.
 - **Not exercised in Revit.** Rebuild the panel schedule templates (`Panel_TemplatesCreate`) to
   pick up the VD column change.
+
+#### Parameters read by the wrong name or as blank text (2026-09-27)
+
+A sweep of every literal parameter name in the plugin against the shared-parameter files, and of
+every `GetString` read against the parameter's data type.
+
+- **Numbers read as text were blank.** `ParameterHelpers.GetString` returns "" for anything not
+  stored as text, so about 120 reads of NUMBER, LENGTH, AREA, INTEGER, YES/NO and CURRENCY
+  parameters always came back empty. The biggest effect was the TAG7 narrative: U-values,
+  velocities, wall and door sizes, stair geometry, panel breakers, lamp wattage, lead thickness
+  and fire ratings never appeared. The BOQ paragraph dimensions (width, height, thickness) were
+  also always blank.
+  - New `ParameterHelpers.GetValueText` reads any storage as plain invariant text in the unit the
+    name states: LENGTH in mm (m when the name ends `_M`), AREA in m², VOLUME in m³, electrical
+    quantities through `ElecUnits`, other numbers as stored. TEXT reads exactly as `GetString`.
+  - TAG7, the BOQ paragraph builder, the COBie/asset exports, the tie-in and LPS registers, the
+    labour-hours and handover exports, the UL penetration matcher and the display-mode sentinel
+    use it. Parsers that assumed the local culture now parse invariantly or use `GetDouble`.
+  - Behaviour change: HVAC Refresh no longer overwrites a capacity the user entered, and the tag
+    display-mode initialisation no longer re-runs on every tag, because both checks now see the
+    stored value.
+- **System names that do not exist.** Fabrication grouping, cut lists, the workspace filter pills,
+  the duct spec check and the HVAC panel read `HVC_SYS_TXT`, `ELC_SYS_TXT` and a concatenation of
+  three names, so ducts and conduits had no system. `Core/Mep/ServiceSystemName.Read` is now the
+  one reader: `PLM_SYS_TXT`, `MEC_SYS_TXT`, Revit's system name, then the tag's SYS token.
+- **Other wrong names.**
+  - TAG7 medical gas and radiation text: `MGS_DESIGN_FLOW_LPM_NR` (l/min, not L/s),
+    `MGS_NOM_PRESS_KPA_NR`, `MGS_OUTLET_ZONE_TXT`, `RAD_BARRIER_TYPE_TXT`, `RAD_WORKLOAD_MAWK_NR`.
+    The outlet count had no parameter and is dropped.
+  - HVAC panel spools: `AssyParams` weight, fitting count and total length (the `ASSY_*` names
+    never existed, so every spool read "?").
+  - Produce-and-export sheet register: the CDE state from `PRJ_TB_DELIVERABLE_CDE_TXT`, blank when
+    unstamped. It read a nonexistent name and reported every sheet as "WIP".
+  - Fill validator and fill heat map: pipe and duct velocity from `PLM_VEL_MPS` / `HVC_VEL_MPS`;
+    the velocity checks never ran.
+  - Plumbing joint type, sheet Uniclass code, HVAC carbon report kW, carbon tracker mass, and the
+    BOQ paragraph performance and dimension fields.
+- **Left open.** About 60 names remain that no parameter file defines. Most are family parameters
+  or deliberate fallbacks; the few that silence a check are listed in ROADMAP PARAM-10.
+- **Gate.** `check_param_contract.py` counts `GetValueText` as a read; six user-entered inputs
+  that are now read were recorded as inputs.
+- **Tests.** 3,576 passing, including the name-suffix unit rule and invariant formatting. Not
+  exercised in Revit.

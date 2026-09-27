@@ -98,9 +98,9 @@ namespace StingTools.V6
                             byDisc[disc] = byDisc.TryGetValue(disc, out var v) ? v + a1a3 : a1a3;
 
                         // A4 transport. Requires MAT_DISTANCE_KM shared
-                        // parameter + MAT_WEIGHT_KG / 1000 (tonnes).
+                        // parameter + ASS_WEIGHT_KG / 1000 (tonnes).
                         double distKm = ReadDouble(el, "MAT_DISTANCE_KM");
-                        double massT  = ReadDouble(el, "MAT_WEIGHT_KG") / 1000.0;
+                        double massT  = ReadDouble(el, ParamRegistry.ASS_WEIGHT_KG) / 1000.0;
                         double a4 = distKm * massT * A4TransportFactorKgPerKmTonne;
                         WriteDouble(el, ParamRegistry.CBN_A4_KG_CO2E, a4);
                         res.TotalA4 += a4;

@@ -303,6 +303,55 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// A parameter's value as plain invariant text in the unit its NAME implies, for any
+        /// storage. <see cref="GetString"/> returns "" for a NUMBER / LENGTH / AREA parameter,
+        /// which blanked every such value read through it; <see cref="GetDisplayText"/> returns
+        /// project-unit display text with the unit appended, which does not parse back.
+        /// Here: TEXT as stored; INTEGER / Yes-No as the integer; a Double as a plain number —
+        /// LENGTH in mm (m when the name ends <c>_M</c>), AREA in m², VOLUME in m³, voltage /
+        /// power / current in V, VA or W, A (<see cref="Electrical.ElecUnits"/>), any other
+        /// spec (NUMBER, CURRENCY) as stored. "" when the parameter is absent or has no value.
+        /// </summary>
+        public static string GetValueText(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null) return string.Empty;
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        return p.AsString() ?? string.Empty;
+                    case StorageType.Integer:
+                        return p.HasValue ? p.AsInteger().ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
+                    case StorageType.Double:
+                        return p.HasValue ? UnitValueText.Invariant(DoubleInNamedUnit(p, paramName)) : string.Empty;
+                    default:
+                        return string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("GetValueText", $"GetValueText({paramName}): {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        private static double DoubleInNamedUnit(Parameter p, string paramName)
+        {
+            double raw = p.AsDouble();
+            ForgeTypeId spec = p.Definition?.GetDataType();
+            ForgeTypeId unit = null;
+            if (spec == SpecTypeId.Length)
+                unit = UnitValueText.LengthNameIsMetres(paramName) ? UnitTypeId.Meters : UnitTypeId.Millimeters;
+            else if (spec == SpecTypeId.Area) unit = UnitTypeId.SquareMeters;
+            else if (spec == SpecTypeId.Volume) unit = UnitTypeId.CubicMeters;
+            else unit = Electrical.ElecUnits.SiUnitFor(p);
+            return unit == null ? raw : UnitUtils.ConvertFromInternalUnits(raw, unit);
+        }
+
         /// <summary>Read an integer parameter with fallback. Handles Integer, Double, String storage.</summary>
         public static int GetInt(Element el, string paramName, int defaultValue = 0)
         {
@@ -4669,9 +4718,9 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, ParamRegistry.SIZE);
 
             // ── SYN-01: Cross-write ASS_FLOW_RATE_TXT from PLM_PIPE_FLOW or HVC_AIRFLOW ──
-            string flowRate = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+            string flowRate = ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_FLOW);
             if (string.IsNullOrEmpty(flowRate))
-                flowRate = ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW);
+                flowRate = ParameterHelpers.GetValueText(el, ParamRegistry.HVC_AIRFLOW);
             if (!string.IsNullOrEmpty(flowRate))
                 written += SetIfEmptyInt(el, "ASS_FLOW_RATE_TXT", flowRate);
 

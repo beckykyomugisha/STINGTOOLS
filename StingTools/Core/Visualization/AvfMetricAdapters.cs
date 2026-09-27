@@ -72,8 +72,8 @@ namespace StingTools.Core.Visualization
             {
                 double fill = 0;
                 var p = el.LookupParameter("ELC_CDT_CBL_FILL_PCT")
-                    ?? el.LookupParameter("PLM_PPE_VELOCITY_MS")
-                    ?? el.LookupParameter("HVC_DCT_VELOCITY_MS");
+                    ?? el.LookupParameter(ParamRegistry.PLM_VELOCITY)
+                    ?? el.LookupParameter(ParamRegistry.HVC_VELOCITY);
                 if (p != null && p.HasValue)
                 {
                     try

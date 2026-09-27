@@ -190,7 +190,7 @@ namespace StingTools.UI
                     string klass  = ClassifyHvacEquipment(family, e.Name ?? "", ReadString(e, "ASS_PRODCT_COD_TXT"));
                     double kw     = ReadDouble(e, "HVC_CAPACITY_KW");
                     double flowLs = ReadDouble(e, "HVC_FLOW_LS");
-                    string system = ReadString(e, "HVC_SYS_TXT");
+                    string system = StingTools.Core.Mep.ServiceSystemName.Read(e);
                     if (string.IsNullOrEmpty(system))
                         system = (e is FamilyInstance fi2)
                             ? (fi2.MEPModel?.ConnectorManager?.Connectors?.Size > 0 ? "(connected)" : "")
@@ -302,14 +302,15 @@ namespace StingTools.UI
                     if (!(name.IndexOf("Duct", StringComparison.OrdinalIgnoreCase) >= 0
                         || cat.IndexOf("Duct", StringComparison.OrdinalIgnoreCase) >= 0))
                         continue;
-                    double weightKg = ReadDouble(a, "ASSY_WEIGHT_KG_NR");
-                    int    fittings = (int)ReadDouble(a, "ASSY_FITTING_COUNT_NR");
-                    double lengthM  = ReadDouble(a, "ASSY_LENGTH_M_NR");
+                    // The AssyParams names AssemblyBuilder stamps (ASSY_* never existed).
+                    double weightKg = ReadDouble(a, StingTools.Core.Fabrication.AssyParams.WEIGHT_KG);
+                    int    fittings = (int)ReadDouble(a, StingTools.Core.Fabrication.AssyParams.FITTING_COUNT_NR);
+                    double lengthM  = ReadDouble(a, StingTools.Core.Fabrication.AssyParams.LENGTH_TOTAL_MM) / 1000.0;
                     SpoolRows.Add(new HvacSpoolRow
                     {
                         IsSelected = false,
                         Tag = ai.Name ?? $"S-{ai.Id.Value}",
-                        System = ReadString(ai, "HVC_SYS_TXT"),
+                        System = StingTools.Core.Mep.ServiceSystemName.Read(ai),
                         LengthM = lengthM, WeightKg = weightKg,
                         FittingCount = fittings,
                         ShopReady = weightKg > 0 ? "✔" : "?"

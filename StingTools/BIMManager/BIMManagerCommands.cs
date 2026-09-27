@@ -2711,8 +2711,8 @@ namespace StingTools.BIMManager
                     ["WarrantyDurationUnit"] = (!string.IsNullOrEmpty(warrantyDurParts) || !string.IsNullOrEmpty(warrantyDurLabor)) ? "years" : "",
                     // IG-01 / P0-7: stamped CST_* unit price wins; else the
                     // canonical category rate (UGX) from the one loader.
-                    ["ReplacementCost"] = !string.IsNullOrEmpty(ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR"))
-                        ? ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR")
+                    ["ReplacementCost"] = !string.IsNullOrEmpty(ParameterHelpers.GetValueText(fs, "ASS_CST_UNIT_PRICE_UGX_NR"))
+                        ? ParameterHelpers.GetValueText(fs, "ASS_CST_UNIT_PRICE_UGX_NR")
                         : (costRateByCategory.TryGetValue(fs.Category?.Name ?? "", out var csvRate) && csvRate.rate > 0
                             ? csvRate.rate.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : ""),
                     ["ExpectedLife"] = ParameterHelpers.GetString(fs, "ASS_EXPECTED_LIFE_YEARS_YRS"),

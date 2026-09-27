@@ -272,6 +272,11 @@
       "role": "reference",
       "reason": "Register appearance column written by MaterialCommands. Read by the model author in the properties palette, not by code. BLE_APP-IDENTITY-CLASS is the exception below."
     },
+    "BLE_CASEWORK_MATERIAL_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "BLE_COLUMN_SLENDERNESS": {
       "state": "read_only",
       "role": "input",
@@ -411,6 +416,11 @@
       "state": "read_only",
       "role": "export",
       "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-STR-Foundations\". A schedule is a real reader; this scan only sees C#."
+    },
+    "BLE_WALL_INSULATION_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR": {
       "state": "read_only",
@@ -1057,10 +1067,10 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
-    "MGS_OUTLET_ZONE_TXT": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    "MGS_NOM_PRESS_KPA_NR": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "MGS_SUPPLY_TYPE_TXT": {
       "state": "read_only",
@@ -1217,11 +1227,6 @@
       "role": "export",
       "reason": "Written by Title Block Populate and consumed by the CDE REF label in the title-block family. Derived from the ISO 19650 identifier plus suitability and revision; there is no reader in C# by design."
     },
-    "PRJ_TB_DELIVERABLE_CDE_TXT": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
-    },
     "PRJ_TB_DELIVERABLE_DATADROP_TXT": {
       "state": "write_only",
       "role": "reference",
@@ -1317,12 +1322,22 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "RAD_BARRIER_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "RAD_LEAD_MM_NR": {
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "RAD_QE_NAME_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "RAD_WORKLOAD_MAWK_NR": {
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
@@ -1506,6 +1521,11 @@
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "STR_SECTION_PROFILE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STR_SEISMIC_AGR": {
       "state": "write_only",

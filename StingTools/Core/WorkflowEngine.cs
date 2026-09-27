@@ -2614,7 +2614,7 @@ namespace StingTools.Core
                                     return true;
                                 // Fallback: any panel with non-empty connected-load is a sign the
                                 // summary has run at least once.
-                                string load = ParameterHelpers.GetString(panel, ParamRegistry.ELC_PNL_LOAD);
+                                string load = ParameterHelpers.GetValueText(panel, ParamRegistry.ELC_PNL_LOAD);
                                 if (!string.IsNullOrEmpty(load) && load != "0") return true;
                             }
                         }
