@@ -44,6 +44,30 @@ namespace StingTools.Core
             return null;
         }
 
+        /// <summary>The ISO 19650 Role segment of a model file name, or null.
+        ///
+        /// A federated model is named as an information container —
+        /// Project-Originator-Volume-Level-Type-Role-Number — so "SAH-PLNS-ZZ-XX-M3-S-0001.rvt"
+        /// is the structural model. That is the only discipline a model carries on its
+        /// own: it has no sheet number to read one from. A workshared local copy's
+        /// "_username" suffix and any "_detached"-style tail are ignored. Anything that
+        /// is not a seven-field identifier returns null — a name like "Hospital_v3.rvt"
+        /// says nothing about discipline, and guessing would file a model in the wrong
+        /// discipline's folder.</summary>
+        public static string RoleFromModelFileName(string pathOrName)
+        {
+            if (string.IsNullOrWhiteSpace(pathOrName)) return null;
+            string name = pathOrName.Trim();
+            int slash = Math.Max(name.LastIndexOf('/'), name.LastIndexOf('\\'));
+            if (slash >= 0) name = name.Substring(slash + 1);
+            int dot = name.LastIndexOf('.');
+            if (dot > 0) name = name.Substring(0, dot);
+            int us = name.IndexOf('_');
+            if (us > 0) name = name.Substring(0, us);
+            var seg = Drawing.Iso19650DocumentCode.Decompose(name);
+            return string.IsNullOrWhiteSpace(seg?.Role) ? null : seg.Role.ToUpperInvariant();
+        }
+
         private static string FindByCode(List<string> folders, string code)
         {
             foreach (var f in folders)

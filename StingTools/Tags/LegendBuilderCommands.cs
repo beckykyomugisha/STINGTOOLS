@@ -2032,7 +2032,7 @@ namespace StingTools.Tags
             html.AppendLine("</body></html>");
 
             // Save — uses user-preferred output location
-            string filePath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Color_Legend", ".html");
+            string filePath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_Color_Legend", ".html");
             System.IO.File.WriteAllText(filePath, html.ToString());
 
             TaskDialog.Show("Export Color Legend",

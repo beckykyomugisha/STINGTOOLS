@@ -430,7 +430,7 @@ namespace StingTools.Docs
                     .OrderBy(s => s.SheetNumber)
                     .ToList();
 
-                string outDir = outputDirectory ?? OutputLocationHelper.GetOutputPath(doc, "Prints");
+                string outDir = outputDirectory ?? OutputLocationHelper.GetRoutedPath(doc, "PDF", "Prints");
 
                 // DOC-04 fix: cache register extraction outside loop (was O(n²))
                 var registerEntries = DrawingRegisterSync.ExtractFromModel(doc)
@@ -509,7 +509,7 @@ namespace StingTools.Docs
 
             try
             {
-                string outDir = outputDirectory ?? OutputLocationHelper.GetOutputPath(doc, $"Package_{milestone}");
+                string outDir = outputDirectory ?? OutputLocationHelper.GetRoutedPath(doc, "Transmittal", $"Package_{milestone}");
                 if (!Directory.Exists(outDir)) Directory.CreateDirectory(outDir);
 
                 // Required documents per milestone
@@ -585,7 +585,7 @@ namespace StingTools.Docs
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var entries = DrawingRegisterSync.ExtractFromModel(doc);
-                string outPath = OutputLocationHelper.GetTimestampedPath(doc, "DrawingRegister", ".csv");
+                string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "DrawingRegister", ".csv");
                 DrawingRegisterSync.ExportToCSV(entries, outPath);
 
                 TaskDialog.Show("Drawing Register",
@@ -637,7 +637,7 @@ namespace StingTools.Docs
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var queue = PrintQueueManager.BuildQueue(doc);
-                string outPath = OutputLocationHelper.GetTimestampedPath(doc, "PrintQueue", ".csv");
+                string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "PrintQueue", ".csv");
                 PrintQueueManager.ExportQueue(queue, outPath);
 
                 TaskDialog.Show("Print Queue",

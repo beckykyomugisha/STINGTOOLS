@@ -179,7 +179,7 @@ namespace StingTools.Commands.Placement
             catch (Exception ex) { sb.AppendLine($"Seed coverage: {ex.Message}"); }
 
             // Write to disk + show in a window the user can copy-paste.
-            string outDir = OutputLocationHelper.GetOutputPath(doc, "PlacementDiagnose") ?? Path.GetTempPath();
+            string outDir = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "PlacementDiagnose") ?? Path.GetTempPath();
             Directory.CreateDirectory(outDir);
             string txtPath = Path.Combine(outDir,
                 $"STING_PlacementDiagnose_{DateTime.Now:yyyyMMdd_HHmmss}.txt");

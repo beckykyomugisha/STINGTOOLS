@@ -105,8 +105,7 @@ namespace StingTools.BOQ
                 // Always a work-section (trade-order) bill regardless of the panel grouping.
                 var boq = BOQCostManager.BuildBOQDocument(doc, null, BoqGroupingMode.WorkSection);
 
-                string path = OutputLocationHelper.GetTimestampedPath(
-                    doc, priced ? "STING_BOQ_QS_Priced" : "STING_BOQ_QS_Unpriced", ".xlsx");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", priced ? "STING_BOQ_QS_Priced" : "STING_BOQ_QS_Unpriced", ".xlsx");
 
                 using (var wb = new XLWorkbook())
                 {

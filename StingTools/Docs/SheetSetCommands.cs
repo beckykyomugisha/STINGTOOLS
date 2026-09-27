@@ -441,7 +441,7 @@ namespace StingTools.Docs
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "SheetSet", ".csv");
+            string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "SheetSet", ".csv");
 
             try
             {

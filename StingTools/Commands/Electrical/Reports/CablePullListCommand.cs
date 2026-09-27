@@ -54,7 +54,7 @@ namespace StingTools.Commands.Electrical.Reports
             // Drum allocation — sort by length descending then pack.
             AllocateDrums(rows);
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir,
                 $"STING_CablePullList_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");

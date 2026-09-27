@@ -399,7 +399,7 @@ namespace StingTools.Core.Clash
                         c?.LeftObjectId ?? 0, c?.RightObjectId ?? 0, Csv(s.Rationale)));
                 }
                 string safe = new string((set.Name ?? "set").Where(ch => char.IsLetterOrDigit(ch) || ch == '_').ToArray());
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_ACC_Clashes_{safe}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Clash", $"STING_ACC_Clashes_{safe}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }

@@ -1332,6 +1332,7 @@ the build on new hand-rolled paths — Tier 1 (legacy bucket names) and Tier 2 (
 |---|---|
 | A CDE state folder | `StingPaths.Cde(doc, "WIP", discipline, contentType)` |
 | A routed export folder | `StingPaths.Export(doc, "PDF")` · `StingPaths.ExportFile(doc, "BOQ", name, ".xlsx")` |
+| Any other export (report, register, workbook) — **never bare `GetOutputDirectory(doc)`**, which is MISC; `tools/check_export_routing.ps1` fails new ones | `OutputLocationHelper.GetRoutedDirectory(doc, "Compliance")` · `GetRoutedPath(doc, "Excel", name)` · `GetRoutedTimestampedPath(doc, "Issue", base, ".csv")` |
 | A **discipline** deliverable (A_ / M_ / S_ … sub-folder, optional CDE state) | `StingPaths.Export(doc, "PDF", "A", "SHARED")` · `OutputLocationHelper.GetRoutedDirectory(doc, "Excel", "E")` · per sheet: `ExportCenterEngine.DeliverableFolderForSheet(doc, sheet)` |
 | A metadata directory | `StingPaths.Meta(doc, "_BIM_COORD", "sub")` |
 | A metadata **file** | `StingPaths.MetaFile(doc, "_BIM_COORD", "thing.json")` |

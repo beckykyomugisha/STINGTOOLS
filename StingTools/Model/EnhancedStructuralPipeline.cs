@@ -919,7 +919,7 @@ namespace StingTools.Model
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) return Result.Failed;
-            string outDir = OutputLocationHelper.GetOutputDirectory(ctx.Doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(ctx.Doc, "Schedule", "S");
             string path = Path.Combine(outDir, $"BarBendingSchedule_{DateTime.Now:yyyyMMdd}.xlsx");
             string result = RebarEngine.ExportBarBendingSchedule(ctx.Doc, path);
             TaskDialog.Show("STING BBS", result);

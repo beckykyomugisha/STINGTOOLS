@@ -24199,3 +24199,52 @@ export reached an A_ / M_ / S_ discipline folder unless a user browsed there.
 
 **Still in MISC:** 229 call sites in 143 files, mostly reports, audits, logs and one-off
 CSV / JSON dumps. See ROADMAP DOCX-8.
+
+#### DOCX-8 / 9 / 10: export routing completed, model discipline, language pin (2026-09-27, same branch)
+
+- **DOCX-8.** 203 of the remaining 229 bare `OutputLocationHelper` calls now name what they
+  write, using `GetRoutedDirectory` / `GetRoutedPath` / the new `GetRoutedTimestampedPath`:
+  - audits → Compliance; model-health reports → ModelHealth
+  - registers → DocRegister / TagRegister / AssetRegister / REGISTER
+  - issues and review comments → Issue; clash reports → Clash / BCF
+  - cost and quantities → BOQ; materials → MaterialSchedule
+  - data tables and calculation sheets → Schedule / Excel
+  - handover and commissioning → Handover / Maintenance; COBie → COBie
+  - minutes → Minutes; revisions → Revision
+  - model exchange → IFC
+
+  Only keys present in every layout's route table were used, so no CDE-first project falls
+  back to MISC. Round trips share one key within the file, so the import picker opens where
+  its export went. This covers review comments, SpecLink, Niagara, the KUT lifecycle
+  register, programme audit, Fohlio and structural Excel. Discipline-specific outputs carry
+  their discipline:
+  - electrical, SLD, LPS and selective coordination → E
+  - HVAC and duct fabrication → M
+  - plumbing water safety → P
+  - structural → S
+  - plastering → A
+
+  Two sites wrote outside the project entirely: the selective-coordination CSV had no
+  document, and the TCC plot nested a second "electrical" folder. Both fixed.
+- **Gate.** `tools/check_export_routing.ps1` + `tools/export_routing_baseline.txt`, in CI. The
+  23 remaining sites are listed with reasons. The gate was proven red on a re-introduced
+  bare call, then green.
+- **DOCX-9.** `ExportCenterEngine.ModelDiscipline` takes the discipline from the model's ISO
+  file name (Role segment), then `PRJ_TB_DISCIPLINE_TXT` on Project Information, and
+  otherwise leaves the file at the models root. It is wired into:
+  - Export Centre IFC / NWC
+  - ExLink IFC / NWC
+  - `IFCExportCommand`
+
+  `DisciplineFolderMatcher.RoleFromModelFileName` has 10 tests.
+- **DOCX-10.** `LangVersion` is pinned to 12.0 in all 23 projects, matching the .NET 8 SDK
+  CI builds with. A CI step keeps it pinned.
+- **Verification.**
+  - Plugin build: 0 errors, 2 warnings.
+  - `StingTools.Tags.Tests`: 3,523 passing.
+  - CI gates: path-discipline, command-doc-acquisition, workflow-wiring and export-routing
+    all pass.
+  - Not exercised in Revit.
+- **Behaviour change for users.** Reports that used to appear in `20_MISC` now appear in
+  their typed folder (16_COMPLIANCE, 15_REGISTERS, 07_SCHEDULES …). Existing files in MISC
+  are not moved.

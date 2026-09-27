@@ -191,6 +191,12 @@ namespace StingTools.Core
             return GetOutputDirectory(doc);
         }
 
+        /// <summary><see cref="GetRoutedDirectory"/> + "baseName_yyyyMMdd_HHmmss.ext".</summary>
+        public static string GetRoutedTimestampedPath(Document doc, string exportTypeKey,
+            string baseName, string extension, string discipline = null)
+            => Path.Combine(GetRoutedDirectory(doc, exportTypeKey, discipline),
+                            $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}{extension}");
+
         /// <summary><see cref="GetRoutedDirectory"/> + a file name.</summary>
         public static string GetRoutedPath(Document doc, string exportTypeKey, string fileName, string discipline = null)
             => Path.Combine(GetRoutedDirectory(doc, exportTypeKey, discipline), fileName);

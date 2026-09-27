@@ -421,7 +421,7 @@ namespace StingTools.Commands.Lightning
                 return Result.Cancelled;
             }
 
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_SPD_BOM", ".csv");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_LPS_SPD_BOM", ".csv", "E");
             try
             {
                 var sb = new StringBuilder();

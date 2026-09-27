@@ -567,7 +567,7 @@ namespace StingTools.Tags
             string csvPath = null;
             try
             {
-                csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_Validation_Report.csv");
+                csvPath = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "STING_Validation_Report.csv");
                 File.WriteAllText(csvPath, string.Join(Environment.NewLine, csvRows));
             }
             catch (Exception ex) { StingLog.Warn($"Validation CSV export: {ex.Message}"); }

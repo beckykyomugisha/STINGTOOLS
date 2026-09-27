@@ -76,7 +76,7 @@ namespace StingTools.Commands.Twin
                         Csv(ParameterHelpers.GetFamilyName(el)), Csv(ParameterHelpers.GetFamilySymbolName(el)),
                         Csv(ParameterHelpers.GetString(el, ParamRegistry.TAG1)), Csv(room)));
                 }
-                path = OutputLocationHelper.GetOutputPath(doc, $"STING_Niagara_Points_{DateTime.Now:yyyyMMdd}.csv");
+                path = OutputLocationHelper.GetRoutedPath(doc, "AssetRegister", $"STING_Niagara_Points_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
             }
             catch (Exception ex)
@@ -114,7 +114,7 @@ namespace StingTools.Commands.Twin
             {
                 Title = "Select the Niagara / BACnet station export (CSV or XLSX with a point/device id column)",
                 Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
             };
             if (dlg.ShowDialog() != true) return Result.Cancelled;
 
@@ -218,7 +218,7 @@ namespace StingTools.Commands.Twin
                 rows.Add($"MATCHED_COUNT,{matched}");
                 foreach (var s in stationOnly) rows.Add("STATION_ONLY," + "\"" + s.Replace("\"", "\"\"") + "\"");
                 foreach (var m in modelOnly) rows.Add("MODEL_ONLY," + "\"" + m.Replace("\"", "\"\"") + "\"");
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_Niagara_Reconcile_{DateTime.Now:yyyyMMdd}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "AssetRegister", $"STING_Niagara_Reconcile_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }

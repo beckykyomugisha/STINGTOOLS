@@ -141,6 +141,10 @@ namespace StingTools.ExLink
         {
             success = false;
             resultMsg = "";
+            // Into the model's discipline folder when its file name / Project
+            // Information says which discipline it is (ExportCenterEngine.ModelDiscipline).
+            outputDir = StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(
+                doc, outputDir, StingTools.Docs.ExportCenterEngine.ModelDiscipline(doc));
 
             try
             {
@@ -176,6 +180,10 @@ namespace StingTools.ExLink
         {
             success = false;
             resultMsg = "";
+            // Into the model's discipline folder when its file name / Project
+            // Information says which discipline it is (ExportCenterEngine.ModelDiscipline).
+            outputDir = StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(
+                doc, outputDir, StingTools.Docs.ExportCenterEngine.ModelDiscipline(doc));
 
             try
             {

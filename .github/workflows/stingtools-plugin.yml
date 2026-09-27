@@ -145,6 +145,20 @@ jobs:
         shell: pwsh
         run: ./tools/check_command_doc_acquisition.ps1
 
+      - name: Export routing discipline
+        shell: pwsh
+        run: ./tools/check_export_routing.ps1
+
+      - name: C# language version pinned to the CI SDK
+        shell: pwsh
+        run: |
+          # CI builds with the .NET 8 SDK (C# 12). "latest" means C# 14 on a
+          # .NET 10 machine, so code that compiled locally broke here (DOCX-10).
+          $bad = Get-ChildItem -Recurse -Filter *.csproj |
+            Where-Object { (Get-Content $_.FullName -Raw) -match '<LangVersion>(?!12\.0<)[^<]*</LangVersion>' }
+          if ($bad) { $bad | ForEach-Object { Write-Host "LangVersion not 12.0: $($_.FullName)" }; exit 1 }
+          Write-Host "All projects pin LangVersion 12.0."
+
       - name: Check for duplicate parameter GUIDs
         run: |
           python3 - <<'EOF'

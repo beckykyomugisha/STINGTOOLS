@@ -227,7 +227,7 @@ namespace StingTools.Commands.Hvac
                     ws.Columns().AdjustToContents();
                 }
 
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_HVAC_LCC_{DateTime.Now:yyyyMMdd}.xlsx");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_HVAC_LCC_{DateTime.Now:yyyyMMdd}.xlsx", "M");
                 wb.SaveAs(path);
                 return path;
             }

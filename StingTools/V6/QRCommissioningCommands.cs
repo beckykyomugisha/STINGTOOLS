@@ -99,7 +99,7 @@ namespace StingTools.V6
 
                 var audit = QRCommissioningWorkflow.ReadAudit(QRCommissioningWorkflow.AuditLogPath(doc));
 
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Commissioning_Report", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Handover", "STING_Commissioning_Report", ".csv");
                 // UTF-8 with BOM so Excel on localised Windows reads non-ASCII tag tokens correctly.
                 using (var w = new StreamWriter(path, append: false,
                     encoding: new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))

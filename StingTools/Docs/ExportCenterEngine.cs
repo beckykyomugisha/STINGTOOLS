@@ -929,6 +929,52 @@ namespace StingTools.Docs
             return ProjectFolderEngine.GetDeliverableFolder(doc, routeKey, disc, SheetCdeState(sheet));
         }
 
+        /// <summary>
+        /// The discipline of a whole MODEL, for IFC / NWC / gbXML exports, which have no
+        /// sheet number to read one from. In order:
+        ///   1. the model's ISO 19650 file name — its Role segment (the central model's
+        ///      name when workshared, so a local copy's "_user" suffix does not matter);
+        ///   2. PRJ_TB_DISCIPLINE_TXT on Project Information (already bound there);
+        ///   3. null — the export stays in the models folder root.
+        /// A multi-discipline model therefore lands in the root, as it should; nothing is
+        /// guessed from its content.
+        /// </summary>
+        public static string ModelDiscipline(Document doc)
+        {
+            if (doc == null) return null;
+            try
+            {
+                string path = doc.PathName;
+                if (doc.IsWorkshared)
+                {
+                    var central = doc.GetWorksharingCentralModelPath();
+                    if (central != null)
+                        path = ModelPathUtils.ConvertModelPathToUserVisiblePath(central) ?? path;
+                }
+                string role = DisciplineFolderMatcher.RoleFromModelFileName(path)
+                              ?? DisciplineFolderMatcher.RoleFromModelFileName(doc.Title);
+                if (!string.IsNullOrEmpty(role)) return role;
+            }
+            catch (Exception ex) { StingLog.Warn($"ModelDiscipline file name: {ex.Message}"); }
+
+            string declared = ReadProjectInfo(doc.ProjectInformation, ParamRegistry.TB_DISCIPLINE);
+            return string.IsNullOrWhiteSpace(declared) ? null : declared.Trim();
+        }
+
+        /// <summary><see cref="DisciplineSubFolder(Document, string, ViewSheet)"/> for a
+        /// code rather than a sheet — used for model exports into a chosen folder.</summary>
+        public static string DisciplineSubFolder(Document doc, string baseDir, string disciplineCode)
+        {
+            if (string.IsNullOrEmpty(baseDir) || string.IsNullOrWhiteSpace(disciplineCode)) return baseDir;
+            string name = ProjectFolderEngine.ResolveDisciplineFolder(doc, disciplineCode);
+            if (name == null) return baseDir;   // unknown code: never mint a raw-code folder for a model
+            string leaf = Path.GetFileName(baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.Equals(leaf, name, StringComparison.OrdinalIgnoreCase)) return baseDir;
+            string dir = Path.Combine(baseDir, name);
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
         /// <summary>The discipline sub-folder of a folder the user chose, for one sheet —
         /// "&lt;chosen&gt;/A_Architectural" when the project has that discipline folder,
         /// else "&lt;chosen&gt;/&lt;code&gt;". Not nested again when the chosen folder already
@@ -1537,7 +1583,7 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(doc, profile, "IFC", null);
+                string folder = SubFolderFor(doc, profile, "IFC", null, ModelDiscipline(doc));
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1757,7 +1803,7 @@ namespace StingTools.Docs
                     return;
                 }
 
-                string folder = SubFolderFor(doc, profile, "NWC", null);
+                string folder = SubFolderFor(doc, profile, "NWC", null, ModelDiscipline(doc));
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);

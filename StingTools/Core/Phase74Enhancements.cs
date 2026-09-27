@@ -550,7 +550,7 @@ namespace StingTools.Core
                     sb.AppendLine();
                 }
 
-                string outPath = OutputLocationHelper.GetTimestampedPath(doc, "DeliverableMatrix", ".csv");
+                string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "DeliverableMatrix", ".csv");
                 DeliverableTracker.ExportMatrix(items, outPath);
                 sb.AppendLine($"Exported to: {outPath}");
 

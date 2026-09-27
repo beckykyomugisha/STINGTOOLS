@@ -192,7 +192,7 @@ namespace StingTools.Temp
                     t.Commit();
                 }
 
-                string folder = OutputLocationHelper.GetOutputDirectory(doc);
+                string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Maintenance");
                 string csvPath = Path.Combine(folder, "STING_MaintenanceSchedule.csv");
                 File.WriteAllLines(csvPath, csvLines);
 
@@ -226,7 +226,7 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
-                string folder = OutputLocationHelper.GetOutputDirectory(doc);
+                string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Handover");
                 string twinFolder = Path.Combine(folder, "STING_DigitalTwin");
                 Directory.CreateDirectory(twinFolder);
 
@@ -423,7 +423,7 @@ namespace StingTools.Temp
                     t.Commit();
                 }
 
-                string folder = OutputLocationHelper.GetOutputDirectory(doc);
+                string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Handover");
                 string csvPath = Path.Combine(folder, "STING_CommissioningChecklist.csv");
                 File.WriteAllLines(csvPath, csvLines);
 
@@ -605,7 +605,7 @@ namespace StingTools.Temp
                     t.Commit();
                 }
 
-                string folder = OutputLocationHelper.GetOutputDirectory(doc);
+                string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Handover");
                 string csvPath = Path.Combine(folder, "STING_WarrantyTracker.csv");
                 File.WriteAllLines(csvPath, csvLines);
 
@@ -636,7 +636,7 @@ namespace StingTools.Temp
                 var _ctx = ParameterHelpers.GetContext(commandData);
                 if (_ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 var doc = _ctx.Doc;
-                string folder = OutputLocationHelper.GetOutputDirectory(doc);
+                string folder = OutputLocationHelper.GetRoutedDirectory(doc, "Handover");
                 string hFolder = Path.Combine(folder, "STING_Handover");
                 Directory.CreateDirectory(hFolder);
 
@@ -748,7 +748,7 @@ namespace StingTools.Temp
                     t.Commit();
                 }
 
-                string folder = OutputLocationHelper.GetOutputDirectory(doc);
+                string folder = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister");
                 string csvPath = Path.Combine(folder, "STING_SensorPoints.csv");
                 File.WriteAllLines(csvPath, csvLines);
 

@@ -192,8 +192,7 @@ namespace StingTools.Commands.Cost
                     cert = pc;
                 }
 
-                string path = OutputLocationHelper.GetTimestampedPath(
-                    doc, $"STING_PaymentCert_{cert.CertNumber:D3}", ".xlsx");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", $"STING_PaymentCert_{cert.CertNumber:D3}", ".xlsx");
                 using (var wb = new XLWorkbook())
                 {
                     var ws = wb.AddWorksheet($"Cert {cert.CertNumber}");
@@ -418,7 +417,7 @@ namespace StingTools.Commands.Cost
                 builder.Show();
 
                 // XLSX export.
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_AnticipatedFinalCost", ".xlsx");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_AnticipatedFinalCost", ".xlsx");
                 using (var wb = new XLWorkbook())
                 {
                     var ws = wb.AddWorksheet("Anticipated Final Cost");

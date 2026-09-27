@@ -77,5 +77,27 @@ namespace StingTools.Tags.Tests
             Assert.NotNull(seg);
             Assert.Equal("S_Structural", DisciplineFolderMatcher.Match(Bim, seg.Role));
         }
+
+        [Theory]
+        [InlineData(@"C:\Jobs\SAH\SAH-PLNS-ZZ-XX-M3-S-0001.rvt", "S")]
+        [InlineData("SAH-PLNS-ZZ-XX-M3-M-0002.rvt", "M")]
+        [InlineData(@"\\srv\central\SAH-PLNS-ZZ-XX-M3-A-0003_jsmith.rvt", "A")]
+        [InlineData("SAH-PLNS-ZZ-XX-M3-E-0004", "E")]
+        public void A_model_named_as_an_iso_container_gives_its_role(string path, string role)
+            => Assert.Equal(role, DisciplineFolderMatcher.RoleFromModelFileName(path));
+
+        [Theory]
+        [InlineData("Hospital_v3.rvt")]
+        [InlineData("Project1")]
+        [InlineData("SAH-PLNS-ZZ-XX-M3-S.rvt")]      // six fields
+        [InlineData("")]
+        [InlineData(null)]
+        public void A_model_name_that_is_not_an_identifier_gives_no_discipline(string path)
+            => Assert.Null(DisciplineFolderMatcher.RoleFromModelFileName(path));
+
+        [Fact]
+        public void A_structural_model_files_into_the_structural_folder()
+            => Assert.Equal("S_Structural", DisciplineFolderMatcher.Match(Bim,
+                DisciplineFolderMatcher.RoleFromModelFileName("SAH-PLNS-ZZ-XX-M3-S-0001.rvt")));
     }
 }

@@ -40,7 +40,7 @@ namespace StingTools.Commands.Electrical.Compliance
                 return Result.Cancelled;
             }
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir,
                 $"STING_BS7671_LoopCalcSheets_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");

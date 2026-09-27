@@ -174,7 +174,7 @@ namespace StingTools.Mcp
                 try
                 {
                     BOQDocument boq = BOQCostManager.BuildBOQDocument(doc);
-                    string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_BOQ", ".csv");
+                    string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_BOQ", ".csv");
                     BoqErpExporter.ExportCsv(boq, path);
 
                     int lines = boq?.AllItems?.Count ?? 0;

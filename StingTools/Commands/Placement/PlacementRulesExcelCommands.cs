@@ -30,7 +30,7 @@ namespace StingTools.Commands.Placement
             var doc = ParameterHelpers.GetDoc(commandData);
             var rules = PlacementRuleLoader.Load(doc?.PathName ?? "");
 
-            string outDir = OutputLocationHelper.GetOutputPath(doc, "PlacementRules") ?? Path.GetTempPath();
+            string outDir = OutputLocationHelper.GetRoutedPath(doc, "Excel", "PlacementRules") ?? Path.GetTempPath();
             Directory.CreateDirectory(outDir);
             string xlsxPath = Path.Combine(outDir,
                 $"STING_PlacementRules_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");

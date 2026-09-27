@@ -72,7 +72,7 @@ namespace StingTools.ExLink
                     cells.Add(ParameterHelpers.GetString(r, ParamRegistry.FOHLIO_REF));
                     rows.Add(string.Join(",", cells.Select(FohlioFinishes.Csv)));
                 }
-                path = OutputLocationHelper.GetOutputPath(doc, $"STING_Fohlio_Finishes_{DateTime.Now:yyyyMMdd}.csv");
+                path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_Fohlio_Finishes_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
             }
             catch (Exception ex) { TaskDialog.Show("Fohlio Finishes Export", "Export failed:\n" + ex.Message); return Result.Failed; }
@@ -103,7 +103,7 @@ namespace StingTools.ExLink
             {
                 Title = "Select the Fohlio finishes export (CSV or XLSX with a Room Number column)",
                 Filter = "Fohlio finishes (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
             };
             if (dlg.ShowDialog() != true) return Result.Cancelled;
 

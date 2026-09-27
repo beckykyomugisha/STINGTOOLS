@@ -3923,7 +3923,7 @@ namespace StingTools.UI
 
             try
             {
-                string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
+                string exportPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Minutes", $"STING_Minutes_{meetId}", ".txt");
                 OutputLocationHelper.WriteAllTextAtomic(exportPath, sb.ToString());
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
 

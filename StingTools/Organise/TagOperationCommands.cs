@@ -816,7 +816,7 @@ namespace StingTools.Organise
             }
 
             // Write to file — uses user-preferred output location
-            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tag_Audit.csv");
+            string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "STING_Tag_Audit.csv");
 
             try
             {
@@ -3093,7 +3093,7 @@ namespace StingTools.Organise
             string path = OutputLocationHelper.PromptForExportPath(
                 doc, $"STING_Tag_Register_{System.DateTime.Now:yyyyMMdd}.csv",
                 "CSV Files|*.csv|All Files|*.*", "TagRegister")
-                ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Register", ".csv");
+                ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "TagRegister", "STING_Tag_Register", ".csv");
 
             try
             {
@@ -6214,7 +6214,7 @@ namespace StingTools.Organise
             sb.AppendLine("}");
 
             // Write to file
-            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tags.json");
+            string path = OutputLocationHelper.GetRoutedPath(doc, "TagRegister", "STING_Tags.json");
             try
             {
                 System.IO.File.WriteAllText(path, sb.ToString());

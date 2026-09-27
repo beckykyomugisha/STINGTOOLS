@@ -118,7 +118,7 @@ namespace StingTools.BOQ
                     tx.Commit();
                 }
 
-                string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_BOQ", ".xlsx");
+                string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_BOQ", ".xlsx");
                 using (var wb = new XLWorkbook())
                 {
                     BuildSummarySheet(wb.Worksheets.Add("BOQ Summary"), boq);

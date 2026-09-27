@@ -144,7 +144,7 @@ namespace StingTools.BOQ
         /// </summary>
         public static string WriteCsv(Document doc, BOQByMaterialResult result)
         {
-            string outDir = Core.OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = Core.OutputLocationHelper.GetRoutedDirectory(doc, "BOQ");
             string path = System.IO.Path.Combine(outDir,
                 $"STING_boq_by_material_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
             var sb = new System.Text.StringBuilder();

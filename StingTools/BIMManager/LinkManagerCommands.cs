@@ -226,7 +226,7 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             var result = LinkManagerEngine.AuditLinks(ctx.Doc);
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "LinkAudit", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Compliance", "LinkAudit", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Type,Name,Status,Loaded,FileExists,NamingCompliant,Instances,Path");

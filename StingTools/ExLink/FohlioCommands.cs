@@ -61,7 +61,7 @@ namespace StingTools.ExLink
                 var rows = new List<string> { string.Join(",", map.Columns.Select(c => FohlioScope.Csv(c.Header))) };
                 foreach (var el in scope)
                     rows.Add(string.Join(",", map.Columns.Select(c => FohlioScope.Csv(FohlioMap.ResolveValue(doc, el, c.Param)))));
-                path = OutputLocationHelper.GetOutputPath(doc, $"STING_Fohlio_Export_{DateTime.Now:yyyyMMdd}.csv");
+                path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_Fohlio_Export_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
             }
             catch (Exception ex)
@@ -102,7 +102,7 @@ namespace StingTools.ExLink
             {
                 Title = "Select the Fohlio export (CSV or XLSX)",
                 Filter = "Fohlio export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
             };
             if (dlg.ShowDialog() != true) return Result.Cancelled;
 

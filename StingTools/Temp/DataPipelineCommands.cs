@@ -106,7 +106,7 @@ namespace StingTools.Temp
             // Export to CSV
             try
             {
-                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Validation", ".csv");
+                string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Validation", "STING_Validation", ".csv");
                 var csvLines = new List<string> { "Check,Severity,Status,Detail" };
                 foreach (var r in results)
                     csvLines.Add($"\"{r.CheckName}\",\"{r.Severity}\",{(r.Passed ? "PASS" : "FAIL")},\"{r.Detail}\"");
@@ -1655,7 +1655,7 @@ namespace StingTools.Temp
                 StingLog.Error($"BOQ export failed: {ex.Message}");
                 try
                 {
-                    exportPath = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), fileName);
+                    exportPath = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "BOQ"), fileName);
                     wb.SaveAs(exportPath);
                 }
                 catch (Exception ex2)
@@ -2381,7 +2381,7 @@ namespace StingTools.Temp
             }
 
             // Save the mapping file
-            string outputPath = OutputLocationHelper.GetOutputPath(doc, "STING_IFC_PropertyMap.txt");
+            string outputPath = OutputLocationHelper.GetRoutedPath(doc, "IFC", "STING_IFC_PropertyMap.txt");
 
             try
             {
@@ -2796,7 +2796,7 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_CLASH_REPORT", ".csv");
+                    string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Clash", "STING_CLASH_REPORT", ".csv");
 
                     var csv = new StringBuilder();
                     csv.AppendLine("ClashType,MEP_ElementId,MEP_Category,MEP_Tag,Other_ElementId,Other_Category,Level");
@@ -2916,7 +2916,7 @@ namespace StingTools.Temp
                 return Result.Cancelled;
 
             // Generate the IFC property mapping file
-            string mappingPath = OutputLocationHelper.GetOutputPath(doc, "STING_IFC_MAPPING.txt");
+            string mappingPath = OutputLocationHelper.GetRoutedPath(doc, "IFC", "STING_IFC_MAPPING.txt");
 
             GeneratePropertyMappingFile(mappingPath);
 
@@ -2937,7 +2937,7 @@ namespace StingTools.Temp
                 ifcOptions.AddOption("ExportUserDefinedPsets", "true");
                 ifcOptions.AddOption("ExportUserDefinedPsetsFileName", mappingPath);
 
-                string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string exportDir = OutputLocationHelper.GetRoutedDirectory(doc, "IFC");
                 doc.Export(exportDir, ifcFileName, ifcOptions);
 
                 string version = useIfc4 ? "IFC 4" : "IFC 2x3";
@@ -3221,7 +3221,7 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             var doc = ctx.Doc;
 
-            string knoPath = OutputLocationHelper.GetOutputPath(doc, "STING_KEYNOTES.txt");
+            string knoPath = OutputLocationHelper.GetRoutedPath(doc, "Schedule", "STING_KEYNOTES.txt");
 
             // Generate keynote file from STING tag configuration
             var sb = new StringBuilder();
@@ -3707,7 +3707,7 @@ namespace StingTools.Temp
 
                 // Save
                 string safeName = string.Join("_", schedule.Name.Split(Path.GetInvalidFileNameChars()));
-                string xlsxPath = OutputLocationHelper.GetOutputPath(doc, $"STING_Schedule_{safeName}_{DateTime.Now:yyyyMMdd}.xlsx");
+                string xlsxPath = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"STING_Schedule_{safeName}_{DateTime.Now:yyyyMMdd}.xlsx");
 
                 wb.SaveAs(xlsxPath);
 
@@ -4284,7 +4284,7 @@ namespace StingTools.Temp
             ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
 
             // ── Save ──
-            string defaultDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string defaultDir = OutputLocationHelper.GetRoutedDirectory(doc, "Excel");
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string safeTitle = string.Join("_", doc.Title.Split(Path.GetInvalidFileNameChars()));
             string fileName = $"STING_LINK_{safeTitle}_{timestamp}.xlsx";
@@ -5328,7 +5328,7 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_CROSS_CLASH", ".csv");
+                    string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Clash", "STING_CROSS_CLASH", ".csv");
                     File.WriteAllText(csvPath, clashReport.ToString());
                     clashReport.AppendLine($"\nReport: {csvPath}");
                 }

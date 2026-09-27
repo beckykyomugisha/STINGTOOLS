@@ -150,7 +150,7 @@ namespace StingTools.Core.Sustainability
 
             sb.Append("</body></html>");
 
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Sustainability_Report", ".html");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_Sustainability_Report", ".html");
             File.WriteAllText(path, sb.ToString());
             StingLog.Info($"SustainReportEngine: wrote {path}");
             return path;

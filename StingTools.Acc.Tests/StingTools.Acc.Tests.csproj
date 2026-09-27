@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <!-- Pure-logic + loopback test project. Does NOT reference the Revit API or WPF; it
          links the Revit-free ACC clients via <Compile Include>, the same pattern
          StingTools.Visibility.Tests and StingTools.Clash.Tests use.

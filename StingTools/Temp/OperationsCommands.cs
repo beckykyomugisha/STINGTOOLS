@@ -247,6 +247,8 @@ namespace StingTools.Temp
                 if (ifcPrompt == null) return Result.Cancelled;
                 string outputDir = Path.GetDirectoryName(ifcPrompt);
                 Directory.CreateDirectory(outputDir);
+                outputDir = StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(
+                    doc, outputDir, StingTools.Docs.ExportCenterEngine.ModelDiscipline(doc));
 
                 string fileName = (doc.Title ?? "STING_Export") + ".ifc";
 
@@ -321,7 +323,7 @@ namespace StingTools.Temp
                 string outputPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
                     "Excel Files|*.xlsx|All Files|*.*", "COBie")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_COBie", ".xlsx");
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "COBie", "STING_COBie", ".xlsx");
 
                 int levelCount = 0;
                 int roomCount = 0;
@@ -460,7 +462,7 @@ namespace StingTools.Temp
                 string outputPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_Quantities_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
                     "Excel Files|*.xlsx|All Files|*.*", "BOQ")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Quantities", ".xlsx");
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_Quantities", ".xlsx");
 
                 // PERF: Use ElementMulticategoryFilter instead of LINQ .Where() on all elements
                 var qtCatEnums = SharedParamGuids.AllCategoryEnums;
@@ -646,7 +648,7 @@ namespace StingTools.Temp
                 string csvPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_Clashes_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
                     "CSV Files|*.csv|All Files|*.*", "Clash")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Clashes", ".csv");
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "Clash", "STING_Clashes", ".csv");
                 var csv = new StringBuilder("MEP_Id,MEP_Cat,Struct_Id,Struct_Cat,X,Y,Z\n");
                 foreach (var (mep, str, pt) in clashes)
                 {
@@ -861,7 +863,7 @@ namespace StingTools.Temp
                 string csvPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_Params_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
                     "CSV Files|*.csv|All Files|*.*", "Excel")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Params", ".csv");
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "Excel", "STING_Params", ".csv");
 
                 var sb = new StringBuilder();
                 sb.Append("ElementId,Category,Family,Type");

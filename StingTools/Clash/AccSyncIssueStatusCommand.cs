@@ -106,7 +106,7 @@ namespace StingTools.Core.Clash
             string csvPath = null;
             try
             {
-                csvPath = OutputLocationHelper.GetOutputPath(doc, $"STING_ACC_IssueSync_{DateTime.Now:yyyyMMdd}.csv");
+                csvPath = OutputLocationHelper.GetRoutedPath(doc, "Issue", $"STING_ACC_IssueSync_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(csvPath, rows, Encoding.UTF8);
             }
             catch (Exception ex) { StingLog.Warn("ACC IssueSync CSV: " + ex.Message); }

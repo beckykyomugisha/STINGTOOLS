@@ -101,7 +101,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 catch (Exception ex) { StingLog.Warn($"QuickLux room {room.Name}: {ex.Message}"); }
             }
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir, $"STING_QuickLux_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
             WriteExcel(outPath, rows);

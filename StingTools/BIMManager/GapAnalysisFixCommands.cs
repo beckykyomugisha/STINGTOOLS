@@ -343,7 +343,7 @@ namespace StingTools.BIMManager
             Document doc = ctx.Doc;
 
             string projectName = doc.Title ?? "Unknown Project";
-            string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Dashboard_{projectName}", ".html");
+            string exportPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "ModelHealth", $"STING_Dashboard_{projectName}", ".html");
 
             try
             {
@@ -666,7 +666,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Save minutes to file
-                string exportPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Meeting_Minutes", ".txt");
+                string exportPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Minutes", "STING_Meeting_Minutes", ".txt");
                 OutputLocationHelper.WriteAllTextAtomic(exportPath, minutes, Encoding.UTF8);
 
                 TaskDialog.Show("STING Auto Minutes",
@@ -746,7 +746,7 @@ namespace StingTools.BIMManager
                     snapshots[baseIdx], snapshots[compareIdx]);
 
                 // Export
-                string exportPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Diff", ".csv");
+                string exportPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Revision", "STING_Tag_Diff", ".csv");
                 OutputLocationHelper.WriteAllTextAtomic(exportPath, diffReport, Encoding.UTF8);
 
                 TaskDialog.Show("STING Tag Revision Diff",

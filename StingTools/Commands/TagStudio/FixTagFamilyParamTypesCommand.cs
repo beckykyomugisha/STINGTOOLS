@@ -263,7 +263,7 @@ namespace StingTools.Commands.TagStudio
             string xlsx = null;
             try
             {
-                string outDir = OutputLocationHelper.GetOutputDirectory(projectDoc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(projectDoc, "Compliance");
                 xlsx = Path.Combine(outDir, $"STING_TagFamilyParamTypes_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                 StingExcelExporter.ExportTable(
                     xlsx, "ParamTypes",

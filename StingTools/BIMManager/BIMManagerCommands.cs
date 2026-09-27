@@ -4744,7 +4744,7 @@ namespace StingTools.BIMManager
                 {
                     try
                     {
-                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "IssueTracker", ".csv");
+                        string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Issue", "IssueTracker", ".csv");
                         var sb = new StringBuilder();
                         sb.AppendLine("IssueID,Title,Status,Priority,Type,DateRaised,DateDue,Overdue,Elements");
                         foreach (var r in rows)
@@ -5235,7 +5235,7 @@ namespace StingTools.BIMManager
                 {
                     try
                     {
-                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "DocumentRegister", ".csv");
+                        string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "DocumentRegister", ".csv");
                         var sb = new StringBuilder();
                         sb.AppendLine("DocID,Title,Type,Direction,Suitability,CDEStatus,Revision,Date");
                         foreach (var r in rows)
@@ -6886,7 +6886,7 @@ namespace StingTools.BIMManager
                 else
                 {
                     outputDir = Path.Combine(
-                        OutputLocationHelper.GetOutputDirectory(doc),
+                        OutputLocationHelper.GetRoutedDirectory(doc, "Briefcase"),
                         $"STING_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
                 }
 
@@ -7147,7 +7147,7 @@ namespace StingTools.BIMManager
                 var roles   = UI.BIMCoordinationCenter.GetLastPermissionsRoles();
                 var folders = UI.BIMCoordinationCenter.GetLastPermissionsFolders();
 
-                string outDir = Core.OutputLocationHelper.GetOutputDirectory(ctx.Doc);
+                string outDir = Core.OutputLocationHelper.GetRoutedDirectory(ctx.Doc, "REGISTER");
                 string path = Core.StingExcelExporter.ExportPermissionMatrix(
                     outDir,
                     roles.Select(r   => (r.Code, r.Name, r.Discipline, r.CDEAccess, r.CanApprove, r.CanIssue)).ToList(),
@@ -7182,7 +7182,7 @@ namespace StingTools.BIMManager
                 if (entries.Count == 0)
                 { TaskDialog.Show("STING", "Coordination log is empty."); return Result.Succeeded; }
 
-                string outDir = Core.OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = Core.OutputLocationHelper.GetRoutedDirectory(doc, "REGISTER");
                 string xlPath = System.IO.Path.Combine(outDir, $"coord_log_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
 
                 var headers = new List<string> { "Timestamp", "User", "Action", "Category", "Detail", "Impact" };
@@ -8196,7 +8196,7 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_StickyNotes", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Issue", "STING_StickyNotes", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Family,Tag,Note,Date");
@@ -8418,7 +8418,7 @@ namespace StingTools.BIMManager
 
         public static string ExportReport(Document doc, HealthReport report)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_ModelHealth", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "ModelHealth", "STING_ModelHealth", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Metric,Score,MaxScore,Details");
@@ -8630,7 +8630,7 @@ namespace StingTools.BIMManager
     {
         public static string Export4DTimeline(Document doc)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_4D_Timeline", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_4D_Timeline", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Tag,Phase,Level,Discipline,StartDate,EndDate,Predecessors,Duration_Days");
@@ -8714,7 +8714,7 @@ namespace StingTools.BIMManager
 
         public static string Export5DCostData(Document doc)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_5D_CostData", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_5D_CostData", ".csv");
 
             // P0-7 — per-element cost comes from the canonical procedure
             // (BOQCostManager.CostElement → BuildLineItemFromElement: the same
@@ -8792,7 +8792,7 @@ namespace StingTools.BIMManager
 
         public static string ExportMeasuredQuantities(Document doc)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_MeasuredQty", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_MeasuredQty", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Category,Discipline,Count,TotalLength_m,TotalArea_m2,TotalVolume_m3");
@@ -9745,7 +9745,7 @@ namespace StingTools.BIMManager
                     return Result.Succeeded;
                 }
 
-                string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Issues", ".csv");
+                string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Issue", "STING_Issues", ".csv");
 
                 var lines = new List<string>();
                 lines.Add("IssueId,Type,Priority,Status,Title,Description,AssignedTo,Discipline,DateRaised,DateDue,DateClosed,View,ElementCount");

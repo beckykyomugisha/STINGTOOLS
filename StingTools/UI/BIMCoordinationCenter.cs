@@ -10354,7 +10354,7 @@ namespace StingTools.UI
                         .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
                         .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
                         .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
-                    string path = System.IO.Path.Combine(OutputLocationHelper.GetOutputDirectory(exportDoc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    string path = System.IO.Path.Combine(OutputLocationHelper.GetRoutedDirectory(exportDoc, "DocRegister"), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
                     File.WriteAllText(path, rows2);
                     TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
                 }
