@@ -24462,3 +24462,9 @@ A review of how drawing types choose and size tags. The tag family names the shi
 - **Values are normalised before matching** (`TagColorSchemeNames.NormaliseValue`): trimmed, and numbers written without trailing zeros or units. Tag styles use the ISO 2.5 mm row and catalogue colours only.
 - **Tests.** Every pack scheme must now resolve (the known-gap list is gone). New tests hold every scheme tag style to the catalogue's styles and colours, and every parameter scheme to a parameter in `MR_PARAMETERS.txt`; both were checked failing on an injected `YELLOW` and a misspelt parameter.
 - **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.
+
+#### Apply Color Scheme applies the scheme that was picked
+
+- **Before.** `TagStyleEngine.ApplyColorScheme` replaced the scheme passed in with the view's `STING_VIEW_TAG_STYLE` scheme, but the command then set tag styles from the scheme passed in. Picking "Warm" on a view whose drawing type set "Discipline" coloured the elements Discipline and switched the tags to Warm; a colour-by-value view scheme did the same across scheme kinds.
+- **Now.** A scheme picked for one view (Apply Color Scheme, the Tag Studio scheme buttons) is applied as picked, and the result says when the view's own tag style names a different scheme (`TagStyleEngine.ViewSchemeNote`). Batch Apply Color Scheme still follows each view's setting for element colours (`useViewScheme: true`), and its result says so.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.

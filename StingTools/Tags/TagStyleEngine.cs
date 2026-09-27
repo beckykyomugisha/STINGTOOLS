@@ -589,6 +589,24 @@ namespace StingTools.Tags
         }
 
         /// <summary>
+        /// A note for the result dialog when the view's own STING_VIEW_TAG_STYLE names a
+        /// different scheme from the one just applied; null when they agree or none is set.
+        /// </summary>
+        public static string ViewSchemeNote(View view, string appliedScheme)
+        {
+            string set;
+            try { set = ParameterHelpers.GetString(view, ParamRegistry.VIEW_TAG_STYLE); }
+            catch (Exception ex) { StingLog.Warn($"ViewSchemeNote: {ex.Message}"); return null; }
+            if (string.IsNullOrWhiteSpace(set)) return null;
+            var canonical = Core.Drawing.TagColorSchemeNames.Resolve(set);
+            var applied = Core.Drawing.TagColorSchemeNames.Resolve(appliedScheme) ?? appliedScheme;
+            if (canonical != null && string.Equals(canonical, applied, StringComparison.OrdinalIgnoreCase)) return null;
+            return canonical == null
+                ? $"This view's tag style is set to '{set}', which is not a scheme; '{applied}' was applied."
+                : $"This view's tag style is set to '{canonical}' (its drawing type or Set View Tag Style); '{applied}' was applied as picked. Batch Apply follows the view's setting.";
+        }
+
+        /// <summary>
         /// Retrieve a variable color scheme by name. Checks VariableSchemes dictionary
         /// first (System, Status, Zone, Level, Location, Function), returns null if not found.
         /// </summary>
@@ -802,14 +820,16 @@ namespace StingTools.Tags
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Apply a color scheme to the active view. Colors all taggable elements
-        /// by their discipline, matching the presentation screenshot styles.
+        /// Apply a color scheme to a view. Colors all taggable elements by their discipline.
+        /// With <paramref name="useViewScheme"/> (the batch command), a view whose
+        /// STING_VIEW_TAG_STYLE names a scheme is coloured by that scheme instead — the
+        /// per-view routing drawing types set up. A scheme the user picked for one view is
+        /// applied as picked (default): swapping it here left the elements on the view's
+        /// scheme while the tag styles followed the pick.
         /// </summary>
-        public static int ApplyColorScheme(Document doc, View view, ColorScheme scheme)
+        public static int ApplyColorScheme(Document doc, View view, ColorScheme scheme, bool useViewScheme = false)
         {
-            // Per-view tag style routing: if the view has STING_VIEW_TAG_STYLE set,
-            // use that scheme name instead of the one passed in.
-            try
+            if (useViewScheme) try
             {
                 string viewStyle = ParameterHelpers.GetString(view, ParamRegistry.VIEW_TAG_STYLE);
                 if (!string.IsNullOrEmpty(viewStyle))

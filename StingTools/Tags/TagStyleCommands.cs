@@ -360,11 +360,13 @@ namespace StingTools.Tags
 
                 tx.Commit();
 
+                string note = TagStyleEngine.ViewSchemeNote(view, scheme.Name);
                 TaskDialog.Show("Color Scheme Applied",
                     $"Scheme: {scheme.Name}\n" +
                     $"{scheme.Description}\n\n" +
                     $"Elements colored: {colored}\n" +
-                    $"Tag styles switched: {styled}");
+                    $"Tag styles switched: {styled}" +
+                    (note != null ? "\n\n" + note : ""));
             }
 
             return Result.Succeeded;
@@ -400,8 +402,10 @@ namespace StingTools.Tags
                     description = sc.Description;
                 }
                 tx.Commit();
+                string note = TagStyleEngine.ViewSchemeNote(view, canonical);
                 TaskDialog.Show("Color Scheme Applied",
-                    $"Scheme: {canonical}\n{description}\n\nElements colored: {colored}\nTag styles switched: {styled}");
+                    $"Scheme: {canonical}\n{description}\n\nElements colored: {colored}\nTag styles switched: {styled}" +
+                    (note != null ? "\n\n" + note : ""));
             }
             return Result.Succeeded;
         }
@@ -788,7 +792,7 @@ namespace StingTools.Tags
                     var scheme = TagStyleEngine.BuiltInSchemes[schemeName];
                     foreach (var v in allViews)
                     {
-                        try { totalColored += TagStyleEngine.ApplyColorScheme(doc, v, scheme); }
+                        try { totalColored += TagStyleEngine.ApplyColorScheme(doc, v, scheme, useViewScheme: true); }
                         catch (Exception ex) { StingLog.Warn($"Skip view '{v.Name}': {ex.Message}"); }
                     }
                 }
@@ -798,6 +802,7 @@ namespace StingTools.Tags
                 TaskDialog.Show("Batch Color Scheme",
                     $"{(clearMode ? "Cleared" : $"Scheme: {schemeName}")}\n" +
                     $"Views processed: {allViews.Count}\n" +
+                    (clearMode ? "" : "Views whose tag style names a scheme (drawing type or Set View Tag Style) used that scheme for element colours.\n") +
                     $"Elements affected: {totalColored}");
             }
 
