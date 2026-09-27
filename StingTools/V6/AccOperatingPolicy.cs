@@ -24,10 +24,9 @@
 // A coordination model-set id is project-scoped - the same coordinator working on
 // KUT and on another job needs a different one per model. Credentials stay machine-
 // scoped in %APPDATA%\Planscape\acc_credentials.json.
-//   KNOWN MIS-SCOPING, deliberately not fixed here: AccCredentials also carries
-//   ProjectId and CoordContainerId, which are project-scoped values living in a
-//   machine-scoped file. That is a migration with its own verification, not a side
-//   quest; see the PR that introduced this file.
+//   The ACC container ids (projectId, coordContainerId) are project-scoped too and
+//   are read from here first (IM-18); the credentials file's copies are a logged,
+//   deprecated fallback - see AccProjectScope.
 //
 // Revit-free AND log-free, so it links into StingTools.Acc.Tests. It builds no
 // project paths of its own - the caller holds the Document and asks StingPaths,
@@ -162,6 +161,7 @@ namespace StingTools.V6
         {
             "unattended", "coordModelSetId", "coordModelSetName",
             "escalateMaxCount", "escalateMinScore", "publishSuitability",
+            "projectId", "coordContainerId",
         };
 
         public AccPolicySource Source { get; private set; } = AccPolicySource.Absent;
@@ -202,6 +202,15 @@ namespace StingTools.V6
         /// <summary>The suitability code an unattended publish should use, or empty to
         /// prompt exactly as today.</summary>
         public string PublishSuitability { get; private set; } = string.Empty;
+
+        /// <summary>The ACC project (Issues container) for THIS project, or empty. IM-18:
+        /// this used to live only in the machine-wide credentials file, so a coordinator on
+        /// two jobs had one value for both. See <see cref="AccProjectScope"/>.</summary>
+        public string ProjectId { get; private set; } = string.Empty;
+
+        /// <summary>The Model Coordination container for this project, or empty (then the
+        /// Issues container is used).</summary>
+        public string CoordContainerId { get; private set; } = string.Empty;
 
         // ── Loading ─────────────────────────────────────────────────────────
 
@@ -252,6 +261,7 @@ namespace StingTools.V6
 
             bool unattended = false;
             string modelSetId = string.Empty, modelSetName = string.Empty, suitability = string.Empty;
+            string projectId = string.Empty, coordContainerId = string.Empty;
             int? maxCount = null;
             double? minScore = null;
 
@@ -263,6 +273,8 @@ namespace StingTools.V6
                 if (TryGet(o, "publishSuitability", out var suTok)) suitability = RequireString(suTok, "publishSuitability");
                 if (TryGet(o, "escalateMaxCount", out var mcTok)) maxCount = RequireInt(mcTok, "escalateMaxCount");
                 if (TryGet(o, "escalateMinScore", out var msTok)) minScore = RequireDouble(msTok, "escalateMinScore");
+                if (TryGet(o, "projectId", out var pjTok)) projectId = RequireString(pjTok, "projectId");
+                if (TryGet(o, "coordContainerId", out var ccTok)) coordContainerId = RequireString(ccTok, "coordContainerId");
             }
             catch (FormatException ex) { return Malformed(policy, ex.Message); }
 
@@ -271,6 +283,8 @@ namespace StingTools.V6
             policy.CoordModelSetId = modelSetId.Trim();
             policy.CoordModelSetName = modelSetName.Trim();
             policy.PublishSuitability = suitability.Trim();
+            policy.ProjectId = projectId.Trim();
+            policy.CoordContainerId = coordContainerId.Trim();
             policy.Escalation = BuildEscalation(maxCount, minScore);
             return policy;
         }

@@ -38,7 +38,7 @@ namespace StingTools.Core.Clash
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var creds = AccIssueSync.LoadCredentials();
+            var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC sync issue status");   // IM-18: project container ids first
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
