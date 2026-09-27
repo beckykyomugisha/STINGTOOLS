@@ -23934,3 +23934,100 @@ GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOUR
   - The rejected sources, and links to printed-table reproductions the research network could
     not reach, are in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
 - **Not exercised in Revit.**
+
+#### FUNC / PROD / SEQ token alignment (2026-09-27, branch `claude/trusting-lamport-4ra2zn`)
+
+A review of how FUNC, PROD and SEQ are derived, stored and validated found values that could
+not be stored, fallbacks the token policy never saw, SEQ numbers wasted on every re-run, and a
+duplicate-tag path. All fixed.
+
+- **PROD never carries the material suffix.** `GetFamilyAwareProdCode` appended `-STL` / `-CON`
+  with "-", which is also the tag separator. The stored token was cut back to the base code, and
+  Batch Tag with Overwrite wrote a 9-segment ASS_TAG_1. The token is now always the bare code.
+  `GetProdMaterialSuffix` and `GetProdCodeWithMaterial` serve the door/window type-mark
+  sequencer, which still uses marks such as "DR-STL-04".
+- **GEN is assumed, not incomplete.** `TagIsComplete` treated GEN as a placeholder, although it
+  is the policy fallback for SYS, FUNC and PROD. Those tags were re-processed on every run.
+  `TagIsFullyResolved` and `TagHasPlaceholders` still flag GEN, so compliance "strict" figures
+  are unchanged. The looser "tagged" percentage rises for elements carrying GEN.
+- **The token policy now sees SYS / FUNC / PROD fallbacks.** Hardcoded `"GEN"` literals ahead
+  of `ResolveToken` meant no substitution was recorded and a project override had no effect.
+  Derived GEN now goes through the policy. A GEN already stored is counted as assumed.
+- **SEQ: one set of tokens, no wasted numbers.**
+  - `BuildAndWriteTag` keys the counter, checks collisions and writes the tag from the same
+    values. On the non-overwrite path that is the stored token when real, else the derived one.
+    It used to key on derived DISC/LVL and write stored ones, so a pre-populated element that
+    moved level could be given a duplicate tag.
+  - An element that already holds a SEQ keeps it. It is no longer given a new number that is
+    then discarded, which advanced the counter by one per element per re-run and persisted the
+    gaps in the sidecar.
+  - A stored SEQ that would duplicate another element's tag is re-sequenced (AutoIncrement).
+  - With `SEQ_INCLUDE_LOC`, an unresolved LOC (`XX`) now numbers in its own group, not
+    building 1's.
+  - The validator accepts Alpha-scheme SEQ values (A, B … AA) and uses `EffectiveSeqPad`.
+- **LPS FUNC vocabulary unified on AT / DC / EE / BOND / SPD / TC.**
+  - `ResolveLpsFunc` had no callers. It is now called by `GetSmartFuncCode` for SYS=LPS.
+  - `STING_FUNC_SYS_MATRIX.csv`, the validator baseline, `COBIE_TYPE_MAP.csv` and
+    `LPS_FAMILY_INVENTORY.json` used AIR/DOW/ERT/BND/TST. They now use the codes the LPS
+    tag handler already wrote.
+  - Default `FuncMap["LPS"]` is GEN; "LPS" was not a valid FUNC for SYS=LPS.
+  - The four copies of the LPS keyword list now all call the Revit-free `LpsNameClassifier`.
+- **Declared PROD codes are read.** `ProdNameCode.Extract` needs the PROD vocabulary. The
+  plugin passed none, so a type named `PLNS_WBL_Hollow200` never resolved to WBL outside
+  tests. `TagConfig` now supplies corporate, category-default and project codes.
+- **`PopulateAll`.**
+  - FUNC is derived from the SYS the element holds, so it can no longer pair SYS=DHW with FUNC=DCW.
+  - The SYS/FUNC and LOC/ZONE proximity copies run before defaults fill the slots. They used to
+    run after, and copied nothing.
+  - The discipline-profile `DefaultProd` replaces GEN on the non-overwrite path.
+  - FUNC, PROD and SYS writes use `SetTokenIfEmpty`.
+  - `PopulateTagTokens`, which had no callers and had drifted, is deleted.
+- **Smaller.**
+  - `GetSmartFuncCode` never returns blank, and the call sites that each carried their own
+    fallback now rely on it.
+  - HWS pipes read the piping system type.
+  - Ducts detect fresh/outside air (FRA).
+  - SAN vent detection matches "VENT" as a word, not inside PREVENT or INVENTORY.
+- **Tests.** `FuncProdSeqAlignmentTests` (26). `FuncVocabularyTests` also scans
+  `LpsNameClassifier`. 13 of the new tests fail against the previous code.
+  `StingTools.Tags.Tests`: 3,449 passing.
+- **Build.** No Windows/Revit build here. A Linux compile of the plugin sources against the
+  Revit 2025 NuGet reference assemblies and the WPF reference pack shows no new errors against
+  the pre-change baseline. That baseline only has errors from XAML-generated members.
+- **Not exercised in Revit.** Check Batch Tag, with and without Overwrite, on a model with
+  GEN-tagged elements and LPS families before merging.
+
+#### Category crosscheck: SYS / FUNC / PROD defaults for every category (2026-09-27, same branch)
+
+Simulated every one of the 124 categories in the default maps, and the systems detection can
+give them, against the validator's own cross-checks.
+
+- **18 categories defaulted to SYS=LPS.** `GetSysCode` returned the first system listing the
+  category, and LPS is declared before ARC / STR / GEN, so every wall, roof, foundation, rebar
+  set, fascia, gutter, generic model, specialty equipment and detail item was tagged as
+  lightning protection. The category fallback now prefers the discipline's own system
+  (`CategoryTokenDefaults.ChooseCategorySys`). LPS still applies by family name.
+- **Fire Alarm Devices** carried DISC `FLS`, which is a system code and fails DISC validation.
+  They are now DISC `FP` with SYS `FLS`, as `TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv` has it.
+- **Domestic hot water** system names ("Domestic Hot Water", DHW, calorifiers, water heaters) now
+  map to SYS `DHW`. They used to map to `HWS`, the heating system, so basins on hot water failed
+  the category check.
+  - Heating pipes (HWS) are now DISC M. `GetSystemAwareDisc` used to file them as Plumbing.
+  - Pipe Insulation and fabrication pipework follow the pipe's system for DISC.
+- **Sump and sewage pumps** are SYS `SAN`, not `DCW`.
+- **Validator agrees with detection.**
+  - A SYS is valid for a category when that category's discipline serves it: boilers on HWS,
+    booster sets on DCW, basins on DHW, fire pumps (M → FP).
+  - The PROD-vs-DISC check accepts every code the resolver's own data assigns to that
+    discipline. That covers PP on an unclassified pipe, the PAC / SPT / MCP / CLT / SKT rules,
+    Wash → WSH and Path Reinforcement → SPT.
+- **`CATEGORY_FORCE_SYS`** re-derives FUNC, and a pipe's DISC, from the forced system instead
+  of leaving them derived from the replaced one.
+- **Existing models.** Stored tokens are kept by a normal re-tag. Elements already tagged
+  `LPS` / DISC `FLS` / HWS-as-P change only with Overwrite, which re-sequences them in their
+  new SEQ group.
+- **Tests.** `CategoryTokenAuditTests` (41) reads the default maps and validator tables from
+  source and runs the shared `CategoryTokenDefaults` rules over every category, every PROD rule
+  and the realistic detected systems. 12 fail against the previous behaviour.
+  `StingTools.Tags.Tests`: 3,491 passing. The Linux compile of the plugin shows no new errors.
+- **Not exercised in Revit.**

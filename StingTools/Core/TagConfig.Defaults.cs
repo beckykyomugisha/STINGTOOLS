@@ -358,7 +358,9 @@ namespace StingTools.Core
                 // MEP — Plumbing
                 { "Plumbing Fixtures", "P" }, { "Plumbing Equipment", "P" },
                 // MEP — Fire Protection
-                { "Sprinklers", "FP" }, { "Fire Alarm Devices", "FLS" },
+                // Fire alarm devices are Fire Protection discipline, FLS system. "FLS" here
+                // was a SYSTEM code in the DISC column, which ISO19650Validator rejects.
+                { "Sprinklers", "FP" }, { "Fire Alarm Devices", "FP" },
                 { "Fire Protection", "FP" },
                 // MEP — Electrical
                 { "Electrical Equipment", "E" }, { "Electrical Fixtures", "E" },
@@ -446,9 +448,14 @@ namespace StingTools.Core
                 { "SAN", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment" } },
                 { "RWD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
                 { "GAS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
-                { "FP", new List<string> { "Sprinklers", "Fire Protection", "Fire Alarm Devices", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
+                // Fire Alarm Devices belong to FLS (below), not the FP suppression system; FP
+                // stays valid for them through the FP discipline (ISO19650Validator).
+                { "FP", new List<string> { "Sprinklers", "Fire Protection", "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes" } },
                 { "LV", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Electrical Connectors", "Lighting Fixtures", "Lighting Devices", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings", "MEP Fabrication Containment" } },
                 // Lightning Protection — BS EN 62305. LPS-bearing elements may be modelled as
+                // (Listing a category here makes LPS VALID for it, not its default: the
+                // category fallback prefers the discipline's own system — see
+                // CategoryTokenDefaults.ChooseCategorySys. LPS is applied by name.)
                 // Electrical Equipment (SPDs, test clamps), Generic Models (rods, mesh, ring earth),
                 // Conduits / Conduit Fittings (down-conductor channels), or Specialty Equipment.
                 // Family-name discrimination in GetFamilyAwareProdCode picks the correct LPS sub-tag.
@@ -580,9 +587,12 @@ namespace StingTools.Core
                 { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DHW" },
                 { "DCW", "DCW" }, { "SAN", "SAN" }, { "RWD", "RWD" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
-                // Lightning protection — default FUNC. The 6 LPS sub-functions (AT / DC / EE / BOND / SPD / TC)
-                // are family-aware overrides resolved by GetFamilyAwareProdCode + ResolveLpsFunc.
-                { "LPS", "LPS" },
+                // Lightning protection. The 6 LPS sub-functions (AT / DC / EE / BOND / SPD / TC)
+                // are read off the family name by GetSmartFuncCode -> ResolveLpsFunc; this is the
+                // default for an LPS element whose name names no component. It was "LPS", which
+                // STING_FUNC_SYS_MATRIX.csv does not list for SYS=LPS, so every such element
+                // failed the FUNC/SYS cross-check. GEN is listed, and is recorded as assumed.
+                { "LPS", "GEN" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
                 { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },

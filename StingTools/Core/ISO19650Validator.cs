@@ -308,11 +308,20 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.SEQ)
             {
+                // The Alpha scheme numbers A, B … Z, AA — SeqAssigner.ToAlpha. Until
+                // 2026-09-27 this branch only accepted integers, so every SEQ a project
+                // on the Alpha scheme had ever been given failed validation.
+                if (TagConfig.CurrentSeqScheme == SeqScheme.Alpha)
+                {
+                    if (!value.All(c => c >= 'A' && c <= 'Z'))
+                        return $"SEQ '{value}' is not a valid alphabetic sequence (A, B … Z, AA …)";
+                    return null;
+                }
                 if (!int.TryParse(value, out int seqVal))
                     return $"SEQ '{value}' is not a valid number";
                 if (seqVal < 0)
                     return $"SEQ '{value}' must be a positive number";
-                int seqWidth = TagConfig.SeqPadWidth > 0 ? TagConfig.SeqPadWidth : TagConfig.NumPad;
+                int seqWidth = TagConfig.EffectiveSeqPad;
                 if (value.Length > seqWidth + 1)
                     return $"SEQ '{value}' exceeds {seqWidth}-digit format";
             }
@@ -397,6 +406,12 @@ namespace StingTools.Core
                 // Also accept discipline-default SYS codes (ARC, STR, GEN, etc.)
                 string discForCat = TagConfig.DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
                 if (sys == TagConfig.GetDiscDefaultSysCode(discForCat))
+                    sysValidForCategory = true;
+                // …and any system the element's discipline serves. Detection legitimately
+                // puts a boiler (Mechanical Equipment) on HWS, a booster set on DCW, a basin
+                // on DHW; SysMap membership alone rejected every one of those.
+                string discForSys = TagConfig.GetSystemAwareDisc(discForCat, sys, catName);
+                if (_validSysForDisc.TryGetValue(discForSys, out var sysForDisc) && sysForDisc.Contains(sys))
                     sysValidForCategory = true;
                 if (!sysValidForCategory)
                 {
@@ -640,7 +655,7 @@ namespace StingTools.Core
                 // Medical gas systems (HTM 02-01)
                 { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "N2O", "MAP", "VAC", "EVAC", "N2", "CO2", "GEN" } },
                 // Lightning protection (BS EN 62305)
-                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AIR", "DOW", "ERT", "BND", "SPD", "TST", "GEN" } },
+                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AT", "DC", "EE", "BOND", "SPD", "TC", "GEN" } },
                 // Radiation protection (NCRP 147)
                 { "RAD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SHD", "ZNE", "MON", "GEN" } },
                 // Architectural / structural / general
@@ -682,7 +697,8 @@ namespace StingTools.Core
         internal static readonly Dictionary<string, HashSet<string>> _validSysForDisc =
             new Dictionary<string, HashSet<string>>
             {
-                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
+                // FP: fire pumps and sprinkler valve sets are modelled as Mechanical Equipment.
+                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN", "FP" } },
                 { "E",  new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
                 { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
                 { "FP", new HashSet<string> { "FP", "FLS" } },
@@ -700,6 +716,15 @@ namespace StingTools.Core
         {
             // GEN is valid for all disciplines
             if (prod == "GEN" || prod == "SPE" || prod == "MED") return null;
+            // A code the resolver's own data assigns to this discipline is valid, whatever
+            // the hand-written list below says (Pipes → PP at DISC M, Mechanical Equipment
+            // rules → PAC / SPT / MCP, Structural Path Reinforcement → SPT).
+            try
+            {
+                var vocab = TagConfig.GetProdVocabularyByDiscipline();
+                if (vocab != null && vocab.TryGetValue(disc, out var own) && own.Contains(prod)) return null;
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateProdForDisc vocabulary: {ex.Message}"); }
             // If we don't have a mapping for this discipline, skip
             if (!ProdCodesByDisc.TryGetValue(disc, out var validProds)) return null;
             // VFD appears in both M and E — skip cross-disc check for shared codes
