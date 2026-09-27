@@ -2,7 +2,9 @@
   "schema_version": 1,
   "description": "Canonical STING tag style catalogue. Single source of truth for sizes, styles, colours, arrowheads, depth tiers, and disciplinary defaults. Consumed by TagStyleCatalogue.cs.",
 
-  "sizes":      ["2", "2.5", "3", "3.5"],
+  "sizes":      ["2.5", "3.5", "2", "3"],
+  "default_size": "2.5",
+  "sizes_notes": "ISO 3098 sizes first. 2.5 mm is every default and 3.5 mm the emphasis size; 2 and 3 mm are not ISO 3098 lettering heights and stay only for projects that choose them explicitly - no default, preset or pre-created variant uses them (IsoTagText).",
   "styles":     ["NOM", "BOLD", "ITALIC", "BOLDITALIC"],
   "colours":    ["BLACK", "BLUE", "GREEN", "RED", "ORANGE", "PURPLE", "GREY", "WHITE"],
 
@@ -26,25 +28,24 @@
     "A":  { "size": "2.5", "style": "NOM",    "colour": "BLACK",  "arrowhead": "Arrow Open 30",   "depth_tier": 2 },
     "S":  { "size": "2.5", "style": "BOLD",   "colour": "RED",    "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
     "FP": { "size": "2.5", "style": "BOLD",   "colour": "RED",    "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
-    "LV": { "size": "2",   "style": "ITALIC", "colour": "PURPLE", "arrowhead": "Dot Filled",      "depth_tier": 2 },
-    "G":  { "size": "2",   "style": "NOM",    "colour": "BLACK",  "arrowhead": "None",            "depth_tier": 1 }
+    "LV": { "size": "2.5", "style": "ITALIC", "colour": "PURPLE", "arrowhead": "Dot Filled",      "depth_tier": 2 },
+    "G":  { "size": "2.5", "style": "NOM",    "colour": "BLACK",  "arrowhead": "None",            "depth_tier": 1 }
   },
 
   "standard_variants_strategy": "on_demand_plus_discipline_defaults",
-  "standard_variants_notes": "MigrateTagFamilies pre-creates the 8 disciplinary defaults + a compact NOM/BLACK baseline per size (2, 2.5, 3, 3.5) with depth tiers 1/2 and None arrowhead. Depth tier 3 was dropped on 2026-09-17: the universal label has no T3 rows and the master carries no TAG_PARA_STATE_3_BOOL, so a _T3 variant rendered identically to _T2 while reporting depth 3 - two types that looked like a choice and were not. Re-add T3 variants only once the label has T3 rows. Additional variants are created on-demand by FindTypeVariant when placement requests a combination that does not yet exist.",
+  "standard_variants_notes": "MigrateTagFamilies pre-creates the 8 disciplinary defaults + a compact NOM/BLACK baseline at the ISO sizes (2.5, 3.5) with depth tiers 1/2 and None arrowhead. Depth tier 3 was dropped on 2026-09-17: the universal label has no T3 rows and the master carries no TAG_PARA_STATE_3_BOOL, so a _T3 variant rendered identically to _T2 while reporting depth 3 - two types that looked like a choice and were not. Re-add T3 variants only once the label has T3 rows. Additional variants are created on-demand by FindTypeVariant when placement requests a combination that does not yet exist.",
 
   "standard_variants": [
-    { "size": "2",   "style": "NOM",  "colour": "BLACK", "arrowhead": "None",            "depth_tier": 1 },
-    { "size": "2",   "style": "NOM",  "colour": "BLACK", "arrowhead": "None",            "depth_tier": 2 },
+    { "size": "2.5", "style": "NOM",  "colour": "BLACK", "arrowhead": "None",            "depth_tier": 1 },
+    { "size": "2.5", "style": "NOM",  "colour": "BLACK", "arrowhead": "None",            "depth_tier": 2 },
     { "size": "2.5", "style": "NOM",  "colour": "BLACK", "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
     { "size": "2.5", "style": "BOLD", "colour": "BLUE",   "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
     { "size": "2.5", "style": "BOLD", "colour": "ORANGE", "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
     { "size": "2.5", "style": "BOLD", "colour": "GREEN",  "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
     { "size": "2.5", "style": "BOLD", "colour": "RED",    "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
     { "size": "2.5", "style": "NOM",  "colour": "BLACK",  "arrowhead": "Arrow Open 30",   "depth_tier": 2 },
-    { "size": "2",   "style": "ITALIC","colour": "PURPLE","arrowhead": "Dot Filled",      "depth_tier": 2 },
-    { "size": "3",   "style": "NOM",  "colour": "BLACK",  "arrowhead": "None",            "depth_tier": 1 },
-    { "size": "3",   "style": "BOLD", "colour": "BLACK",  "arrowhead": "Arrow Filled 30", "depth_tier": 2 },
+    { "size": "2.5", "style": "ITALIC", "colour": "PURPLE", "arrowhead": "Dot Filled",      "depth_tier": 2 },
+    { "size": "3.5", "style": "NOM",  "colour": "BLACK",  "arrowhead": "None",            "depth_tier": 1 },
     { "size": "3.5", "style": "BOLD", "colour": "BLACK",  "arrowhead": "Arrow Filled 30", "depth_tier": 2 }
   ]
 }

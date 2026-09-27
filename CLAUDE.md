@@ -2586,10 +2586,11 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 
 ### Style Matrix
 Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parameters. Exactly one BOOL parameter is set to true per element type, making that label row visible:
-- **Sizes**: 2, 2.5, 3, 3.5 (mm text height)
-- **Styles**: NOM (normal), BOLD, ITALIC
-- **Colors**: BLACK, BLUE, GREEN, RED
+- **Sizes**: 2.5, 3.5, 2, 3 (mm text height). **2.5 and 3.5 are the ISO 3098 heights and every default uses them** (2.5 mm; 3.5 mm for emphasis) — discipline presets, colour schemes, rule presets, the style catalogue's pre-created variants and the scale tiers. The 2 and 3 mm rows stay for projects that pick them explicitly; the style grid marks them "not ISO". One rule: `Core/Drawing/IsoTagText`
+- **Styles**: NOM (normal), BOLD, ITALIC, BOLDITALIC
+- **Colors**: BLACK, BLUE, GREEN, RED, ORANGE, PURPLE, GREY, WHITE (`ParamRegistry.TagStyleColors`)
 - **Total combinations**: 4 sizes × 4 styles × 8 colors = **128 per tag**
+- **Discipline tag styles** come from `Data/tag_style_catalogue.json` (`defaults_per_discipline`); the Tag Style Engine's Discipline scheme and the `TAG_STYLE_RULES.json` Discipline preset follow it (a test holds them together)
 
 ### Built-in Color Schemes
 Discipline, Warm, Cool, Red, Yellow, Blue, Monochrome, Dark — each scheme maps discipline codes to specific element graphic overrides and optionally switches tag text styles to match.

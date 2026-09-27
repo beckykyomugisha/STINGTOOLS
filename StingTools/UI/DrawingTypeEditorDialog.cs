@@ -144,6 +144,14 @@ namespace StingTools.UI
             "Model Groups", "Assembly Instances",
         };
 
+        // Tag style suggestions ('{size}{style}_{colour}'): the ISO 3098 sizes only, so the
+        // pickers lead with compliant styles. The combos stay editable — a project that has
+        // chosen 2 or 3 mm can still type it.
+        private static readonly string[] IsoStyleSuggestions =
+            IsoTagText.IsoMatrixSizes.SelectMany(sz => new[] {
+                "NOM_BLACK", "BOLD_BLACK", "NOM_BLUE", "BOLD_BLUE", "NOM_GREEN", "BOLD_GREEN",
+                "NOM_RED", "BOLD_RED", "BOLD_ORANGE", "BOLDITALIC_PURPLE" }.Select(st => sz + st)).ToArray();
+
         private static readonly string[] KnownTaggableCategories = new[]
         {
             "Air Terminals", "Cable Trays", "Casework", "Ceilings", "Communication Devices",
@@ -880,15 +888,7 @@ namespace StingTools.UI
                 v => p.TagColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Variable-driven scheme written to STING_VIEW_TAG_STYLE on every view this pack applies to. Profile-level scheme wins."));
 
-            string[] commonStyles = new[] { "",
-                "2NOM_BLACK", "2BOLD_BLACK", "2.5NOM_BLACK", "2.5BOLD_BLACK",
-                "2NOM_BLUE", "2BOLD_BLUE", "2.5NOM_BLUE",
-                "2NOM_GREEN", "2BOLD_GREEN",
-                "2NOM_RED", "2BOLD_RED", "2.5BOLD_RED",
-                "2NOM_ORANGE", "2BOLD_ORANGE",
-                "2.5BOLDITALIC_PURPLE",
-                "3NOM_BLACK", "3BOLD_BLACK", "3.5BOLD_BLACK",
-            };
+            string[] commonStyles = new[] { "" }.Concat(IsoStyleSuggestions).ToArray();
             body.Children.Add(LabeledCombo("Default tag style preset",
                 commonStyles, p.DefaultTagStyle ?? "",
                 v => p.DefaultTagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
@@ -931,14 +931,7 @@ namespace StingTools.UI
 
             var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
                              KnownTaggableCategories).ToArray();
-            string[] commonStyles = new[] {
-                "2NOM_BLACK", "2BOLD_BLACK", "2.5NOM_BLACK", "2.5BOLD_BLACK",
-                "2NOM_BLUE", "2BOLD_BLUE",
-                "2NOM_GREEN", "2BOLD_GREEN",
-                "2NOM_RED", "2BOLD_RED", "2.5BOLD_RED",
-                "2NOM_ORANGE", "2BOLD_ORANGE",
-                "3NOM_BLACK", "3BOLD_BLACK",
-            };
+            string[] commonStyles = IsoStyleSuggestions;
 
             foreach (var kv in p.CategoryTagStyles.ToList())
             {
@@ -979,8 +972,9 @@ namespace StingTools.UI
 
             host.Children.Add(MakeSmallBtn("＋ Add category style", () =>
             {
-                var key = "NewCategory" + p.CategoryTagStyles.Count;
-                p.CategoryTagStyles[key] = "2NOM_BLACK";
+                var key = KnownTaggableCategories.FirstOrDefault(c => !p.CategoryTagStyles.ContainsKey(c))
+                          ?? "NewCategory" + p.CategoryTagStyles.Count;
+                p.CategoryTagStyles[key] = Core.TagStyleCatalogue.DefaultSize + "NOM_BLACK";
                 RenderPackForm();
             }));
             return host;

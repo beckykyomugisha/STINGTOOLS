@@ -1968,9 +1968,13 @@ variant below the paper's minimum (2.5 mm A0–A3, 1.8 mm A4) while a legible on
 sets it (ISO 3098 heights 1.8 / 2.5 / 3.5 / 5 / 7 / 10 mm); DT-106 warns on an explicit non-ISO or
 below-minimum size. `DrawingType.TagSizeToken(mm)` → the "2.5mm" text-type/size-family token.
 Author **2.5 mm and 3.5 mm** variants first — they cover every shipped drawing type.
-- **TAGISO-1 (open):** the Tag Style Engine matrix (`TAG_{SIZE}{STYLE}_{COLOR}_BOOL`) offers 2 / 2.5 / 3 /
-  3.5 mm. 2 and 3 mm are not ISO 3098 heights; retiring them changes every tag family's type
-  catalogue and needs Revit, so it is logged rather than done.
+- **TAGISO-1 ✅ CLOSED 2026-09-27:** every tag style DEFAULT is ISO 3098 (2.5 mm; 3.5 mm emphasis) —
+  style catalogue defaults and pre-created variants, all Tag Style Engine schemes, every
+  `TAG_STYLE_RULES.json` preset, the rule-engine fallbacks, the scale tiers, the editor's style
+  suggestions. The 2 / 3 mm matrix rows stay (existing families keep working; a project may pick them
+  explicitly, and the style grid marks them "not ISO"); a loaded catalogue or preset default that
+  names one is moved to the ISO size with a logged warning. `IsoTagText` is the rule;
+  `IsoTagStyleDefaultsTests` holds the shipped data to it.
 **Pending (needs Revit + propagation):**
 - Human authors the 8 label **text types** (`1.0mm`…`5.0mm`) on the universal master; because a
   single label's text size is a Type property (not param-drivable), selectable size = **one

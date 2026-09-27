@@ -24413,3 +24413,27 @@ A review of how drawing types choose and size tags. The tag family names the shi
   - `TagSizeVariantTests` updated to the ISO rule.
 - **Open (ROADMAP TAGISO-1).** The Tag Style Engine matrix still offers 2 and 3 mm, which are not ISO 3098 heights.
 - **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,602 passing. The four gates pass. Not exercised in Revit.
+
+#### TAGISO-1 closed: tag style defaults are ISO 3098; the style sources agree
+
+- **One rule.** New `Core/Drawing/IsoTagText.cs` (Revit-free) defines the ISO 3098 tag sizes. 2.5 mm is the default and 3.5 mm the emphasis size. The 2 and 3 mm matrix rows stay available but are never a default. It also moves a size or type name to ISO (`2BOLD_RED` → `2.5BOLD_RED`, `2_NOM_BLACK_None_T1` → `2.5_NOM_BLACK_None_T1`).
+- **Every default now uses it.** Before this change most defaults used 2 mm.
+  - `tag_style_catalogue.json`: sizes listed ISO-first, a new `default_size`, LV/G defaults moved to 2.5, and the pre-created variants are ISO only. The catalogue loader moves a non-ISO default or pre-created variant to ISO with a logged warning. Its built-in fallback also used depth tier 3 for five disciplines and pre-created T3 variants; both now use tier 2, matching the data file and its own notes.
+  - `TagStyleEngine`: 27 preset sizes, the discipline, level, zone, status and system schemes, and the class default.
+  - `TAG_STYLE_RULES.json`: every preset and default type. Its catalog had listed 1.5 mm types, which no `TAG_*_BOOL` row or family carries; they are now the 3 mm rows that do exist. Rule-engine fallbacks and the "preferred types" list were updated too. A loaded preset `default_type` is moved to ISO; explicit rules are left as written.
+  - Scale tiers (`SCALE_TIERS.json`, the hard-coded fallback, `DefaultTextSize`): 2.5 mm at every tier instead of 3.5 → 2 mm by scale. The tiers still set leader offset.
+  - Drawing Type editor: the style suggestions are ISO-only (still editable), and a new category style row is a real category at 2.5 mm, not `NewCategory0 → 2NOM_BLACK`.
+  - `ParamRegistry.TagStyleSizes` is ordered ISO-first.
+- **Consistency fixes found in the same pass.**
+  - The style grid dialog offered `YELLOW`, which no tag family carries (picking it switched nothing), and left out `GREY`. It now reads the registry's sizes, styles and colours, and labels the 2 and 3 mm rows "not ISO".
+  - Discipline tag styles came from three sources that disagreed (E orange/red, S red/orange, LV purple/blue, G black/grey). The Tag Style Engine Discipline scheme now reads the catalogue (`DisciplineStylesFromCatalogue`). The `TAG_STYLE_RULES.json` Discipline preset was rewritten to match it, and a test holds the two together.
+  - `TagSizeVariant` now recognises the rule engine's `2.5BOLD_RED` type naming. Before, families built with those names never had the drawing type's tag size applied.
+- **Tests.**
+  - `IsoTagStyleDefaultsTests`: 3 data tests failed on the old files and pass now.
+  - `TagSizeVariantTests`: new legacy-name cases.
+- **Verification.**
+  - Plugin build: 0 errors.
+  - `StingTools.Tags.Tests`: 3,630 passing.
+  - Gates pass.
+  - Drawing-type checksums unchanged.
+  - Not exercised in Revit.

@@ -77,6 +77,9 @@ namespace StingTools.Tags.Tests
         [InlineData("2.5_NOM_BLACK_Open30_T2", 2.5)]
         [InlineData("2_BOLD_RED_Filled30_T2", 2.0)]
         [InlineData("3.5_NOM_BLACK_Open30_T2", 3.5)]
+        [InlineData("2.5BOLD_RED", 2.5)]            // rule engine / scale tier naming
+        [InlineData("2NOM_BLACK", 2.0)]
+        [InlineData("3 Point Leader", null)]        // a number that is not a size
         [InlineData("Standard", null)]
         [InlineData("Code + Name", null)]
         [InlineData("_NOM", null)]
@@ -97,6 +100,14 @@ namespace StingTools.Tags.Tests
             string baseStyle = TagSizeVariant.StyleOfTypeName("2.5_BOLD_RED_Open30_T2");
             Assert.Equal(baseStyle, TagSizeVariant.StyleOfTypeName("2_BOLD_RED_Open30_T2"));
             Assert.NotEqual(baseStyle, TagSizeVariant.StyleOfTypeName("2_NOM_BLACK_Open30_T2"));
+        }
+
+        [Fact]
+        public void Rule_engine_type_names_are_size_variants_of_each_other()
+        {
+            Assert.Equal("BOLD_RED", TagSizeVariant.StyleOfTypeName("2.5BOLD_RED"));
+            Assert.Equal(TagSizeVariant.StyleOfTypeName("3.5BOLD_RED"), TagSizeVariant.StyleOfTypeName("2BOLD_RED"));
+            Assert.NotEqual(TagSizeVariant.StyleOfTypeName("2.5BOLD_RED"), TagSizeVariant.StyleOfTypeName("2.5NOM_RED"));
         }
     }
 }

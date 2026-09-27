@@ -36,9 +36,13 @@ namespace StingTools.Tags
     /// </summary>
     internal static class TagStyleGridDialog
     {
-        private static readonly string[] Sizes = { "2", "2.5", "3", "3.5" };
-        private static readonly string[] Styles = { "NOM", "BOLD", "ITALIC" };
-        private static readonly string[] Colors = { "BLACK", "BLUE", "GREEN", "RED", "YELLOW", "ORANGE", "PURPLE", "WHITE" };
+        // The sizes and colours the TAG_{size}{style}_{colour}_BOOL rows exist for
+        // (ParamRegistry). This listed YELLOW, which no tag family carries — picking it
+        // switched nothing — and left out GREY. ISO 3098 sizes first; 2 / 3 mm rows are
+        // marked "not ISO" and are never a default.
+        private static readonly string[] Sizes = ParamRegistry.TagStyleSizes;
+        private static readonly string[] Styles = ParamRegistry.TagStyleStylesCore;
+        private static readonly string[] Colors = ParamRegistry.TagStyleColors;
 
         private static readonly Dictionary<string, System.Windows.Media.Color> ColorMap =
             new Dictionary<string, System.Windows.Media.Color>(StringComparer.OrdinalIgnoreCase)
@@ -47,7 +51,7 @@ namespace StingTools.Tags
                 ["BLUE"]   = System.Windows.Media.Color.FromRgb(40, 100, 200),
                 ["GREEN"]  = System.Windows.Media.Color.FromRgb(40, 160, 60),
                 ["RED"]    = System.Windows.Media.Color.FromRgb(200, 40, 40),
-                ["YELLOW"] = System.Windows.Media.Color.FromRgb(200, 180, 30),
+                ["GREY"]   = System.Windows.Media.Color.FromRgb(128, 128, 128),
                 ["ORANGE"] = System.Windows.Media.Color.FromRgb(220, 120, 30),
                 ["PURPLE"] = System.Windows.Media.Color.FromRgb(130, 50, 180),
                 ["WHITE"]  = System.Windows.Media.Color.FromRgb(240, 240, 240),
@@ -115,7 +119,8 @@ namespace StingTools.Tags
                     rowGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(90) });
 
                     // Row label
-                    string sizeLabel = $"{size}mm {style}";
+                    string sizeLabel = Core.Drawing.IsoTagText.IsIso(size)
+                        ? $"{size}mm {style}" : $"{size}mm {style} (not ISO)";
                     var rowLabel = new System.Windows.Controls.TextBlock
                     {
                         Text = sizeLabel, FontSize = 10, VerticalAlignment = System.Windows.VerticalAlignment.Center,

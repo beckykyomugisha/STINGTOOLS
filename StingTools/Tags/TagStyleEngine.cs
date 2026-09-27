@@ -129,7 +129,7 @@ namespace StingTools.Tags
         /// <summary>Default color for unmapped values.</summary>
         public Color DefaultColor { get; set; } = new Color(128, 128, 128);
         /// <summary>Default tag style for unmapped values.</summary>
-        public StylePreset DefaultStyle { get; set; } = new StylePreset { Name = "Default", Size = "2", Style = "NOM", Color = "BLACK" };
+        public StylePreset DefaultStyle { get; set; } = new StylePreset { Name = "Default", Size = "2.5", Style = "NOM", Color = "BLACK" };
     }
 
     #endregion
@@ -146,6 +146,19 @@ namespace StingTools.Tags
 
         /// <summary>All built-in color schemes.</summary>
         public static readonly Dictionary<string, ColorScheme> BuiltInSchemes = BuildSchemes();
+
+        /// <summary>Discipline tag styles as the style catalogue defines them
+        /// (tag_style_catalogue.json defaults_per_discipline).</summary>
+        internal static Dictionary<string, StylePreset> DisciplineStylesFromCatalogue()
+        {
+            var result = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase);
+            foreach (var disc in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" })
+            {
+                var dd = TagStyleCatalogue.GetDisciplineDefault(disc);
+                result[disc] = new StylePreset { Name = disc, Size = dd.Size, Style = dd.Style, Color = dd.Colour };
+            }
+            return result;
+        }
 
         private static Dictionary<string, ColorScheme> BuildSchemes()
         {
@@ -167,18 +180,12 @@ namespace StingTools.Tags
                     { "LV", new Color(160, 0, 200) },       // Purple — Low Voltage
                     { "G", new Color(128, 80, 0) },         // Brown — General
                 },
-                DisciplineTagStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
-                {
-                    { "M", new StylePreset { Name = "Mech", Size = "2", Style = "BOLD", Color = "BLUE" } },
-                    { "E", new StylePreset { Name = "Elec", Size = "2", Style = "BOLD", Color = "RED" } },
-                    { "P", new StylePreset { Name = "Plumb", Size = "2", Style = "BOLD", Color = "GREEN" } },
-                    { "A", new StylePreset { Name = "Arch", Size = "2", Style = "NOM", Color = "BLACK" } },
-                    { "S", new StylePreset { Name = "Struct", Size = "2", Style = "BOLD", Color = "RED" } },
-                    { "FP", new StylePreset { Name = "Fire", Size = "2", Style = "BOLD", Color = "RED" } },
-                    { "LV", new StylePreset { Name = "LV", Size = "2", Style = "ITALIC", Color = "BLUE" } },
-                    { "G", new StylePreset { Name = "Gen", Size = "2", Style = "NOM", Color = "BLACK" } },
-                },
-                DefaultTagStyle = new StylePreset { Name = "Default", Size = "2", Style = "NOM", Color = "BLACK" }
+                // From the style catalogue — the documented single source for discipline
+                // tag styles. These eight entries used to be typed here and disagreed with
+                // it (E red vs orange, S red vs orange, LV blue vs purple), so the same
+                // drawing got different discipline tags depending on which button ran.
+                DisciplineTagStyles = DisciplineStylesFromCatalogue(),
+                DefaultTagStyle = new StylePreset { Name = "Default", Size = "2.5", Style = "NOM", Color = "BLACK" }
             };
 
             // ── Warm (salmon/terracotta — screenshots 164817, 172339) ──
@@ -266,7 +273,7 @@ namespace StingTools.Tags
                 {
                     { "ALL", new Color(60, 60, 60) },
                 },
-                DefaultTagStyle = new StylePreset { Name = "Mono", Size = "2", Style = "NOM", Color = "BLACK" }
+                DefaultTagStyle = new StylePreset { Name = "Mono", Size = "2.5", Style = "NOM", Color = "BLACK" }
             };
 
             // ── Dark (inverted — screenshots 172641, 172731 dark) ──
@@ -330,11 +337,11 @@ namespace StingTools.Tags
                 {
                     { "HVAC", new StylePreset { Name = "HVAC", Size = "2.5", Style = "BOLD", Color = "BLUE" } },
                     { "FP",   new StylePreset { Name = "Fire", Size = "2.5", Style = "BOLD", Color = "RED" } },
-                    { "LV",   new StylePreset { Name = "LV",   Size = "2",   Style = "ITALIC", Color = "PURPLE" } },
-                    { "SAN",  new StylePreset { Name = "San",  Size = "2",   Style = "NOM", Color = "GREEN" } },
-                    { "DCW",  new StylePreset { Name = "DCW",  Size = "2",   Style = "NOM", Color = "GREEN" } },
-                    { "DHW",  new StylePreset { Name = "DHW",  Size = "2",   Style = "BOLD", Color = "ORANGE" } },
-                    { "ARC",  new StylePreset { Name = "Arc",  Size = "2",   Style = "NOM", Color = "GREY" } },
+                    { "LV",   new StylePreset { Name = "LV",   Size = "2.5", Style = "ITALIC", Color = "PURPLE" } },
+                    { "SAN",  new StylePreset { Name = "San",  Size = "2.5", Style = "NOM", Color = "GREEN" } },
+                    { "DCW",  new StylePreset { Name = "DCW",  Size = "2.5", Style = "NOM", Color = "GREEN" } },
+                    { "DHW",  new StylePreset { Name = "DHW",  Size = "2.5", Style = "BOLD", Color = "ORANGE" } },
+                    { "ARC",  new StylePreset { Name = "Arc",  Size = "2.5", Style = "NOM", Color = "GREY" } },
                     { "STR",  new StylePreset { Name = "Str",  Size = "2.5", Style = "BOLD", Color = "RED" } },
                 },
                 ValueBoxColors = new Dictionary<string, BoxColorPreset>(StringComparer.OrdinalIgnoreCase)
@@ -360,9 +367,9 @@ namespace StingTools.Tags
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
                     { "NEW",         new StylePreset { Name = "New",   Size = "2.5", Style = "BOLD",   Color = "GREEN" } },
-                    { "EXISTING",    new StylePreset { Name = "Exist", Size = "2",   Style = "NOM",    Color = "BLUE" } },
-                    { "DEMOLISHED",  new StylePreset { Name = "Demo",  Size = "2",   Style = "ITALIC", Color = "RED" } },
-                    { "TEMPORARY",   new StylePreset { Name = "Temp",  Size = "2",   Style = "ITALIC", Color = "ORANGE" } },
+                    { "EXISTING",    new StylePreset { Name = "Exist", Size = "2.5", Style = "NOM",    Color = "BLUE" } },
+                    { "DEMOLISHED",  new StylePreset { Name = "Demo",  Size = "2.5", Style = "ITALIC", Color = "RED" } },
+                    { "TEMPORARY",   new StylePreset { Name = "Temp",  Size = "2.5", Style = "ITALIC", Color = "ORANGE" } },
                 },
                 ValueBoxColors = new Dictionary<string, BoxColorPreset>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -390,10 +397,10 @@ namespace StingTools.Tags
                 },
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "Z01", new StylePreset { Name = "Z01", Size = "2", Style = "NOM", Color = "BLUE" } },
-                    { "Z02", new StylePreset { Name = "Z02", Size = "2", Style = "NOM", Color = "GREEN" } },
-                    { "Z03", new StylePreset { Name = "Z03", Size = "2", Style = "NOM", Color = "ORANGE" } },
-                    { "Z04", new StylePreset { Name = "Z04", Size = "2", Style = "NOM", Color = "RED" } },
+                    { "Z01", new StylePreset { Name = "Z01", Size = "2.5", Style = "NOM", Color = "BLUE" } },
+                    { "Z02", new StylePreset { Name = "Z02", Size = "2.5", Style = "NOM", Color = "GREEN" } },
+                    { "Z03", new StylePreset { Name = "Z03", Size = "2.5", Style = "NOM", Color = "ORANGE" } },
+                    { "Z04", new StylePreset { Name = "Z04", Size = "2.5", Style = "NOM", Color = "RED" } },
                 },
             };
 
@@ -416,10 +423,10 @@ namespace StingTools.Tags
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
                     { "GF",  new StylePreset { Name = "GF",  Size = "2.5", Style = "BOLD", Color = "GREEN" } },
-                    { "L01", new StylePreset { Name = "L01", Size = "2",   Style = "NOM",  Color = "BLUE" } },
-                    { "L02", new StylePreset { Name = "L02", Size = "2",   Style = "NOM",  Color = "PURPLE" } },
-                    { "B1",  new StylePreset { Name = "B1",  Size = "2",   Style = "ITALIC", Color = "RED" } },
-                    { "RF",  new StylePreset { Name = "RF",  Size = "2",   Style = "ITALIC", Color = "ORANGE" } },
+                    { "L01", new StylePreset { Name = "L01", Size = "2.5", Style = "NOM",  Color = "BLUE" } },
+                    { "L02", new StylePreset { Name = "L02", Size = "2.5", Style = "NOM",  Color = "PURPLE" } },
+                    { "B1",  new StylePreset { Name = "B1",  Size = "2.5", Style = "ITALIC", Color = "RED" } },
+                    { "RF",  new StylePreset { Name = "RF",  Size = "2.5", Style = "ITALIC", Color = "ORANGE" } },
                 },
             };
 

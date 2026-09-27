@@ -1423,7 +1423,9 @@ namespace StingTools.Core
         public const string TAG_STYLE_CODE_GUID = "d4e5f6a7-b8c9-4d0e-af12-345678901bcd";
 
         /// <summary>Available text sizes for tag style parameters.</summary>
-        public static readonly string[] TagStyleSizes = { "2", "2.5", "3", "3.5" };
+        /// <remarks>ISO 3098 sizes first (2.5, 3.5); 2 and 3 mm rows exist for projects that
+        /// choose them and are never a default (Drawing.IsoTagText).</remarks>
+        public static readonly string[] TagStyleSizes = { "2.5", "3.5", "2", "3" };
         /// <summary>Available text styles for tag style parameters.</summary>
         public static readonly string[] TagStyleStyles = { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
         /// <summary>Available text colors for tag style parameters.</summary>
