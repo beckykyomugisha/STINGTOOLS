@@ -24328,3 +24328,26 @@ Checked and found consistent:
 - The build and test figures quoted above match what was run.
 
 Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,560 passing. The path-discipline, doc-acquisition, workflow-wiring and export-routing gates all pass. Not exercised in Revit.
+
+#### DOCX-12 and DOCX-13 closed
+
+- **DOCX-12: one sheet-number token vocabulary.** New `Core/Drawing/SheetNumberTokens.cs` (Revit-free) owns:
+  - the bare `{seq}` width (4)
+  - `{seq:Dn}` parsing, capped at 8 digits
+  - the aliases `{proj}`/`{project}` and `{orig}`/`{originator}`
+
+  Four sites now use it:
+  - `SheetDisciplineResolver.FormatNumber` (title-block pattern)
+  - `SheetNumberEngine.ApplyTokenPattern` (drawing types)
+  - `ShopDrawingComposer.SubstituteTokens`
+  - `MepLevelViewProducer.Substitute`, which previously ignored any width other than D2–D4
+
+  The empty-value rule stays different on purpose, and CLAUDE.md now says why. A drawing-type number is often a positional ISO identifier and keeps `XX`. A project number drops the token and its separator.
+
+  Behaviour change: a title-block pattern with a bare `{seq}` now pads to 4 digits instead of 3. The shipped default `{disc}-{seq:D3}` is explicit and unchanged.
+
+  Tests: a cross-builder test requires both builders to produce the same number for the same pattern. 6 cases failed on the old code, and all pass now.
+- **DOCX-13: one register write per export run.** `ExportCenterEngine.RegisterExports` collects its rows and calls the new `BIMManagerEngine.AutoRegisterExports` once. That call loads `document_register.json` once, applies every row and saves once. Before, it did one full read and rewrite per file.
+
+  The row rule (update by deliverable number, then file name; new rows carry both `doc_id` and `document_id`) moved unchanged into the Revit-free `BIMManager/ExportRegisterUpsert.cs`. Single-file `AutoRegisterExport` is now a one-item batch, so all 17 callers share the rule. `ExportRegisterUpsert` has 6 new tests.
+- Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,572 passing. Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass. Not exercised in Revit.

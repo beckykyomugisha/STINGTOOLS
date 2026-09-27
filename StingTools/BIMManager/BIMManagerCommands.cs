@@ -858,78 +858,55 @@ namespace StingTools.BIMManager
         internal static void AutoRegisterExport(Document doc, string filePath, string docType,
             string description, string suitability = "S0",
             string revision = null, string cdeStatus = null, string docNumber = null)
+            => AutoRegisterExports(doc, new[]
+            {
+                new ExportRegistration
+                {
+                    FilePath = filePath, DocType = docType, Description = description,
+                    Suitability = suitability, Revision = revision,
+                    CdeStatus = cdeStatus, DocNumber = docNumber,
+                },
+            });
+
+        /// <summary>Record many exported files with ONE register load and ONE save
+        /// (DOCX-13). The row rule is <see cref="ExportRegisterUpsert.Apply"/>, the same
+        /// one a single export uses. A file that cannot be recorded is logged and
+        /// skipped; the rest are still saved. Returns how many were recorded.</summary>
+        internal static int AutoRegisterExports(Document doc, IEnumerable<ExportRegistration> items)
         {
+            var list = (items ?? Enumerable.Empty<ExportRegistration>()).Where(i => i != null).ToList();
+            if (list.Count == 0) return 0;
             try
             {
                 string regPath = GetBIMManagerFilePath(doc, "document_register.json");
                 var register = LoadJsonArray(regPath);
-
-                string fileName = Path.GetFileName(filePath);
-                string fileFormat = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.');
-                string suit = string.IsNullOrWhiteSpace(suitability) ? "S0" : suitability;
-                string rev  = string.IsNullOrWhiteSpace(revision)    ? "P01" : revision;
-                string cde  = string.IsNullOrWhiteSpace(cdeStatus)   ? "WIP" : cdeStatus;
-
-                // UPDATE IN PLACE rather than skipping. A deliverable re-rendered on the
-                // same day keeps its file name but moves CDE state (and its previous copy
-                // is purged), so an early return would leave the row pointing at a deleted
-                // file; on a later day it would instead append a duplicate row. Match on the
-                // deliverable number first (stable across renders), then the file name.
-                JObject existing = null;
-                if (!string.IsNullOrWhiteSpace(docNumber))
-                    existing = register.OfType<JObject>().FirstOrDefault(r =>
-                        string.Equals(r["doc_number"]?.ToString(), docNumber, StringComparison.OrdinalIgnoreCase));
-                if (existing == null)
-                    existing = register.OfType<JObject>().FirstOrDefault(r =>
-                        string.Equals(r["file_name"]?.ToString(), fileName, StringComparison.OrdinalIgnoreCase));
-
-                if (existing != null)
+                int done = 0, added = 0;
+                var now = DateTime.Now;
+                foreach (var item in list)
                 {
-                    existing["file_name"]   = fileName;
-                    existing["file_path"]   = filePath;
-                    existing["file_format"] = fileFormat;
-                    existing["suitability"] = suit;
-                    existing["revision"]    = rev;
-                    existing["status"]      = cde;
-                    existing["cde_status"]  = cde;
-                    existing["date_modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    if (!string.IsNullOrWhiteSpace(docNumber)) existing["doc_number"] = docNumber;
-                    SaveJsonFile(regPath, register);
-                    StingLog.Info($"Auto-register updated: {existing["document_id"]} — {fileName}");
-                    return;
+                    try
+                    {
+                        if (!ExportRegisterUpsert.Apply(register, item, now, Environment.UserName,
+                                                        out _, out bool isNew)) continue;
+                        done++;
+                        if (isNew) added++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"AutoRegisterExport {Path.GetFileName(item.FilePath ?? "")}: {ex.Message}");
+                    }
                 }
-
-                string nextId = NextIdFromArray(register, "DOC", "document_id");
-                var entry = new JObject
+                if (done > 0)
                 {
-                    // doc_id too: the Document Manager's edit paths and most readers use it.
-                    ["doc_id"] = nextId,
-                    ["document_id"] = nextId,
-                    ["title"] = description,
-                    ["file_name"] = fileName,
-                    ["file_path"] = filePath,
-                    ["document_type"] = docType,
-                    ["description"] = description,
-                    ["originator"] = Environment.UserName,
-                    ["date_created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                    ["suitability"] = suit,
-                    ["revision"] = rev,
-                    ["status"] = cde,
-                    ["cde_status"] = cde,
-                    ["file_format"] = fileFormat,
-                    ["source"] = "STING Auto-Export"
-                };
-                // Deliverable-sourced rows carry the ISO 19650 number so the unified
-                // register can match them to their deliverables.json row.
-                if (!string.IsNullOrWhiteSpace(docNumber)) entry["doc_number"] = docNumber;
-
-                register.Add(entry);
-                SaveJsonFile(regPath, register);
-                StingLog.Info($"Auto-registered export: {nextId} — {fileName}");
+                    SaveJsonFile(regPath, register);
+                    StingLog.Info($"Auto-register: {added} added, {done - added} updated — {regPath}");
+                }
+                return done;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"AutoRegisterExport: {ex.Message}");
+                return 0;
             }
         }
 
@@ -3901,25 +3878,7 @@ namespace StingTools.BIMManager
         /// return next ID string. Prevents ID collision after deletions (Count+1 is non-monotonic).
         /// </summary>
         internal static string NextIdFromArray(JArray arr, string prefix, string idField)
-        {
-            // The document register is written with doc_id by some paths and document_id by
-            // others; counting only the requested spelling minted ids that already existed
-            // under the other one.
-            string[] fields = idField == "doc_id" || idField == "document_id"
-                ? new[] { "doc_id", "document_id" } : new[] { idField };
-            int max = 0;
-            foreach (var item in arr)
-            {
-                foreach (string f in fields)
-                {
-                    string id = item[f]?.ToString() ?? "";
-                    if (id.StartsWith(prefix + "-") &&
-                        int.TryParse(id.Substring(prefix.Length + 1), out int n) && n > max)
-                        max = n;
-                }
-            }
-            return $"{prefix}-{(max + 1):D4}";
-        }
+            => ExportRegisterUpsert.NextId(arr, prefix, idField);
     }
 
     internal class BriefcaseItem

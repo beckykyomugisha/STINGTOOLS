@@ -975,7 +975,9 @@ namespace StingTools.Docs
         {
             if (doc == null || profile?.Output == null || !profile.Output.CdeAutoRegister) return;
             if (result == null || result.Cancelled) return;
-            int n = 0;
+            // Collected, then recorded with one register load and one save (DOCX-13):
+            // per-file calls re-read and re-wrote the whole register for every file.
+            var batch = new List<BIMManager.ExportRegistration>();
             foreach (var r in result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? "")))
             {
                 try
@@ -993,13 +995,20 @@ namespace StingTools.Docs
                     }
                     string state = Core.Drawing.Iso19650Suitability.CdeStateFor(code) ?? "WIP";
                     string type = r.Format is "IFC" or "NWC" ? "M3" : "DR";
-                    BIMManager.BIMManagerEngine.AutoRegisterExport(doc, r.OutputPath, type,
-                        $"{title} ({r.Format})", code ?? Core.Drawing.Iso19650Suitability.DefaultFor(state),
-                        rev, state, docNumber);
-                    n++;
+                    batch.Add(new BIMManager.ExportRegistration
+                    {
+                        FilePath = r.OutputPath,
+                        DocType = type,
+                        Description = $"{title} ({r.Format})",
+                        Suitability = code ?? Core.Drawing.Iso19650Suitability.DefaultFor(state),
+                        Revision = rev,
+                        CdeStatus = state,
+                        DocNumber = docNumber,
+                    });
                 }
                 catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber}/{r.Format}: {ex.Message}"); }
             }
+            int n = BIMManager.BIMManagerEngine.AutoRegisterExports(doc, batch);
             if (n > 0) StingLog.Info($"Export Centre: {n} file(s) recorded in the document register.");
         }
 
