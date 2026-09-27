@@ -1133,7 +1133,7 @@ Rules live in the same JSON as `routing[]` — first-match-wins rules of the sha
 
 ### Token patterns
 
-Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.SubstituteTokens`:
+Sheet number patterns are substituted by `SheetNumberEngine.ApplyTokenPattern` (Drawing Types production and `DrawingTypes_Renumber`: values are sanitised and capped at 8 characters, and an empty value prints `XX`). The fabrication composer's `ShopDrawingComposer.SubstituteTokens` substitutes the same tokens in sheet numbers and sheet names without the cap or the `XX` placeholder, because a name must not be truncated. All of them read `{seq}` and the aliases through `Core/Drawing/SheetNumberTokens`.
 
 | Token | Replaced with |
 |---|---|
@@ -1143,8 +1143,11 @@ Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.Sub
 | `{sys}` | Sanitised system code |
 | `{lvl}` | Level code |
 | `{mark}` | Section / elevation / detail mark |
-| `{seq}` | Zero-padded 4-digit sequence (default) |
-| `{seq:D2}` / `{seq:D3}` / `{seq:D4}` | Zero-padded sequence with explicit width |
+| `{purpose}` | Drawing purpose |
+| `{project}` / `{proj}`, `{originator}` / `{orig}` | Project and originator codes (the two spellings are one token) |
+| `{vol}`, `{type}`, `{role}`, `{suit}`, `{rev}` | ISO 19650 fields, from `DrawingTokenContext` |
+| `{seq}` | Zero-padded 4-digit sequence (`SheetNumberTokens.DefaultSeqWidth`) |
+| `{seq:Dn}` | Zero-padded sequence, n digits (capped at 8) |
 
 ### New classes
 

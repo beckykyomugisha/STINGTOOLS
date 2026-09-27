@@ -24351,3 +24351,38 @@ Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,560 p
 
   The row rule (update by deliverable number, then file name; new rows carry both `doc_id` and `document_id`) moved unchanged into the Revit-free `BIMManager/ExportRegisterUpsert.cs`. Single-file `AutoRegisterExport` is now a one-item batch, so all 17 callers share the rule. `ExportRegisterUpsert` has 6 new tests.
 - Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,572 passing. Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass. Not exercised in Revit.
+
+#### Remaining document-control and platform gaps closed (IM-1, IM-3, IM-11, IM-12, IM-17, IM-18)
+
+- **IM-17: transmittal status.** New `BIMManager/TransmittalRecord.cs` (Revit-free) holds the status vocabulary (`TransmittalStatus`) and one reader for the three row shapes the writers produce.
+  - The ACC publish records `PREPARED` with no issue date. A successful upload of that exact bundle marks it `SENT`; the transmittal id travels in `last_bundle.json`.
+  - A MIDP drop stays `ISSUED`, which is now in the vocabulary.
+  - The Document Manager no longer coerces unknown statuses to `DRAFT`, and shows the date, recipient and document count for every row shape.
+  - The title-block transmittal stamp reads through the same helper and prints no issue date for a `PREPARED` row.
+  - Also fixed on the way: Newtonsoft parsed ISO date strings into date tokens that printed in the machine's culture. The reader keeps ISO.
+- **IM-11 / IM-12: warnings trend (server).** `ComplianceSnapshots` gains `Kind` (`compliance` by default, `warnings` for pushed reports), added idempotently by `PlatformSchemaPatcher`.
+  - `POST /warnings/report` stores a row, skipping an unchanged report within 15 minutes.
+  - The warnings trend includes zero-warning reports.
+  - The compliance endpoints and the dashboard trend skip `warnings` rows. Dropping the old `> 0` filter alone would have plotted every background compliance snapshot as a clean scan.
+  - `WarningsTrendTests`: 2 of 3 failed on the old code. They pass now, alongside the existing compliance and warnings tests (22).
+  - Needs a server redeploy; the column is added on boot.
+- **IM-18: ACC container ids are per project.** `projectId` / `coordContainerId` are now read from `acc_settings.json` first. The machine credentials file is a logged, deprecated fallback.
+  - Saving never writes a project's ids, or its per-container issue type, into the machine file.
+  - The BCC ACC card saves the ids per project.
+  - All four ACC commands load through `AccProjectSettingsFile.LoadCredentials(doc, …)`.
+  - Also fixed: serialising the computed `IsStale` threw on a never-set token expiry, so a first-time "Save Credentials" wrote nothing. It is now `[JsonIgnore]`.
+  - `AccProjectScopeTests`: 8.
+- **IM-1: legacy templates carried forward.** Legacy templates and workflows are copied into the consolidated folder before extraction, so stock copies no longer shadow a project's customised ones.
+- **IM-3: link config path.** The BCC members tab resolves the Planscape link config through `ResolveConfigPath`. `ConfigPathForModel` is now private.
+- **Data-store carry-forward.** `GetStorePath` copies sibling folders recursively (`OutputLocationHelper.CopyTree`).
+- **Docs.**
+  - CLAUDE.md's token table names the builders correctly and lists every token.
+  - ROADMAP IM-2 was stale: the path-discipline baseline is empty, so it is closed.
+  - The KUT runbook says where the container ids now live.
+- **Verification.**
+  - Plugin build: 0 errors, 2 warnings.
+  - `StingTools.Tags.Tests`: 3,582 passing.
+  - `StingTools.Acc.Tests`: 140 passing.
+  - Server warnings and compliance tests: 22 passing.
+  - Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass.
+  - Not exercised in Revit.

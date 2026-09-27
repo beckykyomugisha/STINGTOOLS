@@ -191,6 +191,20 @@ namespace StingTools.Core
             return GetOutputDirectory(doc);
         }
 
+        /// <summary>Copy a directory tree, creating folders as needed. Existing files in
+        /// the destination are kept (the caller only copies into a fresh folder).</summary>
+        internal static void CopyTree(string from, string to)
+        {
+            Directory.CreateDirectory(to);
+            foreach (string f in Directory.GetFiles(from))
+            {
+                string dest = Path.Combine(to, Path.GetFileName(f));
+                if (!File.Exists(dest)) File.Copy(f, dest);
+            }
+            foreach (string d in Directory.GetDirectories(from))
+                CopyTree(d, Path.Combine(to, Path.GetFileName(d)));
+        }
+
         /// <summary>
         /// A plugin DATA STORE — a file the plugin writes and later reads back (clash
         /// results, logs, overrides) — under &lt;root&gt;/_data/coord/&lt;area&gt;/.
@@ -237,9 +251,9 @@ namespace StingTools.Core
                         string from = Path.Combine(legacyDir, sib);
                         string to = Path.Combine(targetDir, sib);
                         if (!Directory.Exists(from) || Directory.Exists(to)) continue;
-                        Directory.CreateDirectory(to);
-                        foreach (string f in Directory.GetFiles(from))
-                            File.Copy(f, Path.Combine(to, Path.GetFileName(f)));
+                        // Whole tree, not just the top level: a sub-folder left behind would
+                        // move with the renamed legacy folder and never be read again.
+                        CopyTree(from, to);
                         Directory.Move(from, from + stamp);
                         StingLog.Info($"Store folder carried forward: {from} -> {to}");
                     }
