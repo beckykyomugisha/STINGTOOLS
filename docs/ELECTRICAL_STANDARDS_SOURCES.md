@@ -42,6 +42,8 @@ rows compared against an NBR-only row carry less weight.
 | F | [Elec-Mate `useEVChargingSmartForm.ts`](https://github.com/Gangoo91/Elec-Mate-Merge/blob/main/src/hooks/inspection/useEVChargingSmartForm.ts) | 4E4B 1.5–25 mm². |
 | G | [Pedroaaandrade `index.html`](https://github.com/Pedroaaandrade/bs7671-Cable-sizing-calculator/blob/main/index.html) | 4D1A B/C/F and 4D4A (including D1/D2), plus 4D4B r and x. It was committed after A, so it only corroborates and never counts as the second source on its own. |
 | H | IEC 60364-5-52 Tables B.52.2–B.52.5 in two transcriptions: [Ali-3427/ElektroPlan](https://github.com/Ali-3427/ElektroPlan/tree/16f96142691e6455339c54ccd58b3f2a63e2c0a3/packages/calculation-data/src/iec/cable-ampacity) @16f9614 and [m0000hamad/CableSizer](https://github.com/m0000hamad/CableSizer/blob/4ac0a7b0e7d3a8ff89ae7d421033886e5d71d102/index.html) @4ac0a7b ([AjmalJamseeth/ajpowerapps](https://github.com/AjmalJamseeth/ajpowerapps/blob/79943a536a53aa0925f9ed5fef281feecc561efb/src/lib/cable.ts) corroborates D1) | Second source for the armoured D1 and D2 columns (4D4A, 4E4A). |
+| I | Scans of the printed BS 7671 Tables 4D1B and 4E1B embedded in [amoadel1/IDP1-Electrical-Installation-Design](https://github.com/amoadel1/IDP1-Electrical-Installation-Design/blob/1c11bde/Final/IDP1-Final-Report.pdf) @1c11bde (report pp. 118–119), transcribed by eye. The scans are about 930×600 px, so a single digit could be misread; only cells where they agree with D are used. | Second source for 4D1B at 25 mm² and above. |
+| J | Three BS 7671 student design reports that quote Table 4E2B: [Deelaka8](https://github.com/Deelaka8/Electrical_System_Design_for_MultiStorey_Apartment_Building-/tree/eeffd8b) @eeffd8b, [mushrif-rila](https://github.com/mushrif-rila/Electrical-System-Design-for-Three-story-Building/tree/8151c4f) @8151c4f, [ThisaraDhathiya](https://github.com/ThisaraDhathiya) @0986d07. They likely share course notes, so they count as one source. | Second source for 4E2B at 1, 1.5, 2.5, 4 and 16 mm². |
 | — | IEC 60364-5-52 B.52.17 transcriptions ([FabriNeves](https://github.com/FabriNeves/Dimensionamento-de-cabos-BT), [llosinskas](https://github.com/llosinskas/Circuits-FreeCAD), [electrical-dev](https://github.com/electrical-dev/WebSite)) | Table 4C1 ladder row, including the 2-circuit factor 0.87. |
 
 Rejected: three repositories whose values were fabricated, called "representative" by their
@@ -87,9 +89,25 @@ of its capacity table.
 |---|---|---|
 | 4D2B | ≤ 16 mm²: earlier data, A and D. ≥ 25 mm²: D only. | ≤ 16 mm² |
 | 4D4B | D (≤ 16 mm² also A; ≥ 25 mm² r and x also G) | ≤ 16 mm² (at 25 mm² and above only r and x are two-source, not z) |
-| 4E2B | D only | none |
+| 4E2B | D (J for some cells) | 1, 1.5, 2.5, 4 and 16 mm² (J also agrees on 3-phase z at 10, 25, 35, 50 and 95 mm², but a row needs both columns) |
 | 4E4B | D, E, F | ≤ 16 mm², and z at 25–120 and 400 mm² |
-| 4D1B | A ≤ 16 mm² | none. At 25 mm² and above, A and D disagree in almost every cell, so nothing is carried and those sizes are refused. |
+| 4D1B | ≤ 16 mm²: A. ≥ 25 mm²: D, checked against I. | ≥ 25 mm², every size carried (I and D agree on each value used). Not ≤ 16 mm². |
+
+**Single-core 4D1B.** At 25 mm² and above the table splits by arrangement. Methods A and B take
+the enclosed columns (A&B). Methods C and F take single-phase "cables touching" and three-phase
+"flat touching"; flat touching is at or above trefoil at every size, so that choice is
+conservative. The scan (I) agrees with D on 308 of 318 comparable 4D1B cells and on every 4E1B
+cell. It settles the earlier disagreement: A's figures at 25 mm² and above match the printed
+table in 1 of 20 cells and are not used. The scan also shows three D typos, none in a column
+STING uses (trefoil 400 and 500 mm², flat-spaced 150 mm²).
+
+**Other second sources looked at and not counted.** hiufsitake/EEE agrees with 4D4B z at 25–300
+mm², but it shares a typo with G and so is not independent. Osmoore/p2-cable-calculator agrees
+with 4D2B at 25–70 mm², but from 95 mm² its r column equals D's d.c. column, which suggests it
+was built from D. EEE gives 4D4B 400 mm² single-phase z as 0.185 against D's 0.186;
+√(0.115² + 0.145²) = 0.185, so 0.186 is likely a D slip. It is kept because it is the higher
+value. No second source was found for 4E4B at 150–300 mm², 4E2B at 70 mm² and at 120 mm² and
+above, or 4D2B z at 95 mm² and above.
 
 The 4E2B and 4E4B values up to 16 mm² briefly shipped as **derived** figures: 2 or √3 × the
 BS EN 60228 resistance at 90 °C, rounded up. The transcriptions replaced them. Every

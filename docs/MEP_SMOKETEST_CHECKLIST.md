@@ -96,7 +96,7 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 | ☐ | CABLE → Calculate, BS 7671, PVC, Multicore, method **B2**, 20 A load, 10 m | [RO] | → **Expect** 2.5 mm², basis names Table 4D2A method B, no VERIFY | ELEC-3 |
 | ☐ | same, **XLPE (90°C)**, method C, 20 A | [RO] | → **Expect** 1.5 mm², 31 mV/A/m, VERIFY naming mV/A/m (Table 4E2B) | 4E2B has a single source. |
 | ☐ | same, XLPE, **armoured**, 110 A | [RO] | → **Expect** 25 mm², z 1.90, no VERIFY | 4E4A C and 4E4B 25 mm² are two-source checked. |
-| ☐ | same, PVC, **single-core**, 110 A | [RO] | → **Expect** refused: "Table 4D1B mV/A/m is not carried for …" | Single-core ≥ 25 mm² sources disagree. |
+| ☐ | same, PVC, **single-core**, 110 A | [RO] | → **Expect** 35 mm² from Table 4D1A method C, 1.25 mV/A/m, no VERIFY | 4D1B ≥ 25 mm² checked against a scan of the printed table. |
 | ☐ | same, PVC, cable type **Multicore armoured SWA**, method C | [RO] | → **Expect** 1.5 mm² from Table 4D4A, no VERIFY | 4D4A and 4D4B ≤ 16 mm² are two-source checked. |
 | ☐ | same, armoured, method **D2** (direct in ground) | [RO] | → **Expect** 1.5 mm² (22 A) from Table 4D4A method D2, no VERIFY | D2 checked against IEC 60364-5-52. |
 | ☐ | same, cable type **Single-core**, method A1 | [RO] | → **Expect** basis names Table 4D1A method A | |

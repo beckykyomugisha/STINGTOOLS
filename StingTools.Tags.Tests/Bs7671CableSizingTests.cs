@@ -307,10 +307,10 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Xlpe_sizes_on_the_transcribed_4E2B_and_flags_it_single_source()
+        public void Xlpe_sizes_on_the_transcribed_4E2B_and_it_is_two_source_checked()
         {
-            // 4E2A method C: 1.0 mm² 19 A ✗, 1.5 mm² 24 A ✓. 4E2B 1.5 mm² = 31 mV/A/m (HK CoP A6(6)):
-            // 31 × 20 × 10 / 1000 = 6.2 V = 2.70 % of 230 V ≤ 5 %.
+            // 4E2A method C: 1.0 mm² 19 A ✗, 1.5 mm² 24 A ✓. 4E2B 1.5 mm² = 31 mV/A/m (HK CoP A6(6),
+            // and the student reports quoting 4E2B): 31 × 20 × 10 / 1000 = 6.2 V = 2.70 % of 230 V.
             var i = Pvc(20, 10, 5.0);
             i.Insulation = "XLPE90";
             var r = Bs7671CableSizer.Size(i, Data());
@@ -318,8 +318,8 @@ namespace StingTools.Tags.Tests
             Assert.Equal(1.5, r.CsaMm2);
             Assert.Equal(31.0, r.MvAm);
             Assert.Equal(6.2, r.VoltDropV, 6);
-            Assert.True(r.UnverifiedVoltDrop);
-            Assert.Contains("mV/A/m (Table 4E2B)", r.Basis);
+            Assert.False(r.UnverifiedVoltDrop);
+            Assert.DoesNotContain("VERIFY", r.Basis);
         }
 
         [Fact]
@@ -334,7 +334,8 @@ namespace StingTools.Tags.Tests
             Assert.Equal(25.0, r.CsaMm2);
             Assert.Equal(1.90, r.MvAm, 6);
             Assert.Equal(2.09, r.VoltDropV, 6);
-            Assert.True(r.UnverifiedVoltDrop);
+            Assert.True(r.UnverifiedVoltDrop);   // 4E2B 1-ph at 25 mm² is still single-source
+            Assert.Contains("mV/A/m (Table 4E2B)", r.Basis);
         }
 
         [Fact]
@@ -355,15 +356,43 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Single_core_25mm2_and_above_is_still_refused_for_want_of_voltage_drop_data()
+        public void Single_core_25mm2_and_above_sizes_on_the_checked_4D1B_values()
         {
-            // The 4D1B sources disagree from 25 mm² (single-core r/x/z by arrangement), so none is carried.
+            // 110 A needs In 125 A, above the 25 mm² It (114 A), so 35 mm² (141 A). Method C,
+            // single-phase: 4D1B "cables touching" z = 1.25, agreed by the HK CoP 2020 and a
+            // scan of the printed table. 1.25 × 110 × 10 / 1000 = 1.375 V.
             var i = Pvc(110, 10, 5.0);
             i.CableType = "SingleCore";
             var r = Bs7671CableSizer.Size(i, Data());
-            Assert.False(r.Sized);
-            Assert.Contains("4D1B mV/A/m is not carried for", r.Refusal);
-            Assert.Contains("will not estimate voltage drop", r.Refusal);
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(35.0, r.CsaMm2);
+            Assert.Equal(1.25, r.MvAm, 6);
+            Assert.Equal(1.375, r.VoltDropV, 6);
+            Assert.False(r.UnverifiedRow);
+            Assert.DoesNotContain("VERIFY", r.Basis);
+        }
+
+        [Theory]
+        // method, csa, 1-ph z, 3-ph z  (A/B enclosed; C/F 1-ph touching and 3-ph flat touching)
+        [InlineData("A", 25.0, 1.8, 1.55)]
+        [InlineData("B", 400.0, 0.29, 0.25)]
+        [InlineData("C", 185.0, 0.29, 0.31)]
+        [InlineData("F", 400.0, 0.2, 0.24)]
+        public void Table_4D1B_values_by_arrangement(string method, double csa, double mv1, double mv3)
+        {
+            var t = Data().FindTable("Cu", "PVC70", method, "SingleCore");
+            var row = t.Rows.Single(r => r.CsaMm2 == csa);
+            Assert.Equal(mv1, row.MvAm1ph, 6);
+            Assert.Equal(mv3, row.MvAm3ph, 6);
+            Assert.True(row.MvVerified);
+        }
+
+        [Fact]
+        public void Every_table_carries_voltage_drop_at_every_size()
+        {
+            // Single-core 25 mm² and above was refused until 4D1B had a second source.
+            foreach (var t in Data().Tables)
+                Assert.All(t.Rows, r => Assert.True(r.MvAm1ph > 0 && r.MvAm3ph > 0, $"{t.Id} {t.InstallMethod} {r.CsaMm2}"));
         }
 
         // The conservative rule the derived 4E2B / 4E4B values used before transcriptions were found:
@@ -405,13 +434,6 @@ namespace StingTools.Tags.Tests
             Assert.Equal(mv1, row.MvAm1ph, 6);
             Assert.Equal(mv3, row.MvAm3ph, 6);
             Assert.Equal(checkedTwice, row.MvVerified);
-        }
-
-        [Fact]
-        public void Every_multicore_table_carries_voltage_drop_at_every_size()
-        {
-            foreach (var t in Data().Tables.Where(t => t.CableType != "SingleCore"))
-                Assert.All(t.Rows, r => Assert.True(r.MvAm1ph > 0 && r.MvAm3ph > 0, $"{t.Id} {t.InstallMethod} {r.CsaMm2}"));
         }
 
         [Fact]
