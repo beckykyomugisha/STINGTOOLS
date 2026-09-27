@@ -23889,3 +23889,22 @@ GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOUR
   test; `Every_capacity_row_is_two_source_checked` fails on any future single-source row.
   3,419 passing.
 - **Not exercised in Revit.**
+
+#### BS 7671 voltage drop: single-core 4D1B carried, 4E2B partly checked (2026-09-27)
+
+- **Single-core 4D1B at 25 mm² and above now sizes.** The values are the HK CoP 2020 Table
+  A6(1) transcription, checked cell by cell against scans of the printed Table 4D1B in a public
+  design report (amoadel1/IDP1-Electrical-Installation-Design). Every value carried agrees, so
+  every row is `mvVerified`.
+  - Methods A/B use the enclosed columns. C/F use single-phase "touching" and three-phase
+    "flat touching", which is at or above trefoil at every size, so it is the conservative choice.
+  - The scan settles the old disagreement: Elec-Mate's figures at these sizes match the printed
+    table in 1 of 20 cells and are not used.
+- **4E2B** 1, 1.5, 2.5, 4 and 16 mm² are two-source checked, against three student design
+  reports that quote Table 4E2B, counted as one source.
+- **Looked at, not counted.** hiufsitake/EEE (4D4B) is derived from a source already used.
+  Osmoore (4D2B) appears to be built from the HK tables. Still single source: 4E2B 6, 10 and
+  ≥ 25 mm²; 4D2B / 4D4B z ≥ 25 mm²; 4E4B 150–300 mm²; 4D1B ≤ 16 mm².
+- **Tests.** Single-core 110 A now sizes at 35 mm², 1.25 mV/A/m. 4D1B values are pinned by
+  arrangement. Every table must carry voltage drop at every size. 3,423 passing.
+- **Not exercised in Revit.**
