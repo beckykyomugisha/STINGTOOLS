@@ -247,6 +247,9 @@ namespace StingTools.UI
                 DerateFactor = ParseDouble(FeederDerateFactor?.Text, 0.8),
                 DiversityPct = ParseDouble(FeederDiversityPct?.Text, 100),
                 InstallMethod = ((FeederInstallMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C",
+                Insulation = ((FeederInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70",
+                CableType = ((FeederCableType?.SelectedItem as ComboBoxItem)?.Tag as string)
+                            ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
                 VDLimitPct = feederVd > 0 ? feederVd : ParseDouble(txtVDOther?.Text, 5.0),
                 VDLimitUserSet = feederVd > 0,
             };
@@ -684,6 +687,9 @@ namespace StingTools.UI
             ((cmbWireRefInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70";
         public string GetWireRefMethod() =>
             ((cmbWireRefMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C";
+        public string GetWireRefCableType() =>
+            ((cmbWireRefCableType?.SelectedItem as ComboBoxItem)?.Tag as string)
+            ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
     }
 
     // ─────────────────────────────────────────────────────────────────────

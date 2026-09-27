@@ -636,6 +636,21 @@
                                     <ComboBoxItem Content="B1 — Conduit on a wall" Tag="B1"/>
                                     <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
                                     <ComboBoxItem Content="E — Free air" Tag="E"/>
+                                    <ComboBoxItem Content="F — Single-core in free air" Tag="F"/>
+                                    <ComboBoxItem Content="D1 — Armoured in a duct in the ground" Tag="D1"/>
+                                    <ComboBoxItem Content="D2 — Armoured direct in the ground" Tag="D2"/>
+                                </ComboBox>
+                                <TextBlock Text="Feeder insulation" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FeederInsulation" FontSize="10">
+                                    <ComboBoxItem Content="PVC (70°C)" IsSelected="True" Tag="PVC70"/>
+                                    <ComboBoxItem Content="XLPE (90°C)" Tag="XLPE90"/>
+                                </ComboBox>
+                                <TextBlock Text="Feeder cable type" Style="{StaticResource ElecLabel}"/>
+                                <ComboBox x:Name="FeederCableType" FontSize="10"
+                                          ToolTip="With insulation and method this picks the BS 7671 Appendix 4 table; a combination with no table is refused and says so">
+                                    <ComboBoxItem Content="Multicore, non-armoured (4D2A / 4E2A)" IsSelected="True" Tag="Multicore"/>
+                                    <ComboBoxItem Content="Single-core, non-armoured (4D1A)" Tag="SingleCore"/>
+                                    <ComboBoxItem Content="Multicore armoured SWA (4D4A / 4E4A)" Tag="ArmouredMulticore"/>
                                 </ComboBox>
                                 <!-- The former "Diversity mode" combo (None / BS 7671 App 1 / NEC 220.83 /
                                      User) was never read: only the % box reached the sizer, and it was
@@ -819,7 +834,7 @@
                                     <ComboBoxItem Content="Multicore, non-armoured (4D2A / 4E2A)" IsSelected="True" Tag="Multicore"/>
                                     <ComboBoxItem Content="Single-core, non-armoured (4D1A)" Tag="SingleCore"/>
                                     <ComboBoxItem Content="Multicore armoured SWA (4D4A / 4E4A)" Tag="ArmouredMulticore"
-                                                  ToolTip="Current ratings from a single transcription — every result is flagged VERIFY"/>
+                                                  ToolTip="Methods C, E, D1 and D2. Any value not confirmed by two sources is flagged VERIFY in the result"/>
                                 </ComboBox>
                                 <TextBlock Grid.Row="8" Grid.Column="0" Text="VD limit (%)" Style="{StaticResource ElecLabel}"/>
                                 <TextBox Grid.Row="8" Grid.Column="1" x:Name="txtCblVDLimit" Text="3" Margin="2" FontSize="10"/>
@@ -912,7 +927,7 @@
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
-                                        <RowDefinition/><RowDefinition/><RowDefinition/>
+                                        <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
                                     </Grid.RowDefinitions>
                                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Material" Style="{StaticResource ElecLabel}"/>
                                     <ComboBox Grid.Row="0" Grid.Column="1" x:Name="cmbWireRefMaterial" Margin="2" FontSize="10"
@@ -923,16 +938,27 @@
                                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
                                     <ComboBox Grid.Row="1" Grid.Column="1" x:Name="cmbWireRefInsulation" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
-                                        <ComboBoxItem Content="PVC 70°C (Table 4D2A)" IsSelected="True" Tag="PVC70"/>
-                                        <ComboBoxItem Content="XLPE 90°C (no table shipped)" Tag="XLPE90"/>
+                                        <ComboBoxItem Content="PVC 70°C (4D1A / 4D2A / 4D4A)" IsSelected="True" Tag="PVC70"/>
+                                        <ComboBoxItem Content="XLPE 90°C (4E2A / 4E4A)" Tag="XLPE90"/>
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Cable type" Style="{StaticResource ElecLabel}"/>
+                                    <ComboBox Grid.Row="3" Grid.Column="1" x:Name="cmbWireRefCableType" Margin="2" FontSize="10"
+                                              SelectionChanged="WireRef_Changed"
+                                              ToolTip="A combination with no shipped table says so; nothing is approximated from another table">
+                                        <ComboBoxItem Content="Multicore, non-armoured" IsSelected="True" Tag="Multicore"/>
+                                        <ComboBoxItem Content="Single-core, non-armoured (PVC only)" Tag="SingleCore"/>
+                                        <ComboBoxItem Content="Multicore armoured SWA" Tag="ArmouredMulticore"/>
                                     </ComboBox>
                                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Method" Style="{StaticResource ElecLabel}"/>
                                     <ComboBox Grid.Row="2" Grid.Column="1" x:Name="cmbWireRefMethod" Margin="2" FontSize="10"
                                               SelectionChanged="WireRef_Changed">
+                                        <ComboBoxItem Content="A — Enclosed in insulated wall" Tag="A1"/>
+                                        <ComboBoxItem Content="B — Enclosed on a wall / trunking" Tag="B1"/>
                                         <ComboBoxItem Content="C — Clipped direct" IsSelected="True" Tag="C"/>
-                                        <ComboBoxItem Content="A1 (no table shipped)" Tag="A1"/>
-                                        <ComboBoxItem Content="B1 (no table shipped)" Tag="B1"/>
-                                        <ComboBoxItem Content="E (no table shipped)" Tag="E"/>
+                                        <ComboBoxItem Content="E — Multicore in free air" Tag="E"/>
+                                        <ComboBoxItem Content="F — Single-core in free air" Tag="F"/>
+                                        <ComboBoxItem Content="D1 — Armoured in a duct in the ground" Tag="D1"/>
+                                        <ComboBoxItem Content="D2 — Armoured direct in the ground" Tag="D2"/>
                                     </ComboBox>
                                 </Grid>
                                 <DataGrid x:Name="WireRefGrid" AutoGenerateColumns="False" CanUserAddRows="False"
@@ -947,7 +973,7 @@
                                     </DataGrid.Columns>
                                 </DataGrid>
                                 <TextBlock x:Name="txtWireRefBasis" TextWrapping="Wrap" FontSize="9" Opacity="0.8" Margin="0,2"
-                                           Text="BS 7671 Appendix 4 Table 4D2A (It) / 4D2B (mV/A/m), copper PVC 70 °C, method C."/>
+                                           Text="BS 7671 Appendix 4 Table 4D2A (It) / 4D2B (mV/A/m), copper PVC 70 °C, multicore, method C."/>
                             </StackPanel>
                         </Expander>
 

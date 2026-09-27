@@ -23965,3 +23965,23 @@ multicore or hid unchecked values.
   - built-in 4D2B verification flags pinned to the data file;
   - `MaxTabulatedIt` exceeds the PVC figure.
 - **Not exercised in Revit.**
+
+#### Cable-type pickers for the wire reference grid and feeder sizing (2026-09-27)
+
+- **Wire reference grid.**
+  - It gains a cable-type picker (multicore / single-core / armoured SWA).
+  - Its method list now covers every shipped method: A, B, C, E, F, D1 and D2.
+  - Every table can now be browsed there.
+  - The old labels said XLPE, A1, B1 and E had "no table shipped"; those tables have shipped.
+  - A combination with no table (single-core XLPE, for example) says so and names the shipped
+    tables.
+- **Feeder sizing.**
+  - The expander gains its own insulation and cable-type pickers, and methods F, D1 and D2.
+  - Feeders no longer take these from the CABLE tab.
+  - The default stays PVC multicore.
+- The armoured SWA tooltip on the CABLE tab said every result is flagged VERIFY. That stopped
+  being true once every current rating was two-source checked; the tooltip now says only
+  unconfirmed values are flagged.
+- **Tests.** 3,438 passing. Every picker combination resolves to its table, and those with no
+  table resolve to none.
+- **Not exercised in Revit.**

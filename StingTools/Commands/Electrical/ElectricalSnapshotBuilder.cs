@@ -277,22 +277,27 @@ namespace StingTools.Commands.Electrical
         /// unsourced ×0.78.
         /// </summary>
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method)
-            => BuildWireRefRows(material, insulation, method, out _);
+            => BuildWireRefRows(material, insulation, method, StingTools.Core.Electrical.Bs7671Data.DefaultCableType, out _);
 
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method, out string basis)
+            => BuildWireRefRows(material, insulation, method, StingTools.Core.Electrical.Bs7671Data.DefaultCableType, out basis);
+
+        public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method,
+                                                        string cableType, out string basis)
         {
+            if (string.IsNullOrEmpty(cableType)) cableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
             var rows = new List<WireRefRow>();
             basis = "";
             try
             {
                 var data = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
-                var table = data?.FindTable(material, insulation, method);
+                var table = data?.FindTable(material, insulation, method, cableType);
                 if (table == null)
                 {
                     string have = data == null || data.Tables.Count == 0
                         ? "none (STING_WIRE_TABLES.json bs7671Appendix4 not found)"
-                        : string.Join(", ", data.Tables.Select(t => $"{t.Conductor} {t.Insulation} method {t.InstallMethod} (Table {t.Id})"));
-                    basis = $"No BS 7671 Appendix 4 table shipped for {material} / {insulation} / method {method}. " +
+                        : string.Join(", ", data.Tables.Select(t => $"{t.Conductor} {t.Insulation} {t.CableType} method {t.InstallMethod} (Table {t.Id})"));
+                    basis = $"No BS 7671 Appendix 4 table shipped for {material} / {insulation} / {cableType} / method {method}. " +
                             $"Shipped: {have}. Values are not approximated from another table.";
                     rows.Add(new WireRefRow { Size = "—", Imax1Ph = "no table shipped", Imax3Ph = "", Mv1Ph = "", Mv3Ph = "" });
                     return rows;

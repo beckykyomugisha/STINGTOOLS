@@ -470,6 +470,30 @@ namespace StingTools.Tags.Tests
             Assert.Null(none);
         }
 
+        [Theory]
+        // The method tags the wire reference grid and the feeder picker offer, per cable type.
+        [InlineData("PVC70",  "SingleCore",        "A1", "4D1A")]
+        [InlineData("PVC70",  "SingleCore",        "B1", "4D1A")]
+        [InlineData("PVC70",  "SingleCore",        "F",  "4D1A")]
+        [InlineData("PVC70",  "Multicore",         "A1", "4D2A")]
+        [InlineData("PVC70",  "Multicore",         "E",  "4D2A")]
+        [InlineData("XLPE90", "Multicore",         "B1", "4E2A")]
+        [InlineData("PVC70",  "ArmouredMulticore", "D1", "4D4A")]
+        [InlineData("XLPE90", "ArmouredMulticore", "D2", "4E4A")]
+        public void Picker_combinations_resolve_to_their_table(string ins, string type, string method, string id)
+        {
+            var t = Data().FindTable("Cu", ins, method, type);
+            Assert.NotNull(t);
+            Assert.Equal(id, t.Id);
+        }
+
+        [Theory]
+        [InlineData("XLPE90", "SingleCore",        "C")]   // 4E1A not shipped
+        [InlineData("PVC70",  "ArmouredMulticore", "A1")]  // 4D4A has no method A
+        [InlineData("PVC70",  "Multicore",         "D1")]  // 4D2A has no method D
+        public void Picker_combinations_without_a_table_find_none(string ins, string type, string method)
+            => Assert.Null(Data().FindTable("Cu", ins, method, type));
+
         [Fact]
         public void Every_capacity_row_is_two_source_checked()
         {

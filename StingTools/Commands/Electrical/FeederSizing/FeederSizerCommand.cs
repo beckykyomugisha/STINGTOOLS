@@ -18,6 +18,10 @@ namespace StingTools.Commands.Electrical.FeederSizing
         /// <summary>Applied to the supply-circuit apparent load; 100 = none.</summary>
         public double DiversityPct;
         public string InstallMethod;
+        /// <summary>PVC70 or XLPE90, and the cable type; with the method they pick the
+        /// Appendix 4 table. Set in the FEEDER SIZING expander, not taken from the CABLE tab.</summary>
+        public string Insulation = "PVC70";
+        public string CableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
         /// <summary>Feeder VD limit. Defaults to the BS 7671 Appendix 12 'other' limit
         /// (5 %); was hard-coded 2 %, which upsized every feeder against a limit no
         /// standard sets.</summary>
@@ -137,7 +141,6 @@ namespace StingTools.Commands.Electrical.FeederSizing
             if (node == null) return;
             if (!isRoot && node.IsPanel)
             {
-                var cable = StingElectricalCommandHandler.CurrentCableSizeInput;
                 var input = new FeederSizeInput
                 {
                     PanelName       = node.Label ?? "",
@@ -145,14 +148,14 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     DiversityFactor = s.DiversityPct > 0 ? s.DiversityPct / 100.0 : 1.0,
                     InstallMethod   = s.InstallMethod ?? "C",
                     Material        = "Cu",
-                    Insulation      = string.IsNullOrEmpty(cable?.Insulation) ? "PVC70" : cable.Insulation,
-                    CableType       = string.IsNullOrEmpty(cable?.CableType)
-                                          ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : cable.CableType,
+                    Insulation      = string.IsNullOrEmpty(s.Insulation) ? "PVC70" : s.Insulation,
+                    CableType       = string.IsNullOrEmpty(s.CableType)
+                                          ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : s.CableType,
                     VDLimitPct      = s.VDLimitPct > 0 ? s.VDLimitPct : FeederSettingsSnapshot.DefaultVdLimitPct,
                     Standard        = "BS7671"
                 };
-                // Insulation and cable type are the CABLE tab's (PVC70 multicore when unset),
-                // as the breaker sizer uses; the table they select is named in every Basis.
+                // Insulation and cable type come from the FEEDER SIZING expander (PVC70
+                // multicore when unset); the table they select is named in every Basis.
 
                 // ELEC-3: length, voltage, poles and load come from the circuit that FEEDS
                 // this panel. They were hard-coded (10 m / 415 V / 3-ph / PF 0.85 on the SLD
