@@ -31,7 +31,7 @@ namespace StingTools.Temp
     ///  17.  Auto-create legends (discipline + system + filter)
     ///  18.  Tag sheets (ISO 19650 document codes)
     ///  19.  Generate BEP + export XLSX
-    ///  20.  Healthcare pack (only when PRJ_ORG_HEALTH_PACK_PROFILE_TXT is set)
+    ///  20.  Healthcare profile noted (informational; COBie wizard pre-selects the preset)
     ///  21.  Seed the PBR textures folder
     ///
     /// The report numbers every sub-step it runs (about 30), so its numbering is
@@ -81,8 +81,7 @@ namespace StingTools.Temp
                 " 17.  Auto-create legends (discipline + system)\n" +
                 " 18.  Tag sheets (ISO 19650 document codes)\n" +
                 " 19.  Generate BEP + Export XLSX (ISO 19650)\n" +
-                " 20.  Healthcare pack — only if a health profile is set\n" +
-                "      (opens the COBie export wizard, preset pre-selected)\n" +
+                " 20.  Healthcare profile noted (COBie preset pre-selected at export)\n" +
                 " 21.  Seed the PBR textures folder\n\n" +
                 "Each step runs independently.\n" +
                 "Use Ctrl+Z to undo individual steps if needed.\n\n" +
@@ -294,52 +293,30 @@ namespace StingTools.Temp
             passed += DoStep("Generate BEP + Export XLSX",
                 () => RunCommand(new BIMManager.CreateBEPCommand(), commandData, elements));
 
-            // Step 20: Healthcare Pack setup (HC-09) — only runs if facility type profile is set.
+            // Step 20: Healthcare Pack (HC-09) — informational, not a counted step.
+            //
+            // It used to re-run LoadSharedParamsCommand (identical to step 1, which binds
+            // every group in MR_PARAMETERS.txt including the healthcare groups 28–32) and
+            // then open the interactive COBie export wizard in the middle of an unattended
+            // run. Neither was healthcare setup. The COBie wizard now pre-selects the
+            // HEALTHCARE_NHS / HEALTHCARE_PRIVATE preset itself whenever the project
+            // carries a health profile, so nothing is lost by not exporting here.
             try
             {
-                // Was commandData?.Application?...: null from the panel, so the
-                // profile read returned null and Step 20 skipped ITSELF on every
-                // panel-run Master Setup. A skipped step logs nothing.
                 var hcDoc = ParameterHelpers.GetDoc(commandData);
-                var pi = hcDoc?.ProjectInformation;
-                var healthProfile = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
-                if (!string.IsNullOrEmpty(healthProfile))
+                var healthProfile = hcDoc?.ProjectInformation?
+                    .LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
+                if (!string.IsNullOrEmpty(healthProfile) && !userCancelled)
                 {
-                    StingLog.Info($"MasterSetup Step 20: Healthcare Pack detected (profile={healthProfile}); loading shared params + COBie healthcare overlay.");
-                    passed += DoStep($"Load Healthcare Shared Params (profile: {healthProfile})",
-                        () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
-
-                    // Apply COBie healthcare overlay using the HEALTHCARE_NHS or HEALTHCARE_PRIVATE preset
-                    string cobiePreset = healthProfile.StartsWith("PRIVATE", StringComparison.OrdinalIgnoreCase)
-                        ? "HEALTHCARE_PRIVATE"
-                        : "HEALTHCARE_NHS";
-                    StingLog.Info($"MasterSetup Step 20: applying COBie preset '{cobiePreset}'");
-                    // This is the interactive COBie export, not a silent overlay: the
-                    // wizard opens with the preset pre-selected (COBieExportWizard reads
-                    // COBiePresetKey; before, nothing read it and the wizard opened on
-                    // FULL). Cancelling the wizard reports this step as SKIPPED.
-                    passed += DoStep($"COBie Export — healthcare preset ({cobiePreset})",
-                        () =>
-                        {
-                            var cmd = new BIMManager.COBieExportCommand();
-                            StingCommandHandler.SetExtraParam("COBiePresetKey", cobiePreset);
-                            try { return RunCommand(cmd, commandData, elements); }
-                            finally { StingCommandHandler.ClearExtraParam("COBiePresetKey"); }
-                        });
-                }
-                else if (!userCancelled)
-                {
-                    // A step, so the skip has something to be subtracted from; without
-                    // stepNum++ the skipped count hid one genuine failure.
-                    stepNum++;
-                    skipped++;
-                    report.AppendLine($"  {stepNum,2}. Healthcare Pack — SKIPPED (PRJ_ORG_HEALTH_PACK_PROFILE_TXT not set)");
-                    StingLog.Info("MasterSetup Step 20: PRJ_ORG_HEALTH_PACK_PROFILE_TXT not set — skipping Healthcare Pack steps.");
+                    string preset = UI.COBieExportWizard.PresetForHealthProfile(healthProfile);
+                    report.AppendLine($"      Healthcare profile '{healthProfile}': parameters bound in step 1; " +
+                                      $"COBie export will pre-select {preset}.");
+                    StingLog.Info($"MasterSetup: healthcare profile {healthProfile} (COBie preset {preset}).");
                 }
             }
             catch (Exception ex)
             {
-                StingLog.Error("MasterSetup Step 20 (Healthcare Pack) failed", ex);
+                StingLog.Warn($"MasterSetup healthcare profile read: {ex.Message}");
             }
 
             // Step 21: PBR texture pipeline — seed `_BIM_COORD/textures/`

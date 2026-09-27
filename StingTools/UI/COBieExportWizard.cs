@@ -35,6 +35,12 @@ namespace StingTools.UI
             return BuildSettings(wizard.Results);
         }
 
+        /// <summary>The COBie preset for a healthcare pack profile: PRIVATE* profiles
+        /// use HEALTHCARE_PRIVATE, every other profile HEALTHCARE_NHS.</summary>
+        public static string PresetForHealthProfile(string profile)
+            => (profile ?? "").Trim().StartsWith("PRIVATE", StringComparison.OrdinalIgnoreCase)
+                ? "HEALTHCARE_PRIVATE" : "HEALTHCARE_NHS";
+
         private static COBieExportSettings BuildSettings(Dictionary<string, object> results)
         {
             var s = new COBieExportSettings();
@@ -108,6 +114,17 @@ namespace StingTools.UI
                 // happened to pick.
                 int presetIdx = 0;
                 string wanted = StingCommandHandler.GetExtraParam("COBiePresetKey");
+                if (string.IsNullOrEmpty(wanted))
+                {
+                    // A healthcare project exports with its healthcare overlay by default.
+                    try
+                    {
+                        string hp = _doc?.ProjectInformation?
+                            .LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
+                        if (!string.IsNullOrEmpty(hp)) wanted = PresetForHealthProfile(hp);
+                    }
+                    catch (Exception ex) { StingLog.Warn($"COBie wizard health profile: {ex.Message}"); }
+                }
                 if (!string.IsNullOrEmpty(wanted))
                 {
                     int hit = presetItems.FindIndex(p =>
