@@ -298,11 +298,13 @@ namespace StingTools.Commands.Electrical
                     return rows;
                 }
 
-                int unverified = 0;
+                // "*" = It not two-source checked; "†" = mV/A/m not two-source checked.
+                int unverifiedIt = 0, unverifiedMv = 0;
                 foreach (var r in table.Rows)
                 {
-                    if (!r.Verified) unverified++;
-                    string flag = r.Verified ? "" : " *";
+                    if (!r.Verified) unverifiedIt++;
+                    if (!r.MvVerified) unverifiedMv++;
+                    string flag = (r.Verified ? "" : " *") + (r.MvVerified ? "" : " †");
                     rows.Add(new WireRefRow
                     {
                         Size = (r.CsaMm2 < 10 ? $"{r.CsaMm2:0.0}mm²" : $"{r.CsaMm2:0}mm²") + flag,
@@ -314,7 +316,8 @@ namespace StingTools.Commands.Electrical
                 }
                 basis = $"BS 7671 Appendix 4 Table {table.Id} (It, A — {table.Description}, method {table.InstallMethod}, " +
                         $"30 °C, ungrouped) and Table {table.VoltDropTable} (mV/A/m: 2-core 1-ph / 3–4-core 3-ph)." +
-                        (unverified > 0 ? $" * {unverified} row(s) not yet checked against the printed table — verify before use." : "");
+                        (unverifiedIt > 0 ? $" * It on {unverifiedIt} row(s) has one source — verify before use." : "") +
+                        (unverifiedMv > 0 ? $" † mV/A/m on {unverifiedMv} row(s) has one source — verify before use." : "");
             }
             catch (Exception ex)
             {

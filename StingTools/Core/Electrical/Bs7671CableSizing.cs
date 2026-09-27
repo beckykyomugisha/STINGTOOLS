@@ -117,6 +117,25 @@ namespace StingTools.Core.Electrical
             return phases == 3 ? row.It3ph : row.It1ph;
         }
 
+        /// <summary>
+        /// The highest tabulated It for this conductor and size across every shipped table
+        /// (any insulation, cable type or reference method), and the table it came from.
+        /// When the circuit's cable is unknown this is the only honest upper bound: a device
+        /// above it is too large for any cable of that size. 0 when no table has the size.
+        /// </summary>
+        public double MaxTabulatedIt(string material, double csaMm2, int phases, out Bs7671CapacityTable from)
+        {
+            from = null;
+            double best = 0;
+            foreach (var t in Tables)
+            {
+                if (!string.Equals(t.Conductor, material, StringComparison.OrdinalIgnoreCase)) continue;
+                double it = TabulatedIt(t, csaMm2, phases);
+                if (it > best) { best = it; from = t; }
+            }
+            return best;
+        }
+
         /// <summary>Parse the <c>bs7671Appendix4</c> section. Returns an empty set (which
         /// makes the sizer refuse) when the section is absent — never a fallback table.</summary>
         public static Bs7671Data FromJson(JObject root)

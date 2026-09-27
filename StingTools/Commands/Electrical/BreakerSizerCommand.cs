@@ -87,8 +87,10 @@ namespace StingTools.Commands.Electrical
                 string ins = cableSnap?.Insulation ?? "PVC70";
                 string method = cableSnap?.InstallMethod ?? "C";
                 string mat = cableSnap?.Material ?? "Cu";
+                string cableType = string.IsNullOrEmpty(cableSnap?.CableType)
+                    ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : cableSnap.CableType;
                 var table = useNec ? null
-                    : StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables().FindTable(mat, ins, method);
+                    : StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables().FindTable(mat, ins, method, cableType);
 
                 foreach (var sys in systems)
                 {
@@ -111,12 +113,12 @@ namespace StingTools.Commands.Electrical
                                 if (it > 0)
                                 {
                                     iz = it;
-                                    izBasis = $"Table {table.Id} {mat}/{ins} method {method} It for {csa:0.#} mm², 30 °C, ungrouped";
+                                    izBasis = $"Table {table.Id} {mat}/{ins} {cableType} method {method} It for {csa:0.#} mm², 30 °C, ungrouped";
                                 }
                                 else izBasis = $"{csa:0.#} mm² not in Table {table.Id}";
                             }
                             else if (csa > 0)
-                                izBasis = $"no BS 7671 table for {mat}/{ins} method {method}";
+                                izBasis = $"no BS 7671 table for {mat}/{ins} {cableType} method {method}";
                         }
 
                         var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(

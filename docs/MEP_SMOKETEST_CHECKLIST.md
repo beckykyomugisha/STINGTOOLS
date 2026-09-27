@@ -100,6 +100,9 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 | ☐ | same, PVC, cable type **Multicore armoured SWA**, method C | [RO] | → **Expect** 1.5 mm² from Table 4D4A, no VERIFY | 4D4A and 4D4B ≤ 16 mm² are two-source checked. |
 | ☐ | same, armoured, method **D2** (direct in ground) | [RO] | → **Expect** 1.5 mm² (22 A) from Table 4D4A method D2, no VERIFY | D2 checked against IEC 60364-5-52. |
 | ☐ | same, cable type **Single-core**, method A1 | [RO] | → **Expect** basis names Table 4D1A method A | |
+| ☐ | CABLE tab set to **Single-core**, then CALCS → Breaker Sizer | [RO] | → **Expect** each Iz basis names Table 4D1A and "SingleCore" | Breaker sizer now follows the cable type. |
+| ☐ | Panels → **Circuit Check** on a board with a 2.5 mm² circuit on a 32 A device | [W] | → **Expect** FAIL "In 32 A > Iz …"; Iz basis names the highest-It table for 2.5 mm², not 4D2A | Iz is the upper bound across all shipped copper tables. |
+| ☐ | Add Cable on a 95 mm² cable | [W] | → **Expect** VD basis ends "VERIFY: the 95 mm² mV/A/m has not been checked…" | 4D2B ≥ 25 mm² is single-source. |
 | ☐ | Arc Flash (after Fault Current) on a three-phase 400 V board | [M] | → **Expect** label "Basis: IEEE 1584-2018 …", "Electrodes: VCB", notes naming the assumed electrode configuration and enclosure; `ELC_ARC_FLASH_IE_CAL_CM2` set | ELEC-1 |
 | ☐ | same, `ELC_ARC_FLASH_ELECTRODE_TXT` = `HCB` on the board | [M] | → **Expect** "Electrodes: HCB"; no electrode-assumed note; a different energy | Load Shared Params first so the parameter exists. |
 | ☐ | same, an 11 kV switchboard | [M] | → **Expect** calculated (the 2002 model refused MV); gap 152 mm, working distance 914 mm | |

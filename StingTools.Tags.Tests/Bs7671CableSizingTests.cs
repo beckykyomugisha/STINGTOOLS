@@ -455,6 +455,22 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void Max_tabulated_It_is_the_highest_across_every_copper_table()
+        {
+            // 2.5 mm² single-phase: 4D2A C gives 27 A; a higher figure exists in another table,
+            // and the bound must be the highest any shipped table gives.
+            var d = Data();
+            double best = d.MaxTabulatedIt("Cu", 2.5, 1, out var from);
+            double expected = d.Tables.Where(t => t.Conductor == "Cu")
+                                      .Select(t => Bs7671Data.TabulatedIt(t, 2.5, 1)).Max();
+            Assert.Equal(expected, best);
+            Assert.True(best > Bs7671Data.TabulatedIt(d.FindTable("Cu", "PVC70", "C"), 2.5, 1));
+            Assert.Equal(best, Bs7671Data.TabulatedIt(from, 2.5, 1));
+            Assert.Equal(0, d.MaxTabulatedIt("Cu", 3.3, 1, out var none));
+            Assert.Null(none);
+        }
+
+        [Fact]
         public void Every_capacity_row_is_two_source_checked()
         {
             // No It value is left on a single source. A row added later without a second

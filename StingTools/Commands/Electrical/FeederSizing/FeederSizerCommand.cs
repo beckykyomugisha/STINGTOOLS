@@ -137,6 +137,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
             if (node == null) return;
             if (!isRoot && node.IsPanel)
             {
+                var cable = StingElectricalCommandHandler.CurrentCableSizeInput;
                 var input = new FeederSizeInput
                 {
                     PanelName       = node.Label ?? "",
@@ -144,12 +145,14 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     DiversityFactor = s.DiversityPct > 0 ? s.DiversityPct / 100.0 : 1.0,
                     InstallMethod   = s.InstallMethod ?? "C",
                     Material        = "Cu",
-                    Insulation      = "PVC70",
+                    Insulation      = string.IsNullOrEmpty(cable?.Insulation) ? "PVC70" : cable.Insulation,
+                    CableType       = string.IsNullOrEmpty(cable?.CableType)
+                                          ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : cable.CableType,
                     VDLimitPct      = s.VDLimitPct > 0 ? s.VDLimitPct : FeederSettingsSnapshot.DefaultVdLimitPct,
                     Standard        = "BS7671"
                 };
-                // Cable type is a stated assumption (PVC70 multicore, Table 4D2A — the only
-                // Appendix 4 table shipped); it appears in every result's Basis.
+                // Insulation and cable type are the CABLE tab's (PVC70 multicore when unset),
+                // as the breaker sizer uses; the table they select is named in every Basis.
 
                 // ELEC-3: length, voltage, poles and load come from the circuit that FEEDS
                 // this panel. They were hard-coded (10 m / 415 V / 3-ph / PF 0.85 on the SLD

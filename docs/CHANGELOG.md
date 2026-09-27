@@ -23934,3 +23934,34 @@ GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOUR
   - The rejected sources, and links to printed-table reproductions the research network could
     not reach, are in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
 - **Not exercised in Revit.**
+
+#### BS 7671 consumers: cable type, true Iz bound, unchecked voltage drop flagged (2026-09-27)
+
+A review of every caller of the Appendix 4 tables found places that still assumed PVC
+multicore or hid unchecked values.
+
+- **Circuit Check (`Panel_ComplianceCheck`).** The "best case" Iz was PVC 4D2A method C, which
+  is not the best case: an XLPE or single-core cable of the same size carries more, so a sound
+  circuit could be failed.
+  - Iz is now `Bs7671Data.MaxTabulatedIt`: the highest It for the size across every shipped
+    copper table.
+  - The basis names the table it came from.
+- **Cable type is carried through.** The breaker sizer, feeder sizer, circuit wizard, the MCP
+  sizing tools and `CableSizerApplyEngine` all dropped the CABLE tab's cable type. Single-core
+  and armoured selections were silently sized as multicore.
+  - Each now passes it.
+  - The two MCP tools gain a `cableType` argument.
+- **Voltage drop solver (Add Cable).**
+  - A size between table rows is now refused rather than interpolated.
+  - A row whose mV/A/m has one source adds a VERIFY line to the basis.
+  - The basis names the table's cable instead of always "Cu 70 °C".
+- **Wire reference grid.** Rows with single-source mV/A/m are now marked (†); before, only
+  unchecked It was marked, and every It is now checked, so nothing was flagged.
+- **Stale text.** The MCP tool schemas, the feeder input and the circuit wizard options said
+  XLPE was refused until Table 4E2A shipped; it has shipped.
+- **Tests.** 3,427 passing:
+  - interpolation refused;
+  - single-source mV flagged;
+  - built-in 4D2B verification flags pinned to the data file;
+  - `MaxTabulatedIt` exceeds the PVC figure.
+- **Not exercised in Revit.**
