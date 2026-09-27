@@ -71,7 +71,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
     /// </summary>
     public static class FeederSizerEngine
     {
-        public static FeederSizeResult Calculate(FeederSizeInput input, WireTableSet wireTables)
+        public static FeederSizeResult Calculate(FeederSizeInput input, WireTableSet wireTables,
+            StingTools.Core.Electrical.Bs7671Data bs7671Tables)
         {
             var result = new FeederSizeResult { PanelName = input?.PanelName ?? "" };
             if (input == null) { result.Warning = "Null input"; result.Status = "ERROR"; return result; }
@@ -113,7 +114,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 ContinuousLoad    = input.ContinuousLoad,
                 ExtraDerateFactor = derate,
             };
-            var sized = CableSizerEngine.Calculate(sizerInput);
+            var sized = CableSizerEngine.Calculate(sizerInput, bs7671Tables);
             result.Sized           = sized.Sized;
             result.ProposedCsaMm2  = sized.Sized ? sized.RecommendedCsaMm2 : 0;
             result.CsaLabel        = sized.Sized ? sized.CsaLabel : "—";
@@ -134,10 +135,10 @@ namespace StingTools.Commands.Electrical.FeederSizing
         }
 
         public static List<FeederSizeResult> CalculateAll(IEnumerable<FeederSizeInput> inputs,
-            WireTableSet wireTables)
+            WireTableSet wireTables, StingTools.Core.Electrical.Bs7671Data bs7671Tables)
         {
             return (inputs ?? Enumerable.Empty<FeederSizeInput>())
-                .Select(i => Calculate(i, wireTables))
+                .Select(i => Calculate(i, wireTables, bs7671Tables))
                 .ToList();
         }
     }

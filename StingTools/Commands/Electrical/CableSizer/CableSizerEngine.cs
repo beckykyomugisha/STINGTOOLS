@@ -54,6 +54,8 @@ namespace StingTools.Commands.Electrical.CableSizer
 
     public class CableSizeResult
     {
+        /// <summary>A project-override table or factor was used (ELEC-21); the basis says which.</summary>
+        public bool ProjectTableUsed { get; set; }
         public double DesignCurrentA { get; set; }
         public double RecommendedCsaMm2 { get; set; }
         public string CsaLabel { get; set; } = "—";
@@ -102,7 +104,7 @@ namespace StingTools.Commands.Electrical.CableSizer
         private static readonly object _loadLock = new object();
 
         /// <summary>Force the engine to reload the JSON on next use.</summary>
-        public static void InvalidateCache() { lock (_loadLock) { _wireTables = null; _bs7671 = null; } }
+        public static void InvalidateCache() { lock (_loadLock) { _wireTables = null; _tables.Clear(); } }
 
         private static JObject LoadWireTables()
         {
@@ -127,18 +129,51 @@ namespace StingTools.Commands.Electrical.CableSizer
             }
         }
 
-        private static Bs7671Data _bs7671;
+        // Layered Appendix 4 data, keyed by both files' paths and write times, so an edit to
+        // either takes effect on the next command; Cable_ReloadTables forces it. A cached
+        // Bs7671Data is never mutated after it is built.
+        private static readonly Dictionary<string, Bs7671Data> _tables = new Dictionary<string, Bs7671Data>();
 
-        /// <summary>The Appendix 4 tables from STING_WIRE_TABLES.json (empty → the BS path refuses).</summary>
-        internal static Bs7671Data Bs7671Tables()
+        /// <summary>
+        /// The Appendix 4 tables in force for a document: the corporate STING_WIRE_TABLES.json
+        /// with the project's _BIM_COORD/bs7671_wire_tables.json layered on top (ELEC-21). A
+        /// malformed override yields LoadError and no tables — the sizers refuse rather than
+        /// fall back to corporate data the project has said is wrong for it.
+        /// </summary>
+        internal static Bs7671Data Bs7671Tables(Autodesk.Revit.DB.Document doc)
+            => Bs7671TablesForOverridePath(OverridePath(doc));
+
+        /// <summary>The project override path for a document (null for an unsaved one).</summary>
+        internal static string OverridePath(Autodesk.Revit.DB.Document doc)
         {
+            try { return doc == null ? null : StingPaths.MetaFile(doc, "_BIM_COORD", Bs7671TableLayering.ProjectOverrideFileName); }
+            catch (Exception ex) { StingLog.Warn($"Wire-table override path: {ex.Message}"); return null; }
+        }
+
+        /// <summary>Layered tables for an override path already resolved (null → corporate only).</summary>
+        internal static Bs7671Data Bs7671TablesForOverridePath(string overridePath)
+        {
+            string corp = StingToolsApp.FindDataFile("STING_WIRE_TABLES.json");
+            string key = $"{corp}|{Stamp(corp)}|{overridePath}|{Stamp(overridePath)}";
             lock (_loadLock)
             {
-                if (_bs7671 != null) return _bs7671;
+                if (_tables.TryGetValue(key, out var hit)) return hit;
             }
-            var data = Bs7671Data.FromJson(LoadWireTables());
-            lock (_loadLock) { _bs7671 = data; }
+            var data = Bs7671TableLayering.LoadLayered(corp, overridePath);
+            if (!string.IsNullOrEmpty(data.LoadError)) StingLog.Error("Wire tables: " + data.LoadError);
+            foreach (var w in data.Warnings) StingLog.Warn("Wire tables: " + w);
+            lock (_loadLock) { _tables[key] = data; }
             return data;
+        }
+
+        /// <summary>Corporate tables only — for callers with no document (MCP size_cable_calc),
+        /// which must say so in their output.</summary>
+        internal static Bs7671Data CorporateBs7671Tables() => Bs7671TablesForOverridePath(null);
+
+        private static string Stamp(string path)
+        {
+            try { return !string.IsNullOrEmpty(path) && File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks.ToString() : "-"; }
+            catch (Exception ex) { StingLog.Warn($"Wire-table stamp {path}: {ex.Message}"); return "?"; }
         }
 
         /// <summary>
@@ -180,7 +215,7 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// REFUSED, because its tables are not in this tree and a cable size carrying a
         /// standard's name onto a drawing must come from that standard.</para>
         /// </summary>
-        public static CableSizeResult Calculate(CableSizeInput input)
+        public static CableSizeResult Calculate(CableSizeInput input, Bs7671Data tables)
         {
             var result = new CableSizeResult();
             if (input == null) { result.Warning = "Null input"; return result; }
@@ -213,7 +248,12 @@ namespace StingTools.Commands.Electrical.CableSizer
             if (standardId == StingTools.Standards.ElectricalStandardId.Nec2023)
                 return CalculateNec(input, result, iB);
 
-            return CalculateBs7671(input, result, iB, Bs7671Tables());
+            if (tables == null)
+            {
+                result.Warning = "No BS 7671 Appendix 4 tables were resolved for this calculation; nothing was sized.";
+                return result;
+            }
+            return CalculateBs7671(input, result, iB, tables);
         }
 
         /// <summary>
@@ -280,7 +320,10 @@ namespace StingTools.Commands.Electrical.CableSizer
             result.TabulatedCapacityA = bs.TabulatedItA;
             result.EffectiveCapacityIzA = bs.IzA;
             result.Sized = true;
-            if (bs.UnverifiedRow)
+            result.ProjectTableUsed = bs.ProjectTable || bs.ProjectFactors;
+            if (bs.UnverifiedRow && bs.ProjectTable)
+                result.Warning = $"Project table row for {bs.CsaMm2:0.#} mm² is single-source project data — check it against the named source before issue.";
+            else if (bs.UnverifiedRow)
                 result.Warning = $"Table row for {bs.CsaMm2:0.#} mm² not yet verified against the printed BS 7671 — check It and mV/A/m before issue.";
             return result;
         }

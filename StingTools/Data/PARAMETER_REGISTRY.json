@@ -21891,6 +21891,18 @@
       "curated": true
     },
     {
+      "param_name": "ELC_CKT_VD_BASIS_TXT",
+      "guid": "e66e86de-f5a7-5525-81b7-5ae0f76d3889",
+      "description": "How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed.",
+      "datatype": "TEXT",
+      "group_id": 4,
+      "group_name": "ELC_PWR",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Electrical",
+      "curated": true
+    },
+    {
       "param_name": "ELC_CONDUIT_HOME_RUN_BOOL",
       "guid": "a4c24cde-c13c-542e-9466-5a5c46beb012",
       "description": "Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.",
@@ -29185,6 +29197,42 @@
         "param_name": "ELC_ARC_FLASH_ELECTRODE_TXT",
         "guid": "a2e7f8d9-100d-5179-9179-10000000000d",
         "description": "IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA; blank = VCB assumed [STING MEPG-11]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_GAP",
+        "param_name": "ELC_ARC_FLASH_GAP_MM",
+        "guid": "a2e7f8d9-100e-5179-9179-10000000000e",
+        "description": "IEEE 1584-2018 conductor gap in mm; blank = the typical gap for the equipment class, noted on the label [STING MEPG-11]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_ENCL_H",
+        "param_name": "ELC_ARC_FLASH_ENCL_H_MM",
+        "guid": "a2e7f8d9-100f-5179-9179-10000000000f",
+        "description": "IEEE 1584-2018 enclosure height in mm; blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_ENCL_W",
+        "param_name": "ELC_ARC_FLASH_ENCL_W_MM",
+        "guid": "a2e7f8d9-1010-5179-9179-100000000010",
+        "description": "IEEE 1584-2018 enclosure width in mm; blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
+        "key": "ELC_ARC_FLASH_ENCL_D",
+        "param_name": "ELC_ARC_FLASH_ENCL_D_MM",
+        "guid": "a2e7f8d9-1011-5179-9179-100000000011",
+        "description": "IEEE 1584-2018 enclosure depth in mm; blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]",
         "categories": [
           "Electrical Equipment"
         ]

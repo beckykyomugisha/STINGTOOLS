@@ -183,7 +183,7 @@ namespace StingTools.Commands.Electrical
                 };
                 try
                 {
-                    var res = CableSizerEngine.Calculate(input);
+                    var res = CableSizerEngine.Calculate(input, CableSizerEngine.Bs7671Tables(wire.Document));
                     // KUT-7 — a refused size is 0, and 0 in a CSA annotation reads as
                     // "not sized yet" rather than "we declined". Leave it blank and say
                     // why in the log instead of annotating a zero.

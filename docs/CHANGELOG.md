@@ -24081,3 +24081,74 @@ multicore or hid unchecked values.
 - **Tests.** 3,438 passing. Every picker combination resolves to its table, and those with no
   table resolve to none.
 - **Not exercised in Revit.**
+
+#### Electrical flexibility, automation and integration review (2026-09-27)
+
+- **The cable a circuit was sized with is recorded and read back.** Checks that run later now
+  judge a circuit against its own table.
+  - New `Core/Electrical/CircuitCableRecord` stamps install method, insulation and cable type
+    (`ELC_CBL_INSTALL_METHOD_TXT`, `ELC_CBL_INS_TYPE_TXT`, `ELC_CBL_TYPE_TXT`) when a size is
+    applied, from both the CABLE tab's Apply and `CableSizerApplyEngine`. Cable type was
+    previously never written, and nothing read the other two.
+  - The Circuit Check and the breaker sizer use the recorded cable's table when all three are
+    recorded, and say so. Otherwise they fall back as before: the Circuit Check to the highest It
+    in any table, the breaker sizer to the CABLE tab's assumption.
+- **`ELC_CBL_AMPACITY_A` now holds Iz, not the design current Ib.** Apply had been writing Ib into
+  the ampacity column of the Cable Schedule.
+- **Arc flash reads board geometry.**
+  - Four new board parameters feed the IEEE 1584-2018 engine: `ELC_ARC_FLASH_GAP_MM` and
+    `ELC_ARC_FLASH_ENCL_H_MM` / `_W_MM` / `_D_MM`. The engine always accepted them, but the
+    command never passed them, so every board was calculated at its class's typical size.
+  - A blank value still uses the typical one.
+  - A typical gap is now noted on the label, as the typical enclosure already was.
+- **The Circuit Check runs in the Electrical Submission and Electrical QA workflows**, after
+  voltage drop. It had been in no workflow.
+- **Recorded, not fixed:** ELEC-21 (the wire tables have no project override or reload) and
+  ELEC-22 (two voltage-drop methods write one parameter).
+- **Tests.** 3,506 passing. The engine uses supplied geometry and assumes nothing, and notes a
+  typical gap when none is given.
+- **Not exercised in Revit.**
+
+#### Project wire tables and one voltage-drop owner (ELEC-21 / ELEC-22, 2026-09-27)
+
+- **Project wire-table override (ELEC-21).**
+  - New `_BIM_COORD/bs7671_wire_tables.json`, layered on `STING_WIRE_TABLES.json` by
+    `Core/Electrical/Bs7671TableLayering`. Replaces, adds or removes whole tables by lookup key;
+    overrides Tables 4B1 / 4C1 and Cf.
+  - Project rows are single-source unless attested by a `twoSourceCheck`; a row claiming
+    verified without one is downgraded, with a warning.
+  - An invalid file is refused as a whole. Every sizer then refuses with the reason; the
+    corporate tables are not substituted.
+  - Project tables cite themselves as project tables in every basis, and a result sized on
+    them says so.
+  - Every caller now resolves tables per document: cable sizer, CABLE-tab Apply,
+    `CableSizerApplyEngine`, feeder sizer, circuit wizard, breaker sizer, Circuit Check, Add
+    Cable, wire reference grid and wire sync. The MCP calculator has no model and reports
+    `tableOrigin: corporate`.
+  - `Cable_ReloadTables` (CABLE tab, workflow, NLP) re-reads both files and lists what is in force.
+- **One owner for circuit voltage drop (ELEC-22).**
+  - New `Core/Electrical/CircuitVoltageDrop` (Revit-free) and `CircuitVoltageDropModel`.
+    Appendix 4 mV/A/m from the recorded cable's table; with no complete record, the highest
+    mV/A/m any loaded table gives for the size (an upper bound); resistance only for NEC.
+  - New parameter `ELC_CKT_VD_BASIS_TXT` (circuits and boards) records the method beside every
+    figure: A4, A4-MAX, A4-SIZED, R60228, IMPORT or NONE with the reason.
+  - Recalculate, the VD schedule, Apply, Auto-Upsize, the feeder sizer and the three importers
+    all stamp through it. Apply now stamps the circuit's own drop, not the CABLE tab's.
+    Auto-Upsize picks the new size by the same method.
+  - The Circuit Check works the drop out itself, and can pass but never fail on an upper bound.
+    Its workbook gains a basis column.
+- **Hidden defects fixed on the way.**
+  - A circuit missing its length, size or voltage was stamped `0.00` % voltage drop, which the
+    Circuit Check read as a pass. It is now NONE with the reason.
+  - The SLD read `ELC_VLT_DROP_PCT` and the board fault level with `AsString()`. Both are
+    NUMBER parameters, so neither label ever appeared.
+  - The Electrical panel's circuit grid set every voltage drop to 0 and showed "—".
+  - The cable sizer and the new reload command read `commandData.Application`, which is null
+    when the dock panel dispatches; the command-app gate caught the first.
+  - Exports (EasyPower XML, circuit schedule CSV/XML/JSON) now carry STING's figure with its
+    basis. A missing or pre-basis figure is left out instead of written as 0.
+- **Recorded, not fixed:** ELEC-23 (the apply engine's separate size and VD parameters),
+  ELEC-24 (feeder sizing ignores an NEC setting), ELEC-25 (no Appendix 4 §6.1 load correction),
+  ELEC-26 (the old VD number cannot be cleared when the basis is NONE).
+- **Tests.** 3,554 passing, including 24 for the override and 26 for voltage drop.
+- **Not exercised in Revit.**

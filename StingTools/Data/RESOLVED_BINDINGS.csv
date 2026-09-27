@@ -1024,6 +1024,10 @@ DS_TYPE_TXT,Generic Models
 DS_UNITS_FORMAT_TXT,Generic Models
 ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_ELECTRODE_TXT,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_ENCL_D_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_ENCL_H_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_ENCL_W_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_GAP_MM,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_PPE_CAT,Electrical Equipment|Electrical Circuits
@@ -1115,6 +1119,7 @@ ELC_CKT_PHASE_COUNT_NR,Conduits|Electrical Circuits|Electrical Equipment|Electri
 ELC_CKT_PHASE_COUNT_TXT,Electrical Circuits
 ELC_CKT_PWR_KW,Electrical Circuits
 ELC_CKT_TXT,Electrical Circuits
+ELC_CKT_VD_BASIS_TXT,Electrical Equipment|Electrical Circuits
 ELC_CKT_VLT_V,Electrical Circuits
 ELC_CONDUIT_HOME_RUN_BOOL,Conduits|Conduit Fittings
 ELC_CONDUIT_HOME_RUN_END_TXT,Conduits|Conduit Fittings

@@ -1027,6 +1027,10 @@ DS_TYPE_TXT,11,curated-fallback,Generic Models,Dimension type [ISO 19650-1:2018]
 DS_UNITS_FORMAT_TXT,11,curated-fallback,Generic Models,Units format [ISO 19650-1:2018]
 ELC_ARC_FLASH_BOUNDARY_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179]
 ELC_ARC_FLASH_ELECTRODE_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA - blank = VCB assumed and noted on the label [STING MEPG-11]
+ELC_ARC_FLASH_ENCL_D_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 enclosure depth in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]"
+ELC_ARC_FLASH_ENCL_H_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 enclosure height in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]"
+ELC_ARC_FLASH_ENCL_W_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 enclosure width in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]"
+ELC_ARC_FLASH_GAP_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 conductor gap in mm - blank = the typical gap for the equipment class, noted on the label [STING MEPG-11]"
 ELC_ARC_FLASH_IE_CAL_CM2,4,elc-sub,Electrical Equipment|Electrical Circuits,Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]
 ELC_ARC_FLASH_LABEL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]
 ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]
@@ -1118,6 +1122,7 @@ ELC_CKT_PHASE_COUNT_NR,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipme
 ELC_CKT_PHASE_COUNT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_PHASE_COUNT_NR display mirror [auto-generated]
 ELC_CKT_PWR_KW,4,elc-sub,Electrical Circuits,Elc Ckt Pwr Kw [ISO 19650-1:2018]
 ELC_CKT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_NR display mirror [auto-generated]
+ELC_CKT_VD_BASIS_TXT,4,vd-basis,Electrical Equipment|Electrical Circuits,"How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed."
 ELC_CKT_VLT_V,4,elc-sub,Electrical Circuits,Elc Ckt Vlt V [ISO 19650-1:2018]
 ELC_CONDUIT_HOME_RUN_BOOL,4,elc-sub,Conduits|Conduit Fittings,Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.
 ELC_CONDUIT_HOME_RUN_END_TXT,4,elc-sub,Conduits|Conduit Fittings,Which end of this home-run conduit is at the panel: Start or End. Blank = the end with the lower X coordinate.

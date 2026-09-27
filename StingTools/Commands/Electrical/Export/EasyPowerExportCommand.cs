@@ -56,7 +56,8 @@ namespace StingTools.Commands.Electrical.Export
                               $"ratingA=\"{c.RatingA:0}\" " +
                               $"csaMm2=\"{c.CsaMm2:0.0}\" " +
                               $"lengthM=\"{c.LengthM:0.00}\" " +
-                              $"vdPct=\"{c.VDPct:0.000}\"/>");
+                              (c.VDPct.HasValue ? $"vdPct=\"{c.VDPct.Value:0.000}\" " : "") +
+                              $"vdBasis=\"{Esc(c.VDBasis)}\"/>");
             }
             sb.AppendLine("  </Branches>");
             if (model.Cables != null && model.Cables.Count > 0)

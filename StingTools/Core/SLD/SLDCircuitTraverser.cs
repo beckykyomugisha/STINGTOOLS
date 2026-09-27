@@ -41,6 +41,8 @@ namespace StingTools.Core.SLD
         // Phase 179 — BS 7671 / IEC 60364 engineering data fields.
         public string CsaMm2 { get; set; }
         public double VdPct { get; set; }
+        /// <summary>VdPct is an A4-MAX upper bound; the label shows "≤".</summary>
+        public bool VdIsUpperBound { get; set; }
         public string FaultKa { get; set; }
         // Phase 179 S1 — Voltage level differentiation.
         public double SystemVoltageV { get; set; }
@@ -485,11 +487,15 @@ namespace StingTools.Core.SLD
                 string fault = GetParamString(fi, ParamRegistry.ELC_PNL_FAULT_KA);
                 if (!string.IsNullOrEmpty(fault)) node.FaultKa = fault;
 
-                string vdStr = GetParamString(fi, ParamRegistry.ELC_CKT_VD_PCT);
-                if (!string.IsNullOrEmpty(vdStr) && double.TryParse(vdStr,
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture, out double vd))
-                    node.VdPct = vd;
+                // ELC_VLT_DROP_PCT is a NUMBER; AsString() returned null, so the SLD never
+                // showed a drop. Read it with its basis (ELEC-22): a NONE or pre-basis value
+                // is not shown, and an upper bound is marked as one.
+                var stamp = StingTools.Core.Electrical.CircuitVoltageDropModel.ReadStamp(fi);
+                if (stamp.Pct.HasValue && stamp.Method != StingTools.Core.Electrical.VdMethod.Legacy)
+                {
+                    node.VdPct = stamp.Pct.Value;
+                    node.VdIsUpperBound = stamp.Method == StingTools.Core.Electrical.VdMethod.Appendix4Envelope;
+                }
 
                 // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM. Revit stores it in
                 // internal units (1 V = 10.7639), so convert to volts first.
@@ -691,10 +697,24 @@ namespace StingTools.Core.SLD
 
         // ── Param helpers ────────────────────────────────────────────────────
 
+        /// <summary>A parameter's value as text. A NUMBER parameter (the fault level) is
+        /// formatted invariantly: AsString() returns null for one, which left the SLD fault
+        /// label blank however often the fault calculation stamped it.</summary>
         private static string GetParamString(Element el, string paramName)
         {
-            try { return el?.LookupParameter(paramName)?.AsString(); }
-            catch { return null; }
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return null;
+                switch (p.StorageType)
+                {
+                    case StorageType.String: return p.AsString();
+                    case StorageType.Double: return p.AsDouble().ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                    case StorageType.Integer: return p.AsInteger().ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    default: return null;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SLD read {paramName}: {ex.Message}"); return null; }
         }
 
         private static int GetParamInt(Element el, string paramName)

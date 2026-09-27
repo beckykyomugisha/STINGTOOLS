@@ -112,7 +112,7 @@ namespace StingTools.Core.Calc
                 return r;
             }
 
-            string tableId, cable;
+            string tableId, cable, cite;
             List<(double Csa, double Mv, bool Verified)> col;
             if (table != null && table.Rows.Count > 0)
             {
@@ -120,16 +120,21 @@ namespace StingTools.Core.Calc
                                 .Where(x => x.Item2 > 0).OrderBy(x => x.Item1).ToList();
                 tableId = string.IsNullOrEmpty(table.VoltDropTable) ? (table.Id ?? "Appendix 4") : table.VoltDropTable;
                 cable = $"{table.Conductor} {table.MaxConductorTempC} °C {table.CableType}";
+                // A project table is cited as one, so a figure from it is never read as BS 7671's own.
+                cite = table.Origin == Bs7671Origin.Project
+                    ? (string.IsNullOrEmpty(table.VoltDropTable) ? table.Cite() : table.CiteVoltDrop())
+                    : $"Table {tableId}";
             }
             else
             {
                 col = BuiltIn4D2B.Select(x => (x.Csa, q.ThreePhase ? x.Mv3ph : x.Mv1ph, x.MvVerified)).ToList();
                 tableId = "4D2B";
                 cable = "Cu 70 °C Multicore";
+                cite = $"Table {tableId}";
             }
             if (col.Count == 0)
             {
-                r.Refusal = $"Table {tableId} carries no mV/A/m.";
+                r.Refusal = $"{cite} carries no mV/A/m.";
                 r.Basis = r.Refusal;
                 return r;
             }
@@ -139,7 +144,7 @@ namespace StingTools.Core.Calc
             var hit = col.Where(x => Math.Abs(x.Csa - q.CsaMm2) < 1e-6).ToList();
             if (hit.Count == 0)
             {
-                r.Refusal = $"{q.CsaMm2:0.##} mm² is not a size in Table {tableId} " +
+                r.Refusal = $"{q.CsaMm2:0.##} mm² is not a size in {cite} " +
                             $"({col.First().Csa:0.##}–{col.Last().Csa:0.##} mm²).";
                 r.Basis = r.Refusal;
                 return r;
@@ -152,7 +157,7 @@ namespace StingTools.Core.Calc
             r.VoltDropPct = r.VoltDropV / q.NominalVoltageV * 100.0;
             r.LightingPass = r.VoltDropPct <= 3.0;
             r.PowerPass    = r.VoltDropPct <= 5.0;
-            r.Basis = $"BS 7671 Appendix 4 Table {tableId} ({cable}, " +
+            r.Basis = $"BS 7671 Appendix 4 {cite} ({cable}, " +
                       $"{(q.ThreePhase ? "3-ph column" : "1-ph column")}, " +
                       $"{mv:0.###} mV/A/m)" +
                       (r.UnverifiedVoltDrop

@@ -356,6 +356,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
             double dist = input.WorkingDistanceMm > 0 ? input.WorkingDistanceMm : twd;
             if (gap <= 0) return NotCalculated(r, "no typical gap for this equipment class — set the gap");
             if (dist <= 0) return NotCalculated(r, "no typical working distance for this equipment class — set it");
+            if (input.GapMm <= 0) r.Notes.Add($"typical {cls} gap {gap:0} mm assumed");
             double h = input.EnclosureHeightMm > 0 ? input.EnclosureHeightMm : th;
             double w = input.EnclosureWidthMm > 0 ? input.EnclosureWidthMm : tw;
             double d = input.EnclosureDepthMm > 0 ? input.EnclosureDepthMm : td;

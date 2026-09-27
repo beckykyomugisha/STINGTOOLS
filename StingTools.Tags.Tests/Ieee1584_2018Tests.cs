@@ -169,6 +169,24 @@ namespace StingTools.Tags.Tests
         // ── through ArcFlashEngine ─────────────────────────────────────────
 
         [Fact]
+        public void Engine_uses_board_geometry_when_given_and_assumes_nothing()
+        {
+            // The values ArcFlashCommand reads from ELC_ARC_FLASH_GAP_MM / _ENCL_H/W/D_MM.
+            var r = ArcFlashEngine.Calculate(new ArcFlashInput
+            {
+                BoltedFaultKa = 25, VoltageV = 400, EquipmentClass = ArcEquipmentClass.PanelMcc, ClearingTimeS = 0.1,
+                Electrode = ElectrodeConfiguration.VCB,
+                GapMm = 32, EnclosureHeightMm = 508, EnclosureWidthMm = 508, EnclosureDepthMm = 250,
+            });
+            Assert.True(r.Calculated, r.NotCalculatedReason);
+            Assert.Equal(32, r.GapMm);
+            Assert.DoesNotContain(r.Notes, n => n.Contains("assumed"));
+            Assert.DoesNotContain(r.Notes, n => n.Contains("depth not stated"));
+            var x = Ieee1584_2018.Calculate(ElectrodeConfiguration.VCB, 0.4, 25, 32, 457.2, 508, 508, 250, _ => 100);
+            Assert.Equal(x.IncidentEnergyJcm2 / 4.184, r.IncidentEnergyCalCm2, 9);
+        }
+
+        [Fact]
         public void Engine_defaults_to_2018_with_typical_LV_panel_values_and_says_what_it_assumed()
         {
             var r = ArcFlashEngine.Calculate(new ArcFlashInput
@@ -182,6 +200,7 @@ namespace StingTools.Tags.Tests
             Assert.Equal(457.2, r.WorkingDistanceMm);
             Assert.Contains(r.Notes, n => n.Contains("electrode configuration VCB assumed"));
             Assert.Contains(r.Notes, n => n.Contains("depth not stated"));
+            Assert.Contains(r.Notes, n => n.Contains("gap 25 mm assumed"));
 
             // Same numbers as the model called directly with a deep typical enclosure.
             var x = Ieee1584_2018.Calculate(ElectrodeConfiguration.VCB, 0.4, 25, 25, 457.2, 355.6, 304.8, double.PositiveInfinity, _ => 100);

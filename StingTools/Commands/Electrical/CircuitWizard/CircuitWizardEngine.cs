@@ -82,6 +82,11 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>Voltage drop limit %. Default 3.0.</summary>
         public double VDLimitPct        { get; set; } = 3.0;
 
+        /// <summary>The Appendix 4 tables to size on: the document's, so a project wire-table
+        /// override is honoured (<c>CableSizerEngine.Bs7671Tables(doc)</c>). Null on the BS path
+        /// sizes nothing rather than silently falling back to the corporate tables.</summary>
+        public StingTools.Core.Electrical.Bs7671Data Bs7671Tables { get; set; }
+
         public static CircuitWizardOptions Default => new CircuitWizardOptions();
     }
 
@@ -215,9 +220,10 @@ namespace StingTools.Commands.Electrical.CircuitWizard
 
         /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>
         public static List<ProposedCircuit> ProposeCircuits(IEnumerable<UnconnectedElement> elements,
-            string targetPanelName, double maxLoadPct, string standard, WireTableSet wireTables)
+            string targetPanelName, double maxLoadPct, string standard, WireTableSet wireTables,
+            StingTools.Core.Electrical.Bs7671Data bs7671Tables = null)
             => ProposeCircuits(elements, targetPanelName,
-                new CircuitWizardOptions { MaxLoadPct = maxLoadPct, Standard = standard }, wireTables);
+                new CircuitWizardOptions { MaxLoadPct = maxLoadPct, Standard = standard, Bs7671Tables = bs7671Tables }, wireTables);
 
         private static bool WouldExceed(ProposedCircuit cur, UnconnectedElement el,
             double maxLoadPct, CircuitWizardOptions opts)
@@ -272,13 +278,14 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 CableType    = opts.CableType,
                 VDLimitPct   = opts.VDLimitPct,
                 Standard     = opts.Standard
-            });
+            }, opts.Bs7671Tables);
             circuit.ProposedCsaMm2 = sized.RecommendedCsaMm2;
         }
 
         /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>
-        public static void RecalculateCircuit(ProposedCircuit circuit, string standard, WireTableSet wireTables)
-            => RecalculateCircuit(circuit, new CircuitWizardOptions { Standard = standard }, wireTables);
+        public static void RecalculateCircuit(ProposedCircuit circuit, string standard, WireTableSet wireTables,
+            StingTools.Core.Electrical.Bs7671Data bs7671Tables = null)
+            => RecalculateCircuit(circuit, new CircuitWizardOptions { Standard = standard, Bs7671Tables = bs7671Tables }, wireTables);
 
         private static void BalancePhases(List<ProposedCircuit> proposals)
         {

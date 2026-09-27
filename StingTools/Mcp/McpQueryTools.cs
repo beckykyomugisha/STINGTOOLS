@@ -52,9 +52,14 @@ namespace StingTools.Mcp
                 return McpJobResult.Error("bad_args",
                     "loadKW and lengthM are required and must be > 0.").ToCallResult();
 
-            CableSizeResult r = CableSizerEngine.Calculate(input);
+            // No model: always the corporate tables. A project wire-table override is per
+            // document, so this tool says which tables it used rather than implying the project's.
+            CableSizeResult r = CableSizerEngine.Calculate(input, CableSizerEngine.CorporateBs7671Tables());
             var data = new Dictionary<string, object>
             {
+                ["tableOrigin"]       = "corporate",
+                ["tableNote"]         = "Sized on the corporate BS 7671 tables; a project wire-table override " +
+                                        "(_BIM_COORD/bs7671_wire_tables.json) is not applied by this tool.",
                 ["designCurrentA"]    = Math.Round(r.DesignCurrentA, 1),
                 ["recommendedCsaMm2"] = r.RecommendedCsaMm2,
                 ["csaLabel"]          = r.CsaLabel,

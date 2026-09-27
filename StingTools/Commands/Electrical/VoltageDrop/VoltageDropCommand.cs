@@ -25,6 +25,13 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         public bool IsLighting { get; set; }
         /// <summary>The limit this circuit was judged against, %.</summary>
         public double LimitPct { get; set; }
+        /// <summary>How the figure was obtained (ELEC-22). Null only on a failed read.</summary>
+        public StingTools.Core.Electrical.CircuitVdResult Vd { get; set; }
+        /// <summary>A figure exists. False = not calculated; VoltDropPct is then 0 and means nothing.</summary>
+        public bool HasValue => Vd?.HasValue == true;
+        /// <summary>The figure is an upper bound (no cable recorded): over the limit is possible, not certain.</summary>
+        public bool UpperBound => Vd?.UpperBound == true;
+        public bool PossiblyExceeds => HasValue && UpperBound && VoltDropPct > LimitPct + 1e-9;
     }
 
     /// <summary>
@@ -54,9 +61,12 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             var results = Calculate(doc, opts.Standard, opts.LightingLimitPct, opts.OtherLimitPct,
                                     opts.Material, opts.OperatingTempC);
             int exceed = results.Count(r => r.ExceedsThreshold);
+            int possible = results.Count(r => r.PossiblyExceeds);
+            int notCalc = results.Count(r => !r.HasValue);
+            int bounded = results.Count(r => r.HasValue && r.UpperBound);
 
-            // Stamp VD% per circuit. Existing param ELC_VLT_DROP_PCT (alias
-            // ELC_CKT_VD_PCT) — no new params introduced.
+            // Stamp VD% and its basis (ELC_CKT_VD_BASIS_TXT) per circuit. A circuit that
+            // could not be calculated gets NONE and the reason, never 0.00.
             int stamped = 0;
             using (var tx = new Transaction(doc, "STING Stamp Voltage Drop"))
             {
@@ -67,8 +77,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                     if (!(doc.GetElement(r.CircuitId) is ElectricalSystem sys)) continue;
                     try
                     {
-                        if (ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_VD_PCT,
-                                $"{r.VoltDropPct:0.00}", overwrite: true))
+                        if (r.Vd != null && StingTools.Core.Electrical.CircuitVoltageDropModel.Stamp(sys, r.Vd))
                             stamped++;
                     }
                     catch (Exception ex) { StingLog.Warn($"VD stamp {r.CircuitId.Value}: {ex.Message}"); }
@@ -77,9 +86,13 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             }
 
             TaskDialog.Show("STING Voltage Drop",
-                $"Calculated VD for {results.Count} circuit(s).\n" +
-                $"Exceeding threshold: {exceed}\n" +
-                $"ELC_VLT_DROP_PCT stamped: {stamped}");
+                $"Circuits: {results.Count}\n" +
+                $"Exceeding the limit: {exceed}\n" +
+                (possible > 0 ? $"Possibly exceeding (upper bound, no cable recorded): {possible}\n" : "") +
+                (bounded > 0 ? $"Upper-bound figures (A4-MAX — apply a cable size to record the cable): {bounded}\n" : "") +
+                (notCalc > 0 ? $"Not calculated (basis NONE gives the reason): {notCalc}\n" : "") +
+                $"Voltage drop and basis stamped: {stamped}" +
+                (stamped == 0 && results.Count > 0 ? "\n\nNothing was stamped: ELC_CKT_VD_BASIS_TXT is not bound to Electrical Circuits. Run Load Shared Params." : ""));
             return Result.Succeeded;
         }
 
@@ -94,6 +107,9 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         {
             var results = new List<VDResult>();
             if (doc == null) return results;
+            // ELEC-22: one resolver for every writer — Appendix 4 mV/A/m from the circuit's
+            // recorded cable, else an upper bound; conductor resistance only on the NEC path.
+            var tables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
 
             try
             {
@@ -111,19 +127,9 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                 {
                     try
                     {
-                        double currentA = SafeApparentCurrent(sys);
-                        double lengthFt = SafeLength(sys);
-                        double lengthM = lengthFt * 0.3048;
-                        int phases = SafePoles(sys) >= 3 ? 3 : 1;
-                        double voltageV = SafeVoltage(sys);
-                        double csa = ParseCsa(SafeWireSize(sys));
-                        if (voltageV <= 0 || lengthM <= 0 || csa <= 0)
-                        {
-                            results.Add(BuildEmpty(sys));
-                            continue;
-                        }
-                        double vd = VoltageDropEngine.CalculateVoltDropPercent(
-                            currentA, lengthM, csa, material, voltageV, phases, operatingTempC);
+                        var input = StingTools.Core.Electrical.CircuitVoltageDropModel.Read(sys, standard, material);
+                        var vd = StingTools.Core.Electrical.CircuitVoltageDrop.Resolve(input, tables,
+                            StingTools.Core.Electrical.CircuitVoltageDropModel.Resistance(operatingTempC));
                         bool isLighting = IsLightingCircuit(sys);
                         double limit = VoltageDropEngine.LimitFor(isLighting, lightingLimitPct, otherLimitPct);
                         results.Add(new VDResult
@@ -132,13 +138,15 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                             PanelName = SafePanel(sys),
                             CircuitNumber = SafeCircuitNumber(sys),
                             LoadName = sys.LoadName ?? sys.Name,
-                            CurrentA = currentA,
-                            LengthM = lengthM,
+                            CurrentA = input.CurrentA,
+                            LengthM = input.LengthM,
                             WireSize = SafeWireSize(sys),
-                            VoltDropPct = vd,
-                            ExceedsThreshold = vd > limit,
+                            VoltDropPct = vd.HasValue ? vd.Pct : 0,
+                            // Only a figure that is not an upper bound can prove an exceedance.
+                            ExceedsThreshold = vd.HasValue && !vd.UpperBound && vd.Pct > limit + 1e-9,
                             IsLighting = isLighting,
-                            LimitPct = limit
+                            LimitPct = limit,
+                            Vd = vd,
                         });
                     }
                     catch (Exception ex)
@@ -158,20 +166,12 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             CircuitNumber = SafeCircuitNumber(sys),
             LoadName = sys?.LoadName ?? sys?.Name,
             CurrentA = SafeApparentCurrent(sys), LengthM = 0,
-            WireSize = SafeWireSize(sys), VoltDropPct = 0, ExceedsThreshold = false
+            WireSize = SafeWireSize(sys), VoltDropPct = 0, ExceedsThreshold = false,
+            Vd = new StingTools.Core.Electrical.CircuitVdResult { Detail = "the circuit could not be read (see the STING log)" },
         };
 
         private static double SafeApparentCurrent(ElectricalSystem s)
         { try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
-        private static double SafeLength(ElectricalSystem s)
-        { try { return s.Length; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
-        private static int SafePoles(ElectricalSystem s)
-        { try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; } }
-        private static double SafeVoltage(ElectricalSystem s)
-        {
-            try { return StingTools.Core.Electrical.ElecUnits.Read(s, BuiltInParameter.RBS_ELEC_VOLTAGE); }
-            catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); return 0; }
-        }
         private static string SafeWireSize(ElectricalSystem s)
         {
             try { return s.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""; }

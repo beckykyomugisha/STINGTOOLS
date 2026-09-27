@@ -1583,6 +1583,7 @@ namespace StingTools.Core
                 case "Calc_SizeBreakers":       return new Commands.Electrical.BreakerSizerCommand();
                 case "Calc_ApplyBreakers":      return new Commands.Electrical.BreakerSizerApplyCommand();
                 case "Cable_Calculate":         return new Commands.Electrical.CableSizer.CableSizerCommand();
+                case "Cable_ReloadTables":      return new Commands.Electrical.CableSizer.WireTablesReloadCommand();
                 case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
                 case "Cable_ConsolidateConduits": return new Commands.Electrical.Routing.ConduitConsolidatorCommand();
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();

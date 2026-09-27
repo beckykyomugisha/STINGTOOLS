@@ -36,6 +36,9 @@ namespace StingTools.Commands.Electrical
                 snap.RoomTargets = BuildRoomTargets(doc);
                 // Matches the grid's default selection (copper / PVC 70 °C / method C =
                 // Table 4D2A, the one shipped Appendix 4 table).
+                // Remember where this document's project wire-table override lives, so the
+                // grid's later refreshes (on the UI thread, no Document) read the same tables.
+                LastWireTableOverridePath = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.OverridePath(doc);
                 snap.WireRefRows = BuildWireRefRows("Cu", "PVC70", "C", out string wireRefBasis);
                 snap.WireRefBasis = wireRefBasis;
                 snap.ComplianceItems = BuildCompliance(doc);
@@ -128,6 +131,9 @@ namespace StingTools.Commands.Electrical
                         if (sys.SystemType != ElectricalSystemType.PowerCircuit) continue;
                     }
                     catch { /* unknown system type — include cautiously */ }
+                    // The stamped drop with its basis (ELEC-22): NONE and pre-basis values show "—".
+                    var vdStamp = StingTools.Core.Electrical.CircuitVoltageDropModel.ReadStamp(sys);
+                    bool vdShown = vdStamp.Pct.HasValue && vdStamp.Method != StingTools.Core.Electrical.VdMethod.Legacy;
                     rows.Add(new CircuitData
                     {
                         Id = sys.Id,
@@ -137,7 +143,8 @@ namespace StingTools.Commands.Electrical
                         Phase = ReadCircuitPhase(sys),
                         CurrentA = SafeDouble(sys, BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM),
                         LoadKW = TrySafe(() => StingTools.Core.Electrical.ElecUnits.VAFromInternal(sys.ApparentLoad) / 1000.0),
-                        VoltDropPct = 0,
+                        VoltDropPct = vdShown ? vdStamp.Pct.Value : 0,
+                        VdUpperBound = vdShown && vdStamp.Method == StingTools.Core.Electrical.VdMethod.Appendix4Envelope,
                         WireSize = SafeStr(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM),
                         LengthM = TrySafe(() => sys.Length * 0.3048),
                         IsSpare = false,
@@ -282,7 +289,18 @@ namespace StingTools.Commands.Electrical
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method, out string basis)
             => BuildWireRefRows(material, insulation, method, StingTools.Core.Electrical.Bs7671Data.DefaultCableType, out basis);
 
+        /// <summary>The project wire-table override path of the document last snapshotted.
+        /// Null before any snapshot, when the grid shows the corporate tables.</summary>
+        internal static string LastWireTableOverridePath { get; set; }
+
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method,
+                                                        string cableType, out string basis)
+            => BuildWireRefRows(StingTools.Commands.Electrical.CableSizer.CableSizerEngine
+                                    .Bs7671TablesForOverridePath(LastWireTableOverridePath),
+                                material, insulation, method, cableType, out basis);
+
+        public static List<WireRefRow> BuildWireRefRows(StingTools.Core.Electrical.Bs7671Data data,
+                                                        string material, string insulation, string method,
                                                         string cableType, out string basis)
         {
             if (string.IsNullOrEmpty(cableType)) cableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
@@ -290,8 +308,20 @@ namespace StingTools.Commands.Electrical
             basis = "";
             try
             {
-                var data = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
+                if (data != null && !string.IsNullOrEmpty(data.LoadError))
+                {
+                    basis = data.LoadError;
+                    rows.Add(new WireRefRow { Size = "—", Imax1Ph = "project override invalid", Imax3Ph = "", Mv1Ph = "", Mv3Ph = "" });
+                    return rows;
+                }
                 var table = data?.FindTable(material, insulation, method, cableType);
+                if (table == null && data != null
+                    && data.RemovedKeys.Contains(StingTools.Core.Electrical.Bs7671Data.Key(material, insulation, cableType, method)))
+                {
+                    basis = $"The project override {data.OverrideFile} removes the table for {material} / {insulation} / {cableType} / method {method}.";
+                    rows.Add(new WireRefRow { Size = "—", Imax1Ph = "removed by project", Imax3Ph = "", Mv1Ph = "", Mv3Ph = "" });
+                    return rows;
+                }
                 if (table == null)
                 {
                     string have = data == null || data.Tables.Count == 0
@@ -319,8 +349,10 @@ namespace StingTools.Commands.Electrical
                         Mv3Ph = $"{r.MvAm3ph:0.###}",
                     });
                 }
-                basis = $"BS 7671 Appendix 4 Table {table.Id} (It, A — {table.Description}, method {table.InstallMethod}, " +
-                        $"30 °C, ungrouped) and Table {table.VoltDropTable} (mV/A/m: 2-core 1-ph / 3–4-core 3-ph)." +
+                basis = $"BS 7671 Appendix 4 {table.Cite()} (It, A — {table.Description}, method {table.InstallMethod}, " +
+                        $"30 °C, ungrouped) and {table.CiteVoltDrop()} (mV/A/m: 2-core 1-ph / 3–4-core 3-ph)." +
+                        (table.Origin == StingTools.Core.Electrical.Bs7671Origin.Project
+                            ? $" PROJECT data from {data.OverrideFile}, not the corporate transcription." : "") +
                         (unverifiedIt > 0 ? $" * It on {unverifiedIt} row(s) has one source — verify before use." : "") +
                         (unverifiedMv > 0 ? $" † mV/A/m on {unverifiedMv} row(s) has one source — verify before use." : "");
             }
@@ -356,11 +388,21 @@ namespace StingTools.Commands.Electrical
                 var vds = VoltageDropCommand.Calculate(doc, opts.Standard, opts.LightingLimitPct, opts.OtherLimitPct,
                                                        opts.Material, opts.OperatingTempC);
                 int bad = vds.Count(v => v.ExceedsThreshold);
+                int maybe = vds.Count(v => v.PossiblyExceeds);
+                int notCalc = vds.Count(v => !v.HasValue);
                 if (bad > 0)
                     items.Add(new ComplianceItemViewModel
                     { Icon = "⚠", Severity = "warn",
                       Message = $"{bad} circuit(s) exceed the voltage-drop threshold." });
-                else
+                if (maybe > 0)
+                    items.Add(new ComplianceItemViewModel
+                    { Icon = "⚠", Severity = "warn",
+                      Message = $"{maybe} circuit(s) may exceed the voltage-drop limit (upper bound — no cable recorded; apply a cable size)." });
+                if (notCalc > 0)
+                    items.Add(new ComplianceItemViewModel
+                    { Icon = "⚠", Severity = "warn",
+                      Message = $"{notCalc} circuit(s) have no voltage drop (missing length, load, voltage or size)." });
+                if (bad + maybe + notCalc == 0)
                     items.Add(new ComplianceItemViewModel
                     { Icon = "✅", Severity = "info",
                       Message = $"Voltage drop within limits across {vds.Count} circuit(s)." });

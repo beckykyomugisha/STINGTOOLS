@@ -41,6 +41,7 @@ namespace StingTools.Commands.Panels
         {
             public string Board = "", Way = "", Load = "", Summary = "";
             public double Ib, In; public double? Iz, Vd, Psc, Icn; public double VdLimit;
+            public bool VdUpperBound; public string VdReason = "";
             public CircuitCheckResult Result;
             public ElectricalSystem Sys;
         }
@@ -66,7 +67,7 @@ namespace StingTools.Commands.Panels
             // The circuit does not say what cable it is, so Iz is the highest It any shipped
             // copper table gives for its size (Bs7671Data.MaxTabulatedIt): a fail is then
             // certain, and a pass still leaves derating unchecked.
-            var tables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
+            var tables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
             var rows = new List<Row>();
             int written = 0, unbound = 0, writeFailed = 0;
             var view = doc.ActiveView;
@@ -156,7 +157,7 @@ namespace StingTools.Commands.Panels
             return Result.Succeeded;
         }
 
-        private const string IzSummary = "the highest tabulated It for the circuit's size in any shipped copper table, 30 °C, ungrouped (the cable is not known, so a pass leaves derating and cable type unchecked)";
+        private const string IzSummary = "the tabulated It of the cable recorded on the circuit (method, insulation, cable type, stamped when a size is applied); without a complete record, the highest It for the size in any shipped copper table. Both at 30 °C, ungrouped, so a pass leaves derating unchecked";
 
         private static Row Evaluate(Document doc, ElectricalSystem sys, Bs7671Data tables, VDOptionsSnapshot opts)
         {
@@ -174,15 +175,38 @@ namespace StingTools.Commands.Panels
             try { wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""; }
             catch (Exception ex) { StingLog.Info($"Check wire: {ex.Message}"); }
             double csa = WireSizeParser.ParseCsaMm2(wire);
-            Bs7671CapacityTable from = null;
-            double it = tables != null && csa > 0 ? tables.MaxTabulatedIt("Cu", csa, poles >= 3 ? 3 : 1, out from) : 0;
+            int ph = poles >= 3 ? 3 : 1;
+            string izBasis = "";
+            double it = 0;
+            // The cable recorded when a size was applied, when all of it is known.
+            var rec = CircuitCableRecord.Read(sys);
+            var own = csa > 0 ? rec.FindTable(tables) : null;
+            if (own != null) it = Bs7671Data.TabulatedIt(own, csa, ph);
+            if (it > 0)
+                izBasis = $"{own.Cite()} ({rec}, recorded on the circuit) It for {csa:0.#} mm², 30 °C, ungrouped";
+            else
+            {
+                Bs7671CapacityTable from = null;
+                it = tables != null && csa > 0 ? tables.MaxTabulatedIt("Cu", csa, ph, out from) : 0;
+                if (tables != null && !string.IsNullOrEmpty(tables.LoadError))
+                    izBasis = tables.LoadError;
+                else if (from != null)
+                    izBasis = $"highest tabulated It for {csa:0.#} mm² Cu in any {(tables.HasProjectLayer ? "loaded (project-layered)" : "shipped")} table ({from.Cite()} method {from.InstallMethod}, " +
+                              $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — no complete cable record on the circuit";
+            }
             row.Iz = it > 0 ? it : (double?)null;
-            string izBasis = from == null ? "" :
-                $"highest tabulated It for {csa:0.#} mm² Cu in any shipped table (Table {from.Id} method {from.InstallMethod}, " +
-                $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — the cable itself is not known";
 
-            var vdp = sys.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
-            if (vdp != null && vdp.HasValue && vdp.StorageType == StorageType.Double) row.Vd = vdp.AsDouble();
+            // ELEC-22: the drop is worked out here, not read back. A stamped figure may be
+            // an import, a resistance estimate, a stale value or the old 0.00 written for a
+            // circuit that could not be calculated — none of which can pass a BS 7671 check.
+            var vd = StingTools.Core.Electrical.CircuitVoltageDropModel.Compute(sys, tables, "BS7671",
+                opts?.Material ?? "Cu", opts?.OperatingTempC > 0 ? opts.OperatingTempC : 70.0);
+            if (vd.HasValue && StingTools.Core.Electrical.CircuitVoltageDrop.IsAppendix4(vd.Method))
+            {
+                row.Vd = vd.Pct;
+                row.VdUpperBound = vd.UpperBound;
+            }
+            else row.VdReason = vd.Detail;
             bool lighting = false;
             try { lighting = VoltageDropCommand.IsLightingCircuit(sys); } catch (Exception ex) { StingLog.Info($"Check lighting: {ex.Message}"); }
             row.VdLimit = VoltageDropEngine.LimitFor(lighting, opts?.LightingLimitPct ?? 0, opts?.OtherLimitPct ?? 0);
@@ -199,6 +223,7 @@ namespace StingTools.Commands.Panels
             {
                 IbA = row.Ib, InA = row.In, IzA = row.Iz, IzBasis = izBasis, IzIsUpperBound = true,
                 VdPct = row.Vd, VdLimitPct = row.VdLimit,
+                VdIsUpperBound = row.VdUpperBound, VdNotCheckedReason = row.VdReason,
                 ProspectiveFaultKa = row.Psc, BreakingCapacityKa = row.Icn,
                 // Only when the family carries no Icn: a typical low-end value that can
                 // prompt "confirm the device" but never produce a pass or a fail.
@@ -253,7 +278,7 @@ namespace StingTools.Commands.Panels
                 using (var wb = new XLWorkbook())
                 {
                     var ws = wb.Worksheets.Add("Circuit check");
-                    string[] h = { "Board", "Way", "Circuit", "Ib (A)", "In (A)", "Iz (A)", "VD (%)", "VD limit (%)", "PSC (kA)", "Icn (kA)", "Result" };
+                    string[] h = { "Board", "Way", "Circuit", "Ib (A)", "In (A)", "Iz (A)", "VD (%)", "VD limit (%)", "PSC (kA)", "Icn (kA)", "Result", "VD basis" };
                     for (int i = 0; i < h.Length; i++) { ws.Cell(1, i + 1).Value = h[i]; ws.Cell(1, i + 1).Style.Font.Bold = true; }
                     int r = 2;
                     foreach (var x in rows.OrderBy(a => a.Board).ThenBy(a => a.Way))
@@ -266,11 +291,14 @@ namespace StingTools.Commands.Panels
                         if (x.Psc.HasValue) ws.Cell(r, 9).Value = x.Psc.Value;
                         if (x.Icn.HasValue) ws.Cell(r, 10).Value = x.Icn.Value;
                         ws.Cell(r, 11).Value = x.Summary;
+                        ws.Cell(r, 12).Value = x.Vd.HasValue
+                            ? (x.VdUpperBound ? "A4-MAX upper bound (no cable recorded)" : "A4, the recorded cable's table")
+                            : x.VdReason;
                         ws.Range(r, 1, r, h.Length).Style.Fill.BackgroundColor =
                             x.Result.Failed ? XLColor.LightSalmon : x.Result.FullyVerified ? XLColor.LightGreen : XLColor.LightYellow;
                         r++;
                     }
-                    ws.Cell(r + 1, 1).Value = "Iz basis: " + IzSummary + ". Green = every rule ran and passed; yellow = UNVERIFIED (no failure found, but not every rule could run); red = fails.";
+                    ws.Cell(r + 1, 1).Value = "Iz basis: " + IzSummary + ". VD is worked out here from each circuit's route length, Ib and voltage (BS 7671 Appendix 4 mV/A/m), not read back from a stamped figure. Green = every rule ran and passed; yellow = UNVERIFIED (no failure found, but not every rule could run); red = fails.";
                     ws.Columns().AdjustToContents();
                     wb.SaveAs(path);
                 }
