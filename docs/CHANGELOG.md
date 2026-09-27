@@ -24437,3 +24437,12 @@ A review of how drawing types choose and size tags. The tag family names the shi
   - Gates pass.
   - Drawing-type checksums unchanged.
   - Not exercised in Revit.
+
+#### Tag colour scheme names: Tag Studio buttons honoured, aliases resolved, unknown names reported
+
+- **The 12 Tag Studio scheme buttons did nothing specific.** Each set `ColorSchemeName` and ran Apply Color Scheme, but the command never read it and opened its generic picker. It now applies the named scheme directly (`ApplyColorSchemeCommand.ApplyNamed`), for discipline schemes and colour-by-value schemes (System, Status, Zone, Level, Location, Function) alike; the picker opens only when no name is passed.
+- **One vocabulary.** New `Core/Drawing/TagColorSchemeNames.cs` (Revit-free) lists the scheme names and resolves aliases. The spellings had drifted: the engine's key is `Mono` while the Mono button and Set View Tag Style wrote `Monochrome`, and six view style packs wrote `STING Discipline`. Both now resolve; the button, the command and the packs use the canonical names.
+- **Unknown names are reported.** `TagStyleEngine.ApplyColorScheme` logs a warning when the view's `STING_VIEW_TAG_STYLE` names no scheme, and `TokenProfileApplier` adds a warning to the drawing-type apply result when a pack's `tagColorScheme` does not resolve. Before, both fell through silently and the tags kept their style.
+- **Tests.** `TagColorSchemeNamesTests`: alias resolution; the engine's scheme tables carry exactly the listed names (parsed from `TagStyleEngine.cs`); every pack scheme resolves or is a listed gap. The pack test was checked failing on an injected misspelling.
+- **Open (ROADMAP TAGSCHEME-1).** Eight pack schemes have no implementation.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,638 passing. The four gates pass. Not exercised in Revit.

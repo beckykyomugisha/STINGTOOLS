@@ -1975,6 +1975,14 @@ Author **2.5 mm and 3.5 mm** variants first — they cover every shipped drawing
   explicitly, and the style grid marks them "not ISO"); a loaded catalogue or preset default that
   names one is moved to the ISO size with a logged warning. `IsoTagText` is the rule;
   `IsoTagStyleDefaultsTests` holds the shipped data to it.
+- **TAGSCHEME-1 (open, 2026-09-27):** eight view style packs name a tag colour scheme the Tag Style
+  Engine does not have: `RAG Status`, `MedicalGas`, `Pressure`, `ElectricalSupply`, `FireRating`,
+  `Radiation`, `AntiLigature`, `WaterSafety`. Applying those packs now reports the name
+  (`TokenProfileApplier` warning) instead of silently leaving tags unstyled. Each needs a
+  `VariableColorScheme` (parameter + value-to-style map) in `TagStyleEngine` and an entry in
+  `TagColorSchemeNames.Variable`; `TagColorSchemeNamesTests` lists them as the known-gap baseline, so
+  remove each from that list as it lands. Related: `ApplyColorScheme` lets a view's
+  `STING_VIEW_TAG_STYLE` override a scheme the user picked explicitly (pre-existing behaviour).
 **Pending (needs Revit + propagation):**
 - Human authors the 8 label **text types** (`1.0mm`…`5.0mm`) on the universal master; because a
   single label's text size is a Type property (not param-drivable), selectable size = **one

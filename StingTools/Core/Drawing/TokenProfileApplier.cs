@@ -90,6 +90,11 @@ namespace StingTools.Core.Drawing
                 // ── Step A. View-level colour scheme route ─────────────
                 if (!string.IsNullOrWhiteSpace(scheme))
                 {
+                    // Written as the pack spells it (drift detection compares the raw
+                    // value), but a name no scheme carries is reported: the Tag Style
+                    // Engine would otherwise ignore it without a word.
+                    if (TagColorSchemeNames.Resolve(scheme) == null)
+                        r.Warnings.Add($"Style pack tag colour scheme: {TagColorSchemeNames.Unknown(scheme)}");
                     if (TryWriteViewParam(view, ParamRegistry.VIEW_TAG_STYLE, scheme))
                         r.ViewParamWrites++;
                 }

@@ -487,7 +487,8 @@ namespace StingTools.Tags
         public static VariableColorScheme GetVariableScheme(string schemeName)
         {
             if (string.IsNullOrEmpty(schemeName)) return null;
-            return VariableSchemes.TryGetValue(schemeName, out var scheme) ? scheme : null;
+            string canonical = Core.Drawing.TagColorSchemeNames.Resolve(schemeName) ?? schemeName;
+            return VariableSchemes.TryGetValue(canonical, out var scheme) ? scheme : null;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -702,16 +703,17 @@ namespace StingTools.Tags
             // use that scheme name instead of the one passed in.
             try
             {
-                string viewStyle = ParameterHelpers.GetString(view, "STING_VIEW_TAG_STYLE");
+                string viewStyle = ParameterHelpers.GetString(view, ParamRegistry.VIEW_TAG_STYLE);
                 if (!string.IsNullOrEmpty(viewStyle))
                 {
-                    // Check variable schemes first (Zone, Status, Level, Function, etc.)
-                    var varScheme = GetVariableScheme(viewStyle);
-                    if (varScheme != null)
-                        return ApplyVariableScheme(doc, view, varScheme);
-
-                    // Then check built-in discipline schemes
-                    if (BuiltInSchemes.TryGetValue(viewStyle, out ColorScheme overrideScheme))
+                    // Aliases ("Monochrome", "STING Discipline") resolve to the engine's keys;
+                    // an unknown name is logged rather than silently ignored.
+                    string canonical = Core.Drawing.TagColorSchemeNames.Resolve(viewStyle);
+                    if (canonical == null)
+                        StingLog.Warn($"View '{view.Name}': {Core.Drawing.TagColorSchemeNames.Unknown(viewStyle)} Using '{scheme?.Name}'.");
+                    else if (Core.Drawing.TagColorSchemeNames.IsVariable(canonical))
+                        return ApplyVariableScheme(doc, view, GetVariableScheme(canonical));
+                    else if (BuiltInSchemes.TryGetValue(canonical, out ColorScheme overrideScheme))
                         scheme = overrideScheme;
                 }
             }

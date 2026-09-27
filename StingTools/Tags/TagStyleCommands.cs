@@ -301,6 +301,13 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
+            // A Tag Studio scheme button passes its scheme; honour it instead of asking
+            // again. This used to be ignored, so all twelve buttons opened the same picker
+            // and the Zone / Status / Level / Function / System schemes were unreachable.
+            string preset = UI.StingCommandHandler.GetExtraParam("ColorSchemeName");
+            if (!string.IsNullOrWhiteSpace(preset))
+                return ApplyNamed(doc, view, preset);
+
             var dlg = new TaskDialog("Color Scheme");
             dlg.MainInstruction = "Select a view color scheme:";
             dlg.MainContent = "Colors all elements by discipline and switches tag text styles to match.\n" +
@@ -360,6 +367,42 @@ namespace StingTools.Tags
                     $"Tag styles switched: {styled}");
             }
 
+            return Result.Succeeded;
+        }
+
+        /// <summary>Apply a scheme by name — discipline or colour-by-value — without a dialog
+        /// until the result. An unknown name is reported, not substituted.</summary>
+        internal static Result ApplyNamed(Document doc, View view, string name)
+        {
+            string canonical = Core.Drawing.TagColorSchemeNames.Resolve(name);
+            if (canonical == null)
+            {
+                TaskDialog.Show("Color Scheme", Core.Drawing.TagColorSchemeNames.Unknown(name));
+                return Result.Failed;
+            }
+            using (Transaction tx = new Transaction(doc, $"STING Color Scheme: {canonical}"))
+            {
+                tx.Start();
+                int colored, styled;
+                string description;
+                if (Core.Drawing.TagColorSchemeNames.IsVariable(canonical))
+                {
+                    var v = TagStyleEngine.GetVariableScheme(canonical);
+                    colored = TagStyleEngine.ApplyVariableScheme(doc, view, v);
+                    styled = TagStyleEngine.ApplyVariableTagStyles(doc, v);
+                    description = v?.Description;
+                }
+                else
+                {
+                    var sc = TagStyleEngine.BuiltInSchemes[canonical];
+                    colored = TagStyleEngine.ApplyColorScheme(doc, view, sc);
+                    styled = sc.DisciplineTagStyles.Count > 0 ? TagStyleEngine.ApplyDisciplineTagStyles(doc, sc) : 0;
+                    description = sc.Description;
+                }
+                tx.Commit();
+                TaskDialog.Show("Color Scheme Applied",
+                    $"Scheme: {canonical}\n{description}\n\nElements colored: {colored}\nTag styles switched: {styled}");
+            }
             return Result.Succeeded;
         }
 
@@ -1258,7 +1301,7 @@ namespace StingTools.Tags
             var td = new TaskDialog("STING — View Tag Style");
             td.MainInstruction = "Select tag style for this view";
             td.MainContent = $"Current view: {view.Name}";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Discipline (M=Blue, E=Gold, P=Green...)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Discipline (M=Blue, E=Orange, P=Green...)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Monochrome (black on white)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Warm (red/orange/yellow)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Cool (blue/cyan/mint)");
@@ -1269,7 +1312,7 @@ namespace StingTools.Tags
             switch (result)
             {
                 case TaskDialogResult.CommandLink1: styleName = "Discipline"; break;
-                case TaskDialogResult.CommandLink2: styleName = "Monochrome"; break;
+                case TaskDialogResult.CommandLink2: styleName = "Mono"; break;
                 case TaskDialogResult.CommandLink3: styleName = "Warm"; break;
                 case TaskDialogResult.CommandLink4: styleName = "Cool"; break;
                 default: return Result.Cancelled;

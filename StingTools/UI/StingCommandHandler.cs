@@ -3069,7 +3069,7 @@ namespace StingTools.UI
                     case "TagStudio_SchemeRed": ApplyTagColorScheme(app, "Red"); break;
                     case "TagStudio_SchemeYellow": ApplyTagColorScheme(app, "Yellow"); break;
                     case "TagStudio_SchemeBlue": ApplyTagColorScheme(app, "Blue"); break;
-                    case "TagStudio_SchemeMono": ApplyTagColorScheme(app, "Monochrome"); break;
+                    case "TagStudio_SchemeMono": ApplyTagColorScheme(app, "Mono"); break;
                     case "TagStudio_SchemeDark": ApplyTagColorScheme(app, "Dark"); break;
                     case "TagStudio_SchemeZone": ApplyTagColorScheme(app, "Zone"); break;
                     case "TagStudio_SchemeStatus": ApplyTagColorScheme(app, "Status"); break;
