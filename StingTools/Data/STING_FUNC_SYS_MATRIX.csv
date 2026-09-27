@@ -92,12 +92,12 @@ MGS,Medical Gas Systems,EVAC,Anaesthetic Gas Scavenging,P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,N2,Surgical Nitrogen,P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,CO2,Carbon Dioxide (medical),P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,GEN,General Medical Gas,P,HTM 02-01,TRUE
-LPS,Lightning Protection System,AIR,Air Termination Network,E,BS EN 62305-3,TRUE
-LPS,Lightning Protection System,DOW,Down Conductor,E,BS EN 62305-3,TRUE
-LPS,Lightning Protection System,ERT,Earth Termination,E,BS EN 62305-3,TRUE
-LPS,Lightning Protection System,BND,Bonding,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,AT,Air Termination Network,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,DC,Down Conductor,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,EE,Earth Termination,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,BOND,Bonding,E,BS EN 62305-3,TRUE
 LPS,Lightning Protection System,SPD,Surge Protection Device,E,BS EN 62305-4,TRUE
-LPS,Lightning Protection System,TST,Test Joint / Clamp,E,BS EN 62305-3,TRUE
+LPS,Lightning Protection System,TC,Test Joint / Clamp,E,BS EN 62305-3,TRUE
 LPS,Lightning Protection System,GEN,General LPS,E,BS EN 62305-3,TRUE
 RAD,Radiation Protection,SHD,Shielding Element,S,NCRP 147,TRUE
 RAD,Radiation Protection,ZNE,Radiation Zone Boundary,S,NCRP 147,TRUE

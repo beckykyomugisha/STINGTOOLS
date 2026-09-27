@@ -471,7 +471,7 @@
       "template": "Metric Electrical Equipment.rft",
       "elementTypeTag": "BONDING_BAR",
       "prodCodeTag": "BBR",
-      "funcCode": "BND",
+      "funcCode": "BOND",
       "sysCode": "LPS",
       "subcategories": [
         { "name": "STING_LPS_MEB", "lineWeight": 4, "color": "255,193,7" }
@@ -536,7 +536,7 @@
       "template": "Metric Electrical Equipment.rft",
       "elementTypeTag": "BONDING_BAR",
       "prodCodeTag": "BBR",
-      "funcCode": "BND",
+      "funcCode": "BOND",
       "sysCode": "LPS",
       "subcategories": [
         { "name": "STING_LPS_BondingBar", "lineWeight": 3, "color": "255,193,7" }
@@ -565,7 +565,7 @@
       "template": "Metric Generic Model line based.rft",
       "elementTypeTag": "BOND",
       "prodCodeTag": "BCN",
-      "funcCode": "BND",
+      "funcCode": "BOND",
       "sysCode": "LPS",
       "subcategories": [
         { "name": "STING_LPS_BondingStrap", "lineWeight": 3, "color": "255,193,7" }
@@ -596,7 +596,7 @@
       "template": "Metric Electrical Equipment.rft",
       "elementTypeTag": "BOND",
       "prodCodeTag": "ISG",
-      "funcCode": "BND",
+      "funcCode": "BOND",
       "sysCode": "LPS",
       "subcategories": [
         { "name": "STING_LPS_SparkGap", "lineWeight": 3, "color": "255,193,7" }

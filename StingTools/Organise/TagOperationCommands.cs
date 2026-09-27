@@ -372,8 +372,6 @@ namespace StingTools.Organise
                         if (string.IsNullOrEmpty(func))
                         {
                             func = TagConfig.GetSmartFuncCode(elem, sys);
-                            if (string.IsNullOrEmpty(func))
-                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
                         }
                         if (string.IsNullOrEmpty(prod))
                             prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
@@ -671,8 +669,6 @@ namespace StingTools.Organise
                         if (string.IsNullOrEmpty(func))
                         {
                             func = TagConfig.GetSmartFuncCode(elem, sys);
-                            if (string.IsNullOrEmpty(func))
-                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
                         }
                         if (string.IsNullOrEmpty(prod))
                             prod = TagConfig.GetFamilyAwareProdCode(elem, catName);

@@ -2030,9 +2030,6 @@ namespace StingTools.Core
         // F-10: Static readonly token arrays for CopyTokensFromNearest — avoid per-element List+ToArray allocation
         private static readonly string[] _spatialLocOnly  = { ParamRegistry.LOC };
         private static readonly string[] _spatialZoneOnly = { ParamRegistry.ZONE };
-        private static readonly string[] _spatialLocZone  = { ParamRegistry.LOC, ParamRegistry.ZONE };
-        private static readonly string[] _proxSysOnly     = { ParamRegistry.SYS };
-        private static readonly string[] _proxFuncOnly    = { ParamRegistry.FUNC };
         private static readonly string[] _proxSysFunc     = { ParamRegistry.SYS, ParamRegistry.FUNC };
 
         /// <summary>
@@ -2522,8 +2519,27 @@ namespace StingTools.Core
                         catch (Exception wsEx) { StingLog.Warn($"LOC workset fallback: {wsEx.Message}"); }
                     }
 
+                    // Phase 68 (NEW-02): nothing located the element — inherit LOC from the
+                    // nearest tagged element of the same category BEFORE writing a default.
+                    // This ran after the default until 2026-09-27, when the slot was already
+                    // filled, so CopyTokensFromNearest (which never overwrites) copied nothing.
+                    bool locFromNeighbour = false;
+                    if (!overwrite && !locFromScopeBox && (!locFromSpatial || loc == ctx?.ProjectLoc))
+                    {
+                        if (CopyTokensFromNearest(doc, el, _spatialLocOnly) > 0)
+                        {
+                            locFromNeighbour = true;
+                            result.TokensSet++;
+                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, "Proximity");
+                        }
+                    }
+
                     if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-                    if (overwrite)
+                    if (locFromNeighbour)
+                    {
+                        // LOC already inherited; the default below would be a no-op.
+                    }
+                    else if (overwrite)
                     {
                         if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
                     }
@@ -2580,6 +2596,16 @@ namespace StingTools.Core
                 {
                     string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
                     bool zoneFromSpatial = !string.IsNullOrEmpty(zone) && zone != "Z01";
+
+                    // Phase 68 (NEW-02): as for LOC — inherit from the nearest tagged element
+                    // before the Z01 default fills the slot.
+                    if (!overwrite && !zoneFromSpatial
+                        && CopyTokensFromNearest(doc, el, _spatialZoneOnly) > 0)
+                    {
+                        result.TokensSet++;
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, "Proximity");
+                    }
+
                     if (string.IsNullOrEmpty(zone)) zone = "Z01";
                     if (overwrite)
                     {
@@ -2597,23 +2623,6 @@ namespace StingTools.Core
                 }
             }
 
-            // Phase 68 (NEW-02): CopyTokensFromNearest for LOC/ZONE when spatial detection yields defaults
-            if (!overwrite)
-            {
-                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                bool locDefault = string.IsNullOrEmpty(curLoc) || curLoc == "XX" || curLoc == ctx?.ProjectLoc;
-                bool zoneDefault = string.IsNullOrEmpty(curZone) || curZone == "Z01" || curZone == "ZZ";
-                if (locDefault || zoneDefault)
-                {
-                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
-                    string[] spatialTokens = (locDefault && zoneDefault) ? _spatialLocZone
-                                           : locDefault ? _spatialLocOnly : _spatialZoneOnly;
-                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens);
-                    result.TokensSet += spatialCopied;
-                }
-            }
-
             // LVL — deterministic from element level
             // Guaranteed default: replace unresolved "XX" with "L00" for levelless elements
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
@@ -2627,6 +2636,20 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) result.TokensSet++;
             }
 
+            // SYS/FUNC proximity: when detection only reached a generic answer, inherit the
+            // SYS + FUNC PAIR from the nearest tagged element of the same category BEFORE
+            // the generic value fills the slot. This used to run after SYS and FUNC had
+            // been written, so both slots were full and nothing was ever copied. The pair
+            // is copied only when both slots are empty, so an inherited SYS can never sit
+            // beside a FUNC derived from a different one.
+            if (!overwrite
+                && (sys == "GEN" || sys == "ARC" || sys == "STR")
+                && ParamRegistry.IsTokenEffectivelyEmpty(ParameterHelpers.GetString(el, ParamRegistry.SYS))
+                && ParamRegistry.IsTokenEffectivelyEmpty(ParameterHelpers.GetString(el, ParamRegistry.FUNC)))
+            {
+                result.TokensSet += CopyTokensFromNearest(doc, el, _proxSysFunc);
+            }
+
             // SYS — always write a guaranteed value (never empty)
             if (overwrite)
             {
@@ -2634,7 +2657,7 @@ namespace StingTools.Core
             }
             else
             {
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
+                if (ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
             }
 
             // Write SYS detection layer (1-7) for confidence tracking
@@ -2665,18 +2688,25 @@ namespace StingTools.Core
             }
             catch (Exception lnEx) { StingLog.Warn($"Token lineage stamp: {lnEx.Message}"); }
 
-            // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
-            // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
-            string func = TagConfig.GetSmartFuncCode(el, sys);
-            if (string.IsNullOrEmpty(func))
-                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW, VNT, LPS)
+            // derived from the SYS the element actually HOLDS. On the non-overwrite path a
+            // SYS inherited from the type, a connected element or a neighbour wins over the
+            // one detected above; deriving FUNC from the detected one paired e.g. SYS=DHW
+            // with FUNC=DCW, which the FUNC/SYS cross-check then rejects.
+            string sysForFunc = sys;
+            if (!overwrite)
+            {
+                string heldSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                if (!ParamRegistry.IsTokenEffectivelyEmpty(heldSys)) sysForFunc = heldSys.Trim();
+            }
+            string func = TagConfig.GetSmartFuncCode(el, sysForFunc);
             if (overwrite)
             {
                 if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true)) result.TokensSet++;
             }
             else
             {
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
+                if (ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
             }
 
             // PROD — family-aware (35+ specific codes)
@@ -2689,25 +2719,7 @@ namespace StingTools.Core
             }
             else
             {
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
-            }
-
-            // Proximity-based token copy for SYS/FUNC when detection yielded generic defaults
-            // Uses configurable ProximityRadiusFt from project_config.json (default 10 ft)
-            if (!overwrite)
-            {
-                string curSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                string curFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-                bool sysGeneric = string.IsNullOrEmpty(curSys) || curSys == "GEN" || curSys == "ARC" || curSys == "STR";
-                bool funcGeneric = string.IsNullOrEmpty(curFunc) || curFunc == "GEN";
-                if (sysGeneric || funcGeneric)
-                {
-                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
-                    string[] tokensToInherit = (sysGeneric && funcGeneric) ? _proxSysFunc
-                                             : sysGeneric ? _proxSysOnly : _proxFuncOnly;
-                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit);
-                    result.TokensSet += proxCopied;
-                }
+                if (ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
             }
 
             // Per-discipline profile defaults — apply after all detection to fill still-generic tokens
@@ -2716,19 +2728,18 @@ namespace StingTools.Core
                 var profile = TagConfig.GetDisciplineProfile(curDisc);
                 if (profile != null)
                 {
-                    // Apply DefaultProd when PROD is still generic (GEN/XX)
+                    // Apply DefaultProd when PROD is still generic (GEN/XX). GEN / XX are
+                    // placeholders, so they are replaced on BOTH paths: until 2026-09-27 the
+                    // non-overwrite path called SetIfEmpty on a slot already holding GEN
+                    // (written just above), which refused, so the profile default never
+                    // applied unless the user chose Overwrite.
                     if (!string.IsNullOrEmpty(profile.DefaultProd))
                     {
-                        string curProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-                        if (string.IsNullOrEmpty(curProd) || curProd == "GEN" || curProd == "XX")
+                        string curProd = ParameterHelpers.GetString(el, ParamRegistry.PROD)?.Trim();
+                        if (ParamRegistry.IsTokenEffectivelyEmpty(curProd) || curProd == "GEN" || curProd == "XX")
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, profile.DefaultProd))
+                            if (ParameterHelpers.SetString(el, ParamRegistry.PROD, profile.DefaultProd, overwrite: true))
                                 result.TokensSet++;
-                            else if (overwrite && (curProd == "GEN" || curProd == "XX"))
-                            {
-                                if (ParameterHelpers.SetString(el, ParamRegistry.PROD, profile.DefaultProd, overwrite: true))
-                                    result.TokensSet++;
-                            }
                         }
                     }
 
@@ -3048,53 +3059,6 @@ namespace StingTools.Core
                 StingLog.Warn($"CopyTokensFromNearest: {ex.Message}");
                 return 0;
             }
-        }
-
-        /// <summary>
-        /// Populate only the core 7 tag tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD)
-        /// without STATUS and REV. Used when only tag-building tokens are needed.
-        /// </summary>
-        public static int PopulateTagTokens(Document doc, Element el,
-            PopulationContext ctx)
-        {
-            int count = 0;
-            string catName = ParameterHelpers.GetCategoryName(el);
-            if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
-                return count;
-
-            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) count++;
-
-            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-            {
-                string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
-                if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) count++;
-            }
-
-            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-            {
-                string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
-                if (string.IsNullOrEmpty(zone)) zone = "Z01";
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) count++;
-            }
-
-            string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            if (lvl == "XX") lvl = "L00";
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) count++;
-
-            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-            if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) count++;
-
-            string func = TagConfig.GetSmartFuncCode(el, sys);
-            if (string.IsNullOrEmpty(func)) func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) count++;
-
-            string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) count++;
-
-            return count;
         }
     }
 
@@ -5147,10 +5111,22 @@ namespace StingTools.Core
                     // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                     TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
-                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
+                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll.
+                    // FUNC (and a pipe's DISC) were derived from the SYS PopulateAll chose,
+                    // so re-derive them from the forced one — otherwise forcing Pipes to SAN
+                    // left FUNC=SUP from HVAC and DISC=M. An explicit FUNC / DISC in
+                    // CATEGORY_TOKEN_OVERRIDES below still wins.
                     if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
                         && !string.IsNullOrEmpty(forcedSys))
+                    {
                         ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
+                        ParameterHelpers.SetString(el, ParamRegistry.FUNC,
+                            TagConfig.GetSmartFuncCode(el, forcedSys), overwrite: true);
+                        if (CategoryTokenDefaults.PipeCategories.Contains(catName)
+                            && TagConfig.DiscMap.TryGetValue(catName, out string baseDisc))
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC,
+                                TagConfig.GetSystemAwareDisc(baseDisc, forcedSys, catName), overwrite: true);
+                    }
 
                     // Apply full per-category token overrides
                     if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
