@@ -1,5 +1,6 @@
-// Fire_SprinklerHydraulics — tree hydraulic calculation for a sprinkler
-// design area.
+// Fire_SprinklerHydraulics — hydraulic calculation for a sprinkler design
+// area: the tree hand method for branched installations, the network solver
+// (SprinklerNetworkHydraulics) when the pipework contains loops or a grid.
 //
 // Select the sprinkler heads in the design area plus ONE other element on
 // the same network to act as the source (the installation valve set, the
@@ -145,6 +146,9 @@ namespace StingTools.Commands.Fire
                 TaskDialog.Show(Title, "The network calculation could not run:\n\n" + string.Join("\n", warnings.Take(12)));
                 return Result.Failed;
             }
+            if (res.AreaPerHeadM2 > hazard.MaxAreaPerHeadM2 && hazard.MaxAreaPerHeadM2 > 0 && criteria.AreaPerHeadM2 <= 0)
+                warnings.Add($"Design area ÷ heads = {res.AreaPerHeadM2:F1} m² per head, above the {hazard.MaxAreaPerHeadM2:F0} m² maximum — " +
+                             "the selection has too few heads for the area of operation.");
 
             string csv = null;
             try
@@ -306,7 +310,7 @@ namespace StingTools.Commands.Fire
 
             var basisSec = panel.AddSection("BASIS");
             basisSec.Text("Hazen-Williams p = 6.05×10⁵·Q^1.85·L/(C^1.85·d^4.87); static 0.0981 bar/m; junctions balanced by equivalent K.");
-            basisSec.Text("Fittings and valves by equivalent length in bores (approximation — see the data file).");
+            basisSec.Text("Fittings and valves by equivalent length: the per-size table in the data file where it has an entry, else a length in bores (approximation).");
             if (hazard.Verify) basisSec.Text($"Hazard {hazard.Id} figures are marked verify — check against the standard in force before relying on the result.");
             foreach (var src in data.Sources) basisSec.Text("Data: " + src);
             if (!string.IsNullOrEmpty(csv)) basisSec.Text("CSV: " + csv);

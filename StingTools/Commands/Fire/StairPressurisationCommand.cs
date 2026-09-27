@@ -61,7 +61,7 @@ namespace StingTools.Commands.Fire
                     .Number("dbl", "Double-leaf doors", counts.Double, 0, 500)
                     .Number("lift", "Lift landing doors", 0, 0, 500)
                     .Number("other", "Other leakage (walls, windows, vents) m²", 0, 0, 100)
-                    .Number("open", "Doors open in the velocity case", data.Class(null)?.OpenDoors ?? 1, 0, 20)
+                    .Number("open", "Doors open in the velocity case (0 = the class's figure)", 0, 0, 20)
                     .Number("w", "Open door width (m)", counts.TypicalWidthM > 0 ? counts.TypicalWidthM : 1.0, 0.5, 3)
                     .Number("h", "Open door height (m)", counts.TypicalHeightM > 0 ? counts.TypicalHeightM : 2.1, 1.5, 4)
                     .Number("allow", "Leakage allowance (×)", data.LeakageAllowance, 1, 3)
@@ -75,7 +75,7 @@ namespace StingTools.Commands.Fire
                     SystemClass = cls.Id,
                     DesignPressurePa = cls.DesignPressurePa,
                     OpenDoorVelocityMs = cls.OpenDoorVelocityMs,
-                    OpenDoors = (int)Math.Round(form.Get("open")),
+                    OpenDoors = form.Get("open") > 0 ? (int)Math.Round(form.Get("open")) : cls.OpenDoors,
                     DoorWidthM = form.Get("w"),
                     DoorHeightM = form.Get("h"),
                     LeakageAllowance = form.Get("allow"),
@@ -142,7 +142,7 @@ namespace StingTools.Commands.Fire
         }
 
         /// <summary>
-        /// Doors whose From/To room is the stair, in the last phase. A door
+        /// Doors whose From/To room is the stair, in the stair room's phase. A door
         /// swings into its ToRoom. Double leaf by family/type name, else by a
         /// width of 1.5 m or more.
         /// </summary>
@@ -151,8 +151,14 @@ namespace StingTools.Commands.Fire
             var c = new DoorCounts();
             var widths = new List<double>();
             var heights = new List<double>();
+            // The stair room's own phase; a door's From/To room is phase-specific.
             Phase phase = null;
-            try { phase = doc.Phases.Cast<Phase>().LastOrDefault(); }
+            try
+            {
+                var pid = stair.get_Parameter(BuiltInParameter.ROOM_PHASE_ID)?.AsElementId();
+                phase = (pid != null && pid != ElementId.InvalidElementId ? doc.GetElement(pid) as Phase : null)
+                        ?? doc.Phases.Cast<Phase>().LastOrDefault();
+            }
             catch (Exception ex) { StingLog.Warn($"StairPressurisation phases: {ex.Message}"); }
             foreach (var door in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors)
                          .WhereElementIsNotElementType().OfType<FamilyInstance>())

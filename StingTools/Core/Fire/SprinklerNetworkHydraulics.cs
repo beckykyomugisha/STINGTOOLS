@@ -94,9 +94,13 @@ namespace StingTools.Core.Fire
 
             // Bracket: grow the source pressure until every head is satisfied.
             double lo = 0, hi = Math.Max(1.0, heads.Max(Req));
-            int guard = 0;
-            while (Margin(hi) < 0 && guard++ < 20) { lo = hi; hi *= 2; }
-            if (guard >= 20) { r.Warnings.Add("No source pressure up to the search limit satisfies every head."); return r; }
+            bool bracketed = false;
+            for (int guard = 0; guard < 20; guard++)
+            {
+                if (Margin(hi) >= 0) { bracketed = true; break; }
+                lo = hi; hi *= 2;
+            }
+            if (!bracketed) { r.Warnings.Add($"No source pressure up to {hi:F0} bar satisfies every head."); return r; }
             for (int i = 0; i < 60 && hi - lo > 1e-6; i++)
             {
                 double mid = 0.5 * (lo + hi);

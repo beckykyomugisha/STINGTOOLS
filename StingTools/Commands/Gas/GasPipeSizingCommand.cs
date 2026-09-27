@@ -171,7 +171,10 @@ namespace StingTools.Commands.Gas
             var basis = panel.AddSection("BASIS");
             basis.Text("Network method: node pressures solved by Newton's method on continuity with Pole's-formula links; " +
                        "each appliance draws its full heat input. Flow in a ring divides by resistance.");
+            basis.Text("Multi-port fittings' equivalent length is shared among the pipes they join (approximation).");
             foreach (var src in data.Sources) basis.Text("Data: " + src);
+            string csv = ExportNetworkCsv(doc, res, gas, warnings);
+            if (!string.IsNullOrEmpty(csv)) basis.Text("CSV: " + csv);
             if (warnings.Count > 0)
             {
                 var w = panel.AddSection("WARNINGS");
@@ -180,6 +183,28 @@ namespace StingTools.Commands.Gas
             panel.Show();
             return res.Converged ? Result.Succeeded : Result.Failed;
         }
+
+        private static string ExportNetworkCsv(Document doc, GasNetworkResult res, GasProperties gas, List<string> warnings)
+        {
+            try
+            {
+                string path = StingPaths.ExportFile(doc, "Schedule", "GasPipeSizing_" + gas.Id + "_network", ".csv");
+                var sb = new StringBuilder();
+                sb.AppendLine("Kind,ElementId,Label,Flow_m3h,Drop_mbar,Velocity_ms,Bore_mm,Length_m,EquivLength_m,Load_kW");
+                foreach (var a in res.Appliances)
+                    sb.AppendLine(string.Join(",", "Appliance", a.Node.ElementId, Q(a.Node.Label), F(a.FlowM3h, "0.000"),
+                        F(a.DropMbar, "0.000"), "", "", "", "", F(a.Node.LoadKw)));
+                foreach (var l in res.Links)
+                    sb.AppendLine(string.Join(",", l.Link.Kind.ToString(), l.Link.ElementId, Q(l.Link.Label), F(l.FlowM3h, "0.000"),
+                        F(l.DropMbar, "0.000"), F(l.VelocityMs, "0.00"), F(l.Link.BoreMm), F(l.Link.LengthM, "0.00"),
+                        F(l.Link.EquivLengthM, "0.00"), ""));
+                File.WriteAllText(path, sb.ToString(), new UTF8Encoding(true));
+                return path;
+            }
+            catch (Exception ex) { warnings.Add($"CSV export failed: {ex.Message}"); return null; }
+        }
+
+        private static string Q(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
 
         /// <summary>An appliance is any connected family instance that is not pipework.</summary>
         private static bool IsAppliance(Element e)
@@ -204,7 +229,7 @@ namespace StingTools.Commands.Gas
                         // A power-typed parameter is stored in internal units (W-based);
                         // a plain number is taken as kW, which is what the name says.
                         var spec = p.Definition?.GetDataType();
-                        v = spec != null && spec == SpecTypeId.HvacPower
+                        v = spec != null && UnitUtils.IsMeasurableSpec(spec) && UnitUtils.IsValidUnit(spec, UnitTypeId.Kilowatts)
                             ? UnitUtils.ConvertFromInternalUnits(p.AsDouble(), UnitTypeId.Kilowatts)
                             : p.AsDouble();
                     }
@@ -233,14 +258,18 @@ namespace StingTools.Commands.Gas
                     var pipe = doc.GetElement(id) as Pipe;
                     var p = pipe?.get_Parameter(BuiltInParameter.RBS_PIPE_DIAMETER_PARAM);
                     if (size == null || p == null || p.IsReadOnly) { failed++; continue; }
+                    double before = p.AsDouble();
                     try
                     {
                         p.Set(size.NominalMm / 304.8);
                         double got = pipe.Diameter * 304.8;
                         if (Math.Abs(got - size.NominalMm) > 0.5)
                         {
+                            // Revit snapped to a size the calculation did not choose; put the
+                            // pipe back rather than leave an unchecked size in the model.
+                            p.Set(before);
                             failed++;
-                            warnings.Add($"Pipe {id.Value}: pipe type has no {size.Label} size (got {got:F0} mm).");
+                            warnings.Add($"Pipe {id.Value}: pipe type has no {size.Label} size (Revit gave {got:F0} mm) — left as modelled.");
                         }
                         else ok++;
                     }
@@ -307,7 +336,7 @@ namespace StingTools.Commands.Gas
             panel.AddSection("APPLIANCES").Table(new[] { "Appliance", "kW", "m³/h" }, apps);
 
             var basis = panel.AddSection("BASIS");
-            basis.Text("h = s·L·(Q/0.0071)²/d⁵ (Pole's formula), Q = kW × 3.6 / CV. Fittings and valves by equivalent length in bores.");
+            basis.Text("h = s·L·(Q/0.0071)²/d⁵ (Pole's formula), Q = kW × 3.6 / CV. Fittings and valves by equivalent length: the per-size table in the data file where it has an entry, else a length in bores.");
             basis.Text("No diversity is applied — every appliance is taken at full heat input.");
             if (data.GasVerify.TryGetValue(gas.Id, out var v) && v) basis.Text($"Gas '{gas.Id}' figures are marked verify — confirm with the supplier.");
             foreach (var src in data.Sources) basis.Text("Data: " + src);

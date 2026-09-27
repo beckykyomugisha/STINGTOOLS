@@ -52,10 +52,10 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 | ☐ | same, a rectangular duct running through the receiving Space | [RO] | → **Expect** a BASIS line on breakout with the wall mass assumed, a "Breakout Lw" row, and a higher NC than the same run outside the room | MEPG-4 |
 | ☐ | CALCS → **Refrigerant size** (`Hvac_RefrigSize`) | [RO] | Liquid leg, lift −10 m, mode **Reversible** → note ΔP; repeat with **Cooling only** → **Expect** the trace shows a static head **debit** in both (outdoor unit below, liquid rising); with lift **+10 m** and Cooling only → a **credit** | MEPG-5 |
 | ☐ | same, Suction leg, allowance 1.10 then 1.30 | [RO] | → **Expect** subtitle shows the allowance; ΔP rises by the ratio | |
-| ☐ | CALCS → **Psychro coil** (`Hvac_PsychroCoil`) | [RO] | defaults → **Expect** outdoor defaults from the climate site; four states in the table; sensible + latent = total; ADP below the off-coil dry bulb; bypass factor between 0 and 1 | |
+| ☐ | CALCS → **Psychro coil** (`Hvac_PsychroCoil`) | [RO] | defaults → **Expect** outdoor defaults from the climate site; four states in the table; sensible + latent = total; ADP below the off-coil dry bulb; bypass factor between 0 and 1 | Repeat with no climate site set and the outdoor fields untouched: **Expect** a warning that the outdoor air is a placeholder, not a design day. |
 | ☐ | same, room sensible load 10 kW | [RO] | → **Expect** a room supply airflow and "enough" / "SHORT" against the coil airflow | |
 | ☐ | same, off-coil RH 40 % | [RO] | → **Expect** warning "No moisture removed", ADP "—", SHR 1.00 | |
-| ☐ | SYS → **Stair press.** (`Fire_StairPressurisation`) | [RO] | select the stair Room first → **Expect** the form prefilled with door counts from the model (into / out of / double) and typical door size | Lift landing doors are not modelled as doors — enter them. |
+| ☐ | SYS → **Stair press.** (`Fire_StairPressurisation`) | [RO] | select the stair Room first → **Expect** the form prefilled with door counts from the model (into / out of / double) and typical door size; "Doors open" left at 0 uses the chosen class's figure | Lift landing doors are not modelled as doors — enter them. Doors are read in the stair room's phase. |
 | ☐ | run with Class A, then Class B | [RO] | → **Expect** Class B governed by "open-door velocity"; the door opening force line; a BASIS line saying the class criteria are marked verify | MEPG-8 |
 | ☐ | RPRT → **Push snapshots** (`Hvac_PushSnapshot`) after the load runs | [RO] | server connected → **Expect** the loads snapshot `totalKw` equals the larger of Σ heating / Σ cooling, not their sum | |
 
@@ -82,9 +82,9 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 | ☐ | same, a head screwed straight into a tee | [RO] | → **Expect** the head still listed (merged with the tee node), not lost | |
 | ☐ | SPECIALTY → **Gas Pipe Sizing** (`Gas_SizePipes`) | [RO] | select the meter → NG, copper, "Check the modelled sizes" → **Expect** every appliance listed with kW and m³/h; worst-appliance drop vs 1 mbar | |
 | ☐ | same, "Size and report only" | [RO] | → **Expect** a size per pipe; worst appliance within 1 mbar; nothing changed in the model | |
-| ☐ | same, "Size and apply the sizes to the pipes" | [M] | → **Expect** "Pipes resized N"; pipes now at the reported sizes; any size the pipe type lacks listed as a warning, not silently snapped | Undo afterwards. |
+| ☐ | same, "Size and apply the sizes to the pipes" | [M] | → **Expect** "Pipes resized N"; pipes now at the reported sizes; any size the pipe type lacks listed as a warning and that pipe left at its modelled size, not silently snapped | Undo afterwards. |
 | ☐ | same, an appliance with no heat-input parameter | [RO] | → **Expect** it listed as "NO LOAD" and named in a warning | |
-| ☐ | same, on a ring main (looped) | [RO] | → **Expect** subtitle "looped installation … network check"; a sizing request is refused with a warning and the modelled sizes checked | MEPG-9 |
+| ☐ | same, on a ring main (looped) | [RO] | → **Expect** subtitle "looped installation … network check"; a sizing request is refused with a warning and the modelled sizes checked; the CSV has a `_network` suffix | MEPG-9 |
 
 ## Electrical panel
 

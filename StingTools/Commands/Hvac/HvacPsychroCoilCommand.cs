@@ -36,6 +36,10 @@ namespace StingTools.Commands.Hvac
                 ClimateSite site = null;
                 try { site = ClimateRegistry.ActiveSite(ctx.Doc); }
                 catch (Exception ex) { StingLog.Warn($"Psychro: climate site: {ex.Message}"); }
+                // ClimateRegistry hands back a synthetic "fallback" site when nothing
+                // resolves; it is not a design day, so it must not prefill as one.
+                if (site != null && (string.Equals(site.Id, "fallback", StringComparison.OrdinalIgnoreCase)
+                                     || site.Cooling996McwbC <= 0)) site = null;
                 double oaDb = site?.Cooling996DbC ?? 28;
                 double oaWb = site?.Cooling996McwbC ?? 20;
                 double elev = site?.ElevationM ?? 0;
@@ -69,6 +73,8 @@ namespace StingTools.Commands.Hvac
                 var coil = Psychrometrics.CoolingCoil(mix, form.Get("offDb"), form.Get("offRh") / 100.0, form.Get("flow"));
 
                 var warnings = new List<string>();
+                if (site == null && form.Get("oaDb") == oaDb && form.Get("oaWb") == oaWb)
+                    warnings.Add($"Outdoor air is the unedited placeholder ({oaDb:0} °C db / {oaWb:0} °C wb), not a design day — set PRJ_CLIMATE_SITE_ID or enter the site's figures.");
                 if (coil.Leaving.DryBulbC >= mix.DryBulbC) warnings.Add("Leaving dry bulb is not below the entering dry bulb — this is not a cooling process.");
                 if (coil.Leaving.HumidityRatio >= mix.HumidityRatio - 1e-9) warnings.Add("No moisture removed: the leaving state is at or above the entering humidity ratio (sensible cooling only).");
                 if (!double.IsNaN(coil.ApparatusDewPointC) && coil.ApparatusDewPointC < 2) warnings.Add($"Apparatus dew point {coil.ApparatusDewPointC:F1} °C is near freezing — check the coil selection.");

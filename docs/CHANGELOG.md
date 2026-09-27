@@ -23754,3 +23754,27 @@ dispatch-parity baseline). The Revit checklist for all of this is
 Tests: `StingTools.Mep.Tests` 87 cases, `StingTools.Routing.Tests` 80. Plugin build 0/0.
 **Not exercised in Revit** — `MEP_SMOKETEST_CHECKLIST.md` gained the steps for all of the above.
 
+
+#### Review pass on the MEP engines branch (2026-09-27)
+
+A self-review of the PR found these defects and inconsistencies. Each is now fixed.
+- **Gas sizing, apply mode.** When a pipe type lacked the chosen size, Revit snapped the pipe to
+  another size and the command left it there, so the model held a size nobody had calculated. The
+  pipe is now put back to its modelled diameter and the warning says so.
+- **Gas load read.** Any power-typed heat-input parameter is now converted from internal units,
+  not only `HvacPower`. An electrical-power parameter used to be read raw.
+- **Looped gas check.** It now exports a `_network` CSV like the sprinkler network path, and its
+  basis states the multi-port fitting approximation.
+- **Sprinkler network.** The pressure-bracketing loop could report "no pressure satisfies every
+  head" when the 20th doubling succeeded. The network path also now gives the same
+  too-few-heads-for-the-area warning as the tree path.
+- **Stair pressurisation.**
+  - "Doors open" used to prefill from the default class even when another class was chosen. 0 now
+    means the chosen class's figure.
+  - Door swing is read in the stair room's phase, not the last phase.
+- **Psychro coil.**
+  - `ClimateRegistry`'s synthetic "fallback" site used to prefill as if it were a design day. It
+    no longer does.
+  - Untouched placeholder outdoor values are now flagged in the report.
+
+Plugin build 0/0. **Not exercised in Revit.** The checklist rows are updated.
