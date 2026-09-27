@@ -23920,3 +23920,17 @@ GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOUR
 - The file is deleted. Checked tables are in `StingTools/Data/STING_WIRE_TABLES.json`, read
   through `Bs7671Data` / `Bs7671CableSizer`.
 - `StingTools.Standards` and the plugin build; 3,424 tests pass.
+
+#### BS 7671 voltage drop: second research round (2026-09-27)
+
+- **4D1B up to 16 mm²** is two-source checked. Elec-Mate and the HK CoP transcription agree
+  on every value.
+- **4E2B 10 mm²** is two-source checked. Single-phase comes from a DEWA reference chart
+  transcription and three-phase from the student reports.
+- **Three-phase only.** 4E2B / 4E4B three-phase z now has a second source at 25–300 mm², but
+  a row needs both columns, so those rows stay flagged.
+- **Nothing new counted for 4D2B or 4D4B.**
+  - 4D4B 400 mm² single-phase 0.186 is probably 0.185; it is kept as the higher value.
+  - The rejected sources, and links to printed-table reproductions the research network could
+    not reach, are in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
+- **Not exercised in Revit.**
