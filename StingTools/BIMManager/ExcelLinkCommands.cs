@@ -1200,7 +1200,7 @@ namespace StingTools.BIMManager
         /// </summary>
         internal static string FindLatestExport(Document doc)
         {
-            string dir = OutputLocationHelper.GetOutputDirectory(doc);
+            string dir = OutputLocationHelper.GetRoutedDirectory(doc, "Excel");
             if (!Directory.Exists(dir)) return null;
 
             var allFiles = Directory.GetFiles(dir, "STING_Excel_Export_*.xlsx")
@@ -1374,7 +1374,7 @@ namespace StingTools.BIMManager
                 // ── Save to file ──
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string fileName = $"STING_Excel_Export_{timestamp}.xlsx";
-                string outputPath = OutputLocationHelper.GetOutputPath(doc, fileName);
+                string outputPath = OutputLocationHelper.GetRoutedPath(doc, "Excel", fileName);
 
                 wb.SaveAs(outputPath);
 
@@ -1476,7 +1476,7 @@ namespace StingTools.BIMManager
                     {
                         Title = "Select STING Excel Export to Import",
                         Filter = "Excel Files (*.xlsx)|*.xlsx",
-                        InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc),
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Excel"),
                     };
                     if (openDlg.ShowDialog() != true)
                         return Result.Cancelled;
@@ -1926,7 +1926,7 @@ namespace StingTools.BIMManager
 
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string fileName = $"STING_Excel_Export_{timestamp}.xlsx";
-                string outputPath = OutputLocationHelper.GetOutputPath(doc, fileName);
+                string outputPath = OutputLocationHelper.GetRoutedPath(doc, "Excel", fileName);
 
                 using (var wb = ExcelLinkEngine.BuildWorkbook(doc, elems))
                 {
@@ -2456,8 +2456,7 @@ namespace StingTools.BIMManager
                 indexWs.Columns().AdjustToContents();
                 indexWs.SheetView.FreezeRows(1);
 
-                string outputPath = OutputLocationHelper.GetOutputPath(doc,
-                    $"STING_Schedules_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                string outputPath = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"STING_Schedules_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                 wb.SaveAs(outputPath);
 
                 var resultDlg = new TaskDialog("STING Schedule Export")
@@ -2521,7 +2520,7 @@ namespace StingTools.BIMManager
                 {
                     Title = "Select Schedule Excel File to Import",
                     Filter = "Excel Files (*.xlsx)|*.xlsx",
-                    InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Excel")
                 };
                 if (dlg.ShowDialog() != true) return Result.Cancelled;
 
@@ -3098,8 +3097,7 @@ namespace StingTools.BIMManager
                 instrSheet.Column(3).Width = Math.Max(instrSheet.Column(3).Width, 60);
 
                 // ── Save ──
-                string outputPath = OutputLocationHelper.GetOutputPath(doc,
-                    "STING_Data_Entry_Template.xlsx");
+                string outputPath = OutputLocationHelper.GetRoutedPath(doc, "Excel", "STING_Data_Entry_Template.xlsx");
                 wb.SaveAs(outputPath);
 
                 var resultDlg = new TaskDialog("STING Template Export")
@@ -3194,7 +3192,7 @@ namespace StingTools.BIMManager
                 using var wb = ExcelLinkEngine.BuildWorkbook(doc, elems);
                 string outputPath = settings.FilePath;
                 if (string.IsNullOrEmpty(outputPath))
-                    outputPath = OutputLocationHelper.GetOutputPath(doc, $"STING_Excel_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                    outputPath = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"STING_Excel_Export_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
 
                 wb.SaveAs(outputPath);
                 StingLog.Info($"ExcelLink Wizard: Exported {elems.Count} elements to {outputPath}");
@@ -3275,7 +3273,7 @@ namespace StingTools.BIMManager
 
                 string filePath = settings.FilePath;
                 if (string.IsNullOrEmpty(filePath))
-                    filePath = OutputLocationHelper.GetOutputPath(doc, $"STING_RoundTrip_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+                    filePath = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"STING_RoundTrip_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
 
                 using (var wb = ExcelLinkEngine.BuildWorkbook(doc, elems))
                     wb.SaveAs(filePath);
@@ -3324,7 +3322,7 @@ namespace StingTools.BIMManager
                 // Delegate to the existing ExportTemplateCommand for template generation
                 string filePath = settings.FilePath;
                 if (string.IsNullOrEmpty(filePath))
-                    filePath = OutputLocationHelper.GetOutputPath(doc, $"STING_Template_{DateTime.Now:yyyyMMdd}.xlsx");
+                    filePath = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"STING_Template_{DateTime.Now:yyyyMMdd}.xlsx");
 
                 // Build template inline (same logic as ExportTemplateCommand)
                 using (var wb = new XLWorkbook())

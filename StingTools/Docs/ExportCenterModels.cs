@@ -204,6 +204,11 @@ namespace StingTools.Docs
         public bool CreateFolderIfMissing { get; set; } = true;
         public bool SplitByFormatSubFolder { get; set; }
         public bool SplitByDisciplineSubFolder { get; set; }
+        /// <summary>File each export into the project's own structure instead of
+        /// LocalFolder: CDE state from the sheet's suitability, then the discipline's
+        /// sub-folder (ProjectFolderEngine.GetDeliverableFolder). LocalFolder still
+        /// receives the export report.</summary>
+        public bool RouteByProjectStructure { get; set; }
 
         // CDE only
         public string CdeStateOnUpload { get; set; } = "Shared";

@@ -971,7 +971,7 @@ namespace StingTools.Docs
                         AlwaysUseRaster = false
                     };
 
-                    bool ok = doc.Export(outputDir, viewIds, pdfOpts);
+                    bool ok = doc.Export(ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet), viewIds, pdfOpts);
                     if (ok)
                     {
                         exported++;

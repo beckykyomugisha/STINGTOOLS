@@ -427,7 +427,7 @@ namespace StingTools.Core.SLD
                                             result.Warnings);
                                     }
                                     result.SymbolsPlaced++;
-                                    nodeToInstance?[node.ElementId] = inst.Id;
+                                    if (nodeToInstance != null) nodeToInstance[node.ElementId] = inst.Id;
                                 }
                             }
                             catch (Exception ex) { StingLog.Warn($"PlaceSymbols inst: {ex.Message}"); }

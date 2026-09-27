@@ -193,6 +193,12 @@ namespace StingTools.Core
         public static string Export(Document doc, string exportTypeKey)
             => ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
 
+        /// <summary>Routed export folder for a discipline's deliverable — its discipline
+        /// sub-folder ("06_DRAWINGS/A_Architectural"), optionally in a CDE state.</summary>
+        public static string Export(Document doc, string exportTypeKey, string discipline, string cdeState = null)
+            => ProjectFolderEngine.GetDeliverableFolder(doc, exportTypeKey, discipline, cdeState)
+               ?? ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
+
         /// <summary>Timestamped export path routed to the correct folder for an export-type key.</summary>
         public static string ExportFile(Document doc, string exportTypeKey, string baseName, string extension)
             => ProjectFolderEngine.GetExportPath(doc, exportTypeKey, baseName, extension);

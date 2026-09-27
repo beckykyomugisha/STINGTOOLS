@@ -165,6 +165,37 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// The project folder for an export type ("Excel" → 07_SCHEDULES, "COBie" →
+        /// 08_COBie, "PDF" → 06_DRAWINGS …), optionally in a discipline's sub-folder.
+        /// Falls back to <see cref="GetOutputDirectory(Document)"/> when the project has
+        /// no folder structure (unsaved model).
+        ///
+        /// GetOutputDirectory(doc) has no idea what is being written, so everything
+        /// that uses it lands in MISC. New and migrated exports should say what they
+        /// are — and a round-trip's import picker must use the same key as its export,
+        /// or it opens in the wrong folder.
+        /// </summary>
+        public static string GetRoutedDirectory(Document doc, string exportTypeKey, string discipline = null)
+        {
+            if (doc != null && !string.IsNullOrEmpty(exportTypeKey))
+            {
+                try
+                {
+                    string dir = !string.IsNullOrWhiteSpace(discipline)
+                        ? ProjectFolderEngine.GetDeliverableFolder(doc, exportTypeKey, discipline)
+                        : ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
+                    if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir)) return dir;
+                }
+                catch (Exception ex) { StingLog.Warn($"GetRoutedDirectory '{exportTypeKey}': {ex.Message}"); }
+            }
+            return GetOutputDirectory(doc);
+        }
+
+        /// <summary><see cref="GetRoutedDirectory"/> + a file name.</summary>
+        public static string GetRoutedPath(Document doc, string exportTypeKey, string fileName, string discipline = null)
+            => Path.Combine(GetRoutedDirectory(doc, exportTypeKey, discipline), fileName);
+
+        /// <summary>
         /// Get the full output path for a named file.
         /// Example: GetOutputPath(doc, "STING_Tag_Audit.csv")
         /// </summary>
@@ -303,6 +334,19 @@ namespace StingTools.Core
         {
             _sessionFolders.TryGetValue(exportTypeKey ?? "", out string lastFolder);
 
+            // The project's own folder for this export type (06_DRAWINGS for PDF,
+            // 08_COBie for COBie …). The shortcut used to offer the directory holding
+            // the .rvt — outside the project structure — and the browser opened in
+            // MISC whatever was being exported.
+            string routed = null;
+            try
+            {
+                if (doc != null && !string.IsNullOrEmpty(exportTypeKey))
+                    routed = ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
+            }
+            catch (Exception ex) { StingLog.Warn($"PromptForExportPath route '{exportTypeKey}': {ex.Message}"); }
+            if (!string.IsNullOrEmpty(routed) && !TryEnsureDirectory(routed)) routed = null;
+
             if (!string.IsNullOrEmpty(lastFolder) && Directory.Exists(lastFolder))
             {
                 var qd = new Autodesk.Revit.UI.TaskDialog($"Export — {defaultFileName}");
@@ -312,9 +356,10 @@ namespace StingTools.Core
                     "Use last folder", lastFolder);
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2,
                     "Navigate to folder", "Open file browser");
-                string pd = Path.GetDirectoryName(doc?.PathName ?? "");
+                string pd = routed ?? Path.GetDirectoryName(doc?.PathName ?? "");
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3,
-                    "Project folder", string.IsNullOrEmpty(pd) ? "Save project first" : pd);
+                    routed != null ? "Project folder for this export" : "Project folder",
+                    string.IsNullOrEmpty(pd) ? "Save project first" : pd);
                 qd.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel;
                 switch (qd.Show())
                 {
@@ -332,7 +377,7 @@ namespace StingTools.Core
                 Title = $"Export — {defaultFileName}",
                 FileName = defaultFileName,
                 Filter = string.IsNullOrEmpty(filter) ? "All Files|*.*" : filter,
-                InitialDirectory = GetOutputDirectory(doc)
+                InitialDirectory = routed ?? GetOutputDirectory(doc)
             };
             if (dlg.ShowDialog() != true) return null;
 

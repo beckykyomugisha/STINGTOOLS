@@ -586,7 +586,13 @@ namespace StingTools.Docs
             // Folder writability
             try
             {
-                if (profile.Output.Destination != ExportDestination.PlanscapeCde)
+                if (profile.Output.RouteByProjectStructure)
+                {
+                    if (string.IsNullOrEmpty(doc?.PathName))
+                        issues.Add(Err("ROUTE_UNSAVED",
+                            "Routing into the project structure needs a saved project — save the model first."));
+                }
+                else if (profile.Output.Destination != ExportDestination.PlanscapeCde)
                 {
                     var folder = profile.Output.LocalFolder;
                     if (string.IsNullOrEmpty(folder))
@@ -851,16 +857,110 @@ namespace StingTools.Docs
                 Directory.CreateDirectory(f);
         }
 
-        private static string SubFolderFor(ExportProfile p, string format, string discipline)
+        /// <summary>
+        /// The folder one exported file goes to.
+        ///
+        /// <b>Routed</b> (Output.RouteByProjectStructure): the project's own structure —
+        /// CDE state from the sheet's suitability, then the discipline's sub-folder
+        /// (ProjectFolderEngine.GetDeliverableFolder). An S3 architectural sheet lands
+        /// in 02_SHARED/A_Architectural (BIM layout) or 01_SHARED/Drawings/A_Architectural
+        /// (CDE-first); an A1 structural sheet in the PUBLISHED equivalent.
+        ///
+        /// <b>Local</b>: the chosen folder, optionally split by format and discipline.
+        /// The discipline split now uses the project's discipline folder name
+        /// ("A_Architectural") when the project has one. It used to use the raw code,
+        /// so exporting into a CDE folder created "A" beside "A_Architectural". Image,
+        /// DGN and DWF exports were never split at all because they passed no
+        /// discipline.
+        /// </summary>
+        private static string SubFolderFor(Document doc, ExportProfile p, string format,
+            View view, string groupDiscipline = null)
         {
+            string disc = groupDiscipline
+                ?? (view is ViewSheet vs ? GetDisciplinePrefix(vs.SheetNumber) : null);
+            if (string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase)) disc = null;
+
+            if (p.Output.RouteByProjectStructure && doc != null)
+            {
+                // A sheet with no suitability code is not asserted to be anywhere in
+                // particular, so it follows the project's export route (06_DRAWINGS /
+                // 00_WIP|Drawings) rather than being filed as SHARED by a default.
+                string state = view is ViewSheet sheet ? SheetCdeState(sheet) : null;
+                string routed = ProjectFolderEngine.GetDeliverableFolder(doc, RouteKeyFor(format), disc, state);
+                if (!string.IsNullOrEmpty(routed))
+                {
+                    if (p.Output.SplitByFormatSubFolder) routed = Path.Combine(routed, format);
+                    Directory.CreateDirectory(routed);
+                    return routed;
+                }
+                StingLog.Warn($"Export routing: no project folder for {format}/{disc}/{state} — using the local folder.");
+            }
+
             string root = p.Output.LocalFolder;
             if (!string.IsNullOrEmpty(root) && !Path.IsPathRooted(root))
                 root = Path.GetFullPath(root);
             if (p.Output.SplitByFormatSubFolder) root = Path.Combine(root, format);
-            if (p.Output.SplitByDisciplineSubFolder && !string.IsNullOrEmpty(discipline))
-                root = Path.Combine(root, discipline);
+            if (p.Output.SplitByDisciplineSubFolder && !string.IsNullOrEmpty(disc))
+                root = Path.Combine(root, ProjectFolderEngine.ResolveDisciplineFolder(doc, disc) ?? disc);
             if (!Directory.Exists(root)) Directory.CreateDirectory(root);
             return root;
+        }
+
+        /// <summary>CDE state a sheet's own suitability code puts it in, or null when
+        /// the sheet carries no recognised code.</summary>
+        public static string SheetCdeState(ViewSheet sheet)
+        {
+            if (sheet == null) return null;
+            string suit = ReadParam(sheet, "STING_SUITABILITY_TXT") ?? ReadSuitabilityCode(sheet);
+            return Core.Drawing.Iso19650Suitability.CdeStateFor(suit);
+        }
+
+        /// <summary>The project folder an exported sheet belongs in — the single rule
+        /// every sheet exporter should use so the same drawing cannot land in two
+        /// places depending on which button produced it: CDE state from the sheet's
+        /// suitability (or the project's export route when it has none), then the
+        /// discipline folder from the sheet number / ISO identifier. Null when the
+        /// project has no folder structure (unsaved model).</summary>
+        public static string DeliverableFolderForSheet(Document doc, ViewSheet sheet, string routeKey = "PDF")
+        {
+            if (doc == null || sheet == null) return null;
+            string disc = GetDisciplinePrefix(sheet.SheetNumber);
+            if (string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase)) disc = null;
+            return ProjectFolderEngine.GetDeliverableFolder(doc, routeKey, disc, SheetCdeState(sheet));
+        }
+
+        /// <summary>The discipline sub-folder of a folder the user chose, for one sheet —
+        /// "&lt;chosen&gt;/A_Architectural" when the project has that discipline folder,
+        /// else "&lt;chosen&gt;/&lt;code&gt;". Not nested again when the chosen folder already
+        /// IS that discipline's folder. Sheets whose discipline cannot be read stay in
+        /// the chosen folder.</summary>
+        public static string DisciplineSubFolder(Document doc, string baseDir, ViewSheet sheet)
+        {
+            if (string.IsNullOrEmpty(baseDir) || sheet == null) return baseDir;
+            string disc = GetDisciplinePrefix(sheet.SheetNumber);
+            if (string.IsNullOrEmpty(disc) || string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase))
+                return baseDir;
+            string name = ProjectFolderEngine.ResolveDisciplineFolder(doc, disc) ?? disc;
+            string leaf = Path.GetFileName(baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.Equals(leaf, name, StringComparison.OrdinalIgnoreCase)) return baseDir;
+            string dir = Path.Combine(baseDir, name);
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        /// <summary>Export-route key for a format. Sheet-based output is drawing
+        /// content whatever its file type, so DWG / image / DGN / DWF sheets route
+        /// with the PDFs (the project's DWG route points at MODELS, which is right for
+        /// a model DWG and wrong for a sheet set). Models and data keep their own.</summary>
+        private static string RouteKeyFor(string format)
+        {
+            switch ((format ?? "").ToUpperInvariant())
+            {
+                case "IFC": return "IFC";
+                case "NWC": return "NWC";
+                case "XML": return "SCHEDULE";
+                default:    return "PDF";
+            }
         }
 
         // ── PDF pipeline ────────────────────────────────────────────────────────
@@ -928,7 +1028,7 @@ namespace StingTools.Docs
             try
             {
                 string disc = view is ViewSheet vs ? GetDisciplinePrefix(vs.SheetNumber) : "";
-                string folder = SubFolderFor(profile, "PDF", disc);
+                string folder = SubFolderFor(doc, profile, "PDF", view);
                 string stem = Sanitise(
                     ResolveNaming(doc, view, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1095,7 +1195,8 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(profile, "PDF", profile.Output.SplitByDisciplineSubFolder ? groupName : null);
+                string folder = SubFolderFor(doc, profile, "PDF", views[0],
+                    profile.Output.SplitByDisciplineSubFolder || profile.Output.RouteByProjectStructure ? groupName : null);
                 string stem = Sanitise(
                     ResolveNaming(doc, views[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
                     profile.Output.IllegalCharReplacement);
@@ -1290,7 +1391,7 @@ namespace StingTools.Docs
             try
             {
                 string disc = view is ViewSheet vs ? GetDisciplinePrefix(vs.SheetNumber) : "";
-                string folder = SubFolderFor(profile, "DWG", disc);
+                string folder = SubFolderFor(doc, profile, "DWG", view);
                 string stem = Sanitise(
                     ResolveNaming(doc, view, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1336,7 +1437,8 @@ namespace StingTools.Docs
                 // Step 2: AutoCAD-COM merge (ExportCenterDwgMerger). Falls through
                 // to the staged per-sheet output if AutoCAD isn't installed and
                 // the profile permits fallback.
-                string outFolder = SubFolderFor(profile, "DWG", null);
+                string outFolder = SubFolderFor(doc, profile, "DWG", sheets[0],
+                    profile.Output.SplitByDisciplineSubFolder || profile.Output.RouteByProjectStructure ? groupName : null);
                 string outName = Sanitise(
                     ResolveNaming(doc, sheets[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
                     profile.Output.IllegalCharReplacement);
@@ -1435,7 +1537,7 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(profile, "IFC", null);
+                string folder = SubFolderFor(doc, profile, "IFC", null);
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1489,7 +1591,7 @@ namespace StingTools.Docs
                 var row = StartRow(v, "Image");
                 try
                 {
-                    string folder = SubFolderFor(profile, "Image", null);
+                    string folder = SubFolderFor(doc, profile, "Image", v);
                     string stem = Sanitise(
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
@@ -1569,7 +1671,7 @@ namespace StingTools.Docs
                 var row = StartRow(v, "DGN");
                 try
                 {
-                    string folder = SubFolderFor(profile, "DGN", null);
+                    string folder = SubFolderFor(doc, profile, "DGN", v);
                     string stem = Sanitise(
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
@@ -1595,7 +1697,7 @@ namespace StingTools.Docs
                 var row = StartRow(v, profile.Dwf.DwfX ? "DWFx" : "DWF");
                 try
                 {
-                    string folder = SubFolderFor(profile, profile.Dwf.DwfX ? "DWFx" : "DWF", null);
+                    string folder = SubFolderFor(doc, profile, profile.Dwf.DwfX ? "DWFx" : "DWF", v);
                     string stem = Sanitise(
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
@@ -1655,7 +1757,7 @@ namespace StingTools.Docs
                     return;
                 }
 
-                string folder = SubFolderFor(profile, "NWC", null);
+                string folder = SubFolderFor(doc, profile, "NWC", null);
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1689,7 +1791,7 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(profile, "XML", null);
+                string folder = SubFolderFor(doc, profile, "XML", null);
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);

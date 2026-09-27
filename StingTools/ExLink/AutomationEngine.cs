@@ -67,7 +67,7 @@ namespace StingTools.ExLink
                         pdfOptions.FileName = safeName;
 
                         var viewIds = new List<ElementId> { sheet.Id };
-                        doc.Export(outputDir, viewIds, pdfOptions);
+                        doc.Export(StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet), viewIds, pdfOptions);
                         count++;
                     }
                     catch (Exception ex)
@@ -116,7 +116,7 @@ namespace StingTools.ExLink
                     {
                         string safeName = SanitizeFileName($"{sheet.SheetNumber}_{sheet.Name}");
                         var viewIds = new List<ElementId> { sheet.Id };
-                        doc.Export(outputDir, safeName, viewIds, dwgOptions);
+                        doc.Export(StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet), safeName, viewIds, dwgOptions);
                         count++;
                     }
                     catch (Exception ex)
@@ -458,7 +458,8 @@ namespace StingTools.ExLink
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { message = "No document open."; return Result.Failed; }
 
-                var outputDir = ExLinkHelpers.PickFolderPath("Select PDF output folder");
+                var outputDir = ExLinkHelpers.PickFolderPath("Select PDF output folder",
+                    ProjectFolderEngine.GetExportFolder(ctx.Doc, "PDF"));
                 if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
                 AutomationEngine.ExportSheetsToPDF(ctx.Doc, outputDir, out int count, out var warnings);
@@ -493,7 +494,8 @@ namespace StingTools.ExLink
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { message = "No document open."; return Result.Failed; }
 
-                var outputDir = ExLinkHelpers.PickFolderPath("Select DWG output folder");
+                var outputDir = ExLinkHelpers.PickFolderPath("Select DWG output folder",
+                    ProjectFolderEngine.GetExportFolder(ctx.Doc, "DWG"));
                 if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
                 AutomationEngine.ExportSheetsToDWG(ctx.Doc, outputDir, out int count, out var warnings);
@@ -528,7 +530,8 @@ namespace StingTools.ExLink
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { message = "No document open."; return Result.Failed; }
 
-                var outputDir = ExLinkHelpers.PickFolderPath("Select NWC output folder");
+                var outputDir = ExLinkHelpers.PickFolderPath("Select NWC output folder",
+                    ProjectFolderEngine.GetExportFolder(ctx.Doc, "NWC"));
                 if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
                 AutomationEngine.ExportToNWC(ctx.Doc, outputDir, out bool ok, out string resultMsg);
@@ -560,7 +563,8 @@ namespace StingTools.ExLink
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { message = "No document open."; return Result.Failed; }
 
-                var outputDir = ExLinkHelpers.PickFolderPath("Select IFC output folder");
+                var outputDir = ExLinkHelpers.PickFolderPath("Select IFC output folder",
+                    ProjectFolderEngine.GetExportFolder(ctx.Doc, "IFC"));
                 if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
                 AutomationEngine.ExportToIFC(ctx.Doc, outputDir, out bool ok, out string resultMsg);

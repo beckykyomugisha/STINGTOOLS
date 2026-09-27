@@ -63,6 +63,7 @@ namespace StingTools.UI
         private StackPanel _formatOptionsHost;
 
         private TextBox _folderBox;
+        private CheckBox _routeCheck;
         private TextBox _namingBox;
         private TextBlock _namingPreview;
         private TextBlock _statusLine;
@@ -933,6 +934,13 @@ namespace StingTools.UI
             destSp.Children.Add(BindCheck("Create folder if it doesn't exist", () => _profile.Output.CreateFolderIfMissing, v => _profile.Output.CreateFolderIfMissing = v));
             destSp.Children.Add(BindCheck("Split into format sub-folders",     () => _profile.Output.SplitByFormatSubFolder, v => _profile.Output.SplitByFormatSubFolder = v));
             destSp.Children.Add(BindCheck("Split by discipline sub-folders",   () => _profile.Output.SplitByDisciplineSubFolder, v => _profile.Output.SplitByDisciplineSubFolder = v));
+            _routeCheck = BindCheck("File into the project structure (CDE state from each sheet's suitability, then its discipline folder)",
+                () => _profile.Output.RouteByProjectStructure, v => { _profile.Output.RouteByProjectStructure = v; UpdateStatusLine(); });
+            _routeCheck.ToolTip =
+                "Each sheet goes where the Document Manager expects it: S0 → WIP, S1–S7 → SHARED, " +
+                "A/B/CR → PUBLISHED, then A_Architectural / M_Mechanical / S_Structural … " +
+                "The folder above still receives the export report.";
+            destSp.Children.Add(_routeCheck);
 
             sp.Children.Add(dest);
 
@@ -1366,6 +1374,15 @@ namespace StingTools.UI
 
                 _profile.Output.LocalFolder = folder;
                 if (_folderBox != null) _folderBox.Text = folder;  // TextChanged syncs profile + status line
+
+                // "Auto" means "put it where the project keeps it". Pointing the
+                // whole run at one state folder put every discipline's sheets in
+                // its root; the per-sheet routing puts each in its discipline folder.
+                if (force)
+                {
+                    _profile.Output.RouteByProjectStructure = true;
+                    if (_routeCheck != null) _routeCheck.IsChecked = true;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"AutoLocateOutputFolder: {ex.Message}"); }
         }

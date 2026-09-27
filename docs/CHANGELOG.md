@@ -24102,9 +24102,100 @@ automation logic. Defects fixed here; open items are logged in `docs/ROADMAP.md`
   suitability, revision or status. The loaders now fill that row's blank fields from the
   register. The CDE state still comes from the folder the file is actually in.
 
-**Verification.** No .NET SDK in this container, so this has not been built. The changes were
-reviewed by reading only. **Not exercised in Revit.** Before merging:
+**Verification.** Built later the same day. See "Export routing" below: 0 errors. **Not
+exercised in Revit.** Before merging:
 - Export a sheet set whose sheets carry `SHT_TAG_1_TXT` and a Revit revision, and check the
   filenames.
 - Run Master Setup on a non-workshared model.
 - Edit a corporate drawing type, save, reopen and confirm the edit held.
+
+#### Export routing: discipline sub-folders and the right project folder (2026-09-27, same branch)
+
+An audit of where exports land. **The discipline-aware resolver had no callers.** The only
+discipline-aware method was `ProjectFolderEngine.GetExportPath(…, disciplineCode)`, and
+nothing called it. The main default, `OutputLocationHelper.GetOutputDirectory(doc)`, which
+had 257 call sites in 153 files, returns the MISC folder whatever is being exported. So no
+export reached an A_ / M_ / S_ discipline folder unless a user browsed there.
+
+- **One resolver:** `ProjectFolderEngine.GetDeliverableFolder(doc, key, discipline, cdeState)`.
+  It takes the export route, moves it into the CDE state when one is given, then into the
+  discipline folder. Examples:
+  - BIM: `02_SHARED/A_Architectural`, or `06_DRAWINGS/S_Structural` with no state.
+  - CDE-first: `01_SHARED/Drawings/M_Mechanical`.
+
+  Discipline folders apply under WIP / SHARED / PUBLISHED / DRAWINGS / MODELS and under any
+  CDE-first content type. Wrappers: `StingPaths.Export(doc, key, discipline, state)` and
+  `OutputLocationHelper.GetRoutedDirectory(doc, key, discipline)` / `GetRoutedPath`.
+- **`DisciplineFolderMatcher`** (Revit-free, 22 tests) maps a code onto the project's
+  folders:
+  - `A` → `A_Architectural`
+  - `MECH` / `HVAC` / `MG` → `M_Mechanical` (by ISO role letter)
+  - a code with no folder → null, so the file stays in the parent folder and a log line
+    says so
+
+  Before this, the discipline splits created a folder named after the raw code, so a CDE
+  folder held `A` beside `A_Architectural`.
+- **Sheets:** `ExportCenterEngine.DeliverableFolderForSheet` is the one rule for sheet
+  exports:
+  - The CDE state comes from the sheet's suitability. A sheet with no suitability code
+    follows the export route.
+  - The discipline comes from the sheet-number prefix, or from the Role segment when the
+    sheet number is the ISO identifier.
+- **Export Centre:**
+  - New option "File into the project structure", which the Auto button turns on. Each
+    sheet is filed by its own suitability and discipline, and the chosen folder receives
+    the report.
+  - DWG / image / DGN / DWF sheet sets route with the drawings. The project's DWG route
+    points at MODELS, which is right for model DWGs but not for sheet sets.
+  - Image, DGN and DWF were never split by discipline, because they passed no discipline.
+  - The local-folder split now uses project folder names.
+- **Produce & Export** (`DrawingTypes_ProduceAndExport`) wrote every PDF to MISC. Each PDF
+  now goes to its sheet's deliverable folder, and the sheet register goes to REGISTERS.
+- **Batch PDF / DWG to a folder you choose** now split into discipline sub-folders named
+  as the project names them. This covers the Print Manager batch PDF, the Sheet Template
+  batch print, the ExLink batch PDF / DWG and `PDFExportCommand`. The split is not nested
+  when the chosen folder is already that discipline's folder. The Print Manager's
+  discipline prefix now also reads ISO-identifier sheet numbers. The "Print sheets"
+  combined PDF goes to the PDF route instead of `MISC/PDF_Export`.
+- **Pickers open in the right place.**
+  - `PromptForExportPath` (15 callers) opens in the export type's routed folder. Its
+    "Project folder" shortcut now points there instead of the directory holding the
+    `.rvt`.
+  - The ExLink folder pickers open in the routed folder for their type.
+  - Three callers passed keys the route table does not know (`Quantities`, `Clashes`,
+    `BatchParams`) and now pass `BOQ`, `Clash` and `Excel`.
+- **Round trips:**
+  - Excel Link, Drawing-Type Excel and the export dialog now write to and browse the
+    Excel route (07_SCHEDULES) instead of MISC. The export and import sides were changed
+    together.
+  - Panel-schedule workbooks moved out of `_data/coord/electrical`. `_data` is machine
+    state, which the Document Manager does not list. They now go to the Excel route in
+    E_Electrical. Existing workbooks stay where they are.
+- **Discipline exports:**
+  - SLD → `…/E_Electrical/SLD`
+  - Electrical PDF reports → `…/E_Electrical/Reports`
+  - HVAC gbXML → the models route in M_Mechanical
+  - Fabrication isometrics → drawings
+  - Fabrication cut lists, weld maps and sheet indexes → schedules
+
+**Build (first Linux build of this branch).**
+- **SDK:** Ubuntu's `dotnet-sdk-8.0` has no WindowsDesktop (WPF) targets. Microsoft's SDK
+  8.0.425 from packages.microsoft.com does. It was extracted to `/opt/msdotnet` because
+  dot.net / builds.dotnet.microsoft.com are blocked by the network policy.
+- **Command:**
+  `dotnet build StingTools/StingTools.csproj -p:EnableWindowsTargeting=true`, using the
+  Nice3point Revit API packages.
+- **Result:** `StingTools.dll` builds with **0 errors, 2 warnings**.
+- **Existing build break fixed:** the first build failed on three existing lines that use
+  C# 14 null-conditional assignment (`x?.y = v`), in `PlanscapeServerClient.cs` (2) and
+  `SLDGenerator.cs` (1). CI pins the .NET 8 SDK (C# 12), so these break any build without
+  the .NET 10 SDK. They were rewritten as explicit null checks.
+- **Tests:** `StingTools.Tags.Tests` passes 3,513 of 3,513.
+- **CI gates:** these gates pass, run with PowerShell 7.6 from the same feed:
+  - `check_path_discipline.ps1`
+  - `check_command_doc_acquisition.ps1`
+  - `check_workflow_wiring.ps1`
+- **Not exercised in Revit.**
+
+**Still in MISC:** 229 call sites in 143 files, mostly reports, audits, logs and one-off
+CSV / JSON dumps. See ROADMAP DOCX-8.
