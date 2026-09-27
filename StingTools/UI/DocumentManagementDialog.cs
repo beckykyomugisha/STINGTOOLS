@@ -5186,6 +5186,7 @@ namespace StingTools.UI
             int moved = 0;
             var movedPaths = new List<string>();
             var moveFailed = new List<string>();
+            var movedItems = new List<DocItemVM>();
             foreach (var item in selected)
             {
                 // autoTransmittal:false — ONE batch transmittal is raised below for the whole
@@ -5195,6 +5196,7 @@ namespace StingTools.UI
                                                  out string landedAt, autoTransmittal: false))
                 {
                     moved++;
+                    movedItems.Add(item);
                     // The path the file LANDED on, not the one it came from — a de-duplicated
                     // name means these differ, and the transmittal recorded a dead path.
                     movedPaths.Add(landedAt);
@@ -5225,7 +5227,10 @@ namespace StingTools.UI
                 if (CoordStores.TryRead(regPath, out JArray regArr))
                 {
                     int synced = 0;
-                    foreach (var item in selected)
+                    // Only documents whose file actually moved. Syncing every selected
+                    // row recorded a failed move as done: the register said SHARED
+                    // while the file still sat in WIP, and nothing reconciled the two.
+                    foreach (var item in movedItems)
                     {
                         string docId = item.Id ?? "";
                         var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId) as JObject;
@@ -5239,7 +5244,17 @@ namespace StingTools.UI
                             // AR (archive) rather than AB (abandoned) — archiving a document is
                             // not the same as abandoning it, and AB is what SUPERSEDED and
                             // WITHDRAWN mean.
+                            // A code that already belongs in the new container is kept: a
+                            // document shared at S1 (coordination) is not re-labelled S3
+                            // (review & comment) just because it moved. Only a code that
+                            // contradicts the container — by the same rule the title block
+                            // derives its CDE state from — is replaced by the default.
                             string suit = SuitabilityForCde(newCDE);
+                            string keepCode = Core.Drawing.Iso19650Suitability.ExtractCode(oldSuit);
+                            if (!string.IsNullOrEmpty(keepCode) &&
+                                string.Equals(Core.Drawing.Iso19650Suitability.CdeStateFor(keepCode),
+                                              newCDE, StringComparison.OrdinalIgnoreCase))
+                                suit = keepCode;
                             entry["suitability"] = suit;
                             entry["status_code"] = StatusCodeForCde(newCDE);
                             // CDE-03: Log suitability transition with audit trail
@@ -5263,7 +5278,7 @@ namespace StingTools.UI
                 : $"Set to {newCDE} (filed in {targetFolder}): {moved} of {selected.Count}");
             if (moveFailed.Count > 0)
             {
-                cdeReport.AppendLine($"Failed: {moveFailed.Count}");
+                cdeReport.AppendLine($"Failed: {moveFailed.Count} (register left unchanged for these)");
                 foreach (string f in moveFailed.Take(10)) cdeReport.AppendLine($"  • {f}");
                 if (moveFailed.Count > 10) cdeReport.AppendLine($"  … and {moveFailed.Count - 10} more — see StingTools.log");
             }
@@ -5571,12 +5586,19 @@ namespace StingTools.UI
                 foreach (JToken d in arr)
                 {
                     string docId = d["doc_id"]?.ToString() ?? "";
-                    if (_allItems.Any(i => i.Id == docId)) continue;
 
                     string statusCode = d["status_code"]?.ToString() ?? "";
                     string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(statusCode, out string sd) ? sd : statusCode;
                     string docType = d["doc_type"]?.ToString() ?? "";
                     string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(docType, out string td) ? td : docType;
+
+                    var existing = _allItems.FirstOrDefault(i => i.Id == docId);
+                    if (existing != null)
+                    {
+                        EnrichFromRegister(existing, docType, typeDesc, statusCode, statusDesc,
+                            d["revision"]?.ToString(), d["suitability"]?.ToString(), d["created_by"]?.ToString());
+                        continue;
+                    }
 
                     _allItems.Add(new DocItemVM
                     {
@@ -5625,12 +5647,19 @@ namespace StingTools.UI
 
                 foreach (var r in rows)
                 {
-                    if (string.IsNullOrEmpty(r.Id) || _allItems.Any(i => i.Id == r.Id)) continue;
+                    if (string.IsNullOrEmpty(r.Id)) continue;
                     string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(r.Type ?? "", out string td) ? td : r.Type;
                     // Resolve the ISO 19650 status code to its description exactly as the legacy
                     // loader does — otherwise the unified view shows the bare code ("S2") where
                     // the old view showed "Shared — suitable for information".
                     string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(r.Status ?? "", out string sd) ? sd : r.Status;
+                    var existing = _allItems.FirstOrDefault(i => i.Id == r.Id);
+                    if (existing != null)
+                    {
+                        EnrichFromRegister(existing, r.Type, typeDesc, r.Status, statusDesc,
+                            r.Revision, r.Suitability, r.CreatedBy);
+                        continue;
+                    }
                     _allItems.Add(new DocItemVM
                     {
                         Id = r.Id,
@@ -5651,6 +5680,28 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); return false; }
             return built > 0;
+        }
+
+        /// <summary>Fill a file row's blank register fields from the register entry of
+        /// the same id.
+        ///
+        /// Files load first and a file is named after its document number, so the
+        /// register entry for an issued document almost always shares the file row's id.
+        /// Both loaders used to SKIP such an entry, which left the one row the user sees
+        /// with no suitability, revision or status — the register's whole content for
+        /// that document. Only blanks are filled: the file row's CDE comes from the
+        /// folder the file is actually in, which is the fact on disk and wins.</summary>
+        private static void EnrichFromRegister(DocItemVM row, string type, string typeDesc,
+            string status, string statusDesc, string revision, string suitability, string createdBy)
+        {
+            if (row == null || row.Category != "DOCUMENT") return;
+            if (!string.IsNullOrEmpty(type) && (string.IsNullOrEmpty(row.Type) || row.Type == row.FileFormat))
+            { row.Type = type; row.TypeDesc = typeDesc; }
+            if (string.IsNullOrEmpty(row.Status) && !string.IsNullOrEmpty(status))
+            { row.Status = status; row.StatusDesc = statusDesc; }
+            if (string.IsNullOrEmpty(row.Revision)) row.Revision = revision ?? "";
+            if (string.IsNullOrEmpty(row.Suitability)) row.Suitability = suitability ?? "";
+            if (string.IsNullOrEmpty(row.CreatedBy)) row.CreatedBy = createdBy ?? "";
         }
 
         private static void LoadIssues(Document doc)

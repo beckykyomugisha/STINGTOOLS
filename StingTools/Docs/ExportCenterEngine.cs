@@ -229,6 +229,13 @@ namespace StingTools.Docs
         public static string GetDisciplinePrefix(string sheetNumber)
         {
             if (string.IsNullOrWhiteSpace(sheetNumber)) return "Other";
+            // Once the sheet number IS the ISO identifier
+            // (Project-Originator-Volume-Level-Type-Role-Number), the text before the
+            // first hyphen is the PROJECT code — every sheet read as discipline "SAH",
+            // the By-Discipline sets came back empty and the discipline sub-folders
+            // were all named after the project. The discipline is the Role segment.
+            var seg = Core.Drawing.Iso19650DocumentCode.Decompose(sheetNumber);
+            if (seg != null && !string.IsNullOrEmpty(seg.Role)) return seg.Role.ToUpperInvariant();
             int dash = sheetNumber.IndexOf('-');
             if (dash > 0) return sheetNumber.Substring(0, dash).ToUpperInvariant();
             string letters = new string(sheetNumber.TakeWhile(char.IsLetter).ToArray());
@@ -336,10 +343,33 @@ namespace StingTools.Docs
                 t["RevDate"] = revDate ?? "";
 
                 // ── ISO 19650 token resolution chain ──
-                // 1) Sheet-level STING_* params (per-sheet overrides)
-                // 2) Stamped DrawingType.IsoNaming (Phase 113 — auto-populated
+                // 1) Sheet-level STING_* params (per-sheet overrides a project may
+                //    have added by hand — no STING command writes or binds them)
+                // 2) The sheet's own ISO identifier (SHT_TAG_1_TXT from Tag Sheets,
+                //    or the sheet number once it IS the identifier), decomposed.
+                //    Iso19650DocumentCode: "the identifier is the SOURCE and these
+                //    are its decomposition" — so a filename built from it cannot
+                //    contradict the DRG NO. printed on the drawing.
+                // 3) The suitability code Title Block Populate writes onto the sheet
+                // 4) Stamped DrawingType.IsoNaming (Phase 113 — auto-populated
                 //    when the sheet was created through the Drawing Type engine)
-                // 3) Sensible ISO 19650-2 defaults
+                // 5) Sensible ISO 19650-2 defaults
+                //
+                // Before this, step 1 was the ONLY per-sheet source and none of its
+                // five parameters exists in MR_PARAMETERS, so every file fell through
+                // to the defaults: an S4 drawing exported as "...-S2-...", a level
+                // code "L01" where ISO uses "01", and a revision "3" (the Revit
+                // sequence number) where the revision box prints "P03".
+                var idSegs = DecomposeSheetIdentifier(sheet, out string docId);
+                t["DocumentId"] = docId ?? "";
+                t["Number"]     = idSegs?.Number ?? "";
+                if (idSegs != null)
+                {
+                    t["ProjectCode"]    = idSegs.Project;
+                    t["Project"]        = idSegs.Project;
+                    t["Originator"]     = idSegs.Originator;
+                    t["OriginatorCode"] = idSegs.Originator;
+                }
                 StingTools.Core.Drawing.IsoNaming dtIso = null;
                 string stampedDtId = ReadParam(sheet, StingTools.Core.Drawing.DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
                 if (!string.IsNullOrEmpty(stampedDtId))
@@ -352,12 +382,19 @@ namespace StingTools.Docs
                     catch (Exception ex) { StingLog.Warn($"DrawingType lookup '{stampedDtId}': {ex.Message}"); }
                 }
 
-                t["Volume"]      = ReadParam(sheet, "STING_VOLUME_TXT")      ?? dtIso?.Volume      ?? "ZZ";
-                t["Level"]       = ReadParam(sheet, "STING_LVL_COD_TXT")     ?? GetLevelFromSheet(doc, sheet) ?? "XX";
-                t["Type"]        = ReadParam(sheet, "STING_DOC_TYPE_TXT")    ?? dtIso?.Type        ?? "DR";
+                string derivedLevel = GetLevelFromSheet(doc, sheet);
+                t["Volume"]      = ReadParam(sheet, "STING_VOLUME_TXT")      ?? idSegs?.Volume ?? dtIso?.Volume ?? "ZZ";
+                t["Level"]       = ReadParam(sheet, "STING_LVL_COD_TXT")     ?? idSegs?.Level
+                                   ?? (derivedLevel != null ? Core.Drawing.Iso19650DocumentCode.NormaliseLevel(derivedLevel) : null)
+                                   ?? "XX";
+                t["Type"]        = ReadParam(sheet, "STING_DOC_TYPE_TXT")    ?? idSegs?.Type   ?? dtIso?.Type   ?? "DR";
                 string disc      = t["Discipline"];
-                t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT")        ?? dtIso?.Role        ?? (string.IsNullOrEmpty(disc) ? "Z" : disc);
-                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT") ?? dtIso?.Suitability ?? "S2";
+                t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT")        ?? idSegs?.Role   ?? dtIso?.Role
+                                   ?? Core.Drawing.Iso19650DocumentCode.NormaliseRole(disc);
+                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT")
+                                   ?? ReadSuitabilityCode(sheet)
+                                   ?? dtIso?.Suitability ?? "S2";
+                t["CdeState"]    = Core.Drawing.Iso19650Suitability.CdeStateFor(t["Suitability"]) ?? "";
                 t["Revision"]    = !string.IsNullOrEmpty(rev) ? rev : (dtIso?.Revision ?? "P01");
                 t["Format"]      = ""; // filled in by caller per format
             }
@@ -448,18 +485,64 @@ namespace StingTools.Docs
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
+        /// <summary>The sheet's revision as the revision box prints it ("P03", "C01"),
+        /// plus that revision's date.
+        ///
+        /// Was <c>Revision.SequenceNumber</c> of the last id in GetAllRevisionIds —
+        /// Revit's internal ordering counter, so a sheet at P03 exported as "...-3"
+        /// and its filename disagreed with the drawing. Same chain Title Block
+        /// Populate uses for the CDE REF cell: SHEET_CURRENT_REVISION first, then
+        /// the title-block revision parameter for a set issued without Revit
+        /// revisions in play.
+        ///
+        /// The value is also the key "Changed Since Last Export" compares, so the
+        /// first run after this change reports every previously exported sheet as
+        /// changed once — the safe direction for a re-issue.</summary>
         private static (string rev, string date) GetCurrentRevision(Document doc, ViewSheet sheet)
         {
+            string label = null, date = null;
             try
             {
-                var revIds = sheet.GetAllRevisionIds();
-                if (revIds == null || revIds.Count == 0) return (null, null);
-                var lastId = revIds[revIds.Count - 1];
-                if (doc.GetElement(lastId) is Revision r)
-                    return (r.SequenceNumber.ToString(), r.RevisionDate);
+                label = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString();
+                var curId = sheet.GetCurrentRevision();
+                if (curId != null && curId != ElementId.InvalidElementId && doc.GetElement(curId) is Revision r)
+                {
+                    date = r.RevisionDate;
+                    if (string.IsNullOrWhiteSpace(label)) label = r.RevisionNumber;
+                }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return (null, null);
+            catch (Exception ex) { StingLog.Warn($"Export revision read on '{sheet?.SheetNumber}': {ex.Message}"); }
+            if (string.IsNullOrWhiteSpace(label))
+                label = ReadParam(sheet, "PRJ_TB_REVISION_NR_TXT");
+            return (string.IsNullOrWhiteSpace(label) ? null : label.Trim(), date);
+        }
+
+        /// <summary>The sheet's ISO 19650 identifier, decomposed — SHT_TAG_1_TXT when
+        /// Tag Sheets has assembled one, else the sheet number when it already IS one.
+        /// Null when neither parses; a half-parsed identifier would make every segment
+        /// look populated while several were wrong.</summary>
+        internal static Core.Drawing.Iso19650DocumentCode.Segments DecomposeSheetIdentifier(
+            ViewSheet sheet, out string identifier)
+        {
+            identifier = null;
+            if (sheet == null) return null;
+            string tagged = ReadParam(sheet, ParamRegistry.SHT_TAG_1);
+            if (Core.Drawing.Iso19650DocumentCode.LooksAssembled(tagged)) identifier = tagged.Trim();
+            else if (Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheet.SheetNumber)) identifier = sheet.SheetNumber.Trim();
+            return identifier == null ? null : Core.Drawing.Iso19650DocumentCode.Decompose(identifier);
+        }
+
+        /// <summary>The suitability CODE Title Block Populate normalises onto the sheet
+        /// (PRJ_DWG_SUITABILITY_COD_TXT, then the STATUS cell). ExtractCode tolerates a
+        /// hand-typed "S4 - FOR APPROVAL"; null when neither holds a known code.</summary>
+        private static string ReadSuitabilityCode(ViewSheet sheet)
+        {
+            foreach (string p in new[] { ParamRegistry.DWG_SUITABILITY_COD, ParamRegistry.PRJ_STATUS_COD })
+            {
+                string code = Core.Drawing.Iso19650Suitability.ExtractCode(ReadParam(sheet, p));
+                if (!string.IsNullOrEmpty(code)) return code;
+            }
+            return null;
         }
 
         // ── Filename hygiene ────────────────────────────────────────────────────
@@ -486,6 +569,19 @@ namespace StingTools.Docs
 
             if (profile.Formats == ExportFormats.None)
                 issues.Add(Err("NO_FORMAT", "No output format is active."));
+
+            // Destination. No code uploads to the Planscape CDE server: with
+            // "Planscape CDE" selected the local-folder checks were skipped, the
+            // folder resolved to "", and every sheet then failed on an empty path
+            // — or, with a stale folder in the profile, the files quietly went
+            // there and nothing was uploaded. Say so before anything runs.
+            if (profile.Output.Destination == ExportDestination.PlanscapeCde)
+                issues.Add(Err("CDE_UPLOAD_UNAVAILABLE",
+                    "Uploading to the Planscape CDE server is not implemented in the Export Centre. " +
+                    "Choose 'Local / Network folder' and press Auto to target this project's CDE folder."));
+            else if (profile.Output.Destination == ExportDestination.Both)
+                issues.Add(Warn("CDE_UPLOAD_UNAVAILABLE",
+                    "Files will be written to the local folder only — the Planscape CDE upload is not implemented."));
 
             // Folder writability
             try
@@ -565,6 +661,15 @@ namespace StingTools.Docs
                             : "Export will fail.")));
                 }
             }
+
+            // "Export linked models" is a checkbox on the IFC card that RunIfc never
+            // read — links were left out whatever it said. Warn until it is wired
+            // (the exporter's linked-file option differs across Revit 2025–2027 and
+            // has not been verified in Revit).
+            if ((profile.Formats & ExportFormats.IFC) != 0 && profile.Ifc.ExportLinkedModels)
+                issues.Add(Warn("IFC_LINKS_NOT_EXPORTED",
+                    "IFC 'Export linked models' is not implemented — linked models will NOT be in the IFC. " +
+                    "Export each link from its own model."));
 
             // NWC availability
             if ((profile.Formats & ExportFormats.NWC) != 0)
@@ -1644,8 +1749,11 @@ namespace StingTools.Docs
                     return $"{stem}_{i}";
                 }
                 default:
-                    // Caller would prompt in Ask mode — engine returns stem and lets the dialog override.
-                    return stem;
+                    // Ask. Nothing ever prompted: the engine is headless and the dialog
+                    // never overrode the stem, so "Ask" silently OVERWROTE the existing
+                    // file — the one outcome a user choosing "Ask" had ruled out. Until a
+                    // prompt exists, keep both files, which loses nothing.
+                    goto case FilenameConflictMode.AutoRename;
             }
         }
 
@@ -1658,6 +1766,8 @@ namespace StingTools.Docs
                 string folder = profile.Output.LocalFolder;
                 if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return;
                 string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                // CSV only — ReportFormat ("XLSX") has never been honoured, so the
+                // report is always a CSV whatever the profile says.
                 string path = Path.Combine(folder, $"STING_Export_Report_{stamp}.csv");
 
                 using var w = new StreamWriter(path);
@@ -1672,6 +1782,7 @@ namespace StingTools.Docs
                         ((long)r.Duration.TotalMilliseconds).ToString(),
                     }));
                 }
+                result.ReportPath = path;
                 StingLog.Info($"Export report written: {path}");
             }
             catch (Exception ex) { StingLog.Warn($"Export report: {ex.Message}"); }

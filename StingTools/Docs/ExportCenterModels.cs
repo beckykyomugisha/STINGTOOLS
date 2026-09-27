@@ -474,6 +474,8 @@ namespace StingTools.Docs
         public List<ExportResultRow> Rows { get; set; } = new();
         public List<string> Warnings { get; set; } = new();
         public bool Cancelled { get; set; }
+        /// <summary>Where the run's CSV report was written; null when none was.</summary>
+        public string ReportPath { get; set; }
 
         public int Success => Rows.FindAll(r => r.Success).Count;
         public int Failed  => Rows.FindAll(r => !r.Success).Count;

@@ -67,6 +67,17 @@ namespace StingTools.Docs
                     {
                         sch.LastResult = "No sheets resolved";
                     }
+                    else if (ExportCenterEngine.PreflightCheck(doc, profile, ids)
+                                 .Where(i => i.Level == ExportPreflightIssue.Severity.Error)
+                                 .Select(i => i.Message).ToList() is var blockers && blockers.Count > 0)
+                    {
+                        // The dialog refuses to start on a pre-flight error; the headless
+                        // path skipped the check and ran anyway, so an empty or relative
+                        // output folder failed every sheet with a path error instead of
+                        // saying what was wrong. Same gate, recorded on the job.
+                        sch.LastResult = "Blocked by pre-flight: " + string.Join(" | ", blockers);
+                        StingLog.Warn($"Scheduled export '{sch.ProfileName}' [{setName}]: {sch.LastResult}");
+                    }
                     else
                     {
                         var res = ExportCenterEngine.Run(doc, profile, ids);
@@ -94,15 +105,22 @@ namespace StingTools.Docs
             return ran;
         }
 
+        /// <summary>Advance from the job's own slot, not from "now". Stepping from now
+        /// made a 07:00 daily job drift to whenever it happened to be run (a save at
+        /// 16:40 moved it to 16:40 tomorrow). Missed slots are skipped, not replayed.</summary>
         private static void Reschedule(ScheduledExport sch, DateTime now)
         {
+            Func<DateTime, DateTime> step;
             switch ((sch.Repeat ?? "Once").Trim().ToLowerInvariant())
             {
-                case "daily":   sch.NextRunUtc = now.AddDays(1);   break;
-                case "weekly":  sch.NextRunUtc = now.AddDays(7);   break;
-                case "monthly": sch.NextRunUtc = now.AddMonths(1); break;
-                default:        sch.Enabled = false;               break; // "Once" — disable after running
+                case "daily":   step = d => d.AddDays(1);   break;
+                case "weekly":  step = d => d.AddDays(7);   break;
+                case "monthly": step = d => d.AddMonths(1); break;
+                default:        sch.Enabled = false;        return; // "Once" — disable after running
             }
+            var next = sch.NextRunUtc == default ? now : sch.NextRunUtc;
+            do { next = step(next); } while (next <= now);
+            sch.NextRunUtc = next;
         }
     }
 

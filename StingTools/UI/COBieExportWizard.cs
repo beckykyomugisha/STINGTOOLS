@@ -102,8 +102,21 @@ namespace StingTools.UI
                 presetItems.Add("INFRASTRUCTURE_WATER — Infrastructure Water");
                 presetItems.Add("FITOUT — Fit-Out Interior");
 
+                // A caller can pre-select the preset (Master Setup's healthcare step sets
+                // COBiePresetKey). The key was set but never read, so that step opened on
+                // FULL and the "healthcare overlay" it reported was whatever the user
+                // happened to pick.
+                int presetIdx = 0;
+                string wanted = StingCommandHandler.GetExtraParam("COBiePresetKey");
+                if (!string.IsNullOrEmpty(wanted))
+                {
+                    int hit = presetItems.FindIndex(p =>
+                        p.StartsWith(wanted + " ", StringComparison.OrdinalIgnoreCase));
+                    if (hit >= 0) presetIdx = hit;
+                    else StingLog.Warn($"COBie wizard: preset '{wanted}' requested but not offered — defaulting to FULL.");
+                }
                 var presetPanel = StingWizardDialog.MakeLabelledCombo("COBie Preset:",
-                    presetItems.ToArray(), 0, out _presetCombo);
+                    presetItems.ToArray(), presetIdx, out _presetCombo);
                 panel.Children.Add(presetPanel);
 
                 panel.Children.Add(StingWizardDialog.MakeSectionHeader("Asset Type Filter"));

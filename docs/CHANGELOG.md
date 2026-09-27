@@ -24031,3 +24031,80 @@ give them, against the validator's own cross-checks.
   and the realistic detected systems. 12 fail against the previous behaviour.
   `StingTools.Tags.Tests`: 3,491 passing. The Linux compile of the plugin shows no new errors.
 - **Not exercised in Revit.**
+
+#### Drawing Type Editor, Master Setup, Export Centre, Document Manager review (2026-09-27, branch `claude/admiring-babbage-enqzit`)
+
+A review of the four surfaces for flexibility, integration, consistency, accuracy and
+automation logic. Defects fixed here; open items are logged in `docs/ROADMAP.md` under
+"DOCX-*".
+
+**Export Centre (accuracy)**
+- **ISO filename tokens came from parameters that do not exist.** `BuildTokenContext` read
+  `STING_SUITABILITY_TXT`, `STING_VOLUME_TXT`, `STING_LVL_COD_TXT`, `STING_DOC_TYPE_TXT` and
+  `STING_ROLE_TXT`. None is in `MR_PARAMETERS` and nothing writes them, so every file fell
+  through to defaults: an S4 drawing exported as `...-S2-...`. The chain now decomposes the
+  sheet's ISO identifier (`SHT_TAG_1_TXT`, or the sheet number once it is one) and reads the
+  suitability Title Block Populate writes (`PRJ_DWG_SUITABILITY_COD_TXT`, then
+  `PRJ_STATUS_COD_TXT`). The STING_* names are still honoured first for projects that added
+  them by hand. New tokens: `{DocumentId}`, `{Number}`, `{CdeState}`.
+- **Revision was Revit's sequence number.** `{Revision}` printed `3` for a sheet whose
+  revision box reads `P03`. It now uses `SHEET_CURRENT_REVISION`, then `PRJ_TB_REVISION_NR_TXT`,
+  which is the same chain as the CDE REF cell. "Changed Since Last Export" compares this value,
+  so on the first run after upgrading, every previously exported sheet is reported as changed
+  once.
+- **Level codes** derived from sheet names are normalised to ISO (`L01` → `01`, `GF` → `00`).
+  Role falls back through `NormaliseRole` instead of printing `Other`.
+- **Discipline from an ISO sheet number.** Once the sheet number is the identifier, the
+  discipline read before the first hyphen was the project code. The effect was that the
+  By-Discipline sets were empty and every discipline sub-folder was named after the project.
+  `GetDisciplinePrefix` now uses the Role segment.
+- **Suitability → CDE folder** (the Auto button) now uses `Iso19650Suitability.CdeStateFor`, the
+  unit-tested mapping the title block uses. The dialog's own switch sent S1 to WIP, S4/S6/S7 to
+  PUBLISHED and A/B/CR to SHARED.
+- **"Ask" overwrote files.** Nothing prompted, and the engine returned the existing name.
+  Ask now resolves to AutoRename and is no longer offered.
+- **"Planscape CDE" destination** skipped the folder checks and then failed on every sheet
+  with an empty path. No upload exists, so pre-flight now blocks it. "Both" warns that only
+  the local copy is written. IFC "Export linked models", which was never read, also warns.
+- **"Open report when done"** was bound and ignored. It now opens the CSV report
+  (`ExportRunResult.ReportPath`).
+- **Scheduled exports** run the same pre-flight as the dialog and record a blocked job's
+  reason. Repeats advance from the job's own slot instead of drifting to the time of the run.
+
+**Master Setup (automation logic, accuracy)**
+- An Escape during step 1 added -1 to the pass count, skipped the critical-failure prompt and
+  ran everything else. Step 1 is now handled on its own.
+- On a project without worksharing, the worksets skip was counted as a failure, so every such
+  project reported "Failed: 1". The healthcare skip was subtracted without a step, which hid a
+  real failure. Both are now proper SKIPPED steps.
+- A `Result.Failed` step printed "WARN" but was tallied as failed; it now prints FAILED.
+- Step numbering for the PBR step is no longer hard-coded "21". The confirmation list and
+  class doc now name steps 18–21.
+- **COBie healthcare preset was never applied.** Master Setup set `COBiePresetKey` and nothing
+  read it. `COBieExportWizard` now pre-selects the preset, and the step is labelled as the
+  interactive export it is.
+
+**Drawing Type Editor (accuracy)**
+- **Edits to corporate drawing types were discarded on Save.** Save wrote only project-origin
+  types while reporting success, which is the defect already fixed for style packs. Types are
+  now snapshotted at load and an edited corporate type is promoted to project on Save, with
+  its corporate checksum cleared. The comparison fills in the sub-objects the form creates on
+  render, so just viewing a type does not copy it into the project file.
+
+**Document Manager (integration, accuracy)**
+- **Bulk CDE update wrote failed moves to the register.** The register now changes only for
+  documents whose file actually moved. The report says the others were left unchanged.
+- **The suitability was overwritten on every move.** A suitability that already belongs in the
+  target container (for example S1 moving to SHARED) is now kept. Only a code that contradicts
+  the container is replaced by the default.
+- **Register metadata was hidden on file rows.** Files are named after their document number,
+  so both register loaders skipped the matching entry. The row the user saw then had no
+  suitability, revision or status. The loaders now fill that row's blank fields from the
+  register. The CDE state still comes from the folder the file is actually in.
+
+**Verification.** No .NET SDK in this container, so this has not been built. The changes were
+reviewed by reading only. **Not exercised in Revit.** Before merging:
+- Export a sheet set whose sheets carry `SHT_TAG_1_TXT` and a Revit revision, and check the
+  filenames.
+- Run Master Setup on a non-workshared model.
+- Edit a corporate drawing type, save, reopen and confirm the edit held.

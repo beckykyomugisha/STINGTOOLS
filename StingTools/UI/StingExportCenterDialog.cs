@@ -988,7 +988,8 @@ namespace StingTools.UI
             // (sheet STING_* params → stamped DrawingType.IsoNaming → defaults).
             var tokens = new WrapPanel { Margin = new Thickness(0, 4, 0, 6) };
             string[] common = { "{SheetNumber}", "{SheetTitle}", "{Revision}", "{Discipline}", "{Date:yyyyMMdd}",
-                                "{ProjectCode}", "{Originator}", "{Volume}", "{Level}", "{Type}", "{Role}", "{Suitability}" };
+                                "{ProjectCode}", "{Originator}", "{Volume}", "{Level}", "{Type}", "{Role}", "{Suitability}",
+                                "{DocumentId}", "{Number}", "{CdeState}" };
             foreach (var t in common) tokens.Children.Add(MakeTokenPill(t));
             nSp.Children.Add(tokens);
 
@@ -1003,8 +1004,14 @@ namespace StingTools.UI
             nSp.Children.Add(LabelFor("Preview (first sheet)", _namingPreview));
 
             // Conflict mode
+            // "Ask" is not offered: nothing prompts, and the engine now resolves it to
+            // AutoRename (it used to overwrite). A profile saved with Ask shows as
+            // AutoRename, which is what it does.
             var conflict = new ComboBox();
-            foreach (var v in Enum.GetNames(typeof(FilenameConflictMode))) conflict.Items.Add(v);
+            foreach (var v in Enum.GetNames(typeof(FilenameConflictMode)))
+                if (v != nameof(FilenameConflictMode.Ask)) conflict.Items.Add(v);
+            if (_profile.Output.ConflictMode == FilenameConflictMode.Ask)
+                _profile.Output.ConflictMode = FilenameConflictMode.AutoRename;
             conflict.SelectedItem = _profile.Output.ConflictMode.ToString();
             conflict.SelectionChanged += (_, __) =>
             {
@@ -1340,9 +1347,10 @@ namespace StingTools.UI
         /// export's suitability and point the output there, so files land inside the
         /// Document Manager's project structure instead of next to the .rvt or
         /// wherever the user last browsed:
-        ///   S0 / S1            → 01_WIP        (work in progress)
-        ///   S2 / S3 + A/B/CR   → 02_SHARED     (shared for coordination / review)
-        ///   S4 / S6 / S7       → 03_PUBLISHED  (approved / issued)
+        ///   S0                 → WIP        (work in progress)
+        ///   S1 .. S7           → SHARED     (coordination / information / review / approval)
+        ///   A / B / CR         → PUBLISHED  (authorised / issued)
+        /// — Iso19650Suitability.CdeStateFor, the same mapping the title block uses.
         /// Called on open / profile switch with force == false (never overrides an
         /// explicit path) and by the "Auto" button with force == true.
         /// </summary>
@@ -1378,21 +1386,15 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"ResolveCdeFolder fallback: {ex.Message}"); return null; }
         }
 
+        /// <summary>The CDE container for a suitability, from the one unit-tested
+        /// mapping (Iso19650Suitability.CdeStateFor) that Title Block Populate also
+        /// uses. The hand-rolled switch this replaces disagreed with it on three
+        /// families: S1 went to WIP, S4/S6/S7 to PUBLISHED and A/B/CR to SHARED — so
+        /// an authorised drawing could be filed as shared and a stage-approval issue
+        /// as published, which is a contractual statement. AB (abandoned) has no live
+        /// container and falls back to SHARED as before.</summary>
         private static string CdeBucketForSuitability(SuitabilityCode s)
-        {
-            switch (s)
-            {
-                case SuitabilityCode.S0:
-                case SuitabilityCode.S1:
-                    return "WIP";
-                case SuitabilityCode.S4:
-                case SuitabilityCode.S6:
-                case SuitabilityCode.S7:
-                    return "PUBLISHED";
-                default:
-                    return "SHARED";  // S2 / S3 / A1–A3 / AB / B1–B3 / CR → shared for coordination/review
-            }
-        }
+            => Core.Drawing.Iso19650Suitability.CdeStateFor(s.ToString()) ?? "SHARED";
 
         private void OnBrowseFolderClick(object _, RoutedEventArgs __)
         {
@@ -1522,6 +1524,16 @@ namespace StingTools.UI
                     Directory.Exists(_profile.Output.LocalFolder))
                 {
                     try { System.Diagnostics.Process.Start("explorer.exe", _profile.Output.LocalFolder); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                }
+                // "Open report when done" was bound to a checkbox and read by nothing.
+                if (_profile.Output.OpenReportWhenDone && File.Exists(result.ReportPath ?? ""))
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(result.ReportPath)
+                            { UseShellExecute = true });
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Open export report: {ex.Message}"); }
                 }
             }
             finally

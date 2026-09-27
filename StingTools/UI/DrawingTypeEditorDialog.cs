@@ -80,6 +80,17 @@ namespace StingTools.UI
         /// </summary>
         private Dictionary<string, string> _packSnapshot
             = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>The same snapshot for drawing types. Save wrote only
+        /// project-origin types, so an edit to a corporate type (its scale, sheet
+        /// pattern, pack, slots) was dropped on Save with a "Saved N type(s)"
+        /// message — the defect the pack half was already fixed for. Keyed by the
+        /// normalised serialisation (see <see cref="EditKey"/>) so that merely
+        /// opening a type's form, which creates empty Crop / SectionMarker /
+        /// Annotation / TokenProfile / Slots objects, does not count as an edit and
+        /// freeze an untouched corporate type into the project file.</summary>
+        private Dictionary<string, string> _typeSnapshot
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private DrawingType _current;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
@@ -338,6 +349,12 @@ namespace StingTools.UI
             var lib = DrawingTypeRegistry.GetLibrary(doc);
             _types = (lib?.DrawingTypes ?? new List<DrawingType>())
                 .Select(Clone).ToList();
+            foreach (var t in _types)
+            {
+                if (t?.Id == null) continue;
+                try { _typeSnapshot[t.Id] = EditKey(t); }
+                catch (Exception ex) { StingLog.Warn($"Type snapshot '{t.Id}': {ex.Message}"); }
+            }
 
             Title = "STING — Drawing Type Editor";
             Width = 1080; Height = 720;
@@ -3374,6 +3391,26 @@ namespace StingTools.UI
 
                 // ── Drawing types ──────────────────────────────────────────
                 var typesPath = Path.Combine(dir, "drawing_types.json");
+
+                // An edited corporate type becomes a project type, as an edited
+                // corporate pack does below; its corporate checksum is cleared
+                // because it no longer describes the entry.
+                int promoted = 0;
+                foreach (var t in _types)
+                {
+                    if (t?.Id == null) continue;
+                    if (string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!_typeSnapshot.TryGetValue(t.Id, out var before)) continue;
+                    string now;
+                    try { now = EditKey(t); }
+                    catch (Exception ex) { StingLog.Warn($"Type diff '{t.Id}': {ex.Message}"); continue; }
+                    if (string.Equals(before, now, StringComparison.Ordinal)) continue;
+                    t.Origin = "project";
+                    t.Checksum = null;
+                    promoted++;
+                    StingLog.Info($"Drawing type '{t.Id}' was edited; origin flipped to project so the edit persists.");
+                }
+
                 var projectTypes = _types
                     .Where(t => string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -3397,7 +3434,8 @@ namespace StingTools.UI
 
                 var msg = $"Saved {projectTypes.Count} project-scoped drawing type(s)"
                         + (projectRouting.Count > 0 ? $" and {projectRouting.Count} routing rule(s)" : "")
-                        + $" to\n{typesPath}";
+                        + $" to\n{typesPath}"
+                        + (promoted > 0 ? $"\n({promoted} edited corporate type(s) now override the baseline in this project)" : "");
                 if (packCount >= 0)
                     msg += $"\n\nSaved {packCount} project-scoped style pack(s) to\n{packsPath}";
                 if (!string.IsNullOrEmpty(packError))
@@ -3654,6 +3692,23 @@ namespace StingTools.UI
 
         private static double Parse(string s)
             => double.TryParse(s, out var d) ? d : 0.0;
+
+        /// <summary>Serialisation used to tell an edit from a view: a clone with the
+        /// sub-objects the form creates on render filled in the same way, so a type
+        /// that was only looked at compares equal to its snapshot. The working copy
+        /// itself is not touched.</summary>
+        private static string EditKey(DrawingType t)
+        {
+            var c = Clone(t);
+            c.Crop = c.Crop ?? new DrawingCropStrategy();
+            c.SectionMarker = c.SectionMarker ?? new SectionMarkerSpec();
+            c.Annotation = c.Annotation ?? new AnnotationRulePack();
+            c.TokenProfile = c.TokenProfile ?? new AnnotationTokenProfile();
+            c.Slots = c.Slots ?? new List<DrawingSlot>();
+            c.Origin = null;
+            c.Checksum = null;
+            return JsonConvert.SerializeObject(c, Formatting.None);
+        }
 
         private static DrawingType Clone(DrawingType src)
         {
