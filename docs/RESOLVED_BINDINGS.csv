@@ -1295,7 +1295,7 @@ ELC_TAG_7_PARA_TRAY_TXT,4,tag-container,<ALL>,Cable tray paragraph [ISO 19650-3:
 ELC_TRANSFER_LOAD_OK,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Transfer Load Ok [STING]
 ELC_UPS_REPLACE_DT,4,elc-sub,Electrical Equipment|Electrical Circuits,UPS battery replacement date ISO 8601 [H-27]
 ELC_VLT_DROP_PCT,4,elc-sub,Electrical Circuits|Electrical Equipment,Elc Vlt Drop Pct [ISO 19650-1:2018]
-ELC_VLT_DROP_TXT,4,elc-sub,Electrical Circuits,ELC_VLT_DROP_PCT display mirror [auto-generated]
+ELC_VLT_DROP_TXT,4,vd-basis,Electrical Equipment|Electrical Circuits,ELC_VLT_DROP_PCT display mirror [auto-generated]
 ELC_VLT_PRIMARY_RATING_TXT,4,elc-sub,Electrical Circuits,ELC_VLT_PRIMARY_RATING_V display mirror [auto-generated]
 ELC_VLT_PRIMARY_RATING_V,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures,Elc Vlt Primary Rating V [ISO 19650-1:2018]
 ELC_VOLTAGE_TXT,4,elc-sub,Electrical Fixtures,ELC_VOLTAGE_V display mirror [auto-generated]

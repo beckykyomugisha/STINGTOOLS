@@ -177,6 +177,29 @@ A project can override the corporate tables in `_BIM_COORD/bs7671_wire_tables.js
 The Circuit Check does not read the stamped figure at all: it resolves each circuit afresh
 from its route length, Ib, voltage and recorded cable.
 
+`ELC_VLT_DROP_TXT` carries the same figure as schedule text: "3.91", "≤4.13" for an upper bound,
+"—" when not calculated. The number cannot be cleared; the text can (ELEC-26).
+
+### Load-corrected voltage drop (Appendix 4 §6.1, ELEC-25)
+
+The tabulated mV/A/m assumes the conductor at its maximum temperature tp. At a lower load the
+cable sizer also reports the corrected figure, for copper:
+
+Ct = [230 + tp − (Ca²·Cg²·Cs²·Cd² − Ib²/It²)(tp − 30)] / (230 + tp)
+
+- Applied to the whole mV/A/m only up to 16 mm². Above that §6.1 corrects the resistive
+  component only, and the shipped tables carry the combined value, so nothing is reported.
+- Cs and Cd (buried cables) are not modelled, so methods D1 and D2 are not corrected.
+- Ct is capped at 1: at or above Ib = Ca·Cg·It the tabulated figure stands.
+- Reported only. The size is chosen on the tabulated figure, and circuits are not corrected
+  after the fact because they do not record Ca and Cg.
+- Sources for the formula: BS 7671 Appendix 4 §6.1 as quoted by
+  [Engineering Post](https://enggpost.com/cable-voltage-drop-calculation-using-bs-7671/) and
+  [My Cable Engineering](https://mycableengineering.com/bs-7671-voltage-drop/); the 16 mm² split
+  into r and x components as described by the
+  [Scribd BS 7671 voltage drop guide](https://www.scribd.com/document/376082566/BS-7671-Voltage-Drop).
+  Check against the printed Appendix 4 before relying on it.
+
 ## IEEE 1584-2018
 
 ### Sources

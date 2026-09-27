@@ -182,6 +182,7 @@ namespace StingTools.Commands.Electrical.Import
             {
                 n += Tally(Set(p, "ELC_VLT_DROP_PCT", r.VdPct.Value.ToString("F1", inv), w), ref failed);
                 Set(p, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("EasyPower"), w);
+                Set(p, "ELC_VLT_DROP_TXT", r.VdPct.Value.ToString("F1", inv), w);
             }
             else if (r.VoltagePU.HasValue)
             {
@@ -189,6 +190,7 @@ namespace StingTools.Commands.Electrical.Import
                 double vdPct = (1.0 - r.VoltagePU.Value) * 100.0;
                 n += Tally(Set(p, "ELC_VLT_DROP_PCT", vdPct.ToString("F1", inv), w), ref failed);
                 Set(p, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("EasyPower (from per-unit voltage)"), w);
+                Set(p, "ELC_VLT_DROP_TXT", vdPct.ToString("F1", inv), w);
             }
             return n;
         }

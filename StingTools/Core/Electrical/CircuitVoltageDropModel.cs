@@ -33,7 +33,7 @@ namespace StingTools.Core.Electrical
             catch (Exception ex) { StingLog.Warn($"VD poles {sys.Id}: {ex.Message}"); }
             try { i.CsaMm2 = WireSizeParser.ParseCsaMm2(sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""); }
             catch (Exception ex) { StingLog.Warn($"VD wire size {sys.Id}: {ex.Message}"); }
-            if (i.CsaMm2 <= 0) i.CsaMm2 = ParameterHelpers.GetDouble(sys, "ELC_CKT_CSA_MM2");
+            if (i.CsaMm2 <= 0) i.CsaMm2 = ParameterHelpers.GetDouble(sys, "ELC_CBL_SZ_MM"); // ParamRegistry.ELC_CKT_CSA_MM2 is an alias for it
             var rec = CircuitCableRecord.Read(sys);
             i.Insulation = rec.Insulation; i.InstallMethod = rec.InstallMethod; i.CableType = rec.CableType;
             return i;
@@ -60,6 +60,9 @@ namespace StingTools.Core.Electrical
                 ParameterHelpers.SetString(el, "ELC_VLT_DROP_PCT", r.Pct.ToString("0.00", CultureInfo.InvariantCulture), overwrite: true);
             else
                 TryClear(el.LookupParameter("ELC_VLT_DROP_PCT"));
+            // ELEC-26: the text mirror is what STING's schedules show. Unlike the number it can
+            // always be overwritten, so a NONE never leaves an old figure on view.
+            ParameterHelpers.SetString(el, "ELC_VLT_DROP_TXT", CircuitVoltageDrop.DisplayText(r), overwrite: true);
             return ParameterHelpers.SetString(el, "ELC_CKT_VD_BASIS_TXT", r.Stamp, overwrite: true);
         }
 
@@ -69,6 +72,7 @@ namespace StingTools.Core.Electrical
         {
             if (el == null) return false;
             ParameterHelpers.SetString(el, "ELC_VLT_DROP_PCT", pct.ToString("0.00", CultureInfo.InvariantCulture), overwrite: true);
+            ParameterHelpers.SetString(el, "ELC_VLT_DROP_TXT", pct.ToString("0.00", CultureInfo.InvariantCulture), overwrite: true);
             return ParameterHelpers.SetString(el, "ELC_CKT_VD_BASIS_TXT", basis ?? "", overwrite: true);
         }
 
@@ -93,6 +97,51 @@ namespace StingTools.Core.Electrical
             // A NONE basis beside a number is a stale figure the parameter could not clear.
             if (method == VdMethod.None) pct = null;
             return (pct, method, basis);
+        }
+
+        /// <summary>
+        /// A conduit's own inputs (ELEC-23): design current <c>ELC_WIRE_MAX_DEMAND_A</c>
+        /// (else the connected circuit's current), this segment's length, conductor size
+        /// <c>ELC_WIRE_CSA_MM2_NUM</c>, material, and the cable recorded on the conduit
+        /// (<c>ELC_WIRE_INSTALL_METHOD_TXT</c> or <c>ELC_CBL_INSTALL_METHOD_TXT</c>,
+        /// <c>ELC_CBL_INS_TYPE_TXT</c>, <c>ELC_CBL_TYPE_TXT</c>). Voltage and phases come
+        /// from the connected circuit; with no circuit the nominal 400 V / 230 V is used and
+        /// <paramref name="voltageAssumed"/> says so. Nothing else is assumed: an incomplete
+        /// cable record gives the A4-MAX upper bound, not a guessed table.
+        /// </summary>
+        public static CircuitVdInput ReadConduit(Element conduit, ElectricalSystem circuit, string standard,
+            out bool voltageAssumed)
+        {
+            voltageAssumed = false;
+            var i = new CircuitVdInput { Standard = standard ?? "BS7671" };
+            if (conduit == null) return i;
+            string mat = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
+            i.Material = mat != null && mat.Trim().StartsWith("Al", StringComparison.OrdinalIgnoreCase) ? "Al" : "Cu";
+            i.CsaMm2 = ParameterHelpers.GetDouble(conduit, "ELC_WIRE_CSA_MM2_NUM");
+            i.CurrentA = ParameterHelpers.GetDouble(conduit, "ELC_WIRE_MAX_DEMAND_A");
+            try { if (conduit.Location is LocationCurve lc && lc.Curve != null) i.LengthM = lc.Curve.Length * 0.3048; }
+            catch (Exception ex) { StingLog.Warn($"VD conduit length {conduit.Id}: {ex.Message}"); }
+
+            int poles = 0;
+            if (circuit != null)
+            {
+                try { if (i.CurrentA <= 0) i.CurrentA = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0; }
+                catch (Exception ex) { StingLog.Warn($"VD conduit circuit current {conduit.Id}: {ex.Message}"); }
+                try { i.VoltageV = ElecUnits.Read(circuit, BuiltInParameter.RBS_ELEC_VOLTAGE); }
+                catch (Exception ex) { StingLog.Warn($"VD conduit circuit voltage {conduit.Id}: {ex.Message}"); }
+                try { poles = circuit.PolesNumber; }
+                catch (Exception ex) { StingLog.Warn($"VD conduit circuit poles {conduit.Id}: {ex.Message}"); }
+            }
+            string phase = ParameterHelpers.GetString(conduit, "ELC_WIRE_PHASE_TXT");
+            i.Phases = poles >= 3 || (poles == 0 && phase != null && phase.Contains("3")) ? 3 : 1;
+            if (i.VoltageV <= 0) { i.VoltageV = i.Phases == 3 ? 400.0 : 230.0; voltageAssumed = true; }
+
+            string method = ParameterHelpers.GetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT");
+            if (string.IsNullOrWhiteSpace(method)) method = ParameterHelpers.GetString(conduit, "ELC_CBL_INSTALL_METHOD_TXT");
+            i.InstallMethod = method?.Trim();
+            i.Insulation = ParameterHelpers.GetString(conduit, "ELC_CBL_INS_TYPE_TXT")?.Trim();
+            i.CableType = ParameterHelpers.GetString(conduit, "ELC_CBL_TYPE_TXT")?.Trim();
+            return i;
         }
 
         private static void TryClear(Parameter p)

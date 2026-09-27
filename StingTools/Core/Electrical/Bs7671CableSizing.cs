@@ -352,6 +352,15 @@ namespace StingTools.Core.Electrical
         public string Basis { get; set; } = "";
         /// <summary>The capacity table came from the project override, not the corporate file.</summary>
         public bool ProjectTable { get; set; }
+        /// <summary>
+        /// ELEC-25: BS 7671 Appendix 4 §6.1 voltage drop corrected for the conductor running
+        /// below its maximum temperature at Ib, as a separate, optional figure. Null when the
+        /// correction does not apply (see <see cref="LoadCorrectionNote"/>). The size is always
+        /// chosen on the tabulated figure; this never makes a cable smaller.
+        /// </summary>
+        public double? LoadCorrectedVoltDropPct { get; set; }
+        public double? LoadCorrectionCt { get; set; }
+        public string LoadCorrectionNote { get; set; } = "";
         /// <summary>Ca, Cg or Cf came from the project override.</summary>
         public bool ProjectFactors { get; set; }
     }
@@ -519,7 +528,9 @@ namespace StingTools.Core.Electrical
                 sb.Append($" (current alone needs {capacityOnly.CsaMm2:0.#} mm²; upsized for voltage drop)");
             sb.Append($". VD = {r.MvAm:0.###} mV/A/m × {input.DesignCurrentA:0.0} A × {input.LengthM:0.#} m = " +
                       $"{r.VoltDropV:0.00} V = {r.VoltDropPct:0.00}% of {input.VoltageV:0} V (limit {limit:0.0}%; " +
-                      "tabulated mV/A/m at max conductor temperature, not corrected for load).");
+                      "tabulated mV/A/m at max conductor temperature).");
+            ApplyLoadCorrection(r, table, method, ca, cg, input.DesignCurrentA, input.VoltageV, input.LengthM);
+            sb.Append(" " + r.LoadCorrectionNote);
             if (r.UnverifiedRow && r.ProjectTable)
             {
                 string what = r.UnverifiedCapacity && r.UnverifiedVoltDrop ? "It and mV/A/m"
@@ -539,6 +550,45 @@ namespace StingTools.Core.Electrical
                 sb.Append($" Sized on PROJECT data from {data.OverrideFile}, not the corporate BS 7671 transcription.");
             r.Basis = sb.ToString();
             return r;
+        }
+
+        /// <summary>
+        /// BS 7671 Appendix 4 §6.1 operating-temperature factor for copper:
+        /// Ct = [230 + tp − (Ca²·Cg²·Cs²·Cd² − Ib²/It²)(tp − 30)] / (230 + tp), with Cs = Cd = 1
+        /// (not buried). When Ib ≥ Ca·Cg·It the conductor is at or above tp and Ct is 1 — the
+        /// tabulated figure stands; Ct is never above 1.
+        /// </summary>
+        public static double LoadCorrectionCt(double tpC, double ca, double cg, double ibA, double itA)
+        {
+            if (tpC <= 30 || itA <= 0 || ibA < 0) return 1.0;
+            double term = ca * ca * cg * cg - (ibA * ibA) / (itA * itA);
+            if (term <= 0) return 1.0;
+            double ct = (230.0 + tpC - term * (tpC - 30.0)) / (230.0 + tpC);
+            return Math.Min(1.0, ct);
+        }
+
+        /// <summary>Apply §6.1 where it can be applied honestly, else say why not.</summary>
+        internal static void ApplyLoadCorrection(Bs7671SizingResult r, Bs7671CapacityTable table, string method,
+            double ca, double cg, double ib, double voltageV, double lengthM)
+        {
+            string m = (method ?? "").Trim().ToUpperInvariant();
+            if (r.CsaMm2 > 16 + 1e-9)
+                r.LoadCorrectionNote = "Appendix 4 §6.1 load correction not applied: above 16 mm² it applies to the " +
+                                       "resistive component only, and the tables carry the combined mV/A/m.";
+            else if (m.StartsWith("D"))
+                r.LoadCorrectionNote = "Appendix 4 §6.1 load correction not applied: buried cables need Cs and Cd, " +
+                                       "which are not modelled.";
+            else if (table.MaxConductorTempC <= 30)
+                r.LoadCorrectionNote = "Appendix 4 §6.1 load correction not applied: the table carries no conductor temperature.";
+            else
+            {
+                double ct = LoadCorrectionCt(table.MaxConductorTempC, ca, cg, ib, r.TabulatedItA);
+                r.LoadCorrectionCt = ct;
+                r.LoadCorrectedVoltDropPct = r.MvAm * ct * ib * lengthM / 1000.0 / voltageV * 100.0;
+                r.LoadCorrectionNote = $"Appendix 4 §6.1 (optional): at Ib the conductor runs below {table.MaxConductorTempC:0} °C, " +
+                                       $"Ct = {ct:0.000}, so VD = {r.LoadCorrectedVoltDropPct:0.00}%. The size was chosen on the " +
+                                       "tabulated figure.";
+            }
         }
 
         private static Bs7671SizingResult Refuse(Bs7671SizingResult r, string why)

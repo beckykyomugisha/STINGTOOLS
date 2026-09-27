@@ -24152,3 +24152,36 @@ multicore or hid unchecked values.
   ELEC-26 (the old VD number cannot be cleared when the basis is NONE).
 - **Tests.** 3,554 passing, including 24 for the override and 26 for voltage drop.
 - **Not exercised in Revit.**
+
+#### ELEC-23 to ELEC-26: one size, one voltage drop, feeders on the panel's standard (2026-09-27)
+
+- **ELEC-23, aligned writers.**
+  - `CableSizerApplyEngine` (MCP batch sizing) writes `ELC_CBL_SZ_MM` and the native wire size
+    (when Revit allows) as well as `ELC_WIRE_CSA_MM2_NUM`. It stamps voltage drop and basis
+    through `CircuitVoltageDropModel`, so it agrees with Apply and Recalculate.
+  - Wire VD Sync and the wire annotation resolve each conduit through `CircuitVoltageDrop`: the
+    conduit's own recorded cable, else an upper bound, and the connected circuit's voltage.
+    Before, VD Sync used conductor resistance at a fixed 70 °C and 400 / 230 V.
+  - The annotation no longer reads `ELC_VLT_DROP_PCT` off a conduit, where it is not bound, and
+    marks an upper bound "≤".
+  - The conduit cable sizer writes Iz to `ELC_WIRE_AMPACITY_A`; it had been left empty.
+- **ELEC-24, feeders follow the panel's standard.** NEC feeders size to Table 310.16 and their
+  drop is stamped R60228. AS/NZS 3000 is refused with the reason instead of silently getting
+  BS 7671. The voltage-drop resolver refuses a standard with no tables the same way.
+- **ELEC-25, Appendix 4 §6.1.** The cable sizer reports the load-corrected drop as a separate,
+  optional figure: Ct from Ca and Cg, up to 16 mm², not buried cables. The size is still chosen
+  on the tabulated figure. Sources in `ELECTRICAL_STANDARDS_SOURCES.md`.
+- **ELEC-26, schedule text.** Every stamp writes `ELC_VLT_DROP_TXT` ("3.91", "≤4.13", or "—"
+  when not calculated), now bound to boards as well as circuits. The STING panel schedule
+  templates and the Voltage Drop Schedule show it; the number cannot be cleared, the text can.
+- **Found on the way.**
+  - The circuit voltage-drop reader (merged in #996) fell back to a parameter named
+    `ELC_CKT_CSA_MM2`. That is only a code alias for `ELC_CBL_SZ_MM`, so the fallback never
+    found a size. The parameter-contract gate exposed it.
+  - The fabrication workspace grouped by `HVC_SYS_TXT` / `ELC_SYS_TXT`, which do not exist, so
+    every duct and conduit fell to system "GEN". It now uses the tag's SYS token.
+- **Tests.** 3,562 passing, including 8 new: the §6.1 factor against a hand calculation
+  (Ct 0.940, 1.47 % on 2.5 mm² at 20 A over 10 m), its limits, unsupported standards, and the
+  schedule text.
+- **Not exercised in Revit.** Rebuild the panel schedule templates (`Panel_TemplatesCreate`) to
+  pick up the VD column change.

@@ -538,39 +538,51 @@ namespace StingTools.Commands.Electrical
             if (conduits.Count == 0)
             { TaskDialog.Show("VD Sync", "No conduits found."); return Result.Succeeded; }
 
-            int updated = 0;
+            // ELEC-23: the same resolver as circuit voltage drop — Appendix 4 mV/A/m from the
+            // cable recorded on the conduit, else the A4-MAX upper bound; resistance only on
+            // NEC. It was BS EN 60228 resistance at a fixed 70 °C and a hard-coded 400 / 230 V.
+            var tables = CableSizerEngine.Bs7671Tables(doc);
+            string standard = StingTools.Standards.ElectricalStandardId.Normalise(
+                StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
+            var resistance = StingTools.Core.Electrical.CircuitVoltageDropModel.Resistance();
+            int updated = 0, bounded = 0, voltsAssumed = 0;
+            var notCalc = new Dictionary<string, int>(StringComparer.Ordinal);
             using var tx = new Transaction(doc, "STING Wire VD Sync");
             tx.Start();
             foreach (var el in conduits)
             {
                 try
                 {
-                    double csaMm2   = WireParamHelpers.GetDouble(el, "ELC_WIRE_CSA_MM2_NUM");
-                    double demandA  = WireParamHelpers.GetDouble(el, "ELC_WIRE_MAX_DEMAND_A");
-                    string mat      = ParameterHelpers.GetString(el, "ELC_WIRE_COND_MAT_TXT");
-                    string phaseStr = ParameterHelpers.GetString(el, "ELC_WIRE_PHASE_TXT");
-
-                    if (csaMm2 <= 0 || demandA <= 0) continue;
-
-                    double lengthM = 0;
-                    if (el.Location is LocationCurve lc)
-                        lengthM = lc.Curve.Length * 0.3048; // Revit feet → metres
-
-                    int phases = phaseStr?.Contains("3") == true ? 3 : 1;
-                    double vd = VoltageDropEngine.CalculateVoltDropPercent(
-                        demandA, lengthM, csaMm2,
-                        mat?.Contains("Al") == true ? "Al" : "Cu",
-                        phases == 3 ? 400 : 230, phases, 70);
-
-                    SetDouble(el, "ELC_WIRE_VD_PCT_NUM", vd);
+                    ElectricalSystem circuit = null;
+                    try { circuit = WireAnnotationEngine.GetConnectedCircuit(el); }
+                    catch (Exception ex) { StingLog.Warn($"VD sync circuit {el.Id}: {ex.Message}"); }
+                    var input = StingTools.Core.Electrical.CircuitVoltageDropModel.ReadConduit(el, circuit, standard, out bool assumedV);
+                    var vd = StingTools.Core.Electrical.CircuitVoltageDrop.Resolve(input, tables, resistance);
+                    if (!vd.HasValue)
+                    {
+                        notCalc[vd.Detail] = notCalc.TryGetValue(vd.Detail, out int n) ? n + 1 : 1;
+                        continue;
+                    }
+                    SetDouble(el, "ELC_WIRE_VD_PCT_NUM", vd.Pct);
                     updated++;
+                    if (vd.UpperBound) bounded++;
+                    if (assumedV) voltsAssumed++;
                 }
                 catch (Exception ex) { StingLog.Warn($"VD sync {el.Id}: {ex.Message}"); }
             }
             tx.Commit();
 
-            TaskDialog.Show("Wire VD Sync", $"Updated VD on {updated} conduit(s).\n"
-                + "Re-run 'W-Batch' to refresh annotations.");
+            var msg = new System.Text.StringBuilder($"Updated VD on {updated} conduit(s).");
+            if (bounded > 0) msg.Append($"\n{bounded} are upper bounds (A4-MAX): the conduit carries no complete cable record " +
+                                        "(ELC_WIRE_INSTALL_METHOD_TXT / ELC_CBL_INS_TYPE_TXT / ELC_CBL_TYPE_TXT).");
+            if (voltsAssumed > 0) msg.Append($"\n{voltsAssumed} are not connected to a circuit: nominal 400 V / 230 V was used.");
+            if (notCalc.Count > 0)
+            {
+                msg.Append($"\n\nNot calculated ({notCalc.Values.Sum()}):");
+                foreach (var kv in notCalc.OrderByDescending(k => k.Value).Take(5)) msg.Append($"\n  {kv.Value} × {kv.Key}");
+            }
+            msg.Append("\n\nRe-run 'W-Batch' to refresh annotations.");
+            TaskDialog.Show("Wire VD Sync", msg.ToString());
             return Result.Succeeded;
         }
 
@@ -680,14 +692,14 @@ namespace StingTools.Commands.Electrical
                         continue;
                     }
 
-                    // ELC_WIRE_AMPACITY_A holds the cable's current-carrying capacity
-                    // (Iz). CableSizeResult does not report Iz — DesignCurrentA is the
-                    // design current Ib, which the old code wrote here and labelled Iz.
-                    // Ib already lives in ELC_WIRE_MAX_DEMAND_A (it is this command's
-                    // input), so Iz is left alone until the sizer returns one.
+                    // ELC_WIRE_AMPACITY_A holds the cable's current-carrying capacity Iz
+                    // (It × Ca·Cg·Ci), which the sizer now reports; never the design current
+                    // Ib, which already lives in ELC_WIRE_MAX_DEMAND_A (this command's input).
                     var r = new WireStampWriteReport();
                     WireStampHelper.WriteNumber(el, "ELC_WIRE_CSA_MM2_NUM",       result.RecommendedCsaMm2, r);
                     WireStampHelper.WriteNumber(el, "ELC_WIRE_VD_PCT_NUM",        result.ActualVoltDropPct, r);
+                    double iz = result.EffectiveCapacityIzA > 0 ? result.EffectiveCapacityIzA : result.TabulatedCapacityA;
+                    if (iz > 0) WireStampHelper.WriteNumber(el, "ELC_WIRE_AMPACITY_A", iz, r);
                     if (result.ProposedBreakerA > 0)
                         WireStampHelper.WriteNumber(el, "ELC_WIRE_CIRCUIT_BREAKER_A", result.ProposedBreakerA, r);
                     total.Merge(r);

@@ -378,7 +378,9 @@ namespace StingTools.Mcp
             rb["inspected"]           = applied.Inspected;
             rb["computed"]            = applied.Computed;
             rb["written"]             = applied.Written;
-            rb["perParamWritten"]     = new Dictionary<string, object> { ["csaNum"] = applied.WroteCsaNum, ["vdNum"] = applied.WroteVdNum };
+            rb["perParamWritten"]     = new Dictionary<string, object> { ["csaNum"] = applied.WroteCsaNum, ["vdNum"] = applied.WroteVdNum,
+                                                                     ["circuitCsa"] = applied.WroteCircuitCsa, ["nativeWireSize"] = applied.WroteNativeWireSize,
+                                                                     ["vdStamped"] = applied.VdStamped, ["vdNotCalculated"] = applied.VdNotCalculated };
             rb["noWritesPersisted"]   = applied.NoWritesPersisted;
             rb["typeScopeWrites"]     = applied.TypeScopeWrites;
             rb["requiredBindingGaps"] = applied.RequiredBindingGaps;
