@@ -747,9 +747,10 @@ namespace StingTools.Select
                 string storedFunc = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                 string currentSysForFunc = !string.IsNullOrEmpty(currentSys) ? currentSys
                     : ParameterHelpers.GetString(elem, ParamRegistry.SYS);
-                string currentFunc = TagConfig.GetSmartFuncCode(elem, currentSysForFunc);
-                if (string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(currentSysForFunc))
-                    currentFunc = TagConfig.FuncMap.TryGetValue(currentSysForFunc, out string fv) ? fv : null;
+                // GEN means "could not establish", not a detected change.
+                string currentFunc = string.IsNullOrEmpty(currentSysForFunc) ? null
+                                   : TagConfig.GetSmartFuncCode(elem, currentSysForFunc);
+                if (currentFunc == "GEN") currentFunc = null;
                 if (!string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(storedFunc)
                     && !string.Equals(storedFunc, currentFunc, StringComparison.OrdinalIgnoreCase))
                 {

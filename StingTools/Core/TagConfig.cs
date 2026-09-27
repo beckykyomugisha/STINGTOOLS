@@ -492,7 +492,9 @@ namespace StingTools.Core
         /// <summary>
         /// Build a canonical SEQ counter key from element token values.
         /// Used to ensure consistent grouping across all tagging commands.
-        /// Format matches BuildAndWriteTag: DISC_SYS_LVL (or DISC_ZONE_SYS_LVL when SeqIncludeZone).
+        /// Format matches BuildAndWriteTag, which keys on the same STORED tokens:
+        /// DISC_SYS_LVL, with _ZONE_ / _LOC_ inserted when SeqIncludeZone / SeqIncludeLoc.
+        /// FUNC and PROD are not part of the SEQ group.
         /// </summary>
         public static string BuildSeqKey(Element el)
         {
@@ -535,6 +537,8 @@ namespace StingTools.Core
         /// <summary>
         /// Build a canonical SEQ key from explicit token values.
         /// Matches the same format as BuildSeqKey(Element) for consistency.
+        /// <paramref name="func"/> and <paramref name="prod"/> are accepted for call-site
+        /// symmetry only; the SEQ group is DISC / [LOC] / [ZONE] / SYS / LVL.
         /// </summary>
         public static string BuildSeqKey(string disc, string sys, string func, string prod, string lvl, string zone = null, string loc = null)
             => SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, loc, SeqIncludeZone, SeqIncludeLoc);
@@ -1708,62 +1712,31 @@ namespace StingTools.Core
         /// Phase 176 — Lightning Protection family-aware FUNC resolution.
         /// When SYS=LPS, the FUNC token is one of 6 sub-functions
         /// (AT / DC / EE / BOND / SPD / TC) chosen from family/type name.
-        /// Returns null for non-LPS elements (caller should fall back to
-        /// FuncMap[sys]). Wired into the tagging pipeline by the
-        /// Smart-FUNC layer so LPS finials → AT, down conductors → DC, etc.
+        /// Returns null when the name names no specific component (caller falls
+        /// back to FuncMap[sys]). Called by <see cref="GetSmartFuncCode"/> for
+        /// SYS=LPS; the keyword rules live in the Revit-free
+        /// <see cref="LpsNameClassifier"/>.
         /// </summary>
         public static string ResolveLpsFunc(Element el)
         {
             if (el == null) return null;
             string fam = ParameterHelpers.GetFamilyName(el);
             string sym = ParameterHelpers.GetFamilySymbolName(el);
-            string upper = ($"{fam} {sym}").ToUpperInvariant();
-            if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                upper.Contains("STRIKE TERMINATION") || upper.Contains("AIR ROD") ||
-                upper.Contains("AIR MESH") || upper.Contains("CATENARY"))
-                return "AT";
-            if (upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                upper.Contains("DESCENT"))
-                return "DC";
-            if (upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
-                upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
-                upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
-                upper.Contains("EARTH PLATE"))
-                return "EE";
-            if (upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
-                upper.Contains("EARTH BAR") || (upper.Contains("BOND") && upper.Contains("LPS")) ||
-                upper.Contains("SPARK GAP"))
-                return "BOND";
-            if ((upper.Contains("SPD") || upper.Contains("SURGE PROTECT")) &&
-                (upper.Contains("LIGHTNING") || upper.Contains("TYPE 1") ||
-                 upper.Contains("TYPE 2") || upper.Contains("TYPE 3")))
-                return "SPD";
-            if (upper.Contains("TEST CLAMP") || upper.Contains("INSPECTION POINT"))
-                return "TC";
-            // Generic LPS family — leave as base "LPS" so caller falls back
-            return null;
+            return LpsNameClassifier.Func(($"{fam} {sym}").ToUpperInvariant());
         }
 
         /// <summary>
         /// Phase 176 — true when family/type name shows lightning-protection
         /// markers. Used by validators, container resolvers and LPS warning
         /// writers to scope BS EN 62305 checks to the relevant elements only.
+        /// Same keyword set as the LPS PROD resolver (<see cref="LpsNameClassifier"/>).
         /// </summary>
         public static bool IsLightningProtection(Element el)
         {
             if (el == null) return false;
             string fam = ParameterHelpers.GetFamilyName(el);
             string sym = ParameterHelpers.GetFamilySymbolName(el);
-            string upper = ($"{fam} {sym}").ToUpperInvariant();
-            return upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
-                   upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                   upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                   upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
-                   upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
-                   upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
-                   upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
-                   upper.Contains("EARTH BAR") || upper.Contains("TEST CLAMP") ||
-                   upper.Contains("INSPECTION POINT") || upper.Contains("SPARK GAP");
+            return LpsNameClassifier.IsLps(($"{fam} {sym}").ToUpperInvariant());
         }
 
         /// <summary>
@@ -1789,10 +1762,13 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Enhanced FUNC code derivation using element's MEP system context.
+        /// The FUNC resolver — every tagging path calls this rather than carrying its own
+        /// fallback chain (there were ten copies, and they had drifted).
         /// For HVAC, differentiates Supply (SUP), Return (RTN), Exhaust (EXH), Fresh Air (FRA).
-        /// For HWS, differentiates Heating (HTG) vs Domestic Hot Water (DHW).
-        /// Falls back to FuncMap lookup when no subsystem detail is available.
+        /// For HWS, differentiates Heating (HTG) vs Domestic Hot Water (DHW); SAN vents → VNT;
+        /// LPS components → AT / DC / EE / BOND / SPD / TC.
+        /// Falls back to FuncMap[sys], then "GEN". Never returns blank; "GEN" means the
+        /// function could not be established (callers that record assumptions test for it).
         /// </summary>
         public static string GetSmartFuncCode(Element el, string sysCode)
         {
@@ -1820,7 +1796,15 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(sanFunc)) return sanFunc;
             }
 
-            return FuncMap.TryGetValue(sysCode, out string val) ? val : string.Empty;
+            // For LPS, the component role (air termination, down conductor, earth,
+            // bonding, SPD, test clamp) is read off the family/type name.
+            if (sysCode == "LPS")
+            {
+                string lpsFunc = ResolveLpsFunc(el);
+                if (!string.IsNullOrEmpty(lpsFunc)) return lpsFunc;
+            }
+
+            return FuncMap.TryGetValue(sysCode, out string val) && !string.IsNullOrEmpty(val) ? val : "GEN";
         }
 
         /// <summary>
@@ -1848,7 +1832,8 @@ namespace StingTools.Core
                     }
                 }
 
-                // Check duct system type parameter
+                // Check duct system type parameter (ducts are MEPCurves, not
+                // FamilyInstances, so this is the branch that classifies them).
                 Parameter ductSys = el.get_Parameter(BuiltInParameter.RBS_DUCT_SYSTEM_TYPE_PARAM);
                 if (ductSys != null && ductSys.HasValue)
                 {
@@ -1856,6 +1841,7 @@ namespace StingTools.Core
                     if (val.Contains("SUPPLY")) return "SUP";
                     if (val.Contains("RETURN")) return "RTN";
                     if (val.Contains("EXHAUST") || val.Contains("EXTRACT")) return "EXH";
+                    if (val.Contains("FRESH") || val.Contains("OUTSIDE AIR")) return "FRA";
                 }
 
                 // Check family name for duct-related equipment.
@@ -1893,6 +1879,20 @@ namespace StingTools.Core
                     }
                 }
 
+                // Pipes are MEPCurves, not FamilyInstances: their system is on the
+                // piping system type parameter, as GetSanSubFunction already reads it.
+                Parameter pipeSys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                if (pipeSys != null && pipeSys.HasValue)
+                {
+                    string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
+                    if (val.Contains("HEATING") || val.Contains("LTHW") ||
+                        val.Contains("MTHW") || val.Contains("RADIATOR"))
+                        return "HTG";
+                    if (val.Contains("DOMESTIC") || val.Contains("DHW") ||
+                        val.Contains("HOT WATER SUPPLY"))
+                        return "DHW";
+                }
+
                 string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
                 if (familyName.Contains("RADIATOR") || familyName.Contains("UNDERFLOOR")) return "HTG";
                 if (familyName.Contains("CALORIFIER") || familyName.Contains("WATER HEATER")) return "DHW";
@@ -1918,7 +1918,7 @@ namespace StingTools.Core
                         if (conn.MEPSystem != null)
                         {
                             string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
-                            if (sysName.Contains("VENT")) return "VNT";
+                            if (IsVentName(sysName)) return "VNT";
                         }
                     }
                 }
@@ -1927,15 +1927,24 @@ namespace StingTools.Core
                 if (pipeSys != null && pipeSys.HasValue)
                 {
                     string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
-                    if (val.Contains("VENT")) return "VNT";
+                    if (IsVentName(val)) return "VNT";
                 }
 
                 string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
-                if (familyName.Contains("VENT")) return "VNT";
+                if (IsVentName(familyName)) return "VNT";
             }
             catch (Exception ex) { StingLog.Warn($"SAN sub-function detection failed: {ex.Message}"); }
             return null;
         }
+
+        // "VENT" as a word (VENT, VENTS, VENTING, SOIL VENT, VENT_PIPE) — not a substring,
+        // which also matched PREVENT, EVENT and INVENTORY.
+        private static readonly System.Text.RegularExpressions.Regex _ventWord =
+            new System.Text.RegularExpressions.Regex(@"(^|[^A-Z])VENT(S|ING)?([^A-Z]|$)",
+                System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        internal static bool IsVentName(string upper)
+            => !string.IsNullOrEmpty(upper) && (_ventWord.IsMatch(upper) || upper.Contains("SVP"));
 
         /// <summary>
         /// Family-name-aware product code resolution. Checks the element's family name
@@ -1957,6 +1966,14 @@ namespace StingTools.Core
             _projProdRules = new(StringComparer.OrdinalIgnoreCase);
         private static readonly HashSet<string> _projProdLoaded = new(StringComparer.OrdinalIgnoreCase);
         private static readonly object _prodRulesLock = new object();
+
+        // The PROD vocabulary a type NAME may declare (PLNS_WBL_Hollow200 → WBL).
+        // ProdNameCode.Extract returns null without it, which until 2026-09-27 made
+        // the "declared" tier unreachable in the plugin: both callers passed null.
+        // Corporate = STING_PROD_CODES.csv codes ∪ ProdMap values; a project overlay
+        // adds its own prod_codes.csv codes (cached per overlay instance).
+        private static HashSet<string> _corpKnownProdCodes;
+        private static readonly Dictionary<object, HashSet<string>> _projKnownProdCodes = new();
 
         /// <summary>
         /// Public entry to drop the PROD rule caches so the next lookup re-reads
@@ -1981,6 +1998,8 @@ namespace StingTools.Core
             {
                 _csvProdRulesLoaded = false;
                 _csvProdRules = null;
+                _corpKnownProdCodes = null;
+                _projKnownProdCodes.Clear();
                 _projProdLoaded.Clear();
                 _projProdRules.Clear();
             }
@@ -2029,6 +2048,36 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Every PROD code a type name may declare for this document: the corporate
+        /// rule codes, the category defaults, and the project overlay's codes.
+        /// </summary>
+        private static HashSet<string> GetKnownProdCodes(
+            Dictionary<string, List<(string Pattern, string ProdCode)>> projRules)
+        {
+            lock (_prodRulesLock)
+            {
+                if (_corpKnownProdCodes == null)
+                {
+                    var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (_csvProdRules != null)
+                        foreach (var list in _csvProdRules.Values)
+                            foreach (var r in list) set.Add(r.ProdCode);
+                    if (ProdMap != null)
+                        foreach (string v in ProdMap.Values)
+                            if (!string.IsNullOrEmpty(v) && v != "GEN") set.Add(v);
+                    _corpKnownProdCodes = set;
+                }
+                if (projRules == null || projRules.Count == 0) return _corpKnownProdCodes;
+                if (_projKnownProdCodes.TryGetValue(projRules, out var cached)) return cached;
+                var merged = new HashSet<string>(_corpKnownProdCodes, StringComparer.OrdinalIgnoreCase);
+                foreach (var list in projRules.Values)
+                    foreach (var r in list) merged.Add(r.ProdCode);
+                _projKnownProdCodes[projRules] = merged;
+                return merged;
+            }
+        }
+
+        /// <summary>
         /// Parse a STING_PROD_CODES.csv-format file into category → (pattern, prodCode)
         /// rules. The FAMILY_PATTERN cell is stored upper-cased; matching is
         /// glob/alternation-aware via <see cref="ProdPatternMatcher"/>. Returns null
@@ -2065,39 +2114,56 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// N+2 — Material-aware wrapper around the legacy
-        /// <see cref="GetFamilyAwareProdCodeCore"/>. Looks up an
-        /// optional material-driven suffix (-STL / -CON / -TIM / etc.)
-        /// from <c>STING_MATERIAL_PROD_OVERRIDES.csv</c> and appends it
-        /// to the base PROD code. Falls through to the legacy behaviour
-        /// when no material rule matches.
+        /// The PROD token for an element: family-aware, data-driven (project rules →
+        /// corporate STING_PROD_CODES.csv → LPS → sleeve → category default → GEN).
+        ///
+        /// <para>Always a bare code. Until 2026-09-27 this appended the material suffix
+        /// from STING_MATERIAL_PROD_OVERRIDES.csv as "COL-STL". The suffix is joined with
+        /// "-", which is also the tag separator, so the result could never be stored:
+        /// the source-token sanitiser cut ASS_PRODCT_COD_TXT back to "COL", while the
+        /// overwrite path in BuildAndWriteTag composed TAG1 from the unsanitised value and
+        /// wrote a 9-segment tag. The material suffix is now a separate reading
+        /// (<see cref="GetProdMaterialSuffix"/> / <see cref="GetProdCodeWithMaterial"/>)
+        /// and never enters a tag token.</para>
         /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName)
-            => GetFamilyAwareProdCode(el, categoryName, out _);
+            => GetFamilyAwareProdCodeCore(el, categoryName, out _);
 
         /// <summary>
         /// Resolve PROD and report which tier produced it (for the coverage
-        /// audit). <paramref name="source"/> ∈ project | corporate | lps |
-        /// sleeve | category | gen. The material-suffix pass below doesn't
-        /// change the source — it only appends -STL/-CON/… to the base code.
+        /// audit). <paramref name="source"/> ∈ project | declared | corporate | lps |
+        /// sleeve | category | gen.
         /// </summary>
         public static string GetFamilyAwareProdCode(Element el, string categoryName, out string source)
+            => GetFamilyAwareProdCodeCore(el, categoryName, out source);
+
+        /// <summary>
+        /// N+2 — the material-driven suffix (-STL / -CON / -TIM …) from
+        /// <c>STING_MATERIAL_PROD_OVERRIDES.csv</c>, or null when no rule matches.
+        /// Not part of the PROD tag token — see <see cref="GetFamilyAwareProdCode(Element, string)"/>.
+        /// </summary>
+        public static string GetProdMaterialSuffix(Element el, string categoryName)
         {
-            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName, out source);
-            try
-            {
-                string suffix = MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName);
-                if (string.IsNullOrEmpty(suffix)) return baseProd;
-                if (string.IsNullOrEmpty(baseProd)) return suffix;
-                // Avoid double-suffixing when an explicit CSV PROD already
-                // ends with the same material code (e.g. "STL" → "STL-STL").
-                if (baseProd.EndsWith("-" + suffix, StringComparison.OrdinalIgnoreCase) ||
-                    baseProd.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                    return baseProd;
-                return $"{baseProd}-{suffix}";
-            }
-            catch (Exception ex) { StingLog.Warn($"GetFamilyAwareProdCode material suffix: {ex.Message}"); }
-            return baseProd;
+            try { return MaterialProdOverrideRegistry.ResolveSuffix(el, categoryName); }
+            catch (Exception ex) { StingLog.Warn($"GetProdMaterialSuffix: {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// PROD code with the material suffix appended ("DR-STL"). For type marks and
+        /// display only: the value contains the tag separator and must never be written
+        /// to a source-token parameter or composed into ASS_TAG_1.
+        /// </summary>
+        public static string GetProdCodeWithMaterial(Element el, string categoryName)
+        {
+            string baseProd = GetFamilyAwareProdCodeCore(el, categoryName, out _);
+            string suffix = GetProdMaterialSuffix(el, categoryName);
+            if (string.IsNullOrEmpty(suffix)) return baseProd;
+            if (string.IsNullOrEmpty(baseProd)) return suffix;
+            // Avoid double-suffixing when an explicit CSV PROD already
+            // ends with the same material code (e.g. "STL" → "STL-STL").
+            if (baseProd.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                return baseProd;
+            return $"{baseProd}-{suffix}";
         }
 
         private static string GetFamilyAwareProdCodeCore(Element el, string categoryName, out string source)
@@ -2119,14 +2185,15 @@ namespace StingTools.Core
             EnsureProdRulesLoaded();
             List<(string Pattern, string ProdCode)> projForCat = null;
             List<(string Pattern, string ProdCode)> corpForCat = null;
-            if (!string.IsNullOrEmpty(familyName))
+            var projRules = GetProjectProdRules(el?.Document);
+            if (!string.IsNullOrEmpty(familyName) && categoryName != null)
             {
-                var projRules = GetProjectProdRules(el?.Document);
                 projRules?.TryGetValue(categoryName, out projForCat);
                 _csvProdRules?.TryGetValue(categoryName, out corpForCat);
             }
             return ProdResolver.Resolve(familyName, symbolName, categoryName,
-                                        projForCat, corpForCat, ProdMap, out source);
+                                        projForCat, corpForCat, ProdMap, out source,
+                                        GetKnownProdCodes(projRules));
         }
 
         /// <summary>
@@ -2149,14 +2216,15 @@ namespace StingTools.Core
             EnsureProdRulesLoaded();
             List<(string Pattern, string ProdCode)> projForCat = null;
             List<(string Pattern, string ProdCode)> corpForCat = null;
+            var projRules = GetProjectProdRules(doc);
             if (!string.IsNullOrEmpty(familyName))
             {
-                var projRules = GetProjectProdRules(doc);
                 projRules?.TryGetValue(categoryName ?? "", out projForCat);
                 _csvProdRules?.TryGetValue(categoryName ?? "", out corpForCat);
             }
             return ProdResolver.Resolve(familyName, typeName, categoryName,
-                                        projForCat, corpForCat, ProdMap, out source);
+                                        projForCat, corpForCat, ProdMap, out source,
+                                        GetKnownProdCodes(projRules));
         }
 
         /// <summary>
@@ -2204,8 +2272,16 @@ namespace StingTools.Core
                         return false;
                 }
             }
-            // Reject tags containing placeholder tokens
-            if (TagHasPlaceholders(tagValue))
+            // Reject tags containing UNRESOLVED placeholder tokens (XX / ZZ / 0000).
+            //
+            // GEN is deliberately not one of them. It is the token policy's documented
+            // fallback for SYS / FUNC / PROD — a tag carrying it is complete-but-ASSUMED
+            // (G-27), which TagIsFullyResolved / TagHasPlaceholders still report. Treating
+            // GEN as incomplete meant such a tag was never "complete": every Batch Tag
+            // re-processed the element, the write-time check logged "a mandatory segment
+            // is blank" for a tag with no blank segment, and compliance counted it with
+            // the genuinely broken ones.
+            if (HasPlaceholderSegment(tagValue, _unresolvedPlaceholders))
                 return false;
 
             return true;
@@ -2213,14 +2289,18 @@ namespace StingTools.Core
 
         /// <summary>
         /// Checks whether a tag string contains placeholder tokens ("-XX-", "-ZZ-", "-GEN-", "-0000")
-        /// that indicate incomplete or unresolved segments.
+        /// that indicate unresolved or assumed segments — the STRICT test behind
+        /// <see cref="TagIsFullyResolved"/> and the compliance "resolved" metric.
         /// </summary>
         public static bool TagHasPlaceholders(string tag)
+            => HasPlaceholderSegment(tag, _placeholders);
+
+        private static bool HasPlaceholderSegment(string tag, HashSet<string> placeholders)
         {
             if (string.IsNullOrEmpty(tag))
                 return false;
             string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-            foreach (string ph in _placeholders)
+            foreach (string ph in placeholders)
             {
                 // Check for placeholder as a delimited segment (not substring of a real token)
                 if (tag.StartsWith(ph + sep, StringComparison.Ordinal) ||
@@ -2233,6 +2313,10 @@ namespace StingTools.Core
         }
 
         private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN", "0000" };
+
+        /// <summary>Placeholders that make a tag INCOMPLETE. GEN is an assumed value, not
+        /// an unresolved one — see <see cref="TagIsComplete"/>.</summary>
+        private static readonly HashSet<string> _unresolvedPlaceholders = new HashSet<string> { "XX", "ZZ", "0000" };
 
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
@@ -2353,7 +2437,34 @@ namespace StingTools.Core
             // disc already retrieved above via TryGetValue (F-14). Fallback to "G" if null (safety).
             if (string.IsNullOrEmpty(disc)) disc = "G";
 
-            string loc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
+            // ONE set of token values drives the SEQ counter key, the collision check and
+            // the tag that is written.
+            //
+            // Until 2026-09-27 they came from three places. The counter key used a derived
+            // DISC and LVL, the collision check used a tag built from derived values, and
+            // the written tag was then rebuilt from whatever the element STORED (non-overwrite
+            // keeps stored tokens). An element whose stored LVL no longer matched its level —
+            // tokens pre-populated, element moved, SEQ still blank — took a number from the
+            // new level's counter, was tagged under the old level, and that tag was never
+            // collision-checked. That is a duplicate-tag path.
+            //
+            // Now: on the non-overwrite path a real stored token wins over derivation (it is
+            // what will be written), and derivation only fills blanks. ReadTokenValues
+            // sanitises, so junk ("-", a concatenated family name) reads as blank and is
+            // repaired rather than trusted. The counter seeding in BuildTagIndexAndCounters
+            // keys on the same stored values through the same SeqAssigner.BuildSeqKey.
+            string[] stored = overwriteTokens ? null : ParamRegistry.ReadTokenValues(el);
+            string Stored(int i) => (stored != null && i < stored.Length) ? (stored[i] ?? "") : "";
+
+            // Overwrite re-reads the raw parameter (LOC/ZONE are derived upstream by
+            // PopulateAll, not here); either way a value that sanitises to nothing is blank.
+            string RawToken(string param)
+            {
+                string v = ParameterHelpers.GetString(el, param);
+                return ParamRegistry.IsTokenEffectivelyEmpty(v) ? "" : v.Trim();
+            }
+
+            string loc = overwriteTokens ? RawToken(ParamRegistry.LOC) : Stored(1);
             if (string.IsNullOrEmpty(loc) || loc == "XX")
             {
                 // F-2 — was: first non-placeholder code from LocCodes, else "BLD1".
@@ -2372,96 +2483,86 @@ namespace StingTools.Core
                 loc = "XX";
                 System.Threading.Interlocked.Increment(ref _unresolvedLocCount);
             }
-            string zone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-            // M-04 FIX: Also normalize "ZZ" placeholder (matching BuildTagIndexAndCounters
-            // which normalizes XX/ZZ→Z01) to prevent SEQ counter key mismatch
-            if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ")
-            {
-                zone = ZoneCodes.FirstOrDefault(c => c != "XX" && c != "ZZ" && !string.IsNullOrEmpty(c)) ?? "Z01";
-            }
-            string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            // "XX" is GetLevelCode's "this element has no level". Normalise it to empty and
-            // let the token policy below decide — it substitutes the same "L00" the literal
-            // here used to, but RECORDS the substitution, which this line never did. A
-            // project that would rather refuse to tag a levelless element sets LVL's
-            // fallback to null in _BIM_COORD/tag_token_policy.json.
-            if (lvl == "XX") lvl = "";
 
-            // on the non-overwrite path we trust whatever
-            // PopulateAll already wrote — reading the element bypasses the
-            // expensive per-element MEP connector walk inside
-            // GetMepSystemAwareSysCode (and the Smart FUNC / family-aware PROD
-            // helpers). On the overwrite path we deliberately want fresh
-            // derivation so users can force a re-detect, so the legacy path
-            // still runs.
+            string zone = overwriteTokens ? RawToken(ParamRegistry.ZONE) : Stored(2);
+            if (overwriteTokens || string.IsNullOrEmpty(zone))
+            {
+                // M-04 FIX: Also normalize "ZZ" placeholder. The SEQ key normalises XX/ZZ
+                // the same way in SeqAssigner.BuildSeqKey, for the scan and for allocation.
+                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ")
+                    zone = ZoneCodes.FirstOrDefault(c => c != "XX" && c != "ZZ" && !string.IsNullOrEmpty(c)) ?? "Z01";
+            }
+
+            string lvl = Stored(3);
+            if (string.IsNullOrEmpty(lvl))
+            {
+                lvl = ParameterHelpers.GetLevelCode(doc, el);
+                // "XX" is GetLevelCode's "this element has no level". Normalise it to empty
+                // and let the token policy below decide — it substitutes "L00" and RECORDS
+                // the substitution. A project that would rather refuse to tag a levelless
+                // element sets LVL's fallback to null in _BIM_COORD/tag_token_policy.json.
+                if (lvl == "XX") lvl = "";
+            }
+
+            // On the non-overwrite path we trust whatever PopulateAll already wrote —
+            // reading the element bypasses the expensive per-element MEP connector walk.
+            // On the overwrite path we deliberately derive afresh so users can force a
+            // re-detect.
             //
-            // Independent callers like BuildTagsCommand pass overwriteTokens=
-            // false but DON'T pre-populate the element first; for them, the
-            // GetString returns empty and we fall through to the same derivation
-            // that ran before — behaviour unchanged.
-            string sys = null;
-            if (!overwriteTokens) sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+            // A derived "GEN" is left BLANK here so the token policy supplies it: that is
+            // what records the element as complete-but-assumed (and lets a project refuse
+            // instead). Until 2026-09-27 SYS, FUNC and PROD each had a hardcoded "GEN"
+            // literal ahead of the policy, so the policy's fallback was never reached, no
+            // substitution was ever recorded, and a project override changed nothing.
+            string sys = Stored(4);
             if (string.IsNullOrEmpty(sys))
             {
-                // Intelligence Layer: MEP system-aware SYS/FUNC derivation
-                // 6-layer system detection: connector → sys param → circuit → family → room → category
+                // Intelligence Layer: 6-layer system detection:
+                // connector → sys param → circuit → family → room → category
                 sys = GetMepSystemAwareSysCode(el, catName);
                 if (string.IsNullOrEmpty(sys))
                     sys = GetDiscDefaultSysCode(disc);
+                if (sys == "GEN") sys = "";
             }
 
             // Intelligence Layer: System-aware DISC correction for pipes
             // Pipes are mapped to "M" by default, but if the connected system is plumbing
             // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
             disc = GetSystemAwareDisc(disc, sys, catName);
+            if (!string.IsNullOrEmpty(Stored(0))) disc = Stored(0);
 
-            string func = null;
-            if (!overwriteTokens) func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
+            string func = Stored(5);
             if (string.IsNullOrEmpty(func))
             {
-                // Smart FUNC: differentiates HVAC (SUP/RTN/EXH/FRA) and HWS (HTG/DHW) subsystems
+                // Smart FUNC from the SYS that will be WRITTEN, so the pair always agrees:
+                // HVAC (SUP/RTN/EXH/FRA), HWS (HTG/DHW), SAN (VNT), LPS (AT/DC/EE/BOND/SPD/TC).
                 func = GetSmartFuncCode(el, sys);
-                if (string.IsNullOrEmpty(func))
-                    func = FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+                if (func == "GEN") func = "";
             }
 
-            string prod = null;
-            if (!overwriteTokens) prod = ParameterHelpers.GetString(el, ParamRegistry.PROD);
+            string prod = Stored(6);
             if (string.IsNullOrEmpty(prod))
             {
                 prod = GetFamilyAwareProdCode(el, catName);
-                if (string.IsNullOrEmpty(prod))
-                    prod = ProdMap.TryGetValue(catName, out string cp) ? cp : "GEN";
+                if (prod == "GEN") prod = "";
             }
 
             // Throttle default-value warnings — record count, not per-element message.
-            // Previously: 1000 elements with default ZONE → 1000 warning records with file I/O.
             if (stats != null)
             {
                 if (loc == "BLD1") stats.DefaultLocCount++;
                 if (zone == "Z01") stats.DefaultZoneCount++;
             }
 
-            // Validate-before-write. This block GUARANTEES non-empty by substituting a
-            // default — which is precisely the behaviour A-1/K-13/G-27 forbid elsewhere:
-            // it makes an unresolved token indistinguishable from a resolved one. It is
-            // kept (removing it would emit doubled separators), but every substitution is
-            // RECORDED, per token, so the tag can report that it was completed by
-            // assumption rather than by measurement.
-            //
-            // Which tokens may legitimately fall back, which must never, and what value
-            // each falls back TO, is corporate-baseline DATA — Data/STING_TAG_TOKEN_POLICY.json,
-            // overridable per project at _BIM_COORD/tag_token_policy.json — because sectors
-            // disagree (a hospital treats ZONE as mandatory, a single-building lodge does not).
-            //
-            // Until 2026-09 that file shipped, documented all ten tokens, was named in two
-            // comments here, and NOTHING READ IT: the values below were hardcoded literals.
-            // Editing the policy changed nothing. It is now the authority.
+            // Validate-before-write. Which tokens may legitimately fall back, which must
+            // never, and what value each falls back TO, is corporate-baseline DATA —
+            // Data/STING_TAG_TOKEN_POLICY.json, overridable per project at
+            // _BIM_COORD/tag_token_policy.json — because sectors disagree (a hospital
+            // treats ZONE as mandatory, a single-building lodge does not).
             //
             // A token the policy gives no fallback is REFUSED, not guessed: the element is
-            // skipped and counted. That is the one path that can stop an element being
-            // tagged, so the shipped baseline gives every one of the seven tag segments a
-            // fallback and only a project override can turn refusal on.
+            // skipped and counted. The shipped baseline gives every one of the seven tag
+            // segments a fallback, so only a project override can turn refusal on.
             var _policy = TagTokenPolicyRegistry.Get(doc);
             bool anyFallback = false;
 
@@ -2491,6 +2592,19 @@ namespace StingTools.Core
                 return true;
             }
 
+            // A GEN that was already STORED (written by PopulateAll or an earlier run) is
+            // the same assumption as one substituted now; count it the same way, or a
+            // re-run would report the tag as fully measured.
+            void NoteStoredGeneric(string tokenName, string value)
+            {
+                if (value != "GEN") return;
+                anyFallback = true;
+                stats?.RecordTokenSubstitution(tokenName, false);
+            }
+            NoteStoredGeneric("SYS", sys);
+            NoteStoredGeneric("FUNC", func);
+            NoteStoredGeneric("PROD", prod);
+
             if (!ResolveToken("DISC", ref disc)) return false;
             if (!ResolveToken("LOC",  ref loc))  return false;
             if (!ResolveToken("ZONE", ref zone)) return false;
@@ -2499,13 +2613,6 @@ namespace StingTools.Core
             if (!ResolveToken("FUNC", ref func)) return false;
             if (!ResolveToken("PROD", ref prod)) return false;
 
-            // Always use DERIVED token values for seqKey, not stored values.
-            // In non-overwrite mode, SetIfEmpty preserves existing stored values on the element,
-            // but the SEQ counter group MUST use the canonical derived values to prevent:
-            //   - Counter group mismatch when stored SYS="HWS" but derived SYS="DCW"
-            //   - Duplicate SEQ numbers across mismatched groups
-            //   - Counter drift between sessions
-            // The tag string itself will be rebuilt from actual stored values later (line 2234+).
             string seqKey = SeqAssigner.BuildSeqKey(disc, sys, lvl, zone, loc, SeqIncludeZone, SeqIncludeLoc);
 
             // A1: Warn once per session when SEQ scheme has changed — counter keys may not
@@ -2518,11 +2625,6 @@ namespace StingTools.Core
                 _seqSchemeWarned = true;
             }
 
-            // Build SEQ-scheme context + the tag body/suffix (Revit-side config),
-            // then delegate the counter / overflow / collision arithmetic to the
-            // pure, unit-tested SeqAssigner. The tag is composed as
-            // tagBody + seq + tagSuffix so the collision check matches the stored
-            // string. AssignNext rolls the counter back on any failure.
             string seqSchemeContext = CurrentSeqScheme == SeqScheme.ZonePrefix ? zone
                                    : CurrentSeqScheme == SeqScheme.DiscPrefix ? disc
                                    : "";
@@ -2532,48 +2634,85 @@ namespace StingTools.Core
             tagBody += Separator;
             string tagSuffix = string.IsNullOrEmpty(TagSuffix) ? string.Empty : Separator + TagSuffix;
 
-            // Snapshot the counter before allocation so a later TAG1-write failure
-            // can roll it back (AssignNext leaves the counter at the allocated value
-            // on success; on its own failure it has already rolled back).
+            // Snapshot the counter so any later failure can restore it.
             int seqPreAlloc = sequenceCounters.TryGetValue(seqKey, out int _preAlloc) ? _preAlloc : 0;
 
-            int seqPad = EffectiveSeqPad;
-            SeqResult seqRes = SeqAssigner.AssignNext(
-                seqKey, sequenceCounters, tagBody, tagSuffix,
-                CurrentSeqScheme, seqPad, seqSchemeContext,
-                MaxCollisionDepth, existingTags);
+            // The element's current tag is being replaced; take it out of the collision
+            // index so it cannot collide with itself. Put back on any failure below.
+            bool removedOwnTag = existingTags != null && !string.IsNullOrEmpty(existingTag)
+                                 && existingTags.Remove(existingTag);
+            void RestoreOwnTag() { if (removedOwnTag) existingTags.Add(existingTag); }
 
-            if (!seqRes.Success)
+            // An element that already HOLDS a sequence number keeps it. Until 2026-09-27
+            // a number was allocated for it anyway, SetTokenIfEmpty then kept the stored
+            // one, and the allocated number was never returned — so every re-run over an
+            // element with an incomplete tag burned one number per element per group, and
+            // the sidecar persisted the gaps.
+            string seq = null;
+            string tag = null;
+            bool seqAllocated = false;
+            bool seqReassigned = false;
+            string storedSeq = Stored(7);
+            if (!string.IsNullOrEmpty(storedSeq))
             {
-                string why = seqRes.Failure switch
+                string candidate = tagBody + storedSeq + tagSuffix;
+                if (existingTags == null || !existingTags.Contains(candidate))
                 {
-                    SeqFailureReason.InitialOverflow =>
-                        $"SEQ overflow: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
-                    SeqFailureReason.CollisionOverflow =>
-                        $"SEQ overflow in collision loop: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
-                    SeqFailureReason.SafetyExhausted =>
-                        $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent a duplicate tag",
-                    _ => $"SEQ assignment failed for element {el.Id}",
-                };
-                if (seqRes.Failure == SeqFailureReason.SafetyExhausted) StingLog.Error(why);
-                else StingLog.Warn(why);
-                stats?.RecordWarning(why);
-                return false; // AssignNext already rolled the counter back
+                    seq = storedSeq;
+                    tag = candidate;
+                    // Keep the counter ahead of every number in use, so a later
+                    // allocation in this group cannot hand the same one out.
+                    int held = int.TryParse(storedSeq, out int n) ? n
+                             : CurrentSeqScheme == SeqScheme.Alpha ? FromAlpha(storedSeq) : 0;
+                    if (held > seqPreAlloc) sequenceCounters[seqKey] = held;
+                }
+                else
+                {
+                    // Another element already carries this exact tag. AutoIncrement means
+                    // "increment SEQ on collision", so allocate a fresh number and replace
+                    // the stored one rather than write a duplicate identifier.
+                    seqReassigned = true;
+                    StingLog.Warn($"Element {el.Id}: stored SEQ '{storedSeq}' would duplicate tag '{candidate}' — allocating a new SEQ");
+                    stats?.RecordWarning($"Element {el.Id}: SEQ {storedSeq} duplicated an existing tag — re-sequenced");
+                }
             }
 
-            string seq = seqRes.Seq;
-            string tag = seqRes.Tag;
-            if (seqRes.CollisionCount > 0)
-                stats?.RecordCollision(tag, seqRes.CollisionCount);
+            if (seq == null)
+            {
+                int seqPad = EffectiveSeqPad;
+                SeqResult seqRes = SeqAssigner.AssignNext(
+                    seqKey, sequenceCounters, tagBody, tagSuffix,
+                    CurrentSeqScheme, seqPad, seqSchemeContext,
+                    MaxCollisionDepth, existingTags);
 
-            // Remove the element's old tag from the collision index (it's being
-            // replaced) so stale entries don't trigger false collisions for other
-            // elements. The final written tag is added back after the TAG1 write.
-            if (existingTags != null && !string.IsNullOrEmpty(existingTag) && existingTag != tag)
-                existingTags.Remove(existingTag);
+                if (!seqRes.Success)
+                {
+                    string why = seqRes.Failure switch
+                    {
+                        SeqFailureReason.InitialOverflow =>
+                            $"SEQ overflow: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
+                        SeqFailureReason.CollisionOverflow =>
+                            $"SEQ overflow in collision loop: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
+                        SeqFailureReason.SafetyExhausted =>
+                            $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent a duplicate tag",
+                        _ => $"SEQ assignment failed for element {el.Id}",
+                    };
+                    if (seqRes.Failure == SeqFailureReason.SafetyExhausted) StingLog.Error(why);
+                    else StingLog.Warn(why);
+                    stats?.RecordWarning(why);
+                    RestoreOwnTag();
+                    return false; // AssignNext already rolled the counter back
+                }
 
-            // F-03: Track whether we already have a fresh ReadTokenValues result from the non-overwrite branch
-            string[] _cachedReadTokens = null;
+                seq = seqRes.Seq;
+                tag = seqRes.Tag;
+                seqAllocated = true;
+                if (seqRes.CollisionCount > 0)
+                    stats?.RecordCollision(tag, seqRes.CollisionCount);
+            }
+
+            string[] _cachedReadTokens;
+            string[] intended = { disc, loc, zone, lvl, sys, func, prod, seq };
 
             if (overwriteTokens)
             {
@@ -2585,12 +2724,7 @@ namespace StingTools.Core
                 ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.PROD, prod, overwrite: true);
                 ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
-
-                // we just wrote 8 known values — populate
-                // _cachedReadTokens from them so the container-write path below
-                // and the caller's tokenValuesOut don't trigger a fresh
-                // ReadTokenValues that would just read what we wrote.
-                _cachedReadTokens = new[] { disc, loc, zone, lvl, sys, func, prod, seq };
+                _cachedReadTokens = intended;
             }
             else
             {
@@ -2601,54 +2735,47 @@ namespace StingTools.Core
                 ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SYS, sys);
                 ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.FUNC, func);
                 ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.PROD, prod);
-                ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SEQ, seq);
+                if (seqReassigned)
+                    ParameterHelpers.SetString(el, ParamRegistry.SEQ, seq, overwrite: true);
+                else
+                    ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SEQ, seq);
 
-                // Re-read actual stored token values to ensure TAG1 reflects
-                // what's on the element. Do NOT fill empty slots with derived defaults —
-                // that would overwrite manually-set values that SetIfEmpty preserved.
-                // The malformed-tag guard below blocks incomplete tags correctly.
-                // F-03: Cache result so container write at line ~2808 can reuse without second read
+                // Read back. Every stored value was either used above or blank and just
+                // filled, so this matches `intended` unless a write did not take (token
+                // parameter unbound or read-only). Then TAG1 must still describe what the
+                // element actually holds, so compose it from the read-back — and return a
+                // number that was allocated but not stored.
                 string[] actualTokens = ParamRegistry.ReadTokenValues(el);
                 _cachedReadTokens = actualTokens;
                 if (actualTokens.Length < 8)
-                    return false;
-                // Remove the derived-value tag from collision index (it may differ from actual)
-                string removedTag = null;
-                if (existingTags != null && !string.IsNullOrEmpty(tag))
                 {
-                    removedTag = tag;
-                    existingTags.Remove(tag);
+                    if (seqAllocated) sequenceCounters[seqKey] = seqPreAlloc;
+                    RestoreOwnTag();
+                    return false;
                 }
-                tag = string.Join(Separator, actualTokens);
-                // Re-apply prefix/suffix to re-read tag
-                if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
-                if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
-                // Update collision index with actual tag
-                if (existingTags != null)
-                    existingTags.Add(tag);
-                // Also update the SEQ key variables to reflect actual stored values
-                // so collision detection uses the right tag string
-                disc = actualTokens[0];
-                loc = actualTokens[1];
-                zone = actualTokens[2];
-                lvl = actualTokens[3];
-                sys = actualTokens[4];
-                func = actualTokens[5];
-                prod = actualTokens[6];
-                seq = actualTokens[7];
+                bool matches = true;
+                for (int i = 0; i < 8; i++)
+                    if (!string.Equals(actualTokens[i] ?? "", intended[i], StringComparison.Ordinal)) { matches = false; break; }
+                if (!matches)
+                {
+                    StingLog.WarnRateLimited("TokenWriteMismatch",
+                        $"Element {el.Id}: token write did not take (stored '{string.Join(Separator, actualTokens)}', "
+                      + $"intended '{string.Join(Separator, intended)}') — check the token parameters are bound and writable");
+                    if (seqAllocated && !string.Equals(actualTokens[7], seq, StringComparison.Ordinal))
+                        sequenceCounters[seqKey] = seqPreAlloc;
+                    tag = string.Join(Separator, actualTokens);
+                    if (!string.IsNullOrEmpty(TagPrefix)) tag = TagPrefix + Separator + tag;
+                    if (!string.IsNullOrEmpty(TagSuffix)) tag = tag + Separator + TagSuffix;
+                    disc = actualTokens[0];
+                    sys = actualTokens[4];
+                    lvl = actualTokens[3];
+                }
             }
 
-            // segment-count validation only runs on the
-            // SetIfEmpty path where the actual stored tokens may legitimately
-            // differ from the freshly-derived ones (e.g. user manually edited
-            // ASS_DISCIPLINE_COD_TXT). On the overwrite path we just built the
-            // tag from 8 known non-empty tokens via string.Join with a fixed
-            // separator, so the segment count is statically 8 and the check is
-            // dead work. Skip it.
-            if (!overwriteTokens)
+            // Segment-count guard. The tag was built from eight values none of which can
+            // contain the separator (they are policy-resolved or sanitised on read), so
+            // this only fires on the read-back path above.
             {
-                // Validate segment count by counting separators instead of allocating split array.
-                // Phase 86b: Use full separator string (not Separator[0] char) for multi-char separator support.
                 int sepCount = 0;
                 string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
                 int sIdx = 0;
@@ -2657,10 +2784,14 @@ namespace StingTools.Core
                     sepCount++;
                     sIdx += sepStr.Length;
                 }
-                if (sepCount < 7) // 8 segments = 7 separators
+                int expectedSeps = 7 + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
+                                     + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
+                if (sepCount < expectedSeps)
                 {
-                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected 8)");
+                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected {expectedSeps + 1})");
                     stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
+                    if (seqAllocated) sequenceCounters[seqKey] = seqPreAlloc;
+                    RestoreOwnTag();
                     return false;
                 }
             }
@@ -2670,6 +2801,7 @@ namespace StingTools.Core
             if (!tagWriteSucceeded)
             {
                 sequenceCounters[seqKey] = seqPreAlloc;
+                RestoreOwnTag();
                 StingLog.Warn($"TAG1 write failed on {el.Id} — SEQ counter rolled back for key '{seqKey}'");
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
                 return false;
@@ -2695,7 +2827,7 @@ namespace StingTools.Core
                 stats?.RecordTagCompleteness(complete, anyFallback, tag, el.Id?.Value ?? -1);
                 if (!complete)
                     StingLog.WarnRateLimited("IncompleteTag",
-                        $"Incomplete tag written on {el.Id}: '{tag}'. A mandatory segment is blank — "
+                        $"Incomplete tag written on {el.Id}: '{tag}'. A segment is blank or unresolved (XX / ZZ / 0000) — "
                       + "see Data/STING_TAG_TOKEN_POLICY.json for which tokens may fall back.");
             }
             catch (Exception ex) { StingLog.Warn($"Tag completeness check on {el.Id}: {ex.Message}"); }
@@ -3259,16 +3391,8 @@ namespace StingTools.Core
             // Phase 176 — Lightning Protection System pattern (BS EN 62305).
             // Match BEFORE LV / electrical patterns so an LPS finial in
             // Electrical Equipment doesn't get tagged as LV.
-            if (upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
-                upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
-                upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
-                upper.Contains("MESH EARTH") || upper.Contains("EARTH MESH") ||
-                upper.Contains("EQUIPOTENTIAL") || upper.Contains("BONDING BAR") ||
-                upper.Contains("EARTH BAR") || upper.Contains("TEST CLAMP") ||
-                upper.Contains("INSPECTION POINT") || upper.Contains("SPARK GAP") ||
-                ((upper.Contains("SPD") || upper.Contains("SURGE PROTECT")) && upper.Contains("LIGHTNING")))
+            // Keyword set shared with IsLightningProtection and the LPS PROD codes.
+            if (LpsNameClassifier.IsLps(upper))
                 return "LPS";
 
             // HVAC equipment patterns

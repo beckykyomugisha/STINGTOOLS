@@ -580,9 +580,12 @@ namespace StingTools.Core
                 { "HVAC", "SUP" }, { "HWS", "HTG" }, { "DHW", "DHW" },
                 { "DCW", "DCW" }, { "SAN", "SAN" }, { "RWD", "RWD" }, { "GAS", "GAS" },
                 { "FP", "FP" }, { "LV", "PWR" }, { "FLS", "FLS" },
-                // Lightning protection — default FUNC. The 6 LPS sub-functions (AT / DC / EE / BOND / SPD / TC)
-                // are family-aware overrides resolved by GetFamilyAwareProdCode + ResolveLpsFunc.
-                { "LPS", "LPS" },
+                // Lightning protection. The 6 LPS sub-functions (AT / DC / EE / BOND / SPD / TC)
+                // are read off the family name by GetSmartFuncCode -> ResolveLpsFunc; this is the
+                // default for an LPS element whose name names no component. It was "LPS", which
+                // STING_FUNC_SYS_MATRIX.csv does not list for SYS=LPS, so every such element
+                // failed the FUNC/SYS cross-check. GEN is listed, and is recorded as assumed.
+                { "LPS", "GEN" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
                 { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },

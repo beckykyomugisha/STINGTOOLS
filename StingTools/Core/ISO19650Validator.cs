@@ -308,11 +308,20 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.SEQ)
             {
+                // The Alpha scheme numbers A, B … Z, AA — SeqAssigner.ToAlpha. Until
+                // 2026-09-27 this branch only accepted integers, so every SEQ a project
+                // on the Alpha scheme had ever been given failed validation.
+                if (TagConfig.CurrentSeqScheme == SeqScheme.Alpha)
+                {
+                    if (!value.All(c => c >= 'A' && c <= 'Z'))
+                        return $"SEQ '{value}' is not a valid alphabetic sequence (A, B … Z, AA …)";
+                    return null;
+                }
                 if (!int.TryParse(value, out int seqVal))
                     return $"SEQ '{value}' is not a valid number";
                 if (seqVal < 0)
                     return $"SEQ '{value}' must be a positive number";
-                int seqWidth = TagConfig.SeqPadWidth > 0 ? TagConfig.SeqPadWidth : TagConfig.NumPad;
+                int seqWidth = TagConfig.EffectiveSeqPad;
                 if (value.Length > seqWidth + 1)
                     return $"SEQ '{value}' exceeds {seqWidth}-digit format";
             }
@@ -640,7 +649,7 @@ namespace StingTools.Core
                 // Medical gas systems (HTM 02-01)
                 { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "N2O", "MAP", "VAC", "EVAC", "N2", "CO2", "GEN" } },
                 // Lightning protection (BS EN 62305)
-                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AIR", "DOW", "ERT", "BND", "SPD", "TST", "GEN" } },
+                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AT", "DC", "EE", "BOND", "SPD", "TC", "GEN" } },
                 // Radiation protection (NCRP 147)
                 { "RAD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SHD", "ZNE", "MON", "GEN" } },
                 // Architectural / structural / general

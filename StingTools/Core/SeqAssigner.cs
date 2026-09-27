@@ -81,7 +81,9 @@ namespace StingTools.Core
         /// per-volume sequences (Temple AHU-0001 and Meetinghouse AHU-0001
         /// coexist). Key shapes: <c>DISC_SYS_LVL</c> · <c>DISC_ZONE_SYS_LVL</c>
         /// · <c>DISC_LOC_SYS_LVL</c> · <c>DISC_LOC_ZONE_SYS_LVL</c>.
-        /// Empty/placeholder LOC normalises to BLD1 to match PopulateAll.
+        /// Empty LOC normalises to XX — "location not established", the value
+        /// BuildAndWriteTag writes (F-2). It used to normalise to BLD1, which put
+        /// every unplaced element in building 1's counter group.
         /// </summary>
         public static string BuildSeqKey(string disc, string sys, string lvl, string zone, string loc, bool includeZone, bool includeLoc)
         {
@@ -93,7 +95,7 @@ namespace StingTools.Core
             if (includeLoc)
             {
                 locPart = loc;
-                if (string.IsNullOrEmpty(locPart) || locPart == "XX") locPart = "BLD1";
+                if (string.IsNullOrEmpty(locPart)) locPart = "XX";
             }
 
             if (includeZone)

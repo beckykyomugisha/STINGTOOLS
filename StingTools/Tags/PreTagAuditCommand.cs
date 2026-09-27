@@ -331,9 +331,7 @@ namespace StingTools.Tags
                     // Ensure corrected disc key exists in stats
                     if (!discStats.TryGetValue(disc, out _))
                         discStats[disc] = (0, 0, 0, 0);
-                    string func = TagConfig.GetSmartFuncCode(el, sys);
-                    if (string.IsNullOrEmpty(func))
-                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN"; // Guaranteed FUNC default
+                    string func = TagConfig.GetSmartFuncCode(el, sys); // never blank; GEN when unresolved
 
                     string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, currentZone, currentLoc);
                     simCounters.TryGetValue(seqKey, out int sc);
