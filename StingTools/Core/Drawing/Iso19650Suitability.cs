@@ -52,10 +52,57 @@ namespace StingTools.Core.Drawing
             if (c.Length == 0) return null;
 
             if (c == "S0") return "WIP";
-            if (c.Length >= 2 && c[0] == 'S' && c[1] >= '1' && c[1] <= '7') return "SHARED";
-            if (c[0] == 'A' || c[0] == 'B') return "PUBLISHED";
+            if (c.Length == 2 && c[0] == 'S' && c[1] >= '1' && c[1] <= '7') return "SHARED";
+            // AB (abandoned / superseded) and AR (archive) retire a document; they are
+            // filed in ARCHIVE. They used to fall into the 'A' branch below and read as
+            // PUBLISHED — a retired document asserted as the contractual issue.
+            if (c == "AB" || c == "AR") return "ARCHIVE";
+            // A1..An / B1..Bn: letter AND digit. A bare first-letter test also accepted
+            // "ARCHIVE", "ABANDONED", "A" and "B9X" as published.
+            if (c.Length == 2 && (c[0] == 'A' || c[0] == 'B') && char.IsDigit(c[1]) && c[1] != '0')
+                return "PUBLISHED";
             if (c == "CR") return "PUBLISHED";
             return null;
+        }
+
+        /// <summary>The suitability a document takes by default when it enters
+        /// <paramref name="cdeState"/> and carries no code that already belongs there.
+        ///
+        /// The single answer to "what code does a promotion stamp?". Five sites answered
+        /// it separately and PUBLISHED got S4 at all of them — a code
+        /// <see cref="CdeStateFor"/> files in SHARED, so every promoted document
+        /// contradicted the title block that derives its state from the same code.
+        ///   WIP        S0  initial status
+        ///   SHARED     S3  suitable for review and comment
+        ///   PUBLISHED  A1  authorized and accepted — the generic A code; a project that
+        ///                  issues for construction (A2) or manufacture (A3) sets it
+        ///   ARCHIVE    AR; SUPERSEDED / WITHDRAWN AB; OBSOLETE AR
+        /// Round-trips for every live state: CdeStateFor(DefaultFor(s)) == s.</summary>
+        public static string DefaultFor(string cdeState)
+        {
+            switch ((cdeState ?? "").Trim().ToUpperInvariant())
+            {
+                case "WIP":        return "S0";
+                case "SHARED":     return "S3";
+                case "PUBLISHED":  return "A1";
+                case "ARCHIVE":    return "AR";
+                case "SUPERSEDED":
+                case "WITHDRAWN":  return "AB";
+                case "OBSOLETE":   return "AR";
+                default:           return null;
+            }
+        }
+
+        /// <summary>The code to record when a document moves to <paramref name="cdeState"/>:
+        /// its current code when that code already belongs in the state (an S1 document
+        /// shared stays S1), otherwise <see cref="DefaultFor"/>.</summary>
+        public static string ForTransition(string currentCode, string cdeState)
+        {
+            string target = (cdeState ?? "").Trim().ToUpperInvariant();
+            string code = ExtractCode(currentCode);
+            if (code.Length > 0 && string.Equals(CdeStateFor(code), target, StringComparison.Ordinal))
+                return code;
+            return DefaultFor(target);
         }
 
         /// <summary>The ISO meaning of the code — what the description cell should say.
@@ -96,6 +143,10 @@ namespace StingTools.Core.Drawing
             ["B4"] = "PARTIAL SIGN-OFF, WITH COMMENTS",
             ["B5"] = "PARTIAL SIGN-OFF, WITH COMMENTS",
             ["CR"] = "AS CONSTRUCTED RECORD",
+            // Retirement codes, in Iso19650Vocabulary since IM-14 but missing here, so a
+            // document marked AB or AR had no description and read as an unknown code.
+            ["AB"] = "ABANDONED / SUPERSEDED",
+            ["AR"] = "ARCHIVE",
         };
 
         /// <summary>Pull the CODE out of a cell that may hold the code, the description,
@@ -115,7 +166,7 @@ namespace StingTools.Core.Drawing
             {
                 string t = Clean(token);
                 if (t.Length == 2 && char.IsLetter(t[0]) && char.IsDigit(t[1]) && IsKnown(t)) return t;
-                if (t == "CR") return "CR";
+                if (t == "CR" || t == "AB" || t == "AR") return t;
             }
             return "";
         }

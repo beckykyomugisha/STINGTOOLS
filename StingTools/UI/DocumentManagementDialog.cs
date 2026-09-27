@@ -195,19 +195,7 @@ namespace StingTools.UI
         /// map to AB (abandoned / superseded) and AR (archive) — both real codes in
         /// Iso19650Vocabulary.SuitabilityLabels, confirmed before being hardcoded here.</summary>
         private static string SuitabilityForCde(string cdeState)
-        {
-            switch ((cdeState ?? "").Trim().ToUpperInvariant())
-            {
-                case "WIP":        return "S0";
-                case "SHARED":     return "S3";   // Fit for review & comment
-                case "PUBLISHED":  return "S4";   // Fit for stage approval (2021 UK NA)
-                case "ARCHIVE":    return "AR";   // Archive
-                case "SUPERSEDED": return "AB";   // Abandoned / superseded
-                case "WITHDRAWN":  return "AB";
-                case "OBSOLETE":   return "AR";
-                default:           return "S0";
-            }
-        }
+            => Core.Drawing.Iso19650Suitability.DefaultFor(cdeState) ?? "S0";
 
         /// <summary>ISO 19650-2 document status code for a CDE status.</summary>
         private static string StatusCodeForCde(string cdeState)
@@ -5249,12 +5237,8 @@ namespace StingTools.UI
                             // (review & comment) just because it moved. Only a code that
                             // contradicts the container — by the same rule the title block
                             // derives its CDE state from — is replaced by the default.
-                            string suit = SuitabilityForCde(newCDE);
-                            string keepCode = Core.Drawing.Iso19650Suitability.ExtractCode(oldSuit);
-                            if (!string.IsNullOrEmpty(keepCode) &&
-                                string.Equals(Core.Drawing.Iso19650Suitability.CdeStateFor(keepCode),
-                                              newCDE, StringComparison.OrdinalIgnoreCase))
-                                suit = keepCode;
+                            string suit = Core.Drawing.Iso19650Suitability.ForTransition(oldSuit, newCDE)
+                                          ?? SuitabilityForCde(newCDE);
                             entry["suitability"] = suit;
                             entry["status_code"] = StatusCodeForCde(newCDE);
                             // CDE-03: Log suitability transition with audit trail

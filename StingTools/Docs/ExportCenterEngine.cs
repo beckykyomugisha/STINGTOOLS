@@ -909,10 +909,15 @@ namespace StingTools.Docs
         /// <summary>CDE state a sheet's own suitability code puts it in, or null when
         /// the sheet carries no recognised code.</summary>
         public static string SheetCdeState(ViewSheet sheet)
+            => Core.Drawing.Iso19650Suitability.CdeStateFor(SheetSuitabilityCode(sheet));
+
+        /// <summary>The suitability code the sheet itself carries, or null.</summary>
+        public static string SheetSuitabilityCode(ViewSheet sheet)
         {
             if (sheet == null) return null;
-            string suit = ReadParam(sheet, "STING_SUITABILITY_TXT") ?? ReadSuitabilityCode(sheet);
-            return Core.Drawing.Iso19650Suitability.CdeStateFor(suit);
+            string raw = ReadParam(sheet, "STING_SUITABILITY_TXT");
+            string code = Core.Drawing.Iso19650Suitability.ExtractCode(raw);
+            return !string.IsNullOrEmpty(code) ? code : ReadSuitabilityCode(sheet);
         }
 
         /// <summary>The project folder an exported sheet belongs in — the single rule

@@ -95,11 +95,14 @@ namespace StingTools.Docs
                         if (checkedParam != null) entry.CheckedBy = checkedParam.AsString() ?? "";
                         var approvedParam = sheet.LookupParameter("Approved By") ?? sheet.LookupParameter("ApprovedBy");
                         if (approvedParam != null) entry.ApprovedBy = approvedParam.AsString() ?? "";
-                        // Derive suitability from CDE status
-                        entry.SuitabilityCode = entry.Status switch
-                        {
-                            "SHARED" => "S3", "PUBLISHED" => "S4", "ARCHIVE" => "S7", _ => "S0"
-                        };
+                        // The sheet's own suitability decides both fields. Status was hard-coded
+                        // "WIP" above and the code then derived from it, so every sheet in the
+                        // register read WIP / S0 whatever its title block said — and the old
+                        // map sent PUBLISHED to S4 and ARCHIVE to S7, both SHARED codes.
+                        string sheetCode = ExportCenterEngine.SheetSuitabilityCode(sheet);
+                        string sheetState = Core.Drawing.Iso19650Suitability.CdeStateFor(sheetCode);
+                        if (sheetState != null) entry.Status = sheetState;
+                        entry.SuitabilityCode = Core.Drawing.Iso19650Suitability.ForTransition(sheetCode, entry.Status) ?? "S0";
                         // Derive document type from sheet number prefix
                         entry.DocumentType = entry.SheetNumber.Length >= 2 ? entry.SheetNumber[..2].ToUpper() switch
                         {

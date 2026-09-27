@@ -2947,7 +2947,7 @@ namespace StingTools.Core
                     {
                         Number      = Path.GetFileNameWithoutExtension(f),
                         Title       = Path.GetFileName(f),
-                        Suitability = cdeStatus == "PUBLISHED" ? "S4" : "S2",
+                        Suitability = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor(cdeStatus) ?? "S2",
                         FilePath    = f
                     }).ToList()
                 };
