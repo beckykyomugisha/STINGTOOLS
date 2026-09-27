@@ -72,9 +72,12 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>Conductor material: "Cu" or "Al". Default "Cu".</summary>
         public string Material          { get; set; } = "Cu";
 
-        /// <summary>Insulation type: "PVC70", "XLPE90". Default "PVC70" — the only BS 7671
-        /// Appendix 4 table shipped (4D2A); XLPE is refused by the BS sizer until 4E2A is added.</summary>
+        /// <summary>Insulation type: "PVC70" or "XLPE90". Default "PVC70".</summary>
         public string Insulation        { get; set; } = "PVC70";
+
+        /// <summary>"Multicore", "SingleCore" or "ArmouredMulticore"; with insulation and
+        /// method it picks the BS 7671 Appendix 4 table. Default multicore.</summary>
+        public string CableType         { get; set; } = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
 
         /// <summary>Voltage drop limit %. Default 3.0.</summary>
         public double VDLimitPct        { get; set; } = 3.0;
@@ -266,6 +269,7 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 InstallMethod = opts.InstallMethod,
                 Material     = opts.Material,
                 Insulation   = opts.Insulation,
+                CableType    = opts.CableType,
                 VDLimitPct   = opts.VDLimitPct,
                 Standard     = opts.Standard
             });

@@ -248,6 +248,8 @@ namespace StingTools.Core.Electrical
                 InstallMethod = string.IsNullOrEmpty(a.InstallMethod) ? "C" : a.InstallMethod,
                 Material = string.IsNullOrEmpty(a.Material) ? "Cu" : a.Material,
                 Insulation = string.IsNullOrEmpty(a.Insulation) ? "PVC70" : a.Insulation,
+                // Apply must size on the same table the CABLE tab calculated with.
+                CableType = string.IsNullOrEmpty(a.CableType) ? Bs7671Data.DefaultCableType : a.CableType,
                 VDLimitPct = a.VDLimitPct > 0 ? a.VDLimitPct : 3.0,
                 Standard = string.IsNullOrEmpty(a.Standard) ? "BS7671" : a.Standard,
                 AmbientTempC = a.AmbientTempC > 0 ? a.AmbientTempC : 30.0,

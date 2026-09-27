@@ -40,6 +40,7 @@ namespace StingTools.Mcp
                 InstallMethod  = args["installMethod"]?.Value<string>() ?? "C",
                 Material       = args["material"]?.Value<string>() ?? "Cu",
                 Insulation     = args["insulation"]?.Value<string>() ?? "PVC70",
+                CableType      = args["cableType"]?.Value<string>() ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
                 VDLimitPct     = args["vdLimitPct"]?.Value<double?>() ?? 3.0,
                 Standard       = args["standard"]?.Value<string>() ?? "BS7671",
                 Phases         = args["phases"]?.Value<int?>() ?? 1,

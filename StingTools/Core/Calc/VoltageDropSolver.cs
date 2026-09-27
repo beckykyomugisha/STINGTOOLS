@@ -56,6 +56,8 @@ namespace StingTools.Core.Calc
         /// <summary>Why no drop was computed (no table for the material, CSA outside
         /// the table). Empty when the result is a real calculation.</summary>
         public string Refusal      { get; set; } = "";
+        /// <summary>The row's mV/A/m has not been checked against a second source.</summary>
+        public bool   UnverifiedVoltDrop { get; set; }
         public bool   Computed     => string.IsNullOrEmpty(Refusal) && MvPerAPerM > 0;
     }
 
@@ -64,27 +66,28 @@ namespace StingTools.Core.Calc
         /// <summary>
         /// Built-in copy of STING_WIRE_TABLES.json bs7671Appendix4 table 4D2A/4D2B
         /// (Cu, 70 °C thermoplastic, multicore, method C): csa, mV/A/m 2-core 1-ph,
-        /// mV/A/m 3/4-core 3-ph (z where r/x/z are tabulated). Used only when the
+        /// mV/A/m 3/4-core 3-ph (z where r/x/z are tabulated), and whether that row's
+        /// mV/A/m is two-source checked. Used only when the
         /// caller has no loaded table. Pinned to the data file by a test.
         /// </summary>
-        public static readonly IReadOnlyList<(double Csa, double Mv1ph, double Mv3ph)> BuiltIn4D2B = new[]
+        public static readonly IReadOnlyList<(double Csa, double Mv1ph, double Mv3ph, bool MvVerified)> BuiltIn4D2B = new[]
         {
-            (1.0,   44.0,  38.0),
-            (1.5,   29.0,  25.0),
-            (2.5,   18.0,  15.0),
-            (4.0,   11.0,   9.5),
-            (6.0,    7.3,   6.4),
-            (10.0,   4.4,   3.8),
-            (16.0,   2.8,   2.4),
-            (25.0,   1.75,  1.5),
-            (35.0,   1.25,  1.1),
-            (50.0,   0.94,  0.81),
-            (70.0,   0.65,  0.57),
-            (95.0,   0.50,  0.43),
-            (120.0,  0.41,  0.35),
-            (150.0,  0.34,  0.29),
-            (185.0,  0.29,  0.25),
-            (240.0,  0.24,  0.21),
+            (1.0,   44.0,  38.0, true),
+            (1.5,   29.0,  25.0, true),
+            (2.5,   18.0,  15.0, true),
+            (4.0,   11.0,   9.5, true),
+            (6.0,    7.3,   6.4, true),
+            (10.0,   4.4,   3.8, true),
+            (16.0,   2.8,   2.4, true),
+            (25.0,   1.75,  1.5, false),
+            (35.0,   1.25,  1.1, false),
+            (50.0,   0.94,  0.81, false),
+            (70.0,   0.65,  0.57, false),
+            (95.0,   0.50,  0.43, false),
+            (120.0,  0.41,  0.35, false),
+            (150.0,  0.34,  0.29, false),
+            (185.0,  0.29,  0.25, false),
+            (240.0,  0.24,  0.21, false),
         };
 
         /// <summary>
@@ -109,56 +112,54 @@ namespace StingTools.Core.Calc
                 return r;
             }
 
-            string tableId;
-            List<(double Csa, double Mv)> col;
+            string tableId, cable;
+            List<(double Csa, double Mv, bool Verified)> col;
             if (table != null && table.Rows.Count > 0)
             {
-                col = table.Rows.Select(x => (x.CsaMm2, q.ThreePhase ? x.MvAm3ph : x.MvAm1ph))
+                col = table.Rows.Select(x => (x.CsaMm2, q.ThreePhase ? x.MvAm3ph : x.MvAm1ph, x.MvVerified))
                                 .Where(x => x.Item2 > 0).OrderBy(x => x.Item1).ToList();
                 tableId = string.IsNullOrEmpty(table.VoltDropTable) ? (table.Id ?? "Appendix 4") : table.VoltDropTable;
+                cable = $"{table.Conductor} {table.MaxConductorTempC} °C {table.CableType}";
             }
             else
             {
-                col = BuiltIn4D2B.Select(x => (x.Csa, q.ThreePhase ? x.Mv3ph : x.Mv1ph)).ToList();
+                col = BuiltIn4D2B.Select(x => (x.Csa, q.ThreePhase ? x.Mv3ph : x.Mv1ph, x.MvVerified)).ToList();
                 tableId = "4D2B";
+                cable = "Cu 70 °C Multicore";
+            }
+            if (col.Count == 0)
+            {
+                r.Refusal = $"Table {tableId} carries no mV/A/m.";
+                r.Basis = r.Refusal;
+                return r;
             }
 
-            double mv = Lookup(col, q.CsaMm2);
-            if (mv <= 0)
+            // Tabulated sizes only: a size between two rows is not a cable, and
+            // interpolating would put a figure in the report that no table gives.
+            var hit = col.Where(x => Math.Abs(x.Csa - q.CsaMm2) < 1e-6).ToList();
+            if (hit.Count == 0)
             {
-                r.Refusal = $"{q.CsaMm2:0.##} mm² is outside Table {tableId} " +
+                r.Refusal = $"{q.CsaMm2:0.##} mm² is not a size in Table {tableId} " +
                             $"({col.First().Csa:0.##}–{col.Last().Csa:0.##} mm²).";
                 r.Basis = r.Refusal;
                 return r;
             }
+            double mv = hit[0].Mv;
+            r.UnverifiedVoltDrop = !hit[0].Verified;
 
             r.MvPerAPerM = mv;
             r.VoltDropV   = mv * q.LoadAmps * q.LengthM / 1000.0;
             r.VoltDropPct = r.VoltDropV / q.NominalVoltageV * 100.0;
             r.LightingPass = r.VoltDropPct <= 3.0;
             r.PowerPass    = r.VoltDropPct <= 5.0;
-            r.Basis = $"BS 7671 Appendix 4 Table {tableId} (Cu 70 °C, " +
-                      $"{(q.ThreePhase ? "3/4-core 3-ph column" : "2-core 1-ph column")}, " +
-                      $"{mv:0.###} mV/A/m)";
+            r.Basis = $"BS 7671 Appendix 4 Table {tableId} ({cable}, " +
+                      $"{(q.ThreePhase ? "3-ph column" : "1-ph column")}, " +
+                      $"{mv:0.###} mV/A/m)" +
+                      (r.UnverifiedVoltDrop
+                          ? $". VERIFY: the {q.CsaMm2:0.##} mm² mV/A/m has not been checked against a second source"
+                          : "");
             return r;
         }
 
-        /// <summary>Exact row, else linear interpolation between the neighbours; 0 outside.</summary>
-        private static double Lookup(List<(double Csa, double Mv)> col, double csa)
-        {
-            if (col == null || col.Count == 0) return 0;
-            foreach (var x in col)
-                if (Math.Abs(x.Csa - csa) < 1e-6) return x.Mv;
-            for (int i = 0; i + 1 < col.Count; i++)
-            {
-                var lo = col[i]; var hi = col[i + 1];
-                if (csa > lo.Csa && csa < hi.Csa)
-                {
-                    double t = (csa - lo.Csa) / (hi.Csa - lo.Csa);
-                    return lo.Mv + t * (hi.Mv - lo.Mv);
-                }
-            }
-            return 0;
-        }
     }
 }

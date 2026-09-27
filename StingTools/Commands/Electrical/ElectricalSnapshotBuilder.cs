@@ -277,32 +277,39 @@ namespace StingTools.Commands.Electrical
         /// unsourced ×0.78.
         /// </summary>
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method)
-            => BuildWireRefRows(material, insulation, method, out _);
+            => BuildWireRefRows(material, insulation, method, StingTools.Core.Electrical.Bs7671Data.DefaultCableType, out _);
 
         public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method, out string basis)
+            => BuildWireRefRows(material, insulation, method, StingTools.Core.Electrical.Bs7671Data.DefaultCableType, out basis);
+
+        public static List<WireRefRow> BuildWireRefRows(string material, string insulation, string method,
+                                                        string cableType, out string basis)
         {
+            if (string.IsNullOrEmpty(cableType)) cableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
             var rows = new List<WireRefRow>();
             basis = "";
             try
             {
                 var data = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
-                var table = data?.FindTable(material, insulation, method);
+                var table = data?.FindTable(material, insulation, method, cableType);
                 if (table == null)
                 {
                     string have = data == null || data.Tables.Count == 0
                         ? "none (STING_WIRE_TABLES.json bs7671Appendix4 not found)"
-                        : string.Join(", ", data.Tables.Select(t => $"{t.Conductor} {t.Insulation} method {t.InstallMethod} (Table {t.Id})"));
-                    basis = $"No BS 7671 Appendix 4 table shipped for {material} / {insulation} / method {method}. " +
+                        : string.Join(", ", data.Tables.Select(t => $"{t.Conductor} {t.Insulation} {t.CableType} method {t.InstallMethod} (Table {t.Id})"));
+                    basis = $"No BS 7671 Appendix 4 table shipped for {material} / {insulation} / {cableType} / method {method}. " +
                             $"Shipped: {have}. Values are not approximated from another table.";
                     rows.Add(new WireRefRow { Size = "—", Imax1Ph = "no table shipped", Imax3Ph = "", Mv1Ph = "", Mv3Ph = "" });
                     return rows;
                 }
 
-                int unverified = 0;
+                // "*" = It not two-source checked; "†" = mV/A/m not two-source checked.
+                int unverifiedIt = 0, unverifiedMv = 0;
                 foreach (var r in table.Rows)
                 {
-                    if (!r.Verified) unverified++;
-                    string flag = r.Verified ? "" : " *";
+                    if (!r.Verified) unverifiedIt++;
+                    if (!r.MvVerified) unverifiedMv++;
+                    string flag = (r.Verified ? "" : " *") + (r.MvVerified ? "" : " †");
                     rows.Add(new WireRefRow
                     {
                         Size = (r.CsaMm2 < 10 ? $"{r.CsaMm2:0.0}mm²" : $"{r.CsaMm2:0}mm²") + flag,
@@ -314,7 +321,8 @@ namespace StingTools.Commands.Electrical
                 }
                 basis = $"BS 7671 Appendix 4 Table {table.Id} (It, A — {table.Description}, method {table.InstallMethod}, " +
                         $"30 °C, ungrouped) and Table {table.VoltDropTable} (mV/A/m: 2-core 1-ph / 3–4-core 3-ph)." +
-                        (unverified > 0 ? $" * {unverified} row(s) not yet checked against the printed table — verify before use." : "");
+                        (unverifiedIt > 0 ? $" * It on {unverifiedIt} row(s) has one source — verify before use." : "") +
+                        (unverifiedMv > 0 ? $" † mV/A/m on {unverifiedMv} row(s) has one source — verify before use." : "");
             }
             catch (Exception ex)
             {

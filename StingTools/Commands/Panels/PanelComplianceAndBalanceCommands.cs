@@ -27,7 +27,6 @@ namespace StingTools.Commands.Panels
     public class PanelComplianceCheckCommand : IExternalCommand
     {
         public const string CheckParam = "ELC_CKT_CHECK_TXT";
-        private const string IzBasis = "Table 4D2A method C, 70 °C PVC Cu, no derating (best case)";
         private const byte RedR = 220, RedG = 40, RedB = 40;
         private const int RedWeight = 6;
 
@@ -64,8 +63,10 @@ namespace StingTools.Commands.Panels
             }
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions;
-            var table = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables()
-                            .FindTable("Cu", "PVC70", "C");
+            // The circuit does not say what cable it is, so Iz is the highest It any shipped
+            // copper table gives for its size (Bs7671Data.MaxTabulatedIt): a fail is then
+            // certain, and a pass still leaves derating unchecked.
+            var tables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables();
             var rows = new List<Row>();
             int written = 0, unbound = 0, writeFailed = 0;
             var view = doc.ActiveView;
@@ -88,7 +89,7 @@ namespace StingTools.Commands.Panels
                 tx.Start();
                 foreach (var sys in circuits)
                 {
-                    var row = Evaluate(doc, sys, table, opts);
+                    var row = Evaluate(doc, sys, tables, opts);
                     rows.Add(row);
                     // The parameter write and the colouring are independent: an unbound
                     // parameter must not stop failing devices being shown red.
@@ -148,14 +149,16 @@ namespace StingTools.Commands.Panels
             panel.AddSection("BASIS")
                  .Text("Ib ≤ In ≤ Iz (Reg 433.1.1); VD ≤ " + (opts?.OtherLimitPct > 0 ? $"{opts.OtherLimitPct:0.#}" : "5") + " % other / "
                        + (opts?.LightingLimitPct > 0 ? $"{opts.LightingLimitPct:0.#}" : "3") + " % lighting (App 12); PSC ≤ board breaking capacity (434.5.1).")
-                 .Text("Iz: " + IzBasis + ". VD from CALCS → Recalculate All. PSC from CALCS → Calculate Fault Levels.")
+                 .Text("Iz: " + IzSummary + ". VD from CALCS → Recalculate All. PSC from CALCS → Calculate Fault Levels.")
                  .Text("Device Icn: from the family's Short Circuit Rating. Where a family has none, a typical 6 kA (MCB ≤ 63 A) / 16 kA (MCCB) is shown for guidance only — never as a pass or a fail.")
                  .Text(string.IsNullOrEmpty(xlsx) ? "Workbook not written — see the STING log." : "Workbook: " + xlsx);
             panel.Show();
             return Result.Succeeded;
         }
 
-        private static Row Evaluate(Document doc, ElectricalSystem sys, Bs7671CapacityTable table, VDOptionsSnapshot opts)
+        private const string IzSummary = "the highest tabulated It for the circuit's size in any shipped copper table, 30 °C, ungrouped (the cable is not known, so a pass leaves derating and cable type unchecked)";
+
+        private static Row Evaluate(Document doc, ElectricalSystem sys, Bs7671Data tables, VDOptionsSnapshot opts)
         {
             var row = new Row { Sys = sys };
             try { row.Board = sys.PanelName ?? ""; } catch (Exception ex) { StingLog.Info($"Check board: {ex.Message}"); }
@@ -171,8 +174,12 @@ namespace StingTools.Commands.Panels
             try { wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? ""; }
             catch (Exception ex) { StingLog.Info($"Check wire: {ex.Message}"); }
             double csa = WireSizeParser.ParseCsaMm2(wire);
-            double it = table != null && csa > 0 ? Bs7671Data.TabulatedIt(table, csa, poles >= 3 ? 3 : 1) : 0;
+            Bs7671CapacityTable from = null;
+            double it = tables != null && csa > 0 ? tables.MaxTabulatedIt("Cu", csa, poles >= 3 ? 3 : 1, out from) : 0;
             row.Iz = it > 0 ? it : (double?)null;
+            string izBasis = from == null ? "" :
+                $"highest tabulated It for {csa:0.#} mm² Cu in any shipped table (Table {from.Id} method {from.InstallMethod}, " +
+                $"{from.Insulation} {from.CableType}), 30 °C, ungrouped — the cable itself is not known";
 
             var vdp = sys.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
             if (vdp != null && vdp.HasValue && vdp.StorageType == StorageType.Double) row.Vd = vdp.AsDouble();
@@ -190,7 +197,7 @@ namespace StingTools.Commands.Panels
 
             row.Result = CircuitComplianceRule.Evaluate(new CircuitCheckInput
             {
-                IbA = row.Ib, InA = row.In, IzA = row.Iz, IzBasis = IzBasis, IzIsUpperBound = true,
+                IbA = row.Ib, InA = row.In, IzA = row.Iz, IzBasis = izBasis, IzIsUpperBound = true,
                 VdPct = row.Vd, VdLimitPct = row.VdLimit,
                 ProspectiveFaultKa = row.Psc, BreakingCapacityKa = row.Icn,
                 // Only when the family carries no Icn: a typical low-end value that can
@@ -263,7 +270,7 @@ namespace StingTools.Commands.Panels
                             x.Result.Failed ? XLColor.LightSalmon : x.Result.FullyVerified ? XLColor.LightGreen : XLColor.LightYellow;
                         r++;
                     }
-                    ws.Cell(r + 1, 1).Value = "Iz basis: " + IzBasis + ". Green = every rule ran and passed; yellow = UNVERIFIED (no failure found, but not every rule could run); red = fails.";
+                    ws.Cell(r + 1, 1).Value = "Iz basis: " + IzSummary + ". Green = every rule ran and passed; yellow = UNVERIFIED (no failure found, but not every rule could run); red = fails.";
                     ws.Columns().AdjustToContents();
                     wb.SaveAs(path);
                 }

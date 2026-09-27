@@ -455,6 +455,46 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void Max_tabulated_It_is_the_highest_across_every_copper_table()
+        {
+            // 2.5 mm² single-phase: 4D2A C gives 27 A; a higher figure exists in another table,
+            // and the bound must be the highest any shipped table gives.
+            var d = Data();
+            double best = d.MaxTabulatedIt("Cu", 2.5, 1, out var from);
+            double expected = d.Tables.Where(t => t.Conductor == "Cu")
+                                      .Select(t => Bs7671Data.TabulatedIt(t, 2.5, 1)).Max();
+            Assert.Equal(expected, best);
+            Assert.True(best > Bs7671Data.TabulatedIt(d.FindTable("Cu", "PVC70", "C"), 2.5, 1));
+            Assert.Equal(best, Bs7671Data.TabulatedIt(from, 2.5, 1));
+            Assert.Equal(0, d.MaxTabulatedIt("Cu", 3.3, 1, out var none));
+            Assert.Null(none);
+        }
+
+        [Theory]
+        // The method tags the wire reference grid and the feeder picker offer, per cable type.
+        [InlineData("PVC70",  "SingleCore",        "A1", "4D1A")]
+        [InlineData("PVC70",  "SingleCore",        "B1", "4D1A")]
+        [InlineData("PVC70",  "SingleCore",        "F",  "4D1A")]
+        [InlineData("PVC70",  "Multicore",         "A1", "4D2A")]
+        [InlineData("PVC70",  "Multicore",         "E",  "4D2A")]
+        [InlineData("XLPE90", "Multicore",         "B1", "4E2A")]
+        [InlineData("PVC70",  "ArmouredMulticore", "D1", "4D4A")]
+        [InlineData("XLPE90", "ArmouredMulticore", "D2", "4E4A")]
+        public void Picker_combinations_resolve_to_their_table(string ins, string type, string method, string id)
+        {
+            var t = Data().FindTable("Cu", ins, method, type);
+            Assert.NotNull(t);
+            Assert.Equal(id, t.Id);
+        }
+
+        [Theory]
+        [InlineData("XLPE90", "SingleCore",        "C")]   // 4E1A not shipped
+        [InlineData("PVC70",  "ArmouredMulticore", "A1")]  // 4D4A has no method A
+        [InlineData("PVC70",  "Multicore",         "D1")]  // 4D2A has no method D
+        public void Picker_combinations_without_a_table_find_none(string ins, string type, string method)
+            => Assert.Null(Data().FindTable("Cu", ins, method, type));
+
+        [Fact]
         public void Every_capacity_row_is_two_source_checked()
         {
             // No It value is left on a single source. A row added later without a second

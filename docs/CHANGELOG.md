@@ -24030,4 +24030,54 @@ give them, against the validator's own cross-checks.
   source and runs the shared `CategoryTokenDefaults` rules over every category, every PROD rule
   and the realistic detected systems. 12 fail against the previous behaviour.
   `StingTools.Tags.Tests`: 3,491 passing. The Linux compile of the plugin shows no new errors.
+
+#### BS 7671 consumers: cable type, true Iz bound, unchecked voltage drop flagged (2026-09-27)
+
+A review of every caller of the Appendix 4 tables found places that still assumed PVC
+multicore or hid unchecked values.
+
+- **Circuit Check (`Panel_ComplianceCheck`).** The "best case" Iz was PVC 4D2A method C, which
+  is not the best case: an XLPE or single-core cable of the same size carries more, so a sound
+  circuit could be failed.
+  - Iz is now `Bs7671Data.MaxTabulatedIt`: the highest It for the size across every shipped
+    copper table.
+  - The basis names the table it came from.
+- **Cable type is carried through.** The breaker sizer, feeder sizer, circuit wizard, the MCP
+  sizing tools and `CableSizerApplyEngine` all dropped the CABLE tab's cable type. Single-core
+  and armoured selections were silently sized as multicore.
+  - Each now passes it.
+  - The two MCP tools gain a `cableType` argument.
+- **Voltage drop solver (Add Cable).**
+  - A size between table rows is now refused rather than interpolated.
+  - A row whose mV/A/m has one source adds a VERIFY line to the basis.
+  - The basis names the table's cable instead of always "Cu 70 °C".
+- **Wire reference grid.** Rows with single-source mV/A/m are now marked (†); before, only
+  unchecked It was marked, and every It is now checked, so nothing was flagged.
+- **Stale text.** The MCP tool schemas, the feeder input and the circuit wizard options said
+  XLPE was refused until Table 4E2A shipped; it has shipped.
+- **Tests.** 3,427 passing:
+  - interpolation refused;
+  - single-source mV flagged;
+  - built-in 4D2B verification flags pinned to the data file;
+  - `MaxTabulatedIt` exceeds the PVC figure.
+- **Not exercised in Revit.**
+
+#### Cable-type pickers for the wire reference grid and feeder sizing (2026-09-27)
+
+- **Wire reference grid.**
+  - It gains a cable-type picker (multicore / single-core / armoured SWA).
+  - Its method list now covers every shipped method: A, B, C, E, F, D1 and D2.
+  - Every table can now be browsed there.
+  - The old labels said XLPE, A1, B1 and E had "no table shipped"; those tables have shipped.
+  - A combination with no table (single-core XLPE, for example) says so and names the shipped
+    tables.
+- **Feeder sizing.**
+  - The expander gains its own insulation and cable-type pickers, and methods F, D1 and D2.
+  - Feeders no longer take these from the CABLE tab.
+  - The default stays PVC multicore.
+- The armoured SWA tooltip on the CABLE tab said every result is flagged VERIFY. That stopped
+  being true once every current rating was two-source checked; the tooltip now says only
+  unconfirmed values are flagged.
+- **Tests.** 3,438 passing. Every picker combination resolves to its table, and those with no
+  table resolve to none.
 - **Not exercised in Revit.**
