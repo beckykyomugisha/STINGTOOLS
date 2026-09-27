@@ -902,7 +902,10 @@ namespace StingTools.BIMManager
                 string nextId = NextIdFromArray(register, "DOC", "document_id");
                 var entry = new JObject
                 {
+                    // doc_id too: the Document Manager's edit paths and most readers use it.
+                    ["doc_id"] = nextId,
                     ["document_id"] = nextId,
+                    ["title"] = description,
                     ["file_name"] = fileName,
                     ["file_path"] = filePath,
                     ["document_type"] = docType,
@@ -2235,7 +2238,10 @@ namespace StingTools.BIMManager
         {
             return new JObject
             {
+                // Both id spellings: readers are split between doc_id and document_id
+                // (COBie Document sheet, GapFix approvals). One register, one id — twice.
                 ["doc_id"] = docId,
+                ["document_id"] = docId,
                 ["title"] = title,
                 ["type"] = type,
                 ["type_description"] = DocumentTypes.TryGetValue(type, out string dtDesc) ? dtDesc : type,
@@ -3012,21 +3018,30 @@ namespace StingTools.BIMManager
             {
                 foreach (var d in docRegArray)
                 {
+                    // Field names through the shared register mapper. This block read
+                    // name / document_name, date / created_on and document_id — keys no
+                    // register writer produced (they write title, date_created, doc_id), so
+                    // every COBie Document row had an empty Name and most an empty RowName.
+                    var m = (d as JObject) != null ? DocumentRegisterMerge.MapRegisterRow((JObject)d) : null;
+                    string file = d["file_name"]?.ToString() ?? d["file"]?.ToString()
+                                  ?? (string.IsNullOrEmpty(m?.FilePath) ? "" : Path.GetFileName(m.FilePath));
                     documents.Add(new Dictionary<string, string>
                     {
-                        ["Name"] = d["name"]?.ToString() ?? d["document_name"]?.ToString() ?? "",
-                        ["CreatedBy"] = d["created_by"]?.ToString() ?? createdBy,
-                        ["CreatedOn"] = d["date"]?.ToString() ?? d["created_on"]?.ToString() ?? createdOn,
-                        ["Category"] = d["type"]?.ToString() ?? d["category"]?.ToString() ?? "",
+                        ["Name"] = d["name"]?.ToString() ?? d["document_name"]?.ToString() ?? m?.Title ?? "",
+                        ["CreatedBy"] = d["created_by"]?.ToString() ?? d["originator"]?.ToString() ?? createdBy,
+                        ["CreatedOn"] = d["date"]?.ToString() ?? d["created_on"]?.ToString()
+                                        ?? (string.IsNullOrEmpty(m?.DateCreated) ? createdOn : m.DateCreated),
+                        ["Category"] = m?.Type ?? d["category"]?.ToString() ?? "",
                         ["ApprovalBy"] = d["approved_by"]?.ToString() ?? "",
                         ["Stage"] = d["stage"]?.ToString() ?? "",
                         ["SheetName"] = "Document",
-                        ["RowName"] = d["document_id"]?.ToString() ?? "",
-                        ["Directory"] = d["directory"]?.ToString() ?? "",
-                        ["File"] = d["file_name"]?.ToString() ?? d["file"]?.ToString() ?? "",
+                        ["RowName"] = m?.Id ?? "",
+                        ["Directory"] = d["directory"]?.ToString()
+                                        ?? (string.IsNullOrEmpty(m?.FilePath) ? "" : Path.GetDirectoryName(m.FilePath) ?? ""),
+                        ["File"] = file,
                         ["ExternalSystem"] = "STING",
                         ["ExternalObject"] = "DocumentRegister",
-                        ["ExternalIdentifier"] = d["document_id"]?.ToString() ?? "",
+                        ["ExternalIdentifier"] = m?.Id ?? "",
                         ["Description"] = d["description"]?.ToString() ?? d["name"]?.ToString() ?? "",
                         ["Reference"] = d["reference"]?.ToString() ?? d["suitability"]?.ToString() ?? ""
                     });
@@ -3887,13 +3902,21 @@ namespace StingTools.BIMManager
         /// </summary>
         internal static string NextIdFromArray(JArray arr, string prefix, string idField)
         {
+            // The document register is written with doc_id by some paths and document_id by
+            // others; counting only the requested spelling minted ids that already existed
+            // under the other one.
+            string[] fields = idField == "doc_id" || idField == "document_id"
+                ? new[] { "doc_id", "document_id" } : new[] { idField };
             int max = 0;
             foreach (var item in arr)
             {
-                string id = item[idField]?.ToString() ?? "";
-                if (id.StartsWith(prefix + "-") &&
-                    int.TryParse(id.Substring(prefix.Length + 1), out int n) && n > max)
-                    max = n;
+                foreach (string f in fields)
+                {
+                    string id = item[f]?.ToString() ?? "";
+                    if (id.StartsWith(prefix + "-") &&
+                        int.TryParse(id.Substring(prefix.Length + 1), out int n) && n > max)
+                        max = n;
+                }
             }
             return $"{prefix}-{(max + 1):D4}";
         }

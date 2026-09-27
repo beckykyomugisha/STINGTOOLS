@@ -353,25 +353,26 @@ namespace StingTools.Docs
 
         private static List<ElementId> FilterByDisc(List<ViewSheet> sheets, string disc)
         {
-            return sheets.Where(s => GetDisciplinePrefix(s.SheetNumber).Equals(disc, StringComparison.OrdinalIgnoreCase))
+            return sheets.Where(s => SheetDiscipline(s).Equals(disc, StringComparison.OrdinalIgnoreCase))
                          .Select(s => s.Id).ToList();
         }
 
-        public static string GetDisciplinePrefix(string sheetNumber)
+        public static string GetDisciplinePrefix(string sheetNumber) => SheetDiscipline(sheetNumber, null);
+
+        /// <summary>The discipline a sheet declares, via the shared
+        /// <see cref="Core.Drawing.SheetDisciplineResolver.ForSheet"/> (number, ISO role
+        /// segment, then title). An unconfigured prefix is kept as written so such sheets
+        /// still group together; "Other" when there is nothing to read.</summary>
+        public static string SheetDiscipline(string sheetNumber, string sheetName)
         {
+            string d = Core.Drawing.SheetDisciplineResolver.ForSheet(sheetNumber, sheetName);
+            if (!string.IsNullOrEmpty(d)) return d;
             if (string.IsNullOrWhiteSpace(sheetNumber)) return "Other";
-            // Once the sheet number IS the ISO identifier
-            // (Project-Originator-Volume-Level-Type-Role-Number), the text before the
-            // first hyphen is the PROJECT code — every sheet read as discipline "SAH",
-            // the By-Discipline sets came back empty and the discipline sub-folders
-            // were all named after the project. The discipline is the Role segment.
-            var seg = Core.Drawing.Iso19650DocumentCode.Decompose(sheetNumber);
-            if (seg != null && !string.IsNullOrEmpty(seg.Role)) return seg.Role.ToUpperInvariant();
-            int dash = sheetNumber.IndexOf('-');
-            if (dash > 0) return sheetNumber.Substring(0, dash).ToUpperInvariant();
-            string letters = new string(sheetNumber.TakeWhile(char.IsLetter).ToArray());
+            string letters = new string(sheetNumber.Trim().TakeWhile(char.IsLetter).ToArray());
             return string.IsNullOrEmpty(letters) ? "Other" : letters.ToUpperInvariant();
         }
+
+        private static string SheetDiscipline(ViewSheet s) => SheetDiscipline(s?.SheetNumber, s?.Name);
 
         /// <summary>
         /// Derive an ISO 19650 Level code from a sheet, used as a fallback when
@@ -468,7 +469,7 @@ namespace StingTools.Docs
                 t["DrawingNumber"]= sheet.SheetNumber ?? "";
                 t["DrawingTitle"] = sheet.Name ?? "";
                 t["DrawingSet"]   = ReadParam(sheet, "Sheet Issue Date") ?? "";
-                t["Discipline"]   = GetDisciplinePrefix(sheet.SheetNumber);
+                t["Discipline"]   = SheetDiscipline(sheet);
 
                 var (rev, revDate) = GetCurrentRevision(doc, sheet);
                 t["RevDate"] = revDate ?? "";
@@ -1059,7 +1060,7 @@ namespace StingTools.Docs
             View view, string groupDiscipline = null)
         {
             string disc = groupDiscipline
-                ?? (view is ViewSheet vs ? GetDisciplinePrefix(vs.SheetNumber) : null);
+                ?? (view is ViewSheet vs ? SheetDiscipline(vs) : null);
             if (string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase)) disc = null;
 
             if (p.Output.RouteByProjectStructure && doc != null)
@@ -1111,7 +1112,7 @@ namespace StingTools.Docs
         public static string DeliverableFolderForSheet(Document doc, ViewSheet sheet, string routeKey = "PDF")
         {
             if (doc == null || sheet == null) return null;
-            string disc = GetDisciplinePrefix(sheet.SheetNumber);
+            string disc = SheetDiscipline(sheet);
             if (string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase)) disc = null;
             return ProjectFolderEngine.GetDeliverableFolder(doc, routeKey, disc, SheetCdeState(sheet));
         }
@@ -1170,7 +1171,7 @@ namespace StingTools.Docs
         public static string DisciplineSubFolder(Document doc, string baseDir, ViewSheet sheet)
         {
             if (string.IsNullOrEmpty(baseDir) || sheet == null) return baseDir;
-            string disc = GetDisciplinePrefix(sheet.SheetNumber);
+            string disc = SheetDiscipline(sheet);
             if (string.IsNullOrEmpty(disc) || string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase))
                 return baseDir;
             string name = ProjectFolderEngine.ResolveDisciplineFolder(doc, disc) ?? disc;

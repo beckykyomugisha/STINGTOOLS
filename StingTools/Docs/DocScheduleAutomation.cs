@@ -226,18 +226,25 @@ namespace StingTools.Docs
             return updated;
         }
 
+        /// The shared rule (SheetDisciplineResolver.ForSheet), named. The old two-letter
+        /// parser filed "A101", "S1-01" and every ISO-identifier sheet under General, and
+        /// read "ME" — MEP, or a mezzanine plan — as Mechanical.
         private static string ExtractDiscipline(string sheetNumber)
         {
-            if (string.IsNullOrEmpty(sheetNumber)) return "GEN";
-            string prefix = sheetNumber.Length >= 2 ? sheetNumber.Substring(0, 2).ToUpper() : "GEN";
-            return prefix switch
+            string code = Core.Drawing.SheetDisciplineResolver.ForSheet(sheetNumber, null);
+            return code switch
             {
-                "AR" or "A-" => "Architectural",
-                "ST" or "S-" => "Structural",
-                "ME" or "M-" => "Mechanical",
-                "EL" or "E-" => "Electrical",
-                "PL" or "P-" => "Plumbing",
-                "FP" or "F-" => "Fire Protection",
+                "A" => "Architectural",
+                "S" => "Structural",
+                "M" => "Mechanical",
+                "E" => "Electrical",
+                "P" => "Plumbing",
+                "FP" => "Fire Protection",
+                "C" => "Civil",
+                "L" => "Landscape",
+                "LV" => "Low Voltage / ICT",
+                "I" => "Interiors",
+                "COORD" => "Coordination",
                 _ => "General"
             };
         }

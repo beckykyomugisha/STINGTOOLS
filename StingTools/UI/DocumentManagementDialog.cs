@@ -5221,7 +5221,8 @@ namespace StingTools.UI
                     foreach (var item in movedItems)
                     {
                         string docId = item.Id ?? "";
-                        var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId) as JObject;
+                        // Any of the register's id keys: doc_number / doc_id / document_id (DocumentIdentity.RegisterKeys).
+                        var entry = regArr.OfType<JObject>().FirstOrDefault(d => RegisterRowHasId(d, docId));
                         if (entry != null)
                         {
                             string oldCDE = entry["cde_status"]?.ToString() ?? "WIP";
@@ -5567,36 +5568,43 @@ namespace StingTools.UI
                 if (!File.Exists(regPath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(regPath));
-                foreach (JToken d in arr)
+                foreach (JObject d in arr.OfType<JObject>())
                 {
-                    string docId = d["doc_id"]?.ToString() ?? "";
+                    // One mapper for both loaders (DocumentRegisterMerge.MapRegisterRow). This
+                    // one read only doc_id / doc_type / date, but BIMManagerEngine.
+                    // AutoRegisterExport — every Export Centre and batch export — writes
+                    // document_id / document_type / date_created, so those rows arrived with
+                    // no id, no type and no date until the project was consolidated.
+                    var m = DocumentRegisterMerge.MapRegisterRow(d);
+                    string docId = m?.Id ?? "";
+                    if (string.IsNullOrEmpty(docId)) continue;
 
                     string statusCode = d["status_code"]?.ToString() ?? "";
                     string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(statusCode, out string sd) ? sd : statusCode;
-                    string docType = d["doc_type"]?.ToString() ?? "";
+                    string docType = m.Type ?? "";
                     string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(docType, out string td) ? td : docType;
 
                     var existing = _allItems.FirstOrDefault(i => i.Id == docId);
                     if (existing != null)
                     {
                         EnrichFromRegister(existing, docType, typeDesc, statusCode, statusDesc,
-                            d["revision"]?.ToString(), d["suitability"]?.ToString(), d["created_by"]?.ToString());
+                            m.Revision, m.Suitability, m.CreatedBy);
                         continue;
                     }
 
                     _allItems.Add(new DocItemVM
                     {
-                        Id = docId, Title = d["title"]?.ToString() ?? docId,
+                        Id = docId, Title = string.IsNullOrEmpty(m.Title) ? docId : m.Title,
                         Type = docType, TypeDesc = typeDesc,
                         Status = statusCode, StatusDesc = statusDesc,
-                        CDE = d["cde_status"]?.ToString() ?? "WIP",
-                        Revision = d["revision"]?.ToString() ?? "",
-                        Date = d["date"]?.ToString() ?? "",
-                        Direction = d["direction"]?.ToString() ?? "OUT",
-                        FilePath = d["file_path"]?.ToString() ?? "",
-                        FileFormat = d["file_format"]?.ToString() ?? "",
-                        Suitability = d["suitability"]?.ToString() ?? "",
-                        CreatedBy = d["created_by"]?.ToString() ?? "",
+                        CDE = string.IsNullOrEmpty(m.CdeStatus) ? "WIP" : m.CdeStatus,
+                        Revision = m.Revision ?? "",
+                        Date = d["date"]?.ToString() ?? m.DateCreated ?? "",
+                        Direction = string.IsNullOrEmpty(m.Direction) ? "OUT" : m.Direction,
+                        FilePath = m.FilePath ?? "",
+                        FileFormat = m.FileFormat ?? "",
+                        Suitability = m.Suitability ?? "",
+                        CreatedBy = m.CreatedBy ?? "",
                         Category = "DOCUMENT", Folder = "15_REGISTERS"
                     });
                 }
@@ -5686,6 +5694,18 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(row.Revision)) row.Revision = revision ?? "";
             if (string.IsNullOrEmpty(row.Suitability)) row.Suitability = suitability ?? "";
             if (string.IsNullOrEmpty(row.CreatedBy)) row.CreatedBy = createdBy ?? "";
+        }
+
+        /// <summary>Does this register row carry <paramref name="id"/> under any of the
+        /// register's id keys? Edits matched on doc_id alone, so a row written by
+        /// AutoRegisterExport (document_id) or keyed by doc_number could be shown but
+        /// never updated — a CDE move reported success and left the register as it was.</summary>
+        private static bool RegisterRowHasId(JObject row, string id)
+        {
+            if (row == null || string.IsNullOrEmpty(id)) return false;
+            foreach (string k in DocumentIdentity.RegisterKeys)
+                if (string.Equals(row[k]?.ToString(), id, StringComparison.Ordinal)) return true;
+            return false;
         }
 
         private static void LoadIssues(Document doc)
@@ -6820,7 +6840,7 @@ namespace StingTools.UI
                     StingLog.Warn($"UpdateDocRegister refused — {regPath} exists but is unreadable.");
                     return false;
                 }
-                var entry = arr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
+                var entry = arr.OfType<JObject>().FirstOrDefault(d => RegisterRowHasId(d, docId));
                 if (entry == null)
                 {
                     StingLog.Warn($"UpdateDocRegister: no entry with doc_id '{docId}' in {regPath}");
