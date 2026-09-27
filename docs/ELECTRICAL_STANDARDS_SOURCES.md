@@ -37,46 +37,60 @@ rows compared against an NBR-only row carry less weight.
 | A-tf | [Elec-Mate `temperatureFactors.ts`](https://github.com/Gangoo91/Elec-Mate-Merge/blob/main/src/lib/calculators/bs7671-data/temperatureFactors.ts) | Tables 4B1 and 4C1 |
 | B | [nbr-5410-calculator `copper-pvc.json5`](https://github.com/Marcelotsvaz/nbr-5410-calculator/blob/master/share/data/wireTypes/copper-pvc.json5), `copper-epr.json5` and the correction-factor files | IEC 60364-5-52 Annex B as adopted by NBR 5410: the second source for It and the correction factors |
 | C | [NBR5410_dimencionamento `script.js`](https://github.com/WerideMarcondes/NBR5410_dimencionamento/blob/main/script.js) | Second source for 4C1 wall, tray and ladder rows |
+| D | [calEng `cop_tables.tsx`](https://github.com/llano1025/calEng/blob/main/src/data/cop_tables.tsx) | The Hong Kong EMSD Code of Practice for the Electricity (Wiring) Regulations 2020, Appendix 6, Tables A6(1)–A6(8), which reproduce the BS 7671 Appendix 4 layout. It was committed on 2025-04-21, before source A existed, so it is independent of A. **Mapping:** A6(1)=4D1, A6(2)=4D2, A6(4)=4D4, A6(6)=4E2, A6(8)=4E4. Used as the second source for It, and as the only full transcription of the multicore voltage-drop tables (z at every size). |
+| E | [HansEJC `lvcalc.js`](https://github.com/HansEJC/hansejc.github.io/blob/master/js/lvcalc.js) | BS 7671:2018 Table 4E4A/4E4B, 1.5–120 and 400 mm² (first committed 2021). Its It column "D" matches D1. |
+| F | [Elec-Mate `useEVChargingSmartForm.ts`](https://github.com/Gangoo91/Elec-Mate-Merge/blob/main/src/hooks/inspection/useEVChargingSmartForm.ts) | 4E4B 1.5–25 mm². |
+| G | [Pedroaaandrade `index.html`](https://github.com/Pedroaaandrade/bs7671-Cable-sizing-calculator/blob/main/index.html) | 4D1A B/C/F and 4D4A (including D1/D2), plus 4D4B r and x. It was committed after A, so it only corroborates and never counts as the second source on its own. |
+| — | IEC 60364-5-52 B.52.17 transcriptions ([FabriNeves](https://github.com/FabriNeves/Dimensionamento-de-cabos-BT), [llosinskas](https://github.com/llosinskas/Circuits-FreeCAD), [electrical-dev](https://github.com/electrical-dev/WebSite)) | Table 4C1 ladder row, including the 2-circuit factor 0.87. |
 
 Rejected: three repositories whose values were fabricated, called "representative" by their
-authors, or scrambled; one OCR of the On-Site Guide that was unreadable.
+authors, or scrambled; one OCR of the On-Site Guide that was unreadable; one field-kit
+repository listing SWA ratings for methods 4D4A does not have. Neither standard was read in
+print; everything here comes from public transcriptions reachable through GitHub.
 
-### Coverage
+### Coverage — current ratings (It)
 
-| Table / method | It rows two-source checked | Notes |
+| Table / method | Rows two-source checked | Second source(s) |
 |---|---|---|
-| 4D2A C | 18/18 | Already shipped. 1.5–400 mm² agree with IEC C; 1.0 mm² agrees with the previously checked data (IEC has no 1.0 mm² row). The ≤ 16 mm² 4D2B values match A exactly. |
-| 4D2A A | 17/17 | Matches IEC A2. |
-| 4D2A B | 12/18 | 1.0 mm² and 150–400 mm² differ: A is lower than IEC. |
-| 4D2A E | 16/18 | 1.0 and 1.5 mm² three-phase differ by 0.5 A. |
-| 4D1A A | 15/17 | 2.5 mm² single-phase: A 20, IEC 19.5. |
-| 4D1A B | 12/18 | 1.0 mm² and 150–400 mm² differ. |
-| 4D1A C | 0/18 | No IEC single-core C column: single source. |
-| 4D1A F | 11/11 | The three-phase column is the IEC flat-touching one (114 A at 25 mm²), not trefoil. |
-| 4E2A A / B / C / E | 16/17, 13/18, 17/18, 17/18 | Differences at 1.0 mm², 150–400 mm² (B) and 400 mm². |
-| 4D4A, 4E4A (C, E, D1, D2) | 0 | IEC has no armoured tables: single source, every result VERIFY. |
+| 4D1A A / B / C / F | all | IEC via B, and D (F: B) |
+| 4D2A A / B / C / E | all | IEC via B, and D |
+| 4E2A A / B / C / E | all | IEC via B, and D |
+| 4D4A C / E | all | D (and G) |
+| 4E4A C / E | all | D, and E for 1.5–120 and 400 mm² |
+| 4E4A D1 | 12/16 | E for 1.5–120 mm². 150–300 mm² have a single source. |
+| 4D4A D1 / D2, 4E4A D2 | 0 | Single source (G only corroborates). Every result is flagged VERIFY. |
 
-Voltage drop:
+One cell disagrees: 4D2A method E, 400 mm², single-phase. D gives 705 A, while A and IEC give
+715 A. The row keeps 715 and carries a note.
 
-- **Two-source checked:** 4D2B ≤ 16 mm² only (the existing data and A agree).
-- **Single source:** 4D1B and 4D4B ≤ 16 mm².
-- **Derived, not transcribed (2026-09-27):** 4E2B and 4E4B ≤ 16 mm². No source for either
-  table was reachable, so each value is calculated as 2 (single-phase) or √3 (three-phase) ×
-  the BS EN 60228 conductor resistance at 20 °C (the `VoltageDropEngine` table), corrected to
-  90 °C with α = 0.00393 /K, and rounded **up** to two significant figures.
-  - Evidence that this errs on the safe side: the same rule at 70 °C never falls below the
-    two-source-checked 4D2B. Of those 14 values, 9 are equal and the rest are up to 9 % higher
-    (4 mm² single-phase: 12 against 11).
-  - A result on one of these rows says "DERIVED, NOT TRANSCRIBED" and VERIFY.
-  - `Shipped_XLPE_voltage_drop_is_exactly_the_derivation_and_never_verified` pins every value
-    to the rule. Replace them with the printed tables when available.
-- **Not carried:** every value ≥ 25 mm² for the new tables. Above 16 mm² the tables depend
-  on reactance, which is not derived, so those sizes are refused.
+### Coverage — voltage drop (mV/A/m)
 
-Table 4B1 is unchanged; the sub-30 °C rows are still not carried, and PVC at 25 °C
-disagrees between sources (1.03 against 1.06). Table 4C1 gains the perforated-tray and
-ladder rows. The 2-circuit ladder factor is omitted because the sources give 0.87 and 0.88,
-so 2 circuits read the lower 3-circuit value.
+The multicore tables carry the z value (single-phase 2-core, three-phase 3/4-core) at every size.
+Multicore voltage drop is not split by reference method, so each value applies to every method
+of its capacity table.
+
+| Table | Values from | Two-source checked (`mvVerified`) |
+|---|---|---|
+| 4D2B | ≤ 16 mm²: earlier data, A and D. ≥ 25 mm²: D only. | ≤ 16 mm² |
+| 4D4B | D (≤ 16 mm² also A; ≥ 25 mm² r and x also G) | ≤ 16 mm² (at 25 mm² and above only r and x are two-source, not z) |
+| 4E2B | D only | none |
+| 4E4B | D, E, F | ≤ 16 mm², and z at 25–120 and 400 mm² |
+| 4D1B | A ≤ 16 mm² | none. At 25 mm² and above, A and D disagree in almost every cell, so nothing is carried and those sizes are refused. |
+
+The 4E2B and 4E4B values up to 16 mm² briefly shipped as **derived** figures: 2 or √3 × the
+BS EN 60228 resistance at 90 °C, rounded up. The transcriptions replaced them. Every
+transcribed value is at or below the derived bound, and a test keeps it that way
+(`Transcribed_xlpe_values_up_to_16mm2_sit_at_or_below_the_resistance_bound`). The 4D2B figures
+at 25 mm² and above, entered before any source was found, were replaced by D's values; they had
+differed by 0.01–0.02 at 95–240 mm².
+
+### Correction factors
+
+- **Table 4B1:** not changed. Below 30 °C the sizer still takes no uplift. PVC at 25 °C is 1.03
+  in BS 7671 (A and D). The 1.06 figure is the IEC 60364-5-52 value, not a transcription error.
+- **Table 4C1:** carries the bunched, wall, perforated-tray and ladder rows. The ladder
+  2-circuit factor is 0.87 (A and three IEC transcriptions). The 0.88 once reported against it
+  is the perforated-tray row.
 
 ## IEEE 1584-2018
 

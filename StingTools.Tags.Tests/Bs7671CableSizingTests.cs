@@ -307,9 +307,9 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Xlpe_up_to_16mm2_sizes_on_derived_voltage_drop_and_says_so()
+        public void Xlpe_sizes_on_the_transcribed_4E2B_and_flags_it_single_source()
         {
-            // 4E2A method C: 1.0 mm² 19 A ✗, 1.5 mm² 24 A ✓. Derived 4E2B 1.5 mm² = 31 mV/A/m:
+            // 4E2A method C: 1.0 mm² 19 A ✗, 1.5 mm² 24 A ✓. 4E2B 1.5 mm² = 31 mV/A/m (HK CoP A6(6)):
             // 31 × 20 × 10 / 1000 = 6.2 V = 2.70 % of 230 V ≤ 5 %.
             var i = Pvc(20, 10, 5.0);
             i.Insulation = "XLPE90";
@@ -319,24 +319,55 @@ namespace StingTools.Tags.Tests
             Assert.Equal(31.0, r.MvAm);
             Assert.Equal(6.2, r.VoltDropV, 6);
             Assert.True(r.UnverifiedVoltDrop);
-            Assert.True(r.VoltDropDerived);
-            Assert.Contains("DERIVED, NOT TRANSCRIBED", r.Basis);
+            Assert.Contains("mV/A/m (Table 4E2B)", r.Basis);
         }
 
         [Fact]
-        public void Xlpe_25mm2_and_above_is_still_refused_for_want_of_voltage_drop_data()
+        public void Xlpe_25mm2_now_sizes_on_the_transcribed_z()
         {
-            // Ib 110 → In 125 → 16 mm² (107 A) ✗, 25 mm² (138 A) ✓ — no mV/A/m carried from 25 mm².
+            // Ib 110 → In 125 → 16 mm² (107 A) ✗, 25 mm² (138 A) ✓; 4E2B 25 mm² z = 1.90:
+            // 1.90 × 110 × 10 / 1000 = 2.09 V.
             var i = Pvc(110, 10, 5.0);
             i.Insulation = "XLPE90";
             var r = Bs7671CableSizer.Size(i, Data());
-            Assert.False(r.Sized);
-            Assert.Equal(25.0, r.CapacityOnlyCsaMm2);
-            Assert.Contains("4E2B mV/A/m is not carried for 25", r.Refusal);
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(25.0, r.CsaMm2);
+            Assert.Equal(1.90, r.MvAm, 6);
+            Assert.Equal(2.09, r.VoltDropV, 6);
+            Assert.True(r.UnverifiedVoltDrop);
         }
 
-        // The derivation rule for the 4E2B / 4E4B values ≤ 16 mm², in one place: BS EN 60228
-        // R20 (the VoltageDropEngine table) corrected to θ, × 2 or √3, rounded UP to 2 s.f.
+        [Fact]
+        public void Armoured_xlpe_25mm2_is_two_source_checked_throughout()
+        {
+            // 4E4A method C: 16 mm² 110 A ✗, 25 mm² 146 A ✓ (It checked); 4E4B 25 mm² z 1.90 agrees
+            // across the HK CoP and HansEJC, so nothing is flagged.
+            var i = Pvc(110, 10, 5.0);
+            i.Insulation = "XLPE90";
+            i.CableType = "ArmouredMulticore";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(25.0, r.CsaMm2);
+            Assert.Equal(146.0, r.TabulatedItA);
+            Assert.Equal(1.90, r.MvAm, 6);
+            Assert.False(r.UnverifiedRow);
+            Assert.DoesNotContain("VERIFY", r.Basis);
+        }
+
+        [Fact]
+        public void Single_core_25mm2_and_above_is_still_refused_for_want_of_voltage_drop_data()
+        {
+            // The 4D1B sources disagree from 25 mm² (single-core r/x/z by arrangement), so none is carried.
+            var i = Pvc(110, 10, 5.0);
+            i.CableType = "SingleCore";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.False(r.Sized);
+            Assert.Contains("4D1B mV/A/m is not carried for", r.Refusal);
+            Assert.Contains("will not estimate voltage drop", r.Refusal);
+        }
+
+        // The conservative rule the derived 4E2B / 4E4B values used before transcriptions were found:
+        // BS EN 60228 R20 (the VoltageDropEngine table) corrected to θ, × 2 or √3, rounded UP to 2 s.f.
         private static double DerivedMv(double csa, double theta, bool threePhase)
         {
             double r = VoltageDropEngine.TemperatureCorrection(VoltageDropEngine.BaseResistanceMohmPerM(csa, "Cu"), theta);
@@ -346,38 +377,41 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Derivation_rule_never_understates_the_printed_70C_table()
+        public void Transcribed_xlpe_values_up_to_16mm2_sit_at_or_below_the_resistance_bound()
         {
-            // Applied at 70 °C the rule must not fall below the two-source-checked Table 4D2B —
-            // the evidence that the derived 90 °C values err on the safe side.
-            var rows = Data().FindTable("Cu", "PVC70", "C").Rows.Where(r => r.CsaMm2 <= 16 && r.MvVerified).ToList();
-            Assert.Equal(7, rows.Count);
-            foreach (var r in rows)
+            // A sanity check on the transcription: at ≤ 16 mm² the tabulated mV/A/m is essentially the
+            // conductor resistance at 90 °C, so no value may exceed the rounded-up bound.
+            var rows = Data().Tables.Where(t => t.Id == "4E2A" || t.Id == "4E4A").SelectMany(t => t.Rows)
+                .Where(r => r.CsaMm2 <= 16).ToList();
+            Assert.Equal(52, rows.Count);
+            Assert.All(rows, r =>
             {
-                Assert.True(DerivedMv(r.CsaMm2, 70, false) >= r.MvAm1ph, $"{r.CsaMm2} mm² 1-ph");
-                Assert.True(DerivedMv(r.CsaMm2, 70, true) >= r.MvAm3ph, $"{r.CsaMm2} mm² 3-ph");
-            }
+                Assert.True(r.MvAm1ph > 0 && r.MvAm1ph <= DerivedMv(r.CsaMm2, 90, false), $"{r.CsaMm2} mm² 1-ph {r.MvAm1ph}");
+                Assert.True(r.MvAm3ph > 0 && r.MvAm3ph <= DerivedMv(r.CsaMm2, 90, true), $"{r.CsaMm2} mm² 3-ph {r.MvAm3ph}");
+            });
+        }
+
+        [Theory]
+        // csa, 1-ph z, 3-ph z, two-source checked (Table 4E4B, method C table)
+        [InlineData(1.5, 31.0, 27.0, true)]
+        [InlineData(16.0, 2.9, 2.5, true)]
+        [InlineData(25.0, 1.90, 1.65, true)]
+        [InlineData(120.0, 0.42, 0.37, true)]
+        [InlineData(150.0, 0.35, 0.30, false)]
+        [InlineData(400.0, 0.19, 0.165, true)]
+        public void Table_4E4B_values_and_their_checking(double csa, double mv1, double mv3, bool checkedTwice)
+        {
+            var row = Data().FindTable("Cu", "XLPE90", "C", "ArmouredMulticore").Rows.Single(r => Math.Abs(r.CsaMm2 - csa) < 0.01);
+            Assert.Equal(mv1, row.MvAm1ph, 6);
+            Assert.Equal(mv3, row.MvAm3ph, 6);
+            Assert.Equal(checkedTwice, row.MvVerified);
         }
 
         [Fact]
-        public void Shipped_XLPE_voltage_drop_is_exactly_the_derivation_and_never_verified()
+        public void Every_multicore_table_carries_voltage_drop_at_every_size()
         {
-            var tables = Data().Tables.Where(t => t.Id == "4E2A" || t.Id == "4E4A").ToList();
-            Assert.Equal(8, tables.Count);
-            int n = 0;
-            foreach (var t in tables)
-            {
-                Assert.Contains("DERIVED, NOT TRANSCRIBED", t.VoltDropBasis);
-                foreach (var r in t.Rows)
-                {
-                    Assert.False(r.MvVerified);
-                    if (r.CsaMm2 > 16) { Assert.Equal(0, r.MvAm1ph); Assert.Equal(0, r.MvAm3ph); continue; }
-                    Assert.Equal(DerivedMv(r.CsaMm2, 90, false), r.MvAm1ph, 6);
-                    Assert.Equal(DerivedMv(r.CsaMm2, 90, true), r.MvAm3ph, 6);
-                    n++;
-                }
-            }
-            Assert.Equal(52, n);
+            foreach (var t in Data().Tables.Where(t => t.CableType != "SingleCore"))
+                Assert.All(t.Rows, r => Assert.True(r.MvAm1ph > 0 && r.MvAm3ph > 0, $"{t.Id} {t.InstallMethod} {r.CsaMm2}"));
         }
 
         [Fact]
@@ -392,7 +426,8 @@ namespace StingTools.Tags.Tests
             Assert.Equal(1.5, r.CsaMm2);
             Assert.Equal(22.0, r.TabulatedItA);
             Assert.True(r.UnverifiedCapacity);
-            Assert.Contains("It (Table 4D4A) and mV/A/m (Table 4D4B)", r.Basis);
+            Assert.False(r.UnverifiedVoltDrop);   // 4D4B ≤ 16 mm² is two-source checked
+            Assert.Contains("VERIFY: the 1.5 mm² It (Table 4D4A) has not been checked", r.Basis);
         }
 
         [Fact]

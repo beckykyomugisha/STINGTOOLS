@@ -811,7 +811,7 @@
                                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Insulation" Style="{StaticResource ElecLabel}"/>
                                 <ComboBox Grid.Row="6" Grid.Column="1" x:Name="cmbCblInsulation" Margin="2" FontSize="10">
                                     <ComboBoxItem Content="PVC (70°C)" IsSelected="True" Tag="PVC70"/>
-                                    <ComboBoxItem Content="XLPE (90°C)" Tag="XLPE90" ToolTip="Tables 4E2A / 4E4A current ratings are shipped. Their voltage drop up to 16 mm² is derived from conductor resistance (flagged VERIFY); 25 mm² and above is refused until the printed 4E2B / 4E4B are added"/>
+                                    <ComboBoxItem Content="XLPE (90°C)" Tag="XLPE90" ToolTip="BS 7671 Tables 4E2A / 4E4A with voltage drop 4E2B / 4E4B at every size. Rows not confirmed by two sources are flagged VERIFY in the result"/>
                                     <ComboBoxItem Content="LSOH (90°C)" Tag="LSOH90" ToolTip="LSOH is a sheath, not an insulation: choose XLPE (90°C) for a 90 °C thermosetting LSOH cable. This entry is refused on the BS 7671 path"/>
                                 </ComboBox>
                                 <TextBlock Grid.Row="7" Grid.Column="0" Text="Cable type" Style="{StaticResource ElecLabel}"/>
