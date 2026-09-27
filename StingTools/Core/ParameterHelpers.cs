@@ -5111,10 +5111,22 @@ namespace StingTools.Core
                     // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                     TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
-                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
+                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll.
+                    // FUNC (and a pipe's DISC) were derived from the SYS PopulateAll chose,
+                    // so re-derive them from the forced one — otherwise forcing Pipes to SAN
+                    // left FUNC=SUP from HVAC and DISC=M. An explicit FUNC / DISC in
+                    // CATEGORY_TOKEN_OVERRIDES below still wins.
                     if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
                         && !string.IsNullOrEmpty(forcedSys))
+                    {
                         ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
+                        ParameterHelpers.SetString(el, ParamRegistry.FUNC,
+                            TagConfig.GetSmartFuncCode(el, forcedSys), overwrite: true);
+                        if (CategoryTokenDefaults.PipeCategories.Contains(catName)
+                            && TagConfig.DiscMap.TryGetValue(catName, out string baseDisc))
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC,
+                                TagConfig.GetSystemAwareDisc(baseDisc, forcedSys, catName), overwrite: true);
+                    }
 
                     // Apply full per-category token overrides
                     if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))

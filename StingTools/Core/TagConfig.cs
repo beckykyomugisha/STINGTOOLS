@@ -1686,13 +1686,19 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>Get the first valid SYS code for a category name. O(1) via cached reverse lookup.
-        /// For categories with multiple valid systems (e.g., Pipes), returns the first match.
+        /// <summary>The category-fallback SYS code. O(1) via cached reverse lookup.
+        /// For a category listed under several systems it returns the category's
+        /// DISCIPLINE default when that is one of them (Walls → ARC, Generic Models → GEN),
+        /// else the first listed. It used to return the first listed, and LPS is listed
+        /// before ARC / STR / GEN, so walls, roofs and foundations defaulted to LPS.
         /// Use <see cref="GetAllSysCodes"/> when the full list is needed.</summary>
         public static string GetSysCode(string categoryName)
         {
+            if (string.IsNullOrEmpty(categoryName)) return string.Empty;
             var reverse = GetReverseSysMap();
-            return reverse.TryGetValue(categoryName, out var list) && list.Count > 0 ? list[0] : string.Empty;
+            if (!reverse.TryGetValue(categoryName, out var list) || list.Count == 0) return string.Empty;
+            string disc = DiscMap != null && DiscMap.TryGetValue(categoryName, out string d) ? d : null;
+            return CategoryTokenDefaults.ChooseCategorySys(list, disc);
         }
 
         /// <summary>Get ALL valid SYS codes for a category (e.g., Pipes → DCW, DHW, SAN, RWD, GAS, FP, HWS).</summary>
@@ -1746,20 +1752,7 @@ namespace StingTools.Core
         /// M→HVAC, E→LV, P→DCW (cold water bias), A→ARC, S→STR, FP→FP, LV→LV, G→GEN, else GEN.
         /// </summary>
         public static string GetDiscDefaultSysCode(string disc)
-        {
-            switch (disc)
-            {
-                case "M":  return "HVAC";
-                case "E":  return "LV";
-                case "P":  return "DCW"; // Cold water is more prevalent than DHW for unconnected pipes
-                case "A":  return "ARC";
-                case "S":  return "STR";
-                case "FP": return "FP";
-                case "LV": return "LV";
-                case "G":  return "GEN"; // Generic Models/Specialty Equipment — not gas-specific
-                default:   return "GEN";
-            }
-        }
+            => CategoryTokenDefaults.DisciplineDefaultSys(disc);
 
         /// <summary>
         /// The FUNC resolver — every tagging path calls this rather than carrying its own
@@ -1973,6 +1966,7 @@ namespace StingTools.Core
         // Corporate = STING_PROD_CODES.csv codes ∪ ProdMap values; a project overlay
         // adds its own prod_codes.csv codes (cached per overlay instance).
         private static HashSet<string> _corpKnownProdCodes;
+        private static Dictionary<string, HashSet<string>> _prodVocabByDisc;
         private static readonly Dictionary<object, HashSet<string>> _projKnownProdCodes = new();
 
         /// <summary>
@@ -1999,6 +1993,7 @@ namespace StingTools.Core
                 _csvProdRulesLoaded = false;
                 _csvProdRules = null;
                 _corpKnownProdCodes = null;
+                _prodVocabByDisc = null;
                 _projKnownProdCodes.Clear();
                 _projProdLoaded.Clear();
                 _projProdRules.Clear();
@@ -2044,6 +2039,28 @@ namespace StingTools.Core
                     StingLog.Info($"TagConfig: loaded {rules.Count} project PROD category rule sets from {key}");
                 }
                 return rules;
+            }
+        }
+
+        /// <summary>
+        /// PROD codes each discipline can carry according to the resolver's own data
+        /// (ProdMap + corporate STING_PROD_CODES.csv). ISO19650Validator accepts these
+        /// before applying its hand-written cross-discipline list, so the validator can
+        /// no longer reject a code the resolver itself produced.
+        /// </summary>
+        internal static Dictionary<string, HashSet<string>> GetProdVocabularyByDiscipline()
+        {
+            EnsureProdRulesLoaded();
+            lock (_prodRulesLock)
+            {
+                if (_prodVocabByDisc != null) return _prodVocabByDisc;
+                var ruleCodes = new List<KeyValuePair<string, string>>();
+                if (_csvProdRules != null)
+                    foreach (var kv in _csvProdRules)
+                        foreach (var r in kv.Value)
+                            ruleCodes.Add(new KeyValuePair<string, string>(kv.Key, r.ProdCode));
+                _prodVocabByDisc = CategoryTokenDefaults.ProdVocabularyByDiscipline(DiscMap, ProdMap, ruleCodes);
+                return _prodVocabByDisc;
             }
         }
 
@@ -3365,7 +3382,8 @@ namespace StingTools.Core
                         return "LV";
                     // F2: Plumbing/HVAC panels connected to electrical circuits
                     if (panel.Contains("SAN") || panel.Contains("SEWAGE") || panel.Contains("DRAIN")) return "SAN";
-                    if (panel.Contains("DHW") || panel.Contains("HWS") || panel.Contains("HOT WATER")) return "HWS";
+                    if (panel.Contains("DHW") || panel.Contains("HOT WATER")) return "DHW";
+                    if (panel.Contains("HWS") || panel.Contains("LTHW")) return "HWS";
                     if (panel.Contains("DCW") || panel.Contains("COLD WATER") || panel.Contains("MAINS")) return "DCW";
                     if (panel.Contains("GAS")) return "GAS";
                     if (panel.Contains("HVAC") || panel.Contains("AHU") || panel.Contains("FCU")) return "HVAC";
@@ -3406,15 +3424,21 @@ namespace StingTools.Core
                 upper.Contains("GRILLE") || upper.Contains("DIFFUSER"))
                 return "HVAC";
 
+            // Domestic hot water generation
+            if (upper.Contains("CALORIFIER") || upper.Contains("WATER HEATER") ||
+                upper.Contains("DHW CYLINDER"))
+                return "DHW";
+
             // Heating equipment
             if (upper.Contains("BOILER") || upper.Contains("RADIATOR") ||
-                upper.Contains("UNDERFLOOR HEAT") || upper.Contains("CALORIFIER") ||
-                upper.Contains("HEAT EXCHANGER"))
+                upper.Contains("UNDERFLOOR HEAT") || upper.Contains("HEAT EXCHANGER"))
                 return "HWS";
 
-            // Plumbing-specific equipment
-            if (upper.Contains("PUMP") && (categoryName == "Plumbing Fixtures" ||
-                upper.Contains("SUMP") || upper.Contains("SEWAGE") || upper.Contains("BOOSTER")))
+            // Plumbing-specific equipment. A sump or sewage pump moves foul water (SAN);
+            // it used to be tagged as cold-water supply.
+            if (upper.Contains("PUMP") && (upper.Contains("SUMP") || upper.Contains("SEWAGE")))
+                return "SAN";
+            if (upper.Contains("PUMP") && (categoryName == "Plumbing Fixtures" || upper.Contains("BOOSTER")))
                 return "DCW";
 
             // Fire protection
@@ -3553,41 +3577,17 @@ namespace StingTools.Core
             return null;
         }
 
+        private static HashSet<string> _pipeCategories => CategoryTokenDefaults.PipeCategories;
+
         /// <summary>
-        /// System-aware DISC correction. Pipes/pipe fittings are categorised as "M"
-        /// (Mechanical) by default, but if the connected MEP system is plumbing
-        /// (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
-        /// Similarly, fire protection pipes should be "FP".
+        /// System-aware DISC correction. Pipe-type categories are "M" by default; a
+        /// domestic service (DCW, DHW, SAN, RWD, GAS) makes them "P", FP makes them "FP",
+        /// and HVAC / HWS (heating water) keep them "M". Rules in
+        /// <see cref="CategoryTokenDefaults.SystemAwareDisc"/>.
         /// </summary>
-        private static readonly HashSet<string> _pipeCategories = new HashSet<string>
-        {
-            "Pipes", "Pipe Fittings", "Pipe Accessories", "Flex Pipes"
-        };
 
         public static string GetSystemAwareDisc(string disc, string sys, string categoryName)
-        {
-            // Only apply system-aware override for ambiguous categories (pipes, pipe fittings, etc.)
-            if (!_pipeCategories.Contains(categoryName))
-                return disc;
-
-            // Override DISC based on the detected system
-            switch (sys)
-            {
-                case "DCW":
-                case "DHW":
-                case "SAN":
-                case "RWD":
-                case "GAS":
-                case "HWS":
-                    return "P";
-                case "FP":
-                    return "FP";
-                case "HVAC":
-                    return "M";
-                default:
-                    return disc; // Keep original mapping
-            }
-        }
+            => CategoryTokenDefaults.SystemAwareDisc(disc, sys, categoryName);
 
         /// <summary>
         /// Map a system name string to a SYS code. Used by Layer 1 (connector) and Layer 2 (parameter).
@@ -3627,8 +3627,17 @@ namespace StingTools.Core
             }
             if (sysName == "FCU" || sysName.StartsWith("FCU ")) return "HVAC";
 
+            // Domestic hot water is its own system (DHW → DISC P, FUNC DHW). It used to
+            // fall into HWS below, so Revit's default "Domestic Hot Water" type became
+            // the HEATING system: a basin on it failed the category check and its pipes
+            // were filed with the LTHW circuits.
+            if (sysName.Contains("DOMESTIC HOT") || sysName.Contains("DHW") ||
+                sysName.Contains("HOT WATER SUPPLY") || sysName.Contains("HOT WATER SERVICE") ||
+                sysName.Contains("CALORIFIER"))
+                return "DHW";
+
             // Heating / hot water systems
-            if (sysName.Contains("HOT WATER") || sysName.Contains("DHW") || sysName.Contains("HWS")) return "HWS";
+            if (sysName.Contains("HOT WATER") || sysName.Contains("HWS")) return "HWS";
             if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("MTHW")) return "HWS";
             if (sysName.Contains("RADIATOR") || sysName.Contains("UNDERFLOOR")) return "HWS";
             if (sysName.Contains("STEAM") || sysName.Contains("CONDENSATE")) return "HWS";

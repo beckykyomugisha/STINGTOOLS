@@ -407,6 +407,12 @@ namespace StingTools.Core
                 string discForCat = TagConfig.DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
                 if (sys == TagConfig.GetDiscDefaultSysCode(discForCat))
                     sysValidForCategory = true;
+                // …and any system the element's discipline serves. Detection legitimately
+                // puts a boiler (Mechanical Equipment) on HWS, a booster set on DCW, a basin
+                // on DHW; SysMap membership alone rejected every one of those.
+                string discForSys = TagConfig.GetSystemAwareDisc(discForCat, sys, catName);
+                if (_validSysForDisc.TryGetValue(discForSys, out var sysForDisc) && sysForDisc.Contains(sys))
+                    sysValidForCategory = true;
                 if (!sysValidForCategory)
                 {
                     // Find what SYS codes ARE valid for this category
@@ -691,7 +697,8 @@ namespace StingTools.Core
         internal static readonly Dictionary<string, HashSet<string>> _validSysForDisc =
             new Dictionary<string, HashSet<string>>
             {
-                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
+                // FP: fire pumps and sprinkler valve sets are modelled as Mechanical Equipment.
+                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN", "FP" } },
                 { "E",  new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
                 { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
                 { "FP", new HashSet<string> { "FP", "FLS" } },
@@ -709,6 +716,15 @@ namespace StingTools.Core
         {
             // GEN is valid for all disciplines
             if (prod == "GEN" || prod == "SPE" || prod == "MED") return null;
+            // A code the resolver's own data assigns to this discipline is valid, whatever
+            // the hand-written list below says (Pipes → PP at DISC M, Mechanical Equipment
+            // rules → PAC / SPT / MCP, Structural Path Reinforcement → SPT).
+            try
+            {
+                var vocab = TagConfig.GetProdVocabularyByDiscipline();
+                if (vocab != null && vocab.TryGetValue(disc, out var own) && own.Contains(prod)) return null;
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateProdForDisc vocabulary: {ex.Message}"); }
             // If we don't have a mapping for this discipline, skip
             if (!ProdCodesByDisc.TryGetValue(disc, out var validProds)) return null;
             // VFD appears in both M and E — skip cross-disc check for shared codes

@@ -23996,3 +23996,38 @@ duplicate-tag path. All fixed.
   the pre-change baseline. That baseline only has errors from XAML-generated members.
 - **Not exercised in Revit.** Check Batch Tag, with and without Overwrite, on a model with
   GEN-tagged elements and LPS families before merging.
+
+#### Category crosscheck: SYS / FUNC / PROD defaults for every category (2026-09-27, same branch)
+
+Simulated every one of the 124 categories in the default maps, and the systems detection can
+give them, against the validator's own cross-checks.
+
+- **18 categories defaulted to SYS=LPS.** `GetSysCode` returned the first system listing the
+  category, and LPS is declared before ARC / STR / GEN, so every wall, roof, foundation, rebar
+  set, fascia, gutter, generic model, specialty equipment and detail item was tagged as
+  lightning protection. The category fallback now prefers the discipline's own system
+  (`CategoryTokenDefaults.ChooseCategorySys`). LPS still applies by family name.
+- **Fire Alarm Devices** carried DISC `FLS`, which is a system code and fails DISC validation.
+  They are now DISC `FP` with SYS `FLS`, as `TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv` has it.
+- **Domestic hot water** system names ("Domestic Hot Water", DHW, calorifiers, water heaters) now
+  map to SYS `DHW`. They used to map to `HWS`, the heating system, so basins on hot water failed
+  the category check.
+  - Heating pipes (HWS) are now DISC M. `GetSystemAwareDisc` used to file them as Plumbing.
+  - Pipe Insulation and fabrication pipework follow the pipe's system for DISC.
+- **Sump and sewage pumps** are SYS `SAN`, not `DCW`.
+- **Validator agrees with detection.**
+  - A SYS is valid for a category when that category's discipline serves it: boilers on HWS,
+    booster sets on DCW, basins on DHW, fire pumps (M → FP).
+  - The PROD-vs-DISC check accepts every code the resolver's own data assigns to that
+    discipline. That covers PP on an unclassified pipe, the PAC / SPT / MCP / CLT / SKT rules,
+    Wash → WSH and Path Reinforcement → SPT.
+- **`CATEGORY_FORCE_SYS`** re-derives FUNC, and a pipe's DISC, from the forced system instead
+  of leaving them derived from the replaced one.
+- **Existing models.** Stored tokens are kept by a normal re-tag. Elements already tagged
+  `LPS` / DISC `FLS` / HWS-as-P change only with Overwrite, which re-sequences them in their
+  new SEQ group.
+- **Tests.** `CategoryTokenAuditTests` (41) reads the default maps and validator tables from
+  source and runs the shared `CategoryTokenDefaults` rules over every category, every PROD rule
+  and the realistic detected systems. 12 fail against the previous behaviour.
+  `StingTools.Tags.Tests`: 3,491 passing. The Linux compile of the plugin shows no new errors.
+- **Not exercised in Revit.**
