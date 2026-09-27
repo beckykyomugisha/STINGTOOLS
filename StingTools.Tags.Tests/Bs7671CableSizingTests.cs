@@ -383,27 +383,37 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Armoured_single_source_rows_are_flagged_on_capacity()
         {
-            // 4D4A method C: 1.5 mm² 21 A ≥ 20 A; single-source row.
+            // 4D4A method D2 (direct in ground) still has one source: 1.5 mm² 22 A ≥ 20 A.
             var i = Pvc(20, 5, 5.0);
             i.CableType = "ArmouredMulticore";
+            i.InstallMethod = "D2";
             var r = Bs7671CableSizer.Size(i, Data());
             Assert.True(r.Sized, r.Refusal);
             Assert.Equal(1.5, r.CsaMm2);
-            Assert.Equal(21.0, r.TabulatedItA);
+            Assert.Equal(22.0, r.TabulatedItA);
             Assert.True(r.UnverifiedCapacity);
             Assert.Contains("It (Table 4D4A) and mV/A/m (Table 4D4B)", r.Basis);
         }
 
         [Fact]
-        public void Ladder_two_circuits_read_the_three_circuit_row()
+        public void Armoured_clipped_direct_capacity_is_now_two_source_checked()
         {
-            // The 2-circuit ladder factor is not carried (sources disagree), so the lower 3-circuit value is used.
+            // 4D4A method C agrees with the Hong Kong CoP 2020 Table A6(4) on every row.
+            var t = Data().FindTable("Cu", "PVC70", "C", "ArmouredMulticore");
+            Assert.Equal(17, t.Rows.Count);
+            Assert.All(t.Rows, r => Assert.True(r.Verified));
+        }
+
+        [Fact]
+        public void Ladder_two_circuits_uses_its_own_row()
+        {
+            // Table 4C1 row 5, 2 circuits = 0.87 (BS source + three IEC B.52.17 transcriptions).
             var i = Pvc(6, 5, 5.0);
             i.GroupedCircuits = 2;
             i.GroupingArrangement = "SingleLayerLadderCleats";
             var r = Bs7671CableSizer.Size(i, Data());
-            Assert.Equal(0.82, r.Cg, 3);
-            Assert.Contains("read at the 3-circuit row", r.Basis);
+            Assert.Equal(0.87, r.Cg, 3);
+            Assert.DoesNotContain("read at the", r.Basis);
         }
 
         [Fact]
