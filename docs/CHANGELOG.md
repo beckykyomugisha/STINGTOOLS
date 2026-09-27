@@ -23874,3 +23874,18 @@ GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOUR
   - Transcribed values stay at or below the resistance bound.
   - Red check: changing one 4E4B value fails the pinning test.
 - **Not exercised in Revit.**
+
+#### BS 7671 tables: every current rating two-source checked (2026-09-27)
+
+- **Current ratings.** The last 104 single-source cells (4D4A D1/D2, 4E4A D2, 4E4A D1
+  150–300 mm²) equal IEC 60364-5-52 Tables B.52.2–B.52.5 columns D1/D2 exactly, in two
+  independent IEC transcriptions (Ali-3427/ElektroPlan, m0000hamad/CableSizer). All 52 rows are
+  now `verified`, so every It row in `STING_WIRE_TABLES.json` is two-source checked.
+  - This confirms BS 7671 repeats the IEC figures; it is not a second BS copy. The D2 column is
+    new in A4:2026 and rests on one BS transcription.
+  - Two further BS repositories share a typo (4D4A D2 300 mm²: 472 against 427) and do not count.
+  - Stale "SINGLE SOURCE ONLY" basis notes rewritten.
+- **Tests.** `Armoured_in_ground_capacity_is_two_source_checked` replaces the single-source flag
+  test; `Every_capacity_row_is_two_source_checked` fails on any future single-source row.
+  3,419 passing.
+- **Not exercised in Revit.**

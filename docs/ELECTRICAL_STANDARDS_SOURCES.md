@@ -41,6 +41,7 @@ rows compared against an NBR-only row carry less weight.
 | E | [HansEJC `lvcalc.js`](https://github.com/HansEJC/hansejc.github.io/blob/master/js/lvcalc.js) | BS 7671:2018 Table 4E4A/4E4B, 1.5–120 and 400 mm² (first committed 2021). Its It column "D" matches D1. |
 | F | [Elec-Mate `useEVChargingSmartForm.ts`](https://github.com/Gangoo91/Elec-Mate-Merge/blob/main/src/hooks/inspection/useEVChargingSmartForm.ts) | 4E4B 1.5–25 mm². |
 | G | [Pedroaaandrade `index.html`](https://github.com/Pedroaaandrade/bs7671-Cable-sizing-calculator/blob/main/index.html) | 4D1A B/C/F and 4D4A (including D1/D2), plus 4D4B r and x. It was committed after A, so it only corroborates and never counts as the second source on its own. |
+| H | IEC 60364-5-52 Tables B.52.2–B.52.5 in two transcriptions: [Ali-3427/ElektroPlan](https://github.com/Ali-3427/ElektroPlan/tree/16f96142691e6455339c54ccd58b3f2a63e2c0a3/packages/calculation-data/src/iec/cable-ampacity) @16f9614 and [m0000hamad/CableSizer](https://github.com/m0000hamad/CableSizer/blob/4ac0a7b0e7d3a8ff89ae7d421033886e5d71d102/index.html) @4ac0a7b ([AjmalJamseeth/ajpowerapps](https://github.com/AjmalJamseeth/ajpowerapps/blob/79943a536a53aa0925f9ed5fef281feecc561efb/src/lib/cable.ts) corroborates D1) | Second source for the armoured D1 and D2 columns (4D4A, 4E4A). |
 | — | IEC 60364-5-52 B.52.17 transcriptions ([FabriNeves](https://github.com/FabriNeves/Dimensionamento-de-cabos-BT), [llosinskas](https://github.com/llosinskas/Circuits-FreeCAD), [electrical-dev](https://github.com/electrical-dev/WebSite)) | Table 4C1 ladder row, including the 2-circuit factor 0.87. |
 
 Rejected: three repositories whose values were fabricated, called "representative" by their
@@ -57,8 +58,21 @@ print; everything here comes from public transcriptions reachable through GitHub
 | 4E2A A / B / C / E | all | IEC via B, and D |
 | 4D4A C / E | all | D (and G) |
 | 4E4A C / E | all | D, and E for 1.5–120 and 400 mm² |
-| 4E4A D1 | 12/16 | E for 1.5–120 mm². 150–300 mm² have a single source. |
-| 4D4A D1 / D2, 4E4A D2 | 0 | Single source (G only corroborates). Every result is flagged VERIFY. |
+| 4E4A D1 | all | E for 1.5–120 mm², H for every size |
+| 4D4A D1 / D2, 4E4A D2 | all | H |
+
+Every current rating in the file is now two-source checked, and a test
+(`Every_capacity_row_is_two_source_checked`) fails if a single-source row is added.
+
+The armoured D1 and D2 values in source A equal the IEC non-armoured multicore D1 and D2
+columns cell for cell (104 cells, no mismatch), and the pre-2026 single "D" column in E equals
+IEC D1. So for these columns the check confirms that BS 7671 repeats the IEC figures, not that a
+second copy of BS 7671 agrees. The D2 column is new in BS 7671 A4:2026 and no earlier BS
+transcription can exist for it; that A4 took IEC D2 unchanged rests on source A alone. No BS
+transcription independent of A was reachable (manufacturer, distributor, IET and EMSD sites are
+blocked by the research network policy). A shared-typo check ruled out two further BS
+repositories (G and hiufsitake/EEE both print 472 A for 4D4A D2 300 mm², where A and IEC give
+427 A), so neither counts as independent.
 
 One cell disagrees: 4D2A method E, 400 mm², single-phase. D gives 705 A, while A and IEC give
 715 A. The row keeps 715 and carries a note.
