@@ -24248,3 +24248,66 @@ CSV / JSON dumps. See ROADMAP DOCX-8.
 - **Behaviour change for users.** Reports that used to appear in `20_MISC` now appear in
   their typed folder (16_COMPLIANCE, 15_REGISTERS, 07_SCHEDULES …). Existing files in MISC
   are not moved.
+
+#### Open DOCX items closed + document / sheet management consistency review (2026-09-27, same branch)
+
+**DOCX-1…11.** All closed. The details are in ROADMAP; in outline:
+- One suitability default, via `Iso19650Suitability.DefaultFor` / `ForTransition`.
+- Data stores moved out of MISC with carry-forward, via `GetStorePath`.
+- Master Setup no longer re-binds parameters or opens COBie mid-run.
+- Every Export Centre setting is wired or deleted.
+- Per-project Export Centre state, a schedule UI with save-triggered runs, sheet-derived
+  suitability, and register recording.
+
+**Review: document management, sheet management and documentation.** The recurring defect was
+the same rule implemented several times, with the copies disagreeing.
+
+- **Suitability ↔ CDE state.**
+  - The plugin had six mappings. Five were fixed under DOCX-1; `DeliverableLifecycle.Publish`
+    stamped S4 / S5 on PUBLISHED and is fixed now.
+  - The server demanded S4 / S5 / S6 / AB for PUBLISHED and S7 for ARCHIVE, and did not accept
+    any A or B code. Now it follows ISO 19650: A / B / CR published, AB / AR archive. The old
+    codes are still accepted, and the defaults are A1 and AR. `ISO19650Codes.SuitabilityCodes`
+    gained A1–A5, B1–B6 and AR. The comments that called CR "coordination review" and AB
+    "as-built" are corrected.
+  - `CdeStateFor` filed AB, AR and any word starting with A or B as PUBLISHED.
+- **Discipline of a sheet.** There were four parsers. "AR-101" read as AR, A or General, and
+  an ISO-number sheet read as its project code. They are replaced by
+  `SheetDisciplineResolver.ForSheet`.
+- **Sheet numbers.**
+  - The Sheet Manager, sheet sets and templates hard-coded `{disc}-{seq:D3}`; they now follow
+    the project pattern.
+  - Batch Renumber counted a sheet as renamed on the temporary pass and never rebuilt
+    `SHT_TAG_1_TXT`. It now goes through `SheetNumbering.Apply`.
+  - "Enforce ISO Naming" had its own identifier builder: the Project Number cut to 6
+    characters, and the level "L01". It now delegates to Tag Sheets → `Sheet_NumberFromIso` →
+    `Sheet_NumberRestore`.
+- **Sheet compliance.** The "10 ISO 19650 rules" were hygiene checks. Five real checks were
+  added: identifier, role against the declared discipline, suitability, revision, and CDE
+  state against suitability.
+- **Document register schema.**
+  - The writers disagreed: `doc_id` in one, `document_id` in another.
+  - The Document Manager's legacy loader and the COBie Document sheet each read one spelling.
+    COBie also read `name` and `date`, which no writer produces, so every COBie Document row
+    had an empty Name.
+  - All three now read through `DocumentRegisterMerge.MapRegisterRow`. The writers emit both
+    ids, edits match any id key, and the DOC counter scans both spellings.
+- **Documentation.**
+  - CLAUDE.md: the Sheet Manager figures were remeasured (~8,400 lines, not 4,488) and its
+    rules updated. `StingCommandHandler` is ~9,800 lines. The Documentation Map had the doc
+    count as 133; it is now 193. A new section, "Export Centre + Document Manager", records
+    their contracts.
+  - The Document Manager guides, the BIM coordination guide, the BCC guide and the KUT BEP /
+    playbook said S4 is published, S7 is archive, and "SHARED (S0–S4)". These are corrected.
+
+**Verification.**
+- Plugin build: 0 errors.
+- `StingTools.Tags.Tests`: 3,557 passing.
+- Server API builds. The document tests pass (65), plus 6 new ones. The new publish tests
+  were shown red against the old server rules and green after the fix.
+- Gates: path-discipline, command-doc-acquisition, workflow-wiring and export-routing all
+  pass.
+- **Not exercised in Revit.** Check a publish, a Batch Renumber, and an Export Centre run
+  into the project structure.
+- **Deployment:** the server change needs a redeploy before the plugin's A1 publishes are
+  accepted by production.

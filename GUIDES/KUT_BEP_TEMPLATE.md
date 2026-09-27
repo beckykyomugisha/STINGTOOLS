@@ -147,10 +147,11 @@ Example: `KUT-SMB-ZZ-XX-M3-A-0001`  *(the originator field is exactly 3 characte
 | Number | 0001… |
 
 ### 4.3 CDE states & suitability codes
-`WIP → SHARED (S0–S4) → PUBLISHED (A1/B1) → ARCHIVED` · Revisions `P0x` (preliminary) / `C0x` (contractual).
+`WIP (S0) → SHARED (S1–S4) → PUBLISHED (A1/B1) → ARCHIVED` · Revisions `P0x` (preliminary) / `C0x` (contractual).
 | Code | Meaning |
 |---|---|
-| S0–S4 | Shared (WIP / coordination / information / review / stage approval) |
+| S0 | Work in progress (not shared) |
+| S1–S4 | Shared (coordination / information / review / stage approval) |
 | A1…An | Published — authorised |
 | B1…Bn | Published — with comments |
 

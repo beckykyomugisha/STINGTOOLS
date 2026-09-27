@@ -178,7 +178,7 @@ The bread-and-butter flow for design teams.
 1. In Revit, produce sheets via the Sheet Manager + Drawing Template Manager.
 2. Open the **BIM Coordination Center** → **Deliverables** tab.
 3. Click **Issue Deliverable**: the plugin renders an A01 cover sheet (DOCX), bumps the revision, writes a row to `deliverables.json`, mirrors to the server.
-4. Click **Publish Stage 3** when ready for construction issue: the plugin moves the deliverable to PUBLISHED + S4. The server requires a Manager role plus an approved DocumentApproval.
+4. Click **Publish Stage 3** when ready for construction issue: the plugin moves the deliverable to PUBLISHED + A1 (authorised; ISO 19650 files S1–S7 in SHARED, never in PUBLISHED). The server requires a Manager role plus an approved DocumentApproval.
 
 ### Path 3 — Transmittals + RFIs + MRs (template engine)
 

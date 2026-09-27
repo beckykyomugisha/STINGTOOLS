@@ -25,7 +25,7 @@ The codebase is currently at **Phase 194**. Per-phase history (Phase 179 onward)
 | `CLAUDE.md` (this file — **stable reference + a dated [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) snapshot**) | Architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
 | `docs/CHANGELOG.md` | **Phase-by-phase history** — every `Completed (Phase X)` block in chronological order | When a new phase of work lands; append a new `#### Completed (Phase N — …)` section |
 | `docs/ROADMAP.md` | **Open gaps & future work** — automation-gap tables, future-enhancement lists, deep-review findings | When new gaps are identified or an item is closed (move it to `CHANGELOG.md`) |
-| `docs/INDEX.md` | **Table of contents for the 133 `docs/` files** — grouped by topic, marking which doc is current (✅) vs superseded (⛔) | When a doc is added, or when one supersedes another |
+| `docs/INDEX.md` | **Table of contents for the `docs/` files** (193 on 2026-09-27; every one is listed) — grouped by topic, marking which doc is current (✅) vs superseded (⛔) | When a doc is added, or when one supersedes another |
 
 When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than extending this file. When you identify a new gap, add it to `docs/ROADMAP.md` — that keeps this file focused on what the code **is** rather than what it has been or might become.
 
@@ -1260,7 +1260,7 @@ Registered in the BIM tab of the dock panel and in `StingCommandHandler`:
 |---|---|---|---|
 | `IssueDeliverable` | `Planscape.Docs.Templates.IssueDeliverableCommand` | Manual | Render A01, write revision history, start `deliverable_issue_default` workflow, audit |
 | `ReIssueDeliverable` | `ReIssueDeliverableCommand` | Manual | Bump revision + re-issue |
-| `PublishDeliverable` | `PublishDeliverableCommand` | Manual | Promote to S4 / `PUBLISHED` CDE container |
+| `PublishDeliverable` | `PublishDeliverableCommand` | Manual | Promote to `PUBLISHED` with an authorised code (A1 by default) |
 | `CancelDeliverable` | `CancelDeliverableCommand` | Manual | Render A02 cancellation notice, archive |
 | `SupersedeDeliverable` | `SupersedeDeliverableCommand` | Manual | Mint new number, render A03 |
 | `ReplaceDeliverable` | `ReplaceDeliverableCommand` | Manual | Render A04 replacing notice, cross-link |
@@ -1971,7 +1971,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 |-----------|------|---------|
 | `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (2,163 lines) | WPF markup: 10-tab layout (SELECT / TAGGING / DOCS / SETUP / CREATE TAGS / MODEL / BIM / TAG STUDIO / INTEROP / HEALTHCARE); TAG STUDIO carries 13 sub-tabs, ~610 buttons, colour swatches, bulk parameter controls |
 | `StingDockPanel.xaml.cs` | `UI/StingDockPanel.xaml.cs` (377 lines) | Code-behind: button dispatch via `IExternalEventHandler`, colour swatch builder, status bar |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,817 lines) | `IExternalEventHandler` — maps 590+ button Tag strings to 374 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` (~9,800 lines, 2026-09-27) | `IExternalEventHandler` — maps 590+ button Tag strings to 374 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` (37 lines) | `IDockablePaneProvider` — registers panel with Revit, sets initial dock position (Right, 320×400 min) |
 | `ToggleDockPanelCommand` | `Core/StingToolsApp.cs` (line 825) | `IExternalCommand` — toggles panel visibility from ribbon button |
 
@@ -2460,19 +2460,25 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 
 ## Sheet Manager System
 
-`Docs/SheetManager*.cs` + `Docs/SheetTemplate*.cs` + `Docs/SheetSetCommands.cs` (7 files, ~4,488 lines) provides comprehensive automated sheet and viewport management with 24 commands across 3 phases.
+`Docs/SheetManager*.cs` + `Docs/SheetTemplate*.cs` + `Docs/SheetSetCommands.cs` + `UI/SheetManagerDialog.cs` (7 files, ~8,400 lines, measured 2026-09-27) provides automated sheet and viewport management with 24 commands across 3 phases.
+
+**Sheet numbers and ISO identifiers have ONE implementation each — the Sheet Manager uses them, it does not own them:**
+- Next number: `SheetNumbering.NextNumber` (the project's `PRJ_TB_SHEET_NUMBER_PATTERN_TXT` from TITLE_BLOCK.csv, default `{disc}-{seq:D3}`), shared by the Sheet Manager, sheet sets, sheet templates and Auto-Number.
+- Renumber: `SheetNumbering.Apply` — park, restore on failure, rebuild `SHT_TAG_1_TXT`, record `sheet_number_history.json`. Batch Renumber plans with Auto-Number's rules (locked and ISO-identifier sheets untouched, taken numbers routed around).
+- ISO numbers: "Enforce ISO Naming" delegates to Tag Sheets → `Sheet_NumberFromIso` → `Sheet_NumberRestore`.
+- Discipline of a sheet: `SheetDisciplineResolver.ForSheet` (ISO role segment, then number prefix, then title) — the same answer the Export Centre files by.
 
 ### Architecture
 
 | Component | File | Lines | Description |
 |-----------|------|-------|-------------|
-| Core Engine | `SheetManagerEngine.cs` | 1,041 | Drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
-| Extended Engine | `SheetManagerEngineExt.cs` | 943 | MaxRects bin packing (BSSF heuristic), layout presets (JSON persistence), viewport type rules, batch clone/renumber, overflow handling |
-| Template Engine | `SheetTemplateEngine.cs` | 858 | 6 built-in sheet templates, create/save templates, ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
-| WPF Dialog | `SheetManagerDialog.cs` | 830 | Dual-panel dialog: TreeView (sheets grouped by discipline, viewport children, unplaced views) + context-sensitive detail panel |
-| Phase 1 Commands | `SheetManagerCommands.cs` | 849 | 8 commands for core sheet management operations |
-| Phase 2 Commands | `SheetSetCommands.cs` | 548 | 8 commands for advanced layout, presets, and batch operations |
-| Phase 3 Commands | `SheetTemplateCommands.cs` | 419 | 8 commands for templates, compliance, alignment, and export |
+| Core Engine | `SheetManagerEngine.cs` | 1,077 | Drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
+| Extended Engine | `SheetManagerEngineExt.cs` | 966 | MaxRects bin packing (BSSF heuristic), layout presets (JSON persistence), viewport type rules, batch clone/renumber, overflow handling |
+| Template Engine | `SheetTemplateEngine.cs` | 1,140 | 6 built-in sheet templates, create/save templates, compliance (10 hygiene + 5 ISO 19650 checks), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
+| WPF Dialog | `SheetManagerDialog.cs` | 2,263 | Dual-panel dialog: TreeView (sheets grouped by discipline, viewport children, unplaced views) + context-sensitive detail panel |
+| Phase 1 Commands | `SheetManagerCommands.cs` | 1,854 | 8 commands for core sheet management operations |
+| Phase 2 Commands | `SheetSetCommands.cs` | 559 | 8 commands for advanced layout, presets, and batch operations |
+| Phase 3 Commands | `SheetTemplateCommands.cs` | 518 | 8 commands for templates, compliance, alignment, and export |
 
 ### Sheet Manager Commands (24)
 
@@ -2496,7 +2502,7 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 | Place With Overflow | `PlaceWithOverflowCommand` | Manual | Place views with auto-overflow to continuation sheets |
 | Create From Template | `CreateFromTemplateCommand` | Manual | Create sheet from built-in or saved template |
 | Save Sheet Template | `SaveSheetTemplateCommand` | ReadOnly | Save current sheet as reusable template |
-| Sheet Compliance | `SheetComplianceCheckCommand` | ReadOnly | ISO 19650 sheet compliance audit (10 rules) |
+| Sheet Compliance | `SheetComplianceCheckCommand` | ReadOnly | Sheet audit: 10 hygiene checks + 5 ISO 19650 (identifier, role vs discipline, suitability, revision, CDE state) |
 | Grid Align | `GridAlignViewportsCommand` | Manual | Snap viewport centres to alignment grid |
 | Align Edges | `AlignViewportEdgesCommand` | Manual | Align viewport edges (left/right/top/bottom/center) |
 | Distribute | `DistributeViewportsCommand` | Manual | Distribute viewports evenly across sheet |
@@ -2511,11 +2517,21 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 - **Collision detection**: 2D AABB overlap checking between viewports
 - **Layout presets**: 6 built-in presets
 - **Sheet templates**: 6 built-in templates
-- **ISO 19650 compliance**: 10 rules
+- **Compliance**: 10 hygiene checks + 5 ISO 19650 checks judged by the title block's own rules
 - **Grid alignment**: Configurable grid with snap-to-nearest
 - **Edge alignment**: 6 modes
 - **Batch PDF export**: By scope (all/discipline/selection) with sanitised filenames
-- **Two-pass rename**: Avoids Revit sheet number conflicts during batch renumbering
+- **Two-pass rename**: via `SheetNumbering.Apply` (restores a sheet whose final number is refused)
+
+## Export Centre + Document Manager (document control)
+
+`Docs/ExportCenter*.cs` + `Docs/ScheduledExportRunner.cs` + `UI/StingExportCenterDialog.cs`, and `UI/DocumentManagementDialog.cs` (9 tabs). Contracts that keep them aligned (reviewed 2026-09-27; history in CHANGELOG, open items DOCX-* in ROADMAP — all closed):
+
+- **Suitability is the input; CDE state follows.** `Iso19650Suitability.CdeStateFor` (S0 WIP · S1–S7 SHARED · A/B/CR PUBLISHED · AB/AR ARCHIVE) and `DefaultFor(state)` (WIP S0 · SHARED S3 · PUBLISHED A1 · ARCHIVE AR) are the only mappings. A CDE move keeps a code that already belongs in the target state (`ForTransition`).
+- **Filenames match the drawing.** Export tokens come from the sheet's ISO identifier (`SHT_TAG_1_TXT` or an ISO sheet number), its suitability (`PRJ_DWG_SUITABILITY_COD_TXT`) and its revision label — the same facts the title block prints.
+- **Where files land.** "File into the project structure" (on after Auto) puts each sheet in its suitability's CDE state and its discipline folder (`ExportCenterEngine.DeliverableFolderForSheet`); a sheet with no suitability follows the export route. Exports are recorded in the document register (`CdeAutoRegister`).
+- **State.** Profiles are user-level (`project_config.json`); saved sets, last-export records and scheduled jobs are per project (`_data/coord/export_center.json`). Schedules run from the ⏱ window or after a save (opt-in, via the Idling scheduler).
+- **One register schema.** Rows are read through `DocumentRegisterMerge.MapRegisterRow` everywhere (Document Manager, unified register, COBie Document sheet); writers emit both `doc_id` and `document_id`.
 
 ## Model Auto-Modeling Engine
 
