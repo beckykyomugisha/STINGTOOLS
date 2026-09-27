@@ -59,6 +59,9 @@ namespace StingTools.Core.Electrical
     {
         public string Id { get; set; }             // "4D2A"
         public string VoltDropTable { get; set; }  // "4D2B"
+        /// <summary>How the mV/A/m were obtained when they are not a transcription of the
+        /// printed table (e.g. derived from conductor resistance); empty when transcribed.</summary>
+        public string VoltDropBasis { get; set; } = "";
         public string Description { get; set; }
         public string Conductor { get; set; }      // "Cu"
         public string Insulation { get; set; }     // "PVC70"
@@ -131,6 +134,7 @@ namespace StingTools.Core.Electrical
                 {
                     Id = (string)t["id"],
                     VoltDropTable = (string)t["voltDropTable"],
+                    VoltDropBasis = (string)t["voltDropBasis"] ?? "",
                     Description = (string)t["description"],
                     Conductor = (string)t["conductor"],
                     Insulation = (string)t["insulation"],
@@ -240,6 +244,8 @@ namespace StingTools.Core.Electrical
         public bool UnverifiedCapacity { get; set; }
         /// <summary>The chosen row's mV/A/m is not two-source checked.</summary>
         public bool UnverifiedVoltDrop { get; set; }
+        /// <summary>The chosen row's mV/A/m were derived, not transcribed (the table's VoltDropBasis says how).</summary>
+        public bool VoltDropDerived { get; set; }
         /// <summary>Tables, factors and assumptions used — for the derivation note.</summary>
         public string Basis { get; set; } = "";
     }
@@ -401,6 +407,11 @@ namespace StingTools.Core.Electrical
                             : r.UnverifiedCapacity ? $"It (Table {table.Id})" : $"mV/A/m (Table {table.VoltDropTable})";
                 sb.Append($" VERIFY: the {winner.CsaMm2:0.#} mm² {what} has not been checked against a second " +
                           "source — confirm against the printed BS 7671 before issue.");
+                if (r.UnverifiedVoltDrop && !string.IsNullOrWhiteSpace(table.VoltDropBasis))
+                {
+                    r.VoltDropDerived = true;
+                    sb.Append($" Table {table.VoltDropTable} values here are {table.VoltDropBasis}");
+                }
             }
             sb.Append(" Not checked here: adiabatic (Reg 434.5.2), Zs / disconnection time, VD upstream of the circuit origin.");
             r.Basis = sb.ToString();

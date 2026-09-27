@@ -23820,3 +23820,24 @@ source and discrepancy is listed in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
 
 Plugin build 0/0; repo gates pass. **Not exercised in Revit.** Checklist rows were added to
 `MEP_SMOKETEST_CHECKLIST.md`.
+
+#### XLPE voltage drop, derived (2026-09-27)
+
+- **Why derived.** The printed Tables 4E2B and 4E4B could not be reached from any source
+  available to this session.
+- **What was added.** Values for 1.0–16 mm² were calculated for all eight 4E2A / 4E4A tables
+  (52 rows): 2 or √3 × BS EN 60228 R20 (the `VoltageDropEngine` table), corrected to 90 °C,
+  rounded **up** to two significant figures.
+- **Evidence the rule errs on the safe side.** At 70 °C it never falls below the checked
+  4D2B: 9 of 14 values are equal, the rest up to 9 % higher.
+- **How results show it.** Each table carries a `voltDropBasis`; a result on those rows sets
+  `VoltDropDerived` and says "DERIVED, NOT TRANSCRIBED" alongside VERIFY.
+- **Larger sizes.** 25 mm² and above stay refused, because the tables depend on reactance
+  there.
+- **Tests.**
+  - Small XLPE cables now size.
+  - Large ones are still refused.
+  - The shipped values equal the rule.
+  - The rule is never below the 70 °C table.
+  - Red check: changing one shipped value fails the pinning test.
+- Details are in `docs/ELECTRICAL_STANDARDS_SOURCES.md`. **Not exercised in Revit.**

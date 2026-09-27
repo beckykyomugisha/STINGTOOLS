@@ -60,8 +60,18 @@ Voltage drop:
 
 - **Two-source checked:** 4D2B ≤ 16 mm² only (the existing data and A agree).
 - **Single source:** 4D1B and 4D4B ≤ 16 mm².
-- **Not carried:** 4E2B, 4E4B, and every value ≥ 25 mm² for the new tables. Those sizes are
-  refused.
+- **Derived, not transcribed (2026-09-27):** 4E2B and 4E4B ≤ 16 mm². No source for either
+  table was reachable, so each value is calculated as 2 (single-phase) or √3 (three-phase) ×
+  the BS EN 60228 conductor resistance at 20 °C (the `VoltageDropEngine` table), corrected to
+  90 °C with α = 0.00393 /K, and rounded **up** to two significant figures.
+  - Evidence that this errs on the safe side: the same rule at 70 °C never falls below the
+    two-source-checked 4D2B. Of those 14 values, 9 are equal and the rest are up to 9 % higher
+    (4 mm² single-phase: 12 against 11).
+  - A result on one of these rows says "DERIVED, NOT TRANSCRIBED" and VERIFY.
+  - `Shipped_XLPE_voltage_drop_is_exactly_the_derivation_and_never_verified` pins every value
+    to the rule. Replace them with the printed tables when available.
+- **Not carried:** every value ≥ 25 mm² for the new tables. Above 16 mm² the tables depend
+  on reactance, which is not derived, so those sizes are refused.
 
 Table 4B1 is unchanged; the sub-30 °C rows are still not carried, and PVC at 25 °C
 disagrees between sources (1.03 against 1.06). Table 4C1 gains the perforated-tray and
