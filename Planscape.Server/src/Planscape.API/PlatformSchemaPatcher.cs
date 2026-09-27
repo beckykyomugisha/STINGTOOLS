@@ -37,6 +37,9 @@ internal static class PlatformSchemaPatcher
             ""AppliedUtc"" timestamp with time zone,
             ""PrevHash"" text,
             ""RowHash"" text)",
+        // IM-11: ComplianceSnapshots.Kind separates pushed warning reports from compliance
+        // snapshots. Existing rows are all compliance snapshots, hence the default.
+        @"ALTER TABLE ""ComplianceSnapshots"" ADD COLUMN IF NOT EXISTS ""Kind"" text NOT NULL DEFAULT 'compliance'",
         // Idempotent column add for DBs created before Attempts existed.
         @"ALTER TABLE ""PlatformEvents"" ADD COLUMN IF NOT EXISTS ""Attempts"" integer NOT NULL DEFAULT 0",
         @"CREATE UNIQUE INDEX IF NOT EXISTS ""IX_PlatformEvents_Project_Seq"" ON ""PlatformEvents"" (""ProjectId"", ""Sequence"")",
