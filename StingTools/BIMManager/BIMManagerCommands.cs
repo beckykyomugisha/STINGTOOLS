@@ -3605,10 +3605,16 @@ namespace StingTools.BIMManager
         //  Transmittal Engine
         // ═══════════════════════════════════════════════════════════
 
+        /// <param name="status">What the row asserts. <see cref="TransmittalStatus.Issued"/>
+        /// (the default) is a record of issue; a caller that has only built a package
+        /// passes <see cref="TransmittalStatus.Prepared"/>, which records no issue date
+        /// (IM-17: an ACC publish used to record "ISSUED" for a ZIP still on local disk).</param>
         internal static JObject CreateTransmittal(Document doc, string recipientOrg, string recipientRole,
-            string suitability, string reason, JArray documentIds)
+            string suitability, string reason, JArray documentIds, string status = TransmittalStatus.Issued)
         {
             var pi = doc.ProjectInformation;
+            bool prepared = string.Equals(status, TransmittalStatus.Prepared, StringComparison.OrdinalIgnoreCase);
+            string today = DateTime.Now.ToString("yyyy-MM-dd");
             return new JObject
             {
                 ["transmittal_id"] = GetNextSequentialId(doc.PathName ?? "TX", "TX"),
@@ -3617,13 +3623,14 @@ namespace StingTools.BIMManager
                 ["from_organization"] = Environment.UserName,
                 ["to_organization"] = recipientOrg,
                 ["to_role"] = recipientRole,
-                ["date_issued"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                ["date_issued"] = prepared ? "" : today,
+                ["date_prepared"] = today,
                 ["suitability_code"] = suitability,
                 ["suitability_desc"] = SuitabilityCodes.TryGetValue(suitability, out string stDesc) ? stDesc : suitability,
                 ["reason_for_issue"] = reason,
                 ["document_ids"] = documentIds ?? new JArray(),
                 ["document_count"] = documentIds?.Count ?? 0,
-                ["status"] = "ISSUED",
+                ["status"] = TransmittalStatus.Normalise(status),
                 ["acknowledged"] = false
             };
         }

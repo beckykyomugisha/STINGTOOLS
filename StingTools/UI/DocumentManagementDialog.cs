@@ -5321,7 +5321,7 @@ namespace StingTools.UI
         {
             var selected = RequireRows("Update Trans", i => i.Category == "TRANSMITTAL", "transmittal rows");
             if (selected == null) return;
-            var statusOptions = ValidTransmittalStatuses.OrderBy(s => s).ToList();
+            var statusOptions = BIMManager.TransmittalStatus.All.ToList();
             string newStatus = StingListPicker.Show("Update Transmittal Status",
                 $"Set status for {selected.Count} transmittals:", statusOptions);
             if (string.IsNullOrEmpty(newStatus)) return;
@@ -5345,7 +5345,7 @@ namespace StingTools.UI
                 int updated = 0;
                 foreach (var item in selected)
                 {
-                    var trans = arr.FirstOrDefault(t => t["transmittal_id"]?.ToString() == item.Id) as JObject;
+                    var trans = arr.FirstOrDefault(t => BIMManager.TransmittalRecord.Id(t) == item.Id) as JObject;
                     if (trans != null)
                     {
                         string oldStatus = trans["status"]?.ToString() ?? "";
@@ -5892,11 +5892,12 @@ namespace StingTools.UI
                 foreach (JToken t in arr)
                 {
                     // GAP GRID-04: transmittal contents count
-                    int docCount = 0;
-                    if (t["documents"] is JArray docs) docCount = docs.Count;
+                    // IM-17: rows come in three shapes (CreateTransmittal, Quick
+                    // Transmittal, auto-transmittal); TransmittalRecord reads all three.
+                    int docCount = BIMManager.TransmittalRecord.Documents(t).Count;
 
                     // GRID-02: Compute age for transmittals too
-                    string tDateStr = t["date"]?.ToString() ?? "";
+                    string tDateStr = BIMManager.TransmittalRecord.Date(t);
                     int tDaysOpen = 0;
                     string tAging = "";
                     if (DateTime.TryParse(tDateStr, out DateTime tDate))
@@ -5907,16 +5908,16 @@ namespace StingTools.UI
 
                     _allItems.Add(new DocItemVM
                     {
-                        Id = t["transmittal_id"]?.ToString() ?? "",
+                        Id = BIMManager.TransmittalRecord.Id(t),
                         Title = BuildTransmittalTitle(t, docCount),
                         Type = "TR", TypeDesc = "Transmittal",
-                        Status = ValidateTransmittalStatus(t["status"]?.ToString()),
+                        Status = BIMManager.TransmittalStatus.Normalise(t["status"]?.ToString()),
                         StatusHistory = CoordStores.FormatHistory(t["status_history"]), // PERSIST-02
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
                         Date = tDateStr,
-                        AssignedTo = t["recipient"]?.ToString() ?? "",
-                        CreatedBy = t["created_by"]?.ToString() ?? "",
+                        AssignedTo = BIMManager.TransmittalRecord.Recipient(t),
+                        CreatedBy = BIMManager.TransmittalRecord.CreatedBy(t),
                         ElementCount = docCount,
                         DaysOpen = tDaysOpen, Aging = tAging, // GRID-02
                         Category = "TRANSMITTAL", Folder = "10_TRANSMITTALS"
@@ -6918,19 +6919,6 @@ namespace StingTools.UI
             _view?.Refresh();
             SetStatus($"{what} set to {value} for {item.Title}");
             return true;
-        }
-
-        // DM-03: Valid transmittal statuses
-        private static readonly HashSet<string> ValidTransmittalStatuses = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "DRAFT", "SENT", "RECEIVED", "ACKNOWLEDGED", "SIGNED",
-            "REJECTED", "SUPERSEDED", "AUTO_GENERATED", "VOID"
-        };
-
-        private static string ValidateTransmittalStatus(string status)
-        {
-            if (string.IsNullOrEmpty(status)) return "DRAFT";
-            return ValidTransmittalStatuses.Contains(status) ? status : "DRAFT";
         }
 
         /// <summary>Build transmittal title showing file count and contents summary.</summary>
