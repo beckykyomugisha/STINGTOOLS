@@ -93,6 +93,13 @@ Record the StingTools log line for every **F** (`StingTools_yyyyMMdd.log` next t
 | ☐ | Conduit auto-route → **Avoid structure (A\*)** | [M] | cables in the manifest; a structural column between a load and its panel → **Expect** the conduit goes round the column in straight, axis-aligned runs (not one conduit per 200 mm); the report lists "A\* obstacle-avoiding × N" | MEPG-11 |
 | ☐ | same, load on a different level from the panel | [M] | → **Expect** a vertical riser through the slab (floors are not obstacles); slab penetration stamped | |
 | ☐ | same, **Rectilinear L/Z** | [M] | → **Expect** the old L/Z runs; report says no obstacle avoidance | |
+| ☐ | CABLE → Calculate, BS 7671, PVC, Multicore, method **B2**, 20 A load, 10 m | [RO] | → **Expect** 2.5 mm², basis names Table 4D2A method B, no VERIFY | ELEC-3 |
+| ☐ | same, **XLPE (90°C)**, method C | [RO] | → **Expect** refused: "Table 4E2B mV/A/m is not carried …"; no size written | Voltage drop is refused, not estimated. |
+| ☐ | same, PVC, cable type **Multicore armoured SWA**, method C | [RO] | → **Expect** a size from Table 4D4A and a VERIFY line naming It and mV/A/m | Single-source table. |
+| ☐ | same, cable type **Single-core**, method A1 | [RO] | → **Expect** basis names Table 4D1A method A | |
+| ☐ | Arc Flash (after Fault Current) on a three-phase 400 V board | [M] | → **Expect** label "Basis: IEEE 1584-2018 …", "Electrodes: VCB", notes naming the assumed electrode configuration and enclosure; `ELC_ARC_FLASH_IE_CAL_CM2` set | ELEC-1 |
+| ☐ | same, `ELC_ARC_FLASH_ELECTRODE_TXT` = `HCB` on the board | [M] | → **Expect** "Electrodes: HCB"; no electrode-assumed note; a different energy | Load Shared Params first so the parameter exists. |
+| ☐ | same, an 11 kV switchboard | [M] | → **Expect** calculated (the 2002 model refused MV); gap 152 mm, working distance 914 mm | |
 
 ## Drawing types
 

@@ -38,6 +38,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                     InstallMethod = snap.InstallMethod ?? "C",
                     Material = snap.Material ?? "Cu",
                     Insulation = snap.Insulation ?? "PVC70",
+                    CableType = snap.CableType ?? "Multicore",
                     VDLimitPct = snap.VDLimitPct <= 0 ? 3.0 : snap.VDLimitPct,
                     Standard = snap.Standard ?? "BS7671",
                 };

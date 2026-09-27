@@ -413,6 +413,7 @@ namespace StingTools.UI
                 string method = ((cmbCblMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C";
                 string mat    = ((cmbCblMaterial?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Cu";
                 string ins    = ((cmbCblInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70";
+                string ctype  = ((cmbCblCableType?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Multicore";
                 string std    = ((cmbCblStandard?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "BS7671";
                 string vTag   = ((cmbCblVoltage?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "240,1";
                 var parts = vTag.Split(',');
@@ -422,7 +423,7 @@ namespace StingTools.UI
                 {
                     LoadKW = load, VoltageV = v, Phases = phases, PowerFactor = pf,
                     LengthM = len, VDLimitPct = vd,
-                    InstallMethod = method, Material = mat, Insulation = ins, Standard = std
+                    InstallMethod = method, Material = mat, Insulation = ins, CableType = ctype, Standard = std
                 };
             }
             catch (Exception ex)
@@ -969,7 +970,7 @@ namespace StingTools.UI
     {
         public double LoadKW; public double VoltageV; public int Phases;
         public double PowerFactor; public double LengthM; public double VDLimitPct;
-        public string InstallMethod, Material, Insulation, Standard;
+        public string InstallMethod, Material, Insulation, CableType, Standard;
     }
 
     public class ConduitFillInputSnapshot

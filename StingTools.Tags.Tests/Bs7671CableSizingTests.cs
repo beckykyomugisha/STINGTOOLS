@@ -66,7 +66,7 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Rows_not_yet_checked_against_the_print_are_flagged_not_verified()
+        public void Large_rows_have_checked_capacity_but_unchecked_voltage_drop()
         {
             var table = Data().FindTable("Cu", "PVC70", "C");
             Assert.NotNull(table);
@@ -74,7 +74,31 @@ namespace StingTools.Tags.Tests
             // 25, 35, 50, 70, 95, 120, 150, 185, 240 mm² = 9 rows.
             var large = table.Rows.Where(r => r.CsaMm2 >= 25).ToList();
             Assert.Equal(9, large.Count);
-            Assert.All(large, r => Assert.False(r.Verified));
+            // It agrees with IEC 60364-5-52 column C (2026-09-27); 4D2B mV/A/m has no second source.
+            Assert.All(large, r => Assert.True(r.Verified));
+            Assert.All(large, r => Assert.False(r.MvVerified));
+        }
+
+        [Fact]
+        public void Every_shipped_table_is_well_formed()
+        {
+            var d = Data();
+            Assert.Equal(20, d.Tables.Count);
+            foreach (var t in d.Tables)
+            {
+                Assert.False(string.IsNullOrEmpty(t.VoltDropTable), t.Id);
+                Assert.Contains(t.CableType, new[] { "Multicore", "SingleCore", "ArmouredMulticore" });
+                Assert.NotEmpty(t.Rows);
+                // Sorted, positive, and capacity rising with size in both columns.
+                for (int i = 1; i < t.Rows.Count; i++)
+                {
+                    Assert.True(t.Rows[i].CsaMm2 > t.Rows[i - 1].CsaMm2, $"{t.Id} {t.InstallMethod} order");
+                    Assert.True(t.Rows[i].It1ph > t.Rows[i - 1].It1ph, $"{t.Id} {t.InstallMethod} {t.Rows[i].CsaMm2} It_1ph");
+                    Assert.True(t.Rows[i].It3ph > t.Rows[i - 1].It3ph, $"{t.Id} {t.InstallMethod} {t.Rows[i].CsaMm2} It_3ph");
+                }
+                // A (table, method, cable type) appears once, so lookup is unambiguous.
+                Assert.Single(d.Tables, x => x.Insulation == t.Insulation && x.CableType == t.CableType && x.InstallMethod == t.InstallMethod);
+            }
         }
 
         // ── the worked example ───────────────────────────────────────────────
@@ -220,13 +244,14 @@ namespace StingTools.Tags.Tests
         // ── refusals ─────────────────────────────────────────────────────────
 
         [Theory]
-        [InlineData("Cu", "XLPE90", "C")]   // Table 4E2A not shipped
-        [InlineData("Cu", "PVC70", "B")]    // only method C of 4D2A shipped
-        [InlineData("Al", "PVC70", "C")]    // no aluminium table
-        public void Missing_table_is_refused_not_approximated(string mat, string ins, string method)
+        [InlineData("Cu", "XLPE90", "C", "SingleCore")]   // Table 4E1A not shipped
+        [InlineData("Cu", "PVC70", "E", "SingleCore")]    // 4D1A has no method E
+        [InlineData("Cu", "PVC70", "D1", "Multicore")]    // 4D2A has no method D
+        [InlineData("Al", "PVC70", "C", "Multicore")]     // no aluminium table
+        public void Missing_table_is_refused_not_approximated(string mat, string ins, string method, string cableType)
         {
             var i = Pvc(20, 10, 5.0);
-            i.Material = mat; i.Insulation = ins; i.InstallMethod = method;
+            i.Material = mat; i.Insulation = ins; i.InstallMethod = method; i.CableType = cableType;
             var r = Bs7671CableSizer.Size(i, Data());
             Assert.False(r.Sized);
             Assert.Equal(0.0, r.CsaMm2);
@@ -241,14 +266,106 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
-        public void Large_rows_carry_a_verify_flag()
+        public void Large_rows_carry_a_verify_flag_for_voltage_drop()
         {
-            // Ib 100 A → In 100 A → It ≥ 100 → 16 mm² (85) ✗ → 25 mm² (112), an unverified row.
+            // Ib 100 A → In 100 A → It ≥ 100 → 16 mm² (85) ✗ → 25 mm² (112): It checked, mV/A/m not.
             var r = Bs7671CableSizer.Size(Pvc(100, 10, 5.0), Data());
             Assert.True(r.Sized, r.Refusal);
             Assert.Equal(25.0, r.CsaMm2);
             Assert.True(r.UnverifiedRow);
+            Assert.False(r.UnverifiedCapacity);
+            Assert.True(r.UnverifiedVoltDrop);
             Assert.Contains("VERIFY", r.Basis);
+            Assert.Contains("mV/A/m (Table 4D2B)", r.Basis);
+        }
+
+        // ── the 2026-09-27 tables ────────────────────────────────────────────
+
+        [Theory]
+        [InlineData("B")]
+        [InlineData("B2")]   // IEC sub-code for multicore in conduit on a wall = BS method B of 4D2A
+        public void Method_B_multicore_uses_4D2A_method_B(string method)
+        {
+            // Ib 20 → In 20 → It ≥ 20: 4D2A method B 1.5 mm² 16.5 A ✗ → 2.5 mm² 23 A ✓.
+            var i = Pvc(20, 10, 5.0);
+            i.InstallMethod = method;
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(2.5, r.CsaMm2);
+            Assert.Equal(23.0, r.TabulatedItA);
+            Assert.False(r.UnverifiedRow);
+        }
+
+        [Fact]
+        public void Single_core_selects_Table_4D1A()
+        {
+            var t = Data().FindTable("Cu", "PVC70", "A1", "SingleCore");
+            Assert.NotNull(t);
+            Assert.Equal("4D1A", t.Id);
+            Assert.Equal("A", t.InstallMethod);
+            Assert.Equal("4D2A", Data().FindTable("Cu", "PVC70", "A2").Id);
+        }
+
+        [Fact]
+        public void Xlpe_sizes_on_capacity_but_is_refused_for_want_of_voltage_drop_data()
+        {
+            // 4E2A method C: 1.0 mm² 19 A ✗, 1.5 mm² 24 A ✓ — but Table 4E2B is not carried,
+            // so no size can be checked for voltage drop and none is selected.
+            var i = Pvc(20, 10, 5.0);
+            i.Insulation = "XLPE90";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.False(r.Sized);
+            Assert.Equal(1.5, r.CapacityOnlyCsaMm2);
+            Assert.Contains("4E2B mV/A/m is not carried", r.Refusal);
+            Assert.Contains("will not estimate voltage drop", r.Refusal);
+        }
+
+        [Fact]
+        public void Armoured_single_source_rows_are_flagged_on_capacity()
+        {
+            // 4D4A method C: 1.5 mm² 21 A ≥ 20 A; single-source row.
+            var i = Pvc(20, 5, 5.0);
+            i.CableType = "ArmouredMulticore";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(1.5, r.CsaMm2);
+            Assert.Equal(21.0, r.TabulatedItA);
+            Assert.True(r.UnverifiedCapacity);
+            Assert.Contains("It (Table 4D4A) and mV/A/m (Table 4D4B)", r.Basis);
+        }
+
+        [Fact]
+        public void Ladder_two_circuits_read_the_three_circuit_row()
+        {
+            // The 2-circuit ladder factor is not carried (sources disagree), so the lower 3-circuit value is used.
+            var i = Pvc(6, 5, 5.0);
+            i.GroupedCircuits = 2;
+            i.GroupingArrangement = "SingleLayerLadderCleats";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.Equal(0.82, r.Cg, 3);
+            Assert.Contains("read at the 3-circuit row", r.Basis);
+        }
+
+        [Fact]
+        public void Perforated_tray_beyond_nine_circuits_takes_no_further_reduction()
+        {
+            var i = Pvc(6, 5, 5.0);
+            i.GroupedCircuits = 14;
+            i.GroupingArrangement = "SingleLayerPerforatedTray";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(0.72, r.Cg, 3);
+        }
+
+        [Fact]
+        public void A_single_verified_flag_covers_both_columns_in_older_data()
+        {
+            var d = Bs7671Data.FromJson(JObject.Parse(
+                "{ \"bs7671Appendix4\": { \"capacityTables\": [ { \"id\": \"4D2A\", \"conductor\": \"Cu\", \"insulation\": \"PVC70\", " +
+                "\"installMethod\": \"C\", \"sizes\": [ { \"csaMm2\": 2.5, \"It_1ph\": 27, \"It_3ph\": 24, \"mVAm_1ph\": 18, \"mVAm_3ph\": 15, \"verified\": true } ] } ] } }"));
+            var row = d.FindTable("Cu", "PVC70", "C").Rows.Single();
+            Assert.True(row.Verified);
+            Assert.True(row.MvVerified);
         }
 
         [Fact]

@@ -15,7 +15,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
     /// — accessed via the ParamRegistry alias for canonical resolution).
     /// Colour-codes red/orange/yellow/green by PPE category for instant
     /// safety-zone awareness on installation drawings. Boundaries are
-    /// IEEE 1584-2002 indicative values (<see cref="ArcFlashEngine.Basis"/>).
+    /// IEEE 1584-2018 values (<see cref="ArcFlashEngine.Basis"/>).
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]

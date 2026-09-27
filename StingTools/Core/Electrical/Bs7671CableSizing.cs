@@ -47,8 +47,11 @@ namespace StingTools.Core.Electrical
         public double It3ph { get; set; }
         public double MvAm1ph { get; set; }
         public double MvAm3ph { get; set; }
-        /// <summary>False when the row has not been checked against the printed table.</summary>
+        /// <summary>It_1ph and It_3ph agree between two independent transcriptions.</summary>
         public bool Verified { get; set; }
+        /// <summary>mV/A/m agree between two independent transcriptions. Defaults to
+        /// <see cref="Verified"/> for data that carries a single flag.</summary>
+        public bool MvVerified { get; set; }
     }
 
     /// <summary>A BS 7671 Appendix 4 capacity table for one reference method.</summary>
@@ -59,6 +62,8 @@ namespace StingTools.Core.Electrical
         public string Description { get; set; }
         public string Conductor { get; set; }      // "Cu"
         public string Insulation { get; set; }     // "PVC70"
+        /// <summary>"Multicore" (4D2A, 4E2A), "SingleCore" (4D1A) or "ArmouredMulticore" (4D4A, 4E4A).</summary>
+        public string CableType { get; set; } = Bs7671Data.DefaultCableType;
         public double MaxConductorTempC { get; set; }
         public string InstallMethod { get; set; }  // "C"
         public List<Bs7671CapacityRow> Rows { get; } = new List<Bs7671CapacityRow>();
@@ -76,12 +81,33 @@ namespace StingTools.Core.Electrical
             = new Dictionary<string, SortedDictionary<int, double>>(StringComparer.OrdinalIgnoreCase);
         public double SemiEnclosedFuseCf { get; set; } = 0.725;
 
-        /// <summary>The capacity table for a conductor / insulation / reference method, or null.</summary>
-        public Bs7671CapacityTable FindTable(string material, string insulation, string method)
-            => Tables.FirstOrDefault(t =>
+        public const string DefaultCableType = "Multicore";
+
+        /// <summary>
+        /// BS 7671 reference-method letter for a method code. The IEC sub-codes the panels
+        /// and stored parameters use name the same columns once the cable type is known:
+        /// A1 (single-core in conduit) and A2 (multicore in conduit) are BS method A of
+        /// 4D1A and 4D2A respectively; B1 / B2 likewise method B.
+        /// </summary>
+        public static string NormaliseMethod(string method)
+        {
+            string m = (method ?? "").Trim().ToUpperInvariant();
+            if (m == "A1" || m == "A2") return "A";
+            if (m == "B1" || m == "B2") return "B";
+            return m;
+        }
+
+        /// <summary>The capacity table for a conductor / insulation / cable type / reference method, or null.</summary>
+        public Bs7671CapacityTable FindTable(string material, string insulation, string method, string cableType = DefaultCableType)
+        {
+            string m = NormaliseMethod(method);
+            string ct = string.IsNullOrWhiteSpace(cableType) ? DefaultCableType : cableType.Trim();
+            return Tables.FirstOrDefault(t =>
                 string.Equals(t.Conductor, string.IsNullOrWhiteSpace(material) ? "Cu" : material.Trim(), StringComparison.OrdinalIgnoreCase)
                 && string.Equals(t.Insulation, (insulation ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
-                && string.Equals(t.InstallMethod, (method ?? "").Trim(), StringComparison.OrdinalIgnoreCase));
+                && string.Equals(t.CableType, ct, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(NormaliseMethod(t.InstallMethod), m, StringComparison.OrdinalIgnoreCase));
+        }
 
         /// <summary>Tabulated It for an exact tabulated CSA (±0.01 mm²); 0 when the size is not in the table.</summary>
         public static double TabulatedIt(Bs7671CapacityTable table, double csaMm2, int phases)
@@ -110,17 +136,20 @@ namespace StingTools.Core.Electrical
                     Insulation = (string)t["insulation"],
                     MaxConductorTempC = t["maxConductorTempC"]?.Value<double>() ?? 0,
                     InstallMethod = (string)t["installMethod"],
+                    CableType = (string)t["cableType"] ?? DefaultCableType,
                 };
                 foreach (var r in (t["sizes"] as JArray ?? new JArray()).OfType<JObject>())
                 {
+                    bool verified = Bool(r["verified"]);
                     table.Rows.Add(new Bs7671CapacityRow
                     {
-                        CsaMm2 = r["csaMm2"]?.Value<double>() ?? 0,
-                        It1ph = r["It_1ph"]?.Value<double>() ?? 0,
-                        It3ph = r["It_3ph"]?.Value<double>() ?? 0,
-                        MvAm1ph = r["mVAm_1ph"]?.Value<double>() ?? 0,
-                        MvAm3ph = r["mVAm_3ph"]?.Value<double>() ?? 0,
-                        Verified = r["verified"]?.Value<bool>() ?? false,
+                        CsaMm2 = Num(r["csaMm2"]),
+                        It1ph = Num(r["It_1ph"]),
+                        It3ph = Num(r["It_3ph"]),
+                        MvAm1ph = Num(r["mVAm_1ph"]),
+                        MvAm3ph = Num(r["mVAm_3ph"]),
+                        Verified = verified,
+                        MvVerified = r["mvVerified"] == null || r["mvVerified"].Type == JTokenType.Null ? verified : Bool(r["mvVerified"]),
                     });
                 }
                 table.Rows.Sort((a, b) => a.CsaMm2.CompareTo(b.CsaMm2));
@@ -149,6 +178,10 @@ namespace StingTools.Core.Electrical
                 d.SemiEnclosedFuseCf = sec["semiEnclosedFuseFactorCf"].Value<double>();
             return d;
         }
+
+        // A null cell (not transcribed) reads as 0, which the sizer treats as "not carried".
+        private static double Num(JToken t) => t == null || t.Type == JTokenType.Null ? 0 : t.Value<double>();
+        private static bool Bool(JToken t) => t != null && t.Type == JTokenType.Boolean && t.Value<bool>();
     }
 
     public sealed class Bs7671SizingInput
@@ -162,10 +195,13 @@ namespace StingTools.Core.Electrical
         public string InstallMethod { get; set; } = "C";
         public string Insulation { get; set; } = "PVC70";
         public string Material { get; set; } = "Cu";
+        /// <summary>"Multicore", "SingleCore" or "ArmouredMulticore" — picks 4D2A/4E2A, 4D1A or 4D4A/4E4A.</summary>
+        public string CableType { get; set; } = Bs7671Data.DefaultCableType;
         public double AmbientTempC { get; set; } = 30.0;
         /// <summary>Number of circuits in the group (1 = not grouped).</summary>
         public int GroupedCircuits { get; set; } = 1;
-        /// <summary>Table 4C1 arrangement key: "Bunched" or "SingleLayerWall".</summary>
+        /// <summary>Table 4C1 arrangement key: "Bunched", "SingleLayerWall",
+        /// "SingleLayerPerforatedTray" or "SingleLayerLadderCleats".</summary>
         public string GroupingArrangement { get; set; } = "Bunched";
         /// <summary>Thermal-insulation factor Ci (Reg 523.9 / Table 52.2); 1.0 when none.</summary>
         public double Ci { get; set; } = 1.0;
@@ -198,8 +234,12 @@ namespace StingTools.Core.Electrical
         public double VoltDropPct { get; set; }
         /// <summary>The smallest size that carries the current, before voltage drop.</summary>
         public double CapacityOnlyCsaMm2 { get; set; }
-        /// <summary>True when the chosen row is flagged verified=false in the data.</summary>
-        public bool UnverifiedRow { get; set; }
+        /// <summary>True when the chosen row's It or mV/A/m is not two-source checked.</summary>
+        public bool UnverifiedRow => UnverifiedCapacity || UnverifiedVoltDrop;
+        /// <summary>The chosen row's It_1ph / It_3ph are not two-source checked.</summary>
+        public bool UnverifiedCapacity { get; set; }
+        /// <summary>The chosen row's mV/A/m is not two-source checked.</summary>
+        public bool UnverifiedVoltDrop { get; set; }
         /// <summary>Tables, factors and assumptions used — for the derivation note.</summary>
         public string Basis { get; set; } = "";
     }
@@ -220,14 +260,15 @@ namespace StingTools.Core.Electrical
             string material = string.IsNullOrWhiteSpace(input.Material) ? "Cu" : input.Material.Trim();
             string insulation = (input.Insulation ?? "").Trim();
             string method = (input.InstallMethod ?? "").Trim();
+            string cableType = string.IsNullOrWhiteSpace(input.CableType) ? Bs7671Data.DefaultCableType : input.CableType.Trim();
 
-            var table = data.FindTable(material, insulation, method);
+            var table = data.FindTable(material, insulation, method, cableType);
             if (table == null)
             {
                 string have = string.Join(", ", data.Tables.Select(t =>
-                    $"Table {t.Id} {t.Conductor}/{t.Insulation} method {t.InstallMethod}"));
+                    $"{t.Id} {t.Conductor}/{t.Insulation}/{t.CableType} method {t.InstallMethod}"));
                 return Refuse(r,
-                    $"No BS 7671 Appendix 4 capacity table is shipped for {material} / {insulation} / " +
+                    $"No BS 7671 Appendix 4 capacity table is shipped for {material} / {insulation} / {cableType} / " +
                     $"reference method {method}. Available: {have}. Add the table from the printed " +
                     "Appendix 4 to STING_WIRE_TABLES.json — the sizer will not approximate it.");
             }
@@ -266,7 +307,8 @@ namespace StingTools.Core.Electrical
                     return Refuse(r, $"No Table 4C1 grouping row '{arr}' in STING_WIRE_TABLES.json.");
                 int key;
                 if (grp.Keys.Any(k => k >= n)) key = grp.Keys.First(k => k >= n);
-                else if (string.Equals(arr, "SingleLayerWall", StringComparison.OrdinalIgnoreCase)) key = grp.Keys.Last();
+                // Single-layer arrangements: no further reduction beyond 9 circuits (Table 4C1).
+                else if (arr.StartsWith("SingleLayer", StringComparison.OrdinalIgnoreCase)) key = grp.Keys.Last();
                 else return Refuse(r, $"{n} circuits exceeds the largest Table 4C1 '{arr}' row ({grp.Keys.Last()}).");
                 cg = grp[key];
                 cgNote = $"{n} circuits {arr}" + (key != n ? $" (read at the {key}-circuit row)" : "");
@@ -293,20 +335,23 @@ namespace StingTools.Core.Electrical
             double limit = input.VdLimitPct > 0 ? input.VdLimitPct : 5.0;
 
             Bs7671CapacityRow winner = null, capacityOnly = null;
+            var noMv = new List<double>();
             foreach (var row in table.Rows)
             {
                 double it = threePh ? row.It3ph : row.It1ph;
                 if (it <= 0 || it < requiredIt) continue;
                 if (capacityOnly == null) capacityOnly = row;
                 double mv = threePh ? row.MvAm3ph : row.MvAm1ph;
-                if (mv <= 0) continue;
+                // A size whose mV/A/m is not carried cannot be checked for voltage drop,
+                // so it cannot be selected; it is named in the refusal instead.
+                if (mv <= 0) { noMv.Add(row.CsaMm2); continue; }
                 double vd = mv * input.DesignCurrentA * input.LengthM / 1000.0;
                 if (vd / input.VoltageV * 100.0 <= limit) { winner = row; break; }
             }
 
             string head =
                 $"BS 7671 Appendix 4, Table {table.Id} ({table.Description}, method {table.InstallMethod}, " +
-                $"{(threePh ? "3/4-core 3-ph" : "2-core 1-ph")} column) + Table {table.VoltDropTable} mV/A/m. " +
+                $"{(threePh ? "three-phase" : "single-phase")} column, {table.CableType}) + Table {table.VoltDropTable} mV/A/m. " +
                 $"Ib={input.DesignCurrentA:0.0} A; In={inA} A {input.DeviceLabel} (In ≥ Ib, Reg 433.1.1). " +
                 $"Ca={ca:0.00} Table 4B1 {insulation}{caNote}; Cg={cg:0.00} Table 4C1 ({cgNote}); Ci={ci:0.00}" +
                 (extra < 1.0 ? $"; user derate={extra:0.00}" : "") +
@@ -323,8 +368,13 @@ namespace StingTools.Core.Electrical
             if (winner == null)
             {
                 r.Basis = head;
-                return Refuse(r, $"{capacityOnly.CsaMm2:0.#} mm² carries the current, but no tabulated size " +
-                                 $"keeps voltage drop within {limit:0.0}% over {input.LengthM:0} m.");
+                string why = $"{capacityOnly.CsaMm2:0.#} mm² carries the current, but no size with tabulated " +
+                             $"mV/A/m keeps voltage drop within {limit:0.0}% over {input.LengthM:0} m.";
+                if (noMv.Count > 0)
+                    why += $" Table {table.VoltDropTable} mV/A/m is not carried for " +
+                           string.Join(", ", noMv.Select(c => $"{c:0.#}")) + " mm² — add it from the printed " +
+                           "standard to STING_WIRE_TABLES.json; the sizer will not estimate voltage drop.";
+                return Refuse(r, why);
             }
 
             double itW = threePh ? winner.It3ph : winner.It1ph;
@@ -334,7 +384,8 @@ namespace StingTools.Core.Electrical
             r.MvAm = threePh ? winner.MvAm3ph : winner.MvAm1ph;
             r.VoltDropV = r.MvAm * input.DesignCurrentA * input.LengthM / 1000.0;
             r.VoltDropPct = r.VoltDropV / input.VoltageV * 100.0;
-            r.UnverifiedRow = !winner.Verified;
+            r.UnverifiedCapacity = !winner.Verified;
+            r.UnverifiedVoltDrop = !winner.MvVerified;
             r.Sized = true;
 
             var sb = new StringBuilder(head);
@@ -345,8 +396,12 @@ namespace StingTools.Core.Electrical
                       $"{r.VoltDropV:0.00} V = {r.VoltDropPct:0.00}% of {input.VoltageV:0} V (limit {limit:0.0}%; " +
                       "tabulated mV/A/m at max conductor temperature, not corrected for load).");
             if (r.UnverifiedRow)
-                sb.Append($" VERIFY: the Table {table.Id} row for {winner.CsaMm2:0.#} mm² has not been checked " +
-                          "against the printed BS 7671 — confirm It and mV/A/m before issue.");
+            {
+                string what = r.UnverifiedCapacity && r.UnverifiedVoltDrop ? $"It (Table {table.Id}) and mV/A/m (Table {table.VoltDropTable})"
+                            : r.UnverifiedCapacity ? $"It (Table {table.Id})" : $"mV/A/m (Table {table.VoltDropTable})";
+                sb.Append($" VERIFY: the {winner.CsaMm2:0.#} mm² {what} has not been checked against a second " +
+                          "source — confirm against the printed BS 7671 before issue.");
+            }
             sb.Append(" Not checked here: adiabatic (Reg 434.5.2), Zs / disconnection time, VD upstream of the circuit origin.");
             r.Basis = sb.ToString();
             return r;

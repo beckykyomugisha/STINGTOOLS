@@ -343,11 +343,11 @@ The **STING Electrical Panel** (`UI/StingElectricalPanel.xaml` — 1,304 lines �
 
 | Sub-system | Key files | What it does |
 |---|---|---|
-| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 Appendix 4 method (`Core/Electrical/Bs7671CableSizing.cs`): Table 4D2A method C It, Ca/Cg/Ci/Cf, Ib ≤ In ≤ Iz, 4D2B voltage drop, with a `Basis` listing tables and factors. **Only 70 °C PVC Cu multicore method C ships**; XLPE, aluminium and other methods are refused. Rows ≥ 25 mm² are flagged VERIFY until checked against the printed standard. The command reports; `Core/Electrical/CableSizerApplyEngine` writes to circuits |
+| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 Appendix 4 method (`Core/Electrical/Bs7671CableSizing.cs`): It from 4D1A / 4D2A / 4D4A / 4E2A / 4E4A by cable type and reference method, Ca/Cg/Ci/Cf, Ib ≤ In ≤ Iz, voltage drop from the matching B table, with a `Basis` listing tables and factors. Per row the data says whether It and mV/A/m are two-source checked; a result on an unchecked row is flagged VERIFY, and a size with no mV/A/m carried (all 4E tables, ≥ 25 mm² of the new ones) is refused, not estimated. Aluminium is refused. Sources: `docs/ELECTRICAL_STANDARDS_SOURCES.md`. The command reports; `Core/Electrical/CableSizerApplyEngine` writes to circuits |
 | **Voltage Drop** | `VoltageDrop/VoltageDropCommand.cs` + `VoltageDropEngine.cs` + `VoltageDropScheduleCommand.cs` (`Core/Calc/VoltageDropSolver.cs` serves Add Cable) | Voltage drop per circuit — BS EN 60228 resistance at 20 °C with one temperature correction, BS 7671 App 12 limits (3 % lighting / 5 % other) |
 | **Feeder Sizing** | `FeederSizing/FeederSizerCommand.cs` + `FeederSizerEngine.cs` | Feeder sizing through the BS 7671 sizer; derate applied; length/voltage/load from the feeding circuit, any default listed per feeder |
 | **Fault Current** | `FaultCurrent/FaultCurrentCommand.cs` + `FaultCurrentEngine.cs` + `FaultCurrentScheduleCommand.cs` | IEC 60909-0 style LV method (`Core/Electrical/Iec60909Lv.cs`: c = 1.10/0.95, source R/X, cable R at 20 °C + assumed X); per-panel assumptions reported; PSC schedules |
-| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | **IEEE 1584-2002** (superseded by 2018) — indicative only, three-phase boards only, labels say so; clearing time from IEC 60898 bands; **not for specifying PPE without a licensed study** |
+| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | **IEEE 1584-2018** (`ArcFlash/Ieee1584_2018.cs`; 2002 kept as an option) — 0.208–15 kV, three-phase boards only; electrode configuration VCB and typical enclosure size unless set, both listed on the label; reproduces the standard's Annex D examples; clearing time from IEC 60898 bands; **not for specifying PPE without a licensed study** |
 | **Busbar Sizing** | `Busbar/BusbarModelingCommand.cs` + `BusbarSizerEngine.cs` | Busbar sizing + Revit modeling |
 | **Conduit Routing** | `Routing/ConduitAutoRouteCommand.cs` + `ConduitRouteEngine.cs` + `ConduitConsolidator.cs` | Auto-route conduit as rectilinear L/Z runs, or opt-in **Avoid structure (A\*)** around structural columns and framing (orthogonal, merged runs; falls back to L/Z per run; not other services — MEPG-11); computed diameter applied; cables matched to circuits by element id → endpoints → panel+number; consolidate parallel conduits |
 | **Cable Routing** | `Routing/CableScheduleBuilderCommand.cs` · `Core/Electrical/CableRouter.cs` + `CableManifest.cs` | Build cable schedules + route manifest |
@@ -891,7 +891,7 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `ElecCircuitRenumberCommand` | `ElecCircuitRenumberCommand` | Renumber circuits |
 | `ElecLoadSummaryCommand` | `ElecLoadSummaryCommand` | Load summary report |
 | `ElecLightingScheduleCommand` | `ElecLightingScheduleCommand` | Generate lighting schedule |
-| `ArcFlashCommand` | `ArcFlashCommand` | Arc-flash estimate, IEEE 1584-2002 indicative (not for PPE) |
+| `ArcFlashCommand` | `ArcFlashCommand` | Arc-flash estimate, IEEE 1584-2018 (not for PPE without a licensed study) |
 | `ArcFlashLabelSheetCommand` | `ArcFlashLabelSheetCommand` | Create arc-flash label sheet |
 | `ArcFlashScheduleCommand` | `ArcFlashScheduleCommand` | Arc-flash schedule |
 | `BusbarModelingCommand` | `BusbarModelingCommand` | Busbar modeling |

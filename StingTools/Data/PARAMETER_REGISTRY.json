@@ -29181,6 +29181,15 @@
         ]
       },
       {
+        "key": "ELC_ARC_FLASH_ELECTRODE",
+        "param_name": "ELC_ARC_FLASH_ELECTRODE_TXT",
+        "guid": "a2e7f8d9-100d-5179-9179-10000000000d",
+        "description": "IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA; blank = VCB assumed [STING MEPG-11]",
+        "categories": [
+          "Electrical Equipment"
+        ]
+      },
+      {
         "key": "ELC_ARC_FLASH_LABEL",
         "param_name": "ELC_ARC_FLASH_LABEL_TXT",
         "guid": "a2e7f8d9-1005-5179-9179-100000000005",

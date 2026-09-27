@@ -10,7 +10,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
 {
     /// <summary>
     /// Creates a drafting view containing one indicative arc-flash label per
-    /// panel that <see cref="ArcFlashCommand"/> calculated (IEEE 1584-2002 —
+    /// panel that <see cref="ArcFlashCommand"/> calculated (IEEE 1584-2018 —
     /// every label text carries <see cref="ArcFlashEngine.Basis"/>). Each label is a
     /// FilledRegion border + TextNote pair laid out 5 per row at 110 mm
     /// column pitch (paper-side units, drafting-view scale 1:1).

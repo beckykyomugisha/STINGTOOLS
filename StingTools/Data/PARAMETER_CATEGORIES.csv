@@ -1109,6 +1109,7 @@ ELC_ARC_FLASH_IE_CAL_CM2,Incident Energy,TEXT,Instance,Electrical Equipment,ELC_
 ELC_ARC_FLASH_BOUNDARY_MM,Arc Flash Boundary,TEXT,Instance,Electrical Equipment,ELC_PWR,a2e7f8d9-1002-5179-9179-100000000002,Arc flash boundary distance in mm [IEEE 1584-2018 / STING Phase 179]
 ELC_ARC_FLASH_PPE_CAT,PPE Category,TEXT,Instance,Electrical Equipment,ELC_PWR,a2e7f8d9-1003-5179-9179-100000000003,NFPA 70E Table 130.5(G) PPE category 0–4 (-1 = exceeds Cat 4) [STING Phase 179]
 ELC_ARC_FLASH_WORK_DIST_MM,Working Distance (mm),TEXT,Instance,Electrical Equipment,ELC_PWR,a2e7f8d9-1004-5179-9179-100000000004,Working distance from the arc source in mm [STING Phase 179]
+ELC_ARC_FLASH_ELECTRODE_TXT,Electrode Configuration,TEXT,Instance,Electrical Equipment,ELC_PWR,a2e7f8d9-100d-5179-9179-10000000000d,IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA - blank = VCB assumed and noted on the label
 ELC_ARC_FLASH_LABEL_TXT,Arc Flash Label,TEXT,Instance,Electrical Equipment,ELC_PWR,a2e7f8d9-1005-5179-9179-100000000005,Formatted NFPA 70E arc flash warning label text [STING Phase 179]
 ELC_SEL_COORD_VERIFIED_BOOL,Selective Coord Verified,TEXT,Instance,Electrical Equipment,ELC_PWR,a2e7f8d9-1006-5179-9179-100000000006,Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]
 ELC_BUSBAR_CSA_MM2,Busbar CSA (mm²),TEXT,Instance,Electrical Equipment;Cable Trays,ELC_PWR,a2e7f8d9-1007-5179-9179-100000000007,Busbar trunking conductor cross-sectional area (mm²) [BS EN 60439-1 / STING Phase 179]

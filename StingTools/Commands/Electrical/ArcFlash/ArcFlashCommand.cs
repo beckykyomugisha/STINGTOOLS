@@ -31,12 +31,13 @@ namespace StingTools.Commands.Electrical.ArcFlash
     }
 
     /// <summary>
-    /// Arc-flash incident energy per panel by the IEEE 1584-2002 LV method
-    /// (<see cref="ArcFlashEngine"/>). Indicative only — every value written carries
-    /// <see cref="ArcFlashEngine.Basis"/>. Panels that cannot be calculated honestly
-    /// (no voltage, voltage outside 208–1000 V, fault outside 0.7–106 kA, no clearing
-    /// time) are stamped NOT CALCULATED and get no numbers; stale values from earlier
-    /// runs are overwritten.
+    /// Arc-flash incident energy per panel by IEEE 1584-2018 (<see cref="ArcFlashEngine"/>,
+    /// <see cref="Ieee1584_2018"/>). Every value written carries <see cref="ArcFlashEngine.Basis"/>.
+    /// Electrode configuration and enclosure size default to the class's typical values
+    /// (listed in the label notes) unless ELC_ARC_FLASH_ELECTRODE_TXT is set on the panel.
+    /// Panels that cannot be calculated honestly (no voltage, outside the model's ranges,
+    /// no clearing time) are stamped NOT CALCULATED and get no numbers; stale values from
+    /// earlier runs are overwritten.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -73,7 +74,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
             optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Fixed 100 ms (assumed — you must confirm the device clears in 100 ms)");
             optDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                 "Per panel from the main breaker's IEC 60898 band",
-                "Upper edge of the generic MCB band at Ia and 0.85·Ia. MCCB / ACB have no generic curve → NOT CALCULATED.");
+                "Upper edge of the generic MCB band at the full and the reduced arcing current. MCCB / ACB have no generic curve → NOT CALCULATED.");
             var sel = optDlg.Show();
             bool useFixed;
             if (sel == TaskDialogResult.CommandLink1) useFixed = true;
@@ -95,7 +96,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
 
             var results = new List<ArcFlashRow>();
             var notCalculated = new List<string>();
-            using (var tx = new Transaction(doc, "STING Arc Flash (IEEE 1584-2002 indicative)"))
+            using (var tx = new Transaction(doc, "STING Arc Flash (IEEE 1584-2018)"))
             {
                 tx.Start();
                 foreach (var panel in panels)
@@ -108,13 +109,13 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         continue;
                     }
 
-                    // IEEE 1584-2002 models three-phase arcs only. The fault study now
+                    // IEEE 1584 (2002 and 2018) models three-phase arcs only. The fault study now
                     // returns the line-to-neutral Ik1 for single-phase boards; feeding
                     // that in as a 3-phase bolted fault understates the energy.
                     if (fr.Phases != 3)
                     {
                         reason = fr.Phases == 1
-                            ? "single-phase board — IEEE 1584-2002 models three-phase arcs only"
+                            ? "single-phase board — IEEE 1584 models three-phase arcs only"
                             : "phase count unknown — cannot confirm a three-phase arc";
                         StampNotCalculated(panel, reason, notCalculated);
                         continue;
@@ -134,7 +135,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
                         VoltageV = voltageV,
                         EquipmentClass = cls,
                         WorkingDistanceMm = overrideMm,   // 0 → class default
-                        SolidlyGrounded = false,          // conservative until earthing is confirmed
+                        Electrode = ReadElectrodeOverride(panel),   // null → VCB, noted on the label
                         ClearingTimeS = fixedClearingS
                     };
 
@@ -285,8 +286,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
         }
 
         /// <summary>
-        /// Switchgear / switchboard by name → IEEE 1584-2002 switchgear class; everything
-        /// else → panelboard / MCC (the closer 455 mm working distance, which is the
+        /// Switchgear / switchboard by name → switchgear class; everything else →
+        /// panelboard / MCC (the closer typical working distance, which is the
         /// conservative choice when the equipment type is not stated).
         /// </summary>
         private static ArcEquipmentClass ClassifyEquipment(FamilyInstance panel)
@@ -295,6 +296,17 @@ namespace StingTools.Commands.Electrical.ArcFlash
             return n.Contains("switchgear") || n.Contains("switchboard")
                 ? ArcEquipmentClass.Switchgear
                 : ArcEquipmentClass.PanelMcc;
+        }
+
+        /// <summary>Per-equipment electrode configuration (ELC_ARC_FLASH_ELECTRODE_TXT: VCB, VCBB, HCB,
+        /// VOA or HOA); null when absent or unreadable, which the engine reports as an assumption.</summary>
+        private static ElectrodeConfiguration? ReadElectrodeOverride(FamilyInstance panel)
+        {
+            string s = ParameterHelpers.GetString(panel, "ELC_ARC_FLASH_ELECTRODE_TXT");
+            if (string.IsNullOrWhiteSpace(s)) return null;
+            if (Enum.TryParse(s.Trim(), true, out ElectrodeConfiguration ec)) return ec;
+            StingLog.Warn($"ArcFlash {panel.Name}: electrode configuration '{s}' not recognised (VCB, VCBB, HCB, VOA, HOA) — VCB assumed");
+            return null;
         }
 
         /// <summary>Per-equipment working-distance override (ELC_ARC_FLASH_WORK_DIST_MM); 0 = class default.</summary>
