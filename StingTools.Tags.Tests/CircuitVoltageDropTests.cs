@@ -161,6 +161,35 @@ namespace StingTools.Tags.Tests
             }
         }
 
+        [Theory]
+        [InlineData("ASNZS3000")]
+        public void A_standard_with_no_tables_gets_no_figure(string std)
+        {
+            // ELEC-24: never BS 7671's figure under another standard's name.
+            var c = Circuit(); c.Standard = std;
+            var r = CircuitVoltageDrop.Resolve(c, Data());
+            Assert.Equal(VdMethod.None, r.Method);
+            Assert.False(string.IsNullOrWhiteSpace(r.Detail));
+        }
+
+        [Fact]
+        public void IEC_60364_uses_the_harmonised_Appendix_4_tables()
+        {
+            var c = Circuit(); c.Standard = "IEC60364";
+            Assert.Equal(VdMethod.Appendix4Recorded, CircuitVoltageDrop.Resolve(c, Data()).Method);
+        }
+
+        [Fact]
+        public void Schedule_text_marks_bounds_and_never_shows_a_number_for_NONE()
+        {
+            // ELEC-26: the mirror always carries the current state.
+            Assert.Equal("3.91", CircuitVoltageDrop.DisplayText(CircuitVoltageDrop.Resolve(Circuit(), Data())));
+            Assert.Equal("≤4.13", CircuitVoltageDrop.DisplayText(CircuitVoltageDrop.Resolve(Circuit(recorded: false), Data())));
+            var missing = Circuit(); missing.LengthM = 0;
+            Assert.Equal("—", CircuitVoltageDrop.DisplayText(CircuitVoltageDrop.Resolve(missing, Data())));
+            Assert.Equal("—", CircuitVoltageDrop.DisplayText(null));
+        }
+
         // ── the Circuit Check on an upper bound ─────────────────────────────
 
         private static CircuitCheckInput Check(double vd, bool bound) => new CircuitCheckInput

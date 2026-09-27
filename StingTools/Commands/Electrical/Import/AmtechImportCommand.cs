@@ -187,6 +187,7 @@ namespace StingTools.Commands.Electrical.Import
             n += Tally(Set(p, "ELC_VLT_DROP_PCT",    r.VoltageDrop?.ToString("F1", Inv) ?? "", w), ref failed);
             // Say where the figure came from (ELEC-22); not counted as a separate value.
             if (r.VoltageDrop.HasValue) Set(p, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("Amtech"), w);
+            if (r.VoltageDrop.HasValue) Set(p, "ELC_VLT_DROP_TXT", r.VoltageDrop?.ToString("F1", Inv) ?? "", w);
             return n;
         }
 
@@ -222,6 +223,7 @@ namespace StingTools.Commands.Electrical.Import
                 {
                     n += Tally(Set(sys, "ELC_VLT_DROP_PCT", m.VoltageDrop.Value.ToString("F1", Inv), w), ref failed);
                     Set(sys, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("Amtech"), w);
+                    Set(sys, "ELC_VLT_DROP_TXT", m.VoltageDrop.Value.ToString("F1", Inv), w);
                 }
             }
             return n;

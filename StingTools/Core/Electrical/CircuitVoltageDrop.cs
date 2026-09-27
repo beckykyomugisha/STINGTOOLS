@@ -106,6 +106,13 @@ namespace StingTools.Core.Electrical
         public static bool IsAppendix4(VdMethod m)
             => m == VdMethod.Appendix4Recorded || m == VdMethod.Appendix4Envelope || m == VdMethod.Appendix4Sized;
 
+        /// <summary>The schedule text (ELC_VLT_DROP_TXT) for a result: "3.91", "≤4.13" for an
+        /// upper bound, or "—" when nothing was calculated (the basis says why). ELEC-26: unlike
+        /// the number, this can always be overwritten, so no stale figure stays on view.</summary>
+        public static string DisplayText(CircuitVdResult r)
+            => r == null || !r.HasValue ? "—"
+             : (r.UpperBound ? "≤" : "") + r.Pct.ToString("0.00", CultureInfo.InvariantCulture);
+
         public static string ImportBasis(string tool)
             => $"{CodeImport} {(string.IsNullOrWhiteSpace(tool) ? "another tool" : tool.Trim())} (method not known to STING)";
 
@@ -116,7 +123,8 @@ namespace StingTools.Core.Electrical
         /// <summary>
         /// Work out the drop, in this order:
         ///   1. a missing input → NONE (never 0)
-        ///   2. NEC → conductor resistance, via <paramref name="resistancePct"/> (NONE without it)
+        ///   2. a standard with no shipped tables → NONE; NEC → conductor resistance, via
+        ///      <paramref name="resistancePct"/> (NONE without it)
         ///   3. aluminium → NONE (no aluminium Appendix 4 voltage-drop table is shipped)
         ///   4. no tables (or an invalid project override) → NONE, never a built-in copy
         ///   5. a complete cable record with a loaded table → A4 from that table
@@ -136,7 +144,11 @@ namespace StingTools.Core.Electrical
             if (missing.Count > 0) return None("missing " + string.Join(", ", missing));
             int ph = i.Phases >= 3 ? 3 : 1;
 
-            if (StingTools.Standards.ElectricalStandardId.Normalise(i.Standard).StartsWith("NEC", StringComparison.OrdinalIgnoreCase))
+            string std = StingTools.Standards.ElectricalStandardId.Normalise(i.Standard);
+            // A standard with no shipped tables gets no figure, never BS 7671's under its name.
+            if (!StingTools.Standards.ElectricalStandardId.SupportsConductorSizing(std, out _, out string refusal))
+                return None(refusal);
+            if (std == StingTools.Standards.ElectricalStandardId.Nec2023)
             {
                 if (resistancePct == null) return None("NEC circuit: no resistance method supplied");
                 double pct = resistancePct(i);

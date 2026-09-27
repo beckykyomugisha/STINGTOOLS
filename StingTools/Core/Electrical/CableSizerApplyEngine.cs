@@ -91,6 +91,14 @@ namespace StingTools.Core.Electrical
         /// <summary>Per-param successful-write counts (numeric, on the circuit instance).</summary>
         public int WroteCsaNum { get; set; }
         public int WroteVdNum { get; set; }
+        /// <summary>ELEC-23: the size also written where every other reader looks —
+        /// ELC_CBL_SZ_MM (alias ELC_CKT_CSA_MM2) and the native wire size when Revit allows.</summary>
+        public int WroteCircuitCsa { get; set; }
+        public int WroteNativeWireSize { get; set; }
+        /// <summary>ELEC-22/23: ELC_VLT_DROP_PCT + ELC_CKT_VD_BASIS_TXT stamped through
+        /// CircuitVoltageDropModel; VdNotCalculated counts NONE stamps.</summary>
+        public int VdStamped { get; set; }
+        public int VdNotCalculated { get; set; }
         /// <summary>True on a real run when Computed &gt; 0 but Written == 0 (silent-no-op guard).</summary>
         public bool NoWritesPersisted { get; set; }
         /// <summary>Per-element/per-circuit values written to a TYPE-scoped param (shared across
@@ -175,6 +183,7 @@ namespace StingTools.Core.Electrical
 
             // Real run — engine owns its Transaction (nests under a caller's group).
             // Write numeric results to the CIRCUIT instance itself, resolving names via ParamRegistry.
+            var resistance = CircuitVoltageDropModel.Resistance();
             using (var tx = new Transaction(doc, "STING Cable Sizing"))
             {
                 tx.Start();
@@ -185,19 +194,43 @@ namespace StingTools.Core.Electrical
                         if (!(doc.GetElement(id) is ElectricalSystem circuit))
                         { result.Skipped.Add($"{id.Value}: circuit vanished"); continue; }
 
+                        // ELEC-23: the voltage drop is the resolver's, from the circuit's own
+                        // Ib / length / voltage for the size and cable just chosen, so this
+                        // engine, the CABLE-tab Apply and Recalculate all agree on one figure.
+                        var vdIn = CircuitVoltageDropModel.Read(circuit, assumptions.Standard, assumptions.Material);
+                        vdIn.CsaMm2 = r.RecommendedCsaMm2;
+                        vdIn.InstallMethod = string.IsNullOrEmpty(assumptions.InstallMethod) ? "C" : assumptions.InstallMethod;
+                        vdIn.Insulation = string.IsNullOrEmpty(assumptions.Insulation) ? "PVC70" : assumptions.Insulation;
+                        vdIn.CableType = string.IsNullOrEmpty(assumptions.CableType) ? Bs7671Data.DefaultCableType : assumptions.CableType;
+                        var vdOut = CircuitVoltageDrop.Resolve(vdIn, bsTables, resistance);
+
                         bool csa = SetNumberOnInstance(circuit, P_CSA_NUM, r.RecommendedCsaMm2,
                             csaScope, "conductor CSA", result);
-                        bool vd = SetNumberOnInstance(circuit, P_VD_NUM, r.ActualVoltDropPct,
+                        bool vd = vdOut.HasValue && SetNumberOnInstance(circuit, P_VD_NUM, vdOut.Pct,
                             vdScope, "voltage drop %", result);
+                        if (CircuitVoltageDropModel.Stamp(circuit, vdOut)) result.VdStamped++;
+                        if (!vdOut.HasValue) result.VdNotCalculated++;
 
+                        try
+                        {
+                            var nw = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM);
+                            if (nw != null && !nw.IsReadOnly && nw.StorageType == StorageType.String && nw.Set(r.CsaLabel))
+                                result.WroteNativeWireSize++;
+                        }
+                        catch (Exception ex) { StingLog.Info($"Native wire size on {id.Value} not written: {ex.Message}"); }
+
+                        // The same size where the Cable Schedule, Circuit Check and SLD read it.
+                        bool circuitCsa = ParameterHelpers.SetString(circuit, "ELC_CBL_SZ_MM",
+                                r.RecommendedCsaMm2.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
+                        if (circuitCsa) result.WroteCircuitCsa++;
                         if (csa) result.WroteCsaNum++;
                         if (vd)  result.WroteVdNum++;
                         // The cable the size assumes, so later checks read it back.
-                        if (csa) CircuitCableRecord.Write(circuit, assumptions.InstallMethod,
+                        if (csa || circuitCsa) CircuitCableRecord.Write(circuit, assumptions.InstallMethod,
                                                           assumptions.Insulation, assumptions.CableType);
-                        if (csa || vd) result.Written++;
+                        if (csa || vd || circuitCsa) result.Written++;
                         else result.Skipped.Add($"{id.Value}: result params not bound on the circuit " +
-                                                $"({P_CSA_NUM} / {P_VD_NUM}) — run Load Shared Parameters");
+                                                $"({P_CSA_NUM} / {P_VD_NUM} / ELC_CBL_SZ_MM) — run Load Shared Parameters");
                     }
                     catch (Exception ex) { result.Errors.Add($"{id.Value}: {ex.Message}"); }
                 }
@@ -217,7 +250,7 @@ namespace StingTools.Core.Electrical
                               "TYPE-scoped param (shared across instances) — see typeScopeWrites; these are NOT clean per-circuit persists.");
 
             StingLog.Info($"CableSizerApplyEngine: inspected {result.Inspected}, computed {result.Computed}, " +
-                          $"written {result.Written} (csa {result.WroteCsaNum} / vd {result.WroteVdNum}), " +
+                          $"written {result.Written} (csa {result.WroteCsaNum} / vd {result.WroteVdNum} / circuit csa {result.WroteCircuitCsa} / native {result.WroteNativeWireSize} / vd stamp {result.VdStamped}, none {result.VdNotCalculated}), " +
                           $"typeScope {result.TypeScopeWrites.Count}, skipped {result.Skipped.Count}, errors {result.Errors.Count}" +
                           (result.NoWritesPersisted ? " — NO WRITES PERSISTED" : "") +
                           $" (std={assumptions.Standard}, method={assumptions.InstallMethod}, {assumptions.Material}/{assumptions.Insulation}).");

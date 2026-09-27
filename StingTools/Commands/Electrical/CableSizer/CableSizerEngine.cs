@@ -90,6 +90,10 @@ namespace StingTools.Commands.Electrical.CableSizer
         public double TabulatedCapacityA { get; set; }
         /// <summary>BS 7671: Iz = It·Ca·Cg·Ci of the chosen size (A). 0 on the NEC path.</summary>
         public double EffectiveCapacityIzA { get; set; }
+        /// <summary>ELEC-25: BS 7671 Appendix 4 §6.1 load-corrected drop, optional and
+        /// reported only; null where it does not apply. Never used to choose the size.</summary>
+        public double? LoadCorrectedVoltDropPct { get; set; }
+        public string LoadCorrectionNote { get; set; } = "";
     }
 
     /// <summary>
@@ -314,6 +318,8 @@ namespace StingTools.Commands.Electrical.CableSizer
             // The mm2 series IS this standard's series, so the label needs no translation.
             result.CsaLabel = $"{VoltageDropEngine.FormatCsa(bs.CsaMm2)} {input.Material}/{input.Insulation}";
             result.ActualVoltDropPct = bs.VoltDropPct;
+            result.LoadCorrectedVoltDropPct = bs.LoadCorrectedVoltDropPct;
+            result.LoadCorrectionNote = bs.LoadCorrectionNote;
             result.VDCompliant = true;   // the size was chosen to meet the limit
             result.ProposedBreakerA = bs.DeviceRatingA;
             result.ProtectiveDevice = deviceLabel;

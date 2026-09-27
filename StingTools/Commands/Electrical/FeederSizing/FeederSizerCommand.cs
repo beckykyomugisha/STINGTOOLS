@@ -38,6 +38,9 @@ namespace StingTools.Commands.Electrical.FeederSizing
     {
         public static List<FeederSizeResult> LastResults { get; private set; } = new();
 
+        /// <summary>The standard this run sizes to (ELEC-24), read from the Electrical panel.</summary>
+        private string _standard = StingTools.Standards.ElectricalStandardId.Bs7671;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -55,6 +58,12 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 TaskDialog.Show("STING Feeders", "No SLD hierarchy found. Place an incomer panel first.");
                 return Result.Cancelled;
             }
+
+            // ELEC-24: the panel's standard, read once — feeders were always sized to BS 7671,
+            // so an NEC project got BS 7671 feeders with no warning.
+            _standard = StingTools.Standards.ElectricalStandardId.Normalise(
+                StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
+            bool nec = _standard == StingTools.Standards.ElectricalStandardId.Nec2023;
 
             var inputs = new List<FeederSizeInput>();
             CollectInputs(root, settings, inputs, isRoot: true);
@@ -88,10 +97,11 @@ namespace StingTools.Commands.Electrical.FeederSizing
                             $"{r.ProposedCsaMm2:0.#}", overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_RATING_A,
                             $"{r.ProposedRatingA:0}", overwrite: true);
-                        // The sizer's own figure for the cable it chose, on the fed board: A4-SIZED
-                        // (feeders are sized to BS 7671 Appendix 4 — see CollectInputs).
+                        // The sizer's own figure for the cable it chose, on the fed board: A4-SIZED on
+                        // BS 7671 (Appendix 4 mV/A/m); on NEC the sizer's drop is conductor resistance.
                         StingTools.Core.Electrical.CircuitVoltageDropModel.StampForeign(panel, r.ActualVDPct,
-                            $"{StingTools.Core.Electrical.CircuitVoltageDrop.CodeA4Sized} feeder {r.CsaLabel} from the feeder sizer; {r.Basis}");
+                            $"{(nec ? StingTools.Core.Electrical.CircuitVoltageDrop.CodeR60228 : StingTools.Core.Electrical.CircuitVoltageDrop.CodeA4Sized)} " +
+                            $"feeder {r.CsaLabel} from the feeder sizer; {r.Basis}");
                         written++;
                         if (!r.VDCompliant) vdFails++;
                     }
@@ -104,9 +114,10 @@ namespace StingTools.Commands.Electrical.FeederSizing
             StingLog.Info($"FeederSizer: {results.Count} feeder(s), stamped {written}, not sized {notSized}, " +
                           $"on defaults {onDefaults}, VD fails {vdFails}.");
             TaskDialog.Show("STING Feeders",
+                $"Standard: {(nec ? "NEC 2023 (Table 310.16; derate not applied; voltage drop is advisory)" : "BS 7671 Appendix 4")}.\n" +
                 $"Feeders: {results.Count}. Stamped {written}. Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
                 $"VD limit: {settings.VDLimitPct:0.##} % " +
-                (settings.VDLimitUserSet ? "(user-set for feeders)" : "(BS 7671 Appendix 12 'other' limit)") +
+                (settings.VDLimitUserSet ? "(user-set for feeders)" : nec ? "(NEC 215.2(A)(1) Informational Note, advisory)" : "(BS 7671 Appendix 12 'other' limit)") +
                 $". Diversity: {(settings.DiversityPct > 0 ? settings.DiversityPct : 100):0.#} %.\n" +
                 (notSized > 0 ? "\nNot sized:\n" + string.Join("\n", notSizedLines) + "\n" : "") +
                 (onDefaults > 0
@@ -155,7 +166,7 @@ namespace StingTools.Commands.Electrical.FeederSizing
                     CableType       = string.IsNullOrEmpty(s.CableType)
                                           ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : s.CableType,
                     VDLimitPct      = s.VDLimitPct > 0 ? s.VDLimitPct : FeederSettingsSnapshot.DefaultVdLimitPct,
-                    Standard        = "BS7671"
+                    Standard        = _standard
                 };
                 // Insulation and cable type come from the FEEDER SIZING expander (PVC70
                 // multicore when unset); the table they select is named in every Basis.

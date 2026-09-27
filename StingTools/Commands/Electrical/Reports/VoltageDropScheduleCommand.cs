@@ -101,8 +101,10 @@ namespace StingTools.Commands.Electrical.Reports
 
                 // The voltage-drop column itself. It is a shared parameter, so it
                 // is found by name, not BuiltInParameter - the schedule used to be
-                // created with every column EXCEPT the one it is named after.
-                string vdName = ParamRegistry.ELC_CKT_VD_PCT;
+                // created with every column EXCEPT the one it is named after. ELEC-26:
+                // the text mirror, not the number — the number cannot be cleared when a
+                // circuit is no longer calculable, the mirror always shows "—" then.
+                string vdName = "ELC_VLT_DROP_TXT";
                 var vdField = def.GetSchedulableFields()
                     .FirstOrDefault(f => string.Equals(f.GetName(doc), vdName, StringComparison.Ordinal));
                 if (vdField != null) def.AddField(vdField);

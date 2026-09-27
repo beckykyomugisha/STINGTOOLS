@@ -651,5 +651,62 @@ namespace StingTools.Tags.Tests
             Assert.Equal(2.5, VoltageDropEngine.LimitFor(true, 2.5, 4));
             Assert.Equal(4.0, VoltageDropEngine.LimitFor(false, 2.5, 4));
         }
+    
+        // ── ELEC-25: Appendix 4 §6.1 load correction (optional, reported only) ──
+        //  2.5 mm² 4D2A method C 1-ph: It 27 A, 18 mV/A/m, tp 70 °C. Ib 20 A, Ca = Cg = 1:
+        //    Ct = [230 + 70 − (1 − 20²/27²)(70 − 30)] / (230 + 70)
+        //       = [300 − 0.451303 × 40] / 300 = 0.939826
+        //    VD = 18 × 0.939826 × 20 × 10 / 1000 / 230 = 1.4710 %  (tabulated 1.5652 %)
+
+        [Fact]
+        public void Load_correction_factor_matches_the_hand_calculation()
+        {
+            Assert.Equal(0.939826, Bs7671CableSizer.LoadCorrectionCt(70, 1.0, 1.0, 20, 27), 6);
+        }
+
+        [Fact]
+        public void Load_correction_is_never_above_one()
+        {
+            // At or beyond Ca·Cg·It the conductor is at tp: the tabulated figure stands.
+            Assert.Equal(1.0, Bs7671CableSizer.LoadCorrectionCt(70, 0.87, 1.0, 27, 27), 9);
+            Assert.Equal(1.0, Bs7671CableSizer.LoadCorrectionCt(70, 1.0, 1.0, 40, 27), 9);
+            // Derating (smaller Ca·Cg) means a hotter conductor, so less reduction.
+            Assert.True(Bs7671CableSizer.LoadCorrectionCt(70, 0.87, 0.8, 20, 27)
+                        > Bs7671CableSizer.LoadCorrectionCt(70, 1.0, 1.0, 20, 27));
+        }
+
+        [Fact]
+        public void Sizing_reports_the_corrected_drop_but_sizes_on_the_tabulated_one()
+        {
+            var r = Bs7671CableSizer.Size(Pvc(20, 10, 5.0), Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(2.5, r.CsaMm2);
+            Assert.Equal(1.5652, r.VoltDropPct, 4);
+            Assert.NotNull(r.LoadCorrectedVoltDropPct);
+            Assert.Equal(0.939826, r.LoadCorrectionCt.Value, 6);
+            Assert.Equal(1.4710, r.LoadCorrectedVoltDropPct.Value, 4);
+            Assert.Contains("Appendix 4 §6.1 (optional)", r.Basis);
+        }
+
+        [Fact]
+        public void Load_correction_is_not_applied_above_16_mm2()
+        {
+            // 60 A needs 16 mm²+ on method C; 125 A lands above 16 mm².
+            var r = Bs7671CableSizer.Size(Pvc(100, 10, 5.0), Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.True(r.CsaMm2 > 16);
+            Assert.Null(r.LoadCorrectedVoltDropPct);
+            Assert.Contains("resistive component only", r.LoadCorrectionNote);
+        }
+
+        [Fact]
+        public void Load_correction_is_not_applied_to_buried_cables()
+        {
+            var i = Pvc(20, 10, 5.0); i.InstallMethod = "D1"; i.CableType = "ArmouredMulticore";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Null(r.LoadCorrectedVoltDropPct);
+            Assert.Contains("Cs and Cd", r.LoadCorrectionNote);
+        }
     }
 }

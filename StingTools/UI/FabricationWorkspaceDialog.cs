@@ -754,8 +754,9 @@ namespace StingTools.UI
                     string disc = DisciplineFor(el);
                     if (!RuleEnabledFor(disc)) continue;
                     string sys = ParameterHelpers.GetString(el, "PLM_SYS_TXT");
-                    if (string.IsNullOrWhiteSpace(sys)) sys = ParameterHelpers.GetString(el, "HVC_SYS_TXT");
-                    if (string.IsNullOrWhiteSpace(sys)) sys = ParameterHelpers.GetString(el, "ELC_SYS_TXT");
+                    // HVC_SYS_TXT / ELC_SYS_TXT were read here, but no such parameters exist, so every
+                    // duct and conduit fell to "GEN". The tag's SYS token is the system every discipline carries.
+                    if (string.IsNullOrWhiteSpace(sys)) sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                     if (string.IsNullOrWhiteSpace(sys)) sys = "GEN";
                     string lvl = ParameterHelpers.GetLevelCode(_doc, el);
                     if (string.IsNullOrWhiteSpace(lvl)) lvl = "XX";

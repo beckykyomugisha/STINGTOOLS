@@ -1292,7 +1292,7 @@ ELC_TAG_7_PARA_TRAY_TXT,<ALL>
 ELC_TRANSFER_LOAD_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_UPS_REPLACE_DT,Electrical Equipment|Electrical Circuits
 ELC_VLT_DROP_PCT,Electrical Circuits|Electrical Equipment
-ELC_VLT_DROP_TXT,Electrical Circuits
+ELC_VLT_DROP_TXT,Electrical Equipment|Electrical Circuits
 ELC_VLT_PRIMARY_RATING_TXT,Electrical Circuits
 ELC_VLT_PRIMARY_RATING_V,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures
 ELC_VOLTAGE_TXT,Electrical Fixtures

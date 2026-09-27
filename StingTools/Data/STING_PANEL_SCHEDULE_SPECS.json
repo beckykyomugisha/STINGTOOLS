@@ -37,7 +37,7 @@
         { "heading": "L2 (VA)",           "param": "bip:RBS_ELEC_APPARENT_LOAD_PHASEB",  "widthMm": 16 },
         { "heading": "L3 (VA)",           "param": "bip:RBS_ELEC_APPARENT_LOAD_PHASEC",  "widthMm": 16 },
         { "heading": "Ib (A)",            "param": "bip:RBS_ELEC_APPARENT_CURRENT_PARAM", "widthMm": 14 },
-        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 },
+        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_TXT",                   "widthMm": 14 },
         { "heading": "BS 7671 check",     "param": "ELC_CKT_CHECK_TXT",                  "widthMm": 45 }
       ],
       "footer": [
@@ -78,7 +78,7 @@
         { "heading": "Length",            "param": "bip:RBS_ELEC_CIRCUIT_LENGTH_PARAM",  "widthMm": 16 },
         { "heading": "Load (VA)",         "param": "bip:RBS_ELEC_APPARENT_LOAD",         "widthMm": 18 },
         { "heading": "Ib (A)",            "param": "bip:RBS_ELEC_APPARENT_CURRENT_PARAM", "widthMm": 14 },
-        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 },
+        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_TXT",                   "widthMm": 14 },
         { "heading": "BS 7671 check",     "param": "ELC_CKT_CHECK_TXT",                  "widthMm": 45 }
       ],
       "footer": [
@@ -121,7 +121,7 @@
         { "heading": "Length",            "param": "bip:RBS_ELEC_CIRCUIT_LENGTH_PARAM",  "widthMm": 16 },
         { "heading": "Load (VA)",         "param": "bip:RBS_ELEC_APPARENT_LOAD",         "widthMm": 18 },
         { "heading": "Ib (A)",            "param": "bip:RBS_ELEC_APPARENT_CURRENT_PARAM", "widthMm": 14 },
-        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_PCT",                   "widthMm": 14 },
+        { "heading": "VD (%)",            "param": "ELC_VLT_DROP_TXT",                   "widthMm": 14 },
         { "heading": "BS 7671 check",     "param": "ELC_CKT_CHECK_TXT",                  "widthMm": 45 }
       ],
       "footer": [
