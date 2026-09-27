@@ -91,7 +91,7 @@ of its capacity table.
 | 4D4B | D (≤ 16 mm² also A; ≥ 25 mm² r and x also G) | ≤ 16 mm² (at 25 mm² and above only r and x are two-source, not z) |
 | 4E2B | D (J for some cells) | 1, 1.5, 2.5, 4 and 16 mm² (J also agrees on 3-phase z at 10, 25, 35, 50 and 95 mm², but a row needs both columns) |
 | 4E4B | D, E, F | ≤ 16 mm², and z at 25–120 and 400 mm² |
-| 4D1B | ≤ 16 mm²: A. ≥ 25 mm²: D, checked against I. | ≥ 25 mm², every size carried (I and D agree on each value used). Not ≤ 16 mm². |
+| 4D1B | ≤ 16 mm²: A, checked against D. ≥ 25 mm²: D, checked against I. | every size (≤ 16 mm²: A and D agree; ≥ 25 mm²: I and D agree on each value used) |
 
 **Single-core 4D1B.** At 25 mm² and above the table splits by arrangement. Methods A and B take
 the enclosed columns (A&B). Methods C and F take single-phase "cables touching" and three-phase

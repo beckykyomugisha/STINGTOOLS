@@ -374,6 +374,7 @@ namespace StingTools.Tags.Tests
 
         [Theory]
         // method, csa, 1-ph z, 3-ph z  (A/B enclosed; C/F 1-ph touching and 3-ph flat touching)
+        [InlineData("C", 2.5, 18.0, 15.0)]    // ≤ 16 mm²: one column, Elec-Mate and HK agree
         [InlineData("A", 25.0, 1.8, 1.55)]
         [InlineData("B", 400.0, 0.29, 0.25)]
         [InlineData("C", 185.0, 0.29, 0.31)]
