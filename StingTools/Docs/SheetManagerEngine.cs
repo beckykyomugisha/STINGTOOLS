@@ -767,29 +767,7 @@ namespace StingTools.Docs
         /// Scans existing sheets and returns max + 1.
         /// </summary>
         internal static string GetNextSheetNumber(Document doc, string disciplinePrefix)
-        {
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .ToList();
-
-            int maxNum = 0;
-            string prefix = disciplinePrefix.ToUpperInvariant();
-
-            foreach (var sheet in sheets)
-            {
-                string num = sheet.SheetNumber;
-                if (num.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    string rest = num.Substring(prefix.Length).TrimStart('-', '_', ' ');
-                    if (int.TryParse(rest, out int n) && n > maxNum)
-                        maxNum = n;
-                }
-            }
-
-            return $"{prefix}-{(maxNum + 1):D3}";
-        }
+            => Commands.Drawing.SheetNumbering.NextNumber(doc, (disciplinePrefix ?? "").ToUpperInvariant());
 
         /// <summary>
         /// Validate a sheet number is unique in the document.

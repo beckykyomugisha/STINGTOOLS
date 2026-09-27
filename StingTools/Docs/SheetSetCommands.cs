@@ -320,39 +320,33 @@ namespace StingTools.Docs
 
             string disc = picked.Split(' ')[0];
 
-            // Starting number
-            var td = new TaskDialog("Batch Renumber");
-            td.MainInstruction = $"Renumber {byDisc[disc].Count} sheets in discipline '{disc}'";
-            td.MainContent = $"Sheets will be renumbered as {disc}-001, {disc}-002, etc.\n" +
-                "This uses a two-pass rename to avoid conflicts.";
-            td.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-
-            if (td.Show() == TaskDialogResult.Cancel) return Result.Cancelled;
-
-            using (var tx = new Transaction(doc, "STING Batch Renumber"))
+            var plan = SheetManagerEngineExt.PlanBatchRenumber(doc, disc);
+            if (plan.Count == 0)
             {
-                tx.Start();
-                int renamed = SheetManagerEngineExt.BatchRenumberSheets(doc, disc);
-
-                // -1 is the engine's conflict signal, and it was being printed as a
-                // sheet count: "Renumbered -1 sheets in discipline 'A'." The run had
-                // done nothing, and the message said it had done something, which is
-                // the one report worse than no report at all.
-                if (renamed < 0)
-                {
-                    tx.RollBack();
-                    TaskDialog.Show("Batch Renumber",
-                        $"Nothing was renumbered.\n\nThe numbers this would produce for '{disc}' "
-                        + "are already used by sheets OUTSIDE that discipline, so the run was "
-                        + "stopped before it could half-finish. See StingTools.log for which.\n\n"
-                        + "Auto-Number Sheets (Drawing Types -> Title Block) handles every "
-                        + "discipline in one pass and routes around numbers that are taken.");
-                    return Result.Cancelled;
-                }
-
-                tx.Commit();
-                TaskDialog.Show("Batch Renumber", $"Renumbered {renamed} sheets in discipline '{disc}'.");
+                TaskDialog.Show("Batch Renumber",
+                    $"Every sheet in '{disc}' already has the number the project pattern gives it " +
+                    "(locked sheets and sheets carrying a full ISO identifier are left alone).");
+                return Result.Succeeded;
             }
+
+            var preview = new System.Text.StringBuilder();
+            foreach (var c in plan.Take(20)) preview.AppendLine($"  {c.Old}  ->  {c.New}");
+            if (plan.Count > 20) preview.AppendLine($"  … and {plan.Count - 20} more");
+
+            var td = new TaskDialog("Batch Renumber");
+            td.MainInstruction = $"Renumber {plan.Count} sheet(s) in discipline '{disc}'?";
+            td.MainContent = $"Pattern: {Commands.Drawing.SheetNumbering.ReadPattern(doc)}\n\n" + preview +
+                "\nIdentifiers (SHT_TAG_1_TXT) are rebuilt and the change is recorded, " +
+                "so Sheet_NumberRestore can undo it.";
+            td.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
+            if (td.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+
+            var outcome = Commands.Drawing.SheetNumbering.Apply(doc, plan, "STING Batch Renumber");
+            var msg = $"Renumbered {outcome.Done} of {plan.Count} sheet(s) in '{disc}'.";
+            if (outcome.Failed > 0) msg += $"\n\n{outcome.Failed} failed:\n" + string.Join("\n", outcome.Failures.Take(10));
+            msg += $"\nIdentifiers rebuilt: {outcome.Retagged}.";
+            if (outcome.HistoryPath == null) msg += "\nThe renumber history could NOT be written — restore by hand.";
+            TaskDialog.Show("Batch Renumber", msg);
             return Result.Succeeded;
         }
     }
