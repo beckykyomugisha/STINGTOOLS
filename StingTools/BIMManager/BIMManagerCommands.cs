@@ -8467,8 +8467,8 @@ namespace StingTools.BIMManager
         {
             try
             {
-                string dir = OutputLocationHelper.GetOutputDirectory(doc);
-                string path = Path.Combine(dir, "STING_HEALTH_LOG.csv");
+                // A trend log the health dashboard reads back — state, not an export (DOCX-11).
+                string path = OutputLocationHelper.GetStorePath(doc, "STING_HEALTH_LOG.csv", "health");
                 bool exists = File.Exists(path);
                 using var sw = new StreamWriter(path, append: true, System.Text.Encoding.UTF8);
                 if (!exists)
@@ -8487,7 +8487,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "STING_HEALTH_LOG.csv");
+                string path = OutputLocationHelper.GetStorePath(doc, "STING_HEALTH_LOG.csv", "health");
                 if (!File.Exists(path)) return "";
                 var lines = File.ReadAllLines(path).Skip(1).ToList();
                 if (lines.Count < 2) return "";

@@ -141,8 +141,8 @@ namespace StingTools.V6
 
         public static string AuditLogPath(Document doc)
         {
-            string dir = OutputLocationHelper.GetOutputDirectory(doc);
-            return Path.Combine(dir, "STING_Commissioning_Audit.json");
+            // An append-and-read-back audit trail: state (DOCX-11).
+            return OutputLocationHelper.GetStorePath(doc, "STING_Commissioning_Audit.json", "commissioning");
         }
     }
 }

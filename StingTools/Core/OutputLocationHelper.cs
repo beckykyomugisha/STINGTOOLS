@@ -191,6 +191,69 @@ namespace StingTools.Core
             return GetOutputDirectory(doc);
         }
 
+        /// <summary>
+        /// A plugin DATA STORE — a file the plugin writes and later reads back (clash
+        /// results, logs, overrides) — under &lt;root&gt;/_data/coord/&lt;area&gt;/.
+        ///
+        /// These used to sit in the MISC export folder beside the user's reports, where a
+        /// tidy-up deleted history and nothing marked them as state. On first use the old
+        /// MISC copy (and any listed sibling folders, such as the clash <c>archive/</c>) is
+        /// copied forward, then renamed <c>*.migrated_yyyyMMdd</c> — the convention
+        /// Folders_Consolidate uses — so exactly one live copy exists and none is lost.
+        /// An unsaved model has no _data folder and keeps the old location.
+        /// </summary>
+        public static string GetStorePath(Document doc, string fileName, string area = null,
+            params string[] carrySiblingDirs)
+        {
+            string legacyDir = null;
+            try { legacyDir = GetOutputDirectory(doc); }
+            catch (Exception ex) { StingLog.Warn($"GetStorePath legacy dir: {ex.Message}"); }
+
+            string target = string.IsNullOrEmpty(area)
+                ? StingPaths.MetaFile(doc, "_BIM_COORD", fileName)
+                : StingPaths.MetaFile(doc, "_BIM_COORD", area, fileName);
+            if (string.IsNullOrEmpty(target))
+                return string.IsNullOrEmpty(legacyDir) ? null : Path.Combine(legacyDir, fileName);
+
+            try
+            {
+                string targetDir = Path.GetDirectoryName(target);
+                Directory.CreateDirectory(targetDir);
+                if (!string.IsNullOrEmpty(legacyDir) &&
+                    !string.Equals(Path.GetFullPath(legacyDir).TrimEnd('\\', '/'),
+                                   Path.GetFullPath(targetDir).TrimEnd('\\', '/'),
+                                   StringComparison.OrdinalIgnoreCase))
+                {
+                    string stamp = ".migrated_" + DateTime.Now.ToString("yyyyMMdd");
+                    string legacyFile = Path.Combine(legacyDir, fileName);
+                    if (File.Exists(legacyFile) && !File.Exists(target))
+                    {
+                        File.Copy(legacyFile, target);
+                        File.Move(legacyFile, legacyFile + stamp);
+                        StingLog.Info($"Store carried forward: {legacyFile} -> {target}");
+                    }
+                    foreach (string sib in carrySiblingDirs ?? Array.Empty<string>())
+                    {
+                        string from = Path.Combine(legacyDir, sib);
+                        string to = Path.Combine(targetDir, sib);
+                        if (!Directory.Exists(from) || Directory.Exists(to)) continue;
+                        Directory.CreateDirectory(to);
+                        foreach (string f in Directory.GetFiles(from))
+                            File.Copy(f, Path.Combine(to, Path.GetFileName(f)));
+                        Directory.Move(from, from + stamp);
+                        StingLog.Info($"Store folder carried forward: {from} -> {to}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // A failed carry-forward must not lose the old data: it stays where it was
+                // and is still readable from there by hand; the new store starts empty.
+                StingLog.Warn($"GetStorePath carry-forward '{fileName}': {ex.Message}");
+            }
+            return target;
+        }
+
         /// <summary><see cref="GetRoutedDirectory"/> + "baseName_yyyyMMdd_HHmmss.ext".</summary>
         public static string GetRoutedTimestampedPath(Document doc, string exportTypeKey,
             string baseName, string extension, string discipline = null)

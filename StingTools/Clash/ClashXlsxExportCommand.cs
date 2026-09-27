@@ -38,7 +38,7 @@ namespace StingTools.Core.Clash
 
                 string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 string xlsxPath = Path.Combine(outDir, $"clashes_{stamp}.xlsx");
-                ExportToXlsx(run, xlsxPath, includeArchiveTrend: true, archiveDir: Path.Combine(outDir, "archive"));
+                ExportToXlsx(run, xlsxPath, includeArchiveTrend: true, archiveDir: ClashPersistence.ArchiveDir(doc));
 
                 TaskDialog.Show("STING Clash XLSX",
                     $"Exported {run.Clashes.Count} clashes ({run.Groups?.Count ?? 0} groups) to:\n\n{xlsxPath}");
