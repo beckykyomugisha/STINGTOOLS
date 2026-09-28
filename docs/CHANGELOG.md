@@ -25478,3 +25478,30 @@ every `GetString` read against the parameter's data type.
   Revit went on loading the previous build.
 - Tested with a scratch checkout and worktree: the worktree deploy exits 1 and leaves
   the installed manifest unchanged. Not run on Windows.
+
+#### Load Tag Families repairs Text-typed parameters instead of loading nothing (2026-09-28)
+
+- **Symptom.** In a project set up with Load Params, Load Tag Families stopped on "24 Errors
+  (must be addressed in order to continue)": "The shared parameter ... cannot be added with
+  name ASS_ELEVATION_M and type Text because it conflicts with the existing name ... and
+  type Length", and so on for 24 parameters.
+- **Cause.** The shipped tag families were authored when 154 STING parameters were TEXT
+  (`TAG_PARAM_ALIGNMENT_AUDIT.csv`, 2026-06-08). `MR_PARAMETERS.txt` now gives them their
+  real types, so Revit refuses any family still carrying the Text copy. The command loaded
+  all families in one transaction, so one refused family rolled back every family, and the
+  dialog could still report "Loaded N".
+- **Fix.** Each family is opened and checked (`SharedParamPreflight` +
+  `SharedParamConflictDetector`) before loading. A conflicting Text parameter is swapped for
+  its Text display mirror with `ReplaceParameter`, which keeps the label cells (the mirror is
+  found from its "`<NAME>` display mirror" description, `Core/DisplayMirrorNames`). With no
+  mirror it becomes a plain family parameter, so the family loads with that field empty. The
+  repaired copy is saved under its exact name in a temp folder and loaded from there; the
+  library files are unchanged. A same-name, different-GUID clash is not repaired and the
+  family is reported as not loaded.
+- **Reporting.** Loaded counts come from the families present in the project afterwards,
+  not from `LoadFamily`'s return; a transaction that does not commit is reported with
+  Revit's own failure text. Repaired families list each parameter swap.
+- 23 of the 24 refused parameters have a mirror; `ASS_TERM_CAPPED_BOOL` does not, so its
+  label field loads empty. Tests: `DisplayMirrorNamesTests` (28). Tags 4,026 passing, plugin
+  build 0 errors. Not run in Revit: `ReplaceParameter` on these families is the same call
+  Migrate Refs uses, but the load path itself is untested.

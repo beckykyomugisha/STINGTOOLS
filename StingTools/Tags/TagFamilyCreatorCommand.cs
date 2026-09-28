@@ -2876,59 +2876,114 @@ namespace StingTools.Tags
             int loaded = 0;
             int skipped = 0;
             int failed = 0;
+            int repaired = 0;
             var report = new StringBuilder();
 
-            // CRASH FIX: Single transaction for all families instead of one per .rfa file.
-            // Rapid-fire tx.Commit() calls trigger Revit's deferred regeneration
-            // which causes native segfaults (same root cause as ENH-003).
-            using (Transaction tx = new Transaction(doc, "STING Load Tag Families"))
+            var toLoad = new List<string>();
+            foreach (string rfaPath in rfaFiles.OrderBy(f => f))
             {
-                tx.Start();
-                foreach (string rfaPath in rfaFiles.OrderBy(f => f))
+                if (loadedFamilies.Contains(Path.GetFileNameWithoutExtension(rfaPath))) skipped++;
+                else toLoad.Add(rfaPath);
+            }
+
+            using (var repair = new TagFamilyLoadRepair(doc))
+            {
+                // Each family is opened and checked first: a shared parameter the
+                // project holds under another type makes Revit refuse the family, and
+                // in the one batch transaction below that refusal rolled back every
+                // other family too. A conflicting family is repaired in memory.
+                var items = new List<TagFamilyLoadItem>();
+                UI.StingProgressDialog progress = repair.NothingToCheck || toLoad.Count == 0
+                    ? null : UI.StingProgressDialog.Show("STING — checking tag families", toLoad.Count);
+                try
                 {
-                    string famName = Path.GetFileNameWithoutExtension(rfaPath);
-
-                    if (loadedFamilies.Contains(famName))
+                    foreach (string rfaPath in toLoad)
                     {
-                        skipped++;
-                        continue;
-                    }
-
-                    try
-                    {
-                        bool success = doc.LoadFamily(rfaPath, new TagFamilyLoadOptions(), out Family fam);
-                        if (success)
+                        if (progress != null && progress.IsCancelled)
                         {
-                            loaded++;
-                            report.AppendLine($"  [OK] {famName}");
+                            TaskDialog.Show("Load Tag Families", "Cancelled. No tag families were loaded.");
+                            return Result.Cancelled;
                         }
-                        else
-                        {
-                            failed++;
-                            report.AppendLine($"  [FAIL] {famName}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failed++;
-                        report.AppendLine($"  [FAIL] {famName} — {ex.Message}");
-                        StingLog.Error($"Load tag family failed: {famName}", ex);
+                        progress?.Increment(Path.GetFileNameWithoutExtension(rfaPath));
+                        items.Add(repair.Prepare(rfaPath));
                     }
                 }
-                tx.Commit();
+                finally { progress?.Close(); }
+
+                foreach (var it in items.Where(i => i.Blocked != null))
+                {
+                    failed++;
+                    report.AppendLine($"  [NOT LOADED] {it.FamilyName} — {it.Blocked}");
+                }
+                var loadable = items.Where(i => i.Blocked == null).ToList();
+
+                // CRASH FIX: Single transaction for all families instead of one per .rfa file.
+                // Rapid-fire tx.Commit() calls trigger Revit's deferred regeneration
+                // which causes native segfaults (same root cause as ENH-003).
+                var failures = new CapturingFailuresPreprocessor();
+                TransactionStatus status = TransactionStatus.Uninitialized;
+                if (loadable.Count > 0)
+                {
+                    using (Transaction tx = new Transaction(doc, "STING Load Tag Families"))
+                    {
+                        tx.Start();
+                        var fho = tx.GetFailureHandlingOptions();
+                        tx.SetFailureHandlingOptions(fho.SetFailuresPreprocessor(failures));
+                        foreach (var it in loadable)
+                        {
+                            try
+                            {
+                                if (!doc.LoadFamily(it.LoadPath, new TagFamilyLoadOptions(), out Family _))
+                                    StingLog.Warn($"LoadTagFamilies: LoadFamily returned false for {it.FamilyName}");
+                            }
+                            catch (Exception ex)
+                            {
+                                StingLog.Error($"Load tag family failed: {it.FamilyName}", ex);
+                            }
+                        }
+                        status = tx.Commit();
+                    }
+                }
+
+                // Count what is in the project now, not what LoadFamily returned.
+                var present = new HashSet<string>(new FilteredElementCollector(doc)
+                    .OfClass(typeof(Family)).Cast<Family>().Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
+                foreach (var it in loadable)
+                {
+                    if (present.Contains(it.FamilyName))
+                    {
+                        loaded++;
+                        if (it.Repairs.Count > 0)
+                        {
+                            repaired++;
+                            report.AppendLine($"  [OK, repaired] {it.FamilyName}: {string.Join("; ", it.Repairs)}");
+                        }
+                    }
+                    else
+                    {
+                        failed++;
+                        report.AppendLine($"  [FAIL] {it.FamilyName}");
+                    }
+                }
+                if (loadable.Count > 0 && status != TransactionStatus.Committed)
+                    report.Insert(0, $"The load transaction did not commit ({status}); nothing from this run was kept.\n" +
+                        (failures.Summary() is string why ? $"Revit said: {why}\n" : "") + "\n");
             }
 
             TaskDialog td = new TaskDialog("Load Tag Families");
-            td.MainInstruction = $"Loaded {loaded} tag families";
+            td.MainInstruction = failed == 0 ? $"Loaded {loaded} tag families" : $"Loaded {loaded} tag families, {failed} not loaded";
             td.MainContent =
                 $"Found: {rfaFiles.Length} .rfa files\n" +
-                $"Loaded: {loaded}\n" +
+                $"Loaded: {loaded}" + (repaired > 0 ? $" ({repaired} repaired for this project's parameter types)" : "") + "\n" +
                 $"Skipped: {skipped} (already loaded)\n" +
-                $"Failed: {failed}\n\n" +
-                (report.Length > 0 ? report.ToString() : "");
+                $"Not loaded: {failed}" +
+                (repaired > 0 ? "\n\nRepaired families had parameters stored as Text that this project holds " +
+                    "as numbers, lengths or yes/no. Their labels now read the Text display mirror. " +
+                    "The files in the tag library are unchanged." : "");
+            if (report.Length > 0) td.ExpandedContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"LoadTagFamilies: loaded={loaded}, skipped={skipped}, failed={failed}");
+            StingLog.Info($"LoadTagFamilies: loaded={loaded}, repaired={repaired}, skipped={skipped}, failed={failed}");
             return Result.Succeeded;
         }
     }

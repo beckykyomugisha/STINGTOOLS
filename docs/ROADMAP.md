@@ -2501,3 +2501,18 @@ changed.
 | DOCX-11 | ✅ **CLOSED 2026-09-27** | `OutputLocationHelper.GetStorePath(doc, file, area, carryDirs)` puts data stores in `_data/coord/<area>/`. On first use it copies the old MISC copy, and any sibling folders such as the clash `archive/`, forward. It then renames the old one `*.migrated_yyyyMMdd`, so one live copy exists and no history is lost. Moved: `clashes.json` + `archive/`, `clash_exclusions.json` + audit JSONL, `clash_notifications.jsonl` (→ `clash/`); `STING_HEALTH_LOG.csv` (→ `health/`); `STING_Commissioning_Audit.json` (→ `commissioning/`); `cost_rates_override.json` (its class comment always said `_BIM_COORD`). All seven clash readers go through `ClashPersistence.CanonicalPath` / `ArchiveDir`. This also fixed a DOCX-8 regression: the clash XLSX trend had read `archive/` beside the export folder. Unsaved models keep the old location. |
 | DOCX-12 | ✅ **CLOSED 2026-09-27** | `Core/Drawing/SheetNumberTokens` holds the rules both builders share: bare `{seq}` = 4 digits (was 3 in `FormatNumber`), `{seq:Dn}` read one way, and `{proj}`/`{project}`, `{orig}`/`{originator}` as one token each. `FormatNumber`, `SheetNumberEngine`, `ShopDrawingComposer.SubstituteTokens` and `MepLevelViewProducer` all use it (the last two had their own seq handling; the MEP one honoured only D2–D4). The empty-value policy stays different on purpose (XX vs collapse). A test builds the same patterns through both builders and requires identical output; 6 cases failed on the old code. Behaviour change: a title-block pattern with a bare `{seq}` now gives `A-0001` rather than `A-001`; the shipped default is `{disc}-{seq:D3}` and is unaffected. |
 | DOCX-13 | ✅ **CLOSED 2026-09-27** | `BIMManagerEngine.AutoRegisterExports(doc, items)` loads `document_register.json` once, applies every row and saves once; the Export Centre collects its rows and calls it once per run. The row rule moved to the Revit-free `BIMManager/ExportRegisterUpsert` (6 tests) and the single-file `AutoRegisterExport` is a one-item batch, so both paths use one rule. `NextIdFromArray` delegates to the same `NextId`. |
+
+## Tag family library — parameter types (2026-09-28)
+
+- **TAGLIB-1 — re-author the shipped tag families against the current parameter types.**
+  154 parameters the tag families reference as TEXT are typed in `MR_PARAMETERS.txt`
+  (`TAG_PARAM_ALIGNMENT_AUDIT.csv` lists them). Load Tag Families now repairs each family
+  in memory on every load, which opens every family and is slow on a first load. The
+  lasting fix is to repoint the label rows at the `_TXT` display mirrors in the library
+  itself (universal master first, then Propagate Universal), per
+  `docs/UNIVERSAL_TAG_CONFLICT_RESOLUTION_RUNBOOK.md`.
+- **TAGLIB-2 — ten BOOL parameters have no Text mirror** (`ASS_TERM_CAPPED_BOOL`,
+  `BLE_CASEWORK_ACCESSIBLE_BOOL`, `BLE_PARK_ACCESSIBLE_BOOL`, `BLE_PARK_EV_CHARGING_BOOL`,
+  `BLE_SIGN_ILLUMINATED_BOOL`, `RGL_NEMA_APPROVAL_REQ_BOOL`, `RGL_NWSC_APPROVAL_BOOL`,
+  `RGL_OCCUPANCY_CERT_REQ_BOOL`, `RGL_UMEME_APPROVAL_BOOL`, `RGL_UMEME_APPROVAL_REQ_BOOL`).
+  A tag family carrying one of them as Text loads with that label field empty.
