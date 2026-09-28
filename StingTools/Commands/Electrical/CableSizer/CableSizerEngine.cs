@@ -5,6 +5,7 @@ using System.Linq;
 using Newtonsoft.Json.Linq;
 using StingTools.Commands.Electrical.VoltageDrop;
 using StingTools.Core;
+using StingTools.Core.Electrical;
 
 namespace StingTools.Commands.Electrical.CableSizer
 {
@@ -23,24 +24,46 @@ namespace StingTools.Commands.Electrical.CableSizer
         public string InstallMethod { get; set; } = "C";
         /// <summary>Conductor material — "Cu" or "Al".</summary>
         public string Material { get; set; } = "Cu";
-        /// <summary>"PVC70" | "XLPE90" | "LSOH90" | "THWN90".</summary>
-        public string Insulation { get; set; } = "XLPE90";
+        /// <summary>"PVC70" | "XLPE90" | "LSOH90" | "THWN90". On the BS 7671 path a combination
+        /// with no Appendix 4 table in STING_WIRE_TABLES.json is refused, not approximated.</summary>
+        public string Insulation { get; set; } = "PVC70";
+        /// <summary>BS 7671 cable type: "Multicore" (4D2A/4E2A), "SingleCore" (4D1A) or
+        /// "ArmouredMulticore" (4D4A/4E4A).</summary>
+        public string CableType { get; set; } = "Multicore";
         public double VDLimitPct { get; set; } = 3.0;
         /// <summary>"BS7671" | "NEC" | "IEC60364".</summary>
         public string Standard { get; set; } = "BS7671";
         public int Phases { get; set; } = 1;
         public double AmbientTempC { get; set; } = 30.0;
+        /// <summary>NEC only (210.19(A)(1)). Ignored — and said so — on the BS 7671 path.</summary>
         public bool ContinuousLoad { get; set; } = false;
+
+        // ── BS 7671 Appendix 4 correction-factor inputs (ignored by the NEC path) ──
+        /// <summary>Circuits in the group, for Cg (Table 4C1). 1 = not grouped.</summary>
+        public int GroupedCircuits { get; set; } = 1;
+        /// <summary>Table 4C1 arrangement: "Bunched" (row 1) or "SingleLayerWall" (row 2).</summary>
+        public string GroupingArrangement { get; set; } = "Bunched";
+        /// <summary>Thermal-insulation factor Ci (Reg 523.9 / Table 52.2). 1.0 = none.</summary>
+        public double ThermalInsulationFactorCi { get; set; } = 1.0;
+        /// <summary>Protective device is a BS 3036 semi-enclosed fuse: Cf = 0.725.</summary>
+        public bool SemiEnclosedFuse { get; set; } = false;
+        /// <summary>An extra caller-supplied derating (the feeder panel's "derate"), applied
+        /// with the tabulated factors and named in the basis. 1.0 = none.</summary>
+        public double ExtraDerateFactor { get; set; } = 1.0;
     }
 
     public class CableSizeResult
     {
+        /// <summary>A project-override table or factor was used (ELEC-21); the basis says which.</summary>
+        public bool ProjectTableUsed { get; set; }
         public double DesignCurrentA { get; set; }
         public double RecommendedCsaMm2 { get; set; }
         public string CsaLabel { get; set; } = "—";
         public double ActualVoltDropPct { get; set; }
         public bool VDCompliant { get; set; }
         public int ProposedBreakerA { get; set; }
+        /// <summary>What ProposedBreakerA rates — "BS EN 60898 MCB", "BS 3036 semi-enclosed fuse", ….</summary>
+        public string ProtectiveDevice { get; set; } = "";
         public string Warning { get; set; } = "";
         public string DerivationNote { get; set; } = "";
 
@@ -59,12 +82,25 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// it at 0, and 0 written into a parameter reads as "not yet sized" rather than
         /// as "we refused", which is the same silent-zero failure this gap is about.</summary>
         public bool Sized { get; set; }
+
+        /// <summary>Tables, factors and assumptions the size was chosen on (BS 7671 path:
+        /// Appendix 4 table ids, Ca/Cg/Ci/Cf, In, It, Iz, mV/A/m). Mirrors DerivationNote.</summary>
+        public string Basis { get; set; } = "";
+        /// <summary>BS 7671: tabulated It of the chosen size (A). 0 on the NEC path.</summary>
+        public double TabulatedCapacityA { get; set; }
+        /// <summary>BS 7671: Iz = It·Ca·Cg·Ci of the chosen size (A). 0 on the NEC path.</summary>
+        public double EffectiveCapacityIzA { get; set; }
+        /// <summary>ELEC-25: BS 7671 Appendix 4 §6.1 load-corrected drop, optional and
+        /// reported only; null where it does not apply. Never used to choose the size.</summary>
+        public double? LoadCorrectedVoltDropPct { get; set; }
+        public string LoadCorrectionNote { get; set; } = "";
     }
 
     /// <summary>
-    /// Pure cable-sizing engine. No Revit API; safe to unit-test on Linux.
-    /// Loads correction factors lazily from STING_WIRE_TABLES.json — falls back
-    /// to embedded defaults when the data file is absent.
+    /// Cable-sizing engine. The BS 7671 method itself is the Revit-free
+    /// <see cref="Bs7671CableSizer"/>; this class loads STING_WIRE_TABLES.json and
+    /// routes by standard. There is NO embedded fallback table: with the data file
+    /// absent the BS 7671 path refuses.
     /// </summary>
     public static class CableSizerEngine
     {
@@ -72,7 +108,7 @@ namespace StingTools.Commands.Electrical.CableSizer
         private static readonly object _loadLock = new object();
 
         /// <summary>Force the engine to reload the JSON on next use.</summary>
-        public static void InvalidateCache() { lock (_loadLock) _wireTables = null; }
+        public static void InvalidateCache() { lock (_loadLock) { _wireTables = null; _tables.Clear(); } }
 
         private static JObject LoadWireTables()
         {
@@ -97,49 +133,51 @@ namespace StingTools.Commands.Electrical.CableSizer
             }
         }
 
-        public static double InstallMethodFactor(string method)
+        // Layered Appendix 4 data, keyed by both files' paths and write times, so an edit to
+        // either takes effect on the next command; Cable_ReloadTables forces it. A cached
+        // Bs7671Data is never mutated after it is built.
+        private static readonly Dictionary<string, Bs7671Data> _tables = new Dictionary<string, Bs7671Data>();
+
+        /// <summary>
+        /// The Appendix 4 tables in force for a document: the corporate STING_WIRE_TABLES.json
+        /// with the project's _BIM_COORD/bs7671_wire_tables.json layered on top (ELEC-21). A
+        /// malformed override yields LoadError and no tables — the sizers refuse rather than
+        /// fall back to corporate data the project has said is wrong for it.
+        /// </summary>
+        internal static Bs7671Data Bs7671Tables(Autodesk.Revit.DB.Document doc)
+            => Bs7671TablesForOverridePath(OverridePath(doc));
+
+        /// <summary>The project override path for a document (null for an unsaved one).</summary>
+        internal static string OverridePath(Autodesk.Revit.DB.Document doc)
         {
-            var tables = LoadWireTables();
-            try
-            {
-                var v = tables["correctionFactors"]?["installMethods"]?[method];
-                if (v != null) return v.Value<double>();
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return method switch
-            {
-                "A1" => 0.77, "A2" => 0.77, "B1" => 0.88, "B2" => 0.88,
-                "C" => 1.00, "E" => 1.17, "F" => 1.21,
-                "Conduit" => 1.00, "DirectBuried" => 0.93,
-                _ => 1.0
-            };
+            try { return doc == null ? null : StingPaths.MetaFile(doc, "_BIM_COORD", Bs7671TableLayering.ProjectOverrideFileName); }
+            catch (Exception ex) { StingLog.Warn($"Wire-table override path: {ex.Message}"); return null; }
         }
 
-        public static double InsulationFactor(string insulation)
+        /// <summary>Layered tables for an override path already resolved (null → corporate only).</summary>
+        internal static Bs7671Data Bs7671TablesForOverridePath(string overridePath)
         {
-            var tables = LoadWireTables();
-            try
+            string corp = StingToolsApp.FindDataFile("STING_WIRE_TABLES.json");
+            string key = $"{corp}|{Stamp(corp)}|{overridePath}|{Stamp(overridePath)}";
+            lock (_loadLock)
             {
-                var v = tables["correctionFactors"]?["insulation"]?[insulation];
-                if (v != null) return v.Value<double>();
+                if (_tables.TryGetValue(key, out var hit)) return hit;
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return insulation switch
-            {
-                "PVC70" => 1.0, "XLPE90" => 1.18, "LSOH90" => 1.18,
-                "THWN90" => 1.0, _ => 1.0
-            };
+            var data = Bs7671TableLayering.LoadLayered(corp, overridePath);
+            if (!string.IsNullOrEmpty(data.LoadError)) StingLog.Error("Wire tables: " + data.LoadError);
+            foreach (var w in data.Warnings) StingLog.Warn("Wire tables: " + w);
+            lock (_loadLock) { _tables[key] = data; }
+            return data;
         }
 
-        public static double AmbientTemperatureFactor(double ambientTempC)
+        /// <summary>Corporate tables only — for callers with no document (MCP size_cable_calc),
+        /// which must say so in their output.</summary>
+        internal static Bs7671Data CorporateBs7671Tables() => Bs7671TablesForOverridePath(null);
+
+        private static string Stamp(string path)
         {
-            // Interpolated linearly from BS 7671 Appendix 4 Table 4B1 (PVC 70°C).
-            if (ambientTempC <= 25) return 1.05;
-            if (ambientTempC <= 30) return 1.00;
-            if (ambientTempC <= 35) return 0.94;
-            if (ambientTempC <= 40) return 0.87;
-            if (ambientTempC <= 45) return 0.79;
-            return 0.71;
+            try { return !string.IsNullOrEmpty(path) && File.Exists(path) ? File.GetLastWriteTimeUtc(path).Ticks.ToString() : "-"; }
+            catch (Exception ex) { StingLog.Warn($"Wire-table stamp {path}: {ex.Message}"); return "?"; }
         }
 
         /// <summary>
@@ -181,7 +219,7 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// REFUSED, because its tables are not in this tree and a cable size carrying a
         /// standard's name onto a drawing must come from that standard.</para>
         /// </summary>
-        public static CableSizeResult Calculate(CableSizeInput input)
+        public static CableSizeResult Calculate(CableSizeInput input, Bs7671Data tables)
         {
             var result = new CableSizeResult();
             if (input == null) { result.Warning = "Null input"; return result; }
@@ -214,53 +252,85 @@ namespace StingTools.Commands.Electrical.CableSizer
             if (standardId == StingTools.Standards.ElectricalStandardId.Nec2023)
                 return CalculateNec(input, result, iB);
 
-            double cf = InstallMethodFactor(input.InstallMethod)
-                      * InsulationFactor(input.Insulation)
-                      * AmbientTemperatureFactor(input.AmbientTempC);
-            if (cf <= 0) cf = 1.0;
-
-            double effectiveCurrent = iB / cf;
-            double opTemp = OperatingTemperature(input.Insulation);
-            double maxVD = input.VDLimitPct > 0 ? input.VDLimitPct : 3.0;
-
-            // Iterate up the standard sizes; pick the first CSA whose VD is OK.
-            double? winner = null;
-            double winnerVd = 0;
-            foreach (double csa in VoltageDropEngine.StandardSizesMm2)
+            if (tables == null)
             {
-                if (csa < CrossSectionForCurrent(effectiveCurrent, input.Material))
-                    continue;
-                double vd = VoltageDropEngine.CalculateVoltDropPercent(
-                    iB, input.LengthM, csa, input.Material,
-                    input.VoltageV, input.Phases, opTemp);
-                if (vd > 0 && vd <= maxVD)
-                {
-                    winner = csa;
-                    winnerVd = vd;
-                    break;
-                }
+                result.Warning = "No BS 7671 Appendix 4 tables were resolved for this calculation; nothing was sized.";
+                return result;
             }
+            return CalculateBs7671(input, result, iB, tables);
+        }
 
-            if (winner == null)
+        /// <summary>
+        /// BS 7671 (and IEC 60364 via the harmonised Appendix 4) sizing on the tabulated
+        /// capacities — see <see cref="Bs7671CableSizer"/>. ELEC-3: replaced an uncited
+        /// threshold ladder and a flat XLPE ×1.18 multiplier. Refuses (Sized=false, size 0)
+        /// when the conductor / insulation / method has no table in the data file.
+        /// </summary>
+        internal static CableSizeResult CalculateBs7671(CableSizeInput input, CableSizeResult result,
+            double iB, Bs7671Data data)
+        {
+            bool mccb = iB > VoltageDropEngine.BreakerSizesBSMCB[VoltageDropEngine.BreakerSizesBSMCB.Length - 1];
+            // A semi-enclosed fuse circuit picks In from the BS 3036 ratings and is labelled
+            // as one. It used to take In from the MCB list and call it an MCB while still
+            // applying the BS 3036 Cf = 0.725 — a device that is neither.
+            bool semi = input.SemiEnclosedFuse;
+            int[] ratings = semi ? ProtectiveDeviceSelection.Bs3036SemiEnclosedFuseRatingsA
+                          : mccb ? VoltageDropEngine.BreakerSizesBSMCCB : VoltageDropEngine.BreakerSizesBSMCB;
+            string deviceLabel = semi ? ProtectiveDeviceSelection.Bs3036Label
+                               : mccb ? "BS EN 60947-2 MCCB" : "BS EN 60898 MCB";
+            var bs = Bs7671CableSizer.Size(new Bs7671SizingInput
+            {
+                DesignCurrentA = iB,
+                VoltageV = input.VoltageV,
+                Phases = input.Phases == 3 ? 3 : 1,
+                LengthM = input.LengthM,
+                InstallMethod = input.InstallMethod,
+                Insulation = input.Insulation,
+                Material = input.Material,
+                CableType = input.CableType,
+                AmbientTempC = input.AmbientTempC,
+                GroupedCircuits = input.GroupedCircuits,
+                GroupingArrangement = input.GroupingArrangement,
+                Ci = input.ThermalInsulationFactorCi,
+                ExtraDerate = input.ExtraDerateFactor,
+                SemiEnclosedFuse = input.SemiEnclosedFuse,
+                VdLimitPct = input.VDLimitPct > 0 ? input.VDLimitPct : 3.0,
+                DeviceRatingsA = ratings,
+                DeviceLabel = deviceLabel,
+            }, data);
+
+            string contNote = input.ContinuousLoad
+                ? " ContinuousLoad ignored: the ×1.25 continuous rule is NEC 210.19(A)(1), not BS 7671."
+                : "";
+            result.Basis = (bs.Basis ?? "") + contNote + " — " + result.StandardBasis;
+            result.DerivationNote = result.Basis;
+
+            if (!bs.Sized)
             {
                 result.Sized = false;
-                result.Warning = "No tabulated size satisfies the voltage-drop limit at this length / current.";
+                result.RecommendedCsaMm2 = 0;
+                result.Warning = bs.Refusal;
+                StingLog.Warn($"CableSizerEngine (BS 7671): not sized — {bs.Refusal}");
                 return result;
             }
 
-            result.RecommendedCsaMm2 = winner.Value;
+            result.RecommendedCsaMm2 = bs.CsaMm2;
             // The mm2 series IS this standard's series, so the label needs no translation.
-            result.CsaLabel = $"{VoltageDropEngine.FormatCsa(winner.Value)} {input.Material}/{input.Insulation}";
-            result.ActualVoltDropPct = winnerVd;
-            result.VDCompliant = winnerVd <= maxVD;
+            result.CsaLabel = $"{VoltageDropEngine.FormatCsa(bs.CsaMm2)} {input.Material}/{input.Insulation}";
+            result.ActualVoltDropPct = bs.VoltDropPct;
+            result.LoadCorrectedVoltDropPct = bs.LoadCorrectedVoltDropPct;
+            result.LoadCorrectionNote = bs.LoadCorrectionNote;
+            result.VDCompliant = true;   // the size was chosen to meet the limit
+            result.ProposedBreakerA = bs.DeviceRatingA;
+            result.ProtectiveDevice = deviceLabel;
+            result.TabulatedCapacityA = bs.TabulatedItA;
+            result.EffectiveCapacityIzA = bs.IzA;
             result.Sized = true;
-
-            // BS 7671 §433.1.1 / IEC 60364-4-43: In >= Ib, and 1.45 x In <= Iz.
-            result.ProposedBreakerA = VoltageDropEngine.NextStandardBreakerSizeBS(iB, input.ContinuousLoad);
-
-            result.DerivationNote =
-                $"Ib={iB:0.0}A, CF={cf:0.00} (method={input.InstallMethod} ins={input.Insulation} ta={input.AmbientTempC}°C), " +
-                $"opT={opTemp:0}°C, target VD ≤ {maxVD:0.0}% — {result.StandardBasis}";
+            result.ProjectTableUsed = bs.ProjectTable || bs.ProjectFactors;
+            if (bs.UnverifiedRow && bs.ProjectTable)
+                result.Warning = $"Project table row for {bs.CsaMm2:0.#} mm² is single-source project data — check it against the named source before issue.";
+            else if (bs.UnverifiedRow)
+                result.Warning = $"Table row for {bs.CsaMm2:0.#} mm² not yet verified against the printed BS 7671 — check It and mV/A/m before issue.";
             return result;
         }
 
@@ -399,25 +469,6 @@ namespace StingTools.Commands.Electrical.CableSizer
         {
             if (string.IsNullOrEmpty(size)) return "—";
             return size.Length >= 3 && !size.Contains("/") ? $"{size}kcmil" : $"{size}AWG";
-        }
-
-        /// <summary>
-        /// Rough first-pass CSA from current alone, ignoring voltage drop.
-        /// Empirical fallback used when correction factors push effective
-        /// current above the smallest sizes' rating.
-        /// </summary>
-        private static double CrossSectionForCurrent(double currentA, string material)
-        {
-            // Conservative copper amp/mm² ratings for 70°C PVC, Method C.
-            // Prefer voltage-drop-driven sizing — this is just to skip clearly
-            // undersized iterations.
-            double[] ampThresholds = { 13, 17, 23, 31, 40, 56, 75, 100, 125, 150, 192, 232, 269, 309, 353, 415 };
-            for (int i = 0; i < ampThresholds.Length; i++)
-                if (currentA <= ampThresholds[i])
-                    return VoltageDropEngine.StandardSizesMm2[i + 1]; // skip the 1.0 mm² entry
-
-            double last = VoltageDropEngine.StandardSizesMm2[VoltageDropEngine.StandardSizesMm2.Length - 1];
-            return string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? last * 1.6 : last;
         }
 
         /// <summary>

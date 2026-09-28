@@ -25,7 +25,7 @@ namespace StingTools.Commands.Fabrication
 
         public static string ExportCutListXlsx(Autodesk.Revit.DB.Document doc, IEnumerable<CutListRow> rows)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_pipe_cut_list.xlsx");
             try
@@ -59,7 +59,7 @@ namespace StingTools.Commands.Fabrication
 
         public static string ExportWeldMapXlsx(Autodesk.Revit.DB.Document doc, IEnumerable<WeldMapRow> rows)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_pipe_welds.xlsx");
             try
@@ -102,7 +102,7 @@ namespace StingTools.Commands.Fabrication
             IEnumerable<CutListRow>      cut,
             IEnumerable<WeldMapRow>      weld)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string path = Path.Combine(outDir, $"STING_v4_bom_consolidated_{stamp}.xlsx");

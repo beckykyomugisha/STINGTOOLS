@@ -263,13 +263,15 @@ namespace StingTools.Core
             return list;
         }
 
+        // Every tier prints 2.5 mm (ISO 3098): Revit prints annotation at family size
+        // whatever the view scale. Tiers still differ in leader offset.
         private static List<Tier> HardcodedFallback() => new List<Tier>
         {
-            new Tier { MaxDenominator = 50,         Label = "1:1–1:50",    OffsetMm = 2.0,  TextSizeMm = "3.5" },
-            new Tier { MaxDenominator = 100,        Label = "1:50–1:100",  OffsetMm = 5.0,  TextSizeMm = "3"   },
+            new Tier { MaxDenominator = 50,         Label = "1:1–1:50",    OffsetMm = 2.0,  TextSizeMm = "2.5" },
+            new Tier { MaxDenominator = 100,        Label = "1:50–1:100",  OffsetMm = 5.0,  TextSizeMm = "2.5" },
             new Tier { MaxDenominator = 200,        Label = "1:100–1:200", OffsetMm = 8.0,  TextSizeMm = "2.5" },
-            new Tier { MaxDenominator = 500,        Label = "1:200–1:500", OffsetMm = 12.0, TextSizeMm = "2"   },
-            new Tier { MaxDenominator = int.MaxValue, Label = "1:500+",    OffsetMm = 20.0, TextSizeMm = "2"   },
+            new Tier { MaxDenominator = 500,        Label = "1:200–1:500", OffsetMm = 12.0, TextSizeMm = "2.5" },
+            new Tier { MaxDenominator = int.MaxValue, Label = "1:500+",    OffsetMm = 20.0, TextSizeMm = "2.5" },
         };
 
         private static string ProjectConfigPath(Document doc)

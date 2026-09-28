@@ -25,7 +25,7 @@ The codebase is currently at **Phase 194**. Per-phase history (Phase 179 onward)
 | `CLAUDE.md` (this file — **stable reference + a dated [Codebase Review](#codebase-review--general-assessment-gaps--recommendations) snapshot**) | Architecture, directory layout, command catalogue, UI structure, build/deploy, conventions | When the codebase's structure or commands change |
 | `docs/CHANGELOG.md` | **Phase-by-phase history** — every `Completed (Phase X)` block in chronological order | When a new phase of work lands; append a new `#### Completed (Phase N — …)` section |
 | `docs/ROADMAP.md` | **Open gaps & future work** — automation-gap tables, future-enhancement lists, deep-review findings | When new gaps are identified or an item is closed (move it to `CHANGELOG.md`) |
-| `docs/INDEX.md` | **Table of contents for the 133 `docs/` files** — grouped by topic, marking which doc is current (✅) vs superseded (⛔) | When a doc is added, or when one supersedes another |
+| `docs/INDEX.md` | **Table of contents for the `docs/` files** (193 on 2026-09-27; every one is listed) — grouped by topic, marking which doc is current (✅) vs superseded (⛔) | When a doc is added, or when one supersedes another |
 
 When you finish a piece of work, log it in `docs/CHANGELOG.md` rather than extending this file. When you identify a new gap, add it to `docs/ROADMAP.md` — that keeps this file focused on what the code **is** rather than what it has been or might become.
 
@@ -138,6 +138,7 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
   | Connectivity | 0 | empty project |
   | **Acc** (new 2026-09-10) | **60** | ✅ **67 cases, 0 failing** — the ACC surface had zero coverage until then |
+  | **Mep** (new 2026-09-26) | **81** | ✅ **87 cases, 0 failing** — psychrometrics, sprinkler, gas, pressurisation, duct friction, Hardy Cross, NC, refrigerant, isometric, shipped design data |
 
   Only the **Boq** and **Acc** rows were re-measured on 2026-09-10 (declared via the same
   `[Fact]`/`[Theory]` census `.github/workflows/stingtools-unit-tests.yml` runs; cases via
@@ -342,16 +343,16 @@ The **STING Electrical Panel** (`UI/StingElectricalPanel.xaml` — 1,304 lines �
 
 | Sub-system | Key files | What it does |
 |---|---|---|
-| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 / IEC 60364 cable sizing with derating; reports results (read-only — writes no parameters) |
-| **Voltage Drop** | `VoltageDrop/VoltageDropCommand.cs` + `VoltageDropSolver.cs` + `VoltageDropScheduleCommand.cs` | Calculates and schedules voltage drop per circuit |
-| **Feeder Sizing** | `FeederSizing/FeederSizerCommand.cs` + `FeederSizerEngine.cs` | Feeder cable sizing with diversity factor |
-| **Fault Current** | `FaultCurrent/FaultCurrentCommand.cs` + `FaultCurrentEngine.cs` + `FaultCurrentScheduleCommand.cs` | Prospective fault current calculation; PSC / PSCC schedules |
-| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | IEEE 1584 / NFPA 70E arc flash energy; label sheets; schedules |
+| **Cable Sizing** | `CableSizer/CableSizerCommand.cs` + `CableSizerEngine.cs` | BS 7671 Appendix 4 method (`Core/Electrical/Bs7671CableSizing.cs`): It from 4D1A / 4D2A / 4D4A / 4E2A / 4E4A by cable type and reference method, Ca/Cg/Ci/Cf, Ib ≤ In ≤ Iz, voltage drop from the matching B table, with a `Basis` listing tables and factors. Per row the data says whether It and mV/A/m are two-source checked; a result on an unchecked row is flagged VERIFY, and a size with no mV/A/m carried would be refused, not estimated. Voltage drop (4D1B / 4D2B / 4D4B / 4E2B / 4E4B) is carried at every size. Aluminium is refused. Sources: `docs/ELECTRICAL_STANDARDS_SOURCES.md`. A project may override whole tables and the 4B1 / 4C1 factors in `_BIM_COORD/bs7671_wire_tables.json` (`Core/Electrical/Bs7671TableLayering`; single-source unless attested; an invalid file makes every sizer refuse, never falls back; `Cable_ReloadTables` re-reads it). The command reports; `Core/Electrical/CableSizerApplyEngine` writes to circuits |
+| **Voltage Drop** | `VoltageDrop/VoltageDropCommand.cs` + `VoltageDropScheduleCommand.cs` · `Core/Electrical/CircuitVoltageDrop.cs` (Revit-free) + `CircuitVoltageDropModel.cs` (`Core/Calc/VoltageDropSolver.cs` serves Add Cable) | One owner for `ELC_VLT_DROP_PCT`: Appendix 4 mV/A/m from the circuit's recorded cable, else the highest mV/A/m any loaded table gives (an upper bound, A4-MAX); resistance only on NEC; a standard with no shipped tables gets no figure. `ELC_CKT_VD_BASIS_TXT` records the method (A4 / A4-MAX / A4-SIZED / R60228 / IMPORT / NONE + reason); a missing input is NONE, never 0. `ELC_VLT_DROP_TXT` is the schedule text ("—" when not calculated), used by the STING panel schedules. Wire VD Sync and the wire annotation use the same resolver per conduit. The cable sizer also reports the Appendix 4 §6.1 load-corrected drop, optional, ≤ 16 mm² BS 7671 App 12 limits (3 % lighting / 5 % other). The Circuit Check recomputes rather than reading the stamp |
+| **Feeder Sizing** | `FeederSizing/FeederSizerCommand.cs` + `FeederSizerEngine.cs` | Feeder sizing to the Electrical panel's standard (BS 7671 Appendix 4 or NEC Table 310.16; others refused); derate applied; length/voltage/load from the feeding circuit, any default listed per feeder |
+| **Fault Current** | `FaultCurrent/FaultCurrentCommand.cs` + `FaultCurrentEngine.cs` + `FaultCurrentScheduleCommand.cs` | IEC 60909-0 style LV method (`Core/Electrical/Iec60909Lv.cs`: c = 1.10/0.95, source R/X, cable R at 20 °C + assumed X); per-panel assumptions reported; PSC schedules |
+| **Arc Flash** | `ArcFlash/ArcFlashCommand.cs` + `ArcFlashEngine.cs` + `ArcFlashLabelSheetCommand.cs` + `ArcFlashScheduleCommand.cs` | **IEEE 1584-2018** (`ArcFlash/Ieee1584_2018.cs`; 2002 kept as an option) — 0.208–15 kV, three-phase boards only; electrode configuration VCB and typical enclosure size unless set, both listed on the label; reproduces the standard's Annex D examples; clearing time from IEC 60898 bands; **not for specifying PPE without a licensed study** |
 | **Busbar Sizing** | `Busbar/BusbarModelingCommand.cs` + `BusbarSizerEngine.cs` | Busbar sizing + Revit modeling |
-| **Conduit Routing** | `Routing/ConduitAutoRouteCommand.cs` + `ConduitRouteEngine.cs` + `ConduitConsolidator.cs` | Auto-route conduit with A* + ACO; consolidate into trays |
+| **Conduit Routing** | `Routing/ConduitAutoRouteCommand.cs` + `ConduitRouteEngine.cs` + `ConduitConsolidator.cs` | Auto-route conduit as rectilinear L/Z runs, or opt-in **Avoid structure (A\*)** around structural columns and framing (orthogonal, merged runs; falls back to L/Z per run; not other services — MEPG-11); computed diameter applied; cables matched to circuits by element id → endpoints → panel+number; consolidate parallel conduits |
 | **Cable Routing** | `Routing/CableScheduleBuilderCommand.cs` · `Core/Electrical/CableRouter.cs` + `CableManifest.cs` | Build cable schedules + route manifest |
 | **Circuit Wizard** | `CircuitWizard/CircuitWizardCommand.cs` + `CircuitWizardEngine.cs` · `UI/CircuitWizardDialog.xaml(.cs)` | Step-by-step circuit assignment wizard |
-| **Selective Coordination** | `Coordination/SelectiveCoordCommand.cs` + `SelectiveCoordEngine.cs` + `TccDatabaseLoader.cs` · `UI/SelectiveCoordDialog.xaml(.cs)` | TCC-based upstream/downstream breaker coordination |
+| **Selective Coordination** | `Coordination/SelectiveCoordCommand.cs` + `SelectiveCoordEngine.cs` + `TccDatabaseLoader.cs` · `UI/SelectiveCoordDialog.xaml(.cs)` | Selectivity from **generic IEC 60898-1 MCB bands** (B/C/D); MCCB/ACB have no curve data and are reported as such; results say "confirm with manufacturer selectivity tables" |
 | **Tray Fill** | `ShowTrayFillCommand.cs` · `Core/Electrical/TrayFillCalculator.cs` · `UI/TrayFillWindow.xaml.cs` | NEC 392 / BS EN 61537 tray fill visualisation |
 | **Conduit Fill** | `ConduitFillValidateCommand.cs` · `Core/Calc/ConduitFillSolver.cs` | Conduit fill validation |
 | **Phase Balance** | `PhaseBalanceCommand.cs` | Phase load balancing across panels |
@@ -760,7 +761,7 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 - **3 new disciplines** (`H` Healthcare, `MG` Medical Gas, `RP` Radiation Protection); ~30 healthcare PROD codes; 60 tag families in `STING_TAG_CONFIG_v5_0_HEALTH.csv`
 - **16 healthcare validators** under `Core/Validation/Healthcare/` gated through `HealthcareValidatorGate` against `PRJ_ORG_HEALTH_PACK_PROFILE_TXT` (FULL / ACUTE / COMMUNITY / DENTAL / IMAGING-ONLY / MENTAL-HEALTH)
 - **7 standards modules** under `StingTools.Standards/{HTM, HBN, FGI, NFPA99, NCRP147, ASHRAE170, USP797800}` — stateless lookup tables + checklist generators + NCRP 147 W·U·T → mm-Pb calculator
-- **22 corporate Drawing Types** with routing rules; 8 ViewStylePacks; 81 healthcare filters in `STING_AEC_FILTERS.json`
+- **Healthcare drawing types, style packs and filters** — as landed: 22 corporate Drawing Types (the `health-*` ids) with routing rules, 8 ViewStylePacks (`corp-healthcare-*`) and 81 healthcare filters in `STING_AEC_FILTERS.json`. The first two were re-measured on 2026-09-24 and still stand; they are subsets of the 93-type / 36-pack corporate catalogue, so re-count before relying on them
 - **MGPS package** (`Core/MedGas/`) — `MgasNetwork` graph builder, `MgasFlowSolver` (NFPA 99 §5.1.13), `MgasVerificationLog` (12-step NFPA 99 §5.1.12)
 - **RDS engine** (`Docs/Templates/Rds*`) — token-context builder + MiniWord renderer
 - **40+ commands** under `Commands/Healthcare/`, `Commands/MedGas/`, `Commands/Adjacency/`, `Commands/Twin/`, `Commands/Radiation/`
@@ -807,16 +808,23 @@ A dropdown on the **SELECT** tab that shows/hides elements by **category** and b
 | `Panel_FillSparesAll` | `FillSparesAllSchedulesCommand` | Project-wide `AddSpare` with `TransactionGroup` |
 | `Panel_SpacesToSpares` | `ConvertSpacesToSparesCommand` | `RemoveSpace` + `AddSpare` |
 | `Panel_ClearSparesSpaces` | `ClearSparesAndSpacesCommand` | Wipe spares and spaces |
+| `Panel_TemplatesCreate` | `PanelTemplatesCreateCommand` | Build / rebuild the STING standard templates from `STING_PANEL_SCHEDULE_SPECS.json` (+ project override); every cell read back and reported |
+| `Panel_TemplateInspect` | `PanelTemplateInspectCommand` | Dump any template's cells (section, row, column, type, text, parameter) to CSV |
+| `Panel_ComplianceCheck` | `PanelComplianceCheckCommand` | Per-circuit BS 7671 check (Ib ≤ In ≤ Iz, VD ≤ limit, PSC ≤ breaking capacity) → `ELC_CKT_CHECK_TXT` ("BS 7671 check" column), failing devices red in the active view, colour workbook. Missing inputs = NOT CHECKED, never a pass |
+| `Panel_BalanceApply` | `PanelBalanceApplyCommand` | Applied phase balancing: plans (`PhaseBalancer`) and, after a preview, moves single-pole unlocked circuits into EMPTY slots on the lighter phase via `MoveSlotTo`. Slot phases learned from the board's own circuits; boards where they disagree are skipped |
+
+**STING standard templates** (`Core/Panels/PanelTemplateSpec.cs` Revit-free + `PanelTemplateBuilder.cs`): four templates — 3-Phase Distribution Board, Single-Phase Consumer Unit, Switchboard, Data Comms Panel — with an ISO 19650 header (asset tag, location/level/zone, status, supply, main device, prospective fault, IP, enclosure), a BS 7671 circuit table (way, description, device, poles, cable, length, phase loads / load, Ib, VD %) and a totals/notes footer. Only parameters something writes are used. Boards pick a template by what they ARE (`PanelBoardProfile`: `IsSwitchboard`, supply phases; data by name) before the name rules, which now match Panel Name as well as type name. Batch Schedules offers to build the templates when none exist.
 
 ### Data files
 
-- `StingTools/Data/STING_PANEL_SCHEDULE_TEMPLATES.json`
+- `StingTools/Data/STING_PANEL_SCHEDULE_TEMPLATES.json` (board → template rules)
+- `StingTools/Data/STING_PANEL_SCHEDULE_SPECS.json` (template content; project override `_BIM_COORD/panel_schedule_specs.json`)
 - `StingTools/Data/WORKFLOW_PanelScheduleProduction.json`
 
 ### API limits honoured
 
 - `PanelScheduleSheetInstance.Create` is broken in Revit 2024-2026
-- `PanelScheduleTemplate` cell layout / column order / formulas remain read-only
+- `PanelScheduleTemplate.Create` + `GetTableData`/`SetTableData` + `TableSectionData` DO create and edit templates (rows, columns, parameter cells, text, widths) — the earlier "read-only" note was wrong (checked against the Revit 2025 API reference, 2026-09-24). The internal layout of a fresh template is undocumented, so the builder adapts and reads back; use `Panel_TemplateInspect` to see it
 - Real-circuit detection uses `PanelScheduleView.GetCircuitByCell(r, c)`
 
 ---
@@ -842,7 +850,7 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `StingTools/Commands/Electrical/CircuitWizard/` | Guided circuit creation wizard |
 | `StingTools/Commands/Electrical/Coordination/` | Selective coordination checker |
 | `StingTools/Commands/Electrical/Export/` | ETAP, EasyPower, DIALux export |
-| `StingTools/Commands/Electrical/FaultCurrent/` | IEC 60909 fault-current calculator + AIC rating |
+| `StingTools/Commands/Electrical/FaultCurrent/` | IEC 60909-0 style LV fault-current calculator + AIC rating (assumptions reported per panel) |
 | `StingTools/Commands/Electrical/FeederSizing/` | Feeder sizing engine |
 | `StingTools/Commands/Electrical/IfcResults/` | IFC simulation results import + multi-engine aggregator |
 | `StingTools/Commands/Electrical/Lighting/` | Lighting power density + emergency lighting audit |
@@ -883,17 +891,17 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 | `ElecCircuitRenumberCommand` | `ElecCircuitRenumberCommand` | Renumber circuits |
 | `ElecLoadSummaryCommand` | `ElecLoadSummaryCommand` | Load summary report |
 | `ElecLightingScheduleCommand` | `ElecLightingScheduleCommand` | Generate lighting schedule |
-| `ArcFlashCommand` | `ArcFlashCommand` | IEEE 1584 arc-flash analysis |
+| `ArcFlashCommand` | `ArcFlashCommand` | Arc-flash estimate, IEEE 1584-2018 (not for PPE without a licensed study) |
 | `ArcFlashLabelSheetCommand` | `ArcFlashLabelSheetCommand` | Create arc-flash label sheet |
 | `ArcFlashScheduleCommand` | `ArcFlashScheduleCommand` | Arc-flash schedule |
 | `BusbarModelingCommand` | `BusbarModelingCommand` | Busbar modeling |
 | `CableSizerCommand` | `CableSizerCommand` | BS 7671 cable sizer |
 | `CircuitWizardCommand` | `CircuitWizardCommand` | Guided circuit creation |
 | `SelectiveCoordCommand` | `SelectiveCoordCommand` | Selective coordination check |
-| `EtapExportCommand` | `EtapExportCommand` | Export to ETAP |
-| `EasyPowerExportCommand` | `EasyPowerExportCommand` | Export to EasyPower |
-| `DIALuxExportCommand` | `DIALuxExportCommand` | Export to DIALux |
-| `FaultCurrentCommand` | `FaultCurrentCommand` | IEC 60909 fault-current calculation |
+| `EtapExportCommand` | `EtapExportCommand` | ETAP data hand-off draft (not a native import file) |
+| `EasyPowerExportCommand` | `EasyPowerExportCommand` | EasyPower data hand-off draft (not a native import file) |
+| `DIALuxExportCommand` | `DIALuxExportCommand` | DIALux IFC data hand-off draft (no geometry) |
+| `FaultCurrentCommand` | `FaultCurrentCommand` | IEC 60909-0 style LV fault-current calculation |
 | `AicRatingCommand` | `AicRatingCommand` | AIC rating check |
 | `FeederSizerCommand` | `FeederSizerCommand` | Feeder sizing |
 | `IfcResultsImportCommand` | `IfcResultsImportCommand` | Import IFC simulation results |
@@ -946,7 +954,8 @@ enum removal; `CS4014` async warnings). Verify in Revit before merging to `main`
 1. Built without `dotnet build` verification (Linux sandbox). Revit API obsoletion
    warnings (`IntegerValue` → `Value`, `ParameterType` → `ForgeTypeId`) addressed.
 2. `DIALuxExportCommand`, `EtapExportCommand`, `EasyPowerExportCommand` produce
-   intermediary files; actual import into the target application is manual.
+   **data hand-off drafts, not native import files** (files are named `*_DRAFT_*`);
+   the target application will not import them as-is.
 3. `PhotometricPreflightCommand` and `DialuxRoundTripCommand` require luminaire
    families to carry `IES_FILE_PATH_TXT` shared parameter.
 
@@ -1082,21 +1091,21 @@ Framework (AVF) heatmaps using Revit's built-in display style engine.
 
 ### Core Drawing classes (40+ files under `Core/Drawing/`)
 
-`DrawingType.cs` · `DrawingTypePresentation.cs` · `DrawingTypeRegistry.cs` · `DrawingDispatcher.cs` · `DrawingTypeValidator.cs` · `DrawingTypeStamper.cs` · `DrawingDriftDetector.cs` · `DrawingCropApplier.cs` · `ViewStylePack.cs` · `ViewStylePackRegistry.cs` · `ViewStylePackApplier.cs` · `ManagedTemplateSyncer.cs` · `AecFilterDefinition.cs` · `AecFilterRegistry.cs` · `AecFilterFactory.cs` · `ScopeBoxBinder.cs` · `TitleBlockParamApplier.cs` · `TokenProfileApplier.cs` · `AnnotationRunner.cs` · `DrawingProducer.cs` · `DrawingPackageManager.cs` · `TitleBlockFactory.cs` · `TitleBlockSpec.cs` · `MatchLineEngine.cs` · `DrawingTokenContext.cs` · `DrawingProductionPreset.cs` · `ProductionPresetRegistry.cs` · `DrawingThumbnailService.cs` · `SheetPlacementBridge.cs` · `SheetSequenceStore.cs` · `Iso19650Vocabulary.cs` · plus dimensioning sub-engine (`GridDimensioner`, `MEPDimensioner`, `DrainageInvertDimensioner`, `DimensionStrategy`).
+`DrawingType.cs` · `DrawingTypePresentation.cs` · `DrawingTypeRegistry.cs` · `DrawingDispatcher.cs` · `DrawingTypeValidator.cs` · `DrawingTypeStamper.cs` · `DrawingDriftDetector.cs` · `DrawingCropApplier.cs` · `ViewStylePack.cs` · `ViewStylePackRegistry.cs` · `ViewStylePackApplier.cs` · `ManagedTemplateSyncer.cs` · `AecFilterDefinition.cs` · `AecFilterRegistry.cs` · `AecFilterFactory.cs` · `ScopeBoxBinder.cs` · `TitleBlockParamApplier.cs` · `TokenProfileApplier.cs` · `AnnotationRunner.cs` · `DrawingProducer.cs` · `DrawingPackageManager.cs` · `TitleBlockFactory.cs` · `TitleBlockSpec.cs` · `MatchLineEngine.cs` · `DrawingTokenContext.cs` · `DrawingProductionPreset.cs` · `ProductionPresetRegistry.cs` · `DrawingThumbnailService.cs` · `SheetPlacementBridge.cs` · `SheetSequenceStore.cs` · `Iso19650Vocabulary.cs` · plus dimensioning sub-engine (`GridDimensioner`, `MEPDimensioner`, `DrainageInvertDimensioner`, `DimensionStrategy`). Revit-free, unit-tested cores: `SheetNumberEngine` (builds numbers from a drawing type's `sheetNumberPattern` — Drawing Types production, `DrawingTypes_Renumber` and the fabrication composer call it; ISO counters are keyed by the number template. The project-wide title-block pattern used by the Sheet Manager is built by `SheetDisciplineResolver.FormatNumber`; both share `SheetNumberTokens` — see Sheet Manager System), `TitleBlockTemplate` / `TitleBlockFamilyNaming` / `TitleBlockSeedRemap`, `DrawingPurposeViewKind`, `DrawingRoutingMatcher`, `DrawingSlotGeometry`, `AnnotationPackLayering` (preset / production-rule annotation overrides layer onto a type's pack, never replace it), `RuleFamilyFilter` (`familyMatch` on annotation rules), `Utf8Mojibake`.
 
 ### Commands (25+)
 
 Tags as dispatched by `StingCommandHandler` (exact-match, case-sensitive):
 
-`DrawingTypes_Inspect`, `DrawingTypes_Reload`, `Drawing_BrowserOrganize`, `DrawingTypes_SyncStyles`, `DrawingTypes_FromScopeBoxes`, `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceSections`, `DrawingTypes_ProduceInteriorElevations`, `DrawingTypes_ProduceExteriorElevations`, `DrawingTypes_ProduceFromScopeBoxes`, `DrawingTypes_ProduceAndExport`, `DrawingTypes_Doctor`, `DrawingTypes_HealTitleBlocks`, `DrawingTypes_Renumber`, `AecFilters_Create`, `AecFilters_Inspect`, `AecFilters_Reload`, `DrawingTypes_ConvertToManaged`, `DrawingTypes_DetachManaged`, `DrawingTypes_RegenerateTemplates`, `TitleBlock_Create`, `TitleBlock_CreateAll`, `TitleBlock_MigrateLegacy`, `DrawingTypes_MigrateCsv`, `DrawingTypes_MigrateParams`, `DrawingTypes_PresentationSetup`, plus the MatchLine suite (`MatchLine_Generate`, `MatchLine_Sync`, `MatchLine_Validate`, `MatchLine_ValidateBundle`, `MatchLine_Inspect` — handler cases exist; no dock-panel buttons yet, see review finding W-2).
+`DrawingTypes_Inspect`, `DrawingTypes_Reload`, `Drawing_BrowserOrganize`, `DrawingTypes_SyncStyles`, `DrawingTypes_FromScopeBoxes`, `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceSections`, `DrawingTypes_ProduceInteriorElevations`, `DrawingTypes_ProduceExteriorElevations`, `DrawingTypes_ProduceFromScopeBoxes`, `DrawingTypes_ProduceAndExport`, `DrawingTypes_Doctor`, `DrawingTypes_HealTitleBlocks`, `DrawingTypes_Renumber`, `AecFilters_Create`, `AecFilters_Inspect`, `AecFilters_Reload`, `DrawingTypes_ConvertToManaged`, `DrawingTypes_DetachManaged`, `DrawingTypes_RegenerateTemplates`, `TitleBlock_Create`, `TitleBlock_CreateAll`, `TitleBlock_MigrateLegacy`, `DrawingTypes_MigrateCsv`, `DrawingTypes_MigrateParams`, `DrawingTypes_PresentationSetup`, the Scope Box Planner (`ScopeBox_Planner`, `ScopeBox_RegisterSeeds`, `ScopeBox_ImportSeeds`, `ScopeBox_Colour`, `ScopeBox_ClearColour`, `ScopeBox_ProduceAreas` — area boxes `STING-AREA::` copied from seed boxes `STING-SEED::`, because the API cannot create or resize a scope box; plan saved in `_BIM_COORD/scope_box_plan.json`), plus the MatchLine suite (`MatchLine_Generate`, `MatchLine_Sync`, `MatchLine_Validate`, `MatchLine_ValidateBundle`, `MatchLine_Inspect`), and `DrawingTypes_BuildFlowArrow` (authors `STING_ANNO_FLOW_ARROW` for `AutoAnnotateFlowArrow` rules).
 
-### AEC/FM Corporate Filter Library (Phase 166/184f — 290 filters)
+### AEC/FM Corporate Filter Library (Phase 166/184f — 287 filters)
 
-`Data/STING_AEC_FILTERS.json`: 290 filters, 81 of them healthcare. The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298; Phase 225 removed the 8 `iso-status-*` filters, which bound only `OST_Sheets` and could never be created, leaving 290. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
+`Data/STING_AEC_FILTERS.json`: 287 filters, 79 of them healthcare; 251 are selected by a style pack and 36 are a deliberate per-project library (DRAW-4). The Phase 166 baseline shipped 199 (47 Arch · 33 HVAC · 31 Struct · 30 Fire · 27 Elec · 18 Plumb · 11 FM/COBie · 8 ISO 19650 · 8 Coord/LOD · 5 VT · 5 QA); healthcare and QA-gate phases grew it to 298; Phase 225 removed the 8 `iso-status-*` filters, which bound only `OST_Sheets` and could never be created, leaving 290; DRAW-4 (2026-09-24) removed 3 duplicates (`fls-60min`, `fls-120min`, `elec-lightning`), leaving 287. `ViewStylePackApplier.ApplyFilterRules` lazy-creates missing filters from the registry.
 
 ---
 
-Save button routes to the active tab: `drawing_types.json` (tab 0, existing) or `view_style_packs.json` (tab 1, new). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`; `ViewStylePack.Checksum` is declared but never computed or verified) — corporate pack edits are accepted as corporate. **This asymmetry is deliberate as of Phase 225**, when drawing types were locked (see Project-scoped overrides below). The two carry different risk: a drawing type decides what gets produced, how it is cropped and how it is numbered, so an unnoticed edit changes the identity of an issued deliverable — whereas a view style pack decides appearance (VG overrides, filters, halftone), where an unnoticed edit is visible the moment a drawing is opened and corrupts nothing. Locking packs would also start reporting drift on every project that has ever hand-tuned a corporate pack, which is a behaviour change with no evidence behind it. `ViewStylePack.Checksum` should be wired or dropped rather than left declared-and-unused — logged in `docs/ROADMAP.md`.
+Save writes **both** project overrides — `drawing_types.json` and `view_style_packs.json` — whichever of the editor's seven tabs is open (it used to claim it wrote only the active tab's file, and before that never wrote packs at all). Only project-origin entries are written — corporate baseline on disk stays pristine. Note: View Style Packs have **no** checksum drift detection (`ViewStylePackRegistry` has no `ComputeChecksums`, and `ViewStylePack` has no `checksum` field — DRAW-5 removed the declared-but-never-computed one, and its always-empty column in the Excel round-trip, so nothing reads as a lock that is not one) — corporate pack edits are accepted as corporate. **This asymmetry is deliberate as of Phase 225**, when drawing types were locked (see Project-scoped overrides below). The two carry different risk: a drawing type decides what gets produced, how it is cropped and how it is numbered, so an unnoticed edit changes the identity of an issued deliverable — whereas a view style pack decides appearance (VG overrides, filters, halftone), where an unnoticed edit is visible the moment a drawing is opened and corrupts nothing. Locking packs would also start reporting drift on every project that has ever hand-tuned a corporate pack, which is a behaviour change with no evidence behind it. If packs ever need a lock, add it the way drawing types have one — a stamping tool plus a registry check plus a CI gate — not a bare field.
 
 The tab is a pure UI layer on top of the Week 2 data model — no changes to `ViewStylePack` / `ViewStylePackRegistry` / `ViewStylePackApplier`.
 
@@ -1124,7 +1133,7 @@ Rules live in the same JSON as `routing[]` — first-match-wins rules of the sha
 
 ### Token patterns
 
-Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.SubstituteTokens`:
+Sheet number patterns are substituted by `SheetNumberEngine.ApplyTokenPattern` (Drawing Types production and `DrawingTypes_Renumber`: values are sanitised and capped at 8 characters, and an empty value prints `XX`). The fabrication composer's `ShopDrawingComposer.SubstituteTokens` substitutes the same tokens in sheet numbers and sheet names without the cap or the `XX` placeholder, because a name must not be truncated. All of them read `{seq}` and the aliases through `Core/Drawing/SheetNumberTokens`.
 
 | Token | Replaced with |
 |---|---|
@@ -1134,8 +1143,11 @@ Sheet number and sheet name patterns are substituted by `ShopDrawingComposer.Sub
 | `{sys}` | Sanitised system code |
 | `{lvl}` | Level code |
 | `{mark}` | Section / elevation / detail mark |
-| `{seq}` | Zero-padded 4-digit sequence (default) |
-| `{seq:D2}` / `{seq:D3}` / `{seq:D4}` | Zero-padded sequence with explicit width |
+| `{purpose}` | Drawing purpose |
+| `{project}` / `{proj}`, `{originator}` / `{orig}` | Project and originator codes (the two spellings are one token) |
+| `{vol}`, `{type}`, `{role}`, `{suit}`, `{rev}` | ISO 19650 fields, from `DrawingTokenContext` |
+| `{seq}` | Zero-padded 4-digit sequence (`SheetNumberTokens.DefaultSeqWidth`) |
+| `{seq:Dn}` | Zero-padded sequence, n digits (capped at 8) |
 
 ### New classes
 
@@ -1251,7 +1263,7 @@ Registered in the BIM tab of the dock panel and in `StingCommandHandler`:
 |---|---|---|---|
 | `IssueDeliverable` | `Planscape.Docs.Templates.IssueDeliverableCommand` | Manual | Render A01, write revision history, start `deliverable_issue_default` workflow, audit |
 | `ReIssueDeliverable` | `ReIssueDeliverableCommand` | Manual | Bump revision + re-issue |
-| `PublishDeliverable` | `PublishDeliverableCommand` | Manual | Promote to S4 / `PUBLISHED` CDE container |
+| `PublishDeliverable` | `PublishDeliverableCommand` | Manual | Promote to `PUBLISHED` with an authorised code (A1 by default) |
 | `CancelDeliverable` | `CancelDeliverableCommand` | Manual | Render A02 cancellation notice, archive |
 | `SupersedeDeliverable` | `SupersedeDeliverableCommand` | Manual | Mint new number, render A03 |
 | `ReplaceDeliverable` | `ReplaceDeliverableCommand` | Manual | Render A04 replacing notice, cross-link |
@@ -1323,6 +1335,8 @@ the build on new hand-rolled paths — Tier 1 (legacy bucket names) and Tier 2 (
 |---|---|
 | A CDE state folder | `StingPaths.Cde(doc, "WIP", discipline, contentType)` |
 | A routed export folder | `StingPaths.Export(doc, "PDF")` · `StingPaths.ExportFile(doc, "BOQ", name, ".xlsx")` |
+| Any other export (report, register, workbook) — **never bare `GetOutputDirectory(doc)`**, which is MISC; `tools/check_export_routing.ps1` fails new ones | `OutputLocationHelper.GetRoutedDirectory(doc, "Compliance")` · `GetRoutedPath(doc, "Excel", name)` · `GetRoutedTimestampedPath(doc, "Issue", base, ".csv")` |
+| A **discipline** deliverable (A_ / M_ / S_ … sub-folder, optional CDE state) | `StingPaths.Export(doc, "PDF", "A", "SHARED")` · `OutputLocationHelper.GetRoutedDirectory(doc, "Excel", "E")` · per sheet: `ExportCenterEngine.DeliverableFolderForSheet(doc, sheet)` |
 | A metadata directory | `StingPaths.Meta(doc, "_BIM_COORD", "sub")` |
 | A metadata **file** | `StingPaths.MetaFile(doc, "_BIM_COORD", "thing.json")` |
 | Same, holding only a model **path** | `StingPaths.MetaFrom(rvtPath, …)` · `StingPaths.MetaFileFrom(rvtPath, …)` |
@@ -1604,7 +1618,7 @@ STINGTOOLS/
     │   ├── Clash/  # ClashRowViewModel +
     │   ├── PhotometricLibraryDialog.xaml(.cs)  # Phase 180 photometric library
     │   ├── CircuitWizardDialog.xaml(.cs) · SelectiveCoordDialog.xaml(.cs)  # Electrical wizard dialogs
-    │   ├── DrawingTypeEditorDialog.cs  # Two-tab Drawing Types + View
+    │   ├── DrawingTypeEditorDialog.cs  # 7-tab Drawing Types / Actions / View
     │   ├── RevitVgEditor.cs  # Full Revit VG dialog replica
     │   ├── BIMCoordinationCenter.cs  # 13-tab BIM coordination center
     │   ├── DocumentManagementDialog.cs  # ISO 19650 Document Management
@@ -1626,11 +1640,11 @@ STINGTOOLS/
         ├── MATERIAL_LOOKUP.csv  # 237-row material reference
         ├── FORMULAS_WITH_DEPENDENCIES.csv  # 199 parameter formulas
         ├── SCHEDULE_FIELD_REMAP.csv  # 50+ field deprecation remaps
-        ├── BINDING_COVERAGE_MATRIX.csv  # Parameter-category coverage
+        ├── BINDING_COVERAGE_MATRIX.csv  # Generated view of RESOLVED_BINDINGS.csv (gen_binding_views.py)
         ├── BOQ_TEMPLATE.csv  # Bill of Quantities template
         ├── CATEGORY_BINDINGS.csv  # 10,661 category bindings
         ├── FAMILY_PARAMETER_BINDINGS.csv  # 4,686 family bindings
-        ├── PARAMETER_CATEGORIES.csv  # Parameter-category
+        ├── PARAMETER_CATEGORIES.csv  # Generated view of RESOLVED_BINDINGS.csv (gen_binding_views.py)
         ├── PARAMETER_REGISTRY.json  # Master parameter registry
         ├── LABEL_DEFINITIONS.json  # Label/legend definition specs
         ├── TAG_CONFIG_v5_0_CONTAINERS.csv  # 122+ tag container definitions
@@ -1642,7 +1656,7 @@ STINGTOOLS/
         ├── STING_TAG_CONFIG_v5_0_STR.csv  # Structural tag family
         ├── STRUCTURAL_EXCEL_TEMPLATE.csv  # Structural Excel import
         ├── PROJECT_TEAM_TEMPLATE.json  # Project team role/discipline
-        ├── PYREVIT_SCRIPT_MANIFEST.csv  # Legacy pyRevit script manifest
+        ├── PYREVIT_SCRIPT_MANIFEST.csv  # Legacy pyRevit script manifest (reference only; no code reads it)
         ├── TAG_GUIDE.xlsx  # Tag reference guide
         ├── TAG GUIDE V2.xlsx  # Tag reference guide
         ├── TAG_GUIDE_V3.csv  # Tag reference guide
@@ -1782,7 +1796,9 @@ STINGTOOLS/
 - **Reload**: `Reload()` forces re-read from disk
 
 ### `ParameterHelpers` (static) — `Core/ParameterHelpers.cs` (2,009 lines)
-- `GetString(el, paramName)`
+- `GetString(el, paramName)` — TEXT only; returns "" for any other storage
+- `GetValueText(el, paramName)` — any storage as invariant text in the unit the name states (mm, m for `_M`, m², m³, V/VA/W/A)
+- `SetDoubleInNamedUnit(el, paramName, value)` — writes a value given in its named unit: feet for a LENGTH, as given for a NUMBER, invariant text for TEXT
 - `GetInt(el, paramName, defaultValue)`
 - `SetString(el, paramName, value, overwrite)`
 - `SetInt(el, paramName, value)`
@@ -1960,7 +1976,7 @@ The plugin's primary user interface is a **WPF dockable panel** that consolidate
 |-----------|------|---------|
 | `StingDockPanel.xaml` | `UI/StingDockPanel.xaml` (2,163 lines) | WPF markup: 10-tab layout (SELECT / TAGGING / DOCS / SETUP / CREATE TAGS / MODEL / BIM / TAG STUDIO / INTEROP / HEALTHCARE); TAG STUDIO carries 13 sub-tabs, ~610 buttons, colour swatches, bulk parameter controls |
 | `StingDockPanel.xaml.cs` | `UI/StingDockPanel.xaml.cs` (377 lines) | Code-behind: button dispatch via `IExternalEventHandler`, colour swatch builder, status bar |
-| `StingCommandHandler` | `UI/StingCommandHandler.cs` (4,817 lines) | `IExternalEventHandler` — maps 590+ button Tag strings to 374 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
+| `StingCommandHandler` | `UI/StingCommandHandler.cs` (~9,800 lines, 2026-09-27) | `IExternalEventHandler` — maps 590+ button Tag strings to 374 command classes + ~96 inline helpers, ensures Revit API calls run on the main thread |
 | `StingDockPanelProvider` | `UI/StingDockPanelProvider.cs` (37 lines) | `IDockablePaneProvider` — registers panel with Revit, sets initial dock position (Right, 320×400 min) |
 | `ToggleDockPanelCommand` | `Core/StingToolsApp.cs` (line 825) | `IExternalCommand` — toggles panel visibility from ribbon button |
 
@@ -2106,8 +2122,8 @@ the previous hardcoded 1.20 kg/m³ in the pressure-class audit.
 
 1. Built without `dotnet build` verification (Linux sandbox). Verify in Revit before merge.
 2. **`BlockLoadEngine` is sensible-load focused.** Latent is calculated but the design-day model is simplified (single sinusoid for outdoor temp, ASHRAE Clear Sky for solar, no thermal-mass storage / RTS lag). For comparison-grade results against TRACE / HAP, fold in a per-orientation Radiant Time Series — the input data structures already support per-segment orientation.
-3. **`NcPredictionEngine` uses a *synthetic* fan source** derived from path Q + ΔP. Until a manufacturer Lw spectrum sidecar lands, NC predictions are indicative not certifiable. Silencer insertion-loss spectra are also defaults (12 dB midband) until the same sidecar pattern is wired for attenuators. Breakout (TL through duct walls) is NOT yet implemented — the engine's docstring previously claimed it; references are now phrased as attenuation + regen only.
-4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The two-phase suction multiplier is a flat 10 % rather than a Lockhart-Martinelli calc. Negative-lift (liquid going DOWN) doesn't credit the recovered head back to the ΔP budget yet.
+3. **`NcPredictionEngine` fan and silencer spectra** come from `STING_FAN_SPECTRA.json` / `STING_SILENCER_DATA.json` when the family matches; otherwise a synthetic fan (path Q + ΔP) or a generic silencer is used, and `Hvac_NcPredict` grades the result INDICATIVE and lists each assumed input (MEPG-4). Breakout from rectangular ducts inside the receiving room is added (ASHRAE TL_out method, MEPG-4); round-duct breakout is not modelled; crosstalk is the separate `Hvac_CrossTalkAudit`.
+4. **`RefrigerantPipeSolver` ships 4 refrigerants** (R410A, R32, R134a, CO₂). Saturation state-point pairs are spot-design from ASHRAE Handbook Fundamentals + Daikin VRV manuals — not a full EoS engine. The suction allowance is an input (`SuctionDpMultiplier`, default 1.10), not a Lockhart-Martinelli calc. Liquid static head follows `RefrigerantOperatingMode`: Reversible (default) always debits |lift|; CoolingOnly / HeatingOnly credit a downhill run (MEPG-5).
 5. **Climate site list ships 42 cities.** Add more by appending to the corporate `STING_CLIMATE_DATA.json` (PR encouraged) or via a project override at `<project>/_BIM_COORD/climate_data.json` (additive, by `id`).
 6. **Manufacturer fitting + valve packs are seed.** ~20 entries each across Lindab / Trox / Halton / Belimo / Siemens / Danfoss. Production deployments should add their actual catalogue via the project override.
 7. **Block-load `HVC_PEAK_*` stamps are TEXT-typed.** Reads via SetString; future projects that want to drive Revit schedules with HVACPower-typed params will need a SetDouble path + matching MR_PARAMETERS rebinding.
@@ -2449,19 +2465,25 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 
 ## Sheet Manager System
 
-`Docs/SheetManager*.cs` + `Docs/SheetTemplate*.cs` + `Docs/SheetSetCommands.cs` (7 files, ~4,488 lines) provides comprehensive automated sheet and viewport management with 24 commands across 3 phases.
+`Docs/SheetManager*.cs` + `Docs/SheetTemplate*.cs` + `Docs/SheetSetCommands.cs` + `UI/SheetManagerDialog.cs` (7 files, ~8,400 lines, measured 2026-09-27) provides automated sheet and viewport management with 24 commands across 3 phases.
+
+**Sheet numbers and ISO identifiers have ONE implementation each — the Sheet Manager uses them, it does not own them:**
+- Next number: `SheetNumbering.NextNumber` (the project's `PRJ_TB_SHEET_NUMBER_PATTERN_TXT` from TITLE_BLOCK.csv, default `{disc}-{seq:D3}`, formatted by `SheetDisciplineResolver.FormatNumber`), shared by the Sheet Manager, sheet sets, sheet templates and Auto-Number. Both this and the drawing-type builder (`SheetNumberEngine`) read tokens through `Core/Drawing/SheetNumberTokens`: a bare `{seq}` is 4 digits everywhere, and `{proj}`/`{project}` and `{orig}`/`{originator}` are the same token. The one deliberate difference is an empty value: a drawing-type number keeps a visible `XX` (ISO fields are positional), a project number drops the token and its separator.
+- Renumber: `SheetNumbering.Apply` — park, restore on failure, rebuild `SHT_TAG_1_TXT`, record `sheet_number_history.json`. Batch Renumber plans with Auto-Number's rules (locked and ISO-identifier sheets untouched, taken numbers routed around).
+- ISO numbers: "Enforce ISO Naming" delegates to Tag Sheets → `Sheet_NumberFromIso` → `Sheet_NumberRestore`.
+- Discipline of a sheet: `SheetDisciplineResolver.ForSheet` (ISO role segment, then number prefix, then title) — the same answer the Export Centre files by.
 
 ### Architecture
 
 | Component | File | Lines | Description |
 |-----------|------|-------|-------------|
-| Core Engine | `SheetManagerEngine.cs` | 1,041 | Drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
-| Extended Engine | `SheetManagerEngineExt.cs` | 943 | MaxRects bin packing (BSSF heuristic), layout presets (JSON persistence), viewport type rules, batch clone/renumber, overflow handling |
-| Template Engine | `SheetTemplateEngine.cs` | 858 | 6 built-in sheet templates, create/save templates, ISO 19650 compliance (10 rules), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
-| WPF Dialog | `SheetManagerDialog.cs` | 830 | Dual-panel dialog: TreeView (sheets grouped by discipline, viewport children, unplaced views) + context-sensitive detail panel |
-| Phase 1 Commands | `SheetManagerCommands.cs` | 849 | 8 commands for core sheet management operations |
-| Phase 2 Commands | `SheetSetCommands.cs` | 548 | 8 commands for advanced layout, presets, and batch operations |
-| Phase 3 Commands | `SheetTemplateCommands.cs` | 419 | 8 commands for templates, compliance, alignment, and export |
+| Core Engine | `SheetManagerEngine.cs` | 1,077 | Drawable zone detection, scale calculation, shelf packing, collision detection, viewport placement, sheet cloning, naming/numbering, auto-arrange, batch operations |
+| Extended Engine | `SheetManagerEngineExt.cs` | 966 | MaxRects bin packing (BSSF heuristic), layout presets (JSON persistence), viewport type rules, batch clone/renumber, overflow handling |
+| Template Engine | `SheetTemplateEngine.cs` | 1,140 | 6 built-in sheet templates, create/save templates, compliance (10 hygiene + 5 ISO 19650 checks), viewport grid alignment, edge alignment, distribution, batch PDF export, sheet register |
+| WPF Dialog | `SheetManagerDialog.cs` | 2,263 | Dual-panel dialog: TreeView (sheets grouped by discipline, viewport children, unplaced views) + context-sensitive detail panel |
+| Phase 1 Commands | `SheetManagerCommands.cs` | 1,854 | 8 commands for core sheet management operations |
+| Phase 2 Commands | `SheetSetCommands.cs` | 559 | 8 commands for advanced layout, presets, and batch operations |
+| Phase 3 Commands | `SheetTemplateCommands.cs` | 518 | 8 commands for templates, compliance, alignment, and export |
 
 ### Sheet Manager Commands (24)
 
@@ -2485,7 +2507,7 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 | Place With Overflow | `PlaceWithOverflowCommand` | Manual | Place views with auto-overflow to continuation sheets |
 | Create From Template | `CreateFromTemplateCommand` | Manual | Create sheet from built-in or saved template |
 | Save Sheet Template | `SaveSheetTemplateCommand` | ReadOnly | Save current sheet as reusable template |
-| Sheet Compliance | `SheetComplianceCheckCommand` | ReadOnly | ISO 19650 sheet compliance audit (10 rules) |
+| Sheet Compliance | `SheetComplianceCheckCommand` | ReadOnly | Sheet audit: 10 hygiene checks + 5 ISO 19650 (identifier, role vs discipline, suitability, revision, CDE state) |
 | Grid Align | `GridAlignViewportsCommand` | Manual | Snap viewport centres to alignment grid |
 | Align Edges | `AlignViewportEdgesCommand` | Manual | Align viewport edges (left/right/top/bottom/center) |
 | Distribute | `DistributeViewportsCommand` | Manual | Distribute viewports evenly across sheet |
@@ -2500,11 +2522,21 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 - **Collision detection**: 2D AABB overlap checking between viewports
 - **Layout presets**: 6 built-in presets
 - **Sheet templates**: 6 built-in templates
-- **ISO 19650 compliance**: 10 rules
+- **Compliance**: 10 hygiene checks + 5 ISO 19650 checks judged by the title block's own rules
 - **Grid alignment**: Configurable grid with snap-to-nearest
 - **Edge alignment**: 6 modes
 - **Batch PDF export**: By scope (all/discipline/selection) with sanitised filenames
-- **Two-pass rename**: Avoids Revit sheet number conflicts during batch renumbering
+- **Two-pass rename**: via `SheetNumbering.Apply` (restores a sheet whose final number is refused)
+
+## Export Centre + Document Manager (document control)
+
+`Docs/ExportCenter*.cs` + `Docs/ScheduledExportRunner.cs` + `UI/StingExportCenterDialog.cs`, and `UI/DocumentManagementDialog.cs` (9 tabs). Contracts that keep them aligned (reviewed 2026-09-27; history in CHANGELOG, open items DOCX-* in ROADMAP — all closed):
+
+- **Suitability is the input; CDE state follows.** `Iso19650Suitability.CdeStateFor` (S0 WIP · S1–S7 SHARED · A/B/CR PUBLISHED · AB/AR ARCHIVE) and `DefaultFor(state)` (WIP S0 · SHARED S3 · PUBLISHED A1 · ARCHIVE AR) are the only mappings. A CDE move keeps a code that already belongs in the target state (`ForTransition`).
+- **Filenames match the drawing.** Export tokens come from the sheet's ISO identifier (`SHT_TAG_1_TXT` or an ISO sheet number), its suitability (`PRJ_DWG_SUITABILITY_COD_TXT`) and its revision label — the same facts the title block prints.
+- **Where files land.** "File into the project structure" (on after Auto) puts each sheet in its suitability's CDE state and its discipline folder (`ExportCenterEngine.DeliverableFolderForSheet`); a sheet with no suitability follows the export route. Exports are recorded in the document register (`CdeAutoRegister`).
+- **State.** Profiles are user-level (`project_config.json`); saved sets, last-export records and scheduled jobs are per project (`_data/coord/export_center.json`). Schedules run from the ⏱ window or after a save (opt-in, via the Idling scheduler).
+- **One register schema.** Rows are read through `DocumentRegisterMerge.MapRegisterRow` everywhere (Document Manager, unified register, COBie Document sheet); writers emit both `doc_id` and `document_id`.
 
 ## Model Auto-Modeling Engine
 
@@ -2556,13 +2588,14 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 
 ### Style Matrix
 Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parameters. Exactly one BOOL parameter is set to true per element type, making that label row visible:
-- **Sizes**: 2, 2.5, 3, 3.5 (mm text height)
-- **Styles**: NOM (normal), BOLD, ITALIC
-- **Colors**: BLACK, BLUE, GREEN, RED
+- **Sizes**: 2.5, 3.5, 2, 3 (mm text height). **2.5 and 3.5 are the ISO 3098 heights and every default uses them** (2.5 mm; 3.5 mm for emphasis) — discipline presets, colour schemes, rule presets, the style catalogue's pre-created variants and the scale tiers. The 2 and 3 mm rows stay for projects that pick them explicitly; the style grid marks them "not ISO". One rule: `Core/Drawing/IsoTagText`
+- **Styles**: NOM (normal), BOLD, ITALIC, BOLDITALIC
+- **Colors**: BLACK, BLUE, GREEN, RED, ORANGE, PURPLE, GREY, WHITE (`ParamRegistry.TagStyleColors`)
 - **Total combinations**: 4 sizes × 4 styles × 8 colors = **128 per tag**
+- **Discipline tag styles** come from `Data/tag_style_catalogue.json` (`defaults_per_discipline`); the Tag Style Engine's Discipline scheme and the `TAG_STYLE_RULES.json` Discipline preset follow it (a test holds them together)
 
 ### Built-in Color Schemes
-Discipline, Warm, Cool, Red, Yellow, Blue, Monochrome, Dark — each scheme maps discipline codes to specific element graphic overrides and optionally switches tag text styles to match.
+Discipline, Warm, Cool, Red, Yellow, Blue, Mono, Dark — each maps discipline codes to element graphic overrides and optionally switches tag text styles to match. Colour-by-value schemes: System, Status, Zone, Level, Location, Function, plus the healthcare pack schemes MedicalGas (`MGS_GAS_TYPE_TXT`), Pressure (`CLN_PRESS_REGIME_TXT`), ElectricalSupply (`ELC_EES_BRANCH_TXT`), FireRating (fire resistance minutes), Radiation (`RAD_BARRIER_TYPE_TXT`), AntiLigature (`CLN_LIG_RISK_LVL_TXT`) and WaterSafety (system token). Names and aliases ("Monochrome", "STING Discipline", "RAG Status" → Status) resolve through `Core/Drawing/TagColorSchemeNames`; an unknown name is logged, never silently ignored.
 
 ### Tag Style Commands (9)
 
@@ -2750,6 +2783,9 @@ result set. Prove RED before GREEN and report both numbers.
 - Add `[Regeneration(RegenerationOption.Manual)]` for commands that modify the model
 - Use `TaskDialog` for user-facing messages (not `MessageBox`)
 - Use `StingLog.Info/Warn/Error` for all logging — never use silent catch blocks
+- Read a parameter that may not be TEXT with `ParameterHelpers.GetValueText`, not `GetString` (which returns "" for NUMBER / LENGTH / AREA / INTEGER), and write a measured value with `SetDoubleInNamedUnit`, not `SetString` (which refuses it) or a raw `Set` (a LENGTH stores feet, so 3000 mm written raw is 3000 ft). An element's system name comes from `Core/Mep/ServiceSystemName.Read`
+- Name a parameter through a `ParamRegistry` constant, and add it to `MR_PARAMETERS.txt` through the generators (`param_binding_resolver.py`, `sync_csv_from_txt.py`) before reading it; `StingTools/Data/MISSING_PARAMETERS.md` lists every surface a new parameter goes on. Bindings come from `RESOLVED_BINDINGS.csv` (Load Shared Parameters, Reconcile and Dynamic Bindings all bind from it); `CATEGORY_BINDINGS.csv` is the resolver's hand-authored input and only its Yes rows count; `PARAMETER_CATEGORIES.csv` and `BINDING_COVERAGE_MATRIX.csv` are generated views. Every shipped shared-parameter `.txt` must agree with `MR_PARAMETERS.txt` on GUID and type
+- Read electrical quantities through `Core/Electrical/ElecUnits` (`ToSi`, `Read`, `VoltsFromInternal`, `VAFromInternal`), never a raw `AsDouble()`: Revit stores 1 V as 10.7639 internal units (VA/W likewise), and API properties such as `ElectricalSystem.Voltage` / `ApparentLoad` return internal units too
 - Handle `OperationCanceledException` for user-cancelled operations
 - Use `FilteredElementCollector` with appropriate filters for performance
 - For new commands, use shared helpers: `TagConfig.BuildAndWriteTag()`, `ParameterHelpers.SetIfEmpty()`, `SpatialAutoDetect.DetectLoc()/DetectZone()`

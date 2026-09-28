@@ -495,7 +495,9 @@ namespace StingTools.Model
             try
             {
                 ParameterHelpers.SetString(col, "STR_COL_SECTION_TXT", $"{widthMm:F0}×{widthMm:F0}mm", overwrite: true);
-                ParameterHelpers.SetString(col, "STR_COL_SIZE_MM",     $"{widthMm:F0}",                overwrite: true);
+                // LENGTH: SetString refused the text, so the size was never written.
+                ParameterHelpers.SetDoubleInNamedUnit(col, "STR_COL_SIZE_MM", widthMm);
+                ParameterHelpers.SetString(col, "STR_COL_SIZE_TXT",    $"{widthMm:F0}×{widthMm:F0}",   overwrite: true);
                 ParameterHelpers.SetString(col, "STR_LOAD_AXIAL_KN",    $"{axialKN:F0}",                overwrite: true);
                 r.StampsWritten++;
             }
@@ -919,7 +921,7 @@ namespace StingTools.Model
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) return Result.Failed;
-            string outDir = OutputLocationHelper.GetOutputDirectory(ctx.Doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(ctx.Doc, "Schedule", "S");
             string path = Path.Combine(outDir, $"BarBendingSchedule_{DateTime.Now:yyyyMMdd}.xlsx");
             string result = RebarEngine.ExportBarBendingSchedule(ctx.Doc, path);
             TaskDialog.Show("STING BBS", result);

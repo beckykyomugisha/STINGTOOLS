@@ -730,7 +730,7 @@ You'll be judged on whether the **team** can follow the system, not just you. Ke
 | **BMS** | Building Management System (Niagara) |
 
 ## 11.2 CDE states & codes
-`WIP → SHARED (S0–S4) → PUBLISHED (A1/B1) → ARCHIVED` · Rev `P0x` (prelim) / `C0x` (contractual)
+`WIP (S0) → SHARED (S1–S4) → PUBLISHED (A1/B1) → ARCHIVED` · Rev `P0x` (prelim) / `C0x` (contractual)
 
 ## 11.3 File name pattern
 `KUT-SMB-ZZ-XX-M3-A-0001` = Project-Originator-Volume-Level-Type-Role-Number

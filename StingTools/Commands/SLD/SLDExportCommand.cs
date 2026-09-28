@@ -49,7 +49,9 @@ namespace StingTools.Commands.SLD
             var choice = td.Show();
             if (choice == TaskDialogResult.Cancel) return Result.Cancelled;
 
-            string outputDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "SLD_Export");
+            // Electrical drawings: the project's drawing route in the electrical
+            // discipline folder (06_DRAWINGS/E_Electrical), not MISC/SLD_Export.
+            string outputDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "PDF", "E"), "SLD");
             try { Directory.CreateDirectory(outputDir); }
             catch (Exception ex) { StingLog.Warn($"SLDExport mkdir {outputDir}: {ex.Message}"); }
 

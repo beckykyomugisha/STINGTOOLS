@@ -337,13 +337,15 @@ namespace StingTools.Tags
             var coreEnums = SharedParamGuids.AllCategoryEnums;
             CategorySet coreCats = SharedParamGuids.BuildCategorySet(doc, coreEnums);
 
-            // NOTE: OST_Materials is NOT added to coreCats.
-            // Material-specific parameters (MAT_INFO, PROP_PHYSICAL groups) are bound
-            // via dedicated matCats override in BuildGroupCategoryOverrides() to BLE
-            // element categories (walls, floors, ceilings, etc.), NOT to OST_Materials
-            // (which doesn't support AllowsBoundParameters in Revit API).
-            // Adding Materials to coreCats would bind ALL 2300+ parameters to materials,
-            // polluting every material's custom properties panel.
+            // NOTE: OST_Materials is NOT added to coreCats. Adding it would bind ALL
+            // 2300+ parameters to materials, polluting every material's properties.
+            // Material parameters DO reach OST_Materials — it accepts bound parameters
+            // (a 2026-09-21 run logged 116 added, 0 failed) — through the dedicated
+            // CleanMaterialBindings pass, which adds Materials to exactly the parameters
+            // IsMaterialRelevantParam recognises (MAT_*, PROP_*, BLE_MAT_* …) and
+            // removes it from every other one. The matCats override in
+            // BuildGroupCategoryOverrides() additionally puts them on the BLE element
+            // categories (walls, floors, …) that use materials, for material takeoffs.
 
             // Phase 39: Add Sheets category (needed for SHT_* params). OST_Sheets is not
             // in ParamRegistry's category_enum_map / universal_categories, so the core set
@@ -429,6 +431,56 @@ namespace StingTools.Tags
                 StingLog.Info($"LoadSharedParams: per-param CSV bindings — {perParamBindingMap.Count} params across {perParamSignatures} distinct category-set signatures");
             }
             catch (Exception ex) { StingLog.Warn($"Per-param binding pre-build failed, falling back to group bindings: {ex.Message}"); }
+
+            // "<ALL>|Project Information" params: the core set PLUS categories outside
+            // it. The core set is element categories (+ Sheets); Project Information is
+            // not one of them, so a PRJ_* parameter bound <ALL> alone never reached the
+            // element every reader of it goes to. Built once per distinct extra set.
+            var universalPlusBinding = new Dictionary<string, InstanceBinding>(StringComparer.OrdinalIgnoreCase);
+            // Set when the pre-build throws, so the result dialog says so — otherwise the
+            // affected PRJ_* params bind without Project Information and only the log knows.
+            string universalPlusFailure = null;
+            var universalPlusMissed = new List<string>();
+            if (specDriven)
+            {
+                try
+                {
+                    var sigToUniv = new Dictionary<string, InstanceBinding>(StringComparer.Ordinal);
+                    foreach (var kvp in SharedParamGuids.ResolvedUniversalExtras)
+                    {
+                        string sig = string.Join(",", kvp.Value.Select(b => (int)b).OrderBy(x => x));
+                        if (!sigToUniv.TryGetValue(sig, out InstanceBinding ub))
+                        {
+                            var cs = new CategorySet();
+                            foreach (Category c in coreCats) cs.Insert(c);
+                            int added = 0;
+                            foreach (Category c in SharedParamGuids.BuildCategorySet(doc, kvp.Value))
+                                if (!cs.Contains(c)) { cs.Insert(c); added++; }
+                            if (added == 0)
+                                StingLog.Warn($"LoadSharedParams: extra categories for '{kvp.Key}' ({string.Join(", ", kvp.Value)}) " +
+                                              "add nothing to the core set in this document");
+                            ub = app.Create.NewInstanceBinding(cs);
+                            sigToUniv[sig] = ub;
+                        }
+                        universalPlusBinding[kvp.Key] = ub;
+                    }
+                    StingLog.Info($"LoadSharedParams: {universalPlusBinding.Count} universal param(s) with extra categories");
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"Universal-plus binding pre-build failed, those params get the core set only: {ex.Message}");
+                    universalPlusFailure = ex.Message;
+                    try
+                    {
+                        foreach (var kvp in SharedParamGuids.ResolvedUniversalExtras)
+                            if (!universalPlusBinding.ContainsKey(kvp.Key))
+                                universalPlusMissed.Add($"{kvp.Key} (needs {string.Join(", ", kvp.Value)})");
+                    }
+                    catch (Exception ex2) { StingLog.Warn($"Universal-plus missed-list: {ex2.Message}"); }
+                    foreach (string m in universalPlusMissed)
+                        StingLog.Warn($"  core set only, extra categories NOT bound: {m}");
+                }
+            }
 
             // Collect discipline-scoped params that had no per-param CSV row AND no group
             // override — they fall back to the broad core set (a coverage GAP). Logged so
@@ -530,7 +582,8 @@ namespace StingTools.Tags
                                 else if (specDriven)
                                 {
                                     // Spec-driven: universal->core, scoped->exact set, absent->UNBOUND (never broad-bind).
-                                    if (SharedParamGuids.ResolvedUniversalParams.Contains(extDef.Name)) paramBinding = coreBinding;
+                                    if (SharedParamGuids.ResolvedUniversalParams.Contains(extDef.Name))
+                                        paramBinding = universalPlusBinding.TryGetValue(extDef.Name, out InstanceBinding upb) ? upb : coreBinding;
                                     else if (perParamBindingMap.TryGetValue(extDef.Name, out InstanceBinding sb)) paramBinding = sb;
                                     else { if (bindingGapParams.Count < 1000) bindingGapParams.Add(extDef.Name); skipped++; continue; }
                                 }
@@ -641,6 +694,22 @@ namespace StingTools.Tags
             if (matRemoved > 0 || matAdded > 0)
                 report.AppendLine($"Material cleanup: removed Materials from {matRemoved} params, added to {matAdded} params");
             report.AppendLine();
+
+            if (universalPlusFailure != null)
+            {
+                string who = universalPlusMissed.Count > 0
+                    ? $"{universalPlusMissed.Count} parameter(s)"
+                    : "the \"<ALL>|Project Information\" parameters";
+                report.AppendLine($"⚠ Extra-category bindings could not be built: {universalPlusFailure}");
+                report.AppendLine($"  {who} (the PRJ_* project parameters among them) were bound to the core");
+                report.AppendLine("  element categories ONLY — NOT to Project Information, where every reader");
+                report.AppendLine("  of them looks. Fix the cause and re-run Load Params.");
+                foreach (string m in universalPlusMissed.Take(10))
+                    report.AppendLine($"    {m}");
+                if (universalPlusMissed.Count > 10)
+                    report.AppendLine($"    ... and {universalPlusMissed.Count - 10} more (see StingTools.log)");
+                report.AppendLine();
+            }
 
             if (typeConflicts > 0)
             {
@@ -1011,11 +1080,12 @@ namespace StingTools.Tags
             }
             catch (Exception ex) { StingLog.Warn($"BuildGroupCategoryOverrides PRJ_INFORMATION: {ex.Message}"); }
 
-            // OST_Materials does NOT support AllowsBoundParameters in Revit API,
-            // so we bind material-relevant params (MAT_INFO, PROP_PHYSICAL) to
-            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) —
-            // the elements that USE materials. This makes material properties
-            // visible on those elements and schedulable in material takeoffs.
+            // Material-relevant params (MAT_INFO, PROP_PHYSICAL) are bound here to the
+            // BLE element categories (Walls, Floors, Ceilings, Roofs, etc.) — the
+            // elements that USE materials — so they are visible on those elements and
+            // schedulable in material takeoffs. They reach OST_Materials itself through
+            // CleanMaterialBindings below (OST_Materials DOES accept bound parameters;
+            // an older comment here said it did not), which is what a Material Tag reads.
             var matCats = BuildCatSet(doc, BleCategories);
             if (matCats.Size > 0)
             {
@@ -1309,8 +1379,9 @@ namespace StingTools.Tags
             // via dedicated matCats override (MAT_INFO, PROP_PHYSICAL groups only)
             foreach (var bic in MepCategories) TryInsert(doc, set, bic);
             foreach (var bic in BleCategories) TryInsert(doc, set, bic);
-            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories
-            // via group overrides (OST_Materials doesn't support bound params)
+            // MAT_INFO and PROP_PHYSICAL groups bound to BLE categories via group
+            // overrides. OST_Materials DOES take bound parameters; it is added by
+            // name in CleanMaterialBindings (IsMaterialRelevantParam), not here.
             TryInsert(doc, set, BuiltInCategory.OST_Rooms);
             TryInsert(doc, set, BuiltInCategory.OST_Areas);
             TryInsert(doc, set, BuiltInCategory.OST_Parking);
@@ -1366,7 +1437,7 @@ namespace StingTools.Tags
         /// SearchOption.AllDirectories can scan thousands of files on broad paths
         /// like C:\ProgramData\Autodesk\, freezing Revit for minutes).
         /// </summary>
-        private static string FindMrParametersFile(string currentSpFile)
+        internal static string FindMrParametersFile(string currentSpFile)
         {
             const string fileName = "MR_PARAMETERS.txt";
 

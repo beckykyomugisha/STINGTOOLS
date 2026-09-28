@@ -56,6 +56,18 @@ namespace StingTools.Tags
 
         // ── Loading ─────────────────────────────────────────────────────
 
+        /// <summary>A preset's default type with its size made ISO 3098 (2 → 2.5, 3 → 3.5).
+        /// Only the DEFAULT is coerced; a rule that names a 2 or 3 mm type is an explicit
+        /// choice and is left as written.</summary>
+        private static string IsoDefaultType(string declared, string presetName)
+        {
+            if (string.IsNullOrWhiteSpace(declared)) return "2.5NOM_BLACK";
+            string iso = Core.Drawing.IsoTagText.ToIsoTypeName(declared);
+            if (!string.Equals(iso, declared, StringComparison.OrdinalIgnoreCase))
+                StingLog.Warn($"TagStyleEngine: preset '{presetName}' default_type '{declared}' is not an ISO 3098 size — using '{iso}'.");
+            return iso;
+        }
+
         /// <summary>Load all presets from TAG_STYLE_RULES.json.</summary>
         public static Dictionary<string, StylePreset> LoadPresets()
         {
@@ -80,7 +92,7 @@ namespace StingTools.Tags
                     {
                         Name = prop.Name,
                         Description = (string)prop.Value["description"] ?? "",
-                        DefaultType = (string)prop.Value["default_type"] ?? "2NOM_BLACK"
+                        DefaultType = IsoDefaultType((string)prop.Value["default_type"], prop.Name)
                     };
 
                     JArray rules = prop.Value["rules"] as JArray;
@@ -170,7 +182,7 @@ namespace StingTools.Tags
         /// </summary>
         public static string ResolveTagType(Document doc, Element host, StylePreset preset)
         {
-            if (host == null || preset == null) return preset?.DefaultType ?? "2NOM_BLACK";
+            if (host == null || preset == null) return preset?.DefaultType ?? "2.5NOM_BLACK";
 
             foreach (var rule in preset.Rules)
             {
@@ -624,8 +636,9 @@ namespace StingTools.Tags
                 (typeNames.Count > 20 ? $"\n  ... and {typeNames.Count - 20} more" : "");
 
             // Show 4 most common/useful options
-            var preferredTypes = new[] { "2BOLD_BLUE", "2BOLD_RED", "2BOLD_GREEN", "2NOM_BLACK",
-                "2BOLD_ORANGE", "2BOLD_PURPLE", "2NOM_GREY", "2BOLDITALIC_RED" };
+            // ISO 3098 2.5 mm, like every other default (IsoTagText).
+            var preferredTypes = new[] { "2.5BOLD_BLUE", "2.5BOLD_RED", "2.5BOLD_GREEN", "2.5NOM_BLACK",
+                "2.5BOLD_ORANGE", "2.5BOLD_PURPLE", "2.5NOM_GREY", "2.5BOLDITALIC_RED" };
             var available = preferredTypes.Where(t => typeIndex.ContainsKey(t)).ToList();
             if (available.Count < 4)
             {
@@ -663,7 +676,7 @@ namespace StingTools.Tags
                 {
                     Name = "Custom",
                     Description = "User-created rules",
-                    DefaultType = "2NOM_BLACK"
+                    DefaultType = "2.5NOM_BLACK"
                 };
             }
 
@@ -748,7 +761,7 @@ namespace StingTools.Tags
 
             // Find the dominant tag type per discipline
             var rules = new List<TagStyleRuleEngine.StyleRule>();
-            string overallDefault = "2NOM_BLACK";
+            string overallDefault = "2.5NOM_BLACK";
             int maxCount = 0;
 
             foreach (var kvp in discToTypes)

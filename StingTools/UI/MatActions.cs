@@ -385,7 +385,7 @@ namespace StingTools.UI
                     if (g.Count() > 3) sb.AppendLine($"      · … and {g.Count() - 3} more");
                 }
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "MaterialSchedule");
                 string csv = System.IO.Path.Combine(outDir, $"STING_sustainability_findings_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var lines = new List<string> { "RuleId,Standard,Severity,MaterialName,Message" };
                 lines.AddRange(findings.Select(f =>
@@ -466,7 +466,7 @@ namespace StingTools.UI
                 if (byName.Count > 20) sb.AppendLine($"  … and {byName.Count - 20} more (full list logs to console).");
 
                 // Also write a CSV so the user has the full data.
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "MaterialSchedule");
                 string csv = System.IO.Path.Combine(outDir, $"STING_family_side_materials_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var lines = new List<string> { "MaterialName,FamilyName,TypeName,Origin,LoadedInProject" };
                 lines.AddRange(rows.OrderBy(r => r.MaterialName).Select(r =>
@@ -807,7 +807,7 @@ namespace StingTools.UI
             {
                 var materials = new FilteredElementCollector(doc).OfClass(typeof(Material))
                     .Cast<Material>().OrderBy(m => m.Name).ToList();
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "MaterialSchedule");
                 string filePath = Path.Combine(outDir, "STING_MATERIALS_EXPORT.csv");
                 StingTools.Temp.MaterialPropertyHelper.ExportMaterialsCsv(doc, materials, filePath);
                 TaskDialog.Show("Export CSV", $"Exported {materials.Count} material(s) to:\n{filePath}");
@@ -1038,7 +1038,7 @@ namespace StingTools.UI
                     if (g.Count() > 3) sb.AppendLine($"      · … and {g.Count() - 3} more");
                 }
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "MaterialSchedule");
                 string csv = System.IO.Path.Combine(outDir,
                     $"STING_healthcare_findings_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var lines = new List<string> { "RuleId,Standard,Severity,ElementId,ElementName,MaterialName,Message" };
@@ -1309,7 +1309,7 @@ namespace StingTools.UI
                     });
 
                 // Write CSV with rows + mismatches.
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "MaterialSchedule");
                 string csv = System.IO.Path.Combine(outDir,
                     $"STING_linked_materials_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var lines = new List<string>
@@ -1481,7 +1481,7 @@ namespace StingTools.UI
 
         private static string WriteWhatIfCsv(Document doc, WhatIfPreview preview)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "MaterialSchedule");
             string path = System.IO.Path.Combine(outDir,
                 $"STING_whatif_{preview.FromMaterial}_to_{preview.ToMaterial}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
             var sb = new System.Text.StringBuilder();

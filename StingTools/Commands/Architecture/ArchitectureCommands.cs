@@ -272,8 +272,18 @@ namespace StingTools.Commands.Architecture
                 foreach (var el in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType())
                 {
                     walls++;
-                    if (string.IsNullOrEmpty(el.LookupParameter("FIRE_RATING")?.AsString())) missingFire++;
-                    if ((el.LookupParameter("ANALYTICAL_HEAT_TRANSFER")?.AsDouble() ?? 0) <= 0) missingU++;
+                    // "FIRE_RATING" / "ANALYTICAL_HEAT_TRANSFER" are not parameter names, so
+                    // every wall was reported missing both. Fire Rating and the heat transfer
+                    // coefficient are TYPE parameters; STING's own fields are the fallback.
+                    Element type = doc.GetElement(el.GetTypeId());
+                    string fire = type?.get_Parameter(BuiltInParameter.FIRE_RATING)?.AsString();
+                    if (string.IsNullOrWhiteSpace(fire)) fire = ParameterHelpers.GetString(el, "PER_FIRE_RATING_TXT");
+                    if (string.IsNullOrWhiteSpace(fire)) missingFire++;
+                    double u = 0;
+                    try { u = type?.get_Parameter(BuiltInParameter.ANALYTICAL_HEAT_TRANSFER_COEFFICIENT)?.AsDouble() ?? 0; }
+                    catch (Exception ex) { StingLog.Warn($"CoverAudit U {el.Id}: {ex.Message}"); }
+                    if (u <= 0) u = ParameterHelpers.GetDouble(el, "PER_THERM_U_VALUE_W_M2K");
+                    if (u <= 0) missingU++;
                 }
                 floors   = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Floors).WhereElementIsNotElementType().GetElementCount();
                 roofs    = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Roofs).WhereElementIsNotElementType().GetElementCount();

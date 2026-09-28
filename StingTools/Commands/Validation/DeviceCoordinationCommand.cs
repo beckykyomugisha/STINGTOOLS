@@ -278,7 +278,7 @@ namespace StingTools.Commands.Validation
                 var rows = new List<string> { "RuleId,Severity,Room,DeviceId,Detail" };
                 foreach (var f in findings)
                     rows.Add(string.Join(",", Csv(f.RuleId), Csv(f.Severity), Csv(f.Room), f.DeviceId, Csv(f.Detail)));
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_DeviceCoord_Audit_{DateTime.Now:yyyyMMdd}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_DeviceCoord_Audit_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }

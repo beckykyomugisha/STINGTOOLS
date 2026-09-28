@@ -54,7 +54,7 @@ namespace StingTools.Commands.Fabrication
                 .GroupBy(e => new
                 {
                     Discipline = DisciplineCode(e),
-                    System     = Read(e, "PLM_SYS_TXT") + Read(e, "MEC_SYS_TXT") + Read(e, "ELC_SYS_TXT"),
+                    System     = StingTools.Core.Mep.ServiceSystemName.Read(e),
                     Level      = Read(e, "ASS_LVL_COD_TXT"),
                 });
 

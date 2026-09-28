@@ -36,17 +36,45 @@ namespace StingTools.Commands.Electrical.Routing
         private static readonly double[] StandardConduitMm =
             { 16, 20, 25, 32, 40, 50, 63, 75, 100 };
 
+        /// <summary>Shortest leg ComputeRoute will emit (feet, ≈3 mm).</summary>
+        public const double MinLegFt = 0.01;
+
         public static List<RouteSegment> ComputeRoute(XYZ start, XYZ end,
             double diameterMm, string label)
         {
             var segs = new List<RouteSegment>();
             if (start == null || end == null) return segs;
+            if (start.DistanceTo(end) <= MinLegFt) return segs;
+
             // L/Z: horizontal at start elevation → drop to end elevation.
             var mid1 = new XYZ(end.X, start.Y, start.Z);
             var mid2 = new XYZ(end.X, start.Y, end.Z);
-            if (mid1.DistanceTo(start) > 0.01) segs.Add(new RouteSegment(start, mid1, diameterMm, label));
-            if (mid2.DistanceTo(mid1)  > 0.01) segs.Add(new RouteSegment(mid1,  mid2, diameterMm, label));
-            if (end.DistanceTo(mid2)   > 0.01) segs.Add(new RouteSegment(mid2,  end,  diameterMm, label));
+
+            // The route must begin at `start` and finish at `end` — the very
+            // points the caller resolved from the load and panel connectors.
+            // It used to emit each leg independently and drop any leg under
+            // the 0.01 ft tolerance, which had two consequences (#597):
+            //   * a collinear route ended on the intermediate waypoint object
+            //     instead of the goal, and
+            //   * when the LAST leg was sub-tolerance (goal a few mm off the
+            //     start's Y), that leg was dropped and the run stopped short
+            //     of the panel, leaving a gap nobody was told about.
+            // Waypoints under tolerance are now merged into their neighbour
+            // and the goal itself always closes the path.
+            var pts = new List<XYZ> { start };
+            foreach (var p in new[] { mid1, mid2 })
+                if (p.DistanceTo(pts[pts.Count - 1]) > MinLegFt) pts.Add(p);
+            if (end.DistanceTo(pts[pts.Count - 1]) > MinLegFt)
+                pts.Add(end);
+            else
+                pts[pts.Count - 1] = end;   // snap the sub-tolerance tail onto the goal
+            // Snapping can leave the previous waypoint within tolerance of the
+            // goal; merge it so no zero-length leg is emitted. Never drop start.
+            while (pts.Count > 2 && pts[pts.Count - 2].DistanceTo(end) <= MinLegFt)
+                pts.RemoveAt(pts.Count - 2);
+
+            for (int i = 0; i < pts.Count - 1; i++)
+                segs.Add(new RouteSegment(pts[i], pts[i + 1], diameterMm, label));
             return segs;
         }
 
@@ -135,157 +163,132 @@ namespace StingTools.Commands.Electrical.Routing
         }
 
         /// <summary>
-        /// Advanced routing overload that uses A* on a VoxelGrid obstacle map to
-        /// find an obstacle-avoiding path. Falls back to the standard rectilinear
-        /// L/Z path when A* returns no solution or VoxelGrid construction fails.
+        /// Turn an A* cell path into a conduit route a fitter can build:
+        ///   * every leg axis-aligned — the exact start and end are joined to
+        ///     the first and last cell centres by X, then Y, then Z moves,
+        ///     never by a diagonal;
+        ///   * straight runs through consecutive cells merged into one
+        ///     segment (A* returns one cell per 200 mm);
+        ///   * sub-tolerance legs dropped, the goal always closing the path.
+        /// Revit-free apart from XYZ, so it is unit-tested.
+        /// </summary>
+        public static List<RouteSegment> OrthogonalRoute(XYZ start, IList<XYZ> cellCentres, XYZ end,
+            double diameterMm, string label)
+        {
+            var raw = new List<XYZ> { start };
+            if (cellCentres != null) raw.AddRange(cellCentres);
+            raw.Add(end);
+
+            // 1. Axis-aligned: split any leg that moves on more than one axis.
+            var pts = new List<XYZ> { raw[0] };
+            for (int i = 1; i < raw.Count; i++)
+            {
+                var a = pts[pts.Count - 1];
+                var b = raw[i];
+                var p1 = new XYZ(b.X, a.Y, a.Z);
+                var p2 = new XYZ(b.X, b.Y, a.Z);
+                foreach (var p in new[] { p1, p2, b })
+                    if (p.DistanceTo(pts[pts.Count - 1]) > MinLegFt) pts.Add(p);
+            }
+            if (pts[pts.Count - 1].DistanceTo(end) > 1e-9)
+            {
+                if (pts.Count > 1 && pts[pts.Count - 1].DistanceTo(end) <= MinLegFt) pts[pts.Count - 1] = end;
+                else pts.Add(end);
+            }
+
+            // 2. Merge colinear runs.
+            var merged = new List<XYZ> { pts[0] };
+            for (int i = 1; i < pts.Count - 1; i++)
+            {
+                var d1 = (pts[i] - merged[merged.Count - 1]).Normalize();
+                var d2 = (pts[i + 1] - pts[i]).Normalize();
+                if (d1.DotProduct(d2) > 1 - 1e-9) continue;       // same direction: no corner here
+                merged.Add(pts[i]);
+            }
+            if (pts.Count > 1) merged.Add(pts[pts.Count - 1]);
+
+            var segs = new List<RouteSegment>();
+            for (int i = 0; i < merged.Count - 1; i++)
+                if (merged[i].DistanceTo(merged[i + 1]) > MinLegFt)
+                    segs.Add(new RouteSegment(merged[i], merged[i + 1], diameterMm, label));
+            return segs;
+        }
+
+        /// <summary>
+        /// Obstacle-avoiding route: A* over a VoxelGrid built from structural
+        /// columns and framing. Falls back to the rectilinear L/Z path (and
+        /// says so through <paramref name="method"/>) when the grid is empty
+        /// or A* finds no path.
         ///
-        /// Obstacles collected: structural framing, structural columns, floors.
-        /// Voxel size: 200 mm (VoxelGrid.DefaultSideMm).
+        /// What changed from the first version (ROADMAP ELEC-7 / MEPG-11):
+        /// the path is post-processed by <see cref="OrthogonalRoute"/> (one
+        /// segment per straight run, no diagonal end legs, not one conduit per
+        /// voxel); the start and goal cells are released when an obstacle's
+        /// clearance covers them (the load and the panel sit next to walls and
+        /// columns); cell centres are taken on the regular grid stride so
+        /// refined and coarse cells line up; floors are not obstacles, because
+        /// a floor's bounding box fills its whole storey and blocked every
+        /// riser — slab penetrations are detected and stamped separately.
         /// </summary>
         public static List<RouteSegment> ComputeRouteAdvanced(
             Document doc, XYZ start, XYZ end, double diameterMm,
-            string label = "", double maxFillPct = 0.40)
+            string label, out string method)
         {
+            method = "rectilinear L/Z";
             try
             {
-                // ── Build obstacle outlines from structural elements ──────
                 var obstacleOutlines = new List<Outline>();
-                try
+                foreach (var cat in new[] { BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming })
                 {
-                    var structCategories = new[]
+                    try
                     {
-                        typeof(Floor),
-                        typeof(FamilyInstance)   // structural columns + framing via filter below
-                    };
-                    // Floors
-                    var floors = new FilteredElementCollector(doc)
-                        .OfClass(typeof(Floor)).Cast<Floor>();
-                    foreach (var f in floors)
-                    {
-                        try
+                        foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilyInstance)).OfCategory(cat))
                         {
-                            var bb = f.get_BoundingBox(null);
-                            if (bb != null)
-                                obstacleOutlines.Add(new Outline(bb.Min, bb.Max));
+                            var bb = el.get_BoundingBox(null);
+                            if (bb != null) obstacleOutlines.Add(new Outline(bb.Min, bb.Max));
                         }
-                        catch { }
                     }
-                    // Structural columns
-                    var cols = new FilteredElementCollector(doc)
-                        .OfClass(typeof(FamilyInstance))
-                        .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                        .Cast<FamilyInstance>();
-                    foreach (var c in cols)
-                    {
-                        try
-                        {
-                            var bb = c.get_BoundingBox(null);
-                            if (bb != null)
-                                obstacleOutlines.Add(new Outline(bb.Min, bb.Max));
-                        }
-                        catch { }
-                    }
-                    // Structural framing
-                    var framing = new FilteredElementCollector(doc)
-                        .OfClass(typeof(FamilyInstance))
-                        .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                        .Cast<FamilyInstance>();
-                    foreach (var f in framing)
-                    {
-                        try
-                        {
-                            var bb = f.get_BoundingBox(null);
-                            if (bb != null)
-                                obstacleOutlines.Add(new Outline(bb.Min, bb.Max));
-                        }
-                        catch { }
-                    }
+                    catch (Exception ex) { StingLog.Warn($"ComputeRouteAdvanced obstacles ({cat}): {ex.Message}"); }
                 }
-                catch (Exception ex) { StingLog.Warn($"ComputeRouteAdvanced obstacle collect: {ex.Message}"); }
 
-                // ── Build VoxelGrid ──────────────────────────────────────
-                // Envelope is a generous box around start + end with 2 m padding.
                 double padFt = 2.0 / 0.3048;
-                var minPt = new XYZ(
-                    Math.Min(start.X, end.X) - padFt,
-                    Math.Min(start.Y, end.Y) - padFt,
-                    Math.Min(start.Z, end.Z) - padFt);
-                var maxPt = new XYZ(
-                    Math.Max(start.X, end.X) + padFt,
-                    Math.Max(start.Y, end.Y) + padFt,
-                    Math.Max(start.Z, end.Z) + padFt);
-
-                var outline = new BoundingBoxXYZ { Min = minPt, Max = maxPt };
+                var outline = new BoundingBoxXYZ
+                {
+                    Min = new XYZ(Math.Min(start.X, end.X) - padFt, Math.Min(start.Y, end.Y) - padFt, Math.Min(start.Z, end.Z) - padFt),
+                    Max = new XYZ(Math.Max(start.X, end.X) + padFt, Math.Max(start.Y, end.Y) + padFt, Math.Max(start.Z, end.Z) + padFt)
+                };
                 var grid = new VoxelGrid(outline, obstacleOutlines);
-                int cellCount = grid.Build();
-                if (cellCount == 0)
-                {
-                    StingLog.Warn("ComputeRouteAdvanced: VoxelGrid built 0 cells — falling back to rectilinear.");
+                if (grid.Build() == 0)
                     return ComputeRoute(start, end, diameterMm, label);
-                }
 
-                // ── Locate start / end cells ─────────────────────────────
-                // Walk cells to find the one whose centre is nearest start/end.
-                VoxelCell startCell = null, endCell = null;
-                double bestStart = double.MaxValue, bestEnd = double.MaxValue;
-                foreach (var cell in grid.Cells)
-                {
-                    double cx = (cell.MinX + cell.MaxX) * 0.5;
-                    double cy = (cell.MinY + cell.MaxY) * 0.5;
-                    double cz = (cell.MinZ + cell.MaxZ) * 0.5;
-                    double ds = (cx - start.X) * (cx - start.X) +
-                                (cy - start.Y) * (cy - start.Y) +
-                                (cz - start.Z) * (cz - start.Z);
-                    double de = (cx - end.X) * (cx - end.X) +
-                                (cy - end.Y) * (cy - end.Y) +
-                                (cz - end.Z) * (cz - end.Z);
-                    if (ds < bestStart) { bestStart = ds; startCell = cell; }
-                    if (de < bestEnd)   { bestEnd = de;   endCell   = cell; }
-                }
-
+                double stride = VoxelGrid.DefaultSideMm / 304.8;
+                XYZ Centre(VoxelCell c) => new XYZ(c.MinX + stride / 2, c.MinY + stride / 2, c.MinZ + stride / 2);
+                VoxelCell Nearest(XYZ p) => grid.Cells.OrderBy(c => Centre(c).DistanceTo(p)).FirstOrDefault();
+                var startCell = Nearest(start);
+                var endCell = Nearest(end);
                 if (startCell == null || endCell == null)
+                    return ComputeRoute(start, end, diameterMm, label);
+                // The endpoints are equipment connectors: the conduit must be
+                // allowed to leave them even when a column's clearance covers them.
+                startCell.IsObstacle = false;
+                endCell.IsObstacle = false;
+
+                var astar = AStarSolver.FindPath(grid, startCell, endCell);
+                if (!astar.Success || astar.Path == null || astar.Path.Count < 1)
                 {
-                    StingLog.Warn("ComputeRouteAdvanced: could not map start/end to voxel cells — falling back.");
+                    StingLog.Warn($"ComputeRouteAdvanced: A* {astar.FailureReason} — falling back to rectilinear.");
+                    method = "rectilinear L/Z (A* found no path)";
                     return ComputeRoute(start, end, diameterMm, label);
                 }
-
-                // ── Run A* ───────────────────────────────────────────────
-                var astarResult = AStarSolver.FindPath(grid, startCell, endCell);
-                if (!astarResult.Success || astarResult.Path == null || astarResult.Path.Count < 2)
-                {
-                    StingLog.Warn($"ComputeRouteAdvanced: A* {astarResult.FailureReason} — falling back to rectilinear.");
-                    return ComputeRoute(start, end, diameterMm, label);
-                }
-
-                // ── Convert VoxelCell path → RouteSegments ───────────────
-                var waypoints = new List<XYZ>(astarResult.Path.Count + 2);
-                waypoints.Add(start);   // exact start
-                foreach (var cell in astarResult.Path)
-                {
-                    waypoints.Add(new XYZ(
-                        (cell.MinX + cell.MaxX) * 0.5,
-                        (cell.MinY + cell.MaxY) * 0.5,
-                        (cell.MinZ + cell.MaxZ) * 0.5));
-                }
-                waypoints.Add(end);     // exact end
-
-                var segs = new List<RouteSegment>();
-                for (int i = 0; i < waypoints.Count - 1; i++)
-                {
-                    var a = waypoints[i];
-                    var b = waypoints[i + 1];
-                    if (a.DistanceTo(b) > 0.01)
-                        segs.Add(new RouteSegment(a, b, diameterMm, label));
-                }
-                if (segs.Count == 0)
-                    return ComputeRoute(start, end, diameterMm, label);
-
-                StingLog.Info($"ComputeRouteAdvanced: A* path {astarResult.Path.Count} cells → {segs.Count} segments, cost={astarResult.TotalCost:F2}.");
+                var segs = OrthogonalRoute(start, astar.Path.Select(Centre).ToList(), end, diameterMm, label);
+                if (segs.Count == 0) return ComputeRoute(start, end, diameterMm, label);
+                method = "A* obstacle-avoiding";
                 return segs;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"ComputeRouteAdvanced failed, falling back to rectilinear: {ex.Message}");
+                method = "rectilinear L/Z (A* failed)";
                 return ComputeRoute(start, end, diameterMm, label);
             }
         }

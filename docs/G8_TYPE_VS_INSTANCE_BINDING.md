@@ -1,6 +1,14 @@
 # G-8 — Type vs Instance binding: measurement and proposal
 
-**Status: PROPOSAL. No binder, no data file and no parameter was changed.**
+**Status: PROPOSAL, with option D applied on 2026-09-28 (PARAM-11).** `DynamicBindingsCommand`
+now binds from `RESOLVED_BINDINGS.csv`, the spec Load Shared Parameters uses, and that spec is
+instance-only, so neither binder creates a Type binding any more and setup order no longer
+matters. The Type column of `CATEGORY_BINDINGS.csv` drives no binder. Existing models are not
+migrated: on a parameter already bound as Type, Dynamic Bindings only adds categories and keeps
+its kind. Options B and C (declaring the intent, and a declared-vs-actual report) are still
+open.
+
+**Original status: PROPOSAL. No binder, no data file and no parameter was changed.**
 This decides whether thousands of parameters bind on type or instance across every
 existing project. It is the owner's call.
 

@@ -13,7 +13,9 @@ halftone matrix the JSON was reauthored against.
 
 ## 1. Editor architecture
 
-`UI/DrawingTypeEditorDialog.cs` (2,537 lines) is a two-tab WPF dialog,
+`UI/DrawingTypeEditorDialog.cs` (2,537 lines) was a two-tab WPF dialog when this was written; it now has seven tabs (Drawing Types,
+All Actions, View Style Packs, Viewport Tools, Sheet Tools, Title Block, Sheet Manager), and
+Save writes both `drawing_types.json` and `view_style_packs.json` whichever tab is open.
 `UI/RevitVgEditor.cs` (1,194 lines) is the embedded Revit-VG-grid replica
 that lives inside the View Style Packs tab. Three sub-dialogs (`VgFillPatternDialog`,
 `VgLineGraphicsDialog`, `VgColorPicker`) replicate Revit's "Override…"

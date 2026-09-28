@@ -50,14 +50,15 @@ namespace StingTools.Core.Clash
             var ctx = ParameterHelpers.GetContext(cmd);
             Document doc = ctx?.Doc;
 
-            var creds = AccIssueSync.LoadCredentials();
+            var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC upload");   // IM-18: project container ids first
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
                 TaskDialog.Show(DialogTitle,
                     "ACC credentials are not configured.\n\n" +
                     "Create %APPDATA%\\Planscape\\acc_credentials.json with at least:\n" +
-                    "  ClientId, ClientSecret, RefreshToken, ProjectId\n\n" +
+                    "  ClientId, ClientSecret, RefreshToken\n" +
+                    "and set this project's ACC Project ID in BIM Coordination Center > ACC.\n\n" +
                     "The APS app also needs data:read, data:write and data:create scopes, " +
                     "or the upload is rejected after the file has already been staged.");
                 return Result.Cancelled;
@@ -102,10 +103,40 @@ namespace StingTools.Core.Clash
                 return Result.Failed;
             }
 
+            string txNote = MarkBundleTransmittalSent(doc, file, result.ItemUrn);
             TaskDialog.Show(DialogTitle,
-                result.Message + (string.IsNullOrWhiteSpace(result.ItemUrn) ? "" : "\n\nItem: " + result.ItemUrn));
+                result.Message + (string.IsNullOrWhiteSpace(result.ItemUrn) ? "" : "\n\nItem: " + result.ItemUrn) +
+                (txNote == null ? "" : "\n\n" + txNote));
             StingLog.Info($"ACC upload: uploaded '{file}' -> {result.ItemUrn}");
             return Result.Succeeded;
+        }
+
+        /// <summary>IM-17: ACCPublish records its bundle's transmittal as PREPARED. When
+        /// exactly that file has now reached ACC, the row becomes SENT with today's issue
+        /// date. Any other file changes nothing. Returns a line for the dialog, or null.</summary>
+        private static string MarkBundleTransmittalSent(Document doc, string file, string itemUrn)
+        {
+            try
+            {
+                var rec = AccBundleRecord.Read(BundleRecordPath(doc));
+                if (rec == null || string.IsNullOrWhiteSpace(rec.TransmittalId)) return null;
+                if (!string.Equals(Path.GetFullPath(rec.Path), Path.GetFullPath(file), StringComparison.OrdinalIgnoreCase))
+                    return null;
+
+                string txPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
+                var rows = BIMManager.BIMManagerEngine.LoadJsonArray(txPath);
+                var row = BIMManager.TransmittalRecord.MarkSent(rows, rec.TransmittalId, DateTime.Now,
+                    Environment.UserName, "uploaded to ACC" + (string.IsNullOrWhiteSpace(itemUrn) ? "" : " as " + itemUrn));
+                if (row == null) return null;
+                BIMManager.BIMManagerEngine.SaveJsonFile(txPath, rows);
+                StingLog.Info($"ACC upload: transmittal {rec.TransmittalId} marked SENT");
+                return $"Transmittal {rec.TransmittalId} is now recorded as SENT.";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ACC upload: could not mark the bundle's transmittal SENT: " + ex.Message);
+                return "The upload succeeded, but its transmittal could not be marked SENT — see the log.";
+            }
         }
 
         /// <summary>Where ACCPublish records the bundle it built. One place, so the writer
@@ -183,7 +214,7 @@ namespace StingTools.Core.Clash
             {
                 MainInstruction = "Upload the last ACC bundle?",
                 MainContent = $"This uploads the bundle ACC Publish built:\n\n  {rec.Describe()}\n\n" +
-                              $"Destination container: (from acc_credentials.json)\n\n" +
+                              $"Destination container: this project's ACC container (see the log line for where it came from)\n\n" +
                               "It goes into the real CDE. Nothing else is uploaded.",
                 CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                 DefaultButton = TaskDialogResult.No,

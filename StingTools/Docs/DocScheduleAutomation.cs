@@ -95,11 +95,14 @@ namespace StingTools.Docs
                         if (checkedParam != null) entry.CheckedBy = checkedParam.AsString() ?? "";
                         var approvedParam = sheet.LookupParameter("Approved By") ?? sheet.LookupParameter("ApprovedBy");
                         if (approvedParam != null) entry.ApprovedBy = approvedParam.AsString() ?? "";
-                        // Derive suitability from CDE status
-                        entry.SuitabilityCode = entry.Status switch
-                        {
-                            "SHARED" => "S3", "PUBLISHED" => "S4", "ARCHIVE" => "S7", _ => "S0"
-                        };
+                        // The sheet's own suitability decides both fields. Status was hard-coded
+                        // "WIP" above and the code then derived from it, so every sheet in the
+                        // register read WIP / S0 whatever its title block said — and the old
+                        // map sent PUBLISHED to S4 and ARCHIVE to S7, both SHARED codes.
+                        string sheetCode = ExportCenterEngine.SheetSuitabilityCode(sheet);
+                        string sheetState = Core.Drawing.Iso19650Suitability.CdeStateFor(sheetCode);
+                        if (sheetState != null) entry.Status = sheetState;
+                        entry.SuitabilityCode = Core.Drawing.Iso19650Suitability.ForTransition(sheetCode, entry.Status) ?? "S0";
                         // Derive document type from sheet number prefix
                         entry.DocumentType = entry.SheetNumber.Length >= 2 ? entry.SheetNumber[..2].ToUpper() switch
                         {
@@ -223,18 +226,25 @@ namespace StingTools.Docs
             return updated;
         }
 
+        /// The shared rule (SheetDisciplineResolver.ForSheet), named. The old two-letter
+        /// parser filed "A101", "S1-01" and every ISO-identifier sheet under General, and
+        /// read "ME" — MEP, or a mezzanine plan — as Mechanical.
         private static string ExtractDiscipline(string sheetNumber)
         {
-            if (string.IsNullOrEmpty(sheetNumber)) return "GEN";
-            string prefix = sheetNumber.Length >= 2 ? sheetNumber.Substring(0, 2).ToUpper() : "GEN";
-            return prefix switch
+            string code = Core.Drawing.SheetDisciplineResolver.ForSheet(sheetNumber, null);
+            return code switch
             {
-                "AR" or "A-" => "Architectural",
-                "ST" or "S-" => "Structural",
-                "ME" or "M-" => "Mechanical",
-                "EL" or "E-" => "Electrical",
-                "PL" or "P-" => "Plumbing",
-                "FP" or "F-" => "Fire Protection",
+                "A" => "Architectural",
+                "S" => "Structural",
+                "M" => "Mechanical",
+                "E" => "Electrical",
+                "P" => "Plumbing",
+                "FP" => "Fire Protection",
+                "C" => "Civil",
+                "L" => "Landscape",
+                "LV" => "Low Voltage / ICT",
+                "I" => "Interiors",
+                "COORD" => "Coordination",
                 _ => "General"
             };
         }
@@ -430,7 +440,7 @@ namespace StingTools.Docs
                     .OrderBy(s => s.SheetNumber)
                     .ToList();
 
-                string outDir = outputDirectory ?? OutputLocationHelper.GetOutputPath(doc, "Prints");
+                string outDir = outputDirectory ?? OutputLocationHelper.GetRoutedPath(doc, "PDF", "Prints");
 
                 // DOC-04 fix: cache register extraction outside loop (was O(n²))
                 var registerEntries = DrawingRegisterSync.ExtractFromModel(doc)
@@ -509,7 +519,7 @@ namespace StingTools.Docs
 
             try
             {
-                string outDir = outputDirectory ?? OutputLocationHelper.GetOutputPath(doc, $"Package_{milestone}");
+                string outDir = outputDirectory ?? OutputLocationHelper.GetRoutedPath(doc, "Transmittal", $"Package_{milestone}");
                 if (!Directory.Exists(outDir)) Directory.CreateDirectory(outDir);
 
                 // Required documents per milestone
@@ -585,7 +595,7 @@ namespace StingTools.Docs
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var entries = DrawingRegisterSync.ExtractFromModel(doc);
-                string outPath = OutputLocationHelper.GetTimestampedPath(doc, "DrawingRegister", ".csv");
+                string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "DrawingRegister", ".csv");
                 DrawingRegisterSync.ExportToCSV(entries, outPath);
 
                 TaskDialog.Show("Drawing Register",
@@ -637,7 +647,7 @@ namespace StingTools.Docs
                 if (doc == null) { message = "No document open"; return Result.Failed; }
 
                 var queue = PrintQueueManager.BuildQueue(doc);
-                string outPath = OutputLocationHelper.GetTimestampedPath(doc, "PrintQueue", ".csv");
+                string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "PrintQueue", ".csv");
                 PrintQueueManager.ExportQueue(queue, outPath);
 
                 TaskDialog.Show("Print Queue",

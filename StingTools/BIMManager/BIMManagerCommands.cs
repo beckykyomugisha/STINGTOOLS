@@ -858,75 +858,55 @@ namespace StingTools.BIMManager
         internal static void AutoRegisterExport(Document doc, string filePath, string docType,
             string description, string suitability = "S0",
             string revision = null, string cdeStatus = null, string docNumber = null)
+            => AutoRegisterExports(doc, new[]
+            {
+                new ExportRegistration
+                {
+                    FilePath = filePath, DocType = docType, Description = description,
+                    Suitability = suitability, Revision = revision,
+                    CdeStatus = cdeStatus, DocNumber = docNumber,
+                },
+            });
+
+        /// <summary>Record many exported files with ONE register load and ONE save
+        /// (DOCX-13). The row rule is <see cref="ExportRegisterUpsert.Apply"/>, the same
+        /// one a single export uses. A file that cannot be recorded is logged and
+        /// skipped; the rest are still saved. Returns how many were recorded.</summary>
+        internal static int AutoRegisterExports(Document doc, IEnumerable<ExportRegistration> items)
         {
+            var list = (items ?? Enumerable.Empty<ExportRegistration>()).Where(i => i != null).ToList();
+            if (list.Count == 0) return 0;
             try
             {
                 string regPath = GetBIMManagerFilePath(doc, "document_register.json");
                 var register = LoadJsonArray(regPath);
-
-                string fileName = Path.GetFileName(filePath);
-                string fileFormat = Path.GetExtension(filePath).ToUpperInvariant().TrimStart('.');
-                string suit = string.IsNullOrWhiteSpace(suitability) ? "S0" : suitability;
-                string rev  = string.IsNullOrWhiteSpace(revision)    ? "P01" : revision;
-                string cde  = string.IsNullOrWhiteSpace(cdeStatus)   ? "WIP" : cdeStatus;
-
-                // UPDATE IN PLACE rather than skipping. A deliverable re-rendered on the
-                // same day keeps its file name but moves CDE state (and its previous copy
-                // is purged), so an early return would leave the row pointing at a deleted
-                // file; on a later day it would instead append a duplicate row. Match on the
-                // deliverable number first (stable across renders), then the file name.
-                JObject existing = null;
-                if (!string.IsNullOrWhiteSpace(docNumber))
-                    existing = register.OfType<JObject>().FirstOrDefault(r =>
-                        string.Equals(r["doc_number"]?.ToString(), docNumber, StringComparison.OrdinalIgnoreCase));
-                if (existing == null)
-                    existing = register.OfType<JObject>().FirstOrDefault(r =>
-                        string.Equals(r["file_name"]?.ToString(), fileName, StringComparison.OrdinalIgnoreCase));
-
-                if (existing != null)
+                int done = 0, added = 0;
+                var now = DateTime.Now;
+                foreach (var item in list)
                 {
-                    existing["file_name"]   = fileName;
-                    existing["file_path"]   = filePath;
-                    existing["file_format"] = fileFormat;
-                    existing["suitability"] = suit;
-                    existing["revision"]    = rev;
-                    existing["status"]      = cde;
-                    existing["cde_status"]  = cde;
-                    existing["date_modified"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                    if (!string.IsNullOrWhiteSpace(docNumber)) existing["doc_number"] = docNumber;
-                    SaveJsonFile(regPath, register);
-                    StingLog.Info($"Auto-register updated: {existing["document_id"]} — {fileName}");
-                    return;
+                    try
+                    {
+                        if (!ExportRegisterUpsert.Apply(register, item, now, Environment.UserName,
+                                                        out _, out bool isNew)) continue;
+                        done++;
+                        if (isNew) added++;
+                    }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"AutoRegisterExport {Path.GetFileName(item.FilePath ?? "")}: {ex.Message}");
+                    }
                 }
-
-                string nextId = NextIdFromArray(register, "DOC", "document_id");
-                var entry = new JObject
+                if (done > 0)
                 {
-                    ["document_id"] = nextId,
-                    ["file_name"] = fileName,
-                    ["file_path"] = filePath,
-                    ["document_type"] = docType,
-                    ["description"] = description,
-                    ["originator"] = Environment.UserName,
-                    ["date_created"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                    ["suitability"] = suit,
-                    ["revision"] = rev,
-                    ["status"] = cde,
-                    ["cde_status"] = cde,
-                    ["file_format"] = fileFormat,
-                    ["source"] = "STING Auto-Export"
-                };
-                // Deliverable-sourced rows carry the ISO 19650 number so the unified
-                // register can match them to their deliverables.json row.
-                if (!string.IsNullOrWhiteSpace(docNumber)) entry["doc_number"] = docNumber;
-
-                register.Add(entry);
-                SaveJsonFile(regPath, register);
-                StingLog.Info($"Auto-registered export: {nextId} — {fileName}");
+                    SaveJsonFile(regPath, register);
+                    StingLog.Info($"Auto-register: {added} added, {done - added} updated — {regPath}");
+                }
+                return done;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"AutoRegisterExport: {ex.Message}");
+                return 0;
             }
         }
 
@@ -2235,7 +2215,10 @@ namespace StingTools.BIMManager
         {
             return new JObject
             {
+                // Both id spellings: readers are split between doc_id and document_id
+                // (COBie Document sheet, GapFix approvals). One register, one id — twice.
                 ["doc_id"] = docId,
+                ["document_id"] = docId,
                 ["title"] = title,
                 ["type"] = type,
                 ["type_description"] = DocumentTypes.TryGetValue(type, out string dtDesc) ? dtDesc : type,
@@ -2711,8 +2694,8 @@ namespace StingTools.BIMManager
                     ["WarrantyDurationUnit"] = (!string.IsNullOrEmpty(warrantyDurParts) || !string.IsNullOrEmpty(warrantyDurLabor)) ? "years" : "",
                     // IG-01 / P0-7: stamped CST_* unit price wins; else the
                     // canonical category rate (UGX) from the one loader.
-                    ["ReplacementCost"] = !string.IsNullOrEmpty(ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR"))
-                        ? ParameterHelpers.GetString(fs, "ASS_CST_UNIT_PRICE_UGX_NR")
+                    ["ReplacementCost"] = !string.IsNullOrEmpty(ParameterHelpers.GetValueText(fs, "ASS_CST_UNIT_PRICE_UGX_NR"))
+                        ? ParameterHelpers.GetValueText(fs, "ASS_CST_UNIT_PRICE_UGX_NR")
                         : (costRateByCategory.TryGetValue(fs.Category?.Name ?? "", out var csvRate) && csvRate.rate > 0
                             ? csvRate.rate.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : ""),
                     ["ExpectedLife"] = ParameterHelpers.GetString(fs, "ASS_EXPECTED_LIFE_YEARS_YRS"),
@@ -3012,21 +2995,30 @@ namespace StingTools.BIMManager
             {
                 foreach (var d in docRegArray)
                 {
+                    // Field names through the shared register mapper. This block read
+                    // name / document_name, date / created_on and document_id — keys no
+                    // register writer produced (they write title, date_created, doc_id), so
+                    // every COBie Document row had an empty Name and most an empty RowName.
+                    var m = (d as JObject) != null ? DocumentRegisterMerge.MapRegisterRow((JObject)d) : null;
+                    string file = d["file_name"]?.ToString() ?? d["file"]?.ToString()
+                                  ?? (string.IsNullOrEmpty(m?.FilePath) ? "" : Path.GetFileName(m.FilePath));
                     documents.Add(new Dictionary<string, string>
                     {
-                        ["Name"] = d["name"]?.ToString() ?? d["document_name"]?.ToString() ?? "",
-                        ["CreatedBy"] = d["created_by"]?.ToString() ?? createdBy,
-                        ["CreatedOn"] = d["date"]?.ToString() ?? d["created_on"]?.ToString() ?? createdOn,
-                        ["Category"] = d["type"]?.ToString() ?? d["category"]?.ToString() ?? "",
+                        ["Name"] = d["name"]?.ToString() ?? d["document_name"]?.ToString() ?? m?.Title ?? "",
+                        ["CreatedBy"] = d["created_by"]?.ToString() ?? d["originator"]?.ToString() ?? createdBy,
+                        ["CreatedOn"] = d["date"]?.ToString() ?? d["created_on"]?.ToString()
+                                        ?? (string.IsNullOrEmpty(m?.DateCreated) ? createdOn : m.DateCreated),
+                        ["Category"] = m?.Type ?? d["category"]?.ToString() ?? "",
                         ["ApprovalBy"] = d["approved_by"]?.ToString() ?? "",
                         ["Stage"] = d["stage"]?.ToString() ?? "",
                         ["SheetName"] = "Document",
-                        ["RowName"] = d["document_id"]?.ToString() ?? "",
-                        ["Directory"] = d["directory"]?.ToString() ?? "",
-                        ["File"] = d["file_name"]?.ToString() ?? d["file"]?.ToString() ?? "",
+                        ["RowName"] = m?.Id ?? "",
+                        ["Directory"] = d["directory"]?.ToString()
+                                        ?? (string.IsNullOrEmpty(m?.FilePath) ? "" : Path.GetDirectoryName(m.FilePath) ?? ""),
+                        ["File"] = file,
                         ["ExternalSystem"] = "STING",
                         ["ExternalObject"] = "DocumentRegister",
-                        ["ExternalIdentifier"] = d["document_id"]?.ToString() ?? "",
+                        ["ExternalIdentifier"] = m?.Id ?? "",
                         ["Description"] = d["description"]?.ToString() ?? d["name"]?.ToString() ?? "",
                         ["Reference"] = d["reference"]?.ToString() ?? d["suitability"]?.ToString() ?? ""
                     });
@@ -3613,10 +3605,16 @@ namespace StingTools.BIMManager
         //  Transmittal Engine
         // ═══════════════════════════════════════════════════════════
 
+        /// <param name="status">What the row asserts. <see cref="TransmittalStatus.Issued"/>
+        /// (the default) is a record of issue; a caller that has only built a package
+        /// passes <see cref="TransmittalStatus.Prepared"/>, which records no issue date
+        /// (IM-17: an ACC publish used to record "ISSUED" for a ZIP still on local disk).</param>
         internal static JObject CreateTransmittal(Document doc, string recipientOrg, string recipientRole,
-            string suitability, string reason, JArray documentIds)
+            string suitability, string reason, JArray documentIds, string status = TransmittalStatus.Issued)
         {
             var pi = doc.ProjectInformation;
+            bool prepared = string.Equals(status, TransmittalStatus.Prepared, StringComparison.OrdinalIgnoreCase);
+            string today = DateTime.Now.ToString("yyyy-MM-dd");
             return new JObject
             {
                 ["transmittal_id"] = GetNextSequentialId(doc.PathName ?? "TX", "TX"),
@@ -3625,13 +3623,14 @@ namespace StingTools.BIMManager
                 ["from_organization"] = Environment.UserName,
                 ["to_organization"] = recipientOrg,
                 ["to_role"] = recipientRole,
-                ["date_issued"] = DateTime.Now.ToString("yyyy-MM-dd"),
+                ["date_issued"] = prepared ? "" : today,
+                ["date_prepared"] = today,
                 ["suitability_code"] = suitability,
                 ["suitability_desc"] = SuitabilityCodes.TryGetValue(suitability, out string stDesc) ? stDesc : suitability,
                 ["reason_for_issue"] = reason,
                 ["document_ids"] = documentIds ?? new JArray(),
                 ["document_count"] = documentIds?.Count ?? 0,
-                ["status"] = "ISSUED",
+                ["status"] = TransmittalStatus.Normalise(status),
                 ["acknowledged"] = false
             };
         }
@@ -3886,17 +3885,7 @@ namespace StingTools.BIMManager
         /// return next ID string. Prevents ID collision after deletions (Count+1 is non-monotonic).
         /// </summary>
         internal static string NextIdFromArray(JArray arr, string prefix, string idField)
-        {
-            int max = 0;
-            foreach (var item in arr)
-            {
-                string id = item[idField]?.ToString() ?? "";
-                if (id.StartsWith(prefix + "-") &&
-                    int.TryParse(id.Substring(prefix.Length + 1), out int n) && n > max)
-                    max = n;
-            }
-            return $"{prefix}-{(max + 1):D4}";
-        }
+            => ExportRegisterUpsert.NextId(arr, prefix, idField);
     }
 
     internal class BriefcaseItem
@@ -4744,7 +4733,7 @@ namespace StingTools.BIMManager
                 {
                     try
                     {
-                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "IssueTracker", ".csv");
+                        string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Issue", "IssueTracker", ".csv");
                         var sb = new StringBuilder();
                         sb.AppendLine("IssueID,Title,Status,Priority,Type,DateRaised,DateDue,Overdue,Elements");
                         foreach (var r in rows)
@@ -5235,7 +5224,7 @@ namespace StingTools.BIMManager
                 {
                     try
                     {
-                        string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "DocumentRegister", ".csv");
+                        string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "DocumentRegister", ".csv");
                         var sb = new StringBuilder();
                         sb.AppendLine("DocID,Title,Type,Direction,Suitability,CDEStatus,Revision,Date");
                         foreach (var r in rows)
@@ -6886,7 +6875,7 @@ namespace StingTools.BIMManager
                 else
                 {
                     outputDir = Path.Combine(
-                        OutputLocationHelper.GetOutputDirectory(doc),
+                        OutputLocationHelper.GetRoutedDirectory(doc, "Briefcase"),
                         $"STING_Briefcase_{DateTime.Now:yyyyMMdd_HHmmss}");
                 }
 
@@ -7147,7 +7136,7 @@ namespace StingTools.BIMManager
                 var roles   = UI.BIMCoordinationCenter.GetLastPermissionsRoles();
                 var folders = UI.BIMCoordinationCenter.GetLastPermissionsFolders();
 
-                string outDir = Core.OutputLocationHelper.GetOutputDirectory(ctx.Doc);
+                string outDir = Core.OutputLocationHelper.GetRoutedDirectory(ctx.Doc, "REGISTER");
                 string path = Core.StingExcelExporter.ExportPermissionMatrix(
                     outDir,
                     roles.Select(r   => (r.Code, r.Name, r.Discipline, r.CDEAccess, r.CanApprove, r.CanIssue)).ToList(),
@@ -7182,7 +7171,7 @@ namespace StingTools.BIMManager
                 if (entries.Count == 0)
                 { TaskDialog.Show("STING", "Coordination log is empty."); return Result.Succeeded; }
 
-                string outDir = Core.OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = Core.OutputLocationHelper.GetRoutedDirectory(doc, "REGISTER");
                 string xlPath = System.IO.Path.Combine(outDir, $"coord_log_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
 
                 var headers = new List<string> { "Timestamp", "User", "Action", "Category", "Detail", "Impact" };
@@ -8196,7 +8185,7 @@ namespace StingTools.BIMManager
                 return Result.Succeeded;
             }
 
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_StickyNotes", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Issue", "STING_StickyNotes", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Family,Tag,Note,Date");
@@ -8418,7 +8407,7 @@ namespace StingTools.BIMManager
 
         public static string ExportReport(Document doc, HealthReport report)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_ModelHealth", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "ModelHealth", "STING_ModelHealth", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Metric,Score,MaxScore,Details");
@@ -8467,8 +8456,8 @@ namespace StingTools.BIMManager
         {
             try
             {
-                string dir = OutputLocationHelper.GetOutputDirectory(doc);
-                string path = Path.Combine(dir, "STING_HEALTH_LOG.csv");
+                // A trend log the health dashboard reads back — state, not an export (DOCX-11).
+                string path = OutputLocationHelper.GetStorePath(doc, "STING_HEALTH_LOG.csv", "health");
                 bool exists = File.Exists(path);
                 using var sw = new StreamWriter(path, append: true, System.Text.Encoding.UTF8);
                 if (!exists)
@@ -8487,7 +8476,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                string path = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "STING_HEALTH_LOG.csv");
+                string path = OutputLocationHelper.GetStorePath(doc, "STING_HEALTH_LOG.csv", "health");
                 if (!File.Exists(path)) return "";
                 var lines = File.ReadAllLines(path).Skip(1).ToList();
                 if (lines.Count < 2) return "";
@@ -8630,7 +8619,7 @@ namespace StingTools.BIMManager
     {
         public static string Export4DTimeline(Document doc)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_4D_Timeline", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_4D_Timeline", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,Category,Tag,Phase,Level,Discipline,StartDate,EndDate,Predecessors,Duration_Days");
@@ -8714,7 +8703,7 @@ namespace StingTools.BIMManager
 
         public static string Export5DCostData(Document doc)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_5D_CostData", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_5D_CostData", ".csv");
 
             // P0-7 — per-element cost comes from the canonical procedure
             // (BOQCostManager.CostElement → BuildLineItemFromElement: the same
@@ -8792,7 +8781,7 @@ namespace StingTools.BIMManager
 
         public static string ExportMeasuredQuantities(Document doc)
         {
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_MeasuredQty", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_MeasuredQty", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Category,Discipline,Count,TotalLength_m,TotalArea_m2,TotalVolume_m3");
@@ -9745,7 +9734,7 @@ namespace StingTools.BIMManager
                     return Result.Succeeded;
                 }
 
-                string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Issues", ".csv");
+                string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Issue", "STING_Issues", ".csv");
 
                 var lines = new List<string>();
                 lines.Add("IssueId,Type,Priority,Status,Title,Description,AssignedTo,Discipline,DateRaised,DateDue,DateClosed,View,ElementCount");

@@ -1,7 +1,7 @@
 // StingTools — D1: Fire Alarm Loop / Zone Schematic Generator (Phase 179)
 //
 // Generates a BS 5839-1 / NFPA 72 fire alarm loop schematic in a new
-// ViewDrafting. Each loop (keyed on ELC_FIRE_LOOP_REF) is drawn as a
+// ViewDrafting. Each loop (keyed on FLS_SFTY_DEV_LOOP_TXT) is drawn as a
 // horizontal bus with vertical drops for each device. The FACP box
 // anchors the left end of each loop.
 //
@@ -19,7 +19,7 @@ namespace StingTools.Commands.Electrical.Schematics
 {
     /// <summary>
     /// Generates a BS 5839-1 / NFPA 72 fire alarm loop schematic in a
-    /// new drafting view. Devices are grouped by ELC_FIRE_LOOP_REF; each
+    /// new drafting view. Devices are grouped by FLS_SFTY_DEV_LOOP_TXT; each
     /// loop is drawn as a horizontal bus with vertical drops and device labels.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
@@ -45,16 +45,22 @@ namespace StingTools.Commands.Electrical.Schematics
             {
                 TaskDialog.Show("STING Fire Alarm Schematic",
                     "No Fire Alarm Device elements found in the project.\n\n" +
-                    "Populate ELC_FIRE_LOOP_REF on fire alarm devices and re-run.");
+                    "Populate FLS_SFTY_DEV_LOOP_TXT on fire alarm devices and re-run.");
                 return Result.Succeeded;
             }
 
             // Group devices by loop reference.
+            // Devices with no loop value are grouped under NoLoop, drawn last and
+            // counted in the result — never filed under an invented loop.
             var loopGroups = devices
-                .GroupBy(e => e.LookupParameter("ELC_FIRE_LOOP_REF")?.AsString()?.Trim()
-                              ?? "Zone 1")
-                .OrderBy(g => g.Key)
+                .GroupBy(LoopOf)
+                .OrderBy(g => g.Key == NoLoop ? 1 : 0)
+                .ThenBy(g => g.Key)
                 .ToList();
+            int noLoopCount = loopGroups.FirstOrDefault(g => g.Key == NoLoop)?.Count() ?? 0;
+            if (noLoopCount > 0)
+                StingLog.Warn($"FireAlarmSchematic: {noLoopCount} device(s) have no " +
+                              $"{string.Join(" / ", LoopParams)} value — drawn under '{NoLoop}'");
 
             using (var tx = new Transaction(doc, "STING Fire Alarm Schematic"))
             {
@@ -91,7 +97,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     PlaceLabel(doc, view,
                         facpX + Mm(2.0),
                         facpY + facpH / 2.0 + Mm(1.0),
-                        $"FACP / Zone {loopRef}");
+                        loopRef == NoLoop ? NoLoop : $"FACP / Zone {loopRef}");
 
                     // Horizontal bus line from right edge of FACP to last device.
                     double busStartX = facpX + facpW;
@@ -159,17 +165,43 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 tx.Commit();
 
-                TaskDialog.Show("STING Fire Alarm Schematic",
+                int realLoops = loopGroups.Count(g => g.Key != NoLoop);
+                string result =
                     $"Schematic generated.\n\n" +
                     $"View:    {view.Name}\n" +
-                    $"Loops:   {loopGroups.Count}\n" +
-                    $"Devices: {totalDevicesDrawn}");
+                    $"Loops:   {realLoops}\n" +
+                    $"Devices: {totalDevicesDrawn}";
+                if (noLoopCount > 0)
+                    result += $"\n\n{noLoopCount} device(s) have no loop set " +
+                              $"({string.Join(" / ", LoopParams)} empty) and are drawn under " +
+                              $"'{NoLoop}', not on a loop. Populate the loop and re-run.";
+                TaskDialog.Show("STING Fire Alarm Schematic", result);
             }
 
             return Result.Succeeded;
         }
 
         // ---------------------------------------------------------------- helpers
+
+        // The device loop lives on the FLS_ fire-alarm parameters the fire alarm
+        // device tag and schedule already show: FLS_SFTY_DEV_LOOP_TXT, then
+        // FLS_SFTY_LOOP_NR_TXT. ELC_FIRE_LOOP_REF, read here before, was defined
+        // nowhere, so every device fell into one loop.
+        private static readonly string[] LoopParams = { "FLS_SFTY_DEV_LOOP_TXT", "FLS_SFTY_LOOP_NR_TXT" };
+
+        private static string LoopOf(Element e)
+        {
+            foreach (string pn in LoopParams)
+            {
+                string v = e.LookupParameter(pn)?.AsString()?.Trim();
+                if (!string.IsNullOrEmpty(v)) return v;
+            }
+            return NoLoop;
+        }
+
+        /// <summary>Group key for a device with no loop value. Was "Zone 1", which
+        /// filed unassigned devices under a loop nobody had defined.</summary>
+        private const string NoLoop = "(no loop set)";
 
         private static ViewDrafting CreateDraftingView(Document doc, string name)
         {

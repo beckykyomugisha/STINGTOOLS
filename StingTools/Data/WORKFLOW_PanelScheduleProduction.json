@@ -8,6 +8,10 @@
       "label": "Audit current state (panels without schedules, template drift, missing PNL params)"
     },
     {
+      "commandTag": "Panel_TemplatesCreate",
+      "label": "Build / refresh the STING standard panel schedule templates (so Batch Schedules never stops to ask)"
+    },
+    {
       "commandTag": "Panel_BatchSchedules",
       "label": "Create missing schedules + stamp drawing-type + fill ELC_PNL_* params + write circuit back-refs"
     },

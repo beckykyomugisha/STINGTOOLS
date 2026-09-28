@@ -767,29 +767,7 @@ namespace StingTools.Docs
         /// Scans existing sheets and returns max + 1.
         /// </summary>
         internal static string GetNextSheetNumber(Document doc, string disciplinePrefix)
-        {
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .ToList();
-
-            int maxNum = 0;
-            string prefix = disciplinePrefix.ToUpperInvariant();
-
-            foreach (var sheet in sheets)
-            {
-                string num = sheet.SheetNumber;
-                if (num.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                {
-                    string rest = num.Substring(prefix.Length).TrimStart('-', '_', ' ');
-                    if (int.TryParse(rest, out int n) && n > maxNum)
-                        maxNum = n;
-                }
-            }
-
-            return $"{prefix}-{(maxNum + 1):D3}";
-        }
+            => Commands.Drawing.SheetNumbering.NextNumber(doc, (disciplinePrefix ?? "").ToUpperInvariant());
 
         /// <summary>
         /// Validate a sheet number is unique in the document.
@@ -834,13 +812,15 @@ namespace StingTools.Docs
         /// <summary>
         /// Extract discipline prefix from a sheet number (e.g. "A-101" → "A", "M-301" → "M").
         /// </summary>
+        /// Delegates to the shared rule (ExportCenterEngine.SheetDiscipline →
+        /// SheetDisciplineResolver.ForSheet) so the Sheet Manager groups a sheet under the
+        /// same discipline the Export Centre files it in. The local parser read "AR-101"
+        /// as "AR" (the Export Centre: "A") and an ISO identifier as its project code.
         internal static string ExtractDisciplinePrefix(string sheetNumber)
         {
             if (string.IsNullOrWhiteSpace(sheetNumber)) return "?";
-            int dashIdx = sheetNumber.IndexOfAny(new[] { '-', '_', ' ' });
-            return dashIdx > 0
-                ? sheetNumber.Substring(0, dashIdx).ToUpperInvariant()
-                : sheetNumber.Substring(0, Math.Min(2, sheetNumber.Length)).ToUpperInvariant();
+            string d = ExportCenterEngine.SheetDiscipline(sheetNumber, null);
+            return d == "Other" ? "?" : d;
         }
 
         /// <summary>

@@ -1673,9 +1673,7 @@ namespace StingTools.Core
                         || (setup.GetFolder(route)?.HasDisciplineSubfolders ?? false);
                     if (applyDisc && setup.Disciplines != null)
                     {
-                        string match = setup.Disciplines.FirstOrDefault(d =>
-                            d.StartsWith(disciplineCode + "_", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(d, disciplineCode, StringComparison.OrdinalIgnoreCase));
+                        string match = DisciplineFolderMatcher.Match(setup.Disciplines, disciplineCode);
                         if (!string.IsNullOrEmpty(match))
                         {
                             folder = Path.Combine(folder, match);
@@ -1902,6 +1900,98 @@ namespace StingTools.Core
             }
 
             return GetFolderPath(doc, route);
+        }
+
+        /// <summary>Folder ids whose files are per-discipline deliverables. A discipline
+        /// sub-folder is applied under these even when the folder definition does not
+        /// pre-create one (MODELS does not), so an architectural IFC and a structural IFC
+        /// no longer land side by side in 05_MODELS.</summary>
+        private static readonly HashSet<string> DeliverableFolderIds =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            { "WIP", "SHARED", "PUBLISHED", "DRAWINGS", "MODELS" };
+
+        /// <summary>
+        /// The project's discipline sub-folder name for a discipline / role code
+        /// ("A" → "A_Architectural"), or null when the project has none for it.
+        /// </summary>
+        public static string ResolveDisciplineFolder(Document doc, string disciplineCode)
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(disciplineCode)) return null;
+            try { return DisciplineFolderMatcher.Match(LoadOrDetectSetup(doc)?.Disciplines, disciplineCode); }
+            catch (Exception ex) { StingLog.Warn($"ResolveDisciplineFolder '{disciplineCode}': {ex.Message}"); return null; }
+        }
+
+        /// <summary>
+        /// Where a deliverable export belongs: the export route for
+        /// <paramref name="exportTypeKey"/>, moved into <paramref name="cdeState"/> when
+        /// one is given, then into the discipline's sub-folder.
+        ///
+        /// BIM layout:      01_WIP / A_Architectural, or 06_DRAWINGS / A_Architectural
+        ///                  when no state is given.
+        /// CDE-first:       00_WIP / Drawings / A_Architectural (the route's content
+        ///                  type is kept; only the state changes).
+        /// Mini:            the flat folder; Mini has no states and no disciplines.
+        ///
+        /// A discipline the project has no folder for leaves the file in the parent
+        /// folder and logs it — see <see cref="DisciplineFolderMatcher"/>.
+        /// Every export that knows its discipline should come through here; before
+        /// this existed the discipline-aware overload of GetExportPath had no caller,
+        /// so nothing reached a discipline folder.
+        /// </summary>
+        public static string GetDeliverableFolder(Document doc, string exportTypeKey,
+            string disciplineCode, string cdeState = null)
+        {
+            try
+            {
+                var setup = LoadOrDetectSetup(doc);
+                bool cdeFirst = setup != null && setup.Mode == ProjectFolderMode.CdeFirst;
+
+                string route = null;
+                if (setup?.ExportRoutes != null && !string.IsNullOrEmpty(exportTypeKey))
+                    setup.ExportRoutes.TryGetValue(exportTypeKey, out route);
+                if (string.IsNullOrEmpty(route) && !cdeFirst &&
+                    ExportTypeToFolder.TryGetValue(exportTypeKey ?? "", out string fb))
+                    route = fb;
+                if (string.IsNullOrEmpty(route)) route = "MISC";
+
+                if (!string.IsNullOrWhiteSpace(cdeState) && setup != null)
+                {
+                    string state = StingPaths.NormalizeCdeState(cdeState);
+                    int bar = route.IndexOf('|');
+                    if (bar > 0)
+                        route = state + route.Substring(bar);                 // keep content type
+                    else if (cdeFirst)
+                        route = state + "|Drawings";                         // unrouted key → drawings content
+                    else if (setup.GetFolder(state) != null && DeliverableFolderIds.Contains(route))
+                        route = state;                                       // BIM: 01_WIP etc.
+                }
+
+                string folder = ResolveRoutedFolder(doc, route);
+                if (string.IsNullOrEmpty(folder)) return null;
+
+                if (!string.IsNullOrWhiteSpace(disciplineCode) && setup?.Disciplines != null)
+                {
+                    bool discRoute = route.IndexOf('|') > 0
+                        || DeliverableFolderIds.Contains(route)
+                        || (setup.GetFolder(route)?.HasDisciplineSubfolders ?? false);
+                    if (discRoute)
+                    {
+                        string match = DisciplineFolderMatcher.Match(setup.Disciplines, disciplineCode);
+                        if (!string.IsNullOrEmpty(match)) folder = Path.Combine(folder, match);
+                        else StingLog.WarnRateLimited("DeliverableFolder.NoDisc." + disciplineCode,
+                            $"No discipline folder for '{disciplineCode}' in this project — exporting to {folder}. " +
+                            "Add it to the project's disciplines (Project Folder Setup) to split it out.");
+                    }
+                }
+
+                Directory.CreateDirectory(folder);
+                return folder;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetDeliverableFolder '{exportTypeKey}'/'{disciplineCode}': {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>Get timestamped export path routed to the correct folder.</summary>
@@ -2857,7 +2947,7 @@ namespace StingTools.Core
                     {
                         Number      = Path.GetFileNameWithoutExtension(f),
                         Title       = Path.GetFileName(f),
-                        Suitability = cdeStatus == "PUBLISHED" ? "S4" : "S2",
+                        Suitability = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor(cdeStatus) ?? "S2",
                         FilePath    = f
                     }).ToList()
                 };

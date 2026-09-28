@@ -50,6 +50,10 @@ namespace StingTools.Core.Routing
 
         protected Document Doc { get; }
 
+        /// <summary>Emergency keyword list, resolved once per engine instance
+        /// (one drop run) rather than once per fixture.</summary>
+        private StingTools.Core.Electrical.EmergencyKeywords _emergencyKw;
+
         /// <summary>
         /// MEP domain the drop engine is routing: used to filter fixture
         /// connectors to the correct system (piping / HVAC / electrical /
@@ -468,7 +472,9 @@ namespace StingTools.Core.Routing
             {
                 try
                 {
-                    var violations = SeparationChecker.Check(Doc, origin, to, ServiceId);
+                    _emergencyKw ??= StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(Doc);
+                    var violations = SeparationChecker.Check(Doc, origin, to, ServiceId,
+                        emergencyKw: _emergencyKw);
                     foreach (var v in violations)
                         result.Warnings.Add($"Separation: {v}");
                 }

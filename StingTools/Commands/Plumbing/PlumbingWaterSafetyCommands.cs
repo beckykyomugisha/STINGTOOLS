@@ -58,7 +58,7 @@ namespace StingTools.Commands.Plumbing
             string csvPath = null;
             try
             {
-                csvPath = OutputLocationHelper.GetOutputPath(doc, "TMV_Register.csv");
+                csvPath = OutputLocationHelper.GetRoutedPath(doc, "Schedule", "TMV_Register.csv", "P");
                 var sb = new StringBuilder();
                 sb.AppendLine("ElementId,FamilyName,Room,TMVClass,InletHot_C,InletCold_C,Outlet_C,TestDate,AnnualDueDate,Pass");
                 foreach (var row in records)
@@ -200,7 +200,7 @@ namespace StingTools.Commands.Plumbing
                 {
                     var tokens = BuildTokenDictionary(doc, deadLegs, tmvResult,
                         fixtureCount, dhwPipeCount, tankCount);
-                    outputPath = OutputLocationHelper.GetOutputPath(doc, "Legionella_Risk_Assessment.docx");
+                    outputPath = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "Legionella_Risk_Assessment.docx", "P");
                     MiniWordAdapter.Render(templatePath, tokens, outputPath);
                     usedTemplate = true;
                 }
@@ -216,7 +216,7 @@ namespace StingTools.Commands.Plumbing
             {
                 try
                 {
-                    outputPath = OutputLocationHelper.GetOutputPath(doc, "Legionella_Risk_Assessment.txt");
+                    outputPath = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "Legionella_Risk_Assessment.txt", "P");
                     var txt = BuildTextReport(doc, deadLegs, tmvResult,
                         fixtureCount, dhwPipeCount, tankCount, highRisk, mediumRisk);
                     File.WriteAllText(outputPath, txt, Encoding.UTF8);

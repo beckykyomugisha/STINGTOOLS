@@ -78,6 +78,7 @@ namespace StingTools.Commands.Drawing
                 int healed = 0;
                 int lockedSkipped = 0;
                 int wrongFamily = 0;
+                int unresolvedCells = 0;
                 using (TitleBlockParamApplier.Batch())
                 using (var tx = new Transaction(doc, "STING — Heal Title Blocks"))
                 {
@@ -86,14 +87,13 @@ namespace StingTools.Commands.Drawing
                     {
                         var dt = DrawingTypeRegistry.Get(doc, x.DtId);
                         if (dt == null) continue;
-                        var tokens = DrawingTokenContext.Build(
-                            doc:        doc,
-                            dt:         dt,
-                            discCode:   dt.Discipline,
-                            discipline: dt.Discipline,
-                            seq:        DrawingTokenContext.ExtractSeqFromSheetNumber(x.Sheet.SheetNumber));
+                        // T-5: one shared builder with Migrate / drift — recovers
+                        // {lvl}/{mark} from the sheet's production-context stamp
+                        // instead of dropping them (Heal used to pass no level).
+                        var tokens = DrawingTokenContext.BuildForExistingSheet(doc, x.Sheet, dt);
                         var result = TitleBlockParamApplier.Apply(doc, x.Sheet, dt, tokens);
                         totalParams += result.ParamsWritten;
+                        unresolvedCells += result.CellsUnresolved;
                         // T-3: Apply now leaves PRJ_TB_LOCK_BOOL title blocks
                         // alone. Count them so "healed N of M" doesn't quietly
                         // read as a failure on a project that locks sheets on
@@ -155,6 +155,10 @@ namespace StingTools.Commands.Drawing
                     sb.AppendLine($"{wrongFamily} sheet(s) are on the WRONG title-block family — see the audit log.");
                 if (lockedSkipped > 0)
                     sb.AppendLine($"{lockedSkipped} title block(s) skipped — locked with {ParamRegistry.TB_LOCK}.");
+                if (unresolvedCells > 0)
+                    sb.AppendLine($"{unresolvedCells} cell(s) NOT written — their template needs a value the sheet " +
+                                  "cannot supply (unbound Project Information parameter, or a {token} with no " +
+                                  "production-context stamp). Existing values were kept; see the audit log.");
                 int withWarn = auditRows.Count(a => a.Warnings != null && a.Warnings.Count > 0);
                 if (withWarn > 0) sb.AppendLine($"{withWarn} sheet(s) emitted warnings — see _BIM_COORD/titleblock_heal_audit.jsonl.");
                 TaskDialog.Show("STING — Heal Title Blocks", sb.ToString());

@@ -396,7 +396,7 @@ namespace StingTools.Tags
                     else
                     {
                         filledCount++;
-                        if (val == "XX" || val == "ZZ" || val == "0000")
+                        if (SeqAssigner.IsUnresolvedToken(val))
                             hasPlaceholder = true;
                     }
                     if (i == 0) disc = val;

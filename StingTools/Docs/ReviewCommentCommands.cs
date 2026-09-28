@@ -111,7 +111,7 @@ namespace StingTools.Docs
             {
                 Title = "Select the Bluebeam comment summary (CSV or XLSX)",
                 Filter = "Comment summary (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Issue")
             };
             if (dlg.ShowDialog() != true) return Result.Cancelled;
 
@@ -321,7 +321,7 @@ namespace StingTools.Docs
                 var rows = new List<string> { "Gate,Total,Closed,CloseOutPct,MeanAgeDays,Overdue" };
                 foreach (var k in kpi)
                     rows.Add($"\"{k.Gate}\",{k.Total},{k.Closed},{k.CloseOutPct},{k.MeanAgeDays},{k.Overdue}");
-                path = OutputLocationHelper.GetOutputPath(doc, $"STING_ReviewComments_KPI_{DateTime.Now:yyyyMMdd}.csv");
+                path = OutputLocationHelper.GetRoutedPath(doc, "Issue", $"STING_ReviewComments_KPI_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
             }
             catch (Exception ex) { StingLog.Warn($"ReviewComments KPI export: {ex.Message}"); }

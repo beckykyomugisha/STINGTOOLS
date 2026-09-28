@@ -71,17 +71,17 @@ namespace StingTools.Photometrics
             string tiltLine = lines[idx].Trim();
             idx++;
             string tilt = tiltLine.Substring(tiltLine.IndexOf('=') + 1).Trim().ToUpperInvariant();
-            if (tilt == "INCLUDE")
-            {
-                int lampToLumGeometry = ParseInt(NextToken(lines, ref idx));
-                int numAnglePairs = ParseInt(NextToken(lines, ref idx));
-                for (int i = 0; i < numAnglePairs; i++) NextToken(lines, ref idx);
-                for (int i = 0; i < numAnglePairs; i++) NextToken(lines, ref idx);
-            }
-
             // 5. Numeric block — flat token stream, whitespace-separated.
             var tokens = new Queue<string>(lines.Skip(idx)
                 .SelectMany(l => l.Split(Whitespace, StringSplitOptions.RemoveEmptyEntries)));
+            if (tilt == "INCLUDE")
+            {
+                // Tilt block: geometry, pair count, then the angles and the factors.
+                // Values may share a line, so consume TOKENS, not lines.
+                Pop(tokens);                                   // lamp-to-luminaire geometry
+                int numAnglePairs = ParseInt(Pop(tokens));
+                for (int i = 0; i < 2 * numAnglePairs; i++) Pop(tokens);
+            }
             try
             {
                 int lampCount        = ParseInt(Pop(tokens));
@@ -126,6 +126,25 @@ namespace StingTools.Photometrics
                 p.PeakCandela = peak;
                 p.Symmetry = ResolveSymmetry(p.HorizontalAngles);
                 ResolveBeamAndFieldAngles(p);
+
+                // Luminaire flux from the candela grid (zonal lumens). Type C only —
+                // Type A/B use a different angle convention and are not integrated.
+                if (photoType == 1)
+                    p.LuminaireLumens = PhotometricIntegrator.ZonalLumens(
+                        p.VerticalAngles, p.HorizontalAngles, p.Candela);
+                else
+                    p.Warnings.Add($"Photometric type {photoType} (A/B) — candela grid not integrated; luminaire flux unknown.");
+
+                if (lumensPerLamp < 0)
+                {
+                    // Absolute photometry (LM-63: lumens per lamp = -1, the LED norm).
+                    // There is no rated lamp flux — the candela values ARE the output,
+                    // so the flux is what the grid integrates to.
+                    p.AbsolutePhotometry = true;
+                    p.TotalLumens = p.LuminaireLumens;
+                    if (p.TotalLumens <= 0)
+                        p.Warnings.Add("Absolute photometry (lumens/lamp = -1) and the candela grid could not be integrated — lumens unknown.");
+                }
             }
             catch (Exception ex)
             {
@@ -221,16 +240,5 @@ namespace StingTools.Photometrics
             double.TryParse((s ?? "").Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out v);
 
         private static string Pop(Queue<string> q) => q.Count > 0 ? q.Dequeue() : "";
-
-        private static string NextToken(List<string> lines, ref int idx)
-        {
-            while (idx < lines.Count)
-            {
-                var parts = lines[idx].Split(Whitespace, StringSplitOptions.RemoveEmptyEntries);
-                idx++;
-                if (parts.Length > 0) return parts[0];
-            }
-            return "";
-        }
     }
 }

@@ -165,6 +165,120 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// The project folder for an export type ("Excel" → 07_SCHEDULES, "COBie" →
+        /// 08_COBie, "PDF" → 06_DRAWINGS …), optionally in a discipline's sub-folder.
+        /// Falls back to <see cref="GetOutputDirectory(Document)"/> when the project has
+        /// no folder structure (unsaved model).
+        ///
+        /// GetOutputDirectory(doc) has no idea what is being written, so everything
+        /// that uses it lands in MISC. New and migrated exports should say what they
+        /// are — and a round-trip's import picker must use the same key as its export,
+        /// or it opens in the wrong folder.
+        /// </summary>
+        public static string GetRoutedDirectory(Document doc, string exportTypeKey, string discipline = null)
+        {
+            if (doc != null && !string.IsNullOrEmpty(exportTypeKey))
+            {
+                try
+                {
+                    string dir = !string.IsNullOrWhiteSpace(discipline)
+                        ? ProjectFolderEngine.GetDeliverableFolder(doc, exportTypeKey, discipline)
+                        : ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
+                    if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir)) return dir;
+                }
+                catch (Exception ex) { StingLog.Warn($"GetRoutedDirectory '{exportTypeKey}': {ex.Message}"); }
+            }
+            return GetOutputDirectory(doc);
+        }
+
+        /// <summary>Copy a directory tree, creating folders as needed. Existing files in
+        /// the destination are kept (the caller only copies into a fresh folder).</summary>
+        internal static void CopyTree(string from, string to)
+        {
+            Directory.CreateDirectory(to);
+            foreach (string f in Directory.GetFiles(from))
+            {
+                string dest = Path.Combine(to, Path.GetFileName(f));
+                if (!File.Exists(dest)) File.Copy(f, dest);
+            }
+            foreach (string d in Directory.GetDirectories(from))
+                CopyTree(d, Path.Combine(to, Path.GetFileName(d)));
+        }
+
+        /// <summary>
+        /// A plugin DATA STORE — a file the plugin writes and later reads back (clash
+        /// results, logs, overrides) — under &lt;root&gt;/_data/coord/&lt;area&gt;/.
+        ///
+        /// These used to sit in the MISC export folder beside the user's reports, where a
+        /// tidy-up deleted history and nothing marked them as state. On first use the old
+        /// MISC copy (and any listed sibling folders, such as the clash <c>archive/</c>) is
+        /// copied forward, then renamed <c>*.migrated_yyyyMMdd</c> — the convention
+        /// Folders_Consolidate uses — so exactly one live copy exists and none is lost.
+        /// An unsaved model has no _data folder and keeps the old location.
+        /// </summary>
+        public static string GetStorePath(Document doc, string fileName, string area = null,
+            params string[] carrySiblingDirs)
+        {
+            string legacyDir = null;
+            try { legacyDir = GetOutputDirectory(doc); }
+            catch (Exception ex) { StingLog.Warn($"GetStorePath legacy dir: {ex.Message}"); }
+
+            string target = string.IsNullOrEmpty(area)
+                ? StingPaths.MetaFile(doc, "_BIM_COORD", fileName)
+                : StingPaths.MetaFile(doc, "_BIM_COORD", area, fileName);
+            if (string.IsNullOrEmpty(target))
+                return string.IsNullOrEmpty(legacyDir) ? null : Path.Combine(legacyDir, fileName);
+
+            try
+            {
+                string targetDir = Path.GetDirectoryName(target);
+                Directory.CreateDirectory(targetDir);
+                if (!string.IsNullOrEmpty(legacyDir) &&
+                    !string.Equals(Path.GetFullPath(legacyDir).TrimEnd('\\', '/'),
+                                   Path.GetFullPath(targetDir).TrimEnd('\\', '/'),
+                                   StringComparison.OrdinalIgnoreCase))
+                {
+                    string stamp = ".migrated_" + DateTime.Now.ToString("yyyyMMdd");
+                    string legacyFile = Path.Combine(legacyDir, fileName);
+                    if (File.Exists(legacyFile) && !File.Exists(target))
+                    {
+                        File.Copy(legacyFile, target);
+                        File.Move(legacyFile, legacyFile + stamp);
+                        StingLog.Info($"Store carried forward: {legacyFile} -> {target}");
+                    }
+                    foreach (string sib in carrySiblingDirs ?? Array.Empty<string>())
+                    {
+                        string from = Path.Combine(legacyDir, sib);
+                        string to = Path.Combine(targetDir, sib);
+                        if (!Directory.Exists(from) || Directory.Exists(to)) continue;
+                        // Whole tree, not just the top level: a sub-folder left behind would
+                        // move with the renamed legacy folder and never be read again.
+                        CopyTree(from, to);
+                        Directory.Move(from, from + stamp);
+                        StingLog.Info($"Store folder carried forward: {from} -> {to}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // A failed carry-forward must not lose the old data: it stays where it was
+                // and is still readable from there by hand; the new store starts empty.
+                StingLog.Warn($"GetStorePath carry-forward '{fileName}': {ex.Message}");
+            }
+            return target;
+        }
+
+        /// <summary><see cref="GetRoutedDirectory"/> + "baseName_yyyyMMdd_HHmmss.ext".</summary>
+        public static string GetRoutedTimestampedPath(Document doc, string exportTypeKey,
+            string baseName, string extension, string discipline = null)
+            => Path.Combine(GetRoutedDirectory(doc, exportTypeKey, discipline),
+                            $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}{extension}");
+
+        /// <summary><see cref="GetRoutedDirectory"/> + a file name.</summary>
+        public static string GetRoutedPath(Document doc, string exportTypeKey, string fileName, string discipline = null)
+            => Path.Combine(GetRoutedDirectory(doc, exportTypeKey, discipline), fileName);
+
+        /// <summary>
         /// Get the full output path for a named file.
         /// Example: GetOutputPath(doc, "STING_Tag_Audit.csv")
         /// </summary>
@@ -303,6 +417,19 @@ namespace StingTools.Core
         {
             _sessionFolders.TryGetValue(exportTypeKey ?? "", out string lastFolder);
 
+            // The project's own folder for this export type (06_DRAWINGS for PDF,
+            // 08_COBie for COBie …). The shortcut used to offer the directory holding
+            // the .rvt — outside the project structure — and the browser opened in
+            // MISC whatever was being exported.
+            string routed = null;
+            try
+            {
+                if (doc != null && !string.IsNullOrEmpty(exportTypeKey))
+                    routed = ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
+            }
+            catch (Exception ex) { StingLog.Warn($"PromptForExportPath route '{exportTypeKey}': {ex.Message}"); }
+            if (!string.IsNullOrEmpty(routed) && !TryEnsureDirectory(routed)) routed = null;
+
             if (!string.IsNullOrEmpty(lastFolder) && Directory.Exists(lastFolder))
             {
                 var qd = new Autodesk.Revit.UI.TaskDialog($"Export — {defaultFileName}");
@@ -312,9 +439,10 @@ namespace StingTools.Core
                     "Use last folder", lastFolder);
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2,
                     "Navigate to folder", "Open file browser");
-                string pd = Path.GetDirectoryName(doc?.PathName ?? "");
+                string pd = routed ?? Path.GetDirectoryName(doc?.PathName ?? "");
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3,
-                    "Project folder", string.IsNullOrEmpty(pd) ? "Save project first" : pd);
+                    routed != null ? "Project folder for this export" : "Project folder",
+                    string.IsNullOrEmpty(pd) ? "Save project first" : pd);
                 qd.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel;
                 switch (qd.Show())
                 {
@@ -332,7 +460,7 @@ namespace StingTools.Core
                 Title = $"Export — {defaultFileName}",
                 FileName = defaultFileName,
                 Filter = string.IsNullOrEmpty(filter) ? "All Files|*.*" : filter,
-                InitialDirectory = GetOutputDirectory(doc)
+                InitialDirectory = routed ?? GetOutputDirectory(doc)
             };
             if (dlg.ShowDialog() != true) return null;
 

@@ -86,7 +86,6 @@ Hvac_PressureClassAudit
 Hvac_PropagateLoads
 Hvac_PropagateRefrigToDuct
 Hvac_PublishToServer
-Hvac_PushSnapshot
 Hvac_RefnetSize
 Hvac_RefreshGrids
 Hvac_RefreshPanel

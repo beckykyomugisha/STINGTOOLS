@@ -285,7 +285,7 @@ def main():
         for rung in ['300', '350', '400', '500']:
             for prm in (resolve(r['checks'], rung) or {}).get('params', []):
                 cats = bind.get(prm)
-                if cats is None or (cats != ['<ALL>'] and cat not in cats):
+                if cats is None or ('<ALL>' not in cats and cat not in cats):
                     unbound.append((cat, rung, prm))
     if unbound:
         seen = set()

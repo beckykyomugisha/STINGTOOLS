@@ -152,7 +152,8 @@ namespace StingTools.Commands.Drawing
 
         private static View CreateView(Document doc, DrawingType dt, ScopeBoxBinding b, List<string> warnings)
         {
-            var family = FamilyForPurpose(dt.Purpose);
+            var family = FamilyForPurpose(dt, warnings);
+            if (family == null) return null;
             var vft = new FilteredElementCollector(doc)
                 .OfClass(typeof(ViewFamilyType))
                 .Cast<ViewFamilyType>()
@@ -206,18 +207,32 @@ namespace StingTools.Commands.Drawing
             }
         }
 
-        private static ViewFamily FamilyForPurpose(string purpose)
+        // D-7: purpose -> view kind comes from the one shared table. This used to
+        // be a second copy of the switch whose default was FloorPlan, so a
+        // Schematic profile bound to a scope box was produced as a floor plan.
+        // An unknown purpose is now reported instead of guessed.
+        private static ViewFamily? FamilyForPurpose(DrawingType dt, List<string> warnings)
         {
-            switch (purpose)
+            if (!DrawingPurposeViewKind.TryResolve(dt.Purpose, out var kind))
             {
-                case DrawingPurpose.Rcp:          return ViewFamily.CeilingPlan;
-                case DrawingPurpose.ThreeD:       return ViewFamily.ThreeDimensional;
-                case DrawingPurpose.Section:      return ViewFamily.Section;
-                case DrawingPurpose.Elevation:    return ViewFamily.Elevation;
-                case DrawingPurpose.Detail:       return ViewFamily.Detail;
-                case DrawingPurpose.Schedule:     return ViewFamily.Schedule;
-                case DrawingPurpose.Legend:       return ViewFamily.Legend;
-                default:                          return ViewFamily.FloorPlan;
+                warnings.Add($"'{dt.Id}': purpose '{dt.Purpose ?? "(none)"}' maps to no view kind — skipped. " +
+                             $"Known purposes: {string.Join(", ", DrawingPurpose.All)}.");
+                return null;
+            }
+            switch (kind)
+            {
+                case DrawingViewKind.FloorPlan: return ViewFamily.FloorPlan;
+                case DrawingViewKind.Rcp:       return ViewFamily.CeilingPlan;
+                case DrawingViewKind.ThreeD:    return ViewFamily.ThreeDimensional;
+                case DrawingViewKind.Section:   return ViewFamily.Section;
+                case DrawingViewKind.Elevation: return ViewFamily.Elevation;
+                case DrawingViewKind.Detail:    return ViewFamily.Detail;
+                case DrawingViewKind.Schedule:  return ViewFamily.Schedule;
+                case DrawingViewKind.Legend:    return ViewFamily.Legend;
+                case DrawingViewKind.Drafting:  return ViewFamily.Drafting;
+                default:
+                    warnings.Add($"'{dt.Id}': view kind '{kind}' has no ViewFamily mapping — skipped.");
+                    return null;
             }
         }
 

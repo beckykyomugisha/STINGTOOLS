@@ -297,7 +297,7 @@ namespace StingTools.Commands.Hvac
         {
             try
             {
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_gbXML_delta", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_gbXML_delta", ".csv", "M");
                 var sb = new StringBuilder();
                 sb.AppendLine($"# gbXML delta report — source: {srcLabel}");
                 sb.AppendLine("ZoneId,Matched,IsNew,PriorCoolingKw,NewCoolingKw,DeltaPct,NewLatentKw,NewOaLs,SpaceId");

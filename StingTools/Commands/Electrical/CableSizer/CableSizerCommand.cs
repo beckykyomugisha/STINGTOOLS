@@ -37,11 +37,13 @@ namespace StingTools.Commands.Electrical.CableSizer
                     LengthM = snap.LengthM,
                     InstallMethod = snap.InstallMethod ?? "C",
                     Material = snap.Material ?? "Cu",
-                    Insulation = snap.Insulation ?? "XLPE90",
+                    Insulation = snap.Insulation ?? "PVC70",
+                    CableType = snap.CableType ?? "Multicore",
                     VDLimitPct = snap.VDLimitPct <= 0 ? 3.0 : snap.VDLimitPct,
                     Standard = snap.Standard ?? "BS7671",
                 };
-                var result = CableSizerEngine.Calculate(input);
+                var result = CableSizerEngine.Calculate(input,
+                    CableSizerEngine.Bs7671Tables(ParameterHelpers.GetContext(commandData)?.Doc));
                 StingElectricalCommandHandler.LastCableSizeResult = result;
                 StingElectricalCommandHandler.ActivePanel?.RefreshCableResult(result);
                 return Result.Succeeded;

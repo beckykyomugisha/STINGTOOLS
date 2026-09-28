@@ -132,6 +132,10 @@ namespace StingTools.UI.Plumbing
                         Run<StingTools.Commands.Plumbing.PlumbIsometricCommand>(app); break;
                     case "Plumb_CommPack":
                         Run<StingTools.Commands.Plumbing.PlumbCommPackCommand>(app); break;
+                    case "Fire_SprinklerHydraulics":
+                        Run<StingTools.Commands.Fire.SprinklerHydraulicsCommand>(app); break;
+                    case "Gas_SizePipes":
+                        Run<StingTools.Commands.Gas.GasPipeSizingCommand>(app); break;
                     case "Plumb_SupplySchematic":
                         Run<StingTools.Commands.Plumbing.PlumbSupplySchematicCommand>(app); break;
 

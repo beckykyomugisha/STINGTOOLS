@@ -372,8 +372,6 @@ namespace StingTools.Organise
                         if (string.IsNullOrEmpty(func))
                         {
                             func = TagConfig.GetSmartFuncCode(elem, sys);
-                            if (string.IsNullOrEmpty(func))
-                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
                         }
                         if (string.IsNullOrEmpty(prod))
                             prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
@@ -671,8 +669,6 @@ namespace StingTools.Organise
                         if (string.IsNullOrEmpty(func))
                         {
                             func = TagConfig.GetSmartFuncCode(elem, sys);
-                            if (string.IsNullOrEmpty(func))
-                                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
                         }
                         if (string.IsNullOrEmpty(prod))
                             prod = TagConfig.GetFamilyAwareProdCode(elem, catName);
@@ -820,7 +816,7 @@ namespace StingTools.Organise
             }
 
             // Write to file — uses user-preferred output location
-            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tag_Audit.csv");
+            string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "STING_Tag_Audit.csv");
 
             try
             {
@@ -3097,7 +3093,7 @@ namespace StingTools.Organise
             string path = OutputLocationHelper.PromptForExportPath(
                 doc, $"STING_Tag_Register_{System.DateTime.Now:yyyyMMdd}.csv",
                 "CSV Files|*.csv|All Files|*.*", "TagRegister")
-                ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Tag_Register", ".csv");
+                ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "TagRegister", "STING_Tag_Register", ".csv");
 
             try
             {
@@ -4997,7 +4993,7 @@ namespace StingTools.Organise
                 {
                     issues.Add("PROD:empty"); emptyProd++;
                 }
-                if (seq == "0000" || seq == "XX") { issues.Add("SEQ:placeholder"); placeholderSeq++; }
+                if (SeqAssigner.IsUnassignedSeq(seq) || seq == "XX") { issues.Add("SEQ:placeholder"); placeholderSeq++; }
 
                 // TAG7 missing — element has TAG1 but no TAG7 narrative
                 string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
@@ -6218,7 +6214,7 @@ namespace StingTools.Organise
             sb.AppendLine("}");
 
             // Write to file
-            string path = OutputLocationHelper.GetOutputPath(doc, "STING_Tags.json");
+            string path = OutputLocationHelper.GetRoutedPath(doc, "TagRegister", "STING_Tags.json");
             try
             {
                 System.IO.File.WriteAllText(path, sb.ToString());

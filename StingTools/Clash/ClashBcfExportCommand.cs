@@ -30,7 +30,7 @@ namespace StingTools.Core.Clash
                 var doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "BCF") ?? Path.GetTempPath();
                 string clashesJson = ClashPersistence.CanonicalPath(doc);
                 var run = ClashPersistence.Load(clashesJson);
                 if (run == null || run.Clashes == null || run.Clashes.Count == 0)

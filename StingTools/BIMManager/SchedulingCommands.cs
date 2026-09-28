@@ -1834,7 +1834,7 @@ namespace StingTools.BIMManager
                 var phases = new FilteredElementCollector(doc)
                     .OfClass(typeof(Phase)).Cast<Phase>().ToList();
 
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Milestones", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "REGISTER", "STING_Milestones", ".csv");
 
                 var sb = new StringBuilder();
                 sb.AppendLine("Phase,PhaseOrdinal,ElementCount,Categories,PrimaryDiscipline,MilestoneStatus");
@@ -1907,7 +1907,7 @@ namespace StingTools.BIMManager
                 if (ctx == null) return Result.Failed;
                 Document doc = ctx.Doc;
 
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_WorkingCalendar", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_WorkingCalendar", ".csv");
 
                 var sb = new StringBuilder();
                 sb.AppendLine("Date,DayOfWeek,IsWorkingDay,WorkingHours,Notes");
@@ -2350,7 +2350,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Export cost summary CSV
-                string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outputDir = OutputLocationHelper.GetRoutedDirectory(doc, "BOQ");
                 string csvPath = Path.Combine(outputDir, $"STING_5D_CostTrace_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 using (var writer = new StreamWriter(csvPath, false, Encoding.UTF8))
                 {
@@ -2602,7 +2602,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Write output
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
                 Directory.CreateDirectory(outDir);
                 string outFile = Path.Combine(outDir, "4d_viewer_export.json");
 

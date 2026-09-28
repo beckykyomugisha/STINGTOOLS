@@ -110,12 +110,18 @@ namespace StingTools.Core.Clash
                 var overall = Stopwatch.StartNew();
 
                 // ── Config / output paths ──
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();
+                // Reports (BCF) go to the clash export route; state (clashes.json, the
+                // exclusions list and its audit, notifications) lives with the clash store.
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "BCF") ?? Path.GetTempPath();
                 Directory.CreateDirectory(outDir);
                 string clashesJson  = ClashPersistence.CanonicalPath(doc);
+                string stateDir     = Path.GetDirectoryName(clashesJson) ?? outDir;
                 string matrixJson   = FindDataFile("default_clash_matrix.json");
                 string rulesJson    = FindDataFile("default_clash_rules.json");
-                string exclusionsJson = Path.Combine(outDir, "clash_exclusions.json");
+                string exclusionsJson = OutputLocationHelper.GetStorePath(doc, "clash_exclusions.json", "clash")
+                                        ?? Path.Combine(stateDir, "clash_exclusions.json");
+                OutputLocationHelper.GetStorePath(doc, "clash_exclusions_audit.jsonl", "clash");
+                OutputLocationHelper.GetStorePath(doc, ClashNotifications.DefaultFileName, "clash");
 
                 var matrix = ClashMatrix.LoadOrDefault(matrixJson);
                 var rules = ClashRuleLibrary.LoadAugmented(rulesJson);
@@ -301,7 +307,7 @@ namespace StingTools.Core.Clash
                 {
                     var notifications = ClashNotifications.BuildFromRun(run, doc.ProjectInformation?.UniqueId);
                     if (notifications.Count > 0)
-                        ClashNotifications.Append(outDir, notifications);
+                        ClashNotifications.Append(stateDir, notifications);
                 }
                 catch (Exception nEx) { StingLog.Warn($"ClashRunCommand notifications: {nEx.Message}"); }
 

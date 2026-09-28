@@ -175,6 +175,9 @@ namespace StingTools.UI
         private const string BadgeUnknown  = "🟡 unknown type";
         private const string BadgeBad      = "🔴 invalid";
         private const string BadgeNotSting = "⚪ not STING";
+        private const string BadgeArea     = "🔷 area box";
+        private const string BadgeSeed     = "🌱 seed";
+        private const string BadgeBuilding = "🏢 building";
 
         private readonly UIApplication _uiApp;
         private readonly UIDocument _uiDoc;
@@ -591,6 +594,23 @@ namespace StingTools.UI
 
             if (!ScopeBoxBinder.TryParseName(name, out var b, out var reason))
             {
+                // Area, seed and building boxes have their own prefixes and are
+                // not drawing-type boxes; they belong to the Scope Box Planner and
+                // the LOC index. Name them for what they are rather than "not STING".
+                var kind = ScopeBoxNames.Classify(name);
+                if (reason == null && kind != ScopeBoxKind.Plain)
+                {
+                    bool areaOk = kind != ScopeBoxKind.Area || ScopeBoxNames.TryParseArea(name, out _, out _, out _);
+                    r.Status = !areaOk ? BadgeBad
+                             : kind == ScopeBoxKind.Area ? BadgeArea
+                             : kind == ScopeBoxKind.Seed ? BadgeSeed : BadgeBuilding;
+                    r.StatusTip = !areaOk ? ScopeBoxNames.AreaPatternReason
+                                : kind == ScopeBoxKind.Area ? "Area box — shared by every drawing type in its size class. Managed in the Scope Box Planner."
+                                : kind == ScopeBoxKind.Seed ? "Seed box — a hand-drawn size the Scope Box Planner copies. Keep it; do not use it for views."
+                                : "Building footprint (STING-LOC) — sets LOC for elements inside it and gives the planner a building to tile.";
+                    r.IsBlocked = !areaOk;
+                    return;
+                }
                 if (reason == null)
                 {
                     // No STING:: prefix at all. Not an error — plenty of scope

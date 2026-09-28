@@ -200,7 +200,7 @@ namespace StingTools.BOQ.Takeoff
             double mortarSand = Prop($"MORTAR {mix}", "SAND_RATIO", "MORTAR DEFAULT");
 
             // Plaster: faces (default both) + the MAT-2 plaster mix.
-            int faces = ParameterHelpers.GetInt(el, "BLE_PLASTER_FACES_NR", 2);
+            int faces = ParameterHelpers.GetInt(el, ParamRegistry.BLE_PLASTER_FACES_NR, 2);
             if (faces < 0) faces = 0; if (faces > 2) faces = 2;
             string plasterRaw = ParameterHelpers.GetString(el, "BLE_PLASTER_TYPE_TXT");
             string plasterType = InferOrCanon("plaster type", MaterialKeyCanonicaliser.PlasterType(plasterRaw),

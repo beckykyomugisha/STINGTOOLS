@@ -28,6 +28,16 @@ public class ComplianceSnapshot : ITenantScoped
     public double ContainerPercent { get; set; }
     public string RagStatus { get; set; } = "RED";
 
+    /// <summary>What this row measured. "compliance" (default, every row that existed
+    /// before this column) is a tagging/compliance snapshot, whose WarningCount may be 0
+    /// only because nobody measured warnings. "warnings" is a pushed warning report
+    /// (POST /warnings/report, IM-11): it measured warnings and nothing else, so the
+    /// compliance readers skip it and the warnings trend includes it even at zero.</summary>
+    public string Kind { get; set; } = KindCompliance;
+
+    public const string KindCompliance = "compliance";
+    public const string KindWarnings = "warnings";
+
     // Breakdown (stored as JSON)
     public string? ByDisciplineJson { get; set; }
     public string? ByPhaseJson { get; set; }

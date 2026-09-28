@@ -47,8 +47,7 @@ namespace StingTools.Commands.SLD
             try { ctx.UIDoc.ActiveView = result.SLDView; }
             catch (Exception ex) { StingLog.Warn($"Activate SLD view: {ex.Message}"); }
 
-            TaskDialog.Show("STING - SLD",
-                $"Generated SLD '{result.SLDView.Name}'.\nSymbols placed: {result.SymbolsPlaced}");
+            TaskDialog.Show("STING - SLD", SLDGenerator.DescribeResult(result));
             return Result.Succeeded;
         }
     }
@@ -76,7 +75,7 @@ namespace StingTools.Commands.SLD
 
             TaskDialog.Show("STING - SLD",
                 result.Success
-                    ? $"Generated '{result.SLDView.Name}' ({result.SymbolsPlaced} symbols)."
+                    ? SLDGenerator.DescribeResult(result)
                     : $"Generation failed: {result.Warning}");
             return result.Success ? Result.Succeeded : Result.Failed;
         }

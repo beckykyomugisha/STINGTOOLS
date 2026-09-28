@@ -118,7 +118,7 @@ namespace StingTools.Core
             {
                 string val = i < parts.Length ? parts[i] : "";
                 result.Segments[i] = val;
-                result.Populated[i] = !string.IsNullOrEmpty(val) && val != "XX" && val != "ZZ" && val != "0000";
+                result.Populated[i] = !string.IsNullOrEmpty(val) && !SeqAssigner.IsUnresolvedToken(val);
 
                 if (i > 0) marked.Append($"\u00ABS\u00BB{Separator}\u00AB/S\u00BB");
                 marked.Append($"\u00ABD{i}\u00BB{val}\u00AB/D{i}\u00BB");
@@ -369,7 +369,7 @@ namespace StingTools.Core
         {
             if (ActivePreset == null) return null;
 
-            string value = ParameterHelpers.GetString(el, ActivePreset.DiscriminatorParam);
+            string value = ParameterHelpers.GetValueText(el, ActivePreset.DiscriminatorParam);
             if (!string.IsNullOrEmpty(value) && ActivePreset.Styles.TryGetValue(value, out var style))
                 return style;
 
@@ -585,7 +585,7 @@ namespace StingTools.Core
                 return ActivePreset.DefaultStyle;
 
             // Standard parameter-based discrimination
-            string value = ParameterHelpers.GetString(el, ActivePreset.DiscriminatorParam);
+            string value = ParameterHelpers.GetValueText(el, ActivePreset.DiscriminatorParam);
             if (!string.IsNullOrEmpty(value) && ActivePreset.Styles.TryGetValue(value, out var s))
                 return s;
 
@@ -727,16 +727,14 @@ namespace StingTools.Core
             { "COM", "Communications" }, { "NCL", "Nurse Call Systems" },
             { "ARC", "Architectural Fabric" }, { "STR", "Structural Elements" },
             { "GEN", "General Services" },
-            // Healthcare Pack (Phase H-1)
-            { "MGS-O2", "Medical Oxygen Supply" }, { "MGS-AIR", "Medical Compressed Air" },
-            { "MGS-VAC", "Medical Vacuum" }, { "MGS-N2O", "Nitrous Oxide Supply" },
-            { "MGS-CO2", "Carbon Dioxide Supply" }, { "MGS-N2", "Nitrogen Supply" },
-            { "MGS-AGS", "Anaesthetic Gas Scavenging" },
-            { "EES-LS", "Essential Electrical Services (Life Safety)" },
-            { "EES-CR", "Essential Electrical Services (Critical)" },
-            { "EES-EB", "Essential Electrical Services (Enhanced)" },
+            // Healthcare Pack. Medical gas is one system, MGS, with the gas as FUNC; the
+            // old hyphenated keys ("MGS-O2", "EES-LS") contained the tag separator and
+            // could never be a SYS token.
+            { "MGS", "Medical Gas Pipeline System" },
+            { "HV", "High Voltage Distribution" }, { "BMS", "Building Management System" },
+            { "CHW", "Chilled Water" }, { "CDW", "Condenser Water" }, { "REF", "Refrigerant" }, { "SWD", "Surface Water Drainage" }, { "GWR", "Greywater Recycling" }, { "RWH", "Rainwater Harvesting" }, { "SDS", "Sustainable Drainage (SuDS)" }, { "SEP", "Septic Tank" }, { "STW", "Package Sewage Treatment" }, { "BGD", "Below-ground Drainage" }, { "SPH", "Siphonic Roof Drainage" }, { "INT", "Grease / Oil Interceptor" }, { "CMP", "Compressed Air" }, { "POL", "Pool / Spa Circulation" }, { "LBW", "Laboratory Water" }, { "IRR", "Irrigation" }, { "FOL", "Fuel Oil" }, { "STM", "Steam" }, { "CON", "Steam Condensate" }, { "CHE", "Chemical Dosing" },
             { "LPS", "Lightning Protection System" },
-            { "CLN", "Clinical Environment" }, { "RAD", "Radiation Shielding" },
+            { "CLN", "Clinical Environment" }, { "RAD", "Radiation Protection" },
         };
 
         /// <summary>Full function description for human-readable narrative.</summary>
@@ -755,9 +753,21 @@ namespace StingTools.Core
             { "NCL", "Patient Nurse Call" }, { "SEC", "Security and Access Control" },
             { "FIT", "Finishes and Fitout" }, { "STR", "Primary Structure" },
             { "GEN", "General Purpose" },
+            { "VNT", "Soil and Vent" },
+            // Lightning protection — the codes LpsNameClassifier writes (BS EN 62305).
+            // "EB" and "EP" were older spellings of BOND and EE that nothing writes.
+            { "AT", "Air Termination" }, { "DC", "Down Conductor" }, { "EE", "Earth Termination" },
+            { "BOND", "Equipotential Bonding" }, { "SPD", "Surge Protection Device" }, { "TC", "Test Joint" },
+            // Medical gas — the gas is the function (MedicalGasFixtures.GasCodes).
+            { "O2", "Medical Oxygen" }, { "MA4", "Medical Air" }, { "MA7", "Surgical Air" },
+            { "N2O", "Nitrous Oxide" }, { "N2", "Surgical Nitrogen" }, { "CO2", "Medical Carbon Dioxide" },
+            { "HE", "Helium / Heliox" }, { "VAC", "Medical Vacuum" }, { "AGS", "Anaesthetic Gas Scavenging" },
+            // High voltage, BMS, radiation protection (STING_FUNC_SYS_MATRIX.csv).
+            { "TRF", "Transformation" }, { "SNS", "Sensing" }, { "CTL", "Control" },
+            { "FCT", "Field Control" }, { "MON", "Monitoring" }, { "SHD", "Radiation Shielding" },
+            { "ZNE", "Radiation Zone Boundary" },
+            { "CLG", "Cooling" }, { "LIQ", "Refrigerant Liquid" }, { "SUC", "Refrigerant Suction" }, { "HGS", "Refrigerant Hot Gas" }, { "EMG", "Emergency Lighting" }, { "SML", "Small Power" }, { "SWD", "Surface Water" }, { "GWR", "Greywater" }, { "RWH", "Rainwater Harvesting" }, { "SDS", "Attenuation / Infiltration" }, { "BGD", "Below-ground Drainage" }, { "CIR", "Circulation" }, { "LAB", "Laboratory Water" }, { "IRR", "Irrigation" }, { "FUL", "Fuel Oil" }, { "STM", "Steam Supply" }, { "CND", "Condensate Return" }, { "CHE", "Chemical Dosing" },
             // Healthcare Pack (Phase H-1)
-            { "AT", "Air Termination" }, { "DC", "Down Conductor" }, { "EB", "Equipotential Bond" },
-            { "EP", "Earth Pit" }, { "SPD", "Surge Protection Device" },
             { "DIST", "Distribution" }, { "ISO", "Isolation" }, { "ALM", "Area Alarm" },
             { "TU", "Terminal Unit" }, { "ZVB", "Zone Valve Box" },
             { "AAP", "Area Alarm Panel" }, { "SHLD", "Shielding" }, { "ZONE", "Safety Zone" },
@@ -846,12 +856,12 @@ namespace StingTools.Core
             // ── Section A: Asset Identity and Classification ──────────────────
             string discDesc = DisciplineDescriptions.TryGetValue(disc, out string dd) ? dd : disc;
             string prodDesc = ProductDescriptions.TryGetValue(prod, out string pd) ? pd : "";
-            string familyName = ParameterHelpers.GetString(el, ParamRegistry.FAMILY_NAME);
-            string typeName   = ParameterHelpers.GetString(el, ParamRegistry.TYPE_NAME);
-            string description = ParameterHelpers.GetString(el, ParamRegistry.DESC);
-            string mfr    = ParameterHelpers.GetString(el, ParamRegistry.MFR);
-            string model  = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
-            string size   = ParameterHelpers.GetString(el, ParamRegistry.SIZE);
+            string familyName = ParameterHelpers.GetValueText(el, ParamRegistry.FAMILY_NAME);
+            string typeName   = ParameterHelpers.GetValueText(el, ParamRegistry.TYPE_NAME);
+            string description = ParameterHelpers.GetValueText(el, ParamRegistry.DESC);
+            string mfr    = ParameterHelpers.GetValueText(el, ParamRegistry.MFR);
+            string model  = ParameterHelpers.GetValueText(el, ParamRegistry.MODEL);
+            string size   = ParameterHelpers.GetValueText(el, ParamRegistry.SIZE);
 
             var identityPlain = new System.Text.StringBuilder();
             var identityMarked = new System.Text.StringBuilder();
@@ -909,12 +919,12 @@ namespace StingTools.Core
             try
             {
                 var rebar = Bs8666Label.Compose(
-                    ParameterHelpers.GetString(el, "STR_BAR_MARK_TXT"),
-                    ParameterHelpers.GetString(el, "STR_REBAR_TOTAL_NO_NR"),
+                    ParameterHelpers.GetValueText(el, "STR_BAR_MARK_TXT"),
+                    ParameterHelpers.GetValueText(el, "STR_REBAR_TOTAL_NO_NR"),
                     Bs8666Label.TypeAndSize(
-                        ParameterHelpers.GetString(el, "CST_S_REI_TYPE_TXT"),
-                        ParameterHelpers.GetString(el, "STR_REBAR_SIZE_MM")),
-                    ParameterHelpers.GetString(el, "CST_S_REI_SPACING_MM"));
+                        ParameterHelpers.GetValueText(el, "CST_S_REI_TYPE_TXT"),
+                        ParameterHelpers.GetValueText(el, "STR_REBAR_SIZE_MM")),
+                    ParameterHelpers.GetValueText(el, "CST_S_REI_SPACING_MM"));
 
                 if (rebar.HasContent)
                 {
@@ -976,12 +986,12 @@ namespace StingTools.Core
             }
 
             // ── Section C: Spatial Context and Room Information ────────────────
-            string roomName = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NAME);
-            string roomNum  = ParameterHelpers.GetString(el, ParamRegistry.ROOM_NUM);
-            string dept     = ParameterHelpers.GetString(el, ParamRegistry.DEPT);
-            string gridRef  = ParameterHelpers.GetString(el, ParamRegistry.GRID_REF);
-            string bleRoom  = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NAME);
-            string bleNum   = ParameterHelpers.GetString(el, ParamRegistry.BLE_ROOM_NUM);
+            string roomName = ParameterHelpers.GetValueText(el, ParamRegistry.ROOM_NAME);
+            string roomNum  = ParameterHelpers.GetValueText(el, ParamRegistry.ROOM_NUM);
+            string dept     = ParameterHelpers.GetValueText(el, ParamRegistry.DEPT);
+            string gridRef  = ParameterHelpers.GetValueText(el, ParamRegistry.GRID_REF);
+            string bleRoom  = ParameterHelpers.GetValueText(el, ParamRegistry.BLE_ROOM_NAME);
+            string bleNum   = ParameterHelpers.GetValueText(el, ParamRegistry.BLE_ROOM_NUM);
             if (string.IsNullOrEmpty(roomName) && !string.IsNullOrEmpty(bleRoom)) roomName = bleRoom;
             if (string.IsNullOrEmpty(roomNum) && !string.IsNullOrEmpty(bleNum)) roomNum = bleNum;
 
@@ -1015,22 +1025,22 @@ namespace StingTools.Core
 
             // ── Section D: Lifecycle Status, Revision, Origin, Workset, Phase,
             //    Design Option, Maintenance, Commissioning ─────────────────────
-            string status  = ParameterHelpers.GetString(el, ParamRegistry.STATUS);
-            string rev     = ParameterHelpers.GetString(el, ParamRegistry.REV);
-            string origin  = ParameterHelpers.GetString(el, ParamRegistry.ORIGIN);
-            string project = ParameterHelpers.GetString(el, ParamRegistry.PROJECT);
-            string volume  = ParameterHelpers.GetString(el, ParamRegistry.VOLUME);
-            string mntType = ParameterHelpers.GetString(el, ParamRegistry.MNT_TYPE);
-            string detailNum = ParameterHelpers.GetString(el, ParamRegistry.DETAIL_NUM);
+            string status  = ParameterHelpers.GetValueText(el, ParamRegistry.STATUS);
+            string rev     = ParameterHelpers.GetValueText(el, ParamRegistry.REV);
+            string origin  = ParameterHelpers.GetValueText(el, ParamRegistry.ORIGIN);
+            string project = ParameterHelpers.GetValueText(el, ParamRegistry.PROJECT);
+            string volume  = ParameterHelpers.GetValueText(el, ParamRegistry.VOLUME);
+            string mntType = ParameterHelpers.GetValueText(el, ParamRegistry.MNT_TYPE);
+            string detailNum = ParameterHelpers.GetValueText(el, ParamRegistry.DETAIL_NUM);
             // New exploited parameters — workset, phase, design option, maintenance, commissioning
-            string workset       = ParameterHelpers.GetString(el, "ASS_WORKSET_TXT");
-            string phaseCreated  = ParameterHelpers.GetString(el, "ASS_PHASE_CREATED_TXT");
-            string designOption  = ParameterHelpers.GetString(el, "ASS_DESIGN_OPTION_TXT");
-            string mntFreq       = ParameterHelpers.GetString(el, "MNT_FREQUENCY_TXT");
-            string mntWarranty   = ParameterHelpers.GetString(el, "MNT_WARRANTY_EXPIRY_TXT");
-            string comStatus     = ParameterHelpers.GetString(el, "COM_COMMISSION_STATUS_TXT");
-            string expectedLife  = ParameterHelpers.GetString(el, "PER_EXPECTED_LIFE_YEARS");
-            string accessReqs    = ParameterHelpers.GetString(el, "MNT_ACCESS_REQUIREMENTS_TXT");
+            string workset       = ParameterHelpers.GetValueText(el, "ASS_WORKSET_TXT");
+            string phaseCreated  = ParameterHelpers.GetValueText(el, "ASS_PHASE_CREATED_TXT");
+            string designOption  = ParameterHelpers.GetValueText(el, "ASS_DESIGN_OPTION_TXT");
+            string mntFreq       = ParameterHelpers.GetValueText(el, "MNT_FREQUENCY_TXT");
+            string mntWarranty   = ParameterHelpers.GetValueText(el, "MNT_WARRANTY_EXPIRY_TXT");
+            string comStatus     = ParameterHelpers.GetValueText(el, "COM_COMMISSION_STATUS_TXT");
+            string expectedLife  = ParameterHelpers.GetValueText(el, "PER_EXPECTED_LIFE_YEARS");
+            string accessReqs    = ParameterHelpers.GetValueText(el, "MNT_ACCESS_REQUIREMENTS_TXT");
 
             var lifecyclePlain = new System.Text.StringBuilder();
             var lifecycleMarked = new System.Text.StringBuilder();
@@ -1164,10 +1174,10 @@ namespace StingTools.Core
             // Append room finishes if this is a room or spatial element
             if (categoryName == "Rooms" || categoryName == "Spaces")
             {
-                string finFlr = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_FLR);
-                string finWall = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_WALL);
-                string finClg = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_CLG);
-                string finBase = ParameterHelpers.GetString(el, ParamRegistry.ROOM_FINISH_BASE);
+                string finFlr = ParameterHelpers.GetValueText(el, ParamRegistry.ROOM_FINISH_FLR);
+                string finWall = ParameterHelpers.GetValueText(el, ParamRegistry.ROOM_FINISH_WALL);
+                string finClg = ParameterHelpers.GetValueText(el, ParamRegistry.ROOM_FINISH_CLG);
+                string finBase = ParameterHelpers.GetValueText(el, ParamRegistry.ROOM_FINISH_BASE);
                 if (!string.IsNullOrEmpty(finFlr) || !string.IsNullOrEmpty(finWall) || !string.IsNullOrEmpty(finClg))
                 {
                     if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
@@ -1198,8 +1208,8 @@ namespace StingTools.Core
             // Append door function and head height
             if (categoryName == "Doors")
             {
-                string doorFunc = ParameterHelpers.GetString(el, ParamRegistry.DOOR_FUNC);
-                string doorHead = ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEAD_HT);
+                string doorFunc = ParameterHelpers.GetValueText(el, ParamRegistry.DOOR_FUNC);
+                string doorHead = ParameterHelpers.GetValueText(el, ParamRegistry.DOOR_HEAD_HT);
                 if (!string.IsNullOrEmpty(doorFunc))
                 {
                     if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
@@ -1214,7 +1224,7 @@ namespace StingTools.Core
             // Append window head height
             if (categoryName == "Windows")
             {
-                string winHead = ParameterHelpers.GetString(el, ParamRegistry.WINDOW_HEAD_HT);
+                string winHead = ParameterHelpers.GetValueText(el, ParamRegistry.WINDOW_HEAD_HT);
                 if (!string.IsNullOrEmpty(winHead))
                 {
                     if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
@@ -1224,7 +1234,7 @@ namespace StingTools.Core
             }
             // Append fire rating for any element that has it
             {
-                string fr = ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING);
+                string fr = ParameterHelpers.GetValueText(el, ParamRegistry.FIRE_RATING);
                 if (!string.IsNullOrEmpty(fr) && categoryName != "Rooms" && categoryName != "Spaces")
                 {
                     if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
@@ -1234,8 +1244,8 @@ namespace StingTools.Core
             }
             // Append sustainability data if available
             {
-                string carbonFp = ParameterHelpers.GetString(el, "PER_SUST_CARBON_FOOTPRINT_KG");
-                string recyclability = ParameterHelpers.GetString(el, "PER_RECYCLABILITY_PCT");
+                string carbonFp = ParameterHelpers.GetValueText(el, "PER_SUST_CARBON_FOOTPRINT_KG");
+                string recyclability = ParameterHelpers.GetValueText(el, "PER_RECYCLABILITY_PCT");
                 if (!string.IsNullOrEmpty(carbonFp))
                 {
                     if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
@@ -1249,8 +1259,8 @@ namespace StingTools.Core
             }
             // Append acoustic data
             {
-                string stc = ParameterHelpers.GetString(el, "PER_ACOUSTIC_WALL_STC");
-                string iic = ParameterHelpers.GetString(el, "PER_ACOUSTIC_FLOOR_IIC");
+                string stc = ParameterHelpers.GetValueText(el, "PER_ACOUSTIC_WALL_STC");
+                string iic = ParameterHelpers.GetValueText(el, "PER_ACOUSTIC_FLOOR_IIC");
                 if (!string.IsNullOrEmpty(stc))
                 {
                     if (techPlain.Length > 0) { techPlain.Append(". "); techMarked.Append(". "); }
@@ -1276,12 +1286,12 @@ namespace StingTools.Core
             }
 
             // ── Section F: Classification + Cost + ISO Reference ──────────────
-            string uniformat     = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT);
-            string uniformatDesc = ParameterHelpers.GetString(el, ParamRegistry.UNIFORMAT_DESC);
-            string omniclass     = ParameterHelpers.GetString(el, ParamRegistry.OMNICLASS);
-            string keynote       = ParameterHelpers.GetString(el, ParamRegistry.KEYNOTE);
-            string typeMark      = ParameterHelpers.GetString(el, ParamRegistry.TYPE_MARK);
-            string cost          = ParameterHelpers.GetString(el, ParamRegistry.COST);
+            string uniformat     = ParameterHelpers.GetValueText(el, ParamRegistry.UNIFORMAT);
+            string uniformatDesc = ParameterHelpers.GetValueText(el, ParamRegistry.UNIFORMAT_DESC);
+            string omniclass     = ParameterHelpers.GetValueText(el, ParamRegistry.OMNICLASS);
+            string keynote       = ParameterHelpers.GetValueText(el, ParamRegistry.KEYNOTE);
+            string typeMark      = ParameterHelpers.GetValueText(el, ParamRegistry.TYPE_MARK);
+            string cost          = ParameterHelpers.GetValueText(el, ParamRegistry.COST);
 
             var classPlain = new System.Text.StringBuilder();
             var classMarked = new System.Text.StringBuilder();
@@ -1310,8 +1320,8 @@ namespace StingTools.Core
                 classMarked.Append($"\u00ABV\u00BB{keynote}\u00AB/V\u00BB");
             }
             // Phase H \u2014 CSI MasterFormat section (from CSI_Assign) in the classification narrative.
-            string csiSection = ParameterHelpers.GetString(el, ParamRegistry.CSI_SECTION);
-            string csiTitle   = ParameterHelpers.GetString(el, ParamRegistry.CSI_TITLE);
+            string csiSection = ParameterHelpers.GetValueText(el, ParamRegistry.CSI_SECTION);
+            string csiTitle   = ParameterHelpers.GetValueText(el, ParamRegistry.CSI_TITLE);
             if (!string.IsNullOrEmpty(csiSection))
             {
                 if (classPlain.Length > 0) { classPlain.Append(", CSI section "); classMarked.Append(", \u00ABL\u00BBCSI section\u00AB/L\u00BB "); }
@@ -1339,7 +1349,7 @@ namespace StingTools.Core
                 classMarked.Append($"\u00ABV\u00BB{cost}\u00AB/V\u00BB");
             }
             // Type comments — unexploited rich text from Revit type properties
-            string typeComments = ParameterHelpers.GetString(el, ParamRegistry.TYPE_COMMENTS);
+            string typeComments = ParameterHelpers.GetValueText(el, ParamRegistry.TYPE_COMMENTS);
             if (!string.IsNullOrEmpty(typeComments))
             {
                 if (classPlain.Length > 0) { classPlain.Append(". Type notes: "); classMarked.Append(". \u00ABL\u00BBType notes:\u00AB/L\u00BB "); }
@@ -1353,7 +1363,7 @@ namespace StingTools.Core
             // populated. Falls back to inline re-assembly only when the
             // canonical tag has not been built yet — avoids divergence
             // between Section F and the assembled tag.
-            string fullTag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
+            string fullTag = ParameterHelpers.GetValueText(el, ParamRegistry.TAG1);
             if (string.IsNullOrEmpty(fullTag))
             {
                 // S02 defensive guards — trap upstream token corruption so the narrative stays readable
@@ -1509,11 +1519,11 @@ namespace StingTools.Core
             // T4 — Commissioning & handover (N-G16 QR workflow)
             try
             {
-                string state    = ParameterHelpers.GetString(el, ParamRegistry.COMM_STATE_TXT);
-                string date     = ParameterHelpers.GetString(el, ParamRegistry.COMM_DATE_TXT);
-                string oper     = ParameterHelpers.GetString(el, ParamRegistry.COMM_OPERATIVE_TXT);
-                string witness  = ParameterHelpers.GetString(el, ParamRegistry.COMM_WITNESS_TXT);
-                string notes    = ParameterHelpers.GetString(el, ParamRegistry.COMM_NOTES_TXT);
+                string state    = ParameterHelpers.GetValueText(el, ParamRegistry.COMM_STATE_TXT);
+                string date     = ParameterHelpers.GetValueText(el, ParamRegistry.COMM_DATE_TXT);
+                string oper     = ParameterHelpers.GetValueText(el, ParamRegistry.COMM_OPERATIVE_TXT);
+                string witness  = ParameterHelpers.GetValueText(el, ParamRegistry.COMM_WITNESS_TXT);
+                string notes    = ParameterHelpers.GetValueText(el, ParamRegistry.COMM_NOTES_TXT);
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(state))   parts.Add(state);
                 if (!string.IsNullOrEmpty(date))    parts.Add(date);
@@ -1575,9 +1585,9 @@ namespace StingTools.Core
             // T7 — Fabrication & QC
             try
             {
-                string spool   = ParameterHelpers.GetString(el, ParamRegistry.ASS_SPOOL_NR_TXT);
-                string status  = ParameterHelpers.GetString(el, ParamRegistry.ASS_FAB_STATUS_TXT);
-                string insp    = ParameterHelpers.GetString(el, ParamRegistry.ASS_QC_INSPECTOR_TXT);
+                string spool   = ParameterHelpers.GetValueText(el, ParamRegistry.ASS_SPOOL_NR_TXT);
+                string status  = ParameterHelpers.GetValueText(el, ParamRegistry.ASS_FAB_STATUS_TXT);
+                string insp    = ParameterHelpers.GetValueText(el, ParamRegistry.ASS_QC_INSPECTOR_TXT);
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(spool))  parts.Add($"spool {spool}");
                 if (!string.IsNullOrEmpty(status)) parts.Add(status);
@@ -1627,9 +1637,9 @@ namespace StingTools.Core
             // T10 — Compliance / audit (IFC PSet + ACC round-trip)
             try
             {
-                string pset    = ParameterHelpers.GetString(el, ParamRegistry.IFC_PSET_OVERRIDE_TXT);
-                string accId   = ParameterHelpers.GetString(el, ParamRegistry.ACC_ISSUE_ID_TXT);
-                string accStat = ParameterHelpers.GetString(el, ParamRegistry.ACC_SYNC_STATUS_TXT);
+                string pset    = ParameterHelpers.GetValueText(el, ParamRegistry.IFC_PSET_OVERRIDE_TXT);
+                string accId   = ParameterHelpers.GetValueText(el, ParamRegistry.ACC_ISSUE_ID_TXT);
+                string accStat = ParameterHelpers.GetValueText(el, ParamRegistry.ACC_SYNC_STATUS_TXT);
                 var parts = new List<string>();
                 if (!string.IsNullOrEmpty(pset))    parts.Add($"IFC PSet: {pset}");
                 if (!string.IsNullOrEmpty(accId))   parts.Add($"ACC #{accId}");
@@ -1859,7 +1869,7 @@ namespace StingTools.Core
             // element (only WriteTag7All ever writes them). The pass falls
             // through to the actual write below either way.
             const string LAST_PARA_PARAM = "ASS_LAST_PARA_CONTAINER_TXT";
-            string lastPara = ParameterHelpers.GetString(el, LAST_PARA_PARAM);
+            string lastPara = ParameterHelpers.GetValueText(el, LAST_PARA_PARAM);
             bool needClear = !string.Equals(lastPara, paraContainer ?? "", StringComparison.Ordinal);
             if (needClear)
             {
@@ -1996,12 +2006,12 @@ namespace StingTools.Core
                 return (0, null);
 
             // Visibility gate (matches EvaluateElementWarnings).
-            string warnVisible = ParameterHelpers.GetString(el, ParamRegistry.WARN_VISIBLE);
+            string warnVisible = ParameterHelpers.GetValueText(el, ParamRegistry.WARN_VISIBLE);
             bool visible = !(warnVisible == "No" || warnVisible == "0"
                 || warnVisible == "FALSE" || warnVisible == "false");
 
             // Severity filter (matches EvaluateElementWarnings).
-            string severityFilter = ParameterHelpers.GetString(el, ParamRegistry.WARN_SEVERITY_FILTER);
+            string severityFilter = ParameterHelpers.GetValueText(el, ParamRegistry.WARN_SEVERITY_FILTER);
             if (string.IsNullOrEmpty(severityFilter)) severityFilter = "ALL";
             int filterLevel = severityFilter == "ALL" ? 0 : SeverityLevel(severityFilter);
 
@@ -2046,12 +2056,12 @@ namespace StingTools.Core
         public static string EvaluateElementWarnings(Document doc, Element el, string categoryName)
         {
             // Check if warnings are enabled on this element
-            string warnVisible = ParameterHelpers.GetString(el, ParamRegistry.WARN_VISIBLE);
+            string warnVisible = ParameterHelpers.GetValueText(el, ParamRegistry.WARN_VISIBLE);
             if (warnVisible == "No" || warnVisible == "0" || warnVisible == "FALSE" || warnVisible == "false")
                 return null;
 
             // Get severity filter
-            string severityFilter = ParameterHelpers.GetString(el, ParamRegistry.WARN_SEVERITY_FILTER);
+            string severityFilter = ParameterHelpers.GetValueText(el, ParamRegistry.WARN_SEVERITY_FILTER);
             if (string.IsNullOrEmpty(severityFilter)) severityFilter = "ALL";
 
             // Get applicable warnings for this category
@@ -2172,149 +2182,149 @@ namespace StingTools.Core
 
             // U-value checks
             if (wp.Contains("U_VALUE"))
-                return ParameterHelpers.GetString(el, "PER_THERM_U_VALUE_W_M2K");
+                return ParameterHelpers.GetValueText(el, "PER_THERM_U_VALUE_W_M2K");
             // Voltage drop
             if (wp.Contains("VLT_DROP"))
-                return ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.ELC_VOLTAGE);
             // Velocity
             if (wp.Contains("VEL_MPS") && wp.Contains("HVC"))
-                return ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.HVC_VELOCITY);
             if (wp.Contains("VEL_MPS") && wp.Contains("PLM"))
-                return ParameterHelpers.GetString(el, ParamRegistry.PLM_VELOCITY);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.PLM_VELOCITY);
             // Sound
             if (wp.Contains("SOUNDLVL"))
-                return ParameterHelpers.GetString(el, "HVC_DCT_SOUNDLVL_DB");
+                return ParameterHelpers.GetValueText(el, "HVC_DCT_SOUNDLVL_DB");
             // Fire rating
             if (wp.Contains("FRR") || (wp.Contains("FIRE") && wp.Contains("RESISTANCE")))
-                return ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.FIRE_RATING);
             // Floor load
             if (wp.Contains("FLR_LD_CAP"))
-                return ParameterHelpers.GetString(el, "BLE_FLR_LD_CAP_KPA");
+                return ParameterHelpers.GetValueText(el, "BLE_FLR_LD_CAP_KPA");
             // Wall height ratio
             if (wp.Contains("WALL_HEIGHT_RATIO"))
             {
-                string h = ParameterHelpers.GetString(el, ParamRegistry.WALL_HEIGHT);
-                string t = ParameterHelpers.GetString(el, ParamRegistry.WALL_THICKNESS);
+                string h = ParameterHelpers.GetValueText(el, ParamRegistry.WALL_HEIGHT);
+                string t = ParameterHelpers.GetValueText(el, ParamRegistry.WALL_THICKNESS);
                 if (double.TryParse(h, out double hv) && double.TryParse(t, out double tv) && tv > 0)
                     return (hv / tv).ToString("F1");
                 return null;
             }
             // Ramp slope
             if (wp.Contains("RAMP_SLOPE"))
-                return ParameterHelpers.GetString(el, ParamRegistry.RAMP_SLOPE);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.RAMP_SLOPE);
             // Stair dimensions
             if (wp.Contains("STAIR_RISE"))
-                return ParameterHelpers.GetString(el, ParamRegistry.STAIR_RISE);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.STAIR_RISE);
             if (wp.Contains("STAIR_GOING") || wp.Contains("STAIR_TREAD"))
-                return ParameterHelpers.GetString(el, ParamRegistry.STAIR_TREAD);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.STAIR_TREAD);
             if (wp.Contains("STAIR_WIDTH"))
-                return ParameterHelpers.GetString(el, ParamRegistry.STAIR_WIDTH);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.STAIR_WIDTH);
             if (wp.Contains("STAIR_HEADROOM"))
-                return ParameterHelpers.GetString(el, "BLE_STAIR_HEADROOM_MM");
+                return ParameterHelpers.GetValueText(el, "BLE_STAIR_HEADROOM_MM");
             // Door height
             if (wp.Contains("DOOR_HEIGHT"))
-                return ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEIGHT);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.DOOR_HEIGHT);
             // Ceiling height
             if (wp.Contains("CEIL_HEIGHT"))
-                return ParameterHelpers.GetString(el, ParamRegistry.CEILING_HEIGHT);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.CEILING_HEIGHT);
             // Room area
             if (wp.Contains("ROOM_AREA"))
-                return ParameterHelpers.GetString(el, ParamRegistry.ROOM_AREA);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.ROOM_AREA);
             // Room height
             if (wp.Contains("ROOM_HEIGHT"))
-                return ParameterHelpers.GetString(el, "ASS_ROOM_HEIGHT_MM");
+                return ParameterHelpers.GetValueText(el, "ASS_ROOM_HEIGHT_MM");
             // Roof slope
             if (wp.Contains("ROOF_SLOPE"))
-                return ParameterHelpers.GetString(el, ParamRegistry.ROOF_SLOPE);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.ROOF_SLOPE);
             // SHGC / window performance
             if (wp.Contains("SHGC"))
-                return ParameterHelpers.GetString(el, "BLE_CW_PANEL_SHGC");
+                return ParameterHelpers.GetValueText(el, "BLE_CW_PANEL_SHGC");
             // Window U-value
             if (wp.Contains("WINDOW_U_VALUE"))
-                return ParameterHelpers.GetString(el, "BLE_WINDOW_U_VALUE_W_M_2K_NR");
+                return ParameterHelpers.GetValueText(el, "BLE_WINDOW_U_VALUE_W_M_2K_NR");
             // Rail height
             if (wp.Contains("RAIL_HEIGHT"))
-                return ParameterHelpers.GetString(el, "BLE_RAIL_HEIGHT_MM");
+                return ParameterHelpers.GetValueText(el, "BLE_RAIL_HEIGHT_MM");
             // Pipe flow
             if (wp.Contains("FLW_LPS") || wp.Contains("FIXTURE_FLOW"))
-                return ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_FLOW);
             // Fill ratio
             if (wp.Contains("FILL_RATIO"))
-                return ParameterHelpers.GetString(el, "ELC_CDT_FILL_RATIO");
+                return ParameterHelpers.GetValueText(el, "ELC_CDT_FILL_RATIO");
             // Access width
             if (wp.Contains("ACCESS_CLEAR_WIDTH") || wp.Contains("CORRIDOR_WIDTH"))
-                return ParameterHelpers.GetString(el, ParamRegistry.DOOR_WIDTH);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.DOOR_WIDTH);
             // Column slenderness
             if (wp.Contains("SLENDERNESS"))
-                return ParameterHelpers.GetString(el, "BLE_COLUMN_SLENDERNESS");
+                return ParameterHelpers.GetValueText(el, "BLE_COLUMN_SLENDERNESS");
             // Beam span/depth
             if (wp.Contains("SPAN_DEPTH"))
-                return ParameterHelpers.GetString(el, "STR_BEAM_SPAN_DEPTH");
+                return ParameterHelpers.GetValueText(el, "STR_BEAM_SPAN_DEPTH");
             // Beam deflection
             if (wp.Contains("DEFLECTION"))
-                return ParameterHelpers.GetString(el, "STR_BEAM_DEFLECTION");
+                return ParameterHelpers.GetValueText(el, "STR_BEAM_DEFLECTION");
             // Rebar cover
             if (wp.Contains("RBR_COVER"))
-                return ParameterHelpers.GetString(el, "STR_RBR_COVER_MM");
+                return ParameterHelpers.GetValueText(el, "STR_RBR_COVER_MM");
             // Insulation thickness
             if (wp.Contains("INS_THICKNESS"))
-                return ParameterHelpers.GetString(el, ParamRegistry.HVC_INSULATION);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.HVC_INSULATION);
             // Illuminance
             if (wp.Contains("ILLUMINANCE"))
-                return ParameterHelpers.GetString(el, "LTG_ILLUMINANCE_LUX");
+                return ParameterHelpers.GetValueText(el, "LTG_ILLUMINANCE_LUX");
             // Carbon footprint
             if (wp.Contains("CARBON"))
-                return ParameterHelpers.GetString(el, "PER_SUST_CARBON_FOOTPRINT_KG");
+                return ParameterHelpers.GetValueText(el, "PER_SUST_CARBON_FOOTPRINT_KG");
             // Acoustic ratings
             if (wp.Contains("ACOUSTIC") && wp.Contains("STC"))
-                return ParameterHelpers.GetString(el, "PER_ACOUSTIC_WALL_STC");
+                return ParameterHelpers.GetValueText(el, "PER_ACOUSTIC_WALL_STC");
             if (wp.Contains("ACOUSTIC") && wp.Contains("IIC"))
-                return ParameterHelpers.GetString(el, "PER_ACOUSTIC_FLOOR_IIC");
+                return ParameterHelpers.GetValueText(el, "PER_ACOUSTIC_FLOOR_IIC");
             // ELC efficiency
             if (wp.Contains("EFF_RATIO"))
-                return ParameterHelpers.GetString(el, "HVC_EFF_RATIO_NR");
+                return ParameterHelpers.GetValueText(el, "HVC_EFF_RATIO_NR");
             // Short circuit
             if (wp.Contains("SHORT_CIRCUIT"))
-                return ParameterHelpers.GetString(el, "ELC_PNL_SHORT_CIRCUIT_KA");
+                return ParameterHelpers.GetValueText(el, "ELC_PNL_SHORT_CIRCUIT_KA");
             // Spare ways
             if (wp.Contains("SPARE_WAYS"))
             // Pipe gradient
             if (wp.Contains("PIPE_GRADIENT"))
-                return ParameterHelpers.GetString(el, "PLM_PIPE_GRADIENT_PCT");
+                return ParameterHelpers.GetValueText(el, "PLM_PIPE_GRADIENT_PCT");
             // Trap seal
             if (wp.Contains("TRAP_SEAL"))
-                return ParameterHelpers.GetString(el, "PLM_TRAP_SEAL_MM");
+                return ParameterHelpers.GetValueText(el, "PLM_TRAP_SEAL_MM");
             // Foundation bearing/depth
             if (wp.Contains("FDN_BEARING") || wp.Contains("BEARING_CAP"))
-                return ParameterHelpers.GetString(el, "BLE_STRUCT_FDN_BEARING_KPA");
+                return ParameterHelpers.GetValueText(el, "BLE_STRUCT_FDN_BEARING_KPA");
             if (wp.Contains("FDN_DEPTH"))
-                return ParameterHelpers.GetString(el, "STR_FDN_DEPTH_MM");
+                return ParameterHelpers.GetValueText(el, "STR_FDN_DEPTH_MM");
             // Weld
             if (wp.Contains("WLD_STRENGTH"))
-                return ParameterHelpers.GetString(el, "STR_WLD_STRENGTH_MPA");
+                return ParameterHelpers.GetValueText(el, "STR_WLD_STRENGTH_MPA");
             if (wp.Contains("WLD_THROAT"))
-                return ParameterHelpers.GetString(el, "STR_WLD_THROAT_MM");
+                return ParameterHelpers.GetValueText(el, "STR_WLD_THROAT_MM");
             // Connection capacity
             if (wp.Contains("CONN_CAPACITY"))
-                return ParameterHelpers.GetString(el, "STR_CONN_CAPACITY_KN");
+                return ParameterHelpers.GetValueText(el, "STR_CONN_CAPACITY_KN");
             // Sprinkler coverage
             if (wp.Contains("SPR_COVER") || wp.Contains("COVERAGE_AREA"))
-                return ParameterHelpers.GetString(el, "FLS_SFTY_COVERAGE_AREA_SQ_M");
+                return ParameterHelpers.GetValueText(el, "FLS_SFTY_COVERAGE_AREA_SQ_M");
             // IP rating
             if (wp.Contains("IP_RATING"))
-                return ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.ELC_IP_RATING);
             // VOC
             if (wp.Contains("VOC"))
-                return ParameterHelpers.GetString(el, "PER_VOC_EMISSIONS_UG_M3");
+                return ParameterHelpers.GetValueText(el, "PER_VOC_EMISSIONS_UG_M3");
             // Hanger load
             if (wp.Contains("HANGER_LOAD"))
-                return ParameterHelpers.GetString(el, "FAB_HANGER_LOAD_KN");
+                return ParameterHelpers.GetValueText(el, "FAB_HANGER_LOAD_KN");
             // Duct pressure drop
             if (wp.Contains("PRESSURE_DROP"))
-                return ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE);
+                return ParameterHelpers.GetValueText(el, ParamRegistry.HVC_PRESSURE);
             // Parking width
             if (wp.Contains("PARKING_WIDTH"))
-                return ParameterHelpers.GetString(el, "BLE_PARKING_WIDTH_MM");
+                return ParameterHelpers.GetValueText(el, "BLE_PARKING_WIDTH_MM");
 
             // Generic fallback: no mapping found
             return null;
@@ -2334,9 +2344,15 @@ namespace StingTools.Core
         private static string BuildMarkedTechSection(Element el, string disc, string categoryName)
         {
             var sb = new System.Text.StringBuilder();
+            // ELC_CKT_NR (ELC_CIRCUIT_NR) was NUMBER and is now TEXT; a project bound
+            // before the change still holds NUMBER, where GetString returns "". Read it
+            // through GetCircuitNumberText, which answers for either storage type
+            // and prints a NUMBER-bound value as "3", not "3.00".
             void AddM(string paramName, string connector, string unit)
             {
-                string v = ParameterHelpers.GetString(el, paramName);
+                string v = paramName == ParamRegistry.ELC_CIRCUIT_NR
+                    ? ParameterHelpers.GetCircuitNumberText(el, paramName)
+                    : ParameterHelpers.GetValueText(el, paramName);
                 if (!string.IsNullOrEmpty(v))
                 {
                     if (sb.Length > 0) sb.Append(", ");
@@ -2372,6 +2388,13 @@ namespace StingTools.Core
                 AddM(ParamRegistry.HVC_VELOCITY, "at a velocity of", "m/s");
                 AddM(ParamRegistry.HVC_PRESSURE, "against a pressure drop of", "Pa");
             }
+            else if (disc == "MG" || !string.IsNullOrEmpty(ParameterHelpers.GetValueText(el, "MGS_GAS_TYPE_TXT")))
+            {
+                // Medical gas before plumbing (outlets are Plumbing Fixtures, gas pipes are Pipes).
+                AddM("MGS_GAS_TYPE_TXT", "carrying", "medical gas");
+                AddM("MGS_DESIGN_FLOW_LPM_NR", "at a design flow of", "l/min");
+                AddM("MGS_NOM_PRESS_KPA_NR", "at", "kPa nominal pressure");
+            }
             else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" || categoryName == "Pipe Fittings")
             {
                 AddM(ParamRegistry.PLM_PIPE_FLOW, "conveying a flow of", "L/s");
@@ -2393,7 +2416,7 @@ namespace StingTools.Core
             var sb = new System.Text.StringBuilder();
             void AddM(string paramName, string connector, string unit)
             {
-                string v = ParameterHelpers.GetString(el, paramName);
+                string v = ParameterHelpers.GetValueText(el, paramName);
                 if (!string.IsNullOrEmpty(v))
                 {
                     if (sb.Length > 0) sb.Append(", ");
@@ -2463,71 +2486,73 @@ namespace StingTools.Core
 
             if (disc == "E" || categoryName == "Electrical Equipment" || categoryName == "Electrical Fixtures")
             {
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_POWER), "rated at {0} kW");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_VOLTAGE), "operating at {0} V");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "connected to circuit {0}");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_NAME), "supplied by panel {0}");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PHASES), "configured for {0} phase supply");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_FED_FROM), "fed from {0}");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_MAIN_BRK), "protected by a {0} A main breaker");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_WAYS), "with {0} ways");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_IP_RATING), "sealed to IP {0}");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_PNL_LOAD), "carrying a connected load of {0} kW");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_POWER), "rated at {0} kW");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_VOLTAGE), "operating at {0} V");
+                // GetCircuitNumberText: ELC_CKT_NR is TEXT now but NUMBER on older bindings ("3", not "3.00").
+                AppendNatural(tech, ParameterHelpers.GetCircuitNumberText(el, ParamRegistry.ELC_CIRCUIT_NR), "connected to circuit {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_PNL_NAME), "supplied by panel {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_PHASES), "configured for {0} phase supply");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_PNL_FED_FROM), "fed from {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_MAIN_BRK), "protected by a {0} A main breaker");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_WAYS), "with {0} ways");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_IP_RATING), "sealed to IP {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.ELC_PNL_LOAD), "carrying a connected load of {0} kW");
             }
             else if (categoryName == "Lighting Fixtures" || categoryName == "Lighting Devices")
             {
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_WATTAGE), "consuming {0} W");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LUMENS), "delivering {0} lm of luminous output");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_EFFICACY), "achieving an efficacy of {0} lm/W");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.LTG_LAMP_TYPE), "using a {0} lamp");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.ELC_CIRCUIT_NR), "wired to circuit {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.LTG_WATTAGE), "consuming {0} W");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.LTG_LUMENS), "delivering {0} lm of luminous output");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.LTG_EFFICACY), "achieving an efficacy of {0} lm/W");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.LTG_LAMP_TYPE), "using a {0} lamp");
+                AppendNatural(tech, ParameterHelpers.GetCircuitNumberText(el, ParamRegistry.ELC_CIRCUIT_NR), "wired to circuit {0}");
             }
             else if (disc == "M" || categoryName == "Mechanical Equipment" || categoryName == "Ducts" ||
                      categoryName == "Air Terminals" || categoryName == "Duct Fittings")
             {
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW), "delivering an airflow of {0} L/s");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_DUCT_FLOW), "with a duct flow of {0} CFM");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_VELOCITY), "at a velocity of {0} m/s");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.HVC_PRESSURE), "against a pressure drop of {0} Pa");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.HVC_AIRFLOW), "delivering an airflow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.HVC_DUCT_FLOW), "with a duct flow of {0} CFM");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.HVC_VELOCITY), "at a velocity of {0} m/s");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.HVC_PRESSURE), "against a pressure drop of {0} Pa");
+            }
+            // Medical gas before plumbing: outlets are Plumbing Fixtures and gas pipes are
+            // Pipes, so the plumbing branch below used to claim them first and this one never ran.
+            else if (disc == "MG" || !string.IsNullOrEmpty(ParameterHelpers.GetValueText(el, "MGS_GAS_TYPE_TXT")))
+            {
+                // Healthcare: Medical Gas
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "MGS_GAS_TYPE_TXT"), "carrying {0} medical gas");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "MGS_DESIGN_FLOW_LPM_NR"), "at a design flow of {0} l/min");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "MGS_NOM_PRESS_KPA_NR"), "at {0} kPa nominal pressure");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "MGS_OUTLET_ZONE_TXT"), "in zone {0}");
             }
             else if (disc == "P" || categoryName == "Pipes" || categoryName == "Plumbing Fixtures" ||
                      categoryName == "Pipe Fittings")
             {
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW), "conveying a flow of {0} L/s");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE), "through {0} mm diameter pipework");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_VELOCITY), "at a velocity of {0} m/s");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_FLOW_RATE), "with a design flow rate of {0} L/s");
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_LENGTH), "running {0} m in length");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_FLOW), "conveying a flow of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_SIZE), "through {0} mm diameter pipework");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.PLM_VELOCITY), "at a velocity of {0} m/s");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.PLM_FLOW_RATE), "with a design flow rate of {0} L/s");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_LENGTH), "running {0} m in length");
             }
             else if (disc == "FP" || categoryName == "Sprinklers" || categoryName == "Fire Alarm Devices")
             {
-                AppendNatural(tech, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "providing {0} minutes of fire resistance");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, ParamRegistry.FIRE_RATING), "providing {0} minutes of fire resistance");
             }
-            else if (disc == "H" || categoryName == "Rooms" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT")))
+            else if (disc == "H" || categoryName == "Rooms" && !string.IsNullOrEmpty(ParameterHelpers.GetValueText(el, "CLN_ROOM_CLASS_TXT")))
             {
                 // Healthcare: Clinical Room
-                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ROOM_CLASS_TXT"), "classified as a {0} clinical space");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_PRESS_REGIME_TXT"), "operating under {0} pressure regime");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_INFECT_CLASS_TXT"), "with infection control class {0}");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_HTM_REF_TXT"), "per {0}");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "CLN_ADB_CODE_TXT"), "ADB room code {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "CLN_ROOM_CLASS_TXT"), "classified as a {0} clinical space");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "CLN_PRESS_REGIME_TXT"), "operating under {0} pressure regime");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "CLN_INFECT_CLASS_TXT"), "with infection control class {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "CLN_HTM_REF_TXT"), "per {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "CLN_ADB_CODE_TXT"), "ADB room code {0}");
             }
-            else if (disc == "MG" || categoryName == "Pipes" && !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")))
-            {
-                // Healthcare: Medical Gas
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT"), "carrying {0} medical gas");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_FLOW_LS_NR"), "at a design flow of {0} L/s");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_DESIGN_PRESS_KPA_NR"), "at {0} kPa design pressure");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_OUTLET_COUNT_INT"), "serving {0} outlets");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "MGS_NFPA99_ZONE_TXT"), "in NFPA 99 zone {0}");
-            }
-            else if (disc == "RP" || !string.IsNullOrEmpty(ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR")))
+            else if (disc == "RP" || !string.IsNullOrEmpty(ParameterHelpers.GetValueText(el, "RAD_LEAD_MM_NR")))
             {
                 // Healthcare: Radiation Protection
-                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_LEAD_MM_NR"), "with {0} mm Pb shielding");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_MODALITY_TXT"), "protecting against {0}");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_WORKLOAD_WK_NR"), "workload {0} mA·min/wk");
-                AppendNatural(tech, ParameterHelpers.GetString(el, "RAD_QE_NAME_TXT"), "certified by {0}");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "RAD_LEAD_MM_NR"), "with {0} mm Pb shielding");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "RAD_BARRIER_TYPE_TXT"), "as a {0} barrier");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "RAD_WORKLOAD_MAWK_NR"), "workload {0} mA·min/wk");
+                AppendNatural(tech, ParameterHelpers.GetValueText(el, "RAD_QE_NAME_TXT"), "certified by {0}");
             }
 
             return tech.Length > 0 ? tech.ToString() : "";
@@ -2544,52 +2569,52 @@ namespace StingTools.Core
 
             if (categoryName == "Walls")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_HEIGHT), "standing {0} mm high");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_LENGTH), "spanning {0} mm in length");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WALL_THICKNESS), "with a thickness of {0} mm");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "achieving {0} minutes of fire resistance");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "classified structurally as {0}");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.WALL_HEIGHT), "standing {0} mm high");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.WALL_LENGTH), "spanning {0} mm in length");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.WALL_THICKNESS), "with a thickness of {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.FIRE_RATING), "achieving {0} minutes of fire resistance");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.STRUCT_TYPE), "classified structurally as {0}");
             }
             else if (categoryName == "Doors")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_WIDTH), "measuring {0} mm wide");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.DOOR_HEIGHT), "by {0} mm high");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "with {0} minutes of fire resistance");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.DOOR_WIDTH), "measuring {0} mm wide");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.DOOR_HEIGHT), "by {0} mm high");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.FIRE_RATING), "with {0} minutes of fire resistance");
             }
             else if (categoryName == "Windows")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_WIDTH), "measuring {0} mm wide");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_HEIGHT), "by {0} mm high");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.WINDOW_SILL), "set at a sill height of {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.WINDOW_WIDTH), "measuring {0} mm wide");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.WINDOW_HEIGHT), "by {0} mm high");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.WINDOW_SILL), "set at a sill height of {0} mm");
             }
             else if (categoryName == "Floors")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FLR_THICKNESS), "with a build-up of {0} mm thick");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STRUCT_TYPE), "classified structurally as {0}");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING), "achieving {0} minutes of fire resistance");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.FLR_THICKNESS), "with a build-up of {0} mm thick");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.STRUCT_TYPE), "classified structurally as {0}");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.FIRE_RATING), "achieving {0} minutes of fire resistance");
             }
             else if (categoryName == "Ceilings")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.CEILING_HEIGHT), "suspended at {0} mm above floor level");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.CEILING_HEIGHT), "suspended at {0} mm above floor level");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
             }
             else if (categoryName == "Roofs")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ROOF_SLOPE), "pitched at {0} degrees");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.ROOF_SLOPE), "pitched at {0} degrees");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.ELE_AREA), "covering an area of {0} m\u00B2");
             }
             else if (categoryName == "Stairs")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_TREAD), "with treads {0} mm deep");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_RISE), "risers of {0} mm");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.STAIR_WIDTH), "and a clear width of {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.STAIR_TREAD), "with treads {0} mm deep");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.STAIR_RISE), "risers of {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.STAIR_WIDTH), "and a clear width of {0} mm");
             }
             else if (categoryName == "Ramps")
             {
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_SLOPE), "inclined at {0}%");
-                AppendNatural(dim, ParameterHelpers.GetString(el, ParamRegistry.RAMP_WIDTH), "with a clear width of {0} mm");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.RAMP_SLOPE), "inclined at {0}%");
+                AppendNatural(dim, ParameterHelpers.GetValueText(el, ParamRegistry.RAMP_WIDTH), "with a clear width of {0} mm");
             }
 
             return dim.Length > 0 ? dim.ToString() : "";

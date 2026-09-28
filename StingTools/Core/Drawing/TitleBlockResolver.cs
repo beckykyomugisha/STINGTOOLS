@@ -11,7 +11,8 @@
 //
 // TitleBlockResolver is the single choke point that turns a logical name
 // (or a blank field) into the real built family name, using:
-//   * paperSize     → A0 / A1 / A3  (A2 / A4 out of scope)
+//   * paperSize     → any size STING_TITLE_BLOCKS.json declares (A0-A3);
+//                     blank / unsupported sizes are REPORTED, never guessed
 //   * orientation   → Portrait inserts "_PORT"
 //   * BIM mode      → PRJ_SHEET_BIM_MODE_TXT on ProjectInformation,
 //                     default "BIM"
@@ -24,6 +25,10 @@
 // (healthcare "STING - …" families, legacy real families) — the resolver
 // only rewrites the dangling STING_TB_SHEET_* / STING_TB_ASSEMBLY_* names it
 // recognises.
+//
+// T-6: the decision itself lives in the Revit-free TitleBlockFamilyNaming
+// (table-tested); this class only supplies the catalogue, the loaded-family
+// check and the BIM mode, and reports the warnings.
 //
 // Delivery: EnsureFamilyLoaded lazily loads a built-but-not-loaded .rfa from
 // Families/TitleBlocks/ on demand, so a project that ran TitleBlock_CreateAll
@@ -44,54 +49,36 @@ namespace StingTools.Core.Drawing
         /// <summary>
         /// Map a (possibly logical / blank) title-block family name to the
         /// concrete built family for the given drawing type. Never throws;
-        /// returns the input unchanged when it can't recognise the name.
+        /// returns the input unchanged when it can't resolve the name, and
+        /// logs why. Callers that can show the operator a message should use
+        /// <see cref="Resolve"/> and surface its warnings.
         /// </summary>
         public static string ToConcreteFamily(Document doc, DrawingType dt, string declaredFamily)
         {
+            var res = Resolve(doc, dt, declaredFamily);
+            foreach (var w in res.Warnings)
+                StingLog.Warn($"TitleBlockResolver [{dt?.Id}]: {w}");
+            return res.IsResolved ? res.Family : declaredFamily;
+        }
+
+        /// <summary>
+        /// Full resolution: concrete family (null when unresolved) plus the
+        /// warnings an operator needs to see (paper blank, size unsupported,
+        /// presentation variant missing, name/paper mismatch).
+        /// </summary>
+        public static TitleBlockResolution Resolve(Document doc, DrawingType dt, string declaredFamily)
+        {
             try
             {
-                var declared = (declaredFamily ?? "").Trim();
-
-                // Already concrete (data-driven set) or already loaded → keep.
-                if (declared.Length > 0
-                    && (IsConcreteFamily(declared) || IsLoadedTitleBlock(doc, declared)))
-                    return declared;
-
-                string mode = ResolveMode(doc, dt);
-                string orientation = dt?.Orientation;
-                string paper = dt?.PaperSize;
-
-                // Fabrication / assembly logical name → concrete _v1.0.
-                if (declared.StartsWith("STING_TB_ASSEMBLY_", StringComparison.OrdinalIgnoreCase))
-                    return EnsureVersionSuffix(declared);
-
-                // Presentation logical name → the built presentation family.
-                if (declared.IndexOf("PRESENT", StringComparison.OrdinalIgnoreCase) >= 0
-                    && declared.StartsWith("STING_TB_SHEET", StringComparison.OrdinalIgnoreCase))
-                    return "STING_TB_PRESENT_A1_v1.0";
-
-                // Working-sheet logical name → derive by size / orientation / mode.
-                if (declared.StartsWith("STING_TB_SHEET", StringComparison.OrdinalIgnoreCase))
-                {
-                    var size = ExtractSizeCode(declared) ?? NormalizePaper(paper);
-                    var derived = DeriveSheetFamily(size, orientation, mode);
-                    if (derived != null) return derived;
-                }
-
-                // Blank field → derive from paper / orientation / mode.
-                if (declared.Length == 0)
-                {
-                    var derived = DeriveSheetFamily(NormalizePaper(paper), orientation, mode);
-                    if (derived != null) return derived;
-                }
-
-                // Unknown vocabulary (healthcare / legacy real family) — leave as-is.
-                return declared;
+                return TitleBlockFamilyNaming.Resolve(
+                    declaredFamily, dt?.PaperSize, dt?.Orientation, ResolveMode(doc, dt),
+                    ConcreteFamilies(), n => IsLoadedTitleBlock(doc, n));
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"TitleBlockResolver.ToConcreteFamily('{declaredFamily}'): {ex.Message}");
-                return declaredFamily;
+                var r = new TitleBlockResolution();
+                r.Warnings.Add($"TitleBlockResolver.Resolve('{declaredFamily}'): {ex.Message}");
+                return r;
             }
         }
 
@@ -130,7 +117,7 @@ namespace StingTools.Core.Drawing
                 if (!File.Exists(path)) continue;
                 try
                 {
-                    if (doc.LoadFamily(path, new TbLoadOptions(), out Family fam) && fam != null)
+                    if (doc.LoadFamily(path, new TitleBlockLoadOptions(), out Family fam) && fam != null)
                         return true;
                     if (fam != null) return true; // already-present short-circuit
                 }
@@ -164,53 +151,6 @@ namespace StingTools.Core.Drawing
 
         // ── Internals ───────────────────────────────────────────────────
 
-        private static string DeriveSheetFamily(string size, string orientation, string mode)
-        {
-            if (string.IsNullOrEmpty(size)) return null;
-            size = size.ToUpperInvariant();
-            // A2 / A4 are explicitly out of scope for the two-family architecture.
-            if (size != "A0" && size != "A1" && size != "A3") return null;
-            bool portrait = string.Equals((orientation ?? "").Trim(), "Portrait", StringComparison.OrdinalIgnoreCase);
-            string port = portrait ? "_PORT" : "";
-            string m = string.Equals(mode, "NONBIM", StringComparison.OrdinalIgnoreCase) ? "NONBIM" : "BIM";
-            return $"STING_TB_{size}{port}_{m}_v2.0";
-        }
-
-        // "STING_TB_SHEET_A1" / "STING_TB_SHEET_A3_PRESENTATION" → "A1" / "A3".
-        private static string ExtractSizeCode(string logical)
-        {
-            if (string.IsNullOrEmpty(logical)) return null;
-            foreach (var code in new[] { "A0", "A1", "A3" })
-            {
-                var idx = logical.IndexOf(code, StringComparison.OrdinalIgnoreCase);
-                while (idx >= 0)
-                {
-                    bool leftOk = idx == 0 || !char.IsLetterOrDigit(logical[idx - 1]);
-                    bool rightOk = idx + code.Length == logical.Length
-                                || !char.IsLetterOrDigit(logical[idx + code.Length]);
-                    if (leftOk && rightOk) return code.ToUpperInvariant();
-                    idx = logical.IndexOf(code, idx + 1, StringComparison.OrdinalIgnoreCase);
-                }
-            }
-            return null;
-        }
-
-        private static string NormalizePaper(string paper)
-        {
-            paper = (paper ?? "").Trim().ToUpperInvariant();
-            return string.IsNullOrEmpty(paper) ? "A1" : paper;
-        }
-
-        // Fab logical names ("STING_TB_ASSEMBLY_PIPE") gain the _v1.0 suffix
-        // unless they already carry a _vN.N version tag.
-        private static string EnsureVersionSuffix(string name)
-        {
-            if (System.Text.RegularExpressions.Regex.IsMatch(
-                    name ?? "", @"_v\d+\.\d+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-                return name;
-            return name + "_v1.0";
-        }
-
         // Data-driven set of concrete family ids from STING_TITLE_BLOCKS.json
         // (every non-abstract family). Cached once — the corporate baseline is
         // read-only at runtime.
@@ -237,8 +177,6 @@ namespace StingTools.Core.Drawing
                 return set;
             }
         }
-
-        private static bool IsConcreteFamily(string name) => ConcreteFamilies().Contains(name ?? "");
 
         private static bool IsLoadedTitleBlock(Document doc, string familyName)
         {
@@ -276,14 +214,34 @@ namespace StingTools.Core.Drawing
             if (!string.IsNullOrEmpty(prjDir)) yield return prjDir;
             if (!string.IsNullOrEmpty(asmDir)) yield return asmDir;
         }
+    }
 
-        private sealed class TbLoadOptions : IFamilyLoadOptions
-        {
-            public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
-            { overwriteParameterValues = false; return true; }
-            public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
-                out FamilySource source, out bool overwriteParameterValues)
-            { source = FamilySource.Family; overwriteParameterValues = false; return true; }
-        }
+    /// <summary>
+    /// T-6: the ONE IFamilyLoadOptions for STING title blocks. There were two —
+    /// TbLoadOptions here (overwriteParameterValues = false) and
+    /// TitleBlockFamilyLoadOptions in TitleBlockSlotCommands (true) — so the
+    /// same family reload kept or reset type values depending on which
+    /// command happened to load it.
+    /// <para>
+    /// false is the correct semantics. Every caller loads a title block only
+    /// when it is NOT already loaded (provisioning), so OnFamilyFound is
+    /// reached only on a race or a same-name family from another path. In
+    /// that case the family definition (geometry, labels, new parameters)
+    /// still updates, but the project's existing TYPE parameter values are
+    /// kept: a title block is on issued sheets, and silently resetting values
+    /// a project set on its types is a change nobody asked for. Instance
+    /// cells are never affected either way — TitleBlockParamApplier owns
+    /// those. A deliberate "push corporate defaults onto types" is a separate,
+    /// explicit operation, not a side effect of loading.
+    /// </para>
+    /// </summary>
+    public sealed class TitleBlockLoadOptions : IFamilyLoadOptions
+    {
+        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+        { overwriteParameterValues = false; return true; }
+
+        public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
+            out FamilySource source, out bool overwriteParameterValues)
+        { source = FamilySource.Family; overwriteParameterValues = false; return true; }
     }
 }

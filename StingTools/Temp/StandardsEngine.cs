@@ -282,9 +282,11 @@ namespace StingTools.Temp
                 var ratingParam = ParameterHelpers.CachedLookup(circuit, "Rating");
                 double rating = ratingParam?.AsDouble() ?? 0;
 
-                // Check apparent load
-                var loadParam = ParameterHelpers.CachedLookup(circuit, "Apparent Load");
-                double load = loadParam?.AsDouble() ?? 0;
+                // Check design current against the rating. Both in amperes - the
+                // old check compared "Apparent Load" (VA, in internal units)
+                // against the rating in A and printed the VA figure as amps.
+                double load = StingTools.Core.Electrical.ElecUnits.Read(circuit,
+                    BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM);
 
                 if (rating > 0 && load > rating)
                     issues.Add((id, name, $"Load ({load:F1}A) exceeds rating ({rating:F1}A)"));
@@ -294,8 +296,12 @@ namespace StingTools.Temp
                 string wireSize = wireParam?.AsString() ?? "";
 
                 // Check voltage drop (max 3% for lighting, 5% for power per BS 7671)
+                // Revit's "Voltage Drop" is a VOLTAGE in internal units, not a
+                // percentage - express it as % of the circuit's nominal voltage.
                 var vDropParam = ParameterHelpers.CachedLookup(circuit, "Voltage Drop");
-                double vDrop = vDropParam?.AsDouble() ?? 0;
+                double vDropV = StingTools.Core.Electrical.ElecUnits.ToSi(vDropParam);
+                double vNom = StingTools.Core.Electrical.ElecUnits.Volts(circuit);
+                double vDrop = vNom > 0 ? vDropV / vNom * 100.0 : 0;
                 bool isLighting = name.ToLower().Contains("light") || name.ToLower().Contains("ltg");
                 double maxDrop = isLighting ? 3.0 : 5.0;
                 if (vDrop > maxDrop)

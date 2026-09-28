@@ -149,8 +149,10 @@ namespace StingTools.Core
         ///
         /// Returns paramName → BuiltInCategory[] for every parameter that has one or more
         /// rows in CATEGORY_BINDINGS.csv, resolved through ParamRegistry.CategoryEnumMap.
-        /// The pseudo-category "Materials" (OST_Materials does not accept bound parameters)
-        /// is skipped here; material binding is handled separately by CleanMaterialBindings.
+        /// "Materials" is skipped here, not because OST_Materials refuses bound parameters —
+        /// it accepts them — but because material binding is decided by name, by
+        /// LoadSharedParamsCommand.CleanMaterialBindings (IsMaterialRelevantParam), not by
+        /// CSV rows. param_binding_resolver.py refuses a Materials row the name rule would drop.
         /// </summary>
         public static Dictionary<string, BuiltInCategory[]> PerParamCategoryBindings
         {
@@ -324,11 +326,18 @@ namespace StingTools.Core
         // truth (triangulated vs descriptions + code usage). Rows: param,categories(pipe) or
         // "<ALL>" universal. A param ABSENT from the spec is intentionally UNBOUND (documented
         // gap), never broad-bound - this stops cross-discipline leakage by construction.
+        //
+        // A cell may also read "<ALL>|Project Information": universal PLUS categories
+        // outside the universal set (which holds element categories only). Such a
+        // param is in ResolvedUniversalParams AND in ResolvedUniversalExtras.
         private static Dictionary<string, BuiltInCategory[]> _resolvedScoped;
+        private static Dictionary<string, BuiltInCategory[]> _resolvedUniversalExtras;
         private static HashSet<string> _resolvedUniversal;
         private static bool _resolvedLoaded;
         public static Dictionary<string, BuiltInCategory[]> ResolvedScopedBindings { get { EnsureResolved(); return _resolvedScoped; } }
         public static HashSet<string> ResolvedUniversalParams { get { EnsureResolved(); return _resolvedUniversal; } }
+        /// <summary>Categories a universal ("&lt;ALL&gt;|...") param needs beyond the core set.</summary>
+        public static Dictionary<string, BuiltInCategory[]> ResolvedUniversalExtras { get { EnsureResolved(); return _resolvedUniversalExtras; } }
         public static bool HasResolvedSpec { get { EnsureResolved(); return _resolvedScoped.Count > 0 || _resolvedUniversal.Count > 0; } }
         public static void InvalidateResolvedSpec() { _resolvedLoaded = false; }
         private static void EnsureResolved()
@@ -336,7 +345,12 @@ namespace StingTools.Core
             if (_resolvedLoaded) return;
             _resolvedLoaded = true;
             _resolvedScoped = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
+            _resolvedUniversalExtras = new Dictionary<string, BuiltInCategory[]>(StringComparer.Ordinal);
             _resolvedUniversal = new HashSet<string>(StringComparer.Ordinal);
+            // Unknown category name -> the params that named it. A name the map does
+            // not know binds nowhere; it used to be skipped without a word, so a row
+            // naming only such a name looked bound in the spec and bound nothing.
+            var unknown = new Dictionary<string, List<string>>(StringComparer.Ordinal);
             try
             {
                 string path = StingToolsApp.FindDataFile("RESOLVED_BINDINGS.csv");
@@ -349,20 +363,37 @@ namespace StingTools.Core
                     string param = cols[0].Trim(); string cats = cols[1].Trim();
                     if (param.Length == 0 || param.Equals("Parameter_Name", StringComparison.OrdinalIgnoreCase)) continue;
                     if (cats == "<ALL>") { _resolvedUniversal.Add(param); continue; }
+                    string[] names = cats.Split('|');
+                    bool universal = names[0].Trim() == "<ALL>";
                     var list = new List<BuiltInCategory>(); var seen = new HashSet<BuiltInCategory>();
-                    foreach (string nm in cats.Split('|'))
+                    for (int i = universal ? 1 : 0; i < names.Length; i++)
                     {
-                        string catName = nm.Trim();
+                        string catName = names[i].Trim();
                         if (catName.Length == 0 || catName.Equals("Materials", StringComparison.OrdinalIgnoreCase)) continue;
-                        if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr)) continue;
-                        if (!Enum.TryParse(enumStr, out BuiltInCategory bic)) continue;
+                        if (!ParamRegistry.CategoryEnumMap.TryGetValue(catName, out string enumStr)
+                            || !Enum.TryParse(enumStr, out BuiltInCategory bic))
+                        {
+                            if (!unknown.TryGetValue(catName, out var who)) unknown[catName] = who = new List<string>();
+                            who.Add(param);
+                            continue;
+                        }
                         if (seen.Add(bic)) list.Add(bic);
                     }
-                    if (list.Count > 0) _resolvedScoped[param] = list.ToArray();
+                    if (universal)
+                    {
+                        _resolvedUniversal.Add(param);
+                        if (list.Count > 0) _resolvedUniversalExtras[param] = list.ToArray();
+                    }
+                    else if (list.Count > 0) _resolvedScoped[param] = list.ToArray();
                 }
-                StingLog.Info($"SharedParamGuids.ResolvedBindings: {_resolvedScoped.Count} scoped + {_resolvedUniversal.Count} universal");
+                foreach (var kv in unknown)
+                    StingLog.Warn($"SharedParamGuids.ResolvedBindings: category '{kv.Key}' is not in category_enum_map, " +
+                                  $"so {kv.Value.Count} binding(s) to it are dropped (e.g. {string.Join(", ", kv.Value.Take(5))})");
+                StingLog.Info($"SharedParamGuids.ResolvedBindings: {_resolvedScoped.Count} scoped + {_resolvedUniversal.Count} universal " +
+                              $"({_resolvedUniversalExtras.Count} with extra categories)" +
+                              (unknown.Count > 0 ? $"; {unknown.Count} unknown category name(s)" : ""));
             }
-            catch (Exception ex) { StingLog.Error("EnsureResolved failed", ex); _resolvedScoped.Clear(); _resolvedUniversal.Clear(); }
+            catch (Exception ex) { StingLog.Error("EnsureResolved failed", ex); _resolvedScoped.Clear(); _resolvedUniversal.Clear(); _resolvedUniversalExtras.Clear(); }
         }
 
         /// <summary>
@@ -447,16 +478,15 @@ namespace StingTools.Core
                 return -1;
             }
 
-            // Cross-CSV consistency: CATEGORY_BINDINGS.csv (per-param) must agree with
-            // PARAMETER_CATEGORIES.csv (the Categories column). A param whose two files
-            // disagree is a data-integrity error that would silently mis-bind.
+            // Cross-file consistency (PARAM-11): PARAMETER_CATEGORIES.csv must describe the
+            // spec in force (RESOLVED_BINDINGS.csv), from which it is generated.
             try
             {
                 int mismatches = AuditCrossCsvConsistency(out int checkedParams);
                 if (mismatches == 0)
-                    StingLog.Info($"Cross-CSV consistency passed: {checkedParams} params agree between CATEGORY_BINDINGS.csv and PARAMETER_CATEGORIES.csv");
+                    StingLog.Info($"Binding views consistent: {checkedParams} params in PARAMETER_CATEGORIES.csv match RESOLVED_BINDINGS.csv");
                 else
-                    StingLog.Warn($"Cross-CSV consistency: {mismatches} param(s) disagree between CATEGORY_BINDINGS.csv and PARAMETER_CATEGORIES.csv");
+                    StingLog.Warn($"Binding views: {mismatches} param(s) in PARAMETER_CATEGORIES.csv differ from RESOLVED_BINDINGS.csv - run tools/gen_binding_views.py");
                 discrepancies += mismatches;
             }
             catch (Exception ex) { StingLog.Warn($"Cross-CSV consistency check failed: {ex.Message}"); }
@@ -465,20 +495,22 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Assert that CATEGORY_BINDINGS.csv (per-param×category rows) and
-        /// PARAMETER_CATEGORIES.csv (per-param Categories column) describe the same
-        /// category set for every parameter present in both. Returns the number of
-        /// mismatched parameters and logs each one. Comparison is by resolvable
-        /// BuiltInCategory so unresolved names ("Materials", loads, analytical) don't
-        /// produce false positives.
+        /// PARAM-11: assert that PARAMETER_CATEGORIES.csv describes the binding spec in force.
+        /// The file is generated from RESOLVED_BINDINGS.csv by tools/gen_binding_views.py, so a
+        /// mismatch means the shipped data files are out of step with each other. It used to be
+        /// compared with CATEGORY_BINDINGS.csv, the resolver's hand-authored input, and 588
+        /// parameters "disagreed" for that reason alone. "&lt;ALL&gt;" in the Categories column is
+        /// a universal parameter. Compared by resolvable BuiltInCategory, so names Revit cannot
+        /// resolve (Materials, loads, analytical) do not produce false positives.
         /// </summary>
         public static int AuditCrossCsvConsistency(out int checkedParams)
         {
             checkedParams = 0;
-            var perParam = PerParamCategoryBindings; // CATEGORY_BINDINGS.csv, resolved
+            if (!HasResolvedSpec) return 0;
+            var scoped = ResolvedScopedBindings;
+            var universal = ResolvedUniversalParams;
             string pcPath = StingToolsApp.FindDataFile("PARAMETER_CATEGORIES.csv");
             if (pcPath == null) return 0;
-
             int mismatches = 0;
             foreach (string raw in File.ReadAllLines(pcPath))
             {
@@ -488,21 +520,23 @@ namespace StingTools.Core
                 string param = cols[0].Trim();
                 if (param.Length == 0 || param.Equals("Parameter Name", StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (!perParam.TryGetValue(param, out var cbCats)) continue; // only params in both
-
-                // Resolve PARAMETER_CATEGORIES Categories column (comma-separated) to enums
                 var pcNames = cols[4].Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
-                var pcEnums = ParamRegistry.ResolveCategoryEnums(pcNames);
-
-                var cbSet = new HashSet<BuiltInCategory>(cbCats);
-                var pcSet = new HashSet<BuiltInCategory>(pcEnums);
+                bool pcUniversal = pcNames.Contains("<ALL>");
+                bool specUniversal = universal.Contains(param);
                 checkedParams++;
-                if (!cbSet.SetEquals(pcSet))
+                if (pcUniversal != specUniversal)
                 {
                     mismatches++;
-                    var extra = cbSet.Except(pcSet).ToList();
-                    var missing = pcSet.Except(cbSet).ToList();
-                    StingLog.Warn($"Cross-CSV mismatch '{param}': CATEGORY_BINDINGS-only={string.Join("/", extra)} PARAMETER_CATEGORIES-only={string.Join("/", missing)}");
+                    StingLog.Warn($"Binding view mismatch '{param}': PARAMETER_CATEGORIES says {(pcUniversal ? "universal" : "scoped")}, RESOLVED_BINDINGS says {(specUniversal ? "universal" : "scoped")}");
+                    continue;
+                }
+                if (specUniversal) continue; // extras on a universal row are the universal-plus set
+                var pcSet = new HashSet<BuiltInCategory>(ParamRegistry.ResolveCategoryEnums(pcNames.Where(n => n != "<ALL>").ToArray()));
+                var specSet = new HashSet<BuiltInCategory>(scoped.TryGetValue(param, out var cats) ? cats : Array.Empty<BuiltInCategory>());
+                if (!pcSet.SetEquals(specSet))
+                {
+                    mismatches++;
+                    StingLog.Warn($"Binding view mismatch '{param}': RESOLVED-only={string.Join("/", specSet.Except(pcSet))} PARAMETER_CATEGORIES-only={string.Join("/", pcSet.Except(specSet))}");
                 }
             }
             return mismatches;

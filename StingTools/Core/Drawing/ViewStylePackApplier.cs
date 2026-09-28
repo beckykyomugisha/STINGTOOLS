@@ -45,6 +45,17 @@ namespace StingTools.Core.Drawing
         public static void ReadCategoryOverrides(Document doc, View view, ViewStylePack pack) { /* No-op stub. */ }
 
         public static PackApplyResult Apply(Document doc, View view, ViewStylePack pack)
+            => Apply(doc, view, pack, extraLineWeightScale: 1.0);
+
+        /// <summary>
+        /// <paramref name="extraLineWeightScale"/> multiplies the pack's own
+        /// <see cref="ViewStylePack.LineWeightScale"/>. DrawingTypePresentation
+        /// passes the profile's <c>print.lineWeightScale</c> here so the two
+        /// scales are combined into ONE pass over each category's
+        /// OverrideGraphicSettings — two independent passes would compound in
+        /// an order-dependent way.
+        /// </summary>
+        public static PackApplyResult Apply(Document doc, View view, ViewStylePack pack, double extraLineWeightScale)
         {
             var r = new PackApplyResult();
             if (doc == null || view == null || pack == null) return r;
@@ -57,12 +68,82 @@ namespace StingTools.Core.Drawing
             }
 
             ApplyCategoryOverrides(doc, view, pack, r);
+            ApplyLineWeightScale(doc, view, pack, r, extraLineWeightScale);
             ApplyFilterRules(doc, view, pack, r);
             ApplyWorksetVisibility(doc, view, pack, r);
             ApplyLinkOverrides(doc, view, pack, r);
             ApplyColorFillSchemes(doc, view, pack, r);
             ApplyFilterEnabled(doc, view, pack, r);
             return r;
+        }
+
+        /// <summary>
+        /// Scale every line weight this pack states by
+        /// <see cref="ViewStylePack.LineWeightScale"/>.
+        ///
+        /// The field was declared on the pack, promoted from the nested
+        /// "appearance" block by the registry, carried through the extends
+        /// fold — and then read by NOTHING. All 35 shipped packs carry it and
+        /// four author it (0.6 – 1.1 on the presentation packs, whose whole
+        /// point is lighter line work), so a presentation drawing rendered at
+        /// exactly the same weights as a production one.
+        ///
+        /// Revit has no view-level line-weight multiplier, so the scale is
+        /// applied where the pack's own weights are written: each category
+        /// override's projection / cut weight is multiplied and clamped to
+        /// Revit's 1..16. Weights the pack does not state are left alone —
+        /// scaling Revit's own object-style defaults would silently restyle
+        /// categories the pack never mentions.
+        ///
+        /// A scale of 1.0 (the default) is a no-op and costs one comparison.
+        /// </summary>
+        internal static void ApplyLineWeightScale(Document doc, View view, ViewStylePack pack, PackApplyResult r,
+            double extraScale = 1.0)
+        {
+            if (doc == null || view == null || pack == null) return;
+            if (extraScale <= 0) extraScale = 1.0;
+            double scale = (pack.LineWeightScale > 0 ? pack.LineWeightScale : 1.0) * extraScale;
+            if (scale <= 0 || Math.Abs(scale - 1.0) < 1e-9) return;
+            if (pack.VgOverrides == null || pack.VgOverrides.Count == 0) return;
+
+            int scaled = 0;
+            foreach (var kv in pack.VgOverrides)
+            {
+                var src = kv.Value;
+                if (src == null) continue;
+                if (!src.ProjectionLineWeight.HasValue && !src.CutLineWeight.HasValue) continue;
+                try
+                {
+                    var catId = ResolveCategoryIdCached(doc, kv.Key);
+                    if (catId == ElementId.InvalidElementId) continue;
+                    var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
+                    if (src.ProjectionLineWeight.HasValue)
+                        ApplyWeight(ScaleWeight(src.ProjectionLineWeight.Value, scale),
+                            w => ogs.SetProjectionLineWeight(w), kv.Key, "scaled projectionLineWeight", r);
+                    if (src.CutLineWeight.HasValue)
+                        ApplyWeight(ScaleWeight(src.CutLineWeight.Value, scale),
+                            w => ogs.SetCutLineWeight(w), kv.Key, "scaled cutLineWeight", r);
+                    view.SetCategoryOverrides(catId, ogs);
+                    scaled++;
+                }
+                catch (Exception ex) { r.Warnings.Add($"lineWeightScale on '{kv.Key}': {ex.Message}"); }
+            }
+            if (scaled > 0)
+                r.Warnings.Add($"Pack '{pack.Id}' lineWeightScale {scale:0.##} applied to {scaled} category override(s).");
+        }
+
+        /// <summary>
+        /// Multiply and clamp to Revit's 1..16. Rounds to nearest, and never
+        /// below 1 — a scale of 0.6 on weight 1 must stay visible, not vanish.
+        /// Revit-free so the rounding is unit-testable.
+        /// </summary>
+        internal static int ScaleWeight(int weight, double scale)
+        {
+            if (weight <= 0) return weight;
+            int scaled = (int)Math.Round(weight * scale, MidpointRounding.AwayFromZero);
+            if (scaled < MinLineWeight) scaled = MinLineWeight;
+            if (scaled > MaxLineWeight) scaled = MaxLineWeight;
+            return scaled;
         }
 
         /// <summary>
@@ -109,6 +190,37 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// Revit line weights are 1..16; anything else throws. Apply the
+        /// weight when it is in range, treat 0 / null as "not stated", and
+        /// report anything else by name instead of letting the throw abandon
+        /// the surrounding override block.
+        /// </summary>
+        internal const int MinLineWeight = 1;
+        internal const int MaxLineWeight = 16;
+
+        /// <summary>Revit-free range test, so the rule is unit-testable.</summary>
+        internal static bool IsValidLineWeight(int w) => w >= MinLineWeight && w <= MaxLineWeight;
+
+        private static void ApplyWeight(int? weight, Action<int> setter, string subject, string field, PackApplyResult r)
+        {
+            if (!weight.HasValue) return;
+            int w = weight.Value;
+            if (w == 0) return;            // serialiser default ⇒ "not stated"
+            if (!IsValidLineWeight(w))
+            {
+                r?.Warnings.Add(
+                    $"{subject}: {field} {w} is outside Revit's 1..16 range — that one value is ignored; " +
+                    "the rest of the override was applied.");
+                return;
+            }
+            try { setter(w); }
+            catch (Exception ex)
+            {
+                r?.Warnings.Add($"{subject}: {field} {w} rejected by Revit ({ex.Message}); the rest of the override was applied.");
+            }
+        }
+
         internal static void ApplyCategoryOverrides(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (pack.VgOverrides == null) return;
@@ -142,9 +254,25 @@ namespace StingTools.Core.Drawing
                     var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
 
                     if (src.Halftone.HasValue)             ogs.SetHalftone(src.Halftone.Value);
-                    if (src.ProjectionLineWeight.HasValue) ogs.SetProjectionLineWeight(src.ProjectionLineWeight.Value);
+                    // Revit's valid line-weight range is 1..16 and
+                    // SetProjectionLineWeight THROWS outside it. Because the
+                    // throw happens before SetCategoryOverrides at the end of
+                    // this block, one out-of-range weight used to discard the
+                    // category's ENTIRE override — colour, halftone and
+                    // transparency with it — leaving only a warning. A single
+                    // `projWeight: 0` written by a round-trip through a
+                    // non-nullable int (which is exactly what the pack editor
+                    // used to produce) was enough to do it.
+                    //
+                    // ApplyWeight reports the bad value and carries on, so the
+                    // rest of the override still lands. 0 is treated as "not
+                    // stated" rather than as an error, since that is what a
+                    // serialiser default means.
+                    ApplyWeight(src.ProjectionLineWeight, w => ogs.SetProjectionLineWeight(w),
+                        kv.Key, "projectionLineWeight", r);
                     if (!string.IsNullOrEmpty(src.ProjectionLineColor)) ogs.SetProjectionLineColor(HexColor(src.ProjectionLineColor));
-                    if (src.CutLineWeight.HasValue)        ogs.SetCutLineWeight(src.CutLineWeight.Value);
+                    ApplyWeight(src.CutLineWeight, w => ogs.SetCutLineWeight(w),
+                        kv.Key, "cutLineWeight", r);
                     if (!string.IsNullOrEmpty(src.CutLineColor))        ogs.SetCutLineColor(HexColor(src.CutLineColor));
                     if (src.Transparency.HasValue)
                     {
@@ -226,7 +354,8 @@ namespace StingTools.Core.Drawing
                     var projColor = rule.ProjectionLineColor ?? defaults?.ProjColor;
                     if (!string.IsNullOrEmpty(projColor)) ogs.SetProjectionLineColor(HexColor(projColor));
                     var projWeight = rule.ProjectionLineWeight ?? defaults?.ProjWeight;
-                    if (projWeight.HasValue) ogs.SetProjectionLineWeight(projWeight.Value);
+                    ApplyWeight(projWeight, w => ogs.SetProjectionLineWeight(w),
+                        rule.FilterName, "projectionLineWeight", r);
                     var projLp = rule.ProjectionLinePattern ?? defaults?.ProjLinePattern;
                     if (!string.IsNullOrEmpty(projLp))
                     {
@@ -238,7 +367,8 @@ namespace StingTools.Core.Drawing
                     var cutColor = rule.CutLineColor ?? defaults?.CutColor;
                     if (!string.IsNullOrEmpty(cutColor)) ogs.SetCutLineColor(HexColor(cutColor));
                     var cutWeight = rule.CutLineWeight ?? defaults?.CutWeight;
-                    if (cutWeight.HasValue) ogs.SetCutLineWeight(cutWeight.Value);
+                    ApplyWeight(cutWeight, w => ogs.SetCutLineWeight(w),
+                        rule.FilterName, "cutLineWeight", r);
                     var cutLp = rule.CutLinePattern ?? defaults?.CutLinePattern;
                     if (!string.IsNullOrEmpty(cutLp))
                     {
@@ -314,7 +444,11 @@ namespace StingTools.Core.Drawing
                     if (!string.IsNullOrEmpty(dlStr) &&
                         Enum.TryParse<ViewDetailLevel>(dlStr, true, out var dl))
                     {
-                        try { ogs.SetDetailLevel(dl); } catch { /* < 2023 */ }
+                        // V-10: was a silent catch "for < 2023"; the plugin targets
+                        // 2025+, so a throw here is a real failure to honour the
+                        // pack's detail level and must reach the result.
+                        SafeWrite.Try(() => ogs.SetDetailLevel(dl), "ViewStylePack.Filter",
+                            $"detail level '{dlStr}' on filter '{rule.FilterName}'", r?.Warnings);
                     }
 
                     view.SetFilterOverrides(filterId, ogs);
@@ -358,7 +492,8 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// Applies workset visibility settings from <paramref name="pack"/> to
-        /// <paramref name="view"/>. Silently skips when the document is not workshared.
+        /// <paramref name="view"/>. A pack that states no mode is skipped silently; one that states a mode on a
+        /// non-workshared document warns (see <see cref="WorksetVisibilityPlan"/>).
         /// The pack's WorksetVisibility string is a mode keyword: "ShowAll" / "HideAll" / null (skip).
         /// </summary>
         public static void ApplyWorksetVisibility(Document doc, View view, ViewStylePack pack, PackApplyResult r)
@@ -366,11 +501,19 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || pack == null || r == null) return;
             try
             {
-                if (!doc.IsWorkshared)
-                { r.Warnings.Add("ApplyWorksetVisibility: document is not workshared — skipped."); return; }
-                var mode = (pack.WorksetVisibility ?? "").Trim();
-                if (string.IsNullOrEmpty(mode)) return;
-                var visibility = string.Equals(mode, "HideAll", StringComparison.OrdinalIgnoreCase)
+                // V-11: the pack's intent decides first. The workshare check
+                // used to run before this, so every apply on every
+                // non-workshared project warned "skipped" although no shipped
+                // pack sets worksetVisibility -- noise that trains users to
+                // ignore the warnings list.
+                switch (WorksetVisibilityPlan.Decide(pack.WorksetVisibility, doc.IsWorkshared))
+                {
+                    case WorksetVisibilityAction.None: return;
+                    case WorksetVisibilityAction.WarnNotWorkshared:
+                        r.Warnings.Add(WorksetVisibilityPlan.NotWorksharedWarning(pack.Id, pack.WorksetVisibility));
+                        return;
+                }
+                var visibility = WorksetVisibilityPlan.Hides(pack.WorksetVisibility)
                     ? WorksetVisibility.Hidden
                     : WorksetVisibility.Visible;
                 // CA2021: Workset is not an Element, use GetWorksets() instead
@@ -589,28 +732,14 @@ namespace StingTools.Core.Drawing
                         if (string.Equals(sub.Name, trimmed, StringComparison.OrdinalIgnoreCase))
                             return sub.Id;
             }
-            catch { }
-            return ElementId.InvalidElementId;
-        }
-
-        private static ElementId ResolveSubCategoryId(Document doc, string categoryName, string subCatName)
-        {
-            if (string.IsNullOrWhiteSpace(categoryName) || string.IsNullOrWhiteSpace(subCatName))
-                return ElementId.InvalidElementId;
-            try
+            catch (Exception ex)
             {
-                var parent = ResolveCategoryId(doc, categoryName);
-                if (parent == ElementId.InvalidElementId) return ElementId.InvalidElementId;
-                var trimmed = subCatName.Trim('<', '>', ' ');
-                foreach (Category c in doc.Settings.Categories)
-                {
-                    if (c.Id != parent) continue;
-                    foreach (Category sub in c.SubCategories)
-                        if (string.Equals(sub.Name.Trim('<', '>', ' '), trimmed, StringComparison.OrdinalIgnoreCase))
-                            return sub.Id;
-                }
+                // V-10: callers turn InvalidElementId into "category not found",
+                // which is wrong when the lookup THREW. Log the real cause
+                // (rate-limited: this runs per pack key per view).
+                StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ResolveCategoryId",
+                    $"ViewStylePackApplier: category lookup for '{key}' threw -- reported as not found: {ex.Message}");
             }
-            catch { }
             return ElementId.InvalidElementId;
         }
 
@@ -704,7 +833,14 @@ namespace StingTools.Core.Drawing
                         if (svo.Halftone != null || svo.ProjectionLineWeight != null || svo.Transparency != null)
                             result[cat.Name ?? cat.Id.ToString()] = svo;
                     }
-                    catch { /* skip inaccessible categories */ }
+                    catch (Exception exCat)
+                    {
+                        // V-10: an inaccessible category is skipped, but a snapshot
+                        // that silently drops categories reads as "no override" --
+                        // say which (rate-limited: one line per category at most).
+                        StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ReadCategoryOverrides",
+                            $"ReadCategoryOverrides: category '{cat?.Name}' skipped -- not in snapshot: {exCat.Message}");
+                    }
                 }
             }
             catch (Exception ex)

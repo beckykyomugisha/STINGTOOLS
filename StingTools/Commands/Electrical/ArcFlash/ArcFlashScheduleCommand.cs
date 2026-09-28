@@ -31,16 +31,17 @@ namespace StingTools.Commands.Electrical.ArcFlash
             {
                 tx.Start();
                 view = ViewSchedule.CreateSchedule(doc, new ElementId(BuiltInCategory.OST_ElectricalEquipment));
-                try { view.Name = $"STING - Arc Flash Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { view.Name = $"STING - Arc Flash Schedule ({ArcFlashEngine.BasisShort}) - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 var def = view.Definition;
 
                 AddByName(def, doc, "Mark");
                 AddByName(def, doc, "ELC_PNL_DESIGNATION_NAME_TXT");
                 AddByName(def, doc, "ELC_PNL_SHORT_CIRCUIT_RATING_KA", "Available Fault (kA)");
-                AddByName(def, doc, "ELC_ARC_FLASH_IE_CAL_CM2", "Incident Energy (cal/cm²)");
-                AddByName(def, doc, "ELC_ARC_FLASH_BOUNDARY_MM", "Arc Flash Boundary (mm)");
-                AddByName(def, doc, "ELC_ARC_FLASH_PPE_CAT", "PPE Category");
+                AddByName(def, doc, "ELC_ARC_FLASH_IE_CAL_CM2", $"Incident Energy (cal/cm²) — {ArcFlashEngine.BasisShort}");
+                AddByName(def, doc, "ELC_ARC_FLASH_BOUNDARY_MM", $"Arc Flash Boundary (mm) — {ArcFlashEngine.BasisShort}");
+                AddByName(def, doc, "ELC_ARC_FLASH_PPE_CAT", "PPE Category (by energy, indicative)");
                 AddByName(def, doc, "ELC_ARC_FLASH_WORK_DIST_MM", "Working Distance (mm)");
+                AddByName(def, doc, "ELC_ARC_FLASH_LABEL_TXT", "Label / Basis");
 
                 StampDrawingType(view);
                 tx.Commit();
@@ -48,6 +49,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
             try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Arc Flash Schedule",
                 $"Schedule created: {view?.Name}\n" +
+                $"Basis: {ArcFlashEngine.Basis}.\n" +
                 "Place on a sheet manually — PanelScheduleSheetInstance.Create is broken in Revit 2024+.");
             return Result.Succeeded;
         }

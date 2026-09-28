@@ -1227,6 +1227,19 @@ namespace StingTools.BIMManager
                 BIMManagerEngine.AutoRegisterExport(doc, zipPath, "CM",
                     $"ACC publish package — {suitability} — {deliverables.Count} deliverables");
 
+                // Record transmittal
+                string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
+                var transmittals = BIMManagerEngine.LoadJsonArray(txPath);
+                BIMManagerEngine.SyncSequentialCounter(transmittals, "TX");
+                var tx = BIMManagerEngine.CreateTransmittal(doc, "ACC/BIM 360", "", suitability,
+                    $"ACC publish package with {deliverables.Count} deliverables",
+                    new JArray(deliverables.Select(d => Path.GetFileName(d.FilePath))),
+                    // The ZIP is on local disk; the user still has to upload it. The row
+                    // says so rather than asserting an issue that has not happened (IM-17).
+                    TransmittalStatus.Prepared);
+                transmittals.Add(tx);
+                BIMManagerEngine.SaveJsonFile(txPath, transmittals);
+
                 // Record WHICH bundle this was, so ACC_UploadLastBundle can upload it
                 // without a human picking a file. This command still only builds a local
                 // ZIP — nothing here uploads anything — but the file choice a later step
@@ -1238,6 +1251,7 @@ namespace StingTools.BIMManager
                     Directory.CreateDirectory(recDir);
                     string recPath = Path.Combine(recDir, V6.AccBundleRecord.FileName);
                     var rec = V6.AccBundleRecord.ForFile(zipPath, suitability, deliverables.Count);
+                    if (rec != null) rec.TransmittalId = TransmittalRecord.Id(tx);
                     if (rec == null)
                         StingLog.Warn("ACC publish: could not record the bundle for later upload " +
                                       "(the ZIP was not found on disk).");
@@ -1248,15 +1262,6 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception ex) { StingLog.Warn("ACC publish: bundle record: " + ex.Message); }
 
-                // Record transmittal
-                string txPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "transmittals.json");
-                var transmittals = BIMManagerEngine.LoadJsonArray(txPath);
-                BIMManagerEngine.SyncSequentialCounter(transmittals, "TX");
-                var tx = BIMManagerEngine.CreateTransmittal(doc, "ACC/BIM 360", "", suitability,
-                    $"ACC publish package with {deliverables.Count} deliverables",
-                    new JArray(deliverables.Select(d => Path.GetFileName(d.FilePath))));
-                transmittals.Add(tx);
-                BIMManagerEngine.SaveJsonFile(txPath, transmittals);
 
                 long zipSize = new FileInfo(zipPath).Length;
                 string sizeStr = zipSize < 1024 * 1024

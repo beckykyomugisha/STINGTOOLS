@@ -196,23 +196,34 @@ namespace StingTools.Model
                 var csvPath = StingToolsApp.FindDataFile("BLE_MATERIALS.csv");
                 if (!string.IsNullOrEmpty(csvPath))
                 {
-                    var lines = System.IO.File.ReadAllLines(csvPath);
-                    foreach (var line in lines.Skip(1))
+                    // Columns by header name. The loader used fixed positions from an older
+                    // layout, so "density" came from MAT_THICKNESS_INCH (about 0.5 kg/m3),
+                    // thermal conductivity from MAT_COST_UNIT_UGX, the name from
+                    // MAT_APPLICATION and the code from MAT_DISCIPLINE.
+                    var lines = System.IO.File.ReadAllLines(csvPath)
+                        .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#")).ToList();
+                    var header = lines.Count > 0 ? StingToolsApp.ParseCsvLine(lines[0]) : new string[0];
+                    int Col(string name) => Array.FindIndex(header, h => h.Trim().Equals(name, StringComparison.OrdinalIgnoreCase));
+                    int cCat = Col("MAT_CATEGORY"), cName = Col("MAT_NAME"), cCode = Col("MAT_CODE"),
+                        cThk = Col("MAT_THICKNESS_MM"), cRho = Col("PROP_DENSITY_KG_M3"), cLam = Col("PROP_THERMAL_COND_W_MK");
+                    string At(string[] c, int i) => i >= 0 && i < c.Length ? c[i].Trim() : "";
+                    if (cName < 0)
+                        StingLog.Warn("CoveringDB: BLE_MATERIALS.csv has no MAT_NAME column; no plaster materials loaded");
+                    else foreach (var line in lines.Skip(1))
                     {
                         var cols = StingToolsApp.ParseCsvLine(line);
-                        if (cols.Length < 10) continue;
-                        string cat = cols.Length > 6 ? cols[6].ToUpperInvariant() : "";
+                        string cat = (At(cols, cCat) + " " + At(cols, cName)).ToUpperInvariant();
                         if (!cat.Contains("PLASTER") && !cat.Contains("RENDER") &&
                             !cat.Contains("GYPSUM") && !cat.Contains("LIME")) continue;
 
                         _materials.Add(new CoveringMaterialSpec
                         {
                             Type = cat.Contains("RENDER") ? CoveringType.ExternalRender : CoveringType.InternalPlaster,
-                            Name = cols.Length > 7 ? cols[7] : cat,
-                            BLECode = cols.Length > 1 ? cols[1] : "",
-                            DensityKgM3 = cols.Length > 10 ? ParseDouble(cols[10], 1800) : 1800,
-                            ThicknessMm = cols.Length > 9 ? ParseDouble(cols[9], 13) : 13,
-                            ThermalConductivity = cols.Length > 12 ? ParseDouble(cols[12], 0.5) : 0.5,
+                            Name = At(cols, cName),
+                            BLECode = At(cols, cCode),
+                            DensityKgM3 = ParseDouble(At(cols, cRho), 1800),
+                            ThicknessMm = ParseDouble(At(cols, cThk), 13),
+                            ThermalConductivity = ParseDouble(At(cols, cLam), 0.5),
                             MixRatio = cat.Contains("GYPSUM") ? "Premixed" : "1:4 (OPC:sand)",
                             CoverageM2PerUnit = 4.0,
                             CostPerUnit = 6.50,

@@ -15,10 +15,21 @@ namespace StingTools.Commands.Electrical.FeederSizing
     public class FeederSettingsSnapshot
     {
         public double DerateFactor;
-        public string DiversityMode;
+        /// <summary>Applied to the supply-circuit apparent load; 100 = none.</summary>
         public double DiversityPct;
         public string InstallMethod;
-        public double VDLimitPct;
+        /// <summary>PVC70 or XLPE90, and the cable type; with the method they pick the
+        /// Appendix 4 table. Set in the FEEDER SIZING expander, not taken from the CABLE tab.</summary>
+        public string Insulation = "PVC70";
+        public string CableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
+        /// <summary>Feeder VD limit. Defaults to the BS 7671 Appendix 12 'other' limit
+        /// (5 %); was hard-coded 2 %, which upsized every feeder against a limit no
+        /// standard sets.</summary>
+        public double VDLimitPct = DefaultVdLimitPct;
+        public bool VDLimitUserSet;
+
+        /// <summary>BS 7671 Appendix 12 Table 4Ab, other uses (public supply).</summary>
+        public const double DefaultVdLimitPct = 5.0;
     }
 
     [Transaction(TransactionMode.Manual)]
@@ -26,6 +37,9 @@ namespace StingTools.Commands.Electrical.FeederSizing
     public class FeederSizerCommand : IExternalCommand
     {
         public static List<FeederSizeResult> LastResults { get; private set; } = new();
+
+        /// <summary>The standard this run sizes to (ELEC-24), read from the Electrical panel.</summary>
+        private string _standard = StingTools.Standards.ElectricalStandardId.Bs7671;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -35,8 +49,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
 
             var settings = StingElectricalCommandHandler.CurrentFeederSettings
                 ?? new FeederSettingsSnapshot
-                { DerateFactor = 0.8, DiversityMode = "None", DiversityPct = 100,
-                  InstallMethod = "C", VDLimitPct = 2.0 };
+                { DerateFactor = 0.8, DiversityPct = 100,
+                  InstallMethod = "C", VDLimitPct = FeederSettingsSnapshot.DefaultVdLimitPct };
 
             var root = StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc);
             if (root == null)
@@ -45,19 +59,36 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 return Result.Cancelled;
             }
 
+            // ELEC-24: the panel's standard, read once — feeders were always sized to BS 7671,
+            // so an NEC project got BS 7671 feeders with no warning.
+            _standard = StingTools.Standards.ElectricalStandardId.Normalise(
+                StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
+            bool nec = _standard == StingTools.Standards.ElectricalStandardId.Nec2023;
+
             var inputs = new List<FeederSizeInput>();
             CollectInputs(root, settings, inputs, isRoot: true);
 
             var wireTables = WireTableSet.Load(StingToolsApp.DataPath);
-            var results = FeederSizerEngine.CalculateAll(inputs, wireTables);
+            var results = FeederSizerEngine.CalculateAll(inputs, wireTables,
+                StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc));
             LastResults = results;
 
-            int written = 0, vdFails = 0;
+            int written = 0, vdFails = 0, notSized = 0, onDefaults = 0;
+            var notSizedLines = new List<string>();
             using (var tx = new Transaction(doc, "STING Size Feeders"))
             {
                 tx.Start();
                 foreach (var r in results)
                 {
+                    if (r.DefaultsUsed.Count > 0) onDefaults++;
+                    // A refused / skipped feeder must not be stamped as a 0 mm² cable.
+                    if (!r.Sized)
+                    {
+                        notSized++;
+                        if (notSizedLines.Count < 8) notSizedLines.Add($"  {r.PanelName}: {r.Warning}");
+                        StingLog.Warn($"Feeder '{r.PanelName}' not sized: {r.Warning}");
+                        continue;
+                    }
                     try
                     {
                         var panel = FindPanelByName(doc, r.PanelName);
@@ -66,8 +97,11 @@ namespace StingTools.Commands.Electrical.FeederSizing
                             $"{r.ProposedCsaMm2:0.#}", overwrite: true);
                         ParameterHelpers.SetString(panel, ParamRegistry.ELC_FEEDER_RATING_A,
                             $"{r.ProposedRatingA:0}", overwrite: true);
-                        ParameterHelpers.SetString(panel, ParamRegistry.ELC_CKT_VD_PCT,
-                            $"{r.ActualVDPct:0.00}", overwrite: true);
+                        // The sizer's own figure for the cable it chose, on the fed board: A4-SIZED on
+                        // BS 7671 (Appendix 4 mV/A/m); on NEC the sizer's drop is conductor resistance.
+                        StingTools.Core.Electrical.CircuitVoltageDropModel.StampForeign(panel, r.ActualVDPct,
+                            $"{(nec ? StingTools.Core.Electrical.CircuitVoltageDrop.CodeR60228 : StingTools.Core.Electrical.CircuitVoltageDrop.CodeA4Sized)} " +
+                            $"feeder {r.CsaLabel} from the feeder sizer; {r.Basis}");
                         written++;
                         if (!r.VDCompliant) vdFails++;
                     }
@@ -76,9 +110,43 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            var defaults = results.SelectMany(r => r.DefaultsUsed.Select(d => $"{r.PanelName}: {d}")).Take(8).ToList();
+            StingLog.Info($"FeederSizer: {results.Count} feeder(s), stamped {written}, not sized {notSized}, " +
+                          $"on defaults {onDefaults}, VD fails {vdFails}.");
             TaskDialog.Show("STING Feeders",
-                $"Sized {results.Count} feeder(s). Stamped {written}. VD exceedances: {vdFails}.");
+                $"Standard: {(nec ? "NEC 2023 (Table 310.16; derate not applied; voltage drop is advisory)" : "BS 7671 Appendix 4")}.\n" +
+                $"Feeders: {results.Count}. Stamped {written}. Not sized: {notSized}. VD exceedances: {vdFails}.\n" +
+                $"VD limit: {settings.VDLimitPct:0.##} % " +
+                (settings.VDLimitUserSet ? "(user-set for feeders)" : nec ? "(NEC 215.2(A)(1) Informational Note, advisory)" : "(BS 7671 Appendix 12 'other' limit)") +
+                $". Diversity: {(settings.DiversityPct > 0 ? settings.DiversityPct : 100):0.#} %.\n" +
+                (notSized > 0 ? "\nNot sized:\n" + string.Join("\n", notSizedLines) + "\n" : "") +
+                (onDefaults > 0
+                    ? $"\n{onDefaults} feeder(s) used DEFAULT inputs (not model data) — check before issue:\n" +
+                      string.Join("\n", defaults.Select(d => "  " + d))
+                    : ""));
             return Result.Succeeded;
+        }
+
+        /// <summary>The circuit that FEEDS a panel: one of its electrical systems whose base
+        /// equipment is another panel (not this one). Null when the panel has no supply circuit
+        /// in the model.</summary>
+        private static ElectricalSystem SupplyCircuit(FamilyInstance panel)
+        {
+            try
+            {
+                var systems = panel?.MEPModel?.GetElectricalSystems();
+                if (systems == null) return null;
+                foreach (ElectricalSystem s in systems)
+                {
+                    try
+                    {
+                        if (s.BaseEquipment == null || s.BaseEquipment.Id != panel.Id) return s;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Feeder supply circuit: {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Feeder GetElectricalSystems {panel?.Id}: {ex.Message}"); }
+            return null;
         }
 
         private void CollectInputs(StingTools.Core.SLD.SLDNode node, FeederSettingsSnapshot s,
@@ -87,22 +155,66 @@ namespace StingTools.Commands.Electrical.FeederSizing
             if (node == null) return;
             if (!isRoot && node.IsPanel)
             {
-                output.Add(new FeederSizeInput
+                var input = new FeederSizeInput
                 {
                     PanelName       = node.Label ?? "",
-                    DemandKW        = node.LoadKW > 0 ? node.LoadKW : 0,
-                    PowerFactor     = 0.85,
-                    SystemVoltageV  = 415.0,
-                    Phases          = 3,
                     DerateFactor    = s.DerateFactor,
                     DiversityFactor = s.DiversityPct > 0 ? s.DiversityPct / 100.0 : 1.0,
                     InstallMethod   = s.InstallMethod ?? "C",
                     Material        = "Cu",
-                    Insulation      = "XLPE90",
-                    FeederLengthM   = 10.0,
-                    VDLimitPct      = s.VDLimitPct > 0 ? s.VDLimitPct : 2.0,
-                    Standard        = "BS7671"
-                });
+                    Insulation      = string.IsNullOrEmpty(s.Insulation) ? "PVC70" : s.Insulation,
+                    CableType       = string.IsNullOrEmpty(s.CableType)
+                                          ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : s.CableType,
+                    VDLimitPct      = s.VDLimitPct > 0 ? s.VDLimitPct : FeederSettingsSnapshot.DefaultVdLimitPct,
+                    Standard        = _standard
+                };
+                // Insulation and cable type come from the FEEDER SIZING expander (PVC70
+                // multicore when unset); the table they select is named in every Basis.
+
+                // ELEC-3: length, voltage, poles and load come from the circuit that FEEDS
+                // this panel. They were hard-coded (10 m / 415 V / 3-ph / PF 0.85 on the SLD
+                // node's load, which is the last DOWNSTREAM circuit read, not the feed).
+                ElectricalSystem feed = SupplyCircuit(node.RevitElement);
+                if (feed == null)
+                {
+                    input.SkipReason = "no supply circuit in the model — connect the panel to its upstream board " +
+                                       "(its feeder length, voltage and load are read from that circuit).";
+                }
+                else
+                {
+                    double va = StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(feed);
+                    if (va > 0)
+                    {
+                        // Apparent kVA with PF = 1 → Ib is the circuit's apparent line current.
+                        input.DemandKW = va / 1000.0;
+                        input.PowerFactor = 1.0;
+                    }
+                    else input.SkipReason = "supply circuit has no apparent load.";
+
+                    double v = StingTools.Core.Electrical.ElecUnits.Volts(feed);
+                    int poles = 0;
+                    try { poles = feed.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Feeder poles: {ex.Message}"); }
+                    input.Phases = poles >= 3 ? 3 : 1;
+                    if (poles <= 0) input.DefaultsUsed.Add("single-phase (supply circuit pole count unreadable)");
+                    if (v > 0) input.SystemVoltageV = v;
+                    else
+                    {
+                        input.SystemVoltageV = input.Phases == 3 ? 400.0 : 230.0;
+                        input.DefaultsUsed.Add($"voltage {input.SystemVoltageV:0} V (supply circuit has none)");
+                    }
+
+                    double lengthFt = 0;
+                    try { lengthFt = feed.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_LENGTH_PARAM)?.AsDouble() ?? 0; }
+                    catch (Exception ex) { StingLog.Warn($"Feeder length: {ex.Message}"); }
+                    if (lengthFt > 0)
+                        input.FeederLengthM = UnitUtils.ConvertFromInternalUnits(lengthFt, UnitTypeId.Meters);
+                    else
+                    {
+                        input.FeederLengthM = 10.0;
+                        input.DefaultsUsed.Add("length 10 m (supply circuit has no path length — draw its path)");
+                    }
+                }
+                output.Add(input);
             }
             foreach (var child in node.Children ?? Enumerable.Empty<StingTools.Core.SLD.SLDNode>())
                 CollectInputs(child, s, output, isRoot: false);

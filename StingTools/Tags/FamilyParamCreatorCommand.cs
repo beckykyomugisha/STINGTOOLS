@@ -645,7 +645,7 @@ namespace StingTools.Tags
                     ("MNT_ENV_W_MM",               SpecTypeId.Length),
                     ("MNT_ENV_D_MM",               SpecTypeId.Length),
                     ("MNT_ENV_H_MM",               SpecTypeId.Length),
-                    ("MNT_ACCESS_DIR_TXT",         SpecTypeId.String.Text),
+                    (ParamRegistry.MNT_ACCESS_DIR_TXT,         SpecTypeId.String.Text),
                     // Pack 2 — clash-only envelope (ConnectivityValidator/MaintenanceClashValidator)
                     ("CLASH_ENV_W_MM",             SpecTypeId.Length),
                     ("CLASH_ENV_D_MM",             SpecTypeId.Length),

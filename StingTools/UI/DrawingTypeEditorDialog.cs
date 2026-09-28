@@ -4,9 +4,11 @@
 // the registry: left-panel list of all Drawing Types with search,
 // right-panel form grouped into collapsible sections (Identity /
 // Sheet / Views / Numbering / Crop / Section marker / Slots /
-// Annotation / Print). Save, Save-As, Clone, Delete write to
-// <project>/_BIM_COORD/drawing_types.json (project override). The
-// corporate baseline on disk is never mutated — editing a corporate
+// Annotation / Print). Seven tabs: Drawing Types, All Actions, View
+// Style Packs, Viewport Tools, Sheet Tools, Title Block, Sheet Manager.
+// Save writes both project overrides — <project>/_BIM_COORD/
+// drawing_types.json and view_style_packs.json — whichever tab is open.
+// The corporate baseline on disk is never mutated — editing a corporate
 // entry flips its origin to "project" automatically.
 //
 // No live thumbnail preview yet (that needs a Revit export pass on
@@ -23,6 +25,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using StingTools.Core;
 using StingTools.Core.Drawing;
 
@@ -52,12 +55,49 @@ namespace StingTools.UI
         // ── state ──
         private readonly Document _doc;
         private readonly List<DrawingType> _types;       // working copy
+        /// <summary>
+        /// Document-level keys of the style-pack file this editor loaded
+        /// (schemaVersion / name / description / namespace / lastUpdated),
+        /// captured on load and re-emitted on save so persisting packs never
+        /// truncates the file header.
+        ///
+        /// <c>routing</c> is deliberately STRIPPED before it is carried — see
+        /// <see cref="SaveStylePacksToProjectOverride"/>.
+        /// </summary>
+        private IDictionary<string, JToken> _packDocExtra;
+
+        /// <summary>
+        /// Pack id → its serialisation exactly as loaded. A pack whose current
+        /// serialisation differs has been edited, and is saved to the project
+        /// override even if it arrived flagged "corporate".
+        ///
+        /// Without this, editing a corporate pack in place left
+        /// Origin == "corporate", the project-origin-only save skipped it, and
+        /// the edit was discarded on close — the same silent loss as the save
+        /// that never ran at all. Comparing a snapshot cannot be forgotten by a
+        /// future editor control, which flipping a dirty flag inside each of
+        /// the ~40 inline edit lambdas certainly could be.
+        /// </summary>
+        private Dictionary<string, string> _packSnapshot
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>The same snapshot for drawing types. Save wrote only
+        /// project-origin types, so an edit to a corporate type (its scale, sheet
+        /// pattern, pack, slots) was dropped on Save with a "Saved N type(s)"
+        /// message — the defect the pack half was already fixed for. Keyed by the
+        /// normalised serialisation (see <see cref="EditKey"/>) so that merely
+        /// opening a type's form, which creates empty Crop / SectionMarker /
+        /// Annotation / TokenProfile / Slots objects, does not count as an edit and
+        /// freeze an untouched corporate type into the project file.</summary>
+        private Dictionary<string, string> _typeSnapshot
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         private DrawingType _current;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
         private StackPanel _formHost;                    // right-hand form container
         private TextBlock _validationStrip;
         private TabControl _rootTabs;                    // top-level tab host
+        private TabItem _packsTab;                       // jumped to by reference: tab positions move when tabs are added
 
         // Slot grid column widths — header + every data row share these
         // so the column edges line up pixel-for-pixel regardless of the
@@ -103,6 +143,14 @@ namespace StingTools.UI
             "Room Tags", "Area Tags", "Space Tags", "Door Tags", "Window Tags",
             "Model Groups", "Assembly Instances",
         };
+
+        // Tag style suggestions ('{size}{style}_{colour}'): the ISO 3098 sizes only, so the
+        // pickers lead with compliant styles. The combos stay editable — a project that has
+        // chosen 2 or 3 mm can still type it.
+        private static readonly string[] IsoStyleSuggestions =
+            IsoTagText.IsoMatrixSizes.SelectMany(sz => new[] {
+                "NOM_BLACK", "BOLD_BLACK", "NOM_BLUE", "BOLD_BLUE", "NOM_GREEN", "BOLD_GREEN",
+                "NOM_RED", "BOLD_RED", "BOLD_ORANGE", "BOLDITALIC_PURPLE" }.Select(st => sz + st)).ToArray();
 
         private static readonly string[] KnownTaggableCategories = new[]
         {
@@ -309,6 +357,12 @@ namespace StingTools.UI
             var lib = DrawingTypeRegistry.GetLibrary(doc);
             _types = (lib?.DrawingTypes ?? new List<DrawingType>())
                 .Select(Clone).ToList();
+            foreach (var t in _types)
+            {
+                if (t?.Id == null) continue;
+                try { _typeSnapshot[t.Id] = EditKey(t); }
+                catch (Exception ex) { StingLog.Warn($"Type snapshot '{t.Id}': {ex.Message}"); }
+            }
 
             Title = "STING — Drawing Type Editor";
             Width = 1080; Height = 720;
@@ -363,7 +417,9 @@ namespace StingTools.UI
                 Padding = new Thickness(6),
             };
             _rootTabs.Items.Add(MakeTab("Drawing Types",   BuildDrawingTypesTab()));
-            _rootTabs.Items.Add(MakeTab("View Style Packs", BuildViewStylePacksTab()));
+            _rootTabs.Items.Add(MakeTab("All Actions",     BuildAllActionsTab()));
+            _packsTab = MakeTab("View Style Packs", BuildViewStylePacksTab());
+            _rootTabs.Items.Add(_packsTab);
             _rootTabs.Items.Add(MakeTab("Viewport Tools",   BuildViewportToolsTab()));
             _rootTabs.Items.Add(MakeTab("Sheet Tools",      BuildSheetToolsTab()));
             _rootTabs.Items.Add(MakeTab("Title Block",      BuildTitleBlockTab()));
@@ -832,15 +888,7 @@ namespace StingTools.UI
                 v => p.TagColorScheme = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
                 tooltip: "Variable-driven scheme written to STING_VIEW_TAG_STYLE on every view this pack applies to. Profile-level scheme wins."));
 
-            string[] commonStyles = new[] { "",
-                "2NOM_BLACK", "2BOLD_BLACK", "2.5NOM_BLACK", "2.5BOLD_BLACK",
-                "2NOM_BLUE", "2BOLD_BLUE", "2.5NOM_BLUE",
-                "2NOM_GREEN", "2BOLD_GREEN",
-                "2NOM_RED", "2BOLD_RED", "2.5BOLD_RED",
-                "2NOM_ORANGE", "2BOLD_ORANGE",
-                "2.5BOLDITALIC_PURPLE",
-                "3NOM_BLACK", "3BOLD_BLACK", "3.5BOLD_BLACK",
-            };
+            string[] commonStyles = new[] { "" }.Concat(IsoStyleSuggestions).ToArray();
             body.Children.Add(LabeledCombo("Default tag style preset",
                 commonStyles, p.DefaultTagStyle ?? "",
                 v => p.DefaultTagStyle = string.IsNullOrWhiteSpace(v) ? null : v.Trim(),
@@ -883,14 +931,7 @@ namespace StingTools.UI
 
             var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
                              KnownTaggableCategories).ToArray();
-            string[] commonStyles = new[] {
-                "2NOM_BLACK", "2BOLD_BLACK", "2.5NOM_BLACK", "2.5BOLD_BLACK",
-                "2NOM_BLUE", "2BOLD_BLUE",
-                "2NOM_GREEN", "2BOLD_GREEN",
-                "2NOM_RED", "2BOLD_RED", "2.5BOLD_RED",
-                "2NOM_ORANGE", "2BOLD_ORANGE",
-                "3NOM_BLACK", "3BOLD_BLACK",
-            };
+            string[] commonStyles = IsoStyleSuggestions;
 
             foreach (var kv in p.CategoryTagStyles.ToList())
             {
@@ -931,8 +972,9 @@ namespace StingTools.UI
 
             host.Children.Add(MakeSmallBtn("＋ Add category style", () =>
             {
-                var key = "NewCategory" + p.CategoryTagStyles.Count;
-                p.CategoryTagStyles[key] = "2NOM_BLACK";
+                var key = KnownTaggableCategories.FirstOrDefault(c => !p.CategoryTagStyles.ContainsKey(c))
+                          ?? "NewCategory" + p.CategoryTagStyles.Count;
+                p.CategoryTagStyles[key] = Core.TagStyleCatalogue.DefaultSize + "NOM_BLACK";
                 RenderPackForm();
             }));
             return host;
@@ -965,7 +1007,7 @@ namespace StingTools.UI
             var filterNames = Merge(ProjectAssetPicker.ParameterFilterNames(_doc),
                                     CommonStingFilters).ToArray();
             var name = SmallCombo(fr.Name, v => fr.Name = v, filterNames);
-            var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);
+            var vis  = MakeChk(fr.Visible,  v => fr.Visible = v);   // tri-state
             var ht   = MakeChk(fr.Halftone, v => fr.Halftone = v);
             // Phase 137 — Proj-Col / Cut-Col are now colour swatch buttons
             // that open VgColorPicker. Tooltip shows hex + R G B + decimal
@@ -1093,6 +1135,31 @@ namespace StingTools.UI
             }
             body.Children.Add(wrap);
             return Card("Managed fields", body);
+        }
+
+        /// <summary>
+        /// Tri-state checkbox for a nullable flag: ticked = true,
+        /// unticked = false, indeterminate = "the pack does not say", which
+        /// lets the value fall through to the AEC filter registry's own
+        /// default. Needed because StyleFilterRule.Visible / .Halftone are
+        /// deliberately bool? — the editor's two-state box could only ever
+        /// write a hard true/false, so opening a pack and saving it turned
+        /// every "unstated" into an override.
+        /// </summary>
+        private CheckBox MakeChk(bool? value, Action<bool?> setter)
+        {
+            var cb = new CheckBox
+            {
+                IsThreeState        = true,
+                IsChecked           = value,
+                VerticalAlignment   = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                ToolTip             = "Ticked = on · unticked = off · shaded = not stated (use the filter's own default)",
+            };
+            cb.Checked        += (s, e) => setter?.Invoke(true);
+            cb.Unchecked      += (s, e) => setter?.Invoke(false);
+            cb.Indeterminate  += (s, e) => setter?.Invoke(null);
+            return cb;
         }
 
         private CheckBox MakeChk(bool value, Action<bool> setter)
@@ -1285,6 +1352,32 @@ namespace StingTools.UI
                 var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
                 if (!File.Exists(path)) return list;
                 var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
+
+                // Keep the document header (schemaVersion / name / description /
+                // namespace / lastUpdated) so a save re-emits it rather than
+                // truncating the file to a bare pack array — but DROP routing.
+                // ViewStylePackRegistry.Merge prepends project routing over
+                // corporate, so re-emitting the corporate table into the project
+                // override would freeze all of it where it wins for ever.
+                _packDocExtra = doc?.Extra;
+                if (_packDocExtra != null)
+                {
+                    foreach (var key in _packDocExtra.Keys
+                        .Where(k => string.Equals(k, "routing", StringComparison.OrdinalIgnoreCase))
+                        .ToList())
+                        _packDocExtra.Remove(key);
+                }
+
+                // Snapshot every pack as loaded, so an in-place edit to a
+                // corporate pack is detectable at save time.
+                _packSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var p in doc?.StylePacks ?? new List<ViewStylePack>())
+                {
+                    if (p?.Id == null) continue;
+                    try { _packSnapshot[p.Id] = JsonConvert.SerializeObject(p, Formatting.None); }
+                    catch (Exception ex) { StingLog.Warn($"Pack snapshot '{p.Id}': {ex.Message}"); }
+                }
+
                 return doc?.StylePacks ?? list;
             }
             catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
@@ -1294,6 +1387,24 @@ namespace StingTools.UI
         private class ViewStylePackDoc
         {
             [JsonProperty("stylePacks")] public List<ViewStylePack> StylePacks { get; set; }
+
+            // The corporate file keys the array under "stylePacks"; the
+            // runtime POCO's canonical name is "viewStylePacks" and it accepts
+            // both. Accept both here too so the editor can open either shape.
+            [JsonProperty("viewStylePacks", NullValueHandling = NullValueHandling.Ignore)]
+            public List<ViewStylePack> ViewStylePacksAlias
+            {
+                get { return null; }
+                set { if (value != null && value.Count > 0) StylePacks = value; }
+            }
+
+            /// <summary>
+            /// Every document-level key this class does not model — schema
+            /// version, description, namespace, lastUpdated, the routing
+            /// table — captured on load and re-emitted on save. Without it a
+            /// save through the editor silently truncated the file header.
+            /// </summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
         }
 
         private class ViewStylePack
@@ -1309,6 +1420,21 @@ namespace StingTools.UI
             [JsonProperty("colorScheme")] public string ColorScheme { get; set; }
             [JsonProperty("appearance")]  public PackAppearance Appearance { get; set; }
             [JsonProperty("filterRules")] public List<PackFilterRule> FilterRules { get; set; }
+
+            // Two packs in the corporate baseline (corp-coordination, 15 rules;
+            // coord-qa, 4) key their rules under the runtime POCO's canonical
+            // name "filters" rather than "filterRules". This mirror bound only
+            // "filterRules", so opening either pack in the editor and saving
+            // DELETED all 19 rules — a silent data loss of exactly the shape
+            // this codebase keeps producing. Accept both; canonical output
+            // stays "filterRules", which the runtime also reads.
+            [JsonProperty("filters", NullValueHandling = NullValueHandling.Ignore)]
+            public List<PackFilterRule> FiltersAlias
+            {
+                get { return null; }
+                set { if (value != null && value.Count > 0) FilterRules = value; }
+            }
+
             [JsonProperty("vgOverrides")] public Dictionary<string, PackCategoryOverride> VgOverrides { get; set; }
 
             // Phase 135 — Tag Appearance pack-level defaults
@@ -1349,6 +1475,24 @@ namespace StingTools.UI
                 var managed = IsManaged ? "● " : "";
                 return $"{managed}{Id}{ext}";
             }
+            /// <summary>
+            /// Every pack key this mirror does not model — tagFamilies,
+            /// categoryDepths, categoryTag7Sections, checksum, byMaterialClass,
+            /// viewRange, underlay, background, worksetVisibility,
+            /// linkOverrides, colorFillSchemes, filterEnabled and anything the
+            /// runtime POCO gains later — captured on load and re-emitted
+            /// verbatim on save.
+            ///
+            /// This is the structural fix for the mirror itself. The editor's
+            /// nested ViewStylePack had drifted from
+            /// StingTools.Core.Drawing.ViewStylePack, and every field the
+            /// runtime understood but the mirror did not was dropped on save.
+            /// Enumerating the missing fields would only have closed today's
+            /// gap; extension data closes the whole class of it, so the
+            /// mirror can fall behind the runtime without losing user data.
+            /// </summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
+
         }
 
         private class PackViewRangeUi
@@ -1379,39 +1523,84 @@ namespace StingTools.UI
         // surface fg/bg pattern (name + color + visibility) for both
         // projection and cut. Legacy projColor/projWeight/cutColor/cutWeight
         // kept for backward compat with existing JSON files.
+        // KEY CONTRACT. Every JsonProperty name below is the name
+        // StingTools.Core.Drawing.StyleFilterRule reads. The pattern fields
+        // used to be written as surfaceFgPatternName / surfaceFgPatternColor /
+        // surfaceFgPatternVisible (and the bg / cut equivalents), which the
+        // runtime binds NOWHERE — so every pattern override authored in this
+        // editor was unreadable by ViewStylePackApplier. The old spellings are
+        // retained as write-only aliases so a project file already saved with
+        // them still loads; output is always the runtime's contract.
         private class PackFilterRule
         {
             [JsonProperty("name")]         public string Name { get; set; }
-            [JsonProperty("visible")]      public bool Visible { get; set; } = true;
-            [JsonProperty("halftone")]     public bool Halftone { get; set; }
 
-            // ── legacy short field names (kept for back-compat) ──
+            // Tri-state, matching StyleFilterRule.Visible / .Halftone. As
+            // non-nullable bools the editor could not express "the pack does
+            // not say" — it wrote an explicit true/false for every rule,
+            // turning "defer to the AEC filter registry default" into a hard
+            // override on save. See the V-9 note on StyleFilterRule.
+            [JsonProperty("visible",  NullValueHandling = NullValueHandling.Ignore)] public bool? Visible { get; set; } = true;
+            [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)] public bool? Halftone { get; set; }
+
+            // Weights and transparency: DefaultValueHandling.Ignore, not
+            // NullValueHandling. NullValueHandling never suppresses 0 on a
+            // non-nullable int, so the editor emitted projWeight: 0 for every
+            // rule that did not state one — and Revit's valid weight range is
+            // 1..16, so the applier threw and abandoned the whole override.
+            // The editor's own code already treats 0 as "unset" everywhere
+            // (see BuildVgBridge and the transparency textbox), so suppressing
+            // the default is what the rest of the class already assumes.
             [JsonProperty("projColor",  NullValueHandling = NullValueHandling.Ignore)] public string ProjColor { get; set; }
-            [JsonProperty("projWeight", NullValueHandling = NullValueHandling.Ignore)] public int    ProjWeight { get; set; }
+            [JsonProperty("projWeight", DefaultValueHandling = DefaultValueHandling.Ignore)] public int    ProjWeight { get; set; }
             [JsonProperty("cutColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutColor { get; set; }
-            [JsonProperty("cutWeight",  NullValueHandling = NullValueHandling.Ignore)] public int    CutWeight { get; set; }
-            [JsonProperty("transparency", NullValueHandling = NullValueHandling.Ignore)] public int  Transparency { get; set; }
+            [JsonProperty("cutWeight",  DefaultValueHandling = DefaultValueHandling.Ignore)] public int    CutWeight { get; set; }
+            [JsonProperty("transparency", DefaultValueHandling = DefaultValueHandling.Ignore)] public int  Transparency { get; set; }
 
-            // ── new full Revit-style fields ──
             [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string ProjLinePattern { get; set; }
 
-            [JsonProperty("surfaceFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternName { get; set; }
-            [JsonProperty("surfaceFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternColor { get; set; }
-            [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceFgPatternVisible { get; set; }
+            // ── Surface foreground ──
+            [JsonProperty("surfaceFgPattern", NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternName { get; set; }
+            [JsonProperty("surfaceFgColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceFgPatternColor { get; set; }
+            [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? SurfaceFgPatternVisible { get; set; }
+            [JsonProperty("surfaceFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternName = value; } }
+            [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
+            [JsonProperty("surfFgColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgColorShort { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
 
-            [JsonProperty("surfaceBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternName { get; set; }
-            [JsonProperty("surfaceBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternColor { get; set; }
-            [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  SurfaceBgPatternVisible { get; set; }
+            // ── Surface background ──
+            [JsonProperty("surfaceBgPattern", NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternName { get; set; }
+            [JsonProperty("surfaceBgColor",   NullValueHandling = NullValueHandling.Ignore)] public string SurfaceBgPatternColor { get; set; }
+            [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? SurfaceBgPatternVisible { get; set; }
+            [JsonProperty("surfaceBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternName = value; } }
+            [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternColor = value; } }
 
             [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)] public string CutLinePattern { get; set; }
 
-            [JsonProperty("cutFgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternName { get; set; }
-            [JsonProperty("cutFgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternColor { get; set; }
-            [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutFgPatternVisible { get; set; }
+            // ── Cut foreground ──
+            [JsonProperty("cutFgPattern", NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternName { get; set; }
+            [JsonProperty("cutFgColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutFgPatternColor { get; set; }
+            [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? CutFgPatternVisible { get; set; }
+            [JsonProperty("cutFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternName = value; } }
+            [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternColor = value; } }
 
-            [JsonProperty("cutBgPatternName",    NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternName { get; set; }
-            [JsonProperty("cutBgPatternColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternColor { get; set; }
-            [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool?  CutBgPatternVisible { get; set; }
+            // ── Cut background ──
+            [JsonProperty("cutBgPattern", NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternName { get; set; }
+            [JsonProperty("cutBgColor",   NullValueHandling = NullValueHandling.Ignore)] public string CutBgPatternColor { get; set; }
+            [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)] public bool? CutBgPatternVisible { get; set; }
+            [JsonProperty("cutBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternName = value; } }
+            [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternColor = value; } }
+
+            /// <summary>Any rule key this mirror does not model, preserved verbatim through a round trip.</summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
         }
 
         // Phase 136 — PackCategoryOverride mirrors StyleVgOverride's full
@@ -1420,13 +1609,25 @@ namespace StingTools.UI
         // cutWeight kept for backward compat with existing JSON files.
         private class PackCategoryOverride
         {
-            [JsonProperty("visible")]      public bool? Visible { get; set; }
-            [JsonProperty("halftone")]     public bool? Halftone { get; set; }
-            [JsonProperty("projColor")]    public string ProjColor { get; set; }
-            [JsonProperty("projWeight")]   public int ProjWeight { get; set; }
-            [JsonProperty("cutColor")]     public string CutColor { get; set; }
-            [JsonProperty("cutWeight")]    public int CutWeight { get; set; }
-            [JsonProperty("transparency")] public int Transparency { get; set; }
+            [JsonProperty("visible",  NullValueHandling = NullValueHandling.Ignore)] public bool? Visible { get; set; }
+            [JsonProperty("halftone", NullValueHandling = NullValueHandling.Ignore)] public bool? Halftone { get; set; }
+            [JsonProperty("projColor", NullValueHandling = NullValueHandling.Ignore)] public string ProjColor { get; set; }
+
+            // DefaultValueHandling.Ignore, not NullValueHandling: on a
+            // non-nullable int, NullValueHandling suppresses nothing, so every
+            // override this editor saved carried projWeight: 0 / cutWeight: 0 /
+            // transparency: 0 even when the user set none. Revit's line-weight
+            // range is 1..16 and SetProjectionLineWeight throws outside it, so
+            // ViewStylePackApplier abandoned the ENTIRE category override —
+            // colour, halftone and transparency with it — on the first zero.
+            // The class already treats 0 as "unset" (see IsEmpty below and
+            // BuildVgBridge), so suppressing the default matches its own
+            // semantics. ViewStylePackApplier.ApplyWeight now also treats a
+            // stray 0 as unset, so the two halves fail safe independently.
+            [JsonProperty("projWeight",   DefaultValueHandling = DefaultValueHandling.Ignore)] public int ProjWeight { get; set; }
+            [JsonProperty("cutColor",  NullValueHandling = NullValueHandling.Ignore)] public string CutColor { get; set; }
+            [JsonProperty("cutWeight",    DefaultValueHandling = DefaultValueHandling.Ignore)] public int CutWeight { get; set; }
+            [JsonProperty("transparency", DefaultValueHandling = DefaultValueHandling.Ignore)] public int Transparency { get; set; }
             [JsonProperty("detailLevel", NullValueHandling = NullValueHandling.Ignore)]
             public string DetailLevel { get; set; }
 
@@ -1456,35 +1657,69 @@ namespace StingTools.UI
                     && string.IsNullOrEmpty(CutBgPatternColor)
                     && CutBgPatternVisible == null;
             }
-            // Phase 138 — extended Revit VG parity
+            // Phase 138 — extended Revit VG parity.
+            //
+            // KEY CONTRACT: these are the names StyleVgOverride /
+            // StyleFilterRule read. They used to be written as
+            // surfaceFgPatternName / surfaceFgPatternColor (and the bg / cut
+            // equivalents), which bind nowhere in the runtime — so every
+            // pattern override this editor authored was invisible to
+            // ViewStylePackApplier. Legacy spellings are kept as write-only
+            // aliases so an already-saved project file still loads.
             [JsonProperty("projLinePattern", NullValueHandling = NullValueHandling.Ignore)]
             public string ProjLinePattern { get; set; }
-            [JsonProperty("surfaceFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+
+            [JsonProperty("surfaceFgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceFgPatternName { get; set; }
-            [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("surfaceFgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceFgPatternColor { get; set; }
             [JsonProperty("surfaceFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? SurfaceFgPatternVisible { get; set; }
-            [JsonProperty("surfaceBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("surfaceFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternName = value; } }
+            [JsonProperty("surfaceFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
+            [JsonProperty("surfFgColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceFgColorShort { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceFgPatternColor = value; } }
+
+            [JsonProperty("surfaceBgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceBgPatternName { get; set; }
-            [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("surfaceBgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string SurfaceBgPatternColor { get; set; }
             [JsonProperty("surfaceBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? SurfaceBgPatternVisible { get; set; }
+            [JsonProperty("surfaceBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternName = value; } }
+            [JsonProperty("surfaceBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string SurfaceBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) SurfaceBgPatternColor = value; } }
+
             [JsonProperty("cutLinePattern", NullValueHandling = NullValueHandling.Ignore)]
             public string CutLinePattern { get; set; }
-            [JsonProperty("cutFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+
+            [JsonProperty("cutFgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string CutFgPatternName { get; set; }
-            [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("cutFgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string CutFgPatternColor { get; set; }
             [JsonProperty("cutFgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? CutFgPatternVisible { get; set; }
-            [JsonProperty("cutBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("cutFgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternName = value; } }
+            [JsonProperty("cutFgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutFgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutFgPatternColor = value; } }
+
+            [JsonProperty("cutBgPattern", NullValueHandling = NullValueHandling.Ignore)]
             public string CutBgPatternName { get; set; }
-            [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            [JsonProperty("cutBgColor", NullValueHandling = NullValueHandling.Ignore)]
             public string CutBgPatternColor { get; set; }
             [JsonProperty("cutBgPatternVisible", NullValueHandling = NullValueHandling.Ignore)]
             public bool? CutBgPatternVisible { get; set; }
+            [JsonProperty("cutBgPatternName", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternNameLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternName = value; } }
+            [JsonProperty("cutBgPatternColor", NullValueHandling = NullValueHandling.Ignore)]
+            public string CutBgPatternColorLegacy { get { return null; } set { if (!string.IsNullOrEmpty(value)) CutBgPatternColor = value; } }
+
+            /// <summary>Any override key this mirror does not model, preserved verbatim through a round trip.</summary>
+            [JsonExtensionData] public IDictionary<string, JToken> Extra { get; set; }
         }
 
         private UIElement BuildViewportToolsTab()
@@ -1860,6 +2095,32 @@ namespace StingTools.UI
         }
 
         // Toolbar row for the Drawing Types tab — same dispatcher.
+        // Every action of the dock panel's DRAWING TYPES section, in its groups, so
+        // nothing drawing-type-related needs the dock panel. Built from
+        // DrawingTypeActions, which a test holds equal to the dock XAML — a button
+        // added there fails the test until it is listed, and then appears here.
+        private UIElement BuildAllActionsTab()
+        {
+            var stack = new StackPanel { Margin = new Thickness(4) };
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Everything in the dock panel's DRAWING TYPES section. Buttons run through the same "
+                     + "handler as the dock, so they behave identically.",
+                Foreground = new SolidColorBrush(FgColor), TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 8),
+            });
+            foreach (var group in DrawingTypeActions.Groups())
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = group.Key, FontWeight = FontWeights.SemiBold, FontSize = 12,
+                    Foreground = new SolidColorBrush(FgColor), Margin = new Thickness(0, 6, 0, 4),
+                });
+                stack.Children.Add(BuildSectionToolbar(group.Select(a => (a.Label, a.Tag)).ToArray()));
+            }
+            return new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        }
+
         private UIElement BuildSectionToolbar((string label, string tag)[] buttons)
         {
             var bar = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
@@ -2229,7 +2490,7 @@ namespace StingTools.UI
                     var target = (_packs ?? new List<ViewStylePack>()).FirstOrDefault(p =>
                         string.Equals(p.Id, _current.ViewStylePackId, StringComparison.OrdinalIgnoreCase));
                     if (target == null) return;
-                    _rootTabs.SelectedIndex = 1;
+                    _rootTabs.SelectedItem = _packsTab;
                     SelectPack(target);
                 }));
             DockPanel.SetDock(linkRow, Dock.Right);
@@ -2350,6 +2611,19 @@ namespace StingTools.UI
             body.Children.Add(LabeledNullableNumber("Dense until scale (1:N)",
                 pack.DenseUntilScale,  v => pack.DenseUntilScale = v,
                 tooltip: "View scale ≤ this value → full annotation. Coarser → grid dims only. Empty = always full."));
+
+            // ── Tag text height (ISO 3098). Stored on the drawing type, not the pack. ──
+            // There was no control for tagTextSizeMm, so every drawing took the size
+            // derived from its scale. Printed size, independent of the view scale.
+            const string isoDefault = "ISO default (2.5 mm; 3.5 mm on A0)";
+            var sizeItems = new[] { isoDefault }
+                .Concat(DrawingType.IsoLetteringHeightsMm.Select(DrawingType.TagSizeToken)).ToArray();
+            string currentSize = _current.TagTextSizeMm > 0 ? DrawingType.TagSizeToken(_current.TagTextSizeMm) : isoDefault;
+            body.Children.Add(LabeledCombo("Tag text height", sizeItems, currentSize, v =>
+            {
+                var mm = TagSizeVariant.ParseToken(v);
+                _current.TagTextSizeMm = mm ?? 0;
+            }));
 
             // ── Tag families + per-category Depth (Change 4 + 5) ──
             body.Children.Add(BuildTagFamiliesGrid(pack));
@@ -2738,7 +3012,7 @@ namespace StingTools.UI
             var cats   = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
                                KnownTaggableCategories).ToArray();
             var fams   = Merge(ProjectAssetPicker.TagFamilyNames(_doc),
-                               Iso19650Vocabulary.CommonTagFamilies).ToArray();
+                               Tags.TagFamilyConfig.AllFamilyNames()).ToArray();
 
             var enabled = MakeChk(rule.Enabled, b => rule.Enabled = b);
             var cat     = SmallCombo(rule.Category, v => rule.Category = v, cats);
@@ -2792,8 +3066,13 @@ namespace StingTools.UI
 
             host.Children.Add(MakeSmallBtn("＋ Add category mapping", () =>
             {
-                var key = "NewCategory" + pack.TagFamilies.Count;
-                pack.TagFamilies[key] = "STING_TAG_FAMILY";
+                // A real category and the STING family built for it, not a placeholder:
+                // "STING_TAG_FAMILY" named nothing, so a row left as added tagged with
+                // whatever tag happened to load first.
+                var key = KnownTaggableCategories.FirstOrDefault(c => !pack.TagFamilies.ContainsKey(c)
+                                                                   && Tags.TagFamilyConfig.FamilyNameForCategoryName(c) != null)
+                          ?? "NewCategory" + pack.TagFamilies.Count;
+                pack.TagFamilies[key] = Tags.TagFamilyConfig.FamilyNameForCategoryName(key) ?? "";
                 RenderForm();
             }));
             return host;
@@ -2832,7 +3111,7 @@ namespace StingTools.UI
             var cats = Merge(ProjectAssetPicker.TaggableCategoryNames(_doc),
                              KnownTaggableCategories).ToArray();
             var fams = Merge(ProjectAssetPicker.TagFamilyNames(_doc),
-                             Iso19650Vocabulary.CommonTagFamilies).ToArray();
+                             Tags.TagFamilyConfig.AllFamilyNames()).ToArray();
 
             // Category combo — rename-key-preserves-value semantics.
             var k = SmallCombo(catKey, newKey =>
@@ -3025,8 +3304,8 @@ namespace StingTools.UI
             row.Children.Add(right);
 
             var hint = new TextBlock {
-                Text = "Save writes the active tab to <project>/_BIM_COORD/drawing_types.json or view_style_packs.json — " +
-                       "project override only. Corporate baseline on disk is never mutated. " +
+                Text = "Save writes both project overrides — <project>/_BIM_COORD/drawing_types.json and view_style_packs.json — " +
+                       "whichever tab is open. Corporate baseline on disk is never mutated. " +
                        "Action tabs dispatch directly via the dock-panel external-event queue.",
                 Foreground = new SolidColorBrush(SubtleColor),
                 FontSize = 11,
@@ -3088,6 +3367,26 @@ namespace StingTools.UI
             if (_current != null) SelectType(_current); else RenderForm();
         }
 
+        /// <summary>
+        /// Persist both edited catalogues to the project override.
+        ///
+        /// Two fixes live here.
+        ///
+        /// (1) Style packs are now written. The footer hint has always said
+        /// "Save writes the active tab to … drawing_types.json or
+        /// view_style_packs.json", the pack tab offers New / Clone / Delete
+        /// and a full VG editor, and one of its actions even tells the user to
+        /// "Save to persist to &lt;project&gt;/_BIM_COORD/view_style_packs.json"
+        /// — but nothing in this dialog ever wrote that file. Every pack edit
+        /// was discarded on close, silently, which is the most likely reason a
+        /// pack can look edited in the UI and unchanged on the drawing.
+        ///
+        /// (2) Routing persists only PROJECT rules. It used to write
+        /// DrawingTypeRegistry.ListRouting(doc) — the fully merged table — so
+        /// all 113 corporate rules were frozen into the project file, where
+        /// they are prepended and win for ever. DrawingRoutingRule.Origin now
+        /// makes "mine" answerable.
+        /// </summary>
         private bool SaveToProjectOverride()
         {
             if (_doc == null || string.IsNullOrEmpty(_doc.PathName))
@@ -3101,23 +3400,60 @@ namespace StingTools.UI
             {
                 var dir = StingPaths.Meta(_doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
-                var path = Path.Combine(dir, "drawing_types.json");
 
-                // Write ONLY project-origin types + the routing table so
-                // the corporate baseline on disk stays pristine; if the
-                // user edited a corporate entry, ComputeChecksums already
-                // flipped its origin to "project" during load.
+                // ── Drawing types ──────────────────────────────────────────
+                var typesPath = Path.Combine(dir, "drawing_types.json");
+
+                // An edited corporate type becomes a project type, as an edited
+                // corporate pack does below; its corporate checksum is cleared
+                // because it no longer describes the entry.
+                int promoted = 0;
+                foreach (var t in _types)
+                {
+                    if (t?.Id == null) continue;
+                    if (string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!_typeSnapshot.TryGetValue(t.Id, out var before)) continue;
+                    string now;
+                    try { now = EditKey(t); }
+                    catch (Exception ex) { StingLog.Warn($"Type diff '{t.Id}': {ex.Message}"); continue; }
+                    if (string.Equals(before, now, StringComparison.Ordinal)) continue;
+                    t.Origin = "project";
+                    t.Checksum = null;
+                    promoted++;
+                    StingLog.Info($"Drawing type '{t.Id}' was edited; origin flipped to project so the edit persists.");
+                }
+
+                var projectTypes = _types
+                    .Where(t => string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                var projectRouting = DrawingTypeRegistry.ListRouting(_doc)
+                    .Where(r => r != null && r.IsProjectRule)
+                    .ToList();
+
                 var lib = new DrawingTypeLibrary
                 {
                     Version = 1,
-                    DrawingTypes = _types.Where(t => string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase)).ToList(),
-                    Routing = new List<DrawingRoutingRule>(DrawingTypeRegistry.ListRouting(_doc)),
+                    DrawingTypes = projectTypes,
+                    Routing = projectRouting,
                 };
-                File.WriteAllText(path, JsonConvert.SerializeObject(lib, Formatting.Indented));
+                File.WriteAllText(typesPath, JsonConvert.SerializeObject(lib, Formatting.Indented));
+
+                // ── Style packs ────────────────────────────────────────────
+                int packCount = SaveStylePacksToProjectOverride(dir, out string packsPath, out string packError);
+
                 DrawingTypeRegistry.Reload(_doc);
-                System.Windows.MessageBox.Show(
-                    $"Saved {lib.DrawingTypes.Count} project-scoped type(s) to\n{path}",
-                    "STING — Drawing Types", MessageBoxButton.OK);
+                ViewStylePackRegistry.Reload(_doc);
+
+                var msg = $"Saved {projectTypes.Count} project-scoped drawing type(s)"
+                        + (projectRouting.Count > 0 ? $" and {projectRouting.Count} routing rule(s)" : "")
+                        + $" to\n{typesPath}"
+                        + (promoted > 0 ? $"\n({promoted} edited corporate type(s) now override the baseline in this project)" : "");
+                if (packCount >= 0)
+                    msg += $"\n\nSaved {packCount} project-scoped style pack(s) to\n{packsPath}";
+                if (!string.IsNullOrEmpty(packError))
+                    msg += $"\n\nStyle packs were NOT saved: {packError}";
+
+                System.Windows.MessageBox.Show(msg, "STING — Drawing Types", MessageBoxButton.OK);
                 return true;
             }
             catch (Exception ex)
@@ -3126,6 +3462,62 @@ namespace StingTools.UI
                 System.Windows.MessageBox.Show("Save failed: " + ex.Message,
                     "STING", MessageBoxButton.OK);
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Write the project-origin style packs to
+        /// &lt;project&gt;/_BIM_COORD/view_style_packs.json. Returns the count
+        /// written, or -1 with <paramref name="error"/> set.
+        ///
+        /// The array is keyed "stylePacks" — the name both the corporate file
+        /// and ViewStylePackLibrary.StylePacksAlias use — and the document
+        /// header captured in ViewStylePackDoc.Extra is re-emitted, so a save
+        /// never truncates schemaVersion / description / namespace / the
+        /// routing table. Corporate packs are excluded so the shipped baseline
+        /// is never mutated, matching the drawing-type half.
+        /// </summary>
+        private int SaveStylePacksToProjectOverride(string dir, out string path, out string error)
+        {
+            path = Path.Combine(dir ?? "", "view_style_packs.json");
+            error = null;
+            try
+            {
+                if (_packs == null) { error = "no packs were loaded."; return -1; }
+
+                // A pack is written when it is project-origin OR when its
+                // serialisation has moved since load. The second case is what
+                // makes editing a corporate pack persist: it arrives flagged
+                // "corporate", and a project-origin-only filter dropped the
+                // edit silently. Flipping Origin here mirrors what
+                // DrawingTypeRegistry.ComputeChecksums does for a drifted
+                // corporate drawing type.
+                foreach (var p in _packs)
+                {
+                    if (p?.Id == null) continue;
+                    if (string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!_packSnapshot.TryGetValue(p.Id, out var before)) continue;
+                    string now;
+                    try { now = JsonConvert.SerializeObject(p, Formatting.None); }
+                    catch (Exception ex) { StingLog.Warn($"Pack diff '{p.Id}': {ex.Message}"); continue; }
+                    if (string.Equals(before, now, StringComparison.Ordinal)) continue;
+                    p.Origin = "project";
+                    StingLog.Info($"Style pack '{p.Id}' was edited; origin flipped to project so the edit persists.");
+                }
+
+                var projectPacks = _packs
+                    .Where(p => p != null && string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                var doc = new ViewStylePackDoc { StylePacks = projectPacks, Extra = _packDocExtra };
+                File.WriteAllText(path, JsonConvert.SerializeObject(doc, Formatting.Indented));
+                return projectPacks.Count;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("DrawingTypeEditorDialog.SaveStylePacks", ex);
+                error = ex.Message;
+                return -1;
             }
         }
 
@@ -3312,6 +3704,23 @@ namespace StingTools.UI
 
         private static double Parse(string s)
             => double.TryParse(s, out var d) ? d : 0.0;
+
+        /// <summary>Serialisation used to tell an edit from a view: a clone with the
+        /// sub-objects the form creates on render filled in the same way, so a type
+        /// that was only looked at compares equal to its snapshot. The working copy
+        /// itself is not touched.</summary>
+        private static string EditKey(DrawingType t)
+        {
+            var c = Clone(t);
+            c.Crop = c.Crop ?? new DrawingCropStrategy();
+            c.SectionMarker = c.SectionMarker ?? new SectionMarkerSpec();
+            c.Annotation = c.Annotation ?? new AnnotationRulePack();
+            c.TokenProfile = c.TokenProfile ?? new AnnotationTokenProfile();
+            c.Slots = c.Slots ?? new List<DrawingSlot>();
+            c.Origin = null;
+            c.Checksum = null;
+            return JsonConvert.SerializeObject(c, Formatting.None);
+        }
 
         private static DrawingType Clone(DrawingType src)
         {

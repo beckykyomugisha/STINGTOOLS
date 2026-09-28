@@ -135,7 +135,10 @@ namespace StingTools.Commands.Lightning
             {
                 var p = el?.LookupParameter(paramName);
                 if (p == null || p.IsReadOnly) return;
-                if (p.StorageType == StorageType.Double) p.Set(valueInRevitDisplay);
+                // A LENGTH parameter stores internal feet; the value here is in the
+                // metres / millimetres the parameter name says (_M / _MM).
+                if (p.StorageType == StorageType.Double)
+                    p.Set(LpsEngine.ToInternalIfLength(p, paramName, valueInRevitDisplay));
                 else if (p.StorageType == StorageType.String) p.Set(valueInRevitDisplay.ToString("F2"));
                 else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(valueInRevitDisplay));
             }
@@ -687,7 +690,7 @@ namespace StingTools.Commands.Lightning
             progress?.Close();
 
             // Export CSV
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Bonding_Inventory", ".csv");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "REGISTER", "STING_LPS_Bonding_Inventory", ".csv", "E");
             try
             {
                 var csv = new StringBuilder();
@@ -1082,7 +1085,7 @@ namespace StingTools.Commands.Lightning
                             {
                                 var p = dc.LookupParameter(LpsParams.SEPARATION_DISTANCE_MM);
                                 if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
-                                    p.Set(sMm);
+                                    p.Set(LpsEngine.ToInternalIfLength(p, LpsParams.SEPARATION_DISTANCE_MM, sMm));
                             }
                             catch (Exception ex2) { StingLog.Warn($"Stamp s: {ex2.Message}"); }
                         }
@@ -1260,7 +1263,7 @@ namespace StingTools.Commands.Lightning
             }
 
             // Export CSV
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Inspection_Schedule", ".csv");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Maintenance", "STING_LPS_Inspection_Schedule", ".csv", "E");
             try
             {
                 var csv = new StringBuilder();
@@ -1542,7 +1545,7 @@ namespace StingTools.Commands.Lightning
                 ["earth_electrodes"] = electrodeRows,
             };
 
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Compliance_Report", ".docx");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_LPS_Compliance_Report", ".docx", "E");
             try
             {
                 MiniWord.SaveAsByTemplate(outPath, templatePath, dict);
@@ -1563,7 +1566,7 @@ namespace StingTools.Commands.Lightning
             List<Dictionary<string, object>> conductorRows,
             List<Dictionary<string, object>> electrodeRows)
         {
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Compliance_Report", ".csv");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_LPS_Compliance_Report", ".csv", "E");
             try
             {
                 var csv = new StringBuilder();
@@ -1959,7 +1962,9 @@ namespace StingTools.Commands.Lightning
             {
                 var p = el?.LookupParameter(paramName);
                 if (p == null || p.IsReadOnly) return;
-                if (p.StorageType == StorageType.Double) p.Set(value);
+                // A LENGTH parameter stores internal feet; the value here is in the
+                // metres / millimetres the parameter name says (_M / _MM).
+                if (p.StorageType == StorageType.Double) p.Set(LpsEngine.ToInternalIfLength(p, paramName, value));
                 else if (p.StorageType == StorageType.String) p.Set(value.ToString("F4"));
                 else if (p.StorageType == StorageType.Integer) p.Set((int)Math.Round(value));
             }

@@ -38,7 +38,8 @@ namespace StingTools.Tags.Tests
         public static bool IsUniversal(string param)
         {
             string[] cats;
-            return Bindings.TryGetValue(param, out cats) && cats.Length == 1 && cats[0] == "<ALL>";
+            // "<ALL>" or "<ALL>|Project Information" (universal plus extras).
+            return Bindings.TryGetValue(param, out cats) && cats.Length >= 1 && cats[0] == "<ALL>";
         }
 
         private static string DataPath(string name)

@@ -468,7 +468,7 @@ namespace StingTools.BIMManager
             Document doc = ctx.Doc;
 
             var groups = QualityAssuranceEngine.CollectWarnings(doc);
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "WarningExport", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "WarningExport", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Severity,Count,Description,ElementIds");
@@ -586,7 +586,7 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             var health = QualityAssuranceEngine.CalculateModelHealth(ctx.Doc);
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "ModelHealth", ".json");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Compliance", "ModelHealth", ".json");
 
             var obj = new
             {
@@ -653,7 +653,7 @@ namespace StingTools.BIMManager
             var result = td.Show();
             if (result == TaskDialogResult.CommandLink1)
             {
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "QAReport", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "QAReport", ".csv");
                 File.WriteAllText(path, report);
                 TaskDialog.Show("QA Report", $"Exported to:\n{path}");
             }

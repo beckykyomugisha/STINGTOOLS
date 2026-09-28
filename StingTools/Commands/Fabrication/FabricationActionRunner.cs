@@ -104,7 +104,7 @@ namespace StingTools.Commands.Fabrication
                 rows.Add(new CutListRow
                 {
                     ElementId = id.Value,
-                    System    = ReadString(p, "PLM_SYS_TXT"),
+                    System    = StingTools.Core.Mep.ServiceSystemName.Read(p),
                     SizeMm    = diaFt * 304.8,
                     LengthMm  = lenFt * 304.8,
                     Material  = ReadString(p, "PLM_PPE_MAT_TXT"),
@@ -116,7 +116,7 @@ namespace StingTools.Commands.Fabrication
         public static string RunCutList(UIDocument uidoc, IEnumerable<CutListRow> rows)
         {
             var doc = uidoc.Document;
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_pipe_cut_list.csv");
             int n = 0;
@@ -164,7 +164,7 @@ namespace StingTools.Commands.Fabrication
         public static string RunWeldMap(UIDocument uidoc, IEnumerable<WeldMapRow> rows)
         {
             var doc = uidoc.Document;
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_pipe_welds.csv");
             int n = 0;
@@ -192,9 +192,7 @@ namespace StingTools.Commands.Fabrication
                 .GroupBy(e => new
                 {
                     Discipline = DisciplineFor(e),
-                    System     = ReadString(e, "PLM_SYS_TXT")
-                                   + ReadString(e, "MEC_SYS_TXT")
-                                   + ReadString(e, "ELC_SYS_TXT"),
+                    System     = StingTools.Core.Mep.ServiceSystemName.Read(e),
                     Level      = ReadString(e, "ASS_LVL_COD_TXT"),
                 });
             int seq = 1;
@@ -311,7 +309,7 @@ namespace StingTools.Commands.Fabrication
                 {
                     ElementId   = id.Value,
                     Category    = el.Category?.Name ?? "",
-                    ServiceName = ReadString(el, "PLM_SYS_TXT") + ReadString(el, "MEC_SYS_TXT"),
+                    ServiceName = StingTools.Core.Mep.ServiceSystemName.Read(el),
                     PartName    = el.Name ?? "",
                 });
             }
@@ -339,7 +337,7 @@ namespace StingTools.Commands.Fabrication
         public static string RunIsometrics(UIDocument uidoc, IEnumerable<IsoSheetRow> rows)
         {
             var doc = uidoc.Document;
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_isometric_sheet_index.csv");
             int n = 0;

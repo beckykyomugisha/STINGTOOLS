@@ -156,5 +156,17 @@ namespace StingTools.Tags.Tests
                     $"'{input}' produced '{role}', which is not an ISO 19650 role code");
             }
         }
+
+        [Theory]
+        [InlineData("A-101", null, "A")]
+        [InlineData("AR-101", null, "A")]              // was "AR" in two of the old parsers
+        [InlineData("SAH-PLNS-ZZ-01-DR-S-0004", null, "S")]   // was "SAH"
+        [InlineData("SAH-PLNS-ZZ-01-DR-M-0001", null, "M")]
+        [InlineData("SAH-PLNS-ZZ-01-DR-Z-0002", null, "GEN")]
+        [InlineData("101", "GROUND FLOOR PLAN - MECHANICAL", "M")]
+        [InlineData("101", "COVER", null)]
+        [InlineData(null, null, null)]
+        public void ForSheet_is_the_one_answer_for_what_a_sheet_declares(string number, string title, string expected)
+            => Assert.Equal(expected, SheetDisciplineResolver.ForSheet(number, title));
     }
 }

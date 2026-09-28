@@ -76,7 +76,7 @@ namespace StingTools.UI.PlacementCenter
                 Add(rows, sampleType, sampleInst, "MNT_ENV_W_MM",               "mm");
                 Add(rows, sampleType, sampleInst, "MNT_ENV_D_MM",               "mm");
                 Add(rows, sampleType, sampleInst, "MNT_ENV_H_MM",               "mm");
-                Add(rows, sampleType, sampleInst, "MNT_ACCESS_DIR_TXT",         "");
+                Add(rows, sampleType, sampleInst, ParamRegistry.MNT_ACCESS_DIR_TXT,         "");
 
                 Add(rows, sampleType, sampleInst, "CLASH_PRIORITY_INT",         "");
                 Add(rows, sampleType, sampleInst, "CLASH_SOFT_TOLERANCE_MM",    "mm");

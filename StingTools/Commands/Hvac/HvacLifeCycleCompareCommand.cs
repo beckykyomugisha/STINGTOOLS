@@ -169,8 +169,8 @@ namespace StingTools.Commands.Hvac
             {
                 foreach (var e in new FilteredElementCollector(doc).OfClass(typeof(Space)).WhereElementIsNotElementType())
                 {
-                    double v = ParameterHelpers.GetInt(e, "HVC_PEAK_SENS_W", 0);
-                    if (v <= 0) { double.TryParse(ParameterHelpers.GetString(e, "HVC_PEAK_SENS_W"), out v); }
+                    // NUMBER, or TEXT on a project bound before; GetDouble reads either, invariantly.
+                    double v = ParameterHelpers.GetDouble(e, "HVC_PEAK_SENS_W", 0);
                     if (v > 0) w += v;
                 }
             }
@@ -227,7 +227,7 @@ namespace StingTools.Commands.Hvac
                     ws.Columns().AdjustToContents();
                 }
 
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_HVAC_LCC_{DateTime.Now:yyyyMMdd}.xlsx");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_HVAC_LCC_{DateTime.Now:yyyyMMdd}.xlsx", "M");
                 wb.SaveAs(path);
                 return path;
             }

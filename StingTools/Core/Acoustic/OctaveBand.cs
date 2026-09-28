@@ -125,7 +125,18 @@ namespace StingTools.Core.Acoustic
                     if (lp[i] > curve[i]) { fits = false; break; }
                 if (fits) return nc;
             }
-            return 65; // exceeds highest tabulated — report as "≥65"
+            return 65; // exceeds highest tabulated — see ExceedsAll
+        }
+
+        /// <summary>
+        /// True when the spectrum exceeds even NC-65 in some band, so the
+        /// rating <see cref="Rate"/> returns (65) is a floor, not the rating.
+        /// </summary>
+        public static bool ExceedsAll(OctaveBand lp)
+        {
+            var top = Curves[Curves.Keys.Max()];
+            for (int i = 0; i < 8; i++) if (lp[i] > top[i]) return true;
+            return false;
         }
     }
 }

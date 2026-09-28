@@ -1003,8 +1003,9 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var rateStr = ParameterHelpers.GetString(el, ParamRegistry.CST_UNIT_RATE_NR);
-                if (!double.TryParse(rateStr, out var rate) || rate <= 0) return;
+                // NUMBER parameter: GetString returned "" for it, so no rate was ever read.
+                double rate = ParameterHelpers.GetDouble(el, ParamRegistry.CST_UNIT_RATE_NR);
+                if (rate <= 0) return;
                 double qty = MeasuredQuantity(el);
                 double cost = qty > 0 ? rate * qty : rate;   // no measurable qty ⇒ rate is the line cost
                 entry["cost"] = Math.Round(cost, 2);

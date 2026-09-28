@@ -26,9 +26,17 @@ public static class ISO19650Codes
         "WIP", "SHARED", "PUBLISHED", "ARCHIVE", "SUPERSEDED", "WITHDRAWN", "OBSOLETE"
     };
 
+    /// <summary>ISO 19650 suitability codes: S0 (WIP), S1–S7 (shared), A1–A5 / B1–B6
+    /// (authorised / partial sign-off — published), CR (as-constructed record),
+    /// AB (abandoned / superseded), AR (archive). Same set as the plugin's
+    /// Iso19650Vocabulary; the A and B codes were missing, so the server rejected
+    /// every authorised document.</summary>
     public static readonly string[] SuitabilityCodes =
     {
-        "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "CR", "AB"
+        "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7",
+        "A1", "A2", "A3", "A4", "A5",
+        "B1", "B2", "B3", "B4", "B5", "B6",
+        "CR", "AB", "AR"
     };
 
     public static readonly Dictionary<string, int> SLAThresholdsHours = new()

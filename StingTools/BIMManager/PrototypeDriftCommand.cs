@@ -256,7 +256,7 @@ namespace StingTools.BIMManager
                     r++;
                 }
                 ws.Columns().AdjustToContents();
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_PrototypeDrift_{DateTime.Now:yyyyMMdd}.xlsx");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_PrototypeDrift_{DateTime.Now:yyyyMMdd}.xlsx");
                 wb.SaveAs(path);
                 return path;
             }

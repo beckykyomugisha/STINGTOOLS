@@ -52,7 +52,7 @@ namespace StingTools.Commands.Twin
             Document doc = ctx.Doc;
 
             // 1. Credentials (same gate as AccPullClashesCommand).
-            var creds = AccIssueSync.LoadCredentials();
+            var creds = Core.Clash.AccProjectSettingsFile.LoadCredentials(doc, "KUT push lifecycle gaps");   // IM-18: project container ids first
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {

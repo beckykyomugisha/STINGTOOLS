@@ -1058,328 +1058,73 @@ namespace StingTools.Docs
                 catch (Exception ex) { StingLog.Warn($"Delete ISO backup: {ex.Message}"); }
             }
 
+            // A reverted number still left SHT_TAG_1_TXT describing the ISO number.
+            var retag = Commands.Drawing.SheetNumbering.AfterExternalRename(doc,
+                allSheets.Select(sh => new Commands.Drawing.SheetNumbering.Change
+                    { Sheet = sh, Old = "", New = sh.SheetNumber }).ToList(),
+                "STING Revert ISO Naming", recordHistory: false);
+
             TaskDialog.Show("Revert ISO Naming",
-                $"Reverted {reverted}/{allSheets.Count} sheets to original names.");
+                $"Reverted {reverted}/{allSheets.Count} sheets to original names.\n" +
+                $"Identifiers rebuilt on {retag.Retagged} sheet(s).");
             return Result.Succeeded;
         }
 
         /// <summary>
-        /// Enforce ISO 19650 naming convention on sheets.
-        /// Format: PROJECT-ORIGINATOR-VOLUME-LEVEL-TYPE-ROLE-NUMBER
-        /// Options: All sheets, selected sheet, non-compliant only.
-        /// Stores original names for revert capability.
+        /// ISO 19650 sheet naming — a front door to the canonical commands, not a second
+        /// implementation.
+        ///
+        /// This used to build identifiers itself: project code = Project Number cut to 6,
+        /// originator = Organisation Name cut to 3, its own role and level detection (the
+        /// example it showed used "L01", which ISO does not), and its own counters. Tag
+        /// Sheets builds the identifier the title block prints (SHT_TAG_1_TXT, via
+        /// Iso19650DocumentCode.Assemble from PRJ_ORG_* codes), so the two could name the
+        /// same drawing differently — and this rename never rebuilt SHT_TAG_1_TXT, while
+        /// its revert depended on a backup that the history file already does better.
+        /// Now: Tag Sheets → Sheet_NumberFromIso (dry run, uniqueness check, history,
+        /// identifier rebuild) → Sheet_NumberRestore. Backups written by the old
+        /// implementation can still be reverted.
         /// </summary>
         private Result EnforceISONaming(Document doc, SheetManagerResult result)
         {
-            var allSheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder)
-                .OrderBy(s => s.SheetNumber)
-                .ToList();
-
-            if (allSheets.Count == 0)
-            {
-                TaskDialog.Show("STING", "No sheets found.");
-                return Result.Succeeded;
-            }
-
-            // Get project info for ISO naming fields
-            var projInfo = doc.ProjectInformation;
-            string projectCode = projInfo?.Number ?? "PRJ";
-            if (string.IsNullOrWhiteSpace(projectCode)) projectCode = "PRJ";
-            if (projectCode.Length > 6) projectCode = projectCode.Substring(0, 6);
-
-            string originator = projInfo?.OrganizationName ?? "STG";
-            if (string.IsNullOrWhiteSpace(originator)) originator = "STG";
-            if (originator.Length > 3) originator = originator.Substring(0, 3);
-            originator = originator.ToUpperInvariant();
-
-            // Mode selection — now includes Revert option
-            var td = new TaskDialog("Enforce ISO 19650 Sheet Naming");
-            td.MainInstruction = "ISO 19650 Sheet Naming Convention";
+            var td = new TaskDialog("ISO 19650 Sheet Naming");
+            td.MainInstruction = "ISO 19650 sheet numbers";
             td.MainContent =
-                "Format: PROJECT-ORIGINATOR-VOLUME-LEVEL-TYPE-ROLE-NUMBER\n" +
-                $"Example: {projectCode}-{originator}-ZZ-L01-DR-A-0001\n\n" +
-                $"Project: {projectCode} | Originator: {originator}\n\n" +
-                "Select enforcement scope:";
+                "Sheet numbers become the ISO identifier the title block prints " +
+                "(Project-Originator-Volume-Level-Type-Role-Number), built by Tag Sheets from the " +
+                "project's PRJ_ORG_* codes. Every rename is previewed, checked for duplicates and " +
+                "recorded, and can be restored.";
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Audit Only — show non-compliant sheets",
-                "Preview changes without modifying anything");
+                "Tag sheets, then set numbers from the ISO identifier",
+                "Rebuilds SHT_TAG_1_TXT on every sheet, then previews the renumber (Sheet_NumberFromIso)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Enforce on Non-Compliant Only",
-                "Rename only sheets that don't follow ISO format");
+                "Set numbers from the existing ISO identifier",
+                "Sheets already tagged; preview first (Sheet_NumberFromIso)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
-                "Enforce on ALL Sheets — overwrite existing",
-                "Force ISO naming on every sheet (destructive — originals stored for revert)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
-                "\u21BA Revert to Original Names",
-                "Restore sheet names saved before last ISO enforcement");
+                "\u21BA Restore previous sheet numbers",
+                "From the renumber history (Sheet_NumberRestore)");
+            LoadIsoBackup(doc);
+            if (_isoBackup != null && _isoBackup.Count > 0)
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4,
+                    "\u21BA Revert an older Sheet Manager ISO rename",
+                    $"{_isoBackup.Count} sheet(s) in the backup the previous version of this tool wrote");
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-            var choice = td.Show();
-            if (choice == TaskDialogResult.Cancel) return Result.Succeeded;
-
-            // Handle Revert option
-            if (choice == TaskDialogResult.CommandLink4)
-                return RevertISONaming(doc, result);
-
-            bool auditOnly = choice == TaskDialogResult.CommandLink1;
-            bool allScope = choice == TaskDialogResult.CommandLink3;
-
-            // Determine scope
-            List<ViewSheet> targetSheets = allSheets;
-
-            // Classify each sheet and build rename plan
-            var renamePlan = new List<(ViewSheet sheet, string oldNum, string newNum, string reason)>();
-            var disciplineCounters = new Dictionary<string, int>();
-
-            // Pre-scan to find highest existing sequence per discipline
-            foreach (var s in allSheets)
+            string msg = "";
+            switch (td.Show())
             {
-                string role = DetectDisciplineRole(s.Name, s.SheetNumber);
-                string digits = new string(s.SheetNumber.Where(char.IsDigit).ToArray());
-                if (!string.IsNullOrEmpty(digits))
-                {
-                    int seq = 0;
-                    int.TryParse(digits.Length > 4 ? digits.Substring(digits.Length - 4) : digits, out seq);
-                    disciplineCounters.TryGetValue(role, out int cur);
-                    if (seq > cur)
-                        disciplineCounters[role] = seq;
-                }
-                if (!disciplineCounters.ContainsKey(role))
-                    disciplineCounters[role] = 0;
+                case TaskDialogResult.CommandLink1:
+                    new Tags.TagSheetsCommand().Execute(null, ref msg, null);
+                    return new Commands.Drawing.SheetNumberFromIsoCommand().Execute(null, ref msg, null);
+                case TaskDialogResult.CommandLink2:
+                    return new Commands.Drawing.SheetNumberFromIsoCommand().Execute(null, ref msg, null);
+                case TaskDialogResult.CommandLink3:
+                    return new Commands.Drawing.SheetNumberRestoreCommand().Execute(null, ref msg, null);
+                case TaskDialogResult.CommandLink4:
+                    return RevertISONaming(doc, result);
+                default:
+                    return Result.Cancelled;
             }
-
-            foreach (var sheet in targetSheets)
-            {
-                string oldNum = sheet.SheetNumber;
-                bool isCompliant = IsISOCompliant(oldNum, projectCode, originator);
-
-                if (isCompliant && !allScope) continue;
-
-                string role = DetectDisciplineRole(sheet.Name, oldNum);
-                string level = DetectLevelCode(sheet.Name, doc, sheet);
-                string volume = "ZZ"; // Default volume/zone
-                string docType = "DR"; // Drawing
-
-                // Detect doc type from sheet name
-                string nameUpper = (sheet.Name ?? "").ToUpperInvariant();
-                if (nameUpper.Contains("SCHEDULE")) docType = "SH";
-                else if (nameUpper.Contains("DETAIL")) docType = "DR";
-                else if (nameUpper.Contains("SECTION")) docType = "DR";
-                else if (nameUpper.Contains("SPEC")) docType = "SP";
-                else if (nameUpper.Contains("REPORT")) docType = "RP";
-
-                // Increment counter for this discipline
-                disciplineCounters.TryGetValue(role, out int dc);
-                disciplineCounters[role] = dc + 1;
-                int seqNum = disciplineCounters[role];
-
-                string newNum = $"{projectCode}-{originator}-{volume}-{level}-{docType}-{role}-{seqNum:D4}";
-                string reason = isCompliant ? "Forced overwrite" : "Non-compliant";
-
-                renamePlan.Add((sheet, oldNum, newNum, reason));
-            }
-
-            if (renamePlan.Count == 0)
-            {
-                TaskDialog.Show("ISO Naming", "All sheets already comply with ISO 19650 naming.");
-                return Result.Succeeded;
-            }
-
-            // Build report
-            var report = new System.Text.StringBuilder();
-            report.AppendLine($"ISO 19650 Naming Enforcement — {renamePlan.Count} sheet(s)\n");
-            report.AppendLine($"Format: {projectCode}-{originator}-VOLUME-LEVEL-TYPE-ROLE-SEQ\n");
-            foreach (var (sheet, oldNum, newNum, reason) in renamePlan)
-            {
-                report.AppendLine($"  {oldNum,-20} \u2192 {newNum,-30} [{reason}]");
-                if (report.Length > 2500) { report.AppendLine("  ... (truncated)"); break; }
-            }
-
-            if (auditOnly)
-            {
-                TaskDialog.Show("ISO Naming Audit", report.ToString());
-                return Result.Succeeded;
-            }
-
-            // Confirm before applying
-            var confirm = new TaskDialog("Confirm ISO Rename");
-            confirm.MainInstruction = $"Rename {renamePlan.Count} sheet(s)?";
-            confirm.MainContent = report.ToString();
-            confirm.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
-            if (confirm.Show() != TaskDialogResult.Yes) return Result.Succeeded;
-
-            // Store original names for revert capability
-            LoadIsoBackup(doc);
-            foreach (var (sheet, oldNum, newNum, reason) in renamePlan)
-            {
-                if (!_isoBackup.ContainsKey(sheet.Id.Value))
-                    _isoBackup[sheet.Id.Value] = (oldNum, sheet.Name);
-            }
-
-            // Apply renames in two-pass to avoid Revit duplicate number conflicts
-            int renamed = 0;
-            var isoProgress = StingProgressDialog.Show("ISO 19650 Rename", renamePlan.Count * 2);
-            using (var tx = new Transaction(doc, "STING Enforce ISO Naming"))
-            {
-                tx.Start();
-
-                // Pass 1: set temporary unique numbers to avoid conflicts
-                for (int i = 0; i < renamePlan.Count; i++)
-                {
-                    if (isoProgress.IsCancelled) break;
-                    isoProgress.Increment($"Temp rename: {renamePlan[i].oldNum}");
-                    try
-                    {
-                        renamePlan[i].sheet.SheetNumber = $"_STING_TEMP_{i:D5}";
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"ISO rename temp pass failed for '{renamePlan[i].oldNum}': {ex.Message}");
-                    }
-                }
-
-                // Pass 2: set final ISO-compliant numbers
-                if (!isoProgress.IsCancelled)
-                foreach (var (sheet, oldNum, newNum, reason) in renamePlan)
-                {
-                    if (isoProgress.IsCancelled) break;
-                    isoProgress.Increment($"{oldNum} \u2192 {newNum}");
-                    try
-                    {
-                        sheet.SheetNumber = newNum;
-                        renamed++;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"ISO rename failed for '{oldNum}' \u2192 '{newNum}': {ex.Message}");
-                    }
-                }
-
-                if (isoProgress.IsCancelled) tx.RollBack(); else tx.Commit();
-            }
-            try { isoProgress.Close(); } catch (Exception ex) { StingLog.Warn($"ISO progress close: {ex.Message}"); }
-
-            if (isoProgress.IsCancelled)
-            {
-                TaskDialog.Show("ISO Naming", "Operation cancelled. No sheets were renamed.");
-                return Result.Succeeded;
-            }
-
-            // Save backup for revert capability
-            SaveIsoBackup(doc);
-
-            TaskDialog.Show("ISO Naming",
-                $"Renamed {renamed}/{renamePlan.Count} sheets to ISO 19650 format.\n\n" +
-                $"Format: {projectCode}-{originator}-VOL-LVL-TYPE-ROLE-SEQ\n\n" +
-                "Original names stored — use 'Revert to Original Names' to undo.");
-            return Result.Succeeded;
-        }
-
-        /// <summary>
-        /// Check if a sheet number already follows ISO 19650 format.
-        /// Minimum: 5+ segments separated by hyphens, starts with project/originator codes.
-        /// </summary>
-        private static bool IsISOCompliant(string sheetNumber, string projectCode, string originator)
-        {
-            if (string.IsNullOrEmpty(sheetNumber)) return false;
-            var parts = sheetNumber.Split('-');
-            if (parts.Length < 5) return false;
-
-            // Check project code and originator match
-            if (!parts[0].Equals(projectCode, StringComparison.OrdinalIgnoreCase)) return false;
-            if (!parts[1].Equals(originator, StringComparison.OrdinalIgnoreCase)) return false;
-
-            // Last segment should be numeric (sequence number)
-            string lastPart = parts[parts.Length - 1];
-            if (!lastPart.All(char.IsDigit)) return false;
-
-            return true;
-        }
-
-        /// <summary>
-        /// Detect discipline/role code from sheet name or number.
-        /// Returns ISO 19650 role codes: A, S, M, E, P, C, F, L, G, etc.
-        /// </summary>
-        private static string DetectDisciplineRole(string sheetName, string sheetNumber)
-        {
-            string name = (sheetName ?? "").ToUpperInvariant();
-            string num = (sheetNumber ?? "").ToUpperInvariant();
-
-            if (name.Contains("MECHANICAL") || name.Contains("HVAC") || name.Contains("HEATING")
-                || name.Contains("VENTILAT")) return "M";
-            if (name.Contains("ELECTRICAL") || name.Contains("LIGHTING") || name.Contains("POWER")) return "E";
-            if (name.Contains("PLUMB") || name.Contains("SANIT") || name.Contains("DRAINAGE")
-                || name.Contains("WATER")) return "P";
-            if (name.Contains("STRUCT")) return "S";
-            if (name.Contains("ARCH") || name.Contains("PLAN") || name.Contains("INTERIOR")
-                || name.Contains("FINISH")) return "A";
-            if (name.Contains("FIRE") || name.Contains("SPRINKLER")) return "F";
-            if (name.Contains("CIVIL") || name.Contains("SITE")) return "C";
-            if (name.Contains("LANDSCAPE")) return "L";
-            if (name.Contains("COORDINATION") || name.Contains("COMBINED")) return "Z";
-
-            // Fall back to first char of sheet number if it's a known role
-            if (num.Length > 0)
-            {
-                char first = num[0];
-                if ("ASMEPCFLGZ".Contains(first)) return first.ToString();
-            }
-
-            return "Z"; // General/unclassified
-        }
-
-        /// <summary>
-        /// Detect level code from sheet name or associated views.
-        /// Returns ISO level codes: L00, L01, B01, RF, XX, etc.
-        /// </summary>
-        private static string DetectLevelCode(string sheetName, Document doc, ViewSheet sheet)
-        {
-            string name = (sheetName ?? "").ToUpperInvariant();
-
-            // Check for common level patterns in sheet name
-            if (name.Contains("GROUND") || name.Contains("GF") || name.Contains("LEVEL 0")
-                || name.Contains("L00")) return "L00";
-            if (name.Contains("ROOF") || name.Contains("RF")) return "RF";
-            if (name.Contains("BASEMENT") || name.Contains("B1") || name.Contains("LOWER")) return "B01";
-
-            // Check for "LEVEL XX" or "LXX" pattern
-            var levelMatch = System.Text.RegularExpressions.Regex.Match(name, @"(?:LEVEL\s*|L)(\d{1,2})");
-            if (levelMatch.Success)
-            {
-                int lvl;
-                if (int.TryParse(levelMatch.Groups[1].Value, out lvl))
-                    return $"L{lvl:D2}";
-            }
-
-            // Try to detect from viewports on the sheet
-            try
-            {
-                foreach (var vpId in sheet.GetAllViewports())
-                {
-                    var vp = doc.GetElement(vpId) as Viewport;
-                    if (vp == null) continue;
-                    var view = doc.GetElement(vp.ViewId) as View;
-                    if (view?.GenLevel != null)
-                    {
-                        string lvlName = view.GenLevel.Name.ToUpperInvariant();
-                        if (lvlName.Contains("GROUND") || lvlName.Contains("GF")) return "L00";
-                        if (lvlName.Contains("ROOF")) return "RF";
-                        var m = System.Text.RegularExpressions.Regex.Match(lvlName, @"(\d{1,2})");
-                        if (m.Success)
-                        {
-                            int n;
-                            if (int.TryParse(m.Groups[1].Value, out n))
-                                return $"L{n:D2}";
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"Level detect from viewports: {ex.Message}"); }
-
-            return "XX"; // Unknown level
         }
 
         // ── Data builders for the dialog ─────────────────────────────────

@@ -63,13 +63,13 @@ namespace StingTools.Docs
 
                 // Pre-set the PDF-only profile by mutating state, so the dialog
                 // opens already configured for PDF export.
-                var state = ExportCenterEngine.LoadState();
+                var state = ExportCenterEngine.LoadState(ctx.Doc);
                 var pdfProfile = state.Profiles.Find(p => p.Name == "Default — PDF only")
                                 ?? state.Profiles.Find(p => p.BuiltIn);
                 if (pdfProfile != null)
                 {
                     state.LastProfile = pdfProfile.Name;
-                    ExportCenterEngine.SaveState(state);
+                    ExportCenterEngine.SaveState(state, ctx.Doc);
                 }
 
                 StingExportCenterDialog.Show(ctx.UIDoc);
