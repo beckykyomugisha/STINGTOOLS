@@ -505,10 +505,10 @@ namespace StingTools.Commands.Drawing
                                 {
                                     try
                                     {
-                                        var vft = new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
-                                            .Cast<ViewFamilyType>()
-                                            .FirstOrDefault(vt => vt.ViewFamily == ViewFamily.Elevation);
+                                        var vft = StingTools.Core.Drawing.DrawingProducer.ResolveNamedViewFamilyType(
+                                            doc, ViewFamily.Elevation, dt.ViewFamilyTypeName, out var vftWhy);
                                         if (vft == null) { warnings.Add("No elevation ViewFamilyType."); continue; }
+                                        if (vftWhy != null) warnings.Add($"{dt.Id}: {vftWhy}");
                                         var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().FirstOrDefault(v => !v.IsTemplate);
                                         if (ownerPlan == null) { warnings.Add("No owner plan for elevation marker."); continue; }
                                         var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);
@@ -625,7 +625,7 @@ namespace StingTools.Commands.Drawing
                 if (string.IsNullOrEmpty(label)) return Result.Succeeded;
                 var pkgId = packages.First(p => $"{p.PackageId} ({p.SheetCount} sheets)" == label).PackageId;
 
-                var outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                var outDir = OutputLocationHelper.GetRoutedDirectory(doc, "PDF");
                 var result = DrawingPackageManager.ExportPackage(doc, pkgId, outDir);
                 BatchProduceCommons.ShowResult("Export Drawing Package", result.SheetCount, 0, result.Warnings);
                 return Result.Succeeded;

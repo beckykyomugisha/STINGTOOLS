@@ -44,6 +44,22 @@ jobs:
           [ $FAIL -eq 0 ] && echo "✓ All JSON files valid"
           exit $FAIL
 
+      # Drawing-type corporate lock: every corporate entry in
+      # STING_DRAWING_TYPES.json carries a SHA-256 of its C# serialisation, and
+      # DrawingTypeRegistry demotes any entry whose hash does not match to
+      # origin "project" — so a data edit (or a field added to DrawingType /
+      # AnnotationRulePack) without a restamp silently turns the lock off for
+      # that type. The tool compiles the shipped model to hash it; --check
+      # verifies without writing and exits 1 on a missing or stale checksum.
+      # It was documented as "CI-gate ready" and wired into no workflow.
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Drawing-type checksums are current
+        run: dotnet run --project tools/StampDrawingTypeChecksums -c Release -- --check
+
       # Path discipline: project paths must resolve through StingPaths /
       # ProjectFolderEngine / CoordStores, not be assembled by hand.
       #
@@ -85,6 +101,12 @@ jobs:
       # never on a count.
       - name: Parameter contract is current
         run: python3 tools/check_param_contract.py --check
+
+      # Revit gives a shared-parameter GUID one type. Ten parameters once had a
+      # different type in STING_PARAMS_V4/V6 than in MR_PARAMETERS.txt, so a family
+      # authored from one file would not load into a project bound from the other.
+      - name: Shared-parameter files agree
+        run: python3 tools/check_shared_param_files.py
 
       # STING_TAG_TOKEN_POLICY.json shipped on 2026-08-10 documenting all ten ISO 19650
       # tag tokens, was named in two TagConfig comments, and was read by NOTHING until
@@ -128,6 +150,20 @@ jobs:
       - name: Command doc-acquisition discipline
         shell: pwsh
         run: ./tools/check_command_doc_acquisition.ps1
+
+      - name: Export routing discipline
+        shell: pwsh
+        run: ./tools/check_export_routing.ps1
+
+      - name: C# language version pinned to the CI SDK
+        shell: pwsh
+        run: |
+          # CI builds with the .NET 8 SDK (C# 12). "latest" means C# 14 on a
+          # .NET 10 machine, so code that compiled locally broke here (DOCX-10).
+          $bad = Get-ChildItem -Recurse -Filter *.csproj |
+            Where-Object { (Get-Content $_.FullName -Raw) -match '<LangVersion>(?!12\.0<)[^<]*</LangVersion>' }
+          if ($bad) { $bad | ForEach-Object { Write-Host "LangVersion not 12.0: $($_.FullName)" }; exit 1 }
+          Write-Host "All projects pin LangVersion 12.0."
 
       - name: Check for duplicate parameter GUIDs
         run: |

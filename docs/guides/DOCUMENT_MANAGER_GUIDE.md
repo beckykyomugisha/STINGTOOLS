@@ -1035,7 +1035,7 @@ opening the Document Management Center:
 |---|---|
 | **Issue Deliverable** | Renders the A01 notice, writes revision history, starts the issue workflow and audits it. |
 | **Re-Issue Deliverable** | Bumps the revision and re-issues. |
-| **Publish Deliverable** | Promotes to S4 / the PUBLISHED CDE container. |
+| **Publish Deliverable** | Promotes to the PUBLISHED CDE container with an authorised code (A1 by default). |
 | **Cancel Deliverable** | Formally cancels. Generates an A02 notice and archives the document. |
 | **Supersede Deliverable** | Mints a new number and generates an A03 notice. |
 | **Replace Deliverable** | Generates an A04 replacing notice and cross-links the two documents. |

@@ -407,7 +407,7 @@ namespace StingTools.Commands.Drawing
                     using (var tx = new Transaction(doc, $"STING Load {name}"))
                     {
                         tx.Start();
-                        var ok = doc.LoadFamily(c, new TitleBlockFamilyLoadOptions(), out Family fam);
+                        var ok = doc.LoadFamily(c, new StingTools.Core.Drawing.TitleBlockLoadOptions(), out Family fam);
                         tx.Commit();
                         if (ok && fam != null) return fam;
                         if (fam != null) return fam;  // already-loaded short-circuit
@@ -428,18 +428,6 @@ namespace StingTools.Commands.Drawing
             if (familyName.IndexOf("_NONBIM_", StringComparison.OrdinalIgnoreCase) >= 0) return "NONBIM";
             return "(unknown)";
         }
-    }
-
-    /// <summary>Standard `IFamilyLoadOptions` — accept and overwrite. Same
-    /// pattern as TagFamilyLoadOptions in TagFamilyCreatorCommand.cs.</summary>
-    internal class TitleBlockFamilyLoadOptions : IFamilyLoadOptions
-    {
-        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
-        { overwriteParameterValues = true; return true; }
-
-        public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
-            out FamilySource source, out bool overwriteParameterValues)
-        { source = FamilySource.Family; overwriteParameterValues = true; return true; }
     }
 
     /// <summary>POCO mirror of STING_VIEWPORT_PLACEMENT_RULES.json.</summary>

@@ -153,7 +153,7 @@ namespace StingTools.Commands.DesignOptions
             // ── Persist CSV ──────────────────────────────────────────────
             try
             {
-                string dir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc),
+                string dir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Compliance"),
                                           "_BIM_COORD", "audit");
                 if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
                 string path = Path.Combine(dir, $"design_options_audit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");

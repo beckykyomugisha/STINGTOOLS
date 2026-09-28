@@ -1223,7 +1223,7 @@ TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Fascia
 2,MEDIUM,WARN_BLE_FASCIA_FIRE_FASCIA,Fascia material not fire-rated (external fire spread),Building Regs Part B / BS 9999,Common,Text,⚠ Warning: Fascia Fire Rating,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_FASCIA_FIRE_FASCIA, """")"
 
 Tag Family #22: STING - Gutter Tag
-TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutters
+TAG7: ARCH_TAG_7_PARA_ROOF_TXT  •  Category: Gutter
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1727,7 +1727,7 @@ TAG7: ARCH_TAG_7_PARA_STAIR_TXT  •  Category: Vertical Circulation
 3,HIGH,WARN_BLE_VERT_CIRC_ACCESSIBILITY_VERT_CIRC,Lift car dimensions < 1100mm x 1400mm (wheelchair),Building Regs Part M / BS EN 81-70,Common,Text,⚠ Warning: Lift Accessibility,"if(TAG_WARN_VISIBLE_BOOL, WARN_BLE_VERT_CIRC_ACCESSIBILITY_VERT_CIRC, """")"
 
 Tag Family #34: STING - Architectural Sheet Tag
-TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
+TAG7: SHT_TAG_7_TXT  •  Category: Sheets
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,SHT_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,SHT_DISC_TXT,Disc:,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, SHT_DISC_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1765,7 +1765,7 @@ TAG7: SHT_TAG_7_TXT  •  Category: Sheets — Architectural discipline
 1,MEDIUM,WARN_SHT_NAMING_ARCH,Sheet name does not match ISO 19650 naming convention for architectural drawings,ISO 19650-2 / BS EN ISO 7200,Common,Text,⚠ Warning: Sheet Naming Convention,"if(TAG_WARN_VISIBLE_BOOL, WARN_SHT_NAMING_ARCH, """")"
 
 Tag Family #35: STING - Architectural Column Tag
-TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns — Architectural discipline
+TAG7: ARCH_TAG_7_PARA_COLUMNS_TXT  •  Category: Columns
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
 1,T1,ASS_TAG_1_TXT,,,0,✓,---,---,---,Add directly,NOM,BLACK,2.5,None,None
 2,T2,ASS_TAG_2_TXT,,,0,✓,Common,Text,Show Tier 2 - 2,"if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, """")",NOM,BLACK,2.0,None,None
@@ -1818,7 +1818,7 @@ Tag Family #36: STING - LPS Natural Air Termination (Architectural Reuse) Tag
 # Category: Roofs, Walls, Wall Sweeps, Curtain Wall Mullions, Fascia, Gutter, Roof Soffits | PROD: ATR (Air Terminal — Natural) | SYS: LPS | FUNC: AT | DISC: A
 # Cross-discipline integration: metal roof / parapet / coping / metallic facade reused as a BS EN 62305-3 §5.2.5 natural air-termination component.
 # DC variant: T4-T10 use Design intent / Performance / Material / Installation / Coordination / Warranty / Classification.
-TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Roofs / Walls / Curtain Wall
+TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Multi-Category  •  LabelMaster: LPS
 
 ★ TIER 1 — COMPACT (always visible)
 #,Tier,Parameter,Prefix,Suffix,Spc,Brk,Discipline,Type,Name,Formula,Style,Color,Size,Box,Arrow
@@ -1865,3 +1865,7 @@ TAG7: ELC_TAG_7_PARA_LPS_TXT  •  Category: Roofs / Walls / Curtain Wall
 1,HIGH,WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,Sheet thickness below natural-component minimum (BS EN 62305-3 Tab 3),BS EN 62305-3:2011 Tab 3,Common,Text,⚠ Warning: Sheet Thickness Below Min,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW, """")"
 2,HIGH,WARN_ELC_LPS_NO_BONDING,Bonding method to LPS network not specified — natural component is non-functional without continuity,BS EN 62305-3:2011 §5.2.5,Common,Text,⚠ Warning: No Bond to LPS Network,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_BONDING, """")"
 3,CRITICAL,WARN_ELC_LPS_NO_CLASS,LPS class not assigned — required to verify natural-component thickness vs BS EN 62305-3 Tab 3,BS EN 62305-1:2011 §8,Common,Text,⚠ Warning: No LPS Class,"if(TAG_WARN_VISIBLE_BOOL, WARN_ELC_LPS_NO_CLASS, """")"
+TAG_FAMILY,STING - Fire Door Tag,A,Doors,LabelMaster: FireDoor,hand-built fire door tag: Mark / fire rating / smoke seal + self-closing / closer (see docs/SPECIALIST_TAG_BUILD_SHEET.md). Its own label-master group so Propagate Universal never overwrites its bespoke label and no other specialist family can be propagated onto it.
+TAG_FAMILY,STING - Accessible Door Tag,A,Doors,LabelMaster: AccessibleDoor,hand-built accessible door tag: Mark / clear width / threshold / opening force / leading-edge space / vision panel (see docs/SPECIALIST_TAG_BUILD_SHEET.md). Its own label-master group so Propagate Universal never overwrites its bespoke label and no other specialist family can be propagated onto it.
+TAG_FAMILY,STING - Room Finish Tag,A,Rooms,LabelMaster: RoomFinish,hand-built room finish tag: Number / floor / wall / ceiling / base finish codes (see docs/SPECIALIST_TAG_BUILD_SHEET.md). Its own label-master group so Propagate Universal never overwrites its bespoke label and no other specialist family can be propagated onto it.
+TAG_FAMILY,STING - Fire Compartment Tag,A,Rooms,LabelMaster: FireCompartment,hand-built fire compartment tag: Number / compartment ID / fire resistance period / escape capacity (see docs/SPECIALIST_TAG_BUILD_SHEET.md). Its own label-master group so Propagate Universal never overwrites its bespoke label and no other specialist family can be propagated onto it.

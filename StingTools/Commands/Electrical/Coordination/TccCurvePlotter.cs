@@ -30,7 +30,7 @@ namespace StingTools.Commands.Electrical.Coordination
         private const int Pad = 70;
 
         public static string ToSvg(IList<TccPlotSeries> series, double availableFaultKa = 0,
-            string title = "Time-Current Coordination Curves")
+            string title = "Time-Current Coordination Curves", string note = null)
         {
             int plotW = W - 2 * Pad;
             int plotH = H - 2 * Pad;
@@ -43,6 +43,8 @@ namespace StingTools.Commands.Electrical.Coordination
             sb.AppendLine($"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 {W} {H}' width='{W}' height='{H}'>");
             sb.AppendLine($"  <rect x='0' y='0' width='{W}' height='{H}' fill='white' stroke='none'/>");
             sb.AppendLine($"  <text x='{W / 2}' y='28' text-anchor='middle' font-family='Arial' font-size='16' font-weight='bold'>{Esc(title)}</text>");
+            if (!string.IsNullOrEmpty(note))
+                sb.AppendLine($"  <text x='{W / 2}' y='48' text-anchor='middle' font-family='Arial' font-size='11' fill='#a00'>{Esc(note)}</text>");
 
             // Plot frame
             sb.AppendLine($"  <rect x='{Pad}' y='{Pad}' width='{plotW}' height='{plotH}' fill='none' stroke='#222' stroke-width='1.2'/>");
@@ -96,10 +98,16 @@ namespace StingTools.Commands.Electrical.Coordination
             foreach (var ser in series)
             {
                 string colour = palette[cIdx++ % palette.Length];
-                var pts = ser.Points.OrderBy(p => p.Item1).ToList();
+                // Order is preserved: band edges are step functions with two points
+                // at the same current, which a sort by current would scramble.
+                var pts = ser.Points
+                    .Where(p => p.Item1 >= XminA && p.Item1 <= XmaxA && !double.IsInfinity(p.Item2) && p.Item2 > 0)
+                    .Select(p => Tuple.Create(p.Item1, Math.Min(YmaxS, Math.Max(YminS, p.Item2))))
+                    .ToList();
                 if (pts.Count < 2) continue;
                 var poly = string.Join(" ", pts.Select(p => $"{Sx(p.Item1):0.0},{Sy(p.Item2):0.0}"));
-                sb.AppendLine($"  <polyline points='{poly}' fill='none' stroke='{colour}' stroke-width='2'/>");
+                string dash = ser.Dashed ? " stroke-dasharray='6,4'" : "";
+                sb.AppendLine($"  <polyline points='{poly}' fill='none' stroke='{colour}' stroke-width='2'{dash}/>");
                 // Legend marker
                 int legY = Pad + 20 + (cIdx - 1) * 18;
                 int legX = Pad + plotW - 200;
@@ -112,9 +120,9 @@ namespace StingTools.Commands.Electrical.Coordination
         }
 
         public static void WriteSvgFile(string path, IList<TccPlotSeries> series,
-            double availableFaultKa = 0, string title = "Time-Current Coordination Curves")
+            double availableFaultKa = 0, string title = "Time-Current Coordination Curves", string note = null)
         {
-            File.WriteAllText(path, ToSvg(series, availableFaultKa, title));
+            File.WriteAllText(path, ToSvg(series, availableFaultKa, title, note));
         }
 
         private static string FormatA(double a) =>
@@ -132,6 +140,34 @@ namespace StingTools.Commands.Electrical.Coordination
     {
         public string Label { get; set; } = "";
         public List<Tuple<double, double>> Points { get; set; } = new();
+        /// <summary>Draw dashed (used for the minimum-trip edge of a band).</summary>
+        public bool Dashed { get; set; }
+
+        /// <summary>
+        /// One edge of a generic IEC 60898-1 band as a step polyline (current A, time s),
+        /// built only from the band's breakpoints — no interpolation between test points.
+        /// <paramref name="maxEdge"/> = true → maximum-clear edge (solid); false → minimum-trip
+        /// edge (dashed). Instantaneous minimum (0 s) is drawn at the plot floor.
+        /// Empty when the device has no band.
+        /// </summary>
+        public static TccPlotSeries FromBand(DeviceBand band, string label, bool maxEdge, double maxCurrentA = 100_000)
+        {
+            var s = new TccPlotSeries { Label = label, Dashed = !maxEdge };
+            if (band == null || !band.HasBand) return s;
+            double In = band.RatingA;
+            var steps = maxEdge
+                ? new[] { (1.45 * In, band.ConventionalTimeS), (2.55 * In, band.TestCMaxS), (band.UpperInstA, 0.1) }
+                : new[] { (1.0 * In, band.ConventionalTimeS), (1.13 * In, 1.0), (2.55 * In, 0.1), (band.LowerInstA, 0.001) };
+            for (int k = 0; k < steps.Length; k++)
+            {
+                double x0 = steps[k].Item1;
+                double x1 = k + 1 < steps.Length ? steps[k + 1].Item1 : maxCurrentA;
+                if (x0 >= maxCurrentA) break;
+                s.Points.Add(Tuple.Create(x0, steps[k].Item2));
+                s.Points.Add(Tuple.Create(Math.Min(x1, maxCurrentA), steps[k].Item2));
+            }
+            return s;
+        }
 
         /// <summary>
         /// Sample the entry's <see cref="TccEntry.ClearingTimeMs"/> across

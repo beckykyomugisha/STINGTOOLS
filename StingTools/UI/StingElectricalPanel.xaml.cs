@@ -98,6 +98,7 @@ namespace StingTools.UI
             if (sender is Button btn && btn.Tag is string tag && !string.IsNullOrEmpty(tag))
             {
                 SnapshotSldOptions();
+                SnapshotExcelOptions();
                 StingElectricalCommandHandler.Instance?.SetCommand(tag);
                 UpdateStatus($"Running: {tag}");
             }
@@ -112,6 +113,24 @@ namespace StingTools.UI
         /// once at field-initialisation and never again, so every SLD generated with the
         /// library defaults no matter what the user ticked.</para>
         /// </summary>
+        /// <summary>
+        /// RPRT → EXCEL ROUND-TRIP: Scope and Header/Body/Summary were read by nothing, so
+        /// "Active panel" silently exported every schedule. Copy them to the command's statics.
+        /// </summary>
+        private void SnapshotExcelOptions()
+        {
+            try
+            {
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.Scope =
+                    (StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.ExportScope)
+                    System.Math.Max(0, cmbExcelScope?.SelectedIndex ?? 0);
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.IncludeHeader  = chkExHeader?.IsChecked != false;
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.IncludeBody    = chkExBody?.IsChecked != false;
+                StingTools.Commands.Panels.ExportPanelSchedulesToExcelCommand.IncludeSummary = chkExSummary?.IsChecked != false;
+            }
+            catch (System.Exception ex) { StingLog.Warn($"Excel options snapshot: {ex.Message}"); }
+        }
+
         private void SnapshotSldOptions()
         {
             try
@@ -212,27 +231,27 @@ namespace StingTools.UI
 
         // ── Phase 178 — new event handlers ───────────────────────────────
 
-        private void FeederDiversityMode_Changed(object sender, SelectionChangedEventArgs e)
+        /// <summary>
+        /// The FEEDER SIZING expander, read by the command handler when a command is
+        /// dispatched. Before, this was only captured when the (never-read) Diversity
+        /// mode combo changed, so derate / install method / diversity edits were
+        /// ignored until that happened, and the VD limit was a hard-coded 2 %.
+        /// </summary>
+        public StingTools.Commands.Electrical.FeederSizing.FeederSettingsSnapshot ReadFeederSettings()
         {
-            try
-            {
-                string tag = ((FeederDiversityMode?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "None";
-                if (FeederDiversityPct != null)
-                    FeederDiversityPct.IsEnabled = tag == "User";
-                StingElectricalCommandHandler.CurrentFeederSettings = ReadFeederSettings();
-            }
-            catch (Exception ex) { Core.StingLog.Warn($"FeederDiversityMode_Changed: {ex.Message}"); }
-        }
-
-        private StingTools.Commands.Electrical.FeederSizing.FeederSettingsSnapshot ReadFeederSettings()
-        {
+            // Blank feeder VD limit → the BS 7671 Appendix 12 'Other' limit the user set
+            // under VOLTAGE DROP (5 % by default).
+            double feederVd = ParseDouble(FeederVDLimit?.Text, 0);
             var s = new StingTools.Commands.Electrical.FeederSizing.FeederSettingsSnapshot
             {
                 DerateFactor = ParseDouble(FeederDerateFactor?.Text, 0.8),
-                DiversityMode = ((FeederDiversityMode?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "None",
                 DiversityPct = ParseDouble(FeederDiversityPct?.Text, 100),
                 InstallMethod = ((FeederInstallMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C",
-                VDLimitPct = 2.0
+                Insulation = ((FeederInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70",
+                CableType = ((FeederCableType?.SelectedItem as ComboBoxItem)?.Tag as string)
+                            ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
+                VDLimitPct = feederVd > 0 ? feederVd : ParseDouble(txtVDOther?.Text, 5.0),
+                VDLimitUserSet = feederVd > 0,
             };
             return s;
         }
@@ -320,6 +339,7 @@ namespace StingTools.UI
                     if (snapshot.LightingRows != null) PopulateLighting(snapshot.LightingRows);
                     if (snapshot.RoomTargets != null) PopulateRoomTargets(snapshot.RoomTargets);
                     if (snapshot.WireRefRows != null) PopulateWireRef(snapshot.WireRefRows);
+                    if (snapshot.WireRefBasis != null && txtWireRefBasis != null) txtWireRefBasis.Text = snapshot.WireRefBasis;
                     if (snapshot.ComplianceItems != null) PopulateCompliance(snapshot.ComplianceItems);
                     // Phase 178 grids
                     if (snapshot.Feeders != null) { Feeders.Clear(); foreach (var r in snapshot.Feeders) Feeders.Add(r); }
@@ -347,7 +367,9 @@ namespace StingTools.UI
                     txtCblResultSize.Text    = $"Min cable size: {r.CsaLabel}";
                     txtCblResultVD.Text      = $"Actual VD: {r.ActualVoltDropPct:0.00}% " +
                         (r.VDCompliant ? "✅" : "⚠");
-                    txtCblResultBreaker.Text = $"Breaker: {r.ProposedBreakerA} A";
+                    txtCblResultBreaker.Text = string.IsNullOrEmpty(r.ProtectiveDevice)
+                        ? $"Breaker: {r.ProposedBreakerA} A"
+                        : $"Device: {r.ProposedBreakerA} A {r.ProtectiveDevice}";
                     txtCblResultNote.Text    = string.IsNullOrEmpty(r.Warning)
                         ? r.DerivationNote
                         : $"{r.Warning} — {r.DerivationNote}";
@@ -393,7 +415,8 @@ namespace StingTools.UI
                 double vd   = ParseDouble(txtCblVDLimit?.Text, 3.0);
                 string method = ((cmbCblMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C";
                 string mat    = ((cmbCblMaterial?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Cu";
-                string ins    = ((cmbCblInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "XLPE90";
+                string ins    = ((cmbCblInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70";
+                string ctype  = ((cmbCblCableType?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Multicore";
                 string std    = ((cmbCblStandard?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "BS7671";
                 string vTag   = ((cmbCblVoltage?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "240,1";
                 var parts = vTag.Split(',');
@@ -403,7 +426,7 @@ namespace StingTools.UI
                 {
                     LoadKW = load, VoltageV = v, Phases = phases, PowerFactor = pf,
                     LengthM = len, VDLimitPct = vd,
-                    InstallMethod = method, Material = mat, Insulation = ins, Standard = std
+                    InstallMethod = method, Material = mat, Insulation = ins, CableType = ctype, Standard = std
                 };
             }
             catch (Exception ex)
@@ -439,6 +462,7 @@ namespace StingTools.UI
             return new PanelParamsSnapshot
             {
                 PanelName = sel?.Name ?? "",
+                PanelId = sel?.PanelDataRef?.Id?.Value ?? 0,
                 MainBreakerA = txtMainBreaker?.Text ?? "",
                 FedFrom = (cmbFedFrom?.Text) ?? "",
                 Location = txtLocation?.Text ?? "",
@@ -453,8 +477,8 @@ namespace StingTools.UI
         {
             return new VDOptionsSnapshot
             {
-                BranchLimitPct = ParseDouble(txtVDBranch?.Text, 3.0),
-                FeederLimitPct = ParseDouble(txtVDFeeder?.Text, 2.0),
+                LightingLimitPct = ParseDouble(txtVDLighting?.Text, 3.0),
+                OtherLimitPct = ParseDouble(txtVDOther?.Text, 5.0),
                 Material = ((cmbConductor?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Cu",
                 OperatingTempC = ParseDouble(((cmbWireTemp?.SelectedItem as ComboBoxItem)?.Tag as string), 70.0),
                 Standard = CalcStandard
@@ -543,6 +567,7 @@ namespace StingTools.UI
                     CurrentA = c.CurrentA,
                     LoadKW = c.LoadKW,
                     VoltDropPct = c.VoltDropPct,
+                    VdUpperBound = c.VdUpperBound,
                     WireSize = c.WireSize,
                     LengthM = c.LengthM,
                     IsSpare = c.IsSpare,
@@ -597,6 +622,12 @@ namespace StingTools.UI
         {
             LightingRows.Clear();
             double normal = 0, emerg = 0;
+            // Same keyword list + token rules as the Emergency Lighting audit. A raw
+            // IndexOf("emerg") missed "EM", "maintained", "secours" etc. and looked
+            // only at the circuit name. (No document here → the corporate list.)
+            StingTools.Core.Electrical.EmergencyKeywords kw = null;
+            try { kw = StingTools.Core.Electrical.EmergencyKeywordRegistry.Corporate(); }
+            catch (Exception ex) { StingLog.Warn($"PopulateLighting emergency keywords: {ex.Message}"); }
             foreach (var r in rows)
             {
                 LightingRows.Add(new LightingRowViewModel
@@ -606,7 +637,8 @@ namespace StingTools.UI
                     Circuit = r.Circuit, LmPerW = r.LmPerW
                 });
                 double tot = r.Watts * r.Qty;
-                if ((r.Circuit ?? "").IndexOf("emerg", StringComparison.OrdinalIgnoreCase) >= 0)
+                if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(r.Circuit, kw)
+                    || StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(r.FamilyType, kw))
                     emerg += tot;
                 else normal += tot;
             }
@@ -631,7 +663,7 @@ namespace StingTools.UI
                 WireRefRows.Add(new WireRefRowViewModel
                 {
                     Size = r.Size, Imax1Ph = r.Imax1Ph,
-                    Imax3Ph = r.Imax3Ph, MohmPerM = r.MohmPerM
+                    Imax3Ph = r.Imax3Ph, Mv1Ph = r.Mv1Ph, Mv3Ph = r.Mv3Ph
                 });
         }
 
@@ -653,9 +685,12 @@ namespace StingTools.UI
         public string GetWireRefMaterial() =>
             ((cmbWireRefMaterial?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "Cu";
         public string GetWireRefInsulation() =>
-            ((cmbWireRefInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "XLPE90";
+            ((cmbWireRefInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70";
         public string GetWireRefMethod() =>
             ((cmbWireRefMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C";
+        public string GetWireRefCableType() =>
+            ((cmbWireRefCableType?.SelectedItem as ComboBoxItem)?.Tag as string)
+            ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -693,6 +728,8 @@ namespace StingTools.UI
         public double CurrentA { get; set; }
         public double LoadKW { get; set; }
         public double VoltDropPct { get; set; }
+        /// <summary>VoltDropPct is an A4-MAX upper bound (no cable recorded on the circuit).</summary>
+        public bool VdUpperBound { get; set; }
         public string WireSize { get; set; }
         public double LengthM { get; set; }
         public bool IsSpare { get; set; }
@@ -701,7 +738,7 @@ namespace StingTools.UI
 
         public string CurrentDisplay => CurrentA > 0 ? $"{CurrentA:0.0}" : "—";
         public string LoadDisplay    => LoadKW    > 0 ? $"{LoadKW:0.00}" : "—";
-        public string VDDisplay      => VoltDropPct > 0 ? $"{VoltDropPct:0.0}" : "—";
+        public string VDDisplay      => VoltDropPct > 0 ? $"{(VdUpperBound ? "≤" : "")}{VoltDropPct:0.0}" : "—";
         public string LengthDisplay  => LengthM   > 0 ? $"{LengthM:0.0}" : "—";
     }
 
@@ -792,7 +829,8 @@ namespace StingTools.UI
         public string Size { get; set; }
         public string Imax1Ph { get; set; }
         public string Imax3Ph { get; set; }
-        public string MohmPerM { get; set; }
+        public string Mv1Ph { get; set; }
+        public string Mv3Ph { get; set; }
     }
 
     public class ConduitWireRowViewModel : NotifyBase
@@ -828,6 +866,8 @@ namespace StingTools.UI
         public double CurrentA { get; set; }
         public double LoadKW { get; set; }
         public double VoltDropPct { get; set; }
+        /// <summary>VoltDropPct is an A4-MAX upper bound (no cable recorded on the circuit).</summary>
+        public bool VdUpperBound { get; set; }
         public string WireSize { get; set; }
         public double LengthM { get; set; }
         public bool IsSpare { get; set; }
@@ -849,7 +889,8 @@ namespace StingTools.UI
         public string Circuit; public double LmPerW;
     }
     public class RoomTargetRow { public string Room, TargetLx, EstimatedLx, Delta; }
-    public class WireRefRow    { public string Size, Imax1Ph, Imax3Ph, MohmPerM; }
+    /// <summary>One Appendix 4 row: It (A) 1-ph / 3-ph (Table 4D2A) and mV/A/m 1-ph / 3-ph (Table 4D2B).</summary>
+    public class WireRefRow    { public string Size, Imax1Ph, Imax3Ph, Mv1Ph, Mv3Ph; }
 
     public class ElectricalPanelSnapshot
     {
@@ -861,6 +902,7 @@ namespace StingTools.UI
         public List<LightingRow>          LightingRows;
         public List<RoomTargetRow>        RoomTargets;
         public List<WireRefRow>           WireRefRows;
+        public string                     WireRefBasis;
         public List<ComplianceItemViewModel> ComplianceItems;
         public string                     PhaseSummary;
         public string                     ImbalanceText;
@@ -939,7 +981,7 @@ namespace StingTools.UI
     {
         public double LoadKW; public double VoltageV; public int Phases;
         public double PowerFactor; public double LengthM; public double VDLimitPct;
-        public string InstallMethod, Material, Insulation, Standard;
+        public string InstallMethod, Material, Insulation, CableType, Standard;
     }
 
     public class ConduitFillInputSnapshot
@@ -959,11 +1001,15 @@ namespace StingTools.UI
     {
         public string PanelName, MainBreakerA, FedFrom, Location, IpRating,
             Manufacturer, FaultKA, Enclosure;
+        /// <summary>Element id of the board picked in the grid; 0 when unknown.</summary>
+        public long PanelId;
     }
 
     public class VDOptionsSnapshot
     {
-        public double BranchLimitPct, FeederLimitPct, OperatingTempC;
+        /// <summary>BS 7671 Appendix 12 (Table 4Ab): 3 % lighting, 5 % other uses, from the origin.
+        /// These replace a branch 3 % / feeder 2 % split keyed on pole count (ELEC-5).</summary>
+        public double LightingLimitPct, OtherLimitPct, OperatingTempC;
         public string Material, Standard;
     }
 

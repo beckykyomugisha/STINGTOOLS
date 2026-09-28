@@ -26,7 +26,7 @@ namespace StingTools.Core.Clash
                 var doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Clash") ?? Path.GetTempPath();
                 string clashesJson = ClashPersistence.CanonicalPath(doc);
                 var run = ClashPersistence.Load(clashesJson);
                 if (run == null || run.Clashes == null || run.Clashes.Count == 0)
@@ -38,7 +38,7 @@ namespace StingTools.Core.Clash
 
                 string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
                 string xlsxPath = Path.Combine(outDir, $"clashes_{stamp}.xlsx");
-                ExportToXlsx(run, xlsxPath, includeArchiveTrend: true, archiveDir: Path.Combine(outDir, "archive"));
+                ExportToXlsx(run, xlsxPath, includeArchiveTrend: true, archiveDir: ClashPersistence.ArchiveDir(doc));
 
                 TaskDialog.Show("STING Clash XLSX",
                     $"Exported {run.Clashes.Count} clashes ({run.Groups?.Count ?? 0} groups) to:\n\n{xlsxPath}");

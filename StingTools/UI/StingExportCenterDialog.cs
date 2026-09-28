@@ -63,6 +63,7 @@ namespace StingTools.UI
         private StackPanel _formatOptionsHost;
 
         private TextBox _folderBox;
+        private CheckBox _routeCheck;
         private TextBox _namingBox;
         private TextBlock _namingPreview;
         private TextBlock _statusLine;
@@ -98,7 +99,7 @@ namespace StingTools.UI
             _uiDoc = uiDoc ?? throw new ArgumentNullException(nameof(uiDoc));
             _doc = uiDoc.Document;
 
-            _state = ExportCenterEngine.LoadState();
+            _state = ExportCenterEngine.LoadState(_doc);
             _profile = ResolveStartingProfile();
 
             InitWindowChrome();
@@ -383,6 +384,7 @@ namespace StingTools.UI
             setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            setRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             setRow.Children.Add(new TextBlock { Text = "Set:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 0) });
 
@@ -402,6 +404,14 @@ namespace StingTools.UI
             manageBtn.Click += OnManageSetsClick;
             Grid.SetColumn(manageBtn, 3);
             setRow.Children.Add(manageBtn);
+
+            // Scheduled exports had a model, a runner and a command but no way to
+            // create one — nothing wrote ScheduledExports (DOCX-3).
+            var schedBtn = new Button { Content = "⏱ Schedule…", Margin = new Thickness(4, 0, 0, 0), Padding = new Thickness(8, 2, 8, 2),
+                ToolTip = "Run this profile on this set later, or on a repeat. Jobs belong to this project." };
+            schedBtn.Click += OnScheduleClick;
+            Grid.SetColumn(schedBtn, 4);
+            setRow.Children.Add(schedBtn);
 
             Grid.SetRow(setRow, 1);
             topBar.Children.Add(setRow);
@@ -545,8 +555,8 @@ namespace StingTools.UI
             if ((_profile.Formats & ExportFormats.DWG)   != 0) _formatOptionsHost.Children.Add(BuildDwgOptions());
             if ((_profile.Formats & ExportFormats.IFC)   != 0) _formatOptionsHost.Children.Add(BuildIfcOptions());
             if ((_profile.Formats & ExportFormats.NWC)   != 0) _formatOptionsHost.Children.Add(BuildNwcOptions());
-            if ((_profile.Formats & ExportFormats.DGN)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("DGN", "Default DGN export options applied."));
-            if ((_profile.Formats & ExportFormats.DWF)   != 0) _formatOptionsHost.Children.Add(BuildSimpleNote("DWF", "DWFx default options applied."));
+            if ((_profile.Formats & ExportFormats.DGN)   != 0) _formatOptionsHost.Children.Add(BuildDgnOptions());
+            if ((_profile.Formats & ExportFormats.DWF)   != 0) _formatOptionsHost.Children.Add(BuildDwfOptions());
             if ((_profile.Formats & ExportFormats.Image) != 0) _formatOptionsHost.Children.Add(BuildImageOptions());
             if ((_profile.Formats & ExportFormats.XML)   != 0) _formatOptionsHost.Children.Add(BuildXmlOptions());
         }
@@ -649,6 +659,15 @@ namespace StingTools.UI
             wmRows.TextChanged += (_, __) => { if (int.TryParse(wmRows.Text, out int n) && n > 0) _profile.Pdf.WatermarkTileRows = n; };
             sp.Children.Add(LabelFor("Tile rows", wmRows));
 
+            // Placement and zoom (were saved in the profile but never applied).
+            sp.Children.Add(LabelFor("Paper placement", BindCombo(new[] { "Centre", "Offset" },
+                _profile.Pdf.PaperPlacement, v => _profile.Pdf.PaperPlacement = v)));
+            sp.Children.Add(LabelFor("Offset X (mm, Offset only)", BindNumber(_profile.Pdf.OffsetXmm, v => _profile.Pdf.OffsetXmm = v)));
+            sp.Children.Add(LabelFor("Offset Y (mm, Offset only)", BindNumber(_profile.Pdf.OffsetYmm, v => _profile.Pdf.OffsetYmm = v)));
+            sp.Children.Add(LabelFor("Zoom", BindCombo(new[] { "Fit", "Percent" },
+                _profile.Pdf.Zoom, v => _profile.Pdf.Zoom = v)));
+            sp.Children.Add(LabelFor("Zoom % (Percent only)", BindNumber(_profile.Pdf.ZoomPercent, v => _profile.Pdf.ZoomPercent = (int)Math.Round(v))));
+
             return card;
         }
 
@@ -683,7 +702,8 @@ namespace StingTools.UI
             });
 
             var version = new ComboBox();
-            foreach (var v in new[] { "AC2018", "AC2013", "AC2010", "AC2007", "AC2004" }) version.Items.Add(v);
+            // No AC2004: Revit 2025+ has no R2004, so it silently exported the default version.
+            foreach (var v in new[] { "AC2018", "AC2013", "AC2010", "AC2007" }) version.Items.Add(v);
             version.SelectedItem = _profile.Dwg.DwgVersion;
             version.SelectionChanged += (_, __) => _profile.Dwg.DwgVersion = version.SelectedItem?.ToString() ?? "AC2018";
             sp.Children.Add(LabelFor("DWG version", version));
@@ -691,6 +711,16 @@ namespace StingTools.UI
             var layoutTpl = new TextBox { Text = _profile.Dwg.LayoutNameTemplate };
             layoutTpl.TextChanged += (_, __) => _profile.Dwg.LayoutNameTemplate = layoutTpl.Text;
             sp.Children.Add(LabelFor("Layout tab name template", layoutTpl));
+
+            sp.Children.Add(LabelFor("Coordinates", BindCombo(new[] { "Project", "Shared" },
+                _profile.Dwg.CoordinateSystem, v => _profile.Dwg.CoordinateSystem = v)));
+            sp.Children.Add(LabelFor("Layers", BindCombo(new[] { "ByCategory", "Standard", "Custom" },
+                _profile.Dwg.LayerMappingMode, v => _profile.Dwg.LayerMappingMode = v)));
+            sp.Children.Add(LabelFor("Layer standard (Standard)", BindCombo(new[] { "AIA", "BS1192", "ISO13567", "CP83" },
+                _profile.Dwg.LayerStandard, v => _profile.Dwg.LayerStandard = v)));
+            var layerFile = new TextBox { Text = _profile.Dwg.LayerCustomMappingFile ?? "" };
+            layerFile.TextChanged += (_, __) => _profile.Dwg.LayerCustomMappingFile = layerFile.Text;
+            sp.Children.Add(LabelFor("Layer mapping file (Custom)", layerFile));
 
             sp.Children.Add(BindCheck("Fall back to individual files if merge fails",
                 () => _profile.Dwg.FallbackOnMergeFailure, v => _profile.Dwg.FallbackOnMergeFailure = v));
@@ -752,7 +782,11 @@ namespace StingTools.UI
                 _profile.Ifc.PhaseName = phase.SelectedIndex == 0 ? null : phase.SelectedItem?.ToString();
             sp.Children.Add(LabelFor("Phase", phase));
 
-            sp.Children.Add(BindCheck("Export linked models", () => _profile.Ifc.ExportLinkedModels, v => _profile.Ifc.ExportLinkedModels = v));
+            // "Export linked models" was removed: RunIfc never read it, and a linked
+            // document cannot host the transaction the IFC exporter runs in. Export each
+            // link from its own model — it files into its discipline folder by name.
+            sp.Children.Add(LabelFor("Coordinates", BindCombo(new[] { "Project", "Survey", "Internal" },
+                _profile.Ifc.CoordinateOrigin, v => _profile.Ifc.CoordinateOrigin = v)));
 
             return card;
         }
@@ -773,7 +807,49 @@ namespace StingTools.UI
             dpi.SelectedItem = _profile.Image.Dpi;
             dpi.SelectionChanged += (_, __) => { if (int.TryParse(dpi.SelectedItem?.ToString(), out int n)) _profile.Image.Dpi = n; };
             sp.Children.Add(LabelFor("DPI", dpi));
+            sp.Children.Add(LabelFor("JPEG quality (≥90 lossless, ≥60 medium)",
+                BindNumber(_profile.Image.JpegQuality, v => _profile.Image.JpegQuality = (int)Math.Round(v))));
 
+            return card;
+        }
+
+        /// <summary>A combo over fixed values, bound to a string setting.</summary>
+        private ComboBox BindCombo(string[] values, string current, Action<string> write)
+        {
+            var cb = new ComboBox();
+            foreach (var v in values) cb.Items.Add(v);
+            cb.SelectedItem = values.FirstOrDefault(v => string.Equals(v, current, StringComparison.OrdinalIgnoreCase)) ?? values[0];
+            cb.SelectionChanged += (_, __) => write(cb.SelectedItem?.ToString() ?? values[0]);
+            return cb;
+        }
+
+        /// <summary>A text box bound to a number; invalid text is ignored, not saved.</summary>
+        private TextBox BindNumber(double current, Action<double> write)
+        {
+            var tb = new TextBox { Text = current.ToString(System.Globalization.CultureInfo.InvariantCulture) };
+            tb.TextChanged += (_, __) =>
+            {
+                if (double.TryParse(tb.Text, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out double v)) write(v);
+            };
+            return tb;
+        }
+
+        private Border BuildDgnOptions()
+        {
+            var card = NewSection("DGN — Version");
+            var sp = (StackPanel)card.Child;
+            sp.Children.Add(LabelFor("Version", BindCombo(new[] { "V8", "V7" },
+                _profile.Dgn.Version, v => _profile.Dgn.Version = v)));
+            return card;
+        }
+
+        private Border BuildDwfOptions()
+        {
+            var card = NewSection("DWF — Format & content");
+            var sp = (StackPanel)card.Child;
+            sp.Children.Add(BindCheck("DWFx (else DWF)", () => _profile.Dwf.DwfX, v => _profile.Dwf.DwfX = v));
+            sp.Children.Add(BindCheck("Include rooms and areas", () => _profile.Dwf.IncludeRoomBoundaries, v => _profile.Dwf.IncludeRoomBoundaries = v));
             return card;
         }
 
@@ -933,6 +1009,13 @@ namespace StingTools.UI
             destSp.Children.Add(BindCheck("Create folder if it doesn't exist", () => _profile.Output.CreateFolderIfMissing, v => _profile.Output.CreateFolderIfMissing = v));
             destSp.Children.Add(BindCheck("Split into format sub-folders",     () => _profile.Output.SplitByFormatSubFolder, v => _profile.Output.SplitByFormatSubFolder = v));
             destSp.Children.Add(BindCheck("Split by discipline sub-folders",   () => _profile.Output.SplitByDisciplineSubFolder, v => _profile.Output.SplitByDisciplineSubFolder = v));
+            _routeCheck = BindCheck("File into the project structure (CDE state from each sheet's suitability, then its discipline folder)",
+                () => _profile.Output.RouteByProjectStructure, v => { _profile.Output.RouteByProjectStructure = v; UpdateStatusLine(); });
+            _routeCheck.ToolTip =
+                "Each sheet goes where the Document Manager expects it: S0 → WIP, S1–S7 → SHARED, " +
+                "A/B/CR → PUBLISHED, then A_Architectural / M_Mechanical / S_Structural … " +
+                "The folder above still receives the export report.";
+            destSp.Children.Add(_routeCheck);
 
             sp.Children.Add(dest);
 
@@ -988,7 +1071,8 @@ namespace StingTools.UI
             // (sheet STING_* params → stamped DrawingType.IsoNaming → defaults).
             var tokens = new WrapPanel { Margin = new Thickness(0, 4, 0, 6) };
             string[] common = { "{SheetNumber}", "{SheetTitle}", "{Revision}", "{Discipline}", "{Date:yyyyMMdd}",
-                                "{ProjectCode}", "{Originator}", "{Volume}", "{Level}", "{Type}", "{Role}", "{Suitability}" };
+                                "{ProjectCode}", "{Originator}", "{Volume}", "{Level}", "{Type}", "{Role}", "{Suitability}",
+                                "{DocumentId}", "{Number}", "{CdeState}" };
             foreach (var t in common) tokens.Children.Add(MakeTokenPill(t));
             nSp.Children.Add(tokens);
 
@@ -1003,8 +1087,14 @@ namespace StingTools.UI
             nSp.Children.Add(LabelFor("Preview (first sheet)", _namingPreview));
 
             // Conflict mode
+            // "Ask" is not offered: nothing prompts, and the engine now resolves it to
+            // AutoRename (it used to overwrite). A profile saved with Ask shows as
+            // AutoRename, which is what it does.
             var conflict = new ComboBox();
-            foreach (var v in Enum.GetNames(typeof(FilenameConflictMode))) conflict.Items.Add(v);
+            foreach (var v in Enum.GetNames(typeof(FilenameConflictMode)))
+                if (v != nameof(FilenameConflictMode.Ask)) conflict.Items.Add(v);
+            if (_profile.Output.ConflictMode == FilenameConflictMode.Ask)
+                _profile.Output.ConflictMode = FilenameConflictMode.AutoRename;
             conflict.SelectedItem = _profile.Output.ConflictMode.ToString();
             conflict.SelectionChanged += (_, __) =>
             {
@@ -1020,6 +1110,8 @@ namespace StingTools.UI
             var rSp = (StackPanel)report.Child;
             rSp.Children.Add(BindCheck("Generate report", () => _profile.Output.GenerateReport, v => _profile.Output.GenerateReport = v));
             rSp.Children.Add(BindCheck("Open report when done", () => _profile.Output.OpenReportWhenDone, v => _profile.Output.OpenReportWhenDone = v));
+            rSp.Children.Add(LabelFor("Report format", BindCombo(new[] { "XLSX", "CSV" },
+                _profile.Output.ReportFormat, v => _profile.Output.ReportFormat = v)));
             sp.Children.Add(report);
 
             return new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
@@ -1222,6 +1314,9 @@ namespace StingTools.UI
                 var ids = ExportCenterEngine.ResolveSet(_doc, set, out int missing);
                 var idSet = new HashSet<long>(ids.Select(e => e.Value));
                 foreach (var r in _rows) r.IsChecked = idSet.Contains(r.Id);
+                // The set's saved search text was stored and never restored.
+                if (!set.BuiltIn && _searchBox != null && set.FilterText != null && _searchBox.Text != set.FilterText)
+                    _searchBox.Text = set.FilterText;
                 if (missing > 0) UpdateStatusLine($"{missing} sheets in set were not found in this model.");
                 else UpdateStatusLine();
             }
@@ -1340,9 +1435,10 @@ namespace StingTools.UI
         /// export's suitability and point the output there, so files land inside the
         /// Document Manager's project structure instead of next to the .rvt or
         /// wherever the user last browsed:
-        ///   S0 / S1            → 01_WIP        (work in progress)
-        ///   S2 / S3 + A/B/CR   → 02_SHARED     (shared for coordination / review)
-        ///   S4 / S6 / S7       → 03_PUBLISHED  (approved / issued)
+        ///   S0                 → WIP        (work in progress)
+        ///   S1 .. S7           → SHARED     (coordination / information / review / approval)
+        ///   A / B / CR         → PUBLISHED  (authorised / issued)
+        /// — Iso19650Suitability.CdeStateFor, the same mapping the title block uses.
         /// Called on open / profile switch with force == false (never overrides an
         /// explicit path) and by the "Auto" button with force == true.
         /// </summary>
@@ -1353,11 +1449,31 @@ namespace StingTools.UI
                 if (_profile?.Output == null) return;
                 if (!force && !string.IsNullOrWhiteSpace(_profile.Output.LocalFolder)) return;
 
+                // The suitability the selected sheets actually carry (most common code),
+                // not a hidden profile default that had no control and was always S2.
+                var codes = _rows.Where(r => r.IsChecked)
+                    .Select(r => _doc.GetElement(new ElementId(r.Id)) as ViewSheet)
+                    .Where(v => v != null)
+                    .Select(ExportCenterEngine.SheetSuitabilityCode)
+                    .Where(c => !string.IsNullOrEmpty(c))
+                    .GroupBy(c => c).OrderByDescending(g => g.Count()).FirstOrDefault();
+                if (codes != null && Enum.TryParse<SuitabilityCode>(codes.Key, out var sc))
+                    _profile.Output.CdeSuitability = sc;
+
                 string folder = ResolveCdeFolder(_profile.Output.CdeSuitability);
                 if (string.IsNullOrEmpty(folder)) return;
 
                 _profile.Output.LocalFolder = folder;
                 if (_folderBox != null) _folderBox.Text = folder;  // TextChanged syncs profile + status line
+
+                // "Auto" means "put it where the project keeps it". Pointing the
+                // whole run at one state folder put every discipline's sheets in
+                // its root; the per-sheet routing puts each in its discipline folder.
+                if (force)
+                {
+                    _profile.Output.RouteByProjectStructure = true;
+                    if (_routeCheck != null) _routeCheck.IsChecked = true;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"AutoLocateOutputFolder: {ex.Message}"); }
         }
@@ -1378,21 +1494,15 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"ResolveCdeFolder fallback: {ex.Message}"); return null; }
         }
 
+        /// <summary>The CDE container for a suitability, from the one unit-tested
+        /// mapping (Iso19650Suitability.CdeStateFor) that Title Block Populate also
+        /// uses. The hand-rolled switch this replaces disagreed with it on three
+        /// families: S1 went to WIP, S4/S6/S7 to PUBLISHED and A/B/CR to SHARED — so
+        /// an authorised drawing could be filed as shared and a stage-approval issue
+        /// as published, which is a contractual statement. AB (abandoned) has no live
+        /// container and falls back to SHARED as before.</summary>
         private static string CdeBucketForSuitability(SuitabilityCode s)
-        {
-            switch (s)
-            {
-                case SuitabilityCode.S0:
-                case SuitabilityCode.S1:
-                    return "WIP";
-                case SuitabilityCode.S4:
-                case SuitabilityCode.S6:
-                case SuitabilityCode.S7:
-                    return "PUBLISHED";
-                default:
-                    return "SHARED";  // S2 / S3 / A1–A3 / AB / B1–B3 / CR → shared for coordination/review
-            }
-        }
+            => Core.Drawing.Iso19650Suitability.CdeStateFor(s.ToString()) ?? "SHARED";
 
         private void OnBrowseFolderClick(object _, RoutedEventArgs __)
         {
@@ -1433,7 +1543,7 @@ namespace StingTools.UI
             _state.SavedSets.Add(set);
             _setCombo.Items.Add(name);
             _setCombo.SelectedIndex = _state.SavedSets.Count - 1;
-            ExportCenterEngine.SaveState(_state);
+            ExportCenterEngine.SaveState(_state, _doc);
         }
 
         private void OnManageSetsClick(object _, RoutedEventArgs __)
@@ -1458,11 +1568,122 @@ namespace StingTools.UI
                 _state.SavedSets.RemoveAt(i);
                 lb.Items.RemoveAt(i);
                 _setCombo.Items.RemoveAt(i);
-                ExportCenterEngine.SaveState(_state);
+                ExportCenterEngine.SaveState(_state, _doc);
             };
             var sp = new StackPanel { Margin = new Thickness(10) };
             sp.Children.Add(lb); sp.Children.Add(del);
             dlg.Content = sp;
+            dlg.ShowDialog();
+        }
+
+        // ── Scheduled exports ────────────────────────────────────────────────────
+
+        private void OnScheduleClick(object _, RoutedEventArgs __)
+        {
+            var dlg = new Window
+            {
+                Title = "Scheduled exports — this project",
+                Width = 560, Height = 520, Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            };
+            var sp = new StackPanel { Margin = new Thickness(12) };
+
+            bool profileSaved = _state.Profiles.Any(p => string.Equals(p.Name, _profile.Name, StringComparison.OrdinalIgnoreCase));
+            sp.Children.Add(new TextBlock
+            {
+                Text = $"Profile: {_profile.Name}" + (profileSaved ? "" : "  — not saved; save the profile first"),
+                FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap,
+            });
+            sp.Children.Add(new TextBlock
+            {
+                Text = "A job runs the SAVED profile, so later edits to it apply to the job.",
+                FontSize = 11, Foreground = Brushes.Gray, Margin = new Thickness(0, 0, 0, 6), TextWrapping = TextWrapping.Wrap,
+            });
+
+            var setBox = new ComboBox();
+            foreach (var st in _state.SavedSets) setBox.Items.Add(st.Name);
+            setBox.SelectedIndex = Math.Max(0, _setCombo.SelectedIndex);
+            sp.Children.Add(LabelFor("Set", setBox));
+
+            var repeat = new ComboBox();
+            foreach (var r in new[] { "Once", "Daily", "Weekly", "Monthly" }) repeat.Items.Add(r);
+            repeat.SelectedIndex = 1;
+            sp.Children.Add(LabelFor("Repeat", repeat));
+
+            var days = new WrapPanel { Margin = new Thickness(0, 2, 0, 6) };
+            var dayChecks = new List<(DayOfWeek day, CheckBox cb)>();
+            foreach (DayOfWeek d in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+                                            DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday })
+            {
+                var cb = new CheckBox { Content = d.ToString().Substring(0, 3), Margin = new Thickness(0, 0, 8, 0) };
+                dayChecks.Add((d, cb)); days.Children.Add(cb);
+            }
+            sp.Children.Add(LabelFor("Weekly on (Weekly only; none = every 7 days)", days));
+
+            var first = DateTime.Now.AddHours(1);
+            var firstBox = new TextBox { Text = new DateTime(first.Year, first.Month, first.Day, first.Hour, 0, 0).ToString("yyyy-MM-dd HH:mm") };
+            sp.Children.Add(LabelFor("First run (local time, yyyy-MM-dd HH:mm)", firstBox));
+
+            var onSave = new CheckBox
+            {
+                Content = "Run due jobs when this model is saved",
+                IsChecked = _state.EnableSaveTriggeredSchedules, Margin = new Thickness(0, 6, 0, 0),
+                ToolTip = "Off: due jobs run only from the 'Run schedules' command. On: after each save, once Revit is idle.",
+            };
+            onSave.Checked += (_, __) => { _state.EnableSaveTriggeredSchedules = true; ExportCenterEngine.SaveState(_state, _doc); };
+            onSave.Unchecked += (_, __) => { _state.EnableSaveTriggeredSchedules = false; ExportCenterEngine.SaveState(_state, _doc); };
+            sp.Children.Add(onSave);
+
+            var list = new ListBox { Height = 150, Margin = new Thickness(0, 8, 0, 0) };
+            void RefreshList()
+            {
+                list.Items.Clear();
+                foreach (var j in _state.ScheduledExports)
+                    list.Items.Add($"{(j.Enabled ? "●" : "○")} {j.ProfileName} · {j.SetName} · {j.Repeat}" +
+                                   (j.Repeat == "Weekly" && j.WeeklyDays?.Count > 0 ? " (" + string.Join(",", j.WeeklyDays.Select(d => d.ToString().Substring(0, 3))) + ")" : "") +
+                                   $" · next {j.NextRunUtc.ToLocalTime():yyyy-MM-dd HH:mm}" +
+                                   (string.IsNullOrEmpty(j.LastResult) ? "" : $" · last: {j.LastResult}"));
+            }
+            RefreshList();
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0) };
+            var add = new Button { Content = "Add job", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 6, 0), IsEnabled = profileSaved };
+            var del = new Button { Content = "Delete selected", Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 6, 0) };
+            var close = new Button { Content = "Close", Padding = new Thickness(10, 3, 10, 3), IsCancel = true };
+            add.Click += (_, __) =>
+            {
+                if (!DateTime.TryParseExact(firstBox.Text.Trim(), "yyyy-MM-dd HH:mm",
+                        System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeLocal, out var local))
+                {
+                    Autodesk.Revit.UI.TaskDialog.Show("Schedule", "First run must be yyyy-MM-dd HH:mm.");
+                    return;
+                }
+                var job = new ScheduledExport
+                {
+                    ProfileName = _profile.Name,
+                    SetName = setBox.SelectedItem?.ToString(),
+                    Repeat = repeat.SelectedItem?.ToString() ?? "Once",
+                    NextRunUtc = local.ToUniversalTime(),
+                    WeeklyDays = dayChecks.Where(x => x.cb.IsChecked == true).Select(x => x.day).ToList(),
+                };
+                _state.ScheduledExports.Add(job);
+                ExportCenterEngine.SaveState(_state, _doc);
+                RefreshList();
+            };
+            del.Click += (_, __) =>
+            {
+                int i = list.SelectedIndex;
+                if (i < 0 || i >= _state.ScheduledExports.Count) return;
+                _state.ScheduledExports.RemoveAt(i);
+                ExportCenterEngine.SaveState(_state, _doc);
+                RefreshList();
+            };
+            close.Click += (_, __) => dlg.Close();
+            buttons.Children.Add(add); buttons.Children.Add(del); buttons.Children.Add(close);
+
+            sp.Children.Add(list);
+            sp.Children.Add(buttons);
+            dlg.Content = new ScrollViewer { Content = sp, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
             dlg.ShowDialog();
         }
 
@@ -1523,6 +1744,16 @@ namespace StingTools.UI
                 {
                     try { System.Diagnostics.Process.Start("explorer.exe", _profile.Output.LocalFolder); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
+                // "Open report when done" was bound to a checkbox and read by nothing.
+                if (_profile.Output.OpenReportWhenDone && File.Exists(result.ReportPath ?? ""))
+                {
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(result.ReportPath)
+                            { UseShellExecute = true });
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Open export report: {ex.Message}"); }
+                }
             }
             finally
             {
@@ -1562,7 +1793,7 @@ namespace StingTools.UI
             if (!string.IsNullOrEmpty(_profile.Output.LocalFolder))
                 _state.LastOutputFolder = _profile.Output.LocalFolder;
             _state.LastNamingTemplate = _profile.Output.NamingTemplate;
-            ExportCenterEngine.SaveState(_state);
+            ExportCenterEngine.SaveState(_state, _doc);
         }
 
         // ── Tiny helpers ────────────────────────────────────────────────────────

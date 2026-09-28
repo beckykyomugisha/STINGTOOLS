@@ -100,7 +100,7 @@ namespace StingTools.Commands.Cost
                     .Show();
 
                 // CSV trail.
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_CVR", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_CVR", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("Metric,Value");
                 sb.AppendLine($"ValueOfWorkDone,{r.ValueUGX:F0}");
@@ -255,7 +255,7 @@ namespace StingTools.Commands.Cost
                                       $"{c.CostToCompleteUGX:F0},{c.ForecastFinalUGX:F0},{c.VarianceUGX:F0}");
                     }
 
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_CTC_Lines", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_CTC_Lines", ".csv");
                 File.WriteAllText(csv, sb.ToString());
 
                 StingResultPanel.Create("Cost-to-Complete (line level)")
@@ -334,7 +334,7 @@ namespace StingTools.Commands.Cost
 
                 var s = CommitmentsRegister.Rollup(commitments, budgetByLine);
 
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_Commitments", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_Commitments", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("BudgetLineRef,BudgetUGX,CommittedUGX,CertifiedUGX,OutstandingUGX,UncommittedUGX,OverCommitted");
                 foreach (var l in s.ByBudgetLine)

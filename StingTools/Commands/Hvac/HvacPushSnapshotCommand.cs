@@ -7,13 +7,13 @@
 // payload string. The mobile HVAC dashboard renders the header KPIs
 // from the columns and the row tables from PayloadJson.
 //
-// Five snapshot kinds are pushed in a single batch so the mobile
-// dashboard can show a complete picture from one round-trip:
-//   - sizing  : duct/pipe sizing-run summary (last MepAutoSize result)
-//   - balance : currently empty placeholder until Hardy-Cross writes back
+// Three snapshot kinds are pushed in one batch:
 //   - drift   : count of HVC_SIZE_STALE_BOOL == 1 ducts
-//   - loads   : space-load grid totals
-//   - carbon  : last HvacCarbonReport totals
+//   - loads   : space-load grid (cooling and heating kept apart)
+//   - sizing  : equipment grid summary
+// There is no "balance" or "carbon" snapshot: Hardy-Cross writes its flows
+// onto the pipes (RBS_PIPE_FLOW_PARAM), not into a panel grid, and the carbon
+// report keeps no panel state to push. Earlier comments promised five kinds.
 
 using System;
 using System.Linq;
@@ -115,7 +115,10 @@ namespace StingTools.Commands.Hvac
                         ["pass"]      = spaces - warnNoLoad,
                         ["warn"]      = warnNoLoad,
                         ["fail"]      = 0,
-                        ["totalKw"]   = heatSum + coolSum,
+                        // Heating and cooling are separate plant duties;
+                        // adding them gives a number that sizes nothing.
+                        // The larger of the two is the governing one.
+                        ["totalKw"]   = Math.Max(heatSum, coolSum),
                         ["worstValue"]= Math.Max(heatSum, coolSum),
                         ["rag"]       = warnNoLoad == 0 ? "G" : (warnNoLoad > spaces / 4 ? "R" : "A"),
                         ["payloadJson"]= JArray.FromObject(panel.SpaceLoadRows).ToString(Newtonsoft.Json.Formatting.None)

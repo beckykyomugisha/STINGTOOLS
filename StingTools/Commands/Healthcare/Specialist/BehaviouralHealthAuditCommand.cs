@@ -18,7 +18,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
                 // Hc.Specialist.Bh.* overrides:
                 //   UseFgi/UseHbn → at least one must be on; both off ⇒ skip.

@@ -75,6 +75,12 @@ namespace StingTools.UI.Modules
             registry.Register("BatchCreateSheets",         app => StingCommandHandler.RunCommandPublic<Docs.BatchCreateSheetsCommand>(app));
             registry.Register("CreateDependentViews",      app => StingCommandHandler.RunCommandPublic<Docs.CreateDependentViewsCommand>(app));
             registry.Register("ScopeBoxManager",           app => StingCommandHandler.RunCommandPublic<Docs.ScopeBoxManagerCommand>(app));
+            registry.Register("ScopeBox_Planner", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ScopeBoxPlannerCommand>(app));
+            registry.Register("ScopeBox_RegisterSeeds", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ScopeBoxRegisterSeedsCommand>(app));
+            registry.Register("ScopeBox_ImportSeeds", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ScopeBoxImportSeedsCommand>(app));
+            registry.Register("ScopeBox_Colour", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ScopeBoxColourCommand>(app));
+            registry.Register("ScopeBox_ClearColour", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ScopeBoxClearColourCommand>(app));
+            registry.Register("ScopeBox_ProduceAreas", app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ScopeBoxProduceAreasCommand>(app));
             registry.Register("ViewTemplateAssigner",      app => StingCommandHandler.RunCommandPublic<Docs.ViewTemplateAssignerCommand>(app));
             registry.Register("DocumentationPackage",      app => StingCommandHandler.RunCommandPublic<Docs.DocumentationPackageCommand>(app));
             registry.Register("BatchCreateSections",       app => StingCommandHandler.RunCommandPublic<Docs.BatchCreateSectionsCommand>(app));

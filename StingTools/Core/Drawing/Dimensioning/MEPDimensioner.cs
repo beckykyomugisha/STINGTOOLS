@@ -142,12 +142,9 @@ namespace StingTools.Core.Drawing.Dimensioning
             // are in feet.
             if (rule?.MinSizeMm != null)
             {
-                var minFt = rule.MinSizeMm.Value / DimensionStrategy.MmPerFt;
-                els = els.Where(e =>
-                {
-                    var size = ReadElementDiameterFt(e);
-                    return size <= 0 || size >= minFt;
-                }).ToList();
+                // A-2: shared size definition + gate (ElementSize / AnnotationMinSize).
+                els = els.Where(e => AnnotationMinSize.Keeps(
+                    ElementSize.SectionFt(e) * AnnotationMinSize.MmPerFt, rule.MinSizeMm)).ToList();
             }
             return els;
         }
@@ -325,19 +322,5 @@ namespace StingTools.Core.Drawing.Dimensioning
             return XYZ.BasisX;
         }
 
-        private static double ReadElementDiameterFt(MEPCurve e)
-        {
-            try
-            {
-                if (e is Pipe p) return p.Diameter;
-                if (e is Duct d) return Math.Max(d.Width, d.Height);
-                var diaP = e.LookupParameter("Diameter");
-                if (diaP != null && diaP.StorageType == StorageType.Double) return diaP.AsDouble();
-                var wP = e.LookupParameter("Width");
-                if (wP != null && wP.StorageType == StorageType.Double) return wP.AsDouble();
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return 0.0;
-        }
     }
 }

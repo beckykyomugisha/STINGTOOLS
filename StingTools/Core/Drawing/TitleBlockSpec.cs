@@ -38,6 +38,14 @@ namespace StingTools.Core.Drawing
         [JsonProperty("lastUpdated")]   public string LastUpdated { get; set; }
         [JsonProperty("families")]      public List<TitleBlockSpec> Families { get; set; }
             = new List<TitleBlockSpec>();
+
+        /// <summary>
+        /// CDE status-band palette, keyed by state name (WIP / SHARED / PUBLISHED /
+        /// ARCHIVED). Resolved over the shipped defaults by
+        /// SuitabilityPresentation.ResolvePalette; a region with role "cdeBand"
+        /// is authored as one coloured band per state.
+        /// </summary>
+        [JsonProperty("cdeBands")] public Dictionary<string, CdeBandSpec> CdeBands { get; set; }
     }
 
     /// <summary>Single .rfa family — OR an abstract base that other
@@ -235,6 +243,17 @@ namespace StingTools.Core.Drawing
         [JsonProperty("bottomRight")] public double[] BottomRight { get; set; }
         [JsonProperty("fillTypeName")] public string  FillTypeName { get; set; } = "Solid fill - Light Grey";
         [JsonProperty("color")]       public string   Color { get; set; }        // "#RRGGBB", optional
+
+        /// <summary>
+        /// "cdeBand" marks the rectangle behind the suitability cell as the CDE
+        /// status band: instead of one static region the factory authors one
+        /// coloured region per CDE state, each visible only when
+        /// PRJ_TB_CDE_STATE_INT selects it. Null = an ordinary static region.
+        /// </summary>
+        [JsonProperty("role", NullValueHandling = NullValueHandling.Ignore)] public string Role { get; set; }
+
+        public const string CdeBandRole = "cdeBand";
+        public bool IsCdeBand => string.Equals(Role, CdeBandRole, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>P12 — the drawable content rect on a title-block family, in mm,

@@ -25,7 +25,7 @@
     <RootNamespace>StingTools.Dynamo</RootNamespace>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <IsPackable>false</IsPackable>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <NoWarn>NU1701;CS1591;MSB3277</NoWarn>
     <!-- Dynamo hosts the DLL inside Revit — do NOT copy runtime deps. -->
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>

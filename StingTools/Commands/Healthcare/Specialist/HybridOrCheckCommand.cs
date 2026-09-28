@@ -18,7 +18,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
                 // Hc.Specialist.Hor.* overrides:
                 //   MinAreaM2  → OR-HYBRID minimum (slider 30..80, default 70).

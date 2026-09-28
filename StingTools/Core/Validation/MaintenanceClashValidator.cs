@@ -61,7 +61,7 @@ namespace StingTools.Core.Validation
                     try { bb = el.get_BoundingBox(null); } catch { }
                     if (bb == null) continue;
 
-                    string dir = ReadString(el, "MNT_ACCESS_DIR_TXT");
+                    string dir = ReadString(el, ParamRegistry.MNT_ACCESS_DIR_TXT);
                     BoundingBoxXYZ env = ProjectEnvelope(bb, w, d, h, dir);
                     envelopes.Add((el.Id, env, dir));
                 }

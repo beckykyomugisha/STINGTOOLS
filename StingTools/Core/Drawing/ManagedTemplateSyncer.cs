@@ -278,11 +278,43 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return string.Empty; }
         }
 
+        /// <summary>
+        /// View types that can actually carry a View.ViewTemplateId. Revit
+        /// rejects the assignment on a schedule, a legend, a sheet and the
+        /// browser-only types, so minting a managed template for one produces a
+        /// template that can never be applied — and an exception per view when
+        /// something tries.
+        ///
+        /// Whitelist rather than blacklist: an unfamiliar view type is refused
+        /// with a named warning instead of being discovered by a throw.
+        /// </summary>
+        private static readonly HashSet<ViewType> TemplatableViewTypes = new HashSet<ViewType>
+        {
+            ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.EngineeringPlan, ViewType.AreaPlan,
+            ViewType.Section, ViewType.Elevation, ViewType.Detail, ViewType.DraftingView,
+            ViewType.ThreeD, ViewType.Walkthrough, ViewType.Rendering,
+        };
+
+        /// <summary>Revit-free predicate, so the rule is unit-testable.</summary>
+        internal static bool CanCarryViewTemplate(ViewType vt) => TemplatableViewTypes.Contains(vt);
+
         public static ElementId EnsureTemplate(Document doc, ViewStylePack pack, ViewType viewType, PackApplyResult result)
         {
             if (doc == null || pack == null || string.IsNullOrEmpty(pack.Id))
                 return ElementId.InvalidElementId;
             if (result == null) result = new PackApplyResult();
+
+            if (!CanCarryViewTemplate(viewType))
+            {
+                // Named, not thrown. A Schedule or Legend profile bound to a
+                // managed pack is a data mistake, and saying so is more useful
+                // than a stack trace from ViewTemplateId.
+                result.Warnings.Add(
+                    $"Style pack '{pack.Id}' is managed, but a {viewType} view cannot carry a view template — "
+                    + "no managed template minted. Bind this profile to an \"external\" pack "
+                    + "(corp-standard-detail serves the schedule profiles) so its overrides apply to the view directly.");
+                return ElementId.InvalidElementId;
+            }
 
             // 1. Cache hit (C-6 — per-document bucket; IsValidObject guard
             // catches a stale id from a copied / save-as'd document).

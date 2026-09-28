@@ -1752,7 +1752,7 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                    string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance");
                     string csvPath = Path.Combine(outDir,
                         $"STING_FieldRemapAudit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                     File.WriteAllText(csvPath, csvContent);

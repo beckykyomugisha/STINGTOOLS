@@ -266,7 +266,7 @@ namespace StingTools.Core
             "AutoPopulate", "CombineParameters", "RetagStale", "AnomalyAutoFix", "ResolveAllIssues",
             "SmartPlaceTags", "ArrangeTags", "DiscComplianceReport",
             "SystemParamPush", "RepairDuplicateSeq", "TagSelected", "ReTag", "FixDuplicates",
-            "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "PurgeSharedParams",
+            "RenumberTags", "CopyTags", "Tag3D", "CheckData", "LoadSharedParams", "Params_RebindCircuitNumberAsText", "PurgeSharedParams",
             "AssetCondition", "MaintenanceSchedule", "WarrantyTracker", "HandoverPackage",
             "DataIntegrityCheck", "StandardsDashboard", "TagSheets", "MapSheets",
             "WarningsDashboard", "WarningsAutoFix", "WarningsExport", "WarningsBaseline",
@@ -358,16 +358,65 @@ namespace StingTools.Core
             return (issues.Count == 0, issues);
         }
 
+        /// <summary>What an unattended run did, for the caller to report in its own words.</summary>
+        public sealed class WorkflowOutcome
+        {
+            public string PresetName { get; set; }
+            public int TotalSteps { get; set; }
+            public int Passed { get; set; }
+            public int Failed { get; set; }
+            public int Skipped { get; set; }
+            public bool Cancelled { get; set; }
+            /// <summary>The full step-by-step report the attended run shows in its dialog.</summary>
+            public string Report { get; set; }
+            /// <summary>A required step failed or the run was cancelled. Optional failures count as skipped.</summary>
+            public bool IsFailure => Failed > 0 || Cancelled;
+            public string Summary =>
+                $"{PresetName}: {Passed}/{TotalSteps} steps OK, {Skipped} skipped, {Failed} failed" +
+                (Cancelled ? " (cancelled)" : "");
+        }
+
+        // A workflow run from inside another (a step that is itself a workflow, or the
+        // project setup wizard) must not stop the outer run with its own report dialog.
+        [ThreadStatic] private static int _presetDepth;
+
         /// <summary>
-        /// Execute a workflow preset with progress reporting and cancellation.
+        /// Execute a workflow preset with progress reporting and cancellation, and show
+        /// the report. Nested inside another run it is unattended (see the overload).
         /// </summary>
         public static Result ExecutePreset(WorkflowPreset preset,
             ExternalCommandData commandData, ElementSet elements)
+            => ExecutePreset(preset, commandData, elements, showReport: true, out _);
+
+        /// <summary>
+        /// Execute a workflow preset. With <paramref name="showReport"/> false (or when
+        /// nested in another run) no report dialog is shown, the outcome is returned for
+        /// the caller to present, and the result is Failed when any REQUIRED step failed
+        /// or the run was cancelled. An attended run keeps its historical result
+        /// (Succeeded when any step passed): its dialog has already said what failed,
+        /// and a Failed result would make Revit raise a second, generic error.
+        /// </summary>
+        public static Result ExecutePreset(WorkflowPreset preset,
+            ExternalCommandData commandData, ElementSet elements,
+            bool showReport, out WorkflowOutcome outcome)
         {
+            bool attended = showReport && _presetDepth == 0;
+            _presetDepth++;
+            try { return ExecutePresetCore(preset, commandData, elements, attended, out outcome); }
+            finally { _presetDepth--; }
+        }
+
+        private static Result ExecutePresetCore(WorkflowPreset preset,
+            ExternalCommandData commandData, ElementSet elements,
+            bool attended, out WorkflowOutcome outcome)
+        {
+            outcome = new WorkflowOutcome { PresetName = preset?.Name ?? "", TotalSteps = preset?.Steps?.Count ?? 0 };
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null)
             {
-                TaskDialog.Show("Workflow", "No document is open.");
+                outcome.Failed = 1;
+                outcome.Report = "No document is open.";
+                if (attended) TaskDialog.Show("Workflow", "No document is open.");
                 return Result.Failed;
             }
             Document doc = ctx.Doc;
@@ -1134,10 +1183,24 @@ namespace StingTools.Core
             if (cancelled) report.AppendLine("  ⚠ Cancelled by user (Escape)");
             report.AppendLine($"  Duration: {totalSw.Elapsed.TotalSeconds:F1}s");
 
-            TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");
-            td.MainInstruction = $"{preset.Name}: {passed}/{preset.Steps.Count} steps complete";
-            td.MainContent = report.ToString();
-            td.Show();
+            outcome.Passed = passed;
+            outcome.Failed = failed;
+            outcome.Skipped = skipped;
+            outcome.Cancelled = cancelled;
+            outcome.Report = report.ToString();
+
+            // Unattended, nobody sees the dialog and most callers discard the outcome, so a
+            // failure's step-by-step detail would exist nowhere. Put it in the log.
+            if (!attended && outcome.IsFailure)
+                StingLog.Warn($"Workflow '{preset.Name}' (unattended) failed:\n{outcome.Report}");
+
+            if (attended)
+            {
+                TaskDialog td = new TaskDialog($"Workflow: {preset.Name}");
+                td.MainInstruction = $"{preset.Name}: {passed}/{preset.Steps.Count} steps complete";
+                td.MainContent = report.ToString();
+                td.Show();
+            }
 
             StingLog.Info($"Workflow '{preset.Name}' complete: {passed}/{preset.Steps.Count} OK, " +
                 $"{failed} failed, elapsed={totalSw.Elapsed.TotalSeconds:F1}s");
@@ -1255,6 +1318,7 @@ namespace StingTools.Core
                 StingLog.Warn($"Workflow log save failed: {logEx.Message}");
             }
 
+            if (!attended) return outcome.IsFailure ? Result.Failed : Result.Succeeded;
             return passed > 0 ? Result.Succeeded : Result.Failed;
         }
 
@@ -1398,6 +1462,7 @@ namespace StingTools.Core
                 // then never stamped a code, set a class, or audited what it built.
                 // Class names taken from StingCommandHandler, not guessed.
                 case "Materials_StampCodes": return new Commands.Materials.StampMaterialCodesCommand();
+                case "Materials_SyncIdentity": return new Commands.Materials.SyncMaterialIdentityCommand();
                 case "Materials_SetClass": return new Commands.Baseline.SetMaterialClassCommand();
                 // Read-only. Compares what the model BUILT against what the register
                 // DECLARES for the row each type is named after.
@@ -1446,6 +1511,10 @@ namespace StingTools.Core
                 case "EvaluateFormulas": return new Temp.FormulaEvaluatorCommand();
 
                 // Electrical Panel Schedules (Commands.Panels)
+                case "Panel_ComplianceCheck":   return new Commands.Panels.PanelComplianceCheckCommand();
+                case "Panel_BalanceApply":      return new Commands.Panels.PanelBalanceApplyCommand();
+                case "Panel_TemplatesCreate":   return new Commands.Panels.PanelTemplatesCreateCommand();
+                case "Panel_TemplateInspect":   return new Commands.Panels.PanelTemplateInspectCommand();
                 case "Panel_BatchSchedules":    return new Commands.Panels.BatchPanelSchedulesCommand();
                 case "Panel_Audit":             return new Commands.Panels.PanelScheduleAuditCommand();
                 case "Panel_ExportToExcel":     return new Commands.Panels.ExportPanelSchedulesToExcelCommand();
@@ -1514,6 +1583,7 @@ namespace StingTools.Core
                 case "Calc_SizeBreakers":       return new Commands.Electrical.BreakerSizerCommand();
                 case "Calc_ApplyBreakers":      return new Commands.Electrical.BreakerSizerApplyCommand();
                 case "Cable_Calculate":         return new Commands.Electrical.CableSizer.CableSizerCommand();
+                case "Cable_ReloadTables":      return new Commands.Electrical.CableSizer.WireTablesReloadCommand();
                 case "Cable_ConduitFill":       return new Commands.Electrical.ConduitFillValidateCommand();
                 case "Cable_ConsolidateConduits": return new Commands.Electrical.Routing.ConduitConsolidatorCommand();
                 case "Cable_BuildSchedule":      return new Commands.Electrical.Routing.CableScheduleBuilderCommand();
@@ -1550,12 +1620,30 @@ namespace StingTools.Core
                 case "Penetrations_DetectAndPlace":    return new Commands.Routing.PenetrationsDetectAndPlaceCommand();
                 case "Validation_PenetrationCoverage": return new Commands.Validation.PenetrationCoverageCommand();
                 case "DrawingTypes_FromScopeBoxes":    return new Commands.Drawing.GenerateFromScopeBoxesCommand();
+                case "ScopeBox_Planner":              return new Commands.Drawing.ScopeBoxPlannerCommand();
+                case "ScopeBox_RegisterSeeds":        return new Commands.Drawing.ScopeBoxRegisterSeedsCommand();
+                case "ScopeBox_ImportSeeds":          return new Commands.Drawing.ScopeBoxImportSeedsCommand();
+                case "ScopeBox_Colour":               return new Commands.Drawing.ScopeBoxColourCommand();
+                case "ScopeBox_ClearColour":          return new Commands.Drawing.ScopeBoxClearColourCommand();
+                case "ScopeBox_ProduceAreas":         return new Commands.Drawing.ScopeBoxProduceAreasCommand();
                 case "DrawingTypes_SyncStyles":        return new Commands.Drawing.DrawingSyncStylesCommand();
                 // W-2: workflow-callable so a sheet-production workflow can
                 // generate and then sync match lines after renumbering.
                 case "MatchLine_Generate":             return new Commands.Drawing.MatchLineGenerateCommand();
                 case "MatchLine_Sync":                 return new Commands.Drawing.MatchLineSyncCommand();
                 case "MatchLine_Validate":             return new Commands.Drawing.MatchLineValidateCommand();
+                case "DrawingTypes_BuildFlowArrow":    return new Commands.Drawing.BuildFlowArrowFamilyCommand();
+                // Drawing-production setup (WORKFLOW_DrawingProductionSetup.json).
+                // These had buttons but no workflow route, so setup could only be
+                // done one click at a time, in an order nobody wrote down.
+                case "TitleBlock_CreateAll":           return new Commands.Drawing.TitleBlockCreateAllCommand();
+                case "LoadTagFamilies":                return new Tags.LoadTagFamiliesCommand();
+                case "AecFilters_Create":              return new Commands.Drawing.AecFiltersCreateCommand();
+                case "DrawingTypes_EnsureViewTypes":   return new Commands.Drawing.EnsureViewTypesCommand();
+                case "DrawingTypes_PresentationSetup": return new Commands.Drawing.PresentationStyleSetupCommand();
+                case "DrawingTypes_RegenerateTemplates": return new Commands.Drawing.RegeneratePackTemplatesCommand();
+                case "DrawingTypes_Doctor":            return new Commands.Drawing.DrawingDoctorCommand();
+                case "DrawingTypes_SetupProduction":   return new Commands.Drawing.DrawingProductionSetupCommand();
                 case "MatchLine_ValidateBundle":       return new Commands.Drawing.MatchLineValidateBundleCommand();
                 case "MatchLine_Inspect":              return new Commands.Drawing.MatchLineInspectCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
@@ -1595,11 +1683,20 @@ namespace StingTools.Core
                 // Validation
                 case "ValidateTags": return new Tags.ValidateTagsCommand();
                 case "PreTagAudit": return new Tags.PreTagAuditCommand();
+                case "TagDoctor": return new Commands.TagStudio.TagDoctorCommand();
                 case "TokenConfidenceAudit": return new Tags.TokenConfidenceAuditCommand();
                 case "TagScheme_Render": return new Tags.RenderSchemeTagsCommand();
                 case "TagScheme_Inspect": return new Tags.TagSchemeInspectCommand();
                 case "TagScheme_Audit": return new Tags.TagSchemeAuditCommand();
                 case "LOD_Verify": return new Commands.Validation.LodVerifyCommand();
+                // Corrects tag families' categories on disk. Chainable on purpose: its
+                // default is AUDIT, which is a report, and a QA preset wants to know how
+                // many of the 206 are still Generic Model Tags. The APPLY path asks for
+                // files and confirmation, so a chain cannot rewrite the library by
+                // accident.
+                case "TagFamilyFixCategories": return new Commands.TagStudio.FixTagFamilyCategoriesCommand();
+                case "TagLibraryPromote": return new Commands.TagStudio.PromoteTagLibraryCommand();
+                case "TagFamilyFixParamTypes": return new Commands.TagStudio.FixTagFamilyParamTypesCommand();
                 case "LOD_Stamp": return new Commands.Validation.LodStampCommand();
                 case "Program_Audit": return new Commands.Validation.ProgramAuditCommand();
                 case "OwnerStandards_Audit": return new Commands.Validation.OwnerStandardsAuditCommand();
@@ -1675,12 +1772,19 @@ namespace StingTools.Core
                 case "Hvac_HardyCross": return new Commands.Routing.HardyCrossCommand();
                 case "Hvac_ValidateFills": return new Commands.Routing.ValidateFillsCommand();
                 case "Hvac_NcPredict": return new Commands.Hvac.HvacNcPredictionCommand();
+                // MEP design engines (2026-09): interactive — each opens a form.
+                case "Hvac_PsychroCoil": return new Commands.Hvac.HvacPsychroCoilCommand();
+                case "Fire_StairPressurisation": return new Commands.Fire.StairPressurisationCommand();
+                case "Fire_SprinklerHydraulics": return new Commands.Fire.SprinklerHydraulicsCommand();
+                case "Gas_SizePipes": return new Commands.Gas.GasPipeSizingCommand();
                 case "Hvac_PressureClassAudit": return new Commands.Hvac.HvacPressureClassAuditCommand();
                 case "Hvac_Ventilation": return new Commands.StandardsExt.VentilationCommand();
                 case "Hvac_AutoFireDamper": return new Commands.RoutingExt.AutoFireDamperCommand();
                 case "Hvac_RunAllValidators": return new Commands.Validation.RunAllValidatorsCommand();
                 // WORKFLOW_HVACDesign.json
                 case "Hvac_BlockLoad": return new Commands.Hvac.HvacBlockLoadCommand();
+                case "Hvac_BlockLoadHeating": return new Commands.Hvac.HvacBlockLoadHeatingCommand();
+                case "Hvac_PushSnapshot": return new Commands.Hvac.HvacPushSnapshotCommand();
                 case "Hvac_PropagateLoads": return new Commands.Hvac.HvacPropagateLoadsCommand();
                 case "Hvac_ConnectionAudit": return new Temp.MEPConnectionAuditCommand();
                 case "Hvac_DetectStaleSizes": return new Commands.Hvac.HvacDetectStaleSizesCommand();
@@ -1868,6 +1972,7 @@ namespace StingTools.Core
                 case "Tag3D":                return new Tags.Tag3DCommand();
                 case "CheckData":            return new Temp.CheckDataCommand();
                 case "LoadSharedParams":     return new Tags.LoadSharedParamsCommand();
+                case "Params_RebindCircuitNumberAsText": return new Tags.RebindCircuitNumberAsTextCommand();
                 case "PurgeSharedParams":    return new Tags.PurgeSharedParamsCommand();
                 case "AssetCondition":       return new Temp.AssetConditionCommand();
                 case "MaintenanceSchedule":  return new Temp.MaintenanceScheduleCommand();
@@ -2509,7 +2614,7 @@ namespace StingTools.Core
                                     return true;
                                 // Fallback: any panel with non-empty connected-load is a sign the
                                 // summary has run at least once.
-                                string load = ParameterHelpers.GetString(panel, ParamRegistry.ELC_PNL_LOAD);
+                                string load = ParameterHelpers.GetValueText(panel, ParamRegistry.ELC_PNL_LOAD);
                                 if (!string.IsNullOrEmpty(load) && load != "0") return true;
                             }
                         }

@@ -24,130 +24,22 @@ namespace StingTools.BIMManager
 
     internal static class CarbonTrackingEngine
     {
-        // Material name → embodied carbon kgCO2e/kg
-        private static Dictionary<string, double> _carbonFactors;
-        private static readonly object _lock = new object();
-
-        /// <summary>Load embodied carbon factors from MATERIAL_LOOKUP.csv.</summary>
-        /// <remarks>
-        /// DEAD AT RUNTIME (Z-20 finding): the shipped MATERIAL_LOOKUP.csv is
-        /// long-format (Category,TypeKey,Property,Value) and opens with a "# ..."
-        /// comment banner. This loader reads lines[0] (the comment) as the header,
-        /// finds no EMBODIED/CARBON/KGCO2 column, hits `if (carbonCol &lt; 0) return;`
-        /// and leaves _carbonFactors empty — so Tier-3 here never contributes a
-        /// value; resolution falls straight through to the keyword defaults.
-        /// Delivered BOQ carbon therefore flows from Tier-1 (the material's
-        /// STING_EMB_CARBON_NR, populated at material-creation from the
-        /// MEP_/BLE_MATERIALS.csv PROP_CARBON_KG_M3 columns) — which is why the
-        /// Z-20 ICE v3.0 fix was applied there, not here. Re-wiring this to parse
-        /// the long format (or making MATERIAL_LOOKUP canonical) is a separate,
-        /// test-backed PR — see docs/PHASE_Z_NUMERIC_AUDIT.md §2.4–2.6, §7.1.
-        /// </remarks>
-        internal static void EnsureLoaded()
-        {
-            if (_carbonFactors != null) return;
-            lock (_lock)
-            {
-                if (_carbonFactors != null) return;
-                _carbonFactors = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
-
-                try
-                {
-                    string file = StingToolsApp.FindDataFile("MATERIAL_LOOKUP.csv");
-                    if (string.IsNullOrEmpty(file)) return;
-
-                    var lines = File.ReadAllLines(file);
-                    if (lines.Length < 2) return;
-
-                    // Find embodied carbon column
-                    var headers = StingToolsApp.ParseCsvLine(lines[0]);
-                    int nameCol = -1, carbonCol = -1;
-                    for (int i = 0; i < headers.Length; i++)
-                    {
-                        string h = headers[i].Trim().ToUpperInvariant();
-                        if (h.Contains("MATERIAL") && h.Contains("NAME")) nameCol = i;
-                        else if (h.Contains("EMBODIED") && h.Contains("CARBON")) carbonCol = i;
-                        else if (h.Contains("KGCO2")) carbonCol = i;
-                    }
-                    if (nameCol < 0) nameCol = 0;
-                    if (carbonCol < 0) return;
-
-                    for (int i = 1; i < lines.Length; i++)
-                    {
-                        var parts = StingToolsApp.ParseCsvLine(lines[i]);
-                        if (parts.Length <= Math.Max(nameCol, carbonCol)) continue;
-                        string name = parts[nameCol].Trim();
-                        // InvariantCulture: CSV decimal separator is always "." regardless of
-                        // the Revit user's regional settings.
-                        if (double.TryParse(parts[carbonCol].Trim(),
-                                System.Globalization.NumberStyles.Float,
-                                System.Globalization.CultureInfo.InvariantCulture,
-                                out double val) && val > 0)
-                            _carbonFactors[name] = val;
-                    }
-                }
-                catch (Exception ex) { StingLog.Warn($"CarbonTracking load: {ex.Message}"); }
-            }
-        }
-
         /// <summary>
-        /// Estimate embodied carbon for a material name.
+        /// ICE v3.0 keyword fallback, kgCO₂e per KG. The unit-aware resolver
+        /// (CarbonFactorResolver) calls this as its last per-kg tier and labels it so.
         ///
-        /// N+7 — Single-source resolution chain. The legacy carbon-factor
-        /// dictionary is now last in line so a MAT-curated value always wins:
-        ///   1) Material element's STING_EMB_CARBON_NR parameter (live MAT
-        ///      panel writes / overrides / on-create auto-fill)
-        ///   2) MaterialLookupCsv corporate library (MATERIAL_LOOKUP.csv)
-        ///   3) Legacy CARBON_FACTORS.csv via _carbonFactors dictionary
-        ///   4) GetDefaultCarbonFactor keyword fallback (existing behaviour)
+        /// It used to run a four-tier chain of its own: the material's STING_EMB_CARBON_NR
+        /// and MATERIAL_LOOKUP.csv (both kgCO₂e per m³), then a loader for MATERIAL_LOOKUP
+        /// that could never parse the file's long format (dead since Z-20), then these
+        /// keywords (per kg), and returned whichever answered first with no unit. The
+        /// carbon tracking command multiplied the answer by mass, so a per-m³ figure came
+        /// out about the material's density too large. The per-m³ tiers are the
+        /// resolver's; MATERIAL_LOOKUP's carbon rows are per m³ and reach every caller
+        /// through MaterialLookupCsv there.
         /// </summary>
         internal static double GetCarbonFactor(string materialName)
         {
             if (string.IsNullOrWhiteSpace(materialName)) return 0;
-
-            // Tier 1 — Material element's parameter (live edits win).
-            // P-2 — Cache lookup; was a per-call collector.
-            try
-            {
-                var doc = StingTools.UI.StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                if (doc != null)
-                {
-                    var mat = StingTools.UI.MaterialNameCache.ResolveMaterial(doc, materialName);
-                    if (mat != null)
-                    {
-                        var p = mat.LookupParameter("STING_EMB_CARBON_NR");
-                        if (p != null && p.HasValue && p.StorageType == StorageType.Double)
-                        {
-                            double v = p.AsDouble();
-                            if (v > 0) return v;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("GetCarbonFactor.MatParam", $"GetCarbonFactor MAT param: {ex.Message}"); }
-
-            // Tier 2 — Corporate library lookup
-            try
-            {
-                double libVal = StingTools.UI.MaterialLookupCsv.GetCarbon(materialName);
-                if (libVal > 0) return libVal;
-            }
-            catch (Exception ex) { StingLog.WarnRateLimited("GetCarbonFactor.Lookup", $"GetCarbonFactor lookup: {ex.Message}"); }
-
-            // Tier 3 — Legacy CARBON_FACTORS.csv dictionary
-            EnsureLoaded();
-            if (_carbonFactors != null)
-            {
-                if (_carbonFactors.TryGetValue(materialName, out double exact)) return exact;
-                string lower = materialName.ToLowerInvariant();
-                var match = _carbonFactors.Keys
-                    .Where(k => lower.Contains(k.ToLowerInvariant()) || k.ToLowerInvariant().Contains(lower))
-                    .OrderByDescending(k => k.Length)
-                    .FirstOrDefault();
-                if (match != null) return _carbonFactors[match];
-            }
-
-            // Tier 4 — Hard-coded keyword fallback
             return GetDefaultCarbonFactor(materialName);
         }
 
@@ -176,7 +68,6 @@ namespace StingTools.BIMManager
         /// <summary>Calculate carbon for all elements in the model.</summary>
         internal static CarbonResult CalculateProjectCarbon(Document doc)
         {
-            EnsureLoaded();
             var result = new CarbonResult();
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -225,24 +116,28 @@ namespace StingTools.BIMManager
                         var mat = doc.GetElement(matId) as Material;
                         if (mat == null) continue;
 
-                        double grossFactor = GetCarbonFactor(mat.Name);
-                        if (grossFactor <= 0 && !StingTools.BOQ.BiogenicCarbon.IsBiogenic(mat.Name)) continue;
+                        // The factor comes with its unit: per m³ multiplies the volume, per kg
+                        // the mass. It used to be multiplied by mass whatever it was.
+                        var factor = StingTools.BOQ.CarbonFactorResolver.Resolve(doc, mat.Name);
+                        bool bio = StingTools.BOQ.BiogenicCarbon.IsBiogenic(mat.Name);
+                        if (factor.Factor <= 0 && !bio) continue;
 
                         // Get material volume fraction (approximate — equal split across materials)
                         double matVolume = volumeM3 / matIds.Count;
-
-                        // Estimate density (default 2400 kg/m³ for concrete-like)
                         double density = EstimateDensity(mat.Name);
-                        double mass = matVolume * density;
 
                         // Z-25b — WLCA fossil/biogenic split. HEADLINE = A1-A3 FOSSIL
                         // (gross upfront, sequestration excluded; RICS WLCA 2nd ed /
                         // RIBA 2030 / LETI). Biogenic is a separate ≤0 line; net is
                         // fossil + biogenic for whole-life context.
-                        double fossilFactor   = StingTools.BOQ.BiogenicCarbon.FossilFactorPerKg(mat.Name, grossFactor);
-                        double biogenicFactor = StingTools.BOQ.BiogenicCarbon.BiogenicFactorPerKg(mat.Name);
-                        double fossilKg   = mass * fossilFactor;
-                        double biogenicKg = mass * biogenicFactor;
+                        double fossilPerM3 = 0, biogenicPerM3 = 0;
+                        if (factor.PerUnit == StingTools.BOQ.CarbonFactorUnit.KgCo2ePerM3)
+                        {
+                            fossilPerM3 = StingTools.BOQ.CarbonFactorResolver.GetCarbonFossilPerM3(doc, mat.Name);
+                            biogenicPerM3 = StingTools.BOQ.CarbonFactorResolver.GetCarbonBiogenicPerM3(doc, mat.Name);
+                        }
+                        var (fossilKg, biogenicKg) = StingTools.BOQ.CarbonQuantity.Split(
+                            factor, matVolume, density, bio, fossilPerM3, biogenicPerM3);
 
                         result.FossilCarbonKg   += fossilKg;
                         result.BiogenicCarbonKg += biogenicKg;
@@ -401,7 +296,7 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             var result = CarbonTrackingEngine.CalculateProjectCarbon(ctx.Doc);
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "CarbonReport", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Schedule", "CarbonReport", ".csv");
 
             var sb = new StringBuilder();
             // Z-25b — WLCA A1-A3 three-line reporting. Headline = FOSSIL (gross

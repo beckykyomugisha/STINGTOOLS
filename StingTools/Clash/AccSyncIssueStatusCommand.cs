@@ -38,7 +38,7 @@ namespace StingTools.Core.Clash
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var creds = AccIssueSync.LoadCredentials();
+            var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC sync issue status");   // IM-18: project container ids first
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
@@ -106,7 +106,7 @@ namespace StingTools.Core.Clash
             string csvPath = null;
             try
             {
-                csvPath = OutputLocationHelper.GetOutputPath(doc, $"STING_ACC_IssueSync_{DateTime.Now:yyyyMMdd}.csv");
+                csvPath = OutputLocationHelper.GetRoutedPath(doc, "Issue", $"STING_ACC_IssueSync_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(csvPath, rows, Encoding.UTF8);
             }
             catch (Exception ex) { StingLog.Warn("ACC IssueSync CSV: " + ex.Message); }

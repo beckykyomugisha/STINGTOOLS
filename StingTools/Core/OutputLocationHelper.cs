@@ -10,11 +10,16 @@ namespace StingTools.Core
 {
     /// <summary>
     /// Centralized output location management for all STING export/save operations.
-    /// Provides a user-preferred save directory with fallback chain:
-    ///   1. User-configured preferred directory (set via SetPreferredDirectory)
-    ///   2. Project directory (alongside .rvt file)
-    ///   3. STING_Exports subdirectory in user's Documents
-    ///   4. System temp directory
+    /// Fallback chain (GetOutputDirectory below is the authoritative version):
+    ///   1. The unified project container (needs a SAVED project)
+    ///   2. User-configured PreferredDirectory, if explicitly set
+    ///   3. %LOCALAPPDATA%\\STING\\exports - stable, survives the Revit session
+    ///   4. System temp, which under Revit is a per-session GUID folder
+    ///
+    /// There is deliberately NO Documents fallback - it was removed so exports stop
+    /// sprawling into sibling folders. This list said otherwise for long enough that
+    /// the user-facing dialog below was written from it, and told people their
+    /// Documents folder had been tried when it never was.
     ///
     /// All export commands should use GetOutputPath() instead of hardcoding paths.
     /// Users can set their preferred directory once and all exports will use it.
@@ -49,7 +54,8 @@ namespace StingTools.Core
         /// Resolution order:
         ///   1. Phase 167 unified project root (auto-bootstrapped if missing) → 20_MISC_<code>
         ///   2. User-configured PreferredDirectory (overrides only if explicitly set)
-        ///   3. System temp (with one-shot warning so the user notices)
+        ///   3. %LOCALAPPDATA%\\STING\\exports (stable across sessions)
+        ///   4. System temp (with one-shot warning so the user notices)
         ///
         /// The legacy {projectDir}/STING_Exports/ and {Documents}/STING_Exports/
         /// fallbacks have been removed: every export now lands inside the single
@@ -79,9 +85,47 @@ namespace StingTools.Core
             if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir))
                 return dir;
 
-            // 3. Temp directory (last resort — warn so user knows exports are not in a project folder)
+            // 3. A stable per-user folder. Reached whenever the project is unsaved,
+            //    which is normal on a scratch model - and where this chain used to go
+            //    straight to Path.GetTempPath(). Under Revit that is a PER-SESSION
+            //    GUID folder (Temp\\b1f76786-...\\), so a report written there is
+            //    orphaned the moment Revit closes: the path printed in the "done"
+            //    dialog stops resolving, which reads as the export never happening.
+            string stableDir = null;
+            try
+            {
+                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+                if (!string.IsNullOrEmpty(localAppData))
+                    stableDir = Path.Combine(localAppData, "STING", "exports");
+            }
+            catch (Exception ex) { StingLog.Warn($"OutputLocationHelper: LocalApplicationData lookup: {ex.Message}"); }
+
+            if (!string.IsNullOrEmpty(stableDir) && TryEnsureDirectory(stableDir))
+            {
+                if (!_tempFallbackWarned)
+                {
+                    _tempFallbackWarned = true;
+                    StingLog.Warn("OutputLocationHelper: no project container and no preferred directory - " +
+                                  $"exports go to {stableDir}");
+                    try
+                    {
+                        Autodesk.Revit.UI.TaskDialog.Show("STING Export Location",
+                            "This project has no STING output folder yet - usually because it has not " +
+                            "been saved." + "\n\n" +
+                            "Exports will be saved to:" + "\n" + stableDir + "\n\n" +
+                            "Save the project to keep exports beside it, or use 'Set Output Directory' " +
+                            "(BIM tab) to choose a permanent location.");
+                    }
+                    catch (Exception ex2) { StingLog.Warn($"TaskDialog may not be available outside Revit thread: {ex2.Message}"); }
+                }
+                return stableDir;
+            }
+
+            // 4. Temp directory (true last resort)
             string tempDir = Path.GetTempPath();
-            StingLog.Warn($"OutputLocationHelper: All preferred directories failed. Falling back to system temp: {tempDir}");
+            StingLog.Warn("OutputLocationHelper: project container, preferred directory and the " +
+                          "STING exports folder all failed. " +
+                          $"Falling back to system temp: {tempDir}");
 
             // Check project_config.json for failOnOutputPathMissing flag
             try
@@ -106,15 +150,133 @@ namespace StingTools.Core
                 _tempFallbackWarned = true;
                 try
                 {
+                    // Names what was actually tried. The old text named the
+                    // Documents folder, which this chain has never attempted.
                     Autodesk.Revit.UI.TaskDialog.Show("STING Export Location",
-                        "Could not write to the project directory or Documents folder.\n\n" +
-                        $"Exports will be saved to the system temp folder:\n{tempDir}\n\n" +
+                        "Could not write to the project folder, the configured output directory, " +
+                        "or " + (stableDir ?? "the STING exports folder") + "." + "\n\n" +
+                        "Exports will be saved to the system temp folder:" + "\n" + tempDir + "\n" +
+                        "Under Revit that folder is per-session, so move anything you want to keep." + "\n\n" +
                         "Use 'Set Output Directory' (BIM tab) to choose a permanent location.");
                 }
                 catch (Exception ex2) { StingLog.Warn($"TaskDialog may not be available outside Revit thread: {ex2.Message}"); }
             }
             return tempDir;
         }
+
+        /// <summary>
+        /// The project folder for an export type ("Excel" → 07_SCHEDULES, "COBie" →
+        /// 08_COBie, "PDF" → 06_DRAWINGS …), optionally in a discipline's sub-folder.
+        /// Falls back to <see cref="GetOutputDirectory(Document)"/> when the project has
+        /// no folder structure (unsaved model).
+        ///
+        /// GetOutputDirectory(doc) has no idea what is being written, so everything
+        /// that uses it lands in MISC. New and migrated exports should say what they
+        /// are — and a round-trip's import picker must use the same key as its export,
+        /// or it opens in the wrong folder.
+        /// </summary>
+        public static string GetRoutedDirectory(Document doc, string exportTypeKey, string discipline = null)
+        {
+            if (doc != null && !string.IsNullOrEmpty(exportTypeKey))
+            {
+                try
+                {
+                    string dir = !string.IsNullOrWhiteSpace(discipline)
+                        ? ProjectFolderEngine.GetDeliverableFolder(doc, exportTypeKey, discipline)
+                        : ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
+                    if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir)) return dir;
+                }
+                catch (Exception ex) { StingLog.Warn($"GetRoutedDirectory '{exportTypeKey}': {ex.Message}"); }
+            }
+            return GetOutputDirectory(doc);
+        }
+
+        /// <summary>Copy a directory tree, creating folders as needed. Existing files in
+        /// the destination are kept (the caller only copies into a fresh folder).</summary>
+        internal static void CopyTree(string from, string to)
+        {
+            Directory.CreateDirectory(to);
+            foreach (string f in Directory.GetFiles(from))
+            {
+                string dest = Path.Combine(to, Path.GetFileName(f));
+                if (!File.Exists(dest)) File.Copy(f, dest);
+            }
+            foreach (string d in Directory.GetDirectories(from))
+                CopyTree(d, Path.Combine(to, Path.GetFileName(d)));
+        }
+
+        /// <summary>
+        /// A plugin DATA STORE — a file the plugin writes and later reads back (clash
+        /// results, logs, overrides) — under &lt;root&gt;/_data/coord/&lt;area&gt;/.
+        ///
+        /// These used to sit in the MISC export folder beside the user's reports, where a
+        /// tidy-up deleted history and nothing marked them as state. On first use the old
+        /// MISC copy (and any listed sibling folders, such as the clash <c>archive/</c>) is
+        /// copied forward, then renamed <c>*.migrated_yyyyMMdd</c> — the convention
+        /// Folders_Consolidate uses — so exactly one live copy exists and none is lost.
+        /// An unsaved model has no _data folder and keeps the old location.
+        /// </summary>
+        public static string GetStorePath(Document doc, string fileName, string area = null,
+            params string[] carrySiblingDirs)
+        {
+            string legacyDir = null;
+            try { legacyDir = GetOutputDirectory(doc); }
+            catch (Exception ex) { StingLog.Warn($"GetStorePath legacy dir: {ex.Message}"); }
+
+            string target = string.IsNullOrEmpty(area)
+                ? StingPaths.MetaFile(doc, "_BIM_COORD", fileName)
+                : StingPaths.MetaFile(doc, "_BIM_COORD", area, fileName);
+            if (string.IsNullOrEmpty(target))
+                return string.IsNullOrEmpty(legacyDir) ? null : Path.Combine(legacyDir, fileName);
+
+            try
+            {
+                string targetDir = Path.GetDirectoryName(target);
+                Directory.CreateDirectory(targetDir);
+                if (!string.IsNullOrEmpty(legacyDir) &&
+                    !string.Equals(Path.GetFullPath(legacyDir).TrimEnd('\\', '/'),
+                                   Path.GetFullPath(targetDir).TrimEnd('\\', '/'),
+                                   StringComparison.OrdinalIgnoreCase))
+                {
+                    string stamp = ".migrated_" + DateTime.Now.ToString("yyyyMMdd");
+                    string legacyFile = Path.Combine(legacyDir, fileName);
+                    if (File.Exists(legacyFile) && !File.Exists(target))
+                    {
+                        File.Copy(legacyFile, target);
+                        File.Move(legacyFile, legacyFile + stamp);
+                        StingLog.Info($"Store carried forward: {legacyFile} -> {target}");
+                    }
+                    foreach (string sib in carrySiblingDirs ?? Array.Empty<string>())
+                    {
+                        string from = Path.Combine(legacyDir, sib);
+                        string to = Path.Combine(targetDir, sib);
+                        if (!Directory.Exists(from) || Directory.Exists(to)) continue;
+                        // Whole tree, not just the top level: a sub-folder left behind would
+                        // move with the renamed legacy folder and never be read again.
+                        CopyTree(from, to);
+                        Directory.Move(from, from + stamp);
+                        StingLog.Info($"Store folder carried forward: {from} -> {to}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // A failed carry-forward must not lose the old data: it stays where it was
+                // and is still readable from there by hand; the new store starts empty.
+                StingLog.Warn($"GetStorePath carry-forward '{fileName}': {ex.Message}");
+            }
+            return target;
+        }
+
+        /// <summary><see cref="GetRoutedDirectory"/> + "baseName_yyyyMMdd_HHmmss.ext".</summary>
+        public static string GetRoutedTimestampedPath(Document doc, string exportTypeKey,
+            string baseName, string extension, string discipline = null)
+            => Path.Combine(GetRoutedDirectory(doc, exportTypeKey, discipline),
+                            $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}{extension}");
+
+        /// <summary><see cref="GetRoutedDirectory"/> + a file name.</summary>
+        public static string GetRoutedPath(Document doc, string exportTypeKey, string fileName, string discipline = null)
+            => Path.Combine(GetRoutedDirectory(doc, exportTypeKey, discipline), fileName);
 
         /// <summary>
         /// Get the full output path for a named file.
@@ -255,6 +417,19 @@ namespace StingTools.Core
         {
             _sessionFolders.TryGetValue(exportTypeKey ?? "", out string lastFolder);
 
+            // The project's own folder for this export type (06_DRAWINGS for PDF,
+            // 08_COBie for COBie …). The shortcut used to offer the directory holding
+            // the .rvt — outside the project structure — and the browser opened in
+            // MISC whatever was being exported.
+            string routed = null;
+            try
+            {
+                if (doc != null && !string.IsNullOrEmpty(exportTypeKey))
+                    routed = ProjectFolderEngine.GetExportFolder(doc, exportTypeKey);
+            }
+            catch (Exception ex) { StingLog.Warn($"PromptForExportPath route '{exportTypeKey}': {ex.Message}"); }
+            if (!string.IsNullOrEmpty(routed) && !TryEnsureDirectory(routed)) routed = null;
+
             if (!string.IsNullOrEmpty(lastFolder) && Directory.Exists(lastFolder))
             {
                 var qd = new Autodesk.Revit.UI.TaskDialog($"Export — {defaultFileName}");
@@ -264,9 +439,10 @@ namespace StingTools.Core
                     "Use last folder", lastFolder);
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2,
                     "Navigate to folder", "Open file browser");
-                string pd = Path.GetDirectoryName(doc?.PathName ?? "");
+                string pd = routed ?? Path.GetDirectoryName(doc?.PathName ?? "");
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3,
-                    "Project folder", string.IsNullOrEmpty(pd) ? "Save project first" : pd);
+                    routed != null ? "Project folder for this export" : "Project folder",
+                    string.IsNullOrEmpty(pd) ? "Save project first" : pd);
                 qd.CommonButtons = Autodesk.Revit.UI.TaskDialogCommonButtons.Cancel;
                 switch (qd.Show())
                 {
@@ -284,7 +460,7 @@ namespace StingTools.Core
                 Title = $"Export — {defaultFileName}",
                 FileName = defaultFileName,
                 Filter = string.IsNullOrEmpty(filter) ? "All Files|*.*" : filter,
-                InitialDirectory = GetOutputDirectory(doc)
+                InitialDirectory = routed ?? GetOutputDirectory(doc)
             };
             if (dlg.ShowDialog() != true) return null;
 

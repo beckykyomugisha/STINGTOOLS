@@ -217,7 +217,7 @@ namespace StingTools.BIMManager
             var result = WorksetAuditEngine.AuditWorksets(ctx.Doc);
             if (!result.IsWorkshared) { TaskDialog.Show("STING", "Worksharing not enabled."); return Result.Succeeded; }
 
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "WorksetAudit", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Compliance", "WorksetAudit", ".csv");
             var sb = new StringBuilder();
             sb.AppendLine("Workset,ElementCount,Categories");
             foreach (var ws in result.Worksets)

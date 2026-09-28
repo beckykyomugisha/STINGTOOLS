@@ -41,6 +41,44 @@ for dll in "$BUILD_DIR"/*.dll; do
 done
 
 # ── Copy data files ───────────────────────────────────────────────
+# Preserve family work the deploy is about to overwrite.
+# The copy below is `cp -rf`, so every .rfa in the deployed library is replaced by
+# the git-tracked copy. Propagation and Fix Categories both write to the DEPLOYED
+# library, not to git, so a deploy silently destroys their results.
+#
+# It has happened twice. On 2026-09-17 a successful propagation was lost to three
+# later deploys; on 2026-09-21 a Fix Categories APPLY that had just corrected
+# "STING - Duct Tag" to Duct Tags was overwritten ten minutes later, by the deploy
+# shipping the very fix that found it.
+#
+# So: any deployed .rfa that differs from the source is copied aside first and
+# reported. Nothing is blocked - a deploy that refused would be worse - but no
+# result disappears without a path to it on screen.
+PRESERVE_SRC="$SCRIPT_DIR/StingTools/Data/TagFamilies"
+PRESERVE_ROOT="$DEPLOY_DIR/data/TagFamilies"
+if [ -d "$PRESERVE_ROOT" ] && [ -d "$PRESERVE_SRC" ]; then
+    PRESERVE_DIR="$PRESERVE_ROOT/_predeploy_$(date +%Y%m%d_%H%M%S)"
+    PRESERVED=0
+    while IFS= read -r -d '' deployed; do
+        name="$(basename "$deployed")"
+        [ -f "$PRESERVE_SRC/$name" ] || continue
+        if ! cmp -s "$deployed" "$PRESERVE_SRC/$name"; then
+            mkdir -p "$PRESERVE_DIR"
+            cp -p "$deployed" "$PRESERVE_DIR/$name"
+            PRESERVED=$((PRESERVED + 1))
+        fi
+    done < <(find "$PRESERVE_ROOT" -maxdepth 1 -name "*.rfa" -print0)
+    if [ "$PRESERVED" -gt 0 ]; then
+        echo ""
+        echo "  *** $PRESERVED deployed tag family/families differed from the repo copy"
+        echo "      and were about to be overwritten. Preserved at:"
+        echo "      $PRESERVE_DIR"
+        echo "      If that is propagation or category work you want, copy it into"
+        echo "      StingTools/Data/TagFamilies/ and commit."
+        echo ""
+    fi
+fi
+
 echo "  Copying data files..."
 if [ -d "$BUILD_DIR/data" ]; then
     cp -rf "$BUILD_DIR/data/"* "$DEPLOY_DIR/data/"

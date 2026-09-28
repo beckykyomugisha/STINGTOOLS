@@ -158,11 +158,11 @@ namespace StingTools.Commands.Routing
 
                     TrySetString(fi, "STING_HANGER_HOST_ID",      c.HostRun?.Value.ToString() ?? "");
                     TrySetString(fi, "STING_HANGER_ANCHOR_TXT",   c.AnchorType ?? "GENERIC");
-                    TrySetDouble(fi, "STING_HANGER_STRUT_LEN_MM", c.StrutRodMm);
-                    TrySetDouble(fi, "STING_HANGER_SPACING_MM",   c.MaxSpanMm);
+                    ParameterHelpers.SetDoubleInNamedUnit(fi, "STING_HANGER_STRUT_LEN_MM", c.StrutRodMm); // LENGTH: mm → feet
+                    ParameterHelpers.SetDoubleInNamedUnit(fi, "STING_HANGER_SPACING_MM",   c.MaxSpanMm);
                     TrySetInt   (fi, "STING_HANGER_TRAPEZE_BOOL", c.OnTrapeze ? 1 : 0);
                     TrySetDouble(fi, "STING_HANGER_POINT_LOAD_KG", c.PointLoadKg);
-                    TrySetDouble(fi, "STING_HANGER_ROD_DIA_MM",   c.RodDiameterMm);
+                    ParameterHelpers.SetDoubleInNamedUnit(fi, "STING_HANGER_ROD_DIA_MM",   c.RodDiameterMm);
                     TrySetString(fi, "STING_HANGER_ROD_IMPERIAL", c.RodImperial ?? "");
                     TrySetInt   (fi, "STING_HANGER_COUPLER_BOOL", c.RodNeedsCoupler ? 1 : 0);
                     placed++;

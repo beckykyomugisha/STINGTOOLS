@@ -17,7 +17,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 var findings = new AntiLigatureValidator().Validate(doc);
                 var sb = new StringBuilder();
                 sb.AppendLine("STING — Anti-Ligature Audit (HBN 03-01 / FGI Pt 2)").AppendLine();

@@ -121,7 +121,7 @@ namespace StingTools.UI
 
         public static string WriteCsv(Document doc, IReadOnlyList<RfqRow> rows)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "BOQ");
             string projCode = doc?.ProjectInformation?.Number ?? "PRJ";
             string filePath = Path.Combine(outDir,
                 $"STING_RFQ_{projCode}_{DateTime.Now:yyyyMMdd_HHmmss}.csv");

@@ -270,7 +270,8 @@ public class ProjectsController : ControllerBase
         // timestamp + overall percent, not the full snapshot).
         var trendStart = DateTime.UtcNow.AddDays(-30);
         var complianceTrend = await _db.ComplianceSnapshots
-            .Where(s => s.ProjectId == id && s.CapturedAt >= trendStart)
+            .Where(s => s.ProjectId == id && s.CapturedAt >= trendStart
+                && s.Kind != Core.Entities.ComplianceSnapshot.KindWarnings)
             .OrderBy(s => s.CapturedAt)
             .Select(s => new { s.CapturedAt, s.TagPercent, s.ContainerPercent })
             .ToListAsync();

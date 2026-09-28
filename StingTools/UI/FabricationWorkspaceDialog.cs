@@ -753,9 +753,7 @@ namespace StingTools.UI
                     if (_catRows.TryGetValue(bic, out var crow) && !crow.IsChecked) continue;
                     string disc = DisciplineFor(el);
                     if (!RuleEnabledFor(disc)) continue;
-                    string sys = ParameterHelpers.GetString(el, "PLM_SYS_TXT");
-                    if (string.IsNullOrWhiteSpace(sys)) sys = ParameterHelpers.GetString(el, "HVC_SYS_TXT");
-                    if (string.IsNullOrWhiteSpace(sys)) sys = ParameterHelpers.GetString(el, "ELC_SYS_TXT");
+                    string sys = StingTools.Core.Mep.ServiceSystemName.Read(el);
                     if (string.IsNullOrWhiteSpace(sys)) sys = "GEN";
                     string lvl = ParameterHelpers.GetLevelCode(_doc, el);
                     if (string.IsNullOrWhiteSpace(lvl)) lvl = "XX";

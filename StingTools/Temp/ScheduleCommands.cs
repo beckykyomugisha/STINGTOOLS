@@ -1541,7 +1541,7 @@ namespace StingTools.Temp
                 return Result.Succeeded;
             }
 
-            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string exportDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
 
             int exported = 0;
             foreach (var schedule in schedules)
@@ -2195,7 +2195,7 @@ namespace StingTools.Temp
                         $"\"{row.StingTag}\",\"{row.Location}\"");
                 }
 
-                csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_DrawingRegister", ".csv");
+                csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "DocRegister", "STING_DrawingRegister", ".csv");
                 File.WriteAllText(csvPath, csv.ToString());
             }
             catch (Exception ex)

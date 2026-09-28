@@ -1,0 +1,26 @@
+{
+  "_schema": "STING_SMOKE_CONTROL_DESIGN",
+  "_version": "1.0",
+  "_readme": "Design data for Fire_StairPressurisation (BS EN 12101-6 pressure-differential systems). Project override: <project>/_BIM_COORD/smoke_control_design.json. Only classes whose criteria are stated here are offered; add others from the edition of BS EN 12101-6 in force and the fire strategy. Everything marked verify=true must be checked before the fan duty is specified.",
+  "systemClasses": [
+    { "id": "A", "label": "Class A — means of escape, defend in place", "designPressurePa": 50, "openDoorVelocityMs": 0.75, "openDoors": 1, "verify": true, "source": "BS EN 12101-6" },
+    { "id": "B", "label": "Class B — means of escape and firefighting", "designPressurePa": 50, "openDoorVelocityMs": 2.0,  "openDoors": 1, "verify": true, "source": "BS EN 12101-6" },
+    { "id": "CUSTOM", "label": "Custom — criteria from the fire strategy", "designPressurePa": 50, "openDoorVelocityMs": 0.75, "openDoors": 1, "verify": true, "source": "Project fire strategy" }
+  ],
+  "defaultClassId": "A",
+  "doorLeakageAreasM2": {
+    "_note": "Leakage area of one closed door, m². Commonly published BS EN 12101-6 values; verify.",
+    "singleLeafOpeningIntoStair": 0.01,
+    "singleLeafOpeningOutOfStair": 0.02,
+    "doubleLeaf": 0.03,
+    "liftLandingDoor": 0.06
+  },
+  "leakageAllowance": 1.25,
+  "_openDoorsNote": "How many doors are open in the velocity case depends on the class and the building; set openDoors from the fire strategy.",
+  "_leakageAllowanceNote": "Multiplier on the calculated supply for leakage the calculation cannot see. Set it to the value the fire strategy or the standard's edition requires.",
+  "openCaseResidualPressurePa": 0,
+  "_openCaseNote": "Differential across doors that stay closed while the velocity case runs. 0 = keep the design pressure (conservative).",
+  "doorCloserForceN": 30,
+  "handleToEdgeM": 0.075,
+  "maxDoorOpeningForceN": 100
+}

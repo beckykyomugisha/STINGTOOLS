@@ -195,19 +195,7 @@ namespace StingTools.UI
         /// map to AB (abandoned / superseded) and AR (archive) — both real codes in
         /// Iso19650Vocabulary.SuitabilityLabels, confirmed before being hardcoded here.</summary>
         private static string SuitabilityForCde(string cdeState)
-        {
-            switch ((cdeState ?? "").Trim().ToUpperInvariant())
-            {
-                case "WIP":        return "S0";
-                case "SHARED":     return "S3";   // Fit for review & comment
-                case "PUBLISHED":  return "S4";   // Fit for stage approval (2021 UK NA)
-                case "ARCHIVE":    return "AR";   // Archive
-                case "SUPERSEDED": return "AB";   // Abandoned / superseded
-                case "WITHDRAWN":  return "AB";
-                case "OBSOLETE":   return "AR";
-                default:           return "S0";
-            }
-        }
+            => Core.Drawing.Iso19650Suitability.DefaultFor(cdeState) ?? "S0";
 
         /// <summary>ISO 19650-2 document status code for a CDE status.</summary>
         private static string StatusCodeForCde(string cdeState)
@@ -3923,7 +3911,7 @@ namespace StingTools.UI
 
             try
             {
-                string exportPath = OutputLocationHelper.GetTimestampedPath(doc, $"STING_Minutes_{meetId}", ".txt");
+                string exportPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Minutes", $"STING_Minutes_{meetId}", ".txt");
                 OutputLocationHelper.WriteAllTextAtomic(exportPath, sb.ToString());
                 ProjectFolderEngine.LogActivity(doc, "MINUTES_EXPORTED", meetId, exportPath);
 
@@ -5186,6 +5174,7 @@ namespace StingTools.UI
             int moved = 0;
             var movedPaths = new List<string>();
             var moveFailed = new List<string>();
+            var movedItems = new List<DocItemVM>();
             foreach (var item in selected)
             {
                 // autoTransmittal:false — ONE batch transmittal is raised below for the whole
@@ -5195,6 +5184,7 @@ namespace StingTools.UI
                                                  out string landedAt, autoTransmittal: false))
                 {
                     moved++;
+                    movedItems.Add(item);
                     // The path the file LANDED on, not the one it came from — a de-duplicated
                     // name means these differ, and the transmittal recorded a dead path.
                     movedPaths.Add(landedAt);
@@ -5225,10 +5215,14 @@ namespace StingTools.UI
                 if (CoordStores.TryRead(regPath, out JArray regArr))
                 {
                     int synced = 0;
-                    foreach (var item in selected)
+                    // Only documents whose file actually moved. Syncing every selected
+                    // row recorded a failed move as done: the register said SHARED
+                    // while the file still sat in WIP, and nothing reconciled the two.
+                    foreach (var item in movedItems)
                     {
                         string docId = item.Id ?? "";
-                        var entry = regArr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId) as JObject;
+                        // Any of the register's id keys: doc_number / doc_id / document_id (DocumentIdentity.RegisterKeys).
+                        var entry = regArr.OfType<JObject>().FirstOrDefault(d => RegisterRowHasId(d, docId));
                         if (entry != null)
                         {
                             string oldCDE = entry["cde_status"]?.ToString() ?? "WIP";
@@ -5239,7 +5233,13 @@ namespace StingTools.UI
                             // AR (archive) rather than AB (abandoned) — archiving a document is
                             // not the same as abandoning it, and AB is what SUPERSEDED and
                             // WITHDRAWN mean.
-                            string suit = SuitabilityForCde(newCDE);
+                            // A code that already belongs in the new container is kept: a
+                            // document shared at S1 (coordination) is not re-labelled S3
+                            // (review & comment) just because it moved. Only a code that
+                            // contradicts the container — by the same rule the title block
+                            // derives its CDE state from — is replaced by the default.
+                            string suit = Core.Drawing.Iso19650Suitability.ForTransition(oldSuit, newCDE)
+                                          ?? SuitabilityForCde(newCDE);
                             entry["suitability"] = suit;
                             entry["status_code"] = StatusCodeForCde(newCDE);
                             // CDE-03: Log suitability transition with audit trail
@@ -5263,7 +5263,7 @@ namespace StingTools.UI
                 : $"Set to {newCDE} (filed in {targetFolder}): {moved} of {selected.Count}");
             if (moveFailed.Count > 0)
             {
-                cdeReport.AppendLine($"Failed: {moveFailed.Count}");
+                cdeReport.AppendLine($"Failed: {moveFailed.Count} (register left unchanged for these)");
                 foreach (string f in moveFailed.Take(10)) cdeReport.AppendLine($"  • {f}");
                 if (moveFailed.Count > 10) cdeReport.AppendLine($"  … and {moveFailed.Count - 10} more — see StingTools.log");
             }
@@ -5321,7 +5321,7 @@ namespace StingTools.UI
         {
             var selected = RequireRows("Update Trans", i => i.Category == "TRANSMITTAL", "transmittal rows");
             if (selected == null) return;
-            var statusOptions = ValidTransmittalStatuses.OrderBy(s => s).ToList();
+            var statusOptions = BIMManager.TransmittalStatus.All.ToList();
             string newStatus = StingListPicker.Show("Update Transmittal Status",
                 $"Set status for {selected.Count} transmittals:", statusOptions);
             if (string.IsNullOrEmpty(newStatus)) return;
@@ -5345,7 +5345,7 @@ namespace StingTools.UI
                 int updated = 0;
                 foreach (var item in selected)
                 {
-                    var trans = arr.FirstOrDefault(t => t["transmittal_id"]?.ToString() == item.Id) as JObject;
+                    var trans = arr.FirstOrDefault(t => BIMManager.TransmittalRecord.Id(t) == item.Id) as JObject;
                     if (trans != null)
                     {
                         string oldStatus = trans["status"]?.ToString() ?? "";
@@ -5568,29 +5568,43 @@ namespace StingTools.UI
                 if (!File.Exists(regPath)) return;
 
                 var arr = JArray.Parse(File.ReadAllText(regPath));
-                foreach (JToken d in arr)
+                foreach (JObject d in arr.OfType<JObject>())
                 {
-                    string docId = d["doc_id"]?.ToString() ?? "";
-                    if (_allItems.Any(i => i.Id == docId)) continue;
+                    // One mapper for both loaders (DocumentRegisterMerge.MapRegisterRow). This
+                    // one read only doc_id / doc_type / date, but BIMManagerEngine.
+                    // AutoRegisterExport — every Export Centre and batch export — writes
+                    // document_id / document_type / date_created, so those rows arrived with
+                    // no id, no type and no date until the project was consolidated.
+                    var m = DocumentRegisterMerge.MapRegisterRow(d);
+                    string docId = m?.Id ?? "";
+                    if (string.IsNullOrEmpty(docId)) continue;
 
                     string statusCode = d["status_code"]?.ToString() ?? "";
                     string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(statusCode, out string sd) ? sd : statusCode;
-                    string docType = d["doc_type"]?.ToString() ?? "";
+                    string docType = m.Type ?? "";
                     string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(docType, out string td) ? td : docType;
+
+                    var existing = _allItems.FirstOrDefault(i => i.Id == docId);
+                    if (existing != null)
+                    {
+                        EnrichFromRegister(existing, docType, typeDesc, statusCode, statusDesc,
+                            m.Revision, m.Suitability, m.CreatedBy);
+                        continue;
+                    }
 
                     _allItems.Add(new DocItemVM
                     {
-                        Id = docId, Title = d["title"]?.ToString() ?? docId,
+                        Id = docId, Title = string.IsNullOrEmpty(m.Title) ? docId : m.Title,
                         Type = docType, TypeDesc = typeDesc,
                         Status = statusCode, StatusDesc = statusDesc,
-                        CDE = d["cde_status"]?.ToString() ?? "WIP",
-                        Revision = d["revision"]?.ToString() ?? "",
-                        Date = d["date"]?.ToString() ?? "",
-                        Direction = d["direction"]?.ToString() ?? "OUT",
-                        FilePath = d["file_path"]?.ToString() ?? "",
-                        FileFormat = d["file_format"]?.ToString() ?? "",
-                        Suitability = d["suitability"]?.ToString() ?? "",
-                        CreatedBy = d["created_by"]?.ToString() ?? "",
+                        CDE = string.IsNullOrEmpty(m.CdeStatus) ? "WIP" : m.CdeStatus,
+                        Revision = m.Revision ?? "",
+                        Date = d["date"]?.ToString() ?? m.DateCreated ?? "",
+                        Direction = string.IsNullOrEmpty(m.Direction) ? "OUT" : m.Direction,
+                        FilePath = m.FilePath ?? "",
+                        FileFormat = m.FileFormat ?? "",
+                        Suitability = m.Suitability ?? "",
+                        CreatedBy = m.CreatedBy ?? "",
                         Category = "DOCUMENT", Folder = "15_REGISTERS"
                     });
                 }
@@ -5625,12 +5639,19 @@ namespace StingTools.UI
 
                 foreach (var r in rows)
                 {
-                    if (string.IsNullOrEmpty(r.Id) || _allItems.Any(i => i.Id == r.Id)) continue;
+                    if (string.IsNullOrEmpty(r.Id)) continue;
                     string typeDesc = BIMManager.BIMManagerEngine.DocumentTypes.TryGetValue(r.Type ?? "", out string td) ? td : r.Type;
                     // Resolve the ISO 19650 status code to its description exactly as the legacy
                     // loader does — otherwise the unified view shows the bare code ("S2") where
                     // the old view showed "Shared — suitable for information".
                     string statusDesc = BIMManager.DocStatusCodes.All.TryGetValue(r.Status ?? "", out string sd) ? sd : r.Status;
+                    var existing = _allItems.FirstOrDefault(i => i.Id == r.Id);
+                    if (existing != null)
+                    {
+                        EnrichFromRegister(existing, r.Type, typeDesc, r.Status, statusDesc,
+                            r.Revision, r.Suitability, r.CreatedBy);
+                        continue;
+                    }
                     _allItems.Add(new DocItemVM
                     {
                         Id = r.Id,
@@ -5651,6 +5672,40 @@ namespace StingTools.UI
             }
             catch (Exception ex) { StingLog.Warn($"DocMgr.LoadUnifiedRegister: {ex.Message}"); return false; }
             return built > 0;
+        }
+
+        /// <summary>Fill a file row's blank register fields from the register entry of
+        /// the same id.
+        ///
+        /// Files load first and a file is named after its document number, so the
+        /// register entry for an issued document almost always shares the file row's id.
+        /// Both loaders used to SKIP such an entry, which left the one row the user sees
+        /// with no suitability, revision or status — the register's whole content for
+        /// that document. Only blanks are filled: the file row's CDE comes from the
+        /// folder the file is actually in, which is the fact on disk and wins.</summary>
+        private static void EnrichFromRegister(DocItemVM row, string type, string typeDesc,
+            string status, string statusDesc, string revision, string suitability, string createdBy)
+        {
+            if (row == null || row.Category != "DOCUMENT") return;
+            if (!string.IsNullOrEmpty(type) && (string.IsNullOrEmpty(row.Type) || row.Type == row.FileFormat))
+            { row.Type = type; row.TypeDesc = typeDesc; }
+            if (string.IsNullOrEmpty(row.Status) && !string.IsNullOrEmpty(status))
+            { row.Status = status; row.StatusDesc = statusDesc; }
+            if (string.IsNullOrEmpty(row.Revision)) row.Revision = revision ?? "";
+            if (string.IsNullOrEmpty(row.Suitability)) row.Suitability = suitability ?? "";
+            if (string.IsNullOrEmpty(row.CreatedBy)) row.CreatedBy = createdBy ?? "";
+        }
+
+        /// <summary>Does this register row carry <paramref name="id"/> under any of the
+        /// register's id keys? Edits matched on doc_id alone, so a row written by
+        /// AutoRegisterExport (document_id) or keyed by doc_number could be shown but
+        /// never updated — a CDE move reported success and left the register as it was.</summary>
+        private static bool RegisterRowHasId(JObject row, string id)
+        {
+            if (row == null || string.IsNullOrEmpty(id)) return false;
+            foreach (string k in DocumentIdentity.RegisterKeys)
+                if (string.Equals(row[k]?.ToString(), id, StringComparison.Ordinal)) return true;
+            return false;
         }
 
         private static void LoadIssues(Document doc)
@@ -5837,11 +5892,12 @@ namespace StingTools.UI
                 foreach (JToken t in arr)
                 {
                     // GAP GRID-04: transmittal contents count
-                    int docCount = 0;
-                    if (t["documents"] is JArray docs) docCount = docs.Count;
+                    // IM-17: rows come in three shapes (CreateTransmittal, Quick
+                    // Transmittal, auto-transmittal); TransmittalRecord reads all three.
+                    int docCount = BIMManager.TransmittalRecord.Documents(t).Count;
 
                     // GRID-02: Compute age for transmittals too
-                    string tDateStr = t["date"]?.ToString() ?? "";
+                    string tDateStr = BIMManager.TransmittalRecord.Date(t);
                     int tDaysOpen = 0;
                     string tAging = "";
                     if (DateTime.TryParse(tDateStr, out DateTime tDate))
@@ -5852,16 +5908,16 @@ namespace StingTools.UI
 
                     _allItems.Add(new DocItemVM
                     {
-                        Id = t["transmittal_id"]?.ToString() ?? "",
+                        Id = BIMManager.TransmittalRecord.Id(t),
                         Title = BuildTransmittalTitle(t, docCount),
                         Type = "TR", TypeDesc = "Transmittal",
-                        Status = ValidateTransmittalStatus(t["status"]?.ToString()),
+                        Status = BIMManager.TransmittalStatus.Normalise(t["status"]?.ToString()),
                         StatusHistory = CoordStores.FormatHistory(t["status_history"]), // PERSIST-02
                         CDE = "SHARED",
                         Revision = t["revision"]?.ToString() ?? "",
                         Date = tDateStr,
-                        AssignedTo = t["recipient"]?.ToString() ?? "",
-                        CreatedBy = t["created_by"]?.ToString() ?? "",
+                        AssignedTo = BIMManager.TransmittalRecord.Recipient(t),
+                        CreatedBy = BIMManager.TransmittalRecord.CreatedBy(t),
                         ElementCount = docCount,
                         DaysOpen = tDaysOpen, Aging = tAging, // GRID-02
                         Category = "TRANSMITTAL", Folder = "10_TRANSMITTALS"
@@ -6785,7 +6841,7 @@ namespace StingTools.UI
                     StingLog.Warn($"UpdateDocRegister refused — {regPath} exists but is unreadable.");
                     return false;
                 }
-                var entry = arr.FirstOrDefault(d => d["doc_id"]?.ToString() == docId);
+                var entry = arr.OfType<JObject>().FirstOrDefault(d => RegisterRowHasId(d, docId));
                 if (entry == null)
                 {
                     StingLog.Warn($"UpdateDocRegister: no entry with doc_id '{docId}' in {regPath}");
@@ -6863,19 +6919,6 @@ namespace StingTools.UI
             _view?.Refresh();
             SetStatus($"{what} set to {value} for {item.Title}");
             return true;
-        }
-
-        // DM-03: Valid transmittal statuses
-        private static readonly HashSet<string> ValidTransmittalStatuses = new(StringComparer.OrdinalIgnoreCase)
-        {
-            "DRAFT", "SENT", "RECEIVED", "ACKNOWLEDGED", "SIGNED",
-            "REJECTED", "SUPERSEDED", "AUTO_GENERATED", "VOID"
-        };
-
-        private static string ValidateTransmittalStatus(string status)
-        {
-            if (string.IsNullOrEmpty(status)) return "DRAFT";
-            return ValidTransmittalStatuses.Contains(status) ? status : "DRAFT";
         }
 
         /// <summary>Build transmittal title showing file count and contents summary.</summary>

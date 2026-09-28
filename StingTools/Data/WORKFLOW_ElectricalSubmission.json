@@ -13,16 +13,17 @@
     { "order": 6, "commandTag": "Calc_AicStamp",         "label": "Stamp AIC ratings",                        "optional": true  },
     { "order": 7, "commandTag": "Calc_FeederSize",       "label": "Auto-size feeders",                        "optional": true  },
     { "order": 8, "commandTag": "Calc_VoltageDrop",      "label": "Calculate voltage drop",                   "optional": true  },
-    { "order": 9, "commandTag": "Cable_ValidateConduitFill","label": "Validate conduit fill (NEC 310/IEC 60364)", "optional": true  },
-    { "order": 10,"commandTag": "SLD_Generate",          "label": "Generate single-line diagram",             "optional": true  },
-    { "order": 11,"commandTag": "Elec_ArcFlash",         "label": "Compute arc-flash incident energy",        "optional": true  },
-    { "order": 12,"commandTag": "Elec_ArcFlashLabels",   "label": "Generate arc-flash label sheets",          "optional": true  },
-    { "order": 13,"commandTag": "Elec_SelectCoord",      "label": "Selective coordination check",             "optional": true  },
-    { "order": 14,"commandTag": "Rprt_FaultSchedule",    "label": "Fault-current schedule",                   "optional": true  },
-    { "order": 15,"commandTag": "Rprt_VDSchedule",       "label": "Voltage-drop schedule",                    "optional": true  },
-    { "order": 16,"commandTag": "Rprt_DemandFactors",    "label": "Demand-factors report",                    "optional": true  },
-    { "order": 17,"commandTag": "Rprt_ExcelExport",      "label": "Export panel schedules to Excel",          "optional": true  },
-    { "order": 18,"commandTag": "Rprt_PDF",              "label": "Export panel schedules to PDF",            "optional": true  },
-    { "order": 19,"commandTag": "Elec_ExportEasyPower",  "label": "Export to EasyPower (.epw)",               "optional": true  }
+    { "order": 9, "commandTag": "Panel_ComplianceCheck", "label": "Per-circuit BS 7671 check (Ib ≤ In ≤ Iz, VD, breaking capacity)", "optional": true  },
+    { "order": 10, "commandTag": "Cable_ValidateConduitFill","label": "Validate conduit fill (NEC 310/IEC 60364)", "optional": true  },
+    { "order": 11,"commandTag": "SLD_Generate",          "label": "Generate single-line diagram",             "optional": true  },
+    { "order": 12,"commandTag": "Elec_ArcFlash",         "label": "Compute arc-flash incident energy",        "optional": true  },
+    { "order": 13,"commandTag": "Elec_ArcFlashLabels",   "label": "Generate arc-flash label sheets",          "optional": true  },
+    { "order": 14,"commandTag": "Elec_SelectCoord",      "label": "Selective coordination check",             "optional": true  },
+    { "order": 15,"commandTag": "Rprt_FaultSchedule",    "label": "Fault-current schedule",                   "optional": true  },
+    { "order": 16,"commandTag": "Rprt_VDSchedule",       "label": "Voltage-drop schedule",                    "optional": true  },
+    { "order": 17,"commandTag": "Rprt_DemandFactors",    "label": "Demand-factors report",                    "optional": true  },
+    { "order": 18,"commandTag": "Rprt_ExcelExport",      "label": "Export panel schedules to Excel",          "optional": true  },
+    { "order": 19,"commandTag": "Rprt_PDF",              "label": "Export panel schedules to PDF",            "optional": true  },
+    { "order": 20,"commandTag": "Elec_ExportEasyPower",  "label": "Export to EasyPower (.epw)",               "optional": true  }
   ]
 }

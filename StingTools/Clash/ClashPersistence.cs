@@ -11,17 +11,21 @@ namespace StingTools.Core.Clash
     public static class ClashPersistence
     {
         /// <summary>
-        /// The ONE canonical clashes.json location: the project output folder, where
-        /// ClashRunCommand writes it and where the XLSX / BCF / issue-sync exports, the KPI
-        /// dashboard, the clash-budget gate AND the Clash Manager dialog all now read it.
-        /// Centralised here so the location has a single definition and the reader/writer
-        /// mismatch can never reopen. (Its trend history lives in the sibling "archive/"
-        /// folder; moving clash STATE into _data/_BIM_COORD would have to relocate that
-        /// archive + carry the history over, so it is a separate refactor — see
-        /// docs/ROADMAP.md.)
+        /// The ONE canonical clashes.json location, where ClashRunCommand writes it and the
+        /// XLSX / BCF / issue-sync exports, the KPI dashboard, the clash-budget gate AND the
+        /// Clash Manager dialog all read it.
+        ///
+        /// It is state, so it lives in _data/coord/clash/ with its trend "archive/"
+        /// (DOCX-11). It used to sit in the MISC export folder; GetStorePath carries that
+        /// copy and its archive forward on first use, so no history is lost.
         /// </summary>
         public static string CanonicalPath(Document doc)
-            => Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath(), "clashes.json");
+            => OutputLocationHelper.GetStorePath(doc, "clashes.json", "clash", "archive")
+               ?? Path.Combine(Path.GetTempPath(), "clashes.json");
+
+        /// <summary>The trend archive beside <see cref="CanonicalPath"/>.</summary>
+        public static string ArchiveDir(Document doc)
+            => Path.Combine(Path.GetDirectoryName(CanonicalPath(doc)) ?? Path.GetTempPath(), "archive");
 
         // F3: Ring-buffer cap for the archive directory. Older entries are
         // pruned during Save so the directory size stays bounded. Two months

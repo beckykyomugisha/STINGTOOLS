@@ -187,7 +187,7 @@ namespace StingTools.Core.Drawing
                 foreach (var t in allTypes)
                 {
                     string prodCode = null;
-                    try { prodCode = TagConfig.GetFamilyAwareProdCode(t, catName); }
+                    try { prodCode = TagConfig.GetProdCodeWithMaterial(t, catName); }
                     catch (Exception ex) { StingLog.Warn($"TypeMarkSequencer PROD for {SafeName(t)}: {ex.Message}"); }
 
                     if (string.IsNullOrWhiteSpace(prodCode))

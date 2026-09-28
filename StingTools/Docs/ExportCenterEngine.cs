@@ -28,9 +28,140 @@ namespace StingTools.Docs
 
     public static class ExportCenterEngine
     {
-        // ── State persistence (project_config.json: key "ExportCenter") ─────────
+        // ── State persistence ───────────────────────────────────────────────────
+        //
+        // Two homes (DOCX-2). USER-level — profiles, the last profile, ODA path, recent
+        // folders — stays in project_config.json under "ExportCenter", because a profile
+        // is a reusable recipe. PROJECT-level — saved sets (ElementIds), last-export
+        // records, scheduled jobs and the save-trigger opt-in — lives in
+        // <project>/_data/coord/export_center.json. All of it used to be in the one
+        // shared file, so a saved set from project A resolved to arbitrary elements in
+        // project B and "Changed Since Last Export" mixed two projects' history.
+        //
+        // An unsaved model has no project folder and keeps the old single-file behaviour.
 
         private const string ConfigKey = "ExportCenter";
+        private const string ProjectStateFile = "export_center.json";
+
+        /// <summary>The per-project half of <see cref="ExportCenterState"/>.</summary>
+        private sealed class ProjectExportState
+        {
+            public int SchemaVersion { get; set; } = 1;
+            public List<ExportSavedSet> SavedSets { get; set; } = new();
+            public List<ScheduledExport> ScheduledExports { get; set; } = new();
+            public bool EnableSaveTriggeredSchedules { get; set; }
+            public List<SheetExportRecord> LastExports { get; set; } = new();
+            public string LastOutputFolder { get; set; }
+        }
+
+        private static string ProjectStatePath(Document doc)
+        {
+            try { return doc == null ? null : StingPaths.MetaFile(doc, "_BIM_COORD", ProjectStateFile); }
+            catch (Exception ex) { StingLog.Warn($"Export Centre project state path: {ex.Message}"); return null; }
+        }
+
+        /// <summary>State for <paramref name="doc"/>: user-level settings plus this
+        /// project's own sets, records and schedules. With no document (or an unsaved
+        /// one), the single shared file as before.</summary>
+        public static ExportCenterState LoadState(Document doc)
+        {
+            var st = LoadState();
+            string path = ProjectStatePath(doc);
+            if (string.IsNullOrEmpty(path)) return st;
+            try
+            {
+                ProjectExportState proj;
+                if (File.Exists(path))
+                    proj = JsonConvert.DeserializeObject<ProjectExportState>(File.ReadAllText(path)) ?? new ProjectExportState();
+                else
+                {
+                    proj = MigrateProjectState(doc, st);
+                    WriteProjectState(path, proj);
+                }
+                var builtIns = st.SavedSets.Where(x => x.BuiltIn).ToList();
+                st.SavedSets = builtIns.Concat(proj.SavedSets ?? new List<ExportSavedSet>()).ToList();
+                st.ScheduledExports = proj.ScheduledExports ?? new List<ScheduledExport>();
+                st.EnableSaveTriggeredSchedules = proj.EnableSaveTriggeredSchedules;
+                st.LastExports = proj.LastExports ?? new List<SheetExportRecord>();
+                st.LastOutputFolder = proj.LastOutputFolder;
+            }
+            catch (Exception ex) { StingLog.Warn($"Export Centre project state load: {ex.Message}"); }
+            return st;
+        }
+
+        /// <summary>First load in a project: keep only what provably belongs to it — sets
+        /// whose every id is a view in this model, last-export records for sheets that
+        /// exist here, schedules whose set survived, and a last folder inside this
+        /// project. The shared file is left untouched for other projects to migrate from.</summary>
+        private static ProjectExportState MigrateProjectState(Document doc, ExportCenterState legacy)
+        {
+            var proj = new ProjectExportState();
+            foreach (var set in legacy.SavedSets.Where(x => !x.BuiltIn))
+            {
+                bool all = set.ElementIds.Count > 0 && set.ElementIds.All(id =>
+                    long.TryParse(id, out long raw) && doc.GetElement(new ElementId(raw)) is View);
+                if (all) proj.SavedSets.Add(set);
+                else StingLog.Info($"Export Centre migration: saved set '{set.Name}' does not belong to this model — not carried over.");
+            }
+            foreach (var r in legacy.LastExports ?? new List<SheetExportRecord>())
+                if (!string.IsNullOrEmpty(r.SheetUniqueId) && doc.GetElement(r.SheetUniqueId) is ViewSheet)
+                    proj.LastExports.Add(r);
+            var setNames = new HashSet<string>(proj.SavedSets.Select(x => x.Name)
+                .Concat(legacy.SavedSets.Where(x => x.BuiltIn).Select(x => x.Name)), StringComparer.OrdinalIgnoreCase);
+            foreach (var sch in legacy.ScheduledExports ?? new List<ScheduledExport>())
+                if (string.IsNullOrEmpty(sch.SetName) || setNames.Contains(sch.SetName)) proj.ScheduledExports.Add(sch);
+            try
+            {
+                string root = ProjectFolderEngine.GetRootPath(doc);
+                if (!string.IsNullOrEmpty(root) && !string.IsNullOrEmpty(legacy.LastOutputFolder) &&
+                    Path.GetFullPath(legacy.LastOutputFolder).StartsWith(Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
+                    proj.LastOutputFolder = legacy.LastOutputFolder;
+            }
+            catch (Exception ex) { StingLog.Warn($"Export Centre migration folder: {ex.Message}"); }
+            StingLog.Info($"Export Centre state migrated for this project: {proj.SavedSets.Count} set(s), " +
+                          $"{proj.LastExports.Count} last-export record(s), {proj.ScheduledExports.Count} schedule(s).");
+            return proj;
+        }
+
+        private static void WriteProjectState(string path, ProjectExportState proj)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            OutputLocationHelper.WriteAllTextAtomic(path, JsonConvert.SerializeObject(proj, Formatting.Indented));
+        }
+
+        /// <summary>Save for <paramref name="doc"/>: the project half to the project file,
+        /// the user half to project_config.json — whose legacy project fields are left as
+        /// they were so unmigrated projects can still carry theirs over.</summary>
+        public static void SaveState(ExportCenterState st, Document doc)
+        {
+            string path = ProjectStatePath(doc);
+            if (string.IsNullOrEmpty(path)) { SaveState(st); return; }
+            try
+            {
+                WriteProjectState(path, new ProjectExportState
+                {
+                    SavedSets = st.SavedSets.Where(x => !x.BuiltIn).ToList(),
+                    ScheduledExports = st.ScheduledExports ?? new List<ScheduledExport>(),
+                    EnableSaveTriggeredSchedules = st.EnableSaveTriggeredSchedules,
+                    LastExports = st.LastExports ?? new List<SheetExportRecord>(),
+                    LastOutputFolder = st.LastOutputFolder,
+                });
+
+                string cfg = TagConfig.ConfigSource;
+                if (string.IsNullOrEmpty(cfg)) return;
+                JObject root = File.Exists(cfg) ? JObject.Parse(File.ReadAllText(cfg)) : new JObject();
+                var prev = root[ConfigKey] as JObject;
+                var user = JObject.FromObject(st);
+                foreach (var key in new[] { "SavedSets", "ScheduledExports", "EnableSaveTriggeredSchedules", "LastExports", "LastOutputFolder" })
+                {
+                    if (prev != null && prev[key] != null) user[key] = prev[key];
+                    else user.Remove(key);
+                }
+                root[ConfigKey] = user;
+                File.WriteAllText(cfg, root.ToString(Formatting.Indented));
+            }
+            catch (Exception ex) { StingLog.Warn($"Export Centre state save: {ex.Message}"); }
+        }
 
         public static ExportCenterState LoadState()
         {
@@ -192,7 +323,7 @@ namespace StingTools.Docs
                     // ISO 19650 re-issue — only the drawings that moved go out. Records
                     // are stamped post-run when the profile's Output.StampLastExport is
                     // on (default). Salvaged from claude/dreamy-maxwell-prlg44.
-                    var state = LoadState();
+                    var state = LoadState(doc);
                     var byUid = (state.LastExports ?? new List<SheetExportRecord>())
                         .GroupBy(r => r.SheetUniqueId)
                         .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ExportedUtc).First());
@@ -222,18 +353,26 @@ namespace StingTools.Docs
 
         private static List<ElementId> FilterByDisc(List<ViewSheet> sheets, string disc)
         {
-            return sheets.Where(s => GetDisciplinePrefix(s.SheetNumber).Equals(disc, StringComparison.OrdinalIgnoreCase))
+            return sheets.Where(s => SheetDiscipline(s).Equals(disc, StringComparison.OrdinalIgnoreCase))
                          .Select(s => s.Id).ToList();
         }
 
-        public static string GetDisciplinePrefix(string sheetNumber)
+        public static string GetDisciplinePrefix(string sheetNumber) => SheetDiscipline(sheetNumber, null);
+
+        /// <summary>The discipline a sheet declares, via the shared
+        /// <see cref="Core.Drawing.SheetDisciplineResolver.ForSheet"/> (number, ISO role
+        /// segment, then title). An unconfigured prefix is kept as written so such sheets
+        /// still group together; "Other" when there is nothing to read.</summary>
+        public static string SheetDiscipline(string sheetNumber, string sheetName)
         {
+            string d = Core.Drawing.SheetDisciplineResolver.ForSheet(sheetNumber, sheetName);
+            if (!string.IsNullOrEmpty(d)) return d;
             if (string.IsNullOrWhiteSpace(sheetNumber)) return "Other";
-            int dash = sheetNumber.IndexOf('-');
-            if (dash > 0) return sheetNumber.Substring(0, dash).ToUpperInvariant();
-            string letters = new string(sheetNumber.TakeWhile(char.IsLetter).ToArray());
+            string letters = new string(sheetNumber.Trim().TakeWhile(char.IsLetter).ToArray());
             return string.IsNullOrEmpty(letters) ? "Other" : letters.ToUpperInvariant();
         }
+
+        private static string SheetDiscipline(ViewSheet s) => SheetDiscipline(s?.SheetNumber, s?.Name);
 
         /// <summary>
         /// Derive an ISO 19650 Level code from a sheet, used as a fallback when
@@ -330,16 +469,39 @@ namespace StingTools.Docs
                 t["DrawingNumber"]= sheet.SheetNumber ?? "";
                 t["DrawingTitle"] = sheet.Name ?? "";
                 t["DrawingSet"]   = ReadParam(sheet, "Sheet Issue Date") ?? "";
-                t["Discipline"]   = GetDisciplinePrefix(sheet.SheetNumber);
+                t["Discipline"]   = SheetDiscipline(sheet);
 
                 var (rev, revDate) = GetCurrentRevision(doc, sheet);
                 t["RevDate"] = revDate ?? "";
 
                 // ── ISO 19650 token resolution chain ──
-                // 1) Sheet-level STING_* params (per-sheet overrides)
-                // 2) Stamped DrawingType.IsoNaming (Phase 113 — auto-populated
+                // 1) Sheet-level STING_* params (per-sheet overrides a project may
+                //    have added by hand — no STING command writes or binds them)
+                // 2) The sheet's own ISO identifier (SHT_TAG_1_TXT from Tag Sheets,
+                //    or the sheet number once it IS the identifier), decomposed.
+                //    Iso19650DocumentCode: "the identifier is the SOURCE and these
+                //    are its decomposition" — so a filename built from it cannot
+                //    contradict the DRG NO. printed on the drawing.
+                // 3) The suitability code Title Block Populate writes onto the sheet
+                // 4) Stamped DrawingType.IsoNaming (Phase 113 — auto-populated
                 //    when the sheet was created through the Drawing Type engine)
-                // 3) Sensible ISO 19650-2 defaults
+                // 5) Sensible ISO 19650-2 defaults
+                //
+                // Before this, step 1 was the ONLY per-sheet source and none of its
+                // five parameters exists in MR_PARAMETERS, so every file fell through
+                // to the defaults: an S4 drawing exported as "...-S2-...", a level
+                // code "L01" where ISO uses "01", and a revision "3" (the Revit
+                // sequence number) where the revision box prints "P03".
+                var idSegs = DecomposeSheetIdentifier(sheet, out string docId);
+                t["DocumentId"] = docId ?? "";
+                t["Number"]     = idSegs?.Number ?? "";
+                if (idSegs != null)
+                {
+                    t["ProjectCode"]    = idSegs.Project;
+                    t["Project"]        = idSegs.Project;
+                    t["Originator"]     = idSegs.Originator;
+                    t["OriginatorCode"] = idSegs.Originator;
+                }
                 StingTools.Core.Drawing.IsoNaming dtIso = null;
                 string stampedDtId = ReadParam(sheet, StingTools.Core.Drawing.DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
                 if (!string.IsNullOrEmpty(stampedDtId))
@@ -352,12 +514,19 @@ namespace StingTools.Docs
                     catch (Exception ex) { StingLog.Warn($"DrawingType lookup '{stampedDtId}': {ex.Message}"); }
                 }
 
-                t["Volume"]      = ReadParam(sheet, "STING_VOLUME_TXT")      ?? dtIso?.Volume      ?? "ZZ";
-                t["Level"]       = ReadParam(sheet, "STING_LVL_COD_TXT")     ?? GetLevelFromSheet(doc, sheet) ?? "XX";
-                t["Type"]        = ReadParam(sheet, "STING_DOC_TYPE_TXT")    ?? dtIso?.Type        ?? "DR";
+                string derivedLevel = GetLevelFromSheet(doc, sheet);
+                t["Volume"]      = ReadParam(sheet, "STING_VOLUME_TXT")      ?? idSegs?.Volume ?? dtIso?.Volume ?? "ZZ";
+                t["Level"]       = ReadParam(sheet, "STING_LVL_COD_TXT")     ?? idSegs?.Level
+                                   ?? (derivedLevel != null ? Core.Drawing.Iso19650DocumentCode.NormaliseLevel(derivedLevel) : null)
+                                   ?? "XX";
+                t["Type"]        = ReadParam(sheet, "STING_DOC_TYPE_TXT")    ?? idSegs?.Type   ?? dtIso?.Type   ?? "DR";
                 string disc      = t["Discipline"];
-                t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT")        ?? dtIso?.Role        ?? (string.IsNullOrEmpty(disc) ? "Z" : disc);
-                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT") ?? dtIso?.Suitability ?? "S2";
+                t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT")        ?? idSegs?.Role   ?? dtIso?.Role
+                                   ?? Core.Drawing.Iso19650DocumentCode.NormaliseRole(disc);
+                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT")
+                                   ?? ReadSuitabilityCode(sheet)
+                                   ?? dtIso?.Suitability ?? "S2";
+                t["CdeState"]    = Core.Drawing.Iso19650Suitability.CdeStateFor(t["Suitability"]) ?? "";
                 t["Revision"]    = !string.IsNullOrEmpty(rev) ? rev : (dtIso?.Revision ?? "P01");
                 t["Format"]      = ""; // filled in by caller per format
             }
@@ -448,18 +617,64 @@ namespace StingTools.Docs
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
+        /// <summary>The sheet's revision as the revision box prints it ("P03", "C01"),
+        /// plus that revision's date.
+        ///
+        /// Was <c>Revision.SequenceNumber</c> of the last id in GetAllRevisionIds —
+        /// Revit's internal ordering counter, so a sheet at P03 exported as "...-3"
+        /// and its filename disagreed with the drawing. Same chain Title Block
+        /// Populate uses for the CDE REF cell: SHEET_CURRENT_REVISION first, then
+        /// the title-block revision parameter for a set issued without Revit
+        /// revisions in play.
+        ///
+        /// The value is also the key "Changed Since Last Export" compares, so the
+        /// first run after this change reports every previously exported sheet as
+        /// changed once — the safe direction for a re-issue.</summary>
         private static (string rev, string date) GetCurrentRevision(Document doc, ViewSheet sheet)
         {
+            string label = null, date = null;
             try
             {
-                var revIds = sheet.GetAllRevisionIds();
-                if (revIds == null || revIds.Count == 0) return (null, null);
-                var lastId = revIds[revIds.Count - 1];
-                if (doc.GetElement(lastId) is Revision r)
-                    return (r.SequenceNumber.ToString(), r.RevisionDate);
+                label = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString();
+                var curId = sheet.GetCurrentRevision();
+                if (curId != null && curId != ElementId.InvalidElementId && doc.GetElement(curId) is Revision r)
+                {
+                    date = r.RevisionDate;
+                    if (string.IsNullOrWhiteSpace(label)) label = r.RevisionNumber;
+                }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            return (null, null);
+            catch (Exception ex) { StingLog.Warn($"Export revision read on '{sheet?.SheetNumber}': {ex.Message}"); }
+            if (string.IsNullOrWhiteSpace(label))
+                label = ReadParam(sheet, "PRJ_TB_REVISION_NR_TXT");
+            return (string.IsNullOrWhiteSpace(label) ? null : label.Trim(), date);
+        }
+
+        /// <summary>The sheet's ISO 19650 identifier, decomposed — SHT_TAG_1_TXT when
+        /// Tag Sheets has assembled one, else the sheet number when it already IS one.
+        /// Null when neither parses; a half-parsed identifier would make every segment
+        /// look populated while several were wrong.</summary>
+        internal static Core.Drawing.Iso19650DocumentCode.Segments DecomposeSheetIdentifier(
+            ViewSheet sheet, out string identifier)
+        {
+            identifier = null;
+            if (sheet == null) return null;
+            string tagged = ReadParam(sheet, ParamRegistry.SHT_TAG_1);
+            if (Core.Drawing.Iso19650DocumentCode.LooksAssembled(tagged)) identifier = tagged.Trim();
+            else if (Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheet.SheetNumber)) identifier = sheet.SheetNumber.Trim();
+            return identifier == null ? null : Core.Drawing.Iso19650DocumentCode.Decompose(identifier);
+        }
+
+        /// <summary>The suitability CODE Title Block Populate normalises onto the sheet
+        /// (PRJ_DWG_SUITABILITY_COD_TXT, then the STATUS cell). ExtractCode tolerates a
+        /// hand-typed "S4 - FOR APPROVAL"; null when neither holds a known code.</summary>
+        private static string ReadSuitabilityCode(ViewSheet sheet)
+        {
+            foreach (string p in new[] { ParamRegistry.DWG_SUITABILITY_COD, ParamRegistry.PRJ_STATUS_COD })
+            {
+                string code = Core.Drawing.Iso19650Suitability.ExtractCode(ReadParam(sheet, p));
+                if (!string.IsNullOrEmpty(code)) return code;
+            }
+            return null;
         }
 
         // ── Filename hygiene ────────────────────────────────────────────────────
@@ -487,10 +702,29 @@ namespace StingTools.Docs
             if (profile.Formats == ExportFormats.None)
                 issues.Add(Err("NO_FORMAT", "No output format is active."));
 
+            // Destination. No code uploads to the Planscape CDE server: with
+            // "Planscape CDE" selected the local-folder checks were skipped, the
+            // folder resolved to "", and every sheet then failed on an empty path
+            // — or, with a stale folder in the profile, the files quietly went
+            // there and nothing was uploaded. Say so before anything runs.
+            if (profile.Output.Destination == ExportDestination.PlanscapeCde)
+                issues.Add(Err("CDE_UPLOAD_UNAVAILABLE",
+                    "Uploading to the Planscape CDE server is not implemented in the Export Centre. " +
+                    "Choose 'Local / Network folder' and press Auto to target this project's CDE folder."));
+            else if (profile.Output.Destination == ExportDestination.Both)
+                issues.Add(Warn("CDE_UPLOAD_UNAVAILABLE",
+                    "Files will be written to the local folder only — the Planscape CDE upload is not implemented."));
+
             // Folder writability
             try
             {
-                if (profile.Output.Destination != ExportDestination.PlanscapeCde)
+                if (profile.Output.RouteByProjectStructure)
+                {
+                    if (string.IsNullOrEmpty(doc?.PathName))
+                        issues.Add(Err("ROUTE_UNSAVED",
+                            "Routing into the project structure needs a saved project — save the model first."));
+                }
+                else if (profile.Output.Destination != ExportDestination.PlanscapeCde)
                 {
                     var folder = profile.Output.LocalFolder;
                     if (string.IsNullOrEmpty(folder))
@@ -509,6 +743,21 @@ namespace StingTools.Docs
                 }
             }
             catch (Exception ex) { issues.Add(Warn("FOLDER_CHECK", ex.Message)); }
+
+            // Profiles are shared across projects (DOCX-2) and carry an absolute folder,
+            // so a profile last used on another job points into THAT job's folders.
+            try
+            {
+                string root = doc != null ? ProjectFolderEngine.GetRootPath(doc) : null;
+                string folder = profile.Output.LocalFolder;
+                if (!profile.Output.RouteByProjectStructure && !string.IsNullOrEmpty(root) &&
+                    !string.IsNullOrEmpty(folder) && Path.IsPathRooted(folder) &&
+                    !Path.GetFullPath(folder).StartsWith(Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase))
+                    issues.Add(Warn("OUTSIDE_PROJECT",
+                        $"Output folder is outside this project ({root}): {folder}. " +
+                        "Press Auto, or tick 'File into the project structure', to export into this project."));
+            }
+            catch (Exception ex) { StingLog.Warn($"Preflight project-folder check: {ex.Message}"); }
 
             // Filename collisions across the projected set
             try
@@ -663,6 +912,7 @@ namespace StingTools.Docs
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
             StampLastExports(doc, profile, result);
+            RegisterExports(doc, profile, result);
             return Finalize(profile, result);
         }
 
@@ -680,9 +930,11 @@ namespace StingTools.Docs
             if (result == null || result.Cancelled) return;
             try
             {
-                var state = LoadState();
+                var state = LoadState(doc);
                 var byKey = (state.LastExports ?? new List<SheetExportRecord>())
-                    .ToDictionary(r => r.SheetUniqueId + "|" + r.Format, r => r);
+                    .Where(r => r != null)
+                    .GroupBy(r => r.SheetUniqueId + "|" + r.Format)
+                    .ToDictionary(g => g.Key, g => g.Last());   // a hand-edited file with a repeat must not stop stamping
 
                 foreach (var r in result.Rows.Where(x => x.Success && !string.IsNullOrEmpty(x.OutputPath)))
                 {
@@ -702,9 +954,62 @@ namespace StingTools.Docs
                 }
 
                 state.LastExports = byKey.Values.ToList();
-                SaveState(state);
+                SaveState(state, doc);
             }
             catch (Exception ex) { StingLog.Warn($"Last-export stamp: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// DOCX-6: record each exported file in the project's document register
+        /// (BIMManagerEngine.AutoRegisterExport — the same register the Document Manager
+        /// and the unified register read), when Output.CdeAutoRegister is on. The setting
+        /// defaulted to true and nothing read it, so Export Centre output reached the
+        /// Document Manager only as loose files with no suitability or revision.
+        ///
+        /// A sheet's PDF is registered under its ISO document number, so it lines up with
+        /// the deliverable of the same number; every other rendition (DWG, image …) is
+        /// matched by file name, so it gets its own row instead of overwriting the PDF's.
+        /// Suitability, revision and CDE state come from the sheet.
+        /// </summary>
+        private static void RegisterExports(Document doc, ExportProfile profile, ExportRunResult result)
+        {
+            if (doc == null || profile?.Output == null || !profile.Output.CdeAutoRegister) return;
+            if (result == null || result.Cancelled) return;
+            // Collected, then recorded with one register load and one save (DOCX-13):
+            // per-file calls re-read and re-wrote the whole register for every file.
+            var batch = new List<BIMManager.ExportRegistration>();
+            foreach (var r in result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? "")))
+            {
+                try
+                {
+                    var sheet = ResolveSheet(doc, r.SheetId);
+                    string code = null, rev = null, docNumber = null, title = r.SheetTitle;
+                    if (sheet != null)
+                    {
+                        code = SheetSuitabilityCode(sheet);
+                        rev = GetCurrentRevision(doc, sheet).rev;
+                        DecomposeSheetIdentifier(sheet, out string id);
+                        if (string.Equals(r.Format, "PDF", StringComparison.OrdinalIgnoreCase))
+                            docNumber = id ?? sheet.SheetNumber;
+                        title = $"{sheet.SheetNumber} - {sheet.Name}";
+                    }
+                    string state = Core.Drawing.Iso19650Suitability.CdeStateFor(code) ?? "WIP";
+                    string type = r.Format is "IFC" or "NWC" ? "M3" : "DR";
+                    batch.Add(new BIMManager.ExportRegistration
+                    {
+                        FilePath = r.OutputPath,
+                        DocType = type,
+                        Description = $"{title} ({r.Format})",
+                        Suitability = code ?? Core.Drawing.Iso19650Suitability.DefaultFor(state),
+                        Revision = rev,
+                        CdeStatus = state,
+                        DocNumber = docNumber,
+                    });
+                }
+                catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber}/{r.Format}: {ex.Message}"); }
+            }
+            int n = BIMManager.BIMManagerEngine.AutoRegisterExports(doc, batch);
+            if (n > 0) StingLog.Info($"Export Centre: {n} file(s) recorded in the document register.");
         }
 
         /// <summary>Resolve a ViewSheet from an ExportResultRow.SheetId string
@@ -746,16 +1051,187 @@ namespace StingTools.Docs
                 Directory.CreateDirectory(f);
         }
 
-        private static string SubFolderFor(ExportProfile p, string format, string discipline)
+        /// <summary>
+        /// The folder one exported file goes to.
+        ///
+        /// <b>Routed</b> (Output.RouteByProjectStructure): the project's own structure —
+        /// CDE state from the sheet's suitability, then the discipline's sub-folder
+        /// (ProjectFolderEngine.GetDeliverableFolder). An S3 architectural sheet lands
+        /// in 02_SHARED/A_Architectural (BIM layout) or 01_SHARED/Drawings/A_Architectural
+        /// (CDE-first); an A1 structural sheet in the PUBLISHED equivalent.
+        ///
+        /// <b>Local</b>: the chosen folder, optionally split by format and discipline.
+        /// The discipline split now uses the project's discipline folder name
+        /// ("A_Architectural") when the project has one. It used to use the raw code,
+        /// so exporting into a CDE folder created "A" beside "A_Architectural". Image,
+        /// DGN and DWF exports were never split at all because they passed no
+        /// discipline.
+        /// </summary>
+        private static string SubFolderFor(Document doc, ExportProfile p, string format,
+            View view, string groupDiscipline = null)
         {
+            string disc = groupDiscipline
+                ?? (view is ViewSheet vs ? SheetDiscipline(vs) : null);
+            if (string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase)) disc = null;
+
+            if (p.Output.RouteByProjectStructure && doc != null)
+            {
+                // A sheet with no suitability code is not asserted to be anywhere in
+                // particular, so it follows the project's export route (06_DRAWINGS /
+                // 00_WIP|Drawings) rather than being filed as SHARED by a default.
+                string state = view is ViewSheet sheet ? SheetCdeState(sheet) : null;
+                string routed = ProjectFolderEngine.GetDeliverableFolder(doc, RouteKeyFor(format), disc, state);
+                if (!string.IsNullOrEmpty(routed))
+                {
+                    if (p.Output.SplitByFormatSubFolder) routed = Path.Combine(routed, format);
+                    Directory.CreateDirectory(routed);
+                    return routed;
+                }
+                StingLog.Warn($"Export routing: no project folder for {format}/{disc}/{state} — using the local folder.");
+            }
+
             string root = p.Output.LocalFolder;
             if (!string.IsNullOrEmpty(root) && !Path.IsPathRooted(root))
                 root = Path.GetFullPath(root);
             if (p.Output.SplitByFormatSubFolder) root = Path.Combine(root, format);
-            if (p.Output.SplitByDisciplineSubFolder && !string.IsNullOrEmpty(discipline))
-                root = Path.Combine(root, discipline);
+            if (p.Output.SplitByDisciplineSubFolder && !string.IsNullOrEmpty(disc))
+                root = Path.Combine(root, ProjectFolderEngine.ResolveDisciplineFolder(doc, disc) ?? disc);
             if (!Directory.Exists(root)) Directory.CreateDirectory(root);
             return root;
+        }
+
+        /// <summary>Folder for one file made from several sheets (combined PDF,
+        /// multi-layout DWG).
+        ///
+        /// The group's name is a label, not a discipline: "All" and custom group names
+        /// used to be passed as the discipline, so a combined set landed in an "All"
+        /// folder, and a group was filed under the first sheet's CDE state whatever
+        /// the others said. The file goes in a discipline folder only when every sheet
+        /// in it shares that discipline, and in a CDE state only when every sheet
+        /// shares that state; otherwise it stays one level up, where it is visible.</summary>
+        private static string SubFolderForGroup(Document doc, ExportProfile p, string format, List<View> views)
+        {
+            var sheets = (views ?? new List<View>()).OfType<ViewSheet>().ToList();
+            string disc = null;
+            var discs = sheets.Select(s => SheetDiscipline(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (discs.Count == 1) disc = discs[0];
+
+            View stateFrom = null;
+            var states = sheets.Select(SheetCdeState).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (sheets.Count > 0 && states.Count == 1) stateFrom = sheets[0];
+
+            // SubFolderFor reads the discipline from the view when none is passed; a
+            // mixed group must not inherit the first sheet's, so pass "Other" (which
+            // it treats as none) rather than null.
+            return SubFolderFor(doc, p, format, stateFrom, disc ?? "Other");
+        }
+
+        /// <summary>CDE state a sheet's own suitability code puts it in, or null when
+        /// the sheet carries no recognised code.</summary>
+        public static string SheetCdeState(ViewSheet sheet)
+            => Core.Drawing.Iso19650Suitability.CdeStateFor(SheetSuitabilityCode(sheet));
+
+        /// <summary>The suitability code the sheet itself carries, or null.</summary>
+        public static string SheetSuitabilityCode(ViewSheet sheet)
+        {
+            if (sheet == null) return null;
+            string raw = ReadParam(sheet, "STING_SUITABILITY_TXT");
+            string code = Core.Drawing.Iso19650Suitability.ExtractCode(raw);
+            return !string.IsNullOrEmpty(code) ? code : ReadSuitabilityCode(sheet);
+        }
+
+        /// <summary>The project folder an exported sheet belongs in — the single rule
+        /// every sheet exporter should use so the same drawing cannot land in two
+        /// places depending on which button produced it: CDE state from the sheet's
+        /// suitability (or the project's export route when it has none), then the
+        /// discipline folder from the sheet number / ISO identifier. Null when the
+        /// project has no folder structure (unsaved model).</summary>
+        public static string DeliverableFolderForSheet(Document doc, ViewSheet sheet, string routeKey = "PDF")
+        {
+            if (doc == null || sheet == null) return null;
+            string disc = SheetDiscipline(sheet);
+            if (string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase)) disc = null;
+            return ProjectFolderEngine.GetDeliverableFolder(doc, routeKey, disc, SheetCdeState(sheet));
+        }
+
+        /// <summary>
+        /// The discipline of a whole MODEL, for IFC / NWC / gbXML exports, which have no
+        /// sheet number to read one from. In order:
+        ///   1. the model's ISO 19650 file name — its Role segment (the central model's
+        ///      name when workshared, so a local copy's "_user" suffix does not matter);
+        ///   2. PRJ_TB_DISCIPLINE_TXT on Project Information (already bound there);
+        ///   3. null — the export stays in the models folder root.
+        /// A multi-discipline model therefore lands in the root, as it should; nothing is
+        /// guessed from its content.
+        /// </summary>
+        public static string ModelDiscipline(Document doc)
+        {
+            if (doc == null) return null;
+            try
+            {
+                string path = doc.PathName;
+                if (doc.IsWorkshared)
+                {
+                    var central = doc.GetWorksharingCentralModelPath();
+                    if (central != null)
+                        path = ModelPathUtils.ConvertModelPathToUserVisiblePath(central) ?? path;
+                }
+                string role = DisciplineFolderMatcher.RoleFromModelFileName(path)
+                              ?? DisciplineFolderMatcher.RoleFromModelFileName(doc.Title);
+                if (!string.IsNullOrEmpty(role)) return role;
+            }
+            catch (Exception ex) { StingLog.Warn($"ModelDiscipline file name: {ex.Message}"); }
+
+            string declared = ReadProjectInfo(doc.ProjectInformation, ParamRegistry.TB_DISCIPLINE);
+            return string.IsNullOrWhiteSpace(declared) ? null : declared.Trim();
+        }
+
+        /// <summary><see cref="DisciplineSubFolder(Document, string, ViewSheet)"/> for a
+        /// code rather than a sheet — used for model exports into a chosen folder.</summary>
+        public static string DisciplineSubFolder(Document doc, string baseDir, string disciplineCode)
+        {
+            if (string.IsNullOrEmpty(baseDir) || string.IsNullOrWhiteSpace(disciplineCode)) return baseDir;
+            string name = ProjectFolderEngine.ResolveDisciplineFolder(doc, disciplineCode);
+            if (name == null) return baseDir;   // unknown code: never mint a raw-code folder for a model
+            string leaf = Path.GetFileName(baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.Equals(leaf, name, StringComparison.OrdinalIgnoreCase)) return baseDir;
+            string dir = Path.Combine(baseDir, name);
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        /// <summary>The discipline sub-folder of a folder the user chose, for one sheet —
+        /// "&lt;chosen&gt;/A_Architectural" when the project has that discipline folder,
+        /// else "&lt;chosen&gt;/&lt;code&gt;". Not nested again when the chosen folder already
+        /// IS that discipline's folder. Sheets whose discipline cannot be read stay in
+        /// the chosen folder.</summary>
+        public static string DisciplineSubFolder(Document doc, string baseDir, ViewSheet sheet)
+        {
+            if (string.IsNullOrEmpty(baseDir) || sheet == null) return baseDir;
+            string disc = SheetDiscipline(sheet);
+            if (string.IsNullOrEmpty(disc) || string.Equals(disc, "Other", StringComparison.OrdinalIgnoreCase))
+                return baseDir;
+            string name = ProjectFolderEngine.ResolveDisciplineFolder(doc, disc) ?? disc;
+            string leaf = Path.GetFileName(baseDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (string.Equals(leaf, name, StringComparison.OrdinalIgnoreCase)) return baseDir;
+            string dir = Path.Combine(baseDir, name);
+            Directory.CreateDirectory(dir);
+            return dir;
+        }
+
+        /// <summary>Export-route key for a format. Sheet-based output is drawing
+        /// content whatever its file type, so DWG / image / DGN / DWF sheets route
+        /// with the PDFs (the project's DWG route points at MODELS, which is right for
+        /// a model DWG and wrong for a sheet set). Models and data keep their own.</summary>
+        private static string RouteKeyFor(string format)
+        {
+            switch ((format ?? "").ToUpperInvariant())
+            {
+                case "IFC": return "IFC";
+                case "NWC": return "NWC";
+                case "XML": return "SCHEDULE";
+                default:    return "PDF";
+            }
         }
 
         // ── PDF pipeline ────────────────────────────────────────────────────────
@@ -786,7 +1262,7 @@ namespace StingTools.Docs
                 case PdfCombineMode.OnePerDiscipline:
                 {
                     var groups = sheets.OfType<ViewSheet>()
-                        .GroupBy(s => GetDisciplinePrefix(s.SheetNumber))
+                        .GroupBy(s => SheetDiscipline(s))
                         .ToList();
                     foreach (var g in groups)
                     {
@@ -823,7 +1299,7 @@ namespace StingTools.Docs
             try
             {
                 string disc = view is ViewSheet vs ? GetDisciplinePrefix(vs.SheetNumber) : "";
-                string folder = SubFolderFor(profile, "PDF", disc);
+                string folder = SubFolderFor(doc, profile, "PDF", view);
                 string stem = Sanitise(
                     ResolveNaming(doc, view, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -862,6 +1338,7 @@ namespace StingTools.Docs
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
+                ApplyPdfLayout(opts, profile.Pdf);
 
                 bool ok = doc.Export(folder, new List<ElementId> { view.Id }, opts);
 
@@ -990,7 +1467,7 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(profile, "PDF", profile.Output.SplitByDisciplineSubFolder ? groupName : null);
+                string folder = SubFolderForGroup(doc, profile, "PDF", views);
                 string stem = Sanitise(
                     ResolveNaming(doc, views[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
                     profile.Output.IllegalCharReplacement);
@@ -1007,6 +1484,7 @@ namespace StingTools.Docs
                     RasterQuality = MapRasterQuality(profile.Pdf.RasterDpi),
                     ColorDepth = MapColorDepth(profile.Pdf.ColourScheme),
                 };
+                ApplyPdfLayout(opts, profile.Pdf);
 
                 bool ok = doc.Export(folder, ordered.Select(v => v.Id).ToList(), opts);
                 row.OutputPath = Path.Combine(folder, stem + ".pdf");
@@ -1079,6 +1557,30 @@ namespace StingTools.Docs
             "BlackAndWhite" => ColorDepthType.BlackLine,
             _               => ColorDepthType.Color,
         };
+
+        /// <summary>Paper placement and zoom from the profile (DOCX-4 — both were saved
+        /// and ignored, so every PDF came out centred at fit-to-page).</summary>
+        private static void ApplyPdfLayout(PDFExportOptions opts, PdfExportSettings pdf)
+        {
+            try
+            {
+                if (string.Equals(pdf.PaperPlacement, "Offset", StringComparison.OrdinalIgnoreCase))
+                {
+                    opts.PaperPlacement = PaperPlacementType.LowerLeft;
+                    opts.OriginOffsetX = pdf.OffsetXmm / 304.8;   // API stores feet
+                    opts.OriginOffsetY = pdf.OffsetYmm / 304.8;
+                }
+                else opts.PaperPlacement = PaperPlacementType.Center;
+
+                if (string.Equals(pdf.Zoom, "Percent", StringComparison.OrdinalIgnoreCase))
+                {
+                    opts.ZoomType = ZoomType.Zoom;
+                    opts.ZoomPercentage = Math.Max(10, Math.Min(500, pdf.ZoomPercent));
+                }
+                else opts.ZoomType = ZoomType.FitToPage;
+            }
+            catch (Exception ex) { StingLog.Warn($"PDF layout options: {ex.Message}"); }
+        }
 
         // ── DWG pipeline ────────────────────────────────────────────────────────
 
@@ -1164,6 +1666,28 @@ namespace StingTools.Docs
             // Only ModelSpaceOnly — which explicitly wants geometry and no paper space — merges.
             opts.MergedViews = profile.Dwg.OutputMode == DwgOutputMode.ModelSpaceOnly;
             opts.FileVersion = MapDwgVersion(profile.Dwg.DwgVersion);
+
+            // Coordinates and layers (DOCX-4: both were saved and ignored).
+            opts.SharedCoords = string.Equals(profile.Dwg.CoordinateSystem, "Shared", StringComparison.OrdinalIgnoreCase)
+                             || string.Equals(profile.Dwg.CoordinateSystem, "Survey", StringComparison.OrdinalIgnoreCase);
+            try
+            {
+                switch ((profile.Dwg.LayerMappingMode ?? "").Trim().ToUpperInvariant())
+                {
+                    case "STANDARD":
+                        if (!string.IsNullOrWhiteSpace(profile.Dwg.LayerStandard))
+                            opts.LayerMapping = profile.Dwg.LayerStandard.Trim();
+                        break;
+                    case "CUSTOM":
+                        if (File.Exists(profile.Dwg.LayerCustomMappingFile ?? ""))
+                            opts.LayerMapping = profile.Dwg.LayerCustomMappingFile;
+                        else
+                            StingLog.Warn($"DWG layer mapping file not found: '{profile.Dwg.LayerCustomMappingFile}' — using the export setup's layers.");
+                        break;
+                    // ByCategory: keep the export setup's own mapping.
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DWG layer mapping: {ex.Message}"); }
             return opts;
         }
 
@@ -1185,7 +1709,7 @@ namespace StingTools.Docs
             try
             {
                 string disc = view is ViewSheet vs ? GetDisciplinePrefix(vs.SheetNumber) : "";
-                string folder = SubFolderFor(profile, "DWG", disc);
+                string folder = SubFolderFor(doc, profile, "DWG", view);
                 string stem = Sanitise(
                     ResolveNaming(doc, view, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1231,7 +1755,7 @@ namespace StingTools.Docs
                 // Step 2: AutoCAD-COM merge (ExportCenterDwgMerger). Falls through
                 // to the staged per-sheet output if AutoCAD isn't installed and
                 // the profile permits fallback.
-                string outFolder = SubFolderFor(profile, "DWG", null);
+                string outFolder = SubFolderForGroup(doc, profile, "DWG", sheets);
                 string outName = Sanitise(
                     ResolveNaming(doc, sheets[0], profile.Output.NamingTemplate, profile.Output) + "_" + groupName,
                     profile.Output.IllegalCharReplacement);
@@ -1330,7 +1854,7 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(profile, "IFC", null);
+                string folder = SubFolderFor(doc, profile, "IFC", null, ModelDiscipline(doc));
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1343,6 +1867,15 @@ namespace StingTools.Docs
                         .Cast<Phase>().FirstOrDefault(p => p.Name == profile.Ifc.PhaseName);
                     if (phase != null) opts.AddOption("ActivePhaseId", phase.Id.ToString());
                 }
+                // Coordinate base (DOCX-4). The IFC exporter's SitePlacement option:
+                // 0 shared (survey), 2 project base point, 3 internal origin.
+                string site = (profile.Ifc.CoordinateOrigin ?? "Project").Trim().ToUpperInvariant() switch
+                {
+                    "SURVEY" or "SHARED" => "0",
+                    "INTERNAL" => "3",
+                    _ => "2",
+                };
+                opts.AddOption("SitePlacement", site);
 
                 using (var t = new Transaction(doc, "STING IFC export"))
                 {
@@ -1384,7 +1917,7 @@ namespace StingTools.Docs
                 var row = StartRow(v, "Image");
                 try
                 {
-                    string folder = SubFolderFor(profile, "Image", null);
+                    string folder = SubFolderFor(doc, profile, "Image", v);
                     string stem = Sanitise(
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
@@ -1406,8 +1939,8 @@ namespace StingTools.Docs
                         PixelSize = 2400,
                         ImageResolution = MapImageDpi(profile.Image.Dpi),
                         ExportRange = ExportRange.SetOfViews,
-                        HLRandWFViewsFileType = MapImageType(profile.Image.Format),
-                        ShadowViewsFileType = MapImageType(profile.Image.Format),
+                        HLRandWFViewsFileType = MapImageType(profile.Image.Format, profile.Image.JpegQuality),
+                        ShadowViewsFileType = MapImageType(profile.Image.Format, profile.Image.JpegQuality),
                     };
                     io.SetViewsAndSheets(new List<ElementId> { v.Id });
                     doc.ExportImage(io);
@@ -1446,9 +1979,11 @@ namespace StingTools.Docs
             _      => ImageResolution.DPI_600,
         };
 
-        private static ImageFileType MapImageType(string fmt) => fmt.ToUpperInvariant() switch
+        private static ImageFileType MapImageType(string fmt, int jpegQuality = 100) => fmt.ToUpperInvariant() switch
         {
-            "JPEG" => ImageFileType.JPEGLossless,
+            "JPEG" => jpegQuality >= 90 ? ImageFileType.JPEGLossless
+                    : jpegQuality >= 60 ? ImageFileType.JPEGMedium
+                    : ImageFileType.JPEGSmallest,
             "TIFF" => ImageFileType.TIFF,
             _      => ImageFileType.PNG,
         };
@@ -1457,6 +1992,8 @@ namespace StingTools.Docs
             ExportRunResult result, Action<string> tick, Func<bool> cancel)
         {
             var opts = new DGNExportOptions();
+            opts.FileVersion = string.Equals(profile.Dgn?.Version, "V7", StringComparison.OrdinalIgnoreCase)
+                ? DGNFileFormat.DGNVersion7 : DGNFileFormat.DGNVersion8;
             foreach (var eid in ids)
             {
                 if (cancel != null && cancel()) return;
@@ -1464,7 +2001,7 @@ namespace StingTools.Docs
                 var row = StartRow(v, "DGN");
                 try
                 {
-                    string folder = SubFolderFor(profile, "DGN", null);
+                    string folder = SubFolderFor(doc, profile, "DGN", v);
                     string stem = Sanitise(
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
@@ -1490,7 +2027,7 @@ namespace StingTools.Docs
                 var row = StartRow(v, profile.Dwf.DwfX ? "DWFx" : "DWF");
                 try
                 {
-                    string folder = SubFolderFor(profile, profile.Dwf.DwfX ? "DWFx" : "DWF", null);
+                    string folder = SubFolderFor(doc, profile, profile.Dwf.DwfX ? "DWFx" : "DWF", v);
                     string stem = Sanitise(
                         ResolveNaming(doc, v, profile.Output.NamingTemplate, profile.Output),
                         profile.Output.IllegalCharReplacement);
@@ -1507,12 +2044,12 @@ namespace StingTools.Docs
                     vs.Insert(v);
                     if (profile.Dwf.DwfX)
                     {
-                        var dx = new DWFXExportOptions();
+                        var dx = new DWFXExportOptions { ExportingAreas = profile.Dwf.IncludeRoomBoundaries };
                         ok = doc.Export(folder, stem, vs, dx);
                     }
                     else
                     {
-                        var dw = new DWFExportOptions();
+                        var dw = new DWFExportOptions { ExportingAreas = profile.Dwf.IncludeRoomBoundaries };
                         ok = doc.Export(folder, stem, vs, dw);
                     }
 
@@ -1550,7 +2087,7 @@ namespace StingTools.Docs
                     return;
                 }
 
-                string folder = SubFolderFor(profile, "NWC", null);
+                string folder = SubFolderFor(doc, profile, "NWC", null, ModelDiscipline(doc));
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1584,7 +2121,7 @@ namespace StingTools.Docs
             };
             try
             {
-                string folder = SubFolderFor(profile, "XML", null);
+                string folder = SubFolderFor(doc, profile, "XML", null);
                 string stem = Sanitise(
                     ResolveNaming(doc, doc.ActiveView, profile.Output.NamingTemplate, profile.Output),
                     profile.Output.IllegalCharReplacement);
@@ -1644,8 +2181,11 @@ namespace StingTools.Docs
                     return $"{stem}_{i}";
                 }
                 default:
-                    // Caller would prompt in Ask mode — engine returns stem and lets the dialog override.
-                    return stem;
+                    // Ask. Nothing ever prompted: the engine is headless and the dialog
+                    // never overrode the stem, so "Ask" silently OVERWROTE the existing
+                    // file — the one outcome a user choosing "Ask" had ruled out. Until a
+                    // prompt exists, keep both files, which loses nothing.
+                    goto case FilenameConflictMode.AutoRename;
             }
         }
 
@@ -1658,20 +2198,50 @@ namespace StingTools.Docs
                 string folder = profile.Output.LocalFolder;
                 if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return;
                 string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string path = Path.Combine(folder, $"STING_Export_Report_{stamp}.csv");
+                string[] header = { "Format", "SheetNumber", "SheetTitle", "OutputPath", "Bytes", "Success", "Error", "DurationMs" };
+                bool xlsx = string.Equals(profile.Output.ReportFormat, "XLSX", StringComparison.OrdinalIgnoreCase);
+                string path = Path.Combine(folder, $"STING_Export_Report_{stamp}.{(xlsx ? "xlsx" : "csv")}");
 
-                using var w = new StreamWriter(path);
-                w.WriteLine("Format,SheetNumber,SheetTitle,OutputPath,Bytes,Success,Error,DurationMs");
-                foreach (var r in result.Rows)
+                if (xlsx)
                 {
-                    w.WriteLine(string.Join(",", new[]
+                    // ReportFormat defaulted to XLSX and was ignored — every report was CSV.
+                    using var wb = new ClosedXML.Excel.XLWorkbook();
+                    var ws = wb.Worksheets.Add("Export");
+                    for (int c = 0; c < header.Length; c++) ws.Cell(1, c + 1).Value = header[c];
+                    int rowIx = 2;
+                    foreach (var r in result.Rows)
                     {
-                        Csv(r.Format), Csv(r.SheetNumber), Csv(r.SheetTitle),
-                        Csv(r.OutputPath), r.FileSizeBytes.ToString(),
-                        r.Success ? "1" : "0", Csv(r.Error),
-                        ((long)r.Duration.TotalMilliseconds).ToString(),
-                    }));
+                        ws.Cell(rowIx, 1).Value = r.Format ?? "";
+                        ws.Cell(rowIx, 2).Value = r.SheetNumber ?? "";
+                        ws.Cell(rowIx, 3).Value = r.SheetTitle ?? "";
+                        ws.Cell(rowIx, 4).Value = r.OutputPath ?? "";
+                        ws.Cell(rowIx, 5).Value = r.FileSizeBytes;
+                        ws.Cell(rowIx, 6).Value = r.Success ? "OK" : "FAILED";
+                        ws.Cell(rowIx, 7).Value = r.Error ?? "";
+                        ws.Cell(rowIx, 8).Value = (long)r.Duration.TotalMilliseconds;
+                        rowIx++;
+                    }
+                    ws.Row(1).Style.Font.Bold = true;
+                    ws.SheetView.FreezeRows(1);
+                    ws.Columns().AdjustToContents();
+                    wb.SaveAs(path);
                 }
+                else
+                {
+                    using var w = new StreamWriter(path);
+                    w.WriteLine(string.Join(",", header));
+                    foreach (var r in result.Rows)
+                    {
+                        w.WriteLine(string.Join(",", new[]
+                        {
+                            Csv(r.Format), Csv(r.SheetNumber), Csv(r.SheetTitle),
+                            Csv(r.OutputPath), r.FileSizeBytes.ToString(),
+                            r.Success ? "1" : "0", Csv(r.Error),
+                            ((long)r.Duration.TotalMilliseconds).ToString(),
+                        }));
+                    }
+                }
+                result.ReportPath = path;
                 StingLog.Info($"Export report written: {path}");
             }
             catch (Exception ex) { StingLog.Warn($"Export report: {ex.Message}"); }

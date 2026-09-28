@@ -54,7 +54,7 @@ namespace StingTools.Commands.Panels
 
             int panelsTotal = panels.Count;
             int withSchedule = 0, withoutSchedule = 0, skippedByPattern = 0;
-            int templateDrift = 0, missingPnlParams = 0;
+            int templateDrift = 0, missingPnlParams = 0, missingIp = 0;
             var totals = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var driftRows = new List<string>();
             var noScheduleRows = new List<string>();
@@ -96,15 +96,51 @@ namespace StingTools.Commands.Panels
                     driftRows.Add($"{panelName}: '{currentTemplate}' → suggest '{suggestedTemplate}'");
                 }
 
+                // ELC_PNL_VOLTAGE and ELC_WAYS resolve to NUMBER parameters, and
+                // GetString returns "" for anything that is not text — so every panel
+                // was reported as missing them, filled in or not.
                 bool anyPnlParamEmpty =
-                    string.IsNullOrEmpty(ParameterHelpers.GetString(p, ParamRegistry.ELC_PNL_NAME))
-                    || string.IsNullOrEmpty(ParameterHelpers.GetString(p, ParamRegistry.ELC_PNL_VOLTAGE))
-                    || string.IsNullOrEmpty(ParameterHelpers.GetString(p, ParamRegistry.ELC_WAYS));
+                    !HasParamValue(p, ParamRegistry.ELC_PNL_NAME)
+                    || !HasParamValue(p, ParamRegistry.ELC_PNL_VOLTAGE)
+                    || !HasParamValue(p, ParamRegistry.ELC_WAYS);
                 if (anyPnlParamEmpty)
                 {
                     missingPnlParams++;
                     paramGapRows.Add(panelName);
                 }
+                // The STING schedule header shows the IP rating, and only the PNLS card's
+                // Save writes it — so a blank column is reported here, not discovered on
+                // the printed schedule.
+                if (!HasParamValue(p, "ELC_PNL_IP_RATING_TXT")) missingIp++;
+            }
+
+            // PNL-20: a STING template built before its spec changed still renders — just
+            // without the new columns — and nothing said so. Compare each built STING
+            // template's bound parameters with STING_PANEL_SCHEDULE_SPECS.json.
+            var staleRows = new List<string>();
+            var specWarn = new List<string>();
+            var unresolvedParams = new List<string>();
+            string templateCheckError = null;
+            int stingBuilt = 0, stingMissing = 0, specCount = 0;
+            try
+            {
+                var specs = StingTools.Core.Panels.PanelTemplateBuilder.LoadSpecs(doc, specWarn).Templates;
+                specCount = specs.Count;
+                foreach (var spec in specs)
+                {
+                    var t = StingTools.Core.Panels.PanelTemplateBuilder.FindTemplate(doc, spec.Name);
+                    if (t == null) { stingMissing++; continue; }
+                    stingBuilt++;
+                    var missing = StingTools.Core.Panels.PanelTemplateBuilder.MissingFromTemplate(doc, t, spec, unresolvedParams);
+                    if (missing.Count > 0)
+                        staleRows.Add($"{spec.Name}: {missing.Count} column(s) missing ({string.Join(", ", missing.Take(5))}{(missing.Count > 5 ? ", …" : "")})");
+                }
+            }
+            catch (Exception ex)
+            {
+                // A crashed check is not "a template out of date" — report it as what it is.
+                StingLog.Warn($"Audit STING template check: {ex.Message}");
+                templateCheckError = ex.Message;
             }
 
             var result = StingResultPanel.Create("Panel Schedule Audit");
@@ -119,7 +155,13 @@ namespace StingTools.Commands.Panels
                   .MetricWarn("Without schedule", withoutSchedule.ToString())
                   .Metric("Skipped by pattern", skippedByPattern.ToString())
                   .MetricWarn("Template drift", templateDrift.ToString(), "current ≠ rule-suggested")
-                  .MetricWarn("Missing PNL params", missingPnlParams.ToString(), "ELC_PNL_NAME / VOLTAGE / WAYS");
+                  .MetricWarn("Missing PNL params", missingPnlParams.ToString(), "ELC_PNL_NAME / VOLTAGE / WAYS")
+                  .MetricWarn("IP rating not set", missingIp.ToString(), "PNLS → PANEL PARAMETERS → IP Rating → Save to Model")
+                  .Metric("STING templates built", specCount == 0 ? "no specs loaded" : $"{stingBuilt} of {specCount}",
+                          stingMissing > 0 ? $"{stingMissing} not built — PNLS 📐" : null)
+                  .MetricWarn("STING templates out of date", templateCheckError != null ? "not checked" : staleRows.Count.ToString(), "rebuild with PNLS 📐");
+            if (templateCheckError != null)
+                result.MetricError("STING template check failed", templateCheckError, "see the STING log");
 
             if (totals.Count > 0)
             {
@@ -142,6 +184,20 @@ namespace StingTools.Commands.Panels
                 if (driftRows.Count > 25) result.Text($"… {driftRows.Count - 25} more.");
             }
 
+            if (staleRows.Count > 0)
+            {
+                result.AddSection("STING TEMPLATES OUT OF DATE (run PNLS 📐)");
+                foreach (string s in staleRows) result.Text(s);
+            }
+            if (specWarn.Count > 0 || unresolvedParams.Count > 0)
+            {
+                result.AddSection("TEMPLATE SPEC NOTES");
+                foreach (string w in specWarn) result.Text(w);
+                var un = unresolvedParams.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (un.Count > 0)
+                    result.Text($"Not in this project, so not checked ({un.Count}): {string.Join(", ", un.Take(8))}{(un.Count > 8 ? ", …" : "")} — run Load Params.");
+            }
+
             if (paramGapRows.Count > 0)
             {
                 result.AddSection("MISSING PNL PARAMETERS");
@@ -160,6 +216,15 @@ namespace StingTools.Commands.Panels
 
             result.Show();
             return Result.Succeeded;
+        }
+
+        /// <summary>True when the parameter exists and holds a value, whatever its
+        /// storage type. Text counts only when non-empty.</summary>
+        private static bool HasParamValue(Element el, string name)
+        {
+            var prm = el?.LookupParameter(name);
+            if (prm == null || !prm.HasValue) return false;
+            return prm.StorageType != StorageType.String || !string.IsNullOrEmpty(prm.AsString());
         }
     }
 }

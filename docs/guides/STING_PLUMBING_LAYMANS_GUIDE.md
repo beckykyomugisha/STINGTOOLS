@@ -939,6 +939,11 @@ STING's `RecircLoopBalancer`:
 5. Sizes the recirculation balancing valves (typically `DRV` or
    `STAD` valves) to the right Kvs.
 
+The heat-loss temperature difference (hot water to the air around the pipes) is read from
+`PLM_RECIRC_DELTA_T_K` on Project Information; blank uses 40 K (60 °C water, 20 °C air). For the connector completeness check, set `PLM_FIX_TYPE_TXT`
+on each plumbing fixture (WC, BASIN, SINK, SHOWER, URINAL, BIDET, BATH ...) so it knows how
+many connectors the fixture needs.
+
 Result: a balancing schedule listing every BV with its required flow
 and Kvs setting, which the commissioning engineer dials in on site.
 

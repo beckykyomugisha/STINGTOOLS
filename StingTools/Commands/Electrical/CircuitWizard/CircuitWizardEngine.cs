@@ -72,11 +72,20 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>Conductor material: "Cu" or "Al". Default "Cu".</summary>
         public string Material          { get; set; } = "Cu";
 
-        /// <summary>Insulation type: "PVC70", "XLPE90". Default "XLPE90".</summary>
-        public string Insulation        { get; set; } = "XLPE90";
+        /// <summary>Insulation type: "PVC70" or "XLPE90". Default "PVC70".</summary>
+        public string Insulation        { get; set; } = "PVC70";
+
+        /// <summary>"Multicore", "SingleCore" or "ArmouredMulticore"; with insulation and
+        /// method it picks the BS 7671 Appendix 4 table. Default multicore.</summary>
+        public string CableType         { get; set; } = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
 
         /// <summary>Voltage drop limit %. Default 3.0.</summary>
         public double VDLimitPct        { get; set; } = 3.0;
+
+        /// <summary>The Appendix 4 tables to size on: the document's, so a project wire-table
+        /// override is honoured (<c>CableSizerEngine.Bs7671Tables(doc)</c>). Null on the BS path
+        /// sizes nothing rather than silently falling back to the corporate tables.</summary>
+        public StingTools.Core.Electrical.Bs7671Data Bs7671Tables { get; set; }
 
         public static CircuitWizardOptions Default => new CircuitWizardOptions();
     }
@@ -117,15 +126,19 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// Map a family/category name to a load class via the patterns table.
         /// Returns "Other" when no pattern matches.
         /// </summary>
-        public static string ClassifyLoad(string familyName, string categoryName)
+        /// <param name="emergencyKeywords">The document's list (EmergencyKeywordRegistry.ForDocument);
+        /// null = the corporate baseline.</param>
+        public static string ClassifyLoad(string familyName, string categoryName,
+            StingTools.Core.Electrical.EmergencyKeywords emergencyKeywords = null)
         {
-            string blob = ($"{familyName} {categoryName}" ?? "").ToLowerInvariant();
+            string original = $"{familyName} {categoryName}";
+            string blob = original.ToLowerInvariant();
             if (string.IsNullOrEmpty(blob)) return "Other";
 
             try
             {
                 var patterns = LoadDemandFactors()["classificationPatterns"] as JObject;
-                if (patterns == null) return DefaultClassify(blob);
+                if (patterns == null) return DefaultClassify(blob, original, emergencyKeywords);
                 foreach (var prop in patterns.Properties())
                 {
                     var arr = prop.Value as JArray;
@@ -138,12 +151,16 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 }
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"ClassifyLoad: {ex.Message}"); }
-            return DefaultClassify(blob);
+            return DefaultClassify(blob, original, emergencyKeywords);
         }
 
-        private static string DefaultClassify(string blob)
+        private static string DefaultClassify(string blob, string original,
+            StingTools.Core.Electrical.EmergencyKeywords emergencyKeywords)
         {
-            if (blob.Contains("emerg") || blob.Contains("exit")) return "Emergency";
+            // The shared emergency list (Data/STING_EMERGENCY_KEYWORDS.json), matched
+            // on ORIGINAL casing so the "EM" abbreviation rule works.
+            var kw = emergencyKeywords ?? StingTools.Core.Electrical.EmergencyKeywordRegistry.Corporate();
+            if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(original, kw)) return "Emergency";
             if (blob.Contains("light") || blob.Contains("luminaire")) return "Lighting";
             if (blob.Contains("socket") || blob.Contains("receptacle")) return "SmallPower";
             if (blob.Contains("hvac") || blob.Contains("fcu") || blob.Contains("ahu")) return "HVAC";
@@ -203,9 +220,10 @@ namespace StingTools.Commands.Electrical.CircuitWizard
 
         /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>
         public static List<ProposedCircuit> ProposeCircuits(IEnumerable<UnconnectedElement> elements,
-            string targetPanelName, double maxLoadPct, string standard, WireTableSet wireTables)
+            string targetPanelName, double maxLoadPct, string standard, WireTableSet wireTables,
+            StingTools.Core.Electrical.Bs7671Data bs7671Tables = null)
             => ProposeCircuits(elements, targetPanelName,
-                new CircuitWizardOptions { MaxLoadPct = maxLoadPct, Standard = standard }, wireTables);
+                new CircuitWizardOptions { MaxLoadPct = maxLoadPct, Standard = standard, Bs7671Tables = bs7671Tables }, wireTables);
 
         private static bool WouldExceed(ProposedCircuit cur, UnconnectedElement el,
             double maxLoadPct, CircuitWizardOptions opts)
@@ -257,15 +275,17 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 InstallMethod = opts.InstallMethod,
                 Material     = opts.Material,
                 Insulation   = opts.Insulation,
+                CableType    = opts.CableType,
                 VDLimitPct   = opts.VDLimitPct,
                 Standard     = opts.Standard
-            });
+            }, opts.Bs7671Tables);
             circuit.ProposedCsaMm2 = sized.RecommendedCsaMm2;
         }
 
         /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>
-        public static void RecalculateCircuit(ProposedCircuit circuit, string standard, WireTableSet wireTables)
-            => RecalculateCircuit(circuit, new CircuitWizardOptions { Standard = standard }, wireTables);
+        public static void RecalculateCircuit(ProposedCircuit circuit, string standard, WireTableSet wireTables,
+            StingTools.Core.Electrical.Bs7671Data bs7671Tables = null)
+            => RecalculateCircuit(circuit, new CircuitWizardOptions { Standard = standard, Bs7671Tables = bs7671Tables }, wireTables);
 
         private static void BalancePhases(List<ProposedCircuit> proposals)
         {

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
+using StingTools.Core.Electrical;
 
 namespace StingTools.Commands.Electrical.LoadDemand
 {
@@ -13,9 +14,11 @@ namespace StingTools.Commands.Electrical.LoadDemand
     /// Centralises four related calcs that the review flagged:
     ///
     /// <list type="bullet">
-    /// <item><b>Diversity factor matrix</b> — per-discipline factors per
-    /// BS 7671 App 1 + IEE OSG + NEC 220. Maps a circuit's load name to
-    /// a category and returns the demand-to-connected ratio.</item>
+    /// <item><b>Diversity factor matrix</b> — per-category blanket factors
+    /// approximating the IET On-Site Guide Appendix A allowances-for-diversity
+    /// (NEC Article 220 for US projects). Maps a circuit's load name to a
+    /// category and returns the demand-to-connected ratio. The factors are
+    /// unit-agnostic: the audit feeds apparent power (kVA).</item>
     /// <item><b>Spare capacity gauge</b> — connected demand vs busbar
     /// rating per panel, with sector-specific targets (commercial 25%,
     /// industrial 30%, healthcare 35%) per IEC 60364-5-52 / CIBSE K.</item>
@@ -24,8 +27,8 @@ namespace StingTools.Commands.Electrical.LoadDemand
     /// §523.6.3 + IEEE 519. IT/server panels with 50% triplens need
     /// 1.5× neutral; LED-only panels stay at 1.0×.</item>
     /// <item><b>Power factor correction sizing</b> — kVAR capacitor bank
-    /// for target PF (0.95 default) at panel level, with utility-tariff
-    /// payback estimate.</item>
+    /// Q = P·(tan φ1 − tan φ2) for a target PF (0.95 default), via
+    /// <see cref="PowerFactorCorrection"/>.</item>
     /// </list>
     ///
     /// All thresholds load from <c>STING_DIVERSITY_FACTORS.json</c>; failing
@@ -76,9 +79,6 @@ namespace StingTools.Commands.Electrical.LoadDemand
                 }
                 t.PfcTargetPf      = root["pfcDefaults"]?["targetPfLagging"]?.Value<double>() ?? 0.95;
                 t.PfcPresentPf     = root["pfcDefaults"]?["presentPfBaseline"]?.Value<double>() ?? 0.85;
-                foreach (var kv in (root["pfcDefaults"]?["kvarPerKwAtPf"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
-                    if (double.TryParse(kv.Name, out double pf))
-                        t.KvarPerKwAtPf[pf] = kv.Value.Value<double>();
                 foreach (var s in (root["spareTargetsPct"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
                     t.SpareTargetsPct[s.Name] = s.Value.Value<double>();
             }
@@ -200,24 +200,42 @@ namespace StingTools.Commands.Electrical.LoadDemand
         // ── Power factor correction ──────────────────────────────────────
 
         /// <summary>
-        /// Capacitor-bank kVAR for target PF. Uses the kVAR-per-kW table
-        /// at present PF and target PF; linear interp between tabulated
-        /// PF values. Returns kVAR + estimated annual savings at a default
-        /// utility rate (configurable by caller).
+        /// Capacitor-bank kVAR for a target PF from ACTIVE power (kW):
+        /// Q = P·(tan φ1 − tan φ2). A PF of 0 takes the JSON default and is
+        /// reported as an assumption. The annual-saving figure is indicative
+        /// only — a placeholder kVArh rate, not any utility's tariff.
         /// </summary>
         public static PfcResult SizeCapacitorBank(double demandKw, double presentPf = 0,
             double targetPf = 0, double utilityKvarPenaltyGbp = 5.0)
+            => Size(demandKw, demandKw, presentPf, targetPf, utilityKvarPenaltyGbp, fromKva: false);
+
+        /// <summary>
+        /// Same, from APPARENT power (kVA) — what Revit's apparent-load
+        /// parameter holds. Active power is S·cos φ1 at the present PF.
+        /// </summary>
+        public static PfcResult SizeCapacitorBankFromKva(double demandKva, double presentPf = 0,
+            double targetPf = 0, double utilityKvarPenaltyGbp = 5.0)
+            => Size(demandKva, 0, presentPf, targetPf, utilityKvarPenaltyGbp, fromKva: true);
+
+        private static PfcResult Size(double demand, double activeKw, double presentPf, double targetPf,
+            double utilityKvarPenaltyGbp, bool fromKva)
         {
             var t = Tables();
-            if (presentPf <= 0) presentPf = t.PfcPresentPf;
-            if (targetPf  <= 0) targetPf  = t.PfcTargetPf;
+            var assumed = new List<string>();
+            if (presentPf <= 0) { presentPf = t.PfcPresentPf; assumed.Add($"present PF {presentPf:0.00} ASSUMED (no measured PF)"); }
+            if (targetPf  <= 0) { targetPf  = t.PfcTargetPf;  assumed.Add($"target PF {targetPf:0.00} (project default)"); }
+            if (fromKva) activeKw = demand * presentPf;
+            string assumptions = string.Join("; ", assumed);
             if (presentPf >= targetPf)
-                return new PfcResult { Required = false, Notes = $"Present PF {presentPf:0.00} already meets {targetPf:0.00} target" };
+                return new PfcResult
+                {
+                    Required = false, PresentPf = presentPf, TargetPf = targetPf, ActiveKw = activeKw,
+                    Assumptions = assumptions,
+                    Notes = $"Present PF {presentPf:0.00} already meets {targetPf:0.00} target"
+                };
 
-            double presentRatio = LookupKvarRatio(t.KvarPerKwAtPf, presentPf);
-            double targetRatio  = LookupKvarRatio(t.KvarPerKwAtPf, targetPf);
-            double kvar = demandKw * (presentRatio - targetRatio);
-            // Annual saving estimate: kVAR penalty × 8760 × utilisation 0.6.
+            double kvar = PowerFactorCorrection.RequiredKvar(activeKw, presentPf, targetPf);
+            // Indicative only: placeholder kVArh penalty × 8760 h × 0.6 utilisation.
             double annualSaving = kvar * utilityKvarPenaltyGbp * 8760 * 0.6 / 1000.0;
 
             return new PfcResult
@@ -226,26 +244,13 @@ namespace StingTools.Commands.Electrical.LoadDemand
                 CapacitorKvar      = Math.Ceiling(kvar),
                 PresentPf          = presentPf,
                 TargetPf           = targetPf,
+                ActiveKw           = activeKw,
                 AnnualSavingGbp    = annualSaving,
-                Notes              = $"Install {Math.Ceiling(kvar):0} kVAR cap-bank to lift PF {presentPf:0.00} → {targetPf:0.00}"
+                Assumptions        = assumptions,
+                Notes              = $"Install {Math.Ceiling(kvar):0} kVAR cap-bank to lift PF {presentPf:0.00} → {targetPf:0.00} " +
+                                     $"(Q = P·(tan φ1 − tan φ2) = {activeKw:0.0} kW × " +
+                                     $"({PowerFactorCorrection.KvarPerKw(presentPf):0.000} − {PowerFactorCorrection.KvarPerKw(targetPf):0.000}))"
             };
-        }
-
-        private static double LookupKvarRatio(IDictionary<double, double> table, double pf)
-        {
-            if (table == null || table.Count == 0) return 0;
-            // Find bracketing PFs; linear interp.
-            var sorted = table.OrderBy(kv => kv.Key).ToList();
-            if (pf <= sorted.First().Key) return sorted.First().Value;
-            if (pf >= sorted.Last().Key)  return sorted.Last().Value;
-            for (int i = 0; i < sorted.Count - 1; i++)
-            {
-                var a = sorted[i]; var b = sorted[i + 1];
-                if (pf < a.Key || pf > b.Key) continue;
-                double f = (pf - a.Key) / (b.Key - a.Key);
-                return a.Value + f * (b.Value - a.Value);
-            }
-            return 0;
         }
     }
 
@@ -255,7 +260,6 @@ namespace StingTools.Commands.Electrical.LoadDemand
     {
         public List<DiversityRow> Factors { get; } = new();
         public Dictionary<string, HarmonicRow> Harmonics { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<double, double> KvarPerKwAtPf { get; } = new();
         public Dictionary<string, double> SpareTargetsPct { get; } = new(StringComparer.OrdinalIgnoreCase);
         public double PfcTargetPf { get; set; } = 0.95;
         public double PfcPresentPf { get; set; } = 0.85;
@@ -270,7 +274,6 @@ namespace StingTools.Commands.Electrical.LoadDemand
             Harmonics["it / server"] = new HarmonicRow { ThdH3Pct = 50, NeutralFactor = 1.5 };
             Harmonics["hvac"]        = new HarmonicRow { ThdH3Pct = 15, NeutralFactor = 0.5 };
             Harmonics["general"]     = new HarmonicRow { ThdH3Pct = 25, NeutralFactor = 1.0 };
-            KvarPerKwAtPf[0.70] = 0.70; KvarPerKwAtPf[0.85] = 0.31; KvarPerKwAtPf[0.95] = 0.10; KvarPerKwAtPf[1.00] = 0.0;
             SpareTargetsPct["Commercial"] = 25; SpareTargetsPct["Industrial"] = 30; SpareTargetsPct["Healthcare"] = 35;
         }
     }
@@ -300,7 +303,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
     public class PfcResult
     {
         public bool Required;
-        public double CapacitorKvar, PresentPf, TargetPf, AnnualSavingGbp;
-        public string Notes;
+        public double CapacitorKvar, PresentPf, TargetPf, AnnualSavingGbp, ActiveKw;
+        public string Notes, Assumptions;
     }
 }

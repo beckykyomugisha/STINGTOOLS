@@ -91,6 +91,28 @@ namespace StingTools.Core.Drawing
             return null;
         }
 
+        /// <summary>The discipline a sheet DECLARES, for grouping and filing — the one
+        /// answer the Export Centre, Sheet Manager, print batches and the drawing
+        /// register share. Before this each had its own prefix parser: "AR-101" was
+        /// "AR" in one and "A" in another, and an ISO identifier sheet number
+        /// ("SAH-PLNS-ZZ-01-DR-S-0004") read as discipline "SAH" in two of them.
+        ///
+        /// An assembled identifier declares its discipline in the ROLE segment
+        /// (S → S, Z → GEN, and so on via the configured prefixes). Otherwise the number
+        /// prefix, then the title. Null when the sheet declares nothing — callers
+        /// decide their own fallback. No census: that needs the model.</summary>
+        public static string ForSheet(string sheetNumber, string sheetName)
+        {
+            if (Iso19650DocumentCode.LooksAssembled(sheetNumber))
+            {
+                string role = Iso19650DocumentCode.Decompose(sheetNumber.Trim())?.Role?.ToUpperInvariant();
+                if (string.IsNullOrEmpty(role)) return FromTitle(sheetName);
+                if (role == "Z") return "GEN";
+                return SheetDisciplineConfig.NumberPrefixes.TryGetValue(role, out string d) ? d : role;
+            }
+            return FromSheetNumber(sheetNumber) ?? FromTitle(sheetName);
+        }
+
         /// <summary>The final answer.
         ///
         /// Precedence: what the sheet SAYS (number, then title), then what it
@@ -170,8 +192,9 @@ namespace StingTools.Core.Drawing
 
         /// <summary>Build a sheet number from a pattern.
         ///
-        /// Tokens: {disc} {lvl} {proj} {orig} and {seq} / {seq:D2} / {seq:D3} /
-        /// {seq:D4}. An unknown token is left alone rather than silently deleted --
+        /// Tokens: {disc} {lvl} {proj}/{project} {orig}/{originator} and {seq} /
+        /// {seq:Dn}. A bare {seq} is <see cref="SheetNumberTokens.DefaultSeqWidth"/>
+        /// digits, the same as a drawing type's. An unknown token is left alone rather than silently deleted --
         /// a typo that vanishes produces a number nobody can explain, and one that
         /// survives is obvious the moment the preview is read.
         ///
@@ -183,10 +206,12 @@ namespace StingTools.Core.Drawing
         {
             if (string.IsNullOrWhiteSpace(pattern)) pattern = "{disc}-{seq:D3}";
 
+            // Keyed by canonical name (SheetNumberTokens), so {proj} and {project},
+            // {orig} and {originator} mean the same here as in a drawing type.
             var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "disc", disc }, { "lvl", level },
-                { "proj", projectCode }, { "orig", originator },
+                { "project", projectCode }, { "originator", originator },
             };
 
             var sb = new StringBuilder();
@@ -216,14 +241,9 @@ namespace StingTools.Core.Drawing
                 string resolved;
                 if (string.Equals(name, "seq", StringComparison.OrdinalIgnoreCase))
                 {
-                    int pad = 3;
-                    if (!string.IsNullOrEmpty(fmt) && fmt.Length >= 2
-                        && (fmt[0] == 'D' || fmt[0] == 'd')
-                        && int.TryParse(fmt.Substring(1), out int p2) && p2 > 0 && p2 <= 8)
-                        pad = p2;
-                    resolved = seq.ToString(new string('0', pad));
+                    resolved = SheetNumberTokens.FormatSeq(seq, fmt);
                 }
-                else if (values.TryGetValue(name, out string v))
+                else if (values.TryGetValue(SheetNumberTokens.CanonicalName(name), out string v))
                 {
                     resolved = (v ?? "").Trim();
                 }

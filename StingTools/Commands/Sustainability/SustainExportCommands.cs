@@ -88,8 +88,7 @@ namespace StingTools.Commands.Sustainability
                     BuildEnvelopeSpecSheet(wb, res);
                     BuildEpdRegisterSheet(wb, doc, res);
 
-                    path = OutputLocationHelper.GetOutputPath(doc,
-                        $"STING_EDGE_Export_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+                    path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_EDGE_Export_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
                     wb.SaveAs(path);
                 }
             }
@@ -639,8 +638,7 @@ namespace StingTools.Commands.Sustainability
             {
                 var lines = new List<string> { "Measure,Gate,SizingBasis,Capex,AnnualSaving,LifetimeSaving,NetBenefit" };
                 lines.AddRange(rows.Select(r => string.Join(",", r.Select(c => "\"" + (c ?? "").Replace("\"", "\"\"") + "\""))));
-                string path = OutputLocationHelper.GetOutputPath(doc,
-                    $"STING_Sustain_LCC_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_Sustain_LCC_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
                 File.WriteAllLines(path, lines);
                 return path;
             }

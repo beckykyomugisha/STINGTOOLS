@@ -587,7 +587,7 @@ namespace StingTools.UI
                 new OpDef
                 {
                     Title = "Dynamic Bindings",
-                    Description = "Load bindings from BINDING_COVERAGE_MATRIX.csv",
+                    Description = "Add missing categories from the binding spec (RESOLVED_BINDINGS.csv)",
                     OperationTag = "DynamicBindings"
                 },
                 new OpDef

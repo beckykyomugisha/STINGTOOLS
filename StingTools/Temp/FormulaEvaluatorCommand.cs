@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -78,6 +78,10 @@ namespace StingTools.Temp
             int totalWritten = 0;
             int totalErrors = 0;
             int totalSkipped = 0;
+            // A formula that FAILED and a formula with nothing to say were the
+            // same null here until 2026-09-23, and only "failed" is a problem.
+            int totalFailed = 0;
+            var failureCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             int elementsProcessed = 0;
 
             // Per-formula error tracking
@@ -165,7 +169,14 @@ namespace StingTools.Temp
                             if (formula.DataType == "TEXT")
                             {
                                 // String concatenation formulas
-                                string result = FormulaEngine.EvaluateText(formula.Expression, context);
+                                string result = FormulaEngine.EvaluateText(
+                                    formula.Expression, context, out string failWhy);
+                                if (result == null && failWhy != null)
+                                {
+                                    totalFailed++;
+                                    failureCounts.TryGetValue(failWhy, out int fc);
+                                    failureCounts[failWhy] = fc + 1;
+                                }
                                 if (result != null && targetParam.StorageType == StorageType.String)
                                 {
                                     string current = targetParam.AsString() ?? "";
@@ -187,7 +198,13 @@ namespace StingTools.Temp
                             {
                                 // Numeric formulas
                                 double? result = FormulaEngine.EvaluateNumeric(
-                                    formula.Expression, context);
+                                    formula.Expression, context, out string failWhyN);
+                                if (result == null && failWhyN != null)
+                                {
+                                    totalFailed++;
+                                    failureCounts.TryGetValue(failWhyN, out int fcn);
+                                    failureCounts[failWhyN] = fcn + 1;
+                                }
                                 if (result.HasValue && !double.IsNaN(result.Value)
                                     && !double.IsInfinity(result.Value))
                                 {
@@ -264,6 +281,36 @@ namespace StingTools.Temp
             report.AppendLine($"Elements updated: {elementsProcessed}");
             report.AppendLine($"Values written: {totalWritten}");
             report.AppendLine($"Evaluations attempted: {totalEvaluated}");
+
+            // FAILED is its own line. It used to be invisible: a failing formula
+            // was counted as attempted, wrote nothing, and looked exactly like a
+            // formula that had nothing to write. The only trace was a capped
+            // 200-per-batch log warning, so a run losing thousands of values
+            // reported a clean summary.
+            if (totalFailed > 0)
+            {
+                report.AppendLine($"FAILED: {totalFailed} evaluation(s) could not produce a value");
+                report.AppendLine();
+                report.AppendLine("Why they failed (top 8):");
+                foreach (var kvp in failureCounts.OrderByDescending(k => k.Value).Take(8))
+                {
+                    report.AppendLine($"  {kvp.Value,6} x  {kvp.Key}");
+                    StingLog.Warn($"FormulaEngine failure: {kvp.Value} x {kvp.Key}");
+                }
+                if (failureCounts.Count > 8)
+                    report.AppendLine($"  ... and {failureCounts.Count - 8} further distinct reason(s)");
+                report.AppendLine();
+            }
+
+            int gateDefaults = FormulaEngine.TakeGateDefaultedCount();
+            if (gateDefaults > 0)
+            {
+                report.AppendLine($"Display gates treated as open: {gateDefaults} " +
+                                  "(TAG_PARA_STATE_n_BOOL not bound to the element)");
+                report.AppendLine("  A tier gate controls whether a TAG draws a row, not whether the");
+                report.AppendLine("  value is computed. An unbound gate no longer fails the formula.");
+                StingLog.Info($"FormulaEngine: {gateDefaults} unbound display gate(s) defaulted to open");
+            }
             if (totalSkipped > 0)
             {
                 report.AppendLine($"Skipped: {totalSkipped} (missing input parameters)");
@@ -698,7 +745,38 @@ namespace StingTools.Temp
 
                 // Try custom parameter
                 Parameter param = ParameterHelpers.CachedLookup(el, inputName);
-                if (param == null) continue;
+                if (param == null)
+                {
+                    // A DISPLAY gate that is not bound must not suppress
+                    // COMPUTATION.
+                    //
+                    // TAG_PARA_STATE_n_BOOL decides whether a tag DRAWS a tier.
+                    // It lives on tag families; PARAMETER_CATEGORIES.csv specs a
+                    // model-category binding for tiers 1-3 only, and in practice
+                    // that binding is often not loaded. When the gate is absent
+                    // the identifier is unresolvable, the whole formula fails,
+                    // and the narrative text is never computed - so a PRESENTATION
+                    // setting silently destroyed DATA.
+                    //
+                    // Measured 2026-09-23: 36 TAG7 narrative formulas wrap their
+                    // entire body in if(TAG_PARA_STATE_3_BOOL, ..., ""), and T3
+                    // was removed from the universal tag master. Every one of
+                    // them failed on every element it touched.
+                    //
+                    // An absent gate therefore reads as OPEN. Computing text that
+                    // no label row displays costs nothing; refusing to compute it
+                    // costs the value. Deliberately narrow - only this one name
+                    // shape defaults, so a genuine typo in any other identifier
+                    // still fails loudly.
+                    if (DisplayGateRule.IsDisplayGate(inputName))
+                    {
+                        context[inputName] = 1.0;
+                        System.Threading.Interlocked.Increment(ref _gateDefaulted);
+                        // NOT hasAnyInput: a formula whose only resolvable input
+                        // is a synthetic gate still has nothing real to say.
+                    }
+                    continue;
+                }
 
                 switch (param.StorageType)
                 {
@@ -729,6 +807,11 @@ namespace StingTools.Temp
 
             return hasAnyInput ? context : null;
         }
+
+        /// <summary>How many times an unbound display gate was defaulted to open.</summary>
+        private static int _gateDefaulted;
+        internal static int TakeGateDefaultedCount()
+            => System.Threading.Interlocked.Exchange(ref _gateDefaulted, 0);
 
         /// <summary>Check if a parameter name is a built-in Revit geometry property.</summary>
         private static bool IsBuiltinGeometry(string name)
@@ -786,7 +869,23 @@ namespace StingTools.Temp
         /// Format: ASS_ID_TXT + "-" + ASS_TAG_1_TXT
         /// </summary>
         public static string EvaluateText(string expression, Dictionary<string, object> context)
+            => EvaluateText(expression, context, out _);
+
+        /// <summary>
+        /// As <see cref="EvaluateText(string, Dictionary{string, object})"/>, and
+        /// reports WHY a null came back.
+        ///
+        /// <para>WHY THE OVERLOAD EXISTS. Both parsers already recorded a
+        /// FailureReason and nothing read it - the property was declared, never
+        /// consumed, on both. So a formula that FAILED and a formula that had
+        /// nothing to say were the same null at the call site, and the run
+        /// summary reported "attempted" and "written" but never "failed". A run
+        /// losing 450 values read as a clean run with some no-ops.</para>
+        /// </summary>
+        public static string EvaluateText(string expression, Dictionary<string, object> context,
+                                          out string failure)
         {
+            failure = null;
             // G-3 — route through the real recursive evaluator.
             //
             // The legacy path below splits on top-level '+' and emits quoted literals,
@@ -802,7 +901,7 @@ namespace StingTools.Temp
             {
                 var tp = new TextExpressionParser(expression, context);
                 string parsed = tp.Parse();
-                if (tp.Failed) return null;   // G-5 semantics: a failure is absent, not blank
+                if (tp.Failed) { failure = tp.FailureReason; return null; }   // G-5: a failure is absent, not blank
                 return string.IsNullOrEmpty(parsed) ? null : parsed;
             }
             catch (Exception ex) { StingLog.Warn($"EvaluateText: {ex.Message}"); return null; }
@@ -922,7 +1021,13 @@ namespace StingTools.Temp
         /// Supports: +, -, *, /, ^, (), if(), log(), comparison operators.
         /// </summary>
         public static double? EvaluateNumeric(string expression, Dictionary<string, object> context)
+            => EvaluateNumeric(expression, context, out _);
+
+        /// <summary>As above, and reports why a null came back. See EvaluateText.</summary>
+        public static double? EvaluateNumeric(string expression, Dictionary<string, object> context,
+                                              out string failure)
         {
+            failure = null;
             try
             {
                 var parser = new ExpressionParser(expression, context);
@@ -934,7 +1039,10 @@ namespace StingTools.Temp
                 // caller SKIP the write; returning 0 would stamp a false quantity
                 // into the model and read as a real, priced figure downstream.
                 if (parser.Failed)
+                {
+                    failure = parser.FailureReason;
                     return null;
+                }
 
                 // Guard against NaN/Infinity from Math.Pow (e.g., 0^-1, (-1)^0.5)
                 // or pathological division chains that produce Infinity

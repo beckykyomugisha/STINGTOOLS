@@ -1,5 +1,12 @@
 # Universal Tag — Duct smoke test (the gate before scaling to all 206)
 
+> ## ⛔ SUPERSEDED 2026-09-18 — use [UNIVERSAL_TAG_PROPAGATION_TEST.md](UNIVERSAL_TAG_PROPAGATION_TEST.md)
+>
+> Kept for history. Its deploy target, its pre-conditions and its variant names are all
+> out of date: `Propagate_UniversalTag` has since run successfully (2026-09-17 22:16),
+> the shared-parameter conflicts are resolved, depth tier 3 has been dropped from the
+> catalogue, and four of its manual pre-conditions are now checked by the plugin.
+
 
 > ## ⚠ STATUS: NEVER RUN
 >

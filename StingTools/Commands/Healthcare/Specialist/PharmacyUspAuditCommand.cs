@@ -18,7 +18,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
 
                 // Hc.Specialist.Usp.* overrides. Standard radio narrows the
                 // room filter; AchMin slider becomes the threshold; HasBuffer

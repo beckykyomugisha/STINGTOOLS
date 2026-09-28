@@ -60,6 +60,9 @@ namespace StingTools.Commands.Electrical.CircuitWizard
 
             int created = 0;
             var failed = new List<string>();
+            // Size any unsized proposal on this document's tables (project override included).
+            (PendingOptions ??= CircuitWizardOptions.Default).Bs7671Tables =
+                StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
 
             using (var tg = new TransactionGroup(doc, "STING Create Circuits Wizard"))
             {

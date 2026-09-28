@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // TagStyleEngine.cs — Tag Style Control Engine for STING Tools
 //
 // Controls tag appearance by manipulating the {SIZE}{STYLE}_{COLOR}_BOOL
@@ -109,6 +109,9 @@ namespace StingTools.Tags
         Function,
         /// <summary>Color by ASS_LOC_TXT (BLD1/BLD2/BLD3/EXT).</summary>
         Location,
+        /// <summary>Color by the parameter named in <see cref="VariableColorScheme.ParameterName"/>
+        /// (healthcare schemes: gas type, pressure regime, EES branch, fire rating...).</summary>
+        Parameter,
     }
 
     /// <summary>
@@ -120,6 +123,8 @@ namespace StingTools.Tags
         public string Name { get; set; }
         public string Description { get; set; }
         public StyleVariable Variable { get; set; }
+        /// <summary>The parameter read when <see cref="Variable"/> is <see cref="StyleVariable.Parameter"/>.</summary>
+        public string ParameterName { get; set; }
         /// <summary>Maps variable values to element colors.</summary>
         public Dictionary<string, Color> ValueColors { get; set; } = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
         /// <summary>Maps variable values to tag text styles.</summary>
@@ -129,7 +134,7 @@ namespace StingTools.Tags
         /// <summary>Default color for unmapped values.</summary>
         public Color DefaultColor { get; set; } = new Color(128, 128, 128);
         /// <summary>Default tag style for unmapped values.</summary>
-        public StylePreset DefaultStyle { get; set; } = new StylePreset { Name = "Default", Size = "2", Style = "NOM", Color = "BLACK" };
+        public StylePreset DefaultStyle { get; set; } = new StylePreset { Name = "Default", Size = "2.5", Style = "NOM", Color = "BLACK" };
     }
 
     #endregion
@@ -146,6 +151,19 @@ namespace StingTools.Tags
 
         /// <summary>All built-in color schemes.</summary>
         public static readonly Dictionary<string, ColorScheme> BuiltInSchemes = BuildSchemes();
+
+        /// <summary>Discipline tag styles as the style catalogue defines them
+        /// (tag_style_catalogue.json defaults_per_discipline).</summary>
+        internal static Dictionary<string, StylePreset> DisciplineStylesFromCatalogue()
+        {
+            var result = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase);
+            foreach (var disc in new[] { "M", "E", "P", "A", "S", "FP", "LV", "G" })
+            {
+                var dd = TagStyleCatalogue.GetDisciplineDefault(disc);
+                result[disc] = new StylePreset { Name = disc, Size = dd.Size, Style = dd.Style, Color = dd.Colour };
+            }
+            return result;
+        }
 
         private static Dictionary<string, ColorScheme> BuildSchemes()
         {
@@ -167,18 +185,12 @@ namespace StingTools.Tags
                     { "LV", new Color(160, 0, 200) },       // Purple — Low Voltage
                     { "G", new Color(128, 80, 0) },         // Brown — General
                 },
-                DisciplineTagStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
-                {
-                    { "M", new StylePreset { Name = "Mech", Size = "2", Style = "BOLD", Color = "BLUE" } },
-                    { "E", new StylePreset { Name = "Elec", Size = "2", Style = "BOLD", Color = "RED" } },
-                    { "P", new StylePreset { Name = "Plumb", Size = "2", Style = "BOLD", Color = "GREEN" } },
-                    { "A", new StylePreset { Name = "Arch", Size = "2", Style = "NOM", Color = "BLACK" } },
-                    { "S", new StylePreset { Name = "Struct", Size = "2", Style = "BOLD", Color = "RED" } },
-                    { "FP", new StylePreset { Name = "Fire", Size = "2", Style = "BOLD", Color = "RED" } },
-                    { "LV", new StylePreset { Name = "LV", Size = "2", Style = "ITALIC", Color = "BLUE" } },
-                    { "G", new StylePreset { Name = "Gen", Size = "2", Style = "NOM", Color = "BLACK" } },
-                },
-                DefaultTagStyle = new StylePreset { Name = "Default", Size = "2", Style = "NOM", Color = "BLACK" }
+                // From the style catalogue — the documented single source for discipline
+                // tag styles. These eight entries used to be typed here and disagreed with
+                // it (E red vs orange, S red vs orange, LV blue vs purple), so the same
+                // drawing got different discipline tags depending on which button ran.
+                DisciplineTagStyles = DisciplineStylesFromCatalogue(),
+                DefaultTagStyle = new StylePreset { Name = "Default", Size = "2.5", Style = "NOM", Color = "BLACK" }
             };
 
             // ── Warm (salmon/terracotta — screenshots 164817, 172339) ──
@@ -266,7 +278,7 @@ namespace StingTools.Tags
                 {
                     { "ALL", new Color(60, 60, 60) },
                 },
-                DefaultTagStyle = new StylePreset { Name = "Mono", Size = "2", Style = "NOM", Color = "BLACK" }
+                DefaultTagStyle = new StylePreset { Name = "Mono", Size = "2.5", Style = "NOM", Color = "BLACK" }
             };
 
             // ── Dark (inverted — screenshots 172641, 172731 dark) ──
@@ -307,34 +319,62 @@ namespace StingTools.Tags
             {
                 Name = "System", Description = "Color by MEP system type (CIBSE/Uniclass codes)",
                 Variable = StyleVariable.System,
+                // Every runtime system (TagConfig.DefaultSysMap); TagColorSchemeNamesTests holds
+                // the two lists together.
                 ValueColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "HVAC", new Color(0, 128, 255) },     // Blue
-                    { "DCW", new Color(0, 180, 120) },       // Teal
-                    { "DHW", new Color(255, 140, 0) },       // Orange
-                    { "HWS", new Color(200, 60, 0) },        // Dark Orange
-                    { "SAN", new Color(0, 160, 0) },          // Green
-                    { "RWD", new Color(80, 130, 180) },       // Steel Blue
-                    { "GAS", new Color(200, 200, 0) },        // Yellow
-                    { "FP", new Color(200, 0, 0) },           // Red
-                    { "LV", new Color(160, 0, 200) },         // Purple
-                    { "FLS", new Color(255, 60, 60) },        // Bright Red
-                    { "COM", new Color(100, 100, 200) },      // Periwinkle
-                    { "ICT", new Color(0, 200, 200) },        // Cyan
-                    { "SEC", new Color(180, 0, 180) },        // Magenta
-                    { "ARC", new Color(120, 120, 120) },      // Grey
-                    { "STR", new Color(200, 0, 0) },          // Red
-                    { "GEN", new Color(80, 80, 80) },         // Dark Grey
+                    { "HVAC", new Color(0, 128, 255) }, // Blue
+                    { "CHW", new Color(0, 90, 200) },  // Dark blue
+                    { "CDW", new Color(0, 160, 220) },  // Sky blue
+                    { "REF", new Color(120, 80, 220) },  // Violet
+                    { "HWS", new Color(200, 60, 0) },  // Dark orange
+                    { "STM", new Color(170, 40, 0) },  // Brick
+                    { "CON", new Color(210, 120, 60) },  // Tan
+                    { "DCW", new Color(0, 180, 120) },  // Teal
+                    { "DHW", new Color(255, 140, 0) },  // Orange
+                    { "RWH", new Color(60, 170, 150) },  // Sea green
+                    { "GWR", new Color(110, 140, 110) },  // Sage
+                    { "LBW", new Color(0, 200, 170) },  // Aqua
+                    { "POL", new Color(0, 190, 230) },  // Pool blue
+                    { "IRR", new Color(90, 180, 60) },  // Grass green
+                    { "SAN", new Color(0, 160, 0) },  // Green
+                    { "BGD", new Color(0, 110, 0) },  // Dark green
+                    { "SEP", new Color(100, 90, 40) },  // Olive
+                    { "STW", new Color(120, 110, 60) },  // Khaki
+                    { "INT", new Color(140, 100, 40) },  // Brown
+                    { "RWD", new Color(80, 130, 180) },  // Steel blue
+                    { "SWD", new Color(60, 100, 150) },  // Slate blue
+                    { "SPH", new Color(100, 150, 200) },  // Light steel
+                    { "SDS", new Color(70, 120, 90) },  // Moss
+                    { "GAS", new Color(200, 200, 0) },  // Yellow
+                    { "FOL", new Color(160, 120, 0) },  // Amber
+                    { "CMP", new Color(150, 150, 200) },  // Lavender
+                    { "CHE", new Color(200, 100, 200) },  // Orchid
+                    { "MGS", new Color(230, 190, 0) },  // Gold
+                    { "FP", new Color(200, 0, 0) },   // Red
+                    { "FLS", new Color(255, 60, 60) },  // Bright red
+                    { "LV", new Color(160, 0, 200) },   // Purple
+                    { "HV", new Color(110, 0, 140) },   // Dark purple
+                    { "LPS", new Color(90, 90, 160) },  // Indigo
+                    { "BMS", new Color(0, 150, 150) },  // Dark cyan
+                    { "COM", new Color(100, 100, 200) },  // Periwinkle
+                    { "ICT", new Color(0, 200, 200) },  // Cyan
+                    { "SEC", new Color(180, 0, 180) },  // Magenta
+                    { "NCL", new Color(220, 100, 160) },  // Pink
+                    { "RAD", new Color(200, 0, 160) },  // Radiation magenta
+                    { "ARC", new Color(120, 120, 120) },  // Grey
+                    { "STR", new Color(150, 30, 30) },  // Maroon
+                    { "GEN", new Color(80, 80, 80) },  // Dark grey
                 },
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
                     { "HVAC", new StylePreset { Name = "HVAC", Size = "2.5", Style = "BOLD", Color = "BLUE" } },
                     { "FP",   new StylePreset { Name = "Fire", Size = "2.5", Style = "BOLD", Color = "RED" } },
-                    { "LV",   new StylePreset { Name = "LV",   Size = "2",   Style = "ITALIC", Color = "PURPLE" } },
-                    { "SAN",  new StylePreset { Name = "San",  Size = "2",   Style = "NOM", Color = "GREEN" } },
-                    { "DCW",  new StylePreset { Name = "DCW",  Size = "2",   Style = "NOM", Color = "GREEN" } },
-                    { "DHW",  new StylePreset { Name = "DHW",  Size = "2",   Style = "BOLD", Color = "ORANGE" } },
-                    { "ARC",  new StylePreset { Name = "Arc",  Size = "2",   Style = "NOM", Color = "GREY" } },
+                    { "LV",   new StylePreset { Name = "LV",   Size = "2.5", Style = "ITALIC", Color = "PURPLE" } },
+                    { "SAN",  new StylePreset { Name = "San",  Size = "2.5", Style = "NOM", Color = "GREEN" } },
+                    { "DCW",  new StylePreset { Name = "DCW",  Size = "2.5", Style = "NOM", Color = "GREEN" } },
+                    { "DHW",  new StylePreset { Name = "DHW",  Size = "2.5", Style = "BOLD", Color = "ORANGE" } },
+                    { "ARC",  new StylePreset { Name = "Arc",  Size = "2.5", Style = "NOM", Color = "GREY" } },
                     { "STR",  new StylePreset { Name = "Str",  Size = "2.5", Style = "BOLD", Color = "RED" } },
                 },
                 ValueBoxColors = new Dictionary<string, BoxColorPreset>(StringComparer.OrdinalIgnoreCase)
@@ -360,9 +400,9 @@ namespace StingTools.Tags
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
                     { "NEW",         new StylePreset { Name = "New",   Size = "2.5", Style = "BOLD",   Color = "GREEN" } },
-                    { "EXISTING",    new StylePreset { Name = "Exist", Size = "2",   Style = "NOM",    Color = "BLUE" } },
-                    { "DEMOLISHED",  new StylePreset { Name = "Demo",  Size = "2",   Style = "ITALIC", Color = "RED" } },
-                    { "TEMPORARY",   new StylePreset { Name = "Temp",  Size = "2",   Style = "ITALIC", Color = "ORANGE" } },
+                    { "EXISTING",    new StylePreset { Name = "Exist", Size = "2.5", Style = "NOM",    Color = "BLUE" } },
+                    { "DEMOLISHED",  new StylePreset { Name = "Demo",  Size = "2.5", Style = "ITALIC", Color = "RED" } },
+                    { "TEMPORARY",   new StylePreset { Name = "Temp",  Size = "2.5", Style = "ITALIC", Color = "ORANGE" } },
                 },
                 ValueBoxColors = new Dictionary<string, BoxColorPreset>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -390,10 +430,10 @@ namespace StingTools.Tags
                 },
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "Z01", new StylePreset { Name = "Z01", Size = "2", Style = "NOM", Color = "BLUE" } },
-                    { "Z02", new StylePreset { Name = "Z02", Size = "2", Style = "NOM", Color = "GREEN" } },
-                    { "Z03", new StylePreset { Name = "Z03", Size = "2", Style = "NOM", Color = "ORANGE" } },
-                    { "Z04", new StylePreset { Name = "Z04", Size = "2", Style = "NOM", Color = "RED" } },
+                    { "Z01", new StylePreset { Name = "Z01", Size = "2.5", Style = "NOM", Color = "BLUE" } },
+                    { "Z02", new StylePreset { Name = "Z02", Size = "2.5", Style = "NOM", Color = "GREEN" } },
+                    { "Z03", new StylePreset { Name = "Z03", Size = "2.5", Style = "NOM", Color = "ORANGE" } },
+                    { "Z04", new StylePreset { Name = "Z04", Size = "2.5", Style = "NOM", Color = "RED" } },
                 },
             };
 
@@ -416,10 +456,10 @@ namespace StingTools.Tags
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
                     { "GF",  new StylePreset { Name = "GF",  Size = "2.5", Style = "BOLD", Color = "GREEN" } },
-                    { "L01", new StylePreset { Name = "L01", Size = "2",   Style = "NOM",  Color = "BLUE" } },
-                    { "L02", new StylePreset { Name = "L02", Size = "2",   Style = "NOM",  Color = "PURPLE" } },
-                    { "B1",  new StylePreset { Name = "B1",  Size = "2",   Style = "ITALIC", Color = "RED" } },
-                    { "RF",  new StylePreset { Name = "RF",  Size = "2",   Style = "ITALIC", Color = "ORANGE" } },
+                    { "L01", new StylePreset { Name = "L01", Size = "2.5", Style = "NOM",  Color = "BLUE" } },
+                    { "L02", new StylePreset { Name = "L02", Size = "2.5", Style = "NOM",  Color = "PURPLE" } },
+                    { "B1",  new StylePreset { Name = "B1",  Size = "2.5", Style = "ITALIC", Color = "RED" } },
+                    { "RF",  new StylePreset { Name = "RF",  Size = "2.5", Style = "ITALIC", Color = "ORANGE" } },
                 },
             };
 
@@ -470,7 +510,128 @@ namespace StingTools.Tags
                 },
             };
 
+            AddParameterSchemes(d);
             return d;
+        }
+
+        private static Dictionary<string, Color> Colors(params (string v, int r, int g, int b)[] rows)
+        {
+            var m = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase);
+            foreach (var x in rows) m[x.v] = new Color((byte)x.r, (byte)x.g, (byte)x.b);
+            return m;
+        }
+
+        private static Dictionary<string, StylePreset> Styles(params (string v, string style, string colour)[] rows)
+        {
+            var m = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase);
+            foreach (var x in rows)
+                m[x.v] = new StylePreset { Name = x.v, Size = Core.Drawing.IsoTagText.DefaultSize, Style = x.style, Color = x.colour };
+            return m;
+        }
+
+        /// <summary>
+        /// Schemes the healthcare style packs name. Each reads the parameter the pack's
+        /// validators and commands already use, with that parameter's own value
+        /// vocabulary, so a colour means what the audit reports. Values are compared
+        /// after TagColorSchemeNames.NormaliseValue (trimmed; "60.0" and "60" match).
+        /// Tag styles stay on the ISO 2.5 mm row. Unmapped values get the scheme
+        /// default (grey element, plain black tag).
+        /// </summary>
+        private static void AddParameterSchemes(Dictionary<string, VariableColorScheme> d)
+        {
+            // HTM 02-01 / BS EN ISO 32 gas identification. MGS_GAS_TYPE_TXT vocabulary:
+            // O2 MA4 MA7 N2O N2 CO2 HE VAC (MedGasOutletPlacementCommand, HealthcareMaterialGate)
+            // (AGS is scavenging; "AGSS" is read as AGS by CanonicalGasCode, not here).
+            // White (O2) is drawn light grey so it shows on a white sheet.
+            d["MedicalGas"] = new VariableColorScheme
+            {
+                Name = "MedicalGas", Description = "Medical gas by type (HTM 02-01; MGS_GAS_TYPE_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "MGS_GAS_TYPE_TXT",
+                ValueColors = Colors(("O2", 190, 190, 190), ("N2O", 0, 90, 200), ("MA4", 40, 40, 40), ("MA7", 90, 90, 90),
+                    ("N2", 0, 0, 0), ("CO2", 130, 130, 130), ("HE", 140, 90, 40), ("VAC", 230, 190, 0), ("AGS", 140, 60, 170)),
+                ValueStyles = Styles(("O2", "BOLD", "BLACK"), ("N2O", "BOLD", "BLUE"), ("MA4", "NOM", "BLACK"), ("MA7", "ITALIC", "BLACK"),
+                    ("N2", "NOM", "BLACK"), ("CO2", "NOM", "GREY"), ("HE", "NOM", "ORANGE"), ("VAC", "BOLD", "ORANGE"), ("AGS", "BOLD", "PURPLE")),
+            };
+
+            // HTM 03-01 pressure regime. CLN_PRESS_REGIME_TXT vocabulary: POS / NEG / NEUTRAL
+            // (HTMStandards design table; PressureRegimeValidator compares against it).
+            d["Pressure"] = new VariableColorScheme
+            {
+                Name = "Pressure", Description = "Room pressure regime (HTM 03-01; CLN_PRESS_REGIME_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "CLN_PRESS_REGIME_TXT",
+                ValueColors = Colors(("POS", 0, 110, 220), ("NEG", 220, 40, 40), ("NEUTRAL", 150, 150, 150)),
+                ValueStyles = Styles(("POS", "BOLD", "BLUE"), ("NEG", "BOLD", "RED"), ("NEUTRAL", "NOM", "GREY")),
+            };
+
+            // NFPA 99 / HTM 06-01 essential electrical branches. ELC_EES_BRANCH_TXT codes as
+            // NFPA99Standards.ParseBranch reads them: LIFE-SAF/LS, CRIT/CR, EQP-BR/EQ, NORMAL/N.
+            d["ElectricalSupply"] = new VariableColorScheme
+            {
+                Name = "ElectricalSupply", Description = "Essential electrical branch (NFPA 99 / HTM 06-01; ELC_EES_BRANCH_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "ELC_EES_BRANCH_TXT",
+                ValueColors = Colors(("LIFE-SAF", 220, 30, 30), ("LS", 220, 30, 30), ("CRIT", 255, 140, 0), ("CR", 255, 140, 0),
+                    ("EQP-BR", 230, 190, 0), ("EQ", 230, 190, 0), ("NORMAL", 150, 150, 150), ("N", 150, 150, 150)),
+                ValueStyles = Styles(("LIFE-SAF", "BOLD", "RED"), ("LS", "BOLD", "RED"), ("CRIT", "BOLD", "ORANGE"), ("CR", "BOLD", "ORANGE"),
+                    ("EQP-BR", "NOM", "ORANGE"), ("EQ", "NOM", "ORANGE"), ("NORMAL", "NOM", "GREY"), ("N", "NOM", "GREY")),
+            };
+
+            // Fire resistance in minutes (ParamRegistry.FIRE_RATING, a NUMBER: "60.0" reads as "60").
+            d["FireRating"] = new VariableColorScheme
+            {
+                Name = "FireRating", Description = "Fire resistance in minutes (HTM 05-02 / BS 9999)",
+                Variable = StyleVariable.Parameter, ParameterName = ParamRegistry.FIRE_RATING,
+                ValueColors = Colors(("30", 255, 200, 0), ("60", 255, 140, 0), ("90", 230, 70, 30), ("120", 200, 0, 0), ("240", 130, 0, 60)),
+                ValueStyles = Styles(("30", "NOM", "ORANGE"), ("60", "BOLD", "ORANGE"), ("90", "NOM", "RED"), ("120", "BOLD", "RED"), ("240", "BOLDITALIC", "RED")),
+            };
+
+            // NCRP 147 barrier type. RAD_BARRIER_TYPE_TXT vocabulary: PRIMARY / SECONDARY /
+            // SCATTER / LEAKAGE (MR_PARAMETERS description; RadShieldValidator).
+            d["Radiation"] = new VariableColorScheme
+            {
+                Name = "Radiation", Description = "Radiation barrier type (NCRP 147; RAD_BARRIER_TYPE_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "RAD_BARRIER_TYPE_TXT",
+                ValueColors = Colors(("PRIMARY", 200, 0, 160), ("SECONDARY", 150, 60, 180), ("SCATTER", 255, 140, 0), ("LEAKAGE", 150, 150, 150)),
+                ValueStyles = Styles(("PRIMARY", "BOLD", "PURPLE"), ("SECONDARY", "NOM", "PURPLE"), ("SCATTER", "NOM", "ORANGE"), ("LEAKAGE", "ITALIC", "GREY")),
+            };
+
+            // Ligature risk level. CLN_LIG_RISK_LVL_TXT holds a number (BehaviouralHealthAuditCommand
+            // parses it; the Healthcare tab's minimum defaults to 3): higher is higher risk.
+            d["AntiLigature"] = new VariableColorScheme
+            {
+                Name = "AntiLigature", Description = "Ligature risk level 1-5 (CLN_LIG_RISK_LVL_TXT)",
+                Variable = StyleVariable.Parameter, ParameterName = "CLN_LIG_RISK_LVL_TXT",
+                ValueColors = Colors(("1", 76, 175, 80), ("2", 160, 200, 60), ("3", 255, 193, 7), ("4", 255, 120, 0), ("5", 200, 0, 160)),
+                ValueStyles = Styles(("1", "NOM", "GREEN"), ("2", "NOM", "GREEN"), ("3", "NOM", "ORANGE"), ("4", "BOLD", "ORANGE"), ("5", "BOLD", "PURPLE")),
+            };
+
+            // HTM 04-01 water services by system token. DHW secondary return is SYS DHW with
+            // FUNC RTN, so it shares the DHW colour here; use the Function scheme to tell flow
+            // from return. Heating water (HWS) and everything else draws grey.
+            d["WaterSafety"] = new VariableColorScheme
+            {
+                Name = "WaterSafety", Description = "Domestic water services for HTM 04-01 (system token)",
+                Variable = StyleVariable.System,
+                ValueColors = Colors(("DCW", 0, 110, 220), ("DHW", 220, 40, 40)),
+                ValueStyles = Styles(("DCW", "NOM", "BLUE"), ("DHW", "BOLD", "RED")),
+            };
+        }
+
+        /// <summary>
+        /// A note for the result dialog when the view's own STING_VIEW_TAG_STYLE names a
+        /// different scheme from the one just applied; null when they agree or none is set.
+        /// </summary>
+        public static string ViewSchemeNote(View view, string appliedScheme)
+        {
+            string set;
+            try { set = ParameterHelpers.GetString(view, ParamRegistry.VIEW_TAG_STYLE); }
+            catch (Exception ex) { StingLog.Warn($"ViewSchemeNote: {ex.Message}"); return null; }
+            if (string.IsNullOrWhiteSpace(set)) return null;
+            var canonical = Core.Drawing.TagColorSchemeNames.Resolve(set);
+            var applied = Core.Drawing.TagColorSchemeNames.Resolve(appliedScheme) ?? appliedScheme;
+            if (canonical != null && string.Equals(canonical, applied, StringComparison.OrdinalIgnoreCase)) return null;
+            return canonical == null
+                ? $"This view's tag style is set to '{set}', which is not a scheme; '{applied}' was applied."
+                : $"This view's tag style is set to '{canonical}' (its drawing type or Set View Tag Style); '{applied}' was applied as picked. Batch Apply follows the view's setting.";
         }
 
         /// <summary>
@@ -480,7 +641,8 @@ namespace StingTools.Tags
         public static VariableColorScheme GetVariableScheme(string schemeName)
         {
             if (string.IsNullOrEmpty(schemeName)) return null;
-            return VariableSchemes.TryGetValue(schemeName, out var scheme) ? scheme : null;
+            string canonical = Core.Drawing.TagColorSchemeNames.Resolve(schemeName) ?? schemeName;
+            return VariableSchemes.TryGetValue(canonical, out var scheme) ? scheme : null;
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -686,25 +848,28 @@ namespace StingTools.Tags
         // ════════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Apply a color scheme to the active view. Colors all taggable elements
-        /// by their discipline, matching the presentation screenshot styles.
+        /// Apply a color scheme to a view. Colors all taggable elements by their discipline.
+        /// With <paramref name="useViewScheme"/> (the batch command), a view whose
+        /// STING_VIEW_TAG_STYLE names a scheme is coloured by that scheme instead — the
+        /// per-view routing drawing types set up. A scheme the user picked for one view is
+        /// applied as picked (default): swapping it here left the elements on the view's
+        /// scheme while the tag styles followed the pick.
         /// </summary>
-        public static int ApplyColorScheme(Document doc, View view, ColorScheme scheme)
+        public static int ApplyColorScheme(Document doc, View view, ColorScheme scheme, bool useViewScheme = false)
         {
-            // Per-view tag style routing: if the view has STING_VIEW_TAG_STYLE set,
-            // use that scheme name instead of the one passed in.
-            try
+            if (useViewScheme) try
             {
-                string viewStyle = ParameterHelpers.GetString(view, "STING_VIEW_TAG_STYLE");
+                string viewStyle = ParameterHelpers.GetString(view, ParamRegistry.VIEW_TAG_STYLE);
                 if (!string.IsNullOrEmpty(viewStyle))
                 {
-                    // Check variable schemes first (Zone, Status, Level, Function, etc.)
-                    var varScheme = GetVariableScheme(viewStyle);
-                    if (varScheme != null)
-                        return ApplyVariableScheme(doc, view, varScheme);
-
-                    // Then check built-in discipline schemes
-                    if (BuiltInSchemes.TryGetValue(viewStyle, out ColorScheme overrideScheme))
+                    // Aliases ("Monochrome", "STING Discipline") resolve to the engine's keys;
+                    // an unknown name is logged rather than silently ignored.
+                    string canonical = Core.Drawing.TagColorSchemeNames.Resolve(viewStyle);
+                    if (canonical == null)
+                        StingLog.Warn($"View '{view.Name}': {Core.Drawing.TagColorSchemeNames.Unknown(viewStyle)} Using '{scheme?.Name}'.");
+                    else if (Core.Drawing.TagColorSchemeNames.IsVariable(canonical))
+                        return ApplyVariableScheme(doc, view, GetVariableScheme(canonical));
+                    else if (BuiltInSchemes.TryGetValue(canonical, out ColorScheme overrideScheme))
                         scheme = overrideScheme;
                 }
             }
@@ -793,6 +958,14 @@ namespace StingTools.Tags
 
             foreach (Element typeEl in allTypes)
             {
+                // Same rule as Set depth and Presentation mode: a global sweep
+                // owns MODEL types; ANNOTATION types belong to the variant
+                // catalogue. See Core/TierGateScope.
+                if (!TierGateScope.MaySweep(
+                        typeEl.Category != null &&
+                        typeEl.Category.CategoryType == CategoryType.Annotation))
+                    continue;
+
                 bool any = false;
                 for (int i = 0; i < states.Length; i++)
                 {
@@ -900,6 +1073,15 @@ namespace StingTools.Tags
         /// <summary>
         /// Get the element's value for a given style variable.
         /// </summary>
+        public static string GetVariableValue(Element el, VariableColorScheme scheme)
+        {
+            if (scheme == null) return "";
+            string raw = scheme.Variable == StyleVariable.Parameter
+                ? ParameterHelpers.GetDisplayText(el, scheme.ParameterName)
+                : GetVariableValue(el, scheme.Variable);
+            return Core.Drawing.TagColorSchemeNames.NormaliseValue(raw);
+        }
+
         public static string GetVariableValue(Element el, StyleVariable variable)
         {
             return variable switch
@@ -931,7 +1113,7 @@ namespace StingTools.Tags
 
             foreach (var el in elements)
             {
-                string value = GetVariableValue(el, scheme.Variable);
+                string value = GetVariableValue(el, scheme);
                 Color color = null;
 
                 if (!string.IsNullOrEmpty(value) && scheme.ValueColors.TryGetValue(value, out Color vc))
@@ -983,7 +1165,7 @@ namespace StingTools.Tags
             {
                 var typeId = inst.GetTypeId();
                 if (typeId == ElementId.InvalidElementId || typeVariables.ContainsKey(typeId)) continue;
-                string value = GetVariableValue(inst, scheme.Variable);
+                string value = GetVariableValue(inst, scheme);
                 if (!string.IsNullOrEmpty(value))
                     typeVariables[typeId] = value;
             }
@@ -1071,7 +1253,7 @@ namespace StingTools.Tags
 
             foreach (var el in elements)
             {
-                string value = GetVariableValue(el, scheme.Variable);
+                string value = GetVariableValue(el, scheme);
                 if (string.IsNullOrEmpty(value)) continue;
 
                 if (scheme.ValueBoxColors.TryGetValue(value, out BoxColorPreset boxPreset))
@@ -1408,7 +1590,7 @@ namespace StingTools.Tags
         /// <summary>
         /// Find the FamilySymbol inside <paramref name="baseFamilyId"/> whose name matches the
         /// canonical name for <c>(size, style, colour, arrowhead, depthTier)</c> (see
-        /// <see cref="TypeVariantSpec.CanonicalTypeName"/>, e.g. "2.5_BOLD_RED_Filled30_T3").
+        /// <see cref="TypeVariantSpec.CanonicalTypeName"/>, e.g. "2.5_BOLD_RED_Filled30_T2").
         ///
         /// Returns <see cref="ElementId.InvalidElementId"/> when no matching type exists —
         /// caller should fall back to the current type and log a warning that

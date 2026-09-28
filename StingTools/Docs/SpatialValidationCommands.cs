@@ -298,7 +298,7 @@ namespace StingTools.Docs
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             var result = SpatialValidationEngine.AuditRooms(ctx.Doc);
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "SpatialValidation", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Compliance", "SpatialValidation", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ElementId,IssueType,Severity,Description");

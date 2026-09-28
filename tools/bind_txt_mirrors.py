@@ -27,7 +27,6 @@ header is replaced rather than stacked.
     python tools/bind_txt_mirrors.py            # write
     python tools/bind_txt_mirrors.py --check    # report only, exit 1 if stale
 """
-import datetime as _dt
 import pathlib
 import sys
 
@@ -36,6 +35,7 @@ TXT = ROOT / 'StingTools/Data/MR_PARAMETERS.txt'
 CSV = ROOT / 'StingTools/Data/CATEGORY_BINDINGS.csv'
 
 HEADER_PREFIX = '# v3.9 |'
+MIRROR_HEADER_MARK = '_TXT mirror params to their source categories'
 
 
 def mirror_sources():
@@ -113,19 +113,25 @@ def main():
               % (len(mirrors), len(unbound_source)))
         return 0
 
-    # The header states what the FILE contains, not what this run did. A header
-    # carrying the run's delta reads "+1268 rows" on the first run and "+0 rows"
-    # on the second, so the file changes every time it is regenerated and the
-    # script is not idempotent -- the same mistake sync_csv_from_txt.py made.
+    # The header states what the FILE contains, not what this run did, and carries
+    # no date: a date changes the file on any day the script runs, so it would not be
+    # idempotent -- the same mistake sync_csv_from_txt.py made. It is found by its
+    # wording, not its "# v3.9 |" prefix, which another history line shares (the
+    # prefix match deleted that line), and it is replaced where it stands.
     total_rows = sum(1 for m in mirrors if any(k[0] == m for k in existing))
     total_bindings = sum(1 for k in existing if k[0] in mirrors)
-    stamp = _dt.date.today().strftime('%Y%m%d')
-    new_header = ('%s %s | %d rows binding %d _TXT mirror params to their source '
-                  'categories (Phase 188)\n'
-                  % (HEADER_PREFIX, stamp, total_bindings, total_rows))
-    comments = [c for c in comments if not c.startswith(HEADER_PREFIX)]
-    CSV.write_text(''.join([new_header] + comments + [header] + rows + added),
-                   encoding='utf-8')
+    new_header = ('%s %d rows binding %d _TXT mirror params to their source '
+                  'categories (Phase 188; maintained by tools/bind_txt_mirrors.py)\n'
+                  % (HEADER_PREFIX, total_bindings, total_rows))
+    mine = [i for i, c in enumerate(comments) if MIRROR_HEADER_MARK in c]
+    if mine:
+        comments[mine[0]] = new_header
+        for i in reversed(mine[1:]):
+            del comments[i]
+    else:
+        comments.append(new_header)
+    bom = '\ufeff' if CSV.read_bytes().startswith(b'\xef\xbb\xbf') else ''
+    CSV.write_text(bom + ''.join(comments + [header] + rows + added), encoding='utf-8')
 
     print('mirrors found            : %d' % len(mirrors))
     print('binding rows added       : %d' % len(added))

@@ -24,7 +24,7 @@ namespace StingTools.Commands.Materials
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
                 var doc = uidoc?.Document;
                 if (doc == null) { TaskDialog.Show("STING PBR", "No active document."); return Result.Cancelled; }
 
@@ -107,7 +107,7 @@ namespace StingTools.Commands.Materials
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument?.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument?.Document;
                 if (doc == null) { TaskDialog.Show("STING PBR Bulk", "No active document."); return Result.Cancelled; }
 
                 string root = TextureProviderRegistry.ProjectTexturesRoot(doc);

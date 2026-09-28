@@ -36,6 +36,8 @@ namespace StingTools.IfcResults
         {
             public string GlobalId { get; set; } = "";
             public string Name     { get; set; } = "";
+            /// <summary>IfcSpace.LongName (attribute 7) — the room NAME in Revit's export; Name carries the number.</summary>
+            public string LongName { get; set; } = "";
             public Dictionary<string, double> Numerics { get; } = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             public Dictionary<string, string> Strings  { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
@@ -93,7 +95,8 @@ namespace StingTools.IfcResults
                     Spaces.Add(new IfcSpace
                     {
                         GlobalId = ExtractStringAt(e.Raw, 0),
-                        Name = ExtractStringAt(e.Raw, 2)
+                        Name = ExtractStringAt(e.Raw, 2),
+                        LongName = ExtractStringAt(e.Raw, 7)
                     });
                 }
                 else if (e.Type.Equals("IFCLIGHTFIXTURE", StringComparison.OrdinalIgnoreCase))

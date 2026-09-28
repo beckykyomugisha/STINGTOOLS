@@ -1,4 +1,4 @@
-import io,os,re,csv,collections
+import io,os,re,csv,json,collections
 # csv.writer's default lineterminator is CRLF whatever open(newline="") does, so
 # the terminator has to be set on the WRITER. All three outputs are pinned to LF
 # and to `text eol=lf` in .gitattributes: the drift gate regenerates on Linux and
@@ -40,32 +40,76 @@ def code_single(p):
 # ---- category sets ----
 S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts",
 "HVAC_TERM":"Air Terminals","PLUMB":"Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures",
-"FIRE":"Sprinklers|Fire Alarm Devices","ELEC":"Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits",
+"FIRE":"Sprinklers|Fire Alarm Devices","FIRE_COMPARTMENT":"Fire Alarm Devices|Rooms|Sprinklers","ELEC":"Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits",
 "CABLE_TRAY":"Cable Trays|Cable Tray Fittings","LIGHT":"Lighting Fixtures|Lighting Devices",
 "ELEC_EQUIP":"Electrical Equipment|Electrical Circuits",
+"PLUMB_FIXTURE":"Plumbing Fixtures",
+"WALL_BASIC":"Walls",
+"ENERGY_EQUIP":"Electrical Equipment|Electrical Circuits|Mechanical Equipment|Lighting Fixtures",
+"MAINT_EQUIP":"Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment",
 "ELEC_FIXTURE":"Electrical Fixtures",
 "ELEC_CONDUIT":"Conduits|Conduit Fittings",
 "ELEC_TRAY":"Cable Trays|Cable Tray Fittings",
 "ELEC_CABLE":"Cable Trays|Conduits|Electrical Circuits",
 "ELEC_CIRCUIT":"Electrical Circuits",
+"SPACE_ROOM":"MEP Spaces|Rooms",
 "ELEC_LPS":"Electrical Equipment|Generic Models","LIGHT_FIX":"Lighting Fixtures","LIGHT_DEV":"Lighting Devices",
 "DATA":"Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices",
 "STRUCT":"Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors",
 "DOOR":"Doors","WINDOW":"Windows","WALL":"Walls|Curtain Panels|Curtain Wall Mullions","FLOOR":"Floors","CEILING":"Ceilings",
 "ROOF":"Roofs","STAIR":"Stairs|Railings","RAMP":"Ramps","RAILING":"Railings","CASEWORK":"Casework","FURN":"Furniture|Furniture Systems",
 "PARK":"Parking","COLUMN":"Columns|Structural Columns","ROOM":"Rooms","FINISH":"Walls|Floors|Ceilings|Roofs|Rooms",
-"MATERIAL":"Materials","SHEET":"Sheets","TITLEBLOCK":"Title Blocks","PROJECT_INFO":"Project Information","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
+"MATERIAL":"Materials","SHEET":"Sheets","TITLEBLOCK":"Title Blocks","PROJECT_INFO":"Project Information","HEALTH":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment","MGS_PIPEWORK":"Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories","UNIVERSAL":"<ALL>","NONE":"","MEP_ALL":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits","PEN":"Walls|Floors|Ceilings|Roofs|Generic Models","ARCH":"Walls|Floors|Ceilings|Roofs|Doors|Windows|Columns|Stairs|Ramps|Casework|Furniture|Curtain Panels|Railings|Generic Models|Specialty Equipment","FABX":"Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays"}
 SAFE={"HVC":"HVAC","PLM":"PLUMB","ELC":"ELEC","LTG":"LIGHT","ICT":"DATA","COM":"DATA","MGS":"HEALTH","CLN":"HEALTH","CEQ":"HEALTH","RAD":"HEALTH","FLS":"FIRE"}
 BLE={"DOOR":"DOOR","WINDOW":"WINDOW","WALL":"WALL","FACADE":"WALL","CW":"WALL","PANEL":"WALL","MULLION":"WALL","FLR":"FLOOR","FLOOR":"FLOOR","SLAB":"FLOOR","CEILING":"CEILING","CEIL":"CEILING","ROOF":"ROOF","STAIR":"STAIR","RAMP":"RAMP","RAILING":"RAILING","RAIL":"RAILING","CASEWORK":"CASEWORK","FURN":"FURN","FURNITURE":"FURN","PARK":"PARK","PARKING":"PARK","COLUMN":"COLUMN","ROOM":"ROOM","HEADROOM":"ROOM","STRUCT":"STRUCT","LOAD":"STRUCT","LIVE":"STRUCT","FINISH":"FINISH","TILE":"FINISH","PAINT":"FINISH","PLASTER":"FINISH","MORTAR":"FINISH","BRICK":"FINISH","BLOCK":"FINISH","SURFACE":"FINISH","MAT":"MATERIAL","MATERIAL":"MATERIAL","CBL":"CABLE_TRAY","SIGN":"ARCH"}
 CST_ROLLUP=set("UNIT TOTAL RATE SUP LABOUR BOQ DUTY FX UG INTL PROC INSTALL FORMWORK EMBODIED TITLE".split()); CST={"CALC":"FINISH","S":"STRUCT"}
 catb=collections.defaultdict(set)
+# Rows whose Is_Shared column reads "Yes" are HAND-AUTHORED statements of where a
+# parameter lives (LPS Wave 1, the Uganda regional defaults, the room/space result
+# stamps). The generated bulk of the file says "True". The derivation below never
+# looked at a curated row for a parameter a prefix rule could place, so every one
+# of these was dropped: the LPS class, mesh size, rolling-sphere radius and Kc that
+# LpsClassSetup writes to ProjectInformation went to Electrical Equipment and
+# Generic Models only, and the write found no parameter on ProjectInformation.
+# "<ALL>" cannot carry them either -- it is the 143 element categories, which hold
+# neither Project Information, Rooms' results nor Views.
+#
+# The rest of the curated file is NOT honoured wholesale: it is polluted (hundreds
+# of BLE_*/CST_* rows on Plumbing Equipment, Medical Equipment, Flex Pipes...),
+# which is why the derivation exists. The Yes marker is the line between the two.
+explicit=collections.defaultdict(set)
 for row in csv.reader(open("StingTools/Data/CATEGORY_BINDINGS.csv",encoding="utf-8",errors="replace")):
-    if row and not row[0].startswith("#") and row[0]!="Parameter_Name" and len(row)>=2: catb[row[0]].add(row[1])
-ELC={"PNL":"ELEC_EQUIP","PANEL":"ELEC_EQUIP","PWR":"ELEC_EQUIP","ARC":"ELEC_EQUIP","BUSBAR":"ELEC_EQUIP","ATS":"ELEC_EQUIP","GEN":"ELEC_EQUIP","UPS":"ELEC_EQUIP","SEL":"ELEC_EQUIP","EQP":"ELEC_EQUIP","ENERGY":"ELEC_EQUIP","PHOTO":"LIGHT","LPD":"LIGHT","LIGHTING":"LIGHT","FIX":"ELEC_FIXTURE","JB":"ELEC_FIXTURE","VOLTAGE":"ELEC_FIXTURE","RECEPT":"ELEC_FIXTURE","IT":"ELEC_FIXTURE","SOCKET":"ELEC_FIXTURE","OUTLET":"ELEC_FIXTURE","SPUR":"ELEC_FIXTURE","CDT":"ELEC_CONDUIT","CTR":"ELEC_TRAY","CBT":"ELEC_TRAY","WIRE":"ELEC_CABLE","CBL":"ELEC_CABLE","FEEDER":"ELEC_CABLE","CKT":"ELEC_CIRCUIT","CIR":"ELEC_CIRCUIT","CIRCUIT":"ELEC_CIRCUIT","VLT":"ELEC_CIRCUIT","LPS":"ELEC_LPS","LP":"ELEC_LPS"}
+    if row: row[0]=row[0].lstrip(chr(0xFEFF))
+    if row and not row[0].startswith("#") and row[0]!="Parameter_Name" and len(row)>=2:
+        catb[row[0]].add(row[1])
+        if len(row)>=4 and row[3].strip()=="Yes": explicit[row[0]].add(row[1])
+ELC={"PNL":"ELEC_EQUIP","PANEL":"ELEC_EQUIP","PWR":"ELEC_EQUIP","ARC":"ELEC_EQUIP","BUSBAR":"ELEC_EQUIP","ATS":"ELEC_EQUIP","GEN":"ELEC_EQUIP","UPS":"ELEC_EQUIP","SEL":"ELEC_EQUIP","EQP":"ELEC_EQUIP","ENERGY":"ELEC_EQUIP","PHOTO":"LIGHT","LPD":"LIGHT","LIGHTING":"LIGHT","FIX":"ELEC_FIXTURE","JB":"ELEC_FIXTURE","VOLTAGE":"ELEC_FIXTURE","RECEPT":"ELEC_FIXTURE","IT":"ELEC_FIXTURE","SOCKET":"ELEC_FIXTURE","OUTLET":"ELEC_FIXTURE","SPUR":"ELEC_FIXTURE","CDT":"ELEC_CONDUIT","CTR":"ELEC_TRAY","CBT":"ELEC_TRAY","WIRE":"ELEC_CABLE","CBL":"ELEC_CABLE","FEEDER":"ELEC_CABLE","CKT":"ELEC_CIRCUIT","CIR":"ELEC_CIRCUIT","CIRCUIT":"ELEC_CIRCUIT","VLT":"ELEC_CIRCUIT","LPS":"ELEC_LPS","LP":"ELEC_LPS","CONDUIT":"ELEC_CONDUIT","CABLE":"ELEC_CABLE"}
 LTG={"CTRL":"LIGHT_DEV","CONTROLS":"LIGHT_DEV","CKT":"ELEC_CIRCUIT"}
 CST_MATERIAL=set("ADHESIVE AGGREGATE BLOCK BLOCKS CEMENT GROUT PAINT PRIMER SAND SHEET STEEL TILE FASTENER PLASTER PUTTY MORTAR WATER RIDGE DPC BRICK CONC CONCRETE SCREED RENDER REBAR TIMBER PLYWOOD WATERPROOF NAILS HARDCORE".split())
+MGS_PIPEWORK={"MGS_GAS_TYPE_TXT","MGS_ZVB_REF_TXT","MGS_NOM_PRESS_KPA_NR","MGS_DESIGN_FLOW_LPM_NR","MGS_PIPE_BRAZED_BOOL"}
 def resolve(n,desc,depth=0):
     p=n.split("_"); pre=p[0]; sub=p[1] if len(p)>1 else ""
+    # Exact-name homes first: the prefix rules below would bind these too widely.
+    # Project-wide settings read off ProjectInformation, named exactly because their
+    # prefixes (PROJECT_, PLM_, PRJ_ELC_) would otherwise bind them to elements too.
+    if n in ("PROJECT_REGION","PLM_RECIRC_DELTA_T_K","PRJ_ELC_SUPPLY_VOLTAGE_TXT"): return "PROJECT_INFO","project-level"
+    # Facts about a room or space, read there: the gases a clinical room needs
+    # (Med Gas Outlet placement) and the air system serving a space (Block Load).
+    # Block Load reads the air system on MEP Spaces, falling back to Rooms.
+    if n=="HVC_SYSTEM_ID_TXT": return "SPACE_ROOM","space-level"
+    # Med Gas Outlet placement collects Rooms only (OfType<Room>).
+    if n=="MGS_GAS_REQUIREMENT_TXT": return "ROOM","room-level"
+    # The fixture kind the connector completeness check reads; only fixtures have one.
+    if n=="PLM_FIX_TYPE_TXT": return "PLUMB_FIXTURE","fixture-level"
+    # Maintenance access side, read on the equipment the maintenance clash check scans.
+    if n=="MNT_ACCESS_DIR_TXT": return "MAINT_EQUIP","equipment-level"
+    # Annual energy use: the carbon tracker reads it for B6 on energy-using equipment
+    # (CarbonStageTracker.B6Categories), not only electrical boards.
+    if n=="ELC_ENERGY_KWH_PA": return "ENERGY_EQUIP","energy-use"
+    # Plaster faces is a wall fact read by the compound take-off.
+    # The compound take-off plasters basic walls only; the WALL set would also put
+    # it on curtain panels and mullions, which are never plastered.
+    if n=="BLE_PLASTER_FACES_NR": return "WALL_BASIC","wall-level"
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
     if pre=="TAG": return "NONE","annotation-only"
@@ -113,6 +157,34 @@ def resolve(n,desc,depth=0):
     if pre in("FOHLIO","PROJECT","MOUNTING","USAGE","INS"): return "UNIVERSAL","misc-meta"
     if pre=="WARN" and len(p)>1 and depth<3:
         return resolve("_".join(p[1:]),desc,depth+1)[0],"warn-mirror"
+    # A fire compartment is a property of the SPACE first. FLS_ alone binds to
+    # sprinklers and detectors, so FLS_COMPARTMENT_ID_TXT reached every device in a
+    # compartment and no room in it -- while the fls-compartment-id filter (OST_Rooms),
+    # the RDS validator and the Fire Compartment Tag all read it from Rooms.
+    if n.startswith("FLS_COMPARTMENT_") and depth==0: return "FIRE_COMPARTMENT","fls-compartment"
+    # The installation's earthing arrangement and MET location are facts about the
+    # whole supply, read off ProjectInformation by the earthing diagram. Named
+    # exactly, and ahead of the ELC_ prefix rule: a sub-token rule (EARTHING ->
+    # project) would also move the WARN_ELC_EARTHING_* mirrors, which describe
+    # equipment.
+    if n in ("ELC_EARTHING_SYSTEM_TXT","ELC_MET_LOCATION_TXT"): return "PROJECT_INFO","project-level"
+    # Board-level facts read only off Electrical Equipment (Dual-Source / SLD feed
+    # type, IPS Validation's LIM flag). The broad ELEC set would put them on every
+    # conduit and tray.
+    if n in ("ELC_FEED_TYPE_TXT","ELC_IPS_LIM_BOOL"): return "ELEC_EQUIP","board-level"
+    # The voltage-drop basis goes wherever its value goes: ELC_VLT_DROP_PCT is on
+    # circuits and boards (the feeder sizer stamps a feeder's drop on the board it
+    # feeds). The ELC_CKT_ sub-rule alone would leave a board's figure unexplained.
+    if n in ("ELC_CKT_VD_BASIS_TXT","ELC_VLT_DROP_TXT"): return "ELEC_EQUIP","vd-basis"
+    # A load-profile space type describes a space, not HVAC plant: Block Load and
+    # the cross-talk audit read it on MEP Spaces, Block Load and ComCheck on Rooms.
+    if n=="HVC_SPACE_TYPE_TXT": return "SPACE_ROOM","space-level"
+    # Medical gas travels in pipes. MgasNetwork builds each gas's network from
+    # pipes, fittings and accessories keyed on MGS_GAS_TYPE_TXT (and finds zone
+    # valve boxes by MGS_ZVB_REF_TXT on an accessory); MgasFlowValidator checks
+    # pressure and flow on the same elements. Under the HEALTH set none of them
+    # reached a pipe, so every network was terminal units with nothing between.
+    if n in MGS_PIPEWORK: return "MGS_PIPEWORK","mgs-pipework"
     if pre in SAFE:
         if pre=="HVC" and sub=="TERMINAL": return "HVAC_TERM","prefix+sub"
         if pre=="ELC" and sub in ELC: return ELC[sub],"elc-sub"
@@ -170,7 +242,8 @@ def resolve(n,desc,depth=0):
         for tk in parts:
             if tk in BLE: return BLE[tk],"arch-sub"
         return "ARCH","arch-generic"
-    # curated fallback (tight only)
+    # curated fallback (tight only). Tag-family keys are stripped from what the
+    # curated row contributes -- see TAG_FAMILY_KEYS below.
     cc=catb.get(n)
     if cc and len(cc)<=12: return None,"curated-fallback"  # keep raw curated
     # CODE-USAGE tier for the still-unresolved
@@ -221,10 +294,88 @@ MAT_PREFIXES, MAT_EXACT = material_prefixes()
 def material_relevant(name):
     return any(name.startswith(px) for px in MAT_PREFIXES) or name in MAT_EXACT
 
-out=[]; src=collections.Counter()
+# Every explicit category must be one the plugin can resolve. SharedParamGuids
+# drops a name missing from category_enum_map without a word, so a typo here would
+# look bound in the spec and bind nowhere -- the exact failure the marker exists to
+# end. Materials is exempt: it is bound by name prefix, and checked further down.
+_enum_map = json.load(open("StingTools/Data/PARAMETER_REGISTRY.json", encoding="utf-8-sig"))["category_enum_map"]
+_bad_explicit = sorted("%s -> %s" % (n, c) for n, cs in explicit.items() for c in cs
+                       if c != "Materials" and c not in _enum_map)
+if _bad_explicit:
+    raise SystemExit("explicit (Yes) CATEGORY_BINDINGS rows name categories that "
+                     "PARAMETER_REGISTRY.json category_enum_map does not know, so they "
+                     "would bind nowhere:\n  " + "\n  ".join(_bad_explicit[:20]))
+_orphan_explicit = sorted(n for n in explicit if n not in params)
+if _orphan_explicit:
+    raise SystemExit("explicit (Yes) CATEGORY_BINDINGS rows name parameters that are not "
+                     "defined in MR_PARAMETERS.txt:\n  " + "\n  ".join(_orphan_explicit[:20]))
+
+# ── Tag-family keys are not categories ──────────────────────────────────────
+# CATEGORY_BINDINGS.csv names some LABEL_DEFINITIONS.json tag-family keys in its
+# category column -- "MEP Sleeve", "Anti-Ligature (Door)" -- because
+# tools/check_tag_row_bindings.py checks a tag family's label rows against the
+# family's key. They are not Revit categories: SharedParamGuids.EnsureResolved
+# finds no BuiltInCategory for them and drops them. Every row that names one also
+# names the real category (Generic Models, Doors, ...), so dropping the key from
+# the SPEC loses no binding; keeping it in the spec made a row look bound to a
+# category nothing could deliver (ROADMAP PARAM-9). Only keys that ARE tag
+# families are stripped -- any other unknown name fails below.
+_label_keys = set((json.load(open("StingTools/Data/LABEL_DEFINITIONS.json", encoding="utf-8-sig"))
+                   .get("category_labels") or {}).keys())
+TAG_FAMILY_KEYS = {k for k in _label_keys if k not in _enum_map and k != "Materials"}
+def _real(names):
+    return [c for c in names if c not in TAG_FAMILY_KEYS]
+
+# ── "<ALL> plus" cells ──────────────────────────────────────────────────────
+# A categories cell may read "<ALL>|Project Information": the universal set (the
+# 143 element categories in universal_categories, plus Sheets, which the loader
+# inserts) AND categories outside it. SharedParamGuids.EnsureResolved reads the
+# first token as the universal marker and the rest as extra categories. Plain
+# "<ALL>" still means exactly what it did.
+def cell_parse(c):
+    toks = c.split("|")
+    return ("<ALL>" in toks), [t for t in toks if t and t != "<ALL>"]
+def cell_fmt(uni, extras):
+    ex = sorted(set(extras))
+    return "|".join((["<ALL>"] if uni else []) + ex)
+
+# ── Project-level parameters reach Project Information (ROADMAP PARAM-6) ──────
+# PRJ_* are facts about the project -- name, address, phase, climate site,
+# refrigerant defaults -- and their readers go to doc.ProjectInformation. Marked
+# <ALL> they bound to 143 element categories and not to Project Information, which
+# is not one of them, so every one of those reads returned nothing. The sheet
+# identity family (PRJ_TB_*, PRJ_SHEET_*, PRJ_DWG_*, PRJ_STATUS_COD_TXT) stays on
+# Sheets. Additive: an <ALL> parameter keeps <ALL> and gains Project Information,
+# because a project that has put a PRJ_ value on elements keeps it.
+def is_project_level(n):
+    return (n.startswith("PRJ_")
+            and not n.startswith(("PRJ_TB_", "PRJ_SHEET_", "PRJ_DWG_"))
+            and n != "PRJ_STATUS_COD_TXT")
+_project_info_added = []
+
+out=[]; src=collections.Counter(); _explicit_added=0
 for n,(g,d) in params.items():
     dom,s=resolve(n,d)
-    cats = "|".join(sorted(catb[n])) if dom is None else S[dom]
+    cats = "|".join(sorted(_real(catb[n]))) if dom is None else S[dom]
+    ex = explicit.get(n)
+    if ex:
+        if cats == "<ALL>":
+            # An explicit home beats a blanket prefix rule: <ALL> cannot be
+            # combined with a category outside the universal set (the loader reads
+            # the cell as one token), and a parameter someone placed by hand on
+            # Views or Project Information has no business on 143 element categories.
+            cats = "|".join(sorted(ex)); s = "explicit"
+        else:
+            have = [c for c in cats.split("|") if c]
+            extra = sorted(ex - set(have))
+            if extra:
+                cats = "|".join(have + extra); _explicit_added += len(extra)
+    if is_project_level(n) and cats:
+        _u, _ex = cell_parse(cats)
+        if "Project Information" not in _ex:
+            cats = cell_fmt(_u, _ex + ["Project Information"]) if _u else "|".join(
+                [c for c in cats.split("|")] + ["Project Information"])
+            _project_info_added.append(n)
     out.append((n,g,s,cats,d)); src[s]+=1
 # FAIL rather than write a row that claims a binding nothing delivers.
 mat_orphans=[o[0] for o in out if o[3]=="Materials" and not material_relevant(o[0])]
@@ -236,12 +387,145 @@ if mat_orphans:
         "Either give them a real category in resolve(), or add their prefix to "
         "IsMaterialRelevantParam in StingTools/Tags/LoadSharedParamsCommand.cs."
         % (len(mat_orphans), "\n  ".join(sorted(mat_orphans)[:20])))
-scoped=sum(1 for o in out if o[3] not in("","<ALL>")); univ=sum(1 for o in out if o[3]=="<ALL>"); unb=sum(1 for o in out if o[3]=="")
+# The same lie in the INPUT. A "Materials" row in CATEGORY_BINDINGS.csv for a parameter
+# IsMaterialRelevantParam does not recognise is dropped at load (CleanMaterialBindings
+# removes Materials from every non-material parameter), so the row claims a binding that
+# never happens. 56 such rows sat there - mostly WARN_* parameters bound to a broad list
+# that happened to include Materials - and the check above missed them because those
+# parameters resolve to more than Materials. A material TAG reading one prints blank.
+stray_mat=sorted(n for n,cs in catb.items() if "Materials" in cs and not material_relevant(n))
+if stray_mat:
+    raise SystemExit(
+        "%d CATEGORY_BINDINGS.csv row(s) bind a non-material parameter to Materials, which "
+        "CleanMaterialBindings strips at load:\n  %s\n"
+        "Remove the Materials row, or add the prefix to IsMaterialRelevantParam in "
+        "StingTools/Tags/LoadSharedParamsCommand.cs if it really is a material property."
+        % (len(stray_mat), "\n  ".join(stray_mat[:20])))
+scoped=sum(1 for o in out if o[3]!="" and not cell_parse(o[3])[0]); univ=sum(1 for o in out if cell_parse(o[3])[0]); unb=sum(1 for o in out if o[3]=="")
 gaps=[o for o in out if o[2].startswith("UNRESOLVED")]
 print("resolution source:")
 for s,c in src.most_common(): print("  %-26s %5d"%(s,c))
 print("\nSCOPED:%d  UNIVERSAL:%d  UNBOUND:%d"%(scoped,univ,unb))
 print("remaining true gaps:",len(gaps))
+
+# ── never narrow what a gate has widened ────────────────────────────────────
+#
+# This script DERIVES bindings. It does not know the two rules that other gates
+# enforce, and both of them WIDEN a parameter's category list:
+#
+#   * every parameter a tag label displays must be bound to the category that
+#     family tags, or the label renders blank (095c9c8eb: 128 of 206 families
+#     had at least one such row);
+#   * every schedule field must be bound to its schedule's category, or the
+#     column renders empty (304a132f2).
+#
+# Regenerating from scratch therefore DROPS those widenings. Measured
+# 2026-09-22: it removed 251 rows' worth of categories, and the Revit-free
+# gates immediately reported 340 label parameters across 120 families unable to
+# reach their own category and 197 empty schedule columns. A green
+# regenerate-is-a-noop bought by deleting those is worse than a red one.
+#
+# So a category present in the committed file is KEPT. The derivation may add,
+# never remove. The drift gate still catches a resolver that invents a binding,
+# which is the direction that needs catching - a wrongly ADDED binding is a
+# parameter on a category that should not carry it, and nothing else would see
+# it.
+_prev = {}
+try:
+    with open("StingTools/Data/RESOLVED_BINDINGS.csv", newline="", encoding="utf-8") as _f:
+        for _row in csv.reader(_f):
+            if len(_row) >= 2 and not _row[0].startswith("#"):
+                # A tag-family key in the committed spec is not a category (see
+                # TAG_FAMILY_KEYS); carrying it forward would re-add it forever.
+                _prev[_row[0]] = "|".join(_real(_row[1].split("|")))
+except FileNotFoundError:
+    pass
+
+_widened = 0
+for _i, _o in enumerate(out):
+    _n, _g, _srcx, _cats, _d = _o
+    _was = _prev.get(_n)
+    if not _was or _was == _cats:
+        continue
+    if set(_cats.split("|")) <= set(_was.split("|")):
+        # Nothing new, possibly in a different order: keep the committed
+        # spelling, so a change to HOW a set is derived does not show up as a
+        # binding diff when the binding itself has not moved.
+        if set(_cats.split("|")) != set(_was.split("|")): _widened += 1
+        out[_i] = (_n, _g, _srcx, _was, _d)
+        continue
+    _wu, _we = cell_parse(_was); _cu, _ce = cell_parse(_cats)
+    if _wu or _cu:
+        # <ALL> is the widest there is; never trade it for a list. The list
+        # side's categories are dropped as before (they are element
+        # categories <ALL> already covers), except that the extras of an
+        # "<ALL>|..." cell on EITHER side are kept.
+        _merged = cell_fmt(True, (_we if _wu else []) + (_ce if _cu else []))
+        if _merged != _cats:
+            out[_i] = (_n, _g, _srcx, _merged, _d)
+            _widened += 1
+        continue
+    _union = sorted(set(_was.split("|")) | set(_cats.split("|")))
+    if len(_union) > len(_cats.split("|")):
+        out[_i] = (_n, _g, _srcx, "|".join(_union), _d)
+        _widened += 1
+
+print("kept wider committed bindings on %d parameter(s)" % _widened)
+
+# A _TXT display mirror binds wherever the value it mirrors binds. A tag label can
+# only read TEXT, so a mirror missing from a category its source is on shows a blank
+# label on elements that hold the value. The mirror/source pairing is read from
+# bind_txt_mirrors.py, which owns it; this pass only widens (like the one above),
+# so re-running is a no-op.
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("_bind_txt_mirrors", os.path.join(os.path.dirname(os.path.abspath(__file__)), "bind_txt_mirrors.py"))
+_btm = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_btm)
+_mirrors, _ = _btm.mirror_sources()
+_idx = {o[0]: i for i, o in enumerate(out)}
+_mirror_widened = 0
+for _m, _src in sorted(_mirrors.items()):
+    if _m not in _idx or _src not in _idx: continue
+    _mi, _si = _idx[_m], _idx[_src]
+    _mn, _mg, _mx, _mc, _md = out[_mi]
+    _sc = out[_si][3]
+    if not _sc: continue
+    _mu, _me = cell_parse(_mc) if _mc else (False, [])
+    _su, _se = cell_parse(_sc)
+    _new = cell_fmt(True, _me + _se) if (_mu or _su) else "|".join(sorted(set(_me) | set(_se)))
+    if set(_new.split("|")) != set((_mc or "").split("|")):
+        out[_mi] = (_mn, _mg, _mx, _new, _md)
+        _mirror_widened += 1
+print("widened %d _TXT mirror(s) to their source's categories" % _mirror_widened)
+
+# Regression gate for the Yes marker: every hand-authored home must be in the
+# row that ships. This is what went missing for the LPS / regional project-level
+# parameters, and nothing reported it, because "absent" reads as "unbound on
+# purpose". A later rule that drops one fails here instead.
+_final = {o[0]: o[3] for o in out}
+_lost = sorted("%s -> %s" % (n, c) for n, cs in explicit.items() for c in cs
+               if c != "Materials" and c not in _final.get(n, "").split("|"))
+if _lost:
+    raise SystemExit("explicit (Yes) CATEGORY_BINDINGS homes missing from the generated "
+                     "spec:\n  " + "\n  ".join(_lost[:20]))
+
+# Every category in every row that ships must be one the plugin can resolve.
+# SharedParamGuids.EnsureResolved skips an unknown name (it now logs it), so a row
+# naming only an unknown category binds nowhere while the spec says it is bound.
+# Checked on the OUTPUT, whatever route put the name there -- derivation, a
+# curated fallback, an explicit row, or the keep-wider-committed step.
+# Materials is bound by name prefix (checked above); an empty token is ignored by
+# the loader.
+_unknown = sorted("%s -> %s" % (o[0], c) for o in out for c in o[3].split("|")
+                  if c and c not in ("<ALL>", "Materials") and c not in _enum_map)
+if _unknown:
+    raise SystemExit("%d emitted binding(s) name a category PARAMETER_REGISTRY.json "
+                     "category_enum_map does not know, so they would bind nowhere:\n  %s"
+                     % (len(_unknown), "\n  ".join(_unknown[:20])))
+_misplaced_all = sorted(o[0] for o in out if "<ALL>" in o[3].split("|")[1:])
+if _misplaced_all:
+    raise SystemExit("<ALL> must be the first token of a categories cell (the loader "
+                     "reads it there):\n  " + "\n  ".join(_misplaced_all[:20]))
+
 with open("docs/RESOLVED_BINDINGS.csv","w",newline="",encoding="utf-8") as f:
     w=csv.writer(f, lineterminator=LF); w.writerow(["param","group","source","categories","desc"]); w.writerows(sorted(out))
 with open("docs/binding_gaps.csv","w",newline="",encoding="utf-8") as f:
@@ -255,4 +539,13 @@ print("material rows cross-checked against IsMaterialRelevantParam: "
       % (len(MAT_PREFIXES), len(MAT_EXACT),
          sum(1 for o in out if o[3]=="Materials")))
 print("code-usage recovered:",src["code-usage"])
+print("explicit (Yes) categories added on top of the derivation:",_explicit_added)
+print("project-level (PRJ_) parameters given Project Information:",len(_project_info_added))
+print("tag-family keys stripped from category lists:",len(TAG_FAMILY_KEYS),"known")
 print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")
+
+# The two human-readable views (PARAMETER_CATEGORIES.csv, BINDING_COVERAGE_MATRIX.csv)
+# are projections of the spec just written. Regenerating them here means the drift
+# gate that re-runs this script covers them too; they cannot fall behind again.
+import subprocess as _sp, sys as _sys
+_sp.run([_sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen_binding_views.py")], check=True)

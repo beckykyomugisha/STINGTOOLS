@@ -3357,14 +3357,12 @@ namespace StingTools.Tags
                     string sys = TagConfig.GetMepSystemAwareSysCode(el, cat);
                     if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
                     string func = TagConfig.GetSmartFuncCode(el, sys);
-                    if (string.IsNullOrEmpty(func))
-                        func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
                     string prod = TagConfig.GetFamilyAwareProdCode(el, cat);
                     string status = PhaseAutoDetect.DetectStatus(linkedDoc, el);
                     if (string.IsNullOrEmpty(status)) status = "NEW";
                     string rev = !string.IsNullOrEmpty(popCtx.ProjectRev) ? popCtx.ProjectRev : "P01";
                     string derivedTag = string.Join(ParamRegistry.Separator,
-                        disc, loc, zone, lvl, sys, func, prod, "0000");
+                        disc, loc, zone, lvl, sys, func, prod, SeqAssigner.UnassignedSeq(TagConfig.EffectiveSeqPad));
 
                     entries.Add(new Dictionary<string, string>
                     {

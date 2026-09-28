@@ -511,6 +511,8 @@ namespace StingTools.Core
         public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
         public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
+        public const string TB_DISCIPLINE          = "PRJ_TB_DISCIPLINE_TXT";
+        public const string TB_DISCIPLINE_GUID     = "edbf1392-5aea-505b-8b05-7a6432b0c3e1";
         // P4 — MEP system/service code shown on the title block SYSTEM cell.
         // Instance param on OST_TitleBlocks; filled from DrawingType.System via
         // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
@@ -594,6 +596,10 @@ namespace StingTools.Core
         public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
         public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
         public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
+        /// <summary>CDE state as a number (0 unknown … 4 archived) — drives the
+        /// title-block status band. Name owned by SuitabilityPresentation.</summary>
+        public const string TB_CDE_STATE_INT             = Drawing.SuitabilityPresentation.StateParameter;
+        public const string TB_CDE_STATE_INT_GUID        = "4f2b28ee-4444-5a79-ac09-97c6d3c23d74";
 
         /// <summary>The ISO 19650 STATUS / suitability CODE cell — "S2", "S4", "A1".
         ///
@@ -742,6 +748,16 @@ namespace StingTools.Core
         public const string ORG_SIGNATURE_PROVIDER_GUID = "e669eea3-d1fa-51b7-b820-83fa21d40877";
         public const string ORG_AI_EXTRACT_ENABLED      = "PRJ_ORG_AI_EXTRACT_ENABLED_BOOL";
         public const string ORG_AI_EXTRACT_ENABLED_GUID = "a7c93ee1-9df2-5531-b873-1df826526e82";
+
+        // DRAW-6 — project sheet-number policy (short / profile / iso), read by
+        // DrawingProducer through SheetNumberPolicy. Referenced since the policy
+        // landed but registered in no data file, so LookupParameter returned
+        // null on every model and the "iso" opt-in could not be set. The name
+        // is SheetNumberPolicy's constant so the two cannot drift; the GUID is
+        // UUIDv5(Planscape docs namespace, name), the scheme every PRJ_ORG_*
+        // sibling uses. Not in AllOrganisationParams (template-engine seed set).
+        public const string ORG_SHEET_NUMBER_POLICY      = StingTools.Core.Drawing.SheetNumberPolicy.PolicyParameterName;
+        public const string ORG_SHEET_NUMBER_POLICY_GUID = "89828bdc-25ad-5245-bce8-3274203c34b2";
 
         /// <summary>All 13 PRJ_ORG_* parameters added in template engine v1.1 (S01).</summary>
         public static readonly string[] AllOrganisationParams = new[]
@@ -1184,6 +1200,22 @@ namespace StingTools.Core
             public string Threshold { get; set; }
             public string Unit { get; set; }
             public string Severity { get; set; } // CRITICAL, HIGH, MEDIUM, LOW
+
+            /// <summary>
+            /// Names a per-sector table to look the threshold up in, instead of
+            /// using <see cref="Threshold"/>. Currently "spareTargetsPct".
+            ///
+            /// <para>A fixed number cannot be right for every building. Panel
+            /// spare capacity is the case that forced this: the flat 20 here
+            /// matched only Residential, while the design targets run to 35 for
+            /// Healthcare - so the warning stayed quiet at 22% spare on a
+            /// hospital, silent exactly where the requirement is strictest.</para>
+            ///
+            /// <para><see cref="Threshold"/> stays populated and is the fallback,
+            /// so a table that cannot be read degrades to the old behaviour
+            /// rather than to no check at all.</para>
+            /// </summary>
+            public string ThresholdTable { get; set; }
         }
 
         /// <summary>All warning threshold definitions keyed by param name.</summary>
@@ -1216,9 +1248,40 @@ namespace StingTools.Core
         /// Returns a warning message if threshold is exceeded, or null if compliant.
         /// </summary>
         public static string EvaluateWarning(WarningThresholdDef def, string currentValue)
+            => EvaluateWarning(def, currentValue, null);
+
+        /// <summary>
+        /// Evaluate a warning threshold, resolving a per-sector threshold when
+        /// the definition names a table.
+        ///
+        /// <para><paramref name="sector"/> may be null - the definition's own
+        /// fixed threshold is then used, which is what every caller did before
+        /// sectors existed.</para>
+        /// </summary>
+        public static string EvaluateWarning(WarningThresholdDef def, string currentValue, string sector)
         {
             if (def == null || string.IsNullOrEmpty(currentValue) || string.IsNullOrEmpty(def.Threshold))
                 return null;
+
+            // A per-sector threshold REPLACES the fixed one. Resolved into a
+            // copy, never written back onto the shared definition - these defs
+            // are static and cached, and mutating one would leak the first
+            // document's sector into every document opened afterwards.
+            if (!string.IsNullOrEmpty(def.ThresholdTable) && !string.IsNullOrWhiteSpace(sector))
+            {
+                double bySector = ResolveTableThreshold(def.ThresholdTable, sector);
+                if (bySector > 0)
+                    def = new WarningThresholdDef
+                    {
+                        ParamName = def.ParamName,
+                        Guid = def.Guid,
+                        Description = def.Description + $" ({sector})",
+                        Threshold = bySector.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        Unit = def.Unit,
+                        Severity = def.Severity,
+                        ThresholdTable = def.ThresholdTable
+                    };
+            }
             // Try numeric comparison
             if (double.TryParse(currentValue, out double val) && double.TryParse(def.Threshold, out double thresh))
             {
@@ -1235,6 +1298,25 @@ namespace StingTools.Core
                     return $"[!{def.Severity}: {def.Description} — {currentValue} {def.Unit} exceeds {def.Threshold} {def.Unit}]";
             }
             return null;
+        }
+
+        /// <summary>
+        /// The threshold for a named table and sector, or 0 when the table is
+        /// not one this knows - in which case the caller keeps the definition's
+        /// fixed threshold rather than losing the check.
+        /// </summary>
+        private static double ResolveTableThreshold(string table, string sector)
+        {
+            try
+            {
+                if (string.Equals(table, "spareTargetsPct", StringComparison.OrdinalIgnoreCase))
+                    return Core.Electrical.SpareCapacityTable.TargetPct(sector);
+
+                StingLog.Warn($"EvaluateWarning: threshold_table '{table}' is not recognised — " +
+                              "using the definition's fixed threshold");
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveTableThreshold('{table}','{sector}'): {ex.Message}"); }
+            return 0;
         }
 
         // ── Paragraph container mapping (v5.5) ──────────────────────────
@@ -1346,7 +1428,9 @@ namespace StingTools.Core
         public const string TAG_STYLE_CODE_GUID = "d4e5f6a7-b8c9-4d0e-af12-345678901bcd";
 
         /// <summary>Available text sizes for tag style parameters.</summary>
-        public static readonly string[] TagStyleSizes = { "2", "2.5", "3", "3.5" };
+        /// <remarks>ISO 3098 sizes first (2.5, 3.5); 2 and 3 mm rows exist for projects that
+        /// choose them and are never a default (Drawing.IsoTagText).</remarks>
+        public static readonly string[] TagStyleSizes = { "2.5", "3.5", "2", "3" };
         /// <summary>Available text styles for tag style parameters.</summary>
         public static readonly string[] TagStyleStyles = { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
         /// <summary>Available text colors for tag style parameters.</summary>
@@ -2589,6 +2673,9 @@ namespace StingTools.Core
                     Threshold   = w["threshold"]?.ToString() ?? "",
                     Unit        = w["unit"]?.ToString() ?? "",
                     Severity    = w["severity"]?.ToString() ?? "MEDIUM",
+                    // Optional. When present the threshold is looked up per
+                    // sector and "threshold" becomes the fallback.
+                    ThresholdTable = w["threshold_table"]?.ToString(),
                 };
                 if (!string.IsNullOrEmpty(def.ParamName))
                     WarningThresholds[def.ParamName] = def;
@@ -2904,9 +2991,11 @@ namespace StingTools.Core
                 { "MEP Fabrication Hangers", "OST_FabricationHangers" },
                 { "MEP Fabrication Pipework", "OST_FabricationPipework" },
                 { "Mass", "OST_Mass" },
-                // NOTE: OST_Materials intentionally EXCLUDED — materials use native Revit
-                // properties (Color, Transparency, ThermalAsset, StructuralAsset) set via
-                // MaterialCommands.cs, NOT shared parameter bindings.
+                // NOTE: OST_Materials intentionally EXCLUDED from this category map. Materials
+                // do carry shared parameters (MAT_*, PROP_* …) — bound by name in
+                // LoadSharedParamsCommand.CleanMaterialBindings, not through this map — as
+                // well as the native properties MaterialCommands.cs sets (Color, Transparency,
+                // ThermalAsset, StructuralAsset).
                 { "Mechanical Control Devices", "OST_MechanicalControlDevices" },
                 { "Mechanical Equipment", "OST_MechanicalEquipment" },
                 { "Mechanical Equipment Sets", "OST_MechanicalEquipmentSets" },
@@ -3495,11 +3584,46 @@ namespace StingTools.Core
         private const int _tokenSanitiseLogCap = 3;
 
         /// <summary>
+        /// How many stored token values have been sanitised on READ this session,
+        /// and how many of those went unlogged because the cap was spent. Same
+        /// reasoning as ParameterHelpers.SourceTokenWriteCleanups: a suppressed
+        /// count that is never reported hides exactly the evidence you need.
+        /// </summary>
+        public static int TokenSanitiseCount => _tokenSanitiseLogCount + _tokenSanitiseSuppressed;
+        public static int TokenSanitiseSuppressed => _tokenSanitiseSuppressed;
+
+        /// <summary>Zero the read-side sanitise counters so a run reports its OWN totals.</summary>
+        public static void ResetTokenSanitiseCounters()
+        {
+            _tokenSanitiseLogCount = 0;
+            _tokenSanitiseSuppressed = 0;
+        }
+
+        /// <summary>
         /// PROD-CONCAT-FIX: Defensive token sanitiser. Returns a clean token value
         /// (possibly empty) whenever the stored parameter looks like a concatenation
         /// or a carry-over of an earlier full tag. Callers treat an empty string
         /// as "re-derive on next tag build", which is the safe behaviour.
         /// </summary>
+        /// <summary>
+        /// True when a stored token value carries no usable token - it is blank,
+        /// or it sanitises away to nothing.
+        ///
+        /// <para>WHY THIS IS PUBLIC. Readers and writers disagreed about what
+        /// "empty" means, and the disagreement shipped tags. SEQ held a bare
+        /// "-" on eight elements (a leftover from the deprecated ZonePrefix /
+        /// DiscPrefix schemes, which emitted "Z1-0042"). Every READER sanitised
+        /// that to "" and rendered a tag ending in a bare separator; the WRITER
+        /// saw a string of length 1, decided the slot was occupied, and refused
+        /// the write that would have fixed it. The element could never recover
+        /// on its own.</para>
+        ///
+        /// <para>So the writer now asks the same question the reader does. A
+        /// value that reads as nothing must not block a write.</para>
+        /// </summary>
+        public static bool IsTokenEffectivelyEmpty(string raw)
+            => string.IsNullOrWhiteSpace(SanitiseTokenValue(raw, null, null));
+
         private static string SanitiseTokenValue(string raw, string paramName, Element el)
         {
             if (string.IsNullOrEmpty(raw)) return "";
@@ -3669,7 +3793,8 @@ namespace StingTools.Core
                     if (ParameterHelpers.SetString(el, c.ParamName, assembled, overwrite))
                         written++;
                     else
-                        StingLog.Warn($"WriteContainers: failed to write {c.ParamName} on element {el.Id.Value}");
+                        StingLog.Warn($"WriteContainers: did not write {c.ParamName} on element " +
+                                      $"{el.Id.Value}: {ParameterHelpers.ExplainWriteFailure(el, c.ParamName, overwrite)}");
                 }
             }
 
@@ -3930,6 +4055,34 @@ namespace StingTools.Core
         public const string CBN_C2_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000012";
         public const string CBN_C3_C4_KG_CO2E            = "CBN_C3_C4_KG_CO2E";
         public const string CBN_C3_C4_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000013";
+
+        // --- PARAM-10: parameters the code read before any file defined them (2026-09-27) ---
+        public const string ELC_CBL_RATED_V_NR               = "ELC_CBL_RATED_V_NR";
+        public const string ELC_CBL_RATED_V_NR_GUID          = "826c7919-4bb2-56eb-a0df-7ec7bd852126";
+        public const string PROJECT_REGION                   = "PROJECT_REGION";
+        public const string PROJECT_REGION_GUID              = "8785ba08-0398-5be0-ad70-a3e0b545b44b";
+        public const string PRJ_ORG_CURRENCY_TXT             = "PRJ_ORG_CURRENCY_TXT";
+        public const string PRJ_ORG_CURRENCY_TXT_GUID        = "6a3d0f1e-1067-59c4-958a-0bbccbdb35d5";
+        public const string PRJ_ORG_DISCIPLINES_TXT          = "PRJ_ORG_DISCIPLINES_TXT";
+        public const string PRJ_ORG_DISCIPLINES_TXT_GUID     = "bc8e6c91-1c5d-5120-8d73-41936a67b070";
+        public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT     = "PRJ_ORG_MAT_SIGNOFF_SUIT_TXT";
+        public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT_GUID = "6302d0f2-16a2-5449-a6db-cc3e9c374609";
+        public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT       = "PRJ_ELC_SUPPLY_VOLTAGE_TXT";
+        public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT_GUID  = "878bb409-fa13-5d8f-ae92-8fdac5aa7375";
+        public const string PLM_RECIRC_DELTA_T_K             = "PLM_RECIRC_DELTA_T_K";
+        public const string PLM_RECIRC_DELTA_T_K_GUID        = "b0ae4e71-3170-55ff-9c47-5e559ee12943";
+        public const string PLM_FIX_TYPE_TXT                 = "PLM_FIX_TYPE_TXT";
+        public const string PLM_FIX_TYPE_TXT_GUID            = "825bb253-9c4b-5051-bd48-8b50ebdbd40b";
+        public const string MGS_GAS_REQUIREMENT_TXT          = "MGS_GAS_REQUIREMENT_TXT";
+        public const string MGS_GAS_REQUIREMENT_TXT_GUID     = "0427a377-ac36-52c4-b9e3-ab62433bc577";
+        public const string HVC_SYSTEM_ID_TXT                = "HVC_SYSTEM_ID_TXT";
+        public const string HVC_SYSTEM_ID_TXT_GUID           = "3955ebbc-36a2-5a8e-b495-f463c9d9fa8f";
+        public const string MNT_ACCESS_DIR_TXT               = "MNT_ACCESS_DIR_TXT";
+        public const string MNT_ACCESS_DIR_TXT_GUID          = "949f0c78-685c-5f70-b670-fe74183f81dd";
+        public const string ELC_CDT_CABLE_MANIFEST_TXT       = "ELC_CDT_CABLE_MANIFEST_TXT";
+        public const string ELC_CDT_CABLE_MANIFEST_TXT_GUID  = "fd6672f7-86e9-55f8-a982-cb3f1118f151";
+        public const string BLE_PLASTER_FACES_NR             = "BLE_PLASTER_FACES_NR";
+        public const string BLE_PLASTER_FACES_NR_GUID        = "10694d13-4a6e-5947-9f2f-d89e531db0c7";
 
         // --- T7: Fabrication & QC (BS EN ISO 6412 spool / QC inspector chain) ---
         public const string ASS_SPOOL_NR_TXT             = "ASS_SPOOL_NR_TXT";

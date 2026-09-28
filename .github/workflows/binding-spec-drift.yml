@@ -1,6 +1,8 @@
 name: Binding Spec Drift Gate
 
-# `tools/param_binding_resolver.py` writes THREE files in one run:
+# `tools/param_binding_resolver.py` writes THREE files in one run, then
+# `tools/gen_binding_views.py` projects the deployable one into two views
+# (PARAMETER_CATEGORIES.csv, BINDING_COVERAGE_MATRIX.csv); all five are checked:
 #
 #   docs/RESOLVED_BINDINGS.csv          the audit view a human reads (every
 #                                       parameter, including those bound to nothing)
@@ -32,6 +34,9 @@ on:
       - 'StingTools/Data/RESOLVED_BINDINGS.csv'
       - 'docs/RESOLVED_BINDINGS.csv'
       - 'docs/binding_gaps.csv'
+      - 'StingTools/Data/PARAMETER_CATEGORIES.csv'
+      - 'StingTools/Data/BINDING_COVERAGE_MATRIX.csv'
+      - 'tools/gen_binding_views.py'
       - '.github/workflows/binding-spec-drift.yml'
   pull_request:
     paths:
@@ -41,6 +46,9 @@ on:
       - 'StingTools/Data/RESOLVED_BINDINGS.csv'
       - 'docs/RESOLVED_BINDINGS.csv'
       - 'docs/binding_gaps.csv'
+      - 'StingTools/Data/PARAMETER_CATEGORIES.csv'
+      - 'StingTools/Data/BINDING_COVERAGE_MATRIX.csv'
+      - 'tools/gen_binding_views.py'
       - '.github/workflows/binding-spec-drift.yml'
   workflow_dispatch:
 
@@ -65,7 +73,9 @@ jobs:
           if git diff --quiet -- \
                docs/RESOLVED_BINDINGS.csv \
                docs/binding_gaps.csv \
-               StingTools/Data/RESOLVED_BINDINGS.csv; then
+               StingTools/Data/RESOLVED_BINDINGS.csv \
+               StingTools/Data/PARAMETER_CATEGORIES.csv \
+               StingTools/Data/BINDING_COVERAGE_MATRIX.csv; then
             echo "Binding spec is current: regenerating changed nothing."
             exit 0
           fi

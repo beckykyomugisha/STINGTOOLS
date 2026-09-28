@@ -70,9 +70,9 @@ REGISTRY = os.path.join(ROOT, 'StingTools', 'Core', 'ParamRegistry.cs')
 # SetIfEmpty does NOT match SetIfEmptyStr on its own: the \s*\( requires a paren
 # straight after the name, so the longer helper needs naming explicitly. Ordered
 # longest-first so the alternation cannot match a prefix of a longer name.
-WRITE = re.compile(r'\b(SetOnSheetAndTitleBlock|SetIfEmptyStr|SetIfEmpty'
+WRITE = re.compile(r'\b(SetOnSheetAndTitleBlock|SetDoubleInNamedUnit|SetIfEmptyStr|SetIfEmpty'
                    r'|SetElementId|SetString|SetDouble|SetStr|SetInt)\s*\(')
-READ = re.compile(r'\b(GetString|GetInt|GetDouble|GetElementId|LookupParameter'
+READ = re.compile(r'\b(GetValueText|GetString|GetInt|GetDouble|GetElementId|LookupParameter'
                   r'|AsString|AsDouble|AsInteger|AsValueString)\b')
 TABLE_ROW = re.compile(r'^\s*\(\s*Col\w+\s*,')
 

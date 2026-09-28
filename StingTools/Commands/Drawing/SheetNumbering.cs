@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.Revit.DB;
 using StingTools.Core;
 using StingTools.Core.Drawing;
@@ -122,6 +123,46 @@ namespace StingTools.Commands.Drawing
             outcome.HistoryPath = RecordHistory(doc, plan, outcome, transactionName);
             return outcome;
         }
+        /// <summary>For a rename already committed elsewhere (a legacy revert): rebuild
+        /// the identifiers and record the history, exactly as <see cref="Apply"/> does, so
+        /// no rename path leaves the title block printing the old number.</summary>
+        internal static Outcome AfterExternalRename(Document doc, List<Change> plan, string source,
+            bool recordHistory = true)
+        {
+            var outcome = new Outcome();
+            if (plan == null || plan.Count == 0) return outcome;
+            outcome.Done = plan.Count(c => c.Sheet != null
+                && string.Equals(c.Sheet.SheetNumber, c.New, StringComparison.Ordinal));
+            Retag(doc, plan, outcome, source);
+            // Only with a real Old: a history entry "" -> X would let Restore blank a number.
+            if (recordHistory) outcome.HistoryPath = RecordHistory(doc, plan, outcome, source);
+            return outcome;
+        }
+
+        /// <summary>The next number the project's pattern gives discipline
+        /// <paramref name="disc"/>: one past the highest sequence already issued in that
+        /// shape, skipping any number that is taken. The Sheet Manager, sheet sets and
+        /// sheet templates each hard-coded "{disc}-{seq:D3}", so a project numbering
+        /// "{disc}-{lvl}-{seq:D3}" got A-002 from them and A-01-002 from Auto-Number.</summary>
+        internal static string NextNumber(Document doc, string disc, string level = null)
+        {
+            string pattern = ReadPattern(doc);
+            string projectCode = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ORG_PROJECT_CODE);
+            string originator = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ORG_ORIGINATOR_CODE);
+            var taken = new HashSet<string>(new FilteredElementCollector(doc).OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>().Select(s => s.SheetNumber), StringComparer.OrdinalIgnoreCase);
+
+            int max = 0;
+            for (int n = 1; n <= taken.Count + 1; n++)
+                if (taken.Contains(SheetDisciplineResolver.FormatNumber(pattern, disc, level, projectCode, originator, n)))
+                    max = n;
+            for (int n = max + 1; ; n++)
+            {
+                string candidate = SheetDisciplineResolver.FormatNumber(pattern, disc, level, projectCode, originator, n);
+                if (!taken.Contains(candidate)) return candidate;
+            }
+        }
+
         /// <summary>Rebuild the ISO 19650 identifier on every sheet that was
         /// renumbered.
         ///

@@ -229,6 +229,23 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// Circuit-number text for <paramref name="paramName"/> (ELC_CKT_NR). TEXT
+        /// storage is returned exactly as stored, via <see cref="GetDisplayText"/>.
+        /// A project that bound the parameter as NUMBER before it became TEXT gets
+        /// "3", not the project-unit display "3.00" — see
+        /// <see cref="StingTools.Core.Electrical.CircuitNumberText"/>.
+        /// </summary>
+        public static string GetCircuitNumberText(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
+            Parameter p = CachedLookup(el, paramName);
+            if (p != null && p.StorageType == StorageType.Double && p.HasValue)
+                return StingTools.Core.Electrical.CircuitNumberText.FromNumber(
+                    p.AsDouble(), p.AsValueString());
+            return GetDisplayText(el, paramName);
+        }
+
+        /// <summary>
         /// Display text for a parameter regardless of storage type. Unlike
         /// <see cref="GetString"/> (which returns "" for any non-String storage),
         /// this formats NUMBER / INTEGER / ElementId values so numeric tier params
@@ -286,6 +303,105 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// A parameter's value as plain invariant text in the unit its NAME implies, for any
+        /// storage. <see cref="GetString"/> returns "" for a NUMBER / LENGTH / AREA parameter,
+        /// which blanked every such value read through it; <see cref="GetDisplayText"/> returns
+        /// project-unit display text with the unit appended, which does not parse back.
+        /// Here: TEXT as stored; INTEGER / Yes-No as the integer; a Double as a plain number —
+        /// LENGTH in mm (m when the name ends <c>_M</c>), AREA in m², VOLUME in m³, voltage /
+        /// power / current in V, VA or W, A (<see cref="Electrical.ElecUnits"/>), any other
+        /// spec (NUMBER, CURRENCY) as stored. "" when the parameter is absent or has no value.
+        /// </summary>
+        public static string GetValueText(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null) return string.Empty;
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        return p.AsString() ?? string.Empty;
+                    case StorageType.Integer:
+                        return p.HasValue ? p.AsInteger().ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
+                    case StorageType.Double:
+                        return p.HasValue ? UnitValueText.Invariant(DoubleInNamedUnit(p, paramName)) : string.Empty;
+                    default:
+                        return string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("GetValueText", $"GetValueText({paramName}): {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        private static double DoubleInNamedUnit(Parameter p, string paramName)
+        {
+            double raw = p.AsDouble();
+            ForgeTypeId unit = NamedUnit(p, paramName);
+            return unit == null ? raw : UnitUtils.ConvertFromInternalUnits(raw, unit);
+        }
+
+        /// <summary>The unit a Double parameter's value is expressed in by STING's naming
+        /// convention, or null when it is stored as given (NUMBER, CURRENCY, …).</summary>
+        private static ForgeTypeId NamedUnit(Parameter p, string paramName)
+        {
+            ForgeTypeId spec = p.Definition?.GetDataType();
+            if (spec == SpecTypeId.Length)
+                return UnitValueText.LengthNameIsMetres(paramName) ? UnitTypeId.Meters : UnitTypeId.Millimeters;
+            if (spec == SpecTypeId.Area) return UnitTypeId.SquareMeters;
+            if (spec == SpecTypeId.Volume) return UnitTypeId.CubicMeters;
+            return Electrical.ElecUnits.SiUnitFor(p);
+        }
+
+        /// <summary>
+        /// Write <paramref name="value"/>, given in the unit the parameter's NAME states
+        /// (mm for <c>_MM</c>, m for <c>_M</c>, m², m³, V / VA / W / A), to whatever the
+        /// parameter is: a LENGTH is converted to internal feet, a NUMBER stored as given,
+        /// TEXT written as invariant text, an INTEGER rounded. The counterpart of
+        /// <see cref="GetValueText"/>. Writing a millimetre figure straight into a LENGTH
+        /// stores it as feet (3000 mm became 3000 ft); dividing by 304.8 regardless
+        /// shrinks a NUMBER parameter 304.8 times. This checks which it is.
+        /// </summary>
+        public static bool SetDoubleInNamedUnit(Element el, string paramName, double value, bool overwrite = true)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName) || double.IsNaN(value) || double.IsInfinity(value)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                if (!overwrite && p.HasValue)
+                {
+                    bool empty = p.StorageType == StorageType.String
+                        ? string.IsNullOrEmpty(p.AsString())
+                        : p.StorageType == StorageType.Double ? p.AsDouble() == 0
+                        : p.StorageType == StorageType.Integer && p.AsInteger() == 0;
+                    if (!empty) return false;
+                }
+                switch (p.StorageType)
+                {
+                    case StorageType.Double:
+                        ForgeTypeId unit = NamedUnit(p, paramName);
+                        return p.Set(unit == null ? value : UnitUtils.ConvertToInternalUnits(value, unit));
+                    case StorageType.String:
+                        return p.Set(UnitValueText.Invariant(value));
+                    case StorageType.Integer:
+                        return p.Set((int)Math.Round(value));
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("SetDoubleInNamedUnit", $"SetDoubleInNamedUnit({paramName}) on {el.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>Read an integer parameter with fallback. Handles Integer, Double, String storage.</summary>
         public static int GetInt(Element el, string paramName, int defaultValue = 0)
         {
@@ -321,6 +437,20 @@ namespace StingTools.Core
                 if (!overwrite && existing.Length > 0) return false;
                 try { p.Set(value.ToString()); return true; }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
+            }
+            if (p.StorageType == StorageType.Double)
+            {
+                // A count held in a NUMBER parameter (ELC_LPS_*_COUNT_NR, *_MONTHS ...) was
+                // silently dropped here. A unitless NUMBER takes the integer as is; a measured
+                // spec (LENGTH, AREA ...) needs a unit, so it goes through SetDoubleInNamedUnit.
+                bool unitless = false;
+                try { unitless = p.Definition?.GetDataType() == SpecTypeId.Number; }
+                catch (Exception exSpec) { StingLog.Warn($"SetInt spec '{paramName}': {exSpec.Message}"); }
+                if (!unitless)
+                    return SetDoubleInNamedUnit(el, paramName, value, overwrite);
+                if (!overwrite && p.HasValue && p.AsDouble() != 0) return false;
+                try { p.Set((double)value); WriteTxtMirror(el, paramName, value.ToString(System.Globalization.CultureInfo.InvariantCulture)); return true; }
+                catch (Exception ex) { StingLog.Warn($"SetInt '{paramName}': {ex.Message}"); return false; }
             }
             return false;
         }
@@ -405,6 +535,29 @@ namespace StingTools.Core
         /// <summary>Get cumulative read-only skip count since last reset.</summary>
         public static int ReadOnlySkipCount => _readOnlySkipCount;
 
+        /// <summary>
+        /// How many source-token writes have been SANITISED away this session.
+        ///
+        /// <para>SanitiseSourceTokenWrite empties any token value containing the
+        /// separator - writing "-" into ASS_SEQ_NUM_TXT stores "". That is the
+        /// right call, but the warning is capped at three occurrences, so after
+        /// the third every further token is emptied in SILENCE. On 2026-09-21 a
+        /// tag rendered "M-BLD1-Z01-L01-HVAC--EAT-" with FUNC and SEQ blank and
+        /// the log had nothing to say about either, because the cap had already
+        /// been spent on three ASS_PRODCT_COD_TXT writes.</para>
+        ///
+        /// <para>A count that is kept and never reported is the same defect as no
+        /// count at all. Callers surface this in their result line.</para>
+        /// </summary>
+        public static int SourceTokenWriteCleanups => _sourceTokenWriteCleanupCount;
+
+        /// <summary>Zero the token-hygiene counters so a run reports its OWN totals.</summary>
+        public static void ResetTokenHygieneCounters()
+        {
+            System.Threading.Interlocked.Exchange(ref _sourceTokenWriteCleanupCount, 0);
+            _readOnlySkipCount = 0;
+        }
+
         /// <summary>Set a TEXT parameter. Skips read-only params. Skips non-empty unless overwrite.</summary>
         public static bool SetString(Element el, string paramName, string value,
             bool overwrite = false)
@@ -456,7 +609,7 @@ namespace StingTools.Core
                 return false;
             }
             if (p.StorageType != StorageType.String)
-                return false;
+                return SetNumericFromString(el, p, paramName, value, overwrite);
 
             string existing = p.AsString() ?? string.Empty;
             if (existing.Length > 0 && !overwrite)
@@ -482,10 +635,157 @@ namespace StingTools.Core
             }
         }
 
+        private static int _numericFromStringRefusals;
+
+        /// <summary>
+        /// SetString on a NON-text parameter. Many callers format a number and
+        /// hand it to SetString; when the shared parameter is declared NUMBER,
+        /// INTEGER or YESNO that used to return false with nothing written, and
+        /// callers that ignored the result reported success. Unitless numbers,
+        /// integers and yes/no values are unambiguous, so write them. A measured
+        /// quantity (length, voltage, …) is refused: a bare number does not say
+        /// which unit it is in, and guessing would write a wrong value.
+        /// </summary>
+        private static bool SetNumericFromString(Element el, Parameter p, string paramName,
+            string value, bool overwrite)
+        {
+            string s = (value ?? string.Empty).Trim().TrimEnd('%').Trim();
+            if (s.Length == 0) return false;
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            try
+            {
+                if (p.StorageType == StorageType.Integer)
+                {
+                    int iv;
+                    bool isYesNo = false;
+                    try { isYesNo = p.Definition.GetDataType() == SpecTypeId.Boolean.YesNo; }
+                    catch (Exception exSpec) { StingLog.Warn($"SetString spec '{paramName}': {exSpec.Message}"); }
+                    if (isYesNo)
+                    {
+                        string b = s.ToLowerInvariant();
+                        if (b == "true" || b == "yes" || b == "y" || b == "1" || b == "pass" || b == "ok") iv = 1;
+                        else if (b == "false" || b == "no" || b == "n" || b == "0" || b == "fail") iv = 0;
+                        else return RefuseNumeric(el, paramName, value, "not a yes/no value");
+                    }
+                    else if (!int.TryParse(s, System.Globalization.NumberStyles.Integer, inv, out iv))
+                        return RefuseNumeric(el, paramName, value, "not an integer");
+                    if (!overwrite && p.HasValue) return false;   // HasValue separates a recorded 0 / "No" from unset
+                    if (p.AsInteger() == iv && p.HasValue) return true;
+                    p.Set(iv);
+                    return true;
+                }
+                if (p.StorageType == StorageType.Double)
+                {
+                    bool unitless = false;
+                    try { unitless = p.Definition.GetDataType() == SpecTypeId.Number; }
+                    catch (Exception exSpec) { StingLog.Warn($"SetString spec '{paramName}': {exSpec.Message}"); }
+                    if (!unitless) return RefuseNumeric(el, paramName, value, "measured quantity — use SetDouble with a unit");
+                    // Invariant first; then the machine's culture, because callers
+                    // format with $"{x:0.00}", which gives "3,45" on a comma-decimal
+                    // Windows locale. Neither style allows thousands separators, so
+                    // "1,234" is never misread as 1234.
+                    if (!double.TryParse(s, System.Globalization.NumberStyles.Float, inv, out double dv)
+                        && !double.TryParse(s, System.Globalization.NumberStyles.Float,
+                               System.Globalization.CultureInfo.CurrentCulture, out dv))
+                        return RefuseNumeric(el, paramName, value, "not a number");
+                    if (!overwrite && p.HasValue) return false;   // a recorded 0 is a value, not empty
+                    p.Set(dv);
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SetString '{paramName}' on {el.Id} (numeric) failed: {ex.Message}");
+                return false;
+            }
+            return false;
+        }
+
+        private static bool RefuseNumeric(Element el, string paramName, string value, string why)
+        {
+            int n = System.Threading.Interlocked.Increment(ref _numericFromStringRefusals);
+            if (n <= 10 || n % 500 == 0)
+                StingLog.Warn($"SetString '{paramName}' on {el.Id}: '{value}' not written — {why} (#{n})");
+            return false;
+        }
+
+        /// <summary>
+        /// Why a <see cref="SetString"/> call returned false, in words.
+        ///
+        /// <para>SetString returns false for FOUR unrelated reasons - the parameter
+        /// is not on the element, it is read-only, it is not a string, or it
+        /// already holds a value and overwrite was not asked for. Callers logged
+        /// all four as "failed to write", which is true of one of them and
+        /// misleading about the rest: the fourth is a deliberate skip, not a
+        /// failure. Measured 2026-09-21, chasing a tag that rendered
+        /// "M-BLD1-Z01-L01-HVAC--EAT-" with FUNC and SEQ missing - the log said
+        /// four containers "failed" and could not say which cause, so the log
+        /// could not settle it.</para>
+        ///
+        /// <para>Only called on the failure path, so it costs nothing in the
+        /// normal case.</para>
+        /// </summary>
+        public static string ExplainWriteFailure(Element el, string paramName, bool overwrite)
+        {
+            try
+            {
+                if (el == null) return "no element";
+                if (string.IsNullOrEmpty(paramName)) return "no parameter name";
+
+                Parameter p = CachedLookup(el, paramName);
+                if (p == null)
+                    return "not present on this element - the shared parameter is not bound to " +
+                           "its category in THIS project (run Load Shared Params)";
+                if (p.IsReadOnly)
+                    return "read-only on this element";
+                if (p.StorageType != StorageType.String)
+                    return $"storage type is {p.StorageType}: the value was not a plain number/yes-no, the parameter is a measured quantity, or it already holds a value";
+
+                string existing = p.AsString() ?? string.Empty;
+                if (existing.Length > 0 && !overwrite)
+                    return $"already holds '{Trunc(existing)}' and overwrite was not requested - " +
+                           "this is a deliberate SKIP, not a failure";
+
+                return "Parameter.Set threw - see the preceding SetString warning";
+            }
+            catch (Exception ex) { return "could not be determined: " + ex.Message; }
+        }
+
+        private static string Trunc(string s)
+            => s != null && s.Length > 40 ? s.Substring(0, 40) + "..." : s;
+
         /// <summary>Set only when the parameter is currently empty.</summary>
         public static bool SetIfEmpty(Element el, string paramName, string value)
         {
             return SetString(el, paramName, value, overwrite: false);
+        }
+
+        /// <summary>
+        /// SetIfEmpty for the eight ISO 19650 TOKEN parameters, where "empty"
+        /// means what the readers mean: blank, or sanitising away to nothing.
+        ///
+        /// <para>Plain SetIfEmpty asks only whether the string has length. A
+        /// token holding a bare separator has length and no content, so it
+        /// blocked its own repair while every reader treated it as absent -
+        /// measured 2026-09-23, eight elements tagged
+        /// "A-BLD1-Z01-L01-ARC-FIT-SBP-" with a blank mandatory SEQ, which
+        /// STING_TAG_TOKEN_POLICY.json calls ALWAYS wrong.</para>
+        ///
+        /// <para>Deliberately NOT folded into SetString: most parameters are
+        /// not tokens, and "sanitises to empty" is a token rule. A description
+        /// reading "-" is a description.</para>
+        /// </summary>
+        public static bool SetTokenIfEmpty(Element el, string paramName, string value)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return false;
+            if (string.IsNullOrWhiteSpace(value)) return false;
+
+            string existing = GetString(el, paramName);
+            if (!ParamRegistry.IsTokenEffectivelyEmpty(existing))
+                return false;                       // a real value; leave it alone
+
+            // Empty or junk - overwrite, because SetIfEmpty would refuse junk.
+            return SetString(el, paramName, value, overwrite: true);
         }
 
         /// <summary>
@@ -669,6 +969,25 @@ namespace StingTools.Core
                 if (lvl == null)
                     return "XX";
 
+                return GetLevelCodeForLevel(lvl);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"GetLevelCode failed for element {el?.Id}: {ex.Message}");
+                return "XX";
+            }
+        }
+
+        /// <summary>
+        /// The level code for a Level itself ("Level 2" → L02, "Ground Floor" → GF). The one
+        /// mapping: <see cref="GetLevelCode"/> resolves an element's level and calls this, so an
+        /// element and the level it sits on can never be given different codes.
+        /// </summary>
+        public static string GetLevelCodeForLevel(Level lvl)
+        {
+            if (lvl == null) return "XX";
+            try
+            {
                 string name = lvl.Name.Trim();
                 string lower = name.ToLowerInvariant();
 
@@ -742,7 +1061,7 @@ namespace StingTools.Core
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"GetLevelCode failed for element {el?.Id}: {ex.Message}");
+                StingLog.Warn($"GetLevelCodeForLevel failed for level {lvl?.Id}: {ex.Message}");
                 return "XX";
             }
         }
@@ -1844,9 +2163,6 @@ namespace StingTools.Core
         // F-10: Static readonly token arrays for CopyTokensFromNearest — avoid per-element List+ToArray allocation
         private static readonly string[] _spatialLocOnly  = { ParamRegistry.LOC };
         private static readonly string[] _spatialZoneOnly = { ParamRegistry.ZONE };
-        private static readonly string[] _spatialLocZone  = { ParamRegistry.LOC, ParamRegistry.ZONE };
-        private static readonly string[] _proxSysOnly     = { ParamRegistry.SYS };
-        private static readonly string[] _proxFuncOnly    = { ParamRegistry.FUNC };
         private static readonly string[] _proxSysFunc     = { ParamRegistry.SYS, ParamRegistry.FUNC };
 
         /// <summary>
@@ -2336,8 +2652,27 @@ namespace StingTools.Core
                         catch (Exception wsEx) { StingLog.Warn($"LOC workset fallback: {wsEx.Message}"); }
                     }
 
+                    // Phase 68 (NEW-02): nothing located the element — inherit LOC from the
+                    // nearest tagged element of the same category BEFORE writing a default.
+                    // This ran after the default until 2026-09-27, when the slot was already
+                    // filled, so CopyTokensFromNearest (which never overwrites) copied nothing.
+                    bool locFromNeighbour = false;
+                    if (!overwrite && !locFromScopeBox && (!locFromSpatial || loc == ctx?.ProjectLoc))
+                    {
+                        if (CopyTokensFromNearest(doc, el, _spatialLocOnly) > 0)
+                        {
+                            locFromNeighbour = true;
+                            result.TokensSet++;
+                            ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, "Proximity");
+                        }
+                    }
+
                     if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-                    if (overwrite)
+                    if (locFromNeighbour)
+                    {
+                        // LOC already inherited; the default below would be a no-op.
+                    }
+                    else if (overwrite)
                     {
                         if (ParameterHelpers.SetString(el, ParamRegistry.LOC, loc, overwrite: true)) result.TokensSet++;
                     }
@@ -2394,6 +2729,16 @@ namespace StingTools.Core
                 {
                     string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
                     bool zoneFromSpatial = !string.IsNullOrEmpty(zone) && zone != "Z01";
+
+                    // Phase 68 (NEW-02): as for LOC — inherit from the nearest tagged element
+                    // before the Z01 default fills the slot.
+                    if (!overwrite && !zoneFromSpatial
+                        && CopyTokensFromNearest(doc, el, _spatialZoneOnly) > 0)
+                    {
+                        result.TokensSet++;
+                        ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, "Proximity");
+                    }
+
                     if (string.IsNullOrEmpty(zone)) zone = "Z01";
                     if (overwrite)
                     {
@@ -2411,23 +2756,6 @@ namespace StingTools.Core
                 }
             }
 
-            // Phase 68 (NEW-02): CopyTokensFromNearest for LOC/ZONE when spatial detection yields defaults
-            if (!overwrite)
-            {
-                string curLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                string curZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                bool locDefault = string.IsNullOrEmpty(curLoc) || curLoc == "XX" || curLoc == ctx?.ProjectLoc;
-                bool zoneDefault = string.IsNullOrEmpty(curZone) || curZone == "Z01" || curZone == "ZZ";
-                if (locDefault || zoneDefault)
-                {
-                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
-                    string[] spatialTokens = (locDefault && zoneDefault) ? _spatialLocZone
-                                           : locDefault ? _spatialLocOnly : _spatialZoneOnly;
-                    int spatialCopied = CopyTokensFromNearest(doc, el, spatialTokens);
-                    result.TokensSet += spatialCopied;
-                }
-            }
-
             // LVL — deterministic from element level
             // Guaranteed default: replace unresolved "XX" with "L00" for levelless elements
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
@@ -2441,6 +2769,20 @@ namespace StingTools.Core
                 if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) result.TokensSet++;
             }
 
+            // SYS/FUNC proximity: when detection only reached a generic answer, inherit the
+            // SYS + FUNC PAIR from the nearest tagged element of the same category BEFORE
+            // the generic value fills the slot. This used to run after SYS and FUNC had
+            // been written, so both slots were full and nothing was ever copied. The pair
+            // is copied only when both slots are empty, so an inherited SYS can never sit
+            // beside a FUNC derived from a different one.
+            if (!overwrite
+                && (sys == "GEN" || sys == "ARC" || sys == "STR")
+                && ParamRegistry.IsTokenEffectivelyEmpty(ParameterHelpers.GetString(el, ParamRegistry.SYS))
+                && ParamRegistry.IsTokenEffectivelyEmpty(ParameterHelpers.GetString(el, ParamRegistry.FUNC)))
+            {
+                result.TokensSet += CopyTokensFromNearest(doc, el, _proxSysFunc);
+            }
+
             // SYS — always write a guaranteed value (never empty)
             if (overwrite)
             {
@@ -2448,7 +2790,7 @@ namespace StingTools.Core
             }
             else
             {
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
+                if (ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.SYS, sys)) result.TokensSet++;
             }
 
             // Write SYS detection layer (1-7) for confidence tracking
@@ -2479,18 +2821,25 @@ namespace StingTools.Core
             }
             catch (Exception lnEx) { StingLog.Warn($"Token lineage stamp: {lnEx.Message}"); }
 
-            // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW)
-            // Guaranteed default: derive from SYS via FuncMap when smart detection is empty
-            string func = TagConfig.GetSmartFuncCode(el, sys);
-            if (string.IsNullOrEmpty(func))
-                func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
+            // FUNC — smart subsystem differentiation (SUP/RTN/EXH/FRA, HTG/DHW, VNT, LPS)
+            // derived from the SYS the element actually HOLDS. On the non-overwrite path a
+            // SYS inherited from the type, a connected element or a neighbour wins over the
+            // one detected above; deriving FUNC from the detected one paired e.g. SYS=DHW
+            // with FUNC=DCW, which the FUNC/SYS cross-check then rejects.
+            string sysForFunc = sys;
+            if (!overwrite)
+            {
+                string heldSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
+                if (!ParamRegistry.IsTokenEffectivelyEmpty(heldSys)) sysForFunc = heldSys.Trim();
+            }
+            string func = TagConfig.GetSmartFuncCode(el, sysForFunc);
             if (overwrite)
             {
                 if (ParameterHelpers.SetString(el, ParamRegistry.FUNC, func, overwrite: true)) result.TokensSet++;
             }
             else
             {
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
+                if (ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.FUNC, func)) result.TokensSet++;
             }
 
             // PROD — family-aware (35+ specific codes)
@@ -2503,25 +2852,7 @@ namespace StingTools.Core
             }
             else
             {
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
-            }
-
-            // Proximity-based token copy for SYS/FUNC when detection yielded generic defaults
-            // Uses configurable ProximityRadiusFt from project_config.json (default 10 ft)
-            if (!overwrite)
-            {
-                string curSys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
-                string curFunc = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-                bool sysGeneric = string.IsNullOrEmpty(curSys) || curSys == "GEN" || curSys == "ARC" || curSys == "STR";
-                bool funcGeneric = string.IsNullOrEmpty(curFunc) || curFunc == "GEN";
-                if (sysGeneric || funcGeneric)
-                {
-                    // F-10: Use pre-allocated static arrays instead of new List+ToArray per element
-                    string[] tokensToInherit = (sysGeneric && funcGeneric) ? _proxSysFunc
-                                             : sysGeneric ? _proxSysOnly : _proxFuncOnly;
-                    int proxCopied = CopyTokensFromNearest(doc, el, tokensToInherit);
-                    result.TokensSet += proxCopied;
-                }
+                if (ParameterHelpers.SetTokenIfEmpty(el, ParamRegistry.PROD, prod)) result.TokensSet++;
             }
 
             // Per-discipline profile defaults — apply after all detection to fill still-generic tokens
@@ -2530,19 +2861,18 @@ namespace StingTools.Core
                 var profile = TagConfig.GetDisciplineProfile(curDisc);
                 if (profile != null)
                 {
-                    // Apply DefaultProd when PROD is still generic (GEN/XX)
+                    // Apply DefaultProd when PROD is still generic (GEN/XX). GEN / XX are
+                    // placeholders, so they are replaced on BOTH paths: until 2026-09-27 the
+                    // non-overwrite path called SetIfEmpty on a slot already holding GEN
+                    // (written just above), which refused, so the profile default never
+                    // applied unless the user chose Overwrite.
                     if (!string.IsNullOrEmpty(profile.DefaultProd))
                     {
-                        string curProd = ParameterHelpers.GetString(el, ParamRegistry.PROD);
-                        if (string.IsNullOrEmpty(curProd) || curProd == "GEN" || curProd == "XX")
+                        string curProd = ParameterHelpers.GetString(el, ParamRegistry.PROD)?.Trim();
+                        if (ParamRegistry.IsTokenEffectivelyEmpty(curProd) || curProd == "GEN" || curProd == "XX")
                         {
-                            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, profile.DefaultProd))
+                            if (ParameterHelpers.SetString(el, ParamRegistry.PROD, profile.DefaultProd, overwrite: true))
                                 result.TokensSet++;
-                            else if (overwrite && (curProd == "GEN" || curProd == "XX"))
-                            {
-                                if (ParameterHelpers.SetString(el, ParamRegistry.PROD, profile.DefaultProd, overwrite: true))
-                                    result.TokensSet++;
-                            }
                         }
                     }
 
@@ -2863,53 +3193,6 @@ namespace StingTools.Core
                 return 0;
             }
         }
-
-        /// <summary>
-        /// Populate only the core 7 tag tokens (DISC, LOC, ZONE, LVL, SYS, FUNC, PROD)
-        /// without STATUS and REV. Used when only tag-building tokens are needed.
-        /// </summary>
-        public static int PopulateTagTokens(Document doc, Element el,
-            PopulationContext ctx)
-        {
-            int count = 0;
-            string catName = ParameterHelpers.GetCategoryName(el);
-            if (string.IsNullOrEmpty(catName) || !ctx.KnownCategories.Contains(catName))
-                return count;
-
-            string disc = TagConfig.DiscMap.TryGetValue(catName, out string d) ? d : "A";
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.DISC, disc)) count++;
-
-            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.LOC)))
-            {
-                string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
-                if (string.IsNullOrEmpty(loc)) loc = "BLD1";
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, loc)) count++;
-            }
-
-            if (string.IsNullOrEmpty(ParameterHelpers.GetString(el, ParamRegistry.ZONE)))
-            {
-                string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
-                if (string.IsNullOrEmpty(zone)) zone = "Z01";
-                if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, zone)) count++;
-            }
-
-            string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            if (lvl == "XX") lvl = "L00";
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.LVL, lvl)) count++;
-
-            string sys = TagConfig.GetMepSystemAwareSysCode(el, catName);
-            if (string.IsNullOrEmpty(sys)) sys = TagConfig.GetDiscDefaultSysCode(disc);
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.SYS, sys)) count++;
-
-            string func = TagConfig.GetSmartFuncCode(el, sys);
-            if (string.IsNullOrEmpty(func)) func = TagConfig.FuncMap.TryGetValue(sys, out string fv) ? fv : "GEN";
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.FUNC, func)) count++;
-
-            string prod = TagConfig.GetFamilyAwareProdCode(el, catName);
-            if (ParameterHelpers.SetIfEmpty(el, ParamRegistry.PROD, prod)) count++;
-
-            return count;
-        }
     }
 
     /// <summary>
@@ -3020,9 +3303,10 @@ namespace StingTools.Core
                 double areaSqFt = room.Area;
                 if (areaSqFt > 0)
                 {
-                    string areaM2 = (areaSqFt * 0.092903).ToString("F2",
-                        System.Globalization.CultureInfo.InvariantCulture);
-                    written += SetIfEmptyInt(el, ParamRegistry.ROOM_AREA, areaM2);
+                    // ASS_ROOM_AREA_SQ_M is an AREA parameter, which refuses text, so this
+                    // was never written. Set it through its unit (m² → internal ft²).
+                    if (ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.ROOM_AREA, areaSqFt * 0.09290304, overwrite: false))
+                        written++;
                 }
 
                 // Room Department
@@ -4464,7 +4748,9 @@ namespace StingTools.Core
             {
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_DUCT_FLOW);
                 written += MapBuiltIn(el, BuiltInParameter.RBS_VELOCITY, ParamRegistry.HVC_VELOCITY);
-                written += MapBuiltIn(el, BuiltInParameter.RBS_LOSS_COEFFICIENT, ParamRegistry.HVC_PRESSURE);
+                // RBS_LOSS_COEFFICIENT is a unitless K factor, not a pressure drop -
+                // it was mapped into HVC_PRESSURE_DROP_PA, which then read "0.3" Pa.
+                // Pressure drop comes from the calc engines, not from this mapper.
                 written += MapBuiltIn(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM, ParamRegistry.HVC_AIRFLOW);
                 // Duct dimensions
                 written += MapBuiltIn(el, BuiltInParameter.RBS_CURVE_WIDTH_PARAM, ParamRegistry.HVC_DUCT_WIDTH);
@@ -4517,9 +4803,9 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, ParamRegistry.SIZE);
 
             // ── SYN-01: Cross-write ASS_FLOW_RATE_TXT from PLM_PIPE_FLOW or HVC_AIRFLOW ──
-            string flowRate = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+            string flowRate = ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_FLOW);
             if (string.IsNullOrEmpty(flowRate))
-                flowRate = ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW);
+                flowRate = ParameterHelpers.GetValueText(el, ParamRegistry.HVC_AIRFLOW);
             if (!string.IsNullOrEmpty(flowRate))
                 written += SetIfEmptyInt(el, "ASS_FLOW_RATE_TXT", flowRate);
 
@@ -4636,9 +4922,78 @@ namespace StingTools.Core
                 double? raw = p.StorageType == StorageType.Double ? p.AsDouble()
                             : p.StorageType == StorageType.Integer ? (double?)p.AsInteger()
                             : null;
+
+                // Measured values are stored in internal units (feet, ft³/s, ft/s,
+                // and 1 V = 10.7639). A target with the SAME spec converts on write,
+                // so it takes the internal value. A TEXT or unitless-NUMBER target
+                // cannot, so give it the unit its name promises (UnitSuffix):
+                // HVC_AIRFLOW_LPS in L/s, HVC_DCT_WIDTH_MM in mm, ELC_CKT_PWR_KW in
+                // kilo-units. Previously each got the raw internal number.
+                if (p.StorageType == StorageType.Double)
+                {
+                    double? display = DisplayValueForTarget(p, writeTarget, targetParamName, out bool sameSpec);
+                    if (display.HasValue)
+                    {
+                        val = display.Value.ToString("G6", System.Globalization.CultureInfo.InvariantCulture);
+                        if (!sameSpec) raw = display.Value;
+                    }
+                }
                 return WriteMapped(writeTarget, targetParamName, raw, val);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+        }
+
+        /// <summary>
+        /// The source value expressed in the unit the TARGET expects, or null to
+        /// leave the mapper's old behaviour alone (unitless source, unknown
+        /// suffix, incompatible unit). <paramref name="sameSpec"/> is true when
+        /// the target shares the source's spec and so takes internal units.
+        /// </summary>
+        private static double? DisplayValueForTarget(Parameter p, Element target, string targetName,
+            out bool sameSpec)
+        {
+            sameSpec = false;
+            ForgeTypeId spec;
+            try { spec = p.Definition.GetDataType(); }
+            catch (Exception ex) { StingLog.Warn($"MapBuiltIn spec: {ex.Message}"); return null; }
+            if (spec == null || !UnitUtils.IsMeasurableSpec(spec)) return null;
+
+            try
+            {
+                Parameter tp = ParameterHelpers.CachedLookup(target, targetName);
+                sameSpec = tp != null && tp.Definition.GetDataType() == spec;
+            }
+            catch (Exception ex) { StingLog.Warn($"MapBuiltIn target spec: {ex.Message}"); }
+
+            // Electrical: SI (V / VA / W / A), scaled to kilo for *_KW / *_KVA.
+            if (StingTools.Core.Electrical.ElecUnits.SiUnitFor(p) != null)
+            {
+                double si = StingTools.Core.Electrical.ElecUnits.ToSi(p);
+                return UnitSuffix.IsKilo(UnitSuffix.Of(targetName)) ? si / 1000.0 : si;
+            }
+
+            ForgeTypeId unit;
+            switch (UnitSuffix.Of(targetName))
+            {
+                case "mm":  unit = UnitTypeId.Millimeters;        break;
+                case "m":   unit = UnitTypeId.Meters;             break;
+                case "m2":  unit = UnitTypeId.SquareMeters;       break;
+                case "m3":  unit = UnitTypeId.CubicMeters;        break;
+                case "lps": unit = UnitTypeId.LitersPerSecond;    break;
+                case "cfm": unit = UnitTypeId.CubicFeetPerMinute; break;
+                case "mps": unit = UnitTypeId.MetersPerSecond;    break;
+                case "pa":  unit = UnitTypeId.Pascals;            break;
+                case "kpa": unit = UnitTypeId.Kilopascals;        break;
+                default: return null;
+            }
+            try { return UnitUtils.ConvertFromInternalUnits(p.AsDouble(), unit); }
+            catch (Exception ex)
+            {
+                // Suffix does not fit the source quantity (e.g. a length into *_LPS):
+                // keep the old behaviour rather than invent a conversion.
+                StingLog.Warn($"MapBuiltIn '{targetName}': unit does not fit source spec ({ex.Message})");
+                return null;
+            }
         }
 
         /// <summary>SetIfEmpty returning 1 on success, 0 on skip/failure.</summary>
@@ -4890,10 +5245,22 @@ namespace StingTools.Core
                     // P2 / PopulateAll: Populate all 9 tokens (DISC/LOC/ZONE/LVL/SYS/FUNC/PROD/STATUS/REV)
                     TokenAutoPopulator.PopulateAll(doc, el, ctx, overwrite: overwrite);
 
-                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll
+                    // G1.1: Apply CATEGORY_FORCE_SYS override after PopulateAll.
+                    // FUNC (and a pipe's DISC) were derived from the SYS PopulateAll chose,
+                    // so re-derive them from the forced one — otherwise forcing Pipes to SAN
+                    // left FUNC=SUP from HVAC and DISC=M. An explicit FUNC / DISC in
+                    // CATEGORY_TOKEN_OVERRIDES below still wins.
                     if (TagConfig.CategoryForceSys.TryGetValue(catName, out string forcedSys)
                         && !string.IsNullOrEmpty(forcedSys))
+                    {
                         ParameterHelpers.SetString(el, ParamRegistry.SYS, forcedSys, overwrite: true);
+                        ParameterHelpers.SetString(el, ParamRegistry.FUNC,
+                            TagConfig.GetSmartFuncCode(el, forcedSys), overwrite: true);
+                        if (CategoryTokenDefaults.PipeCategories.Contains(catName)
+                            && TagConfig.DiscMap.TryGetValue(catName, out string baseDisc))
+                            ParameterHelpers.SetString(el, ParamRegistry.DISC,
+                                TagConfig.GetSystemAwareDisc(baseDisc, forcedSys, catName), overwrite: true);
+                    }
 
                     // Apply full per-category token overrides
                     if (TagConfig.CategoryTokenOverrides.TryGetValue(catName, out var tokenOverrides))
@@ -4985,6 +5352,18 @@ namespace StingTools.Core
                         }
                     }
                 }
+
+                // Mirror numerics into their TEXT twins, AFTER the formula engine
+                // (so computed values are included) and BEFORE the tag is built
+                // (so containers and TAG7 read the filled twins).
+                //
+                // A Text label formula cannot reference a NUMBER, LENGTH or
+                // YESNO — Revit rejects it as "Inconsistent Units" — so twelve
+                // rows across the two build sheets read a _TXT twin instead.
+                // Those twins were defined but nothing filled them, which would
+                // have rendered every one of those rows blank forever.
+                try { NumericTextMirror.MirrorAll(el, overwrite: overwrite); }
+                catch (Exception mex) { StingLog.Warn($"TagPipeline: numeric mirror on {el.Id}: {mex.Message}"); }
 
                 // C-01 FIX: Check BuildAndWriteTag return value — skip containers/TAG7 on failure
                 // pass _prevTag in so BuildAndWriteTag

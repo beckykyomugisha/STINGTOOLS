@@ -149,8 +149,8 @@ namespace StingTools.Core
                             return new InferenceResult("HVAC", 0.9, "Connected to AHU: " + current.Id);
                         if (famName.Contains("BOILER") || famName.Contains("BLR"))
                             return new InferenceResult("HWS", 0.9, "Connected to boiler: " + current.Id);
-                        if (famName.Contains("CHILLER") || famName.Contains("CHR"))
-                            return new InferenceResult("HVAC", 0.9, "Connected to chiller: " + current.Id);
+                        // A pipe at a chiller is chilled OR condenser water, so the chiller
+                        // alone settles nothing; the pipe's own system name does (CHW / CDW).
                         if (famName.Contains("PUMP"))
                             return new InferenceResult("DCW", 0.8, "Connected to pump: " + current.Id);
                     }
@@ -328,7 +328,7 @@ namespace StingTools.Core
 
             // DISC ↔ Category consistency
             string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string ed) ? ed : null;
-            if (expectedDisc != null && expectedDisc != disc)
+            if (expectedDisc != null && !CategoryTokenDefaults.DiscAccepted(expectedDisc, disc, sys, catName))
                 issues.Add($"DISC={disc} doesn't match category '{catName}' (expected: {expectedDisc})");
 
             // SYS ↔ FUNC consistency (HVAC should have SUP/RTN/EXH/FRA, not PWR)

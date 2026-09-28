@@ -34,6 +34,9 @@ namespace StingTools.V6
         [JsonProperty("suitability")] public string Suitability { get; set; } = string.Empty;
         [JsonProperty("deliverableCount")] public int DeliverableCount { get; set; }
         [JsonProperty("sizeBytes")] public long SizeBytes { get; set; }
+        /// <summary>The PREPARED transmittal ACCPublish recorded for this bundle. A
+        /// successful upload of this exact file marks that row SENT (IM-17).</summary>
+        [JsonProperty("transmittalId")] public string TransmittalId { get; set; } = string.Empty;
 
         /// <summary>One line for a dialog: what would be uploaded, and how old it is.</summary>
         public string Describe() =>

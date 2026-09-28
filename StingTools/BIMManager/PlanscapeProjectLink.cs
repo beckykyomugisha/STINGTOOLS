@@ -23,7 +23,7 @@ namespace StingTools.BIMManager
     ///   * <see cref="ConfigPathFor(Document)"/> — when a live Document is in hand
     ///     (creates the directory). Resolves to the same file as
     ///     <see cref="BIMManagerEngine.GetBIMManagerDir(Document)"/>.
-    ///   * <see cref="ConfigPathForModel(string)"/> — when only the .rvt path is
+    ///   * <c>ConfigPathForModel(string)</c> (private) — when only the .rvt path is
     ///     known (the BCC holds <c>CoordData.FilePath = doc.PathName</c>).
     ///
     /// Both resolve to <c>Path.GetDirectoryName(rvtPath)\STING_BIM_MANAGER\planscape_connection.json</c>.
@@ -79,7 +79,9 @@ namespace StingTools.BIMManager
         /// <see cref="Load(string)"/>'s legacy-sibling migration.
         /// </para>
         /// </remarks>
-        public static string ConfigPathForModel(string? modelPath)
+        // Private (IM-3): the last outside caller (the BCC members tab) now uses
+        // ResolveConfigPath, and a new one cannot reintroduce the #570 split.
+        private static string ConfigPathForModel(string? modelPath)
         {
             if (string.IsNullOrEmpty(modelPath)) return "";
             // path-discipline: legacy-fallback -- a bare model path carries no project

@@ -27,7 +27,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
                 var doc   = uidoc?.Document;
                 if (doc == null)
                 {
@@ -167,8 +167,8 @@ namespace StingTools.BIMManager
 
         private static string GetOverrideFilePath(Document doc)
         {
-            string projDir = OutputLocationHelper.GetOutputDirectory(doc);
-            return Path.Combine(projDir, "cost_rates_override.json");
+            // The class comment always said _BIM_COORD; the code wrote MISC (DOCX-11).
+            return OutputLocationHelper.GetStorePath(doc, "cost_rates_override.json");
         }
     }
 }

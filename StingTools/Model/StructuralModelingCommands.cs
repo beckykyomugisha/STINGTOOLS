@@ -1722,7 +1722,7 @@ namespace StingTools.Model
                 TaskDialog.Show("STRUCT — Full Analysis Report", summary);
 
                 // Export full report to file
-                var outputDir = OutputLocationHelper.GetTimestampedPath(uidoc.Document, "StructuralReport", ".txt");
+                var outputDir = OutputLocationHelper.GetRoutedTimestampedPath(uidoc.Document, "Compliance", "StructuralReport", ".txt", "S");
                 try
                 {
                     var filePath = System.IO.Path.Combine(

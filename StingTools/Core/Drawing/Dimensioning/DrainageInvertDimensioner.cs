@@ -1,16 +1,13 @@
 // StingTools — Drawing Template Manager · Phase 175
 //
-// DrainageInvertDimensioner places SpotElevation annotations at pipe
-// invert levels (bottom-of-pipe centreline minus radius) — required by
-// BS EN 12056 / Approved Document H for above-ground drainage and the
-// equivalent of an "invert level" callout no commercial Revit tool
-// auto-places today.
+// DrainageInvertDimensioner labels drainage pipes with their invert levels
+// (IL at each end, bore invert = centreline minus INTERNAL radius) and the
+// gradient between — required by BS EN 12056 / Approved Document H.
 //
 // Triggered by AutoAnnotationRule.RuleType == "AutoSpotInvert" with
 // rule.Category narrowing to a pipe class (default: every Pipe Curve
 // with a flow type tagged DRAINAGE / WASTE / RAIN / FOUL). When a
-// rule.SymbolFamily is supplied we use that SpotDimensionType,
-// otherwise the first project-loaded spot-elevation type wins.
+// Placement is text, not a spot elevation — see "Placement" below for why.
 
 using System;
 using System.Collections.Generic;
@@ -19,6 +16,8 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core.Drawing;
 using StingTools.Core;
+using StingTools.Core.Plumbing;
+using StingTools.Core.Storage;
 
 namespace StingTools.Core.Drawing.Dimensioning
 {
@@ -49,13 +48,7 @@ namespace StingTools.Core.Drawing.Dimensioning
             var pipes = CollectDrainagePipes(doc, view, rule);
             if (pipes.Count == 0) return;
 
-            var symId = ResolveSpotSymbolId(doc, rule?.TagFamily);
-
-            foreach (var p in pipes)
-            {
-                try { EmitInvertSpot(doc, view, p, symId, result); }
-                catch (Exception ex) { result.Warnings.Add($"AutoSpotInvert {p.Id}: {ex.Message}"); }
-            }
+            PlaceInvertNotes(doc, view, pipes, result);
         }
 
         private static List<Pipe> CollectDrainagePipes(Document doc, View view, AutoAnnotationRule rule)
@@ -107,123 +100,162 @@ namespace StingTools.Core.Drawing.Dimensioning
             return false;
         }
 
-        private static double GetWallThicknessFt(Pipe pipe)
+        // ── Placement ──────────────────────────────────────────────────────
+        //
+        // WHY TEXT, NOT A SPOT ELEVATION. A spot elevation reports the elevation
+        // of the reference it is hosted on; on a pipe that is the centreline (or,
+        // with "Display Elevations = Bottom", the OUTSIDE bottom). No setting
+        // makes it report the bore invert, and moving its anchor point down by a
+        // radius — what this used to do — changes where it points, not what it
+        // says. So the IL is computed (InvertMath, via PipeInvert) and written as
+        // text: "IL 9.95" at each end and the gradient "1:80" between, which is
+        // what a drainage drawing shows.
+        //
+        // Text is not parametric, so a re-run UPDATES the notes it finds at the
+        // same anchors instead of adding new ones — the values follow the model
+        // every time the drawing is produced. Each note is stamped with its pipe
+        // and end (AnnotationProvenance), so a moved pipe's notes MOVE with it and
+        // a deleted pipe's notes are removed. Notes placed before stamping existed
+        // are matched by text and position, adopted when they match, and only
+        // reported when they do not — they cannot be proven ours.
+
+        private static void PlaceInvertNotes(Document doc, View view, List<Pipe> pipes, AnnotationResult result)
         {
-            const double mmToFt = 1.0 / 304.8;
+            var opts = IlReportingOptions.Default;
+            var noteType = doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
+            if (noteType == ElementId.InvalidElementId)
+            {
+                result.Warnings.Add("AutoSpotInvert: project has no default text note type — no invert levels placed.");
+                return;
+            }
+
+            double paperFt = Math.Max(1, view.Scale) / 304.8;       // 1 mm on paper, in model feet
+            double offset = 3.0 * paperFt;                            // label clear of the pipe
+            double tol = 1.5 * paperFt;                               // "same anchor" for unstamped notes
+            var n = view.ViewDirection;
+            var o = view.Origin;
+            var up = view.UpDirection;
+
+            // Our notes, two ways. STAMPED ones are found by key (pipe + end),
+            // wherever they are. UNSTAMPED ones (placed before stamping existed)
+            // can only be matched by text shape and proximity, and are adopted —
+            // stamped — the first time they match.
+            var stamped = StingAnnotationProvenanceSchema.Index(doc, view, typeof(TextNote), AnnotationProvenance.DrainageIl);
+            var stampedIds = new HashSet<ElementId>(stamped.Values.SelectMany(l => l).Select(e => e.Id));
+            var legacy = new List<TextNote>();
             try
             {
-                var p = pipe.LookupParameter("PLM_PPE_WALL_THK_MM");
-                if (p != null && p.HasValue && p.StorageType == StorageType.Double)
-                {
-                    double v = p.AsDouble();
-                    if (v > 0) return v * mmToFt;
-                }
+                foreach (var tn in new FilteredElementCollector(doc, view.Id).OfClass(typeof(TextNote)).Cast<TextNote>())
+                    if (!stampedIds.Contains(tn.Id) && InvertMath.IsOurNote(tn.Text)) legacy.Add(tn);
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { result.Warnings.Add($"AutoSpotInvert: could not read existing notes ({ex.Message}); duplicates possible."); }
 
-            string mat = "";
-            try
+            var claimed = new HashSet<ElementId>();
+            var writtenKeys = new HashSet<string>(StringComparer.Ordinal);
+            var processedPipes = new HashSet<string>(StringComparer.Ordinal);
+
+            int placed = 0, updated = 0, moved = 0, nominal = 0, levelPipes = 0, crossChecks = 0;
+            foreach (var p in pipes)
             {
-                var matParam = pipe.LookupParameter("PLM_MAT_TXT");
-                if (matParam != null && matParam.StorageType == StorageType.String)
-                    mat = matParam.AsString() ?? "";
-                if (string.IsNullOrEmpty(mat))
+                try
                 {
-                    var typeName = pipe.PipeType?.Name ?? "";
-                    mat = typeName;
+                    var r = PipeInvert.Compute(doc, p, opts, out var why);
+                    if (r == null) { result.Warnings.Add($"AutoSpotInvert {p.Id}: no invert — {why}."); continue; }
+                    processedPipes.Add(p.UniqueId);
+                    if (r.Source == InvertSource.NominalFallback) nominal++;
+                    if (r.IsLevel) levelPipes++;
+                    if (r.CrossCheckNote != null && crossChecks++ < 3)
+                        result.Warnings.Add($"AutoSpotInvert {p.Id}: {r.CrossCheckNote} Check before issue.");
+
+                    XYZ Anchor(XYZ pt) => Project(pt, o, n) + up * offset;
+
+                    Upsert(AnnotationProvenance.Key(p.UniqueId, "US"), Anchor(r.UpPoint), InvertMath.FormatIl(r.UpInvertM, opts.Decimals));
+                    if (!r.IsLevel)
+                        Upsert(AnnotationProvenance.Key(p.UniqueId, "DS"), Anchor(r.DownPoint), InvertMath.FormatIl(r.DownInvertM, opts.Decimals));
+                    if (r.Gradient != null)
+                        Upsert(AnnotationProvenance.Key(p.UniqueId, "GRAD"), Anchor((r.UpPoint + r.DownPoint) * 0.5), r.Gradient);
+                }
+                catch (Exception ex) { result.Warnings.Add($"AutoSpotInvert {p.Id}: {ex.Message}"); }
+            }
+
+            void Upsert(string key, XYZ at, string text)
+            {
+                writtenKeys.Add(key);
+                // 1. Our own note for exactly this pipe end.
+                if (stamped.TryGetValue(key, out var mine) && mine.Count > 0)
+                {
+                    var tn = (TextNote)mine[0];
+                    claimed.Add(tn.Id);
+                    if (!string.Equals(tn.Text?.Trim(), text, StringComparison.Ordinal)) { tn.Text = text; updated++; }
+                    if (tn.Coord.DistanceTo(at) > tol) { tn.Coord = at; moved++; }
+                    foreach (var extra in mine.Skip(1)) { claimed.Add(extra.Id); DeleteQuietly(doc, extra.Id); }
+                    return;
+                }
+                // 2. An unstamped note at this spot — adopt it.
+                TextNote hit = null;
+                double best = tol;
+                foreach (var tn in legacy)
+                {
+                    if (claimed.Contains(tn.Id)) continue;
+                    double d = tn.Coord.DistanceTo(at);
+                    if (d <= best) { best = d; hit = tn; }
+                }
+                if (hit != null)
+                {
+                    claimed.Add(hit.Id);
+                    if (!string.Equals(hit.Text?.Trim(), text, StringComparison.Ordinal)) { hit.Text = text; updated++; }
+                    StingAnnotationProvenanceSchema.Stamp(hit, AnnotationProvenance.DrainageIl, key);
+                    return;
+                }
+                // 3. New.
+                var created = TextNote.Create(doc, view.Id, at, text, noteType);
+                if (created != null)
+                {
+                    claimed.Add(created.Id);
+                    StingAnnotationProvenanceSchema.Stamp(created, AnnotationProvenance.DrainageIl, key);
+                    placed++;
+                    result.SpotsPlaced++;
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            mat = (mat ?? "").ToUpperInvariant();
 
-            double mm =
-                mat.Contains("CLAY") || mat.Contains("VC")            ? 15.0 :
-                mat.Contains("CAST") || mat.Contains("CI")            ? 6.0  :
-                mat.Contains("COPPER") || mat.Contains("CU")          ? 1.5  :
-                (mat.Contains("PVC") || mat.Contains("HDPE") || mat.Contains("PE") || mat.Contains("ABS"))
-                                                                       ? 3.2  :
-                3.0;
-            return mm * mmToFt;
+            // Stamped notes this run did not write are provably ours, so they can
+            // be cleaned up exactly: the pipe is gone, or it no longer has that end
+            // (a pipe now level has no downstream IL and no gradient). A pipe that
+            // simply was not in this run (filtered out, no invert) is left alone.
+            int removed = 0;
+            foreach (var kv in stamped)
+            {
+                if (writtenKeys.Contains(kv.Key)) continue;
+                var pipeUid = AnnotationProvenance.HostOf(kv.Key);
+                bool pipeGone = doc.GetElement(pipeUid) == null;
+                if (!pipeGone && !processedPipes.Contains(pipeUid)) continue;
+                foreach (var el in kv.Value) { if (DeleteQuietly(doc, el.Id)) removed++; }
+            }
+
+            if (updated > 0 || moved > 0)
+                result.Warnings.Add($"AutoSpotInvert: {updated} invert/gradient note(s) updated and {moved} moved to follow the model.");
+            if (removed > 0)
+                result.Warnings.Add($"AutoSpotInvert: {removed} note(s) removed whose pipe, or pipe end, no longer exists.");
+            int orphans = legacy.Count(tn => !claimed.Contains(tn.Id));
+            if (orphans > 0)
+                result.Warnings.Add($"AutoSpotInvert: {orphans} older, unstamped IL/gradient note(s) in '{view.Name}' no longer sit on a pipe end. " +
+                                    "They predate provenance stamping, so they cannot be proven ours and were left in place — review and delete.");
+            if (nominal > 0)
+                result.Warnings.Add($"AutoSpotInvert: {nominal} pipe(s) carry no internal diameter; their ILs use the NOMINAL size " +
+                                    "and may be a few mm out. Set the pipe type's segment sizes.");
+            if (levelPipes > 0)
+                result.Warnings.Add($"AutoSpotInvert: {levelPipes} drainage pipe(s) are LEVEL — no gradient, one IL each. A level drain will not self-cleanse.");
+            if (placed + updated + moved > 0)
+                StingLog.Info($"AutoSpotInvert '{view.Name}': {placed} placed, {updated} updated, {moved} moved, {removed} removed; datum {opts.DatumLabel}, {opts.Decimals} dp.");
         }
 
-        private static ElementId ResolveSpotSymbolId(Document doc, string preferredName)
+        private static bool DeleteQuietly(Document doc, ElementId id)
         {
-            try
-            {
-                var all = new FilteredElementCollector(doc)
-                    .OfClass(typeof(SpotDimensionType))
-                    .Cast<SpotDimensionType>()
-                    .ToList();
-                if (!string.IsNullOrEmpty(preferredName))
-                {
-                    var named = all.FirstOrDefault(t =>
-                        string.Equals(t.Name, preferredName, StringComparison.OrdinalIgnoreCase));
-                    if (named != null) return named.Id;
-                }
-                // Prefer types whose name suggests "Elevation" / "Invert".
-                var elev = all.FirstOrDefault(t =>
-                    (t.Name ?? "").IndexOf("invert", StringComparison.OrdinalIgnoreCase) >= 0);
-                if (elev != null) return elev.Id;
-                elev = all.FirstOrDefault(t =>
-                    (t.Name ?? "").IndexOf("elev", StringComparison.OrdinalIgnoreCase) >= 0);
-                if (elev != null) return elev.Id;
-                return all.FirstOrDefault()?.Id ?? ElementId.InvalidElementId;
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return ElementId.InvalidElementId; }
+            try { doc.Delete(id); return true; }
+            catch (Exception ex) { StingLog.Warn($"AutoSpotInvert: could not remove note {id}: {ex.Message}"); return false; }
         }
 
-        private static void EmitInvertSpot(Document doc, View view, Pipe pipe,
-            ElementId spotTypeId, AnnotationResult result)
-        {
-            if (!(pipe.Location is LocationCurve lc) || lc.Curve == null) return;
-
-            var midPt = (lc.Curve.GetEndPoint(0) + lc.Curve.GetEndPoint(1)) * 0.5;
-            // True invert = centreline Z - (radius + wall thickness).
-            // Phase 178a hardening — radius alone is the inside-of-pipe
-            // bottom; the externally-visible invert (which BS EN 12056
-            // and Approved Document H reference for clearances) sits one
-            // wall-thickness lower.
-            // A-5: the invert BS EN 12056 and Approved Document H reference is
-            // the INTERNAL bottom of the pipe — centreline minus the internal
-            // radius. Revit exposes a single Pipe.Diameter (nominal, which for
-            // drainage pipe is the internal bore), so centreline - Diameter/2
-            // already IS that invert; the extra wall-thickness subtraction put
-            // the dimension one wall thickness below the true invert.
-            //
-            // The review states the error is ~2 wall thicknesses. That would
-            // only hold if Diameter were the OUTSIDE diameter; Revit's API has
-            // no inside/outside distinction on Pipe (verified against the 2025
-            // assembly — Diameter is the only such property), so the error is
-            // one wall thickness.
-            //
-            // NOTE: this changes a reported engineering value. It is correct
-            // per the standards the surrounding comment already cites, but
-            // wants a drainage engineer's sign-off before this dimensioner is
-            // wired into production output.
-            double radius = 0;
-            try { radius = pipe.Diameter * 0.5; } catch (Exception ex) { StingLog.Warn($"Pipe diameter: {ex.Message}"); }
-            var invert = new XYZ(midPt.X, midPt.Y, midPt.Z - radius);
-
-            // Bend / end / refPt offsets — small in-plane offsets so the
-            // leader sits clear of the centreline.
-            var bend = invert + new XYZ(1.0, 1.0, 0);
-            var end  = invert + new XYZ(2.0, 1.0, 0);
-            var refPt = invert;
-
-            Reference cref = lc.Curve.Reference ?? new Reference(pipe);
-            try
-            {
-                var sd = doc.Create.NewSpotElevation(view, cref, invert, bend, end, refPt, hasLeader: true);
-                if (sd != null && spotTypeId != ElementId.InvalidElementId)
-                {
-                    try { sd.ChangeTypeId(spotTypeId); } catch (Exception ex2) { StingLog.Warn($"Suppressed: {ex2.Message}"); }
-                }
-                if (sd != null) result.SpotsPlaced++;
-            }
-            catch (Exception ex2)
-            {
-                result.Warnings.Add($"NewSpotElevation pipe {pipe.Id}: {ex2.Message}");
-            }
-        }
+        private static XYZ Project(XYZ p, XYZ origin, XYZ normal)
+            => p - normal * (p - origin).DotProduct(normal);
     }
 }

@@ -18,7 +18,7 @@
 // "standard variants" (EnumerateStandardVariants) that covers:
 //
 //   1. The eight disciplinary defaults (defaults_per_discipline)
-//   2. A compact black baseline for every size (depth tiers 1, 2, 3)
+//   2. A compact black baseline for every size (depth tiers 1, 2)
 //   3. A small hand-picked set of common combos (see tag_style_catalogue.json)
 //
 // MigrateTagFamiliesCommand pre-creates these variants.  Any other combination
@@ -41,7 +41,7 @@ using StingTools.Core;
 
 namespace StingTools.Core
 {
-    /// <summary>Disciplinary default style preset (e.g. M = 2.5/BOLD/BLUE/Filled30/T3).</summary>
+    /// <summary>Disciplinary default style preset (e.g. M = 2.5/BOLD/BLUE/Filled30/T2).</summary>
     public class DisciplineDefault
     {
         public string Disc { get; set; } = "";
@@ -49,7 +49,11 @@ namespace StingTools.Core
         public string Style { get; set; } = "NOM";
         public string Colour { get; set; } = "BLACK";
         public string Arrowhead { get; set; } = "None";
-        public int DepthTier { get; set; } = 3;
+        // Depth 2, not 3: the universal label has no T3 rows and the master
+        // carries no TAG_PARA_STATE_3_BOOL, so a T3 default minted a type that
+        // reported depth 3 and drew depth 2. See standard_variants_notes in
+        // tag_style_catalogue.json.
+        public int DepthTier { get; set; } = 2;
 
         public TypeVariantSpec ToVariantSpec() => new TypeVariantSpec
         {
@@ -68,10 +72,14 @@ namespace StingTools.Core
         public string Style { get; set; } = "NOM";
         public string Colour { get; set; } = "BLACK";
         public string Arrowhead { get; set; } = "None";
-        public int DepthTier { get; set; } = 3;
+        // Depth 2, not 3: the universal label has no T3 rows and the master
+        // carries no TAG_PARA_STATE_3_BOOL, so a T3 default minted a type that
+        // reported depth 3 and drew depth 2. See standard_variants_notes in
+        // tag_style_catalogue.json.
+        public int DepthTier { get; set; } = 2;
 
         /// <summary>
-        /// Canonical type name used in Revit. Example: "2.5_BOLD_RED_Filled30_T3".
+        /// Canonical type name used in Revit. Example: "2.5_BOLD_RED_Filled30_T2".
         /// Arrowhead name is sanitised: spaces removed, "Arrow " prefix stripped.
         /// </summary>
         public string CanonicalTypeName
@@ -126,7 +134,9 @@ namespace StingTools.Core
 
         // Backing fields typed as IReadOnlyList so even a cast attempt at the
         // call site gets a compile-time warning rather than silent mutability.
-        private static IReadOnlyList<string> _sizes = new[] { "2", "2.5", "3", "3.5" };
+        // ISO 3098 sizes first; 2 and 3 mm stay selectable but no default uses them (IsoTagText).
+        private static IReadOnlyList<string> _sizes = new[] { "2.5", "3.5", "2", "3" };
+        private static string _defaultSize = Drawing.IsoTagText.DefaultSize;
         private static IReadOnlyList<string> _styles = new[] { "NOM", "BOLD", "ITALIC", "BOLDITALIC" };
         private static IReadOnlyList<string> _colours = new[] { "BLACK", "BLUE", "GREEN", "RED", "ORANGE", "PURPLE", "GREY", "WHITE" };
         private static IReadOnlyList<string> _arrowheads = new[] { "None", "Arrow Filled 15", "Arrow Filled 30", "Arrow Open 30", "Dot Filled", "Tick", "Heavy End" };
@@ -136,6 +146,9 @@ namespace StingTools.Core
         private static IReadOnlyList<TypeVariantSpec> _standardVariants = Array.Empty<TypeVariantSpec>();
 
         public static IReadOnlyList<string> Sizes      { get { EnsureLoaded(); return _sizes; } }
+        /// <summary>The size every default uses — always an ISO 3098 height (2.5 mm unless the
+        /// catalogue names another ISO size).</summary>
+        public static string DefaultSize { get { EnsureLoaded(); return _defaultSize; } }
         public static IReadOnlyList<string> Styles     { get { EnsureLoaded(); return _styles; } }
         public static IReadOnlyList<string> Colours    { get { EnsureLoaded(); return _colours; } }
         public static IReadOnlyList<string> Arrowheads { get { EnsureLoaded(); return _arrowheads; } }
@@ -153,9 +166,19 @@ namespace StingTools.Core
             return new DisciplineDefault
             {
                 Disc = disc ?? "G",
-                Size = "2.5", Style = "NOM", Colour = "BLACK",
+                Size = _defaultSize, Style = "NOM", Colour = "BLACK",
                 Arrowhead = "None", DepthTier = 2,
             };
+        }
+
+        /// <summary>A default's size made ISO, logging when the catalogue asked for a
+        /// non-ISO one. Defaults never land on 2 / 3 mm; explicit picks elsewhere may.</summary>
+        private static string IsoDefault(string size, string where)
+        {
+            string iso = Drawing.IsoTagText.ToIso(size);
+            if (!string.Equals(iso, (size ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                StingLog.Warn($"TagStyleCatalogue: {where} size '{size}' is not an ISO 3098 height — using {iso} mm.");
+            return iso;
         }
 
         /// <summary>
@@ -205,6 +228,7 @@ namespace StingTools.Core
             _styles = ReadStringArray(root, "styles", _styles);
             _colours = ReadStringArray(root, "colours", _colours);
             _arrowheads = ReadStringArray(root, "arrowheads", _arrowheads);
+            _defaultSize = IsoDefault(root["default_size"]?.ToString() ?? Drawing.IsoTagText.DefaultSize, "default_size");
 
             var depthArr = root["depth_tiers"] as JArray;
             if (depthArr != null)
@@ -229,11 +253,11 @@ namespace StingTools.Core
                     _defaults[prop.Name] = new DisciplineDefault
                     {
                         Disc = prop.Name,
-                        Size = d["size"]?.ToString() ?? "2.5",
+                        Size = IsoDefault(d["size"]?.ToString() ?? _defaultSize, $"defaults_per_discipline.{prop.Name}"),
                         Style = d["style"]?.ToString() ?? "NOM",
                         Colour = d["colour"]?.ToString() ?? "BLACK",
                         Arrowhead = d["arrowhead"]?.ToString() ?? "None",
-                        DepthTier = d["depth_tier"]?.Value<int>() ?? 3,
+                        DepthTier = d["depth_tier"]?.Value<int>() ?? 2,
                     };
                 }
             }
@@ -256,11 +280,13 @@ namespace StingTools.Core
                 {
                     var spec = new TypeVariantSpec
                     {
-                        Size = v["size"]?.ToString() ?? "2.5",
+                        // Pre-created variants are defaults too: ISO sizes only.
+                        Size = IsoDefault(v["size"]?.ToString() ?? _defaultSize, "standard_variants"),
                         Style = v["style"]?.ToString() ?? "NOM",
                         Colour = v["colour"]?.ToString() ?? "BLACK",
                         Arrowhead = v["arrowhead"]?.ToString() ?? "None",
-                        DepthTier = v["depth_tier"]?.Value<int>() ?? 3,
+                        // 2, like every other default: the label has no T3 rows (see notes).
+                        DepthTier = v["depth_tier"]?.Value<int>() ?? 2,
                     };
                     if (seen.Add(spec.CanonicalTypeName))
                         variants.Add(spec);
@@ -287,14 +313,14 @@ namespace StingTools.Core
         {
             _defaults = new Dictionary<string, DisciplineDefault>(StringComparer.OrdinalIgnoreCase)
             {
-                ["M"]  = new DisciplineDefault { Disc = "M",  Size = "2.5", Style = "BOLD",   Colour = "BLUE",   Arrowhead = "Arrow Filled 30", DepthTier = 3 },
-                ["E"]  = new DisciplineDefault { Disc = "E",  Size = "2.5", Style = "BOLD",   Colour = "ORANGE", Arrowhead = "Arrow Filled 30", DepthTier = 3 },
-                ["P"]  = new DisciplineDefault { Disc = "P",  Size = "2.5", Style = "BOLD",   Colour = "GREEN",  Arrowhead = "Arrow Filled 30", DepthTier = 3 },
+                ["M"]  = new DisciplineDefault { Disc = "M",  Size = "2.5", Style = "BOLD",   Colour = "BLUE",   Arrowhead = "Arrow Filled 30", DepthTier = 2 },
+                ["E"]  = new DisciplineDefault { Disc = "E",  Size = "2.5", Style = "BOLD",   Colour = "ORANGE", Arrowhead = "Arrow Filled 30", DepthTier = 2 },
+                ["P"]  = new DisciplineDefault { Disc = "P",  Size = "2.5", Style = "BOLD",   Colour = "GREEN",  Arrowhead = "Arrow Filled 30", DepthTier = 2 },
                 ["A"]  = new DisciplineDefault { Disc = "A",  Size = "2.5", Style = "NOM",    Colour = "BLACK",  Arrowhead = "Arrow Open 30",   DepthTier = 2 },
-                ["S"]  = new DisciplineDefault { Disc = "S",  Size = "2.5", Style = "BOLD",   Colour = "RED",    Arrowhead = "Arrow Filled 30", DepthTier = 3 },
-                ["FP"] = new DisciplineDefault { Disc = "FP", Size = "2.5", Style = "BOLD",   Colour = "RED",    Arrowhead = "Arrow Filled 30", DepthTier = 3 },
-                ["LV"] = new DisciplineDefault { Disc = "LV", Size = "2",   Style = "ITALIC", Colour = "PURPLE", Arrowhead = "Dot Filled",      DepthTier = 2 },
-                ["G"]  = new DisciplineDefault { Disc = "G",  Size = "2",   Style = "NOM",    Colour = "BLACK",  Arrowhead = "None",            DepthTier = 1 },
+                ["S"]  = new DisciplineDefault { Disc = "S",  Size = "2.5", Style = "BOLD",   Colour = "RED",    Arrowhead = "Arrow Filled 30", DepthTier = 2 },
+                ["FP"] = new DisciplineDefault { Disc = "FP", Size = "2.5", Style = "BOLD",   Colour = "RED",    Arrowhead = "Arrow Filled 30", DepthTier = 2 },
+                ["LV"] = new DisciplineDefault { Disc = "LV", Size = "2.5", Style = "ITALIC", Colour = "PURPLE", Arrowhead = "Dot Filled",      DepthTier = 2 },
+                ["G"]  = new DisciplineDefault { Disc = "G",  Size = "2.5", Style = "NOM",    Colour = "BLACK",  Arrowhead = "None",            DepthTier = 1 },
             };
 
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -310,9 +336,11 @@ namespace StingTools.Core
 
         private static void BuildBuiltInStandardVariants(HashSet<string> seen, List<TypeVariantSpec> variants)
         {
-            foreach (string size in _sizes)
+            // ISO sizes only, depth tiers 1–2 (the label has no T3 rows) — the same set the
+            // shipped catalogue pre-creates.
+            foreach (string size in Drawing.IsoTagText.IsoMatrixSizes)
             {
-                for (int t = 1; t <= 3; t++)
+                for (int t = 1; t <= 2; t++)
                 {
                     var v = new TypeVariantSpec
                     {

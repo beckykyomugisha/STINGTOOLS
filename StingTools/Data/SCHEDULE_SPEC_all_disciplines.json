@@ -3423,22 +3423,20 @@
  "MEP/Materials": {
   "bundle": "MEP",
   "family": "Materials",
-  "col1_tag": "ASS_TAG_1_TXT",
-  "col2_desc": "ASS_DESCRIPTION_TXT",
+  "col1_tag": "MAT_CODE",
+  "col2_desc": "MAT_NAME",
   "last_comments": "Comments",
   "sheet_columns": [
    "MAT_MANUFACTURER",
    "MAT_STANDARD",
-   "MAT_CODE",
    "PROP_DENSITY_KG_M3",
    "PROP_FIRE_RATING",
    "PROP_THERMAL_COND_W_MK",
-   "ASS_CST_TOTAL_UGX_NR"
+   "MAT_COST_UGX"
   ],
   "full_columns": [
    "MAT_MANUFACTURER",
    "MAT_STANDARD",
-   "MAT_CODE",
    "PROP_DENSITY_KG_M3",
    "PROP_FIRE_RATING",
    "PROP_THERMAL_COND_W_MK",
@@ -3451,10 +3449,7 @@
    "PROP_TENS_STRENGTH_MPA",
    "MAT_DURABILITY",
    "MAT_APPLICATION",
-   "ASS_CST_TOTAL_UGX_NR",
-   "ASS_SPOOL_NR_TXT",
-   "ASS_FAB_STATUS_TXT",
-   "ASS_QC_INSPECTOR_TXT"
+   "MAT_COST_UGX"
   ]
  },
  "MEP/Mechanical Control Devices": {

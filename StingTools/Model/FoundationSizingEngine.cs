@@ -336,8 +336,13 @@ namespace StingTools.Model
             if (el == null || r == null) return;
             // Write the canonical structural params the Foundation tag + validators read
             // (consolidates the former FOUND_WIDTH/LENGTH/DEPTH duplicates of STR_FDN_*).
-            ParameterHelpers.SetString(el, "STR_FDN_SIZE_MM",  $"{r.PadWidth_mm:F0}x{r.PadLength_mm:F0}", overwrite: true);
-            ParameterHelpers.SetString(el, "STR_FDN_DEPTH_MM", r.PadDepth_mm.ToString("F0"),               overwrite: true);
+            // STR_FDN_SIZE_MM / STR_FDN_DEPTH_MM are LENGTH parameters: SetString refused the
+            // text ("1200x1500") and the digits alike, so neither was ever written. The
+            // number goes in through its unit; the "W x L" text goes to the tag's _TXT field.
+            ParameterHelpers.SetString(el, "STR_FDN_SIZE_TXT", $"{r.PadWidth_mm:F0}x{r.PadLength_mm:F0}", overwrite: true);
+            ParameterHelpers.SetDoubleInNamedUnit(el, "STR_FDN_SIZE_MM",  r.PadWidth_mm);
+            ParameterHelpers.SetDoubleInNamedUnit(el, "STR_FDN_DEPTH_MM", r.PadDepth_mm);
+            ParameterHelpers.SetString(el, "STR_FDN_DEPTH_TXT", r.PadDepth_mm.ToString("F0", System.Globalization.CultureInfo.InvariantCulture), overwrite: true);
             ParameterHelpers.SetString(el, "FOUND_SOIL_CLASS_TXT", FoundationSizingEngine.SoilClassName(r.Soil), overwrite: true);
             ParameterHelpers.SetString(el, "FOUND_BEAR_UTIL_TXT",  r.BearingUtilisation.ToString("P0"), overwrite: true);
             ParameterHelpers.SetString(el, "FOUND_SUMMARY_TXT",    r.Summary ?? "", overwrite: true);

@@ -579,7 +579,7 @@ namespace StingTools.Commands.Baseline
         /// <summary>
         /// The panel dispatcher calls Execute(null, ...) on purpose and expects
         /// CurrentApp as the fallback. A command that only reads
-        /// commandData.Application works from a ribbon button and is silently
+        /// ParameterHelpers.GetApp(commandData) works from a ribbon button and is silently
         /// dead from the dock panel — no exception, no dialog, a clean
         /// start/done in the log.
         /// </summary>

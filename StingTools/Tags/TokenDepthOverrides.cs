@@ -50,10 +50,28 @@ namespace StingTools.Tags
             }
         }
 
-        /// <summary>Resolve a category's override, or null when none is configured.</summary>
-        public static TokenDepthOverride Resolve(string categoryName)
+        /// <summary>
+        /// Resolve a category's override, or null when none is configured.
+        ///
+        /// <para>WHY THIS TAKES A DOCUMENT. The map is lazily loaded, so an
+        /// unprimed lookup returns null - and null is also the honest answer
+        /// for "no override configured". The two are indistinguishable at the
+        /// call site, and on 2026-09-23 they were confused: Tag Doctor called
+        /// Resolve without ever calling EnsureLoaded, and reported "Air
+        /// Terminals: no cap" about a category the corporate baseline caps at
+        /// T4. It printed its own uninitialised state as a fact about the
+        /// model.</para>
+        ///
+        /// <para>Taking the Document and priming here means the mistake is not
+        /// available: there is no overload that can be called too early. That
+        /// is cheaper than remembering, and EnsureLoaded returns immediately
+        /// once the key matches, so calling it per element in a loop is
+        /// free.</para>
+        /// </summary>
+        public static TokenDepthOverride Resolve(Document doc, string categoryName)
         {
             if (string.IsNullOrEmpty(categoryName)) return null;
+            EnsureLoaded(doc);
             var m = _map;
             m.TryGetValue(categoryName, out TokenDepthOverride o);
             return o;

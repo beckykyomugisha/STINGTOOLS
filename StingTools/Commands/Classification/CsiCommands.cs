@@ -356,7 +356,7 @@ namespace StingTools.Commands.Classification
             {
                 Title = "Select the SpecLink spec TOC (CSV or XLSX with Section + Title columns)",
                 Filter = "Spec TOC (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
             };
             if (dlg.ShowDialog() != true) return Result.Cancelled;
 
@@ -486,7 +486,7 @@ namespace StingTools.Commands.Classification
                 foreach (var m in rec.TitleMismatches) { ws.Cell(row, 1).Value = "TITLE_MISMATCH"; ws.Cell(row, 2).Value = m.Section; ws.Cell(row, 3).Value = m.ModelTitle; ws.Cell(row, 4).Value = m.SpecTitle; row++; }
                 foreach (var o in rec.OverSpec) { ws.Cell(row, 1).Value = "OVER_SPEC"; ws.Cell(row, 2).Value = o.Section; ws.Cell(row, 4).Value = o.Title; row++; }
                 ws.Columns().AdjustToContents();
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_SpecLink_Reconcile_{DateTime.Now:yyyyMMdd}.xlsx");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_SpecLink_Reconcile_{DateTime.Now:yyyyMMdd}.xlsx");
                 wb.SaveAs(path);
                 return path;
             }

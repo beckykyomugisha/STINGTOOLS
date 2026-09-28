@@ -161,15 +161,10 @@ namespace StingTools.Core.Electrical
             return 0;
         }
 
-        private static double ParseCsaFromWireSize(string size)
-        {
-            if (string.IsNullOrEmpty(size)) return 0.0;
-            var digits = new string(size.Where(c => char.IsDigit(c) || c == '.' || c == ',').ToArray())
-                .Replace(',', '.');
-            double.TryParse(digits, System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out double csa);
-            return csa;
-        }
+        // Delegates to the shared parser. The local one joined EVERY digit in the
+        // string, so "2x2.5mm2" became 22.52 mm² (and failed to parse outright
+        // for strings with two decimal points).
+        private static double ParseCsaFromWireSize(string size) => WireSizeParser.ParseCsaMm2(size);
     }
 
     public class CircuitWireAssignment

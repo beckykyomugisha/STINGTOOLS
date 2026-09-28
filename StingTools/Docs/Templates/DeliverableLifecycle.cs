@@ -35,11 +35,14 @@ namespace Planscape.Docs.Templates
 
         public static LifecycleResult Publish(dynamic d, Document doc, TemplateManifest m, string issuedBy, int stage)
         {
-            string suit = "S4";
-            if (stage == 1) suit = "S2";
-            else if (stage == 2) suit = "S3";
-            else if (stage == 3) suit = "S4";
-            else if (stage >= 4) suit = "S5";
+            // Stages 1–2 share (S2, S3); stage 3+ publishes, and a published document
+            // carries an AUTHORISED code. This stamped S4 (stage 3) and S5 (stage 4+),
+            // which ISO 19650 — and Iso19650Suitability.CdeStateFor, which the title
+            // block derives its CDE state from — file in SHARED, so every published
+            // deliverable printed a state it was not in.
+            string suit = stage == 1 ? "S2"
+                        : stage == 2 ? "S3"
+                        : StingTools.Core.Drawing.Iso19650Suitability.DefaultFor("PUBLISHED");
             var res = Transition(d, doc, m, "Published", "A01", issuedBy, newSuitability: suit,
                                  newCde: stage >= 3 ? "PUBLISHED" : "SHARED",
                                  reason: $"Publish stage {stage}", action: $"published_stage_{stage}");

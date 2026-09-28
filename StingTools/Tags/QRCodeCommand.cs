@@ -25,7 +25,7 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             // Phase 98: BCC dispatches into WorkflowEngine.ResolveCommand with
-            // commandData = null, so `commandData.Application.ActiveUIDocument`
+            // commandData = null, so `ParameterHelpers.GetApp(commandData).ActiveUIDocument`
             // used to throw NRE. Use the safe fallback that picks up
             // StingCommandHandler.CurrentApp when dispatched from modeless WPF.
             var uiApp = ParameterHelpers.GetApp(commandData);

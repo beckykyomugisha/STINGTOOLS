@@ -10,8 +10,10 @@ namespace StingTools.Core
     /// </summary>
     public static class TagTokenIntegrity
     {
-        /// <summary>Segments that mean "not known". Never a real answer.</summary>
-        public static readonly string[] StructuralPlaceholders = { "XX", "ZZ", "0000" };
+        /// <summary>Segments that mean "not known". Never a real answer. The unassigned
+        /// SEQ is not listed: it is all zeros at whatever the pad width is, so it is
+        /// matched by <see cref="SeqAssigner.IsUnresolvedToken"/>, not by a literal.</summary>
+        public static readonly string[] StructuralPlaceholders = { "XX", "ZZ" };
 
         /// <summary>
         /// Real answers supplied by the token policy as a fallback rather than
@@ -50,16 +52,15 @@ namespace StingTools.Core
             // re-derived on every run, never reachable by Skip mode, and unable to
             // reach 100% on any compliance surface. Assumption is reported through
             // TaggingStats.AssumedByToken and HasPlaceholderOrAssumed instead.
-            return ContainsSegment(tag, separator, StructuralPlaceholders);
+            if (string.IsNullOrEmpty(tag)) return false;
+            foreach (string part in tag.Split(new[] { Sep(separator) }, StringSplitOptions.None))
+                if (SeqAssigner.IsUnresolvedToken(part)) return true;
+            return false;
         }
 
         /// <summary>Strict/compliance reading: unknown OR assumed.</summary>
         public static bool HasPlaceholderOrAssumed(string tag, string separator)
-        {
-            var all = new List<string>(StructuralPlaceholders);
-            all.AddRange(AssumedValues);
-            return ContainsSegment(tag, separator, all);
-        }
+            => HasStructuralPlaceholder(tag, separator) || ContainsSegment(tag, separator, AssumedValues);
 
         /// <summary>
         /// True when the tag splits into exactly <paramref name="expectedSegments"/>

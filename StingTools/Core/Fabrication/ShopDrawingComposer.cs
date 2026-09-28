@@ -488,7 +488,7 @@ namespace StingTools.Core.Fabrication
 
             // Revit throws when two sheets share a number. Uniquify with
             // a monotonic suffix as a last resort.
-            string unique = EnsureUniqueSheetNumber(doc, sheetNumber);
+            string unique = EnsureUniqueSheetNumber(doc, sheetNumber, result?.Warnings);
             try { sheet.SheetNumber = unique; }
             catch (Exception ex)
             { result.Warnings.Add($"SheetNumber assign ('{unique}'): {ex.Message}"); }
@@ -531,6 +531,9 @@ namespace StingTools.Core.Fabrication
                     TrySetString(tbInst, AssyParams.FAB_LOC_TXT,     ReadString(ai, AssyParams.FAB_LOC_TXT));
                     TrySetString(tbInst, AssyParams.FAB_STATUS_TXT,  ReadString(ai, AssyParams.FAB_STATUS_TXT));
                     TrySetString(tbInst, AssyParams.BOM_REV_TXT,     ReadString(ai, AssyParams.BOM_REV_TXT));
+                    TrySetString(tbInst, ParamRegistry.TB_DISCIPLINE, discipline);
+                    // Legacy cell name kept for assembly title blocks authored before the
+                    // stubs moved to the registry parameter; a missing parameter is a no-op.
                     TrySetString(tbInst, "DISCIPLINE",               discipline);
                 }
             }
@@ -587,19 +590,16 @@ namespace StingTools.Core.Fabrication
                 foreach (var kv in extras)
                 {
                     if (string.IsNullOrEmpty(kv.Key)) continue;
+                    if (string.Equals(kv.Key, "seq", StringComparison.OrdinalIgnoreCase)) continue;
                     s = s.Replace("{" + kv.Key + "}", kv.Value ?? "");
+                    foreach (var alias in Core.Drawing.SheetNumberTokens.Spellings(
+                                 Core.Drawing.SheetNumberTokens.CanonicalName(kv.Key)))
+                        s = s.Replace("{" + alias + "}", kv.Value ?? "");
                 }
             }
 
-            // {seq:Dn} with explicit padding width — honour whatever the
-            // pattern asks for so A-{seq:D3} yields A-001 and
-            // SP-{seq:D4} yields SP-0001.
-            s = System.Text.RegularExpressions.Regex.Replace(
-                s, @"\{seq:D(\d+)\}",
-                m => seq.ToString("D" + m.Groups[1].Value));
-            // Bare {seq} keeps the historical default of 4 digits.
-            s = s.Replace("{seq}", seq.ToString("D4"));
-            return s;
+            // {seq:Dn} at the width asked for; bare {seq} at the shared default.
+            return Core.Drawing.SheetNumberTokens.ApplySeq(s, seq);
         }
 
         /// <summary>
@@ -760,7 +760,14 @@ namespace StingTools.Core.Fabrication
         /// Probe the document for an existing sheet with the proposed
         /// number and, if found, append -A, -B, … until unique.
         /// </summary>
-        private static string EnsureUniqueSheetNumber(Document doc, string baseNumber)
+        /// <summary>
+        /// P-11: this was a second copy of the producer's uniquifier — silent,
+        /// with a bare catch, ending in a random suffix, so a re-run gave the
+        /// same spool a different number and nobody was told two sheets
+        /// collided. Both paths now use SheetNumberEngine.MakeUnique, which is
+        /// deterministic and always reports a changed number.
+        /// </summary>
+        private static string EnsureUniqueSheetNumber(Document doc, string baseNumber, List<string> warnings)
         {
             if (string.IsNullOrEmpty(baseNumber)) return baseNumber;
             var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -772,15 +779,18 @@ namespace StingTools.Core.Fabrication
                         existing.Add(vs.SheetNumber);
                 }
             }
-            catch { return baseNumber; }
-            if (!existing.Contains(baseNumber)) return baseNumber;
-            for (char c = 'A'; c <= 'Z'; c++)
+            catch (Exception ex)
             {
-                var candidate = baseNumber + "-" + c;
-                if (!existing.Contains(candidate)) return candidate;
+                // Cannot see the existing numbers, so cannot promise uniqueness.
+                // Hand back the base number; Revit's own duplicate check is the
+                // backstop, and its refusal is reported at the assignment.
+                StingLog.Warn($"ShopDrawingComposer.EnsureUniqueSheetNumber: {ex.Message}");
+                warnings?.Add($"Could not read existing sheet numbers ({ex.Message}); '{baseNumber}' not checked for clashes.");
+                return baseNumber;
             }
-            // Final fallback: long random suffix.
-            return baseNumber + "-" + Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant();
+            var chosen = SheetNumberEngine.MakeUnique(baseNumber, existing, out var note);
+            if (note != null) warnings?.Add(note);
+            return chosen ?? baseNumber;
         }
         private static void TrySetString(Element el, string param, string val)
         {

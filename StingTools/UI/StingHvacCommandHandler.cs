@@ -281,6 +281,8 @@ namespace StingTools.UI
                     case "Hvac_FanStaticReport":
                         // Gap 2.3 — index-run total-static / fan external static report.
                         Run<StingTools.Commands.Hvac.HvacFanStaticReportCommand>(app); break;
+                    case "Hvac_BlockLoadHeating":
+                        Run<StingTools.Commands.Hvac.HvacBlockLoadHeatingCommand>(app); break;
                     case "Hvac_BlockLoad":
                         // STING-design-engines (this phase): peak-pick block load
                         // with location-aware climate site + diversity factor.
@@ -338,6 +340,10 @@ namespace StingTools.UI
                         // STING-design-engines: refrigerant pipe sizing for R410A,
                         // R32, R134a, CO2 with oil-return + vendor envelope checks.
                         Run<StingTools.Commands.Hvac.HvacRefrigerantSizeCommand>(app); break;
+                    case "Hvac_PsychroCoil":
+                        Run<StingTools.Commands.Hvac.HvacPsychroCoilCommand>(app); break;
+                    case "Fire_StairPressurisation":
+                        Run<StingTools.Commands.Fire.StairPressurisationCommand>(app); break;
                     case "Hvac_ClimateInspect":
                         Run<StingTools.Commands.Hvac.HvacClimateInspectCommand>(app); break;
                     case "Hvac_ClimateReload":

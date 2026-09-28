@@ -71,7 +71,7 @@ namespace StingTools.Commands.Twin
             {
                 Title = "Optional: select the Niagara / BACnet station export (Cancel to skip the commissioned-unpriced check)",
                 Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
             };
             if (dlg.ShowDialog() == true)
             {
@@ -229,7 +229,7 @@ namespace StingTools.Commands.Twin
                     }
                 gw.Columns().AdjustToContents();
 
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_KUT_Lifecycle_Register_{DateTime.Now:yyyyMMdd}.xlsx");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "AssetRegister", $"STING_KUT_Lifecycle_Register_{DateTime.Now:yyyyMMdd}.xlsx");
                 wb.SaveAs(path);
                 return path;
             }

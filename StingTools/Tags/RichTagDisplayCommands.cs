@@ -455,7 +455,7 @@ namespace StingTools.Tags
             string html = BuildHtmlReport(doc, tagged);
 
             // Save to file — uses user-preferred output location
-            string filePath = OutputLocationHelper.GetTimestampedPath(doc, "STING_TAG7_Report", ".html");
+            string filePath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_TAG7_Report", ".html");
 
             File.WriteAllText(filePath, html);
 

@@ -108,13 +108,8 @@ namespace StingTools.Tags
             return double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : fallback;
         }
 
-        private static string DefaultTextSize(int maxDenom)
-        {
-            if (maxDenom <= 50)  return "3.5";
-            if (maxDenom <= 100) return "3";
-            if (maxDenom <= 200) return "2.5";
-            return "2";
-        }
+        // ISO 3098: printed tag text does not shrink with the view scale (IsoTagText).
+        private static string DefaultTextSize(int maxDenom) => Core.Drawing.IsoTagText.DefaultSize;
     }
 
     /// <summary>
