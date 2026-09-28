@@ -112,7 +112,7 @@ namespace StingTools.Commands.Hvac
                             // Already set? Skip. HVC_CAPACITY_KW is TEXT-storage
                             // (Revit shared-param convention) so we check empty
                             // string rather than parsing zero.
-                            string capExisting = ParameterHelpers.GetString(e, "HVC_CAPACITY_KW");
+                            string capExisting = ParameterHelpers.GetValueText(e, "HVC_CAPACITY_KW");
                             if (string.IsNullOrEmpty(capExisting))
                             {
                                 double kw = InferCapacityKw(e);

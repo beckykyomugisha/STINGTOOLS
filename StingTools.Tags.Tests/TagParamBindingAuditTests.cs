@@ -39,6 +39,41 @@ namespace StingTools.Tags.Tests
             Assert.False(spec.ContainsKey("RGL_STD_TXT"));
         }
 
+        [Fact]
+        public void AllPlusExtrasIsUniversalAndKeepsTheExtras()
+        {
+            // "<ALL>|Project Information" (PRJ_* parameters): universal, and the
+            // category outside the universal set is not lost.
+            HashSet<string> uni;
+            var spec = TagParamBindingAudit.ParseSpec(new[] { "PRJ_NAME_TXT,<ALL>|Project Information" }, out uni);
+
+            Assert.Contains("PRJ_NAME_TXT", uni);
+            Assert.Equal(new[] { "Project Information" }, spec["PRJ_NAME_TXT"]);
+        }
+
+        [Fact]
+        public void ShippedSpecPutsEveryProjectLevelParamOnProjectInformation()
+        {
+            // ROADMAP PARAM-6 (closed 2026-09-25): a PRJ_* parameter outside the
+            // sheet-identity family must reach Project Information, where its readers go.
+            string data = DataDir();
+            Assert.True(data != null, "StingTools/Data not found");
+            HashSet<string> uni;
+            var spec = TagParamBindingAudit.ParseSpec(
+                File.ReadLines(Path.Combine(data, "RESOLVED_BINDINGS.csv")), out uni);
+
+            var names = uni.Concat(spec.Keys)
+                .Where(n => n.StartsWith("PRJ_", StringComparison.Ordinal)
+                            && !n.StartsWith("PRJ_TB_", StringComparison.Ordinal)
+                            && !n.StartsWith("PRJ_SHEET_", StringComparison.Ordinal)
+                            && !n.StartsWith("PRJ_DWG_", StringComparison.Ordinal)
+                            && n != "PRJ_STATUS_COD_TXT")
+                .Distinct().ToList();
+            Assert.True(names.Count > 50, $"only {names.Count} project-level params parsed");
+            var missing = names.Where(n => !spec.TryGetValue(n, out var c) || !c.Contains("Project Information")).ToList();
+            Assert.True(missing.Count == 0, "not on Project Information: " + string.Join(", ", missing));
+        }
+
         // ── audit logic ──────────────────────────────────────────────────────
 
         private static Dictionary<string, TagFamilyLabels> Fam(string name, string cat, params string[] ps)

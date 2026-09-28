@@ -322,7 +322,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
             _accessToken  = "";
             _refreshToken = "";
             _tokenExpiry  = DateTime.MinValue;
-            try { _http?.DefaultRequestHeaders.Authorization = null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            try { if (_http != null) _http.DefaultRequestHeaders.Authorization = null; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             DeletePersistedSession();
             throw new InvalidOperationException(
                 "Planscape session expired. Please log in again from the BIM tab.");
@@ -350,7 +350,7 @@ public sealed partial class PlanscapeServerClient : IDisposable
         ConnectedUser = "";
         TenantId      = Guid.Empty;
         UserId        = Guid.Empty;
-        _http?.DefaultRequestHeaders.Authorization = null;
+        if (_http != null) _http.DefaultRequestHeaders.Authorization = null;
         // P1 — explicit logout removes the persisted session so the next
         // Revit start does not auto-restore.
         DeletePersistedSession();

@@ -149,7 +149,9 @@ namespace StingTools.BOQ
                 case "substrate": return GetCompoundInnerMaterial(el);
                 case "spacing": return GetFamilyParamNumber(el, "Spacing", null);
                 case "standard": return DefaultStandardForDiscipline(el);
-                case "concrete_spec": return Fallback(GetFamilyParamString(el, "Concrete Grade"), "C25/30");
+                // No grade in the model: refer to the specification, never a guessed C25/30.
+                case "concrete_spec": return Fallback(Fallback(GetFamilyParamString(el, "Concrete Grade"),
+                                         ParameterHelpers.GetString(el, "BLE_STRUCT_CONCRETE_GRADE_TXT")), "as structural specification");
                 case "reinforcement": return Fallback(GetFamilyParamString(el, "Reinforcement"), "as structural drawings");
                 case "section_size": return Fallback(GetFamilyParamString(el, "Section Size"),
                                          GetBuiltIn(el, BuiltInParameter.STRUCTURAL_SECTION_SHAPE));
@@ -167,7 +169,7 @@ namespace StingTools.BOQ
                 case "foundation_type": return GetFamilyName(el);
                 case "capacity": return Fallback(GetFamilyParamString(el, "Capacity"), GetFamilyParamString(el, "Flow"));
                 case "wattage": return Fallback(GetFamilyParamString(el, "Wattage"), GetBuiltIn(el, BuiltInParameter.RBS_ELEC_APPARENT_LOAD));
-                case "lux_target": return Fallback(GetFamilyParamString(el, "Lux Level"), "300 lux");
+                case "lux_target": return Fallback(GetFamilyParamString(el, "Lux Level"), "as lighting design"); // not a guessed 300 lux
                 case "service": return Fallback(GetSystemName(el), "");
                 case "description":
                 case "notes": return ParameterHelpers.GetString(el, "ASS_DESCRIPTION_TXT");
@@ -369,8 +371,9 @@ namespace StingTools.BOQ
                 Parameter p = el.get_Parameter(BuiltInParameter.RBS_DUCT_FLOW_PARAM);
                 if (p != null && p.HasValue)
                 {
-                    double ls = p.AsDouble(); // CFM internal → need l/s; Revit stores ft³/s
-                    return $"{Math.Round(ls, 0):N0} l/s";
+                    // Revit stores flow in ft³/s internally — convert, don't relabel.
+                    double ls = StingTools.Core.Mep.MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_DUCT_FLOW_PARAM);
+                    if (ls > 0) return $"{Math.Round(ls, 0):N0} l/s";
                 }
             }
             catch (Exception ex) { StingLog.Warn($"GetDuctAirflow: {ex.Message}"); }

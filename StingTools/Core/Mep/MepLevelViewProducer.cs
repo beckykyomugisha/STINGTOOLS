@@ -223,12 +223,9 @@ namespace StingTools.Core.Mep
                 .Replace("{disc}", disc.Code)
                 .Replace("{discipline}", disc.Label)
                 .Replace("{lvl}", levelCode)
-                .Replace("{purpose}", "Coordination")
-                .Replace("{seq:D2}", seq.ToString("D2"))
-                .Replace("{seq:D3}", seq.ToString("D3"))
-                .Replace("{seq:D4}", seq.ToString("D4"))
-                .Replace("{seq}", seq.ToString("D4"));
-            return s;
+                .Replace("{purpose}", "Coordination");
+            // Any {seq:Dn}, not only D2-D4, and the shared bare-{seq} width.
+            return Core.Drawing.SheetNumberTokens.ApplySeq(s, seq);
         }
 
         private static DrawingType ResolveDrawingType(Document doc, string disc, string docType)

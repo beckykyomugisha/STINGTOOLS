@@ -62,6 +62,12 @@ namespace Planscape.Docs.Templates
             if (doc == null) return;
             try
             {
+                // IM-1: a project whose customised templates still sit in the legacy
+                // <rvtDir>/_BIM_COORD folder must not get stock copies written first —
+                // the registry would load those, and a later Folders_Consolidate would
+                // rename the user's versions aside on collision. Carry them forward first.
+                CarryForwardLegacy(doc, "templates");
+                CarryForwardLegacy(doc, "workflows");
                 ExtractTemplates(doc);
                 ExtractDefaultWorkflows(doc);
                 ExtractDefaultManifest(doc);
@@ -69,6 +75,42 @@ namespace Planscape.Docs.Templates
             catch (Exception ex)
             {
                 StingLog.Error("EmbeddedTemplates.ExtractIfMissing failed", ex);
+            }
+        }
+
+        /// <summary>Copy files from the legacy <c>&lt;rvtDir&gt;/_BIM_COORD/&lt;sub&gt;</c> into the
+        /// consolidated folder when the consolidated copy is missing. Copies only — the
+        /// legacy folder is left for Folders_Consolidate, which never deletes — and never
+        /// overwrites a file already in the consolidated folder.</summary>
+        internal static int CarryForwardLegacy(Document doc, string sub)
+        {
+            try
+            {
+                string target = StingPaths.MetaFile(doc, "_BIM_COORD", sub);
+                string legacy = ProjectFolderEngine.GetLegacyMetaDir(doc, "_BIM_COORD", sub);
+                if (string.IsNullOrEmpty(target) || string.IsNullOrEmpty(legacy) || !Directory.Exists(legacy))
+                    return 0;
+                if (string.Equals(Path.GetFullPath(target).TrimEnd('\\', '/'),
+                                  Path.GetFullPath(legacy).TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+                    return 0;
+
+                Directory.CreateDirectory(target);
+                int copied = 0;
+                foreach (string f in Directory.GetFiles(legacy))
+                {
+                    string dest = Path.Combine(target, Path.GetFileName(f));
+                    if (File.Exists(dest)) continue;
+                    File.Copy(f, dest);
+                    copied++;
+                }
+                if (copied > 0)
+                    StingLog.Info($"EmbeddedTemplates: carried {copied} file(s) forward from legacy {legacy} to {target}");
+                return copied;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"EmbeddedTemplates.CarryForwardLegacy({sub}): {ex.Message}");
+                return 0;
             }
         }
 

@@ -123,7 +123,7 @@ namespace StingTools.UI
         {
             try
             {
-                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_CURRENCY_TXT")
+                var p = doc?.ProjectInformation?.LookupParameter(ParamRegistry.PRJ_ORG_CURRENCY_TXT)
                        ?? doc?.ProjectInformation?.LookupParameter("Currency");
                 if (p != null && p.HasValue && p.StorageType == StorageType.String)
                     return (p.AsString() ?? "").Trim().ToUpperInvariant();

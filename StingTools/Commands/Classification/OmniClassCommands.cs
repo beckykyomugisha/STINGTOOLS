@@ -399,7 +399,7 @@ namespace StingTools.Commands.Classification
             string csv = null;
             try
             {
-                string dir = OutputLocationHelper.GetOutputDirectory(doc);
+                string dir = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance");
                 csv = Path.Combine(dir, $"omniclass_audit_T{table.Number}.csv");
                 var lines = new List<string> { "Section,Kind,Count" };
                 lines.Add($",Total,{total}");

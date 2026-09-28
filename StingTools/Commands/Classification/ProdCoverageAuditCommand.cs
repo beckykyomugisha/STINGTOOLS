@@ -202,7 +202,7 @@ namespace StingTools.Commands.Classification
                     }
                     else
                     {
-                        path = OutputLocationHelper.GetOutputPath(doc, $"prod_coverage_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                        path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"prod_coverage_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                     }
                     File.WriteAllLines(path, rows, Encoding.UTF8);
                 }

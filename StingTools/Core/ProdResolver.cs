@@ -171,12 +171,8 @@ namespace StingTools.Core
         public static string ResolveLps(string upper)
         {
             if (string.IsNullOrEmpty(upper)) return null;
-            bool isLps = upper.Contains("LPS") || upper.Contains("LIGHTNING") ||
-                         upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||
-                         upper.Contains("DOWN CONDUCTOR") || upper.Contains("DOWNCOND") ||
-                         upper.Contains("EARTH ROD") || upper.Contains("EARTH ELECTRODE") ||
-                         upper.Contains("RING EARTH") || upper.Contains("FOUNDATION EARTH") ||
-                         upper.Contains("TEST CLAMP") || upper.Contains("EQUIPOTENTIAL");
+            // Same keyword set as TagConfig.IsLightningProtection / the LPS SYS detector.
+            bool isLps = LpsNameClassifier.IsLps(upper);
             if (!isLps) return null;
 
             if (upper.Contains("AIR TERMINAL") || upper.Contains("FINIAL") ||

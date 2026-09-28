@@ -114,7 +114,8 @@ public class ComplianceController : ControllerBase
     {
         var tenantId = GetTenantId();
         var snapshot = await _db.ComplianceSnapshots
-            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId)
+            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId
+                && s.Kind != ComplianceSnapshot.KindWarnings)
             .OrderByDescending(s => s.CapturedAt)
             .FirstOrDefaultAsync();
 
@@ -131,7 +132,8 @@ public class ComplianceController : ControllerBase
     {
         var tenantId = GetTenantId();
         var snapshot = await _db.ComplianceSnapshots
-            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId)
+            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId
+                && s.Kind != ComplianceSnapshot.KindWarnings)
             .OrderByDescending(s => s.CapturedAt)
             .FirstOrDefaultAsync();
 
@@ -149,7 +151,8 @@ public class ComplianceController : ControllerBase
     {
         var tenantId = GetTenantId();
         var query = _db.ComplianceSnapshots
-            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId);
+            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId
+                && s.Kind != ComplianceSnapshot.KindWarnings);
 
         if (from.HasValue) query = query.Where(s => s.CapturedAt >= from.Value);
         if (to.HasValue) query = query.Where(s => s.CapturedAt <= to.Value);
@@ -178,7 +181,8 @@ public class ComplianceController : ControllerBase
         var since = DateTime.UtcNow.AddDays(-days);
 
         var trend = await _db.ComplianceSnapshots
-            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId && s.CapturedAt >= since)
+            .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId && s.CapturedAt >= since
+                && s.Kind != ComplianceSnapshot.KindWarnings)
             .GroupBy(s => s.CapturedAt.Date)
             .Select(g => new
             {

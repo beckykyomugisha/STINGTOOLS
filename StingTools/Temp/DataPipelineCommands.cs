@@ -106,7 +106,7 @@ namespace StingTools.Temp
             // Export to CSV
             try
             {
-                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Validation", ".csv");
+                string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Validation", "STING_Validation", ".csv");
                 var csvLines = new List<string> { "Check,Severity,Status,Detail" };
                 foreach (var r in results)
                     csvLines.Add($"\"{r.CheckName}\",\"{r.Severity}\",{(r.Passed ? "PASS" : "FAIL")},\"{r.Detail}\"");
@@ -222,28 +222,24 @@ namespace StingTools.Temp
 
             var lines = SafeReadAllLines(path, "Parameter file read", results);
             if (lines == null) return;
-            int paramCount = lines.Count(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#") && !l.TrimStart().StartsWith("*"));
+            // A shared-parameter file row is "PARAM<TAB>guid<TAB>name<TAB>...". Counting every
+            // non-comment line took in the META / GROUP header rows, and the GUID was read from
+            // column 0 -- the word "PARAM" -- so no GUID ever parsed and this check always failed.
+            var paramRows = lines.Where(l => l.StartsWith("PARAM\t")).Select(l => l.Split('\t')).ToList();
+            int paramCount = paramRows.Count;
             results.Add(new ValidationResult("Parameter count", "MODERATE",
                 paramCount >= 50,
                 $"{paramCount} parameters defined (expected 50+)"));
 
-            // Check for GUID format
-            int validGuids = 0;
-            foreach (string line in lines)
-            {
-                if (line.Contains("\t"))
-                {
-                    string[] parts = line.Split('\t');
-                    if (parts.Length >= 2)
-                    {
-                        if (Guid.TryParse(parts[0].Trim(), out _))
-                            validGuids++;
-                    }
-                }
-            }
+            int validGuids = paramRows.Count(p => p.Length >= 2 && Guid.TryParse(p[1].Trim(), out _));
+            var dupGuids = paramRows.Where(p => p.Length >= 2).GroupBy(p => p[1].Trim(), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             results.Add(new ValidationResult("Parameter GUIDs", "MODERATE",
-                validGuids >= 10,
-                $"{validGuids} valid GUIDs found"));
+                validGuids == paramCount && dupGuids.Count == 0,
+                validGuids == paramCount && dupGuids.Count == 0
+                    ? $"All {validGuids} GUIDs valid and unique"
+                    : $"{paramCount - validGuids} invalid, {dupGuids.Count} duplicated" +
+                      (dupGuids.Count > 0 ? $" (e.g. {dupGuids[0]})" : "")));
         }
 
         private void CheckBindingCoverage(string dataPath, List<ValidationResult> results)
@@ -597,9 +593,9 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Load parameter-category bindings from CATEGORY_BINDINGS.csv and
-    /// BINDING_COVERAGE_MATRIX.csv, then bind shared parameters accordingly.
-    /// Replaces hardcoded SharedParamGuids.DisciplineBindings for greater flexibility.
+    /// Add the categories the binding spec (RESOLVED_BINDINGS.csv, with project profiles)
+    /// gives each scoped parameter: create missing bindings, widen existing ones, never
+    /// remove. Universal parameters are left to Load Shared Parameters.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -612,81 +608,41 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
-            if (bindingsPath == null)
+            // PARAM-11: bind from the spec Load Shared Parameters uses (RESOLVED_BINDINGS.csv,
+            // plus any project binding profiles), not CATEGORY_BINDINGS.csv. That file is the
+            // resolver's hand-authored input -- the resolver honours only its Yes rows -- and
+            // read wholesale it put 1,141 parameters on Generic Models as TYPE parameters.
+            if (!SharedParamGuids.HasResolvedSpec)
             {
                 TaskDialog.Show("Dynamic Bindings",
-                    "CATEGORY_BINDINGS.csv not found.\n" +
+                    "RESOLVED_BINDINGS.csv could not be loaded, so there is no binding spec to apply.\n" +
                     $"Searched: {StingToolsApp.DataPath}");
                 return Result.Failed;
             }
-
-            // Parse binding definitions
-            string[] rawBindingLines;
-            try
-            {
-                rawBindingLines = File.ReadAllLines(bindingsPath);
-            }
-            catch (Exception ex)
-            {
-                TaskDialog.Show("Dynamic Bindings", $"Failed to read file: {ex.Message}");
-                StingLog.Error($"DynamicBindings: {ex.Message}", ex);
-                return Result.Failed;
-            }
-            var lines = rawBindingLines
-                .Where(l => !l.StartsWith("#") && !string.IsNullOrWhiteSpace(l))
-                .ToArray();
-
-            if (lines.Length < 2)
-            {
-                TaskDialog.Show("Dynamic Bindings", "No bindings found in CSV.");
-                return Result.Failed;
-            }
-
-            var headers = StingToolsApp.ParseCsvLine(lines[0]);
-            int paramIdx = FindColumn(headers, "Parameter_Name", "Param");
-            int catIdx = FindColumn(headers, "Revit_Category", "Category");
-            int typeIdx = FindColumn(headers, "Binding_Type", "Type");
-            int sharedIdx = FindColumn(headers, "Is_Shared", "Shared");
-
-            if (paramIdx < 0 || catIdx < 0)
-            {
-                TaskDialog.Show("Dynamic Bindings",
-                    "CSV missing required columns: Parameter_Name, Revit_Category");
-                return Result.Failed;
-            }
-
-            // Group bindings by parameter
+            var spec = SharedParamGuids.WithProfiles(doc, SharedParamGuids.ResolvedScopedBindings);
             var bindingGroups = new Dictionary<string, List<(string category, string bindType)>>(
                 StringComparer.OrdinalIgnoreCase);
-
-            for (int i = 1; i < lines.Length; i++)
+            int specRows = 0;
+            foreach (var kvp in spec)
             {
-                var cols = StingToolsApp.ParseCsvLine(lines[i]);
-                if (cols.Length <= Math.Max(paramIdx, catIdx)) continue;
-
-                string paramName = cols[paramIdx].Trim();
-                string category = cols[catIdx].Trim();
-                string bindType = typeIdx >= 0 && cols.Length > typeIdx ? cols[typeIdx].Trim() : "Instance";
-
-                if (string.IsNullOrEmpty(paramName) || string.IsNullOrEmpty(category))
-                    continue;
-
-                if (!bindingGroups.TryGetValue(paramName, out var bgList))
+                var list = new List<(string, string)>();
+                foreach (var bic in kvp.Value ?? Array.Empty<BuiltInCategory>())
                 {
-                    bgList = new List<(string, string)>();
-                    bindingGroups[paramName] = bgList;
+                    string catName = null;
+                    try { catName = Category.GetCategory(doc, bic)?.Name; }
+                    catch (Exception ex) { StingLog.Warn($"DynamicBindings category {bic}: {ex.Message}"); }
+                    if (!string.IsNullOrEmpty(catName)) { list.Add((catName, "Instance")); specRows++; }
                 }
-                bgList.Add((category, bindType));
+                if (list.Count > 0) bindingGroups[kvp.Key] = list;
             }
 
             TaskDialog confirm = new TaskDialog("Dynamic Bindings");
-            confirm.MainInstruction = $"Bind {bindingGroups.Count} parameters from CSV";
-            confirm.MainContent = $"Source: CATEGORY_BINDINGS.csv\n" +
-                $"Total bindings: {lines.Length - 1}\n" +
-                $"Unique parameters: {bindingGroups.Count}\n\n" +
-                "This will create missing parameter bindings.\n" +
-                "Existing bindings are not modified.";
+            confirm.MainInstruction = $"Add missing categories for {bindingGroups.Count} parameters";
+            confirm.MainContent = "Source: RESOLVED_BINDINGS.csv (the spec Load Shared Parameters binds from)\n" +
+                $"Category bindings: {specRows}\n" +
+                $"Universal parameters ({SharedParamGuids.ResolvedUniversalParams.Count}) are left to Load Shared Parameters.\n\n" +
+                "Creates missing bindings and adds missing categories.\n" +
+                "Nothing is removed; Reconcile Bindings narrows to the spec.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
@@ -812,19 +768,6 @@ namespace StingTools.Temp
                 $"Bound: {bound}\nSkipped: {skipped} (existing or not found)\nFailed: {failed}");
             StingLog.Info($"DynamicBindings: bound={bound}, skipped={skipped}, failed={failed}");
             return Result.Succeeded;
-        }
-
-        private static int FindColumn(string[] headers, params string[] candidates)
-        {
-            for (int i = 0; i < headers.Length; i++)
-            {
-                foreach (string cand in candidates)
-                {
-                    if (headers[i].IndexOf(cand, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return i;
-                }
-            }
-            return -1;
         }
 
         // DEAD-001: FindDefinition removed — superseded by pre-built defIndex dictionary (above).
@@ -1655,7 +1598,7 @@ namespace StingTools.Temp
                 StingLog.Error($"BOQ export failed: {ex.Message}");
                 try
                 {
-                    exportPath = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), fileName);
+                    exportPath = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "BOQ"), fileName);
                     wb.SaveAs(exportPath);
                 }
                 catch (Exception ex2)
@@ -2381,7 +2324,7 @@ namespace StingTools.Temp
             }
 
             // Save the mapping file
-            string outputPath = OutputLocationHelper.GetOutputPath(doc, "STING_IFC_PropertyMap.txt");
+            string outputPath = OutputLocationHelper.GetRoutedPath(doc, "IFC", "STING_IFC_PropertyMap.txt");
 
             try
             {
@@ -2796,7 +2739,7 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_CLASH_REPORT", ".csv");
+                    string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Clash", "STING_CLASH_REPORT", ".csv");
 
                     var csv = new StringBuilder();
                     csv.AppendLine("ClashType,MEP_ElementId,MEP_Category,MEP_Tag,Other_ElementId,Other_Category,Level");
@@ -2916,7 +2859,7 @@ namespace StingTools.Temp
                 return Result.Cancelled;
 
             // Generate the IFC property mapping file
-            string mappingPath = OutputLocationHelper.GetOutputPath(doc, "STING_IFC_MAPPING.txt");
+            string mappingPath = OutputLocationHelper.GetRoutedPath(doc, "IFC", "STING_IFC_MAPPING.txt");
 
             GeneratePropertyMappingFile(mappingPath);
 
@@ -2937,7 +2880,7 @@ namespace StingTools.Temp
                 ifcOptions.AddOption("ExportUserDefinedPsets", "true");
                 ifcOptions.AddOption("ExportUserDefinedPsetsFileName", mappingPath);
 
-                string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string exportDir = OutputLocationHelper.GetRoutedDirectory(doc, "IFC");
                 doc.Export(exportDir, ifcFileName, ifcOptions);
 
                 string version = useIfc4 ? "IFC 4" : "IFC 2x3";
@@ -3221,7 +3164,7 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             var doc = ctx.Doc;
 
-            string knoPath = OutputLocationHelper.GetOutputPath(doc, "STING_KEYNOTES.txt");
+            string knoPath = OutputLocationHelper.GetRoutedPath(doc, "Schedule", "STING_KEYNOTES.txt");
 
             // Generate keynote file from STING tag configuration
             var sb = new StringBuilder();
@@ -3240,7 +3183,7 @@ namespace StingTools.Temp
 
             foreach (var disc in discCodes)
             {
-                sb.AppendLine($"{disc.Key}\t\t{disc.Value}");
+                sb.AppendLine(KeynoteTableFormat.Row(disc.Key, disc.Value));
             }
             sb.AppendLine();
 
@@ -3249,7 +3192,7 @@ namespace StingTools.Temp
             {
                 string sysCode = sysEntry.Key;
                 string funcCode = TagConfig.GetFuncCode(sysCode);
-                sb.AppendLine($"{sysCode}\t\t{sysCode} System ({funcCode})");
+                sb.AppendLine(KeynoteTableFormat.Row(sysCode, $"{sysCode} System ({funcCode})"));
             }
             sb.AppendLine();
 
@@ -3258,7 +3201,7 @@ namespace StingTools.Temp
             {
                 string catName = prodEntry.Key;
                 string prodCode = prodEntry.Value;
-                sb.AppendLine($"{prodCode}\t\t{catName}");
+                sb.AppendLine(KeynoteTableFormat.Row(prodCode, catName));
             }
 
             // CSI MasterFormat sections present in the model (Phase G — CSI ↔ keynote
@@ -3281,7 +3224,34 @@ namespace StingTools.Temp
                 sb.AppendLine();
                 sb.AppendLine("# CSI MasterFormat sections (from model — CSI_Assign)");
                 foreach (var kv in csiSections.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
-                    sb.AppendLine($"{kv.Key}\t\t{kv.Value}");
+                    sb.AppendLine(KeynoteTableFormat.Row(kv.Key, kv.Value));
+            }
+
+            // Materials, keyed by their code, so a Keynote-by-Material tag prints the same
+            // code a Material Tag does (Materials_SyncIdentity sets Keynote = code).
+            var matRows = new System.Collections.Generic.SortedDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (Material m in new FilteredElementCollector(doc).OfClass(typeof(Material)))
+                {
+                    string code = ParameterHelpers.GetString(m, "MAT_CODE");
+                    if (string.IsNullOrWhiteSpace(code))
+                        code = m.get_Parameter(BuiltInParameter.ALL_MODEL_MARK)?.AsString();
+                    if (string.IsNullOrWhiteSpace(code) || matRows.ContainsKey(code.Trim())) continue;
+                    string desc = m.get_Parameter(BuiltInParameter.ALL_MODEL_DESCRIPTION)?.AsString() ?? "";
+                    bool shortDesc = desc.Trim().Length > 0
+                        && desc.Length <= StingTools.Core.Materials.MaterialIdentityPlanner.CalloutNameMaxLength
+                        && !StingTools.Core.Materials.MaterialIdentityPlanner.IsStingEnrichedDescription(desc);
+                    matRows[code.Trim()] = shortDesc ? desc.Trim() : m.Name;
+                }
+            }
+            catch (Exception mx) { StingLog.Warn($"Keynote material scan: {mx.Message}"); }
+            if (matRows.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine(KeynoteTableFormat.Row("MAT", "Materials"));
+                foreach (var kv in matRows)
+                    sb.AppendLine(KeynoteTableFormat.Row(kv.Key, kv.Value, "MAT"));
             }
 
             try
@@ -3295,7 +3265,7 @@ namespace StingTools.Temp
             }
 
             // Keynote file generated — user loads via Annotate > Keynoting Settings
-            int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count + csiSections.Count;
+            int entries = discCodes.Count + TagConfig.SysMap.Count + TagConfig.ProdMap.Count + csiSections.Count + matRows.Count;
             try
             {
                 StingLog.Info($"Keynote file generated at {knoPath} with {entries} entries");
@@ -3311,6 +3281,7 @@ namespace StingTools.Temp
                 $"  System codes: {TagConfig.SysMap.Count}\n" +
                 $"  Product codes: {TagConfig.ProdMap.Count}\n" +
                 $"  CSI sections (model): {csiSections.Count}\n" +
+                $"  Materials (model, by code): {matRows.Count}\n" +
                 $"  Total entries: {entries}\n\n" +
                 $"File: {knoPath}");
 
@@ -3679,7 +3650,7 @@ namespace StingTools.Temp
 
                 // Save
                 string safeName = string.Join("_", schedule.Name.Split(Path.GetInvalidFileNameChars()));
-                string xlsxPath = OutputLocationHelper.GetOutputPath(doc, $"STING_Schedule_{safeName}_{DateTime.Now:yyyyMMdd}.xlsx");
+                string xlsxPath = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"STING_Schedule_{safeName}_{DateTime.Now:yyyyMMdd}.xlsx");
 
                 wb.SaveAs(xlsxPath);
 
@@ -4256,7 +4227,7 @@ namespace StingTools.Temp
             ws.PageSetup.PageOrientation = XLPageOrientation.Landscape;
 
             // ── Save ──
-            string defaultDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string defaultDir = OutputLocationHelper.GetRoutedDirectory(doc, "Excel");
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string safeTitle = string.Join("_", doc.Title.Split(Path.GetInvalidFileNameChars()));
             string fileName = $"STING_LINK_{safeTitle}_{timestamp}.xlsx";
@@ -4649,6 +4620,16 @@ namespace StingTools.Temp
         {
             var v = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             void Put(string key, string val) { if (!string.IsNullOrEmpty(val)) v[key] = val; }
+            // First parameter with a value, in the unit its name states.
+            string First(params string[] names)
+            {
+                foreach (var n in names)
+                {
+                    string s = ParameterHelpers.GetValueText(el, n);
+                    if (!string.IsNullOrWhiteSpace(s) && s != "0") return s;
+                }
+                return "";
+            }
 
             // Identity
             Put("material", GetMaterialName(doc, el));
@@ -4683,34 +4664,35 @@ namespace StingTools.Temp
             PutDim(el, v, "sill_height", "BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM");
             PutDim(el, v, "size",        "ASS_SIZE_TXT");
             PutDim(el, v, "diameter",    "ASS_SIZE_TXT");
-            PutDim(el, v, "airflow",     "HVC_AIRFLOW_LS_NR");
-            PutDim(el, v, "rating",      "ELC_EQP_LOAD_KW_NR", "ELC_EQP_AMPS_NR");
-            PutDim(el, v, "voltage",     "ELC_EQP_VOLTS_NR");
-            PutDim(el, v, "phases",      "ELC_EQP_PHASE_NR");
+            PutDim(el, v, "airflow",     ParamRegistry.HVC_AIRFLOW);
+            PutDim(el, v, "rating",      "ELC_PWR_KW");
+            PutDim(el, v, "voltage",     "ELC_VOLTAGE_V");
+            PutDim(el, v, "phases",      "ELC_CKT_PHASE_COUNT_NR");
 
             // Specs / standards
-            Put("fire_rating", ParameterHelpers.GetString(el, "BLE_FIRE_RATING_TXT"));
+            Put("fire_rating", ParameterHelpers.GetString(el, "PER_FIRE_RATING_TXT"));
             Put("standard", ResolveWorkmanshipStandard(categoryName));
             Put("finish", ParameterHelpers.GetString(el, "ASS_FINISH_TXT"));
-            Put("insulation", ParameterHelpers.GetString(el, "BLE_INSULATION_TXT"));
-            Put("substrate", ParameterHelpers.GetString(el, "BLE_SUBSTRATE_TXT"));
-            Put("fixings", ParameterHelpers.GetString(el, "ASS_FIXINGS_TXT"));
-            Put("frame_material", ParameterHelpers.GetString(el, "BLE_FRAME_MATERIAL_TXT"));
-            Put("hardware", ParameterHelpers.GetString(el, "BLE_HARDWARE_TXT"));
-            Put("glass_spec", ParameterHelpers.GetString(el, "BLE_GLASS_SPEC_TXT"));
+            Put("insulation", ParameterHelpers.GetString(el, "BLE_WALL_INSULATION_TXT"));
+            // substrate / fixings / edge trim have no parameter anywhere; the names read
+            // here before were never defined, so they are no longer read.
+            Put("frame_material", ParameterHelpers.GetString(el, "PER_FRAME_MATERIAL_TXT"));
+            Put("hardware", First("BLE_DOOR_HARDWARE_SPECIFICATION_TXT", "BLE_CASEWORK_HARDWARE_TXT"));
+            Put("glass_spec", First("ARC_GLAZING_SPEC_TXT", "BLE_WINDOW_GLAZING_TYPE_SINGLE_DOUBLE_TRIPLE_TXT", "BLE_DOOR_GLAZING_TYPE_TXT", "BLE_PANEL_GLASS_TYPE_TXT"));
             Put("door_type", typeName);
             Put("window_type", typeName);
             Put("foundation_type", typeName);
             Put("terminal_type", typeName);
-            Put("concrete_spec", ParameterHelpers.GetString(el, "STR_CONCRETE_GRADE_TXT"));
-            Put("reinforcement", ParameterHelpers.GetString(el, "STR_REBAR_SPEC_TXT"));
-            Put("section_size", ParameterHelpers.GetString(el, "STR_SECTION_SIZE_TXT"));
+            Put("concrete_spec", ParameterHelpers.GetString(el, "BLE_STRUCT_CONCRETE_GRADE_TXT"));
+            Put("reinforcement", ParameterHelpers.GetString(el, "STR_REBAR_DETAIL_TXT"));
+            Put("section_size", ParameterHelpers.GetString(el, "STR_SECTION_PROFILE_TXT"));
             Put("equipment_type", typeName);
             Put("furniture_type", typeName);
             Put("casework_type", typeName);
-            Put("worktop_material", ParameterHelpers.GetString(el, "BLE_WORKTOP_MATERIAL_TXT"));
-            Put("edge_trim", ParameterHelpers.GetString(el, "BLE_EDGE_TRIM_TXT"));
-            Put("spacing", ParameterHelpers.GetString(el, "ASS_SPACING_MM_NR"));
+            Put("worktop_material", ParameterHelpers.GetString(el, "BLE_CASEWORK_MATERIAL_TXT"));
+            // Support / hanger / baluster / rib spacing, all in mm.
+            Put("spacing", First("PLM_PPE_SUPPORTS_SPACING_MM", "HVC_DCT_SUPPORTS_SPACING_MM", "ELC_CDT_SUPPORT_SPACING_MM",
+                                 "ELC_CBT_SUPPORT_SPACING_MM", "STING_HANGER_SPACING_MM", "BLE_RAILING_BALUSTER_SPACING_MM", "BLE_SLAB_RIB_SPACING_MM"));
             Put("dimensions", BuildDimensionSummary(v));
 
             // User-provided descriptions (last resort)
@@ -4848,11 +4830,12 @@ namespace StingTools.Temp
             if (v.ContainsKey(key)) return;
             foreach (string pName in paramNames)
             {
-                string s = ParameterHelpers.GetString(el, pName);
+                // GetValueText: most of these are LENGTH / NUMBER, where GetString returned "".
+                string s = ParameterHelpers.GetValueText(el, pName);
                 if (!string.IsNullOrEmpty(s) && s != "0")
                 {
                     // If numeric, round to sensible precision
-                    if (double.TryParse(s, out double d))
+                    if (double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double d))
                         s = Math.Round(d, 1).ToString("0.#");
                     v[key] = s;
                     return;
@@ -4963,7 +4946,7 @@ namespace StingTools.Temp
             string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
             string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
             string func = ParameterHelpers.GetString(el, ParamRegistry.FUNC);
-            string fireRating = ParameterHelpers.GetString(el, "PER_FIRE_RATING_HR");
+            string fireRating = ParameterHelpers.GetValueText(el, "PER_FIRE_RATING_HR");
             string material = GetMaterialName(doc, el);
 
             // System/function descriptions
@@ -5300,7 +5283,7 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_CROSS_CLASH", ".csv");
+                    string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Clash", "STING_CROSS_CLASH", ".csv");
                     File.WriteAllText(csvPath, clashReport.ToString());
                     clashReport.AppendLine($"\nReport: {csvPath}");
                 }

@@ -830,6 +830,39 @@ namespace StingTools.Tags
             return $"{FamilyPrefix} - {catName} Tag";
         }
 
+        /// <summary>Every tag family name this creator builds — standard categories and
+        /// all variant arrays — sorted. The Drawing Type editor offers these, so a name
+        /// picked there is one Create Tag Families actually produces.</summary>
+        public static IReadOnlyList<string> AllFamilyNames()
+        {
+            var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var bic in CategoryTemplateMap.Keys) names.Add(GetFamilyName(bic));
+            foreach (var v in TieInPointFamilies)        names.Add(GetTieInFamilyName(v.suffix));
+            foreach (var v in DisciplineSheetFamilies)   names.Add(GetTieInFamilyName(v.suffix));
+            foreach (var v in StructuralVariantFamilies) names.Add(GetTieInFamilyName(v.suffix));
+            foreach (var v in MepVariantFamilies)        names.Add(GetTieInFamilyName(v.suffix));
+            foreach (var v in HealthcareVariantFamilies) names.Add(GetTieInFamilyName(v.suffix));
+            return names.ToList();
+        }
+
+        /// <summary>The standard STING tag family for a category named as a drawing type
+        /// names it — Revit display name ("Doors"), the singular CSV key ("Door") or the
+        /// BuiltInCategory ("OST_Doors"). Null when STING builds no family for it.</summary>
+        public static string FamilyNameForCategoryName(string categoryName)
+        {
+            var n = (categoryName ?? "").Trim();
+            if (n.Length == 0) return null;
+            if (Enum.TryParse(n, true, out BuiltInCategory parsed) && CategoryTemplateMap.ContainsKey(parsed))
+                return GetFamilyName(parsed);
+            foreach (var bic in CategoryTemplateMap.Keys)
+            {
+                if ((CategoryDisplayName.TryGetValue(bic, out var d) && string.Equals(d, n, StringComparison.OrdinalIgnoreCase))
+                    || (CategoryCsvFamilyKey.TryGetValue(bic, out var k) && string.Equals(k, n, StringComparison.OrdinalIgnoreCase)))
+                    return GetFamilyName(bic);
+            }
+            return null;
+        }
+
         /// <summary>Generate the .rfa filename for a category.</summary>
         public static string GetFamilyFileName(BuiltInCategory bic)
         {

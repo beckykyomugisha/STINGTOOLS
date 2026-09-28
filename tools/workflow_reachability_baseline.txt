@@ -34,7 +34,6 @@ ActionPlan
 AddLeaders
 AddParamRemap
 AddToM1
-AecFilters_Create
 AecFilters_Inspect
 AecFilters_Reload
 AIBoundarySelect
@@ -301,7 +300,6 @@ DrawingTypes_AuditStyleRefs
 DrawingTypes_BulkReStamp
 DrawingTypes_ConvertToManaged
 DrawingTypes_DetachManaged
-DrawingTypes_Doctor
 DrawingTypes_Editor
 DrawingTypes_ExportExcel
 DrawingTypes_ExportPackage
@@ -311,14 +309,12 @@ DrawingTypes_HealTitleBlocks
 DrawingTypes_ImportExcel
 DrawingTypes_MigrateCsv
 DrawingTypes_MigrateParams
-DrawingTypes_PresentationSetup
 DrawingTypes_ProduceAndExport
 DrawingTypes_ProduceExteriorElevations
 DrawingTypes_ProduceFromScopeBoxes
 DrawingTypes_ProduceInteriorElevations
 DrawingTypes_ProducePerLevel
 DrawingTypes_ProduceSections
-DrawingTypes_RegenerateTemplates
 DrawingTypes_Renumber
 DrawingTypes_SequencePackage
 DrawingTypes_SuggestFromScopeBoxes
@@ -563,7 +559,6 @@ LoadColorPreset
 LoadM1
 LoadM2
 LoadM3
-LoadTagFamilies
 LoadTagStylePreset
 LODValidation
 Lps_BatchFamilyStamper
@@ -1185,7 +1180,6 @@ TextUpper
 TitleBlock_AuditLegacy
 TitleBlock_AutoPlaceViewports
 TitleBlock_Create
-TitleBlock_CreateAll
 TitleBlock_MigrateLegacy
 TitleBlock_ToggleBIMMode
 TitleBlockEditCsv

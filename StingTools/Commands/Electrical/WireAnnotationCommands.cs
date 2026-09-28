@@ -55,7 +55,11 @@ namespace StingTools.Commands.Electrical
         bool   IsFireRated,
         bool   IsShielded,
         int    BendCount    // number of bends on this conduit run (BS 7671 §522.8.5)
-    );
+    )
+    {
+        /// <summary>VoltDropPct is an A4-MAX upper bound (no complete cable record on the conduit).</summary>
+        public bool VdUpperBound { get; init; }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Style — controls ALL visual properties of the annotation geometry
@@ -371,7 +375,7 @@ namespace StingTools.Commands.Electrical
         {
             string phase   = ParameterHelpers.GetString(conduit, "ELC_WIRE_PHASE_TXT");
             string mat     = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
-            string circ    = ParameterHelpers.GetString(conduit, "ELC_CKT_NR");
+            string circ    = ParameterHelpers.GetDisplayText(conduit, "ELC_CKT_NR"); // TEXT, or NUMBER in older bindings
             string panel   = ParameterHelpers.GetString(conduit, "ELC_PNL_NAME_TXT");
             string circType= ParameterHelpers.GetString(conduit, "ELC_WIRE_CIRCUIT_TYPE_TXT");
             string instMeth= ParameterHelpers.GetString(conduit, "ELC_WIRE_INSTALL_METHOD_TXT");
@@ -386,7 +390,7 @@ namespace StingTools.Commands.Electrical
             {
                 var p = conduit.LookupParameter("ELC_WIRE_CSA_MM2_NUM");
                 if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, "ELC_WIRE_CSA_MM2_NUM"),
+                    double.TryParse(ParameterHelpers.GetValueText(conduit, "ELC_WIRE_CSA_MM2_NUM"),
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out csa);
                 } else if (p.StorageType == StorageType.Double) {
@@ -399,103 +403,53 @@ namespace StingTools.Commands.Electrical
 
             // Prefer the per-conduit synced value (ELC_WIRE_VD_PCT_NUM, written by
             // WireVDSyncCommand and read by the cable schedule) so the annotation
-            // agrees with the rest of the toolset. Fall back to the circuit-level
-            // ELC_CKT_VD_PCT, then recalc from geometry.
+            // agrees with the rest of the toolset; else work it out here with the same
+            // resolver (ELEC-23). The old fallback read ELC_VLT_DROP_PCT off the conduit,
+            // where it is not bound, then used conductor resistance.
             vd = ReadNumParam(conduit, "ELC_WIRE_VD_PCT_NUM");
-            if (vd <= 0)
-            {
-                try
-                {
-                    var p = conduit.LookupParameter(ParamRegistry.ELC_CKT_VD_PCT);
-                    if (p == null) {
-                        double.TryParse(ParameterHelpers.GetString(conduit, ParamRegistry.ELC_CKT_VD_PCT),
-                            System.Globalization.NumberStyles.Float,
-                            System.Globalization.CultureInfo.InvariantCulture, out vd);
-                    } else if (p.StorageType == StorageType.Double) {
-                        vd = p.AsDouble();
-                    } else if (p.StorageType == StorageType.String) {
-                        double.TryParse(p.AsString(), System.Globalization.NumberStyles.Float,
-                            System.Globalization.CultureInfo.InvariantCulture, out vd);
-                    }
-                } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            }
+            bool vdUpperBound = false;
 
             // Resolve the connected circuit once when core count or VD is missing
             // (the only cases that need it) — avoids a graph walk per conduit when
             // the values are already stamped.
-            int    circuitPoles    = 0;
-            double circuitCurrentA = 0;
-            double circuitVoltV    = 0;
             if (cores <= 0 || (vd <= 0 && csa > 0))
             {
+                ElectricalSystem circuit = null;
                 try
                 {
-                    var circuit = GetConnectedCircuit(conduit);
-                    if (circuit != null)
-                    {
-                        var pp = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES);
-                        if (pp != null && pp.StorageType == StorageType.Integer) circuitPoles = pp.AsInteger();
-                        try { circuitCurrentA = circuit.ApparentCurrent; } catch { }
-                        // Read the circuit's REAL nominal voltage so the VD recalc
-                        // isn't pinned to the nominal UK LV pair (400/230). Falls
-                        // back to that pair below only when this is unreadable.
-                        try { circuitVoltV = circuit.Voltage; } catch { }
-                    }
+                    circuit = GetConnectedCircuit(conduit);
+                    var pp = circuit?.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES);
+                    // Fall back to circuit poles for the conductor/slash count when the
+                    // ELC_WIRE_CORE_COUNT_INT parameter was never stamped.
+                    if (cores <= 0 && pp != null && pp.StorageType == StorageType.Integer && pp.AsInteger() > 0)
+                        cores = pp.AsInteger();
                 }
                 catch (Exception ex) { StingLog.Warn($"Circuit resolve: {ex.Message}"); }
-                // Fall back to circuit poles for the conductor/slash count when the
-                // ELC_WIRE_CORE_COUNT_INT parameter was never stamped.
-                if (cores <= 0 && circuitPoles > 0) cores = circuitPoles;
-            }
 
-            // Recalculate VD from actual conduit length if stored value is missing/zero
-            if (vd <= 0 && csa > 0 && cores > 0)
-            {
-                try
+                if (vd <= 0 && csa > 0)
                 {
-                    var lc = conduit.Location as Autodesk.Revit.DB.LocationCurve;
-                    if (lc?.Curve != null)
+                    try
                     {
-                        double lengthM = lc.Curve.Length * 0.3048; // ft → m
-                        if (lengthM > 0.01)
-                        {
-                            // Only recompute VD when a REAL circuit current is
-                            // available. Previously a missing/zero current fell back
-                            // to a hardcoded 16 A, printing a confidently-wrong VD%
-                            // on the drawing. With no real current, skip the VD
-                            // portion of the label (leave vd = 0) and warn once
-                            // (rate-limited) so it's diagnosable.
-                            if (circuitCurrentA > 0)
-                            {
-                                // Phase count comes from the circuit poles, not the core
-                                // count — a 3-core cable is commonly single-phase (L+N+E).
-                                int phases = circuitPoles >= 3 ? 3 : 1;
-                                // Prefer the circuit's real voltage; fall back to the
-                                // nominal UK LV pair (400 V 3φ / 230 V 1φ) only when
-                                // the real voltage is unreadable.
-                                double voltV = circuitVoltV > 0 ? circuitVoltV : (phases == 3 ? 400.0 : 230.0);
-                                string materialStr = string.IsNullOrEmpty(mat) ? "Cu" : mat;
-                                vd = StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.CalculateVoltDropPercent(
-                                    circuitCurrentA, lengthM, csa, materialStr, voltV, phases);
-                                // No write-back: ReadWireData is a pure read.
-                            }
-                            else
-                            {
-                                StingLog.WarnRateLimited("WireAnnot.VdNoCurrent",
-                                    "Wire annotation: no connected-circuit current available for VD recompute — " +
-                                    "VD omitted from label rather than assuming 16 A.");
-                            }
-                        }
+                        string std = StingTools.Standards.ElectricalStandardId.Normalise(
+                            StingTools.UI.StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
+                        var input = StingTools.Core.Electrical.CircuitVoltageDropModel.ReadConduit(conduit, circuit, std, out _);
+                        // No current, no figure: a hard-coded current once printed a
+                        // confidently wrong VD on the drawing.
+                        var r = StingTools.Core.Electrical.CircuitVoltageDrop.Resolve(input,
+                            StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(conduit.Document),
+                            StingTools.Core.Electrical.CircuitVoltageDropModel.Resistance());
+                        if (r.HasValue) { vd = r.Pct; vdUpperBound = r.UpperBound; }
+                        else StingLog.WarnRateLimited("WireAnnot.VdNone", "Wire annotation: VD omitted from label — " + r.Detail);
                     }
+                    catch (Exception ex2) { StingTools.Core.StingLog.Warn($"VD recalc: {ex2.Message}"); }
                 }
-                catch (Exception ex2) { StingTools.Core.StingLog.Warn($"VD recalc: {ex2.Message}"); }
             }
 
             try
             {
                 var p = conduit.LookupParameter("ELC_CDT_CBL_FILL_PCT");
                 if (p == null) {
-                    double.TryParse(ParameterHelpers.GetString(conduit, "ELC_CDT_CBL_FILL_PCT"),
+                    double.TryParse(ParameterHelpers.GetValueText(conduit, "ELC_CDT_CBL_FILL_PCT"),
                         System.Globalization.NumberStyles.Float,
                         System.Globalization.CultureInfo.InvariantCulture, out fill2);
                 } else if (p.StorageType == StorageType.Double) {
@@ -532,7 +486,7 @@ namespace StingTools.Commands.Electrical
                 string.IsNullOrEmpty(mat) ? "Cu" : mat,
                 circ, panel, vd, diaMm, fill,
                 ampacity, maxDemand, circType, instMeth,
-                armoured, fireRated, shielded, bendCount);
+                armoured, fireRated, shielded, bendCount) { VdUpperBound = vdUpperBound };
         }
 
         private static double ReadNumParam(Element el, string name)
@@ -636,7 +590,7 @@ namespace StingTools.Commands.Electrical
                 result += "  |  " + string.Join("  |  ", extras);
 
             if (style.ShowVoltDrop && d.VoltDropPct > style.VdAlarmPct)
-                result += $"  ** VD={d.VoltDropPct:0.0}%";
+                result += $"  ** VD={(d.VdUpperBound ? "≤" : "")}{d.VoltDropPct:0.0}%";
 
             return result;
         }
@@ -1082,9 +1036,10 @@ namespace StingTools.Commands.Electrical
 
             var visited  = new HashSet<long>();
             var frontier = new List<Connector> { startConn };
-            // Match GetConnectedCircuit's depth (12) so a home-run that passes
-            // through more than a few fittings before the board is still detected.
-            for (int depth = 0; depth < 12 && frontier.Count > 0; depth++)
+            // Same hop budget as GetConnectedCircuit (the shared resolver) so a
+            // home-run that the label engine can resolve is also detected here.
+            for (int depth = 0; depth < StingTools.Core.Electrical.ConduitCircuitResolver.MaxHops
+                                && frontier.Count > 0; depth++)
             {
                 var next = new List<Connector>();
                 foreach (var fc in frontier)
@@ -1398,72 +1353,16 @@ namespace StingTools.Commands.Electrical
             return null;
         }
 
+        /// <summary>
+        /// The circuit a conduit carries. Delegates to the shared
+        /// <see cref="StingTools.Core.Electrical.ConduitCircuitResolver"/> so the
+        /// label engine and the wire-parameter stamp cannot disagree. The old
+        /// in-place walk returned the first circuit of whatever device or panel it
+        /// reached first — on a run ending at a panel, an arbitrary one of its
+        /// circuits.
+        /// </summary>
         public static ElectricalSystem GetConnectedCircuit(Element conduit)
-        {
-            if (conduit == null) return null;
-            var cm = GetMepConnectorManager(conduit);
-            if (cm == null) return null;
-
-            var visited = new HashSet<long> { conduit.Id.Value };
-            var frontier = new List<Connector>();
-            try
-            {
-                foreach (Connector c in cm.Connectors)
-                    if (c.ConnectorType == ConnectorType.End) frontier.Add(c);
-            }
-            catch { return null; }
-
-            const int maxDepth = 12;
-            for (int depth = 0; depth < maxDepth && frontier.Count > 0; depth++)
-            {
-                var next = new List<Connector>();
-                foreach (var fc in frontier)
-                {
-                    ConnectorSet refs;
-                    try { refs = fc.AllRefs; } catch { continue; }
-                    if (refs == null) continue;
-                    foreach (Connector other in refs)
-                    {
-                        var owner = other?.Owner;
-                        if (owner == null) continue;
-                        long oid = owner.Id.Value;
-                        if (!visited.Add(oid)) continue;
-
-                        if (IsElectricalDevice(owner))
-                        {
-                            try
-                            {
-                                var systems = ((FamilyInstance)owner).MEPModel.GetElectricalSystems();
-                                if (systems != null && systems.Count > 0)
-                                    return systems.FirstOrDefault();
-                            }
-                            catch { }
-                            continue;
-                        }
-
-                        var catId = owner.Category?.Id?.Value ?? 0;
-                        if (catId != (long)BuiltInCategory.OST_Conduit
-                         && catId != (long)BuiltInCategory.OST_ConduitFitting)
-                            continue;
-
-                        var ocm = GetMepConnectorManager(owner);
-                        if (ocm == null) continue;
-                        try
-                        {
-                            foreach (Connector pc in ocm.Connectors)
-                            {
-                                if (pc.ConnectorType != ConnectorType.End) continue;
-                                if (pc.Id == other.Id) continue;
-                                next.Add(pc);
-                            }
-                        }
-                        catch { }
-                    }
-                }
-                frontier = next;
-            }
-            return null;
-        }
+            => StingTools.Core.Electrical.ConduitCircuitResolver.Resolve(conduit);
 
         public class WirePathResult
         {
@@ -1853,6 +1752,9 @@ namespace StingTools.Commands.Electrical
                 bool cancelled = false;
 
                 var prog = StingProgressDialog.Show("STING Wire Annotation", conduits.Count);
+                // Placing annotations never changes circuits, so circuit/endpoint
+                // reads are shared across the batch instead of rebuilt per conduit.
+                using (StingTools.Core.Electrical.ConduitCircuitResolver.BeginBatch())
                 using (var tg = new TransactionGroup(doc, "STING Batch Wire Annotations"))
                 {
                     tg.Start();

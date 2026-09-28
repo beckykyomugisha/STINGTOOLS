@@ -1679,7 +1679,7 @@ namespace StingTools.Core
         /// <summary>Export all warnings to CSV for external tracking (BIM360, Aconex, etc.).</summary>
         internal static string ExportToCSV(Document doc, WarningReport report)
         {
-            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string exportDir = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance");
             string fileName = $"STING_Warnings_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
             string fullPath = Path.Combine(exportDir, fileName);
 
@@ -4919,7 +4919,7 @@ namespace StingTools.Core
                         (int)bcc.ActualWidth, (int)bcc.ActualHeight, 96, 96,
                         System.Windows.Media.PixelFormats.Pbgra32);
                     rtb.Render(bcc);
-                    string dir = OutputLocationHelper.GetOutputDirectory(doc);
+                    string dir = OutputLocationHelper.GetRoutedDirectory(doc, "Issue");
                     string path = Path.Combine(dir, $"bcc_snapshot_{DateTime.Now:yyyyMMdd_HHmmss}.png");
                     var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
                     encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));

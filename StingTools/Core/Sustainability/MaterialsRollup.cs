@@ -10,8 +10,8 @@
 // hotspots, and computes savings % vs an embodied baseline.
 //
 // The Revit command builds the line items: quantities from BOQ takeoff, carbon
-// via CarbonFactorResolver TIER-1 (NOT CarbonTrackingEngine.EnsureLoaded() which
-// is dead at runtime), MJ via SUS_MAT_ENERGY_MJ_M2_NR / EPD PERT+PENRT, with an
+// via CarbonFactorResolver TIER-1 (CarbonTrackingEngine's own loader, dead at
+// runtime, was removed 2026-09-28), MJ via SUS_MAT_ENERGY_MJ_M2_NR / EPD PERT+PENRT, with an
 // EPD-specific factor preferred when SUS_EPD_REF_TXT is set. The split keeps this
 // engine Revit-free + unit-testable.
 

@@ -99,7 +99,7 @@ namespace StingTools.V6
                 sb.AppendLine("</tbody></table>");
             }
             sb.AppendLine("</body></html>");
-            string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_HealthDashboard", ".html");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "ModelHealth", "STING_HealthDashboard", ".html");
             File.WriteAllText(path, sb.ToString());
             StingLog.Info($"HealthDashboard HTML exported to {path}");
             return path;
@@ -110,7 +110,7 @@ namespace StingTools.V6
             var list = new List<(DateTime, int)>();
             try
             {
-                string dir = OutputLocationHelper.GetOutputDirectory(doc);
+                string dir = OutputLocationHelper.GetRoutedDirectory(doc, "ModelHealth");
                 string logPath = Path.Combine(dir, "STING_ModelHealth_Log.csv");
                 if (!File.Exists(logPath)) return list;
                 foreach (var line in File.ReadLines(logPath).Skip(1))

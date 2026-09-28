@@ -321,7 +321,7 @@ namespace StingTools.Commands.Kpi
                     sb.Append("</table>");
                 }
                 sb.Append("</body></html>");
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_{code}_KPI_{Stamp()}.html");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_{code}_KPI_{Stamp()}.html");
                 File.WriteAllText(path, sb.ToString(), Encoding.UTF8);
                 return path;
             }
@@ -502,7 +502,7 @@ namespace StingTools.Commands.Kpi
                 R("BMS points without endpoint", $"{s.BmsNoEndpoint}", "");
                 foreach (var kv in s.OpenClashBySeverity.OrderByDescending(k => k.Value))
                     R($"Open clashes — {kv.Key}", kv.Value.ToString(), "");
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_{OwnerKpiEngine.OwnerCode(doc)}_KPI_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_{OwnerKpiEngine.OwnerCode(doc)}_KPI_{DateTime.UtcNow:yyyyMMddHHmmss}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }

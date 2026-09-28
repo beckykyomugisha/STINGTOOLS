@@ -896,6 +896,11 @@ before the downstream one. Achieved by:
 
 The Spec validator flags both violations.
 
+It also checks each circuit's cable is rated for the circuit voltage. Enter the cable's
+rated voltage U (the higher figure of U0/U: 500 for 300/500 V, 750 for 450/750 V, 1000 for
+0.6/1 kV) in `ELC_CBL_RATED_V_NR` on the circuit; circuits without it are listed as not
+checked, never passed.
+
 ### 8.8 Earthing and bonding
 
 Every metal enclosure (panels, conduits, trays, equipment cases) must be

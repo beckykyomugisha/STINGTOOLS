@@ -756,6 +756,9 @@ namespace StingTools.UI
                     case "MatchLine_Generate":       RunCommand<Commands.Drawing.MatchLineGenerateCommand>(app); break;
                     case "MatchLine_Sync":           RunCommand<Commands.Drawing.MatchLineSyncCommand>(app); break;
                     case "MatchLine_Validate":       RunCommand<Commands.Drawing.MatchLineValidateCommand>(app); break;
+                    case "DrawingTypes_BuildFlowArrow": RunCommand<Commands.Drawing.BuildFlowArrowFamilyCommand>(app); break;
+                    case "DrawingTypes_EnsureViewTypes": RunCommand<Commands.Drawing.EnsureViewTypesCommand>(app); break;
+                    case "DrawingTypes_SetupProduction": RunCommand<Commands.Drawing.DrawingProductionSetupCommand>(app); break;
                     case "MatchLine_ValidateBundle": RunCommand<Commands.Drawing.MatchLineValidateBundleCommand>(app); break;
                     case "MatchLine_Inspect":        RunCommand<Commands.Drawing.MatchLineInspectCommand>(app); break;
 
@@ -825,6 +828,7 @@ namespace StingTools.UI
                     // Writes MAT_CODE where a material has none, from the register row of
                     // the same MAT_NAME. MAT_CODE is what RateProviders Pass C keys on.
                     case "Materials_StampCodes": RunCommand<Commands.Materials.StampMaterialCodesCommand>(app); break;
+                    case "Materials_SyncIdentity": RunCommand<Commands.Materials.SyncMaterialIdentityCommand>(app); break;
                     // Read-only: writes a catalogue pack JSON, never the model.
                     case "Baseline_HarvestTypes": RunCommand<Commands.Baseline.BaselineHarvestTypesCommand>(app); break;
 
@@ -1403,6 +1407,12 @@ namespace StingTools.UI
                     case "BatchCreateSheets": RunCommand<Docs.BatchCreateSheetsCommand>(app); break;
                     case "CreateDependentViews": RunCommand<Docs.CreateDependentViewsCommand>(app); break;
                     case "ScopeBoxManager": RunCommand<Docs.ScopeBoxManagerCommand>(app); break;
+                    case "ScopeBox_Planner": RunCommand<Commands.Drawing.ScopeBoxPlannerCommand>(app); break;
+                    case "ScopeBox_RegisterSeeds": RunCommand<Commands.Drawing.ScopeBoxRegisterSeedsCommand>(app); break;
+                    case "ScopeBox_ImportSeeds": RunCommand<Commands.Drawing.ScopeBoxImportSeedsCommand>(app); break;
+                    case "ScopeBox_Colour": RunCommand<Commands.Drawing.ScopeBoxColourCommand>(app); break;
+                    case "ScopeBox_ClearColour": RunCommand<Commands.Drawing.ScopeBoxClearColourCommand>(app); break;
+                    case "ScopeBox_ProduceAreas": RunCommand<Commands.Drawing.ScopeBoxProduceAreasCommand>(app); break;
                     case "ViewTemplateAssigner": RunCommand<Docs.ViewTemplateAssignerCommand>(app); break;
                     case "DocumentationPackage": RunCommand<Docs.DocumentationPackageCommand>(app); break;
                     case "BatchCreateSections": RunCommand<Docs.BatchCreateSectionsCommand>(app); break;
@@ -1600,6 +1610,7 @@ namespace StingTools.UI
 
                     // ── Setup ──
                     case "LoadSharedParams": RunCommand<Tags.LoadSharedParamsCommand>(app); break;
+                    case "Params_RebindCircuitNumberAsText": RunCommand<Tags.RebindCircuitNumberAsTextCommand>(app); break;
                     case "ScaffoldTiers": RunCommand<Tags.ScaffoldTiersCommand>(app); break;
                     case "PurgeSharedParams": RunCommand<Tags.PurgeSharedParamsCommand>(app); break;
                     case "Bindings_PruneToSpec": RunCommand<Tags.PruneBindingsToSpecCommand>(app); break;
@@ -2528,7 +2539,7 @@ namespace StingTools.UI
                         var aaDoc = app.ActiveUIDocument?.Document;
                         if (aaDoc != null)
                         {
-                            string outPath = Core.OutputLocationHelper.GetTimestampedPath(aaDoc, "ActionAudit", ".csv");
+                            string outPath = Core.OutputLocationHelper.GetRoutedTimestampedPath(aaDoc, "Compliance", "ActionAudit", ".csv");
                             Core.ActionAuditLog.Export(outPath);
                             TaskDialog.Show("Action Audit", $"Audit log exported to:\n{outPath}");
                         }
@@ -3058,7 +3069,7 @@ namespace StingTools.UI
                     case "TagStudio_SchemeRed": ApplyTagColorScheme(app, "Red"); break;
                     case "TagStudio_SchemeYellow": ApplyTagColorScheme(app, "Yellow"); break;
                     case "TagStudio_SchemeBlue": ApplyTagColorScheme(app, "Blue"); break;
-                    case "TagStudio_SchemeMono": ApplyTagColorScheme(app, "Monochrome"); break;
+                    case "TagStudio_SchemeMono": ApplyTagColorScheme(app, "Mono"); break;
                     case "TagStudio_SchemeDark": ApplyTagColorScheme(app, "Dark"); break;
                     case "TagStudio_SchemeZone": ApplyTagColorScheme(app, "Zone"); break;
                     case "TagStudio_SchemeStatus": ApplyTagColorScheme(app, "Status"); break;
@@ -6280,7 +6291,7 @@ namespace StingTools.UI
                 report.AppendLine($"  {zone}");
 
             // Export to user-preferred output directory
-            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "TAG_DICTIONARY.txt");
+            string exportPath = OutputLocationHelper.GetRoutedPath(app.ActiveUIDocument?.Document, "TagRegister", "TAG_DICTIONARY.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -6426,7 +6437,7 @@ namespace StingTools.UI
             }
 
             // Export to project file location (fallback to data path)
-            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "COLOR_LEGEND.txt");
+            string exportPath = OutputLocationHelper.GetRoutedPath(app.ActiveUIDocument?.Document, "Schedule", "COLOR_LEGEND.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -6466,7 +6477,7 @@ namespace StingTools.UI
                     string name = (sheet.Name ?? "").Replace(",", ";");
                     string rev = (sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString() ?? "").Replace(",", ";");
                     string issueDate = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION_DATE)?.AsString() ?? "";
-                    string disc = ParameterHelpers.GetString(sheet, "SHEET_DISCIPLINE") ?? "";
+                    string disc = ParameterHelpers.GetString(sheet, "SHT_DISC_TXT") ?? "";
                     string drawn = sheet.get_Parameter(BuiltInParameter.SHEET_DRAWN_BY)?.AsString() ?? "";
                     string check = sheet.get_Parameter(BuiltInParameter.SHEET_CHECKED_BY)?.AsString() ?? "";
                     string approved = sheet.get_Parameter(BuiltInParameter.SHEET_APPROVED_BY)?.AsString() ?? "";
@@ -6476,8 +6487,7 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"Sheet CSV row {sheet.Id}: {ex.Message}"); }
             }
 
-            string exportPath = OutputLocationHelper.GetTimestampedPath(
-                app.ActiveUIDocument?.Document, "SHEET_REGISTER", ".csv");
+            string exportPath = OutputLocationHelper.GetRoutedTimestampedPath(app.ActiveUIDocument?.Document, "DocRegister", "SHEET_REGISTER", ".csv");
             try
             {
                 System.IO.File.WriteAllText(exportPath, sb.ToString());
@@ -6530,6 +6540,9 @@ namespace StingTools.UI
                 var lib = StingTools.Core.Drawing.DrawingTypeRegistry.GetLibrary(doc);
                 int ok = 0, missingTpl = 0, missingVp = 0;
                 var miss = new System.Collections.Generic.List<string>();
+                // One viewport-type index for the loop (was a collector per type),
+                // alias-aware so a project on the legacy STING names still resolves.
+                var vpIndex = StingTools.Core.Drawing.ViewportTypeResolver.Index(doc);
                 foreach (var t in lib?.DrawingTypes ?? new System.Collections.Generic.List<StingTools.Core.Drawing.DrawingType>())
                 {
                     bool tplOk = string.IsNullOrEmpty(t.ViewTemplateName) ||
@@ -6537,9 +6550,7 @@ namespace StingTools.UI
                                     .Cast<View>().Any(v => v.IsTemplate &&
                                         string.Equals(v.Name, t.ViewTemplateName, StringComparison.OrdinalIgnoreCase));
                     bool vpOk  = string.IsNullOrEmpty(t.ViewportTypeName) ||
-                                 new FilteredElementCollector(doc).OfClass(typeof(ElementType))
-                                    .Cast<ElementType>().Any(et => et.Category?.Id.Value == (long)BuiltInCategory.OST_Viewports &&
-                                        string.Equals(et.Name, t.ViewportTypeName, StringComparison.OrdinalIgnoreCase));
+                                 StingTools.Core.Drawing.ViewportTypeResolver.Exists(doc, t.ViewportTypeName, vpIndex);
                     if (tplOk && vpOk) ok++;
                     else
                     {
@@ -9006,11 +9017,11 @@ namespace StingTools.UI
                     // Cross-read size parameter
                     string size = "";
                     if (discipline == "Pipe")
-                        size = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_SIZE);
+                        size = ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_SIZE);
                     else if (discipline == "Duct")
                         size = ParameterHelpers.GetString(el, "HVC_DCT_SZ_TXT");
                     else
-                        size = ParameterHelpers.GetString(el, "ELC_CDT_SZ_MM");
+                        size = ParameterHelpers.GetValueText(el, "ELC_CDT_SZ_MM");
                     if (!string.IsNullOrEmpty(size))
                         ParameterHelpers.SetIfEmpty(el, "ASS_TIEIN_SIZE_TXT", size);
 
@@ -9041,7 +9052,7 @@ namespace StingTools.UI
                 string size = ParameterHelpers.GetString(elem, "ASS_TIEIN_SIZE_TXT");
                 string status = ParameterHelpers.GetString(elem, "ASS_TIEIN_STATUS_TXT");
                 string phase = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
-                string connected = ParameterHelpers.GetString(elem, "ASS_TIEIN_CONNECTED_BOOL");
+                string connected = ParameterHelpers.GetValueText(elem, "ASS_TIEIN_CONNECTED_BOOL") switch { "1" => "Yes", "0" => "No", var v => v };
                 string catName = elem.Category?.Name ?? "";
                 string level = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
 
@@ -9054,7 +9065,7 @@ namespace StingTools.UI
                 return;
             }
 
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "REGISTER");
             string path = Path.Combine(outDir, $"TieIn_Register_{DateTime.Now:yyyyMMdd}.csv");
             File.WriteAllLines(path, rows);
             TaskDialog.Show("STING Tie-In Register",
@@ -9256,10 +9267,10 @@ namespace StingTools.UI
 
                 string cls       = ParameterHelpers.GetString(el, "ELC_LPS_CLASS_TXT");
                 string lpz       = ParameterHelpers.GetString(el, "ELC_LPS_ZONE_TXT");
-                string ohm       = ParameterHelpers.GetString(el, "ELC_LPS_EARTH_RESISTANCE_OHM");
-                string crossMm2  = ParameterHelpers.GetString(el, "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2");
+                string ohm       = ParameterHelpers.GetValueText(el, "ELC_LPS_EARTH_RESISTANCE_OHM");
+                string crossMm2  = ParameterHelpers.GetValueText(el, "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2");
                 string material  = ParameterHelpers.GetString(el, "ELC_LPS_CONDUCTOR_MATERIAL_TXT");
-                string downN     = ParameterHelpers.GetString(el, "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR");
+                string downN     = ParameterHelpers.GetValueText(el, "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR");
                 string testDate  = ParameterHelpers.GetString(el, "ELC_LPS_TEST_DATE_TXT");
                 string bond      = ParameterHelpers.GetString(el, "ELC_LPS_BOND_TYPE_TXT");
                 string verdict   = ParameterHelpers.GetString(el, "ELC_LPS_COMPLIANCE_STATUS_TXT");
@@ -9272,7 +9283,7 @@ namespace StingTools.UI
 
             if (rows.Count <= 1) { TaskDialog.Show("STING LPS Register", "No LPS elements found in the model."); return; }
 
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "REGISTER", "E");
             string path = Path.Combine(outDir, $"LPS_Register_{DateTime.Now:yyyyMMdd}.csv");
             File.WriteAllLines(path, rows);
             TaskDialog.Show("STING LPS Register", $"Exported {rows.Count - 1} LPS element(s) to:\n{path}");

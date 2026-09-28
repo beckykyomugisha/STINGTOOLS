@@ -9,7 +9,7 @@
 //  one model at a time, is not a system.
 //
 //  WHAT IT IS NOT. Most of a STING "template" already exists as commands —
-//  view templates, drawing types, view style packs, 290 AEC filters, browser
+//  view templates, drawing types, view style packs, ~290 AEC filters, browser
 //  organisation, material packs. None of that is repeated here. This covers
 //  the one gap those leave: the HOST TYPES and MATERIALS a model is authored
 //  with, which is where the schedule's inputs actually come from.

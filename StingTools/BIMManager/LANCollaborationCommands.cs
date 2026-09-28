@@ -643,7 +643,7 @@ namespace StingTools.BIMManager
 
             if (td.Show() == TaskDialogResult.CommandLink1)
             {
-                string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "ChangeLog", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Revision", "ChangeLog", ".csv");
                 var csv = new StringBuilder();
                 csv.AppendLine("Timestamp,User,Machine,Action,Description");
                 foreach (var c in changes)

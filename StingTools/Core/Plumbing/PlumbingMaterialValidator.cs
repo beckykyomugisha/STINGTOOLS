@@ -96,7 +96,7 @@ namespace StingTools.Core.Plumbing
                 try
                 {
                     string mat   = ReadString(el, ParamRegistry.PLM_MAT);
-                    string joint = ReadString(el, "PLM_JOINT_TYPE_TXT");
+                    string joint = ReadString(el, "PLM_PPE_JOINT_TYPE_TXT");
                     string svc   = ReadSystemCode(el);
                     string wras  = ReadString(el, ParamRegistry.PLM_PPE_WRAS);
 

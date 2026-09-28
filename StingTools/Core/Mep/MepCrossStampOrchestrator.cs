@@ -182,7 +182,7 @@ namespace StingTools.Core.Mep
                     if (vp != null && vp.StorageType == StorageType.Double)
                     {
                         ParameterHelpers.SetString(sys, "ELC_CKT_VLT_V",
-                            $"{vp.AsDouble():F0}", overwrite: true);
+                            $"{StingTools.Core.Electrical.ElecUnits.ToSi(vp):F0}", overwrite: true);
                     }
                     // Phase count → ELC_CKT_PHASE_COUNT_NR (existing)
                     try
@@ -197,9 +197,9 @@ namespace StingTools.Core.Mep
                     var lp = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
                     if (lp != null && lp.StorageType == StorageType.Double)
                     {
-                        // Revit internal is W; convert to kW.
+                        // Revit stores VA in internal units; convert to VA, then kVA.
                         ParameterHelpers.SetString(sys, "ELC_CKT_PWR_KW",
-                            $"{lp.AsDouble() / 1000.0:F2}", overwrite: true);
+                            $"{StingTools.Core.Electrical.ElecUnits.ToSi(lp) / 1000.0:F2}", overwrite: true);
                     }
                     // System name + panel name
                     string sysName = sys.Name ?? "";

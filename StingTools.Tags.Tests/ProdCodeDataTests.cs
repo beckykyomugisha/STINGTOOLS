@@ -677,12 +677,12 @@ namespace StingTools.Tags.Tests
         // by a human as fact.
 
         /// <summary>
-        /// The vocabularies the tag engine actually knows, read from the shipped
-        /// TAG_CONFIG file rather than restated here - a second copy of a list is a
-        /// second thing to drift.
+        /// The vocabularies the tag engine knows. DISC is read from the shipped TAG_CONFIG
+        /// reference file. SYS is read from the RUNTIME map, TagConfig.DefaultSysMap: the
+        /// TAG_CONFIG file is documentation that nothing loads (2026-09-28), and it lists
+        /// hyphenated and proposed codes the tagger never writes and the validator rejects.
         ///
-        /// <para>SYS rows quote a comma-separated category list, so this needs a real
-        /// CSV split rather than String.Split(',').</para>
+        /// <para>DISC rows are CSV with quoted fields, so this needs a real CSV split.</para>
         /// </summary>
         private static (HashSet<string> Disc, HashSet<string> Sys) TagVocabulary()
         {
@@ -695,12 +695,18 @@ namespace StingTools.Tags.Tests
                 if (line.Length == 0 || line.StartsWith("#")) continue;
                 var c = SplitCsv(line);
                 if (c.Count > 2 && c[0] == "DISC") disc.Add(c[2]);
-                if (c.Count > 1 && c[0] == "SYS") sys.Add(c[1]);
             }
+            string defaults = File.ReadAllText(Path.Combine(DataDir(), "..", "Core", "TagConfig.Defaults.cs"));
+            int a = defaults.IndexOf("DefaultSysMap()", StringComparison.Ordinal);
+            int b = defaults.IndexOf("DefaultProdMap()", StringComparison.Ordinal);
+            Assert.True(a > 0 && b > a, "DefaultSysMap block not found");
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(
+                         defaults.Substring(a, b - a), @"\{\s*""([A-Z]+)"",\s*new List<string>"))
+                sys.Add(m.Groups[1].Value);
             // Instrument check: an empty vocabulary would pass every assertion below by
             // finding nothing to compare against.
             Assert.True(disc.Count > 5, "DISC vocabulary looks empty: " + disc.Count);
-            Assert.True(sys.Count > 20, "SYS vocabulary looks empty: " + sys.Count);
+            Assert.True(sys.Count > 15, "SYS vocabulary looks empty: " + sys.Count);
             return (disc, sys);
         }
 
@@ -805,16 +811,12 @@ namespace StingTools.Tags.Tests
         }
 
         /// <summary>
-        /// Six SYSTEM values the PROD table uses are not declared as SYS codes anywhere
-        /// in the tag vocabulary. None is a typo - they are fire alarm, lighting, medical
-        /// gas, radiation, high voltage and BMS, all real systems - so the repair is to
-        /// ADD them to TAG_CONFIG, not to change the PROD rows.
-        ///
-        /// <para>That is not done here, because a SYS row feeds TagConfig.SysMap, which
-        /// the tag pipeline reads at runtime: adding six changes what elements tag as,
-        /// and that needs checking in Revit rather than asserting from a terminal. They
-        /// are listed instead, so the disagreement is visible and a SEVENTH cannot be
-        /// added quietly.</para>
+        /// SYSTEM values the PROD table uses that the runtime SYS map does not carry.
+        /// Six were listed on 2026-09-08; none remains (2026-09-28). Two were labels, not
+        /// gaps: fire alarm rows said FA and lighting rows said LTG, where the tagger writes
+        /// FLS and LV. Medical gas (MGS), high voltage (HV), BMS and radiation protection
+        /// (RAD) became runtime systems. A new SYSTEM value must be a runtime system, or be
+        /// recorded here with the reason.
         ///
         /// <para>THIS LIST ONLY SHRINKS. The test also fails on an entry that no longer
         /// appears, so closing one means deleting its line in the same commit.</para>
@@ -825,12 +827,9 @@ namespace StingTools.Tags.Tests
             // system -> why it is here, as of 2026-09-08
             var known = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["FA"]  = "fire alarm; 7 rows, Fire Alarm Devices",
-                ["LTG"] = "lighting; 8 rows, Lighting Fixtures/Devices",
-                ["MGS"] = "medical gas; 21 rows, Specialty Equipment (Healthcare pack)",
-                ["RAD"] = "radiation; 4 rows, Specialty Equipment (Healthcare pack)",
-                ["HV"]  = "high voltage; 2 rows, Electrical Equipment",
-                ["BMS"] = "building management; 1 row, Electrical Equipment",
+                // Empty since 2026-09-28: FA and LTG were relabelled FLS and LV (fire alarm
+                // devices and lighting ARE those systems); MGS, HV, BMS and RAD became runtime
+                // systems.
             };
 
             var vocab = TagVocabulary();

@@ -42,7 +42,12 @@ namespace StingTools.Core.Electrical
         public string Phase        { get; set; } = "";
         public double LengthM      { get; set; }
         public string WireSize     { get; set; } = "";
+        /// <summary>Revit's own RBS_ELEC_VOLTAGE_DROP_PARAM as % — Revit's method, not STING's.</summary>
         public double VoltDropPct  { get; set; }
+        /// <summary>STING's stamped drop (ELC_VLT_DROP_PCT), null when none / NONE / pre-basis.</summary>
+        public double? StingVdPct  { get; set; }
+        /// <summary>ELC_CKT_VD_BASIS_TXT — how STING's figure was obtained.</summary>
+        public string StingVdBasis { get; set; } = "";
         public int    ElementCount { get; set; }
         public string SystemType   { get; set; } = "";
     }
@@ -120,10 +125,14 @@ namespace StingTools.Core.Electrical
                         WireSize   = sys.LookupParameter("Wire Size")?.AsString()
                                      ?? sys.LookupParameter("Cable Size")?.AsString()
                                      ?? "",
-                        VoltDropPct= SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_DROP_PARAM)) * 100.0,
+                        VoltDropPct= VoltDropPercent(sys),
                         ElementCount = sys.Elements?.Size ?? 0,
                         SystemType = sys.SystemType.ToString(),
                     };
+                    // STING's own figure beside Revit's, with how it was obtained (ELEC-22).
+                    var st = CircuitVoltageDropModel.ReadStamp(sys);
+                    row.StingVdPct = st.Method == VdMethod.Legacy ? null : st.Pct;
+                    row.StingVdBasis = st.Method == VdMethod.Legacy ? "legacy (no basis recorded)" : st.Basis;
                     rows.Add(row);
                 }
             }
@@ -139,7 +148,7 @@ namespace StingTools.Core.Electrical
                 // opens in Excel with company + project context.
                 Core.Branding.BrandTokens.StampCsvHeader(w, doc, "circuit_schedule");
                 w.WriteLine("CircuitId,PanelName,LoadName,Poles,RatingA,LoadVA,VoltageV,Phase," +
-                            "LengthM,WireSize,VoltDropPct,ElementCount,SystemType");
+                            "LengthM,WireSize,VoltDropPct,ElementCount,SystemType,StingVdPct,StingVdBasis");
                 foreach (var r in rows)
                 {
                     w.WriteLine(string.Join(",",
@@ -153,7 +162,9 @@ namespace StingTools.Core.Electrical
                         CsvEscape(r.WireSize),
                         r.VoltDropPct.ToString("F2", Inv),
                         r.ElementCount.ToString(Inv),
-                        CsvEscape(r.SystemType)));
+                        CsvEscape(r.SystemType),
+                        r.StingVdPct.HasValue ? r.StingVdPct.Value.ToString("F2", Inv) : "",
+                        CsvEscape(r.StingVdBasis)));
                 }
             }
         }
@@ -179,7 +190,9 @@ namespace StingTools.Core.Electrical
                         new XElement("LengthM",     r.LengthM.ToString("F2", Inv)),
                         new XElement("WireSize",    r.WireSize),
                         new XElement("VoltDropPct", r.VoltDropPct.ToString("F2", Inv)),
-                        new XElement("SystemType",  r.SystemType)))));
+                        new XElement("SystemType",  r.SystemType),
+                        new XElement("StingVdPct",  r.StingVdPct.HasValue ? r.StingVdPct.Value.ToString("F2", Inv) : ""),
+                        new XElement("StingVdBasis", r.StingVdBasis)))));
             xdoc.Save(path);
         }
 
@@ -221,9 +234,18 @@ namespace StingTools.Core.Electrical
             }
             catch { return 0; }
         }
+        // RBS_ELEC_VOLTAGE_DROP_PARAM is a voltage (V), not a fraction —
+        // express it as a percentage of the circuit's nominal voltage.
+        private static double VoltDropPercent(ElectricalSystem sys)
+        {
+            double dropV = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE_DROP_PARAM));
+            double v = SafeDouble(sys.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE));
+            return v > 0 ? dropV / v * 100.0 : 0;
+        }
+
         private static double SafeDouble(Parameter p)
         {
-            try { return p == null ? 0 : p.AsDouble(); }
+            try { return ElecUnits.ToSi(p); }
             catch { return 0; }
         }
     }

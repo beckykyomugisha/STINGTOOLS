@@ -87,7 +87,7 @@ namespace StingTools.Commands.Validation
                         Csv(f.RuleId), Csv(f.Type), Csv(f.Severity), f.Checked, f.Violations,
                         f.Skipped ? "YES" : "", Csv(f.Source), Csv(f.Description),
                         Csv(string.Join(" | ", f.Samples))));
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_OwnerStandards_Audit_{DateTime.Now:yyyyMMdd}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_OwnerStandards_Audit_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <!-- Pure-logic test project. Does NOT reference the Revit API or WPF; it links the
          Revit-free half of the room tooling via <Compile Include>, the same pattern
          StingTools.Visibility.Tests uses. That split is the reason the numbering path is

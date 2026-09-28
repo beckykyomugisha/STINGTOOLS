@@ -325,7 +325,7 @@ namespace StingTools.Docs
                 {
                     try
                     {
-                        string csvPath = Core.OutputLocationHelper.GetTimestampedPath(doc, "SheetNamingCheck", ".csv");
+                        string csvPath = Core.OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "SheetNamingCheck", ".csv");
                         File.WriteAllText(csvPath, string.Join("\n", csvRows));
                         dlg.SetStatus($"Exported to: {csvPath}");
                     }

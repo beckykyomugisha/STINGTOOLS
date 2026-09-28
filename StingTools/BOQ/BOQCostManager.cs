@@ -571,8 +571,8 @@ namespace StingTools.BOQ
             Dictionary<string, (double rate, string unit)> csvRates = LoadCsvRates();
             Dictionary<string, string> cobieCostCodes = LoadCobieCostCodes();
 
-            // ── STEP 3: Load embodied carbon factors ─────────────────────
-            CarbonTrackingEngine.EnsureLoaded();
+            // ── STEP 3: Embodied carbon factors ──────────────────────────
+            // Resolved per material by CarbonFactorResolver (each cached where it loads).
             // G5 — drop the cached EPD map so an edit to boq_epd_map.json is
             // picked up on this Refresh.
             BoqEpdStore.Invalidate(doc);
@@ -1056,7 +1056,6 @@ namespace StingTools.BOQ
                 // Same load + cache-prime as BuildBOQDocumentCore so carbon /
                 // deductions resolve identically on the per-element path.
                 MeasurementDeductionEngine.ResetCaches();
-                CarbonTrackingEngine.EnsureLoaded();
                 try { BoqEpdStore.Invalidate(doc); } catch (Exception ex) { StingLog.Warn($"ElementCostContext EPD: {ex.Message}"); }
                 return new ElementCostContext
                 {

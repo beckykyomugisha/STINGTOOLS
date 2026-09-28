@@ -1488,7 +1488,7 @@ namespace StingTools.UI
             try
             {
                 var dp = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document
-                    ?.ProjectInformation?.LookupParameter("PRJ_ORG_DISCIPLINES_TXT");
+                    ?.ProjectInformation?.LookupParameter(ParamRegistry.PRJ_ORG_DISCIPLINES_TXT);
                 if (dp?.HasValue == true && dp.StorageType == Autodesk.Revit.DB.StorageType.String)
                 {
                     string discs = (dp.AsString() ?? "").ToUpperInvariant();
@@ -5426,8 +5426,13 @@ namespace StingTools.UI
         // into the assembly; the user supplies their APS app credentials here.
         private void BuildAccDetail(StackPanel detailStack, System.Windows.Media.Brush navyBrush)
         {
+            // IM-18: the container ids are this project's, read from its acc_settings.json
+            // (the machine credentials file's copies are a deprecated fallback).
+            var scopeDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            V6.AccCredentials LoadScoped()
+                => Core.Clash.AccProjectSettingsFile.LoadCredentials(scopeDoc, "ACC panel");
             V6.AccCredentials creds;
-            try { creds = V6.AccIssueSync.LoadCredentials(); }
+            try { creds = LoadScoped(); }
             catch (Exception ex) { StingLog.Warn($"ACC panel: load creds failed — {ex.Message}"); creds = new V6.AccCredentials(); }
 
             detailStack.Children.Add(new TextBlock { Text = "Autodesk Construction Cloud — Coordination", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 6) });
@@ -5489,9 +5494,28 @@ namespace StingTools.UI
 
             // Buttons row 1 — credentials
             var credBtnRow = new WrapPanel { Margin = new Thickness(0, 8, 0, 4) };
+            // Saves the machine credentials and, when the model has a project folder, the
+            // container ids into this project's settings. The machine file then keeps its own
+            // ids (AccIssueSync.ToMachineFile), so this job cannot overwrite another's.
+            void SaveAcc(V6.AccCredentials c)
+            {
+                if (scopeDoc != null && !string.IsNullOrEmpty(Core.Clash.AccProjectSettingsFile.PathFor(scopeDoc)))
+                {
+                    if (Core.Clash.AccProjectSettingsFile.SaveProjectScope(scopeDoc, c.ProjectId, c.CoordContainerId, out string err))
+                    {
+                        // File* were captured when the credentials were loaded, so the
+                        // machine file is written back with the ids it already held —
+                        // including when the project's ids were just cleared.
+                        c.ProjectScope = V6.AccProjectScopeSource.ProjectSettings;
+                    }
+                    else StingLog.Warn($"ACC panel: project settings not saved — {err}");
+                }
+                V6.AccIssueSync.SaveCredentials(c);
+            }
+
             V6.AccCredentials Gather()
             {
-                var c = V6.AccIssueSync.LoadCredentials();
+                var c = LoadScoped();
                 c.ClientId         = clientIdBox.Text.Trim();
                 c.ClientSecret     = clientSecBox.Password;
                 c.RefreshToken     = refreshBox.Password;
@@ -5511,7 +5535,7 @@ namespace StingTools.UI
                 { ShowStatus("Enter Client ID and Client Secret first."); return; }
                 try
                 {
-                    V6.AccIssueSync.SaveCredentials(c);
+                    SaveAcc(c);
                     ShowStatus("Opening Autodesk sign-in in your browser…");
                     var r = await V6.AccOAuthFlow.SignInAsync(c).ConfigureAwait(true);
                     ShowStatus(r.Ok ? "Signed in to Autodesk — tokens stored." : $"Autodesk sign-in failed: {r.Message}");
@@ -5524,7 +5548,7 @@ namespace StingTools.UI
             var saveAccBtn = new Button { Content = "💾 Save Credentials", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Save these credentials to %APPDATA%\\Planscape\\acc_credentials.json (this machine only)." };
             saveAccBtn.Click += (s, e) =>
             {
-                try { V6.AccIssueSync.SaveCredentials(Gather()); ShowStatus("ACC credentials saved."); ShowPlatformDetail("ACC"); }
+                try { SaveAcc(Gather()); ShowStatus("ACC credentials saved."); ShowPlatformDetail("ACC"); }
                 catch (Exception ex) { StingLog.Warn($"ACC save: {ex.Message}"); ShowStatus($"ACC save failed: {ex.Message}"); }
             };
             credBtnRow.Children.Add(saveAccBtn);
@@ -5537,7 +5561,7 @@ namespace StingTools.UI
                     var c = Gather();
                     if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret) || string.IsNullOrWhiteSpace(c.RefreshToken))
                     { ShowStatus("Enter Client ID, Client Secret and Refresh Token first."); return; }
-                    V6.AccIssueSync.SaveCredentials(c);
+                    SaveAcc(c);
                     ShowStatus("Refreshing ACC token…");
                     bool ok = await V6.AccIssueSync.EnsureAuthAsync(c).ConfigureAwait(true);
                     ShowStatus(ok ? "ACC token refreshed — connected." : "ACC token refresh failed — check credentials (see log).");
@@ -5560,7 +5584,7 @@ namespace StingTools.UI
                 { ShowStatus("Enter Client ID and Client Secret, then sign in, before discovering projects."); return; }
                 try
                 {
-                    V6.AccIssueSync.SaveCredentials(c);
+                    SaveAcc(c);
                     ShowStatus("Asking Autodesk which projects you can see…");
                     var found = await V6.AccProjectDiscovery.ListAllProjectsAsync(c).ConfigureAwait(true);
 
@@ -5592,7 +5616,7 @@ namespace StingTools.UI
 
                     projectIdBox.Text = chosen.Id;
                     var save = Gather();
-                    V6.AccIssueSync.SaveCredentials(save);
+                    SaveAcc(save);
                     ShowStatus($"Issues Project ID set to {chosen.Id} ({chosen.Name}). " +
                                "Set Coord Container ID only if Model Coordination uses a different container.");
                     ShowPlatformDetail("ACC");
@@ -5774,7 +5798,7 @@ namespace StingTools.UI
                 if (dlg.ShowDialog() != true) return;
                 try
                 {
-                    V6.AccIssueSync.SaveCredentials(c);
+                    SaveAcc(c);
                     ShowStatus($"Uploading {System.IO.Path.GetFileName(dlg.FileName)} to ACC…");
                     var r = await V6.AccModelUpload.UploadAsync(c, dlg.FileName).ConfigureAwait(true);
                     ShowStatus(r.Ok ? r.Message : $"ACC upload failed: {r.Message}");
@@ -10354,7 +10378,7 @@ namespace StingTools.UI
                         .OrderByDescending(r => r.Critical * 3 + r.High * 2 + r.OpenTotal)
                         .Select(r => $"{r.Assignee},{r.OpenTotal},{r.Critical},{r.High},{r.Overdue},{r.OldestDays}")
                         .Aggregate("Assignee,Open,Critical,High,Overdue,OldestDays\n", (a, b) => a + b + "\n");
-                    string path = System.IO.Path.Combine(OutputLocationHelper.GetOutputDirectory(exportDoc), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
+                    string path = System.IO.Path.Combine(OutputLocationHelper.GetRoutedDirectory(exportDoc, "DocRegister"), $"team_workload_{DateTime.Now:yyyyMMdd}.csv");
                     File.WriteAllText(path, rows2);
                     TaskDialog.Show("STING — Team Workload", $"Exported to:\n{path}");
                 }
@@ -11653,7 +11677,8 @@ namespace StingTools.UI
             if (projectGuid == Guid.Empty)
             {
                 var link = BIMManager.PlanscapeProjectLink.Load(
-                    BIMManager.PlanscapeProjectLink.ConfigPathForModel(_data?.FilePath));
+                    // IM-3: canonical bucket for the open document, not the legacy sibling.
+                    BIMManager.PlanscapeProjectLink.ResolveConfigPath(_data?.FilePath));
                 if (link.IsLinked) { projectGuid = link.ProjectId; client.CurrentProjectId = projectGuid; }
             }
             if (projectGuid == Guid.Empty)

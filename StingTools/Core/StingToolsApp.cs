@@ -947,7 +947,7 @@ namespace StingTools.Core
                     StingTools.Core.EngineRegionSync.Attach();
 
                     var pi = e.Document?.ProjectInformation;
-                    string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
+                    string projectRegion = pi?.LookupParameter(ParamRegistry.PROJECT_REGION)?.AsString();
                     string source = "PROJECT_REGION";
                     if (string.IsNullOrWhiteSpace(projectRegion))
                     {
@@ -1792,6 +1792,11 @@ namespace StingTools.Core
 
                 StingLog.Info($"DocumentSaved: {doc.Title} — queuing server sync");
 
+                // Save-triggered scheduled exports (opt-in per project). Queued to Idling
+                // so the export never runs inside the save event.
+                try { StingIdlingScheduler.Enqueue(new StingTools.Docs.ScheduledExportJob(doc)); }
+                catch (Exception schEx) { StingLog.Warn($"DocumentSaved scheduled exports: {schEx.Message}"); }
+
                 // Collect lightweight compliance summary (cached scan — fast path)
                 int totalElements = 0;
                 int taggedCount = 0;
@@ -2166,22 +2171,9 @@ namespace StingTools.Core
                 StingLog.Warn($"Tag-family catalogue drift check failed: {ex.Message}");
             }
 
-            // IG-04: Verify pyRevit manifest
-            string manifestPath = FindDataFile("PYREVIT_SCRIPT_MANIFEST.csv");
-            if (manifestPath != null)
-            {
-                try
-                {
-                    var mLines = File.ReadAllLines(manifestPath).Skip(1).ToList();
-                    int missingScripts = mLines.Count(l => {
-                        var p = ParseCsvLine(l);
-                        return p.Length >= 2 && !string.IsNullOrEmpty(p[1].Trim()) && !File.Exists(p[1].Trim());
-                    });
-                    if (missingScripts > 0)
-                        StingLog.Warn($"PYREVIT_SCRIPT_MANIFEST: {missingScripts} script path(s) not found on disk.");
-                }
-                catch (Exception ex) { StingLog.Warn($"PyRevit manifest check: {ex.Message}"); }
-            }
+            // IG-04 (the pyRevit manifest check) is removed: every script it lists was
+            // retired in the C# consolidation and its paths are relative pyRevit paths, so
+            // it warned about all of them on every startup and could never pass.
 
             // DATA-01: Validate schema version headers on TAG_CONFIG CSVs.
             // Routed through HandoverModeHelper so the active preset's CSVs

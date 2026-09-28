@@ -2389,19 +2389,9 @@ namespace StingTools.Core.Placement
 
         private static void TrySetDoubleMm(Element el, string paramName, double valueMm)
         {
+            // Feet only for a LENGTH; a NUMBER keeps mm, text is invariant.
             if (string.IsNullOrEmpty(paramName)) return;
-            try
-            {
-                var p = el.LookupParameter(paramName);
-                if (p == null || p.IsReadOnly) return;
-                switch (p.StorageType)
-                {
-                    case StorageType.Double:  p.Set(valueMm * MmToFt); break;
-                    case StorageType.String:  p.Set(valueMm.ToString("F1")); break;
-                    case StorageType.Integer: p.Set((int)Math.Round(valueMm)); break;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"FixturePlacementEngine: set {paramName}={valueMm}mm failed: {ex.Message}"); }
+            ParameterHelpers.SetDoubleInNamedUnit(el, paramName, valueMm);
         }
 
         // Phase 139.5 Q15 — perimeter from boundary segments (any curve type)

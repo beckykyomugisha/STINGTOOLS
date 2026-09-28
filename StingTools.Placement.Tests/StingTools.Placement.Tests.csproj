@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <!-- Pure-logic test project for the STING placement rule layer. Mirrors the
          StingTools.Routing.Tests / StingTools.Clash.Tests pattern: NO reference
          to Revit assemblies. PlacementRule is already a pure POCO; the only

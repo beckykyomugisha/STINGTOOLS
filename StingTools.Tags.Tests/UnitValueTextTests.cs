@@ -59,5 +59,42 @@ namespace StingTools.Tags.Tests
             Assert.Equal("900", UnitValueText.StripUnitSuffix("900"));
             Assert.Equal("0", UnitValueText.StripUnitSuffix("0"));
         }
+
+        // GetValueText reads a LENGTH parameter in the unit its name states.
+        [Theory]
+        [InlineData("BLE_STAIR_HEADROOM_MM", false)]
+        [InlineData("PLM_PPE_LENGTH_M", true)]
+        [InlineData("PLM_SPT_SPACING_M_NR", true)]
+        [InlineData("BLE_WALL_THICKNESS_MM_NR", false)]
+        [InlineData("FLS_SFTY_COVERAGE_AREA_SQ_M", true)]
+        [InlineData("STR_FDN_DEPTH", false)]
+        [InlineData("", false)]
+        [InlineData(null, false)]
+        public void Length_name_suffix_picks_metres_or_millimetres(string name, bool metres)
+            => Assert.Equal(metres, UnitValueText.LengthNameIsMetres(name));
+
+        [Theory]
+        [InlineData(12.5, "12.5")]
+        [InlineData(900.0, "900")]
+        [InlineData(0.12345, "0.123")]
+        [InlineData(1234567.0, "1234567")]
+        [InlineData(-2.0, "-2")]
+        public void Numbers_are_plain_invariant_text(double v, string expected)
+        {
+            var prev = System.Globalization.CultureInfo.CurrentCulture;
+            try
+            {
+                System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+                Assert.Equal(expected, UnitValueText.Invariant(v));
+            }
+            finally { System.Globalization.CultureInfo.CurrentCulture = prev; }
+        }
+
+        [Fact]
+        public void Not_a_number_is_blank_never_NaN_text()
+        {
+            Assert.Equal("", UnitValueText.Invariant(double.NaN));
+            Assert.Equal("", UnitValueText.Invariant(double.PositiveInfinity));
+        }
     }
 }

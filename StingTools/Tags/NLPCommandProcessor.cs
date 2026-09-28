@@ -246,6 +246,14 @@ namespace StingTools.Tags
             (@"\b(iot\s*(devices|registry|inventory)|bms\s*registry)\b",
                 "Healthcare_IoTRegistry", "HealthcareValidate", "IoT device registry inspector"),
 
+            (@"\b(circuit\s*(compliance|check)|bs\s*7671\s*check|check\s*circuits?)\b",
+                "Panel_ComplianceCheck", "PanelSchedules", "Per-circuit BS 7671 check: Ib <= In <= Iz, VD, breaking capacity"),
+            (@"\b(apply\s*(phase\s*)?balanc\w*|balance\s*(the\s*)?phases?)\b",
+                "Panel_BalanceApply", "PanelSchedules", "Move single-pole circuits to balance the phases (preview first)"),
+            // STING standard panel schedule templates — listed BEFORE the batch
+            // entry so "create panel schedule template" does not match "create panel schedule".
+            (@"\b(panel\s*(schedule\s*)?templates?|schedule\s*templates?\s*(for\s*)?panels?)\b",
+                "Panel_TemplatesCreate", "PanelSchedules", "Create / update the STING standard panel schedule templates"),
             // Panel Schedule commands (Phase 176 — BatchPanelSchedulesCommand)
             (@"\b(batch\s*panel\s*schedule|create\s*panel\s*schedule|auto\s*panel)\b",
                 "Panel_BatchSchedules", "PanelSchedules", "Batch-create panel schedules from rules (Phase 176)"),
@@ -293,6 +301,8 @@ namespace StingTools.Tags
             // Drawing Types / Scope Boxes (DrawingTemplateManager)
             (@"\b(sync\s*style|drawing\s*style\s*sync|drift\s*repair|repair\s*drift)\b",
                 "DrawingTypes_SyncStyles", "DrawingTypes", "Sync drawing type styles and repair drift"),
+            (@"\b(scope\s*box\s*plan\w*|plan\s*scope\s*box\w*|area\s*box\w*|(auto\s*)?(create|name)\s*scope\s*box\w*)\b",
+                "ScopeBox_Planner", "DrawingTypes", "Plan, create and name area scope boxes from seeds"),
             (@"\b(from\s*scope\s*box|scope\s*box\s*view|generate\s*from\s*scope)\b",
                 "DrawingTypes_FromScopeBoxes", "DrawingTypes", "Generate views from STING scope box naming convention"),
             (@"\b(browser\s*organ|view\s*browser\s*org|drawing\s*browser)\b",
@@ -589,6 +599,8 @@ namespace StingTools.Tags
                 "ElecArcFlash", "ArcFlash", "Arc flash hazard and fault current analysis"),
             (@"\b(sld|single\s+line\s+diagram|elec\s+schematic|one\s+line\s+diag)\b",
                 "ElecSLD", "SLD", "Generate single-line diagram for electrical distribution"),
+            (@"\b(reload\s+(wire|cable)\s+tables?|(wire|cable)\s+tables?\s+(reload|override))\b",
+                "Cable_ReloadTables", "CableSize", "Reload the BS 7671 wire tables and the project override"),
             (@"\b(cable\s+siz(ing)?|conductor\s+siz|wire\s+siz(ing)?)\b",
                 "ElecCableSize", "CableSize", "Size electrical cables to BS 7671"),
             (@"\b(earth(ing)?|bond(ing)?|cpc\s+siz|protective\s+conductor)\b",

@@ -747,9 +747,10 @@ namespace StingTools.Select
                 string storedFunc = ParameterHelpers.GetString(elem, ParamRegistry.FUNC);
                 string currentSysForFunc = !string.IsNullOrEmpty(currentSys) ? currentSys
                     : ParameterHelpers.GetString(elem, ParamRegistry.SYS);
-                string currentFunc = TagConfig.GetSmartFuncCode(elem, currentSysForFunc);
-                if (string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(currentSysForFunc))
-                    currentFunc = TagConfig.FuncMap.TryGetValue(currentSysForFunc, out string fv) ? fv : null;
+                // GEN means "could not establish", not a detected change.
+                string currentFunc = string.IsNullOrEmpty(currentSysForFunc) ? null
+                                   : TagConfig.GetSmartFuncCode(elem, currentSysForFunc);
+                if (currentFunc == "GEN") currentFunc = null;
                 if (!string.IsNullOrEmpty(currentFunc) && !string.IsNullOrEmpty(storedFunc)
                     && !string.Equals(storedFunc, currentFunc, StringComparison.OrdinalIgnoreCase))
                 {
@@ -825,7 +826,7 @@ namespace StingTools.Select
                     predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                 // Check for empty tokens
-                int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || t == "0000");
+                int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || SeqAssigner.IsUnassignedSeq(t));
 
                 preview.AppendLine($"  [{catName}] {famName ?? ""}");
                 if (!string.IsNullOrEmpty(currentTag))

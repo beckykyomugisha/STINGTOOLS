@@ -181,7 +181,9 @@ namespace StingTools.Core.Validation
             {
                 Parameter p = el.LookupParameter(paramName);
                 if (p == null || !p.HasValue) return 0;
-                if (p.StorageType == StorageType.Double)  return p.AsDouble();
+                // LENGTH-typed LPS params (…_M / …_MM) store internal feet.
+                if (p.StorageType == StorageType.Double)
+                    return StingTools.Core.Lightning.LpsEngine.FromInternalIfLength(p, paramName, p.AsDouble());
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
                 if (p.StorageType == StorageType.String &&
                     double.TryParse(p.AsString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double v))

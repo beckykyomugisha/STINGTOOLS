@@ -109,6 +109,29 @@ public class SitePhotoTransportTests
         }
     }
 
+    [Fact]
+    public async Task Background_realtime_negotiate_is_not_counted_as_a_guarded_request()
+    {
+        // Pins the harness, not the client. LoginAsync fire-and-forgets the SignalR
+        // start, whose /hubs/notifications/negotiate can land AFTER a test takes its
+        // marker. Wait for exactly that to happen, then prove PathsSince ignores it.
+        // Without the exclusion every "refused before any request" assertion in this
+        // file is a race, and every "was attempted" assertion can pass on noise.
+        using var srv = await AuthedServerAsync();
+        var marker = srv.RequestCount;
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (!srv.Requests.Skip(marker).Any(r => r.Path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase))
+               && !srv.Requests.Take(marker).Any(r => r.Path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase))
+               && DateTime.UtcNow < deadline)
+            await Task.Delay(25);
+
+        Assert.True(srv.Requests.Any(r => r.Path.StartsWith("/hubs/", StringComparison.OrdinalIgnoreCase)),
+            "expected the post-login realtime negotiate to reach the capture server; "
+            + "if LoginAsync no longer starts realtime, this test and the /hubs/ exclusion can go");
+        Assert.Empty(srv.PathsSince(marker));
+    }
+
     [SkippableFact]
     public async Task Pdf_export_over_the_200_cap_is_refused_before_any_request_is_made()
     {

@@ -81,13 +81,25 @@ namespace StingTools.Tags.Tests
                 {
                     int len = Math.Min(2600, t.Length - i);
                     string seg = t.Substring(i, len);
-                    int end = seg.IndexOf("\n        private static", StringComparison.Ordinal);
-                    if (end > 200) seg = seg.Substring(0, end);
+                    // Stop at the next member, public or private. ResolveLpsFunc is now a
+                    // three-line delegate, and a private-only stop ran on into
+                    // GetDiscDefaultSysCode and read its SYS codes as FUNC codes.
+                    int endPriv = seg.IndexOf("\n        private static", 200, StringComparison.Ordinal);
+                    int endPub  = seg.IndexOf("\n        public static", 200, StringComparison.Ordinal);
+                    int end = new[] { endPriv, endPub }.Where(x => x > 0).DefaultIfEmpty(-1).Min();
+                    if (end > 0) seg = seg.Substring(0, end);
                     foreach (Match m in Regex.Matches(seg, @"return\s+""([A-Z]{2,5})""\s*;"))
                         emitted.Add(m.Groups[1].Value);
                     i = t.IndexOf(fn, i + 1, StringComparison.Ordinal);
                 }
             }
+            // ResolveLpsFunc delegates to LpsNameClassifier.Func, whose returns are
+            // the LPS sub-function codes.
+            string lps = Src("StingTools", "Core", "LpsNameClassifier.cs");
+            int f = lps.IndexOf("public static string Func(", StringComparison.Ordinal);
+            Assert.True(f > 0, "LpsNameClassifier.Func not found");
+            foreach (Match m in Regex.Matches(lps.Substring(f), @"return\s+""([A-Z]{2,5})""\s*;"))
+                emitted.Add(m.Groups[1].Value);
             return emitted;
         }
 

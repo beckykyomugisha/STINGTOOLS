@@ -2,7 +2,12 @@
 # TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv
 # ISO 19650 Discipline, System, and Function code mappings
 # Version: 5.0 | Updated: 2026-03-15
-# Used by: TagConfig.DiscMap, TagConfig.SysMap, TagConfig.FuncMap, TagConfig.ProdMap
+# REFERENCE ONLY — nothing loads this file at runtime (checked 2026-09-28). The tagger's
+#   maps are TagConfig.Defaults.cs (DefaultDiscMap / SysMap / ProdMap / FuncMap), layered
+#   with project_config.json; valid FUNC per SYS is STING_FUNC_SYS_MATRIX.csv; PROD family
+#   rules are STING_PROD_CODES.csv. Keep this file in step with those, not the reverse.
+#   Codes here must not contain "-" (the tag separator): a hyphenated SYS or FUNC splits
+#   the 8-segment tag.
 # Changes from v4: Added system-aware DISC correction, smart FUNC detection,
 #   expanded PROD codes (70+ family-aware), BIMManager integration parameters,
 #   Briefcase fields, Sticky Note parameters, 4D/5D scheduling tokens.
@@ -60,15 +65,15 @@ DISC,Nurse Call Devices,LV,Nurse call system devices
 # SECTION 2: SYSTEM MAP (System code → Category groups)
 # Format: SYS,SystemCode,CategoryList,Description
 #
-SYS,HVAC,"Mechanical Equipment,Ducts,Duct Fittings,Duct Accessories,Duct Insulations,Flex Ducts,Air Terminals",Heating ventilation and air conditioning
+SYS,HVAC,"Mechanical Equipment,Ducts,Duct Fittings,Duct Accessories,Duct Insulations,Flex Ducts,Air Terminals",Air systems (chilled / condenser water and refrigerant are CHW / CDW / REF)
 SYS,DCW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulations,Flex Pipes",Domestic cold water
 SYS,DHW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulations",Domestic hot water
-SYS,HWS,"Pipes,Pipe Fittings,Pipe Accessories,Mechanical Equipment",Heating hot water / LTHW / MTHW
+SYS,HWS,"Pipes,Pipe Fittings,Pipe Accessories,Mechanical Equipment",Heating hot water / LTHW / MTHW (steam and condensate are STM / CON)
 SYS,SAN,"Plumbing Fixtures,Pipes,Pipe Fittings,Pipe Accessories",Sanitary / above-ground drainage
 SYS,RWD,"Pipes,Pipe Fittings,Pipe Accessories",Rainwater drainage
 SYS,GAS,"Pipes,Pipe Fittings,Pipe Accessories",Natural gas distribution
-SYS,FP,"Sprinklers,Pipes,Pipe Fittings,Fire Alarm Devices",Fire protection (sprinklers + alarm)
-SYS,FLS,"Fire Alarm Devices",Fire/life safety detection
+SYS,FP,"Sprinklers,Fire Protection,Pipes,Pipe Fittings,Pipe Accessories,Flex Pipes",Fire protection / suppression (fire alarm devices are FLS)
+SYS,FLS,"Fire Alarm Devices,Fire Protection",Fire detection and alarm
 SYS,LV,"Electrical Equipment,Electrical Fixtures,Cable Trays,Conduits",Low voltage distribution
 SYS,LPS,"Electrical Equipment,Generic Models,Conduits,Conduit Fittings,Specialty Equipment",Lightning protection system per BS EN 62305
 SYS,COM,"Communication Devices",Communications systems
@@ -78,6 +83,13 @@ SYS,SEC,"Security Devices",Security and access control
 SYS,ARC,"Walls,Floors,Ceilings,Roofs,Doors,Windows,Stairs,Railings,Ramps,Rooms,Furniture,Casework",Architectural elements
 SYS,STR,"Structural Columns,Structural Framing,Structural Foundations",Structural elements
 SYS,GEN,"Generic Models",General / unclassified
+SYS,CHW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Mechanical Equipment",Chilled water (was HVAC) — FUNC SUP / RTN / CLG
+SYS,CDW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Mechanical Equipment",Condenser water (was HVAC) — FUNC SUP / RTN / CLG
+SYS,REF,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Mechanical Equipment",Refrigerant (was HVAC) — FUNC LIQ / SUC / HGS / CLG
+SYS,MGS,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Plumbing Fixtures,Plumbing Equipment,Mechanical Equipment",Medical gas pipeline systems (HTM 02-01) — detected from system / gas type; FUNC is the gas
+SYS,HV,"Electrical Equipment,Conduits,Conduit Fittings,Cable Trays,Cable Tray Fittings",High voltage above 1 kV — detected from family name
+SYS,BMS,"Electrical Equipment,Electrical Fixtures,Mechanical Control Devices",Building management / BACS — detected from family name
+SYS,RAD,"Walls,Doors,Windows,Floors,Ceilings,Specialty Equipment,Medical Equipment,Generic Models",Radiation protection — detected from family name
 #
 # SECTION 3: FUNCTION MAP (System → Function code)
 # Format: FUNC,SystemCode,FuncCode,Description
@@ -87,7 +99,8 @@ FUNC,HVAC,RTN,Return air — detected from connector/system name
 FUNC,HVAC,EXH,Extract/exhaust air — detected from connector/system name
 FUNC,HVAC,FRA,Fresh air / outside air — detected from connector/system name
 FUNC,DCW,DCW,Domestic cold water supply
-FUNC,DHW,DHW,Domestic hot water supply
+FUNC,DHW,DHW,Domestic hot water flow
+FUNC,DHW,RTN,Domestic hot water secondary return (from the system name)
 FUNC,HWS,HTG,Heating — LTHW/MTHW for radiators/AHU coils
 FUNC,HWS,DHW,Domestic hot water — distinguished from heating by connector
 FUNC,SAN,SAN,Sanitary drainage
@@ -96,7 +109,10 @@ FUNC,GAS,GAS,Gas distribution
 FUNC,FP,FP,Fire protection
 FUNC,FLS,FLS,Fire/life safety
 FUNC,LV,PWR,Power distribution
-FUNC,LPS,LPS,Lightning protection — air termination + down conductor + earth + bond + SPD
+FUNC,LV,LTG,Lighting (Lighting Fixtures / Devices)
+FUNC,LV,EMG,Emergency lighting (name says emergency / exit / escape)
+FUNC,LV,SML,Small power (Electrical Fixtures)
+FUNC,LPS,GEN,Lightning protection — default when the name names no component
 FUNC,LPS,AT,Air termination (rod / mesh / catenary) — BS EN 62305-3 §5.2
 FUNC,LPS,DC,Down conductor — BS EN 62305-3 §5.3
 FUNC,LPS,EE,Earth electrode (rod / ring / foundation / mesh) — BS EN 62305-3 §5.4
@@ -107,9 +123,30 @@ FUNC,COM,COM,Communications
 FUNC,ICT,ICT,ICT/Data
 FUNC,NCL,NCL,Nurse call
 FUNC,SEC,SEC,Security
-FUNC,ARC,ARC,Architectural function
+FUNC,ARC,FIT,Architectural fabric / fit-out
 FUNC,STR,STR,Structural function
 FUNC,GEN,GEN,General / unclassified
+FUNC,CHW,CLG,Chilled water — SUP / RTN when the system name says
+FUNC,CDW,CLG,Condenser water — SUP / RTN when the system name says
+FUNC,REF,CLG,Refrigerant — LIQ / SUC / HGS when the line name says
+FUNC,MGS,O2,Medical oxygen — MGS FUNC is the MGS_GAS_TYPE_TXT gas code
+FUNC,MGS,MA4,Medical air 400 kPa
+FUNC,MGS,MA7,Surgical air 700 kPa
+FUNC,MGS,N2O,Nitrous oxide
+FUNC,MGS,N2,Nitrogen
+FUNC,MGS,CO2,Carbon dioxide
+FUNC,MGS,HE,Helium / heliox
+FUNC,MGS,VAC,Medical vacuum
+FUNC,MGS,AGS,Anaesthetic gas scavenging
+FUNC,HV,PWR,HV power distribution
+FUNC,HV,TRF,Transformer
+FUNC,BMS,SNS,Sensor / transmitter
+FUNC,BMS,CTL,Actuator / control valve
+FUNC,BMS,FCT,Field controller (DDC / PLC / outstation)
+FUNC,BMS,MON,Meter / monitoring point
+FUNC,RAD,SHD,Shielding
+FUNC,RAD,ZNE,Controlled-area / 5-gauss boundary
+FUNC,RAD,MON,Radiation monitor
 #
 # SECTION 4: PRODUCT MAP (Category → default PROD code)
 # Plus family-aware overrides (70+ patterns in GetFamilyAwareProdCode)
@@ -223,38 +260,11 @@ SLV_PROD,Generic Models,P,GAS,PEN,SLV,STING - MEP Sleeve Tag
 DISC,Specialty Equipment,H,Healthcare clinical equipment (pendants, bed-heads, hoists)
 DISC,Mechanical Equipment,MG,Medical gas pipeline systems (when type code starts MGS-)
 DISC,Generic Models,RP,Radiation protection (lead barriers, MRI fences, dosimetry)
-SYS,Pipes,MGS-O2,Medical Oxygen 400 kPa (HTM 02-01 / NFPA 99)
-SYS,Pipes,MGS-MA4,Medical Air 400 kPa
-SYS,Pipes,MGS-MA7,Surgical Air 700 kPa
-SYS,Pipes,MGS-N2O,Nitrous Oxide
-SYS,Pipes,MGS-N2,Surgical Nitrogen
-SYS,Pipes,MGS-CO2,Carbon Dioxide
-SYS,Pipes,MGS-HE,Helium / Heliox
-SYS,Pipes,MGS-VAC,Medical Vacuum
-SYS,Pipes,MGS-AGS,Anaesthetic Gas Scavenging
-SYS,Pipes,MGS-DENT,Dental compressed air / vacuum
-SYS,Electrical Circuits,EES-LS,Essential Power — Life Safety branch
-SYS,Electrical Circuits,EES-CR,Essential Power — Critical branch
-SYS,Electrical Circuits,EES-EQ,Essential Power — Equipment branch
-SYS,Electrical Circuits,IPS-WET,Isolated Power Systems — wet location
-SYS,Electrical Circuits,IT-CARD,IT-network — cardiac protected
-SYS,Pipes,WAT-DCW-TMV,TMV-tempered cold water
-SYS,Pipes,WAT-DHW-AC,Augmented-care DHW
-SYS,Walls,RAD-X,X-ray controlled area (lead barrier)
-SYS,Walls,RAD-MV,Megavoltage controlled area (LINAC)
-SYS,Walls,RAD-MRI,MRI Faraday cage
-FUNC,MGS-O2,SUP,Supply
-FUNC,MGS-VAC,EXH,Exhaust / extract
-FUNC,EES-LS,LIFE-SAF,Life safety branch loads (egress / alarm)
-FUNC,EES-CR,CRIT,Critical branch loads (patient care)
-FUNC,EES-EQ,EQP-BR,Equipment branch loads
-FUNC,IPS-WET,IPS,Isolated power
-FUNC,IT-CARD,IT-CP,Cardiac-protected IT-network
-FUNC,WAT-DCW-TMV,DCW,Domestic cold water
-FUNC,WAT-DHW-AC,DHW,Domestic hot water (augmented care)
-FUNC,RAD-X,RAD-CONT,Radiation controlled area
-FUNC,RAD-MV,RAD-LINAC,Megavoltage radiotherapy
-FUNC,RAD-MRI,RAD-MRI,MRI Faraday cage
+# The hyphenated SYS / FUNC codes this section used to list (MGS-O2, EES-LS, IPS-WET,
+# IT-CARD, WAT-DCW-TMV, RAD-X, LIFE-SAF …) were removed 2026-09-28: they contain the tag
+# separator and nothing wrote them. Medical gas is SYS MGS with the gas as FUNC, radiation
+# protection is SYS RAD (Section 2). Essential-electrical branch is a parameter
+# (ELC_EES_BRANCH_TXT), not a system.
 PROD,Specialty Equipment,H,GEN,STD,BHP,Bed-head pendant
 PROD,Specialty Equipment,H,GEN,STD,CP-OR,Operating room ceiling pendant
 PROD,Specialty Equipment,H,GEN,STD,CP-ICU,ICU column pendant
@@ -284,21 +294,23 @@ PROD,Specialty Equipment,H,GEN,STD,MORT-FRG,Mortuary refrigerator
 PROD,Specialty Equipment,H,GEN,STD,POST-MTBL,Post-mortem table
 PROD,Medical Equipment,H,GEN,STD,INC,Incubator
 PROD,Medical Equipment,H,GEN,STD,WCT,Warming cot
-PROD,Pipe Accessories,MG,MGS-O2,SUP,ZVB,Zone valve box
-PROD,Plumbing Fixtures,MG,MGS-O2,SUP,AAP,Area alarm panel
-PROD,Plumbing Fixtures,MG,MGS-O2,SUP,MAP,Master alarm panel
-PROD,Plumbing Fixtures,MG,MGS-O2,SUP,TU-O2,Oxygen terminal unit (BS 5682)
-PROD,Plumbing Fixtures,MG,MGS-MA4,SUP,TU-MA4,Medical air 4-bar terminal unit
-PROD,Plumbing Fixtures,MG,MGS-MA7,SUP,TU-MA7,Surgical air 7-bar terminal unit
-PROD,Plumbing Fixtures,MG,MGS-N2O,SUP,TU-N2O,Nitrous oxide terminal unit
-PROD,Plumbing Fixtures,MG,MGS-VAC,EXH,TU-VAC,Vacuum terminal unit
-PROD,Plumbing Fixtures,MG,MGS-AGS,EXH,TU-AGS,AGS terminal unit
-PROD,Walls,RP,RAD-X,RAD-CONT,RAD-PB,Lead-equivalent shielded barrier
-PROD,Generic Models,RP,RAD-X,RAD-CONT,RAD-CRT,Lead curtain
-PROD,Generic Models,RP,RAD-MRI,RAD-MRI,MR-FNC,MRI 5-Gauss fence / boundary marker
-PROD,Doors,H,GEN,LIG-RES,LIG-DR,Anti-ligature door
-PROD,Plumbing Fixtures,H,GEN,LIG-RES,LIG-WC,Anti-ligature WC / sink
-# ── Phase 178b — 17 plumbing system codes (full coverage of consultant scope) ──
+PROD,Pipe Accessories,MG,MGS,GEN,ZVB,Zone valve box
+PROD,Plumbing Fixtures,MG,MGS,GEN,AAP,Area alarm panel
+PROD,Plumbing Fixtures,MG,MGS,GEN,MAP,Master alarm panel
+PROD,Plumbing Fixtures,MG,MGS,O2,TU-O2,Oxygen terminal unit (BS 5682)
+PROD,Plumbing Fixtures,MG,MGS,MA4,TU-MA4,Medical air 4-bar terminal unit
+PROD,Plumbing Fixtures,MG,MGS,MA7,TU-MA7,Surgical air 7-bar terminal unit
+PROD,Plumbing Fixtures,MG,MGS,N2O,TU-N2O,Nitrous oxide terminal unit
+PROD,Plumbing Fixtures,MG,MGS,VAC,TU-VAC,Vacuum terminal unit
+PROD,Plumbing Fixtures,MG,MGS,AGS,TU-AGS,AGS terminal unit
+PROD,Walls,RP,RAD,SHD,RAD-PB,Lead-equivalent shielded barrier
+PROD,Generic Models,RP,RAD,SHD,RAD-CRT,Lead curtain
+PROD,Generic Models,RP,RAD,ZNE,MR-FNC,MRI 5-Gauss fence / boundary marker
+PROD,Doors,H,GEN,GEN,LIG-DR,Anti-ligature door
+PROD,Plumbing Fixtures,H,GEN,GEN,LIG-WC,Anti-ligature WC / sink
+# ── Phase 178b — 17 plumbing / process system codes ──
+# Runtime systems since 2026-09-28 (TagConfig.Defaults, detected by SystemNameClassifier).
+# STM / CON / FOL / CMP / CHE stay Mechanical; the others route to Plumbing (below).
 SYS,SWD,"Pipes,Pipe Fittings,Pipe Accessories",Surface water / external stormwater drainage
 SYS,GWR,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures",Greywater recycling
 SYS,RWH,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures",Rainwater harvesting (non-potable)
@@ -347,3 +359,4 @@ DISC_OVERRIDE,M,INT,P,Interceptor → Plumbing
 DISC_OVERRIDE,M,POL,P,Pool → Plumbing
 DISC_OVERRIDE,M,LBW,P,Lab water → Plumbing
 DISC_OVERRIDE,M,IRR,P,Irrigation → Plumbing
+DISC_OVERRIDE,M,MGS,P,Medical gas → Plumbing

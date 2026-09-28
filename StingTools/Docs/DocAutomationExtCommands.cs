@@ -2130,7 +2130,7 @@ namespace StingTools.Docs
                 string originatorCode = pi?.LookupParameter("PRJ_ORG_ORIGINATOR_CODE_TXT")?.AsString() ?? "PLNS";
                 string appointing = pi?.LookupParameter("PRJ_ORG_APPOINTING_PARTY_TXT")?.AsString() ?? "";
                 string prjCode    = pi?.LookupParameter("PRJ_ORG_PROJECT_CODE_TXT")?.AsString() ?? projectNumber;
-                string uniclass   = sheet.LookupParameter("ASS_UNICLASS_TXT")?.AsString() ?? "";
+                string uniclass   = sheet.LookupParameter("ASS_UNICLASS_2015_TXT")?.AsString() ?? "";
                 string security   = pi?.LookupParameter("PRJ_ORG_SECURITY_CLASS_TXT")?.AsString() ?? "OFFICIAL";
 
                 // Approval history (most recent revision stamps).
@@ -2908,7 +2908,7 @@ namespace StingTools.Docs
                         string modelNr = ParameterHelpers.GetString(sample, ParamRegistry.MODEL);
                         string desc = ParameterHelpers.GetString(sample, ParamRegistry.DESC);
                         if (string.IsNullOrEmpty(desc)) desc = typeName;
-                        string cost = ParameterHelpers.GetString(sample, ParamRegistry.COST);
+                        string cost = ParameterHelpers.GetValueText(sample, ParamRegistry.COST);
                         string size = ParameterHelpers.GetString(sample, ParamRegistry.SIZE);
 
                         // COBie fields mapped to MR_PARAMETERS via ParamRegistry
@@ -3346,10 +3346,10 @@ namespace StingTools.Docs
                             string model = ParameterHelpers.GetString(el, ParamRegistry.MODEL);
                             string serial = ParameterHelpers.GetString(el, "ASS_SERIAL_NR_TXT");
                             string desc = ParameterHelpers.GetString(el, ParamRegistry.DESC);
-                            string cost = ParameterHelpers.GetString(el, ParamRegistry.COST);
+                            string cost = ParameterHelpers.GetValueText(el, ParamRegistry.COST);
                             string condition = ParameterHelpers.GetString(el, ParamRegistry.CONDITION);
                             string warranty = ParameterHelpers.GetString(el, "ASS_WARRANTY_DURATION_PARTS_YRS");
-                            string fireRating = ParameterHelpers.GetString(el, ParamRegistry.FIRE_RATING);
+                            string fireRating = ParameterHelpers.GetValueText(el, ParamRegistry.FIRE_RATING);
                             string material = ParameterHelpers.GetString(el, ParamRegistry.MATERIAL);
                             string supplier = ParameterHelpers.GetString(el, ParamRegistry.SUPPLIER);
                             string barcode = ParameterHelpers.GetString(el, ParamRegistry.BARCODE);

@@ -315,7 +315,7 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(outputPath))
             {
                 string ext = config.Format == "Excel" ? ".xlsx" : config.Format == "JSON" ? ".json" : ".csv";
-                outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Export", ext);
+                outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Excel", "STING_Export", ext);
             }
 
             // Collect elements

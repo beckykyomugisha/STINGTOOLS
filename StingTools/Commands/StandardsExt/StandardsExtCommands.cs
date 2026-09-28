@@ -216,7 +216,7 @@ namespace StingTools.Commands.StandardsExt
                     using (var t = new Transaction(ctx.Doc, "STING Set Region"))
                     {
                         t.Start();
-                        var p = pi.LookupParameter("PROJECT_REGION");
+                        var p = pi.LookupParameter(ParamRegistry.PROJECT_REGION);
                         if (p != null && !p.IsReadOnly)
                         {
                             p.Set(picked);

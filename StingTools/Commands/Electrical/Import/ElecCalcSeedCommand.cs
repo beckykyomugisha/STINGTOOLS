@@ -34,7 +34,7 @@ namespace StingTools.Commands.Electrical.Import
                 {
                     TaskDialog.Show("Calc Seed Export",
                         "No electrical equipment found in the model.\n" +
-                        "Ensure panels are placed and have RBS_PANEL_NAME populated.");
+                        "Ensure panels are placed and have a Panel Name.");
                     return Result.Succeeded;
                 }
 
@@ -54,7 +54,7 @@ namespace StingTools.Commands.Electrical.Import
                 bool doJson = fmt == TaskDialogResult.CommandLink2 || fmt == TaskDialogResult.CommandLink3;
                 if (fmt == TaskDialogResult.Cancel) return Result.Cancelled;
 
-                string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "ElecCalcSeed");
+                string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Excel", "E"), "ElecCalcSeed");
                 Directory.CreateDirectory(outDir);
                 string proj   = SanitiseName(doc.ProjectInformation?.Name ?? "project");
                 var files = new List<string>();
@@ -97,14 +97,16 @@ namespace StingTools.Commands.Electrical.Import
                 list.Add(new PanelSeedRecord
                 {
                     Name         = fi.Name,
-                    PanelName    = fi.LookupParameter("RBS_PANEL_NAME")?.AsString() ?? fi.Name,
-                    MainRating   = fi.LookupParameter("RBS_ELEC_PANEL_TOTAL_INSTALLED_LOAD_PARAM")?.AsValueString() ?? "",
-                    BusbarRating = fi.LookupParameter("ELC_BUSBAR_RATING_TXT")?.AsString() ?? "",
-                    VoltageV     = fi.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")?.AsDouble() ?? 0,
-                    PhaseConfig  = fi.LookupParameter("RBS_ELEC_NUMBER_OF_POLES")?.AsInteger().ToString() ?? "",
+                    PanelName    = fi.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString() ?? fi.Name,
+                    MainRating   = fi.get_Parameter(BuiltInParameter.RBS_ELEC_MAINS)?.AsValueString() ?? "",
+                    // ELC_BUSBAR_RATING_A holds the amps as text ("400"); the old
+                    // ELC_BUSBAR_RATING_TXT name was never a defined parameter.
+                    BusbarRating = BusbarRatingText(fi),
+                    VoltageV     = StingTools.Core.Electrical.ElecUnits.Volts(fi),
+                    PhaseConfig  = fi.get_Parameter(BuiltInParameter.RBS_ELEC_NUMBER_OF_POLES)?.AsInteger().ToString() ?? "",
                     Level        = fi.LevelId != ElementId.InvalidElementId
                         ? (doc.GetElement(fi.LevelId) as Level)?.Name ?? "" : "",
-                    FeedFrom     = fi.LookupParameter("RBS_ELEC_PANEL_FEED_PANEL_NAME")?.AsString() ?? ""
+                    FeedFrom     = fi.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_FEED_PARAM)?.AsString() ?? ""
                 });
             }
             return list;
@@ -122,11 +124,11 @@ namespace StingTools.Commands.Electrical.Import
                     CircuitNumber = sys.CircuitNumber ?? "",
                     LoadNameTxt   = sys.LookupParameter("ELC_CIRCUIT_DESC_TXT")?.AsString() ?? "",
                     Rating        = sys.LookupParameter("ELC_CIRCUIT_RATING_TXT")?.AsString() ?? "",
-                    LoadKVA       = sys.LookupParameter("RBS_ELEC_APPARENT_LOAD") != null
-                        ? (sys.LookupParameter("RBS_ELEC_APPARENT_LOAD").AsDouble() / 1000.0).ToString("F2")
+                    LoadKVA       = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD) != null
+                        ? (StingTools.Core.Electrical.ElecUnits.ApparentLoadVA(sys) / 1000.0).ToString("F2")
                         : "",
                     CsaMm2        = sys.LookupParameter("ELC_CABLE_CSA_MM2_TXT")?.AsString() ?? "",
-                    Poles         = sys.LookupParameter("RBS_ELEC_NUMBER_OF_POLES")?.AsInteger().ToString() ?? ""
+                    Poles         = sys.PolesNumber.ToString() ?? ""
                 });
             }
             return list.OrderBy(c => c.Panel).ThenBy(c => c.CircuitNumber).ToList();
@@ -157,6 +159,15 @@ namespace StingTools.Commands.Electrical.Import
         {
             var obj = new { panels, circuits };
             File.WriteAllText(path, JsonConvert.SerializeObject(obj, Formatting.Indented));
+        }
+
+        /// <summary>Busbar rating as display text ("400A"), or "" when unset.
+        /// Reads ELC_BUSBAR_RATING_A, which is a TEXT parameter holding amps.</summary>
+        internal static string BusbarRatingText(Element panel)
+        {
+            string a = ParameterHelpers.GetDisplayText(panel, "ELC_BUSBAR_RATING_A").Trim();
+            if (a.Length == 0) return "";
+            return a.EndsWith("A", StringComparison.OrdinalIgnoreCase) ? a : a + "A";
         }
 
         private static string Q(string s) => $"\"{s?.Replace("\"", "\"\"")}\"";

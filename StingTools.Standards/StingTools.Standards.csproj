@@ -23,7 +23,7 @@
   -->
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <RootNamespace>StingTools.Standards</RootNamespace>
     <AssemblyName>StingTools.Standards</AssemblyName>
     <Description>Building standards &amp; compliance for StingTools — ISO 19650, Eurocodes, BS, CIBSE, NFPA, ASHRAE, IBC, regional African codes</Description>

@@ -106,6 +106,12 @@ namespace StingTools.Commands.Electrical
             }
 
             var pState = panels.Select(p => new PanelState(p, circuitsByPanel)).ToList();
+            // ELEC-15 — panels whose family reports no slot count take no circuits
+            // and are listed, rather than silently treated as 42-way boards.
+            var unknownSlotPanels = pState.Where(ps => ps.SlotCountUnknown).Select(ps => ps.Name).ToList();
+            foreach (var n in unknownSlotPanels)
+                StingLog.Warn($"BatchAssignCircuits: panel '{n}' reports no slot count " +
+                              "(Max Number of Single Pole Breakers / Max Number of Circuits) — skipped.");
 
             // Compute panel-room/level once so the grouping policy can prefer
             // panels in the same room or on the same level as the circuit's
@@ -200,6 +206,10 @@ namespace StingTools.Commands.Electrical
                 MainInstruction = $"Plan: assign {wouldAssign} of {plan.Count} unassigned circuits.",
                 MainContent =
                     $"Skipped: {wouldSkip} (no compatible panel with free slots).\n\n" +
+                    (unknownSlotPanels.Count == 0 ? "" :
+                        $"{unknownSlotPanels.Count} panel(s) were left out because their family reports no slot count " +
+                        $"(Max Number of Single Pole Breakers / Max Number of Circuits): " +
+                        $"{string.Join(", ", unknownSlotPanels.Take(8))}{(unknownSlotPanels.Count > 8 ? ", …" : "")}.\n\n") +
                     "Apply will set the panel reference on each circuit (SelectPanel). " +
                     "Phase assignment within the panel slot follows your panel template; " +
                     "run Circuit_Balance afterwards to balance phase loads.",
@@ -207,7 +217,7 @@ namespace StingTools.Commands.Electrical
             };
             if (dlg.Show() != TaskDialogResult.Yes)
             {
-                ShowResult(plan, doc, applied: 0, failed: 0, dryRun: true);
+                ShowResult(plan, doc, applied: 0, failed: 0, dryRun: true, unknownSlotPanels);
                 return Result.Cancelled;
             }
 
@@ -269,13 +279,14 @@ namespace StingTools.Commands.Electrical
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            ShowResult(plan, doc, applied, failed, dryRun: false);
+            ShowResult(plan, doc, applied, failed, dryRun: false, unknownSlotPanels);
             return Result.Succeeded;
         }
 
         // ── Result rendering ────────────────────────────────────────────
 
-        private static void ShowResult(List<Assignment> plan, Document doc, int applied, int failed, bool dryRun)
+        private static void ShowResult(List<Assignment> plan, Document doc, int applied, int failed, bool dryRun,
+            List<string> unknownSlotPanels)
         {
             int wouldAssign  = plan.Count(a => a.PanelName != null);
             int wouldSkip    = plan.Count - wouldAssign;
@@ -327,6 +338,15 @@ namespace StingTools.Commands.Electrical
                 if (rest > 0) panel.Text($"… {rest} more.");
             }
 
+            if (unknownSlotPanels != null && unknownSlotPanels.Count > 0)
+            {
+                panel.AddSection("PANELS WITH NO SLOT COUNT (not used)");
+                panel.Text("Set 'Max Number of Single Pole Breakers' (or 'Max Number of Circuits') on these panel types; " +
+                           "until then the command cannot know whether a circuit fits.");
+                foreach (var n in unknownSlotPanels.Take(20)) panel.Text(n);
+                if (unknownSlotPanels.Count > 20) panel.Text($"… {unknownSlotPanels.Count - 20} more.");
+            }
+
             panel.AddSection("NEXT STEPS")
                  .Text("Run 'Phase Balance' to balance loads across A/B/C within each panel.")
                  .Text("Run 'Batch Panel Schedules' to materialize the schedules and stamp ELC_PNL_*.")
@@ -351,6 +371,8 @@ namespace StingTools.Commands.Electrical
             public ElementId Id { get; }
             public string Name { get; }
             public int TotalSlots { get; }
+            /// <summary>The family reports no slot count; the panel is not offered circuits.</summary>
+            public bool SlotCountUnknown { get; }
             public int RemainingSlots { get; private set; }
             public double ConnectedVa { get; private set; }
             public double NominalVoltage { get; }
@@ -363,15 +385,44 @@ namespace StingTools.Commands.Electrical
 
             public PanelState(FamilyInstance fi, Dictionary<long, List<ElectricalSystem>> circuitsByPanel)
             {
+                // This body was reduced to a few locals by a 2026-05 merge fix and
+                // assigned none of the properties: every panel had 0 remaining
+                // slots, so the command could never assign a circuit.
+                _fi = fi;
+                Id = fi.Id;
+                Name = SafeName(fi);
+                try { LevelId = fi.LevelId; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); LevelId = ElementId.InvalidElementId; }
+
                 circuitsByPanel.TryGetValue(fi.Id.Value, out var owned);
-                int used = owned?.Count ?? 0;
+                int usedPoles = 0;
                 double sum = 0;
-                if (owned != null) foreach (var s in owned) sum += SafeApparentVA(s);
+                if (owned != null)
+                    foreach (var s in owned)
+                    {
+                        sum += SafeApparentVA(s);
+                        usedPoles += Math.Max(1, SafePoles(s));
+                    }
+
+                // ELEC-15 — one shared slot-count rule; null when the family reports
+                // neither slot parameter. Such a panel takes no circuits and is named
+                // in the preview, instead of being treated as a 42-way board.
+                int? slots = StingTools.Core.Electrical.PanelSlotReader.PanelSlotCount(fi);
+                SlotCountUnknown = !slots.HasValue;
+                TotalSlots = slots ?? 0;
+                RemainingSlots = Math.Max(0, TotalSlots - usedPoles);
+                ConnectedVa = sum;
+                NominalVoltage = SafePanelVoltage(fi);
                 try { Location = (fi.Location as LocationPoint)?.Point; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 // Pre-existing group tag from a prior run lets a re-run remain
                 // stable: panels already accumulating a group keep getting that
                 // group's circuits rather than scattering on each invocation.
+                try
+                {
+                    string prior = fi.LookupParameter("ELC_PNL_CIRCUIT_GROUP_TXT")?.AsString();
+                    if (!string.IsNullOrEmpty(prior)) GroupTag = prior;
+                }
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
 
             public void PrimeRoomLevel(Document doc)
@@ -404,35 +455,27 @@ namespace StingTools.Commands.Electrical
 
             private static string SafeName(FamilyInstance fi)
             {
-                try { return fi.Name ?? fi.Id.ToString(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fi.Id.ToString(); }
-            }
-
-            private static int SafeReadInt(Element el, string param, int fallback)
-            {
+                // Panel Name, not fi.Name - fi.Name is the TYPE name, shared by
+                // every board of that type, which made the plan unreadable.
                 try
                 {
-                    var p = el.LookupParameter(param);
-                    if (p != null && p.StorageType == StorageType.Integer) return p.AsInteger();
-                    if (p != null && p.StorageType == StorageType.Double) return (int)Math.Round(p.AsDouble());
+                    string pn = fi.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
+                    if (!string.IsNullOrWhiteSpace(pn)) return pn;
+                    return fi.Name ?? fi.Id.ToString();
                 }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                return fallback;
+                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return fi.Id.ToString(); }
             }
+
 
             private static double SafePanelVoltage(Element el)
             {
                 try
                 {
-                    var p = el.LookupParameter("Panel Voltage");
-                    if (p != null && p.StorageType == StorageType.Double)
-                    {
-                        double v = p.AsDouble();
-                        // Revit stores volts as volts in newer versions but
-                        // historically as feet-of-equivalent. Anything above
-                        // 1000 is suspect — return as-is and let the band
-                        // matcher decide.
-                        return v;
-                    }
+                    // Revit stores volts in internal units (1 V = 10.7639); convert.
+                    // 0 means unknown, which VoltageCompatible lets through.
+                    var p = el.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)
+                            ?? el.LookupParameter("Panel Voltage");
+                    return StingTools.Core.Electrical.ElecUnits.ToSi(p);
                 }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 return 0;
@@ -448,7 +491,7 @@ namespace StingTools.Commands.Electrical
 
         private static double SafeApparentVA(ElectricalSystem s)
         {
-            try { return s?.ApparentLoad ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            try { return s == null ? 0 : StingTools.Core.Electrical.ElecUnits.VAFromInternal(s.ApparentLoad); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static int SafePoles(ElectricalSystem s)
@@ -458,19 +501,23 @@ namespace StingTools.Commands.Electrical
 
         private static double SafeCircuitVoltage(ElectricalSystem s)
         {
-            try { return s?.Voltage ?? 0; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
+            try { return s == null ? 0 : StingTools.Core.Electrical.ElecUnits.VoltsFromInternal(s.Voltage); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; }
         }
 
         private static bool VoltageCompatible(double a, double b, AssignmentConfig cfg = null)
         {
             if (a <= 0 || b <= 0) return true; // unknown — let it through
             var bands = cfg?.VoltageBands ?? _defaultVoltageBands;
+            // A single-phase circuit on a three-phase board runs at the
+            // phase-to-neutral voltage (400/230, 208/120, 480/277), so compare
+            // each side at its line voltage AND at line/√3.
+            double[] aForms = { a, a / Math.Sqrt(3.0) };
+            double[] bForms = { b, b / Math.Sqrt(3.0) };
             foreach (var band in bands)
-            {
-                bool inA = a >= band.low && a <= band.high;
-                bool inB = b >= band.low && b <= band.high;
-                if (inA && inB) return true;
-            }
+                foreach (double av in aForms)
+                    foreach (double bv in bForms)
+                        if (av >= band.low && av <= band.high && bv >= band.low && bv <= band.high)
+                            return true;
             return false;
         }
 

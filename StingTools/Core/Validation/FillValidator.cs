@@ -5,7 +5,7 @@
 // written by upstream design tools into ELC_CDT_CBL_FILL_PCT and
 // ELC_CTR_FILL_PCT; for hydronic / pneumatic containment we compare
 // computed velocity against CIBSE Guide C limits captured by the
-// design tool in PLM_PPE_VELOCITY_MS / HVC_DCT_VELOCITY_MS.
+// design tool in PLM_VEL_MPS / HVC_VEL_MPS (ParamRegistry.PLM_VELOCITY / HVC_VELOCITY).
 
 using System;
 using System.Collections.Generic;
@@ -38,8 +38,8 @@ namespace StingTools.Core.Validation
 
             CheckCategory(doc, BuiltInCategory.OST_Conduit,    "ELC_CDT_CBL_FILL_PCT", ConduitMaxFillPct,  "FILL.CDT.OVER",  results);
             CheckCategory(doc, BuiltInCategory.OST_CableTray,  "ELC_CTR_FILL_PCT",     CableTrayMaxFillPct,"FILL.CTR.OVER",  results);
-            CheckCategory(doc, BuiltInCategory.OST_PipeCurves, "PLM_PPE_VELOCITY_MS",  PipeMaxVelocityMs,  "VEL.PPE.OVER",   results);
-            CheckCategory(doc, BuiltInCategory.OST_DuctCurves, "HVC_DCT_VELOCITY_MS",  DuctMaxVelocityMs,  "VEL.DCT.OVER",   results);
+            CheckCategory(doc, BuiltInCategory.OST_PipeCurves, ParamRegistry.PLM_VELOCITY,  PipeMaxVelocityMs,  "VEL.PPE.OVER",   results);
+            CheckCategory(doc, BuiltInCategory.OST_DuctCurves, ParamRegistry.HVC_VELOCITY,  DuctMaxVelocityMs,  "VEL.DCT.OVER",   results);
             return results;
         }
 

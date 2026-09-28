@@ -339,7 +339,7 @@ namespace StingTools.Model
                     sb.AppendLine($"{el.Id.Value},{el.Category?.Name},{typeName},,{sub.Substrate},{finish},{area:F1},{area * PlasterConfig.PlasterLabourPerM2:F0}");
                 }
 
-                var path = OutputLocationHelper.GetTimestampedPath(doc, "CoveringSchedule", "csv");
+                var path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "CoveringSchedule", "csv", "A");
                 System.IO.File.WriteAllText(path, sb.ToString());
                 TaskDialog.Show("COVERINGS — Export", $"Exported {allElements.Count} elements to:\n{path}");
                 return Result.Succeeded;

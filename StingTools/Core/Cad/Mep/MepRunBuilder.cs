@@ -135,9 +135,12 @@ namespace StingTools.Core.Cad.Mep
             {
                 case MEPSystemClassification.SupplyAir:
                 case MEPSystemClassification.ReturnAir:
-                case MEPSystemClassification.ExhaustAir:
+                case MEPSystemClassification.ExhaustAir:        return "HVAC";
+                // Hydronic is heating OR chilled / condenser water; the classification cannot
+                // tell which, so the system name decides (SystemNameClassifier → HWS / CHW /
+                // CDW). It returned HVAC, which disagreed with the tag pipeline.
                 case MEPSystemClassification.SupplyHydronic:
-                case MEPSystemClassification.ReturnHydronic: return "HVAC";
+                case MEPSystemClassification.ReturnHydronic:    return "";
                 case MEPSystemClassification.DomesticColdWater: return "DCW";
                 case MEPSystemClassification.DomesticHotWater:  return "DHW";
                 case MEPSystemClassification.Sanitary:

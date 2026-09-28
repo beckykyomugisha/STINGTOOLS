@@ -449,7 +449,7 @@ namespace StingTools.BIMManager
             if (before == null) return Result.Failed;
 
             var diff = ParameterDiffEngine.CompareWithCurrent(ctx.Doc, before);
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "ParameterDiff", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Revision", "ParameterDiff", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("ChangeType,ElementId,Category,Tag,Parameter,OldValue,NewValue");

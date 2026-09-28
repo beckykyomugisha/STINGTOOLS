@@ -24,6 +24,8 @@ namespace StingTools.UI
         private readonly TextBox  _txtCapacity;
         private readonly TextBox  _txtEquivLen;
         private readonly TextBox  _txtLift;
+        private readonly ComboBox _cmbMode;
+        private readonly TextBox  _txtSuctionMult;
         private readonly CheckBox _chkRiser;
         private readonly TextBox  _txtDpBudget;
         private readonly ComboBox _cmbVendorSeries;
@@ -48,7 +50,7 @@ namespace StingTools.UI
             Background = new SolidColorBrush(Color.FromRgb(248, 246, 252));
 
             var grid = new Grid { Margin = new Thickness(16) };
-            for (int i = 0; i < 14; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            for (int i = 0; i < 18; i++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(180) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
@@ -136,6 +138,23 @@ namespace StingTools.UI
             Grid.SetRow(_txtLift, row); Grid.SetColumn(_txtLift, 1); grid.Children.Add(_txtLift);
             row++;
 
+            // Which way the liquid flows decides whether lift debits or
+            // credits the liquid-line budget. Heat pump = worst case.
+            AddLabel(grid, "Operating mode (liquid flow)", row);
+            _cmbMode = new ComboBox { Margin = new Thickness(0, 2, 0, 6) };
+            _cmbMode.Items.Add("Reversible (heat pump — uphill case)");
+            _cmbMode.Items.Add("Cooling only (ODU → IDU)");
+            _cmbMode.Items.Add("Heating only (IDU → ODU)");
+            _cmbMode.SelectedIndex = 0;
+            Grid.SetRow(_cmbMode, row); Grid.SetColumn(_cmbMode, 1); grid.Children.Add(_cmbMode);
+            row++;
+
+            AddLabel(grid, "Suction ΔP allowance (×)", row);
+            _txtSuctionMult = new TextBox { Text = "1.10", Margin = new Thickness(0, 2, 0, 6),
+                ToolTip = "Multiplier on suction friction for entrained oil and liquid (1.10 = +10 %)." };
+            Grid.SetRow(_txtSuctionMult, row); Grid.SetColumn(_txtSuctionMult, 1); grid.Children.Add(_txtSuctionMult);
+            row++;
+
             AddLabel(grid, "ΔP budget (kPa)", row);
             _txtDpBudget = new TextBox { Text = "30", Margin = new Thickness(0, 2, 0, 6) };
             Grid.SetRow(_txtDpBudget, row); Grid.SetColumn(_txtDpBudget, 1); grid.Children.Add(_txtDpBudget);
@@ -206,6 +225,10 @@ namespace StingTools.UI
                 input.LiftM               = double.Parse(_txtLift.Text);
                 input.MaxPressureDropKpa  = double.Parse(_txtDpBudget.Text);
                 input.HasVerticalRiser    = _chkRiser.IsChecked == true;
+                input.Mode = (RefrigerantOperatingMode)Math.Max(0, _cmbMode.SelectedIndex);
+                if (double.TryParse(_txtSuctionMult.Text, System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var sm) && sm >= 1.0)
+                    input.SuctionDpMultiplier = sm;
 
                 // Vendor envelope (optional). Index 0 = "(none)", so anything
                 // else is a real series id from the registry.

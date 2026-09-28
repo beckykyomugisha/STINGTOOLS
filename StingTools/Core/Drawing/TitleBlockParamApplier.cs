@@ -3,19 +3,19 @@
 // TitleBlockParamApplier walks DrawingType.TitleBlockParams at
 // sheet-creation time and writes each entry onto the title-block
 // FamilyInstance hosted by the sheet. The value template supports
-// two substitution kinds:
+// two substitution kinds — see TitleBlockTemplate for the grammar:
 //
-//   ${ParamName}   → read from ProjectInformation by parameter name.
-//                    Missing / empty param → substituted with empty
-//                    string (does not abort the run).
+//   ${ParamName}   → read from ProjectInformation by parameter name
+//                    (stem or _TXT-suffixed registry name).
 //   {disc} / {lvl} / {seq:Dn} / {mark} / ...
-//                    → caller-supplied token dict. Lets a fabrication
-//                    pipeline that already resolved {disc}=P /
-//                    {lvl}=L02 flow those values straight into
-//                    "Sheet Status" / "Sheet Code" title-block cells.
+//                    → caller-supplied token dict (DrawingTokenContext).
+//   {{ / }}        → literal braces.
 //
-// Unknown tokens are left as literal text so shops can mix custom
-// markers the applier does not know about.
+// T-5: a cell whose template cannot be fully resolved — a {token} the
+// dict does not supply, or a ${Param} that is not bound — is NOT written.
+// The existing value is left alone and a warning names what was missing.
+// (It used to write the literal "{lvl}" or a blank, both of which reach an
+// issued title block looking deliberate.)
 
 using System;
 using System.Collections.Generic;
@@ -28,9 +28,14 @@ namespace StingTools.Core.Drawing
     public sealed class TitleBlockApplyResult
     {
         public int ParamsWritten { get; set; }
+        /// <summary>Non-blank keys in the profile's TitleBlockParams.</summary>
         public int ParametersDeclared { get; set; }
+        /// <summary>Cells skipped because their template did not fully resolve
+        /// (counted once per key, not per title-block instance).</summary>
+        public int CellsUnresolved { get; set; }
         /// <summary>Title-block instances skipped because PRJ_TB_LOCK_BOOL was set.</summary>
         public int LockedSkipped { get; set; }
+        /// <summary>Declared keys the title-block family has no parameter for.</summary>
         public List<string> ParametersMissing { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
     }
@@ -39,10 +44,6 @@ namespace StingTools.Core.Drawing
     {
         private static readonly Regex _projInfo =
             new Regex(@"\$\{([A-Za-z0-9_]+)\}", RegexOptions.Compiled);
-        private static readonly Regex _token =
-            new Regex(@"\{([A-Za-z0-9_]+(?::D\d+)?)\}", RegexOptions.Compiled);
-        private static readonly Regex _seqFmt =
-            new Regex(@"^(\w+):D(\d+)$", RegexOptions.Compiled);
 
         /// <summary>
         /// Apply dt.TitleBlockParams to the title-block instance on the
@@ -50,7 +51,9 @@ namespace StingTools.Core.Drawing
         /// </summary>
         /// <param name="tokens">
         /// Optional token dict — e.g. {"disc":"P","lvl":"L02","seq":"0003"}.
-        /// Null/empty = only ${ProjectInfo} substitution runs.
+        /// Null/empty = every cell whose template uses a {token} is left
+        /// untouched and reported. For an existing sheet build the dict with
+        /// <see cref="DrawingTokenContext.BuildForExistingSheet"/>.
         /// </param>
         public static TitleBlockApplyResult Apply(
             Document doc, ViewSheet sheet, DrawingType dt,
@@ -59,6 +62,31 @@ namespace StingTools.Core.Drawing
             var r = new TitleBlockApplyResult();
             if (doc == null || sheet == null || dt?.TitleBlockParams == null
                 || dt.TitleBlockParams.Count == 0) return r;
+            r.ParametersDeclared = dt.TitleBlockParams.Keys.Count(k => !string.IsNullOrWhiteSpace(k));
+
+            // Resolve once per key, not once per title-block instance: the
+            // payload is identical for every TB on the sheet.
+            var resolvedByKey = new Dictionary<string, TitleBlockTemplateResult>(StringComparer.Ordinal);
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                TitleBlockTemplateResult res;
+                try { res = ResolveTemplate(doc, kv.Value ?? "", tokens); }
+                catch (Exception ex)
+                {
+                    r.Warnings.Add($"Resolve '{kv.Key}': {ex.Message}");
+                    continue;
+                }
+                if (!res.IsResolved)
+                {
+                    r.CellsUnresolved++;
+                    r.Warnings.Add(
+                        $"Sheet '{sheet.SheetNumber}': '{kv.Key}' not written — template '{kv.Value}' is unresolved " +
+                        $"({res.Describe()}). The existing value was left in place.");
+                    continue;
+                }
+                resolvedByKey[kv.Key] = res;
+            }
 
             // GAP-A: walk every title-block instance on the sheet, not just
             // the first. Sheets that host more than one TB (front + back,
@@ -98,30 +126,20 @@ namespace StingTools.Core.Drawing
                 if (tbs.Count > 1 && !TitleBlockHasAnyKey(tb, dt.TitleBlockParams.Keys))
                     continue;
 
-            foreach (var kv in dt.TitleBlockParams)
+            foreach (var kv in resolvedByKey)
             {
                 var paramName = kv.Key;
-                if (string.IsNullOrWhiteSpace(paramName)) continue;
-
-                string resolved;
-                try
-                {
-                    // ACC-07: a null/empty template still resolves to the
-                    // empty string and writes through, ensuring cloned
-                    // sheets don't carry stale prior values forward.
-                    resolved = ResolveTemplate(doc, kv.Value ?? "", tokens);
-                }
-                catch (Exception ex)
-                {
-                    r.Warnings.Add($"Resolve '{paramName}': {ex.Message}");
-                    continue;
-                }
+                // ACC-07: a null/empty template still resolves to the empty
+                // string and writes through, ensuring cloned sheets don't
+                // carry stale prior values forward.
+                string resolved = kv.Value.Text;
 
                 try
                 {
                     var p = tb.LookupParameter(paramName);
                     if (p == null)
                     {
+                        if (!r.ParametersMissing.Contains(paramName)) r.ParametersMissing.Add(paramName);
                         r.Warnings.Add($"Title block has no parameter '{paramName}'.");
                         continue;
                     }
@@ -246,7 +264,10 @@ namespace StingTools.Core.Drawing
                     foreach (System.Text.RegularExpressions.Match m in ms)
                     {
                         var name = m.Groups[1].Value;
-                        if (pi.LookupParameter(name) == null && !missing.Contains(name))
+                        if (name.StartsWith("MAT_", StringComparison.OrdinalIgnoreCase)) continue;
+                        bool bound = TitleBlockTemplate.ProjectInfoCandidates(name)
+                            .Any(c => pi.LookupParameter(c) != null);
+                        if (!bound && !missing.Contains(name))
                             missing.Add(name);
                     }
                 }
@@ -257,64 +278,37 @@ namespace StingTools.Core.Drawing
 
         // ── Internals ──
 
-        private static string ResolveTemplate(
+        private static TitleBlockTemplateResult ResolveTemplate(
             Document doc, string template, IDictionary<string, string> tokens)
         {
-            if (string.IsNullOrEmpty(template)) return "";
+            return TitleBlockTemplate.Resolve(template, name => LookupForTemplate(doc, name), tokens);
+        }
 
-            // ${ProjectInfo} substitution first, so a user can pass
-            // "${PRJ_ORG_PROJECT_CODE}-{disc}" and both land.
-            var s = _projInfo.Replace(template, m =>
+        /// <summary>
+        /// ${Name} lookup for TitleBlockTemplate. Null = not bound (the cell is
+        /// then left alone); "" = bound but empty (written as a blank).
+        /// </summary>
+        private static string LookupForTemplate(Document doc, string name)
+        {
+            // T-4 / B3: MAT_-prefixed keys resolve from the model's materials,
+            // not ProjectInformation. MaterialTitleBlockTokens.Resolve existed
+            // with ZERO call sites, so every ${MAT_*} token fell through to the
+            // ProjectInfo lookup and blanked the cell.
+            if (name.StartsWith("MAT_", StringComparison.OrdinalIgnoreCase))
             {
-                var name = m.Groups[1].Value;
-
-                // T-4 / B3: MAT_-prefixed keys resolve from the model's
-                // materials, not ProjectInformation. MaterialTitleBlockTokens
-                // .Resolve existed with ZERO call sites, so every ${MAT_*}
-                // token fell through to the ProjectInfo lookup, resolved null,
-                // and — because this applier always writes (ACC-07) — BLANKED
-                // the cell. A template asking for material data silently
-                // erased whatever was in that field.
-                if (name.StartsWith("MAT_", StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    try
-                    {
-                        var mat = MaterialTitleBlockTokens.Resolve(doc, name);
-                        if (!string.IsNullOrEmpty(mat)) return mat;
-                    }
-                    catch (Exception ex)
-                    {
-                        StingTools.Core.StingLog.Warn($"MaterialTitleBlockTokens.Resolve('{name}'): {ex.Message}");
-                    }
-                    // Fall through to ProjectInfo — a project may legitimately
-                    // define its own MAT_-named parameter there.
+                    var mat = MaterialTitleBlockTokens.Resolve(doc, name);
+                    if (!string.IsNullOrEmpty(mat)) return mat;
                 }
-
-                return ReadProjectInfoParam(doc, name) ?? "";
-            });
-
-            // {token} / {token:Dn} substitution from the caller's dict.
-            if (tokens != null && tokens.Count > 0)
-            {
-                s = _token.Replace(s, m =>
+                catch (Exception ex)
                 {
-                    var raw = m.Groups[1].Value;
-                    var fmt = _seqFmt.Match(raw);
-                    string key; int width = -1;
-                    if (fmt.Success)
-                    {
-                        key   = fmt.Groups[1].Value;
-                        width = int.Parse(fmt.Groups[2].Value);
-                    }
-                    else key = raw;
-
-                    if (!tokens.TryGetValue(key, out var val)) return m.Value; // unknown → literal
-                    if (width > 0 && int.TryParse(val, out var iv))
-                        return iv.ToString("D" + width);
-                    return val;
-                });
+                    StingTools.Core.StingLog.Warn($"MaterialTitleBlockTokens.Resolve('{name}'): {ex.Message}");
+                }
+                // Fall through to ProjectInfo — a project may legitimately
+                // define its own MAT_-named parameter there.
             }
-            return s;
+            return ReadProjectInfoParam(doc, name);
         }
 
         private static string ReadProjectInfoParam(Document doc, string name)
@@ -418,8 +412,30 @@ namespace StingTools.Core.Drawing
             {
                 var paramName = kv.Key;
                 if (string.IsNullOrWhiteSpace(paramName)) continue;
-                try { result[paramName] = ResolveTemplate(doc, kv.Value ?? "", tokens); }
+                // Unresolved pieces stay literal here (Text is the best-effort
+                // rendering) so pattern callers still see the braces; use
+                // PeekResolved to learn which cells Apply would actually write.
+                try { result[paramName] = ResolveTemplate(doc, kv.Value ?? "", tokens).Text; }
                 catch { result[paramName] = kv.Value ?? ""; }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Like <see cref="Peek"/> but returns the full resolution per key, so
+        /// a drift check can skip cells Apply would refuse to write rather than
+        /// reporting "{lvl}" as the expected value.
+        /// </summary>
+        public static Dictionary<string, TitleBlockTemplateResult> PeekResolved(
+            Document doc, DrawingType dt, IDictionary<string, string> tokens = null)
+        {
+            var result = new Dictionary<string, TitleBlockTemplateResult>();
+            if (doc == null || dt?.TitleBlockParams == null) return result;
+            foreach (var kv in dt.TitleBlockParams)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                try { result[kv.Key] = ResolveTemplate(doc, kv.Value ?? "", tokens); }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"PeekResolved '{kv.Key}': {ex.Message}"); }
             }
             return result;
         }
