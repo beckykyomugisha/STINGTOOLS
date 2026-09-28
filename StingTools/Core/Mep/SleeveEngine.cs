@@ -1,4 +1,4 @@
-﻿using StingTools.Core;
+using StingTools.Core;
 // StingTools v4 MVP — Phase I sleeve engine.
 //
 // Detects MEP-vs-structure penetrations, sizes a sleeve per

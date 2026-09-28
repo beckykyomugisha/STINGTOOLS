@@ -17,8 +17,7 @@ using StingTools.Core;
 //       RBS_ELEC_VOLTAGE_PARAM and assigns LV/MV/HV tier.
 //  S2 - SLDNode gains SecondaryParentId + FeedType; BuildHierarchyAll does a
 //       second pass to detect dual-source nodes; FindDualSourceNodes helper.
-//  S4 - SLDNode gains RouteRef; ReadElementParams reads ELC_CONDUIT_REF /
-//       ELC_CABLE_ROUTE_REF.
+//  S4 - SLDNode gains RouteRef; ReadElementParams reads ELC_CONDUIT_ROUTE_TXT.
 //  S6 - SLDNode gains RuntimeMin; ReadElementParams reads RUNTIME_MIN for UPS
 //       equipment.
 
@@ -42,6 +41,8 @@ namespace StingTools.Core.SLD
         // Phase 179 — BS 7671 / IEC 60364 engineering data fields.
         public string CsaMm2 { get; set; }
         public double VdPct { get; set; }
+        /// <summary>VdPct is an A4-MAX upper bound; the label shows "≤".</summary>
+        public bool VdIsUpperBound { get; set; }
         public string FaultKa { get; set; }
         // Phase 179 S1 — Voltage level differentiation.
         public double SystemVoltageV { get; set; }
@@ -458,7 +459,7 @@ namespace StingTools.Core.SLD
                 try
                 {
                     var loadParam = circuit.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
-                    if (loadParam != null) node.LoadKW = loadParam.AsDouble() / 1000.0;
+                    if (loadParam != null) node.LoadKW = StingTools.Core.Electrical.ElecUnits.ToSi(loadParam) / 1000.0;
                 }
                 catch (Exception ex) { StingLog.Warn($"Load: {ex.Message}"); }
 
@@ -486,25 +487,34 @@ namespace StingTools.Core.SLD
                 string fault = GetParamString(fi, ParamRegistry.ELC_PNL_FAULT_KA);
                 if (!string.IsNullOrEmpty(fault)) node.FaultKa = fault;
 
-                string vdStr = GetParamString(fi, ParamRegistry.ELC_CKT_VD_PCT);
-                if (!string.IsNullOrEmpty(vdStr) && double.TryParse(vdStr,
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture, out double vd))
-                    node.VdPct = vd;
+                // ELC_VLT_DROP_PCT is a NUMBER; AsString() returned null, so the SLD never
+                // showed a drop. Read it with its basis (ELEC-22): a NONE or pre-basis value
+                // is not shown, and an upper bound is marked as one.
+                var stamp = StingTools.Core.Electrical.CircuitVoltageDropModel.ReadStamp(fi);
+                if (stamp.Pct.HasValue && stamp.Method != StingTools.Core.Electrical.VdMethod.Legacy)
+                {
+                    node.VdPct = stamp.Pct.Value;
+                    node.VdIsUpperBound = stamp.Method == StingTools.Core.Electrical.VdMethod.Appendix4Envelope;
+                }
 
-                // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM (stored in Revit internal
-                // units, i.e. volts).  Values < 50 are assumed to be in kV and converted.
+                // S1 — Voltage level: read RBS_ELEC_VOLTAGE_PARAM. Revit stores it in
+                // internal units (1 V = 10.7639), so convert to volts first.
                 try
                 {
-                    var voltParam = fi.LookupParameter("RBS_ELEC_VOLTAGE_PARAM")
+                    var voltParam = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE)
                         ?? fi.LookupParameter("Voltage");
                     if (voltParam != null)
                     {
-                        double rawV = voltParam.AsDouble();
+                        double rawV = StingTools.Core.Electrical.ElecUnits.ToSi(voltParam);
                         if (rawV > 0)
                         {
-                            // Convert: if suspiciously small (<50) treat as kV.
-                            double volts = rawV < 50.0 ? rawV * 1000.0 : rawV;
+                            // A real electrical-potential parameter is now true volts, so a
+                            // 24/48 V ELV board must stay 24/48 V. Only a unitless source
+                            // (a family Number parameter someone filled in kV) gets the
+                            // "< 50 means kV" guess — applied to volts it tiered ELV as MV.
+                            bool isPotential =
+                                StingTools.Core.Electrical.ElecUnits.SiUnitFor(voltParam) != null;
+                            double volts = !isPotential && rawV < 50.0 ? rawV * 1000.0 : rawV;
                             node.SystemVoltageV = volts;
                         }
                     }
@@ -517,10 +527,11 @@ namespace StingTools.Core.SLD
                                  : node.SystemVoltageV <= 36000.0 ? "MV"
                                  : "HV";
 
-                // S4 — Cable route reference.
-                string route = GetParamString(fi, "ELC_CONDUIT_REF");
-                if (string.IsNullOrEmpty(route))
-                    route = GetParamString(fi, "ELC_CABLE_ROUTE_REF");
+                // S4 — Cable route reference. ELC_CONDUIT_ROUTE_TXT is the route
+                // identifier the conduit auto-router and consolidator write, and it is
+                // bound on Electrical Equipment. The ELC_CONDUIT_REF / ELC_CABLE_ROUTE_REF
+                // names read here before were defined nowhere, so no label ever had one.
+                string route = GetParamString(fi, ParamRegistry.ELC_CONDUIT_ROUTE);
                 if (!string.IsNullOrEmpty(route)) node.RouteRef = route;
 
                 // S6 — UPS autonomy time: only for UPS equipment.
@@ -686,10 +697,24 @@ namespace StingTools.Core.SLD
 
         // ── Param helpers ────────────────────────────────────────────────────
 
+        /// <summary>A parameter's value as text. A NUMBER parameter (the fault level) is
+        /// formatted invariantly: AsString() returns null for one, which left the SLD fault
+        /// label blank however often the fault calculation stamped it.</summary>
         private static string GetParamString(Element el, string paramName)
         {
-            try { return el?.LookupParameter(paramName)?.AsString(); }
-            catch { return null; }
+            try
+            {
+                var p = el?.LookupParameter(paramName);
+                if (p == null || !p.HasValue) return null;
+                switch (p.StorageType)
+                {
+                    case StorageType.String: return p.AsString();
+                    case StorageType.Double: return p.AsDouble().ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+                    case StorageType.Integer: return p.AsInteger().ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    default: return null;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SLD read {paramName}: {ex.Message}"); return null; }
         }
 
         private static int GetParamInt(Element el, string paramName)

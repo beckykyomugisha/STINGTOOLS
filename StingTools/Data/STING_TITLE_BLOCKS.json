@@ -3,6 +3,12 @@
   "name": "STING \u2014 Title-block family library",
   "description": "Generator spec for STING title-block .rfa families. Two-family BIM architecture: each working-sheet paper size ships in BOTH landscape and portrait orientations \u00d7 BIM/NONBIM modes (5 \u00d7 2 \u00d7 2 = 20 working sheets), plus 14 specialty title blocks (4 fabrication assembly + 2 presentation + cover + divider + register + transmittal cover + 3 submission + clarification). Every concrete family extends a size+orientation abstract common which itself extends A1_common_v2.0 \u2014 the master identity-data parameter universe. Parameter set follows TITLE_BLOCK_FAMILY_DESIGN.md \u00a72.1 \u2014 all shared params sourced from MR_PARAMETERS.txt, no fabricated GUIDs.",
   "lastUpdated": "2026-05-01",
+  "cdeBands": {
+    "WIP": { "state": 1, "color": "#BDBDBD" },
+    "SHARED": { "state": 2, "color": "#F9A825" },
+    "PUBLISHED": { "state": 3, "color": "#2E7D32" },
+    "ARCHIVED": { "state": 4, "color": "#616161" }
+  },
   "families": [
     {
       "id": "A1_common_v2.0",
@@ -1875,7 +1881,8 @@
             130
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [
@@ -3428,7 +3435,8 @@
             149.8
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [
@@ -4925,7 +4933,8 @@
             149.8
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [
@@ -7241,7 +7250,8 @@
             126.5
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [
@@ -8664,7 +8674,8 @@
             81.0
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [
@@ -10087,7 +10098,8 @@
             81.0
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [
@@ -12289,7 +12301,8 @@
             114.5
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [
@@ -12945,7 +12958,8 @@
             114.6
           ],
           "fillTypeName": "Solid fill",
-          "color": "#F2A341"
+          "color": "#F2A341",
+          "role": "cdeBand"
         },
         {
           "topLeft": [

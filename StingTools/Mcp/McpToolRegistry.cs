@@ -447,7 +447,8 @@ namespace StingTools.Mcp
                     "READ-ONLY. Pure BS 7671 / NEC cable-sizing calculator — no Revit model needed. Given a " +
                     "single circuit's electrical inputs, returns the recommended conductor size, design current, " +
                     "voltage drop %, VD compliance, and the next standard breaker. loadKW and lengthM are " +
-                    "required. Numeric inputs are in engineering units (kW, V, m, °C, mm²). " +
+                    "required. Numeric inputs are in engineering units (kW, V, m, °C, mm²). Uses the corporate " +
+                    "BS 7671 tables, never a project wire-table override (the result says so in tableOrigin). " +
                     "Example: {loadKW:7.2, voltageV:230, lengthM:35, phases:1, standard:'BS7671'}.",
                 InputSchema = JObject.Parse(@"{
                     ""type"": ""object"",
@@ -458,7 +459,8 @@ namespace StingTools.Mcp
                         ""lengthM"":        { ""type"": ""number"",  ""description"": ""Run length in metres (required)"" },
                         ""installMethod"":  { ""type"": ""string"",  ""description"": ""BS 7671 method A1/B1/C/E/F… (default C)"" },
                         ""material"":       { ""type"": ""string"",  ""description"": ""Cu | Al (default Cu)"" },
-                        ""insulation"":     { ""type"": ""string"",  ""description"": ""PVC70 | XLPE90 | LSOH90 | THWN90 (default XLPE90)"" },
+                        ""insulation"":     { ""type"": ""string"",  ""description"": ""PVC70 | XLPE90 | LSOH90 | THWN90 (default PVC70; BS 7671 tables ship for PVC70 and XLPE90)"" },
+                        ""cableType"":      { ""type"": ""string"",  ""description"": ""Multicore | SingleCore | ArmouredMulticore (default Multicore); with insulation and method it picks the Appendix 4 table"" },
                         ""vdLimitPct"":     { ""type"": ""number"",  ""description"": ""Max voltage drop % (default 3)"" },
                         ""standard"":       { ""type"": ""string"",  ""description"": ""BS7671 | NEC | IEC60364 (default BS7671)"" },
                         ""phases"":         { ""type"": ""integer"", ""description"": ""1 or 3 (default 1)"" },
@@ -553,7 +555,7 @@ namespace StingTools.Mcp
                     "mm²) and ELC_WIRE_VD_PCT_NUM (voltage drop %) — schedulable/filterable. These bind Instance-level " +
                     "to Electrical Circuits only after STING → Load Shared Parameters is run; until then the read-back " +
                     "reports noWritesPersisted + requiredBindingGaps (never a silent success). install method / material " +
-                    "/ insulation / standard / VD limit are design ASSUMPTIONS you may pass (BS7671 / C / Cu / XLPE90 " +
+                    "/ insulation / standard / VD limit are design ASSUMPTIONS you may pass (BS7671 / C / Cu / PVC70 " +
                     "defaults). Circuits missing load or length are skipped (reported). scope: 'selection' (selected " +
                     "circuits or equipment→their circuits) or 'view' run synchronously; 'project' runs asynchronously " +
                     "(returns {jobId} — poll get_job_status). Read-back reports computed vs written + perParamWritten " +
@@ -566,7 +568,8 @@ namespace StingTools.Mcp
                         ""scope"":         { ""type"": ""string"",  ""description"": ""selection | view | project"" },
                         ""installMethod"": { ""type"": ""string"",  ""description"": ""Design assumption (default C)"" },
                         ""material"":      { ""type"": ""string"",  ""description"": ""Cu | Al (default Cu)"" },
-                        ""insulation"":    { ""type"": ""string"",  ""description"": ""Default XLPE90"" },
+                        ""insulation"":    { ""type"": ""string"",  ""description"": ""PVC70 | XLPE90 (default PVC70)"" },
+                        ""cableType"":     { ""type"": ""string"",  ""description"": ""Multicore | SingleCore | ArmouredMulticore (default Multicore); with insulation and method it picks the Appendix 4 table"" },
                         ""vdLimitPct"":    { ""type"": ""number"",  ""description"": ""Max VD % (default 3)"" },
                         ""standard"":      { ""type"": ""string"",  ""description"": ""BS7671 | NEC | IEC60364 (default BS7671)"" },
                         ""ambientTempC"":  { ""type"": ""number"",  ""description"": ""Ambient °C (default 30)"" },

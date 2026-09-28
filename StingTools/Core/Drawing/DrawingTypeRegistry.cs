@@ -237,9 +237,13 @@ namespace StingTools.Core.Drawing
             {
                 if (_resolvedCache.ContainsKey(docKey)) _resolvedCache.Remove(docKey);
             }
-            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); } catch { }
-            try { DrawingTypePresentation.InvalidatePackCache(doc); }       catch { }
-            try { DrawingDriftDetector.InvalidateCache(doc); }              catch { }
+            // A failed invalidation leaves a stale cache serving the old
+            // profile, so it must be heard. (The drift detector has no cache
+            // since E-11 -- it re-reads stamps on every Scan.)
+            try { DrawingTypePresentation.InvalidateViewTemplateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypeRegistry.InvalidateResolvedCache: view-template cache not cleared -- stale template lookups possible: {ex.Message}"); }
+            try { DrawingTypePresentation.InvalidatePackCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypeRegistry.InvalidateResolvedCache: pack cache not cleared -- stale pack resolution possible: {ex.Message}"); }
         }
 
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)
@@ -339,16 +343,21 @@ namespace StingTools.Core.Drawing
                 var path = StingTools.Core.StingToolsApp.FindDataFile("STING_DRAWING_TYPES.json");
                 if (!string.IsNullOrEmpty(path) && File.Exists(path))
                 {
-                    // S3.6.2 — version gate before deserialise.
-                    StingTools.Core.PluginSchemaVersion.EnsureFileVersion(
-                        path, "planscape.drawing-types",
-                        StingTools.Core.PluginSchemaVersion.CurrentDrawingTypes);
+                    // S3.6.2 — version gate before deserialise. Read-only: the
+                    // corporate baseline is shipped data and is never rewritten.
+                    StingTools.Core.PluginSchemaVersion.CheckShippedVersion(
+                        path, StingTools.Core.PluginSchemaVersion.CurrentDrawingTypes);
                     var json = File.ReadAllText(path);
                     var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(json);
                     if (lib != null && lib.DrawingTypes != null && lib.DrawingTypes.Count > 0)
                     {
                         foreach (var t in lib.DrawingTypes)
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "corporate";
+                        // Routing rules carry an origin too, so the editor can
+                        // persist only the project's own rules instead of
+                        // freezing the whole corporate table into the override.
+                        foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
+                            if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "corporate";
                         DedupeById(lib, "corporate");
                         return lib;
                     }
@@ -378,6 +387,8 @@ namespace StingTools.Core.Drawing
                     {
                         foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
                             if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                        foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
+                            if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
                         DedupeById(lib, "project");
                     }
                     return lib;
@@ -395,6 +406,8 @@ namespace StingTools.Core.Drawing
                 {
                     foreach (var t in libOnDisk.DrawingTypes ?? new List<DrawingType>())
                         if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                    foreach (var rr in libOnDisk.Routing ?? new List<DrawingRoutingRule>())
+                        if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
                     DedupeById(libOnDisk, "project");
                 }
                 return libOnDisk;

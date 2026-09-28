@@ -123,9 +123,12 @@ namespace StingTools.Commands.Fabrication
             {
                 baseDir = StingPaths.Meta(doc, "_BIM_COORD", "fab");
             }
-            catch
+            catch (Exception ex)
             {
-                baseDir = Path.Combine(Path.GetTempPath(), "STING", "fab");
+                // The .maj is a deliverable. Path.GetTempPath() is a per-session folder
+                // under Revit, so it used to be written somewhere that stops existing.
+                StingLog.Warn($"ExportMaj: project path unavailable, using the shared output location: {ex.Message}");
+                baseDir = OutputLocationHelper.GetOutputDirectory(doc);
             }
             string stamp = DateTime.UtcNow.ToString("yyyyMMdd_HHmmss");
             return Path.Combine(baseDir, $"sting_fabjob_{stamp}.maj");

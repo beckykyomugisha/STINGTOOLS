@@ -57,6 +57,7 @@ namespace StingTools.Commands.Electrical.Reports
                 AddByName(def, doc, "ELC_PNL_VLT_V");
                 AddByName(def, doc, "ELC_FEEDER_CSA_MM2");
                 AddByName(def, doc, "ELC_PNL_SHORT_CIRCUIT_RATING_KA");
+                AddByName(def, doc, "ELC_PNL_FAULT_LG_KA");   // line-to-earth fault, from EasyPower import
                 AddByName(def, doc, "ELC_PNL_AIC_RATING_KA");
             }
             catch (Exception ex) { StingLog.Warn($"AddFields: {ex.Message}"); }

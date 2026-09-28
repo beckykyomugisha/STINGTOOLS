@@ -44,7 +44,7 @@ namespace StingTools.Commands.Electrical.Compliance
             string projectAddress = pi?.Address ?? "";
             string client = pi?.ClientName ?? "";
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Handover", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir,
                 $"STING_BS7671_Certificate_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");

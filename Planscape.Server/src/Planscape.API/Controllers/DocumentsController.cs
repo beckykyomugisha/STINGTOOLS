@@ -40,18 +40,22 @@ public class DocumentsController : ControllerBase
         ["OBSOLETE"] = Array.Empty<string>()
     };
 
-    // Suitability code mapping per CDE state
+    // Default suitability per CDE state — the same answers as the plugin's
+    // Iso19650Suitability.DefaultFor. PUBLISHED used to default to S4 and ARCHIVE to S7,
+    // both of which ISO 19650 files in SHARED; a plugin-published A1 document and its
+    // server record then disagreed about the same drawing.
     private static readonly Dictionary<string, string> DefaultSuitability = new()
     {
-        ["WIP"] = "S0", ["SHARED"] = "S3", ["PUBLISHED"] = "S4", ["ARCHIVE"] = "S7"
+        ["WIP"] = "S0", ["SHARED"] = "S3", ["PUBLISHED"] = "A1", ["ARCHIVE"] = "AR"
     };
 
-    // Gap 3 — ISO 19650-2 suitability code whitelist.
-    // S0–S7: work-in-progress through handover; CR: coordination review; AB: as-built.
-    private static readonly HashSet<string> ValidSuitabilityCodes = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "S0", "S1", "S2", "S3", "S4", "S5", "S6", "S7", "CR", "AB"
-    };
+    // Gap 3 — ISO 19650-2 suitability code whitelist (ISO19650Codes.SuitabilityCodes).
+    // S0 WIP; S1–S7 shared; A1–A5 / B1–B6 authorised / partial sign-off (published);
+    // CR as-constructed record; AB abandoned / superseded; AR archive.
+    // (The old comment called CR "coordination review" and AB "as-built" — neither is
+    // what the standard means by them.)
+    private static readonly HashSet<string> ValidSuitabilityCodes =
+        new(Planscape.Shared.Constants.ISO19650Codes.SuitabilityCodes, StringComparer.OrdinalIgnoreCase);
 
     // Minimum role required for each CDE transition (ISO 19650-2 §5.6)
     private static readonly Dictionary<string, UserRole> TransitionRoleRequirements = new()
@@ -1593,17 +1597,22 @@ public class DocumentsController : ControllerBase
         return null;
     }
 
-    // GAP-11 — suitability↔state pairing.
-    // PUBLISHED requires S4+; SHARED requires at least S1 (not S0/WIP codes).
+    // GAP-11 — suitability↔state pairing, per ISO 19650 (the plugin's
+    // Iso19650Suitability.CdeStateFor): S0 WIP; S1–S7 SHARED; A/B/CR PUBLISHED;
+    // AB/AR ARCHIVE. The LEGACY codes this table used to demand — S4/S5/S6/AB for
+    // PUBLISHED, S7 for ARCHIVE, CR for SHARED — are still accepted so existing
+    // clients and records keep working; they are no longer the defaults.
     // WITHDRAWN rejects any explicit suitability override — the code from the
     // preceding state is preserved as-is by PerformCdeTransitionAsync fallback.
     private static readonly Dictionary<string, string[]> StateAllowedSuitabilities = new()
     {
         ["WIP"]       = new[] { "S0" },
-        ["SHARED"]    = new[] { "S1", "S2", "S3", "CR" },
-        ["PUBLISHED"] = new[] { "S4", "S5", "S6", "AB" },
-        ["ARCHIVE"]   = new[] { "S7" },
-        ["SUPERSEDED"]= new[] { "S4", "S5", "S6", "S7", "AB" },
+        ["SHARED"]    = new[] { "S1", "S2", "S3", "S4", "S5", "S6", "S7", /* legacy */ "CR" },
+        ["PUBLISHED"] = new[] { "A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5", "B6", "CR",
+                                /* legacy */ "S4", "S5", "S6", "AB" },
+        ["ARCHIVE"]   = new[] { "AR", "AB", /* legacy */ "S7" },
+        ["SUPERSEDED"]= new[] { "AB", "AR", "A1", "A2", "A3", "A4", "A5", "B1", "B2", "B3", "B4", "B5", "B6", "CR",
+                                /* legacy */ "S4", "S5", "S6", "S7" },
         ["WITHDRAWN"] = Array.Empty<string>(), // no suitability change on withdrawal; callers must omit the field
     };
 

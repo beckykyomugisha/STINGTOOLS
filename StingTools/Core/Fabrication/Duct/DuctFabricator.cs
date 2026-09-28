@@ -65,7 +65,7 @@ namespace StingTools.Core.Fabrication.Duct
 
         private void EmitSeamTallyCsv(Document doc, IList<ElementId> ids, FabricationResult result)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "M");
             if (string.IsNullOrEmpty(outDir)) return;
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_duct_seams.csv");

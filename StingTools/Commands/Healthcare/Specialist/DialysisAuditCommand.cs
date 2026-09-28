@@ -18,7 +18,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 // Specialist audits are read-only one-shot commands; they don't
                 // run inside RunAllHealthcareValidators, so they build a quick
                 // multi-category collector themselves.

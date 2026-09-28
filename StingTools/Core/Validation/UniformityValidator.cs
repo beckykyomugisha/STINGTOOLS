@@ -1,4 +1,4 @@
-﻿// Phase 139 D4 — BS EN 12464-1 illuminance & uniformity validator.
+// Phase 139 D4 — BS EN 12464-1 illuminance & uniformity validator.
 //
 // Simplified zonal-cavity / inverse-square check for placed lighting
 // fixtures.  Reads STING_LUMEN_OUTPUT (per fixture) and STING_LUX_TARGET

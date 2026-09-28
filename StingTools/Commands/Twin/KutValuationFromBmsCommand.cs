@@ -111,7 +111,7 @@ namespace StingTools.Commands.Twin
             string csvPath = "";
             try
             {
-                csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_BMS_Valuation.csv");
+                csvPath = OutputLocationHelper.GetRoutedPath(doc, "Handover", "STING_BMS_Valuation.csv");
                 var sb = new StringBuilder();
                 sb.AppendLine($"# BMS source: {snap.Detail}");
                 sb.AppendLine("Tag,DeviceId,AmountUGX,LiveStatus,Commissioned");

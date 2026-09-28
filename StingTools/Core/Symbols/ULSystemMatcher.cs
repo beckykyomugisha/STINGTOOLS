@@ -46,7 +46,7 @@ namespace StingTools.Core.Symbols
 
             string fireRating = ParameterHelpers.GetString(penetrationInstance, "PEN_FIRE_RATING_TXT") ?? "";
             string hostType   = ParameterHelpers.GetString(penetrationInstance, "PEN_HOST_TYPE_TXT")   ?? "";
-            string odTxt      = ParameterHelpers.GetString(penetrationInstance, "PEN_OD_MM")           ?? "0";
+            string odTxt      = ParameterHelpers.GetValueText(penetrationInstance, "PEN_OD_MM")           ?? "0";
             double odMm = 0;
             double.TryParse(odTxt, System.Globalization.NumberStyles.Any,
                 System.Globalization.CultureInfo.InvariantCulture, out odMm);

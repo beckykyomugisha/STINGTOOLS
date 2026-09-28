@@ -41,6 +41,32 @@ public class WarningsController : ControllerBase
         // Update project cached warning count
         var prev = project.WarningCount;
         project.WarningCount = req.TotalWarnings;
+
+        // IM-11: a report is a measurement, so it becomes a point on the warnings trend.
+        // Scans run often, so an unchanged report within ReportDedupeWindow of the last
+        // one adds nothing — the trend records changes, not the scan cadence.
+        var now = DateTime.UtcNow;
+        var lastReport = await _db.ComplianceSnapshots
+            .Where(s => s.ProjectId == projectId && s.Kind == Core.Entities.ComplianceSnapshot.KindWarnings)
+            .OrderByDescending(s => s.CapturedAt)
+            .FirstOrDefaultAsync();
+        bool duplicate = lastReport != null
+            && now - lastReport.CapturedAt < ReportDedupeWindow
+            && lastReport.WarningCount == req.TotalWarnings
+            && lastReport.WarningHealthScore == req.HealthScore;
+        if (!duplicate)
+        {
+            _db.ComplianceSnapshots.Add(new Core.Entities.ComplianceSnapshot
+            {
+                ProjectId = projectId,
+                Kind = Core.Entities.ComplianceSnapshot.KindWarnings,
+                CapturedAt = now,
+                CapturedBy = User.FindFirst("display_name")?.Value ?? "Unknown",
+                WarningCount = req.TotalWarnings,
+                WarningHealthScore = req.HealthScore,
+                RagStatus = WarningRag(req.TotalWarnings, req.HealthScore),
+            });
+        }
         await _db.SaveChangesAsync();
 
         // Phase 178b — broadcast so the BCC dashboard, mobile inbox,
@@ -85,7 +111,7 @@ public class WarningsController : ControllerBase
             WarningHealthScore = req.HealthScore,
             TotalElements = req.TotalElements,
             TagPercent = req.CompliancePercent,
-            RagStatus = req.WarningCount == 0 ? "GREEN" : req.HealthScore >= 80 ? "GREEN" : req.HealthScore >= 50 ? "AMBER" : "RED"
+            RagStatus = WarningRag(req.WarningCount, req.HealthScore)
         };
 
         _db.ComplianceSnapshots.Add(snapshot);
@@ -104,9 +130,16 @@ public class WarningsController : ControllerBase
         var tenantId = GetTenantId();
         var since = DateTime.UtcNow.AddDays(-days);
 
+        // IM-12: a pushed report is a measurement even at zero warnings, so it is always
+        // included — a clean model must not vanish from its own trend. Other snapshots
+        // count only when they carry a warning measurement: a compliance snapshot's
+        // WarningCount is 0 by default whether or not warnings were measured, and
+        // plotting those as zeros would invent clean scans.
         var trend = await _db.ComplianceSnapshots
             .Where(s => s.ProjectId == projectId && s.Project!.TenantId == tenantId
-                && s.CapturedAt >= since && s.WarningCount > 0)
+                && s.CapturedAt >= since
+                && (s.Kind == Core.Entities.ComplianceSnapshot.KindWarnings
+                    || s.WarningCount > 0 || s.WarningHealthScore > 0))
             .OrderBy(s => s.CapturedAt)
             .Select(s => new
             {
@@ -116,6 +149,12 @@ public class WarningsController : ControllerBase
 
         return Ok(trend);
     }
+
+    /// <summary>Unchanged reports inside this window are not stored again.</summary>
+    internal static readonly TimeSpan ReportDedupeWindow = TimeSpan.FromMinutes(15);
+
+    internal static string WarningRag(int warnings, int health) =>
+        warnings == 0 ? "GREEN" : health >= 80 ? "GREEN" : health >= 50 ? "AMBER" : "RED";
 
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;

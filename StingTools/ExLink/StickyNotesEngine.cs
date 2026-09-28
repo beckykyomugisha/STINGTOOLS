@@ -528,7 +528,7 @@ namespace StingTools.ExLink
                     return Result.Succeeded;
                 }
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Issue");
                 string fileName = $"STING_StickyNotes_{DateTime.Now:yyyyMMdd_HHmm}.csv";
                 string csvPath = Path.Combine(outDir, fileName);
 

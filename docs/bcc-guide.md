@@ -1133,7 +1133,7 @@ These 5 scenarios show the BCC solving actual coordination problems. Each one in
 
 6. **Create final transmittal**
    - BCC → Click "Create Transmittal" → recipient: FM Team → attach the COBie file
-   - CDE Status → PUBLISHED → ARCHIVE (S7: Fit for AIM Authorization)
+   - CDE Status → PUBLISHED → ARCHIVE (AR: Archive; S7 "suitable for AIM authorisation" is a SHARED code)
    - BCC → Click "Create Revision" — final handover revision with compliance snapshot
 
 **Result:** Complete **17-worksheet COBie V2.4 handover** delivered in **45 minutes** with **97% tag compliance**. The FM team receives a validated dataset that imports directly into their CAFM system — **no manual data re-entry**. Manual COBie population from scratch typically takes **2–3 weeks** for a project of this size.

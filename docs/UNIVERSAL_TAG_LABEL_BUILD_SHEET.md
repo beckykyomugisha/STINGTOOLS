@@ -18,90 +18,162 @@ Every non-T1 row is a Calculated Value (fx): Name, Type=Text, paste Formula. The
 
 ---
 
-## STEP 1 - REMOVE from current master (9 rows)
+## STEP 1 - REMOVE from current master (14 rows)
+
+> **Corrected 2026-09-17: this said 9 and listed only the first two groups.** The 65-row
+> table in Step 2 contains no `WARN_*` rows, so the 5 warning-text rows must come out as
+> well or you finish on 70. The `Delete first` sheet of `UNIVERSAL_TAG_MASTER_BUILD.xlsx`
+> and Part 1 of `UNIVERSAL_TAG_MANUAL_CONFIG_GUIDE.md` both already said 14; this file was
+> the odd one out.
 
 Select row, click left-arrow (remove-from-label):
 
+**T2 discipline rows (3)** - data moves to per-category schedules
 - HVC_DCT_FLW_CFM (T2)
 - HVC_VEL_MPS (T2)
 - MNT_HGT_MM (T2)
-- all 6 T3 rows (Show Tier 3 - 8 ... 3 - 13)
+
+**T3 - all 6 rows** (Show Tier 3 - 8 ... 3 - 13) - T3 was the per-family engineering block
+- HVC_TAG_7_PARA_AT_TXT
+- HVC_DCT_TERMINAL_TYPE_SD_RG_EG_VAV_TXT
+- HVC_DCT_TERMINAL_SZ_TXT
+- HVC_TERMINAL_MAT_TXT
+- HVC_TERMINAL_FINISH_TXT
+- ASS_CST_TOTAL_UGX_NR
+
+**Warning text rows (5)** - replaced by the Step 4 badges
+- WARN_HVC_NOISE_NC_AIR_TERMINALS
+- WARN_HVC_AIRFLOW_CAPACITY_AIR_TERMINALS
+- WARN_HVC_THROW_DISTANCE_AIR_TERMINALS
+- WARN_HVC_PRESSURE_DROP_AIR_TERMINALS
+- WARN_HVC_MOUNTING_HEIGHT_AIR_TERMINALS
+
+⚠️ If you are **not** building the badges yet, removing the 5 warning rows leaves you with
+no warnings at all until you do. That is a deliberate choice, not an oversight - decide it
+here rather than at row 70.
 
 ## STEP 2 - Full universal row list (build/verify all in order)
 
-| # | Tier | Calc Value Name | Formula | Prefix | Suffix | Break |
-|---|---|---|---|---|---|---|
-| 1 | T1 | --- | - |  |  | YES |
-| 2 | T2 | Show Tier 2 - 2 | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")` |  |  | YES |
-| 3 | T2 | Show Tier 2 - 3 | `if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, "")` |  |  | YES |
-| 4 | T2 | Show T2 - Status | `if(TAG_PARA_STATE_2_BOOL, ASS_STATUS_TXT, "")` | Status: |  | YES |
-| 5 | T2 | Show Tier 2 - 7 | `if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, "")` | Std: |  | YES |
-| 6 | T2 | Show T2-Ph179 - Asset Systems | `if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, "")` | Sys: |  | no |
-| 7 | T2 | Show T2-Ph179 - Mec System | `if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, "")` | MSys: |  | YES |
-| 8 | T4 | Show T4 - Commissioning - State | `if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, "")` | Comm: |  | no |
-| 9 | T4 | Show T4 - Commissioning - Date | `if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, "")` | on |  | no |
-| 10 | T4 | Show T4 - Commissioning - Operative | `if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, "")` | by |  | YES |
-| 11 | T4 | Show T4 - Design intent - ASS_DESIGN_OPTION_TXT | `if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, "")` | Option: |  | no |
-| 12 | T4 | Show T4 - Design intent - ASS_MODEL_REF_TXT | `if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, "")` | Ref: |  | no |
-| 13 | T4 | Show T4 - Design intent - ASS_KEYNOTE_TXT | `if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, "")` | Key: |  | YES |
-| 14 | T5 | Show T5 - Cost - UG Price | `if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX_DISP_TXT, "")` |  | UGX | no |
-| 15 | T5 | Show T5 - Cost - Intl Price | `if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD_DISP_TXT, "")` | / | USD | no |
-| 16 | T5 | Show T5 - Cost - Quote Ref | `if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, "")` | Quote: |  | YES |
-| 17 | T5 | Show T5 - Cost - Unit Rate (neutral) | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR_DISP_TXT, "")` | Rate: |  | no |
-| 18 | T5 | Show T5 - Cost - Currency Code | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, "")` |  |  | no |
-| 19 | T5 | Show T5 - Cost - FX to Base | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR_DISP_TXT, "")` | FX: |  | no |
-| 20 | T5 | Show T5 - Cost - FX Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, "")` | FX date: |  | no |
-| 21 | T5 | Show T5 - Cost - As-of Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, "")` | As of: |  | YES |
-| 22 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_BOOL, "")` | Stale: |  | no |
-| 23 | T5 | Show T5 - Cost - Stale Reason | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, "")` | - |  | YES |
-| 24 | T5 | Show T5 - Payment - % Complete | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR_DISP_TXT, "")` | Cmpl: | % | no |
-| 25 | T5 | Show T5 - Payment - Cert No | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR_DISP_TXT, "")` | Cert#: |  | no |
-| 26 | T5 | Show T5 - Payment - Cert Date | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, "")` | Certified: |  | no |
-| 27 | T5 | Show T5 - Payment - Last Valued | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, "")` | Valued: |  | YES |
-| 28 | T5 | Show T5 - Variation - Number | `if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, "")` | Var: |  | no |
-| 29 | T5 | Show T5 - Variation - Instr Date | `if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, "")` | Instr: |  | no |
-| 30 | T5 | Show T5 - Variation - Valuation | `if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR_DISP_TXT, "")` | Val: |  | YES |
-| 31 | T5 | Show T5 - Performance & capacity - ASS_CAPACITY_TXT | `if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, "")` | Cap: |  | no |
-| 32 | T5 | Show T5 - Performance & capacity - ASS_POWER_RATING_TXT | `if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, "")` | Power: |  | no |
-| 33 | T5 | Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT | `if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, "")` | Flow: |  | YES |
-| 34 | T5 | Show T5-Ph179 - Item Code | `if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, "")` | Item: |  | YES |
-| 35 | T6 | Show T6 - Carbon - Product A1-A3 | `if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, "")` | A1-A3: | kgCO₂e | no |
-| 36 | T6 | Show T6 - Carbon - Transport A4 | `if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, "")` | A4: | kgCO₂e | no |
-| 37 | T6 | Show T6 - Carbon - Operational B6 | `if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, "")` | B6: | kgCO₂e/yr | YES |
-| 38 | T6 | Show T6 - Material & finish - ASS_MANUFACTURER_TXT | `if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, "")` | Mfr: |  | no |
-| 39 | T6 | Show T6 - Material & finish - ASS_MODEL_NR_TXT | `if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, "")` | Model: |  | no |
-| 40 | T6 | Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS | `if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, "")` | Life: | yr | YES |
-| 41 | T7 | Show T7 - Fabrication - Spool No | `if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, "")` | Spool: |  | no |
-| 42 | T7 | Show T7 - Fabrication - Status | `if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, "")` | Fab: |  | no |
-| 43 | T7 | Show T7 - QC - Inspector | `if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, "")` | QC: |  | YES |
-| 44 | T7 | Show T7 - Installation - ASS_INSTALL_DATE_TXT | `if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, "")` | Installed: |  | no |
-| 45 | T7 | Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT | `if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, "")` | Hrs: | h | no |
-| 46 | T7 | Show T7 - Installation - ASS_CST_INSTALL_UGX_NR | `if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, "")` | @ | UGX | YES |
-| 47 | T8 | Show T8 - Clash - Triage Severity | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, "")` | Sev: | /5 | no |
-| 48 | T8 | Show T8 - Clash - Triage Category | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, "")` |  |  | no |
-| 49 | T8 | Show T8 - Clash - Resolution Status | `if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, "")` | Res: |  | YES |
-| 50 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_NR | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_NR, "")` | Crit: | /5 | no |
-| 51 | T8 | Show T8 - Coordination - ASS_ZONE_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, "")` | Zone: |  | no |
-| 52 | T8 | Show T8 - Coordination - ASS_LVL_COD_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, "")` | Lvl: |  | YES |
-| 53 | T9 | Show T9 - As-built - Deviation | `if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, "")` | Δ: | mm | no |
-| 54 | T9 | Show T9 - As-built - Capture Date | `if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, "")` | on |  | no |
-| 55 | T9 | Show T9 - Health Score | `if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, "")` | Health: | /100 | YES |
-| 56 | T9 | Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT | `if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, "")` | Parts: |  | no |
-| 57 | T9 | Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT | `if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, "")` | Labor: |  | no |
-| 58 | T9 | Show T9 - Warranty & quality - ASS_WARRANTY_TXT | `if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, "")` | Terms: |  | YES |
-| 59 | T10 | Show T10 - Compliance - IFC PSet Override | `if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, "")` | IFC: |  | no |
-| 60 | T10 | Show T10 - Compliance - ACC Issue | `if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, "")` | ACC: |  | no |
-| 61 | T10 | Show T10 - Compliance - ACC Sync Status | `if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, "")` | Sync: |  | YES |
-| 62 | T10 | Show T10 - Classification - ASS_UNICLASS_2015_TXT | `if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, "")` | Uniclass: |  | no |
-| 63 | T10 | Show T10 - Classification - ASS_KEYNOTE_TXT | `if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, "")` | Key: |  | no |
-| 64 | T10 | Show T10 - Classification - ASS_MODEL_REF_TXT | `if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, "")` | Ref: |  | YES |
-| 65 | T10 | Show T10-Ph179 - Trace Seq | `if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, "")` | Trc: |  | YES |
+> **The FIRST row's Spaces and the LAST row's Break are not editable.**
+> Revit greys both out, and the printed values for those two rows are what it
+> fixes them to, not something to set. Spaces counts the gap to the PRECEDING
+> parameter, so row 1 has nothing to space from; Break ends a line, so the
+> last row has nothing to break before. Confirmed in the Family Editor
+> 2026-09-22 - row 1 sits at Spaces=1 and cannot be changed.
+
+> **Spaces is 0 on every row.** The column is printed rather than stated once,
+> because it is easy to leave at Revit's default of 1 and the effect - an extra
+> gap before every value - is subtle enough to survive review.
+
+> **␣ marks a space that matters.** A markdown cell pads with a space either
+> side, so `| FX date: |` reads the same whether the prefix is `FX date:` or
+> ` FX date:`. Eighty prefixes across the tag config carry a leading or trailing
+> space that separates values sharing a line - type a real space wherever you
+> see ␣.
+
+> **Row 1 is `ASS_DISPLAY_TXT`, not `ASS_TAG_1_TXT` (corrected 2026-09-17).**
+> `ASS_DISPLAY_TXT` is the on-drawing tag: the display-mode and segment-mask rendering of
+> the canonical `ASS_TAG_1_TXT`, written by `TagConfig.BuildDisplayTag`. Putting
+> `ASS_TAG_1_TXT` on the label bypasses `STING_DISPLAY_MODE` and every segment mask
+> (`TAG_SEG_MASK_TXT` / `STING_VIEW_TOKEN_MASK_TXT` / the UI "TokenMask"), so the tag would
+> print all eight segments in every view. It never goes blank either: `BuildAndWriteTag`
+> writes the full canonical tag into `ASS_DISPLAY_TXT` when `BuildDisplayTag` yields nothing.
+
+| # | Tier | Calc Value Name | Formula | Spaces | Prefix | Suffix | Break |
+|---|---|---|---|---|---|---|---|
+| 1 | T1 | **`ASS_DISPLAY_TXT`** (add directly, not a calc value) | - | 0 |  |  | YES |
+| 2 | T2 | Show Tier 2 - 2 | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_2_TXT, "")` | 0 |  |  | YES |
+| 3 | T2 | Show Tier 2 - 3 | `if(TAG_PARA_STATE_2_BOOL, ASS_DESCRIPTION_TXT, "")` | 0 |  |  | YES |
+| 4 | T2 | Show T2 - Status | `if(TAG_PARA_STATE_2_BOOL, ASS_STATUS_TXT, "")` | 0 |  |  | YES |
+| 5 | T2 | Show Tier 2 - 7 | `if(TAG_PARA_STATE_2_BOOL, RGL_STD_TXT, "")` | 0 | Std: |  | YES |
+| 6 | T2 | Show T2-Ph179 - Asset Systems | `if(TAG_PARA_STATE_2_BOOL, ASS_SYSTEMS_TXT, "")` | 0 | Sys: |  | no |
+| 7 | T2 | Show T2-Ph179 - Mec System | `if(TAG_PARA_STATE_2_BOOL, MEC_SYS_TXT, "")` | 0 | MSys: |  | YES |
+| 8 | T4 | Show T4 - Commissioning - State | `if(TAG_PARA_STATE_4_BOOL, COMM_STATE_TXT, "")` | 0 | Comm: |  | no |
+| 9 | T4 | Show T4 - Commissioning - Date | `if(TAG_PARA_STATE_4_BOOL, COMM_DATE_TXT, "")` | 0 | on |  | no |
+| 10 | T4 | Show T4 - Commissioning - Operative | `if(TAG_PARA_STATE_4_BOOL, COMM_OPERATIVE_TXT, "")` | 0 | by |  | YES |
+| 11 | T4 | Show T4 - Design intent - ASS_DESIGN_OPTION_TXT | `if(TAG_PARA_STATE_4_BOOL, ASS_DESIGN_OPTION_TXT, "")` | 0 | Option: |  | no |
+| 12 | T4 | Show T4 - Design intent - ASS_MODEL_REF_TXT | `if(TAG_PARA_STATE_4_BOOL, ASS_MODEL_REF_TXT, "")` | 0 | Ref: |  | no |
+| 13 | T4 | Show T4 - Design intent - ASS_KEYNOTE_TXT | `if(TAG_PARA_STATE_4_BOOL, ASS_KEYNOTE_TXT, "")` | 0 | Key: |  | YES |
+| 14 | T5 | Show T5 - Cost - UG Price | `if(TAG_PARA_STATE_5_BOOL, CST_UG_PRICE_UGX_DISP_TXT, "")` | 0 |  | UGX | no |
+| 15 | T5 | Show T5 - Cost - Intl Price | `if(TAG_PARA_STATE_5_BOOL, CST_INTL_PRICE_USD_DISP_TXT, "")` | 0 | /␣ | USD | no |
+| 16 | T5 | Show T5 - Cost - Quote Ref | `if(TAG_PARA_STATE_5_BOOL, CST_QUOTE_REF_TXT, "")` | 0 | Quote: |  | YES |
+| 17 | T5 | Show T5 - Cost - Unit Rate (neutral) | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_UNIT_RATE_NR_DISP_TXT, "")` | 0 | Rate: |  | no |
+| 18 | T5 | Show T5 - Cost - Currency Code | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_CURRENCY_TXT, "")` | 0 | ␣ |  | no |
+| 19 | T5 | Show T5 - Cost - FX to Base | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_TO_BASE_NR_DISP_TXT, "")` | 0 | FX: |  | no |
+| 20 | T5 | Show T5 - Cost - FX Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_FX_DATE_DT, "")` | 0 | ␣FX date: |  | no |
+| 21 | T5 | Show T5 - Cost - As-of Date | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_AS_OF_DT, "")` | 0 | ␣As of: |  | YES |
+| 22 | T5 | Show T5 - Cost - Stale Flag | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_TXT, "")` <br>_(ASS_CST_STALE_BOOL is YESNO - reads its TEXT twin; Revit rejects a number in a Text formula)_| 0 | Stale: |  | no |
+| 23 | T5 | Show T5 - Cost - Stale Reason | `if(TAG_PARA_STATE_5_BOOL, ASS_CST_STALE_REASON_TXT, "")` | 0 | ␣-␣ |  | YES |
+| 24 | T5 | Show T5 - Payment - % Complete | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_PCT_COMPLETE_NR_DISP_TXT, "")` | 0 | Cmpl: | % | no |
+| 25 | T5 | Show T5 - Payment - Cert No | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_NO_NR_DISP_TXT, "")` | 0 | ␣Cert#: |  | no |
+| 26 | T5 | Show T5 - Payment - Cert Date | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_CERT_DATE_DT, "")` | 0 | ␣Certified: |  | no |
+| 27 | T5 | Show T5 - Payment - Last Valued | `if(TAG_PARA_STATE_5_BOOL, ASS_PMT_LAST_VALUED_DT, "")` | 0 | ␣Valued: |  | YES |
+| 28 | T5 | Show T5 - Variation - Number | `if(TAG_PARA_STATE_5_BOOL, ASS_VAR_NO_TXT, "")` | 0 | Var: |  | no |
+| 29 | T5 | Show T5 - Variation - Instr Date | `if(TAG_PARA_STATE_5_BOOL, ASS_VAR_INSTRUCTION_DT, "")` | 0 | ␣Instr: |  | no |
+| 30 | T5 | Show T5 - Variation - Valuation | `if(TAG_PARA_STATE_5_BOOL, ASS_VAR_VALUATION_NR_DISP_TXT, "")` | 0 | ␣Val: |  | YES |
+| 31 | T5 | Show T5 - Performance & capacity - ASS_CAPACITY_TXT | `if(TAG_PARA_STATE_5_BOOL, ASS_CAPACITY_TXT, "")` | 0 | Cap: |  | no |
+| 32 | T5 | Show T5 - Performance & capacity - ASS_POWER_RATING_TXT | `if(TAG_PARA_STATE_5_BOOL, ASS_POWER_RATING_TXT, "")` | 0 | Power: |  | no |
+| 33 | T5 | Show T5 - Performance & capacity - ASS_FLOW_RATE_TXT | `if(TAG_PARA_STATE_5_BOOL, ASS_FLOW_RATE_TXT, "")` | 0 | Flow: |  | YES |
+| 34 | T5 | Show T5-Ph179 - Item Code | `if(TAG_PARA_STATE_5_BOOL, ASS_ITEM_CODE_TXT, "")` | 0 | Item: |  | YES |
+| 35 | T6 | Show T6 - Carbon - Product A1-A3 | `if(TAG_PARA_STATE_6_BOOL, CBN_A1_A3_KG_CO2E_DISP_TXT, "")` | 0 | A1-A3: | kgCO₂e | no |
+| 36 | T6 | Show T6 - Carbon - Transport A4 | `if(TAG_PARA_STATE_6_BOOL, CBN_A4_KG_CO2E_DISP_TXT, "")` | 0 | \| A4: | kgCO₂e | no |
+| 37 | T6 | Show T6 - Carbon - Operational B6 | `if(TAG_PARA_STATE_6_BOOL, CBN_B6_KG_CO2E_YR_DISP_TXT, "")` | 0 | \| B6: | kgCO₂e/yr | YES |
+| 38 | T6 | Show T6 - Material & finish - ASS_MANUFACTURER_TXT | `if(TAG_PARA_STATE_6_BOOL, ASS_MANUFACTURER_TXT, "")` | 0 | Mfr: |  | no |
+| 39 | T6 | Show T6 - Material & finish - ASS_MODEL_NR_TXT | `if(TAG_PARA_STATE_6_BOOL, ASS_MODEL_NR_TXT, "")` | 0 | \|␣ |  | no |
+| 40 | T6 | Show T6 - Material & finish - ASS_EXPECTED_LIFE_YEARS_YRS | `if(TAG_PARA_STATE_6_BOOL, ASS_EXPECTED_LIFE_YEARS_YRS, "")` | 0 | Life: | yrs | YES |
+| 41 | T7 | Show T7 - Fabrication - Spool No | `if(TAG_PARA_STATE_7_BOOL, ASS_SPOOL_NR_TXT, "")` | 0 | Spool: |  | no |
+| 42 | T7 | Show T7 - Fabrication - Status | `if(TAG_PARA_STATE_7_BOOL, ASS_FAB_STATUS_TXT, "")` | 0 | Fab: |  | no |
+| 43 | T7 | Show T7 - QC - Inspector | `if(TAG_PARA_STATE_7_BOOL, ASS_QC_INSPECTOR_TXT, "")` | 0 | QC: |  | YES |
+| 44 | T7 | Show T7 - Installation - ASS_INSTALL_DATE_TXT | `if(TAG_PARA_STATE_7_BOOL, ASS_INSTALL_DATE_TXT, "")` | 0 | Installed: |  | no |
+| 45 | T7 | Show T7 - Installation - CST_INSTALL_HRS_DISP_TXT | `if(TAG_PARA_STATE_7_BOOL, CST_INSTALL_HRS_DISP_TXT, "")` | 0 | Hrs: | h | no |
+| 46 | T7 | Show T7 - Installation - ASS_CST_INSTALL_UGX_NR | `if(TAG_PARA_STATE_7_BOOL, ASS_CST_INSTALL_UGX_NR, "")` | 0 | @ | UGX | YES |
+| 47 | T8 | Show T8 - Clash - Triage Severity | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_SEVERITY_NR_DISP_TXT, "")` | 0 | Sev: | /5 | no |
+| 48 | T8 | Show T8 - Clash - Triage Category | `if(TAG_PARA_STATE_8_BOOL, CLASH_TRIAGE_CATEGORY_TXT, "")` | 0 |  |  | no |
+| 49 | T8 | Show T8 - Clash - Resolution Status | `if(TAG_PARA_STATE_8_BOOL, CLASH_RESOLUTION_STATUS_TXT, "")` | 0 | Res: |  | YES |
+| 50 | T8 | Show T8 - Coordination - ASS_CRITICALITY_RATING_NR | `if(TAG_PARA_STATE_8_BOOL, ASS_CRITICALITY_RATING_TXT, "")` <br>_(ASS_CRITICALITY_RATING_NR is NUMBER - reads its TEXT twin; Revit rejects a number in a Text formula)_| 0 | Crit: | /5 | no |
+| 51 | T8 | Show T8 - Coordination - ASS_ZONE_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_ZONE_TXT, "")` | 0 | Zone: |  | no |
+| 52 | T8 | Show T8 - Coordination - ASS_LVL_COD_TXT | `if(TAG_PARA_STATE_8_BOOL, ASS_LVL_COD_TXT, "")` | 0 | Lvl: |  | YES |
+| 53 | T9 | Show T9 - As-built - Deviation | `if(TAG_PARA_STATE_9_BOOL, ASBUILT_DEVIATION_MM_DISP_TXT, "")` | 0 | Δ: | mm | no |
+| 54 | T9 | Show T9 - As-built - Capture Date | `if(TAG_PARA_STATE_9_BOOL, ASBUILT_CAPTURE_DATE_TXT, "")` | 0 | on |  | no |
+| 55 | T9 | Show T9 - Health Score | `if(TAG_PARA_STATE_9_BOOL, HEALTH_SCORE_LAST_NR_DISP_TXT, "")` | 0 | Health: | /100 | YES |
+| 56 | T9 | Show T9 - Warranty & quality - ASS_WARRANTY_PARTS_TXT | `if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_PARTS_TXT, "")` | 0 | Parts: |  | no |
+| 57 | T9 | Show T9 - Warranty & quality - ASS_WARRANTY_LABOR_TXT | `if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_LABOR_TXT, "")` | 0 | Labor: |  | no |
+| 58 | T9 | Show T9 - Warranty & quality - ASS_WARRANTY_TXT | `if(TAG_PARA_STATE_9_BOOL, ASS_WARRANTY_TXT, "")` | 0 | Terms: |  | YES |
+| 59 | T10 | Show T10 - Compliance - IFC PSet Override | `if(TAG_PARA_STATE_10_BOOL, IFC_PSET_OVERRIDE_TXT, "")` | 0 | IFC: |  | no |
+| 60 | T10 | Show T10 - Compliance - ACC Issue | `if(TAG_PARA_STATE_10_BOOL, ACC_ISSUE_ID_TXT, "")` | 0 | ACC: |  | no |
+| 61 | T10 | Show T10 - Compliance - ACC Sync Status | `if(TAG_PARA_STATE_10_BOOL, ACC_SYNC_STATUS_TXT, "")` | 0 | Sync: |  | YES |
+| 62 | T10 | Show T10 - Classification - ASS_UNICLASS_2015_TXT | `if(TAG_PARA_STATE_10_BOOL, ASS_UNICLASS_2015_TXT, "")` | 0 | Uniclass: |  | no |
+| 63 | T10 | Show T10 - Classification - ASS_KEYNOTE_TXT | `if(TAG_PARA_STATE_10_BOOL, ASS_KEYNOTE_TXT, "")` | 0 | Key: |  | no |
+| 64 | T10 | Show T10 - Classification - ASS_MODEL_REF_TXT | `if(TAG_PARA_STATE_10_BOOL, ASS_MODEL_REF_TXT, "")` | 0 | Ref: |  | YES |
+| 65 | T10 | Show T10-Ph179 - Trace Seq | `if(TAG_PARA_STATE_10_BOOL, ASS_TRACE_SEQ_NR_DISP_TXT, "")` | 0 | Trc: |  | YES |
 
 > NEW row this revision: **ASS_STATUS_TXT** - "Show T2 - Status", prefix "Status:", after ASS_DESCRIPTION. Add it if your current master doesn't have it.
 
 ---
 
-## STEP 4 - Status badge system (optional visual warnings)
+## STEP 4 - Status badge system - ⛔ ABANDONED, DO NOT BUILD
+
+> **Superseded 2026-09-17. Everything below is kept as the record of what was designed; it
+> cannot work and must not be built.**
+>
+> The badges drive a glyph's **Visible** property from a family Yes/No parameter whose formula
+> reads `STING_GATE_DATA_STATUS_INT` / `STING_GATE_QA_STATUS_INT` off the tagged element. In
+> Revit a tag *label* can display a host element's parameter, but a **visibility formula cannot
+> read one** - it is evaluated in the family's own parameter context. See
+> `UNIVERSAL_TAG_CONFORMANCE.md` §2.5(a), and `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md` P1, which has
+> said "do NOT build status-badge glyphs" since before this sheet was written.
+>
+> **Status is delivered by the Status Register instead** - the `Status_Register` command, a
+> colour-coded Excel export - not in the tag.
+>
+> This does **not** affect the 65 label rows. Those are label *calculated values*, which read
+> host parameters legitimately; only the badge *visibility* formulas are impossible.
+>
+> If you already built badge glyphs: delete them and the six `vis_*` family parameters before
+> propagating, or all 206 families inherit geometry that can never display.
+
+### (retained for the record - do not action)
+
 
 Two badges: LEFT = data-completeness gate, RIGHT = QA / sign-off gate. When warnings are turned on, each shows green/amber/red; hidden otherwise and optional on print.
 
@@ -140,3 +212,63 @@ Add the two INT params to MR_PARAMETERS.txt (shared params, group STINGTags_ISO1
 
 ### Conveyor note
 - Badges are family elements + params, so they ride the universal master and propagate to all 206 via SaveAs + recategorise. Nested-symbol survival is one item to confirm in the one-family sample test (see `UNIVERSAL_TAG_DUCT_SMOKE_TEST.md`).
+
+---
+
+## STEP 5 - TAG7 narrative rows (add 6, appended as 66-71)
+
+Added 2026-09-21. **These are the only supported way to get DISCIPLINE content
+onto the universal label.**
+
+### Why not just add a discipline row
+
+The master propagates to all 206 families, so a row referencing a parameter
+bound to a few categories renders BLANK on every other family. `STR_BAR_MARK_TXT`
+binds to the 5 reinforcement categories: putting it on the master would give 201
+tags a permanently empty `Mark:` line.
+
+`WriteTag7All` already solves this. It composes discipline-aware narrative per
+element and writes it to seven parameters that are bound `<ALL>`:
+
+    ASS_TAG_7_TXT        the full narrative
+    ASS_TAG_7A..7F_TXT   sections A-F
+
+`TagConfig.Tag7.cs` says it plainly - *"TAG7A-TAG7F get plain section text for
+tag family labels"*. Until this step the master carried **no row for any of
+them**, so every element was given a narrative that nothing displayed.
+
+### The rows
+
+Same build as every other: Calculated Value, Type = **Text**, paste Formula,
+Prefix/Suffix, **Spaces = 0**, then Break.
+
+| # | Tier | Calc Value Name | Formula | Spaces | Prefix | Suffix | Break |
+|---|---|---|---|---|---|---|---|
+| 66 | T2 | Show T2 - TAG7A Identity | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_7A_TXT, "")` | 0 |  |  | YES |
+| 67 | T2 | Show T2 - TAG7B System | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_7B_TXT, "")` | 0 |  |  | YES |
+| 68 | T2 | Show T2 - TAG7C Spatial | `if(TAG_PARA_STATE_2_BOOL, ASS_TAG_7C_TXT, "")` | 0 |  |  | YES |
+| 69 | T4 | Show T4 - TAG7D Commissioning | `if(TAG_PARA_STATE_4_BOOL, ASS_TAG_7D_TXT, "")` | 0 |  |  | YES |
+| 70 | T5 | Show T5 - TAG7E Cost | `if(TAG_PARA_STATE_5_BOOL, ASS_TAG_7E_TXT, "")` | 0 |  |  | YES |
+| 71 | T6 | Show T6 - TAG7F Carbon | `if(TAG_PARA_STATE_6_BOOL, ASS_TAG_7F_TXT, "")` | 0 |  |  | YES |
+
+**Where:** bottom of the label, below row 65 (`Show T10-Ph179 - Trace Seq`).
+Narrative follows identity, and appending disturbs none of the existing 65.
+
+**Why A-C are all T2:** the default mode is `Handover`
+(`HandoverModeHelper.DefaultMode`), and in that mode `WriteTag7All` writes only
+A-C and blanks D-F. T2 is the depth that renders by default. D-F sit ready for
+DC mode and stay empty until then, exactly as every other gated row does.
+
+### What section A now carries for reinforcement
+
+`Bs8666Label.Compose` appends the BS 8666 / BS 1192 annotation to section A:
+
+    ... reinforced as bar mark 03, 21 no. H16 at 150 mm centres
+
+It is **self-gating** - a non-reinforcement element does not carry
+`STR_BAR_MARK_TXT`, so nothing is appended and no category list has to be kept
+in step. Every part is optional, so a model part-way through detailing reads as
+a partial answer rather than an invented one.
+
+The terse code form (`21H16-03-150`) belongs in the bending schedule, which
+carries all sixteen BS 8666 columns. Section A is prose.

@@ -199,7 +199,7 @@ namespace StingTools.Tags
             // GAP-TW-01: Offer to update SYS/FUNC when DISC changes
             try
             {
-                var uidoc = commandData.Application.ActiveUIDocument;
+                var uidoc = ParameterHelpers.GetApp(commandData).ActiveUIDocument;
                 Document ctxDoc = uidoc?.Document;
                 if (ctxDoc == null || uidoc == null) return result;
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
@@ -150,7 +150,7 @@ namespace StingTools.Tags
                 // E2: a category override (e.g. Doors 2-digit/compact, Equipment 4-digit/
                 // full) takes precedence over the panel globals; null fields fall back.
                 string eMask = mask; int ePad = seqPad;
-                var ov = TokenDepthOverrides.Resolve(ParameterHelpers.GetCategoryName(el));
+                var ov = TokenDepthOverrides.Resolve(doc, ParameterHelpers.GetCategoryName(el));
                 if (ov != null)
                 {
                     if (!string.IsNullOrEmpty(ov.Mask) && ov.Mask.Length >= 8) eMask = ov.Mask;

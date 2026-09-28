@@ -448,10 +448,58 @@ namespace StingTools.Temp
                     skipped++;
                 }
 
+                // Step: Drawing production — the same workflow as SETUP → DRAWING
+                // PRODUCTION. Before Phase 4 so the sheets it creates find STING
+                // title blocks and view types rather than whatever loaded first.
+                if (data.RunDrawingProductionSetup)
+                {
+                    // Unattended: its own report dialog used to stop the wizard half-way,
+                    // and a failed required step still read "OK" because any passing step
+                    // made the workflow Succeed. The outcome is folded into this report.
+                    var dps = new Commands.Drawing.DrawingProductionSetupCommand { Unattended = true };
+                    passed += RunStep(ref stepNum, report, "Set Up Drawing Production (workflow)",
+                        () => RunCommand(dps, commandData, elements));
+                    if (dps.LastOutcome != null)
+                    {
+                        report.AppendLine($"      {dps.LastOutcome.Summary}");
+                        if (dps.LastOutcome.IsFailure)
+                            foreach (var line in (dps.LastOutcome.Report ?? "").Split('\n')
+                                         .Select(l => l.TrimEnd('\r'))
+                                         .Where(l => l.IndexOf("FAIL", StringComparison.OrdinalIgnoreCase) >= 0)
+                                         .Take(8))
+                                report.AppendLine($"      {line.Trim()}");
+                    }
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Set Up Drawing Production — SKIPPED");
+                    skipped++;
+                }
+
                 // ════════════════════════════════════════════════════
                 // PHASE 4: DOCUMENTATION
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 4: Documentation ──");
+
+                // Step: Sheet-number policy. Here, not in Set Project Information:
+                // that runs in Phase 1, before Load Shared Parameters binds the
+                // parameter on a fresh project. Before Create Sheets, which reads it.
+                if (data.SheetNumberPolicy != null)
+                {
+                    // Detail goes after RunStep's header line, not before it.
+                    var policyDetail = new StringBuilder();
+                    passed += RunStep(ref stepNum, report,
+                        $"Sheet-Number Policy ({Core.Drawing.SheetNumberPolicy.ToParameterValue(data.SheetNumberPolicy.Value)})",
+                        () => WriteSheetNumberPolicy(doc, data.SheetNumberPolicy.Value, policyDetail));
+                    report.Append(policyDetail);
+                }
+                else
+                {
+                    stepNum++;
+                    report.AppendLine($"  {stepNum,2}. Sheet-Number Policy — SKIPPED (not changed in the wizard)");
+                    skipped++;
+                }
 
                 // Step: Create Views (plans + RCPs per level per discipline)
                 if (data.CreateViews)
@@ -837,6 +885,52 @@ namespace StingTools.Temp
             }
         }
 
+        /// <summary>
+        /// Record the sheet-number policy on Project Information. Writes only a
+        /// change (SheetNumberPolicy.ValueToWrite). An unbound parameter is a
+        /// WARN with the reason in the report, not a silent success — a project
+        /// that asked for ISO numbering and got none would find out at issue.
+        /// </summary>
+        private static Result WriteSheetNumberPolicy(Document doc, Core.Drawing.SheetNumberPolicyKind chosen,
+            StringBuilder report)
+        {
+            var p = doc.ProjectInformation?.LookupParameter(Core.Drawing.SheetNumberPolicy.PolicyParameterName);
+            if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+            {
+                string why = $"{Core.Drawing.SheetNumberPolicy.PolicyParameterName} is not a writable text parameter "
+                    + "on Project Information — enable Load Shared Parameters, or run it, then set the policy again.";
+                report.AppendLine("      " + why);
+                StingLog.Warn("ProjectSetup: " + why);
+                return Result.Failed;
+            }
+            string stored = p.AsString();
+            string value = Core.Drawing.SheetNumberPolicy.ValueToWrite(stored, chosen);
+            if (value == null)
+            {
+                report.AppendLine($"      unchanged ('{stored}')");
+                return Result.Succeeded;
+            }
+            if (!string.IsNullOrWhiteSpace(stored) && !Core.Drawing.SheetNumberPolicy.IsRecognised(stored))
+                report.AppendLine($"      replaced unrecognised value '{stored.Trim()}' (it was read as per drawing type)");
+            bool set;
+            using (var tx = new Transaction(doc, "STING Set Sheet-Number Policy"))
+            {
+                tx.Start();
+                set = p.Set(value);
+                if (set) tx.Commit(); else tx.RollBack();
+            }
+            if (!set)
+            {
+                string why = $"Revit refused to write '{value}' to {Core.Drawing.SheetNumberPolicy.PolicyParameterName}.";
+                report.AppendLine("      " + why);
+                StingLog.Warn("ProjectSetup: " + why);
+                return Result.Failed;
+            }
+            report.AppendLine($"      '{stored}' → '{value}'");
+            StingLog.Info($"ProjectSetup: sheet-number policy '{value}'");
+            return Result.Succeeded;
+        }
+
         private static Result SetProjectInformation(Document doc, ProjectSetupData data)
         {
             try
@@ -928,7 +1022,7 @@ namespace StingTools.Temp
                     {
                         try
                         {
-                            Parameter regionParam = pi.LookupParameter("PROJECT_REGION");
+                            Parameter regionParam = pi.LookupParameter(ParamRegistry.PROJECT_REGION);
                             if (regionParam != null && !regionParam.IsReadOnly)
                                 regionParam.Set(data.Region);
                         }
@@ -1022,19 +1116,18 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    Parameter vParam = pi.LookupParameter("ELC_VOLTAGE");
-                    if (vParam != null && !vParam.IsReadOnly)
-                    {
-                        string v = data.ElecConfig.Voltage;
-                        // Extract numeric voltage
-                        string numV = new string(v.TakeWhile(c => char.IsDigit(c)).ToArray());
-                        if (!string.IsNullOrEmpty(numV))
-                            vParam.Set(numV);
-                    }
+                    // ELC_VOLTAGE was never defined, so the chosen supply was lost. The
+                    // whole choice ("400V 3-phase") is kept, not just its leading digits.
+                    Parameter vParam = pi.LookupParameter(ParamRegistry.PRJ_ELC_SUPPLY_VOLTAGE_TXT);
+                    string v = string.Join(" ", new[] { data.ElecConfig.Voltage, data.ElecConfig.PhaseSystem }
+                        .Where(x => !string.IsNullOrWhiteSpace(x)));
+                    if (vParam != null && !vParam.IsReadOnly && vParam.StorageType == StorageType.String
+                        && !string.IsNullOrWhiteSpace(v))
+                        vParam.Set(v);
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not set ELC_VOLTAGE: {ex2.Message}");
+                    StingLog.Warn($"Could not set PRJ_ELC_SUPPLY_VOLTAGE_TXT: {ex2.Message}");
                 }
             }
         }
@@ -1884,7 +1977,8 @@ namespace StingTools.Temp
             {
                 Result result = action();
                 sw.Stop();
-                string status = result == Result.Succeeded ? "OK" : "WARN";
+                // Failed says FAILED: a required workflow step or a refused write is not a warning.
+                string status = result == Result.Succeeded ? "OK" : result == Result.Failed ? "FAILED" : "WARN";
                 report.AppendLine($"  {stepNum,2}. {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 StingLog.Info($"Project Setup step {stepNum}: {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 return result == Result.Succeeded ? 1 : 0;

@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // StructuralDesignSuite.cs — Advanced Structural Design & Validation
 //
 // Production-grade design algorithms:

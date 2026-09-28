@@ -35,7 +35,9 @@ namespace StingTools.Commands.Fabrication
                                    .ToList();
                 if (sheetIds.Count == 0) return "";
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                // Drawings (isometrics), not MISC. Spools mix services, so no
+                // single discipline folder applies to the combined PDF.
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "PDF");
                 Directory.CreateDirectory(outDir);
                 string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string fileName = $"STING_v4_isometrics_{stamp}";

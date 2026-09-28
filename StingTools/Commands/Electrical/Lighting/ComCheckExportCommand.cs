@@ -238,7 +238,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 rows.Add(string.Join(",", "PROJECT", "", "", "", F(ta), F(tp), tp <= ta ? "PASS" : "FAIL"));
                 rows.Add($"# Fixtures not in a room (excluded): {unassigned}");
 
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_ComCheck_Lighting_{DateTime.Now:yyyyMMdd}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_ComCheck_Lighting_{DateTime.Now:yyyyMMdd}.csv", "E");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }

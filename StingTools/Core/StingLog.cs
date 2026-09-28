@@ -36,6 +36,34 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
+
+        /// <summary>
+        /// Discards any LATCHED Escape press, so a long operation is cancelled
+        /// only by a key pressed while it is running. Call once immediately
+        /// before the loop starts.
+        ///
+        /// <para>The 0x0001 bit above means "pressed since the last call to
+        /// GetAsyncKeyState" - it is a latch, it is per-process, and nothing
+        /// clears it but reading it. So an Escape pressed to dismiss an earlier
+        /// dialog is still waiting when the next run begins.</para>
+        ///
+        /// <para>Measured 2026-09-22: "Propagate to ALL" reported "cancelled BY
+        /// THE USER (Escape) after 0 of 206" with nothing touched, immediately
+        /// after the previous run's report dialog was closed. The latch is also
+        /// why the honest message added the day before mattered - "cancelled"
+        /// alone would have read as the run finishing early, rather than as
+        /// something to go and fix.</para>
+        ///
+        /// <para>The latch is kept DURING the loop, deliberately: iterations are
+        /// tens of seconds apart, so checking only the currently-held bit would
+        /// miss a normal tap and make cancelling feel broken.</para>
+        /// </summary>
+        public static void DrainPendingEscape()
+        {
+            if (!_isWindows) return;
+            try { GetAsyncKeyState(VK_ESCAPE); }
+            catch (Exception ex) { StingLog.Warn($"DrainPendingEscape suppressed: {ex.Message}"); }
+        }
     }
 
     /// <summary>

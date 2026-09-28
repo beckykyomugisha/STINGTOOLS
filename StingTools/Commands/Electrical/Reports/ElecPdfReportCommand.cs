@@ -47,7 +47,8 @@ namespace StingTools.Commands.Electrical.Reports
             };
             if (td.Show() != TaskDialogResult.Ok) return Result.Cancelled;
 
-            string outputDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "ElecPDF");
+            // Electrical deliverable → the electrical discipline folder, not MISC/ElecPDF.
+            string outputDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "PDF", "E"), "Reports");
             try { Directory.CreateDirectory(outputDir); }
             catch (Exception ex) { StingLog.Warn($"ElecPDF mkdir: {ex.Message}"); }
 

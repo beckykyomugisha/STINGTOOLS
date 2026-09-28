@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -213,7 +213,7 @@ namespace StingTools.Commands.Electrical.Photometric
         {
             try
             {
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance", "E");
                 outDir = Path.Combine(outDir ?? "", "electrical");
                 Directory.CreateDirectory(outDir);
                 string outPath = Path.Combine(outDir,

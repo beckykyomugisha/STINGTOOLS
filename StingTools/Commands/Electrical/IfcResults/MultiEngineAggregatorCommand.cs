@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -59,7 +59,7 @@ namespace StingTools.Commands.Electrical.IfcResults
             }
 
             // Excel export — one row per room, one column per engine, plus delta.
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E");
             try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string outPath = Path.Combine(outDir,
                 $"STING_PhotometricAggregator_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");

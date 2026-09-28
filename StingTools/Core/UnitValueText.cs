@@ -75,5 +75,25 @@ namespace StingTools.Core
             string head = s.Substring(0, end).Trim();
             return head.Length > 0 ? head : valueString;
         }
+
+        /// <summary>
+        /// Whether a LENGTH parameter's name says metres. STING names carry their unit:
+        /// <c>_M</c> / <c>_M_NR</c> is metres, anything else (<c>_MM</c>, <c>_MM_NR</c>,
+        /// no suffix) is read in millimetres, the drawing convention.
+        /// </summary>
+        public static bool LengthNameIsMetres(string paramName)
+        {
+            if (string.IsNullOrEmpty(paramName)) return false;
+            string n = paramName.ToUpperInvariant();
+            if (n.EndsWith("_NR")) n = n.Substring(0, n.Length - 3);
+            return n.EndsWith("_M");
+        }
+
+        /// <summary>A number as plain invariant text: up to three decimals, no unit,
+        /// no thousands separator, so "12.5" parses back the same on any machine.</summary>
+        public static string Invariant(double v)
+            => double.IsNaN(v) || double.IsInfinity(v)
+                ? string.Empty
+                : Math.Round(v, 3).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
     }
 }

@@ -734,7 +734,7 @@ namespace StingTools.BIMManager
             sb.AppendLine($"Sidecar saved: {sidecarPath}");
 
             // ── 7. Export CSV ──
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance");
             string csvPath = Path.Combine(outDir, $"4D_Handover_Integration_{DateTime.Now:yyyyMMdd}.csv");
             var csvRows = new List<string> { "Milestone,Threshold%,CurrentCompliance%,Status,Phase,ScheduleTasks,ScheduleComplete,ScheduleAvg%,EarliestStart,LatestFinish,COBieSheets" };
             foreach (var dd in DDMilestones)

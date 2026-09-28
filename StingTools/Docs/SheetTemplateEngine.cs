@@ -320,15 +320,15 @@ namespace StingTools.Docs
                     // Set viewport type if specified
                     if (!string.IsNullOrEmpty(slot.ViewportTypeName))
                     {
-                        var vpType = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ElementType))
-                            .Cast<ElementType>()
-                            .FirstOrDefault(t => t.FamilyName == "Viewport" &&
-                                t.Name.Equals(slot.ViewportTypeName, StringComparison.OrdinalIgnoreCase));
-                        if (vpType != null)
+                        // Shared resolver: canonical STING names, legacy
+                        // aliases, on-demand creation; a miss is logged
+                        // instead of silently keeping the default type.
+                        var vpTypeId = StingTools.Core.Drawing.ViewportTypeResolver.Resolve(
+                            doc, slot.ViewportTypeName, createIfMissing: true);
+                        if (vpTypeId != ElementId.InvalidElementId)
                         {
-                            try { vp.ChangeTypeId(vpType.Id); }
-                            catch (Exception ex2) { StingLog.Warn($"Type not available: {ex2.Message}"); }
+                            try { vp.ChangeTypeId(vpTypeId); }
+                            catch (Exception ex2) { StingLog.Warn($"Viewport type '{slot.ViewportTypeName}' not applied: {ex2.Message}"); }
                         }
                     }
                 }
@@ -589,10 +589,65 @@ namespace StingTools.Docs
                 if (sheet.Name.IndexOfAny(badChars) >= 0)
                     result.Issues.Add("Sheet name contains characters invalid for file export");
 
+                // Checks 1–10 are sheet hygiene. 11–15 are what ISO 19650 actually asks of
+                // an issued drawing, judged by the SAME rules the title block, the export
+                // filenames and the CDE folders use — so this cannot pass a sheet those
+                // would label differently.
+                AddIsoChecks(doc, sheet, result);
+
                 results.Add(result);
             }
 
             return results;
+        }
+
+        /// <summary>ISO 19650 checks 11–15: identifier, role vs declared discipline,
+        /// suitability, revision, CDE state vs suitability.</summary>
+        private static void AddIsoChecks(Document doc, ViewSheet sheet, SheetComplianceResult result)
+        {
+            try
+            {
+                // 11: an ISO identifier exists and is well-formed (7 fields, 4-digit number)
+                string tag = ParameterHelpers.GetString(sheet, ParamRegistry.SHT_TAG_1);
+                string id = Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheet.SheetNumber) ? sheet.SheetNumber
+                          : Core.Drawing.Iso19650DocumentCode.LooksAssembled(tag) ? tag : null;
+                if (id == null)
+                    result.Issues.Add(string.IsNullOrWhiteSpace(tag)
+                        ? "ISO: no document identifier — run Tag Sheets"
+                        : $"ISO: identifier '{tag}' is not Project-Originator-Volume-Level-Type-Role-Number — run Tag Sheets");
+
+                // 12: the identifier's role agrees with the discipline the sheet declares
+                if (id != null && !Core.Drawing.Iso19650DocumentCode.LooksAssembled(sheet.SheetNumber))
+                {
+                    string declared = Core.Drawing.SheetDisciplineResolver.ForSheet(sheet.SheetNumber, sheet.Name);
+                    string role = Core.Drawing.Iso19650DocumentCode.Decompose(id)?.Role;
+                    if (!string.IsNullOrEmpty(declared) && !string.IsNullOrEmpty(role) &&
+                        !string.Equals(Core.Drawing.Iso19650DocumentCode.NormaliseRole(declared), role, StringComparison.OrdinalIgnoreCase))
+                        result.Issues.Add($"ISO: identifier role '{role}' but the sheet declares discipline '{declared}' — re-run Tag Sheets");
+                }
+
+                // 13: a recognised suitability code
+                string code = ExportCenterEngine.SheetSuitabilityCode(sheet);
+                if (string.IsNullOrEmpty(code))
+                    result.Issues.Add("ISO: no recognised suitability code (S0…S7, A1…, B1…, CR) — run Title Block Populate");
+
+                // 14: a revision
+                string rev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString();
+                if (string.IsNullOrWhiteSpace(rev)) rev = ParameterHelpers.GetString(sheet, "PRJ_TB_REVISION_NR_TXT");
+                if (string.IsNullOrWhiteSpace(rev))
+                    result.Issues.Add("ISO: no revision (no Revit revision and no PRJ_TB_REVISION_NR_TXT)");
+
+                // 15: the CDE state printed on the sheet follows from its suitability
+                if (!string.IsNullOrEmpty(code))
+                {
+                    string printed = ParameterHelpers.GetString(sheet, ParamRegistry.TB_DELIVERABLE_CDE);
+                    string expected = Core.Drawing.Iso19650Suitability.CdeStateFor(code);
+                    if (!string.IsNullOrWhiteSpace(printed) && expected != null &&
+                        !string.Equals(printed.Trim(), expected, StringComparison.OrdinalIgnoreCase))
+                        result.Issues.Add($"ISO: CDE state '{printed.Trim()}' contradicts suitability {code} (means {expected}) — run Title Block Populate");
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ISO sheet checks '{sheet?.SheetNumber}': {ex.Message}"); }
         }
 
         /// <summary>
@@ -971,7 +1026,7 @@ namespace StingTools.Docs
                         AlwaysUseRaster = false
                     };
 
-                    bool ok = doc.Export(outputDir, viewIds, pdfOpts);
+                    bool ok = doc.Export(ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet), viewIds, pdfOpts);
                     if (ok)
                     {
                         exported++;

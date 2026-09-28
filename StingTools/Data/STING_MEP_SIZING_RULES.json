@@ -92,7 +92,7 @@
     "manufacturerFittings": {
       "_notes": [
         "Manufacturer-specific loss coefficients. Looked up by the",
-        "MEP_PROD_REF_TXT parameter on each fitting; falls back to the",
+        "HVC_PROD_REF_TXT parameter on each fitting; falls back to the",
         "generic fittingLossCoefficients above when no match is found.",
         "Sources: Lindab Comfort Catalogue 2023, Trox Technical Cat.,",
         "Halton Selector. Values are 'design point' C, not full curve."

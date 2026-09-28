@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -572,20 +572,76 @@ namespace StingTools.Tags.Tests
         }
 
         /// <summary>
-        /// Known-unresolved, named rather than quietly tolerated.
+        /// RESOLVED 2026-09-24 (ROADMAP PROD-2) — a negated material name no longer
+        /// takes the material's code.
         ///
-        /// <para>"Lead-Free Solder" still takes -PB. That is not a boundary problem — the
-        /// word IS "lead", correctly bounded — it is a NEGATION the table has no way to
-        /// express, and inventing a <c>(?!-free)</c> special case invites tin-free,
-        /// chrome-free and every other one after it. It is recorded here so the next
-        /// reader meets it as a known limit rather than as a fresh surprise; the test
-        /// fails if it is ever fixed, so the note cannot rot.</para>
+        /// <para>"Lead-Free Solder" took -PB. That was never a boundary problem — the
+        /// word IS "lead", correctly bounded — it was a NEGATION the table had no way
+        /// to express. The fix is an optional 4th CSV column, ExcludePattern, not a
+        /// <c>(?!-free)</c> hard-coded into the lead row: that would have invited
+        /// tin-free, chrome-free and every other one after it as more hard-coding,
+        /// which is exactly what the roadmap entry warned against. The next one is a
+        /// CSV edit.</para>
         /// </summary>
         [Fact]
-        public void KnownUnresolved_A_Negated_Material_Name_Still_Matches_The_Material()
+        public void A_Negated_Material_Name_No_Longer_Takes_The_Materials_Code()
+        {
+            Assert.Null(
+                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), "Lead-Free Solder", "Pipe Fittings"));
+        }
+
+        /// <summary>The exclusion must not swallow the material it is guarding.</summary>
+        [Theory]
+        [InlineData("Lead Sheet")]
+        [InlineData("Lead Pipe")]
+        // NOT "Lead-lined Plasterboard": the plaster rule sits above the lead rule
+        // and wins on first-match, which is existing behaviour and nothing to do
+        // with the exclusion. A test case that exercises rule ORDER while claiming
+        // to test the exclusion proves neither.
+        [InlineData("lead flashing")]
+        public void PlainLeadStillTakesThePbCode(string material)
         {
             Assert.Equal("PB",
-                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), "Lead-Free Solder", "Pipe Fittings"));
+                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), material, "Pipe Fittings"));
+        }
+
+        /// <summary>
+        /// A rule with no ExcludePattern behaves exactly as it did before the column
+        /// existed — every other row in the shipped table is one of these.
+        /// </summary>
+        [Theory]
+        [InlineData("Structural Steel S355", "STL")]
+        [InlineData("C32/40 Concrete", "CON")]
+        [InlineData("Copper Pipe", "CU")]
+        public void RulesWithoutAnExclusionAreUnchanged(string material, string expected)
+        {
+            Assert.Equal(expected,
+                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), material, "Pipe Fittings"));
+        }
+
+        /// <summary>
+        /// A malformed exclusion drops the whole row rather than applying the rule
+        /// without its guard.
+        ///
+        /// <para>The alternative — keep the rule, ignore the broken exclusion — would
+        /// silently restore the exact defect the exclusion was added to fix, and would
+        /// do it at the moment someone fat-fingered a bracket. Losing one material
+        /// suffix is recoverable and is named in the warnings; a wrong PROD code on a
+        /// drawing is not.</para>
+        /// </summary>
+        [Fact]
+        public void AMalformedExclusionDropsTheRuleAndSaysSo()
+        {
+            var warnings = new List<string>();
+            var rules = MaterialProdOverrideRules.Parse(new[]
+            {
+                "Category,MaterialPattern,Suffix,ExcludePattern",
+                @"*,(?i)\blead\b,PB,(?i)\blead[-\s]?free\b[",   // unbalanced [
+            }, warnings);
+
+            Assert.Empty(rules);
+            Assert.Contains(warnings, w => w.Contains("bad exclusion regex"));
+            Assert.Contains(warnings, w => w.Contains("rule dropped"));
         }
 
         /// <summary>
@@ -621,12 +677,12 @@ namespace StingTools.Tags.Tests
         // by a human as fact.
 
         /// <summary>
-        /// The vocabularies the tag engine actually knows, read from the shipped
-        /// TAG_CONFIG file rather than restated here - a second copy of a list is a
-        /// second thing to drift.
+        /// The vocabularies the tag engine knows. DISC is read from the shipped TAG_CONFIG
+        /// reference file. SYS is read from the RUNTIME map, TagConfig.DefaultSysMap: the
+        /// TAG_CONFIG file is documentation that nothing loads (2026-09-28), and it lists
+        /// hyphenated and proposed codes the tagger never writes and the validator rejects.
         ///
-        /// <para>SYS rows quote a comma-separated category list, so this needs a real
-        /// CSV split rather than String.Split(',').</para>
+        /// <para>DISC rows are CSV with quoted fields, so this needs a real CSV split.</para>
         /// </summary>
         private static (HashSet<string> Disc, HashSet<string> Sys) TagVocabulary()
         {
@@ -639,12 +695,18 @@ namespace StingTools.Tags.Tests
                 if (line.Length == 0 || line.StartsWith("#")) continue;
                 var c = SplitCsv(line);
                 if (c.Count > 2 && c[0] == "DISC") disc.Add(c[2]);
-                if (c.Count > 1 && c[0] == "SYS") sys.Add(c[1]);
             }
+            string defaults = File.ReadAllText(Path.Combine(DataDir(), "..", "Core", "TagConfig.Defaults.cs"));
+            int a = defaults.IndexOf("DefaultSysMap()", StringComparison.Ordinal);
+            int b = defaults.IndexOf("DefaultProdMap()", StringComparison.Ordinal);
+            Assert.True(a > 0 && b > a, "DefaultSysMap block not found");
+            foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(
+                         defaults.Substring(a, b - a), @"\{\s*""([A-Z]+)"",\s*new List<string>"))
+                sys.Add(m.Groups[1].Value);
             // Instrument check: an empty vocabulary would pass every assertion below by
             // finding nothing to compare against.
             Assert.True(disc.Count > 5, "DISC vocabulary looks empty: " + disc.Count);
-            Assert.True(sys.Count > 20, "SYS vocabulary looks empty: " + sys.Count);
+            Assert.True(sys.Count > 15, "SYS vocabulary looks empty: " + sys.Count);
             return (disc, sys);
         }
 
@@ -749,16 +811,12 @@ namespace StingTools.Tags.Tests
         }
 
         /// <summary>
-        /// Six SYSTEM values the PROD table uses are not declared as SYS codes anywhere
-        /// in the tag vocabulary. None is a typo - they are fire alarm, lighting, medical
-        /// gas, radiation, high voltage and BMS, all real systems - so the repair is to
-        /// ADD them to TAG_CONFIG, not to change the PROD rows.
-        ///
-        /// <para>That is not done here, because a SYS row feeds TagConfig.SysMap, which
-        /// the tag pipeline reads at runtime: adding six changes what elements tag as,
-        /// and that needs checking in Revit rather than asserting from a terminal. They
-        /// are listed instead, so the disagreement is visible and a SEVENTH cannot be
-        /// added quietly.</para>
+        /// SYSTEM values the PROD table uses that the runtime SYS map does not carry.
+        /// Six were listed on 2026-09-08; none remains (2026-09-28). Two were labels, not
+        /// gaps: fire alarm rows said FA and lighting rows said LTG, where the tagger writes
+        /// FLS and LV. Medical gas (MGS), high voltage (HV), BMS and radiation protection
+        /// (RAD) became runtime systems. A new SYSTEM value must be a runtime system, or be
+        /// recorded here with the reason.
         ///
         /// <para>THIS LIST ONLY SHRINKS. The test also fails on an entry that no longer
         /// appears, so closing one means deleting its line in the same commit.</para>
@@ -769,12 +827,9 @@ namespace StingTools.Tags.Tests
             // system -> why it is here, as of 2026-09-08
             var known = new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                ["FA"]  = "fire alarm; 7 rows, Fire Alarm Devices",
-                ["LTG"] = "lighting; 8 rows, Lighting Fixtures/Devices",
-                ["MGS"] = "medical gas; 21 rows, Specialty Equipment (Healthcare pack)",
-                ["RAD"] = "radiation; 4 rows, Specialty Equipment (Healthcare pack)",
-                ["HV"]  = "high voltage; 2 rows, Electrical Equipment",
-                ["BMS"] = "building management; 1 row, Electrical Equipment",
+                // Empty since 2026-09-28: FA and LTG were relabelled FLS and LV (fire alarm
+                // devices and lighting ARE those systems); MGS, HV, BMS and RAD became runtime
+                // systems.
             };
 
             var vocab = TagVocabulary();

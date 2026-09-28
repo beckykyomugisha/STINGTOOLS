@@ -55,12 +55,23 @@ namespace StingTools.Core.Drawing
         /// Counters could not be read, or could not be persisted.
         /// </exception>
         public static int Next(Document doc, string drawingTypeId, string packageId, string discipline, string vol)
+            => NextForBucket(doc, BucketKey(drawingTypeId, packageId, discipline, vol),
+                () => SeedFromExistingSheets(doc, drawingTypeId, packageId));
+
+        /// <summary>
+        /// <see cref="Next"/> against an explicit bucket key. The key is chosen by
+        /// <see cref="SheetNumberEngine.CounterBucket"/> per sheet-number policy.
+        /// <paramref name="seed"/> supplies the highest sequence already issued in
+        /// the bucket and is consulted only the first time a bucket is seen.
+        /// Same throw-don't-guess contract as <see cref="Next"/>.
+        /// </summary>
+        public static int NextForBucket(Document doc, string bucketKey, Func<int> seed)
         {
-            var key = BucketKey(drawingTypeId, packageId, discipline, vol);
+            var key = bucketKey ?? "";
             var buckets = ReadAll(doc);
             int current;
             if (!buckets.TryGetValue(key, out current))
-                current = SeedFromExistingSheets(doc, drawingTypeId, packageId);
+                current = seed?.Invoke() ?? 0;
             int next = current + 1;
             buckets[key] = next;
             WriteAll(doc, buckets);
@@ -103,10 +114,13 @@ namespace StingTools.Core.Drawing
         /// from the new high-water mark.
         /// </summary>
         public static void Set(Document doc, string drawingTypeId, string packageId, string discipline, string vol, int newValue)
+            => SetForBucket(doc, BucketKey(drawingTypeId, packageId, discipline, vol), newValue);
+
+        /// <summary><see cref="Set"/> against an explicit bucket key.</summary>
+        public static void SetForBucket(Document doc, string bucketKey, int newValue)
         {
-            var key = BucketKey(drawingTypeId, packageId, discipline, vol);
             var buckets = ReadAll(doc);
-            buckets[key] = newValue;
+            buckets[bucketKey ?? ""] = newValue;
             WriteAll(doc, buckets);
         }
 
@@ -297,12 +311,11 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static string BucketKey(string drawingTypeId, string packageId, string discipline, string vol)
-            => string.Join("|",
-                drawingTypeId ?? "",
-                packageId     ?? "",
-                discipline    ?? "",
-                vol           ?? "");
+        // One definition of the historical key, shared with the engine, so the
+        // Profile-policy bucket cannot drift from what existing projects stored.
+        internal static string BucketKey(string drawingTypeId, string packageId, string discipline, string vol)
+            => SheetNumberEngine.CounterBucket(SheetNumberPolicyKind.Profile, null,
+                drawingTypeId, packageId, discipline, vol);
 
         // First-run fallback. A project that's been numbering sheets for years
         // before Phase 169 has no stored counter; seed from the highest
@@ -324,7 +337,7 @@ namespace StingTools.Core.Drawing
                         packageId ?? "", StringComparison.Ordinal));
                 foreach (var s in sheets)
                 {
-                    var seq = DrawingTokenContext.ExtractSeqFromSheetNumber(s.SheetNumber);
+                    var seq = SheetNumberEngine.ExtractTrailingSequence(s.SheetNumber);
                     if (seq.HasValue && seq.Value > max) max = seq.Value;
                 }
                 return max;

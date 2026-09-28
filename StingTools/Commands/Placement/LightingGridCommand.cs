@@ -1,4 +1,4 @@
-﻿// StingTools — Lighting grid placement command.
+// StingTools — Lighting grid placement command.
 //
 // For every selected (or all) Room, runs LightingGridCalculator to:
 //   1. Classify the room via ROOM_TYPE_CLASSIFIER.csv.

@@ -895,7 +895,7 @@ namespace StingTools.Core.Fabrication
             Document doc, AssemblyInstance ai, View view,
             List<MemberResolution> resolutions, FabricationResult result)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance");
             if (string.IsNullOrEmpty(outDir)) return;
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_iso_symbols.csv");

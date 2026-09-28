@@ -396,7 +396,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_TenderAdjudication", ".xlsx");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_TenderAdjudication", ".xlsx");
                 var bidders = adj.Bids.Select(b => b.Bidder).ToList();
                 using (var wb = new XLWorkbook())
                 {

@@ -29,8 +29,14 @@ namespace StingTools.Temp
     ///  15.  Batch family parameters (4,686 from CSV)
     ///  16.  Auto-assign templates + auto-fix health
     ///  17.  Auto-create legends (discipline + system + filter)
+    ///  18.  Tag sheets (ISO 19650 document codes)
+    ///  19.  Generate BEP + export XLSX
+    ///  20.  Healthcare profile noted (informational; COBie wizard pre-selects the preset)
+    ///  21.  Seed the PBR textures folder
     ///
-    /// Each step runs in its own transaction with timing information.
+    /// The report numbers every sub-step it runs (about 30), so its numbering is
+    /// finer than this list. Each step runs in its own transaction with timing
+    /// information; a step that does not apply is SKIPPED, never counted as failed.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -73,7 +79,10 @@ namespace StingTools.Temp
                 " 15.  Batch family parameters (4,686 from CSV)\n" +
                 " 16.  Auto-assign templates + auto-fix health\n" +
                 " 17.  Auto-create legends (discipline + system)\n" +
-                " 18.  Generate BEP + Export XLSX (ISO 19650)\n\n" +
+                " 18.  Tag sheets (ISO 19650 document codes)\n" +
+                " 19.  Generate BEP + Export XLSX (ISO 19650)\n" +
+                " 20.  Healthcare profile noted (COBie preset pre-selected at export)\n" +
+                " 21.  Seed the PBR textures folder\n\n" +
                 "Each step runs independently.\n" +
                 "Use Ctrl+Z to undo individual steps if needed.\n\n" +
                 "This may take several minutes for a new project.";
@@ -137,12 +146,23 @@ namespace StingTools.Temp
                 report.AppendLine($"      Run 'Project Setup Wizard' first for project-specific LOC/ZONE codes");
             }
 
-            // Step 1: Load shared parameters (critical — other steps depend on it)
-            passed += RunStep(ref stepNum, report, "Load Shared Parameters",
+            // Step 1: Load shared parameters (critical — other steps depend on it).
+            // RunStep returns -1 for Escape and -2 for a Cancelled result; the old
+            // "passed += RunStep(...)" added those straight into the pass count, so
+            // an Escape here left passed at -1, skipped the critical-failure prompt
+            // below, ran every remaining step, and reported "-1/27 succeeded".
+            int step1 = RunStep(ref stepNum, report, "Load Shared Parameters",
                 () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
+            if (step1 == -1)
+            {
+                TaskDialog.Show("Master Setup", report + "\nCancelled before any step ran.");
+                return Result.Cancelled;
+            }
+            if (step1 == 1) passed++;
+            else if (step1 == -2) skipped++;
 
             // If parameter loading failed, abort
-            if (passed == 0)
+            if (step1 != 1)
             {
                 StingLog.Error("Master Setup: critical step 1 failed — aborting");
                 TaskDialog critFail = new TaskDialog("Master Setup — Critical Failure");
@@ -220,7 +240,10 @@ namespace StingTools.Temp
             }
             else if (!userCancelled)
             {
+                // Counted as skipped: without it, failed = stepNum - passed - skipped
+                // reported "Failed: 1" on every non-workshared project.
                 stepNum++;
+                skipped++;
                 report.AppendLine($"  {stepNum,2}. Create Worksets — SKIPPED (not workshared)");
             }
 
@@ -270,48 +293,36 @@ namespace StingTools.Temp
             passed += DoStep("Generate BEP + Export XLSX",
                 () => RunCommand(new BIMManager.CreateBEPCommand(), commandData, elements));
 
-            // Step 20: Healthcare Pack setup (HC-09) — only runs if facility type profile is set.
+            // Step 20: Healthcare Pack (HC-09) — informational, not a counted step.
+            //
+            // It used to re-run LoadSharedParamsCommand (identical to step 1, which binds
+            // every group in MR_PARAMETERS.txt including the healthcare groups 28–32) and
+            // then open the interactive COBie export wizard in the middle of an unattended
+            // run. Neither was healthcare setup. The COBie wizard now pre-selects the
+            // HEALTHCARE_NHS / HEALTHCARE_PRIVATE preset itself whenever the project
+            // carries a health profile, so nothing is lost by not exporting here.
             try
             {
-                // Was commandData?.Application?...: null from the panel, so the
-                // profile read returned null and Step 20 skipped ITSELF on every
-                // panel-run Master Setup. A skipped step logs nothing.
                 var hcDoc = ParameterHelpers.GetDoc(commandData);
-                var pi = hcDoc?.ProjectInformation;
-                var healthProfile = pi?.LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
-                if (!string.IsNullOrEmpty(healthProfile))
+                var healthProfile = hcDoc?.ProjectInformation?
+                    .LookupParameter("PRJ_ORG_HEALTH_PACK_PROFILE_TXT")?.AsString();
+                if (!string.IsNullOrEmpty(healthProfile) && !userCancelled)
                 {
-                    StingLog.Info($"MasterSetup Step 20: Healthcare Pack detected (profile={healthProfile}); loading shared params + COBie healthcare overlay.");
-                    passed += DoStep($"Load Healthcare Shared Params (profile: {healthProfile})",
-                        () => RunCommand(new Tags.LoadSharedParamsCommand(), commandData, elements));
-
-                    // Apply COBie healthcare overlay using the HEALTHCARE_NHS or HEALTHCARE_PRIVATE preset
-                    string cobiePreset = healthProfile.StartsWith("PRIVATE", StringComparison.OrdinalIgnoreCase)
-                        ? "HEALTHCARE_PRIVATE"
-                        : "HEALTHCARE_NHS";
-                    StingLog.Info($"MasterSetup Step 20: applying COBie preset '{cobiePreset}'");
-                    passed += DoStep($"COBie Healthcare Overlay ({cobiePreset})",
-                        () =>
-                        {
-                            var cmd = new BIMManager.COBieExportCommand();
-                            StingCommandHandler.SetExtraParam("COBiePresetKey", cobiePreset);
-                            return RunCommand(cmd, commandData, elements);
-                        });
-                }
-                else
-                {
-                    StingLog.Info("MasterSetup Step 20: PRJ_ORG_HEALTH_PACK_PROFILE_TXT not set — skipping Healthcare Pack steps.");
-                    skipped++;
+                    string preset = UI.COBieExportWizard.PresetForHealthProfile(healthProfile);
+                    report.AppendLine($"      Healthcare profile '{healthProfile}': parameters bound in step 1; " +
+                                      $"COBie export will pre-select {preset}.");
+                    StingLog.Info($"MasterSetup: healthcare profile {healthProfile} (COBie preset {preset}).");
                 }
             }
             catch (Exception ex)
             {
-                StingLog.Error("MasterSetup Step 20 (Healthcare Pack) failed", ex);
+                StingLog.Warn($"MasterSetup healthcare profile read: {ex.Message}");
             }
 
             // Step 21: PBR texture pipeline — seed `_BIM_COORD/textures/`
             // and surface the provider catalogue so authors can drop packs
             // or use Pbr_BrowseLibrary immediately.
+            if (!userCancelled)
             try
             {
                 stepNum++;
@@ -374,20 +385,20 @@ namespace StingTools.Temp
                             "Use 'Browse PBR library…' in the Material Hub to pull CC0 packs\n" +
                             "from Poly Haven or ambientCG directly into this folder.\n");
                     }
-                    report.AppendLine($"  21. PBR textures folder ready — {tex}");
+                    report.AppendLine($"  {stepNum,2}. PBR textures folder ready — {tex}");
                     passed++;
                     StingLog.Info($"MasterSetup Step 21: PBR textures root → {tex}");
                 }
                 else
                 {
-                    report.AppendLine($"  21. PBR textures — SKIPPED (project not saved)");
+                    report.AppendLine($"  {stepNum,2}. PBR textures — SKIPPED (project not saved)");
                     skipped++;
                 }
             }
             catch (Exception ex)
             {
                 StingLog.Error("MasterSetup Step 21 (PBR textures) failed", ex);
-                report.AppendLine($"  21. PBR textures — FAILED ({ex.Message})");
+                report.AppendLine($"  {stepNum,2}. PBR textures — FAILED ({ex.Message})");
             }
 
             // Handle user cancellation
@@ -488,9 +499,11 @@ namespace StingTools.Temp
             {
                 Result result = action();
                 sw.Stop();
+                // Result.Failed was printed as "WARN" but tallied as a failure, so the
+                // line and the summary disagreed about the same step.
                 string status = result == Result.Succeeded ? "OK"
                     : result == Result.Cancelled ? "SKIPPED"
-                    : "WARN";
+                    : "FAILED";
                 report.AppendLine($"  {stepNum,2}. {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 StingLog.Info($"Master Setup step {stepNum}: {label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
                 return result == Result.Succeeded ? 1

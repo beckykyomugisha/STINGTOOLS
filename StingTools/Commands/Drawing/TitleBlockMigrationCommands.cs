@@ -261,7 +261,7 @@ namespace StingTools.Commands.Drawing
                     using (var tx = new Transaction(doc, $"STING Load {name}"))
                     {
                         tx.Start();
-                        var ok = doc.LoadFamily(c, new TitleBlockFamilyLoadOptions(), out Family fam);
+                        var ok = doc.LoadFamily(c, new StingTools.Core.Drawing.TitleBlockLoadOptions(), out Family fam);
                         tx.Commit();
                         if (fam != null) return fam;
                         if (ok) return FindLoadedFamily(doc, name);

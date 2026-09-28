@@ -132,7 +132,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            Document doc = cd?.Application?.ActiveUIDocument?.Document;
+            Document doc = StingTools.Core.ParameterHelpers.GetDoc(cd);
             if (doc == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             try
@@ -183,7 +183,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData cd, ref string msg, ElementSet els)
         {
-            UIApplication uiapp = cd?.Application;
+            UIApplication uiapp = StingTools.Core.ParameterHelpers.GetApp(cd);
             Document doc = uiapp?.ActiveUIDocument?.Document;
             if (doc == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 

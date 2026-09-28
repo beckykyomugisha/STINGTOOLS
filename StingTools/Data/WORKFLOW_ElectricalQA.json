@@ -14,6 +14,8 @@
     { "commandTag": "Calc_SizeBreakers", "label": "Preview breaker sizing",     "optional": true  },
     { "commandTag": "Calc_VoltageDrop",  "label": "Calculate voltage drop",     "optional": true,
       "condition": "load_summary_complete" },
+    { "commandTag": "Panel_ComplianceCheck", "label": "Per-circuit BS 7671 check (Ib ≤ In ≤ Iz, VD, breaking capacity)",
+      "optional": true },
     { "commandTag": "Validation_BS7671", "label": "BS 7671 §522.8 standards validation",
       "optional": true, "condition": "has_conduits", "skipIfDataUnchanged": true },
     { "commandTag": "Rprt_Audit",        "label": "Generate compliance audit",  "optional": true  },

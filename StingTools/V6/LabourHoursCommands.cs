@@ -84,7 +84,7 @@ namespace StingTools.V6
                 var perCat = new Dictionary<string, (int count, double hrs)>();
                 foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
-                    string hrsStr = ParameterHelpers.GetString(el, ParamRegistry.CST_INSTALL_HRS);
+                    string hrsStr = ParameterHelpers.GetValueText(el, ParamRegistry.CST_INSTALL_HRS);
                     if (string.IsNullOrEmpty(hrsStr)) continue;
                     // InvariantCulture: STING param values are written by the plugin in
                     // invariant format and must be read back the same way regardless of
@@ -93,7 +93,7 @@ namespace StingTools.V6
                     if (!double.TryParse(hrsStr, System.Globalization.NumberStyles.Float, inv, out var hrs)) continue;
                     string crew = ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_CREW_TXT) ?? "";
                     double rate = 0; double.TryParse(
-                        ParameterHelpers.GetString(el, ParamRegistry.CST_LABOUR_RATE_GBP) ?? "0",
+                        ParameterHelpers.GetValueText(el, ParamRegistry.CST_LABOUR_RATE_GBP) ?? "0",
                         System.Globalization.NumberStyles.Float, inv, out rate);
                     double cost = hrs * rate;
                     if (!perCrew.TryGetValue(crew, out var c)) c = (0, 0, 0);
@@ -103,7 +103,7 @@ namespace StingTools.V6
                     perCat[cat] = (k.count + 1, k.hrs + hrs);
                 }
 
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_LabourHours", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_LabourHours", ".csv");
                 using (var w = new System.IO.StreamWriter(path))
                 {
                     w.WriteLine("Section,Key,Count,Hours,Cost_GBP");

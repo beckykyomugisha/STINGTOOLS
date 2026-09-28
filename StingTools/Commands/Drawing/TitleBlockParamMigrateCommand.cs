@@ -155,6 +155,7 @@ namespace StingTools.Commands.Drawing
 
                 int migratedValues = 0;
                 int sheetsReStamped = 0;
+                int unresolvedCells = 0;
 
                 using (var tx = new Transaction(doc, "STING Migrate PRJ_TB_* → PRJ_ORG_*"))
                 {
@@ -195,8 +196,14 @@ namespace StingTools.Commands.Drawing
                                 var dtId = DrawingTypeStamper.Read(sheet);
                                 var dt   = DrawingTypeRegistry.Get(doc, dtId);
                                 if (dt == null) continue;
-                                var applyResult = TitleBlockParamApplier.Apply(doc, sheet, dt);
+                                // T-5: passing no tokens stamped "A-{lvl}-{seq:D3}"
+                                // literally onto title blocks. Same builder as Heal.
+                                var tokens = DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
+                                var applyResult = TitleBlockParamApplier.Apply(doc, sheet, dt, tokens);
                                 if (applyResult.ParamsWritten > 0) sheetsReStamped++;
+                                unresolvedCells += applyResult.CellsUnresolved;
+                                foreach (var w in applyResult.Warnings)
+                                    StingLog.Warn($"TitleBlockParamMigrate: {w}");
                             }
                             catch (Exception ex)
                             {
@@ -215,7 +222,12 @@ namespace StingTools.Commands.Drawing
 
                 TaskDialog.Show("STING — Migrate TB Params",
                     $"Migrated {migratedValues} value(s) from PRJ_TB_* → PRJ_ORG_*.\n" +
-                    $"{sheetsReStamped} sheet(s) re-stamped via TitleBlockParamApplier.\n\n" +
+                    $"{sheetsReStamped} sheet(s) re-stamped via TitleBlockParamApplier.\n" +
+                    (unresolvedCells > 0
+                        ? $"{unresolvedCells} title-block cell(s) NOT written — their template could not be " +
+                          "fully resolved for that sheet; existing values kept (details in the StingTools log).\n"
+                        : "") +
+                    "\n" +
                     $"Keys migrated: {detail}");
 
                 StingLog.Info($"TitleBlockParamMigrateCommand: migrated {migratedValues} values, " +

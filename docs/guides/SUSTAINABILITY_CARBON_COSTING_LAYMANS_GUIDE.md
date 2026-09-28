@@ -676,6 +676,17 @@ Then re-run and watch the hotspots and the kgCO₂e/m² fall.
 (STINGTOOLS reports A1–A3 product-stage upfront carbon; A4 transport-to-site and A5
 construction are smaller and project-specific.)
 
+The whole-life stage tracker (A1–C4) only fills a stage it has an input for, and says in
+its report how many elements each stage covers. A stage with no input is left blank, not 0:
+
+| Stage | Input it needs |
+|---|---|
+| A4 transport to site | element mass (`ASS_WEIGHT_KG`, or volume × material density) and the project setting `CARBON_A4_DISTANCE_KM` |
+| A5 construction | `CST_INSTALL_HRS` |
+| B6 operational (per year) | `ELC_ENERGY_KWH_PA` on electrical and mechanical equipment and luminaires |
+| C1 deconstruction | the element's computed volume |
+| C2–C4 end of life | element mass; C2 distance is `CARBON_C2_DISTANCE_KM` (default 50 km) |
+
 ### 5.8 Common pitfalls (and what the warnings are telling you)
 
 | Symptom | Cause | Fix |

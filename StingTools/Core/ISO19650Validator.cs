@@ -40,7 +40,11 @@ namespace StingTools.Core
             // ISO19650DISC-1: "Z" (General / multi-disciplinary) is what the twelve
             // generic categories now use. "G" stays valid -- it is a real BS EN ISO
             // 19650-2 code (GIS / Land Surveyor), it was simply the wrong one for them.
-            "M", "E", "P", "A", "S", "FP", "LV", "G", "Z"
+            "M", "E", "P", "A", "S", "FP", "LV", "G", "Z",
+            // Healthcare pack: Healthcare, Medical Gas, Radiation Protection. Accepted where
+            // they belong (CategoryTokenDefaults.DiscAccepted); the tagger itself writes the
+            // category / system discipline.
+            "H", "MG", "RP"
         };
 
         /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001). Cached to avoid per-access allocation.</summary>
@@ -72,7 +76,8 @@ namespace StingTools.Core
         /// <summary>ISO 19650 fallback SYS codes used when no project-specific config is loaded.</summary>
         private static readonly HashSet<string> _fallbackSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
+            "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "MGS", "FP", "LV", "LPS", "HV", "BMS", "RAD",
+            "CHW", "CDW", "REF", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "CMP", "POL", "LBW", "IRR", "FOL", "STM", "CON", "CHE",
             "FLS", "COM", "ICT", "NCL", "SEC",
             "ARC", "STR", "GEN"
         };
@@ -109,6 +114,38 @@ namespace StingTools.Core
         };
 
         /// <summary>
+        /// FUNC codes produced by the family-aware SUB-FUNCTION resolvers rather
+        /// than by <c>FuncMap</c>.
+        ///
+        /// <para>These never appear in FuncMap at all: FuncMap answers "what is
+        /// this SYSTEM's default function", while these are refinements read off
+        /// the element - a duct's airflow direction, an LPS component's role, a
+        /// drainage run being a vent. A validator built only from FuncMap rejects
+        /// every one of them.</para>
+        ///
+        /// <para>Kept beside the fallback list, and covered by a test that scans
+        /// the resolvers for the literals they return, so a new sub-function
+        /// cannot be added in code without appearing here.</para>
+        /// </summary>
+        internal static readonly HashSet<string> SubFunctionCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            // HVAC airflow direction - GetHvacSubFunction / HvacDirectionFromName
+            "SUP", "RTN", "EXH", "FRA",
+            // Wet services - GetHwsSubFunction / drainage
+            "HTG", "DHW", "VNT",
+            // Lightning protection - ResolveLpsFunc
+            "AT", "DC", "EE", "BOND", "SPD", "TC",
+            // Medical gas - GetMgsSubFunction: the MGS_GAS_TYPE_TXT vocabulary
+            // (MedicalGasFixtures.GasCodes)
+            "O2", "MA4", "MA7", "N2O", "N2", "CO2", "HE", "VAC", "AGS",
+            // High voltage, BMS, radiation protection - SystemNameClassifier.FunctionFromName
+            "TRF", "SNS", "CTL", "FCT", "MON", "SHD", "ZNE",
+            // Chilled / condenser water direction, refrigerant line - FlowDirection /
+            // RefrigerantFunction; LV lighting, emergency lighting, small power - LvFunction
+            "LIQ", "SUC", "HGS", "LTG", "EMG", "SML",
+        };
+
+        /// <summary>
         /// BUG-06: Valid FUNC codes derived from TagConfig.FuncMap keys when available,
         /// so project-specific codes added via project_config.json are accepted.
         /// Falls back to ISO 19650 standard codes when FuncMap is empty.
@@ -122,7 +159,26 @@ namespace StingTools.Core
                 if (TagConfig.FuncMap == null || TagConfig.FuncMap.Count == 0) return _fallbackFuncCodes;
                 var cached = _cachedValidFuncCodes;
                 if (cached != null) return cached;
-                var set = new HashSet<string>(TagConfig.FuncMap.Keys, StringComparer.OrdinalIgnoreCase);
+
+                // FuncMap is SYS -> FUNC, so the FUNC vocabulary is its VALUES.
+                //
+                // This read Keys. The keys are SYSTEM codes, so the validator was
+                // checking FUNC tokens against the wrong vocabulary in every
+                // project that has a FuncMap - which is every project, because the
+                // built-in defaults populate it. Measured 2026-09-24: 14 codes the
+                // resolvers legitimately emit were rejected, SUP among them - the
+                // most common FUNC code there is - while ARC, HVAC, HWS and LV
+                // were accepted as functions although they are systems.
+                //
+                // The fallback list below was right all along, which is why this
+                // survived: it is correct exactly when FuncMap is empty, and that
+                // is the one case that never happens.
+                var set = new HashSet<string>(TagConfig.FuncMap.Values, StringComparer.OrdinalIgnoreCase);
+
+                // Sub-functions are read off the element, not from FuncMap, so
+                // they have to be added or every one of them fails validation.
+                foreach (string c in SubFunctionCodes) set.Add(c);
+
                 if (CustomFuncCodes.Count > 0) foreach (string c in CustomFuncCodes) set.Add(c);
                 _cachedValidFuncCodes = set;
                 return set;
@@ -268,13 +324,17 @@ namespace StingTools.Core
             }
             else if (tokenName == ParamRegistry.SEQ)
             {
-                if (!int.TryParse(value, out int seqVal))
-                    return $"SEQ '{value}' is not a valid number";
-                if (seqVal < 0)
-                    return $"SEQ '{value}' must be a positive number";
-                int seqWidth = TagConfig.SeqPadWidth > 0 ? TagConfig.SeqPadWidth : TagConfig.NumPad;
-                if (value.Length > seqWidth + 1)
-                    return $"SEQ '{value}' exceeds {seqWidth}-digit format";
+                // The Alpha scheme numbers A, B … Z, AA — SeqAssigner.ToAlpha. Until
+                // 2026-09-27 this branch only accepted integers, so every SEQ a project
+                // on the Alpha scheme had ever been given failed validation.
+                if (TagConfig.CurrentSeqScheme == SeqScheme.Alpha)
+                {
+                    if (!value.All(c => c >= 'A' && c <= 'Z'))
+                        return $"SEQ '{value}' is not a valid alphabetic sequence (A, B … Z, AA …)";
+                    return null;
+                }
+                string seqError = SeqAssigner.ValidateNumericSeq(value, TagConfig.EffectiveSeqPad);
+                if (seqError != null) return seqError;
             }
             return null; // valid
         }
@@ -339,7 +399,7 @@ namespace StingTools.Core
                 // Apply system-aware DISC correction (e.g., M→P for plumbing pipes, M→FP for fire)
                 if (expectedDisc != null && !string.IsNullOrEmpty(sys))
                     expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
-                if (expectedDisc != null && expectedDisc != disc)
+                if (expectedDisc != null && !CategoryTokenDefaults.DiscAccepted(expectedDisc, disc, sys, catName))
                     errors.Add(new ValidationError(
                         $"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'",
                         ValidationErrorType.CrossValidation));
@@ -357,6 +417,12 @@ namespace StingTools.Core
                 // Also accept discipline-default SYS codes (ARC, STR, GEN, etc.)
                 string discForCat = TagConfig.DiscMap.TryGetValue(catName, out string dc) ? dc : "A";
                 if (sys == TagConfig.GetDiscDefaultSysCode(discForCat))
+                    sysValidForCategory = true;
+                // …and any system the element's discipline serves. Detection legitimately
+                // puts a boiler (Mechanical Equipment) on HWS, a booster set on DCW, a basin
+                // on DHW; SysMap membership alone rejected every one of those.
+                string discForSys = TagConfig.GetSystemAwareDisc(discForCat, sys, catName);
+                if (_validSysForDisc.TryGetValue(discForSys, out var sysForDisc) && sysForDisc.Contains(sys))
                     sysValidForCategory = true;
                 if (!sysValidForCategory)
                 {
@@ -420,15 +486,17 @@ namespace StingTools.Core
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Supply function should not have sanitary/plumbing products
-                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
+                // Codes are ones the resolver writes (WST / LVT / BDT, not WC / WHB / BID —
+                // those were never produced, so the checks could not fire).
+                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WST", "LVT", "URN", "SNK", "SHW", "BTH", "BDT", "MOP" } },
                 // Return function should not have electrical products
-                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SWB", "SKT", "LUM" } },
+                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SKT", "LUM" } },
                 // Lighting function should not have HVAC products
-                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHR", "BLR", "RAD", "DAM" } },
+                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHW", "BCH", "RAD", "DMP" } },
                 // Power function should not have plumbing products
-                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "PP", "PFT", "PAC", "FPP", "TRP" } },
+                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WST", "LVT", "PP", "PFT", "FPP" } },
                 // Sanitary function should not have HVAC products
-                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DAM", "CLT" } },
+                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DMP" } },
                 // Fire protection function should not have architectural products
                 { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
             };
@@ -598,9 +666,11 @@ namespace StingTools.Core
                 { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "CCTV", "ACC", "INT", "DOR", "SEC", "GEN" } },
                 { "BMS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MON", "CTL", "SNS", "FCT", "GEN" } },
                 // Medical gas systems (HTM 02-01)
-                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "N2O", "MAP", "VAC", "EVAC", "N2", "CO2", "GEN" } },
+                // The gas codes are MedicalGasFixtures.GasCodes (MGS_GAS_TYPE_TXT); "MAP" and
+                // "EVAC" were a second spelling of MA4 and AGS that nothing wrote.
+                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "MA4", "MA7", "N2O", "N2", "CO2", "HE", "VAC", "AGS", "GEN" } },
                 // Lightning protection (BS EN 62305)
-                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AIR", "DOW", "ERT", "BND", "SPD", "TST", "GEN" } },
+                { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AT", "DC", "EE", "BOND", "SPD", "TC", "GEN" } },
                 // Radiation protection (NCRP 147)
                 { "RAD",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "SHD", "ZNE", "MON", "GEN" } },
                 // Architectural / structural / general
@@ -642,13 +712,18 @@ namespace StingTools.Core
         internal static readonly Dictionary<string, HashSet<string>> _validSysForDisc =
             new Dictionary<string, HashSet<string>>
             {
-                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN" } },
-                { "E",  new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
-                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
+                // FP: fire pumps and sprinkler valve sets are modelled as Mechanical Equipment.
+                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "MGS", "RWD", "SAN", "FP", "BMS", "CHW", "CDW", "REF", "CMP", "FOL", "STM", "CON", "CHE", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "POL", "LBW", "IRR" } },
+                { "E",  new HashSet<string> { "LV", "HV", "BMS", "FLS", "SEC", "ICT", "COM", "NCL" } },
+                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS", "MGS", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "POL", "LBW", "IRR" } },
                 { "FP", new HashSet<string> { "FP", "FLS" } },
                 { "A",  new HashSet<string> { "ARC" } },
                 { "S",  new HashSet<string> { "STR" } },
                 { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
+                // Healthcare pack disciplines
+                { "MG", new HashSet<string> { "MGS" } },
+                { "RP", new HashSet<string> { "RAD" } },
+                { "H",  new HashSet<string> { "GEN", "MGS", "RAD", "NCL", "DCW", "DHW", "SAN" } },
             };
 
         /// <summary>
@@ -660,6 +735,15 @@ namespace StingTools.Core
         {
             // GEN is valid for all disciplines
             if (prod == "GEN" || prod == "SPE" || prod == "MED") return null;
+            // A code the resolver's own data assigns to this discipline is valid, whatever
+            // the hand-written list below says (Pipes → PP at DISC M, Mechanical Equipment
+            // rules → PAC / SPT / MCP, Structural Path Reinforcement → SPT).
+            try
+            {
+                var vocab = TagConfig.GetProdVocabularyByDiscipline();
+                if (vocab != null && vocab.TryGetValue(disc, out var own) && own.Contains(prod)) return null;
+            }
+            catch (Exception ex) { StingLog.Warn($"ValidateProdForDisc vocabulary: {ex.Message}"); }
             // If we don't have a mapping for this discipline, skip
             if (!ProdCodesByDisc.TryGetValue(disc, out var validProds)) return null;
             // VFD appears in both M and E — skip cross-disc check for shared codes

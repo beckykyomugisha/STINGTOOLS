@@ -335,20 +335,7 @@ namespace StingTools.Core.Placement.Matrix
         }
 
         private static void TrySetMntHgt(Element el, double valueMm)
-        {
-            try
-            {
-                var p = el?.LookupParameter("MNT_HGT_MM");
-                if (p == null || p.IsReadOnly) return;
-                switch (p.StorageType)
-                {
-                    case StorageType.Double: p.Set(valueMm * MmToFt); break;
-                    case StorageType.String: p.Set(valueMm.ToString("F1")); break;
-                    case StorageType.Integer: p.Set((int)Math.Round(valueMm)); break;
-                }
-            }
-            catch { }
-        }
+            => ParameterHelpers.SetDoubleInNamedUnit(el, "MNT_HGT_MM", valueMm); // feet for a LENGTH, invariant text otherwise
 
         // ── idempotency ledger ─────────────────────────────────────────────
         private static bool LedgerAlive(Document doc, MatrixDocument matrix, string roomUid, string colId)

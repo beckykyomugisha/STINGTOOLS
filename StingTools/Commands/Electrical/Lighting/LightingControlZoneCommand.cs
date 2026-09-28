@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -107,7 +107,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 tx.Commit();
             }
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir, $"STING_LightingControlZones_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
             WriteExcel(outPath, zones);

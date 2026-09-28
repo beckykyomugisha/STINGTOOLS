@@ -202,7 +202,7 @@ namespace StingTools.Core.Validation
                             ValidatorTag));
                     }
 
-                    string pctRaw = ParameterHelpers.GetString(el, ParamRegistry.ELC_CONDUIT_FILL_PCT);
+                    string pctRaw = ParameterHelpers.GetValueText(el, ParamRegistry.ELC_CONDUIT_FILL_PCT);
                     if (!string.IsNullOrEmpty(pctRaw) &&
                         double.TryParse(pctRaw.Trim().TrimEnd('%'),
                             NumberStyles.Any, CultureInfo.InvariantCulture, out double pct))

@@ -109,7 +109,7 @@ namespace StingTools.Commands.Electrical.Compliance
                 catch (Exception ex) { StingLog.Warn($"Clearance panel {panel.Name}: {ex.Message}"); }
             }
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Compliance", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir,
                 $"STING_WorkingClearance_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");

@@ -2,8 +2,8 @@
 //
 // Plumb_PipeSchedule    — pipe schedule grouped by system + DN.
 // Plumb_BOQ             — full plumbing BOQ via PlumbingBOQBuilder.
-// Plumb_ManholeSchedule — placeholder schedule from PLM_DRN_INV_* params.
-// Plumb_Isometric       — drafting-view stub: notes drawing-type routing.
+// Plumb_ManholeSchedule — chamber schedule: PLM_DRN_INV_* stamps, else connector inverts.
+// Plumb_Isometric       — per-system pipework isometric in a drafting view.
 // Plumb_CommPack        — generates commissioning shell file index.
 
 using System;
@@ -323,17 +323,21 @@ namespace StingTools.Commands.Plumbing
                 })
                 .ToList();
 
+            var opts = IlReportingOptions.Default;
+            double datumM = PipeInvert.DatumOffsetM(ctx.Doc, opts.Datum);
             var rows = manholes.Select(el =>
             {
-                double invIn = 0, invOut = 0, cover = 0, depth = 0;
+                // Null = unknown. A zero here used to mean "missing", but an invert
+                // below the datum is a real negative number and was thrown away.
+                double? invIn = null, invOut = null, cover = null, depth = null;
                 try
                 {
                     // Stamped invert params win when present — they're the
-                    // authoritative QS-checked values.
-                    var pIn  = el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsDouble();
-                    var pOut = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsDouble();
-                    if (pIn  != null) invIn  = pIn.Value  * 0.3048;
-                    if (pOut != null) invOut = pOut.Value * 0.3048;
+                    // authoritative QS-checked values. TEXT, metres, on the
+                    // reporting datum (see InvertMath.ToParamText); the old
+                    // AsDouble()*0.3048 read a text parameter as feet.
+                    invIn  = InvertMath.ParseMetres(el.LookupParameter(ParamRegistry.PLM_DRN_INV_US)?.AsString());
+                    invOut = InvertMath.ParseMetres(el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsString());
 
                     // When the stamps are missing (typical before
                     // Plumb_InvertLevels has been run), derive directly from
@@ -342,29 +346,23 @@ namespace StingTools.Commands.Plumbing
                     // the chamber face — highest is US, lowest is DS. This
                     // means the schedule still produces meaningful Cover /
                     // Depth even on a brand-new model.
-                    if (invIn <= 0 && invOut <= 0)
+                    if (!invIn.HasValue && !invOut.HasValue)
                     {
-                        var (cIn, cOut) = ResolveInvertsFromConnectors(el);
-                        if (invIn  <= 0) invIn  = cIn;
-                        if (invOut <= 0) invOut = cOut;
+                        var (cIn, cOut) = ResolveInvertsFromConnectors(el, datumM);
+                        invIn  = cIn;
+                        invOut = cOut;
                     }
 
-                    // Cover = chamber's host-level elevation (project zero).
-                    // Depth = Cover − lowest invert. Both internally consistent
-                    // even when the project elevation isn't mAOD-aligned.
-                    if (el.LevelId != null && el.LevelId.Value > 0)
-                    {
-                        var lvl = ctx.Doc.GetElement(el.LevelId) as Level;
-                        if (lvl != null) cover = lvl.Elevation * 0.3048;
-                    }
-                    double lowestInv = (invIn > 0 || invOut > 0)
-                        ? Math.Min(invIn  > 0 ? invIn  : double.MaxValue,
-                                   invOut > 0 ? invOut : double.MaxValue)
-                        : 0;
-                    if (cover > 0 && lowestInv > 0 && lowestInv != double.MaxValue)
-                        depth = cover - lowestInv;
+                    // Cover level = the top of the chamber family, on the same datum
+                    // as the inverts. It used to be the HOST LEVEL's elevation, which
+                    // is where the chamber is hosted, not where its cover is.
+                    var bb = el.get_BoundingBox(null);
+                    if (bb != null) cover = bb.Max.Z * 0.3048 + datumM;
+
+                    var lowest = new[] { invIn, invOut }.Where(v => v.HasValue).Select(v => v.Value).DefaultIfEmpty(double.NaN).Min();
+                    if (cover.HasValue && !double.IsNaN(lowest)) depth = cover.Value - lowest;
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"Manhole schedule {el.Id}: {ex.Message}"); }
                 return new DocsManholeRow
                 {
                     Ref     = $"{el.Id.Value} {el.Name}",
@@ -393,7 +391,7 @@ namespace StingTools.Commands.Plumbing
                 {
                     string lvl = el.LevelId == ElementId.InvalidElementId ? "" : ctx.Doc.GetElement(el.LevelId)?.Name ?? "";
                     string inv = "";
-                    try { inv = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                    try { inv = el.LookupParameter(ParamRegistry.PLM_DRN_INV_DS)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     panel.Text($"{el.Id.Value} · {el.Name} · level {lvl} · invert {inv}");
                 }
             }
@@ -424,22 +422,27 @@ namespace StingTools.Commands.Plumbing
         //
         // NOTE: Connector.Flow is a double (flow rate). Connector.Direction
         // is the FlowDirectionType enum we want here.
-        private static (double invInM, double invOutM) ResolveInvertsFromConnectors(Element el)
+        private static (double? invInM, double? invOutM) ResolveInvertsFromConnectors(Element el, double datumM)
         {
             try
             {
                 var fi = el as FamilyInstance;
                 var mgr = fi?.MEPModel?.ConnectorManager;
-                if (mgr == null) return (0, 0);
+                if (mgr == null) return (null, null);
                 var inAll = new List<double>();
                 var outAll = new List<double>();
                 var anyAll = new List<double>();
                 foreach (Connector c in mgr.Connectors)
                 {
                     if (c?.Domain != Domain.DomainPiping) continue;
-                    double radiusM = 0;
-                    try { radiusM = c.Radius * 0.3048; } catch { }
-                    double invertM = c.Origin.Z * 0.3048 - radiusM;
+                    // Bore invert at the chamber face: the CONNECTED PIPE's internal
+                    // diameter, not the connector radius (which is nominal).
+                    double? idM = ConnectedPipeInnerDiameterM(c);
+                    double? nomM = null;
+                    try { nomM = c.Radius * 2 * 0.3048; } catch (Exception ex) { StingLog.Warn($"Connector radius: {ex.Message}"); }
+                    var inv = InvertMath.Invert(c.Origin.Z * 0.3048 + datumM, idM, nomM, out _);
+                    if (!inv.HasValue) continue;
+                    double invertM = inv.Value;
                     anyAll.Add(invertM);
 
                     var dir = SafeDirection(c);
@@ -451,13 +454,32 @@ namespace StingTools.Commands.Plumbing
                     if (inferred == FlowDirectionType.In)  inAll.Add(invertM);
                     else if (inferred == FlowDirectionType.Out) outAll.Add(invertM);
                 }
-                if (anyAll.Count == 0) return (0, 0);
+                if (anyAll.Count == 0) return (null, null);
 
                 double us = inAll.Count  > 0 ? inAll.Max()  : anyAll.Max();
                 double ds = outAll.Count > 0 ? outAll.Min() : anyAll.Min();
                 return (us, ds);
             }
-            catch { return (0, 0); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Manhole connector inverts {el?.Id}: {ex.Message}");
+                return (null, null);
+            }
+        }
+
+        private static double? ConnectedPipeInnerDiameterM(Connector c)
+        {
+            try
+            {
+                foreach (Connector other in c.AllRefs)
+                {
+                    if (!(other?.Owner is Autodesk.Revit.DB.Plumbing.Pipe pipe)) continue;
+                    var p = pipe.get_Parameter(BuiltInParameter.RBS_PIPE_INNER_DIAM_PARAM);
+                    if (p != null && p.HasValue && p.AsDouble() > 0) return p.AsDouble() * 0.3048;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"Connected pipe inner diameter: {ex.Message}"); }
+            return null;
         }
 
         private static FlowDirectionType SafeDirection(Connector c)
@@ -506,7 +528,14 @@ namespace StingTools.Commands.Plumbing
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    /// <summary>
+    /// Plumb_Isometric — draws one pipework isometric per piping system into a
+    /// drafting view ("STING ISO - &lt;system&gt;") via PlumbingIsometricGenerator.
+    /// Scope: the selected pipes (plus every pipe on the systems of any selected
+    /// pipe or fixture), else every pipe visible in the active view, else the
+    /// whole model. Re-running redraws the same views.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class PlumbIsometricCommand : IExternalCommand
     {
@@ -514,19 +543,108 @@ namespace StingTools.Commands.Plumbing
         {
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
+            var doc = ctx.Doc;
+
+            string scope;
+            var pipes = CollectScope(ctx, out scope);
+            if (pipes.Count == 0)
+            {
+                TaskDialog.Show("STING Plumbing — Isometric",
+                    "No pipes found. Select pipes (or a fixture on a piping system), or open a view that shows pipework.");
+                return Result.Cancelled;
+            }
+
+            var opts = new PlumbingIsometricOptions();
+            PlumbingIsometricResult result;
+            using (var tx = new Transaction(doc, "STING Plumbing Isometric"))
+            {
+                tx.Start();
+                result = PlumbingIsometricGenerator.Generate(doc, pipes, opts);
+                if (result.Views.Count == 0)
+                {
+                    tx.RollBack();
+                    TaskDialog.Show("STING Plumbing — Isometric",
+                        "No isometric could be drawn.\n\n" + string.Join("\n", result.Warnings.Take(8)));
+                    return Result.Failed;
+                }
+                tx.Commit();
+            }
 
             var panel = StingResultPanel.Create("Plumbing Isometric");
-            panel.SetSubtitle("Routes through DrawingTypeRegistry (plumb-drainage-A1-1to100 / plumb-supply-A1-1to100)");
-            panel.AddSection("STATUS")
-                 .Metric("Drawing-type routing","Active")
-                 .Metric("Default profile",     "plumb-drainage-A1-1to100");
-            panel.AddSection("USAGE")
-                 .Text("1. Run Plumb_FullAudit to refresh PLM_ params.")
-                 .Text("2. Select pipes belonging to one system.")
-                 .Text("3. Use the SHEETS tab → Create From Template → 'plumb-drainage-A1-1to100'.")
-                 .Text("4. The SheetTemplateEngine will stamp invert levels and apply the corporate title block.");
+            panel.SetSubtitle($"{result.Views.Count} view(s) · scope: {scope} · NOT TO SCALE, fitted to {opts.FitToPaperMm:F0} mm at 1:{opts.ViewScale}");
+            panel.AddSection("SUMMARY")
+                 .Metric("Pipes considered", result.PipesConsidered.ToString())
+                 .Metric("Pipes skipped",    result.PipesSkipped.ToString())
+                 .Metric("Views drawn",      result.Views.Count.ToString());
+            panel.AddSection("VIEWS");
+            foreach (var v in result.Views)
+                panel.Text($"{v.ViewName}{(v.Reused ? " (redrawn)" : "")} — {v.PipesDrawn} pipes, " +
+                           $"{v.Risers} risers/drops, {v.Labels} labels, {v.Valves} valves, " +
+                           $"{v.Junctions} tees/crosses, {v.Terminals} fixtures labelled");
+            if (result.Warnings.Any())
+            {
+                panel.AddSection("WARNINGS");
+                foreach (var w in result.Warnings.Take(15)) panel.Text(w);
+            }
+            panel.AddSection("NEXT")
+                 .Text("Place the view on a sheet from the SHEETS tab (drawing type 'plumb-drainage-A1-1to100').")
+                 .Text("Labels show DN and, on graded runs, the fall as 1:N. Valves are bow-ties, tees and crosses dots, fixtures labelled by mark and type. Isometrics are not to scale by convention.");
             panel.Show();
+
+            OpenView(ctx, result.Views[0].ViewId);
             return Result.Succeeded;
+        }
+
+        /// <summary>Open the first drawn view. Optional convenience: the views exist either way.</summary>
+        private static void OpenView(StingCommandContext ctx, ElementId viewId)
+        {
+            try
+            {
+                if (ctx.Doc.GetElement(viewId) is View v && ctx.UIDoc != null) ctx.UIDoc.RequestViewChange(v);
+            }
+            catch (Exception ex) { StingLog.Warn($"PlumbIsometric: open view: {ex.Message}"); }
+        }
+
+        private static List<Pipe> CollectScope(StingCommandContext ctx, out string scope)
+        {
+            var doc = ctx.Doc;
+            var picked = ctx.UIDoc?.Selection?.GetElementIds()?.Select(id => doc.GetElement(id))
+                             .Where(e => e != null).ToList() ?? new List<Element>();
+            if (picked.Count > 0)
+            {
+                // A selected pipe or fixture stands for its whole system.
+                var systemIds = new HashSet<long>();
+                var direct = new Dictionary<long, Pipe>();
+                foreach (var e in picked)
+                {
+                    if (e is Pipe p)
+                    {
+                        direct[p.Id.Value] = p;
+                        if (p.MEPSystem != null) systemIds.Add(p.MEPSystem.Id.Value);
+                    }
+                    else if (e is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
+                    {
+                        foreach (Connector c in fi.MEPModel.ConnectorManager.Connectors)
+                            if (c.MEPSystem != null) systemIds.Add(c.MEPSystem.Id.Value);
+                    }
+                }
+                foreach (var p in new FilteredElementCollector(doc).OfClass(typeof(Pipe)).Cast<Pipe>())
+                    if (p.MEPSystem != null && systemIds.Contains(p.MEPSystem.Id.Value)) direct[p.Id.Value] = p;
+                if (direct.Count > 0)
+                {
+                    scope = $"selection ({systemIds.Count} system(s))";
+                    return direct.Values.ToList();
+                }
+            }
+
+            if (ctx.HasGraphicalView && !(ctx.ActiveView is ViewDrafting))
+            {
+                var inView = new FilteredElementCollector(doc, ctx.ActiveView.Id).OfClass(typeof(Pipe)).Cast<Pipe>().ToList();
+                if (inView.Count > 0) { scope = $"active view '{ctx.ActiveView.Name}'"; return inView; }
+            }
+
+            scope = "whole model";
+            return new FilteredElementCollector(doc).OfClass(typeof(Pipe)).Cast<Pipe>().ToList();
         }
     }
 

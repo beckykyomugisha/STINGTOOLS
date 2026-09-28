@@ -35,7 +35,6 @@ Elec_ArcFlashBoundary
 Elec_ArcFlashLabels
 Elec_ArcFlashSched
 Elec_AutoRoute
-Elec_BusbarModel
 Elec_CarbonRollup
 Elec_ClearOverrides
 Elec_DrawingLegend
@@ -87,7 +86,6 @@ Hvac_PressureClassAudit
 Hvac_PropagateLoads
 Hvac_PropagateRefrigToDuct
 Hvac_PublishToServer
-Hvac_PushSnapshot
 Hvac_RefnetSize
 Hvac_RefreshGrids
 Hvac_RefreshPanel

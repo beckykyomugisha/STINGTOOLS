@@ -1779,8 +1779,8 @@ ISO 19650-2 defines a strict document lifecycle. STING enforces one-way transiti
 
 **Suitability codes auto-mapped per transition**:
 - WIP → SHARED: Suitability = S3 (Suitable for review and comment)
-- SHARED → PUBLISHED: Suitability = S4 (Suitable for stage approval)
-- PUBLISHED → ARCHIVE: Suitability = S7 (Suitable for as-built/FM)
+- SHARED → PUBLISHED: Suitability = A1 (Authorised and accepted) by default; A2–A5 / B1–B6 / CR where they apply. S1–S7 are SHARED codes.
+- PUBLISHED → ARCHIVE: Suitability = AR (Archive); AB for an abandoned or superseded document.
 
 **Compliance-gated transitions** (configurable via project_config.json):
 - WIP → SHARED requires `CDE_SHARED_MIN_COMPLIANCE` (default 70%)

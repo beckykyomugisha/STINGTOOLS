@@ -168,7 +168,7 @@ Recommended line weights:
 | Primary symbol elements | 4 |
 | Cut | 5 |
 
-One VG override line in every view template then controls all seed families simultaneously. In your project's view templates, add a subcategory override for `Specialty Equipment : STING_SEED` → Projection colour = RGB(0, 128, 192), Cut colour = RGB(0, 0, 0).
+The `STING_SEED` subcategory lives under each seed's own category (Specialty Equipment, Plumbing Fixtures, Electrical Fixtures, …), so a view template needs one override line per seed category — `<Category> : STING_SEED` → Projection colour = RGB(0, 128, 192), Cut colour = RGB(0, 0, 0). The medical-gas outlet seed, for example, is a Plumbing Fixture.
 
 ---
 
@@ -784,8 +784,8 @@ When the conduit-routing engine auto-inserts a junction box, it sets this parame
 
 ## STING_SEED_MedGasOutlet
 
-**Hosting:** Face-based · **Template:** `Metric Specialty Equipment face based.rft` · **Symbol size at 1:100:** 5 mm  
-**13 type variants** — HTM 02-01 terminal units and zone control assemblies
+**Category:** Plumbing Fixtures (discipline code MG) · **Hosting:** Standalone · **Symbol size at 1:100:** 5 mm  
+**13 type variants** — HTM 02-01 terminal units and zone control assemblies. Plumbing scans (P-traps, drainage and loading units) skip these outlets — see `Core/Plumbing/MedicalGasFixtures`.
 
 ### 2D plan symbol
 - Auto-generated rectangle + 4 small circles (one per gas service) reads as a multi-service bedhead unit. Keep for `BEDHEAD_UNIT_WARD`.
@@ -820,7 +820,7 @@ Three inlet connectors (8 mm) + one outlet/vacuum connector (12 mm). In Family E
 | `TERMINAL_UNIT_HELIOX` | `TU-HX` | `TERMINAL_UNIT` | `HELIOX` | `414` |
 | `AVSU_BOX_5GAS` | `AVSU` | `AVSU` | `O2,N2O,MEDAIR,SURGAIR,VAC` | — |
 | `ALARM_PANEL_AREA` | `AP-AREA` | `ALARM_PANEL` | `O2,N2O,MEDAIR,VAC` | — |
-| `MAP_THEATRE_PANEL` | `MAP` | `THEATRE_PANEL` | `O2,N2O,MEDAIR,SURGAIR,VAC,CO2` | — |
+| `THEATRE_GAS_PANEL` | `TGP` | `THEATRE_PANEL` | `O2,N2O,MEDAIR,SURGAIR,VAC,CO2` | — |
 | `BEDHEAD_UNIT_WARD` | `BHU` | `BEDHEAD_UNIT` | `O2,MEDAIR,VAC` | — |
 | `VIE_MANIFOLD` | `VIE` | `VIE_MANIFOLD` | `O2` | `1400` |
 

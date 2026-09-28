@@ -9,6 +9,8 @@ using Autodesk.Revit.UI;
 using StingTools.Commands.Standards;
 using StingTools.Core;
 using StingTools.Core.Mep;
+using StingTools.Core.Electrical;
+using StingTools.Commands.Electrical.CableSizer;
 using StingTools.Standards;
 using StingTools.UI;
 
@@ -20,7 +22,12 @@ namespace StingTools.Commands.MepDesign
             => StingResultPanel.Create(title).SetSubtitle(subtitle);
     }
 
-    // MEP-A-01 — Cable sizing auto-apply to every circuit
+    // MEP-A-01 — Cable sizing auto-apply to every circuit.
+    //
+    // This command used to run a second, generic sizer (a fixed IEC table with THHN
+    // insulation whatever the standard) and write the result to CABLE_SIZE /
+    // ELC_CBL_SIZE_TXT, neither of which exists, so it never wrote anything. It now
+    // runs the one BS 7671 apply engine the MCP tool uses: preview, confirm, apply.
     [Transaction(TransactionMode.Manual)][Regeneration(RegenerationOption.Manual)]
     public class CableSizeApplyCommand : IExternalCommand
     {
@@ -29,111 +36,77 @@ namespace StingTools.Commands.MepDesign
             var ctx = ParameterHelpers.GetContext(cd); if (ctx == null) { message="No doc"; return Result.Failed; }
             var doc = ctx.Doc;
 
-            if (!NumericPrompt.TryAsk("MEP-A-01 Cable size apply (project-wide)",
-                new[] { "Default length (m)", "Default ambient °C", "Conduit fill" },
-                new[] { 30.0,                   30.0,                  3.0 }, out var v)) return Result.Cancelled;
-
-            int inspected = 0, sized = 0, skipped = 0;
-            var warnings = new List<string>();
-
-            using (var tx = new Transaction(doc, "STING MEP-A-01 cable size apply"))
+            string std = StingTools.Standards.ElectricalStandardId.Normalise(
+                StingElectricalCommandHandler.ActivePanel?.SelectedStandard);
+            if (std != StingTools.Standards.ElectricalStandardId.Bs7671)
             {
-                try { tx.Start(); } catch (Exception ex) { warnings.Add($"tx: {ex.Message}"); goto Done; }
-                try
-                {
-                    foreach (var el in new FilteredElementCollector(doc)
-                        .OfCategory(BuiltInCategory.OST_ElectricalCircuit).WhereElementIsNotElementType())
-                    {
-                        inspected++;
-                        try
-                        {
-                            // Read voltage + apparent current by name — RBS_ELEC_APPARENT_LOAD_A
-                            // is not a valid BuiltInParameter enum member across all Revit
-                            // versions; use LookupParameter with common display names + a
-                            // BuiltInParameter fallback for voltage.
-                            double voltageV = ReadBip(el, BuiltInParameter.RBS_ELEC_VOLTAGE);
-                            double currentA = ReadNamed(el, new[] { "Apparent Current", "Current", "Total Installed Current" });
-                            if (voltageV <= 0 || currentA <= 0) { skipped++; continue; }
-
-                            // Region-aware: BS 7671 / IEC 60364 / NEC 310 driven by the active project region.
-                            string elecStd = ProjectStandardsManager.Instance.GetStandardForDiscipline(StandardsDiscipline.Electrical);
-                            var res = StingTools.Standards.StandardsAPI.CalculateCableSize(
-                                voltageV: voltageV, currentA: currentA, lengthM: v[0],
-                                conductorType: "Copper", insulationType: "THHN",
-                                conduitFill: (int)v[2], ambientTempC: v[1], standard: elecStd);
-                            if (!res.Success || string.IsNullOrEmpty(res.SizeAWG)) { skipped++; continue; }
-
-                            var p = el.LookupParameter("CABLE_SIZE") ??
-                                    el.LookupParameter("ELC_CBL_SIZE_TXT");
-                            if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
-                            {
-                                p.Set(res.SizeAWG);
-                                sized++;
-                            }
-                            else skipped++;
-                        }
-                        catch (Exception ex2)
-                        {
-                            skipped++;
-                            warnings.Add($"circuit {el?.Id}: {ex2.Message}");
-                        }
-                    }
-                    tx.Commit();
-                }
-                catch (Exception ex)
-                {
-                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
-                    warnings.Add($"fatal: {ex.Message}");
-                }
+                TaskDialog.Show("MEP-A-01 Cable size apply",
+                    $"The Electrical panel standard is {std}. Project-wide cable sizing applies BS 7671 Appendix 4 only; " +
+                    "switch the panel to BS 7671 or size NEC circuits with the Feeder Sizer.");
+                return Result.Cancelled;
             }
-        Done:
-            var panel = MepPanel.Build("MEP-A-01 Cable size apply", "BS 7671 / IEC 60364 / NEC — whole project")
-                .AddSection("RESULT")
-                .Metric("Circuits inspected", inspected.ToString())
-                .Metric("Cables sized + written", sized.ToString())
-                .Metric("Skipped (missing V/A or param)", skipped.ToString());
-            if (warnings.Count > 0)
+
+            if (!NumericPrompt.TryAsk("MEP-A-01 Cable size apply (project-wide, BS 7671)",
+                new[] { "Ambient °C", "Voltage drop limit %" },
+                new[] { 30.0,          3.0 }, out var v)) return Result.Cancelled;
+
+            var assumptions = new CableSizeInput
             {
-                panel.AddSection("WARNINGS");
-                foreach (var w in warnings.GetRange(0, Math.Min(30, warnings.Count))) panel.Text(w);
-                if (warnings.Count > 30) panel.Text($"(+{warnings.Count - 30} more)");
+                Standard = "BS7671", Material = "Cu", Insulation = "PVC70", InstallMethod = "C",
+                CableType = StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
+                AmbientTempC = v[0], VDLimitPct = v[1],
+            };
+            var scope = CableSizingScope.Project();
+
+            CableSizingApplyResult plan;
+            try { plan = CableSizerApplyEngine.Apply(doc, scope, assumptions, dryRun: true); }
+            catch (Exception ex) { StingLog.Error("MEP-A-01 plan", ex); message = ex.Message; return Result.Failed; }
+
+            if (plan.Planned == 0)
+            {
+                ShowResult(plan, dryRun: true);
+                return Result.Succeeded;
             }
-            panel.Show();
+            var confirm = new TaskDialog("MEP-A-01 Cable size apply")
+            {
+                MainInstruction = $"Size {plan.Planned} of {plan.Inspected} power circuit(s)?",
+                MainContent = $"BS 7671 Appendix 4, Cu PVC70 method C unless a circuit records its own cable, " +
+                              $"ambient {v[0]:0.#} °C, voltage drop limit {v[1]:0.#} %. " +
+                              $"{plan.Skipped.Count} circuit(s) will be skipped (listed afterwards).",
+                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+            };
+            if (confirm.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+            CableSizingApplyResult applied;
+            try { applied = CableSizerApplyEngine.Apply(doc, scope, assumptions, dryRun: false); }
+            catch (Exception ex) { StingLog.Error("MEP-A-01 apply", ex); message = ex.Message; return Result.Failed; }
+            ShowResult(applied, dryRun: false);
             return Result.Succeeded;
         }
 
-        private static double ReadBip(Element el, BuiltInParameter bip)
+        private static void ShowResult(CableSizingApplyResult r, bool dryRun)
         {
-            try { var p = el?.get_Parameter(bip);
-                  if (p == null) return 0;
-                  if (p.StorageType == StorageType.Double) return p.AsDouble();
-                  if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                  if (p.StorageType == StorageType.String &&
-                      double.TryParse(p.AsString(),
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out double v)) return v; }
-            catch (Exception ex) { StingLog.Warn($"ReadBip: {ex.Message}"); }
-            return 0;
-        }
-
-        private static double ReadNamed(Element el, string[] names)
-        {
-            if (el == null) return 0;
-            foreach (var n in names)
+            var panel = MepPanel.Build("MEP-A-01 Cable size apply", "BS 7671 Appendix 4 — whole project")
+                .AddSection("RESULT")
+                .Metric("Circuits inspected", r.Inspected.ToString())
+                .Metric("Sized", r.Computed.ToString())
+                .Metric(dryRun ? "Would write" : "Written", (dryRun ? r.Planned : r.Written).ToString())
+                .Metric("Voltage drop not calculated", r.VdNotCalculated.ToString())
+                .Metric("Skipped", r.Skipped.Count.ToString());
+            if (!dryRun && r.NoWritesPersisted)
+                panel.Text("Sizes were computed but none could be written: the result parameters are not bound " +
+                           "to Electrical Circuits. Run Load Shared Parameters.");
+            void List(string title, List<string> items)
             {
-                try { var p = el.LookupParameter(n);
-                      if (p == null) continue;
-                      if (p.StorageType == StorageType.Double) return p.AsDouble();
-                      if (p.StorageType == StorageType.Integer) return p.AsInteger();
-                      if (p.StorageType == StorageType.String &&
-                          double.TryParse(p.AsString(),
-                            System.Globalization.NumberStyles.Any,
-                            System.Globalization.CultureInfo.InvariantCulture,
-                            out double v)) return v; }
-                catch (Exception ex) { StingLog.Warn($"ReadNamed '{n}': {ex.Message}"); }
+                if (items.Count == 0) return;
+                panel.AddSection(title);
+                foreach (var w in items.Take(30)) panel.Text(w);
+                if (items.Count > 30) panel.Text($"(+{items.Count - 30} more)");
             }
-            return 0;
+            List("ERRORS", r.Errors);
+            List("BINDING GAPS", r.RequiredBindingGaps);
+            List("SKIPPED", r.Skipped);
+            panel.Show();
         }
     }
 
@@ -394,7 +367,9 @@ namespace StingTools.Commands.MepDesign
                 foreach (var el in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_PipeCurves).WhereElementIsNotElementType())
                 {
-                    double lps = ReadBip(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM);
+                    // Same unit as the ducts above: Revit stores flow in ft³/s internally,
+                    // so the raw value mixed ~28x-too-small pipe flows into the balancer.
+                    double lps = MepUnits.ReadBuiltInFlowLs(el, BuiltInParameter.RBS_PIPE_FLOW_PARAM);
                     if (lps <= 0) continue;
                     branches.Add(($"P{el.Id}", lps, 0.2, el.Id, false));
                 }
@@ -450,7 +425,11 @@ namespace StingTools.Commands.MepDesign
                             else
                             {
                                 var p = el.get_Parameter(BuiltInParameter.RBS_PIPE_FLOW_PARAM);
-                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double) { p.Set(outcome.ActualFlowLs); written++; }
+                                if (p != null && !p.IsReadOnly && p.StorageType == StorageType.Double)
+                                {
+                                    p.Set(UnitUtils.ConvertToInternalUnits(outcome.ActualFlowLs, UnitTypeId.LitersPerSecond));
+                                    written++;
+                                }
                                 else skipped++;
                             }
                         }

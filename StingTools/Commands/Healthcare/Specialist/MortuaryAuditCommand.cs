@@ -17,7 +17,7 @@ namespace StingTools.Commands.Healthcare.Specialist
         {
             try
             {
-                var doc = commandData.Application.ActiveUIDocument.Document;
+                var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
                 int beds = 0;
                 try {
                     var p = doc.ProjectInformation.LookupParameter("PRJ_ORG_HEALTH_BEDS_INT");

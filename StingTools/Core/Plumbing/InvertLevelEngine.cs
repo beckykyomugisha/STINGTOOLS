@@ -1,13 +1,21 @@
-// InvertLevelEngine — Phase 179d invert-level + cover-depth calculator.
+// InvertLevelEngine — Phase 179d invert-level calculator.
 //
-// Distinct from `Core/Drawing/Dimensioning/DrainageInvertDimensioner.cs`
-// which only places SpotElevation annotations once invert levels exist.
-// This engine computes the levels: it walks every drainage pipe, derives
-// US/DS invert (mAOD) from the centreline geometry minus the radius, and
-// reports cover-depth violations against a configurable burial table.
+// Computes the upstream / downstream bore invert of every drainage pipe
+// through PipeInvert (the same calculation the drawing annotations use),
+// and optionally writes them to PLM_DRN_INV_US_M / PLM_DRN_INV_DS_M.
 //
-// Datum mAOD: read from PROJECT_BASE_POINT elevation; override-able by
-// callers that supply a value.
+// What changed, and why (2026-09-24):
+//   * Nominal/2 → internal radius. Pipe.Diameter is the NOMINAL size.
+//   * Endpoint 0 was assumed upstream; upstream is now the HIGHER end.
+//   * A caller-supplied "datumMaOd" was added to internal-origin Z; the datum
+//     is now IlReportingOptions (survey point by default).
+//   * The four output parameters were defined in no parameter file, so the
+//     "write-back" wrote nothing and said "N written". They are registered,
+//     and a pipe with no bound parameter is COUNTED as unwritten.
+//   * Cover depth was "-Z below the internal origin" — a placeholder that
+//     produced plausible numbers from nothing. With no ground level in the
+//     model there is no cover depth, so it is reported as unknown and the
+//     cover parameters are left blank rather than filled with an invention.
 
 using System;
 using System.Collections.Generic;
@@ -15,7 +23,6 @@ using System.Linq;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core;
-using StingTools.Core.Calc;
 
 namespace StingTools.Core.Plumbing
 {
@@ -23,20 +30,27 @@ namespace StingTools.Core.Plumbing
     {
         public ElementId PipeId    { get; set; }
         public string SystemName   { get; set; } = "";
+        /// <summary>Internal diameter in mm (nominal when no internal diameter is known — see Source).</summary>
         public int    DnMm         { get; set; }
         public double UsInvertM    { get; set; }
         public double DsInvertM    { get; set; }
-        public double CoverUsM     { get; set; }
-        public double CoverDsM     { get; set; }
-        public string CoverStatus  { get; set; } = "OK";
+        public string Gradient     { get; set; }
+        public InvertSource Source { get; set; }
+        /// <summary>Null: no ground level is modelled, so cover cannot be stated.</summary>
+        public double? CoverUsM    { get; set; }
+        public double? CoverDsM    { get; set; }
+        public string CoverStatus  { get; set; } = "UNKNOWN (no ground level)";
         public string Notes        { get; set; } = "";
     }
 
     public class InvertReport
     {
-        public double DatumMaOd       { get; set; }
+        public string DatumLabel      { get; set; } = "";
         public int PipesAnalysed      { get; set; }
         public int PipesWritten       { get; set; }
+        /// <summary>Pipes the write-back could not reach because the parameters are not bound to them.</summary>
+        public int PipesUnbound       { get; set; }
+        public int NominalFallbacks   { get; set; }
         public int CoverViolations    { get; set; }
         public List<InvertLevelRow> Rows { get; } = new List<InvertLevelRow>();
         public List<string> Warnings  { get; } = new List<string>();
@@ -44,11 +58,10 @@ namespace StingTools.Core.Plumbing
 
     public static class InvertLevelEngine
     {
-        private const double FtToM = 0.3048;
-
-        public static InvertReport Calculate(Document doc, double datumMaOd, bool writeBack)
+        public static InvertReport Calculate(Document doc, bool writeBack, IlReportingOptions opts = null)
         {
-            var r = new InvertReport { DatumMaOd = datumMaOd };
+            opts = opts ?? IlReportingOptions.Default;
+            var r = new InvertReport { DatumLabel = opts.DatumLabel };
             if (doc == null) return r;
             var pipes = new FilteredElementCollector(doc).OfClass(typeof(Pipe))
                 .Cast<Pipe>().Where(IsDrainage).ToList();
@@ -57,37 +70,43 @@ namespace StingTools.Core.Plumbing
             {
                 try
                 {
-                    var lc = p.Location as LocationCurve;
-                    if (lc?.Curve == null) continue;
-                    var s = lc.Curve.GetEndPoint(0);
-                    var e = lc.Curve.GetEndPoint(1);
-                    var radiusM = (p.Diameter * FtToM) / 2.0;
+                    var inv = PipeInvert.Compute(doc, p, opts, out var why);
+                    if (inv == null) { r.Warnings.Add($"Pipe {p.Id}: no invert — {why}."); continue; }
                     var row = new InvertLevelRow
                     {
-                        PipeId    = p.Id,
-                        SystemName= p.MEPSystem?.Name ?? "",
-                        DnMm      = (int)Math.Round(p.Diameter * FtToM * 1000.0),
-                        UsInvertM = datumMaOd + (s.Z * FtToM) - radiusM,
-                        DsInvertM = datumMaOd + (e.Z * FtToM) - radiusM,
+                        PipeId     = p.Id,
+                        SystemName = p.MEPSystem?.Name ?? "",
+                        DnMm       = (int)Math.Round(inv.InnerDiameterMm),
+                        UsInvertM  = inv.UpInvertM,
+                        DsInvertM  = inv.DownInvertM,
+                        Gradient   = inv.Gradient ?? "level",
+                        Source     = inv.Source,
+                        Notes      = inv.CrossCheckNote ?? "",
                     };
-                    row.CoverUsM = Math.Max(0.0, ApproxCoverDepth(s) - radiusM);
-                    row.CoverDsM = Math.Max(0.0, ApproxCoverDepth(e) - radiusM);
-                    row.CoverStatus = EvaluateCover(row);
-                    if (row.CoverStatus != "OK") r.CoverViolations++;
+                    if (inv.Source == InvertSource.NominalFallback) r.NominalFallbacks++;
                     r.Rows.Add(row);
                     r.PipesAnalysed++;
 
                     if (writeBack)
                     {
-                        TryWriteDouble(p, ParamRegistry.PLM_DRN_INV_US,    row.UsInvertM);
-                        TryWriteDouble(p, ParamRegistry.PLM_DRN_INV_DS,    row.DsInvertM);
-                        TryWriteDouble(p, ParamRegistry.PLM_DRN_COVER_US, row.CoverUsM);
-                        TryWriteDouble(p, ParamRegistry.PLM_DRN_COVER_DS, row.CoverDsM);
-                        r.PipesWritten++;
+                        bool us = TryWriteText(p, ParamRegistry.PLM_DRN_INV_US, InvertMath.ToParamText(row.UsInvertM));
+                        bool ds = TryWriteText(p, ParamRegistry.PLM_DRN_INV_DS, InvertMath.ToParamText(row.DsInvertM));
+                        // Cover is unknown: clear any stale value rather than leave last run's invention.
+                        TryWriteText(p, ParamRegistry.PLM_DRN_COVER_US, "");
+                        TryWriteText(p, ParamRegistry.PLM_DRN_COVER_DS, "");
+                        if (us && ds) r.PipesWritten++; else r.PipesUnbound++;
                     }
                 }
                 catch (Exception ex) { r.Warnings.Add($"Pipe {p.Id}: {ex.Message}"); }
             }
+
+            if (r.PipesUnbound > 0)
+                r.Warnings.Add($"{r.PipesUnbound} pipe(s) have no PLM_DRN_INV_US_M / _DS_M parameter bound — values not written. " +
+                               "Run Load Shared Params, then re-run.");
+            if (r.NominalFallbacks > 0)
+                r.Warnings.Add($"{r.NominalFallbacks} pipe(s) have no internal diameter; their inverts use the NOMINAL size.");
+            if (r.PipesAnalysed > 0)
+                r.Warnings.Add("Cover depth not calculated: no ground level is modelled. Cover columns are blank, not zero.");
             return r;
         }
 
@@ -99,38 +118,20 @@ namespace StingTools.Core.Plumbing
                 || s.Contains("RAINWATER");
         }
 
-        private static double ApproxCoverDepth(XYZ point)
-        {
-            // Without explicit ground level data, treat the lowest XYZ.Z in
-            // the project as ground; cover depth therefore tracks vertical
-            // distance below origin if the point is buried. Phase 179d
-            // ships this as a placeholder — overridable by callers that
-            // pass an actual ground reference (future enhancement).
-            return Math.Max(0.0, -point.Z * FtToM);
-        }
-
-        private static string EvaluateCover(InvertLevelRow row)
-        {
-            const double minHighway       = 1.20;
-            const double minSoftLandscape = 0.60;
-            // Pick the smaller of US/DS for the worst-case check.
-            double minCover = Math.Min(row.CoverUsM, row.CoverDsM);
-            if (minCover <= 0)                     return "ABOVE GRADE";
-            if (minCover < minSoftLandscape)       return "SHALLOW";
-            if (minCover < minHighway)             return "OK (soft)";
-            return "OK";
-        }
-
-        private static void TryWriteDouble(Element el, string name, double v)
+        /// <summary>True only when the value was actually written.</summary>
+        private static bool TryWriteText(Element el, string name, string v)
         {
             try
             {
                 var p = el.LookupParameter(name);
-                if (p == null || p.IsReadOnly) return;
-                if (p.StorageType == StorageType.Double) p.Set(v);
-                else if (p.StorageType == StorageType.String) p.Set(v.ToString("F3"));
+                if (p == null || p.IsReadOnly) return false;
+                // Registered as TEXT (metres, 3 dp). A project that bound a same-named
+                // number parameter is not written: metres into a Length parameter
+                // would be read back as FEET. Counted as unwritten instead.
+                if (p.StorageType == StorageType.String) return p.Set(v ?? "");
             }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"InvertLevelEngine write {name} on {el?.Id}: {ex.Message}"); }
+            return false;
         }
     }
 }

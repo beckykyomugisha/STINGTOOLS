@@ -18,7 +18,7 @@ namespace StingTools.Tags
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            var doc = commandData.Application.ActiveUIDocument.Document;
+            var doc = ParameterHelpers.GetApp(commandData).ActiveUIDocument.Document;
             int migrated = 0;
             int alreadySet = 0;
             int noStyle = 0;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -142,19 +142,19 @@ namespace StingTools.Commands.Electrical.Lighting
         {
             try
             {
-                double w = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0;
+                double w = StingTools.Core.Electrical.ElecUnits.Read(fi, BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
                 if (w > 0) return w;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try
             {
-                double w = ParseDouble(ParameterHelpers.GetString(fi, ParamRegistry.LTG_WATTAGE));
+                double w = ParseDouble(ParameterHelpers.GetValueText(fi, ParamRegistry.LTG_WATTAGE));
                 if (w > 0) return w;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return 0;
         }
-        private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;
+        private static double ParseDouble(string s) => double.TryParse(s, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out double v) ? v : 0;
 
         public static LpdLimitTable LoadLpdLimits(string standardId)
         {

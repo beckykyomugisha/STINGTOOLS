@@ -1078,7 +1078,7 @@ namespace StingTools.BIMManager
                     {
                         try
                         {
-                            string csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_Revisions.csv");
+                            string csvPath = OutputLocationHelper.GetRoutedPath(doc, "Revision", "STING_Revisions.csv");
                             var csvLines = new List<string> { "Seq,Number,Date,Clouds,Sheets,Visibility,Description" };
                             foreach (var r in rows)
                                 csvLines.Add($"{r.Seq},{r.Number},{r.Date},{r.Clouds},{r.Sheets},{r.Visibility},\"{r.Description}\"");
@@ -1290,7 +1290,7 @@ namespace StingTools.BIMManager
                         $"\"{rev.Description ?? ""}\",{issued},{vis},{numClouds},{namingValid}");
                 }
 
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_Revision_Schedule", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Revision", "STING_Revision_Schedule", ".csv");
                 File.WriteAllText(path, sb.ToString());
 
                 TaskDialog.Show("StingTools Revision Schedule",
@@ -1465,7 +1465,7 @@ namespace StingTools.BIMManager
                     }
                 }
 
-                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Revision_Diff", ".csv");
+                string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Revision", "STING_Revision_Diff", ".csv");
                 File.WriteAllText(csvPath, csvSb.ToString());
 
                 TaskDialog.Show("StingTools Revision Compare",
@@ -2206,7 +2206,7 @@ namespace StingTools.BIMManager
                 }
                 wsHist.Columns().AdjustToContents();
 
-                string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_Revision_Report", ".xlsx");
+                string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Revision", "STING_Revision_Report", ".xlsx");
                 wb.SaveAs(outputPath);
                 wb.Dispose();
 

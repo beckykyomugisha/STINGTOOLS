@@ -57,7 +57,7 @@ namespace StingTools.Commands.Placement
             var rows = CollectRows(doc);
             count = rows.Count;
 
-            string outDir = OutputLocationHelper.GetOutputPath(doc, "NogginRequirements") ?? Path.GetTempPath();
+            string outDir = OutputLocationHelper.GetRoutedPath(doc, "Schedule", "NogginRequirements") ?? Path.GetTempPath();
             Directory.CreateDirectory(outDir);
             csvPath = Path.Combine(outDir,
                 $"STING_NogginRequirements_{DateTime.Now:yyyyMMdd_HHmmss}.csv");

@@ -1,8 +1,8 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <!-- Pure-logic test project. Does NOT reference Revit API or WPF. Instead,
          links the pure-logic .cs files from the main StingTools project via
          <Compile Include>, avoiding the need for Revit DLLs on the test host.
@@ -63,6 +63,72 @@
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
+    <!-- Why a family refuses to load into a project. Revit-free half only: the
+         collectors that read a FamilyManager and a Document live in
+         Tags/SharedParamPreflight.cs. The comparison is here because every
+         defect in this area is a wrong comparison — above all equating two
+         vocabularies for one spec without equating number and integer. -->
+    <Compile Include="..\StingTools\Core\SharedParamTypeConflict.cs" Link="Core\SharedParamTypeConflict.cs" />
+    <Compile Include="..\StingTools\Tags\TagCategoryNameForms.cs" Link="Tags\TagCategoryNameForms.cs" />
+    <Compile Include="..\StingTools\Tags\TagConfigDeclarations.cs" Link="Tags\TagConfigDeclarations.cs" />
+    <Compile Include="..\StingTools\Tags\TagParamBindingAudit.cs" Link="Tags\TagParamBindingAudit.cs" />
+    <Compile Include="..\StingTools\Core\BindingProfiles.cs" Link="Core\BindingProfiles.cs" />
+    <Compile Include="..\StingTools\Core\Bs8666Label.cs" Link="Core\Bs8666Label.cs" />
+    <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
+    <!-- TAG7 / PARAM-5: a NUMBER-bound ELC_CKT_NR reads "3", not "3.00". -->
+    <Compile Include="..\StingTools\Core\Electrical\CircuitNumberText.cs" Link="Core\Electrical\CircuitNumberText.cs" />
+    <!-- ELEC-15/16: one slot-count rule (never an invented 42/24), the multi-pole
+         slot step from the schedule's numbering, and panel compaction. -->
+    <Compile Include="..\StingTools\Core\Electrical\PanelSlotRules.cs" Link="Core\Electrical\PanelSlotRules.cs" />
+    <!-- ELEC-9: which circuit a conduit run carries, decided from its endpoints.
+         The Revit graph walk (ConduitCircuitResolver.cs) is not linked. -->
+    <Compile Include="..\StingTools\Core\Electrical\CircuitEndpointChooser.cs" Link="Core\Electrical\CircuitEndpointChooser.cs" />
+    <!-- ELEC-10: SLD annotation text per kind and format, and the stamp round trip. -->
+    <Compile Include="..\StingTools\Core\SLD\SldAnnotText.cs" Link="Core\SLD\SldAnnotText.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyNameMatcher.cs" Link="Core\Electrical\EmergencyNameMatcher.cs" />
+    <!-- Dual-source check: only root emergency panels are summed (no double count). -->
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyLoadRoots.cs" Link="Core\Electrical\EmergencyLoadRoots.cs" />
+    <!-- ELEC-3/5: BS 7671 Appendix 4 cable sizing, device selection and the wire-size
+         parser, plus the resistive voltage-drop engine. Both Revit-free; the sizing
+         tests run against the SHIPPED STING_WIRE_TABLES.json so a data edit fails here. -->
+    <Compile Include="..\StingTools\Core\Electrical\Bs7671CableSizing.cs" Link="Core\Electrical\Bs7671CableSizing.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\Bs7671TableLayering.cs" Link="Core\Electrical\Bs7671TableLayering.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\CircuitVoltageDrop.cs" Link="Core\Electrical\CircuitVoltageDrop.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" Link="Commands\Electrical\VoltageDrop\VoltageDropEngine.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\FaultCurrent\WireTableSet.cs" Link="Commands\Electrical\FaultCurrent\WireTableSet.cs" />
+    <!-- ELEC-2 / -5 / -6 / -14: the Revit-free electrical arithmetic, each held to a
+         hand-worked example. FaultCurrentEngine, LoadDemandEngine and
+         BS7671ComplianceEngine delegate here so the plugin runs the tested copy. -->
+    <Compile Include="..\StingTools\Core\Electrical\Iec60909Lv.cs" Link="Core\Electrical\Iec60909Lv.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\PowerFactorCorrection.cs" Link="Core\Electrical\PowerFactorCorrection.cs" />
+    <Compile Include="..\StingTools\Core\Calc\VoltageDropSolver.cs" Link="Core\Calc\VoltageDropSolver.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Compliance\BS7671Thresholds.cs" Link="Commands\Electrical\Compliance\BS7671Thresholds.cs" />
+    <!-- ELEC-17: the one emergency keyword list the matcher reads. The shipped JSON is
+         asserted equal to the built-in fallback so the two cannot drift. -->
+    <Compile Include="..\StingTools\Core\Electrical\EmergencyKeywords.cs" Link="Core\Electrical\EmergencyKeywords.cs" />
+    <None Include="..\StingTools\Data\STING_EMERGENCY_KEYWORDS.json" Link="Data\STING_EMERGENCY_KEYWORDS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Compile Include="..\StingTools\Core\UnitSuffix.cs" Link="Core\UnitSuffix.cs" />
+    <!-- STING standard panel schedule templates: the spec model + board-role choice,
+         held against the shipped STING_PANEL_SCHEDULE_SPECS.json and rules. -->
+    <Compile Include="..\StingTools\Core\Panels\PanelTemplateSpec.cs" Link="Core\Panels\PanelTemplateSpec.cs" />
+    <Compile Include="..\StingTools\Core\Panels\PanelBoardProfile.cs" Link="Core\Panels\PanelBoardProfile.cs" />
+    <!-- PNL-2 per-circuit BS 7671 check + PNL-5 applied phase balancing (Revit-free halves). -->
+    <Compile Include="..\StingTools\Core\Electrical\CircuitComplianceRule.cs" Link="Core\Electrical\CircuitComplianceRule.cs" />
+    <Compile Include="..\StingTools\Core\Electrical\PhaseBalancer.cs" Link="Core\Electrical\PhaseBalancer.cs" />
+    <Compile Include="..\StingTools\Core\NumericTextMirrorRule.cs" Link="Core\NumericTextMirrorRule.cs" />
+    <Compile Include="..\StingTools\Core\DisplayGateRule.cs" Link="Core\DisplayGateRule.cs" />
+    <Compile Include="..\StingTools\Core\HvacDirectionFromName.cs" Link="Core\HvacDirectionFromName.cs" />
+    <Compile Include="..\StingTools\Core\TierGateScope.cs" Link="Core\TierGateScope.cs" />
+    <Compile Include="..\StingTools\Core\Content\TagLibraryPromotion.cs" Link="Core\Content\TagLibraryPromotion.cs" />
+    <Compile Include="..\StingTools\Commands\TagStudio\RevitBackupSweeper.cs" Link="Commands\TagStudio\RevitBackupSweeper.cs" />
+    <!-- Text an author left for themselves, which propagation would clone into 206
+         families. Revit-free because the risk is the FALSE positive: a real "Note:"
+         annotation flagged forever is how a gate stops meaning anything. -->
+    <Compile Include="..\StingTools\Core\AuthoringNoteMatcher.cs" Link="Core\AuthoringNoteMatcher.cs" />
     <!-- IM Phase 3 warning-snapshot codec: pure JSON + payload shaping, no Revit,
          so the server DTO contract can be asserted without a Revit host. -->
     <Compile Include="..\StingTools\Core\WarningSnapshotFormat.cs" Link="Core\WarningSnapshotFormat.cs" />
@@ -87,10 +153,22 @@
     <!-- KUT-5: the Revit-free phase classification the Division 02 rule keys on. -->
     <Compile Include="..\StingTools\Core\Classification\ElementPhaseState.cs" Link="Core\Classification\ElementPhaseState.cs" />
     <Compile Include="..\StingTools\Core\Validation\DeviceCoordination.cs" Link="Core\Validation\DeviceCoordination.cs" />
+    <!-- ELEC-1 / ELEC-4: IEEE 1584-2002 arc-flash math and the IEC 60898-1 band
+         selectivity model. Both Revit-free by design; the commands that call them are not. -->
+    <Compile Include="..\StingTools\Commands\Electrical\ArcFlash\ArcFlashEngine.cs" Link="Commands\Electrical\ArcFlash\ArcFlashEngine.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\ArcFlash\Ieee1584_2018.cs" Link="Commands\Electrical\ArcFlash\Ieee1584_2018.cs" />
+    <Compile Include="..\StingTools\Commands\Electrical\Coordination\IecMcbBands.cs" Link="Commands\Electrical\Coordination\IecMcbBands.cs" />
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
+    <Compile Include="..\StingTools\Core\TagTokenIntegrity.cs" Link="Core\TagTokenIntegrity.cs" />
+    <Compile Include="..\StingTools\Core\TaggingModels.cs" Link="Core\TaggingModels.cs" />
+    <Compile Include="..\StingTools\Core\TagCollisionMode.cs" Link="Core\TagCollisionMode.cs" />
+    <Compile Include="..\StingTools\Core\TokenBindingCoverage.cs" Link="Core\TokenBindingCoverage.cs" />
+    <Compile Include="..\StingTools\Core\LpsNameClassifier.cs" Link="Core\LpsNameClassifier.cs" />
+    <Compile Include="..\StingTools\Core\CategoryTokenDefaults.cs" Link="Core\CategoryTokenDefaults.cs" />
+    <Compile Include="..\StingTools\Core\SystemNameClassifier.cs" Link="Core\SystemNameClassifier.cs" />
     <!-- The QR payload contract. Revit-free by design so both this suite and
          the mobile parser can be held to the same corpus (tools/qr_payload_corpus.json). -->
     <Compile Include="..\StingTools\Core\StingQrPayload.cs" Link="Core\StingQrPayload.cs" />
@@ -108,6 +186,75 @@
     <Compile Include="..\StingTools\Core\Drawing\IsoLevelCode.cs" Link="Core\Drawing\IsoLevelCode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
+    <!-- Export discipline sub-folder matching (A -> A_Architectural). Revit-free. -->
+    <Compile Include="..\StingTools\Core\DisciplineFolderMatcher.cs" Link="Core\DisciplineFolderMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SuitabilityPresentation.cs" Link="Core\Drawing\SuitabilityPresentation.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationProvenance.cs" Link="Core\Drawing\AnnotationProvenance.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TagSizeVariant.cs" Link="Core\Drawing\TagSizeVariant.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TagRuleIdentity.cs" Link="Core\Drawing\TagRuleIdentity.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewFamilyTypeChoice.cs" Link="Core\Drawing\ViewFamilyTypeChoice.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\FaceChoice.cs" Link="Core\Drawing\FaceChoice.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\MaterialCalloutPlan.cs" Link="Core\Drawing\MaterialCalloutPlan.cs" />
+    <Compile Include="..\StingTools\Core\Materials\MaterialIdentityPlanner.cs" Link="Core\Materials\MaterialIdentityPlanner.cs" />
+    <Compile Include="..\StingTools\Core\KeynoteTableFormat.cs" Link="Core\KeynoteTableFormat.cs" />
+    <!-- T-5/T-6/T-7: title-block template grammar, title-block family
+         resolution, and master-seed remap. Revit-free cores of
+         TitleBlockParamApplier / TitleBlockResolver / TitleBlockFactory. -->
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockTemplate.cs" Link="Core\Drawing\TitleBlockTemplate.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockFamilyNaming.cs" Link="Core\Drawing\TitleBlockFamilyNaming.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockSeedRemap.cs" Link="Core\Drawing\TitleBlockSeedRemap.cs" />
+    <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
+         style-pack routing predicate. All three are Revit-free on purpose, so
+         the gates that keep the shipped JSON and the runner in agreement can
+         run on a plain test host. See DrawingAnnotationVocabularyTests and
+         SheetNumberPolicyTests for what each one prevents. -->
+    <!-- DrawingType / ViewStylePack / AnnotationRulePack are Revit-free POCOs
+         (verified: zero Autodesk references), so the catalogue gates can bind the
+         SHIPPED models rather than a test-local copy that could disagree. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingType.cs" Link="Core\Drawing\DrawingType.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\IsoTagText.cs" Link="Core\Drawing\IsoTagText.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TagColorSchemeNames.cs" Link="Core\Drawing\TagColorSchemeNames.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRulePack.cs" Link="Core\Drawing\AnnotationRulePack.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewStylePack.cs" Link="Core\Drawing\ViewStylePack.cs" />
+    <!-- V-11: the pack-intent-before-document-capability decision. -->
+    <Compile Include="..\StingTools\Core\Drawing\WorksetVisibilityPlan.cs" Link="Core\Drawing\WorksetVisibilityPlan.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleKinds.cs" Link="Core\Drawing\AnnotationRuleKinds.cs" />
+    <!-- The one list of STING viewport type names + legacy aliases. -->
+    <Compile Include="..\StingTools\Core\Drawing\StingViewportTypes.cs" Link="Core\Drawing\StingViewportTypes.cs" />
+    <!-- A-2: minSizeMm gate, tag leader parse, tag-depth layering. -->
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleResolution.cs" Link="Core\Drawing\AnnotationRuleResolution.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\RevitCategoryTree.cs" Link="Core\Drawing\RevitCategoryTree.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberEngine.cs" Link="Core\Drawing\SheetNumberEngine.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberTokens.cs" Link="Core\Drawing\SheetNumberTokens.cs" />
+    <Compile Include="..\StingTools\BIMManager\ExportRegisterUpsert.cs" Link="BIMManager\ExportRegisterUpsert.cs" />
+    <Compile Include="..\StingTools\BIMManager\TransmittalRecord.cs" Link="BIMManager\TransmittalRecord.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AnnotationPackLayering.cs" Link="Core\Drawing\AnnotationPackLayering.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\RuleFamilyFilter.cs" Link="Core\Drawing\RuleFamilyFilter.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\Utf8Mojibake.cs" Link="Core\Drawing\Utf8Mojibake.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\InvertMath.cs" Link="Core\Plumbing\InvertMath.cs" />
+    <!-- D-7: the purpose -> view-kind table. DrawingProducer and
+         GenerateFromScopeBoxesCommand call this same file, so
+         DrawingPurposeViewKindTests exercises the code that runs in Revit. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingPurposeViewKind.cs" Link="Core\Drawing\DrawingPurposeViewKind.cs" />
+    <!-- D-4 / D-5: routing matcher + audit, and slot geometry. DrawingDispatcher
+         and DrawingTypeValidator call these same files, so
+         DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\DrawingSlotGeometry.cs" Link="Core\Drawing\DrawingSlotGeometry.cs" />
+    <!-- Scope-box planner: grammar, sizing, seed choice, tiling, saved plan and colours.
+         ScopeBoxPlannerDialog and the ScopeBox_* commands call these same files. -->
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxNames.cs" Link="Core\Drawing\ScopeBoxNames.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxSizing.cs" Link="Core\Drawing\ScopeBoxSizing.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxPlanner.cs" Link="Core\Drawing\ScopeBoxPlanner.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxStyle.cs" Link="Core\Drawing\ScopeBoxStyle.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\DrawingTypeActions.cs" Link="Core\Drawing\DrawingTypeActions.cs" />
+    <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\StingTools\Data\STING_VIEW_STYLE_PACKS.json" Link="Data\STING_VIEW_STYLE_PACKS.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <!-- KUT-6: the MEP display-unit conversion. Revit-free so the round trip - a value
          entered as CFM, stored as l/s and redisplayed - is provable without a host. -->
     <Compile Include="..\StingTools\Core\Units\FlowDisplayUnits.cs" Link="Core\Units\FlowDisplayUnits.cs" />
@@ -186,6 +333,17 @@
          document into two rows) is provable without a Revit host. -->
     <Compile Include="..\StingTools\Core\DocumentIdentity.cs" Link="Core\DocumentIdentity.cs" />
     <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />
+    <!-- ELEC-11: photometric parsers + zonal-lumen integration, and the IFC-results
+         room matcher. All Revit-free, so absolute (LED) photometry, EULUMDAT symmetry
+         and cd/klm scaling, and duplicate/ambiguous room matches are provable here. -->
+    <Compile Include="..\StingTools\Photometrics\PhotometricFile.cs" Link="Photometrics\PhotometricFile.cs" />
+    <Compile Include="..\StingTools\Photometrics\PhotometricIntegrator.cs" Link="Photometrics\PhotometricIntegrator.cs" />
+    <Compile Include="..\StingTools\Photometrics\IesParser.cs" Link="Photometrics\IesParser.cs" />
+    <Compile Include="..\StingTools\Photometrics\LdtParser.cs" Link="Photometrics\LdtParser.cs" />
+    <Compile Include="..\StingTools\IfcResults\IfcSpaceMatcher.cs" Link="IfcResults\IfcSpaceMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\MedicalGasFixtures.Rule.cs" Link="Core\Plumbing\MedicalGasFixtures.Rule.cs" />
+    <!-- ELEC-8: rdf:ID allocation for the ETAP hand-off (circuit numbers repeat per panel). -->
+    <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
   </ItemGroup>
 
 </Project>

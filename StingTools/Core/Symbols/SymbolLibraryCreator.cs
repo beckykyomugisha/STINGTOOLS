@@ -289,7 +289,8 @@ namespace StingTools.Core.Symbols
 
                 try
                 {
-                    string built = BuildOne(app, def, outputFolder, templateFolder, std, result);
+                    string built = BuildOne(app, def, outputFolder, templateFolder, std, result,
+                        sldSymbol: IsSldCatalogue(jsonPath));
                     if (!string.IsNullOrEmpty(built))
                     {
                         // Count the build AND load the freshly-built family into the
@@ -466,9 +467,50 @@ namespace StingTools.Core.Symbols
         // Per-symbol routing
         // ─────────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// True for the Single Line Diagram catalogues (STING_SLD_SYMBOLS*.json).
+        /// Their annotation families are the symbols SLDGenerator places and stamps.
+        /// </summary>
+        internal static bool IsSldCatalogue(string jsonPath) =>
+            !string.IsNullOrEmpty(jsonPath)
+            && Path.GetFileName(jsonPath).StartsWith("STING_SLD_SYMBOLS", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Instance TEXT parameters SLDGenerator.PlaceSymbols stamps on each placed SLD
+        /// symbol. The symbols are Generic Annotation families, and Revit will not bind a
+        /// project or shared parameter to that category (AllowsBoundParameters is false),
+        /// so the only way the stamp can land is a FAMILY parameter authored here.
+        /// </summary>
+        internal static readonly string[] SldStampFamilyParams = { "STING_VOLTAGE_TIER", "STING_FEED_TYPE" };
+
+        /// <summary>
+        /// PARAM-4 — author the SLD stamp parameters into an annotation family as
+        /// instance TEXT family parameters. Idempotent. Must run inside an open
+        /// transaction on the family document. Failures are reported per parameter.
+        /// </summary>
+        private static void AddSldStampParameters(Document fdoc, string id, SymbolCreationResult result)
+        {
+            if (fdoc == null || !fdoc.IsFamilyDocument) return;
+            var fm = fdoc.FamilyManager;
+            foreach (var name in SldStampFamilyParams)
+            {
+                try
+                {
+                    if (fm.get_Parameter(name) != null) continue;
+                    fm.AddParameter(name, GroupTypeId.IdentityData, SpecTypeId.String.Text, /* isInstance */ true);
+                }
+                catch (Exception ex)
+                {
+                    string msg = $"{id}: SLD stamp parameter '{name}' could not be added — {ex.Message}";
+                    result.Warnings.Add(msg);
+                    StingLog.Warn(msg);
+                }
+            }
+        }
+
         private static string BuildOne(Application app, SymbolDefinition def,
             string outputFolder, string templateFolder, StandardDefinition std,
-            SymbolCreationResult result)
+            SymbolCreationResult result, bool sldSymbol = false)
         {
             string templateFile = ResolveTemplateFile(def, templateFolder, result);
             if (string.IsNullOrEmpty(templateFile))
@@ -544,6 +586,10 @@ namespace StingTools.Core.Symbols
 
                     DrawGeometry(fdoc, def, std, result);
                     AddParameters(app, fdoc, def, result);
+                    // PARAM-4 — SLD symbols carry their voltage tier / feed type as
+                    // family parameters; see AddSldStampParameters.
+                    if (sldSymbol && IsAnnotationFamily(fdoc, def))
+                        AddSldStampParameters(fdoc, def.Id, result);
                     bool hasSymbolConnectors  = def.Connectors != null && def.Connectors.Count > 0;
                     bool hasVariantConnectors = def.TypeVariants != null
                         && def.TypeVariants.Exists(v => v?.Connectors != null && v.Connectors.Count > 0);
@@ -2255,6 +2301,10 @@ namespace StingTools.Core.Symbols
 
                                 componentIndex++;
                             }
+
+                            // PARAM-4 — compound symbols are placed by SLDGenerator
+                            // too, so they carry the same stamp parameters.
+                            AddSldStampParameters(compDoc, conceptId + "_compound", result);
 
                             tx.Commit();
                         }

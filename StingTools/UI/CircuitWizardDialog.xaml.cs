@@ -32,6 +32,7 @@ namespace StingTools.UI
         private readonly UIApplication _app;
         private readonly Document _doc;
         private WireTableSet _wireTables;
+        private StingTools.Core.Electrical.Bs7671Data _bsTables;
 
         public CircuitWizardDialog(UIApplication app)
         {
@@ -45,6 +46,8 @@ namespace StingTools.UI
             try
             {
                 _wireTables = WireTableSet.Load(StingToolsApp.DataPath);
+                // The document's tables, so a project wire-table override sizes the proposals.
+                _bsTables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(_doc);
                 PopulatePanels();
                 RefreshUnconnectedElements();
             }
@@ -100,7 +103,8 @@ namespace StingTools.UI
                         LoadVA = loadVA,
                         VoltageV = voltage > 0 ? voltage : 230.0,
                         RequiredPoles = poles > 0 ? poles : 1,
-                        LoadClass = CircuitWizardEngine.ClassifyLoad(family, cat)
+                        LoadClass = CircuitWizardEngine.ClassifyLoad(family, cat,
+                            StingTools.Core.Electrical.EmergencyKeywordRegistry.ForDocument(_doc))
                     };
                     var pt = (fi.Location as LocationPoint)?.Point;
                     if (pt != null) { ue.X = pt.X; ue.Y = pt.Y; ue.Z = pt.Z; }
@@ -126,7 +130,7 @@ namespace StingTools.UI
             int poles = 1;
             try
             {
-                load = fi.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_LOAD)?.AsDouble() ?? 0;
+                load = StingTools.Core.Electrical.ElecUnits.Read(fi, BuiltInParameter.RBS_ELEC_APPARENT_LOAD);
                 var cm = fi.MEPModel?.ConnectorManager;
                 if (cm != null)
                 {
@@ -148,7 +152,7 @@ namespace StingTools.UI
                 try
                 {
                     var vp = fi.get_Parameter(BuiltInParameter.RBS_ELEC_VOLTAGE);
-                    if (vp != null) voltageV = vp.AsDouble();
+                    if (vp != null) voltageV = StingTools.Core.Electrical.ElecUnits.ToSi(vp);
                 }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
@@ -172,9 +176,9 @@ namespace StingTools.UI
             try
             {
                 var proposed = CircuitWizardEngine.ProposeCircuits(
-                    UnconnectedElements, panel, pct / 100.0, standard, _wireTables);
+                    UnconnectedElements, panel, pct / 100.0, standard, _wireTables, _bsTables);
                 Proposals.Clear();
-                foreach (var p in proposed) Proposals.Add(new ProposedCircuitVm(p, standard, _wireTables));
+                foreach (var p in proposed) Proposals.Add(new ProposedCircuitVm(p, standard, _wireTables, _bsTables));
             }
             catch (Exception ex) { StingLog.Error("Propose", ex); MessageBoxAlt($"Propose failed: {ex.Message}"); }
             UpdateSummary();
@@ -216,7 +220,7 @@ namespace StingTools.UI
                 sel.Source.Elements.RemoveAt(i);
             }
             sel.Refresh();
-            Proposals.Add(new ProposedCircuitVm(newProp, "BS7671", _wireTables));
+            Proposals.Add(new ProposedCircuitVm(newProp, "BS7671", _wireTables, _bsTables));
             UpdateSummary();
             UpdateCreateButton();
         }
@@ -306,12 +310,15 @@ namespace StingTools.UI
         public ProposedCircuit Source { get; }
         private readonly string _standard;
         private readonly WireTableSet _wireTables;
+        private readonly StingTools.Core.Electrical.Bs7671Data _bsTables;
 
-        public ProposedCircuitVm(ProposedCircuit src, string standard, WireTableSet wireTables)
+        public ProposedCircuitVm(ProposedCircuit src, string standard, WireTableSet wireTables,
+            StingTools.Core.Electrical.Bs7671Data bsTables)
         {
             Source = src;
             _standard = standard;
             _wireTables = wireTables;
+            _bsTables = bsTables;
         }
         public string ProposedLabel
         {
@@ -335,7 +342,7 @@ namespace StingTools.UI
         public string ProposedCsaDisplay => $"{Source.ProposedCsaMm2:0.#}mm²";
         public void Refresh()
         {
-            CircuitWizardEngine.RecalculateCircuit(Source, _standard, _wireTables);
+            CircuitWizardEngine.RecalculateCircuit(Source, _standard, _wireTables, _bsTables);
             OnChanged(nameof(ElementsCount));
             OnChanged(nameof(TotalVADisplay));
             OnChanged(nameof(UtilDisplay));

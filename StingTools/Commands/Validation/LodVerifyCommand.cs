@@ -275,7 +275,7 @@ namespace StingTools.Commands.Validation
                         Csv(e.Category), Csv(e.Discipline),
                         e.Pass ? "PASS" : "FAIL",
                         Csv(string.Join("; ", e.Reasons))));
-                string path = OutputLocationHelper.GetOutputPath(doc, $"STING_LOD_{r.MilestoneId}_Audit.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_LOD_{r.MilestoneId}_Audit.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
                 return path;
             }

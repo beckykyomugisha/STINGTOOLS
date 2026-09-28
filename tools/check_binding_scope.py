@@ -251,12 +251,17 @@ def unbound_write_targets(targets, rows):
             if c[1].strip():
                 bound.add(c[0].strip())
 
+    # RESOLVED_BINDINGS.csv is what Load Shared Parameters, Reconcile and Dynamic
+    # Bindings actually bind from (CATEGORY_BINDINGS.csv is only the resolver's input), so
+    # a parameter with ANY category there is bound, not just the <ALL> ones.
     universal = set()
     res = os.path.join(ROOT, 'StingTools', 'Data', 'RESOLVED_BINDINGS.csv')
     if os.path.exists(res):
         for line in io.open(res, encoding='utf-8-sig'):
+            if line.startswith('#'):
+                continue
             a = line.strip().split(',', 1)
-            if len(a) == 2 and a[1].strip() == '<ALL>':
+            if len(a) == 2 and a[1].strip():
                 universal.add(a[0].strip())
 
     return sorted(t for t in targets

@@ -1,20 +1,28 @@
 # STING v4 MVP — Submission title block parameter stub for STING_TB_SUBMISSION_NEMA.rfa
-# Authority-specific submission sheet (Kampala Capital City Authority,
-# Electricity Regulatory Authority, National Environment Management
-# Authority). Author the .rfa in Revit Family Editor with the required
-# parameter set below. ShopDrawingComposer will not auto-populate these
-# unless explicitly wired in a future runner.
+# Authority-specific submission sheet (National Environment Management Authority).
+# Author the .rfa in Revit Family Editor with the required parameter set
+# below. Every name is a shared parameter in StingTools/Data/MR_PARAMETERS.txt
+# or StingTools/Data/Parameters/*.txt (take its GUID from there — see README)
+# unless marked "local:". Checked by
+# StingTools.Tags.Tests/AssemblyTitleBlockStubTests.
+#
+# The first draft named PROJECT_REF_TXT / SUBMISSION_REV_TXT /
+# SUBMISSION_DATE_TXT / APPROVED_BY_TXT / DISCIPLINE, none of which exist.
+# They map to the registry title-block parameters below; the revision
+# number and date are then kept current by TitleBlockRevisionSyncer, which
+# a bespoke name would never have received.
 
 REQUIRED PARAMETERS
-PROJECT_REF_TXT        (Text, Instance) — Project reference per submission rules
-SUBMISSION_REV_TXT     (Text, Instance) — Revision tracker
-SUBMISSION_DATE_TXT    (Text, Instance)
-APPROVED_BY_TXT        (Text, Instance)
-AUTHORITY_STAMP_AREA   (Detail Item, Instance) — Reserved space
-DISCIPLINE             (Text, Instance)
+PRJ_ORG_PROJECT_NUMBER_TXT (Text, Project Information) — project reference per submission rules; label reads the Project Information value (was PROJECT_REF_TXT)
+PRJ_TB_REVISION_NR_TXT (Text, Instance) — submission revision; synced by TitleBlockRevisionSyncer (was SUBMISSION_REV_TXT)
+PRJ_TB_REVISION_DATE_TXT (Text, Instance) — submission date; synced by TitleBlockRevisionSyncer (was SUBMISSION_DATE_TXT)
+PRJ_TB_APVD_BY_TXT     (Text, Instance) — approved by (was APPROVED_BY_TXT)
+PRJ_TB_DISCIPLINE_TXT  (Text, Instance) — discipline (was DISCIPLINE)
 ASS_SPOOL_NR_TXT       (Text, Instance)
 
 LAYOUT NOTES
 - Authority-mandated A1 / A2 sheet sizes per local rules
 - Authority logo top-left, project info top-right
 - Approval / signature block centred bottom
+- Reserve an empty AUTHORITY STAMP area (a detail item / blank region in
+  the family, not a parameter) for the authority's approval stamp

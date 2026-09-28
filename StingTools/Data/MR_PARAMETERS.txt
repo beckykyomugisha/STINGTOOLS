@@ -231,7 +231,7 @@ PARAM	d08c2c5d-577f-5861-b615-b1b427d573a7	ELC_CBL_SZ_MM	TEXT		4	1	Elc Cbl Sz Mm
 PARAM	b796eeed-e108-53b5-9bf7-deb0842cdea3	CBL_TYPE_TXT	TEXT		4	1	Elc Cbl Type Txt [ISO 19650-1:2018]	1
 PARAM	35d7f2c9-39b3-5cf3-867b-020dd1edb24d	ELC_CKT_CUR_A	NUMBER		4	1	Elc Ckt Cur A [ISO 19650-1:2018]	0
 PARAM	63f7f8ff-710d-55f5-bc17-d4e328162c81	ELC_CKT_CUR_TXT	TEXT		4	1	ELC_CKT_CUR_A display mirror [auto-generated]	1
-PARAM	6ad8ee51-59c2-551d-8b26-ad7194c50ec8	ELC_CKT_NR	NUMBER		4	1	Elc Ckt Nr [ISO 19650-1:2018]	1
+PARAM	6ad8ee51-59c2-551d-8b26-ad7194c50ec8	ELC_CKT_NR	TEXT		4	1	Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]	1
 PARAM	421483f2-ce3b-58eb-ba9b-3607c0c4f477	ELC_CKT_TXT	TEXT		4	1	ELC_CKT_NR display mirror [auto-generated]	1
 PARAM	5f76851e-27eb-43b4-b026-d3cd7c408814	ELC_CONN_TYPE_TXT	TEXT		4	1	Electrical connector type (Plug/Terminal/Bus/Lug) [ISO 19650-1:2018]	1
 PARAM	e07efc49-554a-48c1-ba03-ffd28b8abca6	ELC_CTR_SZ_TXT	TEXT		4	1	Cable tray size designation [ISO 19650-1:2018]	1
@@ -479,6 +479,10 @@ PARAM	40b3a419-f8e1-5dd8-84ea-268e43f59a88	PLM_DRN_FITTING_INLET_COUNT_NR	TEXT		
 PARAM	67f44a1a-3864-4d00-b8cf-8b2380ebb8ef	TS_FONT_SIZE_NR	NUMBER		11	1	Font size in mm [ISO 19650-1:2018]	1
 PARAM	3efc7b1a-5be1-533b-af3e-99cbd8c04af5	ELC_PNL_CKT_SOURCE_NAME_TXT	TEXT		4	1	Elc Pnl Ckt Source Name Txt [ISO 19650-1:2018]	1
 PARAM	ceb5c41a-60ee-57f5-a2c0-fea148f0862d	PLM_DRN_PPE_LENGTH_M	TEXT		6	1	Plm Drn Ppe Length M [ISO 19650-1:2018]	1
+PARAM	e8b25343-14ee-57f3-9189-040f37a8b5fc	PLM_DRN_INV_US_M	TEXT		6	1	Invert level at the upstream (higher) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]	1
+PARAM	bc8ddf77-76cf-5ef4-8421-52ab6e7016f7	PLM_DRN_INV_DS_M	TEXT		6	1	Invert level at the downstream (lower) end of a drainage pipe, m, bore invert (centreline minus internal radius) on the project IL datum [BS EN 752 / BS EN 12056-2]	1
+PARAM	d273038b-4055-506d-a005-d7237e32c4da	PLM_DRN_COVER_US_M	TEXT		6	1	Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]	1
+PARAM	2c7ae32a-fd45-5b6c-af34-cc780830e87e	PLM_DRN_COVER_DS_M	TEXT		6	1	Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]	1
 PARAM	7866511b-90b5-421a-80e7-2b6dd258c608	VT_SILHOUETTES_BOOL	YESNO		11	1	Silhouettes enabled [ISO 19650-1:2018]	1
 PARAM	c687911b-13b2-54c6-be89-3db4e44282ff	BLE_MAT_L1_THK_MM	TEXT		2	1	Ble Mat L1 Thk Mm [ISO 19650-1:2018]	1
 PARAM	1545e81b-0197-59e2-a346-ae418f64b5ad	PROP_TENS_STRENGTH_MPA	TEXT		14	1	Prop Tens Strength Mpa [ISO 19650-1:2018]	1
@@ -1837,6 +1841,9 @@ PARAM	0ffc672b-ae54-51b6-a57b-d165521acfc3	BLE_DOOR_ACOUSTIC_STC_NR	TEXT		10	1	B
 PARAM	affb9e38-e1db-5a54-ab28-0dc494c3776a	BLE_DOOR_CLOSER_TXT	TEXT		10	1	Ble Door Closer [ISO 19650]	1
 PARAM	acbffcf6-2553-519d-91d9-3bc9264c8304	BLE_DOOR_GLAZING_BOOL	YESNO		10	1	Ble Door Glazing [ISO 19650]	1
 PARAM	4bb218e5-fa70-5af6-90c6-000a98b16a75	BLE_DOOR_GLAZING_TXT	TEXT		10	1	BLE_DOOR_GLAZING_BOOL display mirror [auto-generated]	1
+PARAM	bf649bd0-8803-5b07-89f4-8daf10d8f0f6	BLE_DOOR_OPENING_FORCE_N	TEXT		10	1	Door opening force at the leading edge, N; accessible limit 30 N from 0 to 30 degrees open and 22.5 N from 30 to 60 degrees [Approved Document M Vol 2 / BS 8300-2:2018]	1
+PARAM	2c404fa6-b02f-5f05-a1cf-4f6f599f942d	BLE_DOOR_LEADING_EDGE_CLEAR_MM	TEXT		10	1	Unobstructed space beside the leading edge of the door on the pull side, mm; minimum 300 mm [Approved Document M Vol 2 / BS 8300-2:2018]	1
+PARAM	6a6bbe4c-a3f2-5eff-93d7-4cb5b8345d0a	BLE_DOOR_VISION_PANEL_ZONE_BOOL	YESNO		10	1	Vision panel gives a zone of visibility from 500 mm to 1500 mm above finished floor level (may be interrupted between 800 mm and 1150 mm) [Approved Document M Vol 2 / BS 8300-2:2018]	1
 PARAM	da0a0762-c687-5c51-997b-a4138428383c	BLE_FLOOR_LOAD_KN_M2	NUMBER		10	1	Ble Floor Load Kn M2 [ISO 19650]	1
 PARAM	e2feb9ec-bd57-503c-9741-951f1711241c	BLE_FLOOR_LOAD_TXT	TEXT		10	1	BLE_FLOOR_LOAD_KN_M2 display mirror [auto-generated]	1
 PARAM	bc4a861d-6534-5931-a6a0-b5f3b54c6e56	BLE_FLOOR_SLIP_RESISTANCE_TXT	TEXT		10	1	Ble Floor Slip Resistance [ISO 19650]	1
@@ -2640,6 +2647,7 @@ PARAM	d63919e8-7cf5-5202-bd59-1dc03554fee4	PRJ_TB_DELIVERABLE_DATADROP_TXT	TEXT	
 PARAM	5fea853a-6ed7-505e-a677-50fb83f435b0	PRJ_TB_DELIVERABLE_STATUS_TXT	TEXT		13	1	Current deliverable lifecycle status (WIP / Shared / Published / Archive) [ISO 19650-2:2018]	0
 PARAM	525f8b24-26eb-52ae-8760-c6aa1621815a	PRJ_TB_DELIVERABLE_DUE_TXT	TEXT		13	1	Due date for this deliverable in the project programme (ISO 8601) [ISO 19650-2:2018]	0
 PARAM	0d917e49-c6f6-5951-b2b7-7a00bdb3b0df	PRJ_TB_DELIVERABLE_CDE_TXT	TEXT		13	1	CDE container or folder reference where this deliverable is stored [ISO 19650-2:2018]	0
+PARAM	4f2b28ee-4444-5a79-ac09-97c6d3c23d74	PRJ_TB_CDE_STATE_INT	INTEGER		13	1	CDE state as a number, derived from PRJ_DWG_SUITABILITY_COD_TXT and driving the title-block status band: 0 unknown, 1 WIP, 2 SHARED, 3 PUBLISHED, 4 ARCHIVED. Written by the plugin; do not edit by hand [ISO 19650-1:2018]	0
 PARAM	f30f7a36-8d82-5385-a215-ae1eec90df2b	PRJ_TB_CDE_REF_TXT	TEXT		13	1	CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. "SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]	1
 PARAM	5f2c9a71-4b63-53d8-9e07-1c8a4f62db35	PRJ_TB_CDE_REF_FORMAT_TXT	TEXT		13	1	How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. "SHARED/A/DR"), SUFFIX (suitability + revision, e.g. "S4-P01") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]	1
 PARAM	8b41d6e2-7a95-5c14-b3f8-2d60e97a1c48	PRJ_TB_SHEET_NUMBER_PATTERN_TXT	TEXT		13	1	Pattern Auto-Number Sheets builds a sheet number from. Tokens: {disc} discipline code, {lvl} level code, {seq} or {seq:D2}/{seq:D3}/{seq:D4} zero-padded sequence, {proj} project code, {orig} originator code. Default "{disc}-{seq:D3}" gives A-001. An empty token leaves no stray separator [ISO 19650-2:2018]	1
@@ -2687,7 +2695,7 @@ PARAM	d8b4a3f2-7c05-4e99-c6b2-4f7b9e3d2158	STING_NOGGIN_REQUIRED	YESNO		1	1	Phas
 PARAM	1a4353be-eaaa-5e46-95ee-b64a74667194	ASS_SPOOL_NR_TXT	TEXT		1	1	Spool or bundle number assigned by AssemblyBuilder	1
 PARAM	eacedb67-b65b-58f7-a5b7-f1b0253ac6c9	ASS_WEIGHT_KG	NUMBER		1	1	Assembly total weight in kilograms (sum of member volume x material density)	1
 PARAM	3e3624d3-c79d-5dd5-8014-46c8d273b9ea	ASS_TEST_PRESSURE_BAR	NUMBER		1	1	Hydrostatic or pneumatic test pressure for the assembly in bar	1
-PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		1	1	Fabrication location (SHOP / FIELD / VENDOR)	1
+PARAM	e420804b-d43f-593c-91b1-fd00a18aa584	ASS_FAB_LOC_TXT	TEXT		1	1	Fabrication location (WORKSHOP / SITE)	1
 PARAM	5fc70bc2-9955-583c-9d96-5b54c8f34f53	ASS_FAB_SEQ_NR	INTEGER		1	1	Fabrication sequence number within the fabrication package	1
 PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		1	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1
 PARAM	c2fc8e62-b793-517c-94c6-d2d7ae7584fe	ASS_SHIP_DATE_TXT	TEXT		1	1	ISO 8601 date when assembly was shipped to site	1
@@ -2793,6 +2801,7 @@ PARAM	a4c8ef52-5bb2-579f-9308-8a6c2177bf52	PRJ_ORG_PARTICIPANTS_TXT	TEXT		13	1	S
 PARAM	d187fdbd-f701-5334-90da-1ab6694c5034	PRJ_ORG_PHASE_TXT	TEXT		13	1	ISO 19650 project phase code (default DE) [template engine v1.1]	1
 PARAM	cef45220-b201-5c44-baed-275a0fd556a7	PRJ_ORG_CLASS_TXT	TEXT		13	1	ISO 19650 information class level (default 2) [template engine v1.1]	1
 PARAM	48a26ee9-211d-5525-8fbb-9f8eb1f38878	PRJ_ORG_WORKFLOW_PROFILE_TXT	TEXT		13	1	Workflow profile key (default "default") [template engine v1.1]	1
+PARAM	89828bdc-25ad-5245-bce8-3274203c34b2	PRJ_ORG_SHEET_NUMBER_POLICY_TXT	TEXT		13	1	Sheet-number policy: short / profile / iso. Blank or unrecognised = profile (each drawing type's own sheetNumberPattern verbatim; short is an alias); iso = ISO 19650-2 numbering derived from the type's isoNaming [SheetNumberPolicy]	1
 PARAM	e669eea3-d1fa-51b7-b820-83fa21d40877	PRJ_ORG_SIGNATURE_PROVIDER_TXT	TEXT		13	1	Signature provider id (empty = signatures disabled) [template engine v1.1]	1
 PARAM	a7c93ee1-9df2-5531-b873-1df826526e82	PRJ_ORG_AI_EXTRACT_ENABLED_BOOL	YESNO		13	1	Enable AI metadata extraction from incoming PDFs (default false, v1.2) [template engine v1.1]	1
 PARAM	c6796da5-3755-5074-b19f-493318188ac8	PRJ_SHEET_BIM_MODE_TXT	TEXT		13	1	Per-sheet BIM mode marker -- "BIM" or "NONBIM" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]	1
@@ -2950,6 +2959,11 @@ PARAM	a2e7f8d9-1001-5179-9179-100000000001	ELC_ARC_FLASH_IE_CAL_CM2	TEXT		4	1	Ca
 PARAM	a2e7f8d9-1002-5179-9179-100000000002	ELC_ARC_FLASH_BOUNDARY_MM	TEXT		4	1	Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179]	1
 PARAM	a2e7f8d9-1003-5179-9179-100000000003	ELC_ARC_FLASH_PPE_CAT	TEXT		4	1	NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]	1
 PARAM	a2e7f8d9-1004-5179-9179-100000000004	ELC_ARC_FLASH_WORK_DIST_MM	TEXT		4	1	Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]	1
+PARAM	a2e7f8d9-100d-5179-9179-10000000000d	ELC_ARC_FLASH_ELECTRODE_TXT	TEXT		4	1	IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA - blank = VCB assumed and noted on the label [STING MEPG-11]	1
+PARAM	a2e7f8d9-100e-5179-9179-10000000000e	ELC_ARC_FLASH_GAP_MM	TEXT		4	1	IEEE 1584-2018 conductor gap in mm - blank = the typical gap for the equipment class, noted on the label [STING MEPG-11]	1
+PARAM	a2e7f8d9-100f-5179-9179-10000000000f	ELC_ARC_FLASH_ENCL_H_MM	TEXT		4	1	IEEE 1584-2018 enclosure height in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]	1
+PARAM	a2e7f8d9-1010-5179-9179-100000000010	ELC_ARC_FLASH_ENCL_W_MM	TEXT		4	1	IEEE 1584-2018 enclosure width in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]	1
+PARAM	a2e7f8d9-1011-5179-9179-100000000011	ELC_ARC_FLASH_ENCL_D_MM	TEXT		4	1	IEEE 1584-2018 enclosure depth in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]	1
 PARAM	a2e7f8d9-1005-5179-9179-100000000005	ELC_ARC_FLASH_LABEL_TXT	TEXT		4	1	Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]	1
 PARAM	a2e7f8d9-1006-5179-9179-100000000006	ELC_SEL_COORD_VERIFIED_BOOL	YESNO		4	1	Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]	1
 PARAM	a2e7f8d9-1007-5179-9179-100000000007	ELC_BUSBAR_CSA_MM2	TEXT		4	1	Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179]	1
@@ -3049,6 +3063,7 @@ PARAM	c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005	PLM_SENTINEL_BOOL	YESNO		6	1	Sentinel
 PARAM	c8d4f6e2-1206-4d27-8c61-0e7a3f9b7006	PLM_FLUSH_LOG_REF_TXT	TEXT		6	1	Flushing-log document reference	1
 PARAM	c8d4f6e2-1207-4d27-8c61-0e7a3f9b7007	PLM_RO_LOOP_BOOL	YESNO		6	1	Belongs to dialysis Reverse Osmosis loop	1
 PARAM	c8d4f6e2-1301-4d27-8c61-0e7a3f9b8001	FLS_COMPARTMENT_ID_TXT	TEXT		8	1	Fire compartment membership ID [HTM 05-02 / BS 9999 -- PHE]	1
+PARAM	483d4398-65df-5c70-8e10-e65097f48d61	FLS_COMPARTMENT_FR_MINS_TXT	TEXT		8	1	Fire resistance period of the compartment the room belongs to, minutes (e.g. 60 / 90 / 120) [Approved Document B / BS 9999]	1
 PARAM	c8d4f6e2-1401-4d27-8c61-0e7a3f9b9001	MNT_CAL_LAST_DT	TEXT		25	1	Last calibration date (ISO 8601) -- distinct from service date	1
 PARAM	c8d4f6e2-1402-4d27-8c61-0e7a3f9b9002	MNT_CAL_NEXT_DT	TEXT		25	1	Next calibration due (ISO 8601)	1
 PARAM	c8d4f6e2-1501-4d27-8c61-0e7a3f9ba001	PRJ_ORG_HEALTH_FACILITY_TYPE_TXT	TEXT		13	1	Healthcare facility type: Acute / Mental / Community / Rehab / Day / FM	1
@@ -3100,6 +3115,30 @@ PARAM	e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12	ELC_CDT_RUN_LENGTH_M	TEXT		4	1	Condui
 PARAM	fa1b8d54-ce6f-7f4f-bd5f-af9e6f7f8d23	ELC_CDT_CABLE_COUNT_NR	TEXT		4	1	Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)	1
 PARAM	b1c2d3e4-fd6f-8e0d-ce7e-be0f7f8e9f34	ELC_CIRCUIT_GROUP_TXT	TEXT		4	1	Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) -- circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.	1
 PARAM	c2d3e4f5-1e7f-9f1e-df8f-cf1f8f9faf45	ELC_PNL_CIRCUIT_GROUP_TXT	TEXT		4	1	Group key carried by a panel after the first BatchAssignCircuits run -- pins the panel to a single logical group so subsequent runs converge.	1
+PARAM	8a86218a-bf3b-5d85-b989-35bd860c2888	ELC_CKT_CHECK_TXT	TEXT		4	1	Per-circuit BS 7671 check written by Panel_ComplianceCheck: OK, or the failing rules (Ib>In, In>Iz, VD over limit, fault above breaking capacity) and anything not checkable.	1
+PARAM	e66e86de-f5a7-5525-81b7-5ae0f76d3889	ELC_CKT_VD_BASIS_TXT	TEXT		4	1	How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed.	1
+PARAM	826c7919-4bb2-56eb-a0df-7ec7bd852126	ELC_CBL_RATED_V_NR	NUMBER		4	1	Cable rated voltage U in volts, the higher figure of U0/U (500 for 300/500 V, 750 for 450/750 V, 1000 for 0.6/1 kV). Entered from the cable specification; the Spec validator checks it against the circuit voltage.	1
+PARAM	8785ba08-0398-5be0-ad70-a3e0b545b44b	PROJECT_REGION	TEXT		13	1	Active standards region (the Standards Region picker writes it; a sidecar JSON backs it up). Read on document open to select the region's standards and units.	1
+PARAM	6a3d0f1e-1067-59c4-958a-0bbccbdb35d5	PRJ_ORG_CURRENCY_TXT	TEXT		13	1	Project base currency as an ISO 4217 code (UGX, GBP, USD). Read by the material cost cells to normalise prices to one currency.	1
+PARAM	bc8e6c91-1c5d-5120-8d73-41936a67b070	PRJ_ORG_DISCIPLINES_TXT	TEXT		13	1	Disciplines in the project, comma-separated (ARCH, STRUCT, MECH, ELEC, PLUMB, MEP). The BIM Coordination Center shows its HVAC tab when MECH, HVAC or MEP is listed.	1
+PARAM	6302d0f2-16a2-5449-a6db-cc3e9c374609	PRJ_ORG_MAT_SIGNOFF_SUIT_TXT	TEXT		13	1	Lowest ISO 19650 suitability (S1 to S7) at which the material coverage gate requires material sign-off. Blank = S2.	1
+PARAM	878bb409-fa13-5d8f-ae92-8fdac5aa7375	PRJ_ELC_SUPPLY_VOLTAGE_TXT	TEXT		13	1	Electrical supply voltage and phases chosen in Project Setup (for example 400/230 V 3-phase). Recorded for schedules and title blocks.	1
+PARAM	b0ae4e71-3170-55ff-9c47-5e559ee12943	PLM_RECIRC_DELTA_T_K	NUMBER		6	1	Temperature difference between the hot water and the air around the recirculation pipework, K, used for the pipe heat loss. Read by the recirculation loop balancer; blank = 40 K (60 C water, 20 C air).	1
+PARAM	825bb253-9c4b-5051-bd48-8b50ebdbd40b	PLM_FIX_TYPE_TXT	TEXT		6	1	Plumbing fixture kind (WC, BASIN, SINK, SHOWER, URINAL, BIDET, BATH ...). The connector completeness check uses it to know how many connectors the fixture needs.	1
+PARAM	0427a377-ac36-52c4-b9e3-ab62433bc577	MGS_GAS_REQUIREMENT_TXT	TEXT		29	1	Medical gases a clinical room needs, comma-separated codes: O2, N2O, CO2, MA4 (medical air), MA7 (surgical air), N2, HE, VAC, AGS (scavenging). Read by Med Gas Outlet placement.	1
+PARAM	3955ebbc-36a2-5a8e-b495-f463c9d9fa8f	HVC_SYSTEM_ID_TXT	TEXT		5	1	Air system that serves this space (for example AHU-01). Block Load groups spaces by it; blank falls back to the space's HVAC zone.	1
+PARAM	949f0c78-685c-5f70-b670-fe74183f81dd	MNT_ACCESS_DIR_TXT	TEXT		9	1	Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or BOTTOM. Read by the maintenance clash check.	1
+PARAM	fd6672f7-86e9-55f8-a982-cb3f1118f151	ELC_CDT_CABLE_MANIFEST_TXT	TEXT		4	1	Cables in this conduit as csa:count pairs, comma-separated (for example 2.5:3,4:2; add /S for solid conductors). Read by the v4 conduit fill check.	1
+PARAM	10694d13-4a6e-5947-9f2f-d89e531db0c7	BLE_PLASTER_FACES_NR	INTEGER		10	1	Number of wall faces plastered, 0 to 2. The compound take-off prices plaster on this many faces; blank = 2.	1
+PARAM	a4c24cde-c13c-542e-9466-5a5c46beb012	ELC_CONDUIT_HOME_RUN_BOOL	YESNO		4	1	Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.	1
+PARAM	c23051bf-7a76-5efd-af42-ff63591b8876	ELC_CONDUIT_HOME_RUN_END_TXT	TEXT		4	1	Which end of this home-run conduit is at the panel: Start or End. Blank = the end with the lower X coordinate.	1
+PARAM	b6736d72-348c-5d2c-ba37-cb24318e8bb9	ELC_EARTHING_SYSTEM_TXT	TEXT		4	1	Project earthing arrangement per BS 7671 Part 3 (TN-S / TN-C-S / TT / IT); read by the earthing diagram generator.	1
+PARAM	a5779e7d-b5f0-5834-8b67-44e2dc3fa772	ELC_MET_LOCATION_TXT	TEXT		4	1	Location of the main earthing terminal (MET), shown on the earthing diagram.	1
+PARAM	8ee0c7be-eac8-5988-b414-5f80590fecbf	ELC_CABLE_CSA_MM2_TXT	TEXT		4	1	Circuit cable conductor CSA in mm2 as imported from Amtech / Trimble; read by SLD cable annotation and the calc-seed export.	1
+PARAM	05d4605b-fdc0-5f96-b092-cd07ea5c6662	ELC_CIRCUIT_PHASE_TXT	TEXT		4	1	Phase letter(s) of this circuit (L1 / L2 / L3 or A / B / C); drives the circuit-by-phase view filter.	1
+PARAM	5fdceb0b-7953-544f-beb5-7d8f12f31334	ELC_CIRCUIT_DESC_TXT	TEXT		4	1	Circuit description shown on the panel door diagram and exported by the calc-seed export.	1
+PARAM	22ee1ae1-d559-5f7c-924f-b4eaefe77077	ELC_CBL_TOTAL_AREA_MM2	NUMBER		4	1	Sum of the overall cross-sectional areas (mm2) of every cable in this conduit or tray; input to live fill % and conduit auto-size.	1
+PARAM	139d87fd-60d1-57e8-959e-d7e4e966339c	STING_BUS_VOLTAGE_TIER	TEXT		27	1	Dominant voltage tier (LV / MV / HV) of the single line diagram drawn in this drafting view; written by SLD Generate.	1
 PARAM	d4e5f607-2f80-af2f-e1a0-d020909fc056	STING_WALL_ROUTING_FLAG	TEXT		34	1	When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB.	1
 PARAM	e5f60718-3091-b03f-f2b1-e131a1a01067	STING_SLAB_ROUTING_FLAG	TEXT		34	1	Slab counterpart of STING_WALL_ROUTING_FLAG. ALLOW lets a vertical drop pass through this floor (slab penetration). DENY treats the slab as a hard obstacle.	1
 PARAM	f6071829-41a2-c150-038c-f242b2b12178	STING_PENETRATION_REF_TXT	TEXT		34	1	Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.	1
@@ -3423,7 +3462,7 @@ PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b61	HVC_PEAK_SENS_W	NUMBER		5	1	Per-space
 PARAM	4b1bf255-0644-508e-b482-5d73845bef11	HVC_PEAK_SENS_TXT	TEXT		5	1	HVC_PEAK_SENS_W display mirror [auto-generated]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b62	HVC_PEAK_LAT_W	NUMBER		5	1	Per-space peak latent load in W from BlockLoadEngine [Phase 187]	1
 PARAM	7e6aaa65-e119-5704-a804-9ef2e193566c	HVC_PEAK_LAT_TXT	TEXT		5	1	HVC_PEAK_LAT_W display mirror [auto-generated]	1
-PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	NUMBER		5	1	Hour-of-day (HH:00) of the per-space peak from BlockLoadEngine [Phase 187]	1
+PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b63	HVC_PEAK_HOUR	NUMBER		5	1	Hour of day of the per-space peak from BlockLoadEngine as a whole number 0-23 (14 = 14:00) [Phase 187]	1
 PARAM	aeb9e0a7-ff68-5371-b5dc-5af20e5ea79c	HVC_PEAK_HOUR_TXT	TEXT		5	1	HVC_PEAK_HOUR display mirror [auto-generated]	1
 PARAM	4c2a9e11-3d5b-4a7e-b8c0-1d2e3f4a5b64	HVC_OA_LS	NUMBER		5	1	Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]	1
 PARAM	3212ebe9-0023-5974-ac25-350b7c154756	HVC_OA_TXT	TEXT		5	1	HVC_OA_LS display mirror [auto-generated]	1
@@ -3699,3 +3738,26 @@ PARAM	a1b2c3d4-5062-4a01-b001-000000000198	BLE_ROOM_FINISH_FLOOR_COD_TXT	TEXT		2
 PARAM	a1b2c3d4-5063-4a01-b001-000000000199	BLE_ROOM_FINISH_WALL_COD_TXT	TEXT		2	1	Room wall finish code (e.g. WL-01) - joins STING_FINISH_CODES.csv to a BLE_MATERIALS MAT_CODE	1	0
 PARAM	5e4ca8e4-f098-57f8-8829-7fb8353f9536	STING_FINISH_SRC_ROOM_ID_TXT	TEXT		38	1	Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]	1	0
 PARAM	c914565f-e02b-5c67-b9b6-c086cc17d2cf	STING_FINISH_CODE_TXT	TEXT		38	1	Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]	1	0
+PARAM	643d5eef-c151-56f9-8e45-5a951d1b186d	STR_REBAR_MEMBER_REF_TXT	TEXT		16	1	Member the bars belong to [BS 8666 col. 1]	1
+PARAM	9cdc79da-1e9a-58cd-9988-3e7356f4e277	STR_REBAR_NO_OF_MBRS_NR	INTEGER		16	1	Number of members [BS 8666 col. 4]	1
+PARAM	2e94bbc1-9779-53e8-9297-2ec4bcd5cc74	STR_REBAR_BARS_IN_EACH_NR	INTEGER		16	1	Number of bars in each member [BS 8666 col. 5]	1
+PARAM	b277dba4-d73d-5dad-a9d6-e2390af6c594	STR_REBAR_TOTAL_NO_NR	INTEGER		16	1	Total number of bars [BS 8666 col. 6]	1
+PARAM	f5cb5464-7e2b-59c3-b4cb-edb46eeb8e1c	STR_REBAR_CUT_LENGTH_MM	TEXT		16	1	Cutting length of each bar (mm) [BS 8666 col. 7]	1
+PARAM	e8ecbf30-6044-56bd-bede-b893a4bd4ee0	STR_REBAR_DIM_A_MM	TEXT		16	1	Bending dimension A (mm) [BS 8666 shape code]	1
+PARAM	f060428e-308e-5d1a-909b-5b8267408ef5	STR_REBAR_DIM_B_MM	TEXT		16	1	Bending dimension B (mm) [BS 8666 shape code]	1
+PARAM	9de7bc78-31d1-5520-8391-693ca5c3f71d	STR_REBAR_DIM_C_MM	TEXT		16	1	Bending dimension C (mm) [BS 8666 shape code]	1
+PARAM	7a4a0e1e-e909-5577-b137-28f04683feaa	STR_REBAR_DIM_D_MM	TEXT		16	1	Bending dimension D (mm) [BS 8666 shape code]	1
+PARAM	324969fd-cdf8-544b-b834-3aee08721cfa	STR_REBAR_DIM_E_MM	TEXT		16	1	Bending dimension E (mm) [BS 8666 shape code]	1
+PARAM	faaa3709-5c7f-5d6e-a1ed-a9a4155c59e6	STR_REBAR_BEND_RADIUS_MM	TEXT		16	1	Scheduling radius R (mm) [BS 8666 Table 2]	1
+PARAM	43f56f0f-61bd-58d0-83ef-9b782ab05a95	BI_ACCENT_COLOR_TXT	TEXT		11	1	Accent colour RGB [ISO 19650-1:2018]	1
+PARAM	a07310e6-24ec-5507-a7c2-4b8e9b85b74c	BI_THEME_NAME_TXT	TEXT		11	1	Brand theme name [ISO 19650-1:2018]	1
+PARAM	67cd15ac-ff99-5877-9273-a549fbbf6a68	ELC_PNL_ENCLOSURE_TXT	TEXT		4	1	Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Panel_WriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code.	1
+PARAM	d1a9b4fa-71a1-56e9-b8b5-32e205658092	ELC_PNL_FAULT_LG_KA	NUMBER		4	1	Prospective line-to-ground (earth) fault current at this board in kA, as imported from an EasyPower study (EasyPower Import).	1
+PARAM	8a271d62-6dba-55cb-98b7-01a766d49a6e	ELC_IPS_LIM_BOOL	YESNO		4	1	A Line Isolation Monitor is installed on this isolated power system board (NFPA 99 7.2.2.3.3 / IEC 60364-7-710 insulation monitoring); read first by IPS Validation.	1
+PARAM	cb11870c-ae72-55be-9c8b-ff05d27583c7	ELC_FEED_TYPE_TXT	TEXT		4	1	Supply this board is fed from: Normal / Emergency / Both. Read by Dual-Source Validation and the SLD generator to find emergency boards and dual-fed nodes.	1
+PARAM	8caf65dc-924d-5209-8e01-01f4832f5d6a	ATEX_ZONE_TXT	TEXT		4	1	Hazardous-area zone the equipment is installed in (Zone 0 / 1 / 2 for gas, 20 / 21 / 22 for dust) per IEC 60079-10; read by ATEX Classification.	1
+PARAM	5a2ae125-37db-5ff1-bb2a-bc0f1ed0433d	ATEX_EX_RATING_TXT	TEXT		4	1	Equipment Ex marking (e.g. Ex d IIC T4 Gb) checked against ATEX_ZONE_TXT by ATEX Classification.	1
+PARAM	2a39e7c7-e3f0-56e3-8a19-bbeb95cbfc0c	MGS_SUPPLY_TYPE_TXT	TEXT		29	1	Marks this element as a medical gas supply source and says which (VIE / Manifold / Compressor / Vacuum Plant / Cylinder); read by the MGPS schematic.	1
+PARAM	4fca49b1-69c3-542d-970c-a0bf8af48f77	MGS_ZV_ZONE_TXT	TEXT		29	1	Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.	1
+PARAM	8b7af0ba-88a7-5808-9082-0eb2ef6a58cc	HVC_SPACE_TYPE_TXT	TEXT		5	1	Load-profile space type id (STING_LOAD_PROFILES.json, e.g. Office) for this space or room; read by Block Load, the cross-talk audit and the ComCheck export before falling back to a name match.	1
+PARAM	9ad27194-1950-5205-bb3e-8d9ff117db9f	PRJ_BUILDING_USE_TXT	TEXT		13	1	Declared building use / sector (Office / Healthcare / Education / Residential ...); read by ProjectSector for spare-capacity targets and by the sustainability engine.	1

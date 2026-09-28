@@ -72,7 +72,7 @@ namespace StingTools.Commands.Validation
             {
                 Title = "Select the Owner program template (Excel)",
                 Filter = "Excel Files (*.xlsx)|*.xlsx",
-                InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc)
+                InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance")
             };
             if (dlg.ShowDialog() != true) return Result.Cancelled;
 
@@ -211,8 +211,7 @@ namespace StingTools.Commands.Validation
         {
             try
             {
-                string path = OutputLocationHelper.GetOutputPath(doc,
-                    $"STING_ProgramAudit_{DateTime.Now:yyyyMMdd}.xlsx");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Compliance", $"STING_ProgramAudit_{DateTime.Now:yyyyMMdd}.xlsx");
                 using var wb = new XLWorkbook();
                 var ws = wb.AddWorksheet("Program Audit");
                 string[] headers = { "Status", "Room Number", "Room Name", "Building",

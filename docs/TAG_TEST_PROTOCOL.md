@@ -1,4 +1,4 @@
-# Tag / Room Test Protocol — Phases 287–294
+# Tag / Room Test Protocol — Phases 287–295
 
 Ten tests that can only be answered inside Revit, in the order they must be run, plus
 **section U** — the manual universal-tag build, which is the critical path and the one thing
@@ -15,10 +15,24 @@ the method, the ROADMAP is the state.
 
 ### 0.1 What must be deployed
 
+> **Updated 2026-09-28: every test here now runs on one build.** Until then this section
+> warned that the live DLL held only the Phase 295 branch (#967) and that T1–T10 needed
+> #966. Both are merged into `main`, so a build of `main` carries `MigrateBindingScope`,
+> `AuditBindingScope`, `SpatialCompat` and the Phase 295 `NOT WRITTEN` / `TOKEN BINDINGS`
+> reports together. Nothing is blocked any more.
+>
+> One behaviour differs from what #967 originally described, because the merge kept
+> `main`'s rule: a tag is always composed from what the element **holds**. When a token
+> parameter does not take its write (type-bound, or not bound to the category), the element
+> is **not tagged** that run: it is listed under `NOT WRITTEN` with the parameter and the
+> category, its SEQ number is released, and any existing tag is left as it was. The tag
+> never shows a value the parameter does not hold. T6 and T11 below are written to that.
+
 | | |
 |---|---|
-| Live manifest target | `C:\Dev\wt-sting-live\CompiledPlugin\StingTools.dll` |
-| Must be built from | `114e38244` (merge of #965) or later |
+| Build from | `main`, at or after the commit that merged #966 |
+| Deploy | run `deploy.bat` from that checkout, then restart Revit |
+| Log file | `StingTools_yyyyMMdd.log`, next to the DLL the manifest names |
 
 Confirm the target has not moved — it has moved five times in two days before now, and
 building the right code into the wrong folder **succeeds silently**:
@@ -276,36 +290,49 @@ binder when it RUNS; a project bound earlier keeps its old scope. Re-bind first.
 
 ### Pass / fail
 
+Phase 295 reconciles the read-back against what was derived, and the merged build composes
+the tag only from values the element **holds**. On a model where `ASS_SEQ_NUM_TXT` is still
+type-bound, the SEQ write fails, the element is **not tagged**, and the report lists it
+under `NOT WRITTEN`. So the tag and the parameter now agree by construction, and both are
+valid checks.
+
 | Read | Pass | Fail |
 |---|---|---|
-| `ASS_SEQ_NUM_TXT` | greyed → **not** greyed | still greyed → re-bind did not apply |
-| its value | `0215`-style | `-215` → separator glued to the serial, the old artifact |
-| `ASS_TAG_1_TXT` | ends `…-DR-0215` | ends `…-DR-` → SEQ still not written |
+| `ASS_SEQ_NUM_TXT` greyed? | **not** greyed | still greyed → re-bind did not apply |
+| `ASS_SEQ_NUM_TXT` **value** | `0215`-style, and **differs between two doors of one type** | blank, or identical across two doors of one type → still type-scoped |
+| Auto Tag report | **no** `NOT WRITTEN` block | a `NOT WRITTEN` block naming `ASS_SEQ_NUM_TXT` (the doors were refused, not tagged) |
+| `ASS_TAG_1_TXT` | ends `…-DR-0215`, and its SEQ equals `ASS_SEQ_NUM_TXT` | ends `…-DR-` → **regression**: the blank-segment guard should refuse it; or a SEQ that differs from the parameter → **regression** |
 | `ASS_TAG_6_TXT` | no leading separator | `- BLD1` → same disease, different container |
 
-**Two doors of the same type must get different SEQ values.** That is the whole point of
-the Instance binding, and it is the one check that proves the fix rather than the symptom.
+The `NOT WRITTEN` block is the cheapest signal to read: it names the parameter **and** the
+category.
 
-- [ ] not greyed · [ ] SEQ in tag · [ ] two doors differ
+- [ ] not greyed · [ ] two doors differ **in the parameter** · [ ] tag SEQ = parameter · [ ] no NOT WRITTEN block
 
 ---
 
-## T7 · Material suffix survives — `TAGPROD-1`
+## T7 · Material suffix stays out of the tag — `TAGPROD-1`
 
 `FSP-CON` and `DR-GLZ` were truncated to `FSP` / `DR` on every write because `-` is the tag
-separator. No material suffix has ever reached a tag.
+separator. #966 fixed that by joining the suffix with `_`; `main` had already fixed it the
+other way, and the merge kept main's: the material suffix is **not part of the PROD token**
+(`TagConfig.GetFamilyAwareProdCode`). It is used for type marks only
+(`TagConfig.GetProdCodeWithMaterial` → `TypeMarkSequencer`), where it cannot become an extra
+tag segment.
 
 1. Tag an element whose category has a material PROD override (a fire-stop, a glazed door).
-2. Read `ASS_PRODCT_COD_TXT`.
+2. Read `ASS_PRODCT_COD_TXT` and `ASS_TAG_1_TXT`.
+3. Run **Type Marks (preview)** (`TypeMark_Preview`) and read the proposed mark for that type.
 
-| Pass | Fail |
-|---|---|
-| `FSP_CON` — joined with `_`, not `-` | `FSP` → suffix still being truncated |
+| Read | Pass | Fail |
+|---|---|---|
+| `ASS_PRODCT_COD_TXT` | `FSP` / `DR` — the base code, no suffix | `FSP-CON`, `FSP_CON` or `FSP` followed by an empty segment |
+| `ASS_TAG_1_TXT` | 8 segments, PROD segment `FSP` | 9 segments → the suffix leaked into the tag |
+| Type mark preview | `FSP-CON…` / `DR-GLZ…` — the suffix appears here | no suffix → the override did not match |
 
-Confirm the log carries **no** `SetString: rejecting malformed ASS_PRODCT_COD_TXT` line. It
-is the only signal this defect ever gave.
+Confirm the log carries **no** `SetString: rejecting malformed ASS_PRODCT_COD_TXT` line.
 
-- [ ] suffix present · [ ] no malformed warning
+- [ ] PROD is the base code · [ ] suffix in the type mark · [ ] no malformed warning
 
 ---
 
@@ -396,6 +423,168 @@ If it lists spaces, `SpatialCompat.Collect` is working, and the other ten comman
 
 ---
 
+## Phase 295 · Token write integrity — T11–T15
+
+These five run against **what is deployed right now**. They need no re-bind and no special
+model; a broken-binding model is in fact the better fixture, because every one of them is
+about what happens **when a write fails**.
+
+Background in one line: FUNC and PROD cannot be derived empty — both fall back through
+`FuncMap` / `ProdMap` to the token policy — so an empty one was never a missing code. It was
+a write that failed in silence, and the pipeline then rebuilt the tag out of the blanks.
+
+---
+
+## T11 · The blank segment is gone — `ROOMTAG-1`
+
+Rooms tagged `A-BLD1-Z01-L01-ARC---`: three trailing separators, FUNC / PROD / SEQ all blank.
+The malformed-tag guard counted **separators**, and that string has exactly seven, so it
+passed as a valid eight-segment tag.
+
+### Steps
+
+1. Open the model that produced it. **TAGGING → Auto Tag** on a view containing Rooms.
+2. Read `ASS_TAG_1_TXT` on a Room.
+
+### Pass / fail
+
+| Read | Pass | Fail |
+|---|---|---|
+| Room `ASS_TAG_1_TXT` | 8 non-empty segments | still `…-ARC---` → the guard did not fire |
+| the report | a `NOT WRITTEN` block naming **Rooms** | no block **and** blank segments → still silent |
+
+A tag that is *refused* (skipped, counted) is a **pass**, not a fail — refusing to write a
+malformed identifier is the intended behaviour. Fail is a malformed tag written anyway.
+
+- [ ] no blank segments · [ ] Rooms named in NOT WRITTEN
+
+---
+
+## T12 · The report names the category — the 27
+
+The run that started this reported `27 elements (15%) missing FUNC codes — run
+FamilyStagePopulate`. That advice could not work: `FamilyStagePopulate` calls the same
+`TokenAutoPopulator.PopulateAll` the pipeline had already run, so against an unwritable
+parameter it fails identically and silently.
+
+### Steps
+
+Auto Tag the same GROUND FLOOR view. Read the **report**, not the model.
+
+### Pass / fail
+
+| Expect | Detail |
+|---|---|
+| the words `run FamilyStagePopulate` are **gone** | replaced by what to actually check |
+| a `NOT WRITTEN` block, grouped by category, worst first | |
+| each category lists the parameters that failed **under it** | |
+
+```
+NOT WRITTEN:  N element(s) whose token PARAMETER could not be written
+              Doors — 175 element(s)
+                ASS_SEQ_NUM_TXT × 175
+              Rooms — 27 element(s)
+                ASS_FUNC_TXT × 27
+                ASS_PRODCT_COD_TXT × 27
+```
+
+**This is the answer to "which categories are the 27"** — previously only obtainable by
+opening the model and inspecting by hand. Record the category names here:
+
+- [ ] categories: ______________________ · [ ] FamilyStagePopulate advice gone
+
+---
+
+## T13 · The pre-flight answers it before tagging — `BINDSCOPE-3`
+
+### Steps
+
+**TAGGING → Pre-Tag Audit** → whole model. Find the **`TOKEN BINDINGS`** section.
+
+### Pass / fail
+
+| State | Section shows |
+|---|---|
+| all bindings good | `Writable: all 8 tokens × N categories` |
+| a gap | `Not writable: N`, then per parameter `TYPE-bound — …` or `not bound — …` plus categories |
+
+The two wordings are the two distinct faults, and they need different repairs:
+
+- **`TYPE-bound`** — the parameter exists but is scoped to the type. Re-bind as Instance.
+- **`not bound`** — the parameter is not on that category at all. Add the category.
+
+⚠️ A parameter bound per **instance** over a category set that **omits** your category
+reports as `not bound`. That is the 27-of-175 shape, and it is the case a TypeBinding-only
+audit cannot see at all.
+
+The result here must **agree with T12's** `NOT WRITTEN` block. If the pre-flight says all
+clear and the tag run then reports failures, one of them is lying — report both numbers.
+
+- [ ] section present · [ ] agrees with T12
+
+---
+
+## T14 · GEN no longer makes a tag permanently incomplete
+
+`STING_TAG_TOKEN_POLICY.json` gives SYS / FUNC / PROD the fallback `GEN` and argues it is
+"a real answer for them, not a guess". `TagIsComplete` rejected it — so every architectural
+element was permanently incomplete, re-derived on every run, and never reachable by Skip
+mode. The two shipped decisions contradicted each other.
+
+### Steps
+
+1. Tag an architectural element that resolves `GEN` (an un-catalogued Generic Model is easiest).
+2. Confirm `ASS_TAG_1_TXT` contains a `-GEN-` segment.
+3. **Auto Tag the same view a second time, in Skip mode.**
+
+### Pass / fail
+
+| Read | Pass | Fail |
+|---|---|---|
+| second run | the element is **Skipped** | re-tagged again → GEN still blocks completeness |
+| report | `INCOMPLETE` does **not** count it | counted → same |
+| compliance `StrictPercent` | **unchanged** from before Phase 295 | jumped → GEN wrongly counted as resolved |
+
+That last row is the one to watch. GEN no longer blocks *completeness*, but it must still
+count as *unresolved* in strict reporting — the two were deliberately split. **A compliance
+number that jumps without the model changing is a regression, not an improvement.**
+
+- [ ] skipped on rerun · [ ] StrictPercent unchanged
+
+---
+
+## T15 · Container failures are visible — `CONTAINER-1`
+
+175 of these sat in a log, unread and undiagnosable: the catch logged a bare message with no
+stack trace, no category and no count, and told the report nothing.
+
+**No cause is claimed here.** This test only establishes whether they still happen and
+captures the evidence to diagnose them with.
+
+### Steps
+
+Auto Tag. Then read the report, then the log.
+
+### Pass / fail
+
+| Where | What |
+|---|---|
+| report | a `CONTAINERS:` block, per category, with up to 3 distinct exception messages — or **no block at all** |
+| `StingTools_yyyyMMdd.log` | `Container write failed for <id> (category ...)` **plus a full stack trace** |
+
+Two outcomes, both informative:
+
+- **No `CONTAINERS:` block** → the 175 are gone. Most likely cause: an element whose token
+  write failed is now refused before the containers are written, so `WriteContainers` no
+  longer receives the empties the read-back used to hand it. Those elements appear under
+  `NOT WRITTEN` instead (T12).
+- **Block present** → paste the stack trace and the category. That is the first time this
+  failure has been diagnosable; do not guess at it from the message alone.
+
+- [ ] block present? Y / N · [ ] stack trace captured
+
+---
+
 ## Results
 
 | Test | Id | Result | Notes |
@@ -406,10 +595,19 @@ If it lists spaces, `SpatialCompat.Collect` is working, and the other ten comman
 | T4 renumber | `ROOM-1` | | |
 | T5 refusal | `TOKPOL-2` | | |
 | T6 SEQ reaches tag | `BINDSCOPE-2` | | |
-| T7 material suffix | `TAGPROD-1` | | |
+| T7 material suffix (type mark only) | `TAGPROD-1` | | |
 | T8 Spaces derive LOC/ZONE | `LIGHTGRID-5` | | |
 | T9 Rooms model unchanged | `LIGHTGRID-5` | | |
 | T10 Quick Lux on Spaces | `LIGHTGRID-2` | | |
+| **T11 no blank segment** | `ROOMTAG-1` | | Phase 295 |
+| **T12 report names category** | `ROOMTAG-1` | | Phase 295 - answers "which 27" |
+| **T13 binding pre-flight** | `BINDSCOPE-3` | | Phase 295 - must agree with T12 |
+| **T14 GEN completeness** | `TOKPOL-3` | | Phase 295 - watch StrictPercent |
+| **T15 container failures** | `CONTAINER-1` | | Phase 295 - evidence only, no cause claimed |
+
+**All fifteen tests run on a build of `main` after #966 merged** (section 0.1). If a
+test cannot be run, mark it `BLOCKED` with the reason rather than leaving it blank, so a
+later reader cannot mistake "not run" for "ran and passed".
 
 Record outcomes against the ids in `docs/ROADMAP.md`. **Report both numbers** — what was
 expected and what appeared — rather than "works". An assertion that passes against an empty

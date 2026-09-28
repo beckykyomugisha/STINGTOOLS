@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // AcousticAnalysisEngine.cs — Phase 69: Acoustic Performance Analysis
 //
 // Provides BS EN 12354 / Approved Document E acoustic analysis:

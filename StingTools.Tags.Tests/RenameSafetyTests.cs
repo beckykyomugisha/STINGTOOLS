@@ -20,7 +20,7 @@ namespace StingTools.Tags.Tests
     ///
     /// <para>Surveyed, the shipped surfaces that key on a type name are:</para>
     /// <list type="bullet">
-    /// <item><b>19 of the 290 AEC view filters</b> use <c>ALL_MODEL_TYPE_NAME</c>. One of
+    /// <item><b>19 of the 287 AEC view filters</b> use <c>ALL_MODEL_TYPE_NAME</c>. One of
     /// them — "Arch: Plasterboard Ceilings", matching on "Plasterboard" — genuinely
     /// stopped catching the catalogue's plasterboard ceiling when its subtype read
     /// "Gypsum9". Fixed by putting the word back in the SUBTYPE field, which is where

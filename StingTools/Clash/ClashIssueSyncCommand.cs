@@ -47,7 +47,7 @@ namespace StingTools.Core.Clash
                 Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc) ?? Path.GetTempPath();
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Clash") ?? Path.GetTempPath();
                 string clashesJson = ClashPersistence.CanonicalPath(doc);
                 if (!File.Exists(clashesJson))
                 {

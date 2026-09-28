@@ -229,7 +229,7 @@ namespace StingTools.Commands.Plumbing
             }
 
             string status = $"P-Trap · {scope} · {r.FixturesScanned} fix · "
-                          + $"{r.TrapsPlaced} placed · {r.FixturesAlreadyTrapped} already · {r.FixturesSkipped} skipped"
+                          + $"{r.TrapsPlaced} placed · {r.FixturesAlreadyTrapped} already · {r.FixturesSkipped} skipped · {r.MedicalGasSkipped} medical gas"
                           + (place ? "" : " (preview)");
             if (inst != null) { inst.SetStatus(status); return Result.Succeeded; }
 
@@ -238,7 +238,8 @@ namespace StingTools.Commands.Plumbing
                  .Metric("Fixtures scanned",       r.FixturesScanned.ToString())
                  .Metric("Already trapped",        r.FixturesAlreadyTrapped.ToString())
                  .Metric("Traps placed",           r.TrapsPlaced.ToString())
-                 .Metric("Skipped",                r.FixturesSkipped.ToString());
+                 .Metric("Skipped",                r.FixturesSkipped.ToString())
+                 .Metric("Medical gas (no trap)",  r.MedicalGasSkipped.ToString());
             if (r.Warnings.Any())
             {
                 panel.AddSection("WARNINGS");

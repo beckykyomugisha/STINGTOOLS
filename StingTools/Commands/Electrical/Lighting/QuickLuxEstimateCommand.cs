@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -60,7 +60,7 @@ namespace StingTools.Commands.Electrical.Lighting
             {
                 try
                 {
-                    var fixtures = CountFixturesInRoom(doc, room, out double totalLumens);
+                    var fixtures = CountFixturesInRoom(doc, room, out double totalLumens, out int assumed);
                     if (fixtures == 0 && totalLumens == 0) continue;
 
                     double areaM2 = room.Area * 0.0929;
@@ -92,13 +92,14 @@ namespace StingTools.Commands.Electrical.Lighting
                         RoomIndexK = k, UF = uf, MF = mf,
                         EstLux = estLux, TargetLux = target,
                         Pct = pct, Verdict = verdict,
-                        FixturesDelta = fixturesNeeded
+                        FixturesDelta = fixturesNeeded,
+                        AssumedFixtures = assumed
                     });
                 }
                 catch (Exception ex) { StingLog.Warn($"QuickLux room {room.Name}: {ex.Message}"); }
             }
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir, $"STING_QuickLux_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
             WriteExcel(outPath, rows);
@@ -106,19 +107,27 @@ namespace StingTools.Commands.Electrical.Lighting
             int below = rows.Count(r => r.Verdict == "BELOW");
             int over  = rows.Count(r => r.Verdict == "OVER");
             int pass  = rows.Count(r => r.Verdict == "PASS");
+            int assumedFix   = rows.Sum(r => r.AssumedFixtures);
+            int assumedRooms = rows.Count(r => r.AssumedFixtures > 0);
+            string assumedLine = assumedFix > 0
+                ? $"⚠ ASSUMED {LuminaireDataReader.AssumedLumens:0} lm for {assumedFix} fixture(s) in {assumedRooms} room(s) — no lumen data " +
+                  "on instance or type. Those rows are flagged in the Excel; their lux is NOT a result.\n\n"
+                : "";
             TaskDialog.Show("STING Quick Lux Estimate",
                 $"CIBSE LG10 Lumen Method — first-pass lux estimate.\n" +
                 $"This is a coarse estimate (UF from room index, MF=0.8 fixed).\n" +
                 $"For final compliance use Photo_DesignReview after a DIALux round-trip.\n\n" +
                 $"✅ PASS {pass}   ⚠ BELOW {below}   ⚠ OVER {over}\n\n" +
+                assumedLine +
                 $"Excel: {outPath}");
             try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", outDir) { UseShellExecute = true }); } catch { }
             return Result.Succeeded;
         }
 
-        private static int CountFixturesInRoom(Document doc, SpatialElement room, out double totalLumens)
+        private static int CountFixturesInRoom(Document doc, SpatialElement room, out double totalLumens, out int assumed)
         {
             totalLumens = 0;
+            assumed = 0;
             int count = 0;
             foreach (var fi in new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_LightingFixtures)
@@ -134,30 +143,13 @@ namespace StingTools.Commands.Electrical.Lighting
                 }
                 if (!inRoom) continue;
                 count++;
-                // Pull lumens from the type / instance; fall back to default.
-                double lm = SafeLumens(fi);
-                if (lm <= 0) lm = 4000; // fallback assumption: 4000 lm fixture
+                // Instance, then type. A missing value is an ASSUMPTION, counted
+                // and flagged in the output — never silently folded into the result.
+                double lm = LuminaireDataReader.Lumens(fi, out _);
+                if (lm <= 0) { lm = LuminaireDataReader.AssumedLumens; assumed++; }
                 totalLumens += lm;
             }
             return count;
-        }
-
-        private static double SafeLumens(FamilyInstance fi)
-        {
-            try
-            {
-                // Canonical MR_PARAMETERS name (Phase 180): ELC_PHOTO_LUMENS_NR.
-                // Fall through to Revit native built-in params when the shared
-                // parameter file hasn't been loaded into the project yet.
-                var p = fi.LookupParameter("ELC_PHOTO_LUMENS_NR")
-                        ?? fi.LookupParameter("Initial Intensity")
-                        ?? fi.LookupParameter("Luminous Flux");
-                if (p == null) return 0;
-                if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
-            }
-            catch { }
-            return 0;
         }
 
         // CIBSE LG10 Table 6 — UF for typical commercial reflectance
@@ -199,12 +191,12 @@ namespace StingTools.Commands.Electrical.Lighting
             using var wb = new XLWorkbook();
             var ws = wb.Worksheets.Add("Quick Lux");
             ws.Cell(1, 1).Value = $"STING Quick Lux Estimate (CIBSE LG10 Lumen Method)  ·  {rows.Count} rooms  ·  {DateTime.Now:yyyy-MM-dd HH:mm}";
-            ws.Range(1, 1, 1, 11).Merge().Style.Font.Bold = true;
-            ws.Range(1, 1, 1, 11).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+            ws.Range(1, 1, 1, 12).Merge().Style.Font.Bold = true;
+            ws.Range(1, 1, 1, 12).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
 
             string[] hdr = { "Room", "Area (m²)", "Fixtures", "Lumens",
                              "Room idx k", "UF", "MF", "Est lux", "Target lux",
-                             "% of target", "Δ fixtures" };
+                             "% of target", "Δ fixtures", "Lumen data" };
             for (int i = 0; i < hdr.Length; i++)
             {
                 ws.Cell(2, i + 1).Value = hdr[i];
@@ -229,6 +221,13 @@ namespace StingTools.Commands.Electrical.Lighting
                 var fill = r.Verdict == "PASS"  ? XLColor.LightGreen
                          : r.Verdict == "OVER"  ? XLColor.LightYellow : XLColor.LightSalmon;
                 ws.Range(row, 1, row, 11).Style.Fill.BackgroundColor = fill;
+                ws.Cell(row, 12).Value = r.AssumedFixtures == 0 ? "from model"
+                    : $"ASSUMED {LuminaireDataReader.AssumedLumens:0} lm for {r.AssumedFixtures} of {r.Fixtures} fixture(s) — no lumen data";
+                if (r.AssumedFixtures > 0)
+                {
+                    ws.Cell(row, 12).Style.Font.Bold = true;
+                    ws.Cell(row, 12).Style.Fill.BackgroundColor = XLColor.Orange;
+                }
                 row++;
             }
             ws.Columns().AdjustToContents();
@@ -239,7 +238,7 @@ namespace StingTools.Commands.Electrical.Lighting
         {
             public string Name, Verdict;
             public double AreaM2, TotalLumens, RoomIndexK, UF, MF, EstLux, TargetLux, Pct;
-            public int Fixtures, FixturesDelta;
+            public int Fixtures, FixturesDelta, AssumedFixtures;
         }
     }
 }

@@ -5,41 +5,37 @@ WHY THIS EXISTS
 ===============
 GENPH-1, found 2026-09-16 by auditing the tag vocabulary category by category.
 
-`TagConfig._placeholders` is `{ "XX", "ZZ", "GEN", "0000" }` — the values that mean "this
-segment was never resolved". `TagHasPlaceholders` looks for them delimited inside a tag,
-and `TagIsComplete` fails any tag that contains one.
+`TagConfig._unresolvedPlaceholders` is `{ "XX", "ZZ" }` (plus an all-zero SEQ): the values
+that mean "this segment was never resolved". `TagIsComplete` fails any tag that contains one.
+If one of them were also a real vocabulary code, every element in that category would carry
+a tag that could never be judged complete. Nothing would error; the consequences are silent:
 
-"GEN" was also a REAL code, in three places at once:
-
-    GetDiscDefaultSysCode:  case "G": return "GEN";      // a real sys code
-    SysMap:                 { "GEN", [12 categories] }   // a real sys key
-    ProdMap:                { "Generic Models", "GEN" }  // a real product code
-
-So every element in those twelve categories produced a tag containing `-GEN-`, and that tag
-could never be judged complete. Nothing errored. The consequences were all silent:
-
-  * `skipComplete` never skipped them, so every run re-derived and rewrote the tag, churning
+  * `skipComplete` never skips them, so every run re-derives and rewrites the tag, churning
     the audit trail (`ASS_TAG_PREV_TXT`, `ASS_TAG_MODIFIED_DT`) on every pass
-  * the O(1) idempotency guard could never fire for them
-  * `ComplianceScan` counted them non-compliant for ever — the dashboard could not reach
-    100% no matter what anyone did in the model
+  * the idempotency guard can never fire for them
+  * `ComplianceScan` counts them non-compliant for ever
 
-The fix keeps the sentinel meaning exactly one thing: "GNL" is the real general sys/func
-code, "GM" the Generic Models product code, and "GEN" now only ever means unresolved.
+History (GENPH-1, 2026-09-16). "GEN" was then an unresolved sentinel as well as a real code
+(the twelve generic categories' SYS, "Generic Models" PROD), so this check was written to
+force a rename to GNL / GM. Main resolved it the other way before that rename merged: GEN
+became the token policy's documented ASSUMED value (STING_TAG_TOKEN_POLICY.json, G-27).
+`TagIsComplete` accepts it; `TagIsFullyResolved` and the strict compliance figure still flag
+it. So GEN is a legitimate code here, and the check reads the unresolved set, not the wider
+`_placeholders` set that also contains GEN.
 
 These maps are overridable from `project_config.json`, so a project that prefers different
-letters can set them — what it may not do is reuse a sentinel.
+letters can set them; what it may not do is reuse an unresolved sentinel.
 
 WHAT THIS CHECKS
 ================
-  1. No value in DiscMap / SysMap / ProdMap / FuncMap equals a placeholder sentinel.
+  1. No value in DiscMap / SysMap / ProdMap / FuncMap equals an unresolved sentinel.
   2. Every category in DiscMap has a ProdMap entry (otherwise PROD falls back to the
      sentinel and the tag is incomplete for that whole category).
   3. Product codes are code-shaped: non-empty, uppercase, no whitespace, <= 8 chars, and
      free of the tag separator (which would make the code an extra tag segment — TAGPROD-1).
 
-Proven RED before GREEN: it reported `Generic Models -> GEN` on the tree as it stood, and 0
-after the rename.
+Proven RED: with GEN in the sentinel set it reports 7 findings on main; reading the unresolved
+set it reports 0.
 
 USAGE
     python tools/check_tag_vocabulary.py [--check]
@@ -75,7 +71,7 @@ def block(src, name):
 
 
 def placeholders(src):
-    m = re.search(r'_placeholders\s*=\s*new\s+HashSet<string>\s*\{([^}]*)\}', src)
+    m = re.search(r'_unresolvedPlaceholders\s*=\s*new\s+HashSet<string>\s*\{([^}]*)\}', src)
     if not m:
         return set()
     return set(x.strip().strip('"') for x in m.group(1).split(',') if x.strip())
@@ -90,7 +86,7 @@ def main():
 
     ph = placeholders(tsrc)
     if not ph:
-        raise SystemExit('Could not parse _placeholders from TagConfig.cs — this gate '
+        raise SystemExit('Could not parse _unresolvedPlaceholders from TagConfig.cs — this gate '
                          'would pass on anything, which is the failure it exists to catch.')
 
     disc = dict(PAIR.findall(block(dsrc, 'DiscMap')))

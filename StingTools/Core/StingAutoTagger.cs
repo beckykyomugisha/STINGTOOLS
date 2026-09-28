@@ -1330,7 +1330,7 @@ namespace StingTools.Core
             }
             else if (result == TaskDialogResult.CommandLink2)
             {
-                // GetDoc, not commandData.Application: from the dock panel that property
+                // GetDoc, not ParameterHelpers.GetApp(commandData): from the dock panel that property
                 // is null, so this toggled the marker against a null document and the
                 // button reported success having done nothing visible.
                 StingStaleMarker.SetEnabled(!StingStaleMarker.IsEnabled,

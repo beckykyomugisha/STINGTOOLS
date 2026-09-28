@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // StructuralAnalysisEngine.cs — Advanced Structural Analysis Algorithms
 //
 // Provides production-grade structural engineering calculations:

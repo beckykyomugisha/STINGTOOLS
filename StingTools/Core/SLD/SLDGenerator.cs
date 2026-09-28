@@ -48,6 +48,29 @@ namespace StingTools.Core.SLD
         private const string DrawingTypeId = "elec-sld-A1-1to100";
 
         /// <summary>
+        /// Result text for the user. Zero symbols is not a quiet success: it
+        /// means the SLD symbol families are not loaded and the diagram is
+        /// lines and text only, so say so and show why.
+        /// </summary>
+        public static string DescribeResult(SLDResult result)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Generated SLD '{result.SLDView?.Name}'.");
+            sb.AppendLine($"Symbols placed: {result.SymbolsPlaced}");
+            if (result.SymbolsPlaced == 0)
+                sb.AppendLine("\nNo symbols were placed - the SLD symbol families are not loaded " +
+                              "in this project, so the diagram is lines and text only. " +
+                              "Load the SLD annotation families (Symbols > Create SLD) and regenerate.");
+            if (result.Warnings != null && result.Warnings.Count > 0)
+            {
+                sb.AppendLine($"\n{result.Warnings.Count} warning(s):");
+                foreach (var w in result.Warnings.Distinct().Take(8)) sb.AppendLine("  - " + w);
+                if (result.Warnings.Count > 8) sb.AppendLine("  (more in the STING log)");
+            }
+            return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>
         /// Which documents SLD generation reads. Defaults to <c>HostOnly</c>, matching
         /// historic behaviour — a federated project can opt in to <c>HostAndLinks</c>
         /// to draw panels that live in a linked MEP model.
@@ -129,7 +152,10 @@ namespace StingTools.Core.SLD
 
                     var view = ViewDrafting.Create(doc, dvType.Id);
                     view.Name = viewName ?? $"STING - SLD - {DateTime.Now:yyyyMMdd-HHmm}";
-                    try { view.Scale = 50; } catch (Exception ex) { StingLog.Warn($"SLD set scale: {ex.Message}"); }
+                    // 1:1 — the layout spaces symbols in true millimetres and the
+                    // annotation symbols / text are sized for paper. At 1:50 every
+                    // text note was 50× the spacing and the diagram overlapped.
+                    try { view.Scale = 1; } catch (Exception ex) { StingLog.Warn($"SLD set scale: {ex.Message}"); }
 
                     var nodeToInstance = new Dictionary<ElementId, ElementId>();
                     double xOffset = 0;
@@ -312,9 +338,19 @@ namespace StingTools.Core.SLD
         private static void FullRebuild(Document doc, ViewDrafting sldView, string standard,
             SLDLayoutOptions layoutOpts, SLDAnnotationOptions annotOpts)
         {
+            // Scan FIRST: purging and then finding no roots left the SLD view
+            // blank while the command still reported "Refreshed".
+            var roots = SLDCircuitTraverser.ScanHierarchy(doc, ScanScope).Roots;
+            if (roots == null || roots.Count == 0)
+            {
+                StingLog.Warn($"SLD rebuild '{sldView.Name}': no roots found — view left unchanged.");
+                return;
+            }
+
             using (var tx = new Transaction(doc, "STING Rebuild SLD"))
             {
                 tx.Start();
+                try { sldView.Scale = 1; } catch (Exception ex) { StingLog.Warn($"SLD set scale: {ex.Message}"); }
                 var ids = new FilteredElementCollector(doc, sldView.Id).ToElementIds();
                 foreach (var id in ids)
                 {
@@ -324,10 +360,8 @@ namespace StingTools.Core.SLD
                 tx.Commit();
             }
 
-            // Same scope as generation, or a rebuild would silently drop the linked
-            // roots the original diagram was drawn with.
-            var roots = SLDCircuitTraverser.ScanHierarchy(doc, ScanScope).Roots;
-            if (roots == null || roots.Count == 0) return;
+            // (roots scanned above, with the same scope as generation, so a
+            // rebuild does not silently drop linked roots.)
 
             using (var tx = new Transaction(doc, "STING Rebuild SLD content"))
             {
@@ -393,7 +427,7 @@ namespace StingTools.Core.SLD
                                             result.Warnings);
                                     }
                                     result.SymbolsPlaced++;
-                                    nodeToInstance?[node.ElementId] = inst.Id;
+                                    if (nodeToInstance != null) nodeToInstance[node.ElementId] = inst.Id;
                                 }
                             }
                             catch (Exception ex) { StingLog.Warn($"PlaceSymbols inst: {ex.Message}"); }
@@ -522,6 +556,9 @@ namespace StingTools.Core.SLD
             try
             {
                 StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, DrawingTypeId);
+                // Lock: the SLD is drawn 1:1 (true-mm layout, paper-sized text). Unlocked,
+                // drift checks / Sync Styles would push the drawing-type scale back.
+                StingTools.Core.Drawing.DrawingTypeStamper.SetLocked(view, true);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }
@@ -544,9 +581,30 @@ namespace StingTools.Core.SLD
                 var p = el?.LookupParameter(name);
                 if (p == null)
                 {
-                    string msg = $"STING stamp failed: {name} on element {el?.Id} — parameter not found";
-                    StingLog.Warn(msg);
-                    warnings?.Add(msg);
+                    // Reported once per parameter and family, not once per symbol.
+                    // SLD symbols are Generic Annotation families, and Revit will not
+                    // bind a project parameter to that category, so a stamp the
+                    // family does not carry itself is missing on EVERY instance —
+                    // one line per symbol buried the one fact worth reading.
+                    string fam = (el as FamilyInstance)?.Symbol?.FamilyName ?? el?.Category?.Name ?? "?";
+                    // PARAM-4 — the symbol builder now authors these two as family
+                    // parameters. A family without them may predate that change, but
+                    // a failed build or a non-STING family look the same from here,
+                    // so the message states the fact and lists causes without picking one.
+                    bool builderOwned = Array.IndexOf(
+                        StingTools.Core.Symbols.SymbolLibraryCreator.SldStampFamilyParams, name) >= 0;
+                    string msg = builderOwned
+                        ? $"STING stamp skipped: '{name}' is not a parameter of family '{fam}' — possible " +
+                          "causes: family built before SLD symbols carried it (Rebuild: STING Panel → SETUP → " +
+                          "Create & standards → Rebuild), a failed build, or not a STING symbol family"
+                        : $"STING stamp skipped: {name} is not a parameter of '{fam}' " +
+                          "(annotation symbols cannot take a project parameter; author it " +
+                          "into the symbol family as a family parameter to record it)";
+                    if (warnings == null || !warnings.Contains(msg))
+                    {
+                        StingLog.Warn(msg);
+                        warnings?.Add(msg);
+                    }
                     return;
                 }
                 if (p.IsReadOnly)

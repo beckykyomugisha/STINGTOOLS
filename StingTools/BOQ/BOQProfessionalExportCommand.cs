@@ -200,7 +200,7 @@ namespace StingTools.BOQ
                 }
 
                 var meta = BuildProjectMetadata(doc, boq, tcfg);
-                string outputPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_BOQ_Professional", ".xlsx");
+                string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_BOQ_Professional", ".xlsx");
 
                 using (var wb = new XLWorkbook())
                 {

@@ -2,6 +2,665 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (#966 merged into main — tag defects found in Revit, 2026-09-28)
+
+#966 (16 commits, 2026-09-16/17) conflicted with main in 16 files. Its three vocabulary
+decisions had since been settled differently on main, so they were decided by review before
+the merge, choosing the option that keeps one source of truth, does not re-tag existing
+projects, and stays switchable per project:
+
+- **GEN stays** (GENPH-1 superseded). Main made GEN the token policy's assumed value:
+  `TagIsComplete` accepts it and the strict figure still flags it. Renaming it to GNL / GM
+  would have moved every existing generic tag into a new SEQ group.
+  `tools/check_tag_vocabulary.py` now checks the unresolved sentinels (XX, ZZ) instead of
+  the wider placeholder set, and passes.
+- **G stays the generic DISC default, Z is accepted** (ISO19650DISC-1 superseded). The UK
+  National Annex gives G = geographical and land surveyor and Z = general, but STING's DISC
+  vocabulary is not the role table (FP, LV, MG, RP, H = healthcare), and switching the
+  default would split SEQ counters. Z is now valid in the validator, the drawing-type check,
+  sheet numbering and the Code Legend, so a project that follows the annex sets `DISC_MAP`
+  in `project_config.json`.
+- **FP / FLS as main** (SYSAMB-1 superseded): main resolves the category default by
+  discipline (`ChooseCategorySys`), so dictionary order no longer matters.
+- **Not ported:** `H` → `HC` and `civil` → `C` (ISO19650DISC-3), and the `_`-joined material
+  suffix (TAGPROD-1). Main keeps the suffix out of the PROD token and uses it only for type
+  marks. `tools/check_token_separator_safety.py`, which tested the dropped design, is
+  removed. Follow-ups are TAGVOCAB-1 in ROADMAP.
+
+Ported as-is: MEP Spaces in the lighting commands and IFC results import (`SpatialCompat`),
+LOC / ZONE from a Space, `ParameterHelpers.GetBip` type-fallback reads (the emergency
+lighting type mark now reads from the type), the binding-scope audit and migration, the
+57 unbound write targets, the blank `_TXT` mirror fix (renumbered MIRROR-3; MIRROR-1 is a
+different open item), and the resolver's space-scoped HVAC stamps and sleeve bindings on
+Specialty Equipment. `CATEGORY_BINDINGS.csv` was merged row by row (1,198 scope flips, 71
+new rows) and every generated binding file regenerated.
+
+Found while merging and fixed:
+
+- `AuditBindingScope` and `MigrateBindingScope` read `commandData.Application`, which is
+  null from the dock panel, so both buttons did nothing. They now use
+  `ParameterHelpers.GetDoc` / `GetApp`, and have `WorkflowEngine.ResolveCommand` cases.
+- `tools/check_binding_scope.py` counted a parameter as bound only when
+  `RESOLVED_BINDINGS.csv` gave it `<ALL>`, so it reported three bound parameters as
+  unbound. Any category there now counts. Its `--fix` moved `ELC_VLT_DROP_TXT` and
+  `ELC_CKT_VD_BASIS_TXT` (written per circuit) from Type to Instance rows.
+- The `NOT WRITTEN` report said the elements were "tagged". Since #967 merged, a token
+  write that does not take leaves a blank segment, and the tag is refused, not written;
+  the wording now says so. `docs/TAG_TEST_PROTOCOL.md` section 0.1, T6, T7 and T15 were
+  rewritten to what the merged build does, and all fifteen tests now run on one build.
+- 35 parameters newly bound by #966 recorded in `docs/PARAM_CONTRACT_BASELINE.json`
+  (written-only as reference, read-only as input). `UNREACHABLE_COMMANDS_TRIAGE.md`
+  counts 1,766 / 1,741.
+
+Plugin build 0 errors; `StingTools.Tags.Tests` 3,998 passing; Boq, Sustainability, Mep and
+Visibility tests passing; all gates pass. Not exercised in Revit.
+
+#### Completed (system classifier — a spool is not a pool, 2026-09-28)
+
+Found reviewing #1000 before merge. `SystemNameClassifier` matched two words as
+substrings:
+
+- **"POOL"** is inside "SPOOL", a common fabrication family and system name. An unconnected
+  pipe fitting or accessory from a family named "Pipe Spool …" reached the family-name layer
+  and was tagged SYS=POL (pool circulation). Now a whole-word match, in both
+  `FromFamilyName` and `FromSystemName`.
+- **"ATTENUATION"** is also acoustic. A Generic Model named "Sound Attenuation Panel" was
+  tagged SYS=SDS (SuDS). Now excluded when the name says sound, acoustic or noise.
+
+Five cases added to `SystemNameClassifierTests`. With the fix reverted, three of them fail
+(the two spools and the acoustic panel); with it, all 133 classifier tests pass.
+
+#### Completed (NLP intents — 97 that answered "Unknown Command")
+
+A user typing "cobie", "pdf export", "wind load", "sld" or "rainwater drain" got a
+confident match and then the "STING - Unknown Command" dialog. 97 of the 405 command tags
+the natural-language processor emits resolved in no dispatch layer. Most were near-misses
+of real tags (`CobieExport` vs `COBieExport`, `Structural*` vs `Str*`, `Plumb*` vs
+`Plumb_*`); the C# switches are ordinal, so a case difference is a dead end.
+
+- **79 retargeted** to the real command, each checked against the class it resolves to,
+  not just the name. Two old tags split by meaning (`CreateMeeting` → `NewMeeting` /
+  `OpenActions`; `MEPScheduleCommands` → `MEPScheduleAll` / `MechanicalEquipmentSchedule`).
+  Descriptions changed where the target does less than promised (`purge` now "find unused
+  elements to review"; grids/levels "from CSV").
+- **18 intents deleted** where no feature exists (design briefs, RCD audit, gas, grease
+  traps, spool audit, handover certificate, select-structural, airtightness / circularity /
+  Passivhaus / WELL). An intent promising a feature that is not there is worse than none.
+- **`Elec_BusbarModel` made reachable** — only the Electrical panel's handler knew it; now a
+  `ResolveCommand` case, so NLP and presets reach it. Two baselines shrank by one.
+- **The startup check is gone.** `NLPEngine.ValidateIntentPatterns` could ask only the
+  WorkflowEngine layer and vouched for the rest from a hand-kept allowlist — which listed
+  `Validate` and `SetTagCategoryLineWeight`, neither of which had a handler. It only logged.
+- **`tools/check_nlp_dispatch.py`** replaces it in CI: every tag from the intent table, Quick
+  Commands and Suggestions must resolve through the four layers NLP actually reaches
+  (`ResolveCommand` cases, `StingCommandHandler.Execute` cases and prefix routes, registry
+  modules). Satellite panel handlers do not count; a `ResolveCommand` case that only throws
+  does not count. Controls are asserted so a broken scan cannot report "all clear".
+  RED on the unfixed tree (97, exit 1), GREEN after (0 of 387).
+
+#### Completed (Phase 296 — elevations, sections and details no longer carry the floor plan's rules)
+
+- **Four drawing types had the plan's rule list copied in** — `arch-elev-A1-1to100`,
+  `arch-interior-elev-A1-1to50`, `arch-section-A1-1to50`, `arch-detail-A3-1to20` (the same
+  defect the RCP had): area tags where no area can appear, room tags on elevations and details,
+  and the wall-length / opening chains, which dimension walls from their PLAN geometry — on an
+  elevation that is every wall's plan length, walls seen end-on included. 25 such rules removed.
+  Also removed, as judgement rather than rule: furniture and casework tags on the exterior
+  elevation, the grid chain / stair / railing tags on the single-room interior elevation, and
+  grids / stairs / railings / furniture / casework on the 1:20 detail. Now: exterior elevation =
+  grids, levels, doors, windows, stairs, railings, material callouts; interior elevation = levels,
+  doors, windows, furniture, casework, material callouts; section = grids, levels, doors, windows,
+  stairs, railings, casework, build-up callouts; detail = levels, doors, windows, build-up callouts.
+- **Held by one rule, two readers.** `AnnotationRuleKinds.NotForPurpose` says which rule kinds
+  mean nothing on an Elevation / Section / Detail purpose (plan-geometry dimensions, area tags,
+  room tags on elevations and details — room tags in sections stay allowed). The validator reports
+  it as **DT-139-PURPOSE** (so a project's own drawing types are checked too), and
+  `DrawingTypePurposeRuleTests` sweeps the shipped catalogue — RED on the 25 rules before the fix,
+  and silent on the other 89 types. Checksums re-stamped for the 4 types. Not run in Revit.
+
+#### Completed (Phase 296 — STING - Materials Tag rebuilt in place as the material callout)
+
+- **Decision: rebuild, not retire.** `STING - Materials Tag` carried the universal label — 68
+  fields, none of which can appear on a material. Retiring it would have left the broken family
+  in every project that has it and left the engine's "first material tag loaded" fallback
+  pointing at it; a second family name would have done the same. Rebuilt in place, it keeps the
+  name the loader, the manifest and the fallback use, and reloading it fixes existing projects.
+- **Spec rebuilt.** `LABEL_DEFINITIONS.json` `category_labels.Materials` and the Materials Tag
+  blocks of `STING_TAG_CONFIG_v5_0_GEN` / `_MEP` (and their `_DesignConstruction` twins) now
+  carry `MAT_CODE` / `MAT_NAME` / `MAT_MANUFACTURER` / `MAT_STANDARD` — all bound to Materials —
+  in tier 1 only, with no tier gates and no warning rows (neither can resolve on a material,
+  which has no type). The family is declared `LabelMaster: MaterialsTag` in all four configs, so
+  Propagate Universal skips it (`UniversalOptOutTests` lists it; its consistency check caught the
+  MEP configs missing the declaration).
+- **`MaterialTagLabelTests` is now strict** — the 68-row baseline is deleted, and a new test pins
+  the four callout rows.
+- **`Materials_SyncIdentity` fills `MAT_NAME`** when empty (never overwrites): only
+  `CreateBLE/MEPMaterials` ever wrote it, so most materials' tags would have printed a code
+  with nothing under it.
+- The six material drawing types name `tagFamilies["Materials"] = "STING - Materials Tag"`;
+  checksums re-stamped. The build sheet §5 is rewritten for the in-place rebuild; the `.rfa`
+  itself is the one manual step left (ROADMAP MATTAG-1). Not run in Revit.
+
+#### Completed (Phase 296 — parameter audit for the recent work; material tag labels measured)
+
+- **Parameters and bindings re-verified.** Regenerating the binding spec and the parameter CSV
+  (`param_binding_resolver.py`, `sync_csv_from_txt.py`) changes nothing; the name-target, tag-row
+  and duplicate-GUID gates pass. 30 parameters the recent work depends on were checked one by
+  one — defined in `MR_PARAMETERS.txt`, same GUID in `PARAMETER_REGISTRY.json`, bound to the
+  category that reads them. Findings: `PRJ_TB_CDE_STATE_INT` binds to Sheets only, which is the
+  convention for all 57 `PRJ_TB_*` (the title block reads it as a family parameter);
+  `TAG_DEPTH_TIER_INT` is bound to nothing, so tier-2 rows on the specialist tags stay blank (the
+  build sheet already keeps their deliverable rows in tier 1); 356 parameters are in
+  `MR_PARAMETERS.txt` but not the registry — harmless at runtime (`ParamRegistry` supplements
+  GUIDs from the TXT) and long-standing, so not mass-filled.
+- **`PARAM_CONTRACT_BASELINE.json`**: `MAT_SPECIFICATIONS` is no longer write-only now that
+  `Materials_SyncIdentity` reads it, so `check_param_contract.py --check` failed until the
+  baseline was regenerated with `--write` (one entry removed).
+- **`MaterialTagLabelTests`** — a material tag reads only the MATERIAL's parameters. Every
+  parameter a Materials tag spec in `LABEL_DEFINITIONS.json` names (rows and formulas) must be a
+  Material built-in or bound to Materials in `RESOLVED_BINDINGS.csv`. The legacy
+  `STING - Materials Tag` spec fails on all 68 of its parameters; it is held to a ratchet
+  (`tools/material_tag_label_baseline.txt`) so it can only improve, and any new material tag
+  spec must be clean. RED both ways: a new dead row, and a fixed row still baselined.
+
+#### Completed (Phase 296 — material callouts built: identity sync, working rule kinds, thinning, build-ups)
+
+- **`Materials_SyncIdentity`.** A material callout reads the material's Mark / Description /
+  Keynote, and those disagreed: Mark = code only on materials STING created, Description held
+  the multi-hundred-character "enriched" paragraph, Keynote held `MAT_ISO_19650_ID` (in no
+  keynote table). The command plans (Revit-free `MaterialIdentityPlanner`, measured against the
+  whole shipped register) Mark / Keynote ← code, Description ← short name, paragraph →
+  `MAT_SPECIFICATIONS`, `MAT_CODE` from the register where empty; a value someone typed is
+  reported and left unless the user picks Overwrite. Plan CSV first.
+- **Keynote Sync wrote every row wrong.** Rows were `key<TAB><TAB>name` — key, EMPTY text, name
+  in the PARENT column — so every keynote it produced printed blank. Now `key<TAB>text` via
+  `KeynoteTableFormat`, and one row per material code under a `MAT` heading.
+- **`MaterialTag` works; `MaterialTagLayers` added.** The kind resolved the host's own tag
+  category and its only catalogue rule (category `*`) could not resolve, so it placed nothing.
+  It now resolves a Material Tags family (rule → `tagFamilies["Materials"]` → first loaded) and
+  tags host faces: one callout per material within 80 mm on paper (existing callouts count, so a
+  re-run adds nothing), painted faces first, curtain walls through panels, stacked walls through
+  members, family instances through their geometry, no-code callouts placed and counted.
+  `MaterialTagLayers` puts build-up callouts on the cut faces of hosts in sections / details,
+  heads stacked in a column. Rules on `pres-exterior-elev-A1`, `arch-elev-A1-1to100`,
+  `arch-interior-elev-A1-1to50`, `arch-section-A1-1to50`, `arch-detail-A3-1to20`,
+  `arch-screed-buildup-A3-1to10` (its dead `*` rule replaced). `FaceReferenceFor` now shares the
+  same face logic. 18 tests; 7 fail when the old behaviours are put back. Not run in Revit.
+- Noticed, not changed: `arch-elev`, `arch-interior-elev` and `arch-detail` carry the floor
+  plan's copied rules (room, furniture and area tags on an elevation) — the same defect fixed on
+  the RCP.
+
+#### Completed (Phase 296 — material callouts reviewed; tag size read from the style catalogue's type names)
+
+- **Tag size switching ignored the tag-style catalogue's type names.** `TagSizeVariant` only
+  recognised types named `2.5mm`, but the catalogue (`TagStyleCatalogue.CanonicalTypeName`) and
+  the specialist tag build sheet name them `2.5_NOM_BLACK_Open30_T2`, so those families would
+  have kept their default size on every drawing. It now reads both, and only switches between
+  types whose non-size part matches — a bold red 2.5 mm tag becomes a bold red 2 mm tag, never
+  a black one. 8 new cases; 5 fail against the old parsing.
+- **Material callout reviewed and specified** (`SPECIALIST_TAG_BUILD_SHEET.md` §5, ROADMAP
+  MATTAG-1..5). What exists, what Revit allows, why the library's `STING - Materials Tag` cannot
+  serve as a callout, the data contract, the family (Material Tags, content × size types, no
+  tiers), how to wire it with today's engine, and the ordered engine work that would make it
+  robust. `DrawingTypeTagFamilyTests` now accepts a Materials-declared tag family on a host rule
+  (a material tag tags a face of any host), so wiring the family later is a data-only change.
+
+#### Completed (Phase 296 — closing the drawings-production review, measured before touched)
+
+The 2026-07-20 drawings-production review still listed ~33 findings as open. Every one was
+re-measured against the code first: about half had been fixed in passing, and fixing those
+again would have churned shipped data for nothing. The rest are closed, with the measurement in
+`ROADMAP.md` ("2026-09-24 — closure pass"). Folds in #969 (catalogue fixes), which conflicted
+with `main` only on `STING_DRAWING_TYPES.json` (its category keys + `main`'s tag-family values).
+
+**One sheet-number engine.** Numbers were built four ways that disagreed. The Revit-free
+`Core/Drawing/SheetNumberEngine.cs` owns substitution, sequence read-back, uniqueness, counter
+buckets and renumber planning; production, renumbering and the fabrication composer call it.
+Renumbering erased every sheet's level (P-3), set the counter below locked sheets and could
+leave sheets on `ZZ_STING_RENUM_…` (P-4); both composer and producer uniquified with a random
+suffix (P-11). The ISO policy — unusable until its parameter was registered (DRAW-6) — would
+have collided by construction: 29 architectural types resolve to the same ISO fields and drew
+from per-type counters. ISO counters are keyed by the number's template; Profile keys are
+byte-identical to the old ones, so no project in flight has its counters reset. Sequence
+read-back took the last digit run, which on an ISO number is the revision.
+
+**Title blocks.** All 645 `${…}` title-block references used names without `_TXT` and resolved
+to nothing, blanking client / project / originator on every sheet — bigger than T-5 as written.
+Migrate stamped literal `{lvl}` / `{seq:D3}`. Presentation always got the A1 family and blank
+paper silently became A1 (T-6); A2 kept A1 text size and arcs were dropped (T-7); the stubs
+named 8 parameters that exist nowhere (T-10).
+
+**Data that declared intent the engine ignored.** The Production Config dialog's whole
+Annotation section and `ProductionRule.annotationOverride` were never read — now layered, not
+substituted, onto the type's pack. `viewportTypeName` on all 93 types was never applied.
+Schematics were produced as floor plans (D-7). `minSizeMm` and `tagDepths` were inert on tags
+(A-2). Roof plans could not tag rainwater outlets or roof lights (DRAW-8) — rules gained
+`familyMatch`. Flow arrows had no family and no way to get one (DRAW-2) —
+`DrawingTypes_BuildFlowArrow` authors it.
+
+**Found along the way.** The schema migrator rewrote the plugin's own shipped baselines in the
+install folder on first load. 136 filter/pack strings were mojibake, five of them filter names
+— the factory now renames a filter created under the garbled name instead of minting a twin.
+Writing a regex through a shell heredoc turned `\b` into a JSON backspace that compiled and
+matched nothing; a gate now rejects control characters in the catalogue.
+
+**Gates added** (each shown RED with the fix reverted): catalogue routing and slot geometry;
+purpose → view kind; no two types minting one number from different counters under either
+policy; title-block template resolution and family naming; seed remap tiers; assembly-stub
+parameter names; AEC filter parameter resolution against RevitAPI's built-in names; rule-pack
+field consumers; workset plan; viewport naming; annotation layering; `familyMatch`; mojibake.
+`StampDrawingTypeChecksums --check` now runs in CI. Tags.Tests 1,938 → 2,117.
+
+**Not verified in Revit** — listed in the ROADMAP closure pass. Still open by decision: ISO
+suitability colouring (needs a presentation choice), the drainage invert offset (needs a
+drainage engineer), DRAW-1/DRAW-3 (Revit runs), and 97 non-drawing NLP intents that dispatch to
+nothing (split out as their own task).
+
+**Follow-up the same day — two advisories acted on.** Expert review of the gaps left open
+turned two of them into defects, both now fixed in code:
+
+- **Spot "slopes" were spot elevations.** The only API route re-types an elevation to a
+  slope type; the refusal was swallowed, the elevation counted as a slope, and every re-run
+  added another. Now BLOCKED when no slope type exists, types found by `StyleType`, and a
+  spot that does not demonstrably carry the slope type is deleted and never counted.
+- **Drainage invert levels.** Not an engineering judgement after all: the bore invert is
+  centreline minus the INTERNAL radius, and Revit exposes the internal diameter. One
+  calculation (`InvertMath` / `PipeInvert`) now serves the drawing annotation, the invert
+  engine and the manhole schedule. The annotation writes "IL x.xx" at both ends and "1:X"
+  between (a spot elevation cannot report a bore invert); upstream is the higher end;
+  the four invert/cover parameters the engine wrote to — defined nowhere, so "N written"
+  meant nothing — are registered; cover depth is unknown rather than invented. Datum and
+  precision are one owner setting (`IlReportingOptions`, survey point / 2 dp by default).
+
+- **ISO 19650 status colouring, with the default decisions.** One shared integer,
+  `PRJ_TB_CDE_STATE_INT`, derived from the suitability code, drives one coloured band per
+  CDE state in the suitability column of all 8 BIM title blocks (formula
+  `PRJ_TB_CDE_STATE_INT = n`; unknown code → no band). Fixed on the way: the revision syncer
+  changed the code without re-deriving the CDE state, `FilledRegionSpec.Color` was never read,
+  and a missing fill-type name silently became the first one in the file. Pre-export blocks a
+  band that disagrees with the printed code. Not yet run in Revit.
+
+- **Annotations know what they are for.** Dimensions (wall, openings, column-to-grid, grid and
+  level chains), match-line captions and drainage IL notes are stamped at creation in Extensible
+  Storage with their producer and host (`AnnotationProvenance`). Re-runs find their own work
+  exactly: no duplicate from unreadable references, captions and IL notes follow a moved boundary
+  or pipe, and a deleted host's annotations are removed. Pre-stamp annotations keep the old
+  heuristics and are adopted when they match.
+- **Tag text size per drawing** — the scale-derived size finally chooses a size-variant tag
+  (`TagSizeVariant`); inert until variants are authored.
+- **DRAW-1 harness** — `StingTools.Revit.SmokeTests` runs the dimension / MEP / invert engines
+  inside Revit against a model it builds itself; `tools/run_revit_smoke.ps1`. Not yet run. Its
+  author predicted three column-to-grid defects by reading; all three were real and are fixed.
+
+- **Two tag rules on one category both run.** The runner tagged each category at most once per
+  view and skipped any element carrying any tag, so a second rule — a Pressure Regime Tag beside
+  the Room Tag, or familyMatch-split Specialty Equipment rules on different tag families — was
+  dropped without a warning. Rules are now one pass per (category, rule `tagFamily`,
+  `familyMatch`); a rule that names its own `tagFamily` skips only elements already carrying that
+  family, and a primary rule still skips an element with any other tag (a user's own tag still
+  wins) except one placed by this pack's specialist families. Primary rules run first. Room
+  AutoTag / AutoTagRoomName / AutoTagRoomNumber still collapse onto one pass. Logic in the
+  Revit-free `TagRuleIdentity`; 14 tests, 5 of them RED against the old semantics. This is the
+  prerequisite for giving the 22 rule-less healthcare drawing types their shipped specialist tags.
+- **Healthcare drawing types tag with the healthcare tag families.** 21 of the 22 healthcare types
+  had `autoTag: true` and no rules, which the runner reads as "tag every category with its default
+  tag" — a pressure-regime plan got a generic tag on every duct fitting and no pressure label. They
+  now carry 78 targeted rules naming the shipped specialist families per rule (Pressure Regime,
+  Infection Class, MRI Zone, 5-Gauss Marker, Faraday Cage, X-ray Barrier / Door / Window, Linac
+  Maze, Controlled Area Sign, Dosimetry Post, Anti-Ligature ×3, Medical Gas Terminal Unit, Area /
+  Master Alarm Panel, Zone Valve Box, Medical Gas Pipeline, the five MGPS plant tags, Bedhead
+  Trunking, Pendant, Nurse Call, Operating Light, Washer Disinfector, Autoclave, Endoscope
+  Reprocessor, Bedpan Washer, Mortuary Fridge, Imaging Modality, RTLS Reader, AGV Dock, PTS
+  Station). Where one category holds several kinds of object, `familyMatch` routes each; a pattern
+  that matches nothing in a view says so. The dead `Generic Models` tagFamilies entry was dropped
+  from the types that now have no Generic Models rule. `health-rds-A3` is a schedule and is left
+  alone. New test: a rule's own `tagFamily` must exist in the library and be declared (TAG_FAMILY
+  rows) for the category the rule tags — RED on a Pressure Regime rule pointed at Doors.
+  **Found:** `STING - Medical Gas Terminal Unit Tag` is a Plumbing Fixture tag but STING's own
+  outlet seed is Specialty Equipment, so seeded outlets get the Specialty Equipment tag instead
+  (ROADMAP DT-4). Not run in Revit; the familyMatch patterns are guesses at manufacturer naming.
+- **Drawing production now has a setup, and stops using "whatever loaded first".**
+  - *Title blocks:* 23 drawing types named title blocks nothing creates (`STING - Healthcare
+    Title Block A1/A3`, `STING - A1 Title Block`), so production fell back to the first title
+    block in the project. Pointed at `STING_TB_SHEET_A1/A3`, which `TitleBlock_CreateAll` builds.
+  - *Dimension styles:* drawing types, packs and the Drawing Type editor ask for
+    `STING - Linear` (and the editor offers `STING - Chain`); `CreateDimensionStyles` made
+    `STING - Linear mm` / `m` instead, so every lookup fell back. Both are now created. Every
+    style was also a copy of the first *linear* type — `STING - Angular` was linear under an
+    angular name and `STING - Ordinate` printed a chain. Each is now duplicated from a type of
+    its own kind, and Ordinate sets Dimension String Type = Ordinate (`LINEAR_DIM_TYPE`); a kind
+    the project lacks is reported, not faked.
+  - *RCP:* `arch-rcp-A1-1to100`'s rules were a copy of the floor plan's — it tagged doors,
+    windows, furniture and casework on a ceiling plan and never the ceilings and lights it
+    declared tags for. Now: grids/levels, rooms, ceilings, lighting fixtures, air terminals.
+  - *View types from data:* views were created with the FIRST view type of their family, so a
+    section got whichever section type loaded first. Drawing types gain `viewFamilyTypeName`
+    (9 set: `STING - Section` / `Elevation` / `Interior Elevation` / `Callout`); the producer
+    and the interior-elevation batch path use it via `ViewFamilyTypeChoice`, warn and fall back
+    when it is missing, and ignore it for views of another kind. New
+    `DrawingTypes_EnsureViewTypes` creates the named types (duplicates, never edits); new
+    validator check DT-031. The field is omitted from JSON when null, so only the 9 re-stamp.
+  - *Setup:* every drawing prerequisite lived on DOCS and no setup path ran them. New
+    `WORKFLOW_DrawingProductionSetup.json` (12 steps, params → pre-flight) behind a new
+    `DrawingTypes_SetupProduction` command, and a DRAWING PRODUCTION section on SETUP with the
+    run-all button and each step in order. `TitleBlock_CreateAll`, `LoadTagFamilies`,
+    `AecFilters_Create`, `PresentationSetup`, `RegenerateTemplates` and `Doctor` became
+    workflow-callable; they had buttons but no workflow route.
+  - *Material tags by face:* a material tag labels a face and cannot tag a whole element, but
+    the runner only passed `new Reference(el)`, so a material-tag rule failed once per element.
+    When the resolved tag is a Material Tag it now references a face — a wall's exterior /
+    interior sides, a host's top / bottom, else the element's own solid faces — choosing the one
+    facing the viewer (`FaceChoice`). Family instances are not handled yet and are counted and
+    reported. Unblocks the material callout on presentation elevations once its family exists.
+  - 15 new tests; 3 fail against the old "first found" / "largest face" behaviour. Not run in
+    Revit.
+- **DRAW-4 closed: 100 of the 139 orphan filters now render.** 113 rows added across 23 packs,
+  in each pack's own row style. Five new packs, each extending `corp-standard-plan` and selected
+  by drawings that had been riding the generic plan pack: `corp-fire-strategy` (arch fire
+  strategy — compartments, escape, FD30/90/120 doors, smoke dampers, sprinklers, gas suppression,
+  risers, alarm zones, firefighting/evacuation lifts), `corp-accessibility`,
+  `corp-floor-finishes` (finishes + raised floor), `corp-roof-plan`, `corp-fm-asset`. Clash, MGS
+  verify-fail and pressure-cascade-fault rows go FIRST in their packs — Revit gives earlier
+  filters precedence, and appended last they would have been painted over by the system and
+  gas colours they exist to override. Three duplicates removed (`fls-60min` / `fls-120min` on
+  `PER_FIRE_RATING_MINS`, which nothing writes, duplicating the fire-rating wall/door filters;
+  `elec-lightning`, superseded by the five `elec-lps-*`). Rules corrected before wiring: rebar
+  16–25 mm put a 25 mm bar in "large" (0.0820 ft < 25 mm); the 25/50 mm insulation filters used
+  `equals` on a feet literal and could never match (now 20–30 / 40–60 mm ranges), ≥80 mm
+  excluded 80 mm; `ceq-hoist` compared a Yes/No parameter to the text "Yes", which parses to 0,
+  so it coloured rooms WITHOUT a hoist; the HEPA filters sat on pipe categories where the HEPA
+  parameter is not bound (now duct / air-terminal / mechanical-equipment); `ees-it-cardiac`
+  narrowed to the one category its parameter is bound to; `fire-suppression-gas` dropped Generic
+  Models (no system-name parameter). 36 filters stay a per-project library by design. Hard-coded
+  filter counts in two UI labels removed so they cannot go stale again. Checksums re-stamped for
+  the 6 re-pointed drawing types. Not run in Revit.
+
+Also found: the flow-arrow family name tripped `validate_param_readership.py` (a gate
+not in the workflows this branch was checked against), fixed with a named, justified
+exemption rather than a raised ceiling.
+
+**Data ready for four hand-built specialist tags.** The fire-strategy, floor-finishes and
+accessibility drawings tag doors and rooms with the generic Door / Room tag because the
+families they need cannot be authored through the API. Everything around them is now in place,
+and `docs/SPECIALIST_TAG_BUILD_SHEET.md` gives the person building them the exact rows,
+formulas, types and post-build steps.
+
+- **Parameters.** Four new, UUIDv5 GUIDs, registered in `MR_PARAMETERS.txt` / registry,
+  csv and binding spec regenerated (second run a no-op): `BLE_DOOR_OPENING_FORCE_N` (TEXT),
+  `BLE_DOOR_LEADING_EDGE_CLEAR_MM` (TEXT), `BLE_DOOR_VISION_PANEL_ZONE_BOOL` (YESNO) — Doors,
+  Approved Document M Vol 2 / BS 8300-2 — and `FLS_COMPARTMENT_FR_MINS_TXT` (TEXT).
+- **`FLS_COMPARTMENT_ID_TXT` now binds to Rooms — LIVE BUG.** The `FLS_` prefix bound it to
+  sprinklers and detectors only, so a compartment could not be typed into a room, while the
+  `fls-compartment-id` filter (OST_Rooms), the RDS completeness validator and the declared Fire
+  Compartment Tag all read it from Rooms and got nothing. A resolver rule
+  (`FLS_COMPARTMENT_*` → Rooms + the existing devices) fixes it at the source, and covers the
+  new fire-resistance period.
+- **Protected from Propagate Universal.** All four declared in the ARCH tag configs (both
+  twins), each in its OWN `LabelMaster` group — a shared group would let one of them, run as a
+  master, overwrite the other three. `UniversalOptOutTests` lists them; its "the nine share
+  their master's group" check is now scoped to the LPS set it was written for.
+- **Placement presets** for the Accessible Door, Room Finish and Fire Compartment tags
+  (Fire Door already had one).
+- Not done, deliberately: `STING_DRAWING_TYPES.json` still names the generic tags — pointing
+  it at families that are not yet in `TagFamilies/` would fail `DrawingTypeTagFamilyTests`.
+  T2 rows on these tags stay blank until `TAG_DEPTH_TIER_INT` is bound Type-scoped to the
+  tagged categories (`TierGateScope`), so every deliverable row is T1. Not run in Revit.
+
+#### Completed (Phase 295 — a second pass over Phase 294, which found eight more)
+
+Asked to look again for hidden gaps. Eight, including two I had introduced myself the commit
+before. Recorded plainly because the useful lesson is in the ratio: the gates written in Phase 294
+caught five of these, and the two I introduced were caught by a gate I wrote *after* the code.
+
+**A regression of my own.** `AnnotationRuleKinds.ForcedCategory` held BIC strings
+(`"OST_Rooms"`). AnnotationRunner forwards the effective category to `ResolveTagTypeId` as the
+`pack.TagFamilies` lookup key — and every tagFamilies table in the catalogue is keyed by DISPLAY
+name ("Rooms" on 12 profiles). So the three `RoomTag` rules stopped finding `STING - Room Tag` and
+silently fell through to "first loaded room tag". Exactly the silent-substitution failure the phase
+existed to remove, re-created while removing it. `ForcedCategory` is now documented as
+display-name-only and `Forced_categories_are_display_names_not_BIC_strings` enforces it.
+
+**And a second one.** The pack save I added carried the loaded document header forward so a save
+would not truncate `schemaVersion` / `description` / `namespace`. That header includes `routing`,
+which lands in `[JsonExtensionData]` because `ViewStylePackDoc` does not model it — and
+`ViewStylePackRegistry.Merge` PREPENDS project routing over corporate. So saving packs froze all 28
+corporate routing rules into the project override where they win for ever: the identical bug I had
+just fixed on the drawing-type side, re-introduced on the pack side by the fix for a different
+problem. `routing` is now stripped from the carried header.
+
+**Editing a corporate pack still discarded the edit.** Phase 294 made the pack tab save, then
+filtered to project-origin packs — and a corporate pack edited in place still carries
+`origin: "corporate"`, so it was skipped. Two silent-loss bugs stacked: no write at all, then a
+write that excluded the thing you edited. Fixed by snapshotting every pack as loaded and writing
+any whose serialisation has moved, flipping its origin — which mirrors what
+`DrawingTypeRegistry.ComputeChecksums` already does for a drifted drawing type. Deliberately NOT a
+dirty flag inside each of the ~40 inline edit lambdas: a snapshot comparison cannot be forgotten by
+a future editor control.
+
+**Seven tagFamilies keys resolved to nothing.** `StructuralColumns`, `StructuralFoundations`,
+`StructuralFraming`, `StructuralRebar`, `LightingFixtures` — display names with the spaces removed,
+which is neither spelling `ResolveTagTypeId` can match. So `STING_TAG_COL`, `STING_TAG_FTG`,
+`STING_TAG_BEAM`, `STING_TAG_BAR` and `STING_TAG_LIGHT` were all declared and all silently replaced
+by whatever tag loaded first. There was a warning for a family that is not LOADED and none for a
+key nothing looks up, which is why this sat unnoticed. Renamed; `OST_GenericModel` normalised to
+`Generic Models` on 22 healthcare profiles for the same reason; `RainwaterOutlets` and `RoofLights`
+dropped — they name no Revit category and no rule consulted them (DRAW-8). **DT-139-FAM** now
+reports both an unresolvable key and a key no rule consults.
+
+**A managed pack minting a template Revit cannot assign.** `health-rds-A3` and
+`plumb-pressure-schedule-A3` are Schedule profiles bound to MANAGED packs, and Revit rejects
+`View.ViewTemplateId` on a schedule — so `EnsureTemplate` created a template it could never apply
+and the assignment threw on every produce. `CanCarryViewTemplate` is now a whitelist: an
+unfamiliar view type is refused with a named warning rather than discovered by a throw. Both
+profiles re-pointed to `corp-standard-detail`, which is external and already serves the other six
+schedule profiles. `health-rds-A3` was also asking for a `ScopeBoxOrBbox` crop on a view with no
+crop box.
+
+**Three spellings for one slot type.** `IsViewTypeCompatible` switches on ten terms and its default
+arm **allows any view**. The eight Schematic profiles used three spellings between them: four said
+`Drafting` (unlisted → allow-all, working by accident), four said `Section` — which *requires*
+`ViewType.Section`, so a drafting-view schematic was **rejected by its own slot** — and the declared
+term `Schematic`, the one that accepts a DraftingView, was used by none of them.
+`health-mep-coord` said `Coordination`, also unlisted. Both missing terms are now declared, all
+eight schematic slots normalised, and **DT-137-SLOTVT** plus
+`DrawingSlotVocabularyTests` close the vocabulary. That file's first test verifies its own mirror
+against `SheetPlacementBridge.KnownSlotViewTypes` read from source — without it the other four
+would be checking the wrong list, which is the failure mode a hardcoded expectation always has.
+
+**Verification.** Build 0/0. `StingTools.Tags.Tests` **1,599 passing** (1,582 → 1,591 → 1,599
+across the two passes). Checksums re-stamped and `--check` verified after each data edit. A full
+test plan — what runs now, what needs Revit and has never run, and how each gate was driven RED —
+is in [`docs/DRAWING_CATALOGUE_TEST_PLAN.md`](DRAWING_CATALOGUE_TEST_PLAN.md).
+
+#### Completed (Phase 294 — the drawing-type catalogue said more than the engine did)
+
+A review of the Drawing Type Editor, the 36 view style packs, the 290-filter registry and all
+93 drawing types, then every finding fixed. The pattern across almost all of them is the same
+one this codebase keeps producing: **data that declares an intention, and an engine that
+silently declines it.** Nothing threw, nothing warned, and every symptom read as "the tool
+didn't run".
+
+**56 of 334 annotation rules placed nothing, silently — 17% of the authored intent.**
+`AnnotationRunner` filtered tag rules through a private `HashSet` and dim rules through three
+`string.Equals` calls. Anything outside both fell through BOTH passes with no warning, so
+`AutoDimWallLength`, `AutoDimOpenings`, `AutoDimColumnGrid`, `AutoAnnotateSlope`,
+`AutoAnnotateFlowArrow`, `AutoTagRoomName`, `AutoTagRoomNumber` and `AutoAnnotateSpaceNumber`
+were indistinguishable from rules that ran and found nothing to do. Worse, the engines for
+half of them already existed and were **unreachable**: `MEPDimensioner` and
+`DrainageInvertDimensioner` had zero call sites anywhere in the tree, and the latter's own
+docstring named a trigger (`AutoSpotInvert`) that no drawing type declared and no switch
+handled. Data and engine both present; the wiring between them never made.
+
+The fix is not "add eight more cases". `Core/Drawing/AnnotationRuleKinds.cs` is now the one
+declared vocabulary: the runner dispatches from it, `DrawingTypeValidator` validates the JSON
+against it (**DT-139**, an ERROR), and a test walks `AllRuleTypes` in both directions — the
+data may only use names the registry declares, and every declared name must belong to a pass.
+A contributor can therefore neither add a ruleType to the JSON without an implementation nor
+declare one in the registry and leave it unhandled. Three new engines back the previously-dead
+kinds: `ElementDimensioner` (wall lengths, opening chains per host wall, column-to-grid
+setting-out) and `MepAnnotator` (spot slopes, flow arrows with direction read from the
+connector graph rather than assumed). An unrecognised name is now a warning naming the rule and
+listing the valid vocabulary.
+
+**"Some VGs are duplicated and don't reflect what's inside" — three separate causes.**
+`ResolveExtends` merged `vgOverrides` by key but ACCUMULATED filters with `.Add()`, so a child
+re-declaring a parent's rule produced two entries for one filter. `ApplyFilterRules` then read
+back the live overrides per rule and overlaid only the fields each stated, so the two
+**partially merged** into a combination nobody authored — `corp-healthcare-water` inherited
+`corp-coordination`'s light-blue DCW surface fill under its own darker line colour. Filters now
+merge BY NAME, child wins, matching the precedence `vgOverrides` always had. Separately, three
+packs declared the same filter twice *inside their own list*, every pair disagreeing on colour
+or weight (`corp-healthcare-pressure` had Pressure Positive as both `#1976D2` and `#64B5F6`);
+the later row had been winning, so the earlier was removed — no pixel changes, the ambiguity
+goes. And 10 no-op VG repeats, byte-identical to an ancestor, were deleted: they are what made
+the editor show a child "owning" settings it only echoed, which is how the within-pack
+duplicates got created in the first place.
+
+**The pack editor's Save never saved packs.** The footer hint said it did, the tab offers New /
+Clone / Delete and a full VG editor, and one of its own actions told the user to "Save to
+persist to `view_style_packs.json`" — but nothing in the dialog ever wrote that file. Every
+pack edit was discarded on close. It writes now, project-origin packs only, with the document
+header preserved.
+
+**And when it did write, it wrote keys the runtime cannot read.** The editor's private
+`ViewStylePack` mirror had drifted from `Core.Drawing.ViewStylePack`: its pattern fields
+serialised as `surfaceFgPatternName` / `surfaceFgPatternColor` where the runtime reads
+`surfaceFgPattern` / `surfaceFgColor`, so every pattern override authored in the editor was
+invisible to the applier. Its weights were non-nullable `int` with `NullValueHandling.Ignore`,
+which never suppresses `0` — so every saved override carried `projWeight: 0`, and because
+Revit's range is 1..16 and `SetProjectionLineWeight` throws, the applier abandoned that
+category's ENTIRE override (colour, halftone, transparency) on the first zero. And it bound
+`filterRules` only, so opening either of the two packs that use the canonical `filters` key and
+saving **deleted all 19 rules**.
+
+Keys renamed to the runtime's contract with the old spellings kept as read aliases; weights
+switched to `DefaultValueHandling.Ignore`; `visible`/`halftone` made `bool?` with a genuine
+tri-state checkbox, because as plain bools the editor could not express "the pack does not say"
+and turned every unstated value into a hard override on save. `[JsonExtensionData]` on all
+three mirror classes is the structural half of the fix — enumerating today's missing fields
+would close today's gap; extension data closes the class of it, so the mirror can fall behind
+the runtime without losing user data. `ApplyWeight` in the applier now treats a stray 0 as
+unset and reports anything else by name instead of letting one bad value discard the block, so
+both halves fail safe independently.
+
+**A 13-rule routing table that bound to nothing, in a vocabulary that could not have matched.**
+`STING_VIEW_STYLE_PACKS.json` has always shipped a `routing` array; `ViewStylePackLibrary`
+declared only `Version` and `Packs`. Nothing read `stylePackId`. Its purposes were `Coord` /
+`QA` / `ClientReview` / `DesignReview` — none are `DrawingPurpose` values — and its disciplines
+`ARCH` / `MEP` rather than the single letters every drawing type carries. Now wired as the
+documented fallback for a profile that names no pack, vocabulary corrected, 28 rules ending in
+a catch-all. This mattered: **8 of 93 profiles named no pack and so received no category
+overrides and no filters at all**, silently, because every downstream step is null-guarded.
+
+**35 packs shipped, 8 of them healthcare, zero structural.** `corp-standard-struct` is new —
+frame and rebar at full weight, architectural fabric halftoned as context, MEP hidden — and the
+four structural profiles are bound to it. The four discipline packs had **five** filters each,
+the phase rules inherited from `corp-base`, so MEP production drawings carried no system
+colour-coding while healthcare packs carried up to 31. They now reference 151 of the 290
+registry filters (was 87), declared BY NAME ONLY so `inheritDefaults` pulls each colour from the
+filter registry — one source of truth, rather than 100+ hex values copied into the pack file
+where they would immediately drift.
+
+**Profiles bound to packs that hide their own subject.** Four plumbing schematics, a SuDS
+drainage plan and a pressure schedule were bound to `corp-standard-plan`, which *hides Pipes*;
+an electrical riser to the same; and `health-mep-coord` to the radiation-shielding pack. All
+re-pointed. Two annotation rules targeted categories their pack hid — and because the tagger
+uses a view-scoped collector, which cannot see a hidden element, they placed nothing rather than
+placing an invisible tag. `corp-standard-rcp` now halftones Rooms instead of hiding them (room
+tags belong on an RCP); `arch-section` dropped its Rooms / Furniture tag rules (a building
+section does not tag either). **DT-140** catches the next one.
+
+**Four NTS schematics carried `scale: 1`.** DT-095 only fires on `scale <= 0`, so scale 1 passed
+validation — and `DrawingTypePresentation` applies it, giving a genuine 1:1 drafting view and a
+5 mm tag text height instead of 2.5 mm. Set to `"NA"`, alongside the eight schedules whose
+`view.Scale` assignment had been throwing and being swallowed as a warning on every single run,
+and three 3D profiles that disagreed with their three siblings.
+
+**`print` was inert, and `lineWeightScale` with it.** `print.lineWeightScale` (0.6–1.1 on the
+presentation and clarification profiles, whose entire purpose is lighter line work) and
+`print.halftoneLinks` were read only by the Excel round-trip. Both act now; the profile's scale
+folds into the pack's so the two cannot compound in an order-dependent way. `colourScheme` had
+two spellings for one concept — `Monochrome` (38) and `BlackAndWhite` (28), neither validated —
+normalised, with **DT-142** on a closed set. `textStyle`, `hatchPalette` and pack `colorScheme`
+genuinely have nothing to apply to a Revit view; they are now documented as DECLARATIVE with
+the reasoning, rather than left as unread fields that read as bugs.
+
+**ISO 19650 numbering was declared on 90 profiles and used by 9.** Every profile with an
+`isoNaming` block carries volume / level / type / role / suitability / revision, yet 84 number
+by bespoke short codes. Rewriting the patterns would silently renumber every sheet in every
+project in flight, and a second per-type pattern field would double the drift. Instead
+`PRJ_ORG_SHEET_NUMBER_POLICY_TXT` selects the convention and the ISO number is **derived** from
+`isoNaming` — no new per-type data, nothing to keep in sync. Default is unchanged behaviour,
+because a numbering change is a document-control event, not a side effect of a plugin update. A
+profile with no `isoNaming` keeps its own pattern and says why rather than rendering
+`--ZZ--DR--0001--`.
+
+Also: `dimensionStrategy: "None"` was offered in the Excel dropdown and mapped to Linear by
+`Parse`'s default arm, so "None" dimensioned exactly like "Linear" — now a real member,
+honoured once centrally. Rule `condition` was evaluated for tags only, so a conditional dim rule
+ran unconditionally — now shared by the dim / spot / symbol passes, still fail-open. The editor
+persisted the fully MERGED routing table into the project override, freezing all 113 corporate
+rules where they are prepended and win for ever; `DrawingRoutingRule.Origin` makes "mine"
+answerable and only project rules are written. Five 3D profiles declared `Auto3DTag` eight times
+each — 40 rows expressing 5 decisions, the per-row category ignored — collapsed to one.
+
+**Four more found by the gates, after the fixes.** Writing a gate against the real data is not
+the same as writing one against what you assumed the data looked like, and the difference showed
+up four times.
+
+The new dimension engines first shipped resolving categories with `Enum.TryParse<BuiltInCategory>`
+alone. The catalogue writes **localised display names** — "Doors", "Windows", "Structural
+Columns", "Walls", "Pipes", "Ducts" — not `OST_` strings, so every shipped rule resolved to null
+and the engines would have collected nothing while reporting "category is not a built-in
+category". A brand-new instance of the exact failure this phase existed to remove, one commit
+after removing it. Both spellings now route through `RevitCategoryTree`.
+
+`RevitCategoryTree` then turned out to be a MODEL-category table missing Levels, Scope Boxes,
+Reference Lines, Matchline, Section Boxes, Dimensions, Text Notes and Generic Annotations — eight
+categories `corp-base` actually overrides. `RevitVgEditor` builds its VG tree from
+`RevitCategoryTree.All`, so **the Drawing Type Editor could not show or edit eight overrides the
+corporate baseline ships**, which is squarely part of "the editor doesn't reflect what's inside".
+Added, with `IsTaggable = false` so `TaggableCategories` and the synthesised-rule set it feeds are
+untouched. Medical Equipment added too, the category `corp-healthcare-clinical` colour-codes.
+
+`"Insulation"` is **not a Revit category** — it is a subcategory of ducts, pipes and their
+fittings — yet `corp-standard-section` and `corp-standard-detail` used it as a `vgOverrides` key.
+`ResolveCategoryIdCached` found nothing, the applier warned "Category 'Insulation' not found", and
+the override was dropped, so insulation on every section and detail rendered at full weight
+instead of the halftone grey both packs asked for. Replaced with `Duct Insulations` +
+`Pipe Insulations`.
+
+And three clarification profiles declared `AutoTag` on "Generic Annotations". Revit cannot tag an
+annotation category — `IndependentTag.Create` needs a taggable model category — so the tagger
+would throw once per element and bury a clarification sheet's result in warnings. Dropped; the
+pack already shows and colours them, which was the intent. **DT-139-TAG** reads
+`RevitCategoryTree`'s taggable flag so the next one is caught rather than discovered in a warning
+storm.
+
+A flow-arrow rotation bug was caught by reading rather than running: `Atan2(dir.Y, dir.X)` about
+`view.ViewDirection` is wrong, because a floor plan's ViewDirection is **-Z** (it points towards
+the viewer), so a world-XY angle applied about it turns the arrow the opposite way — every arrow
+in every plan would have pointed upstream. The angle is now measured against the view's own
+`RightDirection` / `UpDirection`, which is correct in any view orientation.
+
+**Verification.** `dotnet build` 0 errors / 0 warnings, clean `-t:Rebuild` included.
+`StingTools.Tags.Tests` **1,591** passing (was 1,582).
+Three new gate files (49 cases) prove RED before GREEN: reverting the two data files to `main`
+turns **6** of them red; injecting one invented ruleType turns the vocabulary gate red; and the
+category gate went red on first run, which is how the four findings above were caught — checked
+in every case, because a gate only ever seen passing is not evidence. 93 corporate checksums
+re-stamped and `--check` verified. `tools/check_path_discipline.ps1` clean.
+
+**Not verified in Revit.** The three new dimensioners and the MEP annotator create real
+geometry through `NewDimension`, `NewSpotElevation` and `NewFamilyInstance`, and none of that
+can run outside Revit. The reference strategies are the risk: wall end-caps are recovered from
+solid geometry (`ComputeReferences = true`) because Revit exposes no "end of wall" reference,
+and the column-to-grid dimension picks between a column's two centre planes by transform
+alignment. Both fail to a named warning rather than an exception, but "fails safely" is not
+"produces the right drawing". Run `DrawingTypes_ProducePerLevel` on a model with walls, doors,
+windows, columns, grids and a sloped drainage run, and check the placed dimensions before
+trusting the counts. Logged as DRAW-1 in `ROADMAP.md`.
+
 #### Completed (Phase 294 — four defects one door in Revit found, none of them visible to five gates)
 
 The first Revit session against Phases 287–293. It took one door and the log to find four
@@ -22704,3 +23363,2024 @@ not valid…") on any property access of a deleted element, so the command
 failed immediately in projects that had junk to purge (confirmed live in
 Revit 2025.4). The keep/junk partition is now computed BEFORE the deletes,
 and the junk name is captured before `doc.Delete` for the failure log path.
+
+#### Completed (Electrical deep review — demo-blocking defects, branch `claude/electrical-mep-presentation-review-30b524`)
+
+A static review of the electrical module ahead of an MEP presentation found that several
+headline numbers were wrong by construction. Fixed here; the engineering gaps that need
+real rework are recorded as ELEC-1…ELEC-13 in ROADMAP.md.
+
+- **Voltage and power read in Revit internal units.** Revit stores 1 V as 10.7639 (and VA/W
+  likewise); ~40 sites read `RBS_ELEC_VOLTAGE` / `RBS_ELEC_APPARENT_LOAD` /
+  `RBS_ELEC_PANEL_TOTALLOAD_PARAM` and `ElectricalSystem.Voltage/ApparentLoad` raw, so a
+  230 V circuit was ~2476 V: voltage drop ~10.8× too small, every kW/kVA/W/m² ~10.8× too
+  large. New `Core/Electrical/ElecUnits` converts by the parameter's own spec (and
+  explicitly for API properties); the electrical command/engine read sites route through it,
+  and `MapBuiltIn` now converts every measured quantity to the unit its target name
+  promises (see the follow-up entry below).
+  `CircuitScheduleExporter` VD% now divides the drop (a voltage) by nominal voltage.
+- **Ze swapped.** TN-S 0.35 / TN-C-S 0.80 → TN-C-S 0.35 / TN-S 0.80 (UK DNO maxima), in
+  `STING_BS7671_DISCONNECTION.json` and `SeedDefaults`. Zs limit now includes Cmin 0.95
+  (Reg 411.4.4): B32 → 1.37 Ω, matching Table 41.3. `Bs7671EarthingDataTests` RED 3/3 on
+  the old data, GREEN 3/3.
+- **SetString dropped writes to NUMBER / INTEGER / YESNO parameters**, and callers reported
+  success. Unitless numbers, integers and yes/no words now write; measured quantities are
+  still refused (a bare number has no unit), and every refusal is logged.
+- **SLD** view 1:50 → 1:1 (layout is true-mm, text is paper-sized, so it overlapped);
+  rebuild scans before purging (was leaving a blank view); "Symbols placed: 0" now says
+  the SLD families are not loaded and shows warnings. **Riser**: outline instead of the
+  first FilledRegionType (often Solid Black), cleared before reuse, 1:1.
+- **Panel door diagram** read the text circuit number with `AsInteger()` → every slot
+  SPARE. `CircuitSlotParser` (11 tests) handles "5", "1,3,5", "2-4-6".
+- **VD schedule** had every column but voltage drop; now adds VD % and wire size, and
+  counts only writes that landed.
+- **Batch Assign Circuits** could never assign: a 2026-05 merge fix emptied the
+  `PanelState` constructor. Restored (slots from Max #1 Pole Breakers, poles-based usage,
+  Panel Name, volts converted, prior group tag).
+- **Guards**: Circuit "Delete" (really: remove all spares/spaces in every schedule) and
+  "Clear Overrides" (all overrides in the view) now confirm first. Emergency-fitting
+  detection matches whole tokens (`EmergencyNameMatcher`, 14 tests) — "Surface-Mounted"
+  no longer counts as emergency.
+
+Build 0/0. `StingTools.Tags.Tests` 1909/1909. **No Revit runtime path was exercised** —
+first check: RevitLookup a 230 V circuit, run Voltage Drop, and confirm STING reports
+~230 V and a plausible VD %.
+
+#### Completed (Electrical deep review — second pass, same branch)
+
+A second review (correctness + alignment/flexibility) of the branch found issues the first
+pass had exposed or missed. Fixed:
+
+- **AEC filter "High Voltage" fired on every 230/400 V element.** Filter rules compare in
+  internal units, so `RBS_ELEC_VOLTAGE > 1000` meant ~93 V. `AecFilterFactory` now converts
+  voltage rule values from volts (length values in the JSON were already authored in feet).
+- **Batch Assign rejected single-phase circuits on three-phase boards** once panel voltage
+  was read correctly (230 V circuit vs 400 V board). Voltage bands now also compare at
+  line / √3 (400/230, 208/120, 480/277).
+- **SLD and riser views are locked after stamping**, so drift checks and Sync Styles no
+  longer push the drawing-type scale (1:100 / 1:200) back over the 1:1 fix.
+- **`MapBuiltIn` wrote internal units into every non-electrical measured target too**:
+  duct/pipe flow (ft³/s) into `HVC_AIRFLOW_LPS` / `PLM_PPE_FLW_LPS` / `HVC_DCT_FLW_CFM`,
+  velocity (ft/s) into `*_VEL_MPS`, duct width/height (ft) into TEXT `*_MM`. It now converts
+  to the unit the target NAME promises (`UnitSuffix`, 22 tests) unless the target shares the
+  source spec. The unitless loss coefficient is no longer written into `HVC_PRESSURE_DROP_PA`.
+- **Emergency detection**: "EMBASSY"/"EMPIRE"-style all-caps words no longer match "EM";
+  the type name and type mark now go through the same token rule (type mark used a bare
+  `StartsWith("em")`).
+- **`SetNumericFromString` overwrite=false** now respects a recorded 0 / "No" (uses
+  `HasValue`, not a non-zero test).
+- **Standards Dashboard BS 7671 check** compared VA (internal units) against a rating in A,
+  and a voltage-drop VOLTAGE against 3 %/5 %. Now design current vs rating, and drop as % of
+  nominal voltage.
+- **Calc seed export** looked up built-ins by enum name via `LookupParameter` (always null):
+  panel name, mains rating, poles and fed-from were always blank. Now `get_Parameter(BIP)`.
+- **Docs aligned with the code**: the smoke-test checklist no longer names the retired GOLD
+  folder and labels fault current / arc flash / coordination as indicative; CLAUDE.md no
+  longer claims IEEE 1584, IEC 60909, BS 7671 App 4 cable sizing or A*+ACO routing, and
+  gains an `ElecUnits` convention.
+
+Remaining flexibility gaps are ROADMAP ELEC-14…ELEC-20.
+
+Test run on this branch (2026-09-24): Tags 1953/1953, Boq 1355, Sustainability 438, Cost 144,
+Acc 132, Visibility 102, Placement 69, Scheduling 38, Templates 37, Rooms 24, Licensing 14 —
+all passing. Clash 81/82, Routing 44/45, SitePhotos 35/37 (1 skipped) — the same single
+failure in each reproduces on untouched `origin/main`, so none is introduced here.
+
+#### Completed (Electrical deep review — fix round and cross-check, same branch)
+
+Seven parallel fix branches (each from the reviewed tip, each built and tested alone), merged,
+then cross-checked by three independent reviewers over the combined diff; every confirmed
+finding fixed in two further branches. ROADMAP "Electrical calculations — deep review" now
+carries per-item status (ELEC-1…20).
+
+- **Calculations.** IEC 60909-0 style LV fault current (c 1.10/0.95, source R/X, cable R at
+  20 °C, labelled assumptions); BS 7671 Appendix 4 cable sizing (Table 4D2A method C only —
+  other tables refused, rows ≥ 25 mm² flagged VERIFY) with Ib ≤ In ≤ Iz, BS 3036 fuses and
+  a `Basis`; one Appendix 4 mV/A/m table for every voltage-drop path; BS EN 60228 resistance;
+  PFC from tan(acos); Cmin in JSON + project Ze override; arc flash on **IEEE 1584-2002
+  (indicative, three-phase only)**; IEC 60898 band coordination; BS 7671 adiabatic check on
+  the device band (no band → UNVERIFIED) and every audit default recorded.
+- **Revit plumbing.** One conduit→circuit resolver; SLD annotations on Extensible Storage,
+  fed from real parameters; Renumber via `PanelScheduleView.MoveSlotTo`; one panel slot-count
+  rule and step; conduit auto-route cable identity, diameter and honest method text;
+  consolidator never leaves a group without conduit; lighting fallbacks flagged; IES/LDT
+  parsers; data-driven emergency keywords; HVAC/BOQ flow units; honest export labels.
+- **Tests fixed at root cause.** #596 (a resurrected duplicate Clash command file, also
+  polluting the MCP catalogue) and #597 (route engine dropped short legs, so straight runs
+  ended short of the goal) — both removed from the CI exclusion list; SitePhotos race on a
+  background realtime request.
+- **Merge seam caught by building after merging:** two `CircuitCandidate` types in one
+  namespace (each branch built alone).
+
+Test run on the final tip (2026-09-24): **all 15 projects, 0 failures** — Tags 2216,
+Boq 1355, Sustainability 438, Cost 144, Acc 132, Visibility 102, Clash 82, Routing 77,
+Placement 69, Scheduling 38, SitePhotos 37 (+1 skipped by design), Templates 37, Rooms 24,
+Licensing 14. Build 0/0 Debug and Release; wiring and path-discipline gates pass.
+**No Revit runtime path was exercised** — ELEC-13 (run the smoke-test checklist) is now the
+largest open risk.
+
+#### Completed (STING standard panel schedule templates, branch `claude/panel-schedule-templates`)
+
+The panel-schedule rules had always named four STING templates that nothing created, so
+every board fell back to "first template in the project". The reason given in
+`STING_PANEL_SCHEDULE_TEMPLATES.json` — that the Revit API cannot create or edit panel
+schedule templates — was wrong: `PanelScheduleTemplate.Create` plus
+`GetTableData`/`SetTableData` and `TableSectionData` (rows, columns, parameter cells, text,
+widths) do exactly that (checked against the Revit 2025 API reference).
+
+- **`STING_PANEL_SCHEDULE_SPECS.json`** — the seed: four templates (3-Phase Distribution
+  Board, Single-Phase Consumer Unit, Switchboard, Data Comms Panel). ISO 19650 header (asset
+  tag, supplied from, supply system, location/level/zone, status, main device, busbar,
+  prospective fault, breaking capacity, IP, project), BS 7671 circuit table (way,
+  description, device, poles, cable, length, phase loads / load, Ib, VD %), totals + notes
+  footer. Only parameters something writes are used. Project override
+  `_BIM_COORD/panel_schedule_specs.json`, merged by name.
+- **`Panel_TemplatesCreate`** (PNLS 📐) builds/rebuilds them in per-template
+  sub-transactions and **reads every cell back** from a fresh `GetTableData()`, reporting
+  anything that did not persist. **`Panel_TemplateInspect`** dumps any template's cells to
+  CSV — the ground truth for Revit's undocumented template layout.
+- **Board → template by what the board is** (`PanelBoardProfile`: `IsSwitchboard`, supply
+  phases; data by name), before the name rules — which now match the Panel Name as well as
+  the family type name (they only ever saw the type name).
+- **Batch Schedules** offers to build the STING templates when none exist (one click).
+- Wired into `WorkflowEngine.ResolveCommand` and the natural-language command list.
+
+Tests: `PanelTemplateSpecTests` (17) against the shipped files — spec validates, every
+template named by a rule, every board role has a rule and a spec, every shared parameter
+defined and bound to the category its cell reads; sabotage (misspelt parameter, renamed
+template) RED 3/17, GREEN 17/17. **Not exercised in Revit**: the builder adapts to the
+template's actual layout and reports; the first run's report is the verification.
+
+#### Completed (PNL-2 circuit compliance flags + PNL-5 applied phase balancing, same branch)
+
+From the panel-schedule competitor review (ROADMAP PNL-1…18), the two strongest demo items.
+
+- **PNL-2 — `Panel_ComplianceCheck` (PNLS ✅).** Every power circuit: Ib ≤ In (Reg 433.1.1),
+  In ≤ Iz (Iz = Table 4D2A method C tabulated, best case), VD ≤ App 12 limit (lighting/other,
+  from the panel), prospective fault ≤ board breaking capacity (434.5.1). A rule whose inputs
+  are missing is **NOT CHECKED**, never a pass; "OK" is shown only when every rule ran, else
+  "OK (not checked: …)". Written to new shared parameter **`ELC_CKT_CHECK_TXT`** (registered
+  in MR_PARAMETERS.txt/.csv, PARAMETER_REGISTRY, CATEGORY/RESOLVED_BINDINGS; GUID uuid5 of the
+  name) and shown as a **"BS 7671 check" column** in the three electrical STING templates;
+  failing circuits' devices go red in the active view; a colour-coded workbook is exported.
+  Revit-free rule: `CircuitComplianceRule`.
+- **PNL-5 — `Panel_BalanceApply` (CIRCTS ▶ Apply Balance, which previously only reported).**
+  `PhaseBalancer` greedily picks the move that cuts the phase spread most; only single-pole,
+  unlocked circuits move, only into EMPTY slots, each at most once, stop below 50 VA gain.
+  Slot phases are learned from the board's own circuits (row → phase, calibrated; any
+  disagreement skips the board). Preview → Yes → `MoveSlotTo`, then the actual imbalance is
+  re-read and reported. Switchboards and non-three-phase boards are skipped with a reason.
+- Wiring: handler, `WorkflowEngine.ResolveCommand`, NLP ("circuit check", "apply balance").
+
+Tests: `PanelComplianceAndBalanceTests` (9) with hand-worked cases (e.g. 3000/1000/2000 VA
+→ one 1000 VA move → 2000/2000/2000, 50 % → 0 %). Tags 2242/2242; build 0/0; all repo gates
+and CI's CSV/GUID checks pass locally. **Not exercised in Revit.**
+
+#### Completed (self-review of the panel-schedule work, same branch)
+
+Two independent reviews (correctness + silent failures) of PR #977 before merge. Fixed:
+
+- **Breaking capacity read in amps, compared as kA.** `RBS_ELEC_SHORT_CIRCUIT_RATING` is a
+  current parameter; a 6 kA device came back as 6000 and PSC ≤ Icn could never fail — a false
+  OK on an overduty breaker. Now `CircuitComplianceRule.BreakingCapacityKa`: explicit "kA" is
+  kA, any other value above 200 is amps (no LV device is rated above 200 kA).
+- **A pass against tabulated Iz is no longer a bare "OK".** Iz is It with no Ca/Cg/Ci, an
+  upper bound: In > It is a conclusive FAIL, but In ≤ It proves nothing, so the verdict is
+  "OK (not checked: Iz derating (Ca/Cg/Ci))". No circuit reaches "fully verified" from this
+  command; that needs the cable sizer's derated Iz.
+- **"Cells verified N/N" counted only cells whose write succeeded**, so a template missing
+  half its columns could show green. The total is now every cell the spec asks for; green
+  needs every cell persisted and no problems (`PanelTemplateBuildResult.Clean`).
+- **Rebuilding an existing template before Load Params wiped it** (cleared, then found the
+  parameters missing, then committed). Every parameter is now resolved first; if any is
+  missing the existing template is left untouched and the reason is reported.
+- **Red-to-green did not go green:** devices coloured on an earlier run stayed red. A device
+  on a now-passing circuit is cleared, only when its override is exactly STING's red.
+- Colouring no longer depends on the parameter being bound; only devices the view draws are
+  coloured and counted; refused writes are counted and shown.
+- Batch Schedules' "create templates first" path now shows a creation failure and the spec
+  warnings (e.g. a project override that failed to parse) instead of only logging them.
+- A misspelt or missing `scheduleType` / `configuration` key no longer defaults to
+  Branch / OneColumn silently; it fails validation.
+- VD in the verdict is shown to 2 dp so "3.04 % > 3 %" is not printed as "3.0 % > 3 %".
+
+Tests: +9 (Iz upper bound pass/fail, kA/amps theory, misspelt keys, VD precision). Panel
+tests 73/73. Build 0/0. Still **not exercised in Revit**.
+
+#### Completed (shared-parameter definition and binding fixes, branch `claude/param-binding-fixes`)
+
+A static audit named parameters that code writes or reads but that were undefined, bound to
+the wrong categories, or declared with the wrong type. Every item was checked at its call site
+before changing anything. Build 0/0; `StingTools.Tags.Tests` 2634/2634. **Not exercised in
+Revit.**
+
+**The binding resolver ignored hand-authored rows.** Load Params binds only from
+`RESOLVED_BINDINGS.csv`, and `tools/param_binding_resolver.py` never consulted
+`CATEGORY_BINDINGS.csv` for a parameter a prefix rule could place. So the LPS class, mesh
+size, rolling-sphere radius, Kc and risk reference that `LPS_ClassSetup` writes to
+ProjectInformation were bound to Electrical Equipment and Generic Models only, and the writes
+found no parameter; the Uganda regional `STR_*` defaults went the same way. The resolver now
+honours rows whose `Is_Shared` column reads `Yes` — the marker the hand-authored rows (LPS
+Wave 1, regional defaults) already used, as opposed to the generated `True` — as additions on
+top of its derivation, or in place of a blanket `<ALL>`. It is not applied to the rest of the
+file, which is polluted (hundreds of `BLE_*`/`CST_*` rows on Plumbing Equipment and the like).
+Three new failures instead of silence: a `Yes` row naming a category `category_enum_map` does
+not know, a `Yes` row for an undefined parameter, and a `Yes` home missing from the generated
+spec. The last was sabotage-checked (disabling the union fails the run and writes nothing).
+Two small resolver fixes ride along: a BOM on the file's first line no longer turns into a
+junk parameter key, and a derivation change that does not move a binding no longer reorders
+the committed cell. Net: +145 categories on existing parameters, 9 new parameters.
+
+**A — `ELC_CKT_NR` is TEXT.** It was NUMBER and written with values like `1,3,5`
+(`WireParamSyncCommands`, `PanelWireReconcileCommand`, `WireConfigurationDialog`) and read with
+`GetString`. GUID unchanged. **A project that already bound it as NUMBER keeps NUMBER until the
+parameter is removed and re-bound** (ROADMAP PARAM-5); the two readers now use
+`GetDisplayText` so they read either type.
+
+**B — bindings added** (all `Yes` rows): LPS project-level `ELC_LPS_*` on Project Information
+(rows already existed, now honoured) and `ELC_LPS_ZONE_TXT` on Rooms; `ELC_EMERG_COVERED_BOOL`,
+`ELC_LPD_*` and the room photometric results (`ELC_PHOTO_LUX_CALC`, `_UGR_CALC`,
+`_UNIFORMITY_NR`, `_LAST_ENGINE_TXT`, `_LAST_CALC_DATE_TXT`, `_LUX_DIALUX/ELUMTOOLS/RELUX_NR`)
+on Rooms — the electrical commands iterate `OST_Rooms` only, so no Spaces;
+`ELC_PNL_NAME_TXT` and `ELC_CIRCUIT_REF_TXT` on Conduits; `ELC_BUSBAR_CSA_MM2/RATING_A/FILL_PCT`
+and `ELC_CDT_CBL_FILL_PCT` on Cable Trays (busbar trunking is modelled as a tray);
+`ELC_FEEDER_CSA_MM2/RATING_A` on Electrical Equipment (FeederSizer stamps the fed panel);
+`HVC_PEAK_SENS_W/LAT_W/HOUR`, `HVC_OA_LS` and `HVC_LOAD_STALE_BOOL/REASON_TXT` on MEP Spaces
+and Rooms (Block Load stamps Spaces, falling back to Rooms). `HVC_PEAK_HOUR` is NUMBER and was
+written as `"14:00"`, which never parsed; it is now the hour as an integer.
+
+**C — parameters defined** (uuid5 in the STING namespace, group 4 `ELC_PWR` unless noted):
+`ELC_CONDUIT_HOME_RUN_BOOL` (YESNO) and `ELC_CONDUIT_HOME_RUN_END_TXT` on Conduits;
+`ELC_EARTHING_SYSTEM_TXT` and `ELC_MET_LOCATION_TXT` on Project Information (named resolver
+rule, so the `WARN_ELC_EARTHING_*` mirrors do not move); `ELC_CABLE_CSA_MM2_TXT`,
+`ELC_CIRCUIT_PHASE_TXT`, `ELC_CIRCUIT_DESC_TXT` on Electrical Circuits;
+`ELC_CBL_TOTAL_AREA_MM2` (NUMBER) on Conduits and Cable Trays; `STING_BUS_VOLTAGE_TIER`
+(group 27) on Views, where SLD Generate writes it. **Not defined:** `STING_VOLTAGE_TIER` and
+`STING_FEED_TYPE` — the SLD symbols are Generic Annotation families, which cannot take a
+project parameter. `SLDGenerator` now reports a missing stamp once per parameter and family
+rather than once per symbol (ROADMAP PARAM-4).
+
+**D — code repointed instead of new parameters.** `LPS_Schematic` read
+`LPS_PROTECTION_LEVEL_TXT` / `LPS_MESH_SIZE_TXT` / `LPS_COMPONENT_TYPE_TXT`, none of which
+exist, so it always drew class I, no mesh and zero components; it now reads
+`ELC_LPS_CLASS_TXT`, `ELC_LPS_MESH_SIZE_M` (raw metres, same convention as every LPS reader —
+ROADMAP PARAM-2) and `ELC_LPS_ELEMENT_TYPE_TXT` (`AIR_TERMINAL` matches `AirTerminal`), and
+says when the class was assumed. The Amtech, EasyPower and Trimble importers wrote
+`ELC_FAULT_LEVEL_KA`, `ELC_BUSBAR_RATING_TXT` and `SLD_VD_PCT`, all undefined, through
+`Parameter.Set(string)` that also returned false silently on NUMBER targets: panel fault →
+`ELC_PNL_SHORT_CIRCUIT_RATING_KA` (where FaultCurrent stamps it and the SLD label reads it),
+circuit fault → `ELC_CIR_FAULT_LEVEL_TXT`, busbar → `ELC_BUSBAR_RATING_A`, VD →
+`ELC_VLT_DROP_PCT`, all through `ParameterHelpers.SetString` with unbound/refused writes
+reported. EasyPower's line-to-ground fault has no parameter and is now reported as not stored
+(PARAM-3). The calc-seed export and panel door diagram read the busbar rating from
+`ELC_BUSBAR_RATING_A`. `GetString` on NUMBER parameters (always `""`) replaced with
+`GetDouble` / a has-value check in `ExternalExportEngine` (VD %, panel volts),
+`PanelScheduleAuditCommand` (every panel was reported missing voltage and ways),
+`CablePullListCommand` (core count, always 3), `DIALuxExportCommand` and
+`PhotometricLinkCommand` (lamp watts / lumens). All are unitless Number specs, so no unit
+conversion applies.
+
+Gates: resolver regenerate is a no-op; `sync_csv_from_txt.py` no-op; param contract OK after
+recording 13 new one-sided parameters with roles (8 input, 5 reference, none unresolved);
+param-name targets, tag-row bindings, map target types, tag-row duplicates, lying catches,
+unreachable-commands recount, token policy, path discipline, workflow wiring, doc acquisition,
+roadmap ids, docs index all pass; the workflow's inline GUID / CSV-integrity / CSV-structure
+checks and JSON validation reproduced locally and pass.
+
+#### Completed (pre-Revit cleanup, branch `claude/pre-revit-cleanup`)
+
+The work that could be coded before the next Revit session.
+
+- **CI gates run locally from the workflow files.** `tools/run_ci_gates.py` reads
+  `.github/workflows/*.yml` and runs the `run:` steps of the plugin-scope workflows, so it
+  cannot drift from CI by being a hand-copied list. A workflow it has not classified (run,
+  skip-with-reason, or out of scope) exits 2. `--quick` skips the plugin build and unit tests;
+  `--list` runs nothing. It puts back any file a gate rewrote only in line endings.
+- **`<ALL>` does not reach Materials.** `CleanMaterialBindings` strips Materials from every
+  non-material parameter, but three places assumed otherwise:
+  - 56 `CATEGORY_BINDINGS.csv` Materials rows on non-material parameters (never real bindings:
+    `RESOLVED_BINDINGS` did not change) are removed, and `param_binding_resolver.py` now refuses
+    such a row.
+  - The tag-row gate counted `<ALL>` as bound on Materials, which is how `STING - Materials Tag`
+    shipped 68 unprintable rows while the gate reported zero. Fixing the gate found 6 dead
+    Materials schedule columns. The spec now keys on `MAT_CODE` / `MAT_NAME`, and
+    `ScheduleDisciplineTagExpander` honours the spec's `col1_tag` instead of hard-coding
+    `ASS_TAG_1_TXT`.
+  - Four comments claiming Materials cannot take bound parameters were corrected.
+- **DT-3 closed.** The last four `tagFamilies` keys no rule asked for were given a rule
+  (`fm-asset-location` Rooms, `pres-context-site` Site) or removed (`clar-markup` Rooms,
+  `pres-exterior-elev` Walls). `EveryTagFamilyKeyIsAskedForByARule` now fails on any unused key.
+- **DT-4 closed.** `STING_SEED_MedGasOutlet` now builds Plumbing Fixtures, the category the TU
+  tag, the alarm-panel tags, `MgasNetwork` and `MgasFlowValidator` all use. As Specialty
+  Equipment, seeded outlets could not take the TU tag and were invisible to the network.
+  Terminal-unit types carry `MGS_GAS_TYPE_TXT`, and the TU / AAP patterns now catch the right
+  seed types. The AVSU / VIE category limit and 7 unregistered seed parameters are recorded in
+  ROADMAP DT-4. *(Corrected 2026-09-25: eight — `ASS_TAG_1` was missed.)*
+- **Health parameters reach Medical Equipment; MGS network fields reach pipework** (566d1bf0c).
+  The resolver's HEALTH set gained Medical Equipment, so 132 more parameters bind there — 78
+  clinical, medical-gas and radiation data parameters and 54 `WARN_` tag-warning rows (one
+  already did). `MGS_GAS_TYPE_TXT`, `MGS_ZVB_REF_TXT`, `MGS_NOM_PRESS_KPA_NR`,
+  `MGS_DESIGN_FLOW_LPM_NR` and `MGS_PIPE_BRAZED_BOOL` also reach Pipes, Pipe Fittings and Pipe
+  Accessories, where `MgasNetwork` and `MgasFlowValidator` read them.
+- **Setup wizard.** A new Drawing Production group on the Automation page:
+  - A checkbox runs the drawing-production workflow at the end of Phase 3. It is off by default
+    until DT-6's Revit run.
+  - A sheet-number policy picker, written after shared parameters load. It writes only a change,
+    and a caller that never chose leaves the parameter alone. *(Corrected 2026-09-25: the wizard
+    itself always chose — the picker never returned "no choice", so every run recorded
+    `profile`. Fixed in the review-fixes branch.)*
+
+Build 0/0. Tags.Tests green. `run_ci_gates.py` green. Data and gates are verified headlessly.
+**Not exercised in Revit:** the wizard steps, the moved seed, and the new Rooms / Site rules.
+
+#### Completed (Scope Box Planner, branch `claude/scope-box-planner`)
+
+Area boxes that every plan drawing type can share, created from seeds.
+
+- **Why seeds.** The Revit API cannot create a scope box or change its size. It can copy, move,
+  rotate and rename one. So each size is drawn once as `STING-SEED::<w>x<d>` (Register Seeds
+  names it from its measured size), and STING copies it everywhere else. Import Seeds brings
+  seeds in from a template or another project.
+- **Why area boxes.** A box tied to one drawing type multiplies with the catalogue: ten plan
+  types over five levels is fifty identical rectangles. A `STING-AREA::` box is an extent; every
+  type in its size class uses it, and a level-less box serves every level it spans. The prefix
+  is disjoint from `STING::`, so the drawing-type binder never reads an area box as a type
+  called "AREA".
+- **Sizes come from data already shipped.** Largest box = title-block drawable area
+  (`STING_TITLE_BLOCKS.json`) × the type's main slot × scale × a fit factor. For example, A1
+  1:100 allows 53.2 × 38.4 m at 90 %. Types are grouped by paper and scale, and each group's box
+  must fit every member. A paper the title blocks do not describe is refused, never guessed.
+- **Planner** (`ScopeBox_Planner`, DOCS → Drawing Types):
+  - tick drawing types grouped by discipline;
+  - choose whole model, each STING-LOC building, or each level;
+  - set overlap, clearance and fit, and whether to square boxes to the grids;
+  - the seed list includes the exact sizes still to draw;
+  - the plan grid recomputes on every tick, because model reads are cached when the window
+    opens and planning is Revit-free;
+  - Create copies, turns and names the boxes; Produce Views runs `DrawingProducer` per
+    box × level × type, says how many first, and is idempotent.
+- **The saved plan** (`_BIM_COORD/scope_box_plan.json`) is the one record of which drawing
+  types an area box serves.
+  - Planning a second building merges into it rather than replacing it.
+  - An unreadable plan blocks Create instead of being overwritten.
+- **Colour** by size class, discipline, building, level or kind, applied at once to the active
+  view or all plan views; Off clears.
+  - The colour is derived from what the box is, so nothing stored can drift.
+  - Palette and discipline colours are in `STING_SCOPE_BOX_STYLE.json`, with a project
+    override.
+- **Drawing Type Editor: new All Actions tab.** It offers every button in the dock panel's
+  DRAWING TYPES section, in the same groups; the editor previously exposed 8 of 41. It is
+  built from `DrawingTypeActions`, and `DrawingTypeActionsTests` reads the dock XAML and fails
+  on any difference in group, label or tag, so the two cannot drift. The dock section gained a
+  "Scope boxes" sub-group. The editor's "Edit pack" jump now selects its tab by reference,
+  because tab positions moved.
+- **Scope Box Manager** now badges area, seed and building boxes for what they are instead of
+  "not STING".
+- `ParameterHelpers.GetLevelCodeForLevel` was split out of `GetLevelCode`, which now calls it,
+  so a level and the elements on it cannot get different codes.
+
+Tests: `ScopeBoxPlanningTests`, 52 cases, run against the shipped catalogue and title blocks.
+Deliberately breaking each of plan merge, seed rotation and the tile count turned its tests RED.
+Tags.Tests: 2,686 pass. Build: 0 errors, 0 warnings. **Not run in Revit**: see ROADMAP SBP-1 to
+SBP-4. The biggest open question is whether Revit honours per-element colour overrides on scope
+boxes.
+
+#### Completed (gap review 2026-09-25: parameter file, panel card, Excel round-trip)
+
+Three independent gap reviews of what was deployed on 2026-09-24 (#977 / #978 / #980). Fixed:
+
+- **`MR_PARAMETERS.txt` had one malformed row.** The `ELC_CKT_NR` edit in #980 put the
+  description into the VISIBLE column. Revit parses VISIBLE as an integer, so the row can make
+  `OpenSharedParameterFile` reject the whole file and Load Params bind nothing. Every existing
+  gate passed it. New `SharedParamFileShapeTests` checks every PARAM row's shape (field count,
+  GUID, datatype, GROUP, VISIBLE / USERMODIFIABLE 0-1); RED 2/3 against the broken file, GREEN
+  after the fix.
+- **"Show Last Import Diff" did not show what changed.** It listed counts and load deltas only,
+  so editing a circuit description (demo step 3) showed "Cells written: 1". Every changed cell
+  is now listed old → new, in the result panel and in the diff.
+- **Excel import could overwrite the BS 7671 check column.** A hand-typed "OK" would have read
+  as a check that never ran. Computed columns (`ELC_CKT_CHECK_TXT`) are exported but never
+  imported, and the count is reported.
+- **Excel export ignored Scope and Header / Body / Summary** — "Active panel" exported every
+  schedule. The panel now snapshots them; Active needs an open panel schedule, Selected takes
+  selected boards or schedules, and each refuses with a message rather than exporting everything.
+- **PNLS panel card saved to the wrong board and wrote the enclosure type as the IP rating.**
+  The grid listed family TYPE names and Save matched the first board of that type; it now lists
+  Panel Names and saves by element id. "Enclosure Type" (default "Floor Standing") was written
+  into `ELC_PNL_IP_RATING_TXT`, so every STING schedule showed "Floor Standing" as the IP
+  rating; IP Rating now writes that parameter and the enclosure type is reported as not stored
+  (PNL-19).
+- `WORKFLOW_PanelScheduleProduction` builds the STING templates before Batch Schedules, so the
+  workflow never stops at the "create templates?" prompt. `Panel_Audit` reports boards with no
+  IP rating.
+
+Logged, not fixed: PNL-19 (enclosure parameter), PNL-20 (template/spec drift in the audit),
+PNL-21 (breaking capacity only from the family). Build 0/0. **Not exercised in Revit.**
+
+#### Completed (parameter read/write fixes after #980, branch `claude/param-read-fixes`)
+
+Follow-up to the shared-parameter binding work: code that wrote or read parameters that now
+exist, but did it wrongly. Every claim was checked at its call site first. Build 0/0;
+`StingTools.Tags.Tests` 2634/2634. **Not exercised in Revit.**
+
+- **Importer panel lookup.** The Amtech, EasyPower and Trimble importers looked up the panel by
+  `LookupParameter("RBS_PANEL_NAME")` — an enum name no parameter carries, so always null — and
+  fell back to `Element.Name`, which on a board is its family TYPE name. Circuits were matched on
+  `BaseEquipment.Name`, the same type name. Now Panel Name through
+  `get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)` (the type name kept only as a last
+  resort) and `ElectricalSystem.PanelName` for circuits. **Stamped counts are now honest:** the
+  stamp helpers return how many writes landed, a panel (or Trimble circuit) counts as stamped
+  only when that is above zero, and the report adds "matched but nothing written" and "failed
+  writes".
+- **`PanelWireReconcile` auto-correct** counted a conduit corrected whatever `SetString` returned.
+  It now counts a conduit only when every needed write landed; the rest are counted, logged and
+  named in the dialog with a Load Params hint.
+- **`ELC_CKT_NR` in TAG7.** The TAG7 technical sections (`TagConfig.Tag7.cs`, both the marked and
+  the natural builder) read the circuit number with `GetString`, which is `""` on a project that
+  still binds it as NUMBER (PARAM-5). They use `ParameterHelpers.GetDisplayText`, which answers
+  for either type. #980's note that "the two readers" were switched covered other readers, not
+  these.
+- **LPS LENGTH units (was ROADMAP PARAM-2).** `ELC_LPS_ROLLING_SPHERE_RADIUS_M`,
+  `ELC_LPS_MESH_SIZE_M` and `ELC_LPS_SEPARATION_DISTANCE_MM` are LENGTH, but were written as raw
+  metres / millimetres through `Parameter.Set(double)`, i.e. stored as feet — a 30 m sphere read
+  as 9.144 m in Properties, now visible because #980 bound them to Project Information.
+  `LpsEngine` gains `IsLengthParam` / `ToInternalIfLength` / `FromInternalIfLength` (unit from the
+  `_M` / `_MM` suffix); both `SetDouble` writers and the inline separation-distance stamp convert
+  to internal, and `LpsEngine.GetDoubleParam` (every LPS reader, including `LPS_Schematic`, the
+  LPS panel and the compliance check) and `LpsValidator.ReadDouble` convert back. Conversion
+  happens only when the spec is `SpecTypeId.Length`, so an older NUMBER binding reads and writes
+  the plain value as before. **Values already stamped by an earlier build are in the old,
+  wrong scale; re-run LPS Class Setup to rewrite them.**
+- **IPS Validation** read `IPS_PANEL_BOOL` as a fallback for `ELC_IPS_BOOL`; it is defined
+  nowhere, so the fallback is gone. The LIM check still reads `LIM_INSTALLED_BOOL` /
+  `IPS_LIM_BOOL`, also undefined — `ELC_IPS_BOOL` means "is an IPS", not "has a LIM", so it
+  cannot stand in (ROADMAP PARAM-8).
+- **`HVC_PEAK_HOUR` description** no longer says "(HH:00)": it is the hour as a whole number
+  0-23. `.txt` and `.csv` updated (`sync_csv_from_txt.py` does not carry descriptions, so the
+  CSV row was edited to match) and `docs/RESOLVED_BINDINGS.csv` regenerated for the new text.
+- **Logged, not fixed:** twelve parameter names used in code and defined nowhere (ROADMAP
+  PARAM-7), the missing LIM parameter (PARAM-8), and four pseudo-category names the binding
+  loader drops without a log line (PARAM-9 — no binding is lost today).
+
+Gates: `param_binding_resolver.py` changed only the `HVC_PEAK_HOUR` description row in
+`docs/RESOLVED_BINDINGS.csv`; `check_param_contract.py --check` OK with no baseline change;
+`find_lying_catches.py` exit 0; `recount_unreachable_commands.py --check` agrees;
+path discipline OK; roadmap ids unique.
+
+#### Completed (PNL-20 template drift in the audit, PNL-21 assumed device Icn)
+
+- **PNL-20.** `Panel_Audit` compares every built STING template's bound parameters (header,
+  circuit table, summary, footer) with `STING_PANEL_SCHEDULE_SPECS.json` and lists templates
+  that are missing columns — e.g. one built before the BS 7671 check column existed — with
+  "rebuild with PNLS 📐". It also counts STING templates not built yet. Revit-free core:
+  `PanelTemplateSpec.MissingFrom` / `KeyOf`; the builder's `BoundParamKeys` reads a template.
+- **PNL-21.** Where a device family carries no Short Circuit Rating, the compliance check
+  shows a low-end typical Icn (`CircuitComplianceRule.TypicalIcnKa`: 6 kA MCB ≤ 63 A, 16 kA
+  MCCB) for guidance only. It is never a basis for a pass or a fail: a PSC at or below it
+  reads "device Icn assumed 6 kA", one above it reads "PSC 8 kA > 6 kA typical — confirm
+  device Icn"; both stay NOT CHECKED. A real Icn always wins. Nothing is stamped onto the
+  model, so no assumed value can later be mistaken for a manufacturer rating.
+
+Tests: +7 (typical Icn by class, assumed Icn never passes/fails, real Icn first, stale
+template detection). Panel tests 80/80. **Not exercised in Revit.**
+
+#### Completed (PARAM-4, PARAM-5 and the TAG7 circuit number, branch `claude/param-code-closeout`)
+
+- **PARAM-4 - SLD symbol stamps land.** `SLDGenerator.PlaceSymbols` stamps `STING_VOLTAGE_TIER`
+  and `STING_FEED_TYPE` on each placed SLD symbol, but the symbols are Generic Annotation
+  families and a project parameter cannot bind to that category, so the stamp never landed.
+  `SymbolLibraryCreator.BuildOne` now authors both as instance TEXT family parameters
+  (`FamilyManager.AddParameter`, Identity Data) in every annotation family built from a
+  `STING_SLD_SYMBOLS*.json` catalogue (`IsSldCatalogue`), and `CreateCompoundSymbols` does the
+  same for compound SLD symbols. `SymbolCacheManifest.GeneratorVersion` is bumped 2 -> 3 so
+  cached SLD `.rfa` files rebuild on the next symbol build instead of being served stale. For a
+  family built before the change the existing once-per-parameter-and-family warning stays, and
+  now says to rebuild the SLD symbols (Symbols > Create & standards > Rebuild or SLD) and
+  regenerate. `STING_SYMBOL_ID` / `STING_SLD_ELEMENT_ID` are shared parameters on the same
+  category and were not in scope.
+- **PARAM-5 - `Params_RebindCircuitNumberAsText`.** New command
+  (`Tags/RebindCircuitNumberAsTextCommand.cs`, `TransactionMode.Manual`) for a project that bound
+  `ELC_CKT_NR` as NUMBER before it became TEXT. It resolves `ELC_CKT_NR` from
+  `MR_PARAMETERS.txt` first (and refuses if that says anything but TEXT), reads every value as
+  text, confirms with the count, then in one transaction removes the binding and the parameter
+  element, re-binds as an instance binding on the `RESOLVED_BINDINGS.csv` categories unioned
+  with the old binding's (Load Params' rule: a rebind never takes a home away), restores the
+  values and reports before/after counts plus every element whose value did not come back.
+  Already TEXT: it says so and does nothing. Wired into `StingCommandHandler`,
+  `WorkflowEngine.ResolveCommand` / the known-tag list, and a CREATE TAGS > SETUP button beside
+  Load Params. `LoadSharedParamsCommand.FindMrParametersFile` is now `internal` for reuse.
+- **TAG7 circuit number.** On a NUMBER binding `GetDisplayText` gave "3.00", so TAG7 printed
+  "connected to circuit 3.00". New Revit-free `Core/Electrical/CircuitNumberText.FromNumber`
+  writes an integral value with no decimals and leaves a non-integral one as Revit displayed it;
+  `ParameterHelpers.GetCircuitNumberText` applies it to NUMBER storage only (TEXT is returned
+  unchanged) and the three TAG7 `ELC_CKT_NR` reads use it. The rebind command uses the same
+  helper, so "3.00" is restored as "3". `CircuitNumberTextTests` (9 cases) in
+  `StingTools.Tags.Tests`.
+
+Not run in Revit on this branch. Gates: `dotnet build -c Release` 0 errors / 0 warnings;
+`StingTools.Tags.Tests` 2657 passed / 0 failed; `check_param_contract.py --check` OK with no
+baseline change; `recount_unreachable_commands.py --check` agrees (1759 / 1734 after the merge, triage doc
+updated); `check_workflow_wiring.ps1`, `check_path_discipline.ps1` and
+`check_command_doc_acquisition.ps1` pass.
+
+#### Completed (shared-parameter data close-out, branch `claude/param-data-closeout`)
+
+Closes ROADMAP PNL-19, PARAM-3, PARAM-6, PARAM-7, PARAM-8 and PARAM-9. New parameters follow
+the 457bc8e4e pattern: uuid5 GUID over the name (namespace `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00`,
+checked to reproduce `ELC_CKT_CHECK_TXT`), a 9-field `MR_PARAMETERS.txt` row, a
+`PARAMETER_REGISTRY.json` entry, `Is_Shared = Yes` rows in `CATEGORY_BINDINGS.csv` (v3.16), then
+`sync_csv_from_txt.py` and `param_binding_resolver.py`. **Not exercised in Revit.**
+
+- **PNL-19 — enclosure type.** `ELC_PNL_ENCLOSURE_TXT` (TEXT, Electrical Equipment). The PNLS card
+  save (`ElecPanelWriteParamsCommand`) writes `snap.Enclosure` to it; the "not stored yet" line is
+  gone, and the dialog now says so only when the write fails. The three electrical templates in
+  `STING_PANEL_SCHEDULE_SPECS.json` carry an "Enclosure" header field beside "IP rating" (the
+  consumer unit, which has no IP row, after prospective fault). In the 3-phase distribution board
+  this **replaces** the old "Enclosure" field that read Revit's built-in `RBS_ELEC_ENCLOSURE`,
+  which nothing in STING writes.
+- **PARAM-3 — line-to-ground fault.** `ELC_PNL_FAULT_LG_KA` (NUMBER, Electrical Equipment).
+  EasyPower Import writes it through the same checked `Set` as the 3-phase fault; the
+  "not stored" line in the report is gone.
+- **PARAM-8 — Line Isolation Monitor.** `ELC_IPS_LIM_BOOL` (YESNO, Electrical Equipment). IPS
+  Validation reads it first, then the family names `LIM_INSTALLED_BOOL` / `IPS_LIM_BOOL`; any one
+  set to Yes counts, so the always-present STING parameter cannot hide a family parameter that
+  says Yes. The silent `catch` around the read now logs.
+- **PARAM-7 — names used in code and defined nowhere.** Per name:
+  - *Defined* (no existing equivalent; datatype and categories from the code that reads them):
+    `ELC_FEED_TYPE_TXT` (Electrical Equipment; Dual-Source Validation, SLD traverser),
+    `ATEX_ZONE_TXT` + `ATEX_EX_RATING_TXT` (Electrical Equipment + Fixtures; ATEX Classification),
+    `MGS_SUPPLY_TYPE_TXT` (Mechanical + Specialty Equipment and the HEALTH set; MGPS schematic),
+    `MGS_ZV_ZONE_TXT` (adds Pipe Accessories, where zone valves live; MGPS schematic),
+    `HVC_SPACE_TYPE_TXT` (MEP Spaces + Rooms only; Block Load, cross-talk audit, ComCheck),
+    `PRJ_BUILDING_USE_TXT` (Project Information; `ProjectSector`, sustainability engine), and
+    the LIM flag above. All TEXT except the YESNO LIM flag.
+  - *Repointed* to an existing parameter that already means the same thing:
+    `ELC_FIRE_LOOP_REF` -> `FLS_SFTY_DEV_LOOP_TXT` then `FLS_SFTY_LOOP_NR_TXT` (the loop the fire
+    alarm device tag and schedule already show; Fire Alarm Schematic; a blank loop still groups
+    as "Zone 1"); `ELC_CONDUIT_REF` / `ELC_CABLE_ROUTE_REF` -> `ELC_CONDUIT_ROUTE_TXT` (the route
+    id the conduit auto-router and consolidator write, bound on Electrical Equipment; SLD route
+    label); `ELC_JB_IP_RATING_TXT` -> `ELC_IP_RATING_TXT` (bound on Electrical Equipment, the JB
+    seed's category; Cable Schedule Builder).
+  - *Rejected as an alias:* `MGS_ZVB_REF_TXT` for `MGS_ZV_ZONE_TXT` — it is the OWNING box id on
+    pipes and terminal units, so reading it as "this is a zone valve" would have turned every
+    terminal unit into one.
+  - *Skipped as family-authored:* none of the twelve. The one real case, `STING_VOLTAGE_TIER` /
+    `STING_FEED_TYPE` on Generic Annotation SLD symbols, stays PARAM-4.
+  - `param_binding_resolver.py` places `ELC_FEED_TYPE_TXT` / `ELC_IPS_LIM_BOOL` on
+    `ELEC_EQUIP` and `HVC_SPACE_TYPE_TXT` on a new `SPACE_ROOM` set by name, so the prefix rules
+    do not put them on every conduit or duct.
+- **PARAM-9 — pseudo-category names.** `MEP Sleeve` and the three `Anti-Ligature (...)` names are
+  LABEL_DEFINITIONS tag-family keys, which `check_tag_row_bindings.py` matches literally, so the
+  `CATEGORY_BINDINGS.csv` rows stay. The resolver now strips tag-family keys (92 known, read from
+  `LABEL_DEFINITIONS.json`) from what curated rows and the committed spec contribute, and **fails
+  on any category in any emitted row that `category_enum_map` does not know** (plus `<ALL>` not in
+  first position). The 13 affected rows (15 tokens) (`SLV_*`, `LIG_AREA_OBS_LOS_TXT`,
+  `LIG_PRODUCT_RATING_TXT`) keep their real category. `SharedParamGuids.EnsureResolved` now
+  `StingLog.Warn`s once per unknown name with a count and example parameters.
+- **PARAM-6 — project-level parameters reach Project Information.** A categories cell may now
+  read `<ALL>|Project Information`: the universal set plus categories outside it.
+  `SharedParamGuids.EnsureResolved` exposes the extras as `ResolvedUniversalExtras`; Load Params
+  binds such a parameter to the core set plus the extras (built once per extra set), and the
+  existing union-rebind path adds Project Information to a project that already has the
+  parameter on its elements. The resolver gives every `PRJ_*` parameter outside `PRJ_TB_*`,
+  `PRJ_SHEET_*`, `PRJ_DWG_*` and `PRJ_STATUS_COD_TXT` Project Information, keeping `<ALL>` where it
+  was: 30 parameters (`PRJ_NAME_TXT`, `PRJ_ADDRESS_TXT`, `PRJ_PHASE_TXT`, `PRJ_CLIMATE_SITE_ID`,
+  `PRJ_REFRIG_*` ...). `WARN_*` mirrors and `ASS_DESIGN_*` are untouched. Readers updated for the
+  new cell shape: `TagParamBindingAudit.ParseSpec`, `CobieBindingFacts.IsUniversal`,
+  `check_tag_row_bindings.py`, `check_param_name_targets.py`, `build_kut_lod_overlay.py`
+  (`smoke_test_lib.py`, `check_title_block_surfaces.py`, `binding_simulator.py` and
+  `validate_param_readership.py` already handled it). Two tests pin the parse and the shipped
+  spec.
+- **Parameters bound to Project Information in `RESOLVED_BINDINGS.csv`: 86 before, 117 after**
+  (+30 `PRJ_*`, +`PRJ_BUILDING_USE_TXT`).
+- **No parameter lost a category.** A before/after comparison of `RESOLVED_BINDINGS.csv`: 3303 ->
+  3313 parameters, none dropped, 54 category tokens gained, 15 removed — all 15 are the tag-family
+  keys above, none of which the loader could resolve; 0 resolvable categories lost.
+
+Gates: resolver second run a byte-for-byte no-op; `check_param_contract.py --check` OK after
+`--write` added the seven new parameters (six read-only user inputs, `ELC_PNL_ENCLOSURE_TXT`
+read by the panel schedule spec), with roles and reasons filled in by hand;
+`check_param_name_targets.py`, `check_tag_row_bindings.py`, `check_map_target_types.py`,
+`recount_unreachable_commands.py --check`, `check_roadmap_ids.py` and path discipline OK;
+`find_lying_catches.py` exit 0.
+Build `dotnet build StingTools/StingTools.csproj -c Release`: 0 errors, 0 warnings. `StingTools.Tags.Tests` 2650/2650 (2648 + the two new binding tests).
+
+#### Completed (review fixes after #981 / #982, branch `claude/review-fixes`)
+
+Every finding of the 2026-09-25 review of the pre-Revit cleanup and the Scope Box Planner.
+
+- **Scope Box Planner.**
+  - Existing boxes are judged against their measured position and size: **Exists**, **Moved**
+    (Create moves and turns it back), **Mismatch** (a size the API cannot change), **NoSeed**. A
+    measured angle is folded modulo a quarter turn, with the sides swapped. Before this, a box
+    with the planned name was "kept" wherever it stood.
+  - Boxes are measured from their edges in their own frame, not from an axis-aligned bounding box.
+  - The plan file (schema 2) stores each box's own drawing types, levels and geometry. A
+    re-plan replaces that (building, level, class) group instead of wiping other buildings.
+    Boxes deleted from the model are pruned. Creations that failed are not recorded.
+    Schema-1 files still load.
+  - Create refuses an unreadable plan file, an empty level list and, unconfirmed, more than 200
+    boxes. It rolls back a half-made copy per box.
+  - Level codes are unique (`L01`, `L01-2`).
+  - Import Seeds leaves an already-open source document open, and refuses an unsaved project.
+  - Produce rolls back a view whose crop did not take and reports new against refreshed views.
+  - `DrawingProducer.BuildViewName` includes the box tag, so two boxes on one level no longer
+    collide.
+  - The dialog runs one action at a time and rebuilds after a reload.
+- **Medical gas.**
+  - `MedicalGasFixtures.IsMedicalGas` (gas type, MG discipline or seed id) keeps outlets out of
+    the P-trap inserter, the fixture-unit scanner and the aggregator. The trap inserter takes
+    only a Sanitary connector, where before it took the first piping one.
+  - The familyMatch patterns used `\b`, which treats `_` as a letter, so `MAP_THEATRE_PANEL`
+    and `VIE_*` slipped through. They now use a letter/digit boundary and accept space,
+    underscore or hyphen, and `MAP` is case-sensitive.
+  - The theatre panel is now `THEATRE_GAS_PANEL` / `TGP`: `MgasNetwork` reads product code
+    `MAP` as a Master Alarm Panel.
+  - Outlet placement writes canonical gas codes (`AIR` → `MA4`, `AGSS` → `AGS`, …), reports
+    unknown codes instead of guessing 400 kPa, and takes pressures from `NFPA99Standards`.
+    Placement now follows the family type: face-based, wall-hosted or free-standing. It had
+    always used a face-reference call that throws for STING's own Standalone seed.
+  - TAG7's medical-gas narrative runs before the plumbing branch, which used to claim every
+    outlet and gas pipe.
+- **Workflows.** `ExecutePreset` has an unattended overload that returns a `WorkflowOutcome`
+  and fails on a failed required step. A run nested in another is unattended automatically.
+  The setup wizard folds Drawing Production Setup's outcome into its own report.
+- **Setup wizard policy.**
+  - The picker recorded `profile` on every run; it now records only a real pick
+    (`SheetNumberPolicy.ChosenOrNull`).
+  - An unrecognised stored value is flagged and replaced when a policy is picked.
+  - Detail lines follow the step header, a skipped step is listed, and a refused `Set` fails.
+- **Tag expander.** Materials is built as a Material Takeoff (`CreateSchedule` rejects the
+  category). `col2_desc`, present on all 207 entries and never read, is now column 2.
+- **`run_ci_gates.py`.**
+  - Names the PowerShell it used and warns on 5.1.
+  - Empties the step summary per run.
+  - Reads `git status --porcelain -z`, so quoted paths are handled.
+- **Docs.**
+  - The editor has seven tabs, and Save writes both override files (CLAUDE.md, the footer
+    hint, the VG research note and the guide).
+  - The dock's DRAWING TYPES section has 41 buttons, not 42.
+  - DT-4 lists eight unregistered seed parameters, not seven.
+  - New MG-1 design note (gas type as an instance parameter).
+  - SBP-4 is partly closed and SBP-5 was added.
+  - Changelog corrections: the missing 566d1bf0c bullet (132 = 78 + 54 `WARN_`) and the
+    wizard's "writes only a change" claim.
+  - The last stale "Materials cannot take bound parameters" comment is fixed.
+  - The guide has an area-box / seed section.
+  - NLP and the LLM allow-list know `ScopeBox_Planner`.
+
+- **Second review (hidden failures).**
+  - The Scope Box Planner could lock itself: a raise that threw or was not Accepted left the
+    one-action guard set, so every later click said "still working" until the dialog closed.
+  - Produce From Areas rolled back a correctly cropped plan when a type's section or 3D view
+    ignored the box. Only the plan must take the box now; the others are warnings.
+  - A box whose move succeeded but whose rotate threw was left half-moved and dropped from the
+    plan. Each box now runs in its own sub-transaction and rolls back whole.
+  - A bad style colour was also counted as "nothing to colour by".
+  - Drawing production warns when the sheet-number policy holds a value it does not
+    recognise (a typo read as per-drawing-type numbering with no trace).
+  - A failed unattended workflow writes its step-by-step report to the log; Project Setup
+    labels a failed step FAILED, not WARN.
+  - Tag expander: in the Material Takeoff the material's own field wins over the host
+    element's field of the same name.
+  - Outlet placement: lookups ignore pipe fittings and accessories, and the comment on the
+    gas-type lookup no longer claims the seed is found by it.
+  - ROADMAP MG-2: projects that already built the outlet seed keep `MAP_THEATRE_PANEL`, which
+    the network still reads as a Master Alarm Panel; the manual migration is written there.
+
+Every new guard was proved RED by sabotage, then GREEN. **Not exercised in Revit:** the
+planner's Revit half (SBP-1, SBP-2, SBP-5), outlet placement per family type, the material
+takeoff and the wizard.
+
+#### Completed (review round 3 of #983 / #984: nothing may report success it did not achieve)
+
+Three independent reviews (correctness, silent failure, data consistency) of what #983 and
+#984 shipped, before the in-Revit test. Fixed:
+
+- **Ckt Nr → Text could lose values.** It committed even when some values did not come back,
+  after promising "if anything fails, nothing changes"; and it used the Load Params failure
+  swallower, which dismisses the very type-conflict error a failed rebind of the same GUID
+  raises. Now: a strict preprocessor rolls back on any Revit error; the new binding is checked
+  to be TEXT; if ANY value cannot be written back the whole transaction is rolled back and the
+  failures listed; and the binding kind is kept (a type binding stays a type binding, so
+  values on types have somewhere to go).
+- **Compliance verdict.** A circuit with no failure but an unchecked rule now reads
+  `UNVERIFIED (not checked: …)`, not `OK (not checked: …)` — in a schedule column anything
+  starting "OK" reads as a pass. `OK` is reserved for every rule run and passed.
+- **PNLS Save to Model** said "Saved" when writes were refused; it now lists each field written
+  and each field NOT written (unbound, read-only, or a value the type refuses).
+- **Panel_Audit stale-template check** compared by parameter NAME; built-ins have aliased enum
+  names, so a correct template could read "out of date". It now compares by ElementId; spec
+  load warnings and not-yet-loaded params are shown; a crashed check is its own error line,
+  not "1 template out of date".
+- **Excel.** Export's Scope / section choices were static and leaked into later ribbon and
+  workflow runs; they are now one-shot. Import reads each written cell back and counts a
+  value Revit reformatted or ignored as rejected, so the old → new diff shows what the
+  schedule really holds.
+- Smaller: Amtech / EasyPower type-name matches listed as "verify", not counted as Stamped;
+  Panel Reconcile points a refused multi-pole number at "Ckt Nr → Text" and counts deleted
+  conduits; the SLD stamp warning lists causes instead of asserting one; fire-alarm devices
+  with no loop go under "(no loop set)", not an invented "Zone 1"; Load Params reports a
+  failure to build the `<ALL>|Project Information` bindings; IPS says when the LIM read failed.
+- Data: `ELC_PNL_FAULT_LG_KA` now shown in the fault-current schedule (PARAM-3 had no reader);
+  the JB box IP rating read from the box, its type, or the seed's `ELC_JB_IP_RATING_TXT`;
+  `ELC_PNL_ENCLOSURE_TXT` description names the real tag `Panel_WriteParams`; the CSV
+  `ELC_CKT_NR` description matches the `.txt`; PNL-20 / PNL-21 closed rows describe what
+  shipped; counts in earlier entries corrected.
+
+Build 0/0; all tests and gates pass (see PR). **Not exercised in Revit.**
+
+#### Completed (MEP design engines — gap review and fix round, branch `claude/laughing-mccarthy-mgxwyh`)
+
+Follows a review of the non-electrical MEP work; open items are ROADMAP MEPG-1 … MEPG-11.
+
+**Defects fixed**
+- **Block load, heating pass** (`Commands/Hvac/HvacBlockLoadCommand.cs`). A heating run wrote its
+  peak — negative, the heat leaving the space — into `HVC_PEAK_SENS_W`, the parameter every
+  downstream command reads as the cooling duty, and into the LOADS grid's Cooling column; every
+  row then read "no load". Heating now stamps `NRG_HEATING_LOAD_W` (an existing NUMBER parameter
+  bound to every category) as a positive demand, leaves the cooling stamps and the stale flag
+  alone, and each pass fills its own column while reading the other back. Diversity is now
+  computed for heating too (it was forced to 1.0 by a `sumPeaks > 0` guard).
+- **Hardy Cross reverse flow** (`Core/Calc/HardyCrossSolver.cs`). Head loss was `v·|v|` and then
+  multiplied by `Sign(v)` again, so a pipe carrying flow against its drawn direction reported a
+  positive loss and its loop could not balance. `HardyCrossTests.PipeDrawnAgainstTheFlowSettlesAtANegativeFlow`
+  was red before the fix and green after.
+- **Refrigerant liquid lift** (`Core/Refrigerant/RefrigerantPipeSolver.cs`). An outdoor unit below
+  the indoor units was credited static head on the liquid line; in cooling that liquid flows
+  uphill. New `RefrigerantOperatingMode` (Reversible = uphill worst case, default; CoolingOnly;
+  HeatingOnly) sets the sign, shown in the trace. The flat 10 % suction multiplier is now the
+  `SuctionDpMultiplier` input; both are on the sizing dialog.
+- **Pump selection** (`Core/Plumbing/PumpSelector.cs`). With no catalogue — and none shipped — it
+  returned invented "STING Placeholder" pumps, which were written onto pump families as a
+  selection; an unknown flow was floored at 0.1 L/s. Now no catalogue means no candidates and a
+  warning, the real duty is still written, and `_BIM_COORD/pump_catalogue.json` layers over an
+  empty, documented `STING_PUMP_CATALOGUE.json`.
+- **NC prediction** (`Commands/Hvac/HvacNcPredictionCommand.cs`). Graded DESIGN BASIS or
+  INDICATIVE with every assumed input listed (synthetic fan, generic silencer, defaulted room,
+  terminal area); path order follows the connectors from the fan instead of element-id order;
+  fittings and dampers take the adjacent duct's velocity rather than a flat 5 m/s; a spectrum off
+  the top of the curves reads "above NC 65" (`NcCurves.ExceedsAll`) instead of "NC 65".
+- **Plumbing router** (`Core/Routing/PlumbingFixtureRouter.cs`). `Pipe.Create` was passed
+  `InvalidElementId` when no pipe type, system type or level resolved; each is now resolved (level
+  from the nearest level below) or the segment is reported failed with the reason. The four
+  `TODO-VERIFY-API` markers are resolved — the calls compile against the Revit 2025 reference
+  assemblies.
+- **HVAC snapshot push** summed heating and cooling into one "total kW"; now the governing one.
+  Its header promised five snapshot kinds; it pushes three and now says so.
+
+**Built**
+- **Plumbing isometric** (`Plumb_Isometric`). Was an instruction panel. Now draws one isometric per
+  piping system into a `STING ISO - <system>` drafting view: DN labels, fall as 1:N on graded runs,
+  risers counted, fitted to the paper and marked NOT TO SCALE; re-running redraws the same view.
+  Revit-free projection in `Core/Plumbing/IsometricProjection.cs`.
+- **Psychrometrics** (`Core/Hvac/Psychrometrics.cs`, `Hvac_PsychroCoil`, HVAC → CALCS). ASHRAE
+  Fundamentals Ch. 1: Hyland-Wexler saturation, humidity ratio, enthalpy, dew point, wet bulb,
+  altitude pressure; mixing, cooling coil (total / sensible / latent, ADP, bypass factor, SHR,
+  condensate) and a room supply-airflow check. Outdoor air defaults to the project climate site.
+- **Sprinkler hydraulics** (`Core/Fire/SprinklerHydraulics.cs`, `Fire_SprinklerHydraulics`,
+  Plumbing → SPECIALTY). Tree method: head demand from density × area per head and K-factor,
+  Hazen-Williams (EN 12845 form), static head, junction balancing by equivalent K; reports the
+  source flow and pressure, the most remote head, velocities and a supply check; CSV export.
+- **Gas pipe sizing** (`Core/Gas/GasPipeSizer.cs`, `Gas_SizePipes`, Plumbing → SPECIALTY). Pole's
+  formula; checks modelled sizes or sizes every source→appliance path to the drop allowance
+  (natural gas 1 mbar) and can apply nominal sizes to the pipes, reading each size back.
+- **Stair pressurisation** (`Core/Fire/StairPressurisation.cs`, `Fire_StairPressurisation`,
+  HVAC → SYS). BS EN 12101-6 method: leakage `Q = 0.83·A·ΔP^½`, open-door airflow, governing
+  case, leakage allowance, door opening force; door counts from a selected stair room.
+- **Shared pieces.** `Core/Mep/Networks/FlowTree.cs` (Revit-free source-rooted tree),
+  `RevitFlowTreeBuilder` (connector walk from a source to the terminals; loops reported, not
+  hidden), `MepDesignData` (explicit JSON parsing with `Validate()`, corporate + `_BIM_COORD`
+  override layering) and `UI/StingFormDialog.cs` (a declarative numeric/choice input form).
+- **Data.** `STING_SPRINKLER_DESIGN.json`, `STING_GAS_DESIGN.json`,
+  `STING_SMOKE_CONTROL_DESIGN.json`, `STING_PUMP_CATALOGUE.json`. Standards figures that must be
+  checked against the edition in force are marked `verify` and shown on every result.
+- **Fire-suppression drawing types** (Phase 198 deferred item): `fire-sprinkler-layout-A1-1to100`,
+  `fire-section-A1-1to50`, `fire-detail-A3-1to20`, style pack `corp-standard-fire`, routing
+  `FP/*/SPRINKLER|PLAN|SECTION|DETAIL`. Checksums stamped.
+
+**Tests.** New `StingTools.Mep.Tests` (62 declared, 68 cases at that commit): psychrometrics against the ASHRAE
+tables, sprinkler, gas and pressurisation hand calculations, duct friction against Colebrook,
+Hardy Cross, NC rating, refrigerant lift and allowance, expansion vessels, isometric projection,
+and `Validate()` over the three shipped design-data files including a project override. First
+coverage for the duct, Hardy Cross, NC, refrigerant and expansion-vessel kernels.
+
+Plugin build 0 errors / 0 warnings; all test projects pass; the workflow-wiring, dispatch-parity,
+path-discipline, lying-catch, doc/app-acquisition, command-census and drawing-type checksum gates
+pass. **Not exercised in Revit** — MEPG-7 lists what to run first.
+
+Follow-up on the same branch: the heating pass above could not be reached — the LOADS tab's
+load-code combo is not wired to the handler, so the code always read "ASHRAE_90_1" — and now has a
+**Heating load** button (`Hvac_BlockLoadHeating`, `HvacBlockLoadHeatingCommand`). `Hvac_PushSnapshot`
+had a handler case and no button; it is now on RPRT and in `ResolveCommand` (removed from the
+dispatch-parity baseline). The Revit checklist for all of this is
+[`MEP_SMOKETEST_CHECKLIST.md`](MEP_SMOKETEST_CHECKLIST.md).
+
+#### Completed (MEPG follow-up — every code-closable MEPG item, same branch)
+
+- **MEPG-9 looped networks.** `Core/Mep/Networks/PipeNetwork.cs`: a graph of junctions and links
+  with a nodal Newton solver whose steps are solved by Jacobi-preconditioned conjugate gradients
+  (the Jacobian is SPD). `SprinklerNetworkHydraulics` finds the lowest source pressure that gives
+  every operating head its requirement (bisection over the network solve); `GasNetworkCheck`
+  checks ring mains. `RevitPipeNetworkBuilder` keeps every connection: connections are junctions,
+  two-port elements are links, multi-port fittings / terminals / the source are nodes (heads
+  screwed straight into a fitting are merged and their K-factors added), dead ends pruned. The
+  sprinkler and gas commands switch to it when the connector walk finds loops. Tests: the network
+  method equals the hand method on a single head and agrees within 1 % on a branched tree;
+  parallel pipes split as d^(4.87/1.85) (water) and d^2.5 (gas); a 2 × 2 grid is symmetric and
+  conserves flow. Per-size fitting equivalent lengths (`fittingEquivalentLengthsM`) are supported
+  in both design files and win over the bores rule; they ship empty.
+- **MEPG-4 breakout.** `NcPredictionEngine.RectangularBreakoutTlDb` / `BreakoutLw` (ASHRAE
+  rectangular-duct method in its IP form, TL floored at 10·log(S/A)); `Hvac_NcPredict` flags
+  rectangular straight ducts whose mid-point is inside the receiving Space/Room and lists the
+  assumed wall mass.
+- **MEPG-2 pump curves.** `PumpDutyCurve` (Revit-free): catalogue entries may carry curve points;
+  the duty is judged on the curve at the duty flow, with efficiency interpolated.
+- **MEPG-3 isometric symbols.** Valves as bow-ties along their pipe, tees and crosses as dots,
+  fixtures and equipment labelled; `IsometricProjectionResult.ToSheet` places any 3D point on the
+  same sheet as the pipes.
+- **MEPG-11 A\* conduit routing** is an opt-in route method. `ConduitRouteEngine.OrthogonalRoute`
+  makes every leg axis-aligned and merges straight runs (was one conduit per 200 mm voxel with
+  diagonal end legs); start/end cells are released from obstacle clearance; floors are no longer
+  obstacles (their bounding boxes blocked every riser). The report names the method per run.
+- **MEPG-5** closed by decision (no two-phase suction model: a working suction line is
+  superheated vapour plus oil). **MEPG-7, MEPG-8, MEPG-10** stay open: they need a Revit session
+  or the printed standards.
+
+Tests: `StingTools.Mep.Tests` 87 cases, `StingTools.Routing.Tests` 80. Plugin build 0/0.
+**Not exercised in Revit** — `MEP_SMOKETEST_CHECKLIST.md` gained the steps for all of the above.
+
+
+#### Review pass on the MEP engines branch (2026-09-27)
+
+A self-review of the PR found these defects and inconsistencies. Each is now fixed.
+- **Gas sizing, apply mode.** When a pipe type lacked the chosen size, Revit snapped the pipe to
+  another size and the command left it there, so the model held a size nobody had calculated. The
+  pipe is now put back to its modelled diameter and the warning says so.
+- **Gas load read.** Any power-typed heat-input parameter is now converted from internal units,
+  not only `HvacPower`. An electrical-power parameter used to be read raw.
+- **Looped gas check.** It now exports a `_network` CSV like the sprinkler network path, and its
+  basis states the multi-port fitting approximation.
+- **Sprinkler network.** The pressure-bracketing loop could report "no pressure satisfies every
+  head" when the 20th doubling succeeded. The network path also now gives the same
+  too-few-heads-for-the-area warning as the tree path.
+- **Stair pressurisation.**
+  - "Doors open" used to prefill from the default class even when another class was chosen. 0 now
+    means the chosen class's figure.
+  - Door swing is read in the stair room's phase, not the last phase.
+- **Psychro coil.**
+  - `ClimateRegistry`'s synthetic "fallback" site used to prefill as if it were a design day. It
+    no longer does.
+  - Untouched placeholder outdoor values are now flagged in the report.
+
+Plugin build 0/0. **Not exercised in Revit.** The checklist rows are updated.
+
+#### BS 7671 Appendix 4 tables and IEEE 1584-2018 arc flash (2026-09-27)
+
+Closes the code part of MEPG-11 and advances ELEC-1 / ELEC-3. The figures came from public
+transcriptions, cross-checked source against source. Neither standard was read in print. Every
+source and discrepancy is listed in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
+
+- **BS 7671 cable sizer data.** New tables:
+  - 4D1A (single-core PVC, methods A/B/C/F).
+  - 4D2A methods A/B/E, alongside C.
+  - 4D4A and 4E4A (armoured, methods C/E/D1/D2).
+  - 4E2A (XLPE, A/B/C/E).
+  - 4C1 perforated-tray and ladder rows.
+- **Per-row flags.** Each row carries `verified` (It) and `mvVerified` (mV/A/m). Older data
+  with a single flag still reads it for both.
+- **Sizer behaviour.**
+  - A cable type (Multicore / SingleCore / ArmouredMulticore) picks the table.
+  - IEC method codes A1/A2/B1/B2 map to BS methods A/B.
+  - A size with no mV/A/m carried cannot be chosen; the refusal names the missing table.
+  - VERIFY now says whether It, voltage drop or both are unchecked.
+- **Cable sizer panel.** Gains a cable-type combo and methods D1/D2.
+- **Existing 4D2A C rows ≥ 25 mm².** It is now two-source checked; mV/A/m still is not.
+- **IEEE 1584-2018** (`Commands/Electrical/ArcFlash/Ieee1584_2018.cs`, Revit-free) is now the
+  default method.
+  - It covers 0.208–15 kV, five electrode configurations and the enclosure-size correction.
+  - The reduced arcing current (VarCf) is a second case with its own clearing time.
+  - Refusals outside the clause 4.2 ranges, and for an enclosure narrower than 4 × the gap.
+  - Typical gap, enclosure and working distance by class and voltage band, each assumption
+    noted on the label.
+  - A new shared parameter, `ELC_ARC_FLASH_ELECTRODE_TXT`, overrides the electrode
+    configuration.
+  - The 2002 model is kept as `ArcFlashMethod.Ieee1584_2002`.
+- **Tests (`StingTools.Tags.Tests`, 3,406 passing).**
+  - Annex D.1 / D.2 intermediate and final values.
+  - 600 rows of the official IEEE spreadsheet results.
+  - The DataPort reduced-case point.
+  - Scope refusals, and the engine defaults.
+  - The new BS tables, the flags and the refusals.
+  - Red check: a wrong Table 3 coefficient fails 64 tests.
+
+Plugin build 0/0; repo gates pass. **Not exercised in Revit.** Checklist rows were added to
+`MEP_SMOKETEST_CHECKLIST.md`.
+
+#### XLPE voltage drop, derived (2026-09-27)
+
+- **Why derived.** The printed Tables 4E2B and 4E4B could not be reached from any source
+  available to this session.
+- **What was added.** Values for 1.0–16 mm² were calculated for all eight 4E2A / 4E4A tables
+  (52 rows): 2 or √3 × BS EN 60228 R20 (the `VoltageDropEngine` table), corrected to 90 °C,
+  rounded **up** to two significant figures.
+- **Evidence the rule errs on the safe side.** At 70 °C it never falls below the checked
+  4D2B: 9 of 14 values are equal, the rest up to 9 % higher.
+- **How results show it.** Each table carries a `voltDropBasis`; a result on those rows sets
+  `VoltDropDerived` and says "DERIVED, NOT TRANSCRIBED" alongside VERIFY.
+- **Larger sizes.** 25 mm² and above stay refused, because the tables depend on reactance
+  there.
+- **Tests.**
+  - Small XLPE cables now size.
+  - Large ones are still refused.
+  - The shipped values equal the rule.
+  - The rule is never below the 70 °C table.
+  - Red check: changing one shipped value fails the pinning test.
+- Details are in `docs/ELECTRICAL_STANDARDS_SOURCES.md`. **Not exercised in Revit.**
+
+#### BS 7671 tables: second sources and transcribed voltage drop (2026-09-27)
+
+Research agents searched public GitHub transcriptions again, since the network is still
+GitHub-only. Every source and its coverage is in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
+
+- **Current ratings.** 122 more rows are two-source checked. The new second sources are the
+  Hong Kong EMSD CoP 2020 Appendix 6 tables (llano1025/calEng, committed before the first
+  source existed) and a BS 7671:2018 Table 4E4A transcription (HansEJC).
+  - Now fully checked: 4D1A C, 4D4A and 4E4A methods C and E, and 4E4A D1 1.5–120 mm².
+  - Also checked: every cell the first two sources had disagreed on.
+  - Still single source: 4D4A D1/D2, 4E4A D2 and 4E4A D1 150–300 mm².
+  - One new disagreement is noted on its row (4D2A E 400 mm²: 705 vs 715).
+- **Voltage drop.** All four multicore tables (4D2B, 4D4B, 4E2B, 4E4B) now carry z at every
+  size, from the HK transcription.
+  - Two-source checked: 4D2B / 4D4B ≤ 16 mm², and 4E4B ≤ 16 mm², 25–120 and 400 mm².
+  - The derived 4E2B / 4E4B values shipped earlier the same day are replaced. The transcribed
+    values are all at or below the derived bound, which confirms it was conservative.
+  - The 4D2B ≥ 25 mm² figures entered with no source were replaced by the HK values; they had
+    differed by 0.01–0.02 at 95–240 mm². `VoltageDropSolver.BuiltIn4D2B` follows them.
+  - The derived-values mechanism (`voltDropBasis` / `VoltDropDerived`) is removed now that
+    nothing uses it.
+- **What now sizes.** XLPE and armoured cables size at 25 mm² and above. Single-core
+  ≥ 25 mm² stays refused, because its two sources disagree in almost every cell.
+- **Table 4C1.** The ladder row carries its 2-circuit factor, 0.87.
+- **Tests.** `StingTools.Tags.Tests` has 3,418 passing.
+  - XLPE and armoured XLPE sizing at 25 mm².
+  - Single-core refusal.
+  - Pinned 4E4B values with their checking flags.
+  - Every multicore row carries voltage drop.
+  - Transcribed values stay at or below the resistance bound.
+  - Red check: changing one 4E4B value fails the pinning test.
+- **Not exercised in Revit.**
+
+#### BS 7671 tables: every current rating two-source checked (2026-09-27)
+
+- **Current ratings.** The last 104 single-source cells (4D4A D1/D2, 4E4A D2, 4E4A D1
+  150–300 mm²) equal IEC 60364-5-52 Tables B.52.2–B.52.5 columns D1/D2 exactly, in two
+  independent IEC transcriptions (Ali-3427/ElektroPlan, m0000hamad/CableSizer). All 52 rows are
+  now `verified`, so every It row in `STING_WIRE_TABLES.json` is two-source checked.
+  - This confirms BS 7671 repeats the IEC figures; it is not a second BS copy. The D2 column is
+    new in A4:2026 and rests on one BS transcription.
+  - Two further BS repositories share a typo (4D4A D2 300 mm²: 472 against 427) and do not count.
+  - Stale "SINGLE SOURCE ONLY" basis notes rewritten.
+- **Tests.** `Armoured_in_ground_capacity_is_two_source_checked` replaces the single-source flag
+  test; `Every_capacity_row_is_two_source_checked` fails on any future single-source row.
+  3,419 passing.
+- **Not exercised in Revit.**
+
+#### BS 7671 voltage drop: single-core 4D1B carried, 4E2B partly checked (2026-09-27)
+
+- **Single-core 4D1B at 25 mm² and above now sizes.** The values are the HK CoP 2020 Table
+  A6(1) transcription, checked cell by cell against scans of the printed Table 4D1B in a public
+  design report (amoadel1/IDP1-Electrical-Installation-Design). Every value carried agrees, so
+  every row is `mvVerified`.
+  - Methods A/B use the enclosed columns. C/F use single-phase "touching" and three-phase
+    "flat touching", which is at or above trefoil at every size, so it is the conservative choice.
+  - The scan settles the old disagreement: Elec-Mate's figures at these sizes match the printed
+    table in 1 of 20 cells and are not used.
+- **4E2B** 1, 1.5, 2.5, 4 and 16 mm² are two-source checked, against three student design
+  reports that quote Table 4E2B, counted as one source.
+- **Looked at, not counted.** hiufsitake/EEE (4D4B) is derived from a source already used.
+  Osmoore (4D2B) appears to be built from the HK tables. Still single source: 4E2B 6, 10 and
+  ≥ 25 mm²; 4D2B / 4D4B z ≥ 25 mm²; 4E4B 150–300 mm²; 4D1B ≤ 16 mm².
+- **Tests.** Single-core 110 A now sizes at 35 mm², 1.25 mV/A/m. 4D1B values are pinned by
+  arrangement. Every table must carry voltage drop at every size. 3,423 passing.
+- **Not exercised in Revit.**
+
+#### Removed the unused `BS7671Standards` lookup class (2026-09-27)
+
+- `StingTools.Standards/BS7671/BS7671Standards.cs` had no callers. Nothing referenced the class
+  or its namespace, including the Headless and Dynamo projects and every `<Compile Include>`.
+  Its hand-typed tables were unsafe:
+  - `GetVoltageDrop` returned 1.0 for any size it did not list.
+  - Three-phase drop was single-phase × 0.866.
+  - Its single-phase figures at 70 mm² and above matched no 4D1B column.
+- The file is deleted. Checked tables are in `StingTools/Data/STING_WIRE_TABLES.json`, read
+  through `Bs7671Data` / `Bs7671CableSizer`.
+- `StingTools.Standards` and the plugin build; 3,424 tests pass.
+
+#### BS 7671 voltage drop: second research round (2026-09-27)
+
+- **4D1B up to 16 mm²** is two-source checked. Elec-Mate and the HK CoP transcription agree
+  on every value.
+- **4E2B 10 mm²** is two-source checked. Single-phase comes from a DEWA reference chart
+  transcription and three-phase from the student reports.
+- **Three-phase only.** 4E2B / 4E4B three-phase z now has a second source at 25–300 mm², but
+  a row needs both columns, so those rows stay flagged.
+- **Nothing new counted for 4D2B or 4D4B.**
+  - 4D4B 400 mm² single-phase 0.186 is probably 0.185; it is kept as the higher value.
+  - The rejected sources, and links to printed-table reproductions the research network could
+    not reach, are in `docs/ELECTRICAL_STANDARDS_SOURCES.md`.
+- **Not exercised in Revit.**
+
+#### FUNC / PROD / SEQ token alignment (2026-09-27, branch `claude/trusting-lamport-4ra2zn`)
+
+A review of how FUNC, PROD and SEQ are derived, stored and validated found values that could
+not be stored, fallbacks the token policy never saw, SEQ numbers wasted on every re-run, and a
+duplicate-tag path. All fixed.
+
+- **PROD never carries the material suffix.** `GetFamilyAwareProdCode` appended `-STL` / `-CON`
+  with "-", which is also the tag separator. The stored token was cut back to the base code, and
+  Batch Tag with Overwrite wrote a 9-segment ASS_TAG_1. The token is now always the bare code.
+  `GetProdMaterialSuffix` and `GetProdCodeWithMaterial` serve the door/window type-mark
+  sequencer, which still uses marks such as "DR-STL-04".
+- **GEN is assumed, not incomplete.** `TagIsComplete` treated GEN as a placeholder, although it
+  is the policy fallback for SYS, FUNC and PROD. Those tags were re-processed on every run.
+  `TagIsFullyResolved` and `TagHasPlaceholders` still flag GEN, so compliance "strict" figures
+  are unchanged. The looser "tagged" percentage rises for elements carrying GEN.
+- **The token policy now sees SYS / FUNC / PROD fallbacks.** Hardcoded `"GEN"` literals ahead
+  of `ResolveToken` meant no substitution was recorded and a project override had no effect.
+  Derived GEN now goes through the policy. A GEN already stored is counted as assumed.
+- **SEQ: one set of tokens, no wasted numbers.**
+  - `BuildAndWriteTag` keys the counter, checks collisions and writes the tag from the same
+    values. On the non-overwrite path that is the stored token when real, else the derived one.
+    It used to key on derived DISC/LVL and write stored ones, so a pre-populated element that
+    moved level could be given a duplicate tag.
+  - An element that already holds a SEQ keeps it. It is no longer given a new number that is
+    then discarded, which advanced the counter by one per element per re-run and persisted the
+    gaps in the sidecar.
+  - A stored SEQ that would duplicate another element's tag is re-sequenced (AutoIncrement).
+  - With `SEQ_INCLUDE_LOC`, an unresolved LOC (`XX`) now numbers in its own group, not
+    building 1's.
+  - The validator accepts Alpha-scheme SEQ values (A, B … AA) and uses `EffectiveSeqPad`.
+- **LPS FUNC vocabulary unified on AT / DC / EE / BOND / SPD / TC.**
+  - `ResolveLpsFunc` had no callers. It is now called by `GetSmartFuncCode` for SYS=LPS.
+  - `STING_FUNC_SYS_MATRIX.csv`, the validator baseline, `COBIE_TYPE_MAP.csv` and
+    `LPS_FAMILY_INVENTORY.json` used AIR/DOW/ERT/BND/TST. They now use the codes the LPS
+    tag handler already wrote.
+  - Default `FuncMap["LPS"]` is GEN; "LPS" was not a valid FUNC for SYS=LPS.
+  - The four copies of the LPS keyword list now all call the Revit-free `LpsNameClassifier`.
+- **Declared PROD codes are read.** `ProdNameCode.Extract` needs the PROD vocabulary. The
+  plugin passed none, so a type named `PLNS_WBL_Hollow200` never resolved to WBL outside
+  tests. `TagConfig` now supplies corporate, category-default and project codes.
+- **`PopulateAll`.**
+  - FUNC is derived from the SYS the element holds, so it can no longer pair SYS=DHW with FUNC=DCW.
+  - The SYS/FUNC and LOC/ZONE proximity copies run before defaults fill the slots. They used to
+    run after, and copied nothing.
+  - The discipline-profile `DefaultProd` replaces GEN on the non-overwrite path.
+  - FUNC, PROD and SYS writes use `SetTokenIfEmpty`.
+  - `PopulateTagTokens`, which had no callers and had drifted, is deleted.
+- **Smaller.**
+  - `GetSmartFuncCode` never returns blank, and the call sites that each carried their own
+    fallback now rely on it.
+  - HWS pipes read the piping system type.
+  - Ducts detect fresh/outside air (FRA).
+  - SAN vent detection matches "VENT" as a word, not inside PREVENT or INVENTORY.
+- **Tests.** `FuncProdSeqAlignmentTests` (26). `FuncVocabularyTests` also scans
+  `LpsNameClassifier`. 13 of the new tests fail against the previous code.
+  `StingTools.Tags.Tests`: 3,449 passing.
+- **Build.** No Windows/Revit build here. A Linux compile of the plugin sources against the
+  Revit 2025 NuGet reference assemblies and the WPF reference pack shows no new errors against
+  the pre-change baseline. That baseline only has errors from XAML-generated members.
+- **Not exercised in Revit.** Check Batch Tag, with and without Overwrite, on a model with
+  GEN-tagged elements and LPS families before merging.
+
+#### Category crosscheck: SYS / FUNC / PROD defaults for every category (2026-09-27, same branch)
+
+Simulated every one of the 124 categories in the default maps, and the systems detection can
+give them, against the validator's own cross-checks.
+
+- **18 categories defaulted to SYS=LPS.** `GetSysCode` returned the first system listing the
+  category, and LPS is declared before ARC / STR / GEN, so every wall, roof, foundation, rebar
+  set, fascia, gutter, generic model, specialty equipment and detail item was tagged as
+  lightning protection. The category fallback now prefers the discipline's own system
+  (`CategoryTokenDefaults.ChooseCategorySys`). LPS still applies by family name.
+- **Fire Alarm Devices** carried DISC `FLS`, which is a system code and fails DISC validation.
+  They are now DISC `FP` with SYS `FLS`, as `TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv` has it.
+- **Domestic hot water** system names ("Domestic Hot Water", DHW, calorifiers, water heaters) now
+  map to SYS `DHW`. They used to map to `HWS`, the heating system, so basins on hot water failed
+  the category check.
+  - Heating pipes (HWS) are now DISC M. `GetSystemAwareDisc` used to file them as Plumbing.
+  - Pipe Insulation and fabrication pipework follow the pipe's system for DISC.
+- **Sump and sewage pumps** are SYS `SAN`, not `DCW`.
+- **Validator agrees with detection.**
+  - A SYS is valid for a category when that category's discipline serves it: boilers on HWS,
+    booster sets on DCW, basins on DHW, fire pumps (M → FP).
+  - The PROD-vs-DISC check accepts every code the resolver's own data assigns to that
+    discipline. That covers PP on an unclassified pipe, the PAC / SPT / MCP / CLT / SKT rules,
+    Wash → WSH and Path Reinforcement → SPT.
+- **`CATEGORY_FORCE_SYS`** re-derives FUNC, and a pipe's DISC, from the forced system instead
+  of leaving them derived from the replaced one.
+- **Existing models.** Stored tokens are kept by a normal re-tag. Elements already tagged
+  `LPS` / DISC `FLS` / HWS-as-P change only with Overwrite, which re-sequences them in their
+  new SEQ group.
+- **Tests.** `CategoryTokenAuditTests` (41) reads the default maps and validator tables from
+  source and runs the shared `CategoryTokenDefaults` rules over every category, every PROD rule
+  and the realistic detected systems. 12 fail against the previous behaviour.
+  `StingTools.Tags.Tests`: 3,491 passing. The Linux compile of the plugin shows no new errors.
+
+#### BS 7671 consumers: cable type, true Iz bound, unchecked voltage drop flagged (2026-09-27)
+
+A review of every caller of the Appendix 4 tables found places that still assumed PVC
+multicore or hid unchecked values.
+
+- **Circuit Check (`Panel_ComplianceCheck`).** The "best case" Iz was PVC 4D2A method C, which
+  is not the best case: an XLPE or single-core cable of the same size carries more, so a sound
+  circuit could be failed.
+  - Iz is now `Bs7671Data.MaxTabulatedIt`: the highest It for the size across every shipped
+    copper table.
+  - The basis names the table it came from.
+- **Cable type is carried through.** The breaker sizer, feeder sizer, circuit wizard, the MCP
+  sizing tools and `CableSizerApplyEngine` all dropped the CABLE tab's cable type. Single-core
+  and armoured selections were silently sized as multicore.
+  - Each now passes it.
+  - The two MCP tools gain a `cableType` argument.
+- **Voltage drop solver (Add Cable).**
+  - A size between table rows is now refused rather than interpolated.
+  - A row whose mV/A/m has one source adds a VERIFY line to the basis.
+  - The basis names the table's cable instead of always "Cu 70 °C".
+- **Wire reference grid.** Rows with single-source mV/A/m are now marked (†); before, only
+  unchecked It was marked, and every It is now checked, so nothing was flagged.
+- **Stale text.** The MCP tool schemas, the feeder input and the circuit wizard options said
+  XLPE was refused until Table 4E2A shipped; it has shipped.
+- **Tests.** 3,427 passing:
+  - interpolation refused;
+  - single-source mV flagged;
+  - built-in 4D2B verification flags pinned to the data file;
+  - `MaxTabulatedIt` exceeds the PVC figure.
+- **Not exercised in Revit.**
+
+#### Drawing Type Editor, Master Setup, Export Centre, Document Manager review (2026-09-27, branch `claude/admiring-babbage-enqzit`)
+
+A review of the four surfaces for flexibility, integration, consistency, accuracy and
+automation logic. Defects fixed here; open items are logged in `docs/ROADMAP.md` under
+"DOCX-*".
+
+**Export Centre (accuracy)**
+- **ISO filename tokens came from parameters that do not exist.** `BuildTokenContext` read
+  `STING_SUITABILITY_TXT`, `STING_VOLUME_TXT`, `STING_LVL_COD_TXT`, `STING_DOC_TYPE_TXT` and
+  `STING_ROLE_TXT`. None is in `MR_PARAMETERS` and nothing writes them, so every file fell
+  through to defaults: an S4 drawing exported as `...-S2-...`. The chain now decomposes the
+  sheet's ISO identifier (`SHT_TAG_1_TXT`, or the sheet number once it is one) and reads the
+  suitability Title Block Populate writes (`PRJ_DWG_SUITABILITY_COD_TXT`, then
+  `PRJ_STATUS_COD_TXT`). The STING_* names are still honoured first for projects that added
+  them by hand. New tokens: `{DocumentId}`, `{Number}`, `{CdeState}`.
+- **Revision was Revit's sequence number.** `{Revision}` printed `3` for a sheet whose
+  revision box reads `P03`. It now uses `SHEET_CURRENT_REVISION`, then `PRJ_TB_REVISION_NR_TXT`,
+  which is the same chain as the CDE REF cell. "Changed Since Last Export" compares this value,
+  so on the first run after upgrading, every previously exported sheet is reported as changed
+  once.
+- **Level codes** derived from sheet names are normalised to ISO (`L01` → `01`, `GF` → `00`).
+  Role falls back through `NormaliseRole` instead of printing `Other`.
+- **Discipline from an ISO sheet number.** Once the sheet number is the identifier, the
+  discipline read before the first hyphen was the project code. The effect was that the
+  By-Discipline sets were empty and every discipline sub-folder was named after the project.
+  `GetDisciplinePrefix` now uses the Role segment.
+- **Suitability → CDE folder** (the Auto button) now uses `Iso19650Suitability.CdeStateFor`, the
+  unit-tested mapping the title block uses. The dialog's own switch sent S1 to WIP, S4/S6/S7 to
+  PUBLISHED and A/B/CR to SHARED.
+- **"Ask" overwrote files.** Nothing prompted, and the engine returned the existing name.
+  Ask now resolves to AutoRename and is no longer offered.
+- **"Planscape CDE" destination** skipped the folder checks and then failed on every sheet
+  with an empty path. No upload exists, so pre-flight now blocks it. "Both" warns that only
+  the local copy is written. IFC "Export linked models", which was never read, also warns.
+- **"Open report when done"** was bound and ignored. It now opens the CSV report
+  (`ExportRunResult.ReportPath`).
+- **Scheduled exports** run the same pre-flight as the dialog and record a blocked job's
+  reason. Repeats advance from the job's own slot instead of drifting to the time of the run.
+
+**Master Setup (automation logic, accuracy)**
+- An Escape during step 1 added -1 to the pass count, skipped the critical-failure prompt and
+  ran everything else. Step 1 is now handled on its own.
+- On a project without worksharing, the worksets skip was counted as a failure, so every such
+  project reported "Failed: 1". The healthcare skip was subtracted without a step, which hid a
+  real failure. Both are now proper SKIPPED steps.
+- A `Result.Failed` step printed "WARN" but was tallied as failed; it now prints FAILED.
+- Step numbering for the PBR step is no longer hard-coded "21". The confirmation list and
+  class doc now name steps 18–21.
+- **COBie healthcare preset was never applied.** Master Setup set `COBiePresetKey` and nothing
+  read it. `COBieExportWizard` now pre-selects the preset, and the step is labelled as the
+  interactive export it is.
+
+**Drawing Type Editor (accuracy)**
+- **Edits to corporate drawing types were discarded on Save.** Save wrote only project-origin
+  types while reporting success, which is the defect already fixed for style packs. Types are
+  now snapshotted at load and an edited corporate type is promoted to project on Save, with
+  its corporate checksum cleared. The comparison fills in the sub-objects the form creates on
+  render, so just viewing a type does not copy it into the project file.
+
+**Document Manager (integration, accuracy)**
+- **Bulk CDE update wrote failed moves to the register.** The register now changes only for
+  documents whose file actually moved. The report says the others were left unchanged.
+- **The suitability was overwritten on every move.** A suitability that already belongs in the
+  target container (for example S1 moving to SHARED) is now kept. Only a code that contradicts
+  the container is replaced by the default.
+- **Register metadata was hidden on file rows.** Files are named after their document number,
+  so both register loaders skipped the matching entry. The row the user saw then had no
+  suitability, revision or status. The loaders now fill that row's blank fields from the
+  register. The CDE state still comes from the folder the file is actually in.
+
+**Verification.** Built later the same day. See "Export routing" below: 0 errors. **Not
+exercised in Revit.** Before merging:
+- Export a sheet set whose sheets carry `SHT_TAG_1_TXT` and a Revit revision, and check the
+  filenames.
+- Run Master Setup on a non-workshared model.
+- Edit a corporate drawing type, save, reopen and confirm the edit held.
+
+#### Export routing: discipline sub-folders and the right project folder (2026-09-27, same branch)
+
+An audit of where exports land. **The discipline-aware resolver had no callers.** The only
+discipline-aware method was `ProjectFolderEngine.GetExportPath(…, disciplineCode)`, and
+nothing called it. The main default, `OutputLocationHelper.GetOutputDirectory(doc)`, which
+had 257 call sites in 153 files, returns the MISC folder whatever is being exported. So no
+export reached an A_ / M_ / S_ discipline folder unless a user browsed there.
+
+- **One resolver:** `ProjectFolderEngine.GetDeliverableFolder(doc, key, discipline, cdeState)`.
+  It takes the export route, moves it into the CDE state when one is given, then into the
+  discipline folder. Examples:
+  - BIM: `02_SHARED/A_Architectural`, or `06_DRAWINGS/S_Structural` with no state.
+  - CDE-first: `01_SHARED/Drawings/M_Mechanical`.
+
+  Discipline folders apply under WIP / SHARED / PUBLISHED / DRAWINGS / MODELS and under any
+  CDE-first content type. Wrappers: `StingPaths.Export(doc, key, discipline, state)` and
+  `OutputLocationHelper.GetRoutedDirectory(doc, key, discipline)` / `GetRoutedPath`.
+- **`DisciplineFolderMatcher`** (Revit-free, 22 tests) maps a code onto the project's
+  folders:
+  - `A` → `A_Architectural`
+  - `MECH` / `HVAC` / `MG` → `M_Mechanical` (by ISO role letter)
+  - a code with no folder → null, so the file stays in the parent folder and a log line
+    says so
+
+  Before this, the discipline splits created a folder named after the raw code, so a CDE
+  folder held `A` beside `A_Architectural`.
+- **Sheets:** `ExportCenterEngine.DeliverableFolderForSheet` is the one rule for sheet
+  exports:
+  - The CDE state comes from the sheet's suitability. A sheet with no suitability code
+    follows the export route.
+  - The discipline comes from the sheet-number prefix, or from the Role segment when the
+    sheet number is the ISO identifier.
+- **Export Centre:**
+  - New option "File into the project structure", which the Auto button turns on. Each
+    sheet is filed by its own suitability and discipline, and the chosen folder receives
+    the report.
+  - DWG / image / DGN / DWF sheet sets route with the drawings. The project's DWG route
+    points at MODELS, which is right for model DWGs but not for sheet sets.
+  - Image, DGN and DWF were never split by discipline, because they passed no discipline.
+  - The local-folder split now uses project folder names.
+- **Produce & Export** (`DrawingTypes_ProduceAndExport`) wrote every PDF to MISC. Each PDF
+  now goes to its sheet's deliverable folder, and the sheet register goes to REGISTERS.
+- **Batch PDF / DWG to a folder you choose** now split into discipline sub-folders named
+  as the project names them. This covers the Print Manager batch PDF, the Sheet Template
+  batch print, the ExLink batch PDF / DWG and `PDFExportCommand`. The split is not nested
+  when the chosen folder is already that discipline's folder. The Print Manager's
+  discipline prefix now also reads ISO-identifier sheet numbers. The "Print sheets"
+  combined PDF goes to the PDF route instead of `MISC/PDF_Export`.
+- **Pickers open in the right place.**
+  - `PromptForExportPath` (15 callers) opens in the export type's routed folder. Its
+    "Project folder" shortcut now points there instead of the directory holding the
+    `.rvt`.
+  - The ExLink folder pickers open in the routed folder for their type.
+  - Three callers passed keys the route table does not know (`Quantities`, `Clashes`,
+    `BatchParams`) and now pass `BOQ`, `Clash` and `Excel`.
+- **Round trips:**
+  - Excel Link, Drawing-Type Excel and the export dialog now write to and browse the
+    Excel route (07_SCHEDULES) instead of MISC. The export and import sides were changed
+    together.
+  - Panel-schedule workbooks moved out of `_data/coord/electrical`. `_data` is machine
+    state, which the Document Manager does not list. They now go to the Excel route in
+    E_Electrical. Existing workbooks stay where they are.
+- **Discipline exports:**
+  - SLD → `…/E_Electrical/SLD`
+  - Electrical PDF reports → `…/E_Electrical/Reports`
+  - HVAC gbXML → the models route in M_Mechanical
+  - Fabrication isometrics → drawings
+  - Fabrication cut lists, weld maps and sheet indexes → schedules
+
+**Build (first Linux build of this branch).**
+- **SDK:** Ubuntu's `dotnet-sdk-8.0` has no WindowsDesktop (WPF) targets. Microsoft's SDK
+  8.0.425 from packages.microsoft.com does. It was extracted to `/opt/msdotnet` because
+  dot.net / builds.dotnet.microsoft.com are blocked by the network policy.
+- **Command:**
+  `dotnet build StingTools/StingTools.csproj -p:EnableWindowsTargeting=true`, using the
+  Nice3point Revit API packages.
+- **Result:** `StingTools.dll` builds with **0 errors, 2 warnings**.
+- **Existing build break fixed:** the first build failed on three existing lines that use
+  C# 14 null-conditional assignment (`x?.y = v`), in `PlanscapeServerClient.cs` (2) and
+  `SLDGenerator.cs` (1). CI pins the .NET 8 SDK (C# 12), so these break any build without
+  the .NET 10 SDK. They were rewritten as explicit null checks.
+- **Tests:** `StingTools.Tags.Tests` passes 3,513 of 3,513.
+- **CI gates:** these gates pass, run with PowerShell 7.6 from the same feed:
+  - `check_path_discipline.ps1`
+  - `check_command_doc_acquisition.ps1`
+  - `check_workflow_wiring.ps1`
+- **Not exercised in Revit.**
+
+**Still in MISC:** 229 call sites in 143 files, mostly reports, audits, logs and one-off
+CSV / JSON dumps. See ROADMAP DOCX-8.
+
+#### DOCX-8 / 9 / 10: export routing completed, model discipline, language pin (2026-09-27, same branch)
+
+- **DOCX-8.** 203 of the remaining 229 bare `OutputLocationHelper` calls now name what they
+  write, using `GetRoutedDirectory` / `GetRoutedPath` / the new `GetRoutedTimestampedPath`:
+  - audits → Compliance; model-health reports → ModelHealth
+  - registers → DocRegister / TagRegister / AssetRegister / REGISTER
+  - issues and review comments → Issue; clash reports → Clash / BCF
+  - cost and quantities → BOQ; materials → MaterialSchedule
+  - data tables and calculation sheets → Schedule / Excel
+  - handover and commissioning → Handover / Maintenance; COBie → COBie
+  - minutes → Minutes; revisions → Revision
+  - model exchange → IFC
+
+  Only keys present in every layout's route table were used, so no CDE-first project falls
+  back to MISC. Round trips share one key within the file, so the import picker opens where
+  its export went. This covers review comments, SpecLink, Niagara, the KUT lifecycle
+  register, programme audit, Fohlio and structural Excel. Discipline-specific outputs carry
+  their discipline:
+  - electrical, SLD, LPS and selective coordination → E
+  - HVAC and duct fabrication → M
+  - plumbing water safety → P
+  - structural → S
+  - plastering → A
+
+  Two sites wrote outside the project entirely: the selective-coordination CSV had no
+  document, and the TCC plot nested a second "electrical" folder. Both fixed.
+- **Gate.** `tools/check_export_routing.ps1` + `tools/export_routing_baseline.txt`, in CI. The
+  23 remaining sites are listed with reasons. The gate was proven red on a re-introduced
+  bare call, then green.
+- **DOCX-9.** `ExportCenterEngine.ModelDiscipline` takes the discipline from the model's ISO
+  file name (Role segment), then `PRJ_TB_DISCIPLINE_TXT` on Project Information, and
+  otherwise leaves the file at the models root. It is wired into:
+  - Export Centre IFC / NWC
+  - ExLink IFC / NWC
+  - `IFCExportCommand`
+
+  `DisciplineFolderMatcher.RoleFromModelFileName` has 10 tests.
+- **DOCX-10.** `LangVersion` is pinned to 12.0 in all 23 projects, matching the .NET 8 SDK
+  CI builds with. A CI step keeps it pinned.
+- **Verification.**
+  - Plugin build: 0 errors, 2 warnings.
+  - `StingTools.Tags.Tests`: 3,523 passing.
+  - CI gates: path-discipline, command-doc-acquisition, workflow-wiring and export-routing
+    all pass.
+  - Not exercised in Revit.
+- **Behaviour change for users.** Reports that used to appear in `20_MISC` now appear in
+  their typed folder (16_COMPLIANCE, 15_REGISTERS, 07_SCHEDULES …). Existing files in MISC
+  are not moved.
+
+#### Open DOCX items closed + document / sheet management consistency review (2026-09-27, same branch)
+
+**DOCX-1…11.** All closed. The details are in ROADMAP; in outline:
+- One suitability default, via `Iso19650Suitability.DefaultFor` / `ForTransition`.
+- Data stores moved out of MISC with carry-forward, via `GetStorePath`.
+- Master Setup no longer re-binds parameters or opens COBie mid-run.
+- Every Export Centre setting is wired or deleted.
+- Per-project Export Centre state, a schedule UI with save-triggered runs, sheet-derived
+  suitability, and register recording.
+
+**Review: document management, sheet management and documentation.** The recurring defect was
+the same rule implemented several times, with the copies disagreeing.
+
+- **Suitability ↔ CDE state.**
+  - The plugin had six mappings. Five were fixed under DOCX-1; `DeliverableLifecycle.Publish`
+    stamped S4 / S5 on PUBLISHED and is fixed now.
+  - The server demanded S4 / S5 / S6 / AB for PUBLISHED and S7 for ARCHIVE, and did not accept
+    any A or B code. Now it follows ISO 19650: A / B / CR published, AB / AR archive. The old
+    codes are still accepted, and the defaults are A1 and AR. `ISO19650Codes.SuitabilityCodes`
+    gained A1–A5, B1–B6 and AR. The comments that called CR "coordination review" and AB
+    "as-built" are corrected.
+  - `CdeStateFor` filed AB, AR and any word starting with A or B as PUBLISHED.
+- **Discipline of a sheet.** There were four parsers. "AR-101" read as AR, A or General, and
+  an ISO-number sheet read as its project code. They are replaced by
+  `SheetDisciplineResolver.ForSheet`.
+- **Sheet numbers.**
+  - The Sheet Manager, sheet sets and templates hard-coded `{disc}-{seq:D3}`; they now follow
+    the project pattern.
+  - Batch Renumber counted a sheet as renamed on the temporary pass and never rebuilt
+    `SHT_TAG_1_TXT`. It now goes through `SheetNumbering.Apply`.
+  - "Enforce ISO Naming" had its own identifier builder: the Project Number cut to 6
+    characters, and the level "L01". It now delegates to Tag Sheets → `Sheet_NumberFromIso` →
+    `Sheet_NumberRestore`.
+- **Sheet compliance.** The "10 ISO 19650 rules" were hygiene checks. Five real checks were
+  added: identifier, role against the declared discipline, suitability, revision, and CDE
+  state against suitability.
+- **Document register schema.**
+  - The writers disagreed: `doc_id` in one, `document_id` in another.
+  - The Document Manager's legacy loader and the COBie Document sheet each read one spelling.
+    COBie also read `name` and `date`, which no writer produces, so every COBie Document row
+    had an empty Name.
+  - All three now read through `DocumentRegisterMerge.MapRegisterRow`. The writers emit both
+    ids, edits match any id key, and the DOC counter scans both spellings.
+- **Documentation.**
+  - CLAUDE.md: the Sheet Manager figures were remeasured (~8,400 lines, not 4,488) and its
+    rules updated. `StingCommandHandler` is ~9,800 lines. The Documentation Map had the doc
+    count as 133; it is now 193. A new section, "Export Centre + Document Manager", records
+    their contracts.
+  - The Document Manager guides, the BIM coordination guide, the BCC guide and the KUT BEP /
+    playbook said S4 is published, S7 is archive, and "SHARED (S0–S4)". These are corrected.
+
+**Verification.**
+- Plugin build: 0 errors.
+- `StingTools.Tags.Tests`: 3,557 passing.
+- Server API builds. The document tests pass (65), plus 6 new ones. The new publish tests
+  were shown red against the old server rules and green after the fix.
+- Gates: path-discipline, command-doc-acquisition, workflow-wiring and export-routing all
+  pass.
+- **Not exercised in Revit.** Check a publish, a Batch Renumber, and an Export Centre run
+  into the project structure.
+- **Deployment:** the server change needs a redeploy before the plugin's A1 publishes are
+  accepted by production.
+
+#### Self-review of the 2026-09-27 document-control work
+
+A cross-check of the eleven commits above against the code they describe. Defects found and fixed:
+
+- **Combined exports were filed by their group name.** A one-per-set PDF or all-in-one DWG passed "All" (or a custom group's name) as the discipline, so in routed mode, or with discipline sub-folders on, it could land in an "All" folder. It also took its CDE state from the first sheet alone. `SubFolderForGroup` now files a combined file in a discipline folder only when every sheet shares that discipline, and in a CDE state only when every sheet shares that state. Otherwise it stays one level up.
+- **One-per-discipline PDF grouping read the sheet number only.** Single-sheet routing also reads the ISO role and the title (`SheetDiscipline`), so a sheet could be grouped under one discipline and filed under another. Both now use the same rule.
+- **`Iso19650Suitability.ExtractCode` let a letter-only word outrank a real code.** "AR team note - S3" returned AR, which files the document as ARCHIVE. Letter+digit codes are now tried first. A new test failed on the old code (2 of 4) and passes after the fix.
+- **Last-export stamping** threw on a state file with a repeated sheet/format key, which stopped stamping for the whole run. Duplicates now keep the last record.
+- **Docs.** CLAUDE.md called `SheetNumberEngine` "the one sheet-number builder" beside a new line naming `SheetNumbering.NextNumber` as the Sheet Manager's. Both statements were partly true, because there are two grammars. That is now said, and the gap is logged as ROADMAP DOCX-12. ROADMAP DOCX-8 still said 23 bare export calls remain; after DOCX-11 there are 17 in 16 files. The per-file register write is logged as DOCX-13.
+
+Checked and found consistent:
+- The plugin's `DefaultFor` and the server's `DefaultSuitability` agree (S0 / S3 / A1 / AR).
+- `GetStorePath` shows no dialog.
+- The build and test figures quoted above match what was run.
+
+Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,560 passing. The path-discipline, doc-acquisition, workflow-wiring and export-routing gates all pass. Not exercised in Revit.
+
+#### DOCX-12 and DOCX-13 closed
+
+- **DOCX-12: one sheet-number token vocabulary.** New `Core/Drawing/SheetNumberTokens.cs` (Revit-free) owns:
+  - the bare `{seq}` width (4)
+  - `{seq:Dn}` parsing, capped at 8 digits
+  - the aliases `{proj}`/`{project}` and `{orig}`/`{originator}`
+
+  Four sites now use it:
+  - `SheetDisciplineResolver.FormatNumber` (title-block pattern)
+  - `SheetNumberEngine.ApplyTokenPattern` (drawing types)
+  - `ShopDrawingComposer.SubstituteTokens`
+  - `MepLevelViewProducer.Substitute`, which previously ignored any width other than D2–D4
+
+  The empty-value rule stays different on purpose, and CLAUDE.md now says why. A drawing-type number is often a positional ISO identifier and keeps `XX`. A project number drops the token and its separator.
+
+  Behaviour change: a title-block pattern with a bare `{seq}` now pads to 4 digits instead of 3. The shipped default `{disc}-{seq:D3}` is explicit and unchanged.
+
+  Tests: a cross-builder test requires both builders to produce the same number for the same pattern. 6 cases failed on the old code, and all pass now.
+- **DOCX-13: one register write per export run.** `ExportCenterEngine.RegisterExports` collects its rows and calls the new `BIMManagerEngine.AutoRegisterExports` once. That call loads `document_register.json` once, applies every row and saves once. Before, it did one full read and rewrite per file.
+
+  The row rule (update by deliverable number, then file name; new rows carry both `doc_id` and `document_id`) moved unchanged into the Revit-free `BIMManager/ExportRegisterUpsert.cs`. Single-file `AutoRegisterExport` is now a one-item batch, so all 17 callers share the rule. `ExportRegisterUpsert` has 6 new tests.
+- Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,572 passing. Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass. Not exercised in Revit.
+
+#### Remaining document-control and platform gaps closed (IM-1, IM-3, IM-11, IM-12, IM-17, IM-18)
+
+- **IM-17: transmittal status.** New `BIMManager/TransmittalRecord.cs` (Revit-free) holds the status vocabulary (`TransmittalStatus`) and one reader for the three row shapes the writers produce.
+  - The ACC publish records `PREPARED` with no issue date. A successful upload of that exact bundle marks it `SENT`; the transmittal id travels in `last_bundle.json`.
+  - A MIDP drop stays `ISSUED`, which is now in the vocabulary.
+  - The Document Manager no longer coerces unknown statuses to `DRAFT`, and shows the date, recipient and document count for every row shape.
+  - The title-block transmittal stamp reads through the same helper and prints no issue date for a `PREPARED` row.
+  - Also fixed on the way: Newtonsoft parsed ISO date strings into date tokens that printed in the machine's culture. The reader keeps ISO.
+- **IM-11 / IM-12: warnings trend (server).** `ComplianceSnapshots` gains `Kind` (`compliance` by default, `warnings` for pushed reports), added idempotently by `PlatformSchemaPatcher`.
+  - `POST /warnings/report` stores a row, skipping an unchanged report within 15 minutes.
+  - The warnings trend includes zero-warning reports.
+  - The compliance endpoints and the dashboard trend skip `warnings` rows. Dropping the old `> 0` filter alone would have plotted every background compliance snapshot as a clean scan.
+  - `WarningsTrendTests`: 2 of 3 failed on the old code. They pass now, alongside the existing compliance and warnings tests (22).
+  - Needs a server redeploy; the column is added on boot.
+- **IM-18: ACC container ids are per project.** `projectId` / `coordContainerId` are now read from `acc_settings.json` first. The machine credentials file is a logged, deprecated fallback.
+  - Saving never writes a project's ids, or its per-container issue type, into the machine file.
+  - The BCC ACC card saves the ids per project.
+  - All four ACC commands load through `AccProjectSettingsFile.LoadCredentials(doc, …)`.
+  - Also fixed: serialising the computed `IsStale` threw on a never-set token expiry, so a first-time "Save Credentials" wrote nothing. It is now `[JsonIgnore]`.
+  - `AccProjectScopeTests`: 8.
+- **IM-1: legacy templates carried forward.** Legacy templates and workflows are copied into the consolidated folder before extraction, so stock copies no longer shadow a project's customised ones.
+- **IM-3: link config path.** The BCC members tab resolves the Planscape link config through `ResolveConfigPath`. `ConfigPathForModel` is now private.
+- **Data-store carry-forward.** `GetStorePath` copies sibling folders recursively (`OutputLocationHelper.CopyTree`).
+- **Docs.**
+  - CLAUDE.md's token table names the builders correctly and lists every token.
+  - ROADMAP IM-2 was stale: the path-discipline baseline is empty, so it is closed.
+  - The KUT runbook says where the container ids now live.
+- **Verification.**
+  - Plugin build: 0 errors, 2 warnings.
+  - `StingTools.Tags.Tests`: 3,582 passing.
+  - `StingTools.Acc.Tests`: 140 passing.
+  - Server warnings and compliance tests: 22 passing.
+  - Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass.
+  - Not exercised in Revit.
+
+#### Drawing Type editor ↔ tagging alignment (ISO 3098 / ISO 19650)
+
+A review of how drawing types choose and size tags. The tag family names the shipped drawing types use (68 across `tagFamilies` and rule `tagFamily`) were already all ones Create Tag Families builds, and each pairs with its category. The defects were around them.
+
+- **The editor offered tag families that do not exist.** Its tag family picker suggested `Iso19650Vocabulary.CommonTagFamilies` (`STING_TAG_ROOM`, `STING_TAG_DOOR` …); none was ever built. "Add category mapping" inserted `NewCategory0 → STING_TAG_FAMILY`.
+  - The pickers now list `TagFamilyConfig.AllFamilyNames()`, the creator's own table.
+  - A new mapping row is a real category with its STING family (`TagFamilyConfig.FamilyNameForCategoryName`).
+  - The dead list is deleted, so a stale reference is a compile error.
+- **Rules without a tag family could get a stock Revit tag.** 50+ shipped AutoTag rules (Doors, Windows, Stairs, Railings, Casework, Structural …) name no family and their drawing type maps none. `AnnotationRunner.ResolveTagTypeId` then took the first loaded tag of the category, often Revit's stock tag, which does not show the ISO 19650 asset tag. The order is now:
+  1. The named family (unchanged).
+  2. `CategoryTagStyles`. This used to be unreachable, because it ran after the any-tag fallback.
+  3. The STING family built for the category.
+  4. Any loaded tag of the category, now with a warning that it may not show the ISO tag.
+- **`TagCategoryFor` knew nine categories.** Walls, pipes, ducts, conduits, trays, sprinklers and 30+ others mapped to their own host category. So the category-match check never held, and the any-tag fallback could never find their tags. It now covers every category a STING tag family is built for. All names were checked against the Revit 2025 API.
+- **Tag text height did not follow ISO 3098.** The default shrank with the scale: 2 mm at 1:100, 1 mm at 1:200 / 1:500. Revit prints annotation at family size whatever the view scale, so small-scale plans got illegible text.
+  - The default is now 2.5 mm, and 3.5 mm on A0.
+  - The default is never snapped down to a variant below the paper's minimum (2.5 mm A0–A3, 1.8 mm A4) while a legible one is loaded.
+  - The editor gains a "Tag text height" control, with the ISO 3098 heights 1.8 / 2.5 / 3.5 / 5 / 7 / 10 mm. There was no control for `tagTextSizeMm` at all.
+  - New validator check DT-106 warns on an explicit non-ISO or below-minimum size.
+  - Drawing-type checksums are unchanged (96 correct), since no serialised field changed.
+- **Tests.**
+  - `IsoTagTextSizeTests`.
+  - `DrawingTypeTagFamilyGateTests`: every tag family a shipped drawing type names must be one the creator builds. It was verified failing on an injected `STING_TAG_DOOR`.
+  - `TagSizeVariantTests` updated to the ISO rule.
+- **Open (ROADMAP TAGISO-1).** The Tag Style Engine matrix still offers 2 and 3 mm, which are not ISO 3098 heights.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,602 passing. The four gates pass. Not exercised in Revit.
+
+#### TAGISO-1 closed: tag style defaults are ISO 3098; the style sources agree
+
+- **One rule.** New `Core/Drawing/IsoTagText.cs` (Revit-free) defines the ISO 3098 tag sizes. 2.5 mm is the default and 3.5 mm the emphasis size. The 2 and 3 mm matrix rows stay available but are never a default. It also moves a size or type name to ISO (`2BOLD_RED` → `2.5BOLD_RED`, `2_NOM_BLACK_None_T1` → `2.5_NOM_BLACK_None_T1`).
+- **Every default now uses it.** Before this change most defaults used 2 mm.
+  - `tag_style_catalogue.json`: sizes listed ISO-first, a new `default_size`, LV/G defaults moved to 2.5, and the pre-created variants are ISO only. The catalogue loader moves a non-ISO default or pre-created variant to ISO with a logged warning. Its built-in fallback also used depth tier 3 for five disciplines and pre-created T3 variants; both now use tier 2, matching the data file and its own notes.
+  - `TagStyleEngine`: 27 preset sizes, the discipline, level, zone, status and system schemes, and the class default.
+  - `TAG_STYLE_RULES.json`: every preset and default type. Its catalog had listed 1.5 mm types, which no `TAG_*_BOOL` row or family carries; they are now the 3 mm rows that do exist. Rule-engine fallbacks and the "preferred types" list were updated too. A loaded preset `default_type` is moved to ISO; explicit rules are left as written.
+  - Scale tiers (`SCALE_TIERS.json`, the hard-coded fallback, `DefaultTextSize`): 2.5 mm at every tier instead of 3.5 → 2 mm by scale. The tiers still set leader offset.
+  - Drawing Type editor: the style suggestions are ISO-only (still editable), and a new category style row is a real category at 2.5 mm, not `NewCategory0 → 2NOM_BLACK`.
+  - `ParamRegistry.TagStyleSizes` is ordered ISO-first.
+- **Consistency fixes found in the same pass.**
+  - The style grid dialog offered `YELLOW`, which no tag family carries (picking it switched nothing), and left out `GREY`. It now reads the registry's sizes, styles and colours, and labels the 2 and 3 mm rows "not ISO".
+  - Discipline tag styles came from three sources that disagreed (E orange/red, S red/orange, LV purple/blue, G black/grey). The Tag Style Engine Discipline scheme now reads the catalogue (`DisciplineStylesFromCatalogue`). The `TAG_STYLE_RULES.json` Discipline preset was rewritten to match it, and a test holds the two together.
+  - `TagSizeVariant` now recognises the rule engine's `2.5BOLD_RED` type naming. Before, families built with those names never had the drawing type's tag size applied.
+- **Tests.**
+  - `IsoTagStyleDefaultsTests`: 3 data tests failed on the old files and pass now.
+  - `TagSizeVariantTests`: new legacy-name cases.
+- **Verification.**
+  - Plugin build: 0 errors.
+  - `StingTools.Tags.Tests`: 3,630 passing.
+  - Gates pass.
+  - Drawing-type checksums unchanged.
+  - Not exercised in Revit.
+
+#### Tag colour scheme names: Tag Studio buttons honoured, aliases resolved, unknown names reported
+
+- **The 12 Tag Studio scheme buttons did nothing specific.** Each set `ColorSchemeName` and ran Apply Color Scheme, but the command never read it and opened its generic picker. It now applies the named scheme directly (`ApplyColorSchemeCommand.ApplyNamed`), for discipline schemes and colour-by-value schemes (System, Status, Zone, Level, Location, Function) alike; the picker opens only when no name is passed.
+- **One vocabulary.** New `Core/Drawing/TagColorSchemeNames.cs` (Revit-free) lists the scheme names and resolves aliases. The spellings had drifted: the engine's key is `Mono` while the Mono button and Set View Tag Style wrote `Monochrome`, and six view style packs wrote `STING Discipline`. Both now resolve; the button, the command and the packs use the canonical names.
+- **Unknown names are reported.** `TagStyleEngine.ApplyColorScheme` logs a warning when the view's `STING_VIEW_TAG_STYLE` names no scheme, and `TokenProfileApplier` adds a warning to the drawing-type apply result when a pack's `tagColorScheme` does not resolve. Before, both fell through silently and the tags kept their style.
+- **Tests.** `TagColorSchemeNamesTests`: alias resolution; the engine's scheme tables carry exactly the listed names (parsed from `TagStyleEngine.cs`); every pack scheme resolves or is a listed gap. The pack test was checked failing on an injected misspelling.
+- **Open (ROADMAP TAGSCHEME-1).** Eight pack schemes have no implementation.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,638 passing. The four gates pass. Not exercised in Revit.
+
+#### TAGSCHEME-1 closed: the healthcare style packs' tag colour schemes exist
+
+- **Eight pack schemes had no implementation.** Applying the healthcare packs (and the clarification pack) wrote a scheme name no engine table carried, so tags kept their style. They now exist in `TagStyleEngine`.
+- **Each reads the parameter its audit already uses, with that parameter's vocabulary.** A new `StyleVariable.Parameter` names the parameter to read (`VariableColorScheme.ParameterName`):
+  - MedicalGas: `MGS_GAS_TYPE_TXT` (O2, N2O, MA4, MA7, N2, CO2, HE, VAC, AGSS), in HTM 02-01 identification colours; oxygen white is drawn light grey.
+  - Pressure: `CLN_PRESS_REGIME_TXT` (POS, NEG, NEUTRAL, as the HTM design table and `PressureRegimeValidator` use).
+  - ElectricalSupply: `ELC_EES_BRANCH_TXT`, with both code spellings `NFPA99Standards.ParseBranch` accepts.
+  - FireRating: fire resistance minutes (`ParamRegistry.FIRE_RATING`, a number; "60.0" matches "60").
+  - Radiation: `RAD_BARRIER_TYPE_TXT` (PRIMARY, SECONDARY, SCATTER, LEAKAGE).
+  - AntiLigature: `CLN_LIG_RISK_LVL_TXT` levels 1–5.
+  - WaterSafety: the system token (DCW/CWS, DHW/HWS, HWR/DHWR, TMV).
+  - "RAG Status" (clarification pack) is an alias of the lifecycle Status scheme, which already reads green/amber/red.
+- **Values are normalised before matching** (`TagColorSchemeNames.NormaliseValue`): trimmed, and numbers written without trailing zeros or units. Tag styles use the ISO 2.5 mm row and catalogue colours only.
+- **Tests.** Every pack scheme must now resolve (the known-gap list is gone). New tests hold every scheme tag style to the catalogue's styles and colours, and every parameter scheme to a parameter in `MR_PARAMETERS.txt`; both were checked failing on an injected `YELLOW` and a misspelt parameter.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.
+
+#### Apply Color Scheme applies the scheme that was picked
+
+- **Before.** `TagStyleEngine.ApplyColorScheme` replaced the scheme passed in with the view's `STING_VIEW_TAG_STYLE` scheme, but the command then set tag styles from the scheme passed in. Picking "Warm" on a view whose drawing type set "Discipline" coloured the elements Discipline and switched the tags to Warm; a colour-by-value view scheme did the same across scheme kinds.
+- **Now.** A scheme picked for one view (Apply Color Scheme, the Tag Studio scheme buttons) is applied as picked, and the result says when the view's own tag style names a different scheme (`TagStyleEngine.ViewSchemeNote`). Batch Apply Color Scheme still follows each view's setting for element colours (`useViewScheme: true`), and its result says so.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.
+
+#### SYS / FUNC / PROD / SEQ review: detection fixed, four systems added, legend and references aligned (2026-09-28)
+
+- **System-name detection moved to one tested class.** `Core/SystemNameClassifier.cs` (Revit-free) now maps MEP system names to SYS codes; `TagConfig.MapSystemNameToCode` delegates to it. It was only checked by reading the order of return statements in the source, and three errors had survived:
+  - Revit's default "Hydronic Supply" and "Hydronic Return" matched no rule, so those pipes were tagged domestic cold water (DCW). They are now HWS.
+  - The sanitary rule's "DRAIN" ran before the rainwater rules, so "Storm Drainage", "Roof Drain" and "Surface Water Drainage" were tagged SAN. They are now RWD.
+  - Medical gas had no system. "Medical Gas O2" matched "GAS" and was tagged as natural gas; "Oxygen" or "Medical Vacuum" matched nothing and became DCW.
+- **Four runtime systems added.** Each was already in `STING_FUNC_SYS_MATRIX.csv` and the PROD table's SYSTEM column, but not in the runtime `SysMap`, so the tagger never wrote them and the validator rejected them.
+  - MGS (medical gas): detected from the system name, `MGS_GAS_TYPE_TXT`, or a family name that names a gas. FUNC is the gas code (O2, MA4, MA7, N2O, N2, CO2, HE, VAC, AGS). Pipework takes DISC P. The matrix's MAP and EVAC, second spellings of MA4 and AGS that nothing wrote, were replaced.
+  - HV, BMS and RAD: detected from family and type names (`SystemNameClassifier.FromFamilyName`), ahead of the LV patterns. FUNC comes from the name where it says (HV: TRF or PWR; BMS: SNS, CTL, FCT, MON; RAD: SHD, ZNE, MON), otherwise the FuncMap default.
+  - None of the four is ever a category default; a test checks this.
+- **Sequence (SEQ).**
+  - Validation now requires exactly the pad width and a value of at least 1 (`SeqAssigner.ValidateNumericSeq`). It used to accept pad + 1 digits, any shorter width, and 0000.
+  - The default allowed range follows the pad width (it was 9999 at every width), and range messages print at the pad width.
+- **Code Legend (`CODE_LEGEND.json`) aligned with what the tagger writes.** It is what users see as the meaning of each token.
+  - Discipline: the eight DISC codes the validator accepts; the other letters moved to a section marked as not accepted in a tag. LPS was listed as a discipline and is a system.
+  - System: the runtime systems. MED, LTG, DRN, SPR, ELC and PLB were removed because they do not exist. HWS was described as domestic hot water and LV as data and telecoms; both descriptions are corrected.
+  - Function: the runtime vocabulary, including RTN where the legend said RET.
+  - Product: codes the resolver produces (WST, LVT, CHW, BCH, SAT, VRV, WIN, FDN, SHW, where the legend said WC, WHB, CHR, BLR, DFR, VRF, WN, FND, SHR). The plumbing tag example uses WST.
+  - `CodeLegendAlignmentTests` holds each section to the runtime source.
+- **Reference data.**
+  - `TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv` claimed `TagConfig` loaded it; nothing does. Its header now says so, and it now:
+    - carries the four new systems and their functions;
+    - files fire alarm devices under FLS, not FP;
+    - uses FIT and GEN as the ARC and LPS function defaults, as the runtime does;
+    - drops the hyphenated healthcare codes (MGS-O2, EES-LS, RAD-X, LIFE-SAF …), which contain the tag separator;
+    - marks the 17 Phase 178b plumbing codes as proposed.
+  - `STING_PROD_CODES.csv`: 15 rows said SYSTEM FA or LTG; the tagger writes FLS and LV for fire alarm devices and lighting.
+  - `ProdCodeDataTests` now reads the SYS vocabulary from the runtime map, and its list of known gaps is empty.
+- **Consistency fixes in narrative text and my earlier colour-scheme work.**
+  - Tag 7 function descriptions used EB and EP for lightning protection; the resolver writes EE, BOND and TC.
+  - The MedicalGas tag colour scheme keyed scavenging as AGSS; the canonical code is AGS.
+  - The WaterSafety scheme keyed CWS, HWR, DHWR and TMV, none of which is a SYS code the tagger writes; it now keys DCW and DHW.
+- **Effect on existing projects.** Re-tagging changes the SYS token, and with it the SEQ group, of:
+  - hydronic pipes;
+  - storm and roof drainage;
+  - medical gas pipework and terminal units;
+  - HV plant, BMS devices and radiation-protection elements whose names identify them.
+  These were wrong or unclassifiable before.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,756 passing. The new classifier tests were checked failing against the old rule order (11 failures). The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### TOKVOCAB-1 closed: wet HVAC, plumbing systems, lighting and DHW return (2026-09-28)
+
+- **Chilled water, condenser water and refrigerant are their own systems.** They were all SYS HVAC; they are now CHW, CDW and REF (DISC M).
+  - FUNC is SUP or RTN from the system name for CHW and CDW, and LIQ, SUC or HGS from the line name for REF. Otherwise it is CLG.
+  - Chillers, cooling towers and condensing units get the matching system from the family name when they have no connected system.
+  - HVAC now means air systems only.
+- **The 17 Phase 178b plumbing and process codes are runtime systems.** SWD, GWR, RWH, SDS, SEP, STW, BGD, SPH, INT, CMP, POL, LBW, IRR, FOL, STM, CON and CHE are detected from system names and plant family names. They use the functions the reference file documented.
+  - STM, CON, FOL, CMP and CHE pipework is DISC M; the rest is DISC P.
+  - Behaviour changes that follow:
+    - Site storm and surface water is SWD; roof rainwater stays RWD.
+    - Steam and condensate were HWS and are now STM and CON; an A/C condensate drain stays SAN.
+    - A sewage treatment works was SAN and is now STW.
+  - Guards against false matches: a fire hose reel is not irrigation, fuel gas is not fuel oil, and chemical waste drainage is not dosing.
+  - The family-name layer now only returns a system that the element's category can belong to, so "Pool Table" or "MRI-safe Chair" is not a system.
+- **Lighting and small power have their own FUNC.** Under LV, luminaires and lighting devices are LTG, emergency, exit and escape luminaires are EMG, and electrical fixtures (sockets) are SML. Distribution stays PWR. All four codes were already in the FUNC matrix but nothing resolved them.
+- **DHW secondary return is FUNC RTN**, read from the system name ("return", "circulation", "recirc"); flow keeps DHW.
+- **Aligned with the new vocabulary:**
+  - `MepRunBuilder.SysCodeFor` no longer calls Revit's hydronic classification HVAC; the system name decides between heating, chilled and condenser water.
+  - `TagIntelligence` no longer infers HVAC for anything connected to a chiller.
+  - The System tag colour scheme covers all 42 runtime systems, and a test holds the two lists together.
+  - The Code Legend, the FUNC/SYS matrix and the reference CSV are updated to match.
+  - Tag 7 narrative text has descriptions for the new codes.
+- **Product codes.**
+  - A kitchen or lab sink was PROD SKT, the same code as a socket outlet. It is now SNK.
+  - The FUNC/PROD contradiction table named codes the resolver never writes (WC, WHB, CHR, BLR, DAM, TRP, SWB, and CLT, which is cross-laminated timber), so its checks could not fire. It now uses produced codes, and a test holds it to them.
+- **Effect on existing projects.** Re-tagging changes the SYS token, and with it the SEQ group, of chilled, condenser and refrigerant pipework, steam and condensate, site storm water, treatment works and the other named plumbing systems. The FUNC token changes for lighting, sockets, DHW return and cooling-plant pipework. Sinks change PROD.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,838 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### TOKVOCAB-2 closed: heating return, healthcare disciplines, unnamed pipe systems, pad-aware SEQ placeholder (2026-09-28)
+
+- **Heating water return.** An HWS element whose system name says return ("LTHW Return", "Hydronic Return") is FUNC RTN, tested before the heating / hot-water detection (a return also says LTHW). Flow keeps HTG or DHW, as for CHW, CDW and DHW.
+- **Healthcare disciplines H / MG / RP are valid DISC codes.** The discipline cross-check (validator and `TagIntelligence`) accepts them as alternatives where they belong (`CategoryTokenDefaults.DiscAccepted`):
+  - MG on the medical gas system (MGS);
+  - RP on radiation protection (RAD);
+  - H on clinical equipment and fixture categories.
+
+  The tagger still writes the category or system discipline (P for medical gas pipework). The Code Legend lists the three, and drops its "H = HVAC (Uniclass alt)" entry, which clashed.
+- **Revit "Other" and unnamed pipe systems.**
+  - Detection now also reads the system's Revit classification (`RBS_SYSTEM_CLASSIFICATION_PARAM`: "Domestic Cold Water", "Hydronic Return", "Fire Protection Wet", "Sanitary" …) when the system type's name says nothing, such as "PS-01".
+  - A pipe whose system still cannot be read defaults to GEN, which marks the tag assumed. It used to default to HVAC (now air only), and before that a category without its discipline's system took whichever system was declared first. Pipe categories left the HVAC list and joined GEN.
+- **The unassigned-SEQ placeholder follows the pad width.** "0000" was a literal in six places, so at pad 3 or 5 it was never recognised as unassigned. `SeqAssigner.UnassignedSeq` / `IsUnassignedSeq` / `IsUnresolvedToken` now decide, and `TagHasPlaceholders` / `TagIsComplete` compare whole segments. A test fails on any new literal comparison; it was checked failing on one.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,865 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### Cable-type pickers for the wire reference grid and feeder sizing (2026-09-27)
+
+- **Wire reference grid.**
+  - It gains a cable-type picker (multicore / single-core / armoured SWA).
+  - Its method list now covers every shipped method: A, B, C, E, F, D1 and D2.
+  - Every table can now be browsed there.
+  - The old labels said XLPE, A1, B1 and E had "no table shipped"; those tables have shipped.
+  - A combination with no table (single-core XLPE, for example) says so and names the shipped
+    tables.
+- **Feeder sizing.**
+  - The expander gains its own insulation and cable-type pickers, and methods F, D1 and D2.
+  - Feeders no longer take these from the CABLE tab.
+  - The default stays PVC multicore.
+- The armoured SWA tooltip on the CABLE tab said every result is flagged VERIFY. That stopped
+  being true once every current rating was two-source checked; the tooltip now says only
+  unconfirmed values are flagged.
+- **Tests.** 3,438 passing. Every picker combination resolves to its table, and those with no
+  table resolve to none.
+- **Not exercised in Revit.**
+
+#### Electrical flexibility, automation and integration review (2026-09-27)
+
+- **The cable a circuit was sized with is recorded and read back.** Checks that run later now
+  judge a circuit against its own table.
+  - New `Core/Electrical/CircuitCableRecord` stamps install method, insulation and cable type
+    (`ELC_CBL_INSTALL_METHOD_TXT`, `ELC_CBL_INS_TYPE_TXT`, `ELC_CBL_TYPE_TXT`) when a size is
+    applied, from both the CABLE tab's Apply and `CableSizerApplyEngine`. Cable type was
+    previously never written, and nothing read the other two.
+  - The Circuit Check and the breaker sizer use the recorded cable's table when all three are
+    recorded, and say so. Otherwise they fall back as before: the Circuit Check to the highest It
+    in any table, the breaker sizer to the CABLE tab's assumption.
+- **`ELC_CBL_AMPACITY_A` now holds Iz, not the design current Ib.** Apply had been writing Ib into
+  the ampacity column of the Cable Schedule.
+- **Arc flash reads board geometry.**
+  - Four new board parameters feed the IEEE 1584-2018 engine: `ELC_ARC_FLASH_GAP_MM` and
+    `ELC_ARC_FLASH_ENCL_H_MM` / `_W_MM` / `_D_MM`. The engine always accepted them, but the
+    command never passed them, so every board was calculated at its class's typical size.
+  - A blank value still uses the typical one.
+  - A typical gap is now noted on the label, as the typical enclosure already was.
+- **The Circuit Check runs in the Electrical Submission and Electrical QA workflows**, after
+  voltage drop. It had been in no workflow.
+- **Recorded, not fixed:** ELEC-21 (the wire tables have no project override or reload) and
+  ELEC-22 (two voltage-drop methods write one parameter).
+- **Tests.** 3,506 passing. The engine uses supplied geometry and assumes nothing, and notes a
+  typical gap when none is given.
+- **Not exercised in Revit.**
+
+#### Project wire tables and one voltage-drop owner (ELEC-21 / ELEC-22, 2026-09-27)
+
+- **Project wire-table override (ELEC-21).**
+  - New `_BIM_COORD/bs7671_wire_tables.json`, layered on `STING_WIRE_TABLES.json` by
+    `Core/Electrical/Bs7671TableLayering`. Replaces, adds or removes whole tables by lookup key;
+    overrides Tables 4B1 / 4C1 and Cf.
+  - Project rows are single-source unless attested by a `twoSourceCheck`; a row claiming
+    verified without one is downgraded, with a warning.
+  - An invalid file is refused as a whole. Every sizer then refuses with the reason; the
+    corporate tables are not substituted.
+  - Project tables cite themselves as project tables in every basis, and a result sized on
+    them says so.
+  - Every caller now resolves tables per document: cable sizer, CABLE-tab Apply,
+    `CableSizerApplyEngine`, feeder sizer, circuit wizard, breaker sizer, Circuit Check, Add
+    Cable, wire reference grid and wire sync. The MCP calculator has no model and reports
+    `tableOrigin: corporate`.
+  - `Cable_ReloadTables` (CABLE tab, workflow, NLP) re-reads both files and lists what is in force.
+- **One owner for circuit voltage drop (ELEC-22).**
+  - New `Core/Electrical/CircuitVoltageDrop` (Revit-free) and `CircuitVoltageDropModel`.
+    Appendix 4 mV/A/m from the recorded cable's table; with no complete record, the highest
+    mV/A/m any loaded table gives for the size (an upper bound); resistance only for NEC.
+  - New parameter `ELC_CKT_VD_BASIS_TXT` (circuits and boards) records the method beside every
+    figure: A4, A4-MAX, A4-SIZED, R60228, IMPORT or NONE with the reason.
+  - Recalculate, the VD schedule, Apply, Auto-Upsize, the feeder sizer and the three importers
+    all stamp through it. Apply now stamps the circuit's own drop, not the CABLE tab's.
+    Auto-Upsize picks the new size by the same method.
+  - The Circuit Check works the drop out itself, and can pass but never fail on an upper bound.
+    Its workbook gains a basis column.
+- **Hidden defects fixed on the way.**
+  - A circuit missing its length, size or voltage was stamped `0.00` % voltage drop, which the
+    Circuit Check read as a pass. It is now NONE with the reason.
+  - The SLD read `ELC_VLT_DROP_PCT` and the board fault level with `AsString()`. Both are
+    NUMBER parameters, so neither label ever appeared.
+  - The Electrical panel's circuit grid set every voltage drop to 0 and showed "—".
+  - The cable sizer and the new reload command read `commandData.Application`, which is null
+    when the dock panel dispatches; the command-app gate caught the first.
+  - Exports (EasyPower XML, circuit schedule CSV/XML/JSON) now carry STING's figure with its
+    basis. A missing or pre-basis figure is left out instead of written as 0.
+- **Recorded, not fixed:** ELEC-23 (the apply engine's separate size and VD parameters),
+  ELEC-24 (feeder sizing ignores an NEC setting), ELEC-25 (no Appendix 4 §6.1 load correction),
+  ELEC-26 (the old VD number cannot be cleared when the basis is NONE).
+- **Tests.** 3,554 passing, including 24 for the override and 26 for voltage drop.
+- **Not exercised in Revit.**
+
+#### ELEC-23 to ELEC-26: one size, one voltage drop, feeders on the panel's standard (2026-09-27)
+
+- **ELEC-23, aligned writers.**
+  - `CableSizerApplyEngine` (MCP batch sizing) writes `ELC_CBL_SZ_MM` and the native wire size
+    (when Revit allows) as well as `ELC_WIRE_CSA_MM2_NUM`. It stamps voltage drop and basis
+    through `CircuitVoltageDropModel`, so it agrees with Apply and Recalculate.
+  - Wire VD Sync and the wire annotation resolve each conduit through `CircuitVoltageDrop`: the
+    conduit's own recorded cable, else an upper bound, and the connected circuit's voltage.
+    Before, VD Sync used conductor resistance at a fixed 70 °C and 400 / 230 V.
+  - The annotation no longer reads `ELC_VLT_DROP_PCT` off a conduit, where it is not bound, and
+    marks an upper bound "≤".
+  - The conduit cable sizer writes Iz to `ELC_WIRE_AMPACITY_A`; it had been left empty.
+- **ELEC-24, feeders follow the panel's standard.** NEC feeders size to Table 310.16 and their
+  drop is stamped R60228. AS/NZS 3000 is refused with the reason instead of silently getting
+  BS 7671. The voltage-drop resolver refuses a standard with no tables the same way.
+- **ELEC-25, Appendix 4 §6.1.** The cable sizer reports the load-corrected drop as a separate,
+  optional figure: Ct from Ca and Cg, up to 16 mm², not buried cables. The size is still chosen
+  on the tabulated figure. Sources in `ELECTRICAL_STANDARDS_SOURCES.md`.
+- **ELEC-26, schedule text.** Every stamp writes `ELC_VLT_DROP_TXT` ("3.91", "≤4.13", or "—"
+  when not calculated), now bound to boards as well as circuits. The STING panel schedule
+  templates and the Voltage Drop Schedule show it; the number cannot be cleared, the text can.
+- **Found on the way.**
+  - The circuit voltage-drop reader (merged in #996) fell back to a parameter named
+    `ELC_CKT_CSA_MM2`. That is only a code alias for `ELC_CBL_SZ_MM`, so the fallback never
+    found a size. The parameter-contract gate exposed it.
+  - The fabrication workspace grouped by `HVC_SYS_TXT` / `ELC_SYS_TXT`, which do not exist, so
+    every duct and conduit fell to system "GEN". It now uses the tag's SYS token.
+- **Tests.** 3,562 passing, including 8 new: the §6.1 factor against a hand calculation
+  (Ct 0.940, 1.47 % on 2.5 mm² at 20 A over 10 m), its limits, unsupported standards, and the
+  schedule text.
+- **Not exercised in Revit.** Rebuild the panel schedule templates (`Panel_TemplatesCreate`) to
+  pick up the VD column change.
+
+#### Parameters read by the wrong name or as blank text (2026-09-27)
+
+A sweep of every literal parameter name in the plugin against the shared-parameter files, and of
+every `GetString` read against the parameter's data type.
+
+- **Numbers read as text were blank.** `ParameterHelpers.GetString` returns "" for anything not
+  stored as text, so about 120 reads of NUMBER, LENGTH, AREA, INTEGER, YES/NO and CURRENCY
+  parameters always came back empty. The biggest effect was the TAG7 narrative: U-values,
+  velocities, wall and door sizes, stair geometry, panel breakers, lamp wattage, lead thickness
+  and fire ratings never appeared. The BOQ paragraph dimensions (width, height, thickness) were
+  also always blank.
+  - New `ParameterHelpers.GetValueText` reads any storage as plain invariant text in the unit the
+    name states: LENGTH in mm (m when the name ends `_M`), AREA in m², VOLUME in m³, electrical
+    quantities through `ElecUnits`, other numbers as stored. TEXT reads exactly as `GetString`.
+  - TAG7, the BOQ paragraph builder, the COBie/asset exports, the tie-in and LPS registers, the
+    labour-hours and handover exports, the UL penetration matcher and the display-mode sentinel
+    use it. Parsers that assumed the local culture now parse invariantly or use `GetDouble`.
+  - Behaviour change: HVAC Refresh no longer overwrites a capacity the user entered, and the tag
+    display-mode initialisation no longer re-runs on every tag, because both checks now see the
+    stored value.
+- **System names that do not exist.** Fabrication grouping, cut lists, the workspace filter pills,
+  the duct spec check and the HVAC panel read `HVC_SYS_TXT`, `ELC_SYS_TXT` and a concatenation of
+  three names, so ducts and conduits had no system. `Core/Mep/ServiceSystemName.Read` is now the
+  one reader: `PLM_SYS_TXT`, `MEC_SYS_TXT`, Revit's system name, then the tag's SYS token.
+- **Other wrong names.**
+  - TAG7 medical gas and radiation text: `MGS_DESIGN_FLOW_LPM_NR` (l/min, not L/s),
+    `MGS_NOM_PRESS_KPA_NR`, `MGS_OUTLET_ZONE_TXT`, `RAD_BARRIER_TYPE_TXT`, `RAD_WORKLOAD_MAWK_NR`.
+    The outlet count had no parameter and is dropped.
+  - HVAC panel spools: `AssyParams` weight, fitting count and total length (the `ASSY_*` names
+    never existed, so every spool read "?").
+  - Produce-and-export sheet register: the CDE state from `PRJ_TB_DELIVERABLE_CDE_TXT`, blank when
+    unstamped. It read a nonexistent name and reported every sheet as "WIP".
+  - Fill validator and fill heat map: pipe and duct velocity from `PLM_VEL_MPS` / `HVC_VEL_MPS`;
+    the velocity checks never ran.
+  - Plumbing joint type, sheet Uniclass code, HVAC carbon report kW, carbon tracker mass, and the
+    BOQ paragraph performance and dimension fields.
+- **Left open.** About 60 names remain that no parameter file defines. Most are family parameters
+  or deliberate fallbacks; the few that silence a check are listed in ROADMAP PARAM-10.
+- **Gate.** `check_param_contract.py` counts `GetValueText` as a read; six user-entered inputs
+  that are now read were recorded as inputs.
+- **Tests.** 3,576 passing, including the name-suffix unit rule and invariant formatting. Not
+  exercised in Revit.
+
+#### PARAM-10 closed, and measured values written in the wrong unit (2026-09-27)
+
+- **Checks that never ran.**
+  - The Spec validator's cable voltage check read two undefined names. It now compares the
+    circuit voltage with the cable's rated voltage in the new `ELC_CBL_RATED_V_NR` (U of U0/U,
+    entered from the cable specification). Circuits with no rating are reported in one line.
+  - The carbon stage tracker stamped 0 for any stage whose input was missing, and its A4, B6 and
+    C1 inputs read undefined names. Now:
+    - A4 uses mass × the project setting `CARBON_A4_DISTANCE_KM` (not calculated when unset).
+    - B6 reads `ELC_ENERGY_KWH_PA`.
+    - C1 reads the computed volume.
+    - Mass comes from `ASS_WEIGHT_KG`, else volume × the material library density.
+    - C2 distance is `CARBON_C2_DISTANCE_KM` (default 50 km, as before).
+    - A stage that cannot be calculated is cleared, not set to 0, and the report says how
+      many elements each stage covers.
+  - The architecture cover audit read "FIRE_RATING" and "ANALYTICAL_HEAT_TRANSFER" as
+    parameter names, so it reported every wall as missing both. It reads the type's Fire
+    Rating and heat transfer coefficient, then STING's fields.
+  - `MepA_CableSizeApply` ran a second, generic cable sizer and wrote to a parameter that does
+    not exist, so it never wrote anything. It now previews, confirms and applies through the
+    BS 7671 apply engine, the same one the MCP tool uses. A non-BS 7671 panel standard is
+    refused with the reason.
+- **Parameters the code read but no file defined.** Thirteen are now defined and bound where
+  their readers look. Among them: the standards region (the region picker told users to "load
+  shared params" for a parameter that did not exist), base currency, disciplines, the material
+  sign-off suitability and the supply voltage (Project Information); the gases a clinical room
+  needs (Med Gas Outlet placement asked users to set it); the air system per space (Block
+  Load); fixture kind (connector completeness check); conduit cable manifest (v4 fill check);
+  maintenance access side; plaster faces.
+- **Renamed reads.** HVAC panel manufacturer and model (`ASS_MANUFACTURER_TXT` /
+  `ASS_MODEL_NR_TXT`), fan static fitting reference (`HVC_PROD_REF_TXT`), sheet discipline in the
+  drawing register (`SHT_DISC_TXT`), the carbon heat map (the tracker's stamp before the
+  family figure), BOQ paragraph hardware, glazing, reinforcement and spacing. Substrate,
+  fixings and edge trim have no parameter and are no longer read.
+- **BOQ descriptions no longer invent values.** With no data the template text says "as
+  structural specification" instead of C25/30 concrete, and "as lighting design" instead of
+  300 lux.
+- **Values written in the wrong unit.**
+  - Both hanger placers wrote millimetres straight into LENGTH parameters, which Revit stores
+    in feet, so a 3,000 mm spacing was saved as 3,000 ft.
+  - A mm setter in the routing support placer always divided by 304.8, so the NUMBER
+    parameter `HVC_DCT_INSULATION_THK_MM` stored 0.082 for 25 mm.
+  - The foundation sizer, the column pipeline and the room-area mapping passed measured
+    values to `SetString`, which refuses them, so foundation size and depth, column size and
+    room area were never written.
+  - New `ParameterHelpers.SetDoubleInNamedUnit`, the counterpart of `GetValueText`, writes a
+    value given in the unit its name states to whatever the parameter is: feet for a LENGTH,
+    unchanged for a NUMBER, invariant text for TEXT.
+- **Gate.** `check_param_contract.py` counts `SetDoubleInNamedUnit` as a write.
+- **Tests.** 3,576 passing. Not exercised in Revit. Run Load Shared Parameters to bind the
+  new parameters.
+
+#### New parameters aligned across every binding surface; mirror bindings corrected (2026-09-28)
+
+- **The thirteen PARAM-10 parameters** now appear consistently on every surface
+  `StingTools/Data/MISSING_PARAMETERS.md` lists. The GUID, type, group and categories
+  were checked to agree across:
+  - `MR_PARAMETERS.txt` / `.csv` and `PARAMETER_REGISTRY.json`;
+  - both `RESOLVED_BINDINGS.csv` copies;
+  - `CATEGORY_BINDINGS.csv` (v3.17), `PARAMETER_CATEGORIES.csv` (v2.7) and
+    `BINDING_COVERAGE_MATRIX.csv` (v5.7);
+  - a `ParamRegistry` const + `_GUID` each, now used at all 19 read sites instead of literals.
+- **Bindings checked against what the code reads.**
+  - `MGS_GAS_REQUIREMENT_TXT` narrowed to Rooms: Med Gas Outlet placement reads Rooms only.
+  - `BLE_PLASTER_FACES_NR` narrowed to Walls: the take-off never plasters curtain panels or
+    mullions.
+  - Both parameters were one day old, and the loader never removes a category, so no
+    project loses a binding.
+  - `ELC_ENERGY_KWH_PA` widened to mechanical equipment and luminaires. Its legacy
+    `Generic Models,Type` row is removed and its type corrected to TEXT in
+    `PARAMETER_CATEGORIES.csv`.
+- **B6 carbon actually reads equipment.** The stage tracker walked only building-fabric
+  categories, so the B6 energy it looked for could never be found. B6 now has its own
+  pass over electrical and mechanical equipment and luminaires, and reports equipment with
+  no energy figure as not calculated.
+- **Descriptions corrected.**
+  - `PLM_RECIRC_DELTA_T_K` is the water-to-air temperature difference for pipe heat loss
+    (default 40 K), not the loop's temperature drop.
+  - `MGS_GAS_REQUIREMENT_TXT` lists the codes the command recognises (O2, N2O, CO2, MA4,
+    MA7, N2, HE, VAC, AGS). Its own prompt suggested "AIR", which it does not recognise.
+  - `MNT_ACCESS_DIR_TXT` takes BOTTOM, not ALL.
+- **42 `_TXT` display mirrors** were bound to fewer categories than the value they mirror,
+  so a tag label read blank there. `param_binding_resolver.py` now binds every mirror
+  wherever its source binds; all 197 match.
+  - `bind_txt_mirrors.py` deleted an unrelated history line (it matched on a shared
+    "# v3.9 |" prefix), moved its header to the top, stamped today's date (not idempotent)
+    and dropped the file's byte-order mark. All four are fixed, and its 52 missing mirror
+    rows are written.
+- **Other names aligned.**
+  - ExLink exports read `BLE_STRUCT_CONCRETE_GRADE_TXT` and `PER_FIRE_RATING_TXT`, as the
+    BOQ paragraphs already did (three baselined names removed).
+  - The sizing-rules note names `HVC_PROD_REF_TXT`.
+  - The automation roadmap's MEP-A-01 row says it was superseded.
+- **Guides.** The sustainability guide gives each carbon stage's inputs. The electrical,
+  HVAC and plumbing guides say where to enter cable rated voltage, a space's air system,
+  the recirculation ΔT and the fixture kind.
+- **CLAUDE.md** conventions name `GetValueText`, `SetDoubleInNamedUnit`,
+  `ServiceSystemName` and the new-parameter checklist.
+- **Found, not fixed (PARAM-11).** 588 parameters disagree between `CATEGORY_BINDINGS.csv`
+  and `PARAMETER_CATEGORIES.csv`; both are older than `RESOLVED_BINDINGS.csv`, which is what
+  Load Shared Parameters binds from.
+- **Tests.** 3,576 passing; all gates pass. Not exercised in Revit.
+
+#### PARAM-11: one binding spec, generated views, and more hidden issues (2026-09-28)
+
+- **PARAM-11 closed.** `RESOLVED_BINDINGS.csv` is the one binding spec.
+  - `PARAMETER_CATEGORIES.csv` and `BINDING_COVERAGE_MATRIX.csv` are now generated from it
+    by the new `tools/gen_binding_views.py`. The resolver runs it, so the binding-spec
+    drift gate covers both views.
+  - Both views list every parameter the spec binds (3,332; they listed about 1,300 and
+    1,600). `<ALL>` stands for the 143 universal categories. Existing display names are
+    kept.
+- **Dynamic Bindings binds from the spec.** It read `CATEGORY_BINDINGS.csv` wholesale,
+  which is the resolver's hand-authored input: the resolver honours only its Yes rows.
+  - It put 1,141 parameters on Generic Models as Type parameters.
+  - It now adds the spec's categories as instance bindings and leaves universal parameters
+    to Load Shared Parameters. This is G-8 option D: neither binder creates a Type binding
+    any more.
+  - Its menu text named the matrix as its source, which was wrong too.
+- **The consistency checks compare with the spec.** The load-time audit and Validate
+  Binding Matrix (TEMP-06) compared the views with `CATEGORY_BINDINGS.csv`. That is where
+  the 588 "disagreements" came from.
+  - TEMP-06 also took each file's first line as its header. Both files open with `#`
+    comments, so it compared a comment with the category list and counted comment lines
+    as bindings.
+- **Shared-parameter files disagreed on type.** Ten parameters had one GUID but a
+  different type in `STING_PARAMS_V4.txt` / `STING_PARAMS_V6.txt` than in
+  `MR_PARAMETERS.txt`, for example `ASS_LENGTH_TOTAL_MM` LENGTH vs NUMBER.
+  - Revit gives a GUID one type, so a family authored from one file refuses to load into a
+    project bound from the other. The side files now match `MR_PARAMETERS.txt`, which is
+    what every writer assumes.
+  - The new `tools/check_shared_param_files.py` runs in plugin CI. It failed on main with
+    those ten and passes now.
+- **`ParameterHelpers.SetInt` dropped NUMBER parameters.** It returned false for any
+  Double storage, so a count written to a NUMBER parameter was lost. A unitless NUMBER now
+  takes the integer; a measured one goes through `SetDoubleInNamedUnit`.
+- **Validate Template's GUID check always failed.** It read the GUID from column 0 (the
+  word "PARAM") and counted the file's META and GROUP lines as parameters. It now checks
+  every PARAM row's GUID and reports duplicates.
+- **The plaster material database read the wrong columns.** It used fixed positions from
+  an older `BLE_MATERIALS.csv` layout:
+  - density came from the thickness-in-inches column (about 0.5 kg/m³);
+  - thermal conductivity came from the UGX cost column;
+  - the name came from the application column, and the code from the discipline column.
+
+  It now finds its columns by header name.
+- **pyRevit manifest check** counted its comment lines and header as scripts.
+- **Tests.** 3,576 (Tags) and 438 (Sustainability) passing; all gates pass. Not
+  exercised in Revit.
+
+#### Carbon tracking read per-m³ factors as per-kg; dead loader and pyRevit check removed (2026-09-28)
+
+- **Carbon tracking overstated most materials by about their density.**
+  - `CarbonTrackingEngine.GetCarbonFactor` returned the first of four tiers with no
+    unit. Two of them (a material's `STING_EMB_CARBON_NR` and MATERIAL_LOOKUP's
+    `CARBON_KG_PER_M3`) are kgCO₂e per m³; the keyword fallback is per kg.
+  - The carbon tracking command multiplied the answer by mass. C30 concrete at 300
+    kgCO₂e/m³ read as 300 × 2,450 kg, that is 735,000 kg for one cubic metre instead of
+    300.
+  - The command now uses `CarbonFactorResolver`, the unit-aware resolver the BOQ already
+    uses, and the new Revit-free `BOQ/CarbonQuantity.Split`. Per m³ multiplies the volume,
+    per kg the mass, and a material's own fossil/biogenic split is used when it has one.
+  - Its totals therefore now agree with the BOQ and the EDGE dashboard. Materials the
+    resolver has no specific figure for get its Uganda/EDGE generic default, labelled as
+    such, where before they were left out.
+- **The dead MATERIAL_LOOKUP loader is removed, not rewired.**
+  - `CarbonTrackingEngine.EnsureLoaded` could never parse the file's long format (dead
+    since Z-20).
+  - Parsing it would not have helped: the file's carbon rows are per m³, and this was a
+    per-kg tier.
+  - Those rows already reach every caller through `MaterialLookupCsv` in the resolver's
+    Tier 2, which `MaterialLookupParserTests` cover.
+  - `GetCarbonFactor` is now only the per-kg ICE keyword fallback; the resolver labels it
+    `ice-keyword` (was `carbon-factors-csv`, a file that does not exist).
+- **The pyRevit manifest startup check is removed.** Every script it lists was retired in
+  the C# consolidation, and its paths are relative pyRevit paths. It warned about all of
+  them on every startup and could never pass.
+- **Tests.** 9 new (`CarbonQuantityTests`, hand-worked). Passing: Boq 1,364, Tags 3,576,
+  Sustainability 438. Not exercised in Revit.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
@@ -174,7 +174,8 @@ namespace StingTools.Tags
             string[] paraNames = ParamRegistry.AllParaStates;
 
             TokenDepthOverrides.EnsureLoaded(doc); // E2: per-category tier depth
-            int updated = 0, carriers = 0;
+
+            int updated = 0, carriers = 0, annotationSkipped = 0;
             var sw = System.Diagnostics.Stopwatch.StartNew();
             // PERF: the all-types scope sweeps EVERY ElementType in the project, but only a
             // small subset (tag families + STING-bound model types) carries the PARA_STATE
@@ -201,18 +202,61 @@ namespace StingTools.Tags
                         }
                         Element typeEl = doc.GetElement(typeId);
                         if (typeEl == null) continue;
+                        // Tag types are the variant catalogue's own state, not
+                        // what renders - see Core/TierGateScope.
+                        if (!TierGateScope.MaySweep(
+                                typeEl.Category != null &&
+                                typeEl.Category.CategoryType == CategoryType.Annotation))
+                        { annotationSkipped++; continue; }
+
                         // Early skip: no PARA_STATE_1 → the other 9 won't be there either.
                         if (typeEl.LookupParameter(paraNames[0]) == null) continue;
                         carriers++;
                         // E2: a category depth override (e.g. Doors→2, Equipment→10) wins over
                         // the panel global; otherwise every type gets the global depth.
                         int effDepth = depth;
-                        var ov = TokenDepthOverrides.Resolve(typeEl.Category?.Name);
+                        // The category IS the model category now - tag types never
+                        // reach here - so the cap keys match the overrides file
+                        // directly. The tag-to-annotated-category map this used to
+                        // need was removed with the skip above: it existed only to
+                        // translate a tag type's category, and no tag type arrives.
+                        var ov = TokenDepthOverrides.Resolve(doc, typeEl.Category?.Name);
                         if (ov != null && ov.Depth.HasValue)
                             effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
                         bool anySet = false;
                         for (int i = 0; i < MaxTier; i++)
                             anySet |= SetYesNo(typeEl, paraNames[i], (i + 1) <= effDepth);
+
+                        // Write the depth as a NUMBER as well as ten flags.
+                        //
+                        // Measured in Revit 2026-09-23: a label row reads its gate
+                        // from the TAGGED ELEMENT's type, and an integer comparison
+                        // works there exactly as a boolean does -
+                        // if(TAG_DEPTH_TIER_INT > 5, ...) with the value 6 drew its
+                        // row. So one number can replace the ten flags, and the
+                        // label migration in
+                        // docs/UNIVERSAL_TAG_LABEL_INTEGER_MIGRATION.md moves the
+                        // rows over to it.
+                        //
+                        // Written here too, not instead, because the library
+                        // migrates one family at a time: an unmigrated family still
+                        // reads the flags, a migrated one reads the number, and
+                        // both must be right during the changeover. Setting only
+                        // the number would blank every family not yet migrated.
+                        //
+                        // Costs nothing where the parameter is unbound - SetInt
+                        // finds no parameter and returns false.
+                        //
+                        // overwrite: true is REQUIRED. SetInt defaults to
+                        // overwrite: false, which refuses any element whose value
+                        // is already non-zero - so a type sitting at depth 2 could
+                        // never be moved to 6, and "Set depth" would report success
+                        // having changed nothing. The same shape as the SEQ bug
+                        // fixed on 2026-09-23, where a token blocked its own repair.
+                        if (ParameterHelpers.SetInt(typeEl, ParamRegistry.TAG_DEPTH_TIER,
+                                                    effDepth, overwrite: true))
+                            anySet = true;
+
                         if (anySet) updated++;
                     }
                     tx.Commit();
@@ -296,16 +340,34 @@ namespace StingTools.Tags
                 }
             }
 
-            if (!sliderPath)
+            // A run that wrote nothing must say so, and say why.
+            //
+            // Until 2026-09-24 this swept tag types too, so it always reported a
+            // healthy number - "14 types updated" - while the drawing did not
+            // change, because a label reads its gate from the TAGGED ELEMENT and
+            // those gates are bound to no model category by default. The count
+            // was true and the impression it gave was false.
+            if (carriers == 0)
+            {
+                string advice = TierGateScope.NoModelCarriersAdvice(annotationSkipped);
+                StingLog.Warn("Set depth: no model carriers. " + advice.Replace("\n", " "));
+                if (!sliderPath)
+                    TaskDialog.Show("Set Paragraph Depth - nothing to write", advice);
+            }
+            else if (!sliderPath)
             {
                 TaskDialog.Show("Set Paragraph Depth",
                     $"Paragraph depth set to: {depthName}\n" +
-                    $"Element types updated: {updated}");
+                    $"Element types updated: {updated}" +
+                    (annotationSkipped > 0
+                        ? $"\n\n{annotationSkipped} tag type(s) skipped - their gates belong to "
+                          + "the type-variant catalogue and do not affect what renders."
+                        : ""));
             }
             // PERF telemetry: phase timings so any residual slowness is attributable
             // (type sweep vs live display refresh) instead of an opaque multi-minute wait.
             StingLog.Info($"Paragraph depth set to {depthName} on {updated} types " +
-                $"(scanned={targetTypeIds.Count}, carriers={carriers}, typeLoop={typeLoopMs} ms, " +
+                $"(scanned={targetTypeIds.Count}, carriers={carriers}, tagTypesSkipped={annotationSkipped}, typeLoop={typeLoopMs} ms, " +
                 $"displayRefresh={sw.ElapsedMilliseconds - typeLoopMs} ms, displayUpdated={displayUpdated})");
             return Result.Succeeded;
         }

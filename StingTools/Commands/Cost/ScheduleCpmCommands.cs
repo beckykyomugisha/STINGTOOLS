@@ -147,7 +147,7 @@ namespace StingTools.Commands.Cost
                         t.IsCritical = tr.IsCritical;
                     }
 
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_CPM", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_CPM", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("TaskId,Name,Start,Finish,TotalFloatDays,FreeFloatDays,Critical,EarlyStart,LateFinish");
                 foreach (var t in model.Tasks.Where(x => !x.IsSummary).OrderBy(x => x.Start))
@@ -332,7 +332,7 @@ namespace StingTools.Commands.Cost
                 // Persist the curve so EVM can read its PV at the valuation date.
                 SCurveStore.Save(doc, curve);
 
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_SCurve", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Schedule", "STING_SCurve", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("Month,PlannedThisMonth,PlannedCumulative,EarnedThisMonth,EarnedCumulative,PlannedPct,EarnedPct");
                 foreach (var p in curve.Points)
