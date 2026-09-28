@@ -24378,3 +24378,33 @@ every `GetString` read against the parameter's data type.
 - **pyRevit manifest check** counted its comment lines and header as scripts.
 - **Tests.** 3,576 (Tags) and 438 (Sustainability) passing; all gates pass. Not
   exercised in Revit.
+
+#### Carbon tracking read per-m³ factors as per-kg; dead loader and pyRevit check removed (2026-09-28)
+
+- **Carbon tracking overstated most materials by about their density.**
+  - `CarbonTrackingEngine.GetCarbonFactor` returned the first of four tiers with no
+    unit. Two of them (a material's `STING_EMB_CARBON_NR` and MATERIAL_LOOKUP's
+    `CARBON_KG_PER_M3`) are kgCO₂e per m³; the keyword fallback is per kg.
+  - The carbon tracking command multiplied the answer by mass. C30 concrete at 300
+    kgCO₂e/m³ read as 300 × 2,450 kg, that is 735,000 kg for one cubic metre instead of
+    300.
+  - The command now uses `CarbonFactorResolver`, the unit-aware resolver the BOQ already
+    uses, and the new Revit-free `BOQ/CarbonQuantity.Split`. Per m³ multiplies the volume,
+    per kg the mass, and a material's own fossil/biogenic split is used when it has one.
+  - Its totals therefore now agree with the BOQ and the EDGE dashboard. Materials the
+    resolver has no specific figure for get its Uganda/EDGE generic default, labelled as
+    such, where before they were left out.
+- **The dead MATERIAL_LOOKUP loader is removed, not rewired.**
+  - `CarbonTrackingEngine.EnsureLoaded` could never parse the file's long format (dead
+    since Z-20).
+  - Parsing it would not have helped: the file's carbon rows are per m³, and this was a
+    per-kg tier.
+  - Those rows already reach every caller through `MaterialLookupCsv` in the resolver's
+    Tier 2, which `MaterialLookupParserTests` cover.
+  - `GetCarbonFactor` is now only the per-kg ICE keyword fallback; the resolver labels it
+    `ice-keyword` (was `carbon-factors-csv`, a file that does not exist).
+- **The pyRevit manifest startup check is removed.** Every script it lists was retired in
+  the C# consolidation, and its paths are relative pyRevit paths. It warned about all of
+  them on every startup and could never pass.
+- **Tests.** 9 new (`CarbonQuantityTests`, hand-worked). Passing: Boq 1,364, Tags 3,576,
+  Sustainability 438. Not exercised in Revit.

@@ -276,7 +276,7 @@ namespace StingTools.BOQ
 
         // ── G5 — carbon factor provenance + data-quality. CarbonSource is the
         // resolver source ("epd:…" / "material-param" / "material-lookup-csv" /
-        // "carbon-factors-csv" / "none"); CarbonQuality is the band the QS reads
+        // "ice-keyword" (per-kg fallback) / "none"); CarbonQuality is the band the QS reads
         // (Verified-EPD / Database / Missing); CarbonMaterial is the primary
         // material (drives the carbon-gap report).
         public string CarbonSource;
