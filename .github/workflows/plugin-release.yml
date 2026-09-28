@@ -67,6 +67,37 @@ jobs:
           Copy-Item "StingTools.addin" $deployDir -Force
           Compress-Archive -Path "$deployDir\*" -DestinationPath "StingTools-CompiledPlugin.zip" -Force
 
+      # The tester kit: the same CompiledPlugin plus a per-user installer, the licence
+      # helpers, the tester guide and the Revit smoke tests. Testers run
+      # Get-MachineCode.cmd, Install-STING.cmd and Install-Licence.cmd; licences are
+      # issued separately with tools/tester-kit/licence-issuer (never shipped).
+      - name: Package tester kit
+        shell: pwsh
+        run: |
+          $stamp = Get-Date -Format 'yyyy-MM-dd'
+          $kit   = "STING-Tester-Kit-$stamp"
+          New-Item -ItemType Directory -Force -Path "$kit\SmokeTests" | Out-Null
+          Copy-Item "CompiledPlugin" "$kit\Plugin" -Recurse -Force
+          Remove-Item "$kit\Plugin\StingTools.addin" -Force   # the installer writes its own
+          Copy-Item "StingTools\bin\Release\StingTools.pdb" "$kit\Plugin" -Force
+          if (Test-Path "Families\TitleBlocks\_seeds") {
+            New-Item -ItemType Directory -Force -Path "$kit\Plugin\Families\TitleBlocks\_seeds" | Out-Null
+            Get-ChildItem "Families\TitleBlocks\_seeds\*.rfa" |
+              Where-Object { $_.Name -notmatch '\.\d{4}\.rfa$' } |
+              Copy-Item -Destination "$kit\Plugin\Families\TitleBlocks\_seeds" -Force
+          }
+          Get-ChildItem "tools\tester-kit" -File | Copy-Item -Destination $kit -Force
+          Copy-Item "docs\TAG_TEST_PROTOCOL.md" "$kit\SmokeTests" -Force
+          Copy-Item "docs\examples\SYMBOL_SLD\REVIT_SMOKE_TEST.md" "$kit\SmokeTests\SYMBOL_SLD_REVIT_SMOKE_TEST.md" -Force
+          Copy-Item "docs\examples\SYMBOL_SLD\SYMBOL_SLD_Revit_Smoke_Test_Checklist.docx" "$kit\SmokeTests" -Force
+          @(
+            "STING Tools - tester build"
+            "Built:    $stamp from ${{ github.sha }} (${{ github.ref_name }})"
+            "Licence:  machine-bound, 90 days from issue (see TESTER_GUIDE)"
+            "Status:   passed build, unit tests and CI gates; see CHANGELOG for what has been exercised in Revit"
+          ) | Set-Content "$kit\VERSION.txt"
+          Compress-Archive -Path $kit -DestinationPath "STING-Tester-Kit.zip" -Force
+
       - name: Publish release with the plugin DLL
         env:
           GH_TOKEN: ${{ github.token }}
@@ -77,6 +108,7 @@ jobs:
             --target "${{ github.sha }}" `
             "CompiledPlugin/StingTools.dll" `
             "StingTools-CompiledPlugin.zip" `
+            "STING-Tester-Kit.zip" `
             --title "STING Tools plugin — $tag" `
             --notes @"
           Prebuilt STING Tools plugin, built on Windows against the real Revit 2025 reference assemblies.
@@ -88,4 +120,6 @@ jobs:
           4. Start Revit.
 
           For a clean install use **StingTools-CompiledPlugin.zip** (DLL + dependencies + data).
+
+          For testers use **STING-Tester-Kit.zip**: per-user installer, tester guide and Revit smoke tests. Each tester needs a 90-day licence issued with tools/tester-kit/licence-issuer.
           "@
