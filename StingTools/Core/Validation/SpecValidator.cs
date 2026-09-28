@@ -6,7 +6,7 @@
 //
 // First-pass implementation flags two common error modes:
 //   1. Pipe with PLM_PPE_MAT_TXT empty when PLM_SYS_TXT is non-empty.
-//   2. Cable with ELC_CBL_RATING_V missing or below ELC_SYS_NOMINAL_V.
+//   2. Cable rated voltage (ELC_CBL_RATED_V_NR) below the circuit voltage.
 
 using System;
 using System.Collections.Generic;
@@ -65,24 +65,29 @@ namespace StingTools.Core.Validation
                 // OST_ElectricalCircuit covers cabling at the circuit level.
                 var col = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_ElectricalCircuit)
                     .WhereElementIsNotElementType();
+                // The circuit's own voltage (RBS_ELEC_VOLTAGE, internal units → V) against the
+                // cable's rated U from ELC_CBL_RATED_V_NR. The names read before
+                // (ELC_CBL_RATING_V / ELC_SYS_NOMINAL_V) were never defined, so the
+                // check never ran. A circuit with no rating recorded is counted in one
+                // summary line, not warned one by one.
+                int unrated = 0;
                 foreach (var el in col)
                 {
-                    double cableV = ReadDouble(el, "ELC_CBL_RATING_V");
-                    double sysV   = ReadDouble(el, "ELC_SYS_NOMINAL_V");
+                    double sysV = Electrical.ElecUnits.Volts(el);
                     if (sysV <= 0) continue;
-                    if (cableV <= 0)
-                    {
-                        results.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
-                            "SPEC.CBL.RATING.MISSING",
-                            $"Circuit at {sysV:F0}V has no ELC_CBL_RATING_V", ValidatorTag));
-                    }
-                    else if (cableV < sysV)
+                    double cableV = ReadDouble(el, "ELC_CBL_RATED_V_NR");
+                    if (cableV <= 0) { unrated++; continue; }
+                    if (cableV < sysV)
                     {
                         results.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                             "SPEC.CBL.RATING.UNDER",
-                            $"Cable rated {cableV:F0}V below system {sysV:F0}V", ValidatorTag));
+                            $"Cable rated {cableV:F0} V below circuit voltage {sysV:F0} V", ValidatorTag));
                     }
                 }
+                if (unrated > 0)
+                    results.Add(new ValidationResult(ElementId.InvalidElementId, ValidationSeverity.Info,
+                        "SPEC.CBL.RATING.NOT_CHECKED",
+                        $"{unrated} circuit(s) not checked: no cable rated voltage in ELC_CBL_RATED_V_NR", ValidatorTag));
             }
             catch (Exception ex) { StingLog.Warn($"SpecValidator: cable scan failed: {ex.Message}"); }
         }
@@ -96,7 +101,7 @@ namespace StingTools.Core.Validation
                 foreach (var el in col)
                 {
                     string mat = ReadString(el, "HVC_DCT_MAT_TXT");
-                    string sys = ReadString(el, "HVC_SYS_TXT");
+                    string sys = StingTools.Core.Mep.ServiceSystemName.Read(el);
                     if (string.IsNullOrEmpty(sys)) continue;
                     if (string.IsNullOrEmpty(mat))
                     {

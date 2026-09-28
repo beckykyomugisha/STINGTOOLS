@@ -3046,7 +3046,7 @@ namespace StingTools.Core
             // all overwriting current state with their default values, wasting a
             // LookupParameter per call. Skip the block when STING_DISPLAY_MODE is
             // already populated (sentinel covers the whole init group).
-            string displayModeSentinel = ParameterHelpers.GetString(el, ParamRegistry.DISPLAY_MODE);
+            string displayModeSentinel = ParameterHelpers.GetValueText(el, ParamRegistry.DISPLAY_MODE);
             if (!string.IsNullOrEmpty(displayModeSentinel))
             {
                 stats?.RecordTagged(catName, disc, sys, lvl);

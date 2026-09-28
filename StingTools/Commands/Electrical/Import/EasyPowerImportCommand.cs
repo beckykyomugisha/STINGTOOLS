@@ -179,12 +179,18 @@ namespace StingTools.Commands.Electrical.Import
             if (r.FaultKaLG.HasValue)
                 n += Tally(Set(p, "ELC_PNL_FAULT_LG_KA", r.FaultKaLG.Value.ToString("F2", inv), w), ref failed);
             if (r.VdPct.HasValue)
+            {
                 n += Tally(Set(p, "ELC_VLT_DROP_PCT", r.VdPct.Value.ToString("F1", inv), w), ref failed);
+                Set(p, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("EasyPower"), w);
+                Set(p, "ELC_VLT_DROP_TXT", r.VdPct.Value.ToString("F1", inv), w);
+            }
             else if (r.VoltagePU.HasValue)
             {
                 // Convert pu to % drop for the SLD label.
                 double vdPct = (1.0 - r.VoltagePU.Value) * 100.0;
                 n += Tally(Set(p, "ELC_VLT_DROP_PCT", vdPct.ToString("F1", inv), w), ref failed);
+                Set(p, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("EasyPower (from per-unit voltage)"), w);
+                Set(p, "ELC_VLT_DROP_TXT", vdPct.ToString("F1", inv), w);
             }
             return n;
         }

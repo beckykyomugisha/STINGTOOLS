@@ -352,8 +352,9 @@ namespace StingTools.Commands.Drawing
                     var dt        = string.IsNullOrEmpty(dtId) ? null : DrawingTypeRegistry.Get(doc, dtId);
                     string disc   = dt?.Discipline ?? "";
                     string scale  = dt?.Scale > 0 ? $"1:{dt.Scale}" : "";
-                    string status = ParameterHelpers.GetString(sheet, "STING_CDE_STATUS_TXT");
-                    if (string.IsNullOrEmpty(status)) status = "WIP";
+                    // The CDE state the title-block sync stamps. STING_CDE_STATUS_TXT does not
+                    // exist, so every sheet was reported "WIP"; an unstamped sheet stays blank.
+                    string status = ParameterHelpers.GetString(sheet, ParamRegistry.TB_DELIVERABLE_CDE);
 
                     sb.AppendLine(string.Join(",",
                         CsvEscape(sheet.SheetNumber),

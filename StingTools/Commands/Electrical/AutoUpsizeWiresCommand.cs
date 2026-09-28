@@ -14,7 +14,7 @@ namespace StingTools.Commands.Electrical
 {
     /// <summary>
     /// Reads voltage-drop results, finds the minimum compliant CSA for each
-    /// failing circuit via <see cref="VoltageDropEngine.MinimumCsaForVDLimit"/>,
+    /// failing circuit via <see cref="StingTools.Core.Electrical.CircuitVoltageDrop.MinimumCsaForLimit"/>,
     /// previews the proposed changes, and on confirmation writes
     /// ELC_CKT_CSA_MM2 (and best-effort RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM).
     /// </summary>
@@ -35,32 +35,34 @@ namespace StingTools.Commands.Electrical
 
             var vdResults = VoltageDropCommand.Calculate(doc, opts.Standard,
                 opts.LightingLimitPct, opts.OtherLimitPct, opts.Material, opts.OperatingTempC);
-            var failing = vdResults.Where(r => r.ExceedsThreshold).ToList();
+            // A certain exceedance, or an upper bound over the limit (no cable recorded):
+            // the second may already comply, so the preview says which is which.
+            var failing = vdResults.Where(r => r.ExceedsThreshold || r.PossiblyExceeds).ToList();
             if (failing.Count == 0)
             {
-                TaskDialog.Show("STING Auto-Upsize", "No circuits exceed the voltage-drop threshold.");
+                int notCalc = vdResults.Count(r => !r.HasValue);
+                TaskDialog.Show("STING Auto-Upsize", "No circuits exceed the voltage-drop limit." +
+                    (notCalc > 0 ? $"\n\n{notCalc} circuit(s) could not be calculated — run Voltage Drop and read ELC_CKT_VD_BASIS_TXT for why." : ""));
                 return Result.Succeeded;
             }
 
+            // ELEC-22: the same resolver as every other VD writer, so the new size is judged by
+            // the figure that will be stamped — Appendix 4 mV/A/m, not conductor resistance.
+            var tables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
+            var resistance = StingTools.Core.Electrical.CircuitVoltageDropModel.Resistance(opts.OperatingTempC);
             var preview = new List<UpsizeProposal>();
             foreach (var vd in failing)
             {
                 var sys = doc.GetElement(vd.CircuitId) as ElectricalSystem;
                 if (sys == null) continue;
-                int phases = SafePoles(sys) >= 3 ? 3 : 1;
-                double v = SafeVoltage(sys);
-                // UK nominal 400 V / 230 V (BS 7671, as WireAnnotation uses) — the old
-                // 415 / 240 understated the drop %; flagged "assumed" in the preview.
-                bool assumedV = v <= 0;
-                if (assumedV) v = phases == 3 ? 400.0 : 230.0;
-                double currentCsa = ParseCsa(vd.WireSize);
-                double? minCsa = VoltageDropEngine.MinimumCsaForVDLimit(
-                    vd.CurrentA, vd.LengthM, opts.Material, v, phases,
-                    vd.LimitPct > 0 ? vd.LimitPct : VoltageDropEngine.LimitFor(vd.IsLighting, opts.LightingLimitPct, opts.OtherLimitPct),
-                    opts.OperatingTempC);
-                if (minCsa == null || minCsa <= currentCsa) continue;
-                double newVd = VoltageDropEngine.CalculateVoltDropPercent(
-                    vd.CurrentA, vd.LengthM, minCsa.Value, opts.Material, v, phases, opts.OperatingTempC);
+                var input = StingTools.Core.Electrical.CircuitVoltageDropModel.Read(sys, opts.Standard, opts.Material);
+                double currentCsa = input.CsaMm2;
+                double limit = vd.LimitPct > 0 ? vd.LimitPct
+                    : VoltageDropEngine.LimitFor(vd.IsLighting, opts.LightingLimitPct, opts.OtherLimitPct);
+                double? minCsa = StingTools.Core.Electrical.CircuitVoltageDrop.MinimumCsaForLimit(
+                    input, tables, limit, VoltageDropEngine.StandardSizesMm2.Where(x => x > currentCsa + 1e-9),
+                    out var at, resistance);
+                if (minCsa == null || at == null) continue;
                 preview.Add(new UpsizeProposal
                 {
                     CircuitId    = vd.CircuitId,
@@ -69,9 +71,9 @@ namespace StingTools.Commands.Electrical
                     LoadName     = vd.LoadName,
                     OldCsaMm2    = currentCsa,
                     NewCsaMm2    = minCsa.Value,
-                    NewVDPct     = newVd,
-                    VoltageV     = v,
-                    VoltageAssumed = assumedV,
+                    NewVDPct     = at.Pct,
+                    NewVd        = at,
+                    OnUpperBound = vd.PossiblyExceeds,
                 });
             }
             if (preview.Count == 0)
@@ -87,12 +89,14 @@ namespace StingTools.Commands.Electrical
             {
                 var p = preview[i];
                 sb.AppendLine($"  {p.PanelName}-{p.CircuitNumber}: {p.OldCsaMm2:0.#}mm² → {p.NewCsaMm2:0.#}mm² (new VD {p.NewVDPct:0.0}%" +
-                              (p.VoltageAssumed ? $" at {p.VoltageV:0} V assumed)" : ")"));
+                              (p.NewVd.UpperBound ? " upper bound" : "") + ")" +
+                              (p.OnUpperBound ? " — current figure is an upper bound; the circuit may already comply" : ""));
             }
             if (preview.Count > top) sb.AppendLine($"  …and {preview.Count - top} more");
-            int assumedCount = preview.Count(p => p.VoltageAssumed);
-            if (assumedCount > 0)
-                sb.AppendLine($"\n{assumedCount} circuit(s) carry no voltage — 400 V (3-ph) / 230 V (1-ph) was ASSUMED.");
+            int onBound = preview.Count(p => p.OnUpperBound);
+            if (onBound > 0)
+                sb.AppendLine($"\n{onBound} circuit(s) carry no cable record, so their drop is an upper bound. " +
+                              "Applying a cable size from the CABLE tab records the cable and gives an exact figure.");
 
             var dlg = new TaskDialog("STING Auto-Upsize Conductors")
             {
@@ -114,8 +118,7 @@ namespace StingTools.Commands.Electrical
                         if (sys == null) continue;
                         ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_CSA_MM2,
                             $"{p.NewCsaMm2:0.#}", overwrite: true);
-                        ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_VD_PCT,
-                            $"{p.NewVDPct:0.00}", overwrite: true);
+                        StingTools.Core.Electrical.CircuitVoltageDropModel.Stamp(sys, p.NewVd);
                         try
                         {
                             var nativeWire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM);
@@ -139,15 +142,10 @@ namespace StingTools.Commands.Electrical
         {
             public ElementId CircuitId;
             public string PanelName, CircuitNumber, LoadName;
-            public double OldCsaMm2, NewCsaMm2, NewVDPct, VoltageV;
-            public bool VoltageAssumed;
+            public double OldCsaMm2, NewCsaMm2, NewVDPct;
+            public StingTools.Core.Electrical.CircuitVdResult NewVd;
+            public bool OnUpperBound;
         }
 
-        private static int SafePoles(ElectricalSystem s)
-        { try { return s.PolesNumber; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 1; } }
-        private static double SafeVoltage(ElectricalSystem s)
-        { try { return StingTools.Core.Electrical.ElecUnits.Read(s, BuiltInParameter.RBS_ELEC_VOLTAGE); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 0; } }
-        // ELEC-5: was a first-number parser ("2 x 2.5mm²" → 2). One parser for every VD caller.
-        private static double ParseCsa(string s) => StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(s);
     }
 }

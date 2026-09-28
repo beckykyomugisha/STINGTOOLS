@@ -516,6 +516,7 @@ BLE_PARK_BAY_LENGTH_MM,Parking
 BLE_PARK_BAY_WIDTH_MM,Parking
 BLE_PARK_EV_CHARGING_BOOL,Parking
 BLE_PARK_TYPE_TXT,Parking
+BLE_PLASTER_FACES_NR,Walls|Curtain Panels|Curtain Wall Mullions
 BLE_PLASTER_TYPE_TXT,Walls|Floors|Ceilings|Roofs|Rooms
 BLE_RAILING_BALUSTER_SPACING_MM,Railings
 BLE_RAILING_HEIGHT_MM,Handrails|Railings|Top Rails
@@ -1024,6 +1025,10 @@ DS_TYPE_TXT,Generic Models
 DS_UNITS_FORMAT_TXT,Generic Models
 ELC_ARC_FLASH_BOUNDARY_MM,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_ELECTRODE_TXT,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_ENCL_D_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_ENCL_H_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_ENCL_W_MM,Electrical Equipment|Electrical Circuits
+ELC_ARC_FLASH_GAP_MM,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_IE_CAL_CM2,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_LABEL_TXT,Electrical Equipment|Electrical Circuits
 ELC_ARC_FLASH_PPE_CAT,Electrical Equipment|Electrical Circuits
@@ -1049,6 +1054,7 @@ ELC_CBL_NR_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_NUM_CABLES_NR,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_NUM_OF_CORES_NR,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_NUM_OF_CORES_TXT,Cable Trays|Conduits|Electrical Circuits
+ELC_CBL_RATED_V_NR,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_SOURCE_FROM_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_SOURCE_TXT,Cable Trays|Conduits|Electrical Circuits
 ELC_CBL_SZ_MM,Cable Trays|Conduits|Electrical Circuits
@@ -1066,6 +1072,7 @@ ELC_CDT_BEND_RADIUS_MM,Conduits|Conduit Fittings
 ELC_CDT_BEND_RADIUS_TXT,Conduits|Conduit Fittings
 ELC_CDT_BREAKPOINT_TXT,Conduits|Conduit Fittings
 ELC_CDT_CABLE_COUNT_NR,Conduits|Conduit Fittings
+ELC_CDT_CABLE_MANIFEST_TXT,Conduits|Conduit Fittings
 ELC_CDT_CBL_FILL_PCT,Conduits|Conduit Fittings|Cable Trays
 ELC_CDT_CBL_FILL_TXT,Conduits|Conduit Fittings
 ELC_CDT_FAB_METHOD_TXT,Conduits|Conduit Fittings
@@ -1115,6 +1122,7 @@ ELC_CKT_PHASE_COUNT_NR,Conduits|Electrical Circuits|Electrical Equipment|Electri
 ELC_CKT_PHASE_COUNT_TXT,Electrical Circuits
 ELC_CKT_PWR_KW,Electrical Circuits
 ELC_CKT_TXT,Electrical Circuits
+ELC_CKT_VD_BASIS_TXT,Electrical Equipment|Electrical Circuits
 ELC_CKT_VLT_V,Electrical Circuits
 ELC_CONDUIT_HOME_RUN_BOOL,Conduits|Conduit Fittings
 ELC_CONDUIT_HOME_RUN_END_TXT,Conduits|Conduit Fittings
@@ -1287,7 +1295,7 @@ ELC_TAG_7_PARA_TRAY_TXT,<ALL>
 ELC_TRANSFER_LOAD_OK,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_UPS_REPLACE_DT,Electrical Equipment|Electrical Circuits
 ELC_VLT_DROP_PCT,Electrical Circuits|Electrical Equipment
-ELC_VLT_DROP_TXT,Electrical Circuits
+ELC_VLT_DROP_TXT,Electrical Equipment|Electrical Circuits
 ELC_VLT_PRIMARY_RATING_TXT,Electrical Circuits
 ELC_VLT_PRIMARY_RATING_V,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures
 ELC_VOLTAGE_TXT,Electrical Fixtures
@@ -1539,6 +1547,7 @@ HVC_SIZE_RULE_ID_TXT,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulatio
 HVC_SIZE_STALE_BOOL,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures
 HVC_SIZE_STALE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts
 HVC_SPACE_TYPE_TXT,MEP Spaces|Rooms
+HVC_SYSTEM_ID_TXT,MEP Spaces|Rooms
 HVC_TAG_7_PARA_ANAL_DUCTS_TXT,<ALL>
 HVC_TAG_7_PARA_AT_TXT,<ALL>
 HVC_TAG_7_PARA_DCTACC_TXT,<ALL>
@@ -1721,6 +1730,7 @@ MGS_AAP_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medic
 MGS_DESIGN_FLOW_LPM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_DIVERSITY_PCT_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_EQP_TAG,<ALL>
+MGS_GAS_REQUIREMENT_TXT,MEP Spaces|Rooms
 MGS_GAS_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_NOM_PRESS_KPA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_OUTLET_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
@@ -1736,6 +1746,7 @@ MGS_VERIFY_PASS_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|
 MGS_WORKING_PRESSURE_KPA,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_ZVB_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_ZV_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories
+MNT_ACCESS_DIR_TXT,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment
 MNT_ACCESS_REQUIREMENTS_TXT,<ALL>
 MNT_CAL_LAST_DT,<ALL>
 MNT_CAL_NEXT_DT,<ALL>
@@ -1967,6 +1978,7 @@ PLM_EXP_JOINT_MAT_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insul
 PLM_EXP_JOINT_PRESSURE_RATING_BAR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_FACADE_WTR_PENETRATION_RESIST_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_FIXTURE_LOAD_UNIT_NR,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
+PLM_FIX_TYPE_TXT,Plumbing Fixtures
 PLM_FLOW_LS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_FLOW_RATE_LPS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_FLUID_CATEGORY_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2032,6 +2044,7 @@ PLM_PRV_SET_PRESSURE_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe In
 PLM_PSR_KPA,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PSR_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_PWR_KW,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures
+PLM_RECIRC_DELTA_T_K,Project Information
 PLM_RECIRC_DRV_KV,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
 PLM_RECIRC_PUMP_DUTY_LPM,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment
 PLM_RO_LOOP_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
@@ -2121,6 +2134,7 @@ PRJ_DWG_LOIN_LOD_TXT,Sheets
 PRJ_DWG_SUITABILITY_COD_TXT,Sheets
 PRJ_DWG_SUITABILITY_DESC_TXT,Sheets
 PRJ_DWG_SUPERSEDES_TXT,Sheets
+PRJ_ELC_SUPPLY_VOLTAGE_TXT,Project Information
 PRJ_GRID_REF_TXT,<ALL>|Project Information
 PRJ_INFORMATION_SPARE_01_TXT,<ALL>|Project Information
 PRJ_INFORMATION_SPARE_02_TXT,<ALL>|Project Information
@@ -2134,6 +2148,8 @@ PRJ_ORG_CLIENT_NAME_TXT,Project Information
 PRJ_ORG_COMPANY_ADDRESS_TXT,Project Information
 PRJ_ORG_COMPANY_NAME_TXT,Project Information
 PRJ_ORG_COORD_SYSTEM_TXT,Project Information
+PRJ_ORG_CURRENCY_TXT,Project Information
+PRJ_ORG_DISCIPLINES_TXT,Project Information
 PRJ_ORG_GROUND_LEVEL_TXT,Project Information
 PRJ_ORG_HEALTH_AE_ELEC_TXT,Project Information
 PRJ_ORG_HEALTH_AE_MGAS_TXT,Project Information
@@ -2151,6 +2167,7 @@ PRJ_ORG_HEALTH_OR_INT,Project Information
 PRJ_ORG_HEALTH_PACK_PROFILE_TXT,Project Information
 PRJ_ORG_HEALTH_QE_TXT,Project Information
 PRJ_ORG_LEAD_APPOINTED_PARTY_TXT,Project Information
+PRJ_ORG_MAT_SIGNOFF_SUIT_TXT,Project Information
 PRJ_ORG_ORIGINATOR_CODE_TXT,Project Information
 PRJ_ORG_PARTICIPANTS_TXT,Project Information
 PRJ_ORG_PHASE_TXT,Project Information
@@ -2250,6 +2267,7 @@ PRJ_TRACE_TOLERANCE_PCT,<ALL>|Project Information
 PRJ_VOLUME_CODE,<ALL>|Project Information
 PRJ_VOLUME_COD_TXT,<ALL>|Project Information
 PROJECT_BUDGET_UGX,<ALL>
+PROJECT_REGION,Project Information
 PROP_ACOUSTIC_ABS,Materials
 PROP_CARBON_KG_M3,Materials
 PROP_COMP_STRENGTH_MPA,Materials

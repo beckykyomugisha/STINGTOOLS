@@ -455,6 +455,46 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void Max_tabulated_It_is_the_highest_across_every_copper_table()
+        {
+            // 2.5 mm² single-phase: 4D2A C gives 27 A; a higher figure exists in another table,
+            // and the bound must be the highest any shipped table gives.
+            var d = Data();
+            double best = d.MaxTabulatedIt("Cu", 2.5, 1, out var from);
+            double expected = d.Tables.Where(t => t.Conductor == "Cu")
+                                      .Select(t => Bs7671Data.TabulatedIt(t, 2.5, 1)).Max();
+            Assert.Equal(expected, best);
+            Assert.True(best > Bs7671Data.TabulatedIt(d.FindTable("Cu", "PVC70", "C"), 2.5, 1));
+            Assert.Equal(best, Bs7671Data.TabulatedIt(from, 2.5, 1));
+            Assert.Equal(0, d.MaxTabulatedIt("Cu", 3.3, 1, out var none));
+            Assert.Null(none);
+        }
+
+        [Theory]
+        // The method tags the wire reference grid and the feeder picker offer, per cable type.
+        [InlineData("PVC70",  "SingleCore",        "A1", "4D1A")]
+        [InlineData("PVC70",  "SingleCore",        "B1", "4D1A")]
+        [InlineData("PVC70",  "SingleCore",        "F",  "4D1A")]
+        [InlineData("PVC70",  "Multicore",         "A1", "4D2A")]
+        [InlineData("PVC70",  "Multicore",         "E",  "4D2A")]
+        [InlineData("XLPE90", "Multicore",         "B1", "4E2A")]
+        [InlineData("PVC70",  "ArmouredMulticore", "D1", "4D4A")]
+        [InlineData("XLPE90", "ArmouredMulticore", "D2", "4E4A")]
+        public void Picker_combinations_resolve_to_their_table(string ins, string type, string method, string id)
+        {
+            var t = Data().FindTable("Cu", ins, method, type);
+            Assert.NotNull(t);
+            Assert.Equal(id, t.Id);
+        }
+
+        [Theory]
+        [InlineData("XLPE90", "SingleCore",        "C")]   // 4E1A not shipped
+        [InlineData("PVC70",  "ArmouredMulticore", "A1")]  // 4D4A has no method A
+        [InlineData("PVC70",  "Multicore",         "D1")]  // 4D2A has no method D
+        public void Picker_combinations_without_a_table_find_none(string ins, string type, string method)
+            => Assert.Null(Data().FindTable("Cu", ins, method, type));
+
+        [Fact]
         public void Every_capacity_row_is_two_source_checked()
         {
             // No It value is left on a single source. A row added later without a second
@@ -610,6 +650,63 @@ namespace StingTools.Tags.Tests
             // User-configured limits still win.
             Assert.Equal(2.5, VoltageDropEngine.LimitFor(true, 2.5, 4));
             Assert.Equal(4.0, VoltageDropEngine.LimitFor(false, 2.5, 4));
+        }
+    
+        // ── ELEC-25: Appendix 4 §6.1 load correction (optional, reported only) ──
+        //  2.5 mm² 4D2A method C 1-ph: It 27 A, 18 mV/A/m, tp 70 °C. Ib 20 A, Ca = Cg = 1:
+        //    Ct = [230 + 70 − (1 − 20²/27²)(70 − 30)] / (230 + 70)
+        //       = [300 − 0.451303 × 40] / 300 = 0.939826
+        //    VD = 18 × 0.939826 × 20 × 10 / 1000 / 230 = 1.4710 %  (tabulated 1.5652 %)
+
+        [Fact]
+        public void Load_correction_factor_matches_the_hand_calculation()
+        {
+            Assert.Equal(0.939826, Bs7671CableSizer.LoadCorrectionCt(70, 1.0, 1.0, 20, 27), 6);
+        }
+
+        [Fact]
+        public void Load_correction_is_never_above_one()
+        {
+            // At or beyond Ca·Cg·It the conductor is at tp: the tabulated figure stands.
+            Assert.Equal(1.0, Bs7671CableSizer.LoadCorrectionCt(70, 0.87, 1.0, 27, 27), 9);
+            Assert.Equal(1.0, Bs7671CableSizer.LoadCorrectionCt(70, 1.0, 1.0, 40, 27), 9);
+            // Derating (smaller Ca·Cg) means a hotter conductor, so less reduction.
+            Assert.True(Bs7671CableSizer.LoadCorrectionCt(70, 0.87, 0.8, 20, 27)
+                        > Bs7671CableSizer.LoadCorrectionCt(70, 1.0, 1.0, 20, 27));
+        }
+
+        [Fact]
+        public void Sizing_reports_the_corrected_drop_but_sizes_on_the_tabulated_one()
+        {
+            var r = Bs7671CableSizer.Size(Pvc(20, 10, 5.0), Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Equal(2.5, r.CsaMm2);
+            Assert.Equal(1.5652, r.VoltDropPct, 4);
+            Assert.NotNull(r.LoadCorrectedVoltDropPct);
+            Assert.Equal(0.939826, r.LoadCorrectionCt.Value, 6);
+            Assert.Equal(1.4710, r.LoadCorrectedVoltDropPct.Value, 4);
+            Assert.Contains("Appendix 4 §6.1 (optional)", r.Basis);
+        }
+
+        [Fact]
+        public void Load_correction_is_not_applied_above_16_mm2()
+        {
+            // 60 A needs 16 mm²+ on method C; 125 A lands above 16 mm².
+            var r = Bs7671CableSizer.Size(Pvc(100, 10, 5.0), Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.True(r.CsaMm2 > 16);
+            Assert.Null(r.LoadCorrectedVoltDropPct);
+            Assert.Contains("resistive component only", r.LoadCorrectionNote);
+        }
+
+        [Fact]
+        public void Load_correction_is_not_applied_to_buried_cables()
+        {
+            var i = Pvc(20, 10, 5.0); i.InstallMethod = "D1"; i.CableType = "ArmouredMulticore";
+            var r = Bs7671CableSizer.Size(i, Data());
+            Assert.True(r.Sized, r.Refusal);
+            Assert.Null(r.LoadCorrectedVoltDropPct);
+            Assert.Contains("Cs and Cd", r.LoadCorrectionNote);
         }
     }
 }

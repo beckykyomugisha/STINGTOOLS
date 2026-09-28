@@ -87,8 +87,12 @@ namespace StingTools.Commands.Electrical
                 string ins = cableSnap?.Insulation ?? "PVC70";
                 string method = cableSnap?.InstallMethod ?? "C";
                 string mat = cableSnap?.Material ?? "Cu";
-                var table = useNec ? null
-                    : StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables().FindTable(mat, ins, method);
+                string cableType = string.IsNullOrEmpty(cableSnap?.CableType)
+                    ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : cableSnap.CableType;
+                var bsData = useNec ? null : StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
+                // An invalid project override leaves no tables: In ≤ Iz is then not checked, and says why.
+                string tablesBlocked = bsData != null && !string.IsNullOrEmpty(bsData.LoadError) ? bsData.LoadError : null;
+                var table = useNec || tablesBlocked != null ? null : bsData.FindTable(mat, ins, method, cableType);
 
                 foreach (var sys in systems)
                 {
@@ -105,18 +109,29 @@ namespace StingTools.Commands.Electrical
                         {
                             string wire = sys.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM)?.AsString() ?? "";
                             double csa = StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(wire);
-                            if (csa > 0 && table != null)
+                            // Prefer the cable recorded on the circuit when a size was applied.
+                            var rec = StingTools.Core.Electrical.CircuitCableRecord.Read(sys);
+                            var own = csa > 0 && tablesBlocked == null ? rec.FindTable(bsData, mat) : null;
+                            double ownIt = own != null ? StingTools.Core.Electrical.Bs7671Data.TabulatedIt(own, csa, phases) : 0;
+                            if (ownIt > 0)
+                            {
+                                iz = ownIt;
+                                izBasis = $"{own.Cite()} ({rec}, recorded on the circuit) It for {csa:0.#} mm², 30 °C, ungrouped";
+                            }
+                            else if (csa > 0 && table != null)
                             {
                                 double it = StingTools.Core.Electrical.Bs7671Data.TabulatedIt(table, csa, phases);
                                 if (it > 0)
                                 {
                                     iz = it;
-                                    izBasis = $"Table {table.Id} {mat}/{ins} method {method} It for {csa:0.#} mm², 30 °C, ungrouped";
+                                    izBasis = $"{table.Cite()} {mat}/{ins} {cableType} method {method} It for {csa:0.#} mm², 30 °C, ungrouped (CABLE tab assumption)";
                                 }
-                                else izBasis = $"{csa:0.#} mm² not in Table {table.Id}";
+                                else izBasis = $"{csa:0.#} mm² not in {table.Cite()}";
                             }
+                            else if (csa > 0 && tablesBlocked != null)
+                                izBasis = tablesBlocked;
                             else if (csa > 0)
-                                izBasis = $"no BS 7671 table for {mat}/{ins} method {method}";
+                                izBasis = $"no BS 7671 table for {mat}/{ins} {cableType} method {method}";
                         }
 
                         var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(

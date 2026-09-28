@@ -1116,19 +1116,18 @@ namespace StingTools.Temp
             {
                 try
                 {
-                    Parameter vParam = pi.LookupParameter("ELC_VOLTAGE");
-                    if (vParam != null && !vParam.IsReadOnly)
-                    {
-                        string v = data.ElecConfig.Voltage;
-                        // Extract numeric voltage
-                        string numV = new string(v.TakeWhile(c => char.IsDigit(c)).ToArray());
-                        if (!string.IsNullOrEmpty(numV))
-                            vParam.Set(numV);
-                    }
+                    // ELC_VOLTAGE was never defined, so the chosen supply was lost. The
+                    // whole choice ("400V 3-phase") is kept, not just its leading digits.
+                    Parameter vParam = pi.LookupParameter("PRJ_ELC_SUPPLY_VOLTAGE_TXT");
+                    string v = string.Join(" ", new[] { data.ElecConfig.Voltage, data.ElecConfig.PhaseSystem }
+                        .Where(x => !string.IsNullOrWhiteSpace(x)));
+                    if (vParam != null && !vParam.IsReadOnly && vParam.StorageType == StorageType.String
+                        && !string.IsNullOrWhiteSpace(v))
+                        vParam.Set(v);
                 }
                 catch (Exception ex2)
                 {
-                    StingLog.Warn($"Could not set ELC_VOLTAGE: {ex2.Message}");
+                    StingLog.Warn($"Could not set PRJ_ELC_SUPPLY_VOLTAGE_TXT: {ex2.Message}");
                 }
             }
         }

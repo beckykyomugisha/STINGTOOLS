@@ -44,7 +44,7 @@ namespace StingTools.Commands.Fabrication
         public Dictionary<string, List<ElementId>> ByDiscipline { get; }
             = new Dictionary<string, List<ElementId>>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>Element → system token (PLM_SYS_TXT / MEC_SYS_TXT / ELC_SYS_TXT).</summary>
+        /// <summary>Element → system name (<see cref="StingTools.Core.Mep.ServiceSystemName"/>).</summary>
         public Dictionary<long, string> SystemByElement { get; }
             = new Dictionary<long, string>();
 
@@ -190,11 +190,7 @@ namespace StingTools.Commands.Fabrication
             // per-system / per-level filter pills without re-scanning.
             try
             {
-                string sys = el.LookupParameter("PLM_SYS_TXT")?.AsString()
-                          ?? el.LookupParameter("MEC_SYS_TXT")?.AsString()
-                          ?? el.LookupParameter("ELC_SYS_TXT")?.AsString()
-                          ?? "";
-                res.SystemByElement[el.Id.Value] = sys ?? "";
+                res.SystemByElement[el.Id.Value] = StingTools.Core.Mep.ServiceSystemName.Read(el);
                 string lvl = el.LookupParameter("ASS_LVL_COD_TXT")?.AsString() ?? "";
                 res.LevelByElement[el.Id.Value] = lvl ?? "";
             }

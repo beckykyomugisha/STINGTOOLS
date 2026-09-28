@@ -85,7 +85,28 @@ namespace StingTools.Tags.Tests
                 var b = VoltageDropSolver.BuiltIn4D2B.Single(x => Math.Abs(x.Csa - row.CsaMm2) < 1e-6);
                 Assert.Equal(row.MvAm1ph, b.Mv1ph, 6);
                 Assert.Equal(row.MvAm3ph, b.Mv3ph, 6);
+                Assert.Equal(row.MvVerified, b.MvVerified);
             }
+        }
+
+        [Fact]
+        public void A_size_between_rows_is_refused_not_interpolated()
+        {
+            var r = VoltageDropSolver.Solve(new VoltageDropQuery { CsaMm2 = 20 }, ShippedTable());
+            Assert.False(r.Computed);
+            Assert.Contains("not a size in Table 4D2B", r.Refusal);
+        }
+
+        [Fact]
+        public void Single_source_mV_is_flagged_verify()
+        {
+            // 4D2B 95 mm² z has one source; 16 mm² has two.
+            var big = VoltageDropSolver.Solve(new VoltageDropQuery { CsaMm2 = 95, LoadAmps = 10, LengthM = 10 }, ShippedTable());
+            Assert.True(big.UnverifiedVoltDrop);
+            Assert.Contains("VERIFY", big.Basis);
+            var small = VoltageDropSolver.Solve(new VoltageDropQuery { CsaMm2 = 16, LoadAmps = 10, LengthM = 10 }, ShippedTable());
+            Assert.False(small.UnverifiedVoltDrop);
+            Assert.DoesNotContain("VERIFY", small.Basis);
         }
 
         [Theory]
@@ -117,7 +138,7 @@ namespace StingTools.Tags.Tests
         {
             var r = VoltageDropSolver.Solve(new VoltageDropQuery { CsaMm2 = 300 });
             Assert.False(r.Computed);
-            Assert.Contains("outside", r.Refusal);
+            Assert.Contains("300 mm² is not a size in Table 4D2B (1–240 mm²)", r.Refusal);
         }
     }
 }

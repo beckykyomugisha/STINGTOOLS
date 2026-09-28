@@ -183,7 +183,12 @@ namespace StingTools.Commands.Electrical.Import
             // label's first choice) and its voltage drop in ELC_VLT_DROP_PCT.
             var inv = System.Globalization.CultureInfo.InvariantCulture;
             if (r.FaultKa.HasValue)                  n += Tally(Set(sys, "ELC_CIR_FAULT_LEVEL_TXT", r.FaultKa.Value.ToString("F2", inv), w), ref failed);
-            if (r.VoltageDrop.HasValue)              n += Tally(Set(sys, "ELC_VLT_DROP_PCT",        r.VoltageDrop.Value.ToString("F1", inv), w), ref failed);
+            if (r.VoltageDrop.HasValue)
+            {
+                n += Tally(Set(sys, "ELC_VLT_DROP_PCT", r.VoltageDrop.Value.ToString("F1", inv), w), ref failed);
+                Set(sys, "ELC_CKT_VD_BASIS_TXT", StingTools.Core.Electrical.CircuitVoltageDrop.ImportBasis("Trimble"), w);
+                Set(sys, "ELC_VLT_DROP_TXT", r.VoltageDrop.Value.ToString("F1", inv), w);
+            }
             if (!string.IsNullOrEmpty(r.Rating))    n += Tally(Set(sys, "ELC_CIRCUIT_RATING_TXT", r.Rating, w), ref failed);
             return n;
         }

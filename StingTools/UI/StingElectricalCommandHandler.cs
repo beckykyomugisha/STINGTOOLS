@@ -257,6 +257,8 @@ namespace StingTools.UI
                     ApplyCableSizeToCircuit(app, doc); break;
                 case "Cable_ConduitFill":
                     RunConduitFill(); break;
+                case "Cable_ReloadTables":
+                    RunCommand<StingTools.Commands.Electrical.CableSizer.WireTablesReloadCommand>(app); break;
 
                 // ── LITE ─────────────────────────────────────────────
                 case "Lite_Refresh":
@@ -638,7 +640,8 @@ namespace StingTools.UI
                         "Select an ElectricalSystem or panel circuit before applying.");
                     return;
                 }
-                int circuits = 0, wireWrites = 0, ratingWrites = 0, stingStamps = 0;
+                int circuits = 0, wireWrites = 0, ratingWrites = 0, stingStamps = 0, vdNone = 0;
+                var vdTables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
                 using (var tx = new Transaction(doc, "STING Apply Cable Size"))
                 {
                     tx.Start();
@@ -685,22 +688,33 @@ namespace StingTools.UI
                         {
                             ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_CSA_MM2,
                                 $"{r.RecommendedCsaMm2:0.#}", overwrite: true);
-                            ParameterHelpers.SetString(sys, ParamRegistry.ELC_CKT_VD_PCT,
-                                $"{r.ActualVoltDropPct:0.00}", overwrite: true);
+                            // Voltage drop is not written from the sizer's own figure: the length
+                            // and load there are the CABLE tab's, not the circuit's. It is resolved
+                            // from the circuit's own Ib / length / voltage, for the size and cable
+                            // just applied (ELEC-22) — NONE with the reason when those are missing.
+                            var vdIn = StingTools.Core.Electrical.CircuitVoltageDropModel.Read(sys,
+                                input?.Standard ?? "BS7671", input?.Material ?? "Cu");
+                            vdIn.CsaMm2 = r.RecommendedCsaMm2;
+                            if (input != null)
+                            { vdIn.InstallMethod = input.InstallMethod; vdIn.Insulation = input.Insulation; vdIn.CableType = input.CableType; }
+                            var vdOut = StingTools.Core.Electrical.CircuitVoltageDrop.Resolve(vdIn, vdTables,
+                                StingTools.Core.Electrical.CircuitVoltageDropModel.Resistance());
+                            StingTools.Core.Electrical.CircuitVoltageDropModel.Stamp(sys, vdOut);
+                            if (!vdOut.HasValue) vdNone++;
                             if (r.ProposedBreakerA > 0)
                                 ParameterHelpers.SetString(sys, "ELC_CKT_BRK_RATING_A",
                                     $"{r.ProposedBreakerA}", overwrite: true);
-                            if (r.DesignCurrentA > 0)
+                            // Ampacity is the cable's capacity Iz (It × Ca·Cg·Ci), not the design
+                            // current Ib that used to be written here; the Cable Schedule shows it.
+                            double iz = r.EffectiveCapacityIzA > 0 ? r.EffectiveCapacityIzA : r.TabulatedCapacityA;
+                            if (iz > 0)
                                 ParameterHelpers.SetString(sys, "ELC_CBL_AMPACITY_A",
-                                    $"{r.DesignCurrentA:0.0}", overwrite: true);
+                                    $"{iz:0.0}", overwrite: true);
                             if (input != null)
                             {
-                                if (!string.IsNullOrEmpty(input.InstallMethod))
-                                    ParameterHelpers.SetString(sys, "ELC_CBL_INSTALL_METHOD_TXT",
-                                        input.InstallMethod, overwrite: true);
-                                if (!string.IsNullOrEmpty(input.Insulation))
-                                    ParameterHelpers.SetString(sys, "ELC_CBL_INS_TYPE_TXT",
-                                        input.Insulation, overwrite: true);
+                                // Recorded so later checks judge the circuit on its own table.
+                                StingTools.Core.Electrical.CircuitCableRecord.Write(sys,
+                                    input.InstallMethod, input.Insulation, input.CableType);
                                 if (input.LengthM > 0)
                                     ParameterHelpers.SetString(sys, "ELC_CKT_LENGTH_M",
                                         $"{input.LengthM:0.0}", overwrite: true);
@@ -718,9 +732,10 @@ namespace StingTools.UI
                     $"Cable size applied to {circuits} circuit(s).\n\n" +
                     $"• Wire size written: {wireWrites}\n" +
                     $"• Breaker rating written: {ratingWrites}\n" +
-                    $"• STING params stamped: {stingStamps}\n\n" +
-                    $"Recommendation: {r.CsaLabel} @ {r.ProposedBreakerA}A " +
-                    $"(VD {r.ActualVoltDropPct:0.00}%)");
+                    $"• STING params stamped: {stingStamps}\n" +
+                    (vdNone > 0 ? $"• Voltage drop not calculated on {vdNone} circuit(s) (missing length, load or voltage — see ELC_CKT_VD_BASIS_TXT)\n" : "") +
+                    $"\nRecommendation: {r.CsaLabel} @ {r.ProposedBreakerA}A " +
+                    $"(VD {r.ActualVoltDropPct:0.00}% on the CABLE tab's length and load; each circuit's own drop is stamped from its route)");
             }
             catch (Exception ex) { StingLog.Warn($"ApplyCableSize: {ex.Message}"); }
         }
@@ -846,7 +861,8 @@ namespace StingTools.UI
                 var rows = StingTools.Commands.Electrical.ElectricalSnapshotBuilder
                     .BuildWireRefRows(panel.GetWireRefMaterial(),
                                       panel.GetWireRefInsulation(),
-                                      panel.GetWireRefMethod(), out string basis);
+                                      panel.GetWireRefMethod(),
+                                      panel.GetWireRefCableType(), out string basis);
                 panel.RefreshFromData(new ElectricalPanelSnapshot { WireRefRows = rows, WireRefBasis = basis });
             }
             catch (Exception ex) { StingLog.Warn($"RefreshWireRefTable: {ex.Message}"); }

@@ -43,6 +43,8 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "FIRE":"Sprinklers|Fire Alarm Devices","FIRE_COMPARTMENT":"Fire Alarm Devices|Rooms|Sprinklers","ELEC":"Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits",
 "CABLE_TRAY":"Cable Trays|Cable Tray Fittings","LIGHT":"Lighting Fixtures|Lighting Devices",
 "ELEC_EQUIP":"Electrical Equipment|Electrical Circuits",
+"PLUMB_FIXTURE":"Plumbing Fixtures",
+"MAINT_EQUIP":"Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment",
 "ELEC_FIXTURE":"Electrical Fixtures",
 "ELEC_CONDUIT":"Conduits|Conduit Fittings",
 "ELEC_TRAY":"Cable Trays|Cable Tray Fittings",
@@ -85,6 +87,19 @@ CST_MATERIAL=set("ADHESIVE AGGREGATE BLOCK BLOCKS CEMENT GROUT PAINT PRIMER SAND
 MGS_PIPEWORK={"MGS_GAS_TYPE_TXT","MGS_ZVB_REF_TXT","MGS_NOM_PRESS_KPA_NR","MGS_DESIGN_FLOW_LPM_NR","MGS_PIPE_BRAZED_BOOL"}
 def resolve(n,desc,depth=0):
     p=n.split("_"); pre=p[0]; sub=p[1] if len(p)>1 else ""
+    # Exact-name homes first: the prefix rules below would bind these too widely.
+    # Project-wide settings read off ProjectInformation, named exactly because their
+    # prefixes (PROJECT_, PLM_, PRJ_ELC_) would otherwise bind them to elements too.
+    if n in ("PROJECT_REGION","PLM_RECIRC_DELTA_T_K","PRJ_ELC_SUPPLY_VOLTAGE_TXT"): return "PROJECT_INFO","project-level"
+    # Facts about a room or space, read there: the gases a clinical room needs
+    # (Med Gas Outlet placement) and the air system serving a space (Block Load).
+    if n in ("MGS_GAS_REQUIREMENT_TXT","HVC_SYSTEM_ID_TXT"): return "SPACE_ROOM","space-level"
+    # The fixture kind the connector completeness check reads; only fixtures have one.
+    if n=="PLM_FIX_TYPE_TXT": return "PLUMB_FIXTURE","fixture-level"
+    # Maintenance access side, read on the equipment the maintenance clash check scans.
+    if n=="MNT_ACCESS_DIR_TXT": return "MAINT_EQUIP","equipment-level"
+    # Plaster faces is a wall fact read by the compound take-off.
+    if n=="BLE_PLASTER_FACES_NR": return "WALL","wall-level"
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
     if pre=="TAG": return "NONE","annotation-only"
@@ -147,6 +162,10 @@ def resolve(n,desc,depth=0):
     # type, IPS Validation's LIM flag). The broad ELEC set would put them on every
     # conduit and tray.
     if n in ("ELC_FEED_TYPE_TXT","ELC_IPS_LIM_BOOL"): return "ELEC_EQUIP","board-level"
+    # The voltage-drop basis goes wherever its value goes: ELC_VLT_DROP_PCT is on
+    # circuits and boards (the feeder sizer stamps a feeder's drop on the board it
+    # feeds). The ELC_CKT_ sub-rule alone would leave a board's figure unexplained.
+    if n in ("ELC_CKT_VD_BASIS_TXT","ELC_VLT_DROP_TXT"): return "ELEC_EQUIP","vd-basis"
     # A load-profile space type describes a space, not HVAC plant: Block Load and
     # the cross-talk audit read it on MEP Spaces, Block Load and ComCheck on Rooms.
     if n=="HVC_SPACE_TYPE_TXT": return "SPACE_ROOM","space-level"

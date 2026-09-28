@@ -24030,6 +24030,36 @@ give them, against the validator's own cross-checks.
   source and runs the shared `CategoryTokenDefaults` rules over every category, every PROD rule
   and the realistic detected systems. 12 fail against the previous behaviour.
   `StingTools.Tags.Tests`: 3,491 passing. The Linux compile of the plugin shows no new errors.
+
+#### BS 7671 consumers: cable type, true Iz bound, unchecked voltage drop flagged (2026-09-27)
+
+A review of every caller of the Appendix 4 tables found places that still assumed PVC
+multicore or hid unchecked values.
+
+- **Circuit Check (`Panel_ComplianceCheck`).** The "best case" Iz was PVC 4D2A method C, which
+  is not the best case: an XLPE or single-core cable of the same size carries more, so a sound
+  circuit could be failed.
+  - Iz is now `Bs7671Data.MaxTabulatedIt`: the highest It for the size across every shipped
+    copper table.
+  - The basis names the table it came from.
+- **Cable type is carried through.** The breaker sizer, feeder sizer, circuit wizard, the MCP
+  sizing tools and `CableSizerApplyEngine` all dropped the CABLE tab's cable type. Single-core
+  and armoured selections were silently sized as multicore.
+  - Each now passes it.
+  - The two MCP tools gain a `cableType` argument.
+- **Voltage drop solver (Add Cable).**
+  - A size between table rows is now refused rather than interpolated.
+  - A row whose mV/A/m has one source adds a VERIFY line to the basis.
+  - The basis names the table's cable instead of always "Cu 70 °C".
+- **Wire reference grid.** Rows with single-source mV/A/m are now marked (†); before, only
+  unchecked It was marked, and every It is now checked, so nothing was flagged.
+- **Stale text.** The MCP tool schemas, the feeder input and the circuit wizard options said
+  XLPE was refused until Table 4E2A shipped; it has shipped.
+- **Tests.** 3,427 passing:
+  - interpolation refused;
+  - single-source mV flagged;
+  - built-in 4D2B verification flags pinned to the data file;
+  - `MaxTabulatedIt` exceeds the PVC figure.
 - **Not exercised in Revit.**
 
 #### Drawing Type Editor, Master Setup, Export Centre, Document Manager review (2026-09-27, branch `claude/admiring-babbage-enqzit`)
@@ -24551,3 +24581,222 @@ A review of how drawing types choose and size tags. The tag family names the shi
   - A pipe whose system still cannot be read defaults to GEN, which marks the tag assumed. It used to default to HVAC (now air only), and before that a category without its discipline's system took whichever system was declared first. Pipe categories left the HVAC list and joined GEN.
 - **The unassigned-SEQ placeholder follows the pad width.** "0000" was a literal in six places, so at pad 3 or 5 it was never recognised as unassigned. `SeqAssigner.UnassignedSeq` / `IsUnassignedSeq` / `IsUnresolvedToken` now decide, and `TagHasPlaceholders` / `TagIsComplete` compare whole segments. A test fails on any new literal comparison; it was checked failing on one.
 - **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,865 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### Cable-type pickers for the wire reference grid and feeder sizing (2026-09-27)
+
+- **Wire reference grid.**
+  - It gains a cable-type picker (multicore / single-core / armoured SWA).
+  - Its method list now covers every shipped method: A, B, C, E, F, D1 and D2.
+  - Every table can now be browsed there.
+  - The old labels said XLPE, A1, B1 and E had "no table shipped"; those tables have shipped.
+  - A combination with no table (single-core XLPE, for example) says so and names the shipped
+    tables.
+- **Feeder sizing.**
+  - The expander gains its own insulation and cable-type pickers, and methods F, D1 and D2.
+  - Feeders no longer take these from the CABLE tab.
+  - The default stays PVC multicore.
+- The armoured SWA tooltip on the CABLE tab said every result is flagged VERIFY. That stopped
+  being true once every current rating was two-source checked; the tooltip now says only
+  unconfirmed values are flagged.
+- **Tests.** 3,438 passing. Every picker combination resolves to its table, and those with no
+  table resolve to none.
+- **Not exercised in Revit.**
+
+#### Electrical flexibility, automation and integration review (2026-09-27)
+
+- **The cable a circuit was sized with is recorded and read back.** Checks that run later now
+  judge a circuit against its own table.
+  - New `Core/Electrical/CircuitCableRecord` stamps install method, insulation and cable type
+    (`ELC_CBL_INSTALL_METHOD_TXT`, `ELC_CBL_INS_TYPE_TXT`, `ELC_CBL_TYPE_TXT`) when a size is
+    applied, from both the CABLE tab's Apply and `CableSizerApplyEngine`. Cable type was
+    previously never written, and nothing read the other two.
+  - The Circuit Check and the breaker sizer use the recorded cable's table when all three are
+    recorded, and say so. Otherwise they fall back as before: the Circuit Check to the highest It
+    in any table, the breaker sizer to the CABLE tab's assumption.
+- **`ELC_CBL_AMPACITY_A` now holds Iz, not the design current Ib.** Apply had been writing Ib into
+  the ampacity column of the Cable Schedule.
+- **Arc flash reads board geometry.**
+  - Four new board parameters feed the IEEE 1584-2018 engine: `ELC_ARC_FLASH_GAP_MM` and
+    `ELC_ARC_FLASH_ENCL_H_MM` / `_W_MM` / `_D_MM`. The engine always accepted them, but the
+    command never passed them, so every board was calculated at its class's typical size.
+  - A blank value still uses the typical one.
+  - A typical gap is now noted on the label, as the typical enclosure already was.
+- **The Circuit Check runs in the Electrical Submission and Electrical QA workflows**, after
+  voltage drop. It had been in no workflow.
+- **Recorded, not fixed:** ELEC-21 (the wire tables have no project override or reload) and
+  ELEC-22 (two voltage-drop methods write one parameter).
+- **Tests.** 3,506 passing. The engine uses supplied geometry and assumes nothing, and notes a
+  typical gap when none is given.
+- **Not exercised in Revit.**
+
+#### Project wire tables and one voltage-drop owner (ELEC-21 / ELEC-22, 2026-09-27)
+
+- **Project wire-table override (ELEC-21).**
+  - New `_BIM_COORD/bs7671_wire_tables.json`, layered on `STING_WIRE_TABLES.json` by
+    `Core/Electrical/Bs7671TableLayering`. Replaces, adds or removes whole tables by lookup key;
+    overrides Tables 4B1 / 4C1 and Cf.
+  - Project rows are single-source unless attested by a `twoSourceCheck`; a row claiming
+    verified without one is downgraded, with a warning.
+  - An invalid file is refused as a whole. Every sizer then refuses with the reason; the
+    corporate tables are not substituted.
+  - Project tables cite themselves as project tables in every basis, and a result sized on
+    them says so.
+  - Every caller now resolves tables per document: cable sizer, CABLE-tab Apply,
+    `CableSizerApplyEngine`, feeder sizer, circuit wizard, breaker sizer, Circuit Check, Add
+    Cable, wire reference grid and wire sync. The MCP calculator has no model and reports
+    `tableOrigin: corporate`.
+  - `Cable_ReloadTables` (CABLE tab, workflow, NLP) re-reads both files and lists what is in force.
+- **One owner for circuit voltage drop (ELEC-22).**
+  - New `Core/Electrical/CircuitVoltageDrop` (Revit-free) and `CircuitVoltageDropModel`.
+    Appendix 4 mV/A/m from the recorded cable's table; with no complete record, the highest
+    mV/A/m any loaded table gives for the size (an upper bound); resistance only for NEC.
+  - New parameter `ELC_CKT_VD_BASIS_TXT` (circuits and boards) records the method beside every
+    figure: A4, A4-MAX, A4-SIZED, R60228, IMPORT or NONE with the reason.
+  - Recalculate, the VD schedule, Apply, Auto-Upsize, the feeder sizer and the three importers
+    all stamp through it. Apply now stamps the circuit's own drop, not the CABLE tab's.
+    Auto-Upsize picks the new size by the same method.
+  - The Circuit Check works the drop out itself, and can pass but never fail on an upper bound.
+    Its workbook gains a basis column.
+- **Hidden defects fixed on the way.**
+  - A circuit missing its length, size or voltage was stamped `0.00` % voltage drop, which the
+    Circuit Check read as a pass. It is now NONE with the reason.
+  - The SLD read `ELC_VLT_DROP_PCT` and the board fault level with `AsString()`. Both are
+    NUMBER parameters, so neither label ever appeared.
+  - The Electrical panel's circuit grid set every voltage drop to 0 and showed "—".
+  - The cable sizer and the new reload command read `commandData.Application`, which is null
+    when the dock panel dispatches; the command-app gate caught the first.
+  - Exports (EasyPower XML, circuit schedule CSV/XML/JSON) now carry STING's figure with its
+    basis. A missing or pre-basis figure is left out instead of written as 0.
+- **Recorded, not fixed:** ELEC-23 (the apply engine's separate size and VD parameters),
+  ELEC-24 (feeder sizing ignores an NEC setting), ELEC-25 (no Appendix 4 §6.1 load correction),
+  ELEC-26 (the old VD number cannot be cleared when the basis is NONE).
+- **Tests.** 3,554 passing, including 24 for the override and 26 for voltage drop.
+- **Not exercised in Revit.**
+
+#### ELEC-23 to ELEC-26: one size, one voltage drop, feeders on the panel's standard (2026-09-27)
+
+- **ELEC-23, aligned writers.**
+  - `CableSizerApplyEngine` (MCP batch sizing) writes `ELC_CBL_SZ_MM` and the native wire size
+    (when Revit allows) as well as `ELC_WIRE_CSA_MM2_NUM`. It stamps voltage drop and basis
+    through `CircuitVoltageDropModel`, so it agrees with Apply and Recalculate.
+  - Wire VD Sync and the wire annotation resolve each conduit through `CircuitVoltageDrop`: the
+    conduit's own recorded cable, else an upper bound, and the connected circuit's voltage.
+    Before, VD Sync used conductor resistance at a fixed 70 °C and 400 / 230 V.
+  - The annotation no longer reads `ELC_VLT_DROP_PCT` off a conduit, where it is not bound, and
+    marks an upper bound "≤".
+  - The conduit cable sizer writes Iz to `ELC_WIRE_AMPACITY_A`; it had been left empty.
+- **ELEC-24, feeders follow the panel's standard.** NEC feeders size to Table 310.16 and their
+  drop is stamped R60228. AS/NZS 3000 is refused with the reason instead of silently getting
+  BS 7671. The voltage-drop resolver refuses a standard with no tables the same way.
+- **ELEC-25, Appendix 4 §6.1.** The cable sizer reports the load-corrected drop as a separate,
+  optional figure: Ct from Ca and Cg, up to 16 mm², not buried cables. The size is still chosen
+  on the tabulated figure. Sources in `ELECTRICAL_STANDARDS_SOURCES.md`.
+- **ELEC-26, schedule text.** Every stamp writes `ELC_VLT_DROP_TXT` ("3.91", "≤4.13", or "—"
+  when not calculated), now bound to boards as well as circuits. The STING panel schedule
+  templates and the Voltage Drop Schedule show it; the number cannot be cleared, the text can.
+- **Found on the way.**
+  - The circuit voltage-drop reader (merged in #996) fell back to a parameter named
+    `ELC_CKT_CSA_MM2`. That is only a code alias for `ELC_CBL_SZ_MM`, so the fallback never
+    found a size. The parameter-contract gate exposed it.
+  - The fabrication workspace grouped by `HVC_SYS_TXT` / `ELC_SYS_TXT`, which do not exist, so
+    every duct and conduit fell to system "GEN". It now uses the tag's SYS token.
+- **Tests.** 3,562 passing, including 8 new: the §6.1 factor against a hand calculation
+  (Ct 0.940, 1.47 % on 2.5 mm² at 20 A over 10 m), its limits, unsupported standards, and the
+  schedule text.
+- **Not exercised in Revit.** Rebuild the panel schedule templates (`Panel_TemplatesCreate`) to
+  pick up the VD column change.
+
+#### Parameters read by the wrong name or as blank text (2026-09-27)
+
+A sweep of every literal parameter name in the plugin against the shared-parameter files, and of
+every `GetString` read against the parameter's data type.
+
+- **Numbers read as text were blank.** `ParameterHelpers.GetString` returns "" for anything not
+  stored as text, so about 120 reads of NUMBER, LENGTH, AREA, INTEGER, YES/NO and CURRENCY
+  parameters always came back empty. The biggest effect was the TAG7 narrative: U-values,
+  velocities, wall and door sizes, stair geometry, panel breakers, lamp wattage, lead thickness
+  and fire ratings never appeared. The BOQ paragraph dimensions (width, height, thickness) were
+  also always blank.
+  - New `ParameterHelpers.GetValueText` reads any storage as plain invariant text in the unit the
+    name states: LENGTH in mm (m when the name ends `_M`), AREA in m², VOLUME in m³, electrical
+    quantities through `ElecUnits`, other numbers as stored. TEXT reads exactly as `GetString`.
+  - TAG7, the BOQ paragraph builder, the COBie/asset exports, the tie-in and LPS registers, the
+    labour-hours and handover exports, the UL penetration matcher and the display-mode sentinel
+    use it. Parsers that assumed the local culture now parse invariantly or use `GetDouble`.
+  - Behaviour change: HVAC Refresh no longer overwrites a capacity the user entered, and the tag
+    display-mode initialisation no longer re-runs on every tag, because both checks now see the
+    stored value.
+- **System names that do not exist.** Fabrication grouping, cut lists, the workspace filter pills,
+  the duct spec check and the HVAC panel read `HVC_SYS_TXT`, `ELC_SYS_TXT` and a concatenation of
+  three names, so ducts and conduits had no system. `Core/Mep/ServiceSystemName.Read` is now the
+  one reader: `PLM_SYS_TXT`, `MEC_SYS_TXT`, Revit's system name, then the tag's SYS token.
+- **Other wrong names.**
+  - TAG7 medical gas and radiation text: `MGS_DESIGN_FLOW_LPM_NR` (l/min, not L/s),
+    `MGS_NOM_PRESS_KPA_NR`, `MGS_OUTLET_ZONE_TXT`, `RAD_BARRIER_TYPE_TXT`, `RAD_WORKLOAD_MAWK_NR`.
+    The outlet count had no parameter and is dropped.
+  - HVAC panel spools: `AssyParams` weight, fitting count and total length (the `ASSY_*` names
+    never existed, so every spool read "?").
+  - Produce-and-export sheet register: the CDE state from `PRJ_TB_DELIVERABLE_CDE_TXT`, blank when
+    unstamped. It read a nonexistent name and reported every sheet as "WIP".
+  - Fill validator and fill heat map: pipe and duct velocity from `PLM_VEL_MPS` / `HVC_VEL_MPS`;
+    the velocity checks never ran.
+  - Plumbing joint type, sheet Uniclass code, HVAC carbon report kW, carbon tracker mass, and the
+    BOQ paragraph performance and dimension fields.
+- **Left open.** About 60 names remain that no parameter file defines. Most are family parameters
+  or deliberate fallbacks; the few that silence a check are listed in ROADMAP PARAM-10.
+- **Gate.** `check_param_contract.py` counts `GetValueText` as a read; six user-entered inputs
+  that are now read were recorded as inputs.
+- **Tests.** 3,576 passing, including the name-suffix unit rule and invariant formatting. Not
+  exercised in Revit.
+
+#### PARAM-10 closed, and measured values written in the wrong unit (2026-09-27)
+
+- **Checks that never ran.**
+  - The Spec validator's cable voltage check read two undefined names. It now compares the
+    circuit voltage with the cable's rated voltage in the new `ELC_CBL_RATED_V_NR` (U of U0/U,
+    entered from the cable specification). Circuits with no rating are reported in one line.
+  - The carbon stage tracker stamped 0 for any stage whose input was missing, and its A4, B6 and
+    C1 inputs read undefined names. Now:
+    - A4 uses mass × the project setting `CARBON_A4_DISTANCE_KM` (not calculated when unset).
+    - B6 reads `ELC_ENERGY_KWH_PA`.
+    - C1 reads the computed volume.
+    - Mass comes from `ASS_WEIGHT_KG`, else volume × the material library density.
+    - C2 distance is `CARBON_C2_DISTANCE_KM` (default 50 km, as before).
+    - A stage that cannot be calculated is cleared, not set to 0, and the report says how
+      many elements each stage covers.
+  - The architecture cover audit read "FIRE_RATING" and "ANALYTICAL_HEAT_TRANSFER" as
+    parameter names, so it reported every wall as missing both. It reads the type's Fire
+    Rating and heat transfer coefficient, then STING's fields.
+  - `MepA_CableSizeApply` ran a second, generic cable sizer and wrote to a parameter that does
+    not exist, so it never wrote anything. It now previews, confirms and applies through the
+    BS 7671 apply engine, the same one the MCP tool uses. A non-BS 7671 panel standard is
+    refused with the reason.
+- **Parameters the code read but no file defined.** Thirteen are now defined and bound where
+  their readers look. Among them: the standards region (the region picker told users to "load
+  shared params" for a parameter that did not exist), base currency, disciplines, the material
+  sign-off suitability and the supply voltage (Project Information); the gases a clinical room
+  needs (Med Gas Outlet placement asked users to set it); the air system per space (Block
+  Load); fixture kind (connector completeness check); conduit cable manifest (v4 fill check);
+  maintenance access side; plaster faces.
+- **Renamed reads.** HVAC panel manufacturer and model (`ASS_MANUFACTURER_TXT` /
+  `ASS_MODEL_NR_TXT`), fan static fitting reference (`HVC_PROD_REF_TXT`), sheet discipline in the
+  drawing register (`SHT_DISC_TXT`), the carbon heat map (the tracker's stamp before the
+  family figure), BOQ paragraph hardware, glazing, reinforcement and spacing. Substrate,
+  fixings and edge trim have no parameter and are no longer read.
+- **BOQ descriptions no longer invent values.** With no data the template text says "as
+  structural specification" instead of C25/30 concrete, and "as lighting design" instead of
+  300 lux.
+- **Values written in the wrong unit.**
+  - Both hanger placers wrote millimetres straight into LENGTH parameters, which Revit stores
+    in feet, so a 3,000 mm spacing was saved as 3,000 ft.
+  - A mm setter in the routing support placer always divided by 304.8, so the NUMBER
+    parameter `HVC_DCT_INSULATION_THK_MM` stored 0.082 for 25 mm.
+  - The foundation sizer, the column pipeline and the room-area mapping passed measured
+    values to `SetString`, which refuses them, so foundation size and depth, column size and
+    room area were never written.
+  - New `ParameterHelpers.SetDoubleInNamedUnit`, the counterpart of `GetValueText`, writes a
+    value given in the unit its name states to whatever the parameter is: feet for a LENGTH,
+    unchanged for a NUMBER, invariant text for TEXT.
+- **Gate.** `check_param_contract.py` counts `SetDoubleInNamedUnit` as a write.
+- **Tests.** 3,576 passing. Not exercised in Revit. Run Load Shared Parameters to bind the
+  new parameters.

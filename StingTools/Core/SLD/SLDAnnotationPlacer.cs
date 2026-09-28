@@ -182,7 +182,7 @@ namespace StingTools.Core.SLD
             if (showVd && node.VdPct > 0)
             {
                 string vdLine = (rules.VdFormat ?? "VD {vd}%")
-                    .Replace("{vd}", node.VdPct.ToString("F1",
+                    .Replace("{vd}", (node.VdIsUpperBound ? "≤" : "") + node.VdPct.ToString("F1",
                         System.Globalization.CultureInfo.InvariantCulture));
                 lines.Add(vdLine);
             }

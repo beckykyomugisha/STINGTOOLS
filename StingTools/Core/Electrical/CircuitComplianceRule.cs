@@ -28,6 +28,14 @@ namespace StingTools.Core.Electrical
         /// </summary>
         public bool IzIsUpperBound;
         public double? VdPct;              // voltage drop %; null = not calculated
+        /// <summary>
+        /// VdPct is an upper bound (A4-MAX: the highest mV/A/m any loaded table gives for the
+        /// size, the circuit carrying no cable record). Under the limit it is a pass on any
+        /// loaded table; over it, it proves nothing and is NOT CHECKED, never a FAIL.
+        /// </summary>
+        public bool VdIsUpperBound;
+        /// <summary>Why VD could not be checked, when VdPct is null (e.g. "missing length").</summary>
+        public string VdNotCheckedReason = "";
         public double VdLimitPct;          // limit for this circuit
         public double? ProspectiveFaultKa; // at the board; null = unknown
         public double? BreakingCapacityKa; // device/board Icn; null = unknown
@@ -100,10 +108,17 @@ namespace StingTools.Core.Electrical
 
             if (c.VdPct.HasValue && c.VdLimitPct > 0)
             {
+                string vd = c.VdPct.Value.ToString("0.00", CultureInfo.InvariantCulture);
                 if (c.VdPct.Value > c.VdLimitPct + 1e-9)
-                    r.Failures.Add($"VD {c.VdPct.Value.ToString("0.00", CultureInfo.InvariantCulture)} % > {N(c.VdLimitPct)} %");
+                {
+                    if (c.VdIsUpperBound)
+                        r.NotChecked.Add($"VD: upper bound {vd} % > {N(c.VdLimitPct)} % — apply a cable size to record the cable");
+                    else
+                        r.Failures.Add($"VD {vd} % > {N(c.VdLimitPct)} %");
+                }
             }
-            else r.NotChecked.Add("VD (run Recalculate)");
+            else r.NotChecked.Add(string.IsNullOrWhiteSpace(c.VdNotCheckedReason)
+                ? "VD (run Recalculate)" : "VD (" + c.VdNotCheckedReason + ")");
 
             bool havePsc = c.ProspectiveFaultKa.HasValue && c.ProspectiveFaultKa.Value > 0;
             if (havePsc && c.BreakingCapacityKa.HasValue && c.BreakingCapacityKa.Value > 0)

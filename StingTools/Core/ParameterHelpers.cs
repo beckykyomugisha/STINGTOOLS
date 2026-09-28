@@ -303,6 +303,105 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// A parameter's value as plain invariant text in the unit its NAME implies, for any
+        /// storage. <see cref="GetString"/> returns "" for a NUMBER / LENGTH / AREA parameter,
+        /// which blanked every such value read through it; <see cref="GetDisplayText"/> returns
+        /// project-unit display text with the unit appended, which does not parse back.
+        /// Here: TEXT as stored; INTEGER / Yes-No as the integer; a Double as a plain number —
+        /// LENGTH in mm (m when the name ends <c>_M</c>), AREA in m², VOLUME in m³, voltage /
+        /// power / current in V, VA or W, A (<see cref="Electrical.ElecUnits"/>), any other
+        /// spec (NUMBER, CURRENCY) as stored. "" when the parameter is absent or has no value.
+        /// </summary>
+        public static string GetValueText(Element el, string paramName)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName)) return string.Empty;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null) return string.Empty;
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        return p.AsString() ?? string.Empty;
+                    case StorageType.Integer:
+                        return p.HasValue ? p.AsInteger().ToString(System.Globalization.CultureInfo.InvariantCulture) : string.Empty;
+                    case StorageType.Double:
+                        return p.HasValue ? UnitValueText.Invariant(DoubleInNamedUnit(p, paramName)) : string.Empty;
+                    default:
+                        return string.Empty;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("GetValueText", $"GetValueText({paramName}): {ex.Message}");
+                return string.Empty;
+            }
+        }
+
+        private static double DoubleInNamedUnit(Parameter p, string paramName)
+        {
+            double raw = p.AsDouble();
+            ForgeTypeId unit = NamedUnit(p, paramName);
+            return unit == null ? raw : UnitUtils.ConvertFromInternalUnits(raw, unit);
+        }
+
+        /// <summary>The unit a Double parameter's value is expressed in by STING's naming
+        /// convention, or null when it is stored as given (NUMBER, CURRENCY, …).</summary>
+        private static ForgeTypeId NamedUnit(Parameter p, string paramName)
+        {
+            ForgeTypeId spec = p.Definition?.GetDataType();
+            if (spec == SpecTypeId.Length)
+                return UnitValueText.LengthNameIsMetres(paramName) ? UnitTypeId.Meters : UnitTypeId.Millimeters;
+            if (spec == SpecTypeId.Area) return UnitTypeId.SquareMeters;
+            if (spec == SpecTypeId.Volume) return UnitTypeId.CubicMeters;
+            return Electrical.ElecUnits.SiUnitFor(p);
+        }
+
+        /// <summary>
+        /// Write <paramref name="value"/>, given in the unit the parameter's NAME states
+        /// (mm for <c>_MM</c>, m for <c>_M</c>, m², m³, V / VA / W / A), to whatever the
+        /// parameter is: a LENGTH is converted to internal feet, a NUMBER stored as given,
+        /// TEXT written as invariant text, an INTEGER rounded. The counterpart of
+        /// <see cref="GetValueText"/>. Writing a millimetre figure straight into a LENGTH
+        /// stores it as feet (3000 mm became 3000 ft); dividing by 304.8 regardless
+        /// shrinks a NUMBER parameter 304.8 times. This checks which it is.
+        /// </summary>
+        public static bool SetDoubleInNamedUnit(Element el, string paramName, double value, bool overwrite = true)
+        {
+            if (el == null || string.IsNullOrEmpty(paramName) || double.IsNaN(value) || double.IsInfinity(value)) return false;
+            Parameter p = CachedLookup(el, paramName);
+            if (p == null || p.IsReadOnly) return false;
+            try
+            {
+                if (!overwrite && p.HasValue)
+                {
+                    bool empty = p.StorageType == StorageType.String
+                        ? string.IsNullOrEmpty(p.AsString())
+                        : p.StorageType == StorageType.Double ? p.AsDouble() == 0
+                        : p.StorageType == StorageType.Integer && p.AsInteger() == 0;
+                    if (!empty) return false;
+                }
+                switch (p.StorageType)
+                {
+                    case StorageType.Double:
+                        ForgeTypeId unit = NamedUnit(p, paramName);
+                        return p.Set(unit == null ? value : UnitUtils.ConvertToInternalUnits(value, unit));
+                    case StorageType.String:
+                        return p.Set(UnitValueText.Invariant(value));
+                    case StorageType.Integer:
+                        return p.Set((int)Math.Round(value));
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("SetDoubleInNamedUnit", $"SetDoubleInNamedUnit({paramName}) on {el.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
         /// <summary>Read an integer parameter with fallback. Handles Integer, Double, String storage.</summary>
         public static int GetInt(Element el, string paramName, int defaultValue = 0)
         {
@@ -3170,9 +3269,10 @@ namespace StingTools.Core
                 double areaSqFt = room.Area;
                 if (areaSqFt > 0)
                 {
-                    string areaM2 = (areaSqFt * 0.092903).ToString("F2",
-                        System.Globalization.CultureInfo.InvariantCulture);
-                    written += SetIfEmptyInt(el, ParamRegistry.ROOM_AREA, areaM2);
+                    // ASS_ROOM_AREA_SQ_M is an AREA parameter, which refuses text, so this
+                    // was never written. Set it through its unit (m² → internal ft²).
+                    if (ParameterHelpers.SetDoubleInNamedUnit(el, ParamRegistry.ROOM_AREA, areaSqFt * 0.09290304, overwrite: false))
+                        written++;
                 }
 
                 // Room Department
@@ -4669,9 +4769,9 @@ namespace StingTools.Core
             written += MapBuiltIn(el, BuiltInParameter.RBS_CALCULATED_SIZE, ParamRegistry.SIZE);
 
             // ── SYN-01: Cross-write ASS_FLOW_RATE_TXT from PLM_PIPE_FLOW or HVC_AIRFLOW ──
-            string flowRate = ParameterHelpers.GetString(el, ParamRegistry.PLM_PIPE_FLOW);
+            string flowRate = ParameterHelpers.GetValueText(el, ParamRegistry.PLM_PIPE_FLOW);
             if (string.IsNullOrEmpty(flowRate))
-                flowRate = ParameterHelpers.GetString(el, ParamRegistry.HVC_AIRFLOW);
+                flowRate = ParameterHelpers.GetValueText(el, ParamRegistry.HVC_AIRFLOW);
             if (!string.IsNullOrEmpty(flowRate))
                 written += SetIfEmptyInt(el, "ASS_FLOW_RATE_TXT", flowRate);
 

@@ -31,7 +31,11 @@ namespace StingTools.Commands.Electrical.Export
         public double VoltageV  { get; set; }
         public double LengthM   { get; set; }
         public double CsaMm2    { get; set; }
-        public double VDPct     { get; set; }
+        /// <summary>Stamped voltage drop, or null when none is stamped, it is NONE, or it
+        /// predates the basis parameter (origin unknown) — never exported as 0.</summary>
+        public double? VDPct    { get; set; }
+        /// <summary>ELC_CKT_VD_BASIS_TXT: how the figure was obtained (A4 / A4-MAX / …).</summary>
+        public string VDBasis   { get; set; } = "";
         public string Phase     { get; set; } = "";
     }
 
@@ -148,13 +152,21 @@ namespace StingTools.Commands.Electrical.Export
                         VoltageV   = v,
                         LengthM    = lengthFt * 0.3048,
                         CsaMm2     = ParseCsa(wire),
-                        VDPct      = ParameterHelpers.GetDouble(sys, ParamRegistry.ELC_CKT_VD_PCT), // NUMBER: GetString read ""
+                        VDPct      = VdForExport(sys, out string vdBasis),
+                        VDBasis    = vdBasis,
                         Phase      = ReadPhase(sys)
                     });
                 }
                 catch (Exception ex) { StingLog.Warn($"BuildCircuits: {ex.Message}"); }
             }
             return rows;
+        }
+
+        private static double? VdForExport(ElectricalSystem sys, out string basis)
+        {
+            var st = StingTools.Core.Electrical.CircuitVoltageDropModel.ReadStamp(sys);
+            basis = st.Method == StingTools.Core.Electrical.VdMethod.Legacy ? "legacy (no basis recorded)" : st.Basis;
+            return st.Method == StingTools.Core.Electrical.VdMethod.Legacy ? null : st.Pct;
         }
 
         private static List<PanelSummary> BuildPanels(Document doc,

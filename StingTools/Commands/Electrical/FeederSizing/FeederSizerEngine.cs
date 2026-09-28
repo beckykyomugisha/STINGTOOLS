@@ -24,9 +24,10 @@ namespace StingTools.Commands.Electrical.FeederSizing
         public double DiversityFactor { get; set; } = 1.0;
         public string InstallMethod   { get; set; } = "C";
         public string Material        { get; set; } = "Cu";
-        /// <summary>PVC70 — BS 7671 Table 4D2A is the only Appendix 4 table shipped.
-        /// XLPE / SWA feeders (Tables 4E2A / 4E4A) are refused until those tables are added.</summary>
+        /// <summary>PVC70 or XLPE90; with <see cref="CableType"/> and the method this picks
+        /// the Appendix 4 table (4D1A / 4D2A / 4D4A / 4E2A / 4E4A).</summary>
         public string Insulation      { get; set; } = "PVC70";
+        public string CableType       { get; set; } = StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
         public double FeederLengthM   { get; set; } = 10.0;
         /// <summary>BS 7671 Appendix 12 "other uses" limit; was 2 %, which no standard sets.</summary>
         public double VDLimitPct      { get; set; } = 5.0;
@@ -70,7 +71,8 @@ namespace StingTools.Commands.Electrical.FeederSizing
     /// </summary>
     public static class FeederSizerEngine
     {
-        public static FeederSizeResult Calculate(FeederSizeInput input, WireTableSet wireTables)
+        public static FeederSizeResult Calculate(FeederSizeInput input, WireTableSet wireTables,
+            StingTools.Core.Electrical.Bs7671Data bs7671Tables)
         {
             var result = new FeederSizeResult { PanelName = input?.PanelName ?? "" };
             if (input == null) { result.Warning = "Null input"; result.Status = "ERROR"; return result; }
@@ -106,12 +108,13 @@ namespace StingTools.Commands.Electrical.FeederSizing
                 InstallMethod     = input.InstallMethod,
                 Material          = input.Material,
                 Insulation        = input.Insulation,
+                CableType         = input.CableType,
                 VDLimitPct        = input.VDLimitPct,
                 Standard          = input.Standard,
                 ContinuousLoad    = input.ContinuousLoad,
                 ExtraDerateFactor = derate,
             };
-            var sized = CableSizerEngine.Calculate(sizerInput);
+            var sized = CableSizerEngine.Calculate(sizerInput, bs7671Tables);
             result.Sized           = sized.Sized;
             result.ProposedCsaMm2  = sized.Sized ? sized.RecommendedCsaMm2 : 0;
             result.CsaLabel        = sized.Sized ? sized.CsaLabel : "—";
@@ -132,10 +135,10 @@ namespace StingTools.Commands.Electrical.FeederSizing
         }
 
         public static List<FeederSizeResult> CalculateAll(IEnumerable<FeederSizeInput> inputs,
-            WireTableSet wireTables)
+            WireTableSet wireTables, StingTools.Core.Electrical.Bs7671Data bs7671Tables)
         {
             return (inputs ?? Enumerable.Empty<FeederSizeInput>())
-                .Select(i => Calculate(i, wireTables))
+                .Select(i => Calculate(i, wireTables, bs7671Tables))
                 .ToList();
         }
     }

@@ -272,10 +272,20 @@
       "role": "reference",
       "reason": "Register appearance column written by MaterialCommands. Read by the model author in the properties palette, not by code. BLE_APP-IDENTITY-CLASS is the exception below."
     },
+    "BLE_CASEWORK_MATERIAL_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "BLE_COLUMN_SLENDERNESS": {
       "state": "read_only",
       "role": "input",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
+    },
+    "BLE_DOOR_HARDWARE_SPECIFICATION_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "BLE_FLR_LD_CAP_KPA": {
       "state": "read_only",
@@ -412,6 +422,11 @@
       "role": "export",
       "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-STR-Foundations\". A schedule is a real reader; this scan only sees C#."
     },
+    "BLE_WALL_INSULATION_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR": {
       "state": "read_only",
       "role": "input",
@@ -512,6 +527,26 @@
       "role": "input",
       "reason": "Set by the user on a panel to state its IEEE 1584-2018 electrode configuration; read by ArcFlashCommand. Blank = VCB assumed and noted on the label."
     },
+    "ELC_ARC_FLASH_ENCL_D_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 enclosure depth in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
+    "ELC_ARC_FLASH_ENCL_H_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 enclosure height in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
+    "ELC_ARC_FLASH_ENCL_W_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 enclosure width in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
+    "ELC_ARC_FLASH_GAP_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Set by the user on a panel to state its IEEE 1584-2018 conductor gap in mm; read by ArcFlashCommand. Blank = the class's typical value, noted on the label."
+    },
     "ELC_ARC_FLASH_WORK_DIST_MM": {
       "state": "read_only",
       "role": "input",
@@ -526,11 +561,6 @@
       "state": "write_only",
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cable Schedule\". A schedule is a real reader; this scan only sees C#."
-    },
-    "ELC_CBL_INSTALL_METHOD_TXT": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Cable List\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CBL_NUM_OF_CORES_NR": {
       "state": "read_only",
@@ -591,11 +621,6 @@
       "state": "write_only",
       "role": "export",
       "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
-    },
-    "ELC_CKT_LENGTH_M": {
-      "state": "write_only",
-      "role": "export",
-      "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Circuit Schedule\". A schedule is a real reader; this scan only sees C#."
     },
     "ELC_CKT_PHASE_COUNT_NR": {
       "state": "write_only",
@@ -756,6 +781,11 @@
       "state": "read_only",
       "role": "input",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
+    },
+    "ELC_VLT_DROP_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Schedule text for the voltage drop (ELEC-26): read by the STING panel schedule templates (STING_PANEL_SCHEDULE_SPECS.json, VD column) and the Voltage Drop Schedule, found by name. A schedule is a real reader; this scan only sees C#."
     },
     "ELC_WIRE_BEND_COUNT_INT": {
       "state": "read_only",
@@ -1042,10 +1072,10 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
-    "MGS_OUTLET_ZONE_TXT": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    "MGS_NOM_PRESS_KPA_NR": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "MGS_SUPPLY_TYPE_TXT": {
       "state": "read_only",
@@ -1063,9 +1093,9 @@
       "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
     },
     "MNT_HGT_MM": {
-      "state": "read_only",
-      "role": "export",
-      "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Devices Schedule\". A schedule is a real reader; this scan only sees C#."
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by the fixture, matrix and DWG placement engines as the mounting height they placed at. Carried for schedules and the properties palette; placement reads heights from its rules, not back from this."
     },
     "PER_SUST_CARBON_FOOTPRINT_KG": {
       "state": "read_only",
@@ -1202,11 +1232,6 @@
       "role": "export",
       "reason": "Written by Title Block Populate and consumed by the CDE REF label in the title-block family. Derived from the ISO 19650 identifier plus suitability and revision; there is no reader in C# by design."
     },
-    "PRJ_TB_DELIVERABLE_CDE_TXT": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
-    },
     "PRJ_TB_DELIVERABLE_DATADROP_TXT": {
       "state": "write_only",
       "role": "reference",
@@ -1302,12 +1327,22 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "RAD_BARRIER_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "RAD_LEAD_MM_NR": {
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "RAD_QE_NAME_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "RAD_WORKLOAD_MAWK_NR": {
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
@@ -1417,6 +1452,11 @@
       "role": "export",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
     },
+    "STR_COL_SIZE_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by the structural sizing engines and read by the matching tag family label in LABEL_DEFINITIONS.json. The tag is the reader; there is no C# reader by design."
+    },
     "STR_CONN_CAPACITY_KN": {
       "state": "read_only",
       "role": "input",
@@ -1442,10 +1482,20 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "STR_FDN_DEPTH_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by the foundation sizer beside STR_FDN_DEPTH_MM as the display figure for tags and schedules; no C# reader by design."
+    },
     "STR_FDN_SIZE_MM": {
       "state": "write_only",
       "role": "export",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 so it can be a column in the per-category schedule that names it (SCHEDULE_SPEC_all_disciplines.json). The consumer is a Revit SCHEDULE — the reader this tool's header says no C# scan can see. Written by StingTools, read on the schedule."
+    },
+    "STR_FDN_SIZE_TXT": {
+      "state": "write_only",
+      "role": "export",
+      "reason": "Written by the structural sizing engines and read by the matching tag family label in LABEL_DEFINITIONS.json. The tag is the reader; there is no C# reader by design."
     },
     "STR_FRAME_M_KNM": {
       "state": "write_only",
@@ -1477,11 +1527,6 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
-    "STR_REBAR_DETAIL_TXT": {
-      "state": "write_only",
-      "role": "reference",
-      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
-    },
     "STR_REBAR_TOTAL_NO_NR": {
       "state": "read_only",
       "role": "unresolved",
@@ -1491,6 +1536,11 @@
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "STR_SECTION_PROFILE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "STR_SEISMIC_AGR": {
       "state": "write_only",

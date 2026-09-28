@@ -159,29 +159,29 @@ namespace StingTools.BOQ
             var bits = new List<string>();
 
             // Fire rating — search common parameter names + BuiltInParameter
-            double? fireMin = ReadDouble(el, "BLE_FIRE_RATING_MIN", "FIRE_RATING_MINUTES", "Fire Resistance Rating (minutes)");
-            string fireTxt  = ReadString(el, "FIRE_RATING_TXT", "Fire Rating", "FIRE_RATING");
+            double? fireMin = ReadDouble(el, "FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN", "PER_FIRE_RATING_MINS", "FIRE_RATING_MINUTES", "Fire Resistance Rating (minutes)");
+            string fireTxt  = ReadString(el, "PER_FIRE_RATING_TXT", "FIRE_RATING_TXT", "Fire Rating", "FIRE_RATING");
             if (fireMin.HasValue && fireMin.Value > 0)
                 bits.Add($"fire resistance {fireMin.Value:F0} min (BS EN 13501-2 / BS 476-20)");
             else if (!string.IsNullOrEmpty(fireTxt))
                 bits.Add($"fire resistance {fireTxt.Trim()} (BS EN 13501-2 / BS 476-20)");
 
             // Acoustic Rw — walls, floors, doors
-            double? rwDb = ReadDouble(el, "BLE_ACOUSTIC_RW_DB", "ACOUSTIC_RW_DB", "Weighted Sound Reduction Index Rw (dB)",
+            double? rwDb = ReadDouble(el, "BLE_DOOR_ACOUSTIC_RATING_DB", "ACOUSTIC_RW_DB", "Weighted Sound Reduction Index Rw (dB)",
                                           "BLE_DOOR_ACOUSTIC_RW", "BLE_WALL_ACOUSTIC_RW");
             if (rwDb.HasValue && rwDb.Value > 0)
                 bits.Add($"weighted sound reduction index Rw {rwDb.Value:F0} dB (BS EN ISO 717-1)");
 
             // Thermal U — walls, floors, roofs, windows
-            double? uVal = ReadDouble(el, "BLE_U_VALUE_W_M2K", "U_VALUE", "Thermal Transmittance U (W/m²K)");
+            double? uVal = ReadDouble(el, "PER_THERM_U_VALUE_W_M2K", "PER_U_VALUE_W_M2K", "BLE_WINDOW_U_VALUE_W_M_2K_NR", "U_VALUE", "Thermal Transmittance U (W/m²K)");
             if (uVal.HasValue && uVal.Value > 0)
                 bits.Add($"thermal transmittance U = {uVal.Value:F2} W/m²K (BS EN ISO 6946)");
 
             // MEP — duct velocity / pressure drop / flow
-            double? ductVel = ReadDouble(el, "BLE_DUCT_VELOCITY_M_S", "DUCT_VELOCITY_M_S", "Velocity");
+            double? ductVel = ReadDouble(el, ParamRegistry.HVC_VELOCITY, "DUCT_VELOCITY_M_S", "Velocity");
             if (ductVel.HasValue && ductVel.Value > 0 && IsDuct(item.Category))
                 bits.Add($"design velocity {ductVel.Value:F1} m/s (CIBSE Guide B3)");
-            double? pressureDropPa = ReadDouble(el, "BLE_DUCT_PRESSURE_DROP_PA", "PRESSURE_DROP_PA", "Pressure Drop");
+            double? pressureDropPa = ReadDouble(el, "HVC_PRESSURE_DROP_PA", "PRESSURE_DROP_PA", "Pressure Drop");
             if (pressureDropPa.HasValue && pressureDropPa.Value > 0 && IsDuct(item.Category))
                 bits.Add($"system pressure drop {pressureDropPa.Value:F0} Pa");
             // Internal ft³/s → l/s (the raw value was printed as "l/s").
@@ -190,7 +190,7 @@ namespace StingTools.BOQ
                 bits.Add($"design flow {flow.Value:F0} l/s");
 
             // Pipe velocity
-            double? pipeVel = ReadDouble(el, "BLE_PIPE_VELOCITY_M_S", "PIPE_VELOCITY");
+            double? pipeVel = ReadDouble(el, ParamRegistry.PLM_VELOCITY, "PIPE_VELOCITY", "Velocity");
             if (pipeVel.HasValue && pipeVel.Value > 0 && IsPipe(item.Category))
                 bits.Add($"pipe velocity {pipeVel.Value:F1} m/s (CIBSE Guide G)");
 
@@ -198,12 +198,12 @@ namespace StingTools.BOQ
             double? circuitA = ReadBipDouble(el, BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
             if (circuitA.HasValue && circuitA.Value > 0 && IsElectrical(item.Category))
                 bits.Add($"circuit rating {circuitA.Value:F0} A (BS 7671)");
-            string ipClass = ReadString(el, "BLE_ELECTRICAL_IP_RATING", "IP_RATING", "IP Class");
+            string ipClass = ReadString(el, "ELC_IP_RATING_TXT", "IP_RATING", "IP Class");
             if (!string.IsNullOrEmpty(ipClass))
                 bits.Add($"ingress protection {ipClass.Trim()} (BS EN 60529)");
 
             // Insulation thickness (ducts, pipes)
-            double? insMm = ReadDouble(el, "BLE_DUCT_INSULATION_MM", "BLE_PIPE_INSULATION_MM", "Insulation Thickness (mm)");
+            double? insMm = ReadDouble(el, "HVC_DCT_INSULATION_THK_MM", "PLM_PPE_INSULATION_THK_MM", "Insulation Thickness (mm)");
             if (insMm.HasValue && insMm.Value > 0)
                 bits.Add($"insulation thickness {insMm.Value:F0} mm (to TIMSA / CIBSE Commissioning Code)");
 
@@ -528,12 +528,12 @@ namespace StingTools.BOQ
         private static string BuildSmartName(BOQLineItem item, Element el)
         {
             string cat = item.Category ?? "";
-            double? thick = ReadDouble(el, "BLE_THICKNESS_MM", "Thickness", "BLE_WALL_THICKNESS_MM", "BLE_FLOOR_THICKNESS_MM");
-            double? width = ReadDouble(el, "BLE_WIDTH_MM", "Width");
-            double? height = ReadDouble(el, "BLE_HEIGHT_MM", "Height");
-            string material = ReadString(el, "STRUCTURAL_MATERIAL_PARAM", "Structural Material", "Material");
+            double? thick = ReadDouble(el, "BLE_WALL_THICKNESS_MM", "BLE_FLR_THICKNESS_MM", "BLE_ROOF_THICKNESS_MM", "Thickness");
+            double? width = ReadDouble(el, "BLE_DOOR_WIDTH_MM", "BLE_WINDOW_WIDTH_MM", "Width");
+            double? height = ReadDouble(el, "BLE_DOOR_HEIGHT_MM", "BLE_WINDOW_HEIGHT_MM", "BLE_WALL_HEIGHT_MM", "Height");
+            string material = ReadString(el, "Structural Material", "Material");
             string finish = ReadString(el, "BLE_FINISH_TXT", "Finish");
-            string fireTxt = ReadString(el, "FIRE_RATING_TXT", "Fire Rating");
+            string fireTxt = ReadString(el, "PER_FIRE_RATING_TXT", "FIRE_RATING_TXT", "Fire Rating");
 
             switch (cat)
             {

@@ -247,6 +247,9 @@ namespace StingTools.UI
                 DerateFactor = ParseDouble(FeederDerateFactor?.Text, 0.8),
                 DiversityPct = ParseDouble(FeederDiversityPct?.Text, 100),
                 InstallMethod = ((FeederInstallMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C",
+                Insulation = ((FeederInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70",
+                CableType = ((FeederCableType?.SelectedItem as ComboBoxItem)?.Tag as string)
+                            ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
                 VDLimitPct = feederVd > 0 ? feederVd : ParseDouble(txtVDOther?.Text, 5.0),
                 VDLimitUserSet = feederVd > 0,
             };
@@ -564,6 +567,7 @@ namespace StingTools.UI
                     CurrentA = c.CurrentA,
                     LoadKW = c.LoadKW,
                     VoltDropPct = c.VoltDropPct,
+                    VdUpperBound = c.VdUpperBound,
                     WireSize = c.WireSize,
                     LengthM = c.LengthM,
                     IsSpare = c.IsSpare,
@@ -684,6 +688,9 @@ namespace StingTools.UI
             ((cmbWireRefInsulation?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "PVC70";
         public string GetWireRefMethod() =>
             ((cmbWireRefMethod?.SelectedItem as ComboBoxItem)?.Tag as string) ?? "C";
+        public string GetWireRefCableType() =>
+            ((cmbWireRefCableType?.SelectedItem as ComboBoxItem)?.Tag as string)
+            ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType;
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -721,6 +728,8 @@ namespace StingTools.UI
         public double CurrentA { get; set; }
         public double LoadKW { get; set; }
         public double VoltDropPct { get; set; }
+        /// <summary>VoltDropPct is an A4-MAX upper bound (no cable recorded on the circuit).</summary>
+        public bool VdUpperBound { get; set; }
         public string WireSize { get; set; }
         public double LengthM { get; set; }
         public bool IsSpare { get; set; }
@@ -729,7 +738,7 @@ namespace StingTools.UI
 
         public string CurrentDisplay => CurrentA > 0 ? $"{CurrentA:0.0}" : "—";
         public string LoadDisplay    => LoadKW    > 0 ? $"{LoadKW:0.00}" : "—";
-        public string VDDisplay      => VoltDropPct > 0 ? $"{VoltDropPct:0.0}" : "—";
+        public string VDDisplay      => VoltDropPct > 0 ? $"{(VdUpperBound ? "≤" : "")}{VoltDropPct:0.0}" : "—";
         public string LengthDisplay  => LengthM   > 0 ? $"{LengthM:0.0}" : "—";
     }
 
@@ -857,6 +866,8 @@ namespace StingTools.UI
         public double CurrentA { get; set; }
         public double LoadKW { get; set; }
         public double VoltDropPct { get; set; }
+        /// <summary>VoltDropPct is an A4-MAX upper bound (no cable recorded on the circuit).</summary>
+        public bool VdUpperBound { get; set; }
         public string WireSize { get; set; }
         public double LengthM { get; set; }
         public bool IsSpare { get; set; }

@@ -378,7 +378,9 @@ namespace StingTools.Mcp
             rb["inspected"]           = applied.Inspected;
             rb["computed"]            = applied.Computed;
             rb["written"]             = applied.Written;
-            rb["perParamWritten"]     = new Dictionary<string, object> { ["csaNum"] = applied.WroteCsaNum, ["vdNum"] = applied.WroteVdNum };
+            rb["perParamWritten"]     = new Dictionary<string, object> { ["csaNum"] = applied.WroteCsaNum, ["vdNum"] = applied.WroteVdNum,
+                                                                     ["circuitCsa"] = applied.WroteCircuitCsa, ["nativeWireSize"] = applied.WroteNativeWireSize,
+                                                                     ["vdStamped"] = applied.VdStamped, ["vdNotCalculated"] = applied.VdNotCalculated };
             rb["noWritesPersisted"]   = applied.NoWritesPersisted;
             rb["typeScopeWrites"]     = applied.TypeScopeWrites;
             rb["requiredBindingGaps"] = applied.RequiredBindingGaps;
@@ -400,6 +402,7 @@ namespace StingTools.Mcp
                 InstallMethod  = a["installMethod"]?.Value<string>() ?? "C",
                 Material       = a["material"]?.Value<string>() ?? "Cu",
                 Insulation     = a["insulation"]?.Value<string>() ?? "PVC70",
+                CableType      = a["cableType"]?.Value<string>() ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
                 VDLimitPct     = a["vdLimitPct"]?.Value<double?>() ?? 3.0,
                 Standard       = a["standard"]?.Value<string>() ?? "BS7671",
                 AmbientTempC   = a["ambientTempC"]?.Value<double?>() ?? 30.0,
@@ -430,7 +433,7 @@ namespace StingTools.Mcp
 
         private static Dictionary<string, object> AssumptionsToDict(CableSizeInput a) => new Dictionary<string, object>
         {
-            ["installMethod"] = a.InstallMethod, ["material"] = a.Material, ["insulation"] = a.Insulation,
+            ["installMethod"] = a.InstallMethod, ["material"] = a.Material, ["insulation"] = a.Insulation, ["cableType"] = a.CableType,
             ["standard"] = a.Standard, ["vdLimitPct"] = a.VDLimitPct, ["ambientTempC"] = a.AmbientTempC,
             ["continuousLoad"] = a.ContinuousLoad,
         };
