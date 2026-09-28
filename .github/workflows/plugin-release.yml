@@ -7,13 +7,18 @@ name: Plugin Release
 #
 # Trigger it either way:
 #   • Actions tab → "Plugin Release" → Run workflow (workflow_dispatch), or
-#   • push a tag matching plugin-*  (e.g. `git tag plugin-v1.2 && git push origin plugin-v1.2`)
+#   • push a tag matching plugin-*  (e.g. `git tag plugin-v1.2 && git push origin plugin-v1.2`), or
+#   • merge (or push) to main with "[release]" in the head commit message. Agent sessions
+#     cannot push tags or dispatch workflows through their git proxy, so this is how they
+#     publish a build: merge the PR with "[release]" in the merge commit message.
 
 on:
   workflow_dispatch:
   push:
     tags:
       - 'plugin-*'
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -26,6 +31,8 @@ env:
 jobs:
   release:
     name: Build & publish plugin release
+    # A push to main publishes only when its head commit asks for it.
+    if: github.event_name != 'push' || startsWith(github.ref, 'refs/tags/') || contains(github.event.head_commit.message, '[release]')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
