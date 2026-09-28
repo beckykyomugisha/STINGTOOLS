@@ -1,12 +1,15 @@
 // StingTools — symbol maintenance commands (Phase 175)
 
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Content;
 using StingTools.Core.Symbols;
 
 namespace StingTools.Commands.Symbols
@@ -148,6 +151,124 @@ namespace StingTools.Commands.Symbols
                     $"Orphans healed : {orphansHealed}\nDrift fixed    : {driftFixed}\nFilters synced : {synced}");
             }
             return Result.Succeeded;
+        }
+    }
+
+    /// <summary>
+    /// Orientation-variant audit. Placement resolves a per-orientation family variant
+    /// from a concept's <c>orientationStates</c> and falls back to the base family when
+    /// the variant is absent. No *_VERTICAL_VIEW_PLAN / *_ENDVIEW families have been
+    /// authored yet, so without this report the fallback would be invisible. For every
+    /// concept declaring orientationStates it lists the variant family names that are
+    /// referenced but missing from the loaded families and the content roots.
+    /// </summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SymbolOrientationAuditCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            var doc = ctx.Doc;
+
+            string std = SymbolStandardResolver.ResolveStandard(doc, doc.ActiveView, null);
+            if (string.IsNullOrWhiteSpace(std)) std = "IEC";
+
+            var available = BuildAvailableFamilySet(doc);
+
+            int conceptsWithOs = 0, referenced = 0, missing = 0, present = 0;
+            var missingByConcept = new SortedDictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var c in SymbolConceptRegistry.ListConcepts())
+            {
+                if (c?.OrientationStates == null || c.OrientationStates.Count == 0) continue;
+                conceptsWithOs++;
+                var missHere = new List<string>();
+
+                foreach (var key in c.OrientationStates.Keys)
+                {
+                    // Horizontal plan is the base case; no variant is expected for it.
+                    if (key.IndexOf("HORIZONTAL_VIEW_PLAN", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+
+                    var cands = SymbolConceptRegistry.GetFamilyNameCandidates(
+                        c.ConceptId, std, null, null, key);
+                    if (cands.Count < 2) continue; // only the base resolved
+
+                    // Every candidate except the last (the base) is a referenced variant.
+                    for (int i = 0; i < cands.Count - 1; i++)
+                    {
+                        string v = cands[i];
+                        if (string.IsNullOrWhiteSpace(v)) continue;
+                        referenced++;
+                        if (available.Contains(v)) present++;
+                        else { missing++; if (!missHere.Contains(v)) missHere.Add(v); }
+                    }
+                }
+                if (missHere.Count > 0) missingByConcept[c.ConceptId] = missHere;
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Standard resolved: {std}");
+            sb.AppendLine($"Concepts declaring orientationStates : {conceptsWithOs}");
+            sb.AppendLine($"Orientation-variant families referenced: {referenced}");
+            sb.AppendLine($"  present (loaded or in content roots) : {present}");
+            sb.AppendLine($"  referenced but missing              : {missing}  (in {missingByConcept.Count} concept(s))");
+            if (missingByConcept.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Missing orientation variants (author these families, or accept the base-family fallback):");
+                foreach (var kv in missingByConcept.Take(25))
+                    sb.AppendLine($"  {kv.Key}: {string.Join(", ", kv.Value)}");
+                if (missingByConcept.Count > 25)
+                    sb.AppendLine($"  … +{missingByConcept.Count - 25} more concept(s) in the StingTools_yyyyMMdd.log file");
+            }
+            else if (conceptsWithOs > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Every referenced orientation variant resolves.");
+            }
+
+            StingLog.Info($"Symbols_OrientationAudit: concepts={conceptsWithOs} referenced={referenced} " +
+                $"present={present} missing={missing} std={std}");
+            foreach (var kv in missingByConcept)
+                StingLog.Info($"  orientation-missing {kv.Key}: {string.Join(", ", kv.Value)}");
+
+            new TaskDialog("STING - Orientation Variant Audit")
+            {
+                MainInstruction = $"{missing} referenced orientation variant(s) missing across {conceptsWithOs} concept(s)",
+                MainContent = sb.ToString()
+            }.Show();
+            return Result.Succeeded;
+        }
+
+        /// <summary>Family names available anywhere: loaded in the project plus every .rfa
+        /// base name across the content roots (recursive).</summary>
+        private static HashSet<string> BuildAvailableFamilySet(Document doc)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var fs in new FilteredElementCollector(doc)
+                    .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
+                {
+                    if (!string.IsNullOrEmpty(fs.FamilyName)) set.Add(fs.FamilyName);
+                    if (!string.IsNullOrEmpty(fs.Name)) set.Add(fs.Name);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"OrientationAudit loaded scan: {ex.Message}"); }
+
+            foreach (var root in ContentRoots.Resolve(doc))
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(root) || !Directory.Exists(root)) continue;
+                    foreach (var f in Directory.EnumerateFiles(root, "*.rfa", SearchOption.AllDirectories))
+                        set.Add(Path.GetFileNameWithoutExtension(f));
+                }
+                catch (Exception ex) { StingLog.Warn($"OrientationAudit root '{root}': {ex.Message}"); }
+            }
+            return set;
         }
     }
 }
