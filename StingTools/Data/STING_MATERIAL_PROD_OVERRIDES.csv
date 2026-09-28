@@ -1,4 +1,5 @@
-Category,MaterialPattern,Suffix
+﻿Category,MaterialPattern,Suffix,ExcludePattern
+# ExcludePattern (optional, 4th column): when it matches, the rule does NOT apply and matching continues to later rules. A 3-column row behaves exactly as before.
 # N+2 — Material-driven PROD code suffix.
 # First match wins. Category = "*" applies to every category.
 # MaterialPattern is regex, case-insensitive.
@@ -47,5 +48,5 @@ Category,MaterialPattern,Suffix
 *,(?i)\bfabrics?\b|\btextile|\bcurtain.*material,FAB
 *,(?i)\bpaint|\bcoating,PNT
 *,(?i)\bresin|\bepoxy,RSN
-*,(?i)\blead\b,PB
+*,(?i)\blead\b,PB,(?i)\blead[-\s]?free\b
 *,(?i)\bzinc,ZN

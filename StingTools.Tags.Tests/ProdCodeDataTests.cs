@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -572,20 +572,76 @@ namespace StingTools.Tags.Tests
         }
 
         /// <summary>
-        /// Known-unresolved, named rather than quietly tolerated.
+        /// RESOLVED 2026-09-24 (ROADMAP PROD-2) — a negated material name no longer
+        /// takes the material's code.
         ///
-        /// <para>"Lead-Free Solder" still takes -PB. That is not a boundary problem — the
-        /// word IS "lead", correctly bounded — it is a NEGATION the table has no way to
-        /// express, and inventing a <c>(?!-free)</c> special case invites tin-free,
-        /// chrome-free and every other one after it. It is recorded here so the next
-        /// reader meets it as a known limit rather than as a fresh surprise; the test
-        /// fails if it is ever fixed, so the note cannot rot.</para>
+        /// <para>"Lead-Free Solder" took -PB. That was never a boundary problem — the
+        /// word IS "lead", correctly bounded — it was a NEGATION the table had no way
+        /// to express. The fix is an optional 4th CSV column, ExcludePattern, not a
+        /// <c>(?!-free)</c> hard-coded into the lead row: that would have invited
+        /// tin-free, chrome-free and every other one after it as more hard-coding,
+        /// which is exactly what the roadmap entry warned against. The next one is a
+        /// CSV edit.</para>
         /// </summary>
         [Fact]
-        public void KnownUnresolved_A_Negated_Material_Name_Still_Matches_The_Material()
+        public void A_Negated_Material_Name_No_Longer_Takes_The_Materials_Code()
+        {
+            Assert.Null(
+                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), "Lead-Free Solder", "Pipe Fittings"));
+        }
+
+        /// <summary>The exclusion must not swallow the material it is guarding.</summary>
+        [Theory]
+        [InlineData("Lead Sheet")]
+        [InlineData("Lead Pipe")]
+        // NOT "Lead-lined Plasterboard": the plaster rule sits above the lead rule
+        // and wins on first-match, which is existing behaviour and nothing to do
+        // with the exclusion. A test case that exercises rule ORDER while claiming
+        // to test the exclusion proves neither.
+        [InlineData("lead flashing")]
+        public void PlainLeadStillTakesThePbCode(string material)
         {
             Assert.Equal("PB",
-                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), "Lead-Free Solder", "Pipe Fittings"));
+                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), material, "Pipe Fittings"));
+        }
+
+        /// <summary>
+        /// A rule with no ExcludePattern behaves exactly as it did before the column
+        /// existed — every other row in the shipped table is one of these.
+        /// </summary>
+        [Theory]
+        [InlineData("Structural Steel S355", "STL")]
+        [InlineData("C32/40 Concrete", "CON")]
+        [InlineData("Copper Pipe", "CU")]
+        public void RulesWithoutAnExclusionAreUnchanged(string material, string expected)
+        {
+            Assert.Equal(expected,
+                MaterialProdOverrideRules.ResolveSuffix(MaterialRules(), material, "Pipe Fittings"));
+        }
+
+        /// <summary>
+        /// A malformed exclusion drops the whole row rather than applying the rule
+        /// without its guard.
+        ///
+        /// <para>The alternative — keep the rule, ignore the broken exclusion — would
+        /// silently restore the exact defect the exclusion was added to fix, and would
+        /// do it at the moment someone fat-fingered a bracket. Losing one material
+        /// suffix is recoverable and is named in the warnings; a wrong PROD code on a
+        /// drawing is not.</para>
+        /// </summary>
+        [Fact]
+        public void AMalformedExclusionDropsTheRuleAndSaysSo()
+        {
+            var warnings = new List<string>();
+            var rules = MaterialProdOverrideRules.Parse(new[]
+            {
+                "Category,MaterialPattern,Suffix,ExcludePattern",
+                @"*,(?i)\blead\b,PB,(?i)\blead[-\s]?free\b[",   // unbalanced [
+            }, warnings);
+
+            Assert.Empty(rules);
+            Assert.Contains(warnings, w => w.Contains("bad exclusion regex"));
+            Assert.Contains(warnings, w => w.Contains("rule dropped"));
         }
 
         /// <summary>

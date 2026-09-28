@@ -65643,7 +65643,8 @@
           "size": "2.0"
         }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv",
+      "csv_family_alias": "Tie-In Point (Pipe — Plumbin"
     },
     "Tie-In Point Tag (Duct — HVAC)": {
       "family_name": "STING - Tie-In Point Tag (Duct — HVAC)",
@@ -65997,7 +65998,8 @@
           "size": "2.0"
         }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv",
+      "csv_family_alias": "Tie-In Point (Duct — HVAC)"
     },
     "Tie-In Point Tag (Conduit — Electrical LV/ELV)": {
       "family_name": "STING - Tie-In Point Tag (Conduit — Electrical LV/ELV)",
@@ -66324,7 +66326,8 @@
           "size": "2.0"
         }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv",
+      "csv_family_alias": "Tie-In Point (Conduit — Elec"
     },
     "Tie-In Point Tag (Cable Tray — Electrical)": {
       "family_name": "STING - Tie-In Point Tag (Cable Tray — Electrical)",
@@ -66650,7 +66653,8 @@
           "size": "2.0"
         }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv",
+      "csv_family_alias": "Tie-In Point (Cable Tray — E"
     },
     "Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)": {
       "family_name": "STING - Tie-In Point Tag (Fire Protection — Sprinkler / Suppression)",
@@ -66987,7 +66991,8 @@
           "size": "2.0"
         }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv",
+      "csv_family_alias": "Tie-In Point (Fire Protectio"
     },
     "Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)": {
       "family_name": "STING - Tie-In Point Tag (Gas — Medical / Industrial / Natural Gas)",
@@ -67332,7 +67337,8 @@
           "size": "2.0"
         }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv"
+      "source_csv": "STING_TAG_CONFIG_v5_0_MEP.csv",
+      "csv_family_alias": "Tie-In Point (Gas — Medical "
     },
     "MEP Sheet": {
       "family_name": "STING - MEP Sheet Tag",
@@ -68889,7 +68895,8 @@
           "size": "2.0"
         }
       ],
-      "source_csv": "STING_TAG_CONFIG_v5_0_STR.csv"
+      "source_csv": "STING_TAG_CONFIG_v5_0_STR.csv",
+      "csv_family_alias": "Brace - Truss"
     },
     "Structural Sheet": {
       "family_name": "STING - Structural Sheet Tag",
