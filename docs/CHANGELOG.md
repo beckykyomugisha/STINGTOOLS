@@ -2,6 +2,29 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (tester kit: install, 90-day licences, smoke tests, 2026-09-28)
+
+A package testers can install without developer tools or administrator rights. The
+`Plugin Release` workflow now builds it as `STING-Tester-Kit.zip` next to the existing
+release assets. The scripts are in `tools/tester-kit/`:
+
+- `Get-MachineCode.cmd` prints the code the Activate dialog shows (the MachineGuid-based
+  "Stable" code), so a tester can send it before installing. Checked equal to
+  `FingerprintComposer.Compute` for the same input.
+- `Install-STING.cmd` copies the plugin to `%LOCALAPPDATA%\Planscape\STING-Tester\Plugin`,
+  unblocks the files (Revit will not load a DLL marked as downloaded), and writes a per-user
+  `StingTools.addin` for each Revit 2025 / 2026 / 2027 found. It refuses while Revit runs, and
+  when a per-machine manifest would load STING twice. A previous manifest is kept, and
+  `Uninstall-STING.cmd` restores it.
+- `Install-Licence.cmd` puts the received `StingTools.lic` where `LicenseGate` reads it.
+- `TESTER_GUIDE` (Markdown and Word) and both Revit smoke tests (`TAG_TEST_PROTOCOL.md`, the
+  SYMBOL_SLD checklist) ship in the kit.
+
+Licences stay machine-bound and signed. `tools/tester-kit/licence-issuer/Issue-TesterLicences.ps1`
+issues 90-day licences (`-Days` to change) for every row of a `testers.csv` with the existing
+`private.pem`. It is never packaged. An issue-and-verify round trip with a throwaway key
+checked the result: valid at day 89, expired at day 91, wrong machine rejected.
+
 #### Completed (symbol library and SLD, ported from #951, 2026-09-28)
 
 PR #951 (`claude/symbol-sld-only`, 17 commits from 2026-07-02) shares no history with main,

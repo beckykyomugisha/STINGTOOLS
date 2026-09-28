@@ -45,3 +45,9 @@ docs/binding_gaps.csv                 text eol=lf
 # generator's INPUT, and a CRLF input would change what the generator reads.
 StingTools/Data/MR_PARAMETERS.csv     text eol=lf
 StingTools/Data/MR_PARAMETERS.txt     text eol=lf
+
+# Tester kit: Windows scripts must reach testers with CRLF (cmd.exe misparses LF-only
+# batch files); the Word guide is binary.
+tools/tester-kit/**/*.cmd  text eol=crlf
+tools/tester-kit/**/*.ps1  text eol=crlf
+tools/tester-kit/*.docx    binary
