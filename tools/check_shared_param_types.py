@@ -27,9 +27,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MR   = os.path.join(ROOT, 'StingTools', 'Data', 'MR_PARAMETERS.txt')
 KITS = [os.path.join(ROOT, 'docs', 'UNIVERSAL_TAG_MASTER_PARAMS.txt')]
 
-# FAMILY_PARAMETER_BINDINGS.csv is read by BatchAddFamilyParamsCommand, which runs
-# inside ProjectSetupCommand and MasterSetupCommand -- so a wrong DataType here
-# becomes a real family parameter, and a load conflict, on any set-up project.
+# FAMILY_PARAMETER_BINDINGS.csv is read by BatchAddFamilyParamsCommand for WHICH
+# parameter goes on WHICH category. The parameter itself, type included, comes from
+# the ExternalDefinition in MR_PARAMETERS.txt, so a wrong DataType column here is not
+# a load conflict on that path -- it is a documentation hazard: a data file that
+# disagrees with MR misleads every reader of it, and a future consumer could trust it.
 # It carries a large pre-existing disagreement with MR_PARAMETERS.txt. Fixing all
 # of it is its own job (ROADMAP PARAMTYPE-3); this gate BASELINES it so it cannot
 # grow, the same contract as docs/BINDING_SCOPE_BASELINE.json: may shrink, never grow.
@@ -115,8 +117,8 @@ def main():
         if n_fpb > FPB_BASELINE:
             print('FAIL: FAMILY_PARAMETER_BINDINGS.csv now disagrees with '
                   'MR_PARAMETERS.txt on %d parameters (baseline %d).' % (n_fpb, FPB_BASELINE))
-            print('Each is a same-GUID type conflict that BatchAddFamilyParams can bake into')
-            print('a family and that Revit will refuse on load. Fix the new one, or lower the')
+            print('Each is a DataType column that contradicts MR_PARAMETERS.txt, the reference')
+            print('BatchAddFamilyParams actually binds from. Fix the new one, or lower the')
             print('baseline if you fixed others.')
             return 1
 
