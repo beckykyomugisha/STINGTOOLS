@@ -149,15 +149,14 @@ namespace StingTools.Docs
         public string Name => "ScheduledExports";
         public int Priority => 4;
         public int BudgetMs => 1;
+        // true = drop from the queue, not "succeeded". A throw is left to
+        // StingIdlingScheduler, which logs it and drops the job, so a failing export
+        // is neither reported as run nor retried on every idle tick.
         public bool Execute(UIApplication uiApp)
         {
-            try
-            {
-                if (_doc == null || !_doc.IsValidObject) return true;
-                int ran = ScheduledExportRunner.RunDue(_doc, fromSave: true);
-                if (ran > 0) StingLog.Info($"Save-triggered scheduled exports: {ran} job(s) ran for {_doc.Title}.");
-            }
-            catch (Exception ex) { StingLog.Warn($"ScheduledExportJob: {ex.Message}"); }
+            if (_doc == null || !_doc.IsValidObject) return true;
+            int ran = ScheduledExportRunner.RunDue(_doc, fromSave: true);
+            if (ran > 0) StingLog.Info($"Save-triggered scheduled exports: {ran} job(s) ran for {_doc.Title}.");
             return true;
         }
     }
