@@ -454,7 +454,7 @@ namespace StingTools.ExLink
             props.Add(BIP("Area", "HOST_AREA_COMPUTED", "Dimensions", true));
             props.Add(BIP("Volume", "HOST_VOLUME_COMPUTED", "Dimensions", true));
             props.Add(BIP("Length", "CURVE_ELEM_LENGTH", "Dimensions", true));
-            props.Add(Sting("BLE_WALL_FIRE_RATING_TXT", "Building Elements"));
+            props.Add(Sting("PER_FIRE_RATING_TXT", "Building Elements"));
             return props;
         }
 
@@ -477,7 +477,7 @@ namespace StingTools.ExLink
             props.AddRange(LifecycleProps());
             props.Add(BIP("Width", "FAMILY_WIDTH_PARAM", "Dimensions", true));
             props.Add(BIP("Height", "FAMILY_HEIGHT_PARAM", "Dimensions", true));
-            props.Add(Sting("BLE_DOOR_FIRE_RATING_TXT", "Building Elements"));
+            props.Add(Sting("PER_FIRE_RATING_TXT", "Building Elements"));
             return props;
         }
 
@@ -539,7 +539,7 @@ namespace StingTools.ExLink
             props.Add(BIP("Base Level", "FAMILY_BASE_LEVEL_PARAM", "Dimensions"));
             props.Add(BIP("Top Level", "FAMILY_TOP_LEVEL_PARAM", "Dimensions"));
             props.Add(BIP("Length", "INSTANCE_LENGTH_PARAM", "Dimensions", true));
-            props.Add(Sting("STR_CONCRETE_GRADE_TXT", "Structural"));
+            props.Add(Sting("BLE_STRUCT_CONCRETE_GRADE_TXT", "Structural"));
             return props;
         }
 
@@ -552,7 +552,7 @@ namespace StingTools.ExLink
             props.AddRange(LifecycleProps());
             props.Add(BIP("Reference Level", "INSTANCE_REFERENCE_LEVEL_PARAM", "Dimensions"));
             props.Add(BIP("Length", "INSTANCE_LENGTH_PARAM", "Dimensions", true));
-            props.Add(Sting("STR_CONCRETE_GRADE_TXT", "Structural"));
+            props.Add(Sting("BLE_STRUCT_CONCRETE_GRADE_TXT", "Structural"));
             return props;
         }
 
@@ -563,7 +563,7 @@ namespace StingTools.ExLink
             props.AddRange(ISOTokenProps());
             props.AddRange(TagContainerProps());
             props.Add(BIP("Level", "SCHEDULE_LEVEL_PARAM", "Dimensions"));
-            props.Add(Sting("STR_CONCRETE_GRADE_TXT", "Structural"));
+            props.Add(Sting("BLE_STRUCT_CONCRETE_GRADE_TXT", "Structural"));
             return props;
         }
 
@@ -822,7 +822,7 @@ namespace StingTools.ExLink
             props.Add(Sting(ParamRegistry.TAG1, "Tags", true));
             props.Add(BIP("Width", "FAMILY_WIDTH_PARAM", "Dimensions", true));
             props.Add(BIP("Height", "FAMILY_HEIGHT_PARAM", "Dimensions", true));
-            props.Add(Sting("BLE_DOOR_FIRE_RATING_TXT", "Building Elements"));
+            props.Add(Sting("PER_FIRE_RATING_TXT", "Building Elements"));
             props.Add(BIP("Description", "ALL_MODEL_DESCRIPTION", "Identity"));
             props.AddRange(LifecycleProps());
             return props;

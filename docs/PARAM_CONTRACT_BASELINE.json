@@ -387,6 +387,11 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "BLE_PLASTER_FACES_NR": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "BLE_ROOM_FINISH_BASE_TXT": {
       "state": "read_only",
       "role": "export",
@@ -581,6 +586,11 @@
       "state": "write_only",
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "ELC_CDT_CABLE_MANIFEST_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "ELC_CDT_MAT_TXT": {
       "state": "read_only",
@@ -882,6 +892,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
     },
+    "HVC_SYSTEM_ID_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "IFC_GLOBAL_ID_TXT": {
       "state": "read_only",
       "role": "input",
@@ -1072,6 +1087,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "MGS_GAS_REQUIREMENT_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "MGS_NOM_PRESS_KPA_NR": {
       "state": "read_only",
       "role": "input",
@@ -1107,10 +1127,20 @@
       "role": "export",
       "reason": "Consumed by 3 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"BOQ-ARCH-Roofing\". A schedule is a real reader; this scan only sees C#."
     },
+    "PLM_FIX_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "PLM_PPE_MAT_TXT": {
       "state": "read_only",
       "role": "export",
       "reason": "Consumed by 2 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Pipe Schedule\". A schedule is a real reader; this scan only sees C#."
+    },
+    "PLM_RECIRC_DELTA_T_K": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PLM_RECIRC_DRV_KV": {
       "state": "write_only",
@@ -1147,6 +1177,11 @@
       "role": "pipeline",
       "reason": "Written by Title Block Populate from TITLE_BLOCK.csv, where the parameter name is a LOOP VARIABLE -- so the producer is real but invisible to this scan. Read back by Populate's LOD consistency report and by SheetQrStamper."
     },
+    "PRJ_ELC_SUPPLY_VOLTAGE_TXT": {
+      "state": "read_only",
+      "role": "reference",
+      "reason": "Written by Project Setup through Parameter.Set on the looked-up parameter, which this scan counts as a read. Recorded on Project Information for schedules and title blocks; no C# reader by design."
+    },
     "PRJ_GRID_REF_TXT": {
       "state": "read_only",
       "role": "export",
@@ -1162,6 +1197,16 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "PRJ_ORG_CURRENCY_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "PRJ_ORG_DISCIPLINES_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "PRJ_ORG_HEALTH_BEDS_INT": {
       "state": "read_only",
       "role": "input",
@@ -1173,6 +1218,11 @@
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
     "PRJ_ORG_HEALTH_FACILITY_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "PRJ_ORG_MAT_SIGNOFF_SUIT_TXT": {
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
@@ -1276,6 +1326,11 @@
       "state": "write_only",
       "role": "export",
       "reason": "Written for the title block to display. The consumer is the sheet, not C#."
+    },
+    "PROJECT_REGION": {
+      "state": "read_only",
+      "role": "pipeline",
+      "reason": "Written by the Standards Region picker through Parameter.Set (counted here as a read) and read on document open to select the region's standards. Both ends are in code; the scan sees only the lookup."
     },
     "PROP_ACOUSTIC_ABS": {
       "state": "write_only",

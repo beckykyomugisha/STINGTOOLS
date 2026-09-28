@@ -437,7 +437,7 @@ namespace StingTools.Commands.Hvac
         {
             try
             {
-                string sysId = s.LookupParameter("HVC_SYSTEM_ID_TXT")?.AsString();
+                string sysId = s.LookupParameter(ParamRegistry.HVC_SYSTEM_ID_TXT)?.AsString();
                 if (!string.IsNullOrWhiteSpace(sysId)) return sysId;
                 // Group by Zone if available — `Space.Zone` returns the Revit
                 // HVAC Zone the space is assigned to. Wrapped because not

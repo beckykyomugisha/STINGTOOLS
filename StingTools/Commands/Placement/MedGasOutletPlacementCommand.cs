@@ -130,7 +130,7 @@ namespace StingTools.Commands.Placement
                 .OfType<Room>()
                 .Where(r =>
                 {
-                    var p = r.LookupParameter("MGS_GAS_REQUIREMENT_TXT");
+                    var p = r.LookupParameter(ParamRegistry.MGS_GAS_REQUIREMENT_TXT);
                     return p != null && !string.IsNullOrWhiteSpace(p.AsString());
                 })
                 .ToList();
@@ -140,7 +140,7 @@ namespace StingTools.Commands.Placement
                 TaskDialog.Show("STING Med Gas Outlets",
                     "No rooms with a 'MGS_GAS_REQUIREMENT_TXT' parameter found.\n\n" +
                     "Set this parameter on each clinical room to a comma-separated\n" +
-                    "list of gas codes, e.g.:  O2,VAC,AIR,N2O");
+                    "list of gas codes, e.g.:  O2,VAC,MA4,N2O (medical air is MA4).");
                 return Result.Cancelled;
             }
 
@@ -402,7 +402,7 @@ namespace StingTools.Commands.Placement
         }
 
         private static IEnumerable<string> GasCodesOf(Room room)
-            => (room.LookupParameter("MGS_GAS_REQUIREMENT_TXT")?.AsString() ?? "")
+            => (room.LookupParameter(ParamRegistry.MGS_GAS_REQUIREMENT_TXT)?.AsString() ?? "")
                 .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(g => g.Trim())
                 .Where(g => g.Length > 0);

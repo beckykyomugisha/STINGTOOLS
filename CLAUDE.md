@@ -1791,7 +1791,9 @@ STINGTOOLS/
 - **Reload**: `Reload()` forces re-read from disk
 
 ### `ParameterHelpers` (static) — `Core/ParameterHelpers.cs` (2,009 lines)
-- `GetString(el, paramName)`
+- `GetString(el, paramName)` — TEXT only; returns "" for any other storage
+- `GetValueText(el, paramName)` — any storage as invariant text in the unit the name states (mm, m for `_M`, m², m³, V/VA/W/A)
+- `SetDoubleInNamedUnit(el, paramName, value)` — writes a value given in its named unit: feet for a LENGTH, as given for a NUMBER, invariant text for TEXT
 - `GetInt(el, paramName, defaultValue)`
 - `SetString(el, paramName, value, overwrite)`
 - `SetInt(el, paramName, value)`
@@ -2759,6 +2761,8 @@ result set. Prove RED before GREEN and report both numbers.
 - Add `[Regeneration(RegenerationOption.Manual)]` for commands that modify the model
 - Use `TaskDialog` for user-facing messages (not `MessageBox`)
 - Use `StingLog.Info/Warn/Error` for all logging — never use silent catch blocks
+- Read a parameter that may not be TEXT with `ParameterHelpers.GetValueText`, not `GetString` (which returns "" for NUMBER / LENGTH / AREA / INTEGER), and write a measured value with `SetDoubleInNamedUnit`, not `SetString` (which refuses it) or a raw `Set` (a LENGTH stores feet, so 3000 mm written raw is 3000 ft). An element's system name comes from `Core/Mep/ServiceSystemName.Read`
+- Name a parameter through a `ParamRegistry` constant, and add it to `MR_PARAMETERS.txt` through the generators (`param_binding_resolver.py`, `sync_csv_from_txt.py`) before reading it; `StingTools/Data/MISSING_PARAMETERS.md` lists every surface a new parameter goes on
 - Read electrical quantities through `Core/Electrical/ElecUnits` (`ToSi`, `Read`, `VoltsFromInternal`, `VAFromInternal`), never a raw `AsDouble()`: Revit stores 1 V as 10.7639 internal units (VA/W likewise), and API properties such as `ElectricalSystem.Voltage` / `ApparentLoad` return internal units too
 - Handle `OperationCanceledException` for user-cancelled operations
 - Use `FilteredElementCollector` with appropriate filters for performance

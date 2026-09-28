@@ -70,7 +70,7 @@ namespace StingTools.Core.Validation
                 {
                     if (!(el is FamilyInstance fi)) continue;
 
-                    string type = ParameterHelpers.GetString(fi, "PLM_FIX_TYPE_TXT");
+                    string type = ParameterHelpers.GetString(fi, ParamRegistry.PLM_FIX_TYPE_TXT);
                     if (string.IsNullOrEmpty(type))
                     {
                         // Try ASS_PRODCT_COD_TXT as a fallback signal.

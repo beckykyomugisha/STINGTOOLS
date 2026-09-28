@@ -24280,3 +24280,54 @@ every `GetString` read against the parameter's data type.
 - **Gate.** `check_param_contract.py` counts `SetDoubleInNamedUnit` as a write.
 - **Tests.** 3,576 passing. Not exercised in Revit. Run Load Shared Parameters to bind the
   new parameters.
+
+#### New parameters aligned across every binding surface; mirror bindings corrected (2026-09-28)
+
+- **The thirteen PARAM-10 parameters** now appear consistently on every surface
+  `StingTools/Data/MISSING_PARAMETERS.md` lists. The GUID, type, group and categories
+  were checked to agree across:
+  - `MR_PARAMETERS.txt` / `.csv` and `PARAMETER_REGISTRY.json`;
+  - both `RESOLVED_BINDINGS.csv` copies;
+  - `CATEGORY_BINDINGS.csv` (v3.17), `PARAMETER_CATEGORIES.csv` (v2.7) and
+    `BINDING_COVERAGE_MATRIX.csv` (v5.7);
+  - a `ParamRegistry` const + `_GUID` each, now used at all 19 read sites instead of literals.
+- **Bindings checked against what the code reads.**
+  - `MGS_GAS_REQUIREMENT_TXT` narrowed to Rooms: Med Gas Outlet placement reads Rooms only.
+  - `BLE_PLASTER_FACES_NR` narrowed to Walls: the take-off never plasters curtain panels or
+    mullions.
+  - Both parameters were one day old, and the loader never removes a category, so no
+    project loses a binding.
+  - `ELC_ENERGY_KWH_PA` widened to mechanical equipment and luminaires. Its legacy
+    `Generic Models,Type` row is removed and its type corrected to TEXT in
+    `PARAMETER_CATEGORIES.csv`.
+- **B6 carbon actually reads equipment.** The stage tracker walked only building-fabric
+  categories, so the B6 energy it looked for could never be found. B6 now has its own
+  pass over electrical and mechanical equipment and luminaires, and reports equipment with
+  no energy figure as not calculated.
+- **Descriptions corrected.**
+  - `PLM_RECIRC_DELTA_T_K` is the water-to-air temperature difference for pipe heat loss
+    (default 40 K), not the loop's temperature drop.
+  - `MGS_GAS_REQUIREMENT_TXT` lists the codes the command recognises (O2, N2O, CO2, MA4,
+    MA7, N2, HE, VAC, AGS). Its own prompt suggested "AIR", which it does not recognise.
+  - `MNT_ACCESS_DIR_TXT` takes BOTTOM, not ALL.
+- **42 `_TXT` display mirrors** were bound to fewer categories than the value they mirror,
+  so a tag label read blank there. `param_binding_resolver.py` now binds every mirror
+  wherever its source binds; all 197 match.
+  - `bind_txt_mirrors.py` deleted an unrelated history line (it matched on a shared
+    "# v3.9 |" prefix), moved its header to the top, stamped today's date (not idempotent)
+    and dropped the file's byte-order mark. All four are fixed, and its 52 missing mirror
+    rows are written.
+- **Other names aligned.**
+  - ExLink exports read `BLE_STRUCT_CONCRETE_GRADE_TXT` and `PER_FIRE_RATING_TXT`, as the
+    BOQ paragraphs already did (three baselined names removed).
+  - The sizing-rules note names `HVC_PROD_REF_TXT`.
+  - The automation roadmap's MEP-A-01 row says it was superseded.
+- **Guides.** The sustainability guide gives each carbon stage's inputs. The electrical,
+  HVAC and plumbing guides say where to enter cable rated voltage, a space's air system,
+  the recirculation ΔT and the fixture kind.
+- **CLAUDE.md** conventions name `GetValueText`, `SetDoubleInNamedUnit`,
+  `ServiceSystemName` and the new-parameter checklist.
+- **Found, not fixed (PARAM-11).** 588 parameters disagree between `CATEGORY_BINDINGS.csv`
+  and `PARAMETER_CATEGORIES.csv`; both are older than `RESOLVED_BINDINGS.csv`, which is what
+  Load Shared Parameters binds from.
+- **Tests.** 3,576 passing; all gates pass. Not exercised in Revit.

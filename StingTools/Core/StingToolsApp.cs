@@ -947,7 +947,7 @@ namespace StingTools.Core
                     StingTools.Core.EngineRegionSync.Attach();
 
                     var pi = e.Document?.ProjectInformation;
-                    string projectRegion = pi?.LookupParameter("PROJECT_REGION")?.AsString();
+                    string projectRegion = pi?.LookupParameter(ParamRegistry.PROJECT_REGION)?.AsString();
                     string source = "PROJECT_REGION";
                     if (string.IsNullOrWhiteSpace(projectRegion))
                     {

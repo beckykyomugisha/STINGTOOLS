@@ -4049,6 +4049,34 @@ namespace StingTools.Core
         public const string CBN_C3_C4_KG_CO2E            = "CBN_C3_C4_KG_CO2E";
         public const string CBN_C3_C4_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000013";
 
+        // --- PARAM-10: parameters the code read before any file defined them (2026-09-27) ---
+        public const string ELC_CBL_RATED_V_NR               = "ELC_CBL_RATED_V_NR";
+        public const string ELC_CBL_RATED_V_NR_GUID          = "826c7919-4bb2-56eb-a0df-7ec7bd852126";
+        public const string PROJECT_REGION                   = "PROJECT_REGION";
+        public const string PROJECT_REGION_GUID              = "8785ba08-0398-5be0-ad70-a3e0b545b44b";
+        public const string PRJ_ORG_CURRENCY_TXT             = "PRJ_ORG_CURRENCY_TXT";
+        public const string PRJ_ORG_CURRENCY_TXT_GUID        = "6a3d0f1e-1067-59c4-958a-0bbccbdb35d5";
+        public const string PRJ_ORG_DISCIPLINES_TXT          = "PRJ_ORG_DISCIPLINES_TXT";
+        public const string PRJ_ORG_DISCIPLINES_TXT_GUID     = "bc8e6c91-1c5d-5120-8d73-41936a67b070";
+        public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT     = "PRJ_ORG_MAT_SIGNOFF_SUIT_TXT";
+        public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT_GUID = "6302d0f2-16a2-5449-a6db-cc3e9c374609";
+        public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT       = "PRJ_ELC_SUPPLY_VOLTAGE_TXT";
+        public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT_GUID  = "878bb409-fa13-5d8f-ae92-8fdac5aa7375";
+        public const string PLM_RECIRC_DELTA_T_K             = "PLM_RECIRC_DELTA_T_K";
+        public const string PLM_RECIRC_DELTA_T_K_GUID        = "b0ae4e71-3170-55ff-9c47-5e559ee12943";
+        public const string PLM_FIX_TYPE_TXT                 = "PLM_FIX_TYPE_TXT";
+        public const string PLM_FIX_TYPE_TXT_GUID            = "825bb253-9c4b-5051-bd48-8b50ebdbd40b";
+        public const string MGS_GAS_REQUIREMENT_TXT          = "MGS_GAS_REQUIREMENT_TXT";
+        public const string MGS_GAS_REQUIREMENT_TXT_GUID     = "0427a377-ac36-52c4-b9e3-ab62433bc577";
+        public const string HVC_SYSTEM_ID_TXT                = "HVC_SYSTEM_ID_TXT";
+        public const string HVC_SYSTEM_ID_TXT_GUID           = "3955ebbc-36a2-5a8e-b495-f463c9d9fa8f";
+        public const string MNT_ACCESS_DIR_TXT               = "MNT_ACCESS_DIR_TXT";
+        public const string MNT_ACCESS_DIR_TXT_GUID          = "949f0c78-685c-5f70-b670-fe74183f81dd";
+        public const string ELC_CDT_CABLE_MANIFEST_TXT       = "ELC_CDT_CABLE_MANIFEST_TXT";
+        public const string ELC_CDT_CABLE_MANIFEST_TXT_GUID  = "fd6672f7-86e9-55f8-a982-cb3f1118f151";
+        public const string BLE_PLASTER_FACES_NR             = "BLE_PLASTER_FACES_NR";
+        public const string BLE_PLASTER_FACES_NR_GUID        = "10694d13-4a6e-5947-9f2f-d89e531db0c7";
+
         // --- T7: Fabrication & QC (BS EN ISO 6412 spool / QC inspector chain) ---
         public const string ASS_SPOOL_NR_TXT             = "ASS_SPOOL_NR_TXT";
         public const string ASS_SPOOL_NR_TXT_GUID        = "1a4353be-eaaa-5e46-95ee-b64a74667194";

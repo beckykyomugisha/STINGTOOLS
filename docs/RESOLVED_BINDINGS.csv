@@ -383,7 +383,7 @@ BLE_CEILING_GRID_SZ_MM,2,ble-sub,Ceilings,Ble Ceiling Grid Sz Mm [ISO 19650-1:20
 BLE_CEILING_GRID_SZ_TXT,2,ble-sub,Ceilings,BLE_CEILING_GRID_SZ_MM display mirror [auto-generated]
 BLE_CEILING_GRID_TXT,10,ble-sub,Ceilings,Ble Ceiling Grid [ISO 19650]
 BLE_CEILING_HEIGHT_MM,2,ble-sub,Ceilings|Rooms,Ble Ceiling Height Mm [ISO 19650-1:2018]
-BLE_CEILING_HEIGHT_TXT,2,ble-sub,Ceilings,BLE_CEILING_HEIGHT_MM display mirror [auto-generated]
+BLE_CEILING_HEIGHT_TXT,2,ble-sub,Ceilings|Rooms,BLE_CEILING_HEIGHT_MM display mirror [auto-generated]
 BLE_CEILING_LIGHT_REFLECTANCE_PCT,2,ble-sub,Ceilings,Ble Ceiling Light Reflectance Pct [ISO 19650-1:2018]
 BLE_CEILING_MAT_TXT,2,ble-sub,Ceilings|Roof Soffits,Ble Ceiling Mat Txt [ISO 19650-1:2018]
 BLE_CEILING_NOISE_REDUCTION_COEFFICIENT_NRC_NR,2,ble-sub,Ceilings,Ble Ceiling Noise Reduction Coefficient Nrc Nr [ISO 19650-1:2018]
@@ -471,7 +471,7 @@ BLE_FLR_RAISED_FLR_HEIGHT_MM,2,ble-sub,Floors,Ble Flr Raised Flr Height Mm [ISO 
 BLE_FLR_SLIP_RESISTANCE_RATING_NR,2,ble-sub,Floors,Ble Flr Slip Resistance Rating Nr [ISO 19650-1:2018]
 BLE_FLR_STRUCTURAL_SYSTEM_TXT,2,ble-sub,Floors,Ble Flr Structural System Txt [ISO 19650-1:2018]
 BLE_FLR_THICKNESS_MM,2,ble-sub,Floors|Slab Edges,Ble Flr Thickness Mm [ISO 19650-1:2018]
-BLE_FLR_THICKNESS_TXT,2,ble-sub,Floors,BLE_FLR_THICKNESS_MM display mirror [auto-generated]
+BLE_FLR_THICKNESS_TXT,2,ble-sub,Floors|Slab Edges,BLE_FLR_THICKNESS_MM display mirror [auto-generated]
 BLE_FLR_TILE_QTY_NR,10,ble-sub,Floors,Ble Flr Tile Qty Nr [ISO 19650-1:2018]
 BLE_FLR_TYPE_CLASSIFICATION_TXT,2,ble-sub,Floors,Ble Flr Type Classification Txt [ISO 19650-1:2018]
 BLE_FLR_TYPE_TXT,10,ble-sub,Floors|Slab Edges,Ble Flr Type [ISO 19650-1:2018]
@@ -519,7 +519,7 @@ BLE_PARK_BAY_LENGTH_MM,2,ble-sub,Parking,Parking bay length in mm [ISO 19650-1:2
 BLE_PARK_BAY_WIDTH_MM,2,ble-sub,Parking,Parking bay width in mm [ISO 19650-1:2018]
 BLE_PARK_EV_CHARGING_BOOL,2,ble-sub,Parking,EV charging point provided [ISO 19650-1:2018]
 BLE_PARK_TYPE_TXT,2,ble-sub,Parking,Parking bay type classification [ISO 19650-1:2018]
-BLE_PLASTER_FACES_NR,10,wall-level,Walls|Curtain Panels|Curtain Wall Mullions,"Number of wall faces plastered, 0 to 2. The compound take-off prices plaster on this many faces; blank = 2."
+BLE_PLASTER_FACES_NR,10,wall-level,Walls,"Number of wall faces plastered, 0 to 2. The compound take-off prices plaster on this many faces; blank = 2."
 BLE_PLASTER_TYPE_TXT,2,ble-sub,Walls|Floors|Ceilings|Roofs|Rooms,Plaster type specification [ISO 19650-2:2018]
 BLE_RAILING_BALUSTER_SPACING_MM,2,ble-sub,Railings,Railing baluster spacing in mm [ISO 19650-1:2018]
 BLE_RAILING_HEIGHT_MM,2,ble-sub,Handrails|Railings|Top Rails,Railing height in mm [ISO 19650-1:2018]
@@ -535,11 +535,11 @@ BLE_RAMP_LANDING_TXT,2,ble-sub,Ramps,Ramp landing specification [ISO 19650-1:201
 BLE_RAMP_LENGTH_MM,10,ble-sub,Ramps,Ble Ramp Length Mm [ISO 19650-1:2018]
 BLE_RAMP_LENGTH_TXT,10,ble-sub,Ramps,BLE_RAMP_LENGTH_MM display mirror [auto-generated]
 BLE_RAMP_SLOPE_PCT,2,ble-sub,Ramps|Rooms,Ble Ramp Slope Pct [ISO 19650-1:2018]
-BLE_RAMP_SLOPE_TXT,2,ble-sub,Ramps,BLE_RAMP_SLOPE_PCT display mirror [auto-generated]
+BLE_RAMP_SLOPE_TXT,2,ble-sub,Ramps|Rooms,BLE_RAMP_SLOPE_PCT display mirror [auto-generated]
 BLE_RAMP_SURFACE_FINISH_TXT,2,ble-sub,Ramps,Ble Ramp Surface Finish Txt [ISO 19650-1:2018]
 BLE_RAMP_SURFACE_TXT,10,ble-sub,Ramps,Ble Ramp Surface [ISO 19650]
 BLE_RAMP_WIDTH_MM,2,ble-sub,Ramps|Rooms,Ble Ramp Width Mm [ISO 19650-1:2018]
-BLE_RAMP_WIDTH_TXT,2,ble-sub,Ramps,BLE_RAMP_WIDTH_MM display mirror [auto-generated]
+BLE_RAMP_WIDTH_TXT,2,ble-sub,Ramps|Rooms,BLE_RAMP_WIDTH_MM display mirror [auto-generated]
 BLE_ROOF_AREA_SQ_M,2,ble-sub,Roofs,Roof plan area in sq.m [ISO 19650-1:2018]
 BLE_ROOF_AREA_TXT,2,ble-sub,Roofs,BLE_ROOF_AREA_SQ_M display mirror [auto-generated]
 BLE_ROOF_CLR_TXT,2,ble-sub,Roofs,Ble Roof Clr Txt [ISO 19650-1:2018]
@@ -576,9 +576,9 @@ BLE_ROOM_FIRE_ESCAPE_CAPACITY_TXT,2,ble-sub,Rooms,BLE_ROOM_FIRE_ESCAPE_CAPACITY_
 BLE_ROOM_NAME_TXT,2,ble-sub,Rooms,Ble Room Name Txt [ISO 19650-1:2018]
 BLE_ROOM_NUM_TXT,2,ble-sub,Air Terminals|Ceilings|Doors|Fire Alarm Devices|Generic Models|Lighting Fixtures|Plumbing Fixtures|Rooms|Windows,Ble Room Num Txt [ISO 19650-1:2018]
 BLE_ROOM_OCCUPANCY_NR,10,ble-sub,Rooms|Spaces,Ble Room Occupancy [ISO 19650]
-BLE_ROOM_OCCUPANCY_TXT,10,ble-sub,Rooms,BLE_ROOM_OCCUPANCY_NR display mirror [auto-generated]
+BLE_ROOM_OCCUPANCY_TXT,10,ble-sub,Rooms|Spaces,BLE_ROOM_OCCUPANCY_NR display mirror [auto-generated]
 BLE_ROOM_VENTILATION_RATE_LPS,2,ble-sub,Rooms|Spaces,Room design ventilation rate in l/s [ISO 19650-1:2018]
-BLE_ROOM_VENTILATION_RATE_TXT,2,ble-sub,Rooms,BLE_ROOM_VENTILATION_RATE_LPS display mirror [auto-generated]
+BLE_ROOM_VENTILATION_RATE_TXT,2,ble-sub,Rooms|Spaces,BLE_ROOM_VENTILATION_RATE_LPS display mirror [auto-generated]
 BLE_SIGN_ILLUMINATED_BOOL,2,ble-sub,Casework|Ceilings|Columns|Curtain Panels|Doors|Floors|Furniture|Generic Models|Railings|Ramps|Roofs|Signage|Specialty Equipment|Stairs|Walls|Windows,Signage is internally illuminated [ISO 19650-1:2018]
 BLE_SIGN_TYPE_TXT,2,ble-sub,Casework|Ceilings|Columns|Curtain Panels|Doors|Floors|Furniture|Generic Models|Railings|Ramps|Roofs|Signage|Specialty Equipment|Stairs|Walls|Windows,Signage type classification [ISO 19650-1:2018]
 BLE_SLAB_BLOCK_SIZE_TXT,10,ble-sub,Floors,MAT-4 slab infill block/pot size LxW (mm) [ISO 19650-2:2018]
@@ -589,7 +589,7 @@ BLE_SLAB_SYSTEM_TXT,10,ble-sub,Floors,MAT-4 slab system: Solid/Ribbed/Waffle/Hol
 BLE_SLAB_TOPPING_MM,10,ble-sub,Floors,MAT-4 slab structural topping thickness (mm) [ISO 19650-2:2018]
 BLE_STAIR_BALUSTRADE_TYPE_TXT,16,ble-sub,Stairs|Railings,Hvc Stair Balustrade Type Txt [ISO 19650-1:2018]
 BLE_STAIR_GOING_MM,2,ble-sub,Railings|Stair Runs|Stairs,Ble Stair Going Mm [ISO 19650-1:2018]
-BLE_STAIR_GOING_TXT,2,ble-sub,Stairs|Railings,BLE_STAIR_GOING_MM display mirror [auto-generated]
+BLE_STAIR_GOING_TXT,2,ble-sub,Railings|Stair Runs|Stairs,BLE_STAIR_GOING_MM display mirror [auto-generated]
 BLE_STAIR_HANDRAIL_HEIGHT_MM,2,ble-sub,Stairs|Railings,Ble Stair Handrail Height Mm [ISO 19650-1:2018]
 BLE_STAIR_HANDRAIL_MAT_TXT,16,ble-sub,Stairs|Railings,Hvc Stair Handrail Mat Txt [ISO 19650-1:2018]
 BLE_STAIR_HEADROOM_MM,2,ble-sub,Stairs|Railings,Stair headroom clearance in mm [ISO 19650-1:2018]
@@ -600,11 +600,11 @@ BLE_STAIR_NR_RISERS_NR,10,ble-sub,Stairs|Railings,Ble Stair Risers [ISO 19650]
 BLE_STAIR_PITCH_LINE_MM,10,ble-sub,Stairs|Railings,Ble Stair Pitch Line Mm [ISO 19650-1:2018]
 BLE_STAIR_RISE_GOING_RATIO_NR,10,ble-sub,Stairs|Railings,Ble Stair Rise Going Ratio Nr [ISO 19650-1:2018]
 BLE_STAIR_RISE_MM,2,ble-sub,Railings|Stair Runs|Stairs,Ble Stair Rise Mm [ISO 19650-1:2018]
-BLE_STAIR_RISE_TXT,2,ble-sub,Stairs|Railings,BLE_STAIR_RISE_MM display mirror [auto-generated]
+BLE_STAIR_RISE_TXT,2,ble-sub,Railings|Stair Runs|Stairs,BLE_STAIR_RISE_MM display mirror [auto-generated]
 BLE_STAIR_TREAD_FINISH_TXT,16,ble-sub,Railings|Stair Landings|Stair Runs|Stairs,Hvc Stair Tread Finish Txt [ISO 19650-1:2018]
 BLE_STAIR_TYPE_TXT,2,ble-sub,Stairs|Railings,Ble Stair Type Txt [ISO 19650-1:2018]
 BLE_STAIR_WIDTH_MM,2,ble-sub,Railings|Stair Landings|Stair Runs|Stairs,Ble Stair Width Mm [ISO 19650-1:2018]
-BLE_STAIR_WIDTH_TXT,2,ble-sub,Stairs|Railings,BLE_STAIR_WIDTH_MM display mirror [auto-generated]
+BLE_STAIR_WIDTH_TXT,2,ble-sub,Railings|Stair Landings|Stair Runs|Stairs,BLE_STAIR_WIDTH_MM display mirror [auto-generated]
 BLE_STRUCT_BEAM_SZ_TXT,2,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Ble Struct Beam Sz Txt [ISO 19650-1:2018]
 BLE_STRUCT_CAMBER_MM,10,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Ble Struct Camber Mm [ISO 19650]
 BLE_STRUCT_CAMBER_TXT,10,ble-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,BLE_STRUCT_CAMBER_MM display mirror [auto-generated]
@@ -657,10 +657,10 @@ BLE_WALL_LENGTH_MM,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Ble Wall
 BLE_WALL_MOISTURE_BARRIER_INCLUDED_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Ble Wall Moisture Barrier Included Txt [ISO 19650-1:2018]
 BLE_WALL_PRIMARY_WALL_MAT_TXT,2,ble-sub,Curtain Panels|Curtain Wall Mullions|Wall Sweeps|Walls,Ble Wall Primary Wall Mat Txt [ISO 19650-1:2018]
 BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR,2,ble-sub,Ceilings|Curtain Panels|Curtain Wall Mullions|Doors|Floors|Walls|Windows,Ble Wall Sound Transmission Class Rating Nr [ISO 19650-1:2018]
-BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR display mirror [auto-generated]
+BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_TXT,2,ble-sub,Ceilings|Curtain Panels|Curtain Wall Mullions|Doors|Floors|Walls|Windows,BLE_WALL_SOUND_TRANSMISSION_CLASS_RATING_NR display mirror [auto-generated]
 BLE_WALL_THERMAL_TRANSMITTANCE_U_VALUE_W_M_2K_NR,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Ble Wall Thermal Transmittance U Value W M 2k Nr [ISO 19650-1:2018]
 BLE_WALL_THICKNESS_MM,2,ble-sub,Curtain Panels|Curtain Wall Mullions|Hardscape|Pads|Roads|Walls,Ble Wall Thickness Mm [ISO 19650-1:2018]
-BLE_WALL_THICKNESS_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,BLE_WALL_THICKNESS_MM display mirror [auto-generated]
+BLE_WALL_THICKNESS_TXT,2,ble-sub,Curtain Panels|Curtain Wall Mullions|Hardscape|Pads|Roads|Walls,BLE_WALL_THICKNESS_MM display mirror [auto-generated]
 BLE_WALL_TYPE_CLASSIFICATION_TXT,2,ble-sub,Curtain Panels|Curtain Wall Mullions|Wall Sweeps|Walls,Ble Wall Type Classification Txt [ISO 19650-1:2018]
 BLE_WALL_WATERPROOF_TXT,2,ble-sub,Walls|Curtain Panels|Curtain Wall Mullions,Wall waterproofing system type [ISO 19650-1:2018]
 BLE_WINDOW_AREA_SQ_M,10,ble-sub,Windows,Ble Window Area Sq M [ISO 19650-1:2018]
@@ -676,7 +676,7 @@ BLE_WINDOW_OPERATION_TYPE_TXT,2,ble-sub,Windows,Ble Window Operation Type Txt [I
 BLE_WINDOW_SHGC_NR,10,ble-sub,Windows,Ble Window Shgc [ISO 19650]
 BLE_WINDOW_SILL_HEIGHT_FROM_FLR_MM,2,ble-sub,Windows,Ble Window Sill Height From Flr Mm [ISO 19650-1:2018]
 BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR,2,ble-sub,Curtain Panels|Windows,Ble Window Solar Heat Gain Coefficient Nr [ISO 19650-1:2018]
-BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_TXT,2,ble-sub,Windows,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR display mirror [auto-generated]
+BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_TXT,2,ble-sub,Curtain Panels|Windows,BLE_WINDOW_SOLAR_HEAT_GAIN_COEFFICIENT_NR display mirror [auto-generated]
 BLE_WINDOW_TYPE_CLASSIFICATION_TXT,2,ble-sub,Windows,Ble Window Type Classification Txt [ISO 19650-1:2018]
 BLE_WINDOW_U_VALUE_W_M_2K_NR,2,ble-sub,Windows,Ble Window U Value W M 2k Nr [ISO 19650-1:2018]
 BLE_WINDOW_U_VALUE_W_M_2K_TXT,2,ble-sub,Windows,BLE_WINDOW_U_VALUE_W_M_2K_NR display mirror [auto-generated]
@@ -797,7 +797,7 @@ COM_COMMISSION_DATE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telepho
 COM_COMMISSION_ENGINEER_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Commissioning engineer (COBie)
 COM_COMMISSION_STATUS_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Commissioning status (COBie)
 COM_C_DEV_BACNET_INSTANCE_INT,3,safe-prefix,Communication Devices|Data Devices|Mechanical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,Com C Dev Bacnet Instance Int [ISO 19650-1:2018]
-COM_C_DEV_BACNET_INSTANCE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,COM_C_DEV_BACNET_INSTANCE_INT display mirror [auto-generated]
+COM_C_DEV_BACNET_INSTANCE_TXT,3,safe-prefix,Communication Devices|Data Devices|Mechanical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,COM_C_DEV_BACNET_INSTANCE_INT display mirror [auto-generated]
 COM_C_DEV_CONTROLLER_NAME_TXT,3,safe-prefix,Communication Devices|Data Devices|Mechanical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,Com C Dev Controller Name Txt [ISO 19650-1:2018]
 COM_C_DEV_TYPE_TXT,3,safe-prefix,Communication Devices|Data Devices|Electrical Equipment|Mechanical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,Com C Dev Type Txt [ISO 19650-1:2018]
 COM_C_MEASUREMENT_RANGE_TXT,3,safe-prefix,Communication Devices|Data Devices|Mechanical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,Com C Measurement Range Txt [ISO 19650-1:2018]
@@ -805,7 +805,7 @@ COM_C_MEAS_RANGE_TXT,5,safe-prefix,Data Devices|Communication Devices|Telephone 
 COM_C_NETWORK_ADDRESS_TXT,3,safe-prefix,Communication Devices|Data Devices|Electrical Equipment|Mechanical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,Com C Network Address Txt [ISO 19650-1:2018]
 COM_C_PANEL_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Com C Panel [ISO 19650]
 COM_C_PROTOCOL_TXT,3,safe-prefix,Communication Devices|Data Devices|Electrical Equipment|Mechanical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,Com C Protocol Txt [ISO 19650-1:2018]
-COM_C_PWR_SUPPLY_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,COM_C_PWR_SUPPLY_V display mirror [auto-generated]
+COM_C_PWR_SUPPLY_TXT,3,safe-prefix,Communication Devices|Data Devices|Electrical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,COM_C_PWR_SUPPLY_V display mirror [auto-generated]
 COM_C_PWR_SUPPLY_V,3,safe-prefix,Communication Devices|Data Devices|Electrical Equipment|Nurse Call Devices|Security Devices|Telephone Devices,Com C Pwr Supply V [ISO 19650-1:2018]
 COM_DAT_SPARE_01_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Spare parameter 1 for COM_DAT group
 COM_DAT_SPARE_02_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Spare parameter 2 for COM_DAT group
@@ -832,14 +832,14 @@ CST_BUDGET_VARIANCE_UGX,13,cost-meta,<ALL>,Budget variance: budget minus grand t
 CST_CALC_ADHESIVE_KG,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated tile adhesive in kilograms [ISO 19650-3:2020]
 CST_CALC_AGGREGATE_M3,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated aggregate volume in cubic meters [ISO 19650-3:2020]
 CST_CALC_AREA_M2,3,cst-sub,Ceilings|Ducts|Floors|Roofs|Rooms|Walls,Calculated area in square meters [ISO 19650-3:2020]
-CST_CALC_AREA_TXT,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,CST_CALC_AREA_M2 display mirror [auto-generated]
+CST_CALC_AREA_TXT,3,cst-sub,Ceilings|Ducts|Floors|Roofs|Rooms|Walls,CST_CALC_AREA_M2 display mirror [auto-generated]
 CST_CALC_BLOCKS_NR,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated number of blocks required [ISO 19650-3:2020]
 CST_CALC_CEMENT_BAGS_NR,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated cement bags (50kg) [ISO 19650-3:2020]
 CST_CALC_CEMENT_PLASTER_BAGS,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated cement bags for plaster (50kg) [ISO 19650-3:2020]
 CST_CALC_FASTENERS_NR,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated number of fasteners [ISO 19650-3:2020]
 CST_CALC_GROUT_KG,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated grout in kilograms [ISO 19650-3:2020]
 CST_CALC_LENGTH_M,3,cst-sub,Cable Trays|Ceilings|Conduits|Ducts|Floors|Pipes|Roofs|Rooms|Walls,Calculated length in meters [ISO 19650-3:2020]
-CST_CALC_LENGTH_TXT,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,CST_CALC_LENGTH_M display mirror [auto-generated]
+CST_CALC_LENGTH_TXT,3,cst-sub,Cable Trays|Ceilings|Conduits|Ducts|Floors|Pipes|Roofs|Rooms|Walls,CST_CALC_LENGTH_M display mirror [auto-generated]
 CST_CALC_MORTAR_M3,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated mortar volume in cubic meters [ISO 19650-3:2020]
 CST_CALC_PAINT_LITERS,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated paint in liters [ISO 19650-3:2020]
 CST_CALC_PLASTER_M3,3,cst-sub,Walls|Floors|Ceilings|Roofs|Rooms,Calculated plaster volume in cubic meters [ISO 19650-3:2020]
@@ -977,7 +977,7 @@ CST_S_REI_TOTAL_WEIGHT_KG,3,cst-sub,Structural Framing|Structural Columns|Struct
 CST_S_REI_TYPE_TXT,3,cst-sub,Floors|Generic Models|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Cst S Rei Type Txt [ISO 19650-2:2018]
 CST_S_REI_UNIT_WT_KG,2,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Cst S Rei Unit Wt Kg [ISO 19650-1:2018]
 CST_S_REI_WEIGHT_KG,3,cst-sub,Floors|Generic Models|Structural Columns|Structural Connections|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Rebar|Structural Stiffeners|Structural Trusses,Cst S Rei Weight Kg [ISO 19650-2:2018]
-CST_S_REI_WEIGHT_TXT,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,CST_S_REI_WEIGHT_KG display mirror [auto-generated]
+CST_S_REI_WEIGHT_TXT,3,cst-sub,Floors|Generic Models|Structural Columns|Structural Connections|Structural Fabric Reinforcement|Structural Foundations|Structural Framing|Structural Rebar|Structural Stiffeners|Structural Trusses,CST_S_REI_WEIGHT_KG display mirror [auto-generated]
 CST_S_REI_WEIGHT_WASTAGE_KG,3,cst-sub,Floors|Generic Models|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Cst S Rei Weight Wastage Kg [ISO 19650-2:2018]
 CST_S_REI_WIRE_WEIGHT_KG,3,cst-sub,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,Cst S Rei Wire Weight Kg [ISO 19650-2:2018]
 CST_S_SUPPLIER_TXT,3,cst-sub,Ceilings|Doors|Floors|Mechanical Equipment|Plumbing Fixtures|Roofs|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar|Walls|Windows,Material supplier name for BOQ schedules [ISO 19650-2:2018]
@@ -1049,7 +1049,7 @@ ELC_CBL_DERATING_FCT_NR,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc C
 ELC_CBL_DESTINATION_TO_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Destination To Txt [ISO 19650-1:2018]
 ELC_CBL_DEST_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Dest [ISO 19650-1:2018]
 ELC_CBL_FEEDER_SZ_MM2,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Feeder cable cross-section area in mm2 [ISO 19650-1:2018]
-ELC_CBL_FEEDER_SZ_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,ELC_CBL_FEEDER_SZ_MM2 display mirror [auto-generated]
+ELC_CBL_FEEDER_SZ_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,ELC_CBL_FEEDER_SZ_MM2 display mirror [auto-generated]
 ELC_CBL_INSTALL_METHOD_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Elc Cbl Install Method Txt [ISO 19650-1:2018]
 ELC_CBL_INS_TYPE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment|Wire,Elc Cbl Ins Type Txt [ISO 19650-1:2018]
 ELC_CBL_LENGTH_M,4,elc-sub,Cable Trays|Conduits|Electrical Circuits|Electrical Equipment,Elc Cbl Length M [ISO 19650-1:2018]
@@ -1077,7 +1077,7 @@ ELC_CDT_BREAKPOINT_TXT,4,elc-sub,Conduits|Conduit Fittings,Reference stamped on 
 ELC_CDT_CABLE_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)"
 ELC_CDT_CABLE_MANIFEST_TXT,4,elc-sub,Conduits|Conduit Fittings,"Cables in this conduit as csa:count pairs, comma-separated (for example 2.5:3,4:2; add /S for solid conductors). Read by the v4 conduit fill check."
 ELC_CDT_CBL_FILL_PCT,4,elc-sub,Conduits|Conduit Fittings|Cable Trays,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018]
-ELC_CDT_CBL_FILL_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_CBL_FILL_PCT display mirror [auto-generated]
+ELC_CDT_CBL_FILL_TXT,4,elc-sub,Cable Trays|Conduit Fittings|Conduits,ELC_CDT_CBL_FILL_PCT display mirror [auto-generated]
 ELC_CDT_FAB_METHOD_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit fabrication method
 ELC_CDT_FILL_RATIO,4,elc-sub,Conduits|Conduit Fittings,Conduit fill ratio
 ELC_CDT_INSTALL_METHOD_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit install method: SURF-MTD/CONC-EMB/TRAY/BRAC/IN-FLOOR [ISO 19650-1:2018]
@@ -1089,7 +1089,7 @@ ELC_CDT_STALE_ANNOT_BOOL,4,elc-sub,Conduits|Conduit Fittings,Conduit wire annota
 ELC_CDT_SUPPORT_SPACING_MM,4,elc-sub,Conduits|Conduit Fittings,Conduit support spacing
 ELC_CDT_SUPPORT_SPACING_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_SUPPORT_SPACING_MM display mirror [auto-generated]
 ELC_CDT_SZ_MM,4,elc-sub,Conduit Fittings|Conduits|Electrical Fixtures,Conduit trade size in mm: 20/25/32/40/50/63 [ISO 19650-1:2018]
-ELC_CDT_SZ_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_SZ_MM display mirror [auto-generated]
+ELC_CDT_SZ_TXT,4,elc-sub,Conduit Fittings|Conduits|Electrical Fixtures,ELC_CDT_SZ_MM display mirror [auto-generated]
 ELC_CDT_TAG,4,tag-container,<ALL>,Electrical conduit tag container [ISO 19650-2:2018]
 ELC_CDT_TAG_01_TXT,4,elc-sub,Conduits|Conduit Fittings,"Conduit spec tag: size, material, install method [ISO 19650-1:2018]"
 ELC_CDT_TAG_02_TXT,4,elc-sub,Conduits|Conduit Fittings,Conduit fill + cable ref + installation detail tag [ISO 19650-1:2018]
@@ -1116,15 +1116,15 @@ ELC_CKT_CBL_SZ_MM,4,elc-sub,Electrical Circuits,Elc Ckt Cbl Sz Mm [ISO 19650-1:2
 ELC_CKT_CBL_TYPE_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Cbl Type Txt [ISO 19650-1:2018]
 ELC_CKT_CHECK_TXT,4,elc-sub,Electrical Circuits,"Per-circuit BS 7671 check written by Panel_ComplianceCheck: OK, or the failing rules (Ib>In, In>Iz, VD over limit, fault above breaking capacity) and anything not checkable."
 ELC_CKT_CUR_A,4,elc-sub,Electrical Circuits|Electrical Equipment,Elc Ckt Cur A [ISO 19650-1:2018]
-ELC_CKT_CUR_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_CUR_A display mirror [auto-generated]
+ELC_CKT_CUR_TXT,4,elc-sub,Electrical Circuits|Electrical Equipment,ELC_CKT_CUR_A display mirror [auto-generated]
 ELC_CKT_FINAL_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Final Txt [ISO 19650-1:2018]
 ELC_CKT_IDENTIFICATION_TXT,4,elc-sub,Electrical Circuits,Elc Ckt Identification Txt [ISO 19650-1:2018]
 ELC_CKT_LENGTH_M,4,elc-sub,Electrical Circuits,Elc Ckt Length M [ISO 19650-1:2018]
 ELC_CKT_NR,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Devices|Lighting Fixtures,"Circuit number as Revit shows it, including multi-pole numbers such as 1,3,5 [ISO 19650-1:2018]"
 ELC_CKT_PHASE_COUNT_NR,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures,Elc Ckt Phase Count Nr [ISO 19650-1:2018]
-ELC_CKT_PHASE_COUNT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_PHASE_COUNT_NR display mirror [auto-generated]
+ELC_CKT_PHASE_COUNT_TXT,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures,ELC_CKT_PHASE_COUNT_NR display mirror [auto-generated]
 ELC_CKT_PWR_KW,4,elc-sub,Electrical Circuits,Elc Ckt Pwr Kw [ISO 19650-1:2018]
-ELC_CKT_TXT,4,elc-sub,Electrical Circuits,ELC_CKT_NR display mirror [auto-generated]
+ELC_CKT_TXT,4,elc-sub,Electrical Circuits|Electrical Equipment,ELC_CKT_NR display mirror [auto-generated]
 ELC_CKT_VD_BASIS_TXT,4,vd-basis,Electrical Equipment|Electrical Circuits,"How ELC_VLT_DROP_PCT was obtained: A4 (Appendix 4 mV/A/m, recorded cable), A4-MAX (upper bound, no cable recorded), A4-SIZED (sizer result), R60228 (conductor resistance, NEC), IMPORT (another tool) or NONE with the reason. Blank = a value from before this basis existed."
 ELC_CKT_VLT_V,4,elc-sub,Electrical Circuits,Elc Ckt Vlt V [ISO 19650-1:2018]
 ELC_CONDUIT_HOME_RUN_BOOL,4,elc-sub,Conduits|Conduit Fittings,Marks this conduit as a home run to its panel; read by HomeRunPlanAnnotation (Elec_HomeRunAnnotate) to place the arrow and circuit label.
@@ -1147,7 +1147,7 @@ ELC_EARTHING_SYSTEM_TXT,4,project-level,Project Information,Project earthing arr
 ELC_EES_BRANCH_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,NFPA 99 Essential Electrical System branch: LIFE-SAF / CRIT / EQP-BR / NORMAL
 ELC_EMERG_COVERED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Rooms,"Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]"
 ELC_ENERGY_COST_UGX_PA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Energy Cost Ugx Pa [ISO 19650-1:2018]
-ELC_ENERGY_KWH_PA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Energy Kwh Pa [ISO 19650-1:2018]
+ELC_ENERGY_KWH_PA,4,energy-use,Electrical Equipment|Electrical Circuits|Mechanical Equipment|Lighting Fixtures,Elc Energy Kwh Pa [ISO 19650-1:2018]
 ELC_EQP_TAG,4,tag-container,<ALL>,Electrical equipment tag container [ISO 19650-2:2018]
 ELC_EQP_TAG_01_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Elec equip power supply tag: voltage, phases, main breaker, fault level [ISO 19650-1:2018]"
 ELC_EQP_TAG_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Elec equip load tag: connected load kW, IP rating, upstream panel [ISO 19650-1:2018]"
@@ -1276,7 +1276,7 @@ ELC_PWR_CONNECTED_LOAD_KW,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc
 ELC_PWR_KW,4,elc-sub,Electrical Circuits|Electrical Equipment|Electrical Fixtures,Elc Pwr Kw [ISO 19650-1:2018]
 ELC_PWR_SPARE_01_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Spare parameter 1 for ELC_PWR group
 ELC_PWR_SPARE_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Spare parameter 2 for ELC_PWR group
-ELC_PWR_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ELC_PWR_KW display mirror [auto-generated]
+ELC_PWR_TXT,4,elc-sub,Electrical Circuits|Electrical Equipment|Electrical Fixtures,ELC_PWR_KW display mirror [auto-generated]
 ELC_RECEPT_TYPE_TXT,4,elc-sub,Electrical Fixtures,Receptacle type: HOSP-GR / TR / ISO / EMG-RED
 ELC_RECONCILE_DRIFT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit reconciliation drift flag [Electrical]
 ELC_SEL_COORD_OK,4,elc-sub,Electrical Equipment|Electrical Circuits,Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13]
@@ -1299,9 +1299,9 @@ ELC_TRANSFER_LOAD_OK,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cabl
 ELC_UPS_REPLACE_DT,4,elc-sub,Electrical Equipment|Electrical Circuits,UPS battery replacement date ISO 8601 [H-27]
 ELC_VLT_DROP_PCT,4,elc-sub,Electrical Circuits|Electrical Equipment,Elc Vlt Drop Pct [ISO 19650-1:2018]
 ELC_VLT_DROP_TXT,4,vd-basis,Electrical Equipment|Electrical Circuits,ELC_VLT_DROP_PCT display mirror [auto-generated]
-ELC_VLT_PRIMARY_RATING_TXT,4,elc-sub,Electrical Circuits,ELC_VLT_PRIMARY_RATING_V display mirror [auto-generated]
+ELC_VLT_PRIMARY_RATING_TXT,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures,ELC_VLT_PRIMARY_RATING_V display mirror [auto-generated]
 ELC_VLT_PRIMARY_RATING_V,4,elc-sub,Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures,Elc Vlt Primary Rating V [ISO 19650-1:2018]
-ELC_VOLTAGE_TXT,4,elc-sub,Electrical Fixtures,ELC_VOLTAGE_V display mirror [auto-generated]
+ELC_VOLTAGE_TXT,4,elc-sub,Electrical Equipment|Electrical Fixtures|Wire,ELC_VOLTAGE_V display mirror [auto-generated]
 ELC_VOLTAGE_V,4,elc-sub,Electrical Equipment|Electrical Fixtures|Wire,Device operating voltage in V [ISO 19650-1:2018]
 ELC_WIRE_AMPACITY_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Cable current-carrying capacity (ampacity) in amperes at design installation method [BS 7671 Table 4D1A/4D2A]
 ELC_WIRE_ANNOT_ANGLE_DEG,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,"Angle of slash marks relative to conduit axis in degrees (default 60, range 30-90). [STING annotation style]"
@@ -1347,7 +1347,7 @@ FAB_CONTAINMENT_W_MM,16,fabrication,Cable Trays|Duct Fittings|Ducts|MEP Fabricat
 FAB_DCT_H_MM,16,fab-duct,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Fabrication Ductwork|MEP Fabrication Ductwork Stiffeners|Mechanical Equipment,MEP fabrication ductwork height in mm [SMACNA]
 FAB_DCT_W_MM,16,fab-duct,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Fabrication Ductwork|MEP Fabrication Ductwork Stiffeners|Mechanical Equipment,MEP fabrication ductwork width in mm [SMACNA]
 FAB_HANGER_LOAD_KN,16,fabrication,Cable Trays|Duct Fittings|Ducts|MEP Fabrication Hangers|Pipe Fittings|Pipes|Structural Framing,MEP fabrication hanger design load in kN [SMACNA/BS 7671]
-FAB_HANGER_LOAD_TXT,16,fabrication,Ducts|Duct Fittings|Pipes|Pipe Fittings|Structural Framing|Cable Trays,FAB_HANGER_LOAD_KN display mirror [auto-generated]
+FAB_HANGER_LOAD_TXT,16,fabrication,Cable Trays|Duct Fittings|Ducts|MEP Fabrication Hangers|Pipe Fittings|Pipes|Structural Framing,FAB_HANGER_LOAD_KN display mirror [auto-generated]
 FAB_HANGER_TYPE_TXT,16,fabrication,Cable Trays|Duct Fittings|Ducts|MEP Fabrication Hangers|Pipe Fittings|Pipes|Structural Framing,MEP fabrication hanger type and configuration [SMACNA]
 FAB_PIPE_DN_MM,16,fab-pipe,Flex Pipes|MEP Fabrication Pipework|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,MEP fabrication pipework nominal diameter in mm [SMACNA]
 FAB_STIFF_TYPE_TXT,16,fabrication,Cable Trays|Duct Fittings|Ducts|MEP Fabrication Ductwork Stiffeners|Pipe Fittings|Pipes|Structural Framing,Ductwork stiffener type [SMACNA]
@@ -1374,13 +1374,13 @@ FLS_PROT_CORROSION_PROT_LVL_NR,8,safe-prefix,Fire Alarm Devices|Fire Protection|
 FLS_PROT_FLS_ESCAPE_STAIR_TXT,8,safe-prefix,Fire Alarm Devices|Fire Protection|Sprinklers,Fls Prot Fls Escape Stair Txt [ISO 19650-1:2018]
 FLS_PROT_FLS_RESISTANCE_MINUTES_CALC,8,safe-prefix,Fire Alarm Devices|Fire Protection|Sprinklers,Fls Prot Fls Resistance Minutes Calc [ISO 19650-1:2018]
 FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN,8,safe-prefix,Ceilings|Doors|Fire Alarm Devices|Fire Protection|Floors|Sprinklers|Walls,Fls Prot Fls Resistance Rating Minutes Min [ISO 19650-1:2018]
-FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN display mirror [auto-generated]
+FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN_TXT,8,safe-prefix,Ceilings|Doors|Fire Alarm Devices|Fire Protection|Floors|Sprinklers|Walls,FLS_PROT_FLS_RESISTANCE_RATING_MINUTES_MIN display mirror [auto-generated]
 FLS_PROT_PRODUCT_TXT,8,safe-prefix,Fire Alarm Devices|Fire Protection|Sprinklers,Fire protection product specification reference [ISO 19650-1:2018]
 FLS_PROT_SPRINKLER_HED_TYPE_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Prot Sprinkler Hed Type Txt [ISO 19650-1:2018]
 FLS_PROT_WALL_THICKNESS_MM,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Prot Wall Thickness Mm [ISO 19650-1:2018]
 FLS_SFTY_ADDR_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Addr [ISO 19650]
 FLS_SFTY_COVERAGE_AREA_SQ_M,8,safe-prefix,Fire Alarm Devices|Mechanical Equipment|Sprinklers,Fls Sfty Coverage Area Sq M [ISO 19650-1:2018]
-FLS_SFTY_COVERAGE_AREA_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_SFTY_COVERAGE_AREA_SQ_M display mirror [auto-generated]
+FLS_SFTY_COVERAGE_AREA_TXT,8,safe-prefix,Fire Alarm Devices|Mechanical Equipment|Sprinklers,FLS_SFTY_COVERAGE_AREA_SQ_M display mirror [auto-generated]
 FLS_SFTY_DEMAND_LPS,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Demand Lps [ISO 19650-1:2018]
 FLS_SFTY_DEV_ADDRESS_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Dev Address Txt [ISO 19650-1:2018]
 FLS_SFTY_DEV_DETECTOR_SENSITIVITY_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Dev Detector Sensitivity Txt [ISO 19650-1:2018]
@@ -1391,7 +1391,7 @@ FLS_SFTY_DEV_ZONE_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Dev Z
 FLS_SFTY_DURATION_MIN,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Duration Min [ISO 19650-1:2018]
 FLS_SFTY_ESCAPE_WIDTH_MM,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Escape Width Mm [ISO 19650-1:2018]
 FLS_SFTY_FLW_RATE_LPM_NR,8,safe-prefix,Fire Alarm Devices|Mechanical Equipment|Sprinklers,Fls Sfty Flw Rate Lpm Nr [ISO 19650-1:2018]
-FLS_SFTY_FLW_RATE_LPM_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_SFTY_FLW_RATE_LPM_NR display mirror [auto-generated]
+FLS_SFTY_FLW_RATE_LPM_TXT,8,safe-prefix,Fire Alarm Devices|Mechanical Equipment|Sprinklers,FLS_SFTY_FLW_RATE_LPM_NR display mirror [auto-generated]
 FLS_SFTY_HEADS_OPERATING_NR,8,safe-prefix,Sprinklers|Fire Alarm Devices,Fls Sfty Heads Operating Nr [ISO 19650-1:2018]
 FLS_SFTY_HEADS_OPERATING_TXT,8,safe-prefix,Sprinklers|Fire Alarm Devices,FLS_SFTY_HEADS_OPERATING_NR display mirror [auto-generated]
 FLS_SFTY_HEADS_PER_ZONE_NR,5,safe-prefix,Sprinklers|Fire Alarm Devices,Sprinkler heads per zone count [ISO 19650-2:2018]
@@ -1450,10 +1450,10 @@ HEALTH_SCORE_LAST_TXT,23,curated-fallback,Project Information,HEALTH_SCORE_LAST_
 HVC_ACH_OUTSIDE_NR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Outside-air ACH component (total ACH reuses HVC_AIR_CHANGES_PER_HR)
 HVC_AIRFLOW_LPS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC airflow in litres per second
 HVC_AIR_CHANGES_PER_HR,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Spaces,Hvc Air Changes Per Hr [ISO 19650-1:2018]
-HVC_AIR_CHANGES_PER_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_AIR_CHANGES_PER_HR display mirror [auto-generated]
+HVC_AIR_CHANGES_PER_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Spaces,HVC_AIR_CHANGES_PER_HR display mirror [auto-generated]
 HVC_BMS_CONTROL_TYPE_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|HVAC Zones|Mechanical Equipment,Hvc Bms Control Type [ISO 19650-1:2018]
 HVC_CAPACITY_KW,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Mechanical Equipment Sets,"Equipment design capacity in kW (sensible+latent for cooling, output for heating) [Phase 183]"
-HVC_CAPACITY_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_CAPACITY_KW display mirror [auto-generated]
+HVC_CAPACITY_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Mechanical Equipment Sets,HVC_CAPACITY_KW display mirror [auto-generated]
 HVC_CAP_KW,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Cap Kw [ISO 19650-1:2018]
 HVC_CAP_TR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Cap Tr [ISO 19650-1:2018]
 HVC_CAP_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_CAP_KW display mirror [auto-generated]
@@ -1517,18 +1517,18 @@ HVC_NC_CURVE_INT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fit
 HVC_NOISE_LEVEL_DB,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Noise Level Db [ISO 19650]
 HVC_NOISE_LEVEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_NOISE_LEVEL_DB display mirror [auto-generated]
 HVC_OA_LS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
-HVC_OA_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_OA_LS display mirror [auto-generated]
+HVC_OA_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_OA_LS display mirror [auto-generated]
 HVC_PEAK_HOUR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Hour of day of the per-space peak from BlockLoadEngine as a whole number 0-23 (14 = 14:00) [Phase 187]
-HVC_PEAK_HOUR_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_HOUR display mirror [auto-generated]
-HVC_PEAK_LAT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_LAT_W display mirror [auto-generated]
+HVC_PEAK_HOUR_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_HOUR display mirror [auto-generated]
+HVC_PEAK_LAT_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_LAT_W display mirror [auto-generated]
 HVC_PEAK_LAT_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak latent load in W from BlockLoadEngine [Phase 187]
-HVC_PEAK_SENS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PEAK_SENS_W display mirror [auto-generated]
+HVC_PEAK_SENS_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_SENS_W display mirror [auto-generated]
 HVC_PEAK_SENS_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak sensible load in W from BlockLoadEngine [Phase 187]
 HVC_PIPE_FLOWRATE_LPS,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Pipe Flowrate Lps [ISO 19650-1:2018]
 HVC_PIPE_LENGTH_M,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Pipe Length M [ISO 19650-1:2018]
-HVC_PIPE_LENGTH_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PIPE_LENGTH_M display mirror [auto-generated]
+HVC_PIPE_LENGTH_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,HVC_PIPE_LENGTH_M display mirror [auto-generated]
 HVC_PIPE_PRESSURE_KPA,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Pipe Pressure Kpa [ISO 19650-1:2018]
-HVC_PIPE_PRESSURE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_PIPE_PRESSURE_KPA display mirror [auto-generated]
+HVC_PIPE_PRESSURE_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,HVC_PIPE_PRESSURE_KPA display mirror [auto-generated]
 HVC_PIPE_SERVICE_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,Pipe service id (chw / hws / dcw / dhw / refrig_gas / refrig_liq / steam / natural_gas / condensate) detected from MEPSystem.SystemAbbreviation [Phase 183]
 HVC_PRESSURE_CLASS_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,DW/144 pressure class id (low / med / high / extra) the duct was sized to [Phase 183]
 HVC_PRESSURE_DROP_PA,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC pressure drop in Pascals
@@ -1538,7 +1538,7 @@ HVC_PWR_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings
 HVC_REFRIGERANT_CHARGE_KG_NR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Equipment refrigerant charge mass in kg [BS EN 378-2:2016]
 HVC_REFRIGERANT_CHARGE_KG_NR_DISP_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Mechanical Equipment Sets,Equipment refrigerant charge mass in kg — TEXT display mirror for tag labels
 HVC_REFRIGERANT_KG_NR,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Mechanical Equipment Sets,Refrigerant charge mass in kilograms (used by HvacCarbonReportCommand x GWP) [Phase 183]
-HVC_REFRIGERANT_KG_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_REFRIGERANT_KG_NR display mirror [auto-generated]
+HVC_REFRIGERANT_KG_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Mechanical Equipment Sets,HVC_REFRIGERANT_KG_NR display mirror [auto-generated]
 HVC_REFRIGERANT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Refrigerant Txt [ISO 19650-1:2018]
 HVC_REFRIGERANT_TYPE_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Mechanical Equipment Sets,Refrigerant id (R32 / R290 / R410A / R407C / R134A / R454B / R513A / R744 / R717 / R1234yf / R1234ze) [Phase 183]
 HVC_SEGMENT_ROLE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke)  -  cached by HvacSegmentRoleDetector [Phase 182]
@@ -1548,7 +1548,7 @@ HVC_SIZE_MODIFIED_DT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|
 HVC_SIZE_PREV_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,"Previous duct size before auto-sizing run, format WxH or Dia (audit trail) [Phase 182]"
 HVC_SIZE_RULE_ID_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,STING_MEP_SIZING_RULES.json role + source that drove the size (e.g. 'branch|CIBSE B3') [Phase 182]
 HVC_SIZE_STALE_BOOL,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,1 when current duct size diverges >20% from the registry target for current flow + role [Phase 183]
-HVC_SIZE_STALE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_SIZE_STALE_BOOL display mirror [auto-generated]
+HVC_SIZE_STALE_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,HVC_SIZE_STALE_BOOL display mirror [auto-generated]
 HVC_SPACE_TYPE_TXT,5,space-level,MEP Spaces|Rooms,"Load-profile space type id (STING_LOAD_PROFILES.json, e.g. Office) for this space or room; read by Block Load, the cross-talk audit and the ComCheck export before falling back to a name match."
 HVC_SYSTEM_ID_TXT,5,space-level,MEP Spaces|Rooms,Air system that serves this space (for example AHU-01). Block Load groups spaces by it; blank falls back to the space's HVAC zone.
 HVC_TAG_7_PARA_ANAL_DUCTS_TXT,5,tag-container,<ALL>,Anal Ducts paragraph [ISO 19650-3:2020]
@@ -1570,7 +1570,7 @@ HVC_TERMINAL_MAT_TXT,5,prefix+sub,Air Terminals,Hvc Terminal Mat Txt [ISO 19650-
 HVC_TERMINAL_PATTERN_TXT,5,prefix+sub,Air Terminals,Hvc Terminal Pattern Txt [ISO 19650-1:2018]
 HVC_THROW_M,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Throw M [ISO 19650]
 HVC_VEL_MPS,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Vel Mps [ISO 19650-1:2018]
-HVC_VEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_VEL_MPS display mirror [auto-generated]
+HVC_VEL_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,HVC_VEL_MPS display mirror [auto-generated]
 HVC_VLT_V,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Vlt V [ISO 19650-1:2018]
 ICT_CAT_RATING_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone Devices|Security Devices|Nurse Call Devices,Ict Cat Rating [ISO 19650]
 ICT_DEV_TAG,3,tag-container,<ALL>,ICT device tag container [ISO 19650-2:2018]
@@ -1733,7 +1733,7 @@ MGS_AAP_REF_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing
 MGS_DESIGN_FLOW_LPM_NR,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,"Design flow l/min, free air [HTM 02-01]"
 MGS_DIVERSITY_PCT_NR,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Diversity factor (%) [HTM 02-01 sizing]
 MGS_EQP_TAG,29,tag-container,<ALL>,Medical gas equipment ISO 19650 tag container
-MGS_GAS_REQUIREMENT_TXT,29,space-level,MEP Spaces|Rooms,"Medical gases a clinical room needs, comma-separated codes (O2, VAC, AIR, N2O, AGSS). Read by Med Gas Outlet placement."
+MGS_GAS_REQUIREMENT_TXT,29,room-level,Rooms,"Medical gases a clinical room needs, comma-separated codes: O2, N2O, CO2, MA4 (medical air), MA7 (surgical air), N2, HE, VAC, AGS (scavenging). Read by Med Gas Outlet placement."
 MGS_GAS_TYPE_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Medical gas type: O2 / MA4 / MA7 / N2O / N2 / CO2 / HE / VAC / AGS / DENT [HTM 02-01 / NFPA 99]
 MGS_NOM_PRESS_KPA_NR,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Nominal design pressure (kPa) [BS EN ISO 7396-1]
 MGS_OUTLET_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Outlet Zone Txt [STING]
@@ -1749,7 +1749,7 @@ MGS_VERIFY_PASS_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plu
 MGS_WORKING_PRESSURE_KPA,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Working Pressure Kpa [STING]
 MGS_ZVB_REF_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)
 MGS_ZV_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories,Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.
-MNT_ACCESS_DIR_TXT,9,equipment-level,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment,"Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or ALL. Read by the maintenance clash check."
+MNT_ACCESS_DIR_TXT,9,equipment-level,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment,"Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or BOTTOM. Read by the maintenance clash check."
 MNT_ACCESS_REQUIREMENTS_TXT,9,universal-meta,<ALL>,Mnt Access Requirements [ISO 19650]
 MNT_CAL_LAST_DT,25,universal-meta,<ALL>,Last calibration date (ISO 8601) -- distinct from service date
 MNT_CAL_NEXT_DT,25,universal-meta,<ALL>,Next calibration due (ISO 8601)
@@ -2047,7 +2047,7 @@ PLM_PRV_SET_PRESSURE_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex
 PLM_PSR_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Psr Kpa [ISO 19650-1:2018]
 PLM_PSR_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,PLM_PSR_KPA display mirror [auto-generated]
 PLM_PWR_KW,6,safe-prefix,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures,Plm Pwr Kw [ISO 19650-1:2018]
-PLM_RECIRC_DELTA_T_K,6,project-level,Project Information,"Hot water recirculation design temperature drop around the loop, K. Read by the recirculation loop balancer; blank uses its default."
+PLM_RECIRC_DELTA_T_K,6,project-level,Project Information,"Temperature difference between the hot water and the air around the recirculation pipework, K, used for the pipe heat loss. Read by the recirculation loop balancer; blank = 40 K (60 C water, 20 C air)."
 PLM_RECIRC_DRV_KV,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,"Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]"
 PLM_RECIRC_PUMP_DUTY_LPM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain ≤5°C ΔT loop [Phase 187]
 PLM_RO_LOOP_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Belongs to dialysis Reverse Osmosis loop
@@ -2692,7 +2692,7 @@ STR_GROUND_TYPE_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structu
 STR_IMPORTANCE_CLASS_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors|Project Information,EC8 §4.2.5 importance class I / II / III / IV (ordinary / standard / important / essential — hospitals + emergency = IV) [Phase 190]
 STR_LINE_LOAD_KN_M,16,safe-prefix,Floors|Internal Line Loads|Line Loads|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Str Line Load Kn M [ISO 19650]
 STR_LOAD_AXIAL_KN,16,safe-prefix,Floors|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar|Walls,Str Load Axial Kn [ISO 19650]
-STR_LOAD_AXIAL_TXT,16,safe-prefix,Structural Framing|Structural Columns|Structural Foundations|Structural Rebar|Floors,STR_LOAD_AXIAL_KN display mirror [auto-generated]
+STR_LOAD_AXIAL_TXT,16,safe-prefix,Floors|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar|Walls,STR_LOAD_AXIAL_KN display mirror [auto-generated]
 STR_LOAD_CASE_TXT,16,safe-prefix,Area Loads|Floors|Internal Area Loads|Internal Line Loads|Internal Point Loads|Line Loads|Point Loads|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Str Load Case [ISO 19650]
 STR_LOAD_UDL_KN_M,16,safe-prefix,Floors|Structural Beam Systems|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,Str Load Udl Kn M [ISO 19650]
 STR_MATERIAL_GRADE_TXT,16,safe-prefix,Analytical Members|Analytical Panels|Floors|Structural Columns|Structural Foundations|Structural Framing|Structural Rebar,"Structural material grade (C30/37, S355, GL24h)"

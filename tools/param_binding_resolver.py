@@ -44,6 +44,8 @@ S={"HVAC":"Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessori
 "CABLE_TRAY":"Cable Trays|Cable Tray Fittings","LIGHT":"Lighting Fixtures|Lighting Devices",
 "ELEC_EQUIP":"Electrical Equipment|Electrical Circuits",
 "PLUMB_FIXTURE":"Plumbing Fixtures",
+"WALL_BASIC":"Walls",
+"ENERGY_EQUIP":"Electrical Equipment|Electrical Circuits|Mechanical Equipment|Lighting Fixtures",
 "MAINT_EQUIP":"Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment",
 "ELEC_FIXTURE":"Electrical Fixtures",
 "ELEC_CONDUIT":"Conduits|Conduit Fittings",
@@ -93,13 +95,21 @@ def resolve(n,desc,depth=0):
     if n in ("PROJECT_REGION","PLM_RECIRC_DELTA_T_K","PRJ_ELC_SUPPLY_VOLTAGE_TXT"): return "PROJECT_INFO","project-level"
     # Facts about a room or space, read there: the gases a clinical room needs
     # (Med Gas Outlet placement) and the air system serving a space (Block Load).
-    if n in ("MGS_GAS_REQUIREMENT_TXT","HVC_SYSTEM_ID_TXT"): return "SPACE_ROOM","space-level"
+    # Block Load reads the air system on MEP Spaces, falling back to Rooms.
+    if n=="HVC_SYSTEM_ID_TXT": return "SPACE_ROOM","space-level"
+    # Med Gas Outlet placement collects Rooms only (OfType<Room>).
+    if n=="MGS_GAS_REQUIREMENT_TXT": return "ROOM","room-level"
     # The fixture kind the connector completeness check reads; only fixtures have one.
     if n=="PLM_FIX_TYPE_TXT": return "PLUMB_FIXTURE","fixture-level"
     # Maintenance access side, read on the equipment the maintenance clash check scans.
     if n=="MNT_ACCESS_DIR_TXT": return "MAINT_EQUIP","equipment-level"
+    # Annual energy use: the carbon tracker reads it for B6 on energy-using equipment
+    # (CarbonStageTracker.B6Categories), not only electrical boards.
+    if n=="ELC_ENERGY_KWH_PA": return "ENERGY_EQUIP","energy-use"
     # Plaster faces is a wall fact read by the compound take-off.
-    if n=="BLE_PLASTER_FACES_NR": return "WALL","wall-level"
+    # The compound take-off plasters basic walls only; the WALL set would also put
+    # it on curtain panels and mullions, which are never plastered.
+    if n=="BLE_PLASTER_FACES_NR": return "WALL_BASIC","wall-level"
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
     if pre=="TAG": return "NONE","annotation-only"
@@ -461,6 +471,31 @@ for _i, _o in enumerate(out):
         _widened += 1
 
 print("kept wider committed bindings on %d parameter(s)" % _widened)
+
+# A _TXT display mirror binds wherever the value it mirrors binds. A tag label can
+# only read TEXT, so a mirror missing from a category its source is on shows a blank
+# label on elements that hold the value. The mirror/source pairing is read from
+# bind_txt_mirrors.py, which owns it; this pass only widens (like the one above),
+# so re-running is a no-op.
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location("_bind_txt_mirrors", os.path.join(os.path.dirname(os.path.abspath(__file__)), "bind_txt_mirrors.py"))
+_btm = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_btm)
+_mirrors, _ = _btm.mirror_sources()
+_idx = {o[0]: i for i, o in enumerate(out)}
+_mirror_widened = 0
+for _m, _src in sorted(_mirrors.items()):
+    if _m not in _idx or _src not in _idx: continue
+    _mi, _si = _idx[_m], _idx[_src]
+    _mn, _mg, _mx, _mc, _md = out[_mi]
+    _sc = out[_si][3]
+    if not _sc: continue
+    _mu, _me = cell_parse(_mc) if _mc else (False, [])
+    _su, _se = cell_parse(_sc)
+    _new = cell_fmt(True, _me + _se) if (_mu or _su) else "|".join(sorted(set(_me) | set(_se)))
+    if set(_new.split("|")) != set((_mc or "").split("|")):
+        out[_mi] = (_mn, _mg, _mx, _new, _md)
+        _mirror_widened += 1
+print("widened %d _TXT mirror(s) to their source's categories" % _mirror_widened)
 
 # Regression gate for the Yes marker: every hand-authored home must be in the
 # row that ships. This is what went missing for the LPS / regional project-level
