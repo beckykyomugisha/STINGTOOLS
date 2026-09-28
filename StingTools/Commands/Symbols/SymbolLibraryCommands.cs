@@ -194,6 +194,7 @@ namespace StingTools.Commands.Symbols
             aggregate.Warnings.AddRange(r.Warnings);
             aggregate.Errors.AddRange(r.Errors);
             aggregate.CreatedRfaPaths.AddRange(r.CreatedRfaPaths);
+            aggregate.DegradedFillSymbols.AddRange(r.DegradedFillSymbols);
             return aggregate;
         }
 
@@ -283,6 +284,13 @@ namespace StingTools.Commands.Symbols
                 foreach (var e in r.Errors.Take(15)) sb.AppendLine("  ✗ " + e);
                 if (r.Errors.Count > 15) sb.AppendLine($"  … +{r.Errors.Count - 15} more (StingTools.log)");
             }
+            if (r.DegradedFillSymbols.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Degraded fills ({r.DegradedFillSymbols.Distinct().Count()}): no FilledRegionType, "
+                    + "drawn as an outline instead of solid:");
+                foreach (var d in r.DegradedFillSymbols.Distinct().Take(20)) sb.AppendLine("  · " + d);
+            }
 
             foreach (var w in r.Warnings) StingLog.Warn($"SymbolLibrary: {w}");
             foreach (var e in r.Errors)   StingLog.Error($"SymbolLibrary: {e}");
@@ -309,6 +317,7 @@ namespace StingTools.Commands.Symbols
                 aggregate.Failed  += r.Failed;
                 aggregate.Warnings.AddRange(r.Warnings);
                 aggregate.Errors.AddRange(r.Errors);
+                aggregate.DegradedFillSymbols.AddRange(r.DegradedFillSymbols);
                 // Per-batch detection: the aggregate hides a single failed batch when
                 // others succeed, so flag the empty ones by name here.
                 if (SymbolBatchHelper.LooksLikeMissingTemplate(r))
