@@ -118,6 +118,7 @@ Token-Depth Live entry in [`CHANGELOG.md`](CHANGELOG.md).)*
 | [`examples/_smoke_test_schema.md`](examples/_smoke_test_schema.md) | ✅ **Current.** The contract for a generated, CI-gated smoke-test checklist: what a step may declare, what `tools/check_smoke_test.py` proves, and — stated plainly — what it cannot (anything about real Revit geometry). Owner-agnostic; read this before adding an owner pack. |
 | [`examples/KUT/README.md`](examples/KUT/README.md) | ✅ **Current.** What lives in the KUT example folder. The *deployable* overlay pack is `project-templates/KUT/_BIM_COORD/`, not here. |
 | [`examples/KUT/REVIT_SMOKE_TEST.md`](examples/KUT/REVIT_SMOKE_TEST.md) | ✅ **Current — GENERATED, do not edit.** Rendered from `examples/KUT/smoke_test.json` by `tools/build_smoke_test.py`. Hand edits are reverted by the gate. |
+| [`examples/SYMBOL_SLD/REVIT_SMOKE_TEST.md`](examples/SYMBOL_SLD/REVIT_SMOKE_TEST.md) | ✅ **Current — GENERATED, do not edit.** Rendered from `examples/SYMBOL_SLD/smoke_test.json`. The Revit checklist for the symbol library and SLD work ported from PR #951: preflight, Create All, line weights, orientation audit, standard switch, SLD generation, the Symbols and SLD workflow, DWG to model. Not yet walked in Revit. |
 
 The hand-maintained checklists below predate that pipeline. They are still the
 only coverage for their areas, but none is gated — treat each as a point-in-time
