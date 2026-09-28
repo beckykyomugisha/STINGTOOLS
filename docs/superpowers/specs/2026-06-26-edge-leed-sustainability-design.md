@@ -389,7 +389,8 @@ project fraction.
   **Tier-1 path** (`STING_EMB_CARBON_NR`); **do not** use
   `CarbonTrackingEngine.EnsureLoaded()` — it is dead at runtime (reads the
   `MATERIAL_LOOKUP.csv` comment banner as a header, finds no carbon column, returns
-  empty). Generalise the resolver to also resolve **MJ** via `SUS_MAT_ENERGY_MJ_M2_NR`
+  empty; removed 2026-09-28 — MATERIAL_LOOKUP carbon reaches the resolver through
+  `MaterialLookupCsv`). Generalise the resolver to also resolve **MJ** via `SUS_MAT_ENERGY_MJ_M2_NR`
   / EPD PERT+PENRT.
 - **EDGE materials %** is the EDGE app's number. STING tracks material **selections**
   + quantities (export them) and shows an **indicative MJ** estimate; never claims the

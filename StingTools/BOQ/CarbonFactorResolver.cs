@@ -13,20 +13,11 @@ namespace StingTools.BOQ
     /// Resolution chain:
     ///   1) Material.STING_EMB_CARBON_NR  (kgCO₂e/m³)
     ///   2) MaterialLookupCsv.GetCarbon    (kgCO₂e/m³)
-    ///   3) CarbonTrackingEngine dict       (kgCO₂e/kg — legacy)
-    ///   4) GetDefaultCarbonFactor keyword  (kgCO₂e/kg — legacy)
-    /// The first two tiers return PerM3; tiers 3+4 return PerKg.
+    ///   3) CarbonTrackingEngine.GetCarbonFactor — ICE keyword fallback (kgCO₂e/kg)
+    /// EPD / Uganda tiers and the first two return PerM3; tier 3 returns PerKg.
     /// Callers multiply by volume or mass accordingly.
     /// </summary>
-    public enum CarbonFactorUnit { KgCo2ePerM3, KgCo2ePerKg, Unknown }
-
-    public struct CarbonFactorResult
-    {
-        public double Factor;
-        public CarbonFactorUnit PerUnit;
-        public string Source;
-    }
-
+    // CarbonFactorUnit / CarbonFactorResult live in CarbonQuantity.cs (Revit-free, tested).
     public static class CarbonFactorResolver
     {
         public static CarbonFactorResult Resolve(Document doc, string materialName)
@@ -104,7 +95,7 @@ namespace StingTools.BOQ
             {
                 double dictVal = StingTools.BIMManager.CarbonTrackingEngine.GetCarbonFactor(materialName);
                 if (dictVal > 0)
-                    return new CarbonFactorResult { Factor = dictVal, PerUnit = CarbonFactorUnit.KgCo2ePerKg, Source = "carbon-factors-csv" };
+                    return new CarbonFactorResult { Factor = dictVal, PerUnit = CarbonFactorUnit.KgCo2ePerKg, Source = "ice-keyword" };
             }
             catch (Exception ex) { StingLog.WarnRateLimited("CFRes.Legacy", $"CarbonFactorResolver legacy: {ex.Message}"); }
 

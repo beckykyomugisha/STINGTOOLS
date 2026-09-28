@@ -1488,7 +1488,7 @@ namespace StingTools.UI
             try
             {
                 var dp = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document
-                    ?.ProjectInformation?.LookupParameter("PRJ_ORG_DISCIPLINES_TXT");
+                    ?.ProjectInformation?.LookupParameter(ParamRegistry.PRJ_ORG_DISCIPLINES_TXT);
                 if (dp?.HasValue == true && dp.StorageType == Autodesk.Revit.DB.StorageType.String)
                 {
                     string discs = (dp.AsString() ?? "").ToUpperInvariant();

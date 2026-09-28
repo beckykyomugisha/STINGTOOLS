@@ -196,7 +196,7 @@ namespace StingTools.UI
                     // sidecar (sting_region.json) → singleton's current region.
                     try
                     {
-                        string projRegion = pi.LookupParameter("PROJECT_REGION")?.AsString();
+                        string projRegion = pi.LookupParameter(ParamRegistry.PROJECT_REGION)?.AsString();
                         if (string.IsNullOrWhiteSpace(projRegion))
                             projRegion = ProjectRegionSidecar.Read(doc);
                         if (string.IsNullOrWhiteSpace(projRegion))

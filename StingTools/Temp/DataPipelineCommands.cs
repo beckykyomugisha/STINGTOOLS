@@ -222,28 +222,24 @@ namespace StingTools.Temp
 
             var lines = SafeReadAllLines(path, "Parameter file read", results);
             if (lines == null) return;
-            int paramCount = lines.Count(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#") && !l.TrimStart().StartsWith("*"));
+            // A shared-parameter file row is "PARAM<TAB>guid<TAB>name<TAB>...". Counting every
+            // non-comment line took in the META / GROUP header rows, and the GUID was read from
+            // column 0 -- the word "PARAM" -- so no GUID ever parsed and this check always failed.
+            var paramRows = lines.Where(l => l.StartsWith("PARAM\t")).Select(l => l.Split('\t')).ToList();
+            int paramCount = paramRows.Count;
             results.Add(new ValidationResult("Parameter count", "MODERATE",
                 paramCount >= 50,
                 $"{paramCount} parameters defined (expected 50+)"));
 
-            // Check for GUID format
-            int validGuids = 0;
-            foreach (string line in lines)
-            {
-                if (line.Contains("\t"))
-                {
-                    string[] parts = line.Split('\t');
-                    if (parts.Length >= 2)
-                    {
-                        if (Guid.TryParse(parts[0].Trim(), out _))
-                            validGuids++;
-                    }
-                }
-            }
+            int validGuids = paramRows.Count(p => p.Length >= 2 && Guid.TryParse(p[1].Trim(), out _));
+            var dupGuids = paramRows.Where(p => p.Length >= 2).GroupBy(p => p[1].Trim(), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             results.Add(new ValidationResult("Parameter GUIDs", "MODERATE",
-                validGuids >= 10,
-                $"{validGuids} valid GUIDs found"));
+                validGuids == paramCount && dupGuids.Count == 0,
+                validGuids == paramCount && dupGuids.Count == 0
+                    ? $"All {validGuids} GUIDs valid and unique"
+                    : $"{paramCount - validGuids} invalid, {dupGuids.Count} duplicated" +
+                      (dupGuids.Count > 0 ? $" (e.g. {dupGuids[0]})" : "")));
         }
 
         private void CheckBindingCoverage(string dataPath, List<ValidationResult> results)
@@ -597,9 +593,9 @@ namespace StingTools.Temp
     // ════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Load parameter-category bindings from CATEGORY_BINDINGS.csv and
-    /// BINDING_COVERAGE_MATRIX.csv, then bind shared parameters accordingly.
-    /// Replaces hardcoded SharedParamGuids.DisciplineBindings for greater flexibility.
+    /// Add the categories the binding spec (RESOLVED_BINDINGS.csv, with project profiles)
+    /// gives each scoped parameter: create missing bindings, widen existing ones, never
+    /// remove. Universal parameters are left to Load Shared Parameters.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -612,81 +608,41 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
-            if (bindingsPath == null)
+            // PARAM-11: bind from the spec Load Shared Parameters uses (RESOLVED_BINDINGS.csv,
+            // plus any project binding profiles), not CATEGORY_BINDINGS.csv. That file is the
+            // resolver's hand-authored input -- the resolver honours only its Yes rows -- and
+            // read wholesale it put 1,141 parameters on Generic Models as TYPE parameters.
+            if (!SharedParamGuids.HasResolvedSpec)
             {
                 TaskDialog.Show("Dynamic Bindings",
-                    "CATEGORY_BINDINGS.csv not found.\n" +
+                    "RESOLVED_BINDINGS.csv could not be loaded, so there is no binding spec to apply.\n" +
                     $"Searched: {StingToolsApp.DataPath}");
                 return Result.Failed;
             }
-
-            // Parse binding definitions
-            string[] rawBindingLines;
-            try
-            {
-                rawBindingLines = File.ReadAllLines(bindingsPath);
-            }
-            catch (Exception ex)
-            {
-                TaskDialog.Show("Dynamic Bindings", $"Failed to read file: {ex.Message}");
-                StingLog.Error($"DynamicBindings: {ex.Message}", ex);
-                return Result.Failed;
-            }
-            var lines = rawBindingLines
-                .Where(l => !l.StartsWith("#") && !string.IsNullOrWhiteSpace(l))
-                .ToArray();
-
-            if (lines.Length < 2)
-            {
-                TaskDialog.Show("Dynamic Bindings", "No bindings found in CSV.");
-                return Result.Failed;
-            }
-
-            var headers = StingToolsApp.ParseCsvLine(lines[0]);
-            int paramIdx = FindColumn(headers, "Parameter_Name", "Param");
-            int catIdx = FindColumn(headers, "Revit_Category", "Category");
-            int typeIdx = FindColumn(headers, "Binding_Type", "Type");
-            int sharedIdx = FindColumn(headers, "Is_Shared", "Shared");
-
-            if (paramIdx < 0 || catIdx < 0)
-            {
-                TaskDialog.Show("Dynamic Bindings",
-                    "CSV missing required columns: Parameter_Name, Revit_Category");
-                return Result.Failed;
-            }
-
-            // Group bindings by parameter
+            var spec = SharedParamGuids.WithProfiles(doc, SharedParamGuids.ResolvedScopedBindings);
             var bindingGroups = new Dictionary<string, List<(string category, string bindType)>>(
                 StringComparer.OrdinalIgnoreCase);
-
-            for (int i = 1; i < lines.Length; i++)
+            int specRows = 0;
+            foreach (var kvp in spec)
             {
-                var cols = StingToolsApp.ParseCsvLine(lines[i]);
-                if (cols.Length <= Math.Max(paramIdx, catIdx)) continue;
-
-                string paramName = cols[paramIdx].Trim();
-                string category = cols[catIdx].Trim();
-                string bindType = typeIdx >= 0 && cols.Length > typeIdx ? cols[typeIdx].Trim() : "Instance";
-
-                if (string.IsNullOrEmpty(paramName) || string.IsNullOrEmpty(category))
-                    continue;
-
-                if (!bindingGroups.TryGetValue(paramName, out var bgList))
+                var list = new List<(string, string)>();
+                foreach (var bic in kvp.Value ?? Array.Empty<BuiltInCategory>())
                 {
-                    bgList = new List<(string, string)>();
-                    bindingGroups[paramName] = bgList;
+                    string catName = null;
+                    try { catName = Category.GetCategory(doc, bic)?.Name; }
+                    catch (Exception ex) { StingLog.Warn($"DynamicBindings category {bic}: {ex.Message}"); }
+                    if (!string.IsNullOrEmpty(catName)) { list.Add((catName, "Instance")); specRows++; }
                 }
-                bgList.Add((category, bindType));
+                if (list.Count > 0) bindingGroups[kvp.Key] = list;
             }
 
             TaskDialog confirm = new TaskDialog("Dynamic Bindings");
-            confirm.MainInstruction = $"Bind {bindingGroups.Count} parameters from CSV";
-            confirm.MainContent = $"Source: CATEGORY_BINDINGS.csv\n" +
-                $"Total bindings: {lines.Length - 1}\n" +
-                $"Unique parameters: {bindingGroups.Count}\n\n" +
-                "This will create missing parameter bindings.\n" +
-                "Existing bindings are not modified.";
+            confirm.MainInstruction = $"Add missing categories for {bindingGroups.Count} parameters";
+            confirm.MainContent = "Source: RESOLVED_BINDINGS.csv (the spec Load Shared Parameters binds from)\n" +
+                $"Category bindings: {specRows}\n" +
+                $"Universal parameters ({SharedParamGuids.ResolvedUniversalParams.Count}) are left to Load Shared Parameters.\n\n" +
+                "Creates missing bindings and adds missing categories.\n" +
+                "Nothing is removed; Reconcile Bindings narrows to the spec.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
             if (confirm.Show() == TaskDialogResult.Cancel)
                 return Result.Cancelled;
@@ -812,19 +768,6 @@ namespace StingTools.Temp
                 $"Bound: {bound}\nSkipped: {skipped} (existing or not found)\nFailed: {failed}");
             StingLog.Info($"DynamicBindings: bound={bound}, skipped={skipped}, failed={failed}");
             return Result.Succeeded;
-        }
-
-        private static int FindColumn(string[] headers, params string[] candidates)
-        {
-            for (int i = 0; i < headers.Length; i++)
-            {
-                foreach (string cand in candidates)
-                {
-                    if (headers[i].IndexOf(cand, StringComparison.OrdinalIgnoreCase) >= 0)
-                        return i;
-                }
-            }
-            return -1;
         }
 
         // DEAD-001: FindDefinition removed — superseded by pre-built defIndex dictionary (above).

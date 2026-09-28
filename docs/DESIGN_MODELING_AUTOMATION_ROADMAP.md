@@ -325,7 +325,7 @@ previous revision was reference-calculator only.
 
 | Runner | Upgrade | From | To |
 |---|---|---|---|
-| S118.01 | MEP-A-01 CableSizeApply | Circuit count only | Iterates OST_ElectricalCircuit, reads RBS_ELEC_VOLTAGE + RBS_ELEC_APPARENT_LOAD_A, calls StandardsAPI.CalculateCableSize, writes SizeAWG back to CABLE_SIZE / ELC_CBL_SIZE_TXT |
+| S118.01 | MEP-A-01 CableSizeApply | Circuit count only | Iterates OST_ElectricalCircuit, reads RBS_ELEC_VOLTAGE + RBS_ELEC_APPARENT_LOAD_A, calls StandardsAPI.CalculateCableSize, writes SizeAWG back to CABLE_SIZE / ELC_CBL_SIZE_TXT. **Superseded 2026-09-27:** neither parameter existed, so it wrote nothing; it now previews, confirms and applies through `CableSizerApplyEngine` (BS 7671 Appendix 4) |
 | S118.02 | MEP-A-12 BalanceApply | Info panel | Collects duct + pipe flow data, runs MEPBalancingEngine.BalanceSystem, writes balanced ActualFlowLs back to RBS_DUCT_FLOW_PARAM / RBS_PIPE_FLOW_PARAM |
 | S118.03 | ARCH-01 AutoStair | Geometry prompt only | Calls StairEngine.DesignStair → rise/going/pitch/compliance + prompts to place via StairEngine.CreateStair (uses StairsEditScope, picks first 2 levels) |
 | S118.03 | ARCH-03 AutoCurtainWall | Grid preview | Calls CurtainWallEngine.Design → CurtainWallSpec + prompts to place via CurtainWallEngine.Create at active level origin |

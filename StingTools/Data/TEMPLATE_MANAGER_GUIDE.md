@@ -470,7 +470,7 @@ Batch processor for `.rfa` files on disk. Opens each family, injects shared para
 
 #### Dynamic Bindings
 
-Loads parameter bindings from `BINDING_COVERAGE_MATRIX.csv` — useful when adding bindings to many categories at once.
+Adds the categories the binding spec (`RESOLVED_BINDINGS.csv`, the same spec Load Shared Parameters uses) gives each scoped parameter: it creates missing bindings and widens existing ones, as instance bindings, and never removes a category. Universal parameters are left to Load Shared Parameters; Reconcile Bindings narrows a model to the spec.
 
 #### Schema Validate 🟢 **Read-only**
 

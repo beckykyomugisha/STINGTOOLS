@@ -110,7 +110,7 @@ namespace StingTools.Commands.Routing
             var list = new List<ConduitCableEntry>();
             try
             {
-                var p = conduit.LookupParameter("ELC_CDT_CABLE_MANIFEST_TXT");
+                var p = conduit.LookupParameter(ParamRegistry.ELC_CDT_CABLE_MANIFEST_TXT);
                 var s = p?.AsString() ?? "";
                 if (string.IsNullOrEmpty(s)) return list;
                 foreach (var token in s.Split(','))

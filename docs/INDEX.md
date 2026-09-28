@@ -211,7 +211,7 @@ coefficients came from, and which rows are two-source checked
 - [Propagate + recategorise, in order](UNIVERSAL_TAG_PROPAGATE_AND_RECATEGORISE.md) ✅ — the two library-wide jobs, the three collisions between them, and the sequence that survives a deploy
 - [Universal tag Duct smoke test](UNIVERSAL_TAG_DUCT_SMOKE_TEST.md) ⛔ SUPERSEDED
 - [F-9 spatial code reconciliation](F9_SPATIAL_CODE_RECONCILIATION.md) ✅ — five level + three LOC vocabularies, measured
-- [G-8 Type vs Instance binding](G8_TYPE_VS_INSTANCE_BINDING.md) ✅ — proposal, not applied
+- [G-8 Type vs Instance binding](G8_TYPE_VS_INSTANCE_BINDING.md) ✅ — proposal; option D applied 2026-09-28 (PARAM-11)
 - [Tagging workflow analysis](TAGGING_WORKFLOW_ANALYSIS.md) ⛔ SUPERSEDED
 - [Universal tag badge/glyph guide](UNIVERSAL_TAG_BADGE_GLYPH_GUIDE.md) ⛔ SUPERSEDED
 

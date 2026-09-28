@@ -21977,7 +21977,7 @@
     {
       "param_name": "PLM_RECIRC_DELTA_T_K",
       "guid": "b0ae4e71-3170-55ff-9c47-5e559ee12943",
-      "description": "Hot water recirculation design temperature drop around the loop, K. Read by the recirculation loop balancer; blank uses its default.",
+      "description": "Temperature difference between the hot water and the air around the recirculation pipework, K, used for the pipe heat loss. Read by the recirculation loop balancer; blank = 40 K (60 C water, 20 C air).",
       "datatype": "NUMBER",
       "group_id": 6,
       "group_name": "PLM_DRN",
@@ -22001,7 +22001,7 @@
     {
       "param_name": "MGS_GAS_REQUIREMENT_TXT",
       "guid": "0427a377-ac36-52c4-b9e3-ab62433bc577",
-      "description": "Medical gases a clinical room needs, comma-separated codes (O2, VAC, AIR, N2O, AGSS). Read by Med Gas Outlet placement.",
+      "description": "Medical gases a clinical room needs, comma-separated codes: O2, N2O, CO2, MA4 (medical air), MA7 (surgical air), N2, HE, VAC, AGS (scavenging). Read by Med Gas Outlet placement.",
       "datatype": "TEXT",
       "group_id": 29,
       "group_name": "MGS_SYSTEMS",
@@ -22025,7 +22025,7 @@
     {
       "param_name": "MNT_ACCESS_DIR_TXT",
       "guid": "949f0c78-685c-5f70-b670-fe74183f81dd",
-      "description": "Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or ALL. Read by the maintenance clash check.",
+      "description": "Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or BOTTOM. Read by the maintenance clash check.",
       "datatype": "TEXT",
       "group_id": 9,
       "group_name": "PER_SUST",

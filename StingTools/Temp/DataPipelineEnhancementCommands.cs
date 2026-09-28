@@ -111,8 +111,12 @@ namespace StingTools.Temp
     }
 
     /// <summary>
-    /// TEMP-06: Validate BINDING_COVERAGE_MATRIX.csv against CATEGORY_BINDINGS.csv.
-    /// Ensures matrix format matches normalized bindings — detects missing entries.
+    /// TEMP-06: Validate BINDING_COVERAGE_MATRIX.csv against the binding spec in force
+    /// (RESOLVED_BINDINGS.csv), from which tools/gen_binding_views.py generates it.
+    /// It used to take the first line of each file as its header, but both files open
+    /// with "#" comments, so it compared a comment with a list of categories and counted
+    /// comment lines as bindings; and it compared against CATEGORY_BINDINGS.csv, which is
+    /// the resolver's input, not what binds.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -126,79 +130,61 @@ namespace StingTools.Temp
                 sb.AppendLine("═══ Binding Matrix Validation ═══\n");
 
                 var matrixPath = StingToolsApp.FindDataFile("BINDING_COVERAGE_MATRIX.csv");
-                var bindingsPath = StingToolsApp.FindDataFile("CATEGORY_BINDINGS.csv");
-
                 if (string.IsNullOrEmpty(matrixPath))
                 {
-                    sb.AppendLine("⚠ BINDING_COVERAGE_MATRIX.csv not found");
-                    TaskDialog.Show("STING Binding Validation", sb.ToString());
+                    TaskDialog.Show("STING Binding Validation", "BINDING_COVERAGE_MATRIX.csv not found.");
+                    return Result.Failed;
+                }
+                if (!SharedParamGuids.HasResolvedSpec)
+                {
+                    TaskDialog.Show("STING Binding Validation", "RESOLVED_BINDINGS.csv could not be loaded; nothing to validate against.");
                     return Result.Failed;
                 }
 
-                if (string.IsNullOrEmpty(bindingsPath))
+                var rows = File.ReadAllLines(matrixPath)
+                    .Where(l => !string.IsNullOrWhiteSpace(l) && !l.TrimStart().StartsWith("#")).ToList();
+                if (rows.Count < 2)
                 {
-                    sb.AppendLine("⚠ CATEGORY_BINDINGS.csv not found");
-                    TaskDialog.Show("STING Binding Validation", sb.ToString());
+                    TaskDialog.Show("STING Binding Validation", "BINDING_COVERAGE_MATRIX.csv has no data rows.");
                     return Result.Failed;
                 }
+                var columns = StingToolsApp.ParseCsvLine(rows[0]).Skip(1).Select(h => h.Trim()).ToArray();
+                var colEnums = columns.Select(c => ParamRegistry.ResolveCategoryEnums(new[] { c }).FirstOrDefault()).ToArray();
+                var colResolved = columns.Select(c => ParamRegistry.ResolveCategoryEnums(new[] { c }).Length > 0).ToArray();
 
-                // Parse matrix
-                var matrixLines = File.ReadAllLines(matrixPath);
-                if (matrixLines.Length == 0)
+                var scoped = SharedParamGuids.ResolvedScopedBindings;
+                var universal = SharedParamGuids.ResolvedUniversalParams;
+                int checkedRows = 0, drift = 0, notInSpec = 0;
+                var examples = new List<string>();
+                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var line in rows.Skip(1))
                 {
-                    sb.AppendLine("⚠ BINDING_COVERAGE_MATRIX.csv is empty");
-                    TaskDialog.Show("STING Binding Validation", sb.ToString());
-                    return Result.Failed;
-                }
-                var matrixHeader = StingToolsApp.ParseCsvLine(matrixLines[0]);
-                var matrixCategories = matrixHeader.Skip(1).Select(h => h.Trim()).ToList();
-                int matrixParams = matrixLines.Length - 1;
-
-                // Parse bindings
-                var bindingLines = File.ReadAllLines(bindingsPath).Skip(1).ToList();
-                var bindingParams = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var bindingCategories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                int totalBindings = 0;
-
-                foreach (var line in bindingLines)
-                {
-                    var parts = StingToolsApp.ParseCsvLine(line);
-                    if (parts.Length < 2) continue;
-                    bindingParams.Add(parts[0].Trim());
-                    bindingCategories.Add(parts[1].Trim());
-                    totalBindings++;
-                }
-
-                sb.AppendLine($"Matrix: {matrixParams} parameters × {matrixCategories.Count} categories");
-                sb.AppendLine($"Bindings: {bindingParams.Count} parameters × {bindingCategories.Count} categories ({totalBindings} total)");
-
-                // Compare categories
-                var matrixCatSet = new HashSet<string>(matrixCategories, StringComparer.OrdinalIgnoreCase);
-                var missingInMatrix = bindingCategories.Except(matrixCatSet, StringComparer.OrdinalIgnoreCase).ToList();
-                var missingInBindings = matrixCatSet.Except(bindingCategories, StringComparer.OrdinalIgnoreCase).ToList();
-
-                if (missingInMatrix.Count > 0)
-                    sb.AppendLine($"\nCategories in bindings but missing from matrix ({missingInMatrix.Count}):\n  {string.Join(", ", missingInMatrix.Take(10))}");
-                if (missingInBindings.Count > 0)
-                    sb.AppendLine($"\nCategories in matrix but missing from bindings ({missingInBindings.Count}):\n  {string.Join(", ", missingInBindings.Take(10))}");
-
-                if (missingInMatrix.Count == 0 && missingInBindings.Count == 0)
-                    sb.AppendLine("\n✓ Category sets match");
-
-                // Count matrix 1s vs binding rows
-                int matrixOnes = 0;
-                for (int i = 1; i < matrixLines.Length; i++)
-                {
-                    var values = StingToolsApp.ParseCsvLine(matrixLines[i]);
-                    for (int j = 1; j < values.Length; j++)
+                    var v = StingToolsApp.ParseCsvLine(line);
+                    if (v.Length == 0) continue;
+                    string p = v[0].Trim();
+                    seen.Add(p);
+                    if (universal.Contains(p)) { checkedRows++; continue; }
+                    if (!scoped.TryGetValue(p, out var specCats)) { notInSpec++; if (examples.Count < 10) examples.Add($"{p}: not in the spec"); continue; }
+                    checkedRows++;
+                    var matrixSet = new HashSet<BuiltInCategory>();
+                    for (int j = 0; j < columns.Length && j + 1 < v.Length; j++)
+                        if (v[j + 1].Trim() == "1" && colResolved[j]) matrixSet.Add(colEnums[j]);
+                    var specSet = new HashSet<BuiltInCategory>(specCats);
+                    if (!matrixSet.SetEquals(specSet))
                     {
-                        if (values[j].Trim() == "1") matrixOnes++;
+                        drift++;
+                        if (examples.Count < 10) examples.Add($"{p}: spec-only {string.Join("/", specSet.Except(matrixSet))}; matrix-only {string.Join("/", matrixSet.Except(specSet))}");
                     }
                 }
+                int missing = scoped.Keys.Concat(universal).Count(p => !seen.Contains(p));
 
-                sb.AppendLine($"\nMatrix active bindings (1s): {matrixOnes}");
-                sb.AppendLine($"CSV binding rows: {totalBindings}");
-                sb.AppendLine($"Difference: {Math.Abs(matrixOnes - totalBindings)} ({(matrixOnes == totalBindings ? "✓ Match" : "⚠ Drift")})");
+                sb.AppendLine($"Matrix: {rows.Count - 1} parameters × {columns.Length} categories");
+                sb.AppendLine($"Spec: {scoped.Count} scoped + {universal.Count} universal parameters");
+                sb.AppendLine($"Checked: {checkedRows}   drift: {drift}   in matrix, not in spec: {notInSpec}   in spec, not in matrix: {missing}");
+                if (examples.Count > 0) { sb.AppendLine(); foreach (var e in examples) sb.AppendLine("  " + e); }
+                sb.AppendLine(drift == 0 && notInSpec == 0 && missing == 0
+                    ? "\n✓ The matrix matches the spec."
+                    : "\n⚠ The matrix is out of step with the spec: run tools/gen_binding_views.py.");
 
                 TaskDialog.Show("STING Binding Validation", sb.ToString());
                 return Result.Succeeded;
@@ -552,8 +538,8 @@ namespace StingTools.Temp
                 if (!string.IsNullOrEmpty(catPath))
                 {
                     int rows = CountCsvRows(catPath);
-                    sb.AppendLine($"\n[ACTIVE] CATEGORY_BINDINGS.csv — {rows} bindings");
-                    sb.AppendLine($"  Used by: LoadSharedParamsCommand, DynamicBindingsCommand");
+                    sb.AppendLine($"\n[INPUT] CATEGORY_BINDINGS.csv — {rows} rows");
+                    sb.AppendLine($"  Hand-authored input to tools/param_binding_resolver.py (only Yes rows are honoured)");
                 }
 
                 // BINDING_COVERAGE_MATRIX.csv
@@ -561,8 +547,8 @@ namespace StingTools.Temp
                 if (!string.IsNullOrEmpty(matPath2))
                 {
                     int rows = CountCsvRows(matPath2);
-                    sb.AppendLine($"\n[VALIDATION] BINDING_COVERAGE_MATRIX.csv — {rows} parameters");
-                    sb.AppendLine($"  Used by: ValidateTemplateCommand only");
+                    sb.AppendLine($"\n[GENERATED] BINDING_COVERAGE_MATRIX.csv — {rows} parameters");
+                    sb.AppendLine($"  View of RESOLVED_BINDINGS.csv (tools/gen_binding_views.py); read by Validate Template, Validate Binding Matrix");
                 }
 
                 // FAMILY_PARAMETER_BINDINGS.csv
@@ -579,8 +565,8 @@ namespace StingTools.Temp
                 if (!string.IsNullOrEmpty(pcPath))
                 {
                     int rows = CountCsvRows(pcPath);
-                    sb.AppendLine($"\n[REFERENCE] PARAMETER_CATEGORIES.csv — {rows} parameters");
-                    sb.AppendLine($"  Used by: ViewParameterMetadataCommand (human-readable reference)");
+                    sb.AppendLine($"\n[GENERATED] PARAMETER_CATEGORIES.csv — {rows} parameters");
+                    sb.AppendLine($"  View of RESOLVED_BINDINGS.csv (tools/gen_binding_views.py); read by View Parameter Metadata");
                 }
 
                 // Other data files

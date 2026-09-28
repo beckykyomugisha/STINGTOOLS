@@ -42,7 +42,4 @@ PLM_PIPE_FLOW	advisory; candidates PLM_PPE_FLW_LPS (numeric), PLM_PPE_FLW_TXT, P
 # Fixing these changes what an export CONTAINS, which is why each needs the right
 # answer rather than the nearest one.
 ASS_USAGE_TXT	real target; nearest existing is the unprefixed USAGE_TXT - confirm which the profile means
-BLE_DOOR_FIRE_RATING_TXT	real target; no BLE_ fire-rating parameter exists. candidates PER_/RGL_/SLV_FIRE_RATING_TXT
 BLE_FLOOR_FINISH_TXT	real target; candidates BLE_FLR_FINISH_TXT and BLE_FLR_FINISH_MAT_TXT - two different facts
-BLE_WALL_FIRE_RATING_TXT	real target; same as the door case - no BLE_ fire-rating parameter exists
-STR_CONCRETE_GRADE_TXT	real target; candidates BLE_STRUCT_CONCRETE_GRADE_TXT, CST_S_CON_GRADE_TXT

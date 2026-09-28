@@ -24280,3 +24280,131 @@ every `GetString` read against the parameter's data type.
 - **Gate.** `check_param_contract.py` counts `SetDoubleInNamedUnit` as a write.
 - **Tests.** 3,576 passing. Not exercised in Revit. Run Load Shared Parameters to bind the
   new parameters.
+
+#### New parameters aligned across every binding surface; mirror bindings corrected (2026-09-28)
+
+- **The thirteen PARAM-10 parameters** now appear consistently on every surface
+  `StingTools/Data/MISSING_PARAMETERS.md` lists. The GUID, type, group and categories
+  were checked to agree across:
+  - `MR_PARAMETERS.txt` / `.csv` and `PARAMETER_REGISTRY.json`;
+  - both `RESOLVED_BINDINGS.csv` copies;
+  - `CATEGORY_BINDINGS.csv` (v3.17), `PARAMETER_CATEGORIES.csv` (v2.7) and
+    `BINDING_COVERAGE_MATRIX.csv` (v5.7);
+  - a `ParamRegistry` const + `_GUID` each, now used at all 19 read sites instead of literals.
+- **Bindings checked against what the code reads.**
+  - `MGS_GAS_REQUIREMENT_TXT` narrowed to Rooms: Med Gas Outlet placement reads Rooms only.
+  - `BLE_PLASTER_FACES_NR` narrowed to Walls: the take-off never plasters curtain panels or
+    mullions.
+  - Both parameters were one day old, and the loader never removes a category, so no
+    project loses a binding.
+  - `ELC_ENERGY_KWH_PA` widened to mechanical equipment and luminaires. Its legacy
+    `Generic Models,Type` row is removed and its type corrected to TEXT in
+    `PARAMETER_CATEGORIES.csv`.
+- **B6 carbon actually reads equipment.** The stage tracker walked only building-fabric
+  categories, so the B6 energy it looked for could never be found. B6 now has its own
+  pass over electrical and mechanical equipment and luminaires, and reports equipment with
+  no energy figure as not calculated.
+- **Descriptions corrected.**
+  - `PLM_RECIRC_DELTA_T_K` is the water-to-air temperature difference for pipe heat loss
+    (default 40 K), not the loop's temperature drop.
+  - `MGS_GAS_REQUIREMENT_TXT` lists the codes the command recognises (O2, N2O, CO2, MA4,
+    MA7, N2, HE, VAC, AGS). Its own prompt suggested "AIR", which it does not recognise.
+  - `MNT_ACCESS_DIR_TXT` takes BOTTOM, not ALL.
+- **42 `_TXT` display mirrors** were bound to fewer categories than the value they mirror,
+  so a tag label read blank there. `param_binding_resolver.py` now binds every mirror
+  wherever its source binds; all 197 match.
+  - `bind_txt_mirrors.py` deleted an unrelated history line (it matched on a shared
+    "# v3.9 |" prefix), moved its header to the top, stamped today's date (not idempotent)
+    and dropped the file's byte-order mark. All four are fixed, and its 52 missing mirror
+    rows are written.
+- **Other names aligned.**
+  - ExLink exports read `BLE_STRUCT_CONCRETE_GRADE_TXT` and `PER_FIRE_RATING_TXT`, as the
+    BOQ paragraphs already did (three baselined names removed).
+  - The sizing-rules note names `HVC_PROD_REF_TXT`.
+  - The automation roadmap's MEP-A-01 row says it was superseded.
+- **Guides.** The sustainability guide gives each carbon stage's inputs. The electrical,
+  HVAC and plumbing guides say where to enter cable rated voltage, a space's air system,
+  the recirculation ΔT and the fixture kind.
+- **CLAUDE.md** conventions name `GetValueText`, `SetDoubleInNamedUnit`,
+  `ServiceSystemName` and the new-parameter checklist.
+- **Found, not fixed (PARAM-11).** 588 parameters disagree between `CATEGORY_BINDINGS.csv`
+  and `PARAMETER_CATEGORIES.csv`; both are older than `RESOLVED_BINDINGS.csv`, which is what
+  Load Shared Parameters binds from.
+- **Tests.** 3,576 passing; all gates pass. Not exercised in Revit.
+
+#### PARAM-11: one binding spec, generated views, and more hidden issues (2026-09-28)
+
+- **PARAM-11 closed.** `RESOLVED_BINDINGS.csv` is the one binding spec.
+  - `PARAMETER_CATEGORIES.csv` and `BINDING_COVERAGE_MATRIX.csv` are now generated from it
+    by the new `tools/gen_binding_views.py`. The resolver runs it, so the binding-spec
+    drift gate covers both views.
+  - Both views list every parameter the spec binds (3,332; they listed about 1,300 and
+    1,600). `<ALL>` stands for the 143 universal categories. Existing display names are
+    kept.
+- **Dynamic Bindings binds from the spec.** It read `CATEGORY_BINDINGS.csv` wholesale,
+  which is the resolver's hand-authored input: the resolver honours only its Yes rows.
+  - It put 1,141 parameters on Generic Models as Type parameters.
+  - It now adds the spec's categories as instance bindings and leaves universal parameters
+    to Load Shared Parameters. This is G-8 option D: neither binder creates a Type binding
+    any more.
+  - Its menu text named the matrix as its source, which was wrong too.
+- **The consistency checks compare with the spec.** The load-time audit and Validate
+  Binding Matrix (TEMP-06) compared the views with `CATEGORY_BINDINGS.csv`. That is where
+  the 588 "disagreements" came from.
+  - TEMP-06 also took each file's first line as its header. Both files open with `#`
+    comments, so it compared a comment with the category list and counted comment lines
+    as bindings.
+- **Shared-parameter files disagreed on type.** Ten parameters had one GUID but a
+  different type in `STING_PARAMS_V4.txt` / `STING_PARAMS_V6.txt` than in
+  `MR_PARAMETERS.txt`, for example `ASS_LENGTH_TOTAL_MM` LENGTH vs NUMBER.
+  - Revit gives a GUID one type, so a family authored from one file refuses to load into a
+    project bound from the other. The side files now match `MR_PARAMETERS.txt`, which is
+    what every writer assumes.
+  - The new `tools/check_shared_param_files.py` runs in plugin CI. It failed on main with
+    those ten and passes now.
+- **`ParameterHelpers.SetInt` dropped NUMBER parameters.** It returned false for any
+  Double storage, so a count written to a NUMBER parameter was lost. A unitless NUMBER now
+  takes the integer; a measured one goes through `SetDoubleInNamedUnit`.
+- **Validate Template's GUID check always failed.** It read the GUID from column 0 (the
+  word "PARAM") and counted the file's META and GROUP lines as parameters. It now checks
+  every PARAM row's GUID and reports duplicates.
+- **The plaster material database read the wrong columns.** It used fixed positions from
+  an older `BLE_MATERIALS.csv` layout:
+  - density came from the thickness-in-inches column (about 0.5 kg/m³);
+  - thermal conductivity came from the UGX cost column;
+  - the name came from the application column, and the code from the discipline column.
+
+  It now finds its columns by header name.
+- **pyRevit manifest check** counted its comment lines and header as scripts.
+- **Tests.** 3,576 (Tags) and 438 (Sustainability) passing; all gates pass. Not
+  exercised in Revit.
+
+#### Carbon tracking read per-m³ factors as per-kg; dead loader and pyRevit check removed (2026-09-28)
+
+- **Carbon tracking overstated most materials by about their density.**
+  - `CarbonTrackingEngine.GetCarbonFactor` returned the first of four tiers with no
+    unit. Two of them (a material's `STING_EMB_CARBON_NR` and MATERIAL_LOOKUP's
+    `CARBON_KG_PER_M3`) are kgCO₂e per m³; the keyword fallback is per kg.
+  - The carbon tracking command multiplied the answer by mass. C30 concrete at 300
+    kgCO₂e/m³ read as 300 × 2,450 kg, that is 735,000 kg for one cubic metre instead of
+    300.
+  - The command now uses `CarbonFactorResolver`, the unit-aware resolver the BOQ already
+    uses, and the new Revit-free `BOQ/CarbonQuantity.Split`. Per m³ multiplies the volume,
+    per kg the mass, and a material's own fossil/biogenic split is used when it has one.
+  - Its totals therefore now agree with the BOQ and the EDGE dashboard. Materials the
+    resolver has no specific figure for get its Uganda/EDGE generic default, labelled as
+    such, where before they were left out.
+- **The dead MATERIAL_LOOKUP loader is removed, not rewired.**
+  - `CarbonTrackingEngine.EnsureLoaded` could never parse the file's long format (dead
+    since Z-20).
+  - Parsing it would not have helped: the file's carbon rows are per m³, and this was a
+    per-kg tier.
+  - Those rows already reach every caller through `MaterialLookupCsv` in the resolver's
+    Tier 2, which `MaterialLookupParserTests` cover.
+  - `GetCarbonFactor` is now only the per-kg ICE keyword fallback; the resolver labels it
+    `ice-keyword` (was `carbon-factors-csv`, a file that does not exist).
+- **The pyRevit manifest startup check is removed.** Every script it lists was retired in
+  the C# consolidation, and its paths are relative pyRevit paths. It warned about all of
+  them on every startup and could never pass.
+- **Tests.** 9 new (`CarbonQuantityTests`, hand-worked). Passing: Boq 1,364, Tags 3,576,
+  Sustainability 438. Not exercised in Revit.

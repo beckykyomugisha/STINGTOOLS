@@ -51,7 +51,7 @@ namespace StingTools.UI
             string minSuit = "S2";
             try
             {
-                var p = doc?.ProjectInformation?.LookupParameter("PRJ_ORG_MAT_SIGNOFF_SUIT_TXT");
+                var p = doc?.ProjectInformation?.LookupParameter(ParamRegistry.PRJ_ORG_MAT_SIGNOFF_SUIT_TXT);
                 if (p != null && p.HasValue && p.StorageType == StorageType.String)
                     minSuit = (p.AsString() ?? "S2").Trim();
             }

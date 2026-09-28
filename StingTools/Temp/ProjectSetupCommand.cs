@@ -1022,7 +1022,7 @@ namespace StingTools.Temp
                     {
                         try
                         {
-                            Parameter regionParam = pi.LookupParameter("PROJECT_REGION");
+                            Parameter regionParam = pi.LookupParameter(ParamRegistry.PROJECT_REGION);
                             if (regionParam != null && !regionParam.IsReadOnly)
                                 regionParam.Set(data.Region);
                         }
@@ -1118,7 +1118,7 @@ namespace StingTools.Temp
                 {
                     // ELC_VOLTAGE was never defined, so the chosen supply was lost. The
                     // whole choice ("400V 3-phase") is kept, not just its leading digits.
-                    Parameter vParam = pi.LookupParameter("PRJ_ELC_SUPPLY_VOLTAGE_TXT");
+                    Parameter vParam = pi.LookupParameter(ParamRegistry.PRJ_ELC_SUPPLY_VOLTAGE_TXT);
                     string v = string.Join(" ", new[] { data.ElecConfig.Voltage, data.ElecConfig.PhaseSystem }
                         .Where(x => !string.IsNullOrWhiteSpace(x)));
                     if (vParam != null && !vParam.IsReadOnly && vParam.StorageType == StorageType.String

@@ -80,7 +80,7 @@ namespace StingTools.Core.Plumbing
             try
             {
                 var pi = doc.ProjectInformation;
-                var prm = pi?.LookupParameter("PLM_RECIRC_DELTA_T_K");
+                var prm = pi?.LookupParameter(ParamRegistry.PLM_RECIRC_DELTA_T_K);
                 if (prm != null && prm.HasValue)
                 {
                     if (prm.StorageType == StorageType.Double && prm.AsDouble() > 0)

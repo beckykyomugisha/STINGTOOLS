@@ -75,7 +75,7 @@ namespace StingTools.Core.Validation
                 {
                     double sysV = Electrical.ElecUnits.Volts(el);
                     if (sysV <= 0) continue;
-                    double cableV = ReadDouble(el, "ELC_CBL_RATED_V_NR");
+                    double cableV = ReadDouble(el, ParamRegistry.ELC_CBL_RATED_V_NR);
                     if (cableV <= 0) { unrated++; continue; }
                     if (cableV < sysV)
                     {

@@ -45,6 +45,8 @@ namespace StingTools.V6
         public int MassUnknown { get; set; }
         /// <summary>Elements carrying an annual energy figure (B6 applies only to them).</summary>
         public int B6Elements { get; set; }
+        /// <summary>Equipment in the B6 scope with no annual energy figure (not calculated).</summary>
+        public int B6EquipmentWithoutEnergy { get; set; }
         /// <summary>A4 delivery distance used (km); 0 = not set, A4 not calculated.</summary>
         public double A4DistanceKm { get; set; }
         public double C2DistanceKm { get; set; }
@@ -64,6 +66,12 @@ namespace StingTools.V6
         public const double A5InstallFactorKgPerHr        = 6.2;
         // PM-1 — B6 is no longer a hard-coded 0.233 kgCO2e/kWh (UK grid); it comes
         // from GridCarbonRegistry per project country (Uganda 0.05). See ResolveGridFactor.
+        /// <summary>Energy-using equipment scanned for B6 (ELC_ENERGY_KWH_PA is bound to these).</summary>
+        public static readonly BuiltInCategory[] B6Categories =
+        {
+            BuiltInCategory.OST_ElectricalEquipment, BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_LightingFixtures,
+        };
         public const double C1DeconstructKgPerM3          = 3.1;
         public const double C2TransportFactorKgPerKm       = 0.085;
         public const double C3C4DisposalKgPerKg            = 0.04;
@@ -138,17 +146,9 @@ namespace StingTools.V6
                         }
                         else { ClearValue(el, ParamRegistry.CBN_A5_KG_CO2E); res.A5NotCalculated++; }
 
-                        // B6 operational: annual energy ELC_ENERGY_KWH_PA × grid factor.
-                        // Only energy-using equipment carries it; a blank here is expected.
-                        double kwh = ReadDouble(el, "ELC_ENERGY_KWH_PA");
-                        if (kwh > 0)
-                        {
-                            double b6 = kwh * gridFactor;   // PM-1 — region grid factor
-                            WriteDouble(el, ParamRegistry.CBN_B6_KG_CO2E_YR, b6);
-                            res.TotalB6AnnualKgYr += b6;
-                            res.B6Elements++;
-                        }
-                        else ClearValue(el, ParamRegistry.CBN_B6_KG_CO2E_YR);
+                        // B6 is operational energy: fabric uses none of its own. It is
+                        // taken from the equipment pass below; clear any old figure here.
+                        ClearValue(el, ParamRegistry.CBN_B6_KG_CO2E_YR);
 
                         // C1 deconstruction from the element's computed volume.
                         if (volM3 > 0)
@@ -177,6 +177,25 @@ namespace StingTools.V6
                         }
 
                         res.ElementsProcessed++;
+                    }
+
+                    // B6 operational: annual energy ELC_ENERGY_KWH_PA × grid factor, on the
+                    // equipment that uses energy. The fabric scope above holds none of it, so
+                    // B6 read there was always empty.
+                    var equipment = new FilteredElementCollector(doc)
+                        .WherePasses(new ElementMulticategoryFilter(B6Categories))
+                        .WhereElementIsNotElementType();
+                    foreach (var el in equipment)
+                    {
+                        double kwh = ReadDouble(el, "ELC_ENERGY_KWH_PA");
+                        if (kwh > 0)
+                        {
+                            double b6 = kwh * gridFactor;   // PM-1 — region grid factor
+                            WriteDouble(el, ParamRegistry.CBN_B6_KG_CO2E_YR, b6);
+                            res.TotalB6AnnualKgYr += b6;
+                            res.B6Elements++;
+                        }
+                        else { ClearValue(el, ParamRegistry.CBN_B6_KG_CO2E_YR); res.B6EquipmentWithoutEnergy++; }
                     }
                 });
             }
@@ -329,7 +348,8 @@ namespace StingTools.V6
                     ? $"A4 not calculated,{r.A4NotCalculated},no known mass (distance {r.A4DistanceKm:0.#} km)"
                     : $"A4 not calculated,{r.A4NotCalculated},CARBON_A4_DISTANCE_KM not set");
                 sb.AppendLine($"A5 not calculated,{r.A5NotCalculated},no CST_INSTALL_HRS");
-                sb.AppendLine($"B6 elements with energy,{r.B6Elements},ELC_ENERGY_KWH_PA");
+                sb.AppendLine($"B6 equipment with energy,{r.B6Elements},ELC_ENERGY_KWH_PA");
+                sb.AppendLine($"B6 not calculated,{r.B6EquipmentWithoutEnergy},equipment with no ELC_ENERGY_KWH_PA");
                 sb.AppendLine($"C1 not calculated,{r.C1NotCalculated},no computed volume");
                 sb.AppendLine($"C2-C4 not calculated,{r.MassUnknown},no ASS_WEIGHT_KG and no material density (C2 distance {r.C2DistanceKm:0.#} km)");
                 sb.AppendLine();

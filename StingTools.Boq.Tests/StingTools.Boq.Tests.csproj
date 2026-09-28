@@ -28,6 +28,7 @@
     <Compile Include="..\StingTools\BOQ\MeasuredAddition.cs" Link="MeasuredAddition.cs" />
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
+    <Compile Include="..\StingTools\BOQ\CarbonQuantity.cs" Link="CarbonQuantity.cs" />
     <!-- W3: BiogenicCarbon no longer keeps its own timber word-list; it reads the one
          shared with MaterialClassPlanner and TypeRenamePlanner. Two copies of that list
          disagreed on 85 of 1,808 real material names, on a carbon figure. -->

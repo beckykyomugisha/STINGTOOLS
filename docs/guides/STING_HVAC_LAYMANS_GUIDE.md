@@ -444,6 +444,8 @@ peak hour of the day, design outdoor air L/s. Every subsequent step
 these numbers.
 
 **How.** Click `Hvac_BlockLoad`. Pick scope (typically "All Spaces").
+Spaces are grouped into systems by `HVC_SYSTEM_ID_TXT` on each Space or Room (for example
+`AHU-01`); a space without it falls back to its Revit HVAC zone.
 STING runs a 24-h design-day for every space using:
 
 - Climate site dry-bulb (sinusoidal swing from cooling DB to a daily

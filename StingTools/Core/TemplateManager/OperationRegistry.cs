@@ -261,7 +261,7 @@ namespace StingTools.Core.TemplateManager
                 new OpDefinition {
                     Tag = "DynamicBindings", Group = GroupAutomation,
                     Title = "Dynamic Bindings",
-                    Description = "Load bindings from BINDING_COVERAGE_MATRIX.csv",
+                    Description = "Add missing categories from the binding spec (RESOLVED_BINDINGS.csv)",
                 },
                 new OpDefinition {
                     Tag = "SchemaValidate", Group = GroupAutomation,
