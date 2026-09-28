@@ -195,23 +195,53 @@ ADDIN_EOF
 # verification) and does NOT touch Revit. To make THIS checkout the live
 # plugin, run `deploy.bat` (or `STING_DEPLOY=1 bash extract_plugin.sh`).
 if [ "${STING_DEPLOY:-0}" = "1" ]; then
+    # A Claude Code worktree (<repo>/.claude/worktrees/<name>) is temporary: it is
+    # deleted when its session ends, and a manifest pointing into it then makes
+    # Revit report "Add-in Assembly Not Found" on every start. Install only from
+    # a checkout that stays put. STING_DEPLOY_ALLOW_WORKTREE=1 overrides.
+    case "$(echo "$SCRIPT_DIR" | tr '\\' '/' | tr '[:upper:]' '[:lower:]')" in
+        */.claude/worktrees/*)
+            if [ "${STING_DEPLOY_ALLOW_WORKTREE:-0}" != "1" ]; then
+                echo ""
+                echo "ERROR: refusing to install into Revit from a temporary worktree:"
+                echo "         $SCRIPT_DIR"
+                echo "       It will be deleted, and Revit would then fail to load STING."
+                echo "       Run deploy.bat from your main checkout (e.g. C:\\Dev\\STINGTOOLS)"
+                echo "       after merging or pulling the work you want."
+                echo "       Staged build left in: $DEPLOY_DIR"
+                echo ""
+                exit 1
+            fi
+            echo "  WARNING: installing from a temporary worktree (STING_DEPLOY_ALLOW_WORKTREE=1)."
+            ;;
+    esac
     if [ -n "$APPDATA" ]; then
         REVIT_ADDINS_BASE="$APPDATA/Autodesk/Revit/Addins"
         if [ ! -d "$REVIT_ADDINS_BASE" ]; then
             REVIT_ADDINS_BASE="$(echo "$APPDATA" | sed 's|\\|/|g; s|^\([A-Za-z]\):|/\L\1|')/Autodesk/Revit/Addins"
         fi
         deployed=0
+        install_failed=0
         for ver in 2025 2026 2027; do
             target_dir="$REVIT_ADDINS_BASE/$ver"
             if [ -d "$target_dir" ]; then
                 # Clear any read-only lock a previous isolated deploy set.
                 chmod u+w "$target_dir/StingTools.addin" 2>/dev/null || true
-                if cp -f "$DEPLOY_DIR/StingTools.addin" "$target_dir/StingTools.addin" 2>/dev/null; then
+                if cp -f "$DEPLOY_DIR/StingTools.addin" "$target_dir/StingTools.addin" \
+                   && grep -qF "<Assembly>$WIN_DEPLOY\\StingTools.dll</Assembly>" "$target_dir/StingTools.addin"; then
                     echo "  Installed manifest into Revit: $target_dir"
+                    echo "    -> $WIN_DEPLOY\\StingTools.dll"
                     deployed=$((deployed + 1))
+                else
+                    echo "  ERROR: could not write $target_dir/StingTools.addin (close Revit and retry)."
+                    install_failed=1
                 fi
             fi
         done
+        if [ "$install_failed" = "1" ]; then
+            echo "DEPLOY INCOMPLETE: Revit still loads whatever its old manifest points at."
+            exit 1
+        fi
         if [ "$deployed" = "0" ]; then
             echo "  (No Revit Addins folder found under \$APPDATA — manual copy still needed.)"
         fi
