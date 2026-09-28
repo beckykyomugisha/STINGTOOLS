@@ -2,6 +2,21 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (system classifier — a spool is not a pool, 2026-09-28)
+
+Found reviewing #1000 before merge. `SystemNameClassifier` matched two words as
+substrings:
+
+- **"POOL"** is inside "SPOOL", a common fabrication family and system name. An unconnected
+  pipe fitting or accessory from a family named "Pipe Spool …" reached the family-name layer
+  and was tagged SYS=POL (pool circulation). Now a whole-word match, in both
+  `FromFamilyName` and `FromSystemName`.
+- **"ATTENUATION"** is also acoustic. A Generic Model named "Sound Attenuation Panel" was
+  tagged SYS=SDS (SuDS). Now excluded when the name says sound, acoustic or noise.
+
+Five cases added to `SystemNameClassifierTests`. With the fix reverted, three of them fail
+(the two spools and the acoustic panel); with it, all 133 classifier tests pass.
+
 #### Completed (NLP intents — 97 that answered "Unknown Command")
 
 A user typing "cobie", "pdf export", "wind load", "sld" or "rainwater drain" got a

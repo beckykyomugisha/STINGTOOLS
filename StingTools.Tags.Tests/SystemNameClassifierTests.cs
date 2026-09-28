@@ -76,6 +76,8 @@ namespace StingTools.Tags.Tests
         [InlineData("Nitrous Oxide", "Pipes", "MGS")]
         [InlineData("AGSS", "Pipes", "MGS")]
         [InlineData("MGPS Zone 2", "Pipes", "MGS")]
+        [InlineData("Pool Circulation", "Pipes", "POL")]
+        [InlineData("Spool 12 Return", "Pipes", null)]
         public void System_name(string name, string category, string expected)
             => Assert.Equal(expected, SystemNameClassifier.FromSystemName(name, category));
 
@@ -128,6 +130,12 @@ namespace StingTools.Tags.Tests
         [InlineData("Linac Bunker Wall", "RAD")]
         [InlineData("LV Distribution Board", null)]
         [InlineData("Basic Wall", null)]
+        // Substrings that are not the system: a spool is fabrication, not a pool; sound
+        // attenuation is acoustics, not SuDS.
+        [InlineData("Pipe Spool Assembly", null)]
+        [InlineData("Swimming Pool Filter Pump", "POL")]
+        [InlineData("Sound Attenuation Panel", null)]
+        [InlineData("Attenuation Tank", "SDS")]
         public void Family_name_system(string family, string sys)
             => Assert.Equal(sys, SystemNameClassifier.FromFamilyName(family));
 

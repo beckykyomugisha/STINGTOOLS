@@ -141,11 +141,16 @@ namespace StingTools.Core
             if (upper.Contains("PACKAGE TREATMENT") || upper.Contains("SEWAGE TREATMENT")) return "STW";
             if (upper.Contains("INTERCEPTOR") || upper.Contains("GREASE TRAP") || upper.Contains("GREASE SEPARATOR")
                 || upper.Contains("OIL SEPARATOR")) return "INT";
-            if (upper.Contains("SOAKAWAY") || upper.Contains("ATTENUATION")) return "SDS";
+            // "Attenuation" is also acoustic ("Sound Attenuation Panel"); only storm-water
+            // attenuation is SuDS.
+            if (upper.Contains("SOAKAWAY")
+                || (upper.Contains("ATTENUATION") && !HasAny(upper, "SOUND", "ACOUSTIC", "NOISE")))
+                return "SDS";
             if (upper.Contains("RAINWATER HARVEST")) return "RWH";
             if (upper.Contains("GREYWATER") || upper.Contains("GREY WATER")) return "GWR";
             if (upper.Contains("REVERSE OSMOSIS") || upper.Contains("DEIONIS") || upper.Contains("DEIONIZ")) return "LBW";
-            if (upper.Contains("POOL") || words.Contains("SPA")) return "POL";
+            // Whole words: "POOL" is also inside "SPOOL", a common fabrication family name.
+            if (words.Contains("POOL") || words.Contains("POOLS") || words.Contains("SPA")) return "POL";
             if (upper.Contains("IRRIGATION")) return "IRR";
             if (upper.Contains("FUEL TANK") || upper.Contains("OIL TANK") || upper.Contains("DIESEL TANK") || upper.Contains("DAY TANK")) return "FOL";
             if (upper.Contains("AIR COMPRESSOR") || upper.Contains("AIR RECEIVER")) return "CMP";
@@ -305,7 +310,7 @@ namespace StingTools.Core
             if (sysName.Contains("LAB WATER") || sysName.Contains("LABORATORY WATER") || sysName.Contains("PURIFIED")
                 || sysName.Contains("DEIONIS") || sysName.Contains("DEIONIZ") || sysName.Contains("REVERSE OSMOSIS")
                 || HasWord(sysName, "RO") || HasWord(sysName, "DI") || HasWord(sysName, "LBW")) return "LBW";
-            if (sysName.Contains("POOL") || sysName.Contains("HYDROTHERAPY") || HasWord(sysName, "SPA")) return "POL";
+            if (HasWord(sysName, "POOL") || HasWord(sysName, "POOLS") || sysName.Contains("HYDROTHERAPY") || HasWord(sysName, "SPA")) return "POL";
             // "Hose" alone is also a fire hose reel (FP).
             if (sysName.Contains("IRRIGATION") || sysName.Contains("GARDEN HOSE")) return "IRR";
             // "Fuel gas" is natural gas (GAS, below).
