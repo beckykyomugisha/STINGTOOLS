@@ -210,6 +210,11 @@ namespace StingTools.Core.Symbols
             var app = hostDoc.Application;
             var templateFolder = ResolveTemplateFolder(app);
 
+            // Prime the data-driven line-weight registry (corporate JSON plus this
+            // project's override) so curve weights come from data and edits are picked
+            // up without a recompile.
+            LineWeightRegistry.Load(hostDoc);
+
             // ── Cache invalidation (W-1) ──────────────────────────────────
             // Existence alone is not freshness. A .rfa on disk may have been
             // built from an older catalogue, or by an older generator whose
@@ -724,17 +729,21 @@ namespace StingTools.Core.Symbols
             // Fix 4 — resolve the effective textHeightMm from the standard.
             double stdTextHeightMm = std?.AnnotationRules?.TextHeightMm ?? 2.5;
 
+            // Symbol-level subcategory and default line weight; per-curve values win.
+            string symSubcat = def.Subcategory;
+            int symWeight = def.LineWeight;
+
             if (geo.Lines != null)
                 foreach (var l in geo.Lines)
-                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id, symSubcat, symWeight);
 
             if (geo.ConnectionLines != null)
                 foreach (var l in geo.ConnectionLines)
-                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id, symSubcat, symWeight);
 
             if (geo.Arcs != null)
                 foreach (var a in geo.Arcs)
-                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id);
+                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id, symSubcat, symWeight);
 
             if (geo.FilledRegions != null && geo.FilledRegions.Count > 0)
             {
@@ -744,7 +753,8 @@ namespace StingTools.Core.Symbols
                 ElementId frTypeId = ResolveSolidFilledRegionType(
                     fdoc, app, templateFolder, def.Id, result);
                 foreach (var fr in geo.FilledRegions)
-                    DrawFilledRegion(fdoc, planView, sketch, fr, s, frTypeId, result, def.Id);
+                    DrawFilledRegion(fdoc, planView, sketch, fr, s, frTypeId, result, def.Id,
+                        symSubcat, symWeight);
             }
 
             if (geo.Text != null)
@@ -805,10 +815,12 @@ namespace StingTools.Core.Symbols
 
                     if (section.Lines != null)
                         foreach (var l in section.Lines)
-                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)", isAnnotation: false);
+                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)",
+                                isAnnotation: false, symSubcat: def.Subcategory, symWeight: def.LineWeight);
                     if (section.Arcs != null)
                         foreach (var a in section.Arcs)
-                            DrawArc(fdoc, v, sketch, TemplateKind.Model, a, symMm, result, def.Id + " (section)");
+                            DrawArc(fdoc, v, sketch, TemplateKind.Model, a, symMm, result,
+                                def.Id + " (section)", def.Subcategory, def.LineWeight);
                     if (section.Text != null)
                         foreach (var t in section.Text)
                             DrawText(fdoc, v, t, symMm, stdTextHeightMm, result, def.Id + " (section)");
@@ -874,7 +886,7 @@ namespace StingTools.Core.Symbols
         /// warned and skipped. The families still saved — empty. Annotation curves belong
         /// on the family's own view via NewDetailCurve, which needs no plane.</para>
         /// </summary>
-        private static void CreateFamilyCurve(Document fdoc, View view, SketchPlane sketch,
+        private static CurveElement CreateFamilyCurve(Document fdoc, View view, SketchPlane sketch,
             Curve curve, bool isAnnotation, string id, SymbolCreationResult result)
         {
             if (isAnnotation)
@@ -882,22 +894,22 @@ namespace StingTools.Core.Symbols
                 if (view == null)
                 {
                     result.Warnings.Add($"{id}: no view available for annotation curve — skipped.");
-                    return;
+                    return null;
                 }
-                fdoc.FamilyCreate.NewDetailCurve(view, curve);
-                return;
+                return fdoc.FamilyCreate.NewDetailCurve(view, curve);
             }
 
             if (sketch == null)
             {
                 result.Warnings.Add($"{id}: no sketch plane available for model curve — skipped.");
-                return;
+                return null;
             }
-            fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+            return fdoc.FamilyCreate.NewModelCurve(curve, sketch);
         }
 
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
-            LineDefinition l, double symMm, SymbolCreationResult result, string id)
+            LineDefinition l, double symMm, SymbolCreationResult result, string id,
+            string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -914,15 +926,12 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
-                if (fdoc.IsFamilyDocument)
-                {
-                    CreateFamilyCurve(fdoc, view, sketch, line,
-                        IsAnnotationFamily(fdoc, null), id, result);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, line);
-                }
+                CurveElement ce = fdoc.IsFamilyDocument
+                    ? CreateFamilyCurve(fdoc, view, sketch, line, IsAnnotationFamily(fdoc, null), id, result)
+                    : fdoc.Create.NewDetailCurve(view, line);
+                // Bind the curve to a weight-controlled family subcategory.
+                ApplyLineStyle(fdoc, ce, symSubcat, symWeight,
+                    l.Subcategory, l.LineWeight, l.Style, result, id);
             }
             catch (Exception ex)
             {
@@ -937,7 +946,7 @@ namespace StingTools.Core.Symbols
         /// </summary>
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
             LineDefinition l, double symMm, SymbolCreationResult result, string id,
-            bool isAnnotation)
+            bool isAnnotation, string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -958,14 +967,11 @@ namespace StingTools.Core.Symbols
                 // branch drew the curve and then fell through into a switch that
                 // drew it a SECOND time — overlapping curves whose "lines overlap"
                 // warnings were swallowed by SymbolFailureSwallow.)
-                if (fdoc.IsFamilyDocument)
-                {
-                    CreateFamilyCurve(fdoc, view, sketch, line, isAnnotation, id, result);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, line);
-                }
+                CurveElement ce = fdoc.IsFamilyDocument
+                    ? CreateFamilyCurve(fdoc, view, sketch, line, isAnnotation, id, result)
+                    : fdoc.Create.NewDetailCurve(view, line);
+                ApplyLineStyle(fdoc, ce, symSubcat, symWeight,
+                    l.Subcategory, l.LineWeight, l.Style, result, id);
             }
             catch (Exception ex)
             {
@@ -974,7 +980,8 @@ namespace StingTools.Core.Symbols
         }
 
         private static void DrawArc(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
-            ArcDefinition a, double symMm, SymbolCreationResult result, string id)
+            ArcDefinition a, double symMm, SymbolCreationResult result, string id,
+            string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -1004,15 +1011,11 @@ namespace StingTools.Core.Symbols
                     curve = Arc.Create(centre, r, startRad, endRad, XYZ.BasisX, XYZ.BasisY);
                 }
 
-                if (fdoc.IsFamilyDocument)
-                {
-                    CreateFamilyCurve(fdoc, view, sketch, curve,
-                        IsAnnotationFamily(fdoc, null), id, result);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, curve);
-                }
+                CurveElement ce = fdoc.IsFamilyDocument
+                    ? CreateFamilyCurve(fdoc, view, sketch, curve, IsAnnotationFamily(fdoc, null), id, result)
+                    : fdoc.Create.NewDetailCurve(view, curve);
+                ApplyLineStyle(fdoc, ce, symSubcat, symWeight,
+                    a.Subcategory, a.LineWeight, a.Style, result, id);
             }
             catch (Exception ex)
             {
@@ -1022,7 +1025,8 @@ namespace StingTools.Core.Symbols
 
         private static void DrawFilledRegion(Document fdoc, View view, SketchPlane sketch,
             FilledRegionDefinition fr, double symMm, ElementId frTypeId,
-            SymbolCreationResult result, string id)
+            SymbolCreationResult result, string id,
+            string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -1064,8 +1068,18 @@ namespace StingTools.Core.Symbols
                         "The filled region was drawn as an outline instead of solid.");
                     result.Warnings.Add($"{id}: filled region degraded to outline (no FilledRegionType).");
                     if (!result.DegradedFillSymbols.Contains(id)) result.DegradedFillSymbols.Add(id);
-                    DrawClosedOutline(fdoc, view, sketch, curves, result, id);
+                    DrawClosedOutline(fdoc, view, sketch, curves, result, id,
+                        fr.Subcategory ?? symSubcat, fr.LineWeight, symWeight, fr.FillType);
                     return;
+                }
+
+                // Apply the resolved boundary weight to the region type.
+                int frWeight = ResolveLineWeight(fr.Subcategory ?? symSubcat, fr.FillType,
+                    fr.LineWeight, symWeight);
+                if (frWeight >= 1 && frWeight <= 16 && fdoc.GetElement(frTypeId) is FilledRegionType frt)
+                {
+                    try { frt.LineWeight = frWeight; }
+                    catch (Exception ex) { StingLog.Warn($"{id} FR line weight: {ex.Message}"); }
                 }
 
                 var loop = CurveLoop.Create(curves);
@@ -1228,23 +1242,115 @@ namespace StingTools.Core.Symbols
         /// <summary>Last-resort fill fallback: draws the region boundary as curves through
         /// the same helper lines and arcs use, so a fill-only symbol shows its shape.</summary>
         private static void DrawClosedOutline(Document fdoc, View view, SketchPlane sketch,
-            List<Curve> curves, SymbolCreationResult result, string id)
+            List<Curve> curves, SymbolCreationResult result, string id,
+            string subcat = null, int curveWeight = 0, int symWeight = 0, string style = null)
         {
             try
             {
                 bool ann = fdoc.IsFamilyDocument && IsAnnotationFamily(fdoc, null);
                 foreach (var c in curves)
                 {
-                    if (fdoc.IsFamilyDocument)
-                        CreateFamilyCurve(fdoc, view, sketch, c, ann, id, result);
-                    else
-                        fdoc.Create.NewDetailCurve(view, c);
+                    CurveElement ce = fdoc.IsFamilyDocument
+                        ? CreateFamilyCurve(fdoc, view, sketch, c, ann, id, result)
+                        : fdoc.Create.NewDetailCurve(view, c);
+                    ApplyLineStyle(fdoc, ce, subcat, symWeight, subcat, curveWeight, style, result, id);
                 }
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"{id}: outline fallback failed — {ex.Message}");
                 StingLog.Warn($"{id} DrawClosedOutline: {ex.Message}");
+            }
+        }
+
+        // ── Curve line weight through family subcategories ───────────────────
+
+        /// <summary>Resolves the effective projection line weight (1–16), else 0 (unset,
+        /// template default). Precedence: explicit per-curve weight, then the subcategory
+        /// weight from <see cref="LineWeightRegistry"/> (STING_LINE_WEIGHTS.json plus the
+        /// project override), then the style hint, then the symbol-level default.</summary>
+        private static int ResolveLineWeight(string subcat, string style, int curveWeight, int symWeight)
+        {
+            if (curveWeight >= 1 && curveWeight <= 16) return curveWeight;
+            var reg = LineWeightRegistry.Active;
+            int w = reg.Resolve(subcat);
+            if (w >= 1 && w <= 16) return w;
+            int sw = reg.StyleWeight(style);
+            if (sw > 0) return sw;
+            if (symWeight >= 1 && symWeight <= 16) return symWeight;
+            return 0;
+        }
+
+        /// <summary>Binds a family curve to a weight-controlled subcategory: resolves the
+        /// effective subcategory (per-curve override, else the symbol's) and weight,
+        /// ensures the family subcategory exists with that projection weight, and assigns
+        /// the curve's LineStyle. Leaves the template default when there is nothing to
+        /// apply. Never throws.</summary>
+        private static void ApplyLineStyle(Document fdoc, CurveElement ce,
+            string symSubcat, int symWeight, string curveSubcat, int curveWeight,
+            string style, SymbolCreationResult result, string id)
+        {
+            try
+            {
+                if (ce == null) return;
+                string subcat = !string.IsNullOrWhiteSpace(curveSubcat) ? curveSubcat : symSubcat;
+                int weight = ResolveLineWeight(subcat, style, curveWeight, symWeight);
+                if (string.IsNullOrWhiteSpace(subcat) && weight <= 0) return;
+                if (string.IsNullOrWhiteSpace(subcat)) subcat = "STING Symbol"; // weight-only group
+                var gs = EnsureSubcategoryGraphicsStyle(fdoc, subcat, weight, result, id);
+                if (gs != null)
+                {
+                    try { ce.LineStyle = gs; }
+                    catch (Exception ex) { StingLog.Warn($"{id} assign LineStyle '{subcat}': {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"{id} ApplyLineStyle: {ex.Message}"); }
+        }
+
+        /// <summary>Ensures a family subcategory exists under the owner-family category,
+        /// sets its projection line weight (1–16) and returns its projection GraphicsStyle.
+        /// Reuses an existing subcategory of the same name. Returns null on failure.</summary>
+        private static GraphicsStyle EnsureSubcategoryGraphicsStyle(Document fdoc, string name,
+            int weight, SymbolCreationResult result, string id)
+        {
+            try
+            {
+                if (fdoc == null || !fdoc.IsFamilyDocument || string.IsNullOrWhiteSpace(name)) return null;
+                var parent = fdoc.OwnerFamily?.FamilyCategory;
+                if (parent == null) return null;
+
+                Category sub = null;
+                try
+                {
+                    foreach (Category c in parent.SubCategories)
+                        if (c != null && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
+                        { sub = c; break; }
+                }
+                catch (Exception ex) { StingLog.Warn($"{id} enumerate subcategories: {ex.Message}"); }
+
+                if (sub == null)
+                {
+                    try { sub = fdoc.Settings.Categories.NewSubcategory(parent, name); }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"{id} NewSubcategory '{name}': {ex.Message}");
+                        return null;
+                    }
+                }
+                if (sub == null) return null;
+
+                if (weight >= 1 && weight <= 16)
+                {
+                    try { sub.SetLineWeight(weight, GraphicsStyleType.Projection); }
+                    catch (Exception ex) { StingLog.Warn($"{id} SetLineWeight '{name}'={weight}: {ex.Message}"); }
+                }
+                return sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: subcategory '{name}' failed — {ex.Message}");
+                StingLog.Warn($"{id} EnsureSubcategoryGraphicsStyle '{name}': {ex.Message}");
+                return null;
             }
         }
 
