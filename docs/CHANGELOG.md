@@ -25463,3 +25463,18 @@ every `GetString` read against the parameter's data type.
   them on every startup and could never pass.
 - **Tests.** 9 new (`CarbonQuantityTests`, hand-worked). Passing: Boq 1,364, Tags 3,576,
   Sustainability 438. Not exercised in Revit.
+
+#### Deploy refuses a temporary worktree; a failed manifest copy is reported (2026-09-28)
+
+- **Cause.** Revit reported "Add-in Assembly Not Found" for
+  `C:\Dev\STINGTOOLS\.claude\worktrees\...\StingTools.dll`. `deploy.bat` had been run
+  inside a Claude Code worktree, which is deleted when its session ends, leaving the
+  manifest pointing at nothing.
+- **`extract_plugin.sh` (used by `deploy.bat`)** now refuses to install when the
+  checkout is under `.claude/worktrees/`, and says to deploy from the main checkout.
+  `STING_DEPLOY_ALLOW_WORKTREE=1` overrides it.
+- **A manifest copy that fails, or that does not read back with this checkout's path,
+  now stops the deploy** with an error. It used to be skipped without a message, so
+  Revit went on loading the previous build.
+- Tested with a scratch checkout and worktree: the worktree deploy exits 1 and leaves
+  the installed manifest unchanged. Not run on Windows.
