@@ -24062,6 +24062,526 @@ multicore or hid unchecked values.
   - `MaxTabulatedIt` exceeds the PVC figure.
 - **Not exercised in Revit.**
 
+#### Drawing Type Editor, Master Setup, Export Centre, Document Manager review (2026-09-27, branch `claude/admiring-babbage-enqzit`)
+
+A review of the four surfaces for flexibility, integration, consistency, accuracy and
+automation logic. Defects fixed here; open items are logged in `docs/ROADMAP.md` under
+"DOCX-*".
+
+**Export Centre (accuracy)**
+- **ISO filename tokens came from parameters that do not exist.** `BuildTokenContext` read
+  `STING_SUITABILITY_TXT`, `STING_VOLUME_TXT`, `STING_LVL_COD_TXT`, `STING_DOC_TYPE_TXT` and
+  `STING_ROLE_TXT`. None is in `MR_PARAMETERS` and nothing writes them, so every file fell
+  through to defaults: an S4 drawing exported as `...-S2-...`. The chain now decomposes the
+  sheet's ISO identifier (`SHT_TAG_1_TXT`, or the sheet number once it is one) and reads the
+  suitability Title Block Populate writes (`PRJ_DWG_SUITABILITY_COD_TXT`, then
+  `PRJ_STATUS_COD_TXT`). The STING_* names are still honoured first for projects that added
+  them by hand. New tokens: `{DocumentId}`, `{Number}`, `{CdeState}`.
+- **Revision was Revit's sequence number.** `{Revision}` printed `3` for a sheet whose
+  revision box reads `P03`. It now uses `SHEET_CURRENT_REVISION`, then `PRJ_TB_REVISION_NR_TXT`,
+  which is the same chain as the CDE REF cell. "Changed Since Last Export" compares this value,
+  so on the first run after upgrading, every previously exported sheet is reported as changed
+  once.
+- **Level codes** derived from sheet names are normalised to ISO (`L01` → `01`, `GF` → `00`).
+  Role falls back through `NormaliseRole` instead of printing `Other`.
+- **Discipline from an ISO sheet number.** Once the sheet number is the identifier, the
+  discipline read before the first hyphen was the project code. The effect was that the
+  By-Discipline sets were empty and every discipline sub-folder was named after the project.
+  `GetDisciplinePrefix` now uses the Role segment.
+- **Suitability → CDE folder** (the Auto button) now uses `Iso19650Suitability.CdeStateFor`, the
+  unit-tested mapping the title block uses. The dialog's own switch sent S1 to WIP, S4/S6/S7 to
+  PUBLISHED and A/B/CR to SHARED.
+- **"Ask" overwrote files.** Nothing prompted, and the engine returned the existing name.
+  Ask now resolves to AutoRename and is no longer offered.
+- **"Planscape CDE" destination** skipped the folder checks and then failed on every sheet
+  with an empty path. No upload exists, so pre-flight now blocks it. "Both" warns that only
+  the local copy is written. IFC "Export linked models", which was never read, also warns.
+- **"Open report when done"** was bound and ignored. It now opens the CSV report
+  (`ExportRunResult.ReportPath`).
+- **Scheduled exports** run the same pre-flight as the dialog and record a blocked job's
+  reason. Repeats advance from the job's own slot instead of drifting to the time of the run.
+
+**Master Setup (automation logic, accuracy)**
+- An Escape during step 1 added -1 to the pass count, skipped the critical-failure prompt and
+  ran everything else. Step 1 is now handled on its own.
+- On a project without worksharing, the worksets skip was counted as a failure, so every such
+  project reported "Failed: 1". The healthcare skip was subtracted without a step, which hid a
+  real failure. Both are now proper SKIPPED steps.
+- A `Result.Failed` step printed "WARN" but was tallied as failed; it now prints FAILED.
+- Step numbering for the PBR step is no longer hard-coded "21". The confirmation list and
+  class doc now name steps 18–21.
+- **COBie healthcare preset was never applied.** Master Setup set `COBiePresetKey` and nothing
+  read it. `COBieExportWizard` now pre-selects the preset, and the step is labelled as the
+  interactive export it is.
+
+**Drawing Type Editor (accuracy)**
+- **Edits to corporate drawing types were discarded on Save.** Save wrote only project-origin
+  types while reporting success, which is the defect already fixed for style packs. Types are
+  now snapshotted at load and an edited corporate type is promoted to project on Save, with
+  its corporate checksum cleared. The comparison fills in the sub-objects the form creates on
+  render, so just viewing a type does not copy it into the project file.
+
+**Document Manager (integration, accuracy)**
+- **Bulk CDE update wrote failed moves to the register.** The register now changes only for
+  documents whose file actually moved. The report says the others were left unchanged.
+- **The suitability was overwritten on every move.** A suitability that already belongs in the
+  target container (for example S1 moving to SHARED) is now kept. Only a code that contradicts
+  the container is replaced by the default.
+- **Register metadata was hidden on file rows.** Files are named after their document number,
+  so both register loaders skipped the matching entry. The row the user saw then had no
+  suitability, revision or status. The loaders now fill that row's blank fields from the
+  register. The CDE state still comes from the folder the file is actually in.
+
+**Verification.** Built later the same day. See "Export routing" below: 0 errors. **Not
+exercised in Revit.** Before merging:
+- Export a sheet set whose sheets carry `SHT_TAG_1_TXT` and a Revit revision, and check the
+  filenames.
+- Run Master Setup on a non-workshared model.
+- Edit a corporate drawing type, save, reopen and confirm the edit held.
+
+#### Export routing: discipline sub-folders and the right project folder (2026-09-27, same branch)
+
+An audit of where exports land. **The discipline-aware resolver had no callers.** The only
+discipline-aware method was `ProjectFolderEngine.GetExportPath(…, disciplineCode)`, and
+nothing called it. The main default, `OutputLocationHelper.GetOutputDirectory(doc)`, which
+had 257 call sites in 153 files, returns the MISC folder whatever is being exported. So no
+export reached an A_ / M_ / S_ discipline folder unless a user browsed there.
+
+- **One resolver:** `ProjectFolderEngine.GetDeliverableFolder(doc, key, discipline, cdeState)`.
+  It takes the export route, moves it into the CDE state when one is given, then into the
+  discipline folder. Examples:
+  - BIM: `02_SHARED/A_Architectural`, or `06_DRAWINGS/S_Structural` with no state.
+  - CDE-first: `01_SHARED/Drawings/M_Mechanical`.
+
+  Discipline folders apply under WIP / SHARED / PUBLISHED / DRAWINGS / MODELS and under any
+  CDE-first content type. Wrappers: `StingPaths.Export(doc, key, discipline, state)` and
+  `OutputLocationHelper.GetRoutedDirectory(doc, key, discipline)` / `GetRoutedPath`.
+- **`DisciplineFolderMatcher`** (Revit-free, 22 tests) maps a code onto the project's
+  folders:
+  - `A` → `A_Architectural`
+  - `MECH` / `HVAC` / `MG` → `M_Mechanical` (by ISO role letter)
+  - a code with no folder → null, so the file stays in the parent folder and a log line
+    says so
+
+  Before this, the discipline splits created a folder named after the raw code, so a CDE
+  folder held `A` beside `A_Architectural`.
+- **Sheets:** `ExportCenterEngine.DeliverableFolderForSheet` is the one rule for sheet
+  exports:
+  - The CDE state comes from the sheet's suitability. A sheet with no suitability code
+    follows the export route.
+  - The discipline comes from the sheet-number prefix, or from the Role segment when the
+    sheet number is the ISO identifier.
+- **Export Centre:**
+  - New option "File into the project structure", which the Auto button turns on. Each
+    sheet is filed by its own suitability and discipline, and the chosen folder receives
+    the report.
+  - DWG / image / DGN / DWF sheet sets route with the drawings. The project's DWG route
+    points at MODELS, which is right for model DWGs but not for sheet sets.
+  - Image, DGN and DWF were never split by discipline, because they passed no discipline.
+  - The local-folder split now uses project folder names.
+- **Produce & Export** (`DrawingTypes_ProduceAndExport`) wrote every PDF to MISC. Each PDF
+  now goes to its sheet's deliverable folder, and the sheet register goes to REGISTERS.
+- **Batch PDF / DWG to a folder you choose** now split into discipline sub-folders named
+  as the project names them. This covers the Print Manager batch PDF, the Sheet Template
+  batch print, the ExLink batch PDF / DWG and `PDFExportCommand`. The split is not nested
+  when the chosen folder is already that discipline's folder. The Print Manager's
+  discipline prefix now also reads ISO-identifier sheet numbers. The "Print sheets"
+  combined PDF goes to the PDF route instead of `MISC/PDF_Export`.
+- **Pickers open in the right place.**
+  - `PromptForExportPath` (15 callers) opens in the export type's routed folder. Its
+    "Project folder" shortcut now points there instead of the directory holding the
+    `.rvt`.
+  - The ExLink folder pickers open in the routed folder for their type.
+  - Three callers passed keys the route table does not know (`Quantities`, `Clashes`,
+    `BatchParams`) and now pass `BOQ`, `Clash` and `Excel`.
+- **Round trips:**
+  - Excel Link, Drawing-Type Excel and the export dialog now write to and browse the
+    Excel route (07_SCHEDULES) instead of MISC. The export and import sides were changed
+    together.
+  - Panel-schedule workbooks moved out of `_data/coord/electrical`. `_data` is machine
+    state, which the Document Manager does not list. They now go to the Excel route in
+    E_Electrical. Existing workbooks stay where they are.
+- **Discipline exports:**
+  - SLD → `…/E_Electrical/SLD`
+  - Electrical PDF reports → `…/E_Electrical/Reports`
+  - HVAC gbXML → the models route in M_Mechanical
+  - Fabrication isometrics → drawings
+  - Fabrication cut lists, weld maps and sheet indexes → schedules
+
+**Build (first Linux build of this branch).**
+- **SDK:** Ubuntu's `dotnet-sdk-8.0` has no WindowsDesktop (WPF) targets. Microsoft's SDK
+  8.0.425 from packages.microsoft.com does. It was extracted to `/opt/msdotnet` because
+  dot.net / builds.dotnet.microsoft.com are blocked by the network policy.
+- **Command:**
+  `dotnet build StingTools/StingTools.csproj -p:EnableWindowsTargeting=true`, using the
+  Nice3point Revit API packages.
+- **Result:** `StingTools.dll` builds with **0 errors, 2 warnings**.
+- **Existing build break fixed:** the first build failed on three existing lines that use
+  C# 14 null-conditional assignment (`x?.y = v`), in `PlanscapeServerClient.cs` (2) and
+  `SLDGenerator.cs` (1). CI pins the .NET 8 SDK (C# 12), so these break any build without
+  the .NET 10 SDK. They were rewritten as explicit null checks.
+- **Tests:** `StingTools.Tags.Tests` passes 3,513 of 3,513.
+- **CI gates:** these gates pass, run with PowerShell 7.6 from the same feed:
+  - `check_path_discipline.ps1`
+  - `check_command_doc_acquisition.ps1`
+  - `check_workflow_wiring.ps1`
+- **Not exercised in Revit.**
+
+**Still in MISC:** 229 call sites in 143 files, mostly reports, audits, logs and one-off
+CSV / JSON dumps. See ROADMAP DOCX-8.
+
+#### DOCX-8 / 9 / 10: export routing completed, model discipline, language pin (2026-09-27, same branch)
+
+- **DOCX-8.** 203 of the remaining 229 bare `OutputLocationHelper` calls now name what they
+  write, using `GetRoutedDirectory` / `GetRoutedPath` / the new `GetRoutedTimestampedPath`:
+  - audits → Compliance; model-health reports → ModelHealth
+  - registers → DocRegister / TagRegister / AssetRegister / REGISTER
+  - issues and review comments → Issue; clash reports → Clash / BCF
+  - cost and quantities → BOQ; materials → MaterialSchedule
+  - data tables and calculation sheets → Schedule / Excel
+  - handover and commissioning → Handover / Maintenance; COBie → COBie
+  - minutes → Minutes; revisions → Revision
+  - model exchange → IFC
+
+  Only keys present in every layout's route table were used, so no CDE-first project falls
+  back to MISC. Round trips share one key within the file, so the import picker opens where
+  its export went. This covers review comments, SpecLink, Niagara, the KUT lifecycle
+  register, programme audit, Fohlio and structural Excel. Discipline-specific outputs carry
+  their discipline:
+  - electrical, SLD, LPS and selective coordination → E
+  - HVAC and duct fabrication → M
+  - plumbing water safety → P
+  - structural → S
+  - plastering → A
+
+  Two sites wrote outside the project entirely: the selective-coordination CSV had no
+  document, and the TCC plot nested a second "electrical" folder. Both fixed.
+- **Gate.** `tools/check_export_routing.ps1` + `tools/export_routing_baseline.txt`, in CI. The
+  23 remaining sites are listed with reasons. The gate was proven red on a re-introduced
+  bare call, then green.
+- **DOCX-9.** `ExportCenterEngine.ModelDiscipline` takes the discipline from the model's ISO
+  file name (Role segment), then `PRJ_TB_DISCIPLINE_TXT` on Project Information, and
+  otherwise leaves the file at the models root. It is wired into:
+  - Export Centre IFC / NWC
+  - ExLink IFC / NWC
+  - `IFCExportCommand`
+
+  `DisciplineFolderMatcher.RoleFromModelFileName` has 10 tests.
+- **DOCX-10.** `LangVersion` is pinned to 12.0 in all 23 projects, matching the .NET 8 SDK
+  CI builds with. A CI step keeps it pinned.
+- **Verification.**
+  - Plugin build: 0 errors, 2 warnings.
+  - `StingTools.Tags.Tests`: 3,523 passing.
+  - CI gates: path-discipline, command-doc-acquisition, workflow-wiring and export-routing
+    all pass.
+  - Not exercised in Revit.
+- **Behaviour change for users.** Reports that used to appear in `20_MISC` now appear in
+  their typed folder (16_COMPLIANCE, 15_REGISTERS, 07_SCHEDULES …). Existing files in MISC
+  are not moved.
+
+#### Open DOCX items closed + document / sheet management consistency review (2026-09-27, same branch)
+
+**DOCX-1…11.** All closed. The details are in ROADMAP; in outline:
+- One suitability default, via `Iso19650Suitability.DefaultFor` / `ForTransition`.
+- Data stores moved out of MISC with carry-forward, via `GetStorePath`.
+- Master Setup no longer re-binds parameters or opens COBie mid-run.
+- Every Export Centre setting is wired or deleted.
+- Per-project Export Centre state, a schedule UI with save-triggered runs, sheet-derived
+  suitability, and register recording.
+
+**Review: document management, sheet management and documentation.** The recurring defect was
+the same rule implemented several times, with the copies disagreeing.
+
+- **Suitability ↔ CDE state.**
+  - The plugin had six mappings. Five were fixed under DOCX-1; `DeliverableLifecycle.Publish`
+    stamped S4 / S5 on PUBLISHED and is fixed now.
+  - The server demanded S4 / S5 / S6 / AB for PUBLISHED and S7 for ARCHIVE, and did not accept
+    any A or B code. Now it follows ISO 19650: A / B / CR published, AB / AR archive. The old
+    codes are still accepted, and the defaults are A1 and AR. `ISO19650Codes.SuitabilityCodes`
+    gained A1–A5, B1–B6 and AR. The comments that called CR "coordination review" and AB
+    "as-built" are corrected.
+  - `CdeStateFor` filed AB, AR and any word starting with A or B as PUBLISHED.
+- **Discipline of a sheet.** There were four parsers. "AR-101" read as AR, A or General, and
+  an ISO-number sheet read as its project code. They are replaced by
+  `SheetDisciplineResolver.ForSheet`.
+- **Sheet numbers.**
+  - The Sheet Manager, sheet sets and templates hard-coded `{disc}-{seq:D3}`; they now follow
+    the project pattern.
+  - Batch Renumber counted a sheet as renamed on the temporary pass and never rebuilt
+    `SHT_TAG_1_TXT`. It now goes through `SheetNumbering.Apply`.
+  - "Enforce ISO Naming" had its own identifier builder: the Project Number cut to 6
+    characters, and the level "L01". It now delegates to Tag Sheets → `Sheet_NumberFromIso` →
+    `Sheet_NumberRestore`.
+- **Sheet compliance.** The "10 ISO 19650 rules" were hygiene checks. Five real checks were
+  added: identifier, role against the declared discipline, suitability, revision, and CDE
+  state against suitability.
+- **Document register schema.**
+  - The writers disagreed: `doc_id` in one, `document_id` in another.
+  - The Document Manager's legacy loader and the COBie Document sheet each read one spelling.
+    COBie also read `name` and `date`, which no writer produces, so every COBie Document row
+    had an empty Name.
+  - All three now read through `DocumentRegisterMerge.MapRegisterRow`. The writers emit both
+    ids, edits match any id key, and the DOC counter scans both spellings.
+- **Documentation.**
+  - CLAUDE.md: the Sheet Manager figures were remeasured (~8,400 lines, not 4,488) and its
+    rules updated. `StingCommandHandler` is ~9,800 lines. The Documentation Map had the doc
+    count as 133; it is now 193. A new section, "Export Centre + Document Manager", records
+    their contracts.
+  - The Document Manager guides, the BIM coordination guide, the BCC guide and the KUT BEP /
+    playbook said S4 is published, S7 is archive, and "SHARED (S0–S4)". These are corrected.
+
+**Verification.**
+- Plugin build: 0 errors.
+- `StingTools.Tags.Tests`: 3,557 passing.
+- Server API builds. The document tests pass (65), plus 6 new ones. The new publish tests
+  were shown red against the old server rules and green after the fix.
+- Gates: path-discipline, command-doc-acquisition, workflow-wiring and export-routing all
+  pass.
+- **Not exercised in Revit.** Check a publish, a Batch Renumber, and an Export Centre run
+  into the project structure.
+- **Deployment:** the server change needs a redeploy before the plugin's A1 publishes are
+  accepted by production.
+
+#### Self-review of the 2026-09-27 document-control work
+
+A cross-check of the eleven commits above against the code they describe. Defects found and fixed:
+
+- **Combined exports were filed by their group name.** A one-per-set PDF or all-in-one DWG passed "All" (or a custom group's name) as the discipline, so in routed mode, or with discipline sub-folders on, it could land in an "All" folder. It also took its CDE state from the first sheet alone. `SubFolderForGroup` now files a combined file in a discipline folder only when every sheet shares that discipline, and in a CDE state only when every sheet shares that state. Otherwise it stays one level up.
+- **One-per-discipline PDF grouping read the sheet number only.** Single-sheet routing also reads the ISO role and the title (`SheetDiscipline`), so a sheet could be grouped under one discipline and filed under another. Both now use the same rule.
+- **`Iso19650Suitability.ExtractCode` let a letter-only word outrank a real code.** "AR team note - S3" returned AR, which files the document as ARCHIVE. Letter+digit codes are now tried first. A new test failed on the old code (2 of 4) and passes after the fix.
+- **Last-export stamping** threw on a state file with a repeated sheet/format key, which stopped stamping for the whole run. Duplicates now keep the last record.
+- **Docs.** CLAUDE.md called `SheetNumberEngine` "the one sheet-number builder" beside a new line naming `SheetNumbering.NextNumber` as the Sheet Manager's. Both statements were partly true, because there are two grammars. That is now said, and the gap is logged as ROADMAP DOCX-12. ROADMAP DOCX-8 still said 23 bare export calls remain; after DOCX-11 there are 17 in 16 files. The per-file register write is logged as DOCX-13.
+
+Checked and found consistent:
+- The plugin's `DefaultFor` and the server's `DefaultSuitability` agree (S0 / S3 / A1 / AR).
+- `GetStorePath` shows no dialog.
+- The build and test figures quoted above match what was run.
+
+Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,560 passing. The path-discipline, doc-acquisition, workflow-wiring and export-routing gates all pass. Not exercised in Revit.
+
+#### DOCX-12 and DOCX-13 closed
+
+- **DOCX-12: one sheet-number token vocabulary.** New `Core/Drawing/SheetNumberTokens.cs` (Revit-free) owns:
+  - the bare `{seq}` width (4)
+  - `{seq:Dn}` parsing, capped at 8 digits
+  - the aliases `{proj}`/`{project}` and `{orig}`/`{originator}`
+
+  Four sites now use it:
+  - `SheetDisciplineResolver.FormatNumber` (title-block pattern)
+  - `SheetNumberEngine.ApplyTokenPattern` (drawing types)
+  - `ShopDrawingComposer.SubstituteTokens`
+  - `MepLevelViewProducer.Substitute`, which previously ignored any width other than D2–D4
+
+  The empty-value rule stays different on purpose, and CLAUDE.md now says why. A drawing-type number is often a positional ISO identifier and keeps `XX`. A project number drops the token and its separator.
+
+  Behaviour change: a title-block pattern with a bare `{seq}` now pads to 4 digits instead of 3. The shipped default `{disc}-{seq:D3}` is explicit and unchanged.
+
+  Tests: a cross-builder test requires both builders to produce the same number for the same pattern. 6 cases failed on the old code, and all pass now.
+- **DOCX-13: one register write per export run.** `ExportCenterEngine.RegisterExports` collects its rows and calls the new `BIMManagerEngine.AutoRegisterExports` once. That call loads `document_register.json` once, applies every row and saves once. Before, it did one full read and rewrite per file.
+
+  The row rule (update by deliverable number, then file name; new rows carry both `doc_id` and `document_id`) moved unchanged into the Revit-free `BIMManager/ExportRegisterUpsert.cs`. Single-file `AutoRegisterExport` is now a one-item batch, so all 17 callers share the rule. `ExportRegisterUpsert` has 6 new tests.
+- Verification: plugin build 0 errors, 2 warnings. `StingTools.Tags.Tests` 3,572 passing. Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass. Not exercised in Revit.
+
+#### Remaining document-control and platform gaps closed (IM-1, IM-3, IM-11, IM-12, IM-17, IM-18)
+
+- **IM-17: transmittal status.** New `BIMManager/TransmittalRecord.cs` (Revit-free) holds the status vocabulary (`TransmittalStatus`) and one reader for the three row shapes the writers produce.
+  - The ACC publish records `PREPARED` with no issue date. A successful upload of that exact bundle marks it `SENT`; the transmittal id travels in `last_bundle.json`.
+  - A MIDP drop stays `ISSUED`, which is now in the vocabulary.
+  - The Document Manager no longer coerces unknown statuses to `DRAFT`, and shows the date, recipient and document count for every row shape.
+  - The title-block transmittal stamp reads through the same helper and prints no issue date for a `PREPARED` row.
+  - Also fixed on the way: Newtonsoft parsed ISO date strings into date tokens that printed in the machine's culture. The reader keeps ISO.
+- **IM-11 / IM-12: warnings trend (server).** `ComplianceSnapshots` gains `Kind` (`compliance` by default, `warnings` for pushed reports), added idempotently by `PlatformSchemaPatcher`.
+  - `POST /warnings/report` stores a row, skipping an unchanged report within 15 minutes.
+  - The warnings trend includes zero-warning reports.
+  - The compliance endpoints and the dashboard trend skip `warnings` rows. Dropping the old `> 0` filter alone would have plotted every background compliance snapshot as a clean scan.
+  - `WarningsTrendTests`: 2 of 3 failed on the old code. They pass now, alongside the existing compliance and warnings tests (22).
+  - Needs a server redeploy; the column is added on boot.
+- **IM-18: ACC container ids are per project.** `projectId` / `coordContainerId` are now read from `acc_settings.json` first. The machine credentials file is a logged, deprecated fallback.
+  - Saving never writes a project's ids, or its per-container issue type, into the machine file.
+  - The BCC ACC card saves the ids per project.
+  - All four ACC commands load through `AccProjectSettingsFile.LoadCredentials(doc, …)`.
+  - Also fixed: serialising the computed `IsStale` threw on a never-set token expiry, so a first-time "Save Credentials" wrote nothing. It is now `[JsonIgnore]`.
+  - `AccProjectScopeTests`: 8.
+- **IM-1: legacy templates carried forward.** Legacy templates and workflows are copied into the consolidated folder before extraction, so stock copies no longer shadow a project's customised ones.
+- **IM-3: link config path.** The BCC members tab resolves the Planscape link config through `ResolveConfigPath`. `ConfigPathForModel` is now private.
+- **Data-store carry-forward.** `GetStorePath` copies sibling folders recursively (`OutputLocationHelper.CopyTree`).
+- **Docs.**
+  - CLAUDE.md's token table names the builders correctly and lists every token.
+  - ROADMAP IM-2 was stale: the path-discipline baseline is empty, so it is closed.
+  - The KUT runbook says where the container ids now live.
+- **Verification.**
+  - Plugin build: 0 errors, 2 warnings.
+  - `StingTools.Tags.Tests`: 3,582 passing.
+  - `StingTools.Acc.Tests`: 140 passing.
+  - Server warnings and compliance tests: 22 passing.
+  - Path-discipline, doc-acquisition, workflow-wiring and export-routing gates pass.
+  - Not exercised in Revit.
+
+#### Drawing Type editor ↔ tagging alignment (ISO 3098 / ISO 19650)
+
+A review of how drawing types choose and size tags. The tag family names the shipped drawing types use (68 across `tagFamilies` and rule `tagFamily`) were already all ones Create Tag Families builds, and each pairs with its category. The defects were around them.
+
+- **The editor offered tag families that do not exist.** Its tag family picker suggested `Iso19650Vocabulary.CommonTagFamilies` (`STING_TAG_ROOM`, `STING_TAG_DOOR` …); none was ever built. "Add category mapping" inserted `NewCategory0 → STING_TAG_FAMILY`.
+  - The pickers now list `TagFamilyConfig.AllFamilyNames()`, the creator's own table.
+  - A new mapping row is a real category with its STING family (`TagFamilyConfig.FamilyNameForCategoryName`).
+  - The dead list is deleted, so a stale reference is a compile error.
+- **Rules without a tag family could get a stock Revit tag.** 50+ shipped AutoTag rules (Doors, Windows, Stairs, Railings, Casework, Structural …) name no family and their drawing type maps none. `AnnotationRunner.ResolveTagTypeId` then took the first loaded tag of the category, often Revit's stock tag, which does not show the ISO 19650 asset tag. The order is now:
+  1. The named family (unchanged).
+  2. `CategoryTagStyles`. This used to be unreachable, because it ran after the any-tag fallback.
+  3. The STING family built for the category.
+  4. Any loaded tag of the category, now with a warning that it may not show the ISO tag.
+- **`TagCategoryFor` knew nine categories.** Walls, pipes, ducts, conduits, trays, sprinklers and 30+ others mapped to their own host category. So the category-match check never held, and the any-tag fallback could never find their tags. It now covers every category a STING tag family is built for. All names were checked against the Revit 2025 API.
+- **Tag text height did not follow ISO 3098.** The default shrank with the scale: 2 mm at 1:100, 1 mm at 1:200 / 1:500. Revit prints annotation at family size whatever the view scale, so small-scale plans got illegible text.
+  - The default is now 2.5 mm, and 3.5 mm on A0.
+  - The default is never snapped down to a variant below the paper's minimum (2.5 mm A0–A3, 1.8 mm A4) while a legible one is loaded.
+  - The editor gains a "Tag text height" control, with the ISO 3098 heights 1.8 / 2.5 / 3.5 / 5 / 7 / 10 mm. There was no control for `tagTextSizeMm` at all.
+  - New validator check DT-106 warns on an explicit non-ISO or below-minimum size.
+  - Drawing-type checksums are unchanged (96 correct), since no serialised field changed.
+- **Tests.**
+  - `IsoTagTextSizeTests`.
+  - `DrawingTypeTagFamilyGateTests`: every tag family a shipped drawing type names must be one the creator builds. It was verified failing on an injected `STING_TAG_DOOR`.
+  - `TagSizeVariantTests` updated to the ISO rule.
+- **Open (ROADMAP TAGISO-1).** The Tag Style Engine matrix still offers 2 and 3 mm, which are not ISO 3098 heights.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,602 passing. The four gates pass. Not exercised in Revit.
+
+#### TAGISO-1 closed: tag style defaults are ISO 3098; the style sources agree
+
+- **One rule.** New `Core/Drawing/IsoTagText.cs` (Revit-free) defines the ISO 3098 tag sizes. 2.5 mm is the default and 3.5 mm the emphasis size. The 2 and 3 mm matrix rows stay available but are never a default. It also moves a size or type name to ISO (`2BOLD_RED` → `2.5BOLD_RED`, `2_NOM_BLACK_None_T1` → `2.5_NOM_BLACK_None_T1`).
+- **Every default now uses it.** Before this change most defaults used 2 mm.
+  - `tag_style_catalogue.json`: sizes listed ISO-first, a new `default_size`, LV/G defaults moved to 2.5, and the pre-created variants are ISO only. The catalogue loader moves a non-ISO default or pre-created variant to ISO with a logged warning. Its built-in fallback also used depth tier 3 for five disciplines and pre-created T3 variants; both now use tier 2, matching the data file and its own notes.
+  - `TagStyleEngine`: 27 preset sizes, the discipline, level, zone, status and system schemes, and the class default.
+  - `TAG_STYLE_RULES.json`: every preset and default type. Its catalog had listed 1.5 mm types, which no `TAG_*_BOOL` row or family carries; they are now the 3 mm rows that do exist. Rule-engine fallbacks and the "preferred types" list were updated too. A loaded preset `default_type` is moved to ISO; explicit rules are left as written.
+  - Scale tiers (`SCALE_TIERS.json`, the hard-coded fallback, `DefaultTextSize`): 2.5 mm at every tier instead of 3.5 → 2 mm by scale. The tiers still set leader offset.
+  - Drawing Type editor: the style suggestions are ISO-only (still editable), and a new category style row is a real category at 2.5 mm, not `NewCategory0 → 2NOM_BLACK`.
+  - `ParamRegistry.TagStyleSizes` is ordered ISO-first.
+- **Consistency fixes found in the same pass.**
+  - The style grid dialog offered `YELLOW`, which no tag family carries (picking it switched nothing), and left out `GREY`. It now reads the registry's sizes, styles and colours, and labels the 2 and 3 mm rows "not ISO".
+  - Discipline tag styles came from three sources that disagreed (E orange/red, S red/orange, LV purple/blue, G black/grey). The Tag Style Engine Discipline scheme now reads the catalogue (`DisciplineStylesFromCatalogue`). The `TAG_STYLE_RULES.json` Discipline preset was rewritten to match it, and a test holds the two together.
+  - `TagSizeVariant` now recognises the rule engine's `2.5BOLD_RED` type naming. Before, families built with those names never had the drawing type's tag size applied.
+- **Tests.**
+  - `IsoTagStyleDefaultsTests`: 3 data tests failed on the old files and pass now.
+  - `TagSizeVariantTests`: new legacy-name cases.
+- **Verification.**
+  - Plugin build: 0 errors.
+  - `StingTools.Tags.Tests`: 3,630 passing.
+  - Gates pass.
+  - Drawing-type checksums unchanged.
+  - Not exercised in Revit.
+
+#### Tag colour scheme names: Tag Studio buttons honoured, aliases resolved, unknown names reported
+
+- **The 12 Tag Studio scheme buttons did nothing specific.** Each set `ColorSchemeName` and ran Apply Color Scheme, but the command never read it and opened its generic picker. It now applies the named scheme directly (`ApplyColorSchemeCommand.ApplyNamed`), for discipline schemes and colour-by-value schemes (System, Status, Zone, Level, Location, Function) alike; the picker opens only when no name is passed.
+- **One vocabulary.** New `Core/Drawing/TagColorSchemeNames.cs` (Revit-free) lists the scheme names and resolves aliases. The spellings had drifted: the engine's key is `Mono` while the Mono button and Set View Tag Style wrote `Monochrome`, and six view style packs wrote `STING Discipline`. Both now resolve; the button, the command and the packs use the canonical names.
+- **Unknown names are reported.** `TagStyleEngine.ApplyColorScheme` logs a warning when the view's `STING_VIEW_TAG_STYLE` names no scheme, and `TokenProfileApplier` adds a warning to the drawing-type apply result when a pack's `tagColorScheme` does not resolve. Before, both fell through silently and the tags kept their style.
+- **Tests.** `TagColorSchemeNamesTests`: alias resolution; the engine's scheme tables carry exactly the listed names (parsed from `TagStyleEngine.cs`); every pack scheme resolves or is a listed gap. The pack test was checked failing on an injected misspelling.
+- **Open (ROADMAP TAGSCHEME-1).** Eight pack schemes have no implementation.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,638 passing. The four gates pass. Not exercised in Revit.
+
+#### TAGSCHEME-1 closed: the healthcare style packs' tag colour schemes exist
+
+- **Eight pack schemes had no implementation.** Applying the healthcare packs (and the clarification pack) wrote a scheme name no engine table carried, so tags kept their style. They now exist in `TagStyleEngine`.
+- **Each reads the parameter its audit already uses, with that parameter's vocabulary.** A new `StyleVariable.Parameter` names the parameter to read (`VariableColorScheme.ParameterName`):
+  - MedicalGas: `MGS_GAS_TYPE_TXT` (O2, N2O, MA4, MA7, N2, CO2, HE, VAC, AGSS), in HTM 02-01 identification colours; oxygen white is drawn light grey.
+  - Pressure: `CLN_PRESS_REGIME_TXT` (POS, NEG, NEUTRAL, as the HTM design table and `PressureRegimeValidator` use).
+  - ElectricalSupply: `ELC_EES_BRANCH_TXT`, with both code spellings `NFPA99Standards.ParseBranch` accepts.
+  - FireRating: fire resistance minutes (`ParamRegistry.FIRE_RATING`, a number; "60.0" matches "60").
+  - Radiation: `RAD_BARRIER_TYPE_TXT` (PRIMARY, SECONDARY, SCATTER, LEAKAGE).
+  - AntiLigature: `CLN_LIG_RISK_LVL_TXT` levels 1–5.
+  - WaterSafety: the system token (DCW/CWS, DHW/HWS, HWR/DHWR, TMV).
+  - "RAG Status" (clarification pack) is an alias of the lifecycle Status scheme, which already reads green/amber/red.
+- **Values are normalised before matching** (`TagColorSchemeNames.NormaliseValue`): trimmed, and numbers written without trailing zeros or units. Tag styles use the ISO 2.5 mm row and catalogue colours only.
+- **Tests.** Every pack scheme must now resolve (the known-gap list is gone). New tests hold every scheme tag style to the catalogue's styles and colours, and every parameter scheme to a parameter in `MR_PARAMETERS.txt`; both were checked failing on an injected `YELLOW` and a misspelt parameter.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.
+
+#### Apply Color Scheme applies the scheme that was picked
+
+- **Before.** `TagStyleEngine.ApplyColorScheme` replaced the scheme passed in with the view's `STING_VIEW_TAG_STYLE` scheme, but the command then set tag styles from the scheme passed in. Picking "Warm" on a view whose drawing type set "Discipline" coloured the elements Discipline and switched the tags to Warm; a colour-by-value view scheme did the same across scheme kinds.
+- **Now.** A scheme picked for one view (Apply Color Scheme, the Tag Studio scheme buttons) is applied as picked, and the result says when the view's own tag style names a different scheme (`TagStyleEngine.ViewSchemeNote`). Batch Apply Color Scheme still follows each view's setting for element colours (`useViewScheme: true`), and its result says so.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.
+
+#### SYS / FUNC / PROD / SEQ review: detection fixed, four systems added, legend and references aligned (2026-09-28)
+
+- **System-name detection moved to one tested class.** `Core/SystemNameClassifier.cs` (Revit-free) now maps MEP system names to SYS codes; `TagConfig.MapSystemNameToCode` delegates to it. It was only checked by reading the order of return statements in the source, and three errors had survived:
+  - Revit's default "Hydronic Supply" and "Hydronic Return" matched no rule, so those pipes were tagged domestic cold water (DCW). They are now HWS.
+  - The sanitary rule's "DRAIN" ran before the rainwater rules, so "Storm Drainage", "Roof Drain" and "Surface Water Drainage" were tagged SAN. They are now RWD.
+  - Medical gas had no system. "Medical Gas O2" matched "GAS" and was tagged as natural gas; "Oxygen" or "Medical Vacuum" matched nothing and became DCW.
+- **Four runtime systems added.** Each was already in `STING_FUNC_SYS_MATRIX.csv` and the PROD table's SYSTEM column, but not in the runtime `SysMap`, so the tagger never wrote them and the validator rejected them.
+  - MGS (medical gas): detected from the system name, `MGS_GAS_TYPE_TXT`, or a family name that names a gas. FUNC is the gas code (O2, MA4, MA7, N2O, N2, CO2, HE, VAC, AGS). Pipework takes DISC P. The matrix's MAP and EVAC, second spellings of MA4 and AGS that nothing wrote, were replaced.
+  - HV, BMS and RAD: detected from family and type names (`SystemNameClassifier.FromFamilyName`), ahead of the LV patterns. FUNC comes from the name where it says (HV: TRF or PWR; BMS: SNS, CTL, FCT, MON; RAD: SHD, ZNE, MON), otherwise the FuncMap default.
+  - None of the four is ever a category default; a test checks this.
+- **Sequence (SEQ).**
+  - Validation now requires exactly the pad width and a value of at least 1 (`SeqAssigner.ValidateNumericSeq`). It used to accept pad + 1 digits, any shorter width, and 0000.
+  - The default allowed range follows the pad width (it was 9999 at every width), and range messages print at the pad width.
+- **Code Legend (`CODE_LEGEND.json`) aligned with what the tagger writes.** It is what users see as the meaning of each token.
+  - Discipline: the eight DISC codes the validator accepts; the other letters moved to a section marked as not accepted in a tag. LPS was listed as a discipline and is a system.
+  - System: the runtime systems. MED, LTG, DRN, SPR, ELC and PLB were removed because they do not exist. HWS was described as domestic hot water and LV as data and telecoms; both descriptions are corrected.
+  - Function: the runtime vocabulary, including RTN where the legend said RET.
+  - Product: codes the resolver produces (WST, LVT, CHW, BCH, SAT, VRV, WIN, FDN, SHW, where the legend said WC, WHB, CHR, BLR, DFR, VRF, WN, FND, SHR). The plumbing tag example uses WST.
+  - `CodeLegendAlignmentTests` holds each section to the runtime source.
+- **Reference data.**
+  - `TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv` claimed `TagConfig` loaded it; nothing does. Its header now says so, and it now:
+    - carries the four new systems and their functions;
+    - files fire alarm devices under FLS, not FP;
+    - uses FIT and GEN as the ARC and LPS function defaults, as the runtime does;
+    - drops the hyphenated healthcare codes (MGS-O2, EES-LS, RAD-X, LIFE-SAF …), which contain the tag separator;
+    - marks the 17 Phase 178b plumbing codes as proposed.
+  - `STING_PROD_CODES.csv`: 15 rows said SYSTEM FA or LTG; the tagger writes FLS and LV for fire alarm devices and lighting.
+  - `ProdCodeDataTests` now reads the SYS vocabulary from the runtime map, and its list of known gaps is empty.
+- **Consistency fixes in narrative text and my earlier colour-scheme work.**
+  - Tag 7 function descriptions used EB and EP for lightning protection; the resolver writes EE, BOND and TC.
+  - The MedicalGas tag colour scheme keyed scavenging as AGSS; the canonical code is AGS.
+  - The WaterSafety scheme keyed CWS, HWR, DHWR and TMV, none of which is a SYS code the tagger writes; it now keys DCW and DHW.
+- **Effect on existing projects.** Re-tagging changes the SYS token, and with it the SEQ group, of:
+  - hydronic pipes;
+  - storm and roof drainage;
+  - medical gas pipework and terminal units;
+  - HV plant, BMS devices and radiation-protection elements whose names identify them.
+  These were wrong or unclassifiable before.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,756 passing. The new classifier tests were checked failing against the old rule order (11 failures). The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### TOKVOCAB-1 closed: wet HVAC, plumbing systems, lighting and DHW return (2026-09-28)
+
+- **Chilled water, condenser water and refrigerant are their own systems.** They were all SYS HVAC; they are now CHW, CDW and REF (DISC M).
+  - FUNC is SUP or RTN from the system name for CHW and CDW, and LIQ, SUC or HGS from the line name for REF. Otherwise it is CLG.
+  - Chillers, cooling towers and condensing units get the matching system from the family name when they have no connected system.
+  - HVAC now means air systems only.
+- **The 17 Phase 178b plumbing and process codes are runtime systems.** SWD, GWR, RWH, SDS, SEP, STW, BGD, SPH, INT, CMP, POL, LBW, IRR, FOL, STM, CON and CHE are detected from system names and plant family names. They use the functions the reference file documented.
+  - STM, CON, FOL, CMP and CHE pipework is DISC M; the rest is DISC P.
+  - Behaviour changes that follow:
+    - Site storm and surface water is SWD; roof rainwater stays RWD.
+    - Steam and condensate were HWS and are now STM and CON; an A/C condensate drain stays SAN.
+    - A sewage treatment works was SAN and is now STW.
+  - Guards against false matches: a fire hose reel is not irrigation, fuel gas is not fuel oil, and chemical waste drainage is not dosing.
+  - The family-name layer now only returns a system that the element's category can belong to, so "Pool Table" or "MRI-safe Chair" is not a system.
+- **Lighting and small power have their own FUNC.** Under LV, luminaires and lighting devices are LTG, emergency, exit and escape luminaires are EMG, and electrical fixtures (sockets) are SML. Distribution stays PWR. All four codes were already in the FUNC matrix but nothing resolved them.
+- **DHW secondary return is FUNC RTN**, read from the system name ("return", "circulation", "recirc"); flow keeps DHW.
+- **Aligned with the new vocabulary:**
+  - `MepRunBuilder.SysCodeFor` no longer calls Revit's hydronic classification HVAC; the system name decides between heating, chilled and condenser water.
+  - `TagIntelligence` no longer infers HVAC for anything connected to a chiller.
+  - The System tag colour scheme covers all 42 runtime systems, and a test holds the two lists together.
+  - The Code Legend, the FUNC/SYS matrix and the reference CSV are updated to match.
+  - Tag 7 narrative text has descriptions for the new codes.
+- **Product codes.**
+  - A kitchen or lab sink was PROD SKT, the same code as a socket outlet. It is now SNK.
+  - The FUNC/PROD contradiction table named codes the resolver never writes (WC, WHB, CHR, BLR, DAM, TRP, SWB, and CLT, which is cross-laminated timber), so its checks could not fire. It now uses produced codes, and a test holds it to them.
+- **Effect on existing projects.** Re-tagging changes the SYS token, and with it the SEQ group, of chilled, condenser and refrigerant pipework, steam and condensate, site storm water, treatment works and the other named plumbing systems. The FUNC token changes for lighting, sockets, DHW return and cooling-plant pipework. Sinks change PROD.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,838 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### TOKVOCAB-2 closed: heating return, healthcare disciplines, unnamed pipe systems, pad-aware SEQ placeholder (2026-09-28)
+
+- **Heating water return.** An HWS element whose system name says return ("LTHW Return", "Hydronic Return") is FUNC RTN, tested before the heating / hot-water detection (a return also says LTHW). Flow keeps HTG or DHW, as for CHW, CDW and DHW.
+- **Healthcare disciplines H / MG / RP are valid DISC codes.** The discipline cross-check (validator and `TagIntelligence`) accepts them as alternatives where they belong (`CategoryTokenDefaults.DiscAccepted`):
+  - MG on the medical gas system (MGS);
+  - RP on radiation protection (RAD);
+  - H on clinical equipment and fixture categories.
+
+  The tagger still writes the category or system discipline (P for medical gas pipework). The Code Legend lists the three, and drops its "H = HVAC (Uniclass alt)" entry, which clashed.
+- **Revit "Other" and unnamed pipe systems.**
+  - Detection now also reads the system's Revit classification (`RBS_SYSTEM_CLASSIFICATION_PARAM`: "Domestic Cold Water", "Hydronic Return", "Fire Protection Wet", "Sanitary" …) when the system type's name says nothing, such as "PS-01".
+  - A pipe whose system still cannot be read defaults to GEN, which marks the tag assumed. It used to default to HVAC (now air only), and before that a category without its discipline's system took whichever system was declared first. Pipe categories left the HVAC list and joined GEN.
+- **The unassigned-SEQ placeholder follows the pad width.** "0000" was a literal in six places, so at pad 3 or 5 it was never recognised as unassigned. `SeqAssigner.UnassignedSeq` / `IsUnassignedSeq` / `IsUnresolvedToken` now decide, and `TagHasPlaceholders` / `TagIsComplete` compare whole segments. A test fails on any new literal comparison; it was checked failing on one.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,865 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
 #### Cable-type pickers for the wire reference grid and feeder sizing (2026-09-27)
 
 - **Wire reference grid.**

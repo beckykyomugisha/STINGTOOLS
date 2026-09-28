@@ -690,7 +690,7 @@ namespace StingTools.Commands.Lightning
             progress?.Close();
 
             // Export CSV
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Bonding_Inventory", ".csv");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "REGISTER", "STING_LPS_Bonding_Inventory", ".csv", "E");
             try
             {
                 var csv = new StringBuilder();
@@ -1263,7 +1263,7 @@ namespace StingTools.Commands.Lightning
             }
 
             // Export CSV
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Inspection_Schedule", ".csv");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Maintenance", "STING_LPS_Inspection_Schedule", ".csv", "E");
             try
             {
                 var csv = new StringBuilder();
@@ -1545,7 +1545,7 @@ namespace StingTools.Commands.Lightning
                 ["earth_electrodes"] = electrodeRows,
             };
 
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Compliance_Report", ".docx");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_LPS_Compliance_Report", ".docx", "E");
             try
             {
                 MiniWord.SaveAsByTemplate(outPath, templatePath, dict);
@@ -1566,7 +1566,7 @@ namespace StingTools.Commands.Lightning
             List<Dictionary<string, object>> conductorRows,
             List<Dictionary<string, object>> electrodeRows)
         {
-            string outPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_LPS_Compliance_Report", ".csv");
+            string outPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_LPS_Compliance_Report", ".csv", "E");
             try
             {
                 var csv = new StringBuilder();

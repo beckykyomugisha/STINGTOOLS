@@ -65,7 +65,7 @@ namespace StingTools.BOQ
 
         public static string WriteCsv(Document doc, CarbonPivotResult result)
         {
-            string outDir = Core.OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = Core.OutputLocationHelper.GetRoutedDirectory(doc, "BOQ");
             string path = Path.Combine(outDir,
                 $"STING_carbon_by_phase_level_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
             var sb = new System.Text.StringBuilder();

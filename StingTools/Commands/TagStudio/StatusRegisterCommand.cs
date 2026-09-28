@@ -139,7 +139,7 @@ namespace StingTools.Commands.TagStudio
 
         private static string WriteWorkbook(Document doc, List<Row> rows)
         {
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "TagRegister");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, $"STING_StatusRegister_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
 

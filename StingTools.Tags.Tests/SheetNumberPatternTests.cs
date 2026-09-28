@@ -17,11 +17,30 @@ namespace StingTools.Tags.Tests
         [InlineData("{disc}-{lvl}-{seq:D3}", "A", "01", 7, "A-01-007")]
         [InlineData("{proj}-{disc}-{seq:D4}", "M", "", 3, "SAH-M-0003")]
         [InlineData("{disc}{seq:D2}", "E", "", 9, "E09")]
-        [InlineData("{seq}", "A", "", 5, "005")]
+        [InlineData("{seq}", "A", "", 5, "0005")]              // bare {seq}: the shared 4-digit default
+        [InlineData("{project}-{disc}-{seq:D3}", "M", "", 3, "SAH-M-003")]   // ISO spelling of {proj}
+        [InlineData("{originator}-{disc}-{seq:D3}", "M", "", 3, "PLNS-M-003")]
         public void PatternsBuildTheNumber(string pattern, string disc, string lvl,
                                            int seq, string expected)
             => Assert.Equal(expected, SheetDisciplineResolver.FormatNumber(
                 pattern, disc, lvl, "SAH", "PLNS", seq));
+
+        [Theory]
+        [InlineData("{disc}-{seq}")]
+        [InlineData("{disc}-{seq:D3}")]
+        [InlineData("{proj}-{disc}-{seq:D2}")]
+        [InlineData("{project}-{orig}-{disc}-{seq:D5}")]
+        public void TheTitleBlockPatternAndADrawingTypeBuildTheSameNumber(string pattern)
+        {
+            // DOCX-12: the same pattern pasted into the title-block setting and into a
+            // drawing type used to come out differently ({seq} was 3 digits in one and
+            // 4 in the other; {proj} worked in one, {project} in the other). With every
+            // value present the two builders must now agree exactly.
+            var extras = new Dictionary<string, string> { { "project", "SAH" }, { "originator", "PLNS" } };
+            string viaTitleBlock = SheetDisciplineResolver.FormatNumber(pattern, "M", "01", "SAH", "PLNS", 7);
+            string viaDrawingType = SheetNumberEngine.ApplyTokenPattern(pattern, "M", "01", null, null, null, null, 7, extras);
+            Assert.Equal(viaDrawingType, viaTitleBlock);
+        }
 
         [Fact]
         public void AnEmptyTokenTakesItsSeparatorWithIt()

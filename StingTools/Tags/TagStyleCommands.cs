@@ -36,9 +36,13 @@ namespace StingTools.Tags
     /// </summary>
     internal static class TagStyleGridDialog
     {
-        private static readonly string[] Sizes = { "2", "2.5", "3", "3.5" };
-        private static readonly string[] Styles = { "NOM", "BOLD", "ITALIC" };
-        private static readonly string[] Colors = { "BLACK", "BLUE", "GREEN", "RED", "YELLOW", "ORANGE", "PURPLE", "WHITE" };
+        // The sizes and colours the TAG_{size}{style}_{colour}_BOOL rows exist for
+        // (ParamRegistry). This listed YELLOW, which no tag family carries — picking it
+        // switched nothing — and left out GREY. ISO 3098 sizes first; 2 / 3 mm rows are
+        // marked "not ISO" and are never a default.
+        private static readonly string[] Sizes = ParamRegistry.TagStyleSizes;
+        private static readonly string[] Styles = ParamRegistry.TagStyleStylesCore;
+        private static readonly string[] Colors = ParamRegistry.TagStyleColors;
 
         private static readonly Dictionary<string, System.Windows.Media.Color> ColorMap =
             new Dictionary<string, System.Windows.Media.Color>(StringComparer.OrdinalIgnoreCase)
@@ -47,7 +51,7 @@ namespace StingTools.Tags
                 ["BLUE"]   = System.Windows.Media.Color.FromRgb(40, 100, 200),
                 ["GREEN"]  = System.Windows.Media.Color.FromRgb(40, 160, 60),
                 ["RED"]    = System.Windows.Media.Color.FromRgb(200, 40, 40),
-                ["YELLOW"] = System.Windows.Media.Color.FromRgb(200, 180, 30),
+                ["GREY"]   = System.Windows.Media.Color.FromRgb(128, 128, 128),
                 ["ORANGE"] = System.Windows.Media.Color.FromRgb(220, 120, 30),
                 ["PURPLE"] = System.Windows.Media.Color.FromRgb(130, 50, 180),
                 ["WHITE"]  = System.Windows.Media.Color.FromRgb(240, 240, 240),
@@ -115,7 +119,8 @@ namespace StingTools.Tags
                     rowGrid.ColumnDefinitions.Add(new System.Windows.Controls.ColumnDefinition { Width = new System.Windows.GridLength(90) });
 
                     // Row label
-                    string sizeLabel = $"{size}mm {style}";
+                    string sizeLabel = Core.Drawing.IsoTagText.IsIso(size)
+                        ? $"{size}mm {style}" : $"{size}mm {style} (not ISO)";
                     var rowLabel = new System.Windows.Controls.TextBlock
                     {
                         Text = sizeLabel, FontSize = 10, VerticalAlignment = System.Windows.VerticalAlignment.Center,
@@ -296,6 +301,13 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
+            // A Tag Studio scheme button passes its scheme; honour it instead of asking
+            // again. This used to be ignored, so all twelve buttons opened the same picker
+            // and the Zone / Status / Level / Function / System schemes were unreachable.
+            string preset = UI.StingCommandHandler.GetExtraParam("ColorSchemeName");
+            if (!string.IsNullOrWhiteSpace(preset))
+                return ApplyNamed(doc, view, preset);
+
             var dlg = new TaskDialog("Color Scheme");
             dlg.MainInstruction = "Select a view color scheme:";
             dlg.MainContent = "Colors all elements by discipline and switches tag text styles to match.\n" +
@@ -348,13 +360,53 @@ namespace StingTools.Tags
 
                 tx.Commit();
 
+                string note = TagStyleEngine.ViewSchemeNote(view, scheme.Name);
                 TaskDialog.Show("Color Scheme Applied",
                     $"Scheme: {scheme.Name}\n" +
                     $"{scheme.Description}\n\n" +
                     $"Elements colored: {colored}\n" +
-                    $"Tag styles switched: {styled}");
+                    $"Tag styles switched: {styled}" +
+                    (note != null ? "\n\n" + note : ""));
             }
 
+            return Result.Succeeded;
+        }
+
+        /// <summary>Apply a scheme by name — discipline or colour-by-value — without a dialog
+        /// until the result. An unknown name is reported, not substituted.</summary>
+        internal static Result ApplyNamed(Document doc, View view, string name)
+        {
+            string canonical = Core.Drawing.TagColorSchemeNames.Resolve(name);
+            if (canonical == null)
+            {
+                TaskDialog.Show("Color Scheme", Core.Drawing.TagColorSchemeNames.Unknown(name));
+                return Result.Failed;
+            }
+            using (Transaction tx = new Transaction(doc, $"STING Color Scheme: {canonical}"))
+            {
+                tx.Start();
+                int colored, styled;
+                string description;
+                if (Core.Drawing.TagColorSchemeNames.IsVariable(canonical))
+                {
+                    var v = TagStyleEngine.GetVariableScheme(canonical);
+                    colored = TagStyleEngine.ApplyVariableScheme(doc, view, v);
+                    styled = TagStyleEngine.ApplyVariableTagStyles(doc, v);
+                    description = v?.Description;
+                }
+                else
+                {
+                    var sc = TagStyleEngine.BuiltInSchemes[canonical];
+                    colored = TagStyleEngine.ApplyColorScheme(doc, view, sc);
+                    styled = sc.DisciplineTagStyles.Count > 0 ? TagStyleEngine.ApplyDisciplineTagStyles(doc, sc) : 0;
+                    description = sc.Description;
+                }
+                tx.Commit();
+                string note = TagStyleEngine.ViewSchemeNote(view, canonical);
+                TaskDialog.Show("Color Scheme Applied",
+                    $"Scheme: {canonical}\n{description}\n\nElements colored: {colored}\nTag styles switched: {styled}" +
+                    (note != null ? "\n\n" + note : ""));
+            }
             return Result.Succeeded;
         }
 
@@ -740,7 +792,7 @@ namespace StingTools.Tags
                     var scheme = TagStyleEngine.BuiltInSchemes[schemeName];
                     foreach (var v in allViews)
                     {
-                        try { totalColored += TagStyleEngine.ApplyColorScheme(doc, v, scheme); }
+                        try { totalColored += TagStyleEngine.ApplyColorScheme(doc, v, scheme, useViewScheme: true); }
                         catch (Exception ex) { StingLog.Warn($"Skip view '{v.Name}': {ex.Message}"); }
                     }
                 }
@@ -750,6 +802,7 @@ namespace StingTools.Tags
                 TaskDialog.Show("Batch Color Scheme",
                     $"{(clearMode ? "Cleared" : $"Scheme: {schemeName}")}\n" +
                     $"Views processed: {allViews.Count}\n" +
+                    (clearMode ? "" : "Views whose tag style names a scheme (drawing type or Set View Tag Style) used that scheme for element colours.\n") +
                     $"Elements affected: {totalColored}");
             }
 
@@ -1253,7 +1306,7 @@ namespace StingTools.Tags
             var td = new TaskDialog("STING — View Tag Style");
             td.MainInstruction = "Select tag style for this view";
             td.MainContent = $"Current view: {view.Name}";
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Discipline (M=Blue, E=Gold, P=Green...)");
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Discipline (M=Blue, E=Orange, P=Green...)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Monochrome (black on white)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Warm (red/orange/yellow)");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "Cool (blue/cyan/mint)");
@@ -1264,7 +1317,7 @@ namespace StingTools.Tags
             switch (result)
             {
                 case TaskDialogResult.CommandLink1: styleName = "Discipline"; break;
-                case TaskDialogResult.CommandLink2: styleName = "Monochrome"; break;
+                case TaskDialogResult.CommandLink2: styleName = "Mono"; break;
                 case TaskDialogResult.CommandLink3: styleName = "Warm"; break;
                 case TaskDialogResult.CommandLink4: styleName = "Cool"; break;
                 default: return Result.Cancelled;

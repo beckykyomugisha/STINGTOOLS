@@ -143,7 +143,7 @@ namespace StingTools.Commands.TagStudio
             string xlsx = null;
             try
             {
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance");
                 xlsx = Path.Combine(outDir, $"STING_MigrateTagFamilies_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
                 StingExcelExporter.ExportTable(
                     xlsx, "Migration",

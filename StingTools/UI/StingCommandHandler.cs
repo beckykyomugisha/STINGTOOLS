@@ -2539,7 +2539,7 @@ namespace StingTools.UI
                         var aaDoc = app.ActiveUIDocument?.Document;
                         if (aaDoc != null)
                         {
-                            string outPath = Core.OutputLocationHelper.GetTimestampedPath(aaDoc, "ActionAudit", ".csv");
+                            string outPath = Core.OutputLocationHelper.GetRoutedTimestampedPath(aaDoc, "Compliance", "ActionAudit", ".csv");
                             Core.ActionAuditLog.Export(outPath);
                             TaskDialog.Show("Action Audit", $"Audit log exported to:\n{outPath}");
                         }
@@ -3069,7 +3069,7 @@ namespace StingTools.UI
                     case "TagStudio_SchemeRed": ApplyTagColorScheme(app, "Red"); break;
                     case "TagStudio_SchemeYellow": ApplyTagColorScheme(app, "Yellow"); break;
                     case "TagStudio_SchemeBlue": ApplyTagColorScheme(app, "Blue"); break;
-                    case "TagStudio_SchemeMono": ApplyTagColorScheme(app, "Monochrome"); break;
+                    case "TagStudio_SchemeMono": ApplyTagColorScheme(app, "Mono"); break;
                     case "TagStudio_SchemeDark": ApplyTagColorScheme(app, "Dark"); break;
                     case "TagStudio_SchemeZone": ApplyTagColorScheme(app, "Zone"); break;
                     case "TagStudio_SchemeStatus": ApplyTagColorScheme(app, "Status"); break;
@@ -6291,7 +6291,7 @@ namespace StingTools.UI
                 report.AppendLine($"  {zone}");
 
             // Export to user-preferred output directory
-            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "TAG_DICTIONARY.txt");
+            string exportPath = OutputLocationHelper.GetRoutedPath(app.ActiveUIDocument?.Document, "TagRegister", "TAG_DICTIONARY.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -6437,7 +6437,7 @@ namespace StingTools.UI
             }
 
             // Export to project file location (fallback to data path)
-            string exportPath = OutputLocationHelper.GetOutputPath(app.ActiveUIDocument?.Document, "COLOR_LEGEND.txt");
+            string exportPath = OutputLocationHelper.GetRoutedPath(app.ActiveUIDocument?.Document, "Schedule", "COLOR_LEGEND.txt");
             try
             {
                 System.IO.File.WriteAllText(exportPath, report.ToString());
@@ -6487,8 +6487,7 @@ namespace StingTools.UI
                 catch (Exception ex) { StingLog.Warn($"Sheet CSV row {sheet.Id}: {ex.Message}"); }
             }
 
-            string exportPath = OutputLocationHelper.GetTimestampedPath(
-                app.ActiveUIDocument?.Document, "SHEET_REGISTER", ".csv");
+            string exportPath = OutputLocationHelper.GetRoutedTimestampedPath(app.ActiveUIDocument?.Document, "DocRegister", "SHEET_REGISTER", ".csv");
             try
             {
                 System.IO.File.WriteAllText(exportPath, sb.ToString());
@@ -9066,7 +9065,7 @@ namespace StingTools.UI
                 return;
             }
 
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "REGISTER");
             string path = Path.Combine(outDir, $"TieIn_Register_{DateTime.Now:yyyyMMdd}.csv");
             File.WriteAllLines(path, rows);
             TaskDialog.Show("STING Tie-In Register",
@@ -9284,7 +9283,7 @@ namespace StingTools.UI
 
             if (rows.Count <= 1) { TaskDialog.Show("STING LPS Register", "No LPS elements found in the model."); return; }
 
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "REGISTER", "E");
             string path = Path.Combine(outDir, $"LPS_Register_{DateTime.Now:yyyyMMdd}.csv");
             File.WriteAllLines(path, rows);
             TaskDialog.Show("STING LPS Register", $"Exported {rows.Count - 1} LPS element(s) to:\n{path}");

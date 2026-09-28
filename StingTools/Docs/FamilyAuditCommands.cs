@@ -235,7 +235,7 @@ namespace StingTools.Docs
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             var result = FamilyAuditEngine.AuditFamilies(ctx.Doc);
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "FamilyAudit", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Compliance", "FamilyAudit", ".csv");
 
             var sb = new StringBuilder();
             sb.AppendLine("Name,Category,InPlace,TypeCount,InstanceCount,Editable");

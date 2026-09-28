@@ -32,7 +32,7 @@ namespace StingTools.Commands.Electrical.Export
             var doc = ctx.Doc;
 
             var model = ExternalExportEngine.Build(doc);
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "IFC", "E");
             try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string outPath = Path.Combine(outDir, $"STING_ETAP_CIM_DRAFT_{DateTime.Now:yyyyMMdd-HHmm}.xml");
 

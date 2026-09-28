@@ -128,11 +128,17 @@ namespace StingTools.Commands.Drawing
                 }
 
                 // ── Phase D: PDF export ──────────────────────────────────────────
+                // Was OutputLocationHelper.GetOutputDirectory — the MISC folder — for
+                // every sheet of every discipline. Each PDF now goes to its own
+                // deliverable folder (CDE state + discipline); outDir is the fallback
+                // for an unsaved model and the home of the register CSV.
                 var outDir = OutputLocationHelper.GetOutputDirectory(doc);
                 RunPdfExportPhase(doc, stampedSheets, outDir, stats);
 
                 // ── Phase E: Sheet register CSV ──────────────────────────────────
-                RunSheetRegisterPhase(doc, stampedSheets, outDir, stats);
+                string regDir = ProjectFolderEngine.GetExportFolder(doc, "DocRegister");
+                RunSheetRegisterPhase(doc, stampedSheets,
+                    string.IsNullOrEmpty(regDir) ? outDir : regDir, stats);
 
                 // ── Summary ──────────────────────────────────────────────────────
                 ShowSummary(stats, outDir, doProduction);
@@ -312,8 +318,10 @@ namespace StingTools.Commands.Drawing
                     string filename = MakeSafeFilename(
                         $"{sheet.SheetNumber}_{sheet.Name}");
                     var exportOpts = new PDFExportOptions { FileName = filename };
-                    doc.Export(outDir, new List<ElementId> { sheet.Id }, exportOpts);
+                    string dir = StingTools.Docs.ExportCenterEngine.DeliverableFolderForSheet(doc, sheet) ?? outDir;
+                    doc.Export(dir, new List<ElementId> { sheet.Id }, exportOpts);
                     stats.PdfsExported++;
+                    stats.PdfFolders.Add(dir);
                 }
                 catch (Exception ex2)
                 {
@@ -380,7 +388,10 @@ namespace StingTools.Commands.Drawing
 
             sb.AppendLine($"Style sync:  {stats.StylesResynced} view(s) re-aligned");
             sb.AppendLine($"Rev strip:   {stats.RevisionsUpdated} sheet(s) updated");
-            sb.AppendLine($"PDF export:  {stats.PdfsExported} sheet(s) → {outDir}");
+            sb.AppendLine(stats.PdfFolders.Count <= 1
+                ? $"PDF export:  {stats.PdfsExported} sheet(s) → {stats.PdfFolders.FirstOrDefault() ?? outDir}"
+                : $"PDF export:  {stats.PdfsExported} sheet(s) into {stats.PdfFolders.Count} discipline/state folders:\n    "
+                  + string.Join("\n    ", stats.PdfFolders.OrderBy(f => f)));
 
             if (!string.IsNullOrEmpty(stats.RegisterCsvPath))
                 sb.AppendLine($"Register:    {Path.GetFileName(stats.RegisterCsvPath)}");
@@ -425,6 +436,7 @@ namespace StingTools.Commands.Drawing
             public int PdfsExported    { get; set; }
             public string RegisterCsvPath { get; set; }
             public List<string> Warnings { get; } = new List<string>();
+            public HashSet<string> PdfFolders { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
     }
 }

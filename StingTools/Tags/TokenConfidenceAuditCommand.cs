@@ -118,7 +118,7 @@ namespace StingTools.Tags
             {
                 try
                 {
-                    csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_TokenConfidence_Audit.csv");
+                    csvPath = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "STING_TokenConfidence_Audit.csv");
                     File.WriteAllLines(csvPath, rows, Encoding.UTF8);
                 }
                 catch (Exception ex)

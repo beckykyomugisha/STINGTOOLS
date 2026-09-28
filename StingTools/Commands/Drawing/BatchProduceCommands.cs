@@ -625,7 +625,7 @@ namespace StingTools.Commands.Drawing
                 if (string.IsNullOrEmpty(label)) return Result.Succeeded;
                 var pkgId = packages.First(p => $"{p.PackageId} ({p.SheetCount} sheets)" == label).PackageId;
 
-                var outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                var outDir = OutputLocationHelper.GetRoutedDirectory(doc, "PDF");
                 var result = DrawingPackageManager.ExportPackage(doc, pkgId, outDir);
                 BatchProduceCommons.ShowResult("Export Drawing Package", result.SheetCount, 0, result.Warnings);
                 return Result.Succeeded;

@@ -707,80 +707,60 @@ namespace StingTools.Docs
         }
 
         /// <summary>
-        /// Batch renumber sheets within a discipline group.
-        /// Renumbers sequentially starting from a given number.
-        /// Must be called within an active Transaction.
+        /// The renumber plan for one discipline, built by the same rules Auto-Number
+        /// uses: the project's number pattern (SheetNumbering.ReadPattern), each sheet's
+        /// own level, locked sheets and sheets already carrying a full ISO identifier
+        /// left alone, and numbers already taken elsewhere routed around rather than
+        /// refused. Apply it with SheetNumbering.Apply, which parks, restores on failure,
+        /// rebuilds SHT_TAG_1_TXT and records history.
+        ///
+        /// The previous version hard-coded "{disc}-{seq:D3}", counted a sheet as renamed
+        /// on the TEMPORARY pass (so a sheet whose final number was refused stayed on
+        /// "__TEMP_…" and was reported as done), refused the whole run on any clash, and
+        /// left every renumbered sheet's title block printing its old identifier.
         /// </summary>
-        /// <returns>Number of sheets renumbered.</returns>
-        internal static int BatchRenumberSheets(Document doc, string discipline,
-            int startNumber = 1, int increment = 1)
+        internal static List<Commands.Drawing.SheetNumbering.Change> PlanBatchRenumber(
+            Document doc, string discipline, int startNumber = 1, int increment = 1)
         {
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .Where(s => !s.IsPlaceholder &&
-                    SheetManagerEngine.ExtractDisciplinePrefix(s.SheetNumber)
-                        .Equals(discipline, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(s => s.SheetNumber)
+            var all = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet))
+                .Cast<ViewSheet>().Where(s => !s.IsPlaceholder).ToList();
+            var group = all
+                .Where(s => !Core.Drawing.Iso19650DocumentCode.LooksAssembled(s.SheetNumber)
+                         && SheetManagerEngine.ExtractDisciplinePrefix(s.SheetNumber)
+                                .Equals(discipline, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(s => s.SheetNumber, UI.SheetReorderDialog.NaturalOrder.Instance)
                 .ToList();
 
-            // TS-02: Pre-flight conflict detection — check proposed numbers against ALL sheets
-            // (not just the ones being renumbered) to prevent partial-state failures.
-            var allExistingNumbers = new HashSet<string>(
-                new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewSheet))
-                    .Cast<ViewSheet>()
-                    .Where(s => !s.IsPlaceholder)
-                    .Select(s => s.SheetNumber),
-                StringComparer.OrdinalIgnoreCase);
-            // Remove the sheets we're renumbering from the existing set (they'll be changed)
-            foreach (var s in sheets) allExistingNumbers.Remove(s.SheetNumber);
+            bool IsLocked(ViewSheet sh) =>
+                Commands.Drawing.TitleBlockLock.FindTitleBlock(doc, sh) is Element tb
+                && Commands.Drawing.TitleBlockLock.Probe(doc, tb) != Commands.Drawing.TitleBlockLock.LockHeldOn.None;
 
-            var proposedNumbers = new List<string>();
-            int checkNum = startNumber;
-            foreach (var _ in sheets)
-            {
-                proposedNumbers.Add($"{discipline}-{checkNum:D3}");
-                checkNum += increment;
-            }
-            var conflicts = proposedNumbers.Where(n => allExistingNumbers.Contains(n)).ToList();
-            if (conflicts.Count > 0)
-            {
-                StingLog.Warn($"BatchRenumber conflict: proposed numbers {string.Join(", ", conflicts)} " +
-                    $"already exist on other sheets. Choose a different starting number.");
-                return -1; // Signal conflict to caller
-            }
+            var movable = group.Where(sh => !IsLocked(sh)).ToList();
+            var taken = new HashSet<string>(all.Except(movable).Select(sh => sh.SheetNumber),
+                                            StringComparer.OrdinalIgnoreCase);
 
-            int num = startNumber;
-            int renamed = 0;
+            string pattern = Commands.Drawing.SheetNumbering.ReadPattern(doc);
+            string projectCode = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ORG_PROJECT_CODE);
+            string originator = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ORG_ORIGINATOR_CODE);
 
-            // First pass: rename to temporary names to avoid conflicts
-            var tempNames = new Dictionary<ElementId, string>();
-            foreach (var sheet in sheets)
+            var plan = new List<Commands.Drawing.SheetNumbering.Change>();
+            int n = startNumber;
+            foreach (var sh in movable)
             {
-                string tempNum = $"__TEMP_{sheet.Id.Value}";
-                tempNames[sheet.Id] = $"{discipline}-{num:D3}";
-                try { sheet.SheetNumber = tempNum; renamed++; }
-                catch (Exception ex)
+                string level = ParameterHelpers.GetString(sh, ParamRegistry.SHT_LEVEL);
+                string proposed;
+                do
                 {
-                    StingLog.Warn($"Could not rename sheet {sheet.SheetNumber}: {ex.Message}");
+                    proposed = Core.Drawing.SheetDisciplineResolver.FormatNumber(
+                        pattern, discipline, level, projectCode, originator, n);
+                    n += Math.Max(1, increment);
                 }
-                num += increment;
+                while (taken.Contains(proposed));
+                taken.Add(proposed);
+                if (!string.Equals(proposed, sh.SheetNumber, StringComparison.Ordinal))
+                    plan.Add(new Commands.Drawing.SheetNumbering.Change { Sheet = sh, Old = sh.SheetNumber, New = proposed });
             }
-
-            // Second pass: apply final names
-            foreach (var kv in tempNames)
-            {
-                var sheet = doc.GetElement(kv.Key) as ViewSheet;
-                if (sheet == null) continue;
-                try { sheet.SheetNumber = kv.Value; }
-                catch (Exception ex)
-                {
-                    StingLog.Warn($"Could not set final number '{kv.Value}': {ex.Message}");
-                }
-            }
-
-            return renamed;
+            return plan;
         }
 
         /// <summary>

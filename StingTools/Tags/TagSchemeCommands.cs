@@ -342,7 +342,7 @@ namespace StingTools.Tags
             {
                 try
                 {
-                    csvPath = OutputLocationHelper.GetOutputPath(doc, "STING_TagScheme_Audit.csv");
+                    csvPath = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "STING_TagScheme_Audit.csv");
                     File.WriteAllLines(csvPath, rows, Encoding.UTF8);
                 }
                 catch (Exception ex)

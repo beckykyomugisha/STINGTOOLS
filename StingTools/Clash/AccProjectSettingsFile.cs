@@ -56,6 +56,29 @@ namespace StingTools.Core.Clash
             return policy;
         }
 
+        /// <summary>IM-18: the machine credentials with THIS project's ACC container ids laid
+        /// over them. Logs where the ids came from, and a deprecation warning when they came
+        /// from the machine file, so a pull against the wrong container can be explained.</summary>
+        internal static AccCredentials LoadCredentials(Document doc, string commandName)
+        {
+            var creds = AccIssueSync.LoadCredentials();
+            AccOperatingPolicy policy = null;
+            try { policy = AccOperatingPolicy.Load(PathFor(doc)); }
+            catch (Exception ex) { StingLog.Warn($"{commandName}: ACC settings: {ex.Message}"); }
+            AccProjectScope.Apply(creds, policy);
+            string line = $"{commandName}: {AccProjectScope.Describe(creds)}";
+            if (creds.ProjectScope == AccProjectScopeSource.CredentialsFile) StingLog.Warn(line);
+            else StingLog.Info(line);
+            return creds;
+        }
+
+        /// <summary>IM-18: record this project's ACC container ids in its own settings file.
+        /// Empty strings clear them (back to the deprecated machine-file fallback).</summary>
+        internal static bool SaveProjectScope(Document doc, string projectId, string coordContainerId, out string error)
+            => SaveKeys(doc, out error,
+                ("projectId", projectId ?? string.Empty),
+                ("coordContainerId", coordContainerId ?? string.Empty));
+
         /// <summary>Remember a coordination model set for this project. Merges into whatever
         /// else the file holds.</summary>
         internal static bool SaveCoordModelSet(Document doc, string setId, string setName, out string error)

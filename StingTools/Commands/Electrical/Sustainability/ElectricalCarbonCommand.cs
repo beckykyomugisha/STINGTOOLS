@@ -127,7 +127,7 @@ namespace StingTools.Commands.Electrical.Sustainability
             double opTotalKg  = opRows.Sum(r => r.AnnualKgCO2e);
             double emTotalKg  = emRows.Sum(r => r.KgCO2e);
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir, $"STING_ElectricalCarbon_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
             WriteExcel(outPath, opRows, emRows, opTotalKwh, opTotalKg, emTotalKg, carbon);

@@ -3362,7 +3362,7 @@ namespace StingTools.Tags
                     if (string.IsNullOrEmpty(status)) status = "NEW";
                     string rev = !string.IsNullOrEmpty(popCtx.ProjectRev) ? popCtx.ProjectRev : "P01";
                     string derivedTag = string.Join(ParamRegistry.Separator,
-                        disc, loc, zone, lvl, sys, func, prod, "0000");
+                        disc, loc, zone, lvl, sys, func, prod, SeqAssigner.UnassignedSeq(TagConfig.EffectiveSeqPad));
 
                     entries.Add(new Dictionary<string, string>
                     {

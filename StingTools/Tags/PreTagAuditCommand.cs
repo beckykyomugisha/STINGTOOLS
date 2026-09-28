@@ -506,7 +506,7 @@ namespace StingTools.Tags
             // CSV export path
             try
             {
-                string csvPath = OutputLocationHelper.GetTimestampedPath(doc, "STING_PreTagAudit", ".csv");
+                string csvPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_PreTagAudit", ".csv");
                 File.WriteAllText(csvPath, string.Join("\n", csvRows));
                 panel.SetCsvPath(csvPath);
                 try

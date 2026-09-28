@@ -644,7 +644,7 @@ namespace StingTools.Tags
         /// </summary>
         private static string ResolveOutputDirViaHelper(ExternalCommandData cd)
         {
-            try { return OutputLocationHelper.GetOutputDirectory(ParameterHelpers.GetDoc(cd)); }
+            try { return OutputLocationHelper.GetRoutedDirectory(ParameterHelpers.GetDoc(cd), "Compliance"); }
             catch (Exception ex)
             {
                 StingLog.Warn($"FamilyConformanceCheck: output dir: {ex.Message}");

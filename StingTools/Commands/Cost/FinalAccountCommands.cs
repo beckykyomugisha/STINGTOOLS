@@ -333,7 +333,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_FinalAccount", ".xlsx");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_FinalAccount", ".xlsx");
                 using (var wb = new XLWorkbook())
                 {
                     // Sheet 1 — the reconciliation waterfall.

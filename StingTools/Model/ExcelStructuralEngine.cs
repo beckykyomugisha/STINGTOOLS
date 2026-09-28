@@ -1274,7 +1274,7 @@ namespace StingTools.Model
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) return Result.Failed;
-            string outDir = OutputLocationHelper.GetOutputDirectory(ctx.Doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(ctx.Doc, "Excel", "S");
             string path = Path.Combine(outDir, $"Structural_Schedule_{DateTime.Now:yyyyMMdd}.xlsx");
 
             using (var wb = new XLWorkbook())
@@ -1318,7 +1318,7 @@ namespace StingTools.Model
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            string outDir = ctx != null ? OutputLocationHelper.GetOutputDirectory(ctx.Doc) : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string outDir = ctx != null ? OutputLocationHelper.GetRoutedDirectory(ctx.Doc, "Excel", "S") : Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             string path = Path.Combine(outDir, "STING_Structural_Template.xlsx");
             ExcelStructuralEngine.GenerateTemplate(path);
             TaskDialog.Show("STING", $"Template generated:\n{path}");

@@ -122,7 +122,7 @@ namespace StingTools.Commands.Placement
             // Always write CSV.
             try
             {
-                string outDir = OutputLocationHelper.GetOutputPath(doc, "PlacementSetupAudit") ?? Path.GetTempPath();
+                string outDir = OutputLocationHelper.GetRoutedPath(doc, "Compliance", "PlacementSetupAudit") ?? Path.GetTempPath();
                 Directory.CreateDirectory(outDir);
                 csvPath = Path.Combine(outDir, $"STING_PlacementSetupAudit_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 var csv = new StringBuilder();

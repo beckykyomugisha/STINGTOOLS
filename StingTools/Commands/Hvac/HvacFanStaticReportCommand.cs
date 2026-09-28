@@ -609,8 +609,7 @@ namespace StingTools.Commands.Hvac
                 sb.AppendLine($"Component allowances Pa,{allowancePa.ToString("F1", CultureInfo.InvariantCulture)}");
                 sb.AppendLine($"Fan External Static Pressure Pa,{totalStaticPa.ToString("F1", CultureInfo.InvariantCulture)}");
 
-                string path = OutputLocationHelper.GetOutputPath(doc,
-                    $"STING_HVAC_FanStatic_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                string path = OutputLocationHelper.GetRoutedPath(doc, "Schedule", $"STING_HVAC_FanStatic_{DateTime.Now:yyyyMMdd_HHmmss}.csv", "M");
                 File.WriteAllText(path, sb.ToString());
                 return path;
             }

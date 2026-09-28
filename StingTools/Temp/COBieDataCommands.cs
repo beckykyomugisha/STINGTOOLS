@@ -975,7 +975,7 @@ namespace StingTools.Temp
             }
 
             // Export action
-            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string exportDir = OutputLocationHelper.GetRoutedDirectory(doc, "COBie");
             panel.Action("Export Zone Audit CSV", "Export zone coverage analysis to CSV", (win) =>
             {
                 try
@@ -1363,7 +1363,7 @@ namespace StingTools.Temp
             panel.Table(catHeaders, catRows);
 
             // Export action
-            string exportDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string exportDir = OutputLocationHelper.GetRoutedDirectory(doc, "COBie");
             panel.Action("Export Gap Report CSV", "Export missing document list to CSV", (win) =>
             {
                 try

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <!-- Revit-free tests for the MEP calculation kernels: psychrometrics,
          sprinkler hydraulics, gas sizing, stair pressurisation, duct friction,
          Hardy Cross, NC prediction, refrigerant sizing, expansion vessels and

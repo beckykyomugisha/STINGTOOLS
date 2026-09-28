@@ -181,7 +181,7 @@ namespace StingTools.Commands.Delivery
 
                 var s = RiskRegister.Summarise(risks, 10);
 
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_Risks", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "REGISTER", "STING_Risks", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("Id,Title,Category,Status,Likelihood,Impact,InherentScore,InherentBand,ResidualScore,ResidualBand,ElementId,Zone,Owner,Mitigation");
                 foreach (var r in risks.OrderByDescending(x => x.ResidualScore))
@@ -252,7 +252,7 @@ namespace StingTools.Commands.Delivery
 
                 var s = Core.Delivery.MidpEngine.Detect(plan, DateTime.Now, 14);
 
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_MIDP_Drift", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Compliance", "STING_MIDP_Drift", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("Code,Title,PlannedDate,State,DaysLateOrToGo,RequiredSuitability,ActualSuitability");
                 foreach (var d in s.Drifts)

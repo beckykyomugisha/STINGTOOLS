@@ -360,24 +360,28 @@ namespace StingTools.Core
         public static bool AutoNextRevisionOnIssue { get; internal set; } = true;
 
         /// <summary>FUT-01: Get the SEQ range for the current model's discipline.
-        /// Returns (minSeq, maxSeq) or (1, 9999) if no allocation defined.</summary>
+        /// Returns (minSeq, maxSeq), or 1 to the largest number the SEQ pad width can hold
+        /// when no allocation is defined (9999 at the default 4 digits; it was 9999 at
+        /// every width).</summary>
         public static (int Min, int Max) GetSeqRange(string modelDiscipline)
         {
+            var whole = (1, SeqAssigner.MaxSeqForPad(EffectiveSeqPad));
             if (string.IsNullOrEmpty(modelDiscipline) || SeqRangeAllocation.Count == 0)
-                return (1, 9999);
+                return whole;
             if (SeqRangeAllocation.TryGetValue(modelDiscipline, out var range))
                 return range;
-            return (1, 9999);
+            return whole;
         }
 
         /// <summary>FUT-01: Validate a SEQ number is within the allocated range for the model discipline.
         /// Returns null if valid, error message if out of range.</summary>
         public static string ValidateSeqRange(int seqNumber, string modelDiscipline)
         {
+            string Pad(int n) => n.ToString().PadLeft(EffectiveSeqPad, '0');
             if (SeqRangeAllocation.Count == 0) return null; // No allocation defined
             var (min, max) = GetSeqRange(modelDiscipline);
             if (seqNumber < min || seqNumber > max)
-                return $"SEQ {seqNumber:D4} is outside allocated range {min:D4}-{max:D4} for model '{modelDiscipline}'. " +
+                return $"SEQ {Pad(seqNumber)} is outside allocated range {Pad(min)}-{Pad(max)} for model '{modelDiscipline}'. " +
                        $"Configure SEQ_RANGE_ALLOCATION in project_config.json.";
             return null;
         }
@@ -1775,9 +1779,12 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(hvacFunc)) return hvacFunc;
             }
 
-            // For HWS, distinguish heating vs domestic hot water
+            // For HWS, a return circuit is RTN (tested first: "LTHW Return" also says
+            // LTHW); otherwise heating vs domestic hot water.
             if (sysCode == "HWS")
             {
+                foreach (string n in SystemNamesOf(el))
+                    if (SystemNameClassifier.FlowDirection(n) == "RTN") return "RTN";
                 string hwsFunc = GetHwsSubFunction(el);
                 if (!string.IsNullOrEmpty(hwsFunc)) return hwsFunc;
             }
@@ -1789,6 +1796,51 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(sanFunc)) return sanFunc;
             }
 
+            // For medical gas, the gas is the function (O2, MA4, VAC …, the
+            // MGS_GAS_TYPE_TXT vocabulary), read off the element or its system name.
+            if (sysCode == SystemNameClassifier.MedicalGasSys)
+            {
+                string gas = GetMgsSubFunction(el);
+                if (!string.IsNullOrEmpty(gas)) return gas;
+            }
+
+            // DHW return (secondary circulation) is RTN; flow keeps DHW. Chilled and
+            // condenser water take their direction; refrigerant its line; LV lighting,
+            // emergency lighting and small power their own function. All from the system
+            // or family name (SystemNameClassifier), else FuncMap below.
+            if (sysCode == "DHW" || sysCode == "CHW" || sysCode == "CDW")
+            {
+                foreach (string n in SystemNamesOf(el))
+                {
+                    string dir = SystemNameClassifier.FlowDirection(n);
+                    if (dir == "RTN") return "RTN";
+                    if (dir == "SUP" && sysCode != "DHW") return "SUP";
+                }
+            }
+            if (sysCode == "REF")
+            {
+                foreach (string n in SystemNamesOf(el).Append(ParameterHelpers.GetFamilyName(el) + " " + ParameterHelpers.GetFamilySymbolName(el)))
+                {
+                    string line = SystemNameClassifier.RefrigerantFunction(n);
+                    if (line != null) return line;
+                }
+            }
+            if (sysCode == "LV")
+            {
+                string lv = SystemNameClassifier.LvFunction(ParameterHelpers.GetCategoryName(el),
+                    ParameterHelpers.GetFamilyName(el) + " " + ParameterHelpers.GetFamilySymbolName(el));
+                if (!string.IsNullOrEmpty(lv)) return lv;
+            }
+
+            // HV, BMS and radiation protection: the role is in the family / type name.
+            if (sysCode == SystemNameClassifier.HighVoltageSys || sysCode == SystemNameClassifier.BmsSys
+                || sysCode == SystemNameClassifier.RadiationSys)
+            {
+                string named = SystemNameClassifier.FunctionFromName(sysCode,
+                    ParameterHelpers.GetFamilyName(el) + " " + ParameterHelpers.GetFamilySymbolName(el));
+                if (!string.IsNullOrEmpty(named)) return named;
+            }
+
             // For LPS, the component role (air termination, down conductor, earth,
             // bonding, SPD, test clamp) is read off the family/type name.
             if (sysCode == "LPS")
@@ -1798,6 +1850,55 @@ namespace StingTools.Core
             }
 
             return FuncMap.TryGetValue(sysCode, out string val) && !string.IsNullOrEmpty(val) ? val : "GEN";
+        }
+
+        /// <summary>
+        /// The MEP system names an element carries: its connectors' systems and its pipe /
+        /// duct system type. Empty for an element with none.
+        /// </summary>
+        private static List<string> SystemNamesOf(Element el)
+        {
+            var names = new List<string>();
+            try
+            {
+                if (el is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
+                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                        if (!string.IsNullOrEmpty(conn.MEPSystem?.Name)) names.Add(conn.MEPSystem.Name);
+                foreach (var bip in new[] { BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM, BuiltInParameter.RBS_SYSTEM_NAME_PARAM })
+                {
+                    Parameter p = el.get_Parameter(bip);
+                    string v = p != null && p.HasValue ? p.AsValueString() ?? p.AsString() : null;
+                    if (!string.IsNullOrEmpty(v)) names.Add(v);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"System name read failed: {ex.Message}"); }
+            return names;
+        }
+
+        /// <summary>
+        /// Medical gas FUNC: the element's MGS_GAS_TYPE_TXT, else the gas its connected
+        /// or assigned piping system names. Null when neither says which gas.
+        /// </summary>
+        private static string GetMgsSubFunction(Element el)
+        {
+            try
+            {
+                string own = Plumbing.MedicalGasFixtures.CanonicalGasCode(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT"));
+                if (!string.IsNullOrEmpty(own)) return own;
+
+                if (el is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
+                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                        if (conn.MEPSystem != null
+                            && SystemNameClassifier.TryMedicalGas(conn.MEPSystem.Name, out string g) && g != null)
+                            return g;
+
+                Parameter pipeSys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                if (pipeSys != null && pipeSys.HasValue
+                    && SystemNameClassifier.TryMedicalGas(pipeSys.AsValueString(), out string g2) && g2 != null)
+                    return g2;
+            }
+            catch (Exception ex) { StingLog.Warn($"Medical gas sub-function detection failed: {ex.Message}"); }
+            return null;
         }
 
         /// <summary>
@@ -2317,23 +2418,20 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return false;
             string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-            foreach (string ph in placeholders)
-            {
-                // Check for placeholder as a delimited segment (not substring of a real token)
-                if (tag.StartsWith(ph + sep, StringComparison.Ordinal) ||
-                    tag.EndsWith(sep + ph, StringComparison.Ordinal) ||
-                    tag.Contains(sep + ph + sep, StringComparison.Ordinal) ||
-                    tag == ph)
+            // Whole segments only (not a substring of a real token). The unassigned SEQ is
+            // all zeros at whatever the pad width is (SeqAssigner.IsUnassignedSeq), not the
+            // literal "0000", which only matched at pad 4.
+            foreach (string part in tag.Split(new[] { sep }, StringSplitOptions.None))
+                if (placeholders.Contains(part) || SeqAssigner.IsUnassignedSeq(part))
                     return true;
-            }
             return false;
         }
 
-        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN", "0000" };
+        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN" };
 
-        /// <summary>Placeholders that make a tag INCOMPLETE. GEN is an assumed value, not
-        /// an unresolved one — see <see cref="TagIsComplete"/>.</summary>
-        private static readonly HashSet<string> _unresolvedPlaceholders = new HashSet<string> { "XX", "ZZ", "0000" };
+        /// <summary>Placeholders that make a tag INCOMPLETE (plus an all-zero SEQ). GEN is an
+        /// assumed value, not an unresolved one — see <see cref="TagIsComplete"/>.</summary>
+        private static readonly HashSet<string> _unresolvedPlaceholders = new HashSet<string> { "XX", "ZZ" };
 
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
@@ -3348,6 +3446,16 @@ namespace StingTools.Core
                     string mapped = MapSystemNameToCode(val, categoryName);
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
+
+                // The system's Revit CLASSIFICATION ("Domestic Cold Water", "Hydronic Return",
+                // "Fire Protection Wet", "Sanitary" …), for a system type whose NAME says nothing
+                // ("PS-01", "Type 3"). "Other" classifies nothing and falls through.
+                Parameter cls = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM);
+                if (cls != null && cls.HasValue)
+                {
+                    string mapped = MapSystemNameToCode(cls.AsString() ?? cls.AsValueString(), categoryName);
+                    if (!string.IsNullOrEmpty(mapped)) return mapped;
+                }
             }
             catch (Exception ex) { StingLog.Warn($"SYS detection from system type param failed: {ex.Message}"); }
             return null;
@@ -3413,6 +3521,24 @@ namespace StingTools.Core
             if (LpsNameClassifier.IsLps(upper))
                 return "LPS";
 
+            // Medical gas: an element that declares its gas, or a family whose name names
+            // one ("Oxygen Outlet", "Medical Air Plant"). A name that only says "Medical"
+            // is not enough — Medical Equipment families say that.
+            if ((Plumbing.MedicalGasFixtures.CanonicalGasCode(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")) != null
+                 || (SystemNameClassifier.TryMedicalGas(familyName, out string famGas) && famGas != null))
+                && SysMap != null && SysMap.TryGetValue(SystemNameClassifier.MedicalGasSys, out var mgsCats)
+                && mgsCats.Contains(categoryName ?? ""))
+                return SystemNameClassifier.MedicalGasSys;
+
+            // Named systems (cooling plant, plumbing plant, HV, BMS, radiation protection),
+            // before the LV and HVAC patterns below. Only a system the category can belong
+            // to is taken: "Pool Table" (Furniture) or "MRI-safe Chair" is not a system.
+            string special = SystemNameClassifier.FromFamilyName(
+                familyName + " " + ParameterHelpers.GetFamilySymbolName(el));
+            if (special != null && SysMap != null && SysMap.TryGetValue(special, out var specialCats)
+                && specialCats.Contains(categoryName ?? ""))
+                return special;
+
             // HVAC equipment patterns
             if (upper.Contains("AHU") || upper.Contains("AIR HANDLING") ||
                 upper.Contains("FCU") || upper.Contains("FAN COIL") ||
@@ -3420,7 +3546,6 @@ namespace StingTools.Core
                 upper.Contains("EXHAUST FAN") || upper.Contains("EXTRACT FAN") ||
                 upper.Contains("HRU") || upper.Contains("HEAT RECOVERY") ||
                 upper.Contains("SPLIT") || upper.Contains("CASSETTE") ||
-                upper.Contains("CHILLER") || upper.Contains("COOLING TOWER") ||
                 upper.Contains("GRILLE") || upper.Contains("DIFFUSER"))
                 return "HVAC";
 
@@ -3594,90 +3719,7 @@ namespace StingTools.Core
         /// Centralised mapping for all MEP system naming conventions.
         /// </summary>
         private static string MapSystemNameToCode(string sysName, string categoryName = null)
-        {
-            if (string.IsNullOrEmpty(sysName)) return null;
-
-            // HVAC systems — full names and Revit abbreviated system types
-            if (sysName.Contains("SUPPLY AIR") || sysName.Contains("SUPPLY DUCT")) return "HVAC";
-            if (sysName.Contains("RETURN AIR") || sysName.Contains("RETURN DUCT")) return "HVAC";
-            if (sysName.Contains("EXHAUST") || sysName.Contains("EXTRACT")) return "HVAC";
-            if (sysName.Contains("FRESH AIR") || sysName.Contains("OUTSIDE AIR")) return "HVAC";
-            if (sysName.Contains("CHILLED") || sysName.Contains("COOLING")) return "HVAC";
-            // Air ventilation is duct/HVAC. For pipe categories, "Vent" = sanitary soil-vent
-            // pipe (BS EN 12056-2) — fall through to the SAN block below.
-            if ((sysName.Contains("VENT") || sysName.Contains("VENTILATION"))
-                && !_pipeCategories.Contains(categoryName ?? ""))
-                return "HVAC";
-            // Abbreviated HVAC system names (Revit defaults and common shorthand)
-            if (sysName == "SA" || sysName.StartsWith("SA ") || sysName.Contains(" SA ")) return "HVAC";
-            if (sysName == "RA" || sysName.StartsWith("RA ") || sysName.Contains(" RA ")) return "HVAC";
-            if (sysName == "EA" || sysName.StartsWith("EA ") || sysName.Contains(" EA ")) return "HVAC";
-            if (sysName == "OA" || sysName.StartsWith("OA ") || sysName.Contains(" OA ")) return "HVAC";
-            if (sysName == "CHW" || sysName.StartsWith("CHW ") || sysName.Contains(" CHW ")) return "HVAC";
-            // "CW" is ambiguous — Condenser Water (HVAC) vs Cold Water (Plumbing)
-            // If the element is a pipe category, map to DCW; otherwise HVAC (Condenser Water)
-            if (sysName == "CW" || sysName.StartsWith("CW ") || sysName.Contains(" CW "))
-            {
-                if (!string.IsNullOrEmpty(categoryName) &&
-                    (categoryName == "Pipes" || categoryName == "Pipe Fittings" ||
-                     categoryName == "Pipe Accessories" || categoryName == "Flex Pipes" ||
-                     categoryName == "Plumbing Fixtures" || categoryName == "Plumbing Equipment"))
-                    return "DCW";
-                return "HVAC";
-            }
-            if (sysName == "FCU" || sysName.StartsWith("FCU ")) return "HVAC";
-
-            // Domestic hot water is its own system (DHW → DISC P, FUNC DHW). It used to
-            // fall into HWS below, so Revit's default "Domestic Hot Water" type became
-            // the HEATING system: a basin on it failed the category check and its pipes
-            // were filed with the LTHW circuits.
-            if (sysName.Contains("DOMESTIC HOT") || sysName.Contains("DHW") ||
-                sysName.Contains("HOT WATER SUPPLY") || sysName.Contains("HOT WATER SERVICE") ||
-                sysName.Contains("CALORIFIER"))
-                return "DHW";
-
-            // Heating / hot water systems
-            if (sysName.Contains("HOT WATER") || sysName.Contains("HWS")) return "HWS";
-            if (sysName.Contains("HEATING") || sysName.Contains("LTHW") || sysName.Contains("MTHW")) return "HWS";
-            if (sysName.Contains("RADIATOR") || sysName.Contains("UNDERFLOOR")) return "HWS";
-            if (sysName.Contains("STEAM") || sysName.Contains("CONDENSATE")) return "HWS";
-            // Abbreviated heating
-            if (sysName == "LTHW" || sysName == "MTHW" || sysName == "HTHW") return "HWS";
-            if (sysName == "HW" || sysName.StartsWith("HW ")) return "HWS";
-
-            // Domestic cold water
-            if (sysName.Contains("COLD WATER") || sysName.Contains("CWS") || sysName.Contains("DCW")) return "DCW";
-            if (sysName.Contains("DOMESTIC COLD") || sysName.Contains("BOOSTED COLD")) return "DCW";
-            if (sysName.Contains("MAINS WATER") || sysName.Contains("POTABLE")) return "DCW";
-
-            // Fire protection
-            if (sysName.Contains("FIRE") || sysName.Contains("SPRINKLER") || sysName.Contains("WET RISER")) return "FP";
-            if (sysName.Contains("DRY RISER") || sysName.Contains("HYDRANT")) return "FP";
-
-            // Sanitary / drainage
-            if (sysName.Contains("SANITARY") || sysName.Contains("WASTE") || sysName.Contains("SOIL")) return "SAN";
-            if (sysName.Contains("DRAIN") || sysName.Contains("SEWAGE") || sysName.Contains("FOUL")) return "SAN";
-            // Abbreviated sanitary
-            if (sysName == "SVP" || sysName == "WP" || sysName.StartsWith("SVP ") || sysName.StartsWith("WP ")) return "SAN";
-            if (sysName.Contains("VENT")) return "SAN";  // pipe vent; HVAC vent handled above
-
-            // Rainwater
-            if (sysName.Contains("RAINWATER") || sysName.Contains("STORM") || sysName.Contains("SURFACE WATER")) return "RWD";
-            if (sysName.Contains("ROOF DRAIN")) return "RWD";
-            if (sysName == "RWP" || sysName.StartsWith("RWP ")) return "RWD";
-
-            // Gas
-            if (sysName.Contains("GAS") || sysName.Contains("NATURAL GAS") || sysName.Contains("LPG")) return "GAS";
-
-            // Additional HVAC abbreviations (relief, balanced, thermal)
-            if (sysName.Contains("RELIEF")) return "HVAC";
-            if (sysName.Contains("BALANCED") && sysName.Contains("VENT")) return "HVAC";
-            if (sysName == "UFH" || sysName.StartsWith("UFH ") || sysName.Contains("UNDERFLOOR HEAT")) return "HWS";
-            if (sysName.Contains("THERMAL STORAGE") || sysName.Contains("BUFFER TANK")) return "HWS";
-            if (sysName.Contains("SOLAR THERMAL") || sysName.Contains("SOLAR PANEL")) return "HWS";
-
-            return null;
-        }
+            => SystemNameClassifier.FromSystemName(sysName, categoryName);
 
         /// <summary>
         /// Determine which discipline codes are relevant for a given view.

@@ -54,6 +54,12 @@ and the only one nobody on the delivery side can close alone.
 | `ProjectId` | The **Issues container** id, in `b.<guid>` form | same card |
 | `CoordContainerId` | The **Model Coordination** container id — set it **only if it differs** from `ProjectId`; left empty it falls back to `ProjectId` | same card |
 
+Since 2026-09-27 (ROADMAP IM-18) the card saves the two container ids to **this project's**
+`_BIM_COORD/acc/acc_settings.json` (`projectId`, `coordContainerId`), not to the machine-wide
+credentials file, so a coordinator on two jobs keeps one id per project. A project that has no ids
+in its own file still falls back to the machine file's copies, and every such run logs a DEPRECATED
+warning naming where the id came from.
+
 Both ids are `REPLACE_WITH_ACC_CONTAINER_ID` until they are supplied or discovered.
 Do not derive, guess or pattern-match them from a project name: a wrong container id is the exact
 input that used to make a coordination cycle report a clean federation (see *When it does not work*).

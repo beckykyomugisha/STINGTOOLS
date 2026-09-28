@@ -56,6 +56,10 @@ namespace StingTools.Core.Drawing
             var direct = ParseToken(typeName);
             if (direct.HasValue) return direct;
             var t = (typeName ?? "").Trim();
+            // The rule engine's and scale tiers' "{size}{STYLE}_{COLOUR}" ("2.5BOLD_RED").
+            var legacy = LegacyStyleName.Match(t);
+            if (legacy.Success)
+                return double.Parse(legacy.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture);
             int us = t.IndexOf('_');
             if (us <= 0) return null;
             return double.TryParse(t.Substring(0, us), NumberStyles.Float, CultureInfo.InvariantCulture, out var v) && v > 0
@@ -72,10 +76,20 @@ namespace StingTools.Core.Drawing
         {
             var t = (typeName ?? "").Trim();
             if (ParseToken(t).HasValue) return "";
+            var legacy = LegacyStyleName.Match(t);
+            if (legacy.Success) return legacy.Groups[2].Value;
             int us = t.IndexOf('_');
             if (us > 0 && SizeOfTypeName(t).HasValue) return t.Substring(us + 1);
             return "";
         }
+
+        /// <summary>"{size}{STYLE}_{COLOUR}" — the type naming TAG_STYLE_RULES.json and
+        /// Scale-Aware Tag Size switch between ("2.5BOLD_RED"). Group 1 is the size,
+        /// group 2 the style ("BOLD_RED"). Not recognised before, so families built with
+        /// these type names never had the drawing type's tag size applied.</summary>
+        private static readonly System.Text.RegularExpressions.Regex LegacyStyleName =
+            new System.Text.RegularExpressions.Regex(@"^(\d+(?:\.\d+)?)((?:NOM|BOLD|ITALIC|BOLDITALIC)_[A-Z]+)$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
         /// <summary>Size of a family named "<paramref name="baseFamily"/> &lt;n&gt;mm", or null.</summary>
         public static double? SizeOfFamilyVariant(string familyName, string baseFamily)

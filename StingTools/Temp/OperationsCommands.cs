@@ -190,13 +190,20 @@ namespace StingTools.Temp
                     ZoomPercentage = 100,
                 };
 
-                bool success = doc.Export(outputDir, sheetIds, pdfOptions);
+                // One export per discipline folder, so architectural, MEP and
+                // structural sheets land in A_Architectural / M_Mechanical /
+                // S_Structural … under the chosen folder instead of all together.
+                bool success = true;
+                var byFolder = sheets.GroupBy(s => StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(doc, outputDir, s),
+                    StringComparer.OrdinalIgnoreCase).ToList();
+                foreach (var g in byFolder)
+                    success &= doc.Export(g.Key, g.Select(s => s.Id).ToList(), pdfOptions);
 
                 var report = new StringBuilder();
                 report.AppendLine("PDF Export");
                 report.AppendLine(new string('=', 50));
                 report.AppendLine($"  Sheets: {sheetIds.Count}");
-                report.AppendLine($"  Output: {outputDir}");
+                report.AppendLine($"  Output: {outputDir}" + (byFolder.Count > 1 ? $" ({byFolder.Count} discipline folders)" : ""));
                 report.AppendLine($"  Status: {(success ? "Success" : "Failed")}");
                 report.AppendLine("\nSheets:");
                 foreach (var sheet in sheets)
@@ -240,6 +247,8 @@ namespace StingTools.Temp
                 if (ifcPrompt == null) return Result.Cancelled;
                 string outputDir = Path.GetDirectoryName(ifcPrompt);
                 Directory.CreateDirectory(outputDir);
+                outputDir = StingTools.Docs.ExportCenterEngine.DisciplineSubFolder(
+                    doc, outputDir, StingTools.Docs.ExportCenterEngine.ModelDiscipline(doc));
 
                 string fileName = (doc.Title ?? "STING_Export") + ".ifc";
 
@@ -314,7 +323,7 @@ namespace StingTools.Temp
                 string outputPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_COBie_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
                     "Excel Files|*.xlsx|All Files|*.*", "COBie")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_COBie", ".xlsx");
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "COBie", "STING_COBie", ".xlsx");
 
                 int levelCount = 0;
                 int roomCount = 0;
@@ -452,8 +461,8 @@ namespace StingTools.Temp
                 Document doc = _ctx.Doc;
                 string outputPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_Quantities_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx",
-                    "Excel Files|*.xlsx|All Files|*.*", "Quantities")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Quantities", ".xlsx");
+                    "Excel Files|*.xlsx|All Files|*.*", "BOQ")
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_Quantities", ".xlsx");
 
                 // PERF: Use ElementMulticategoryFilter instead of LINQ .Where() on all elements
                 var qtCatEnums = SharedParamGuids.AllCategoryEnums;
@@ -638,8 +647,8 @@ namespace StingTools.Temp
                 // Export CSV
                 string csvPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_Clashes_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
-                    "CSV Files|*.csv|All Files|*.*", "Clashes")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Clashes", ".csv");
+                    "CSV Files|*.csv|All Files|*.*", "Clash")
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "Clash", "STING_Clashes", ".csv");
                 var csv = new StringBuilder("MEP_Id,MEP_Cat,Struct_Id,Struct_Cat,X,Y,Z\n");
                 foreach (var (mep, str, pt) in clashes)
                 {
@@ -853,8 +862,8 @@ namespace StingTools.Temp
 
                 string csvPath = OutputLocationHelper.PromptForExportPath(
                     doc, $"STING_Params_{DateTime.Now:yyyyMMdd_HHmmss}.csv",
-                    "CSV Files|*.csv|All Files|*.*", "BatchParams")
-                    ?? OutputLocationHelper.GetTimestampedPath(doc, "STING_Params", ".csv");
+                    "CSV Files|*.csv|All Files|*.*", "Excel")
+                    ?? OutputLocationHelper.GetRoutedTimestampedPath(doc, "Excel", "STING_Params", ".csv");
 
                 var sb = new StringBuilder();
                 sb.Append("ElementId,Category,Family,Type");
@@ -1213,8 +1222,13 @@ namespace StingTools.Temp
                 }
 
                 // Attempt PDF export using Revit API
-                string outputDir = OutputLocationHelper.GetOutputDirectory(doc);
-                string pdfDir = Path.Combine(outputDir, "PDF_Export");
+                // The project's PDF route (06_DRAWINGS / 00_WIP|Drawings), not a
+                // "PDF_Export" folder inside MISC. One combined file across
+                // disciplines has no single discipline folder, so it stays at the
+                // route root.
+                string pdfDir = ProjectFolderEngine.GetExportFolder(doc, "PDF");
+                if (string.IsNullOrEmpty(pdfDir))
+                    pdfDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc), "PDF_Export");
                 if (!Directory.Exists(pdfDir))
                     Directory.CreateDirectory(pdfDir);
 

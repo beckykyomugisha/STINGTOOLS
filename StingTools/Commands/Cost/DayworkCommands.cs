@@ -161,7 +161,7 @@ namespace StingTools.Commands.Cost
 
                 string ccy = string.IsNullOrEmpty(reg.Currency) ? DayworkCommandHelpers.Currency(doc) : reg.Currency;
 
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_DayworkRegister", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_DayworkRegister", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine("InstructionRef,Date,Description,Status,LabourNet,PlantNet,MaterialsNet,"
                     + "NetTotal,Additions,GrossTotal,AttachedToVO,SignedBy,PricedBy");
@@ -272,7 +272,7 @@ namespace StingTools.Commands.Cost
                 DayworkEngine.Save(doc, reg);
 
                 // Priced-sheet export, annexure style (net → additions → gross).
-                string csv = OutputLocationHelper.GetTimestampedPath(doc, "STING_DayworkPriced", ".csv");
+                string csv = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_DayworkPriced", ".csv");
                 var sb = new StringBuilder();
                 sb.AppendLine($"Priced dayworks — {doc.Title} — {DateTime.Now:yyyy-MM-dd HH:mm} — {ccy}");
                 sb.AppendLine();

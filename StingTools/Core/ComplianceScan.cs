@@ -371,14 +371,14 @@ namespace StingTools.Core
                                 if (parts[po + 4] == "GEN") { AddIssue(result, "Generic SYS"); dd.MissingSys++; }
                                 if (parts[po + 5] == "GEN") AddIssue(result, "Generic FUNC");
                                 if (parts[po + 6] == "GEN") { AddIssue(result, "Generic PROD"); dd.MissingProd++; }
-                                if (parts[po + 7] == "0000") AddIssue(result, "SEQ=0000");
+                                if (SeqAssigner.IsUnassignedSeq(parts[po + 7])) AddIssue(result, "SEQ unassigned");
 
                                 // PERF-R1: Use static readonly token keys array instead of per-element allocation
                                 for (int ti = 0; ti < _tokenKeys.Length && (ti + po) < parts.Length; ti++)
                                 {
                                     string part = parts[ti + po];
                                     if (string.IsNullOrWhiteSpace(part) || part == "XX" || part == "ZZ"
-                                        || part == "GEN" || part == "0000")
+                                        || part == "GEN" || SeqAssigner.IsUnassignedSeq(part))
                                     {
                                         result.EmptyTokenCounts.TryGetValue(_tokenKeys[ti], out int etc);
                                         result.EmptyTokenCounts[_tokenKeys[ti]] = etc + 1;

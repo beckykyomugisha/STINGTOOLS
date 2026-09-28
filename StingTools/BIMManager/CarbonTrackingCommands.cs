@@ -296,7 +296,7 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
 
             var result = CarbonTrackingEngine.CalculateProjectCarbon(ctx.Doc);
-            string path = OutputLocationHelper.GetTimestampedPath(ctx.Doc, "CarbonReport", ".csv");
+            string path = OutputLocationHelper.GetRoutedTimestampedPath(ctx.Doc, "Schedule", "CarbonReport", ".csv");
 
             var sb = new StringBuilder();
             // Z-25b — WLCA A1-A3 three-line reporting. Headline = FOSSIL (gross

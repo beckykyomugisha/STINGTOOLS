@@ -31,6 +31,11 @@ namespace StingTools.Tags.Tests
         [InlineData("S9")]      // not in the standard
         [InlineData("WIP")]     // a state, not a suitability
         [InlineData("NONSENSE")]
+        [InlineData("ARCHIVE")]    // starts with 'A' — was PUBLISHED
+        [InlineData("ABANDONED")]  // starts with 'A' — was PUBLISHED
+        [InlineData("A")]
+        [InlineData("A0")]
+        [InlineData("B9X")]
         public void An_unrecognised_code_files_the_document_nowhere(string code)
         {
             // Returning a plausible default here would put a drawing in PUBLISHED —
@@ -79,6 +84,13 @@ namespace StingTools.Tags.Tests
             Assert.Equal("", Iso19650Suitability.ExtractCode("S9 - something"));
         }
 
+        [Theory]
+        [InlineData("AR team note - S3", "S3")]   // the letter+digit code wins
+        [InlineData("CR / A1", "A1")]
+        [InlineData("Archive (AR)", "AR")]        // a letter-only code on its own still reads
+        public void A_letter_digit_code_outranks_a_letter_only_word(string raw, string expected)
+            => Assert.Equal(expected, Iso19650Suitability.ExtractCode(raw));
+
         [Fact]
         public void The_three_facts_agree_when_derived_from_one_code()
         {
@@ -90,5 +102,47 @@ namespace StingTools.Tags.Tests
             Assert.Equal("SUITABLE FOR STAGE APPROVAL", Iso19650Suitability.DescriptionFor(code));
             Assert.Equal("SHARED", Iso19650Suitability.CdeStateFor(code));
         }
+
+        [Theory]
+        [InlineData("AB")]
+        [InlineData("AR")]
+        public void A_retired_document_is_archived_not_published(string code)
+            => Assert.Equal("ARCHIVE", Iso19650Suitability.CdeStateFor(code));
+
+        [Theory]
+        [InlineData("WIP", "S0")]
+        [InlineData("SHARED", "S3")]
+        [InlineData("PUBLISHED", "A1")]
+        [InlineData("ARCHIVE", "AR")]
+        [InlineData("SUPERSEDED", "AB")]
+        [InlineData("WITHDRAWN", "AB")]
+        [InlineData("OBSOLETE", "AR")]
+        public void Each_state_has_one_default_code(string state, string code)
+            => Assert.Equal(code, Iso19650Suitability.DefaultFor(state));
+
+        [Theory]
+        [InlineData("WIP")]
+        [InlineData("SHARED")]
+        [InlineData("PUBLISHED")]
+        [InlineData("ARCHIVE")]
+        public void A_default_code_belongs_in_its_own_state(string state)
+            // The defect this closes: PUBLISHED defaulted to S4, which files in SHARED.
+            => Assert.Equal(state, Iso19650Suitability.CdeStateFor(Iso19650Suitability.DefaultFor(state)));
+
+        [Theory]
+        [InlineData("S1", "SHARED", "S1")]            // already belongs: kept
+        [InlineData("S4 - FOR APPROVAL", "SHARED", "S4")]
+        [InlineData("S4", "PUBLISHED", "A1")]         // contradicts: replaced
+        [InlineData("A2", "PUBLISHED", "A2")]
+        [InlineData("", "SHARED", "S3")]
+        [InlineData("A1", "ARCHIVE", "AR")]
+        [InlineData("AB", "ARCHIVE", "AB")]
+        public void A_transition_keeps_a_code_that_fits_and_replaces_one_that_does_not(
+            string current, string state, string expected)
+            => Assert.Equal(expected, Iso19650Suitability.ForTransition(current, state));
+
+        [Fact]
+        public void An_unknown_state_has_no_default()
+            => Assert.Null(Iso19650Suitability.DefaultFor("NOWHERE"));
     }
 }

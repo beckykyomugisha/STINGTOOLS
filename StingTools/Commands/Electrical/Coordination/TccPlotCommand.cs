@@ -36,7 +36,7 @@ namespace StingTools.Commands.Electrical.Coordination
                 return Result.Cancelled;
             }
 
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical", "tcc");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E") ?? "", "TCC");
             Directory.CreateDirectory(outDir);
 
             var pairs = BuildPairsFromDatabase(db, out int noData);

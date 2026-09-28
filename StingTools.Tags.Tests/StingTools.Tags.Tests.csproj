@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <!-- Pure-logic test project. Does NOT reference Revit API or WPF. Instead,
          links the pure-logic .cs files from the main StingTools project via
          <Compile Include>, avoiding the need for Revit DLLs on the test host.
@@ -164,6 +164,7 @@
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
     <Compile Include="..\StingTools\Core\LpsNameClassifier.cs" Link="Core\LpsNameClassifier.cs" />
     <Compile Include="..\StingTools\Core\CategoryTokenDefaults.cs" Link="Core\CategoryTokenDefaults.cs" />
+    <Compile Include="..\StingTools\Core\SystemNameClassifier.cs" Link="Core\SystemNameClassifier.cs" />
     <!-- The QR payload contract. Revit-free by design so both this suite and
          the mobile parser can be held to the same corpus (tools/qr_payload_corpus.json). -->
     <Compile Include="..\StingTools\Core\StingQrPayload.cs" Link="Core\StingQrPayload.cs" />
@@ -181,6 +182,8 @@
     <Compile Include="..\StingTools\Core\Drawing\IsoLevelCode.cs" Link="Core\Drawing\IsoLevelCode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
+    <!-- Export discipline sub-folder matching (A -> A_Architectural). Revit-free. -->
+    <Compile Include="..\StingTools\Core\DisciplineFolderMatcher.cs" Link="Core\DisciplineFolderMatcher.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SuitabilityPresentation.cs" Link="Core\Drawing\SuitabilityPresentation.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationProvenance.cs" Link="Core\Drawing\AnnotationProvenance.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagSizeVariant.cs" Link="Core\Drawing\TagSizeVariant.cs" />
@@ -205,6 +208,8 @@
          (verified: zero Autodesk references), so the catalogue gates can bind the
          SHIPPED models rather than a test-local copy that could disagree. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingType.cs" Link="Core\Drawing\DrawingType.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\IsoTagText.cs" Link="Core\Drawing\IsoTagText.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TagColorSchemeNames.cs" Link="Core\Drawing\TagColorSchemeNames.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRulePack.cs" Link="Core\Drawing\AnnotationRulePack.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewStylePack.cs" Link="Core\Drawing\ViewStylePack.cs" />
     <!-- V-11: the pack-intent-before-document-capability decision. -->
@@ -217,6 +222,9 @@
     <Compile Include="..\StingTools\Core\Drawing\RevitCategoryTree.cs" Link="Core\Drawing\RevitCategoryTree.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberEngine.cs" Link="Core\Drawing\SheetNumberEngine.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetNumberTokens.cs" Link="Core\Drawing\SheetNumberTokens.cs" />
+    <Compile Include="..\StingTools\BIMManager\ExportRegisterUpsert.cs" Link="BIMManager\ExportRegisterUpsert.cs" />
+    <Compile Include="..\StingTools\BIMManager\TransmittalRecord.cs" Link="BIMManager\TransmittalRecord.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationPackLayering.cs" Link="Core\Drawing\AnnotationPackLayering.cs" />
     <Compile Include="..\StingTools\Core\Drawing\RuleFamilyFilter.cs" Link="Core\Drawing\RuleFamilyFilter.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Utf8Mojibake.cs" Link="Core\Drawing\Utf8Mojibake.cs" />

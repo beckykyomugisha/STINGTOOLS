@@ -278,7 +278,7 @@ namespace StingTools.UI
 
         private static string GetPresetPath(Document doc)
         {
-            string dir = OutputLocationHelper.GetOutputDirectory(doc);
+            string dir = OutputLocationHelper.GetRoutedDirectory(doc, "Excel");
             return Path.Combine(dir, PresetFileName);
         }
 
@@ -1003,7 +1003,7 @@ namespace StingTools.UI
                 FontSize = 12,
                 Padding = new Thickness(4, 3, 4, 3),
                 Margin = new Thickness(4, 0, 4, 0),
-                Text = OutputLocationHelper.GetTimestampedPath(doc, "STING_Export", ".csv")
+                Text = OutputLocationHelper.GetRoutedPath(doc, "Excel", "STING_Export" + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".csv")
             };
             locationPanel.Children.Add(txtPath);
             var btnBrowse = MakeSmallButton("Browse...");
@@ -1016,7 +1016,7 @@ namespace StingTools.UI
                     Title = "Export Location",
                     FileName = Path.GetFileNameWithoutExtension(txtPath.Text) + ext,
                     Filter = filter + "|All Files|*.*",
-                    InitialDirectory = Path.GetDirectoryName(txtPath.Text) ?? OutputLocationHelper.GetOutputDirectory(doc)
+                    InitialDirectory = Path.GetDirectoryName(txtPath.Text) ?? OutputLocationHelper.GetRoutedDirectory(doc, "Excel")
                 };
                 if (dlg.ShowDialog() == true) txtPath.Text = dlg.FileName;
             };

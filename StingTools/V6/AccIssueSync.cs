@@ -53,9 +53,25 @@ namespace StingTools.V6
         public string FolderUrn { get; set; } = string.Empty;
 
         /// <summary>Coordination container, falling back to the Issues/ProjectId container when unset.</summary>
+        [Newtonsoft.Json.JsonIgnore]
         public string CoordContainer => string.IsNullOrEmpty(CoordContainerId) ? ProjectId : CoordContainerId;
 
-        public bool IsStale => string.IsNullOrEmpty(AccessToken) || DateTime.UtcNow >= AccessTokenExpiry.AddMinutes(-5);
+        // JsonIgnore: a computed value is not a credential. Serialising it also threw on a
+        // never-set expiry (DateTime.MinValue.AddMinutes(-5) is out of range), which made
+        // SaveCredentials fail — inside its catch, so a first save silently wrote nothing.
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsStale => string.IsNullOrEmpty(AccessToken)
+            || AccessTokenExpiry <= DateTime.MinValue.AddMinutes(5)
+            || DateTime.UtcNow >= AccessTokenExpiry.AddMinutes(-5);
+
+        // IM-18 bookkeeping, never serialised: where ProjectId came from, and what the
+        // machine file held, so a save restores the file's values instead of copying a
+        // project's ids into it. See AccProjectScope.
+        [Newtonsoft.Json.JsonIgnore] public AccProjectScopeSource ProjectScope { get; set; } = AccProjectScopeSource.None;
+        [Newtonsoft.Json.JsonIgnore] public string FileProjectId { get; set; }
+        [Newtonsoft.Json.JsonIgnore] public string FileCoordContainerId { get; set; }
+        [Newtonsoft.Json.JsonIgnore] public string FileIssueTypeId { get; set; }
+        [Newtonsoft.Json.JsonIgnore] public string FileIssueSubtypeId { get; set; }
     }
 
     public sealed class AccIssue
@@ -402,12 +418,29 @@ namespace StingTools.V6
             }
         }
 
+        /// <summary>The JSON the machine credentials file receives. When the container ids
+        /// came from the project's settings (IM-18), the file keeps the values it already
+        /// had for them and for the per-container issue type - a project's ids never leak
+        /// into the machine-wide file. Revit-free, so it is unit-tested.</summary>
+        public static JObject ToMachineFile(AccCredentials c)
+        {
+            var j = JObject.FromObject(c);
+            if (c.ProjectScope == AccProjectScopeSource.ProjectSettings)
+            {
+                j["ProjectId"] = c.FileProjectId ?? string.Empty;
+                j["CoordContainerId"] = c.FileCoordContainerId ?? string.Empty;
+                j["IssueTypeId"] = c.FileIssueTypeId ?? string.Empty;
+                j["IssueSubtypeId"] = c.FileIssueSubtypeId ?? string.Empty;
+            }
+            return j;
+        }
+
         public static void SaveCredentials(AccCredentials c)
         {
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(CredentialsPath)!);
-                File.WriteAllText(CredentialsPath, JObject.FromObject(c).ToString());
+                File.WriteAllText(CredentialsPath, ToMachineFile(c).ToString());
             }
             catch (Exception ex) { StingLog.Warn("AccIssueSync.SaveCredentials: " + ex.Message); }
         }

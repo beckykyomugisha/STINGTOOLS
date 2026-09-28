@@ -37,7 +37,11 @@ namespace StingTools.Core
         /// <summary>Built-in valid discipline codes per ISO 19650.</summary>
         private static readonly HashSet<string> _builtInDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "M", "E", "P", "A", "S", "FP", "LV", "G"
+            "M", "E", "P", "A", "S", "FP", "LV", "G",
+            // Healthcare pack: Healthcare, Medical Gas, Radiation Protection. Accepted where
+            // they belong (CategoryTokenDefaults.DiscAccepted); the tagger itself writes the
+            // category / system discipline.
+            "H", "MG", "RP"
         };
 
         /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001). Cached to avoid per-access allocation.</summary>
@@ -69,7 +73,8 @@ namespace StingTools.Core
         /// <summary>ISO 19650 fallback SYS codes used when no project-specific config is loaded.</summary>
         private static readonly HashSet<string> _fallbackSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
+            "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "MGS", "FP", "LV", "LPS", "HV", "BMS", "RAD",
+            "CHW", "CDW", "REF", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "CMP", "POL", "LBW", "IRR", "FOL", "STM", "CON", "CHE",
             "FLS", "COM", "ICT", "NCL", "SEC",
             "ARC", "STR", "GEN"
         };
@@ -127,6 +132,14 @@ namespace StingTools.Core
             "HTG", "DHW", "VNT",
             // Lightning protection - ResolveLpsFunc
             "AT", "DC", "EE", "BOND", "SPD", "TC",
+            // Medical gas - GetMgsSubFunction: the MGS_GAS_TYPE_TXT vocabulary
+            // (MedicalGasFixtures.GasCodes)
+            "O2", "MA4", "MA7", "N2O", "N2", "CO2", "HE", "VAC", "AGS",
+            // High voltage, BMS, radiation protection - SystemNameClassifier.FunctionFromName
+            "TRF", "SNS", "CTL", "FCT", "MON", "SHD", "ZNE",
+            // Chilled / condenser water direction, refrigerant line - FlowDirection /
+            // RefrigerantFunction; LV lighting, emergency lighting, small power - LvFunction
+            "LIQ", "SUC", "HGS", "LTG", "EMG", "SML",
         };
 
         /// <summary>
@@ -317,13 +330,8 @@ namespace StingTools.Core
                         return $"SEQ '{value}' is not a valid alphabetic sequence (A, B … Z, AA …)";
                     return null;
                 }
-                if (!int.TryParse(value, out int seqVal))
-                    return $"SEQ '{value}' is not a valid number";
-                if (seqVal < 0)
-                    return $"SEQ '{value}' must be a positive number";
-                int seqWidth = TagConfig.EffectiveSeqPad;
-                if (value.Length > seqWidth + 1)
-                    return $"SEQ '{value}' exceeds {seqWidth}-digit format";
+                string seqError = SeqAssigner.ValidateNumericSeq(value, TagConfig.EffectiveSeqPad);
+                if (seqError != null) return seqError;
             }
             return null; // valid
         }
@@ -388,7 +396,7 @@ namespace StingTools.Core
                 // Apply system-aware DISC correction (e.g., M→P for plumbing pipes, M→FP for fire)
                 if (expectedDisc != null && !string.IsNullOrEmpty(sys))
                     expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
-                if (expectedDisc != null && expectedDisc != disc)
+                if (expectedDisc != null && !CategoryTokenDefaults.DiscAccepted(expectedDisc, disc, sys, catName))
                     errors.Add(new ValidationError(
                         $"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'",
                         ValidationErrorType.CrossValidation));
@@ -475,15 +483,17 @@ namespace StingTools.Core
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Supply function should not have sanitary/plumbing products
-                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
+                // Codes are ones the resolver writes (WST / LVT / BDT, not WC / WHB / BID —
+                // those were never produced, so the checks could not fire).
+                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WST", "LVT", "URN", "SNK", "SHW", "BTH", "BDT", "MOP" } },
                 // Return function should not have electrical products
-                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SWB", "SKT", "LUM" } },
+                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SKT", "LUM" } },
                 // Lighting function should not have HVAC products
-                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHR", "BLR", "RAD", "DAM" } },
+                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHW", "BCH", "RAD", "DMP" } },
                 // Power function should not have plumbing products
-                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "PP", "PFT", "PAC", "FPP", "TRP" } },
+                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WST", "LVT", "PP", "PFT", "FPP" } },
                 // Sanitary function should not have HVAC products
-                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DAM", "CLT" } },
+                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DMP" } },
                 // Fire protection function should not have architectural products
                 { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
             };
@@ -653,7 +663,9 @@ namespace StingTools.Core
                 { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "CCTV", "ACC", "INT", "DOR", "SEC", "GEN" } },
                 { "BMS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MON", "CTL", "SNS", "FCT", "GEN" } },
                 // Medical gas systems (HTM 02-01)
-                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "N2O", "MAP", "VAC", "EVAC", "N2", "CO2", "GEN" } },
+                // The gas codes are MedicalGasFixtures.GasCodes (MGS_GAS_TYPE_TXT); "MAP" and
+                // "EVAC" were a second spelling of MA4 and AGS that nothing wrote.
+                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "MA4", "MA7", "N2O", "N2", "CO2", "HE", "VAC", "AGS", "GEN" } },
                 // Lightning protection (BS EN 62305)
                 { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AT", "DC", "EE", "BOND", "SPD", "TC", "GEN" } },
                 // Radiation protection (NCRP 147)
@@ -698,13 +710,17 @@ namespace StingTools.Core
             new Dictionary<string, HashSet<string>>
             {
                 // FP: fire pumps and sprinkler valve sets are modelled as Mechanical Equipment.
-                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN", "FP" } },
-                { "E",  new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
-                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
+                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "MGS", "RWD", "SAN", "FP", "BMS", "CHW", "CDW", "REF", "CMP", "FOL", "STM", "CON", "CHE", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "POL", "LBW", "IRR" } },
+                { "E",  new HashSet<string> { "LV", "HV", "BMS", "FLS", "SEC", "ICT", "COM", "NCL" } },
+                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS", "MGS", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "POL", "LBW", "IRR" } },
                 { "FP", new HashSet<string> { "FP", "FLS" } },
                 { "A",  new HashSet<string> { "ARC" } },
                 { "S",  new HashSet<string> { "STR" } },
                 { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
+                // Healthcare pack disciplines
+                { "MG", new HashSet<string> { "MGS" } },
+                { "RP", new HashSet<string> { "RAD" } },
+                { "H",  new HashSet<string> { "GEN", "MGS", "RAD", "NCL", "DCW", "DHW", "SAN" } },
             };
 
         /// <summary>

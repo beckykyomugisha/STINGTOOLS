@@ -88,7 +88,7 @@ namespace StingTools.Commands.Electrical.Routing
             // Persist CSV.
             try
             {
-                string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E");
                 if (!string.IsNullOrEmpty(outDir))
                 {
                     Directory.CreateDirectory(outDir);

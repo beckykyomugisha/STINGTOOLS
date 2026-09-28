@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <!-- Pure-logic test project for STING routing math. Mirrors the
          StingTools.Clash.Tests pattern: NO reference to Revit assemblies;
          minimal Autodesk.Revit.DB.XYZ + BoundingBoxXYZ + Outline shims

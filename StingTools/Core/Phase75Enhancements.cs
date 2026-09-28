@@ -2112,11 +2112,13 @@ namespace StingTools.Core
         };
 
         /// <summary>Required suitability codes per CDE state.</summary>
+        /// Single-sourced from Iso19650Suitability.DefaultFor (was a local map that sent
+        /// PUBLISHED to S4 and ARCHIVE to S7 — both SHARED codes).
         private static readonly Dictionary<string, string> RequiredSuitability = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["SHARED"] = "S3",      // Suitable for review and comment
-            ["PUBLISHED"] = "S4",   // Suitable for stage approval
-            ["ARCHIVE"] = "S7",     // Suitable for record/archive
+            ["SHARED"] = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor("SHARED"),
+            ["PUBLISHED"] = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor("PUBLISHED"),
+            ["ARCHIVE"] = StingTools.Core.Drawing.Iso19650Suitability.DefaultFor("ARCHIVE"),
         };
 
         /// <summary>ISO-01: Validate a CDE state transition.
@@ -2272,16 +2274,7 @@ namespace StingTools.Core
 
         /// <summary>ISO-03: Map CDE state to IM classification.</summary>
         public static string CDEStateToIM(string cdeState)
-        {
-            return cdeState?.ToUpperInvariant() switch
-            {
-                "WIP" => "S2",
-                "SHARED" => "S3",
-                "PUBLISHED" => "S4",
-                "ARCHIVE" => "S7",
-                _ => "S0",
-            };
-        }
+            => StingTools.Core.Drawing.Iso19650Suitability.DefaultFor(cdeState) ?? "S0";
 
         /// <summary>ISO-03: Validate IM classification against CDE state.</summary>
         public static (bool valid, string reason) ValidateIMAgainstCDE(string imCode, string cdeState)
@@ -2291,12 +2284,12 @@ namespace StingTools.Core
                 return (false, $"No IM classification set. Expected: {expectedIM} for CDE state {cdeState}");
             if (imCode == expectedIM)
                 return (true, "IM classification matches CDE state");
-            // Allow higher IM than required (e.g., S5 when S4 required)
-            int imNum = int.TryParse(imCode.Substring(1), out var n) ? n : -1;
-            int expNum = int.TryParse(expectedIM.Substring(1), out var e) ? e : -1;
-            if (imNum >= expNum)
-                return (true, $"IM {imCode} meets or exceeds required {expectedIM}");
-            return (false, $"IM {imCode} is below required {expectedIM} for CDE state {cdeState}");
+            // A code is valid in a state when it belongs there (Iso19650Suitability.CdeStateFor).
+            // The numeric "S5 >= S4" comparison this replaces also passed an S4 as PUBLISHED.
+            string belongs = StingTools.Core.Drawing.Iso19650Suitability.CdeStateFor(imCode);
+            if (string.Equals(belongs, (cdeState ?? "").Trim(), StringComparison.OrdinalIgnoreCase))
+                return (true, $"IM {imCode} belongs in {cdeState}");
+            return (false, $"IM {imCode} belongs in {belongs ?? "no CDE state"}, not {cdeState} (default for {cdeState}: {expectedIM})");
         }
     }
 

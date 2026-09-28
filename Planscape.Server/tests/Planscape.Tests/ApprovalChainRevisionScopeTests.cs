@@ -84,6 +84,45 @@ public class ApprovalChainRevisionScopeTests : IClassFixture<PlanscapeWebApplica
         Assert.Equal("PUBLISHED", CurrentStatus(doc.Id));
     }
 
+    // ── ISO 19650 suitability on publish ──────────────────────────────────────
+
+    [Theory]
+    [InlineData("A1")]
+    [InlineData("A2")]
+    [InlineData("B1")]
+    [InlineData("CR")]
+    public async Task An_authorised_code_can_publish(string code)
+    {
+        // A/B/CR are the codes ISO 19650 files in PUBLISHED. The server rejected all
+        // of them ("not a valid suitability code") while demanding S4 — a SHARED code
+        // — so the plugin's A1 publish and the server record could never agree.
+        var doc = SeedDocument($"AC-ISO-{code}.pdf", revision: "P02");
+        SeedCompletedChain(doc.Id, revisionSnapshot: "P02");
+
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var res = await client.PutAsJsonAsync(StateUrl(doc.Id),
+            new { newState = "PUBLISHED", suitabilityCode = code, revision = (string?)null });
+
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+        Assert.Equal("PUBLISHED", CurrentStatus(doc.Id));
+    }
+
+    [Fact]
+    public async Task A_shared_code_other_than_the_legacy_ones_cannot_publish()
+    {
+        // S1–S3 were never accepted for PUBLISHED and still are not; only the legacy
+        // S4/S5/S6 remain tolerated for existing clients.
+        var doc = SeedDocument("AC-ISO-S2.pdf", revision: "P02");
+        SeedCompletedChain(doc.Id, revisionSnapshot: "P02");
+
+        var client = await _factory.CreateAuthenticatedClientAsync();
+        var res = await client.PutAsJsonAsync(StateUrl(doc.Id),
+            new { newState = "PUBLISHED", suitabilityCode = "S2", revision = (string?)null });
+
+        Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
+        Assert.Contains("is not valid for CDE state", await res.Content.ReadAsStringAsync());
+    }
+
     // ── The backfill policy, asserted as policy ───────────────────────────────
 
     [Fact]

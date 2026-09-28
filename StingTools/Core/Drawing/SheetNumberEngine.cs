@@ -33,8 +33,7 @@ namespace StingTools.Core.Drawing
         /// pattern or a Revit sheet number, so it cannot be confused with data.</summary>
         internal const char SeqSentinel = '\u0001';
 
-        private static readonly Regex SeqWidth = new Regex(@"\{seq:D(\d+)\}", RegexOptions.Compiled);
-        private static readonly Regex AnySeq = new Regex(@"\{seq(?::D\d+)?\}", RegexOptions.Compiled);
+        private static readonly Regex AnySeq = new Regex(@"\{seq(?::[Dd]\d+)?\}", RegexOptions.Compiled);
 
         // ── Substitution ───────────────────────────────────────────────
 
@@ -50,13 +49,10 @@ namespace StingTools.Core.Drawing
             if (string.IsNullOrEmpty(pattern)) return pattern;
             var p = SubstituteExceptSeq(pattern, disc, lvl, sys, mark, spool, purpose, extras);
 
-            // {seq:Dn} at whatever width the pattern asks for, then bare {seq}
-            // at the historical 4-digit default. The extras sweep may already
-            // have consumed a bare {seq}: DrawingTokenContext.Build emits it at
-            // D4, the same width as here, so whichever runs first agrees.
-            p = SeqWidth.Replace(p, m => seq.ToString("D" + m.Groups[1].Value));
-            p = p.Replace("{seq}", seq.ToString("D4"));
-            return p;
+            // {seq:Dn} at whatever width the pattern asks for; a bare {seq} at
+            // SheetNumberTokens.DefaultSeqWidth -- the same rule the title-block
+            // pattern (SheetDisciplineResolver.FormatNumber) uses.
+            return SheetNumberTokens.ApplySeq(p, seq);
         }
 
         private static string SubstituteExceptSeq(string pattern,
@@ -83,7 +79,12 @@ namespace StingTools.Core.Drawing
                 {
                     if (string.IsNullOrEmpty(kv.Key)) continue;
                     if (string.Equals(kv.Key, "seq", StringComparison.OrdinalIgnoreCase)) continue;
+                    // Every spelling of the token: {proj} and {project} are one token
+                    // (SheetNumberTokens), as they are in the title-block pattern.
+                    string canonical = SheetNumberTokens.CanonicalName(kv.Key);
                     p = p.Replace("{" + kv.Key + "}", kv.Value ?? "");
+                    foreach (var alias in SheetNumberTokens.Spellings(canonical))
+                        p = p.Replace("{" + alias + "}", kv.Value ?? "");
                 }
             }
             return p;

@@ -590,19 +590,16 @@ namespace StingTools.Core.Fabrication
                 foreach (var kv in extras)
                 {
                     if (string.IsNullOrEmpty(kv.Key)) continue;
+                    if (string.Equals(kv.Key, "seq", StringComparison.OrdinalIgnoreCase)) continue;
                     s = s.Replace("{" + kv.Key + "}", kv.Value ?? "");
+                    foreach (var alias in Core.Drawing.SheetNumberTokens.Spellings(
+                                 Core.Drawing.SheetNumberTokens.CanonicalName(kv.Key)))
+                        s = s.Replace("{" + alias + "}", kv.Value ?? "");
                 }
             }
 
-            // {seq:Dn} with explicit padding width — honour whatever the
-            // pattern asks for so A-{seq:D3} yields A-001 and
-            // SP-{seq:D4} yields SP-0001.
-            s = System.Text.RegularExpressions.Regex.Replace(
-                s, @"\{seq:D(\d+)\}",
-                m => seq.ToString("D" + m.Groups[1].Value));
-            // Bare {seq} keeps the historical default of 4 digits.
-            s = s.Replace("{seq}", seq.ToString("D4"));
-            return s;
+            // {seq:Dn} at the width asked for; bare {seq} at the shared default.
+            return Core.Drawing.SheetNumberTokens.ApplySeq(s, seq);
         }
 
         /// <summary>

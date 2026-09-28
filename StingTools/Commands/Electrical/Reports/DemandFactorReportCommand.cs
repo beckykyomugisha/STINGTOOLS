@@ -63,7 +63,7 @@ namespace StingTools.Commands.Electrical.Reports
                 return Result.Cancelled;
             }
 
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E");
             try { outDir = Path.Combine(outDir, "electrical"); Directory.CreateDirectory(outDir); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             string filePath = Path.Combine(outDir,
                 $"DemandFactorReport_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");

@@ -209,7 +209,7 @@ namespace StingTools.Commands.Electrical.Compliance
         {
             try
             {
-                string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+                string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Compliance", "E") ?? "", "electrical");
                 Directory.CreateDirectory(outDir);
                 string outPath = Path.Combine(outDir,
                     $"STING_BS7671_Compliance_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");

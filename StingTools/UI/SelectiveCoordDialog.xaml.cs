@@ -195,7 +195,10 @@ namespace StingTools.UI
         {
             try
             {
-                string outDir = OutputLocationHelper.GetOutputDirectory(null);
+                // Was GetOutputDirectory(null): with no document the chain skips the project
+                // entirely, so the CSV went to %LOCALAPPDATA%\STING\exports.
+                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+                string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule", "E");
                 string outPath = System.IO.Path.Combine(outDir, $"STING_SelectiveCoord_{DateTime.Now:yyyyMMdd-HHmm}.csv");
                 using (var sw = new StreamWriter(outPath))
                 {

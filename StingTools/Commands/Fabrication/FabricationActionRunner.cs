@@ -116,7 +116,7 @@ namespace StingTools.Commands.Fabrication
         public static string RunCutList(UIDocument uidoc, IEnumerable<CutListRow> rows)
         {
             var doc = uidoc.Document;
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_pipe_cut_list.csv");
             int n = 0;
@@ -164,7 +164,7 @@ namespace StingTools.Commands.Fabrication
         public static string RunWeldMap(UIDocument uidoc, IEnumerable<WeldMapRow> rows)
         {
             var doc = uidoc.Document;
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_pipe_welds.csv");
             int n = 0;
@@ -337,7 +337,7 @@ namespace StingTools.Commands.Fabrication
         public static string RunIsometrics(UIDocument uidoc, IEnumerable<IsoSheetRow> rows)
         {
             var doc = uidoc.Document;
-            string outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            string outDir = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule");
             Directory.CreateDirectory(outDir);
             string path = Path.Combine(outDir, "STING_v4_isometric_sheet_index.csv");
             int n = 0;

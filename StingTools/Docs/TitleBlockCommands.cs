@@ -1853,9 +1853,11 @@ namespace StingTools.Docs
         {
             if (doc == null || transmittal == null) return 0;
             int stamped = 0;
-            string txId = transmittal["transmittal_id"]?.ToString() ?? "";
-            string txDate = transmittal["date_issued"]?.ToString() ?? "";
-            string suitability = transmittal["suitability_code"]?.ToString() ?? "";
+            // TransmittalRecord reads every writer's field names (IM-17). A PREPARED row
+            // has no issue date, so nothing prints one for a package not yet sent.
+            string txId = BIMManager.TransmittalRecord.Id(transmittal);
+            string txDate = BIMManager.TransmittalRecord.IssueDate(transmittal);
+            string suitability = BIMManager.TransmittalRecord.Suitability(transmittal);
 
             string deliverableDataDrop = deliverable?["data_drop"]?.ToString()
                 ?? deliverable?["datadrop"]?.ToString() ?? "";
@@ -1986,15 +1988,16 @@ namespace StingTools.Docs
                 .Select(t => new
                 {
                     Token = (JObject)t,
-                    Id = t["transmittal_id"]?.ToString() ?? "?",
-                    Date = t["date_issued"]?.ToString() ?? "",
-                    Suit = t["suitability_code"]?.ToString() ?? "",
-                    To = t["to_organization"]?.ToString() ?? ""
+                    Id = BIMManager.TransmittalRecord.Id(t) is { Length: > 0 } tid ? tid : "?",
+                    Date = BIMManager.TransmittalRecord.Date(t),
+                    Suit = BIMManager.TransmittalRecord.Suitability(t),
+                    To = BIMManager.TransmittalRecord.Recipient(t),
+                    Status = BIMManager.TransmittalStatus.Normalise(t["status"]?.ToString())
                 })
                 .Reverse()
                 .Select(t => new StingListPicker.ListItem
                 {
-                    Label = $"{t.Id} — {t.Date} ({t.Suit})",
+                    Label = $"{t.Id} — {t.Date} ({t.Suit}) {t.Status}",
                     Detail = $"To: {(string.IsNullOrEmpty(t.To) ? "(unspecified)" : t.To)}",
                     Tag = t.Token
                 })

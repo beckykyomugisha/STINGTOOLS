@@ -1792,6 +1792,11 @@ namespace StingTools.Core
 
                 StingLog.Info($"DocumentSaved: {doc.Title} — queuing server sync");
 
+                // Save-triggered scheduled exports (opt-in per project). Queued to Idling
+                // so the export never runs inside the save event.
+                try { StingIdlingScheduler.Enqueue(new StingTools.Docs.ScheduledExportJob(doc)); }
+                catch (Exception schEx) { StingLog.Warn($"DocumentSaved scheduled exports: {schEx.Message}"); }
+
                 // Collect lightweight compliance summary (cached scan — fast path)
                 int totalElements = 0;
                 int taggedCount = 0;

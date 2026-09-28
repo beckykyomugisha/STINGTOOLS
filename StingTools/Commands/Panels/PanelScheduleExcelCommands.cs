@@ -42,21 +42,18 @@ namespace StingTools.Commands.Panels
             catch (Exception ex) { StingLog.Info($"IsComputedColumn r{r} c{c}: {ex.Message}"); return false; }
         }
 
+        /// <summary>Where panel-schedule workbooks are written and where the import
+        /// picker opens — one answer for both halves of the round trip.
+        ///
+        /// Was <c>_BIM_COORD/electrical</c>, i.e. <c>_data/coord/electrical</c>: the
+        /// machine-state bucket, which holds no deliverables and which the Document
+        /// Manager does not list, so a workbook a user edits and re-imports sat where
+        /// nobody would look for it. It now goes to the project's Excel route in the
+        /// electrical discipline folder where the layout has one (CDE-first:
+        /// 00_WIP/Schedules/E_Electrical; BIM: 07_SCHEDULES). Workbooks already in the
+        /// old folder stay there and can still be browsed to.</summary>
         public static string ResolveDefaultDir(Document doc)
-        {
-            try
-            {
-                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
-                if (!string.IsNullOrEmpty(projDir))
-                {
-                    string dir = StingPaths.Meta(doc, "_BIM_COORD", "electrical");
-                    Directory.CreateDirectory(dir);
-                    return dir;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"PanelExportPathHelper electrical dir: {ex.Message}"); }
-            return OutputLocationHelper.GetOutputDirectory(doc);
-        }
+            => OutputLocationHelper.GetRoutedDirectory(doc, "Excel", "E");
     }
 
     [Transaction(TransactionMode.ReadOnly)]

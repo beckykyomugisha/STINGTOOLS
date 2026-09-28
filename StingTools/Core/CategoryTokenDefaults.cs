@@ -44,7 +44,37 @@ namespace StingTools.Core
                 case "S":  return "STR";
                 case "FP": return "FP";
                 case "LV": return "LV";
-                default:   return "GEN";
+                case "MG": return "MGS";   // healthcare: medical gas
+                case "RP": return "RAD";   // healthcare: radiation protection
+                default:   return "GEN";   // G, H (healthcare clinical equipment), unknown
+            }
+        }
+
+        /// <summary>Categories where a healthcare project may file an element under H
+        /// (clinical equipment, healthcare fixtures and furniture).</summary>
+        public static readonly HashSet<string> HealthcareCategories = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "Medical Equipment", "Specialty Equipment", "Plumbing Fixtures", "Nurse Call Devices",
+            "Furniture", "Casework",
+        };
+
+        /// <summary>
+        /// Whether a tag's DISC is accepted for the element when its category and system
+        /// give <paramref name="expected"/>. The healthcare disciplines are accepted as
+        /// alternatives where they belong: MG on the medical gas system, RP on radiation
+        /// protection, H on clinical equipment and fixture categories. The tagger writes the
+        /// category / system discipline (P for medical gas pipework, as the FUNC matrix files
+        /// it); a project that files these under H / MG / RP is no longer reported wrong.
+        /// </summary>
+        public static bool DiscAccepted(string expected, string actual, string sys, string categoryName)
+        {
+            if (string.Equals(expected, actual, StringComparison.Ordinal)) return true;
+            switch (actual)
+            {
+                case "MG": return sys == "MGS";
+                case "RP": return sys == "RAD";
+                case "H":  return HealthcareCategories.Contains(categoryName ?? "");
+                default:   return false;
             }
         }
 
@@ -59,6 +89,11 @@ namespace StingTools.Core
             string preferred = DisciplineDefaultSys(disc);
             foreach (string c in candidates)
                 if (string.Equals(c, preferred, StringComparison.Ordinal)) return c;
+            // No system of the discipline's own: GEN ("could not establish", marked assumed)
+            // when the category lists it, rather than whichever system was declared first —
+            // an unconnected pipe is not domestic cold water.
+            foreach (string c in candidates)
+                if (string.Equals(c, "GEN", StringComparison.Ordinal)) return c;
             return candidates[0];
         }
 
@@ -80,11 +115,32 @@ namespace StingTools.Core
                 case "SAN":
                 case "RWD":
                 case "GAS":
+                case "MGS":   // medical gas pipework is Plumbing, as STING_FUNC_SYS_MATRIX files it
+                case "SWD":
+                case "GWR":
+                case "RWH":
+                case "SDS":
+                case "SEP":
+                case "STW":
+                case "BGD":
+                case "SPH":
+                case "INT":
+                case "POL":
+                case "LBW":
+                case "IRR":
                     return "P";
                 case "FP":
                     return "FP";
                 case "HVAC":
                 case "HWS":
+                case "CHW":
+                case "CDW":
+                case "REF":
+                case "CMP":
+                case "FOL":
+                case "STM":
+                case "CON":
+                case "CHE":
                     return "M";
                 default:
                     return disc;

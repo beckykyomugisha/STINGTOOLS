@@ -40,15 +40,11 @@ namespace StingTools.Docs
         }
 
         /// <summary>Extract discipline prefix from sheet number (e.g., "M-001" → "M").</summary>
+        /// Delegates to the Export Centre's rule, which also reads the Role segment of an
+        /// ISO identifier sheet number (the text before its first hyphen is the project
+        /// code, so this used to group every such sheet under the project).
         internal static string GetDisciplinePrefix(string sheetNumber)
-        {
-            if (string.IsNullOrWhiteSpace(sheetNumber)) return "Other";
-            int dashIdx = sheetNumber.IndexOf('-');
-            if (dashIdx > 0) return sheetNumber.Substring(0, dashIdx).ToUpperInvariant();
-            // Try first letter(s)
-            string letters = new string(sheetNumber.TakeWhile(char.IsLetter).ToArray());
-            return string.IsNullOrEmpty(letters) ? "Other" : letters.ToUpperInvariant();
-        }
+            => ExportCenterEngine.GetDisciplinePrefix(sheetNumber);
 
         /// <summary>Generate ISO 19650-compliant PDF filename.</summary>
         internal static string GetISOFileName(ViewSheet sheet, string projectCode, string revision)
@@ -74,13 +70,11 @@ namespace StingTools.Docs
             {
                 try
                 {
-                    string subDir = outputDir;
-                    if (groupByDiscipline)
-                    {
-                        string disc = GetDisciplinePrefix(sheet.SheetNumber);
-                        subDir = Path.Combine(outputDir, disc);
-                        if (!Directory.Exists(subDir)) Directory.CreateDirectory(subDir);
-                    }
+                    // The project's discipline folder name (A_Architectural), not the raw
+                    // prefix — "A" beside "A_Architectural" forked the tree.
+                    string subDir = groupByDiscipline
+                        ? ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet)
+                        : outputDir;
 
                     string fileName = GetISOFileName(sheet, projectCode, revision);
                     string filePath = Path.Combine(subDir, fileName);

@@ -189,6 +189,15 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void No_category_defaults_to_a_name_detected_system()
+        {
+            // HV, BMS, RAD and MGS are read off names and systems; listing a category under
+            // them makes them valid for it, never its default.
+            var hits = DiscMap.Value.Keys.Where(c => new[] { "HV", "BMS", "RAD", "MGS", "CHW", "CDW", "REF", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "CMP", "POL", "LBW", "IRR", "FOL", "STM", "CON", "CHE" }.Contains(Defaults(c).sys)).ToList();
+            Assert.True(hits.Count == 0, "Defaults to a name-detected system: " + string.Join(", ", hits));
+        }
+
+        [Fact]
         public void No_category_defaults_to_lightning_protection()
         {
             // LPS is applied by family name; listing a category under LPS makes it valid,
@@ -203,7 +212,9 @@ namespace StingTools.Tags.Tests
         [InlineData("Structural Foundations", "STR")]
         [InlineData("Generic Models", "GEN")]
         [InlineData("Electrical Equipment", "LV")]
-        [InlineData("Pipes", "HVAC")]
+        [InlineData("Pipes", "GEN")]                 // HVAC is air; an unread pipe is assumed, not HVAC or DCW
+        [InlineData("Pipe Insulation", "GEN")]
+        [InlineData("Ducts", "HVAC")]
         [InlineData("Plumbing Fixtures", "DCW")]
         [InlineData("Fire Alarm Devices", "FLS")]
         [InlineData("Communication Devices", "COM")]
@@ -228,6 +239,40 @@ namespace StingTools.Tags.Tests
         [InlineData("Pipes", "RWD")]
         [InlineData("Pipes", "GAS")]
         [InlineData("Pipes", "FP")]
+        [InlineData("Pipes", "MGS")]
+        [InlineData("Electrical Equipment", "HV")]
+        [InlineData("Electrical Equipment", "BMS")]
+        [InlineData("Mechanical Control Devices", "BMS")]
+        [InlineData("Walls", "RAD")]
+        [InlineData("Specialty Equipment", "RAD")]
+        [InlineData("Doors", "RAD")]
+        [InlineData("Pipes", "CHW")]
+        [InlineData("Pipes", "CDW")]
+        [InlineData("Pipes", "REF")]
+        [InlineData("Pipes", "SWD")]
+        [InlineData("Pipes", "GWR")]
+        [InlineData("Pipes", "RWH")]
+        [InlineData("Pipes", "SDS")]
+        [InlineData("Pipes", "SEP")]
+        [InlineData("Pipes", "STW")]
+        [InlineData("Pipes", "BGD")]
+        [InlineData("Pipes", "SPH")]
+        [InlineData("Pipes", "INT")]
+        [InlineData("Pipes", "CMP")]
+        [InlineData("Pipes", "POL")]
+        [InlineData("Pipes", "LBW")]
+        [InlineData("Pipes", "IRR")]
+        [InlineData("Pipes", "FOL")]
+        [InlineData("Pipes", "STM")]
+        [InlineData("Pipes", "CON")]
+        [InlineData("Pipes", "CHE")]
+        [InlineData("Mechanical Equipment", "CHW")]
+        [InlineData("Mechanical Equipment", "CDW")]
+        [InlineData("Mechanical Equipment", "REF")]
+        [InlineData("Plumbing Fixtures", "INT")]
+        [InlineData("Plumbing Equipment", "SEP")]
+        [InlineData("Plumbing Fixtures", "MGS")]
+        [InlineData("Mechanical Equipment", "MGS")]
         [InlineData("Pipe Insulation", "DCW")]
         [InlineData("Fire Alarm Devices", "FP")]
         [InlineData("Electrical Equipment", "LPS")]
@@ -247,6 +292,13 @@ namespace StingTools.Tags.Tests
         [InlineData("SAN", "P")]
         [InlineData("FP", "FP")]
         [InlineData("HWS", "M")]   // heating water is Mechanical; was P
+        [InlineData("MGS", "P")]   // medical gas pipework is Plumbing
+        [InlineData("CHW", "M")]
+        [InlineData("REF", "M")]
+        [InlineData("STM", "M")]
+        [InlineData("SWD", "P")]
+        [InlineData("GWR", "P")]
+        [InlineData("INT", "P")]
         [InlineData("HVAC", "M")]
         public void Pipe_discipline_follows_the_system(string sys, string disc)
         {
@@ -273,16 +325,20 @@ namespace StingTools.Tags.Tests
             Assert.True(failures.Count == 0, string.Join("\n", failures));
         }
 
+        [Theory]
+        [InlineData("Domestic Hot Water", "Pipes", "DHW")]   // before HOT WATER → HWS
+        [InlineData("DHW Secondary Return", "Pipes", "DHW")]
+        [InlineData("LTHW Flow", "Pipes", "HWS")]
+        public void Domestic_hot_water_names_map_to_DHW_before_heating(string name, string cat, string sys)
+            => Assert.Equal(sys, SystemNameClassifier.FromSystemName(name, cat));
+
         [Fact]
-        public void Domestic_hot_water_names_map_to_DHW_before_heating()
+        public void TagConfig_maps_system_names_through_the_classifier()
         {
-            string t = Src("StingTools", "Core", "TagConfig.cs");
-            string body = Block(t, "private static string MapSystemNameToCode(", "public static HashSet<string> GetViewRelevantDisciplines");
-            int dhw = body.IndexOf("return \"DHW\"", StringComparison.Ordinal);
-            int hws = body.IndexOf("return \"HWS\"", StringComparison.Ordinal);
-            Assert.True(dhw > 0, "MapSystemNameToCode never returns DHW");
-            Assert.True(dhw < hws, "the DHW test must run before the HOT WATER → HWS test");
-            Assert.Contains("DOMESTIC HOT", body.Substring(0, dhw));
+            string body = Block(Src("StingTools", "Core", "TagConfig.cs"),
+                                "private static string MapSystemNameToCode(", "public static HashSet<string> GetViewRelevantDisciplines");
+            Assert.Contains("SystemNameClassifier.FromSystemName(", body);
+            Assert.DoesNotContain("return \"", body);
         }
 
         [Fact]
@@ -292,5 +348,25 @@ namespace StingTools.Tags.Tests
                                 "private static string GetSysFromFamilyName(", "private static string GetSysFromRoomType(");
             Assert.Matches(@"SEWAGE""\)\)\)\s*return ""SAN"";", body);
         }
+
+        [Theory]
+        [InlineData("P", "P", "MGS", "Pipes", true)]
+        [InlineData("P", "MG", "MGS", "Pipes", true)]          // medical gas filed under MG
+        [InlineData("P", "MG", "DCW", "Pipes", false)]         // MG only on the medical gas system
+        [InlineData("A", "RP", "RAD", "Walls", true)]
+        [InlineData("A", "RP", "ARC", "Walls", false)]
+        [InlineData("G", "H", "GEN", "Medical Equipment", true)]
+        [InlineData("P", "H", "SAN", "Plumbing Fixtures", true)]
+        [InlineData("A", "H", "ARC", "Walls", false)]          // a wall is not clinical equipment
+        [InlineData("M", "E", "HVAC", "Ducts", false)]
+        public void Healthcare_disciplines_are_accepted_where_they_belong(string expected, string actual, string sys, string cat, bool ok)
+            => Assert.Equal(ok, CategoryTokenDefaults.DiscAccepted(expected, actual, sys, cat));
+
+        [Theory]
+        [InlineData("MG", "MGS")]
+        [InlineData("RP", "RAD")]
+        [InlineData("H", "GEN")]
+        public void Healthcare_discipline_default_system(string disc, string sys)
+            => Assert.Equal(sys, CategoryTokenDefaults.DisciplineDefaultSys(disc));
     }
 }

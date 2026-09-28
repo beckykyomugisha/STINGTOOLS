@@ -442,7 +442,8 @@ namespace StingTools.ExLink
                 return Result.Succeeded;
             }
 
-            var outputDir = ExLinkHelpers.PickFolderPath("Select COBie output folder");
+            var outputDir = ExLinkHelpers.PickFolderPath("Select COBie output folder",
+                    ProjectFolderEngine.GetExportFolder(doc, "COBie"));
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
             int exported = 0;
@@ -474,7 +475,8 @@ namespace StingTools.ExLink
             var doc = app?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
-            var outputDir = ExLinkHelpers.PickFolderPath("Select PDF output folder");
+            var outputDir = ExLinkHelpers.PickFolderPath("Select PDF output folder",
+                    ProjectFolderEngine.GetExportFolder(doc, "PDF"));
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
             AutomationEngine.ExportSheetsToPDF(doc, outputDir, out int count, out var warnings);
@@ -496,7 +498,8 @@ namespace StingTools.ExLink
             var doc = app?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
-            var outputDir = ExLinkHelpers.PickFolderPath("Select DWG output folder");
+            var outputDir = ExLinkHelpers.PickFolderPath("Select DWG output folder",
+                    ProjectFolderEngine.GetExportFolder(doc, "DWG"));
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
             AutomationEngine.ExportSheetsToDWG(doc, outputDir, out int count, out var warnings);
@@ -518,7 +521,8 @@ namespace StingTools.ExLink
             var doc = app?.ActiveUIDocument?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
 
-            var outputDir = ExLinkHelpers.PickFolderPath("Select NWC output folder");
+            var outputDir = ExLinkHelpers.PickFolderPath("Select NWC output folder",
+                    ProjectFolderEngine.GetExportFolder(doc, "NWC"));
             if (string.IsNullOrEmpty(outputDir)) return Result.Succeeded;
 
             AutomationEngine.ExportToNWC(doc, outputDir, out bool ok, out string nwcMsg);
@@ -562,7 +566,10 @@ namespace StingTools.ExLink
             return dlg.ShowDialog() == true ? dlg.FileName : null;
         }
 
-        internal static string PickFolderPath(string description)
+        /// <param name="initialDirectory">Where the picker opens — the project's routed
+        /// folder for the export type, so the default answer is the right folder. It
+        /// used to open wherever Windows last left the dialog.</param>
+        internal static string PickFolderPath(string description, string initialDirectory = null)
         {
             var dlg = new Microsoft.Win32.SaveFileDialog
             {
@@ -572,6 +579,8 @@ namespace StingTools.ExLink
                 CheckPathExists = true,
                 OverwritePrompt = false
             };
+            if (!string.IsNullOrEmpty(initialDirectory) && Directory.Exists(initialDirectory))
+                dlg.InitialDirectory = initialDirectory;
             if (dlg.ShowDialog() == true)
                 return Path.GetDirectoryName(dlg.FileName);
             return null;

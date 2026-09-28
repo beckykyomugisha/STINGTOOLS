@@ -3511,7 +3511,7 @@
                                               ToolTip="Pick the deliverable lifecycle operation to apply">
                                         <ComboBoxItem Content="Issue (render A01 + start workflow)" Tag="IssueDeliverable"/>
                                         <ComboBoxItem Content="Re-Issue (bump revision)" Tag="ReIssueDeliverable"/>
-                                        <ComboBoxItem Content="Publish (stage S4 / PUBLISHED)" Tag="PublishDeliverable"/>
+                                        <ComboBoxItem Content="Publish (A1 / PUBLISHED)" Tag="PublishDeliverable"/>
                                         <ComboBoxItem Content="Cancel (render A02)" Tag="CancelDeliverable"/>
                                         <ComboBoxItem Content="Supersede (render A03)" Tag="SupersedeDeliverable"/>
                                         <ComboBoxItem Content="Replace (render A04)" Tag="ReplaceDeliverable"/>

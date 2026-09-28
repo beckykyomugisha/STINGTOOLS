@@ -113,7 +113,7 @@ namespace StingTools.Commands.Electrical.LoadDemand
             var pfc = LoadDemandEngine.SizeCapacitorBankFromKva(totalDemand);
 
             // 4. Excel writer
-            string outDir = Path.Combine(OutputLocationHelper.GetOutputDirectory(doc) ?? "", "electrical");
+            string outDir = Path.Combine(OutputLocationHelper.GetRoutedDirectory(doc, "Compliance", "E") ?? "", "electrical");
             Directory.CreateDirectory(outDir);
             string outPath = Path.Combine(outDir, $"STING_LoadDemand_{DateTime.Now:yyyyMMdd-HHmm}.xlsx");
             WriteExcel(outPath, panelRows, pfc);

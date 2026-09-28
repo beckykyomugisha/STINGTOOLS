@@ -1,0 +1,23 @@
+# Bare OutputLocationHelper.GetOutputDirectory / GetOutputPath / GetTimestampedPath calls
+# allowed per file. These resolve to the MISC folder (or %LOCALAPPDATA% with no document)
+# because they do not say what they write. Anything new must use
+# GetRoutedDirectory / GetRoutedPath / GetRoutedTimestampedPath with an export-type key.
+# Lower a count when you migrate a site; the gate fails if a file exceeds its count.
+#
+# count  path  reason
+1	StingTools/BIMManager/BIMManagerCommands.cs	clash-budget gate existence check only (the health log moved to _data in DOCX-11)
+1	StingTools/BIMManager/PlanscapeServerClient.SitePhotos.cs	server client has no Document
+2	StingTools/BIMManager/PublishModelCommand.cs	transient publish artefacts (element map, GLB) uploaded to the server
+1	StingTools/Clash/AccPullClashesCommand.cs	fallback for an unsaved model only
+1	StingTools/Commands/Drawing/DrawingHealTitleBlocksCommand.cs	fallback for an unsaved model only
+1	StingTools/Commands/Drawing/DrawingProduceAndExportCommand.cs	fallback when a sheet has no deliverable folder
+1	StingTools/Commands/Drawing/TitleBlockMigrateCsvToRecipeCommand.cs	fallback for an unsaved model only
+1	StingTools/Commands/Electrical/Lighting/LuminaireRegistryCommand.cs	fallback for an unsaved model only
+1	StingTools/Commands/Electrical/WireAnnotationCommands.cs	fallback for an unsaved model only
+1	StingTools/Commands/Fabrication/ExportMajCommand.cs	fallback for an unsaved model only
+1	StingTools/Commands/Kpi/OwnerKpiDashboardCommand.cs	existence check only, writes nothing
+1	StingTools/Commands/Lightning/LpsCreateFamilyShellsCommand.cs	family shells are content, not an export; no FAMILIES route exists
+1	StingTools/Core/DesignOptions/OptionFolderManager.cs	fallback when WIP cannot resolve
+1	StingTools/Core/PerformanceTracker.cs	no Document (plugin-wide diagnostics)
+1	StingTools/Temp/OperationsCommands.cs	fallback when the PDF route cannot resolve
+1	StingTools/UI/StingExportCenterDialog.cs	fallback when the CDE folder cannot resolve

@@ -266,7 +266,8 @@ namespace StingTools.Commands.Hvac
                 string folder;
                 try
                 {
-                    string baseDir = OutputLocationHelper.GetOutputDirectory(doc);
+                    // An analysis model, mechanical: the models route in the M folder.
+                    string baseDir = OutputLocationHelper.GetRoutedDirectory(doc, "IFC", "M");
                     folder = string.IsNullOrEmpty(baseDir)
                         ? Path.GetTempPath()
                         : Path.Combine(baseDir, "gbXML");

@@ -1481,7 +1481,7 @@ namespace StingTools.BIMManager
 
                 using var stream = DrawingTypeExcelEngine.ExportWorkbook(dtLib, packLib);
                 var ts   = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                var path = OutputLocationHelper.GetOutputPath(doc, $"DrawingTypes_Export_{ts}.xlsx");
+                var path = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"DrawingTypes_Export_{ts}.xlsx");
                 File.WriteAllBytes(path, stream.ToArray());
 
                 StingLog.Info($"DrawingTypeExcel: exported {dtLib.DrawingTypes?.Count ?? 0} drawing types and {packLib.StylePacks?.Count ?? 0} style packs to {path}");
@@ -1547,7 +1547,7 @@ namespace StingTools.BIMManager
                 {
                     Title       = "Import Drawing Types from Excel",
                     Filter      = "Excel workbook (*.xlsx)|*.xlsx",
-                    InitialDirectory = OutputLocationHelper.GetOutputDirectory(doc),
+                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Excel"),
                 };
                 if (dlg.ShowDialog() != true) return Result.Cancelled;
                 var path = dlg.FileName;
@@ -1648,7 +1648,7 @@ namespace StingTools.BIMManager
                 return d;
             }
             // Headless / detached fallback — write to standard exports directory.
-            return OutputLocationHelper.GetOutputDirectory(doc);
+            return OutputLocationHelper.GetRoutedDirectory(doc, "Excel");
         }
     }
 }

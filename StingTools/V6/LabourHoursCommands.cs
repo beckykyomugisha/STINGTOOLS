@@ -103,7 +103,7 @@ namespace StingTools.V6
                     perCat[cat] = (k.count + 1, k.hrs + hrs);
                 }
 
-                string path = OutputLocationHelper.GetTimestampedPath(doc, "STING_LabourHours", ".csv");
+                string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_LabourHours", ".csv");
                 using (var w = new System.IO.StreamWriter(path))
                 {
                     w.WriteLine("Section,Key,Count,Hours,Cost_GBP");
