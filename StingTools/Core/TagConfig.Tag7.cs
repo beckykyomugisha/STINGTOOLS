@@ -727,16 +727,13 @@ namespace StingTools.Core
             { "COM", "Communications" }, { "NCL", "Nurse Call Systems" },
             { "ARC", "Architectural Fabric" }, { "STR", "Structural Elements" },
             { "GEN", "General Services" },
-            // Healthcare Pack (Phase H-1)
-            { "MGS-O2", "Medical Oxygen Supply" }, { "MGS-AIR", "Medical Compressed Air" },
-            { "MGS-VAC", "Medical Vacuum" }, { "MGS-N2O", "Nitrous Oxide Supply" },
-            { "MGS-CO2", "Carbon Dioxide Supply" }, { "MGS-N2", "Nitrogen Supply" },
-            { "MGS-AGS", "Anaesthetic Gas Scavenging" },
-            { "EES-LS", "Essential Electrical Services (Life Safety)" },
-            { "EES-CR", "Essential Electrical Services (Critical)" },
-            { "EES-EB", "Essential Electrical Services (Enhanced)" },
+            // Healthcare Pack. Medical gas is one system, MGS, with the gas as FUNC; the
+            // old hyphenated keys ("MGS-O2", "EES-LS") contained the tag separator and
+            // could never be a SYS token.
+            { "MGS", "Medical Gas Pipeline System" },
+            { "HV", "High Voltage Distribution" }, { "BMS", "Building Management System" },
             { "LPS", "Lightning Protection System" },
-            { "CLN", "Clinical Environment" }, { "RAD", "Radiation Shielding" },
+            { "CLN", "Clinical Environment" }, { "RAD", "Radiation Protection" },
         };
 
         /// <summary>Full function description for human-readable narrative.</summary>
@@ -755,9 +752,20 @@ namespace StingTools.Core
             { "NCL", "Patient Nurse Call" }, { "SEC", "Security and Access Control" },
             { "FIT", "Finishes and Fitout" }, { "STR", "Primary Structure" },
             { "GEN", "General Purpose" },
+            { "VNT", "Soil and Vent" },
+            // Lightning protection — the codes LpsNameClassifier writes (BS EN 62305).
+            // "EB" and "EP" were older spellings of BOND and EE that nothing writes.
+            { "AT", "Air Termination" }, { "DC", "Down Conductor" }, { "EE", "Earth Termination" },
+            { "BOND", "Equipotential Bonding" }, { "SPD", "Surge Protection Device" }, { "TC", "Test Joint" },
+            // Medical gas — the gas is the function (MedicalGasFixtures.GasCodes).
+            { "O2", "Medical Oxygen" }, { "MA4", "Medical Air" }, { "MA7", "Surgical Air" },
+            { "N2O", "Nitrous Oxide" }, { "N2", "Surgical Nitrogen" }, { "CO2", "Medical Carbon Dioxide" },
+            { "HE", "Helium / Heliox" }, { "VAC", "Medical Vacuum" }, { "AGS", "Anaesthetic Gas Scavenging" },
+            // High voltage, BMS, radiation protection (STING_FUNC_SYS_MATRIX.csv).
+            { "TRF", "Transformation" }, { "SNS", "Sensing" }, { "CTL", "Control" },
+            { "FCT", "Field Control" }, { "MON", "Monitoring" }, { "SHD", "Radiation Shielding" },
+            { "ZNE", "Radiation Zone Boundary" },
             // Healthcare Pack (Phase H-1)
-            { "AT", "Air Termination" }, { "DC", "Down Conductor" }, { "EB", "Equipotential Bond" },
-            { "EP", "Earth Pit" }, { "SPD", "Surge Protection Device" },
             { "DIST", "Distribution" }, { "ISO", "Isolation" }, { "ALM", "Area Alarm" },
             { "TU", "Terminal Unit" }, { "ZVB", "Zone Valve Box" },
             { "AAP", "Area Alarm Panel" }, { "SHLD", "Shielding" }, { "ZONE", "Safety Zone" },

@@ -24468,3 +24468,43 @@ A review of how drawing types choose and size tags. The tag family names the shi
 - **Before.** `TagStyleEngine.ApplyColorScheme` replaced the scheme passed in with the view's `STING_VIEW_TAG_STYLE` scheme, but the command then set tag styles from the scheme passed in. Picking "Warm" on a view whose drawing type set "Discipline" coloured the elements Discipline and switched the tags to Warm; a colour-by-value view scheme did the same across scheme kinds.
 - **Now.** A scheme picked for one view (Apply Color Scheme, the Tag Studio scheme buttons) is applied as picked, and the result says when the view's own tag style names a different scheme (`TagStyleEngine.ViewSchemeNote`). Batch Apply Color Scheme still follows each view's setting for element colours (`useViewScheme: true`), and its result says so.
 - **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,649 passing. The four gates pass. Not exercised in Revit.
+
+#### SYS / FUNC / PROD / SEQ review: detection fixed, four systems added, legend and references aligned (2026-09-28)
+
+- **System-name detection moved to one tested class.** `Core/SystemNameClassifier.cs` (Revit-free) now maps MEP system names to SYS codes; `TagConfig.MapSystemNameToCode` delegates to it. It was only checked by reading the order of return statements in the source, and three errors had survived:
+  - Revit's default "Hydronic Supply" and "Hydronic Return" matched no rule, so those pipes were tagged domestic cold water (DCW). They are now HWS.
+  - The sanitary rule's "DRAIN" ran before the rainwater rules, so "Storm Drainage", "Roof Drain" and "Surface Water Drainage" were tagged SAN. They are now RWD.
+  - Medical gas had no system. "Medical Gas O2" matched "GAS" and was tagged as natural gas; "Oxygen" or "Medical Vacuum" matched nothing and became DCW.
+- **Four runtime systems added.** Each was already in `STING_FUNC_SYS_MATRIX.csv` and the PROD table's SYSTEM column, but not in the runtime `SysMap`, so the tagger never wrote them and the validator rejected them.
+  - MGS (medical gas): detected from the system name, `MGS_GAS_TYPE_TXT`, or a family name that names a gas. FUNC is the gas code (O2, MA4, MA7, N2O, N2, CO2, HE, VAC, AGS). Pipework takes DISC P. The matrix's MAP and EVAC, second spellings of MA4 and AGS that nothing wrote, were replaced.
+  - HV, BMS and RAD: detected from family and type names (`SystemNameClassifier.FromFamilyName`), ahead of the LV patterns. FUNC comes from the name where it says (HV: TRF or PWR; BMS: SNS, CTL, FCT, MON; RAD: SHD, ZNE, MON), otherwise the FuncMap default.
+  - None of the four is ever a category default; a test checks this.
+- **Sequence (SEQ).**
+  - Validation now requires exactly the pad width and a value of at least 1 (`SeqAssigner.ValidateNumericSeq`). It used to accept pad + 1 digits, any shorter width, and 0000.
+  - The default allowed range follows the pad width (it was 9999 at every width), and range messages print at the pad width.
+- **Code Legend (`CODE_LEGEND.json`) aligned with what the tagger writes.** It is what users see as the meaning of each token.
+  - Discipline: the eight DISC codes the validator accepts; the other letters moved to a section marked as not accepted in a tag. LPS was listed as a discipline and is a system.
+  - System: the runtime systems. MED, LTG, DRN, SPR, ELC and PLB were removed because they do not exist. HWS was described as domestic hot water and LV as data and telecoms; both descriptions are corrected.
+  - Function: the runtime vocabulary, including RTN where the legend said RET.
+  - Product: codes the resolver produces (WST, LVT, CHW, BCH, SAT, VRV, WIN, FDN, SHW, where the legend said WC, WHB, CHR, BLR, DFR, VRF, WN, FND, SHR). The plumbing tag example uses WST.
+  - `CodeLegendAlignmentTests` holds each section to the runtime source.
+- **Reference data.**
+  - `TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv` claimed `TagConfig` loaded it; nothing does. Its header now says so, and it now:
+    - carries the four new systems and their functions;
+    - files fire alarm devices under FLS, not FP;
+    - uses FIT and GEN as the ARC and LPS function defaults, as the runtime does;
+    - drops the hyphenated healthcare codes (MGS-O2, EES-LS, RAD-X, LIFE-SAF …), which contain the tag separator;
+    - marks the 17 Phase 178b plumbing codes as proposed.
+  - `STING_PROD_CODES.csv`: 15 rows said SYSTEM FA or LTG; the tagger writes FLS and LV for fire alarm devices and lighting.
+  - `ProdCodeDataTests` now reads the SYS vocabulary from the runtime map, and its list of known gaps is empty.
+- **Consistency fixes in narrative text and my earlier colour-scheme work.**
+  - Tag 7 function descriptions used EB and EP for lightning protection; the resolver writes EE, BOND and TC.
+  - The MedicalGas tag colour scheme keyed scavenging as AGSS; the canonical code is AGS.
+  - The WaterSafety scheme keyed CWS, HWR, DHWR and TMV, none of which is a SYS code the tagger writes; it now keys DCW and DHW.
+- **Effect on existing projects.** Re-tagging changes the SYS token, and with it the SEQ group, of:
+  - hydronic pipes;
+  - storm and roof drainage;
+  - medical gas pipework and terminal units;
+  - HV plant, BMS devices and radiation-protection elements whose names identify them.
+  These were wrong or unclassifiable before.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,756 passing. The new classifier tests were checked failing against the old rule order (11 failures). The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.

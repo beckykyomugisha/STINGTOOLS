@@ -101,21 +101,21 @@ POW,Electrical Equipment,*Power Panel*|*Sub Panel*,Sub Distribution Panel,E,LV,B
 BMS,Electrical Equipment,*BMS*|*Building Management*,BMS / BACS Controller Panel,E,BMS,BS EN ISO 16484
 OUT,Lighting Devices,*Outlet*|*Socket*,Power Outlet / Socket,E,LV,BS 1363
 RCD,Electrical Equipment,*RCD*|*RCBO*,RCD / RCBO Protection Device,E,LV,BS 7671
-LTF,Lighting Fixtures,*Troffer*|*Recessed*,Recessed Troffer / Downlight,E,LTG,BS EN 60598
-LTS,Lighting Fixtures,*Strip*|*Batten*,Strip / Batten Luminaire,E,LTG,BS EN 60598
-LTW,Lighting Fixtures,*Wallwasher*|*Wall Wash*,Wallwasher Luminaire,E,LTG,BS EN 60598
-LTX,Lighting Fixtures,*Exterior*|*Exterior*,Exterior / Floodlight Luminaire,E,LTG,BS EN 60598
-EMX,Lighting Fixtures,*Emergency*|*Exit*|*Escape*,Emergency / Exit Luminaire,E,LTG,BS EN 60598
-LTP,Lighting Fixtures,*Pendant*,Pendant Luminaire,E,LTG,BS EN 60598
-LTC,Lighting Fixtures,*Tracklight*|*Track*,Track Lighting,E,LTG,BS EN 60598
-SWC,Lighting Devices,*Switch*|*LightSwitch*,Light Switch / Dimmer,E,LTG,BS 7671
-FDV,Fire Alarm Devices,*Detector*|*Smoke Det*|*Heat Det*,Smoke / Heat Detector,E,FA,BS EN 54-5
-FAP,Fire Alarm Devices,*Call Point*|*Break Glass*|*MCP*,Manual Call Point,E,FA,BS EN 54-11
-SOD,Fire Alarm Devices,*Sounder*|*Bell*,Sounder / Bell,E,FA,BS EN 54-3
-FIB,Fire Alarm Devices,*Interface*,Interface / Input-Output Module,E,FA,BS EN 54-18
-FBZ,Fire Alarm Devices,*Zone Indicator*,Zone Indicator / Status LED,E,FA,BS 5839-1
-FAC,Electrical Equipment,*Fire Alarm Panel*|*FAP*,Fire Alarm Control Panel,E,FA,BS 5839-1
-AVD,Fire Alarm Devices,*Audible Visual*|*Beacon*|*Strobe*,Audible-Visual Alarm Device,E,FA,BS EN 54-3
+LTF,Lighting Fixtures,*Troffer*|*Recessed*,Recessed Troffer / Downlight,E,LV,BS EN 60598
+LTS,Lighting Fixtures,*Strip*|*Batten*,Strip / Batten Luminaire,E,LV,BS EN 60598
+LTW,Lighting Fixtures,*Wallwasher*|*Wall Wash*,Wallwasher Luminaire,E,LV,BS EN 60598
+LTX,Lighting Fixtures,*Exterior*|*Exterior*,Exterior / Floodlight Luminaire,E,LV,BS EN 60598
+EMX,Lighting Fixtures,*Emergency*|*Exit*|*Escape*,Emergency / Exit Luminaire,E,LV,BS EN 60598
+LTP,Lighting Fixtures,*Pendant*,Pendant Luminaire,E,LV,BS EN 60598
+LTC,Lighting Fixtures,*Tracklight*|*Track*,Track Lighting,E,LV,BS EN 60598
+SWC,Lighting Devices,*Switch*|*LightSwitch*,Light Switch / Dimmer,E,LV,BS 7671
+FDV,Fire Alarm Devices,*Detector*|*Smoke Det*|*Heat Det*,Smoke / Heat Detector,E,FLS,BS EN 54-5
+FAP,Fire Alarm Devices,*Call Point*|*Break Glass*|*MCP*,Manual Call Point,E,FLS,BS EN 54-11
+SOD,Fire Alarm Devices,*Sounder*|*Bell*,Sounder / Bell,E,FLS,BS EN 54-3
+FIB,Fire Alarm Devices,*Interface*,Interface / Input-Output Module,E,FLS,BS EN 54-18
+FBZ,Fire Alarm Devices,*Zone Indicator*,Zone Indicator / Status LED,E,FLS,BS 5839-1
+FAC,Electrical Equipment,*Fire Alarm Panel*|*FAP*,Fire Alarm Control Panel,E,FLS,BS 5839-1
+AVD,Fire Alarm Devices,*Audible Visual*|*Beacon*|*Strobe*,Audible-Visual Alarm Device,E,FLS,BS EN 54-3
 CTV,Security Devices,*Camera*|*CCTV*,CCTV Camera,E,SEC,BS EN 62676
 PKA,Security Devices,*Access Control*|*Card Reader*|*Prox*,Access Control Reader,E,SEC,BS EN 60839
 DOM,Security Devices,*Door Entry*|*Intercom*,Door Entry / Intercom,E,SEC,BS EN 60839

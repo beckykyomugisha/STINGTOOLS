@@ -69,7 +69,7 @@ namespace StingTools.Core
         /// <summary>ISO 19650 fallback SYS codes used when no project-specific config is loaded.</summary>
         private static readonly HashSet<string> _fallbackSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "FP", "LV",
+            "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "MGS", "FP", "LV", "LPS", "HV", "BMS", "RAD",
             "FLS", "COM", "ICT", "NCL", "SEC",
             "ARC", "STR", "GEN"
         };
@@ -127,6 +127,11 @@ namespace StingTools.Core
             "HTG", "DHW", "VNT",
             // Lightning protection - ResolveLpsFunc
             "AT", "DC", "EE", "BOND", "SPD", "TC",
+            // Medical gas - GetMgsSubFunction: the MGS_GAS_TYPE_TXT vocabulary
+            // (MedicalGasFixtures.GasCodes)
+            "O2", "MA4", "MA7", "N2O", "N2", "CO2", "HE", "VAC", "AGS",
+            // High voltage, BMS, radiation protection - SystemNameClassifier.FunctionFromName
+            "TRF", "SNS", "CTL", "FCT", "MON", "SHD", "ZNE",
         };
 
         /// <summary>
@@ -317,13 +322,8 @@ namespace StingTools.Core
                         return $"SEQ '{value}' is not a valid alphabetic sequence (A, B … Z, AA …)";
                     return null;
                 }
-                if (!int.TryParse(value, out int seqVal))
-                    return $"SEQ '{value}' is not a valid number";
-                if (seqVal < 0)
-                    return $"SEQ '{value}' must be a positive number";
-                int seqWidth = TagConfig.EffectiveSeqPad;
-                if (value.Length > seqWidth + 1)
-                    return $"SEQ '{value}' exceeds {seqWidth}-digit format";
+                string seqError = SeqAssigner.ValidateNumericSeq(value, TagConfig.EffectiveSeqPad);
+                if (seqError != null) return seqError;
             }
             return null; // valid
         }
@@ -653,7 +653,9 @@ namespace StingTools.Core
                 { "SEC",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "CCTV", "ACC", "INT", "DOR", "SEC", "GEN" } },
                 { "BMS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "MON", "CTL", "SNS", "FCT", "GEN" } },
                 // Medical gas systems (HTM 02-01)
-                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "N2O", "MAP", "VAC", "EVAC", "N2", "CO2", "GEN" } },
+                // The gas codes are MedicalGasFixtures.GasCodes (MGS_GAS_TYPE_TXT); "MAP" and
+                // "EVAC" were a second spelling of MA4 and AGS that nothing wrote.
+                { "MGS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "O2", "MA4", "MA7", "N2O", "N2", "CO2", "HE", "VAC", "AGS", "GEN" } },
                 // Lightning protection (BS EN 62305)
                 { "LPS",  new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AT", "DC", "EE", "BOND", "SPD", "TC", "GEN" } },
                 // Radiation protection (NCRP 147)
@@ -698,9 +700,9 @@ namespace StingTools.Core
             new Dictionary<string, HashSet<string>>
             {
                 // FP: fire pumps and sprinkler valve sets are modelled as Mechanical Equipment.
-                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "RWD", "SAN", "FP" } },
-                { "E",  new HashSet<string> { "LV", "FLS", "SEC", "ICT", "COM", "NCL" } },
-                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS" } },
+                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "MGS", "RWD", "SAN", "FP", "BMS" } },
+                { "E",  new HashSet<string> { "LV", "HV", "BMS", "FLS", "SEC", "ICT", "COM", "NCL" } },
+                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS", "MGS" } },
                 { "FP", new HashSet<string> { "FP", "FLS" } },
                 { "A",  new HashSet<string> { "ARC" } },
                 { "S",  new HashSet<string> { "STR" } },

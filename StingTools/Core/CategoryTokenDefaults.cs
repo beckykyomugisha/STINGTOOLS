@@ -80,6 +80,7 @@ namespace StingTools.Core
                 case "SAN":
                 case "RWD":
                 case "GAS":
+                case "MGS":   // medical gas pipework is Plumbing, as STING_FUNC_SYS_MATRIX files it
                     return "P";
                 case "FP":
                     return "FP";

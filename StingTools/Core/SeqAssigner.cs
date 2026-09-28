@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StingTools.Core
 {
@@ -61,6 +62,27 @@ namespace StingTools.Core
     /// </summary>
     public static class SeqAssigner
     {
+        /// <summary>
+        /// Why a numeric SEQ token is not a valid sequence at <paramref name="pad"/> digits,
+        /// or null when it is. A sequence is exactly <paramref name="pad"/> digits and at
+        /// least 1: BuildSeqString always pads and counters start at 1. "12" at pad 4 or
+        /// "00012" was written by hand or under an older pad setting, and "0000" is the
+        /// unassigned placeholder (ComplianceScan reports it as SEQ=0000). The check
+        /// used to accept pad + 1 digits, any width below it, and 0.
+        /// </summary>
+        public static string ValidateNumericSeq(string value, int pad)
+        {
+            if (pad <= 0) pad = 4;
+            string v = value ?? "";
+            if (v.Length == 0 || !v.All(c => c >= '0' && c <= '9'))
+                return $"SEQ '{value}' is not a valid number";
+            if (v.Length != pad)
+                return $"SEQ '{value}' is not {pad} digits (zero-padded, e.g. {1.ToString().PadLeft(pad, '0')})";
+            if (v.All(c => c == '0'))
+                return $"SEQ '{value}' is zero; sequences start at {1.ToString().PadLeft(pad, '0')}";
+            return null;
+        }
+
         /// <summary>Highest value representable in <paramref name="pad"/> digits.</summary>
         public static int MaxSeqForPad(int pad)
             => pad switch { 1 => 9, 2 => 99, 3 => 999, 4 => 9999, 5 => 99999, _ => (int)Math.Pow(10, pad) - 1 };

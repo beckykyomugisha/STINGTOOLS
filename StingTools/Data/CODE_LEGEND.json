@@ -395,7 +395,7 @@
       ]
     },
     {
-      "section": "Discipline Codes",
+      "section": "Discipline Codes (tag DISC token)",
       "entries": [
         {
           "code": "A",
@@ -410,12 +410,12 @@
         {
           "code": "E",
           "label": "Electrical",
-          "description": "LV/ELV power distribution, lighting, fire alarm, data/comms."
+          "description": "LV power distribution, lighting, small power, containment (the LV system)."
         },
         {
           "code": "P",
           "label": "Plumbing / Public Health",
-          "description": "Domestic hot/cold water, sanitary drainage, rainwater, gas."
+          "description": "Domestic hot/cold water, sanitary drainage, rainwater, fuel gas and medical gas pipework (a pipe takes P when its system is one of these)."
         },
         {
           "code": "S",
@@ -425,22 +425,27 @@
         {
           "code": "FP",
           "label": "Fire Protection",
-          "description": "Sprinklers, fire suppression, fire-rated barriers, gas suppression."
+          "description": "Sprinklers and suppression (system FP), fire detection and alarm devices (system FLS)."
         },
         {
           "code": "LV",
           "label": "Low Voltage / ELV",
-          "description": "Data, security, CCTV, access control, AV, telecoms."
-        },
-        {
-          "code": "LPS",
-          "label": "Lightning Protection System (BS EN 62305)",
-          "description": "Air terminals, down conductors, earth electrodes, equipotential bonds, surge protective devices and test clamps. Sub-functions AT/DC/EE/BOND/SPD/TC are family-name resolved."
+          "description": "Extra-low-voltage services: data, communications, nurse call, security, AV (systems COM, ICT, NCL, SEC)."
         },
         {
           "code": "G",
           "label": "General / Non-Disciplinary",
           "description": "Elements that don't fit a specific discipline; default fallback."
+        }
+      ]
+    },
+    {
+      "section": "Other Discipline Letters (not accepted as a tag DISC)",
+      "entries": [
+        {
+          "code": "—",
+          "label": "Note",
+          "description": "The tag DISC token accepts only the eight codes above (ISO19650Validator). The letters below are used in document and role naming; a project that wants one in tags adds it to CUSTOM_VALID_DISC in project_config.json. Lightning protection is a system (SYS LPS), not a discipline."
         },
         {
           "code": "C",
@@ -603,9 +608,9 @@
           "description": "DISC=Electrical, LOC=Building 2, ZONE=Z02, LVL=Ground Floor, SYS=Low Voltage, FUNC=Power, PROD=Distribution Board, SEQ=0017."
         },
         {
-          "code": "P-BLD1-Z03-L01-DCW-DCW-WC-0005",
+          "code": "P-BLD1-Z03-L01-DCW-DCW-WST-0005",
           "label": "Plumbing WC example",
-          "description": "DISC=Plumbing, LOC=Building 1, ZONE=Z03, LVL=Level 1, SYS=Domestic Cold Water, FUNC=Cold Water, PROD=Water Closet, SEQ=0005."
+          "description": "DISC=Plumbing, LOC=Building 1, ZONE=Z03, LVL=Level 1, SYS=Domestic Cold Water, FUNC=Cold Water, PROD=WC / Toilet (WST), SEQ=0005."
         }
       ]
     },
@@ -1050,227 +1055,337 @@
       ]
     },
     {
-      "section": "MEP System Codes (CIBSE / Uniclass 2015)",
+      "section": "System Codes (tag SYS token)",
       "entries": [
         {
           "code": "HVAC",
           "label": "Heating, Ventilation & Air Conditioning",
-          "description": "The largest MEP system group — ducts, AHUs, FCUs, VAVs, chillers."
+          "description": "Air systems (supply, return, extract, outside air) and cooling water (chilled and condenser water): ducts, AHUs, FCUs, VAVs, chillers."
         },
         {
           "code": "HWS",
-          "label": "Hot Water Supply",
-          "description": "Domestic hot water distribution (pipes, pumps)."
+          "label": "Heating Water",
+          "description": "Heating hot water, LTHW / MTHW, steam and condensate: radiators, underfloor heating, boilers, heating pipework. Revit \"Hydronic\" systems map here."
         },
         {
           "code": "DHW",
           "label": "Domestic Hot Water",
-          "description": "Heated potable water (boilers, calorifiers, cylinders)."
+          "description": "Potable hot water: calorifiers, water heaters, DHW pipework and outlets."
         },
         {
           "code": "DCW",
           "label": "Domestic Cold Water",
-          "description": "Potable cold water supply from mains."
+          "description": "Potable cold water from the mains or boosted supply."
         },
         {
           "code": "SAN",
-          "label": "Sanitary Drainage",
-          "description": "Waste drainage — toilets, basins, showers."
+          "label": "Sanitary / Foul Drainage",
+          "description": "Soil, waste and vent pipework; toilets, basins, showers."
         },
         {
           "code": "RWD",
-          "label": "Rainwater Drainage",
-          "description": "Roof drainage, gutters, downpipes."
+          "label": "Rainwater / Surface Water",
+          "description": "Roof drainage, gutters, downpipes, storm and surface-water drainage."
         },
         {
           "code": "GAS",
-          "label": "Gas Supply",
-          "description": "Natural gas distribution."
+          "label": "Fuel Gas",
+          "description": "Natural gas and LPG distribution."
+        },
+        {
+          "code": "MGS",
+          "label": "Medical Gas",
+          "description": "Medical gas pipeline systems (HTM 02-01 / ISO 7396-1). The gas is the FUNC token: O2, MA4, MA7, N2O, N2, CO2, HE, VAC, AGS."
+        },
+        {
+          "code": "RAD",
+          "label": "Radiation Protection",
+          "description": "Lead-lined and RF-shielded construction, controlled-area boundaries and the imaging / therapy sources (NCRP 147 / IPEM 75). Read off the family name."
         },
         {
           "code": "FP",
-          "label": "Fire Protection (system)",
-          "description": "Sprinkler and gaseous suppression systems."
-        },
-        {
-          "code": "LV",
-          "label": "Low Voltage (system)",
-          "description": "Data, telecoms, security, AV systems."
+          "label": "Fire Protection",
+          "description": "Sprinkler, wet/dry riser and suppression systems."
         },
         {
           "code": "FLS",
-          "label": "Fire Life Safety",
-          "description": "Fire detection, alarm panels, emergency lighting."
+          "label": "Fire Detection & Alarm",
+          "description": "Detectors, call points, sounders, beacons, fire alarm panels (BS 5839-1)."
+        },
+        {
+          "code": "LV",
+          "label": "Low Voltage Power",
+          "description": "LV electrical distribution, lighting and small power (BS 7671)."
+        },
+        {
+          "code": "HV",
+          "label": "High Voltage",
+          "description": "Distribution above 1 kV: HV / MV switchgear, ring main units, the HV/LV transformer. Read off the family name."
+        },
+        {
+          "code": "BMS",
+          "label": "Building Management",
+          "description": "BACS controllers, outstations, sensors and actuators (BS EN ISO 16484). Read off the family name."
+        },
+        {
+          "code": "LPS",
+          "label": "Lightning Protection",
+          "description": "Air termination, down conductors, earthing, bonding, SPDs and test joints (BS EN 62305). Applied by family name, never a category default."
         },
         {
           "code": "COM",
           "label": "Communications",
-          "description": "Structured cabling and telecoms."
+          "description": "Telephony, public address, TV and AV."
         },
         {
           "code": "ICT",
           "label": "Information & Communications Technology",
-          "description": "Data networks, server rooms, Wi-Fi infrastructure."
+          "description": "Data networks, Wi-Fi, fibre, server rooms."
         },
         {
           "code": "NCL",
           "label": "Nurse Call",
-          "description": "Healthcare nurse-call / emergency call system."
+          "description": "Healthcare nurse-call and emergency-call systems."
         },
         {
           "code": "SEC",
           "label": "Security",
-          "description": "CCTV, access control, intruder alarm."
+          "description": "CCTV, access control, intruder detection, door entry."
         },
         {
           "code": "ARC",
-          "label": "Architectural System",
-          "description": "Used when architectural element requires SYS code."
+          "label": "Architectural",
+          "description": "Architectural elements (the A discipline default)."
         },
         {
           "code": "STR",
-          "label": "Structural System",
-          "description": "Used when structural element requires SYS code."
+          "label": "Structural",
+          "description": "Structural elements (the S discipline default)."
         },
         {
           "code": "GEN",
-          "label": "Generic",
-          "description": "Default SYS value when no specific system applies."
-        },
-        {
-          "code": "MED",
-          "label": "Medical Gas",
-          "description": "Oxygen, nitrogen, compressed air (healthcare)."
-        },
-        {
-          "code": "LTG",
-          "label": "Lighting",
-          "description": "Internal and external lighting systems."
-        },
-        {
-          "code": "DRN",
-          "label": "Drainage",
-          "description": "Generic drainage — foul + surface water."
-        },
-        {
-          "code": "SPR",
-          "label": "Sprinkler",
-          "description": "Wet / dry / foam sprinkler systems."
-        },
-        {
-          "code": "ELC",
-          "label": "Electrical Power",
-          "description": "LV electrical power distribution system."
-        },
-        {
-          "code": "PLB",
-          "label": "Plumbing",
-          "description": "Generic plumbing system code (pre-CDW/DHW split)."
+          "label": "General",
+          "description": "No specific system could be established; the tag is marked assumed."
         }
       ]
     },
     {
-      "section": "Function Codes",
+      "section": "Function Codes (tag FUNC token)",
       "entries": [
         {
           "code": "SUP",
           "label": "Supply",
-          "description": "Supply air / supply water / supply power."
+          "description": "Supply air (HVAC); detected from the system or duct type."
         },
         {
-          "code": "RET",
+          "code": "RTN",
           "label": "Return",
-          "description": "Return air / return water."
+          "description": "Return air (HVAC)."
         },
         {
           "code": "EXH",
-          "label": "Exhaust",
-          "description": "Extract / exhaust air."
+          "label": "Exhaust / Extract",
+          "description": "Extract or exhaust air (HVAC)."
+        },
+        {
+          "code": "FRA",
+          "label": "Fresh / Outside Air",
+          "description": "Outside-air intake (HVAC)."
         },
         {
           "code": "HTG",
           "label": "Heating",
-          "description": "Heating function (hot water / steam)."
-        },
-        {
-          "code": "CLG",
-          "label": "Cooling",
-          "description": "Cooling function (chilled water / refrigerant)."
-        },
-        {
-          "code": "DCW",
-          "label": "Domestic Cold Water",
-          "description": "Function when used in plumbing context."
+          "description": "Heating water (HWS default)."
         },
         {
           "code": "DHW",
           "label": "Domestic Hot Water",
-          "description": "Function when used in plumbing context."
+          "description": "Domestic hot water (DHW default; HWS elements identified as hot water service)."
         },
         {
-          "code": "HWR",
-          "label": "Hot Water Return",
-          "description": "DHW return circulation."
+          "code": "DCW",
+          "label": "Domestic Cold Water",
+          "description": "Domestic cold water (DCW default)."
         },
         {
           "code": "SAN",
           "label": "Sanitary",
-          "description": "Sanitary waste function."
-        },
-        {
-          "code": "PWR",
-          "label": "Power",
-          "description": "Electrical power function."
-        },
-        {
-          "code": "LTG",
-          "label": "Lighting",
-          "description": "Lighting function."
-        },
-        {
-          "code": "DAT",
-          "label": "Data",
-          "description": "Data / network function."
-        },
-        {
-          "code": "COM",
-          "label": "Communications",
-          "description": "Comms function (voice, AV)."
-        },
-        {
-          "code": "FIR",
-          "label": "Fire",
-          "description": "Fire detection / suppression function."
-        },
-        {
-          "code": "SEC",
-          "label": "Security",
-          "description": "Security function."
-        },
-        {
-          "code": "GAS",
-          "label": "Gas",
-          "description": "Gas distribution function."
-        },
-        {
-          "code": "CTR",
-          "label": "Control",
-          "description": "Control wiring / BMS signal."
-        },
-        {
-          "code": "DRN",
-          "label": "Drainage",
-          "description": "Drainage function."
+          "description": "Foul drainage (SAN default)."
         },
         {
           "code": "VNT",
           "label": "Vent",
-          "description": "Vent stack / vent pipe function."
+          "description": "Soil and vent pipe on a SAN system."
         },
         {
-          "code": "IRR",
-          "label": "Irrigation",
-          "description": "Landscape irrigation function."
+          "code": "RWD",
+          "label": "Rainwater",
+          "description": "Rainwater drainage (RWD default)."
+        },
+        {
+          "code": "GAS",
+          "label": "Gas",
+          "description": "Fuel gas (GAS default)."
+        },
+        {
+          "code": "FP",
+          "label": "Fire Protection",
+          "description": "Suppression (FP default)."
+        },
+        {
+          "code": "FLS",
+          "label": "Fire Detection",
+          "description": "Detection and alarm (FLS default)."
+        },
+        {
+          "code": "PWR",
+          "label": "Power",
+          "description": "LV power (LV default); high-voltage plant other than transformers (HV default)."
+        },
+        {
+          "code": "COM",
+          "label": "Communications",
+          "description": "COM default."
+        },
+        {
+          "code": "ICT",
+          "label": "ICT",
+          "description": "ICT default."
+        },
+        {
+          "code": "NCL",
+          "label": "Nurse Call",
+          "description": "NCL default."
+        },
+        {
+          "code": "SEC",
+          "label": "Security",
+          "description": "SEC default."
+        },
+        {
+          "code": "FIT",
+          "label": "Fabric / Fit-out",
+          "description": "Architectural elements (ARC default)."
+        },
+        {
+          "code": "STR",
+          "label": "Structure",
+          "description": "Structural elements (STR default)."
+        },
+        {
+          "code": "AT",
+          "label": "Air Termination",
+          "description": "LPS: rods, mesh, finials (BS EN 62305-3)."
+        },
+        {
+          "code": "DC",
+          "label": "Down Conductor",
+          "description": "LPS down conductors."
+        },
+        {
+          "code": "EE",
+          "label": "Earth Termination",
+          "description": "LPS earth electrodes, ring and foundation earths."
+        },
+        {
+          "code": "BOND",
+          "label": "Equipotential Bonding",
+          "description": "LPS bonding bars and conductors."
+        },
+        {
+          "code": "SPD",
+          "label": "Surge Protective Device",
+          "description": "LPS / BS EN 62305-4 surge protection."
+        },
+        {
+          "code": "TC",
+          "label": "Test Joint",
+          "description": "LPS test clamps and inspection points."
+        },
+        {
+          "code": "O2",
+          "label": "Oxygen",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "MA4",
+          "label": "Medical Air 400 kPa",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "MA7",
+          "label": "Surgical Air 700 kPa",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "N2O",
+          "label": "Nitrous Oxide",
+          "description": "Medical gas (MGS), including Entonox."
+        },
+        {
+          "code": "N2",
+          "label": "Nitrogen",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "CO2",
+          "label": "Carbon Dioxide",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "HE",
+          "label": "Helium / Heliox",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "VAC",
+          "label": "Medical Vacuum",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "AGS",
+          "label": "Anaesthetic Gas Scavenging",
+          "description": "Medical gas (MGS)."
+        },
+        {
+          "code": "TRF",
+          "label": "Transformer",
+          "description": "High voltage (HV): a transformer; other HV plant is PWR."
+        },
+        {
+          "code": "SNS",
+          "label": "Sensor",
+          "description": "BMS: sensors, transmitters, thermostats."
+        },
+        {
+          "code": "CTL",
+          "label": "Control",
+          "description": "BMS: actuators and control valves."
+        },
+        {
+          "code": "FCT",
+          "label": "Field Controller",
+          "description": "BMS: DDC controllers, outstations, PLCs."
+        },
+        {
+          "code": "MON",
+          "label": "Monitoring",
+          "description": "BMS meters and monitors; RAD radiation monitors and dosimetry."
+        },
+        {
+          "code": "SHD",
+          "label": "Shielding",
+          "description": "RAD: lead-lined and RF-shielded construction."
+        },
+        {
+          "code": "ZNE",
+          "label": "Zone Boundary",
+          "description": "RAD: controlled-area and 5-gauss boundaries."
+        },
+        {
+          "code": "GEN",
+          "label": "General",
+          "description": "The function could not be established; the tag is marked assumed."
         }
       ]
     },
@@ -1293,22 +1408,17 @@
           "description": "Duct terminal that modulates airflow."
         },
         {
-          "code": "VRF",
-          "label": "Variable Refrigerant Flow",
+          "code": "VRV",
+          "label": "Variable Refrigerant Flow / Volume Unit",
           "description": "Multi-split heat-pump HVAC system."
         },
         {
-          "code": "CRAC",
-          "label": "Computer Room A/C",
-          "description": "Precision A/C unit for data centres."
-        },
-        {
-          "code": "CHR",
+          "code": "CHW",
           "label": "Chiller",
           "description": "Water-cooled or air-cooled chiller."
         },
         {
-          "code": "BLR",
+          "code": "BCH",
           "label": "Boiler",
           "description": "Gas / electric / biomass boiler."
         },
@@ -1323,8 +1433,8 @@
           "description": "Fire / smoke / control damper."
         },
         {
-          "code": "DFR",
-          "label": "Diffuser",
+          "code": "SAT",
+          "label": "Supply Air Terminal / Diffuser",
           "description": "Supply air ceiling diffuser."
         },
         {
@@ -1343,11 +1453,6 @@
           "description": "Battery-backed power supply."
         },
         {
-          "code": "PDU",
-          "label": "Power Distribution Unit",
-          "description": "Data-centre power distribution."
-        },
-        {
           "code": "TRF",
           "label": "Transformer",
           "description": "Step-down / step-up transformer."
@@ -1363,13 +1468,13 @@
           "description": "Central control panel."
         },
         {
-          "code": "WC",
-          "label": "Water Closet (Toilet)",
+          "code": "WST",
+          "label": "WC / Toilet",
           "description": "Sanitary WC fixture."
         },
         {
-          "code": "WHB",
-          "label": "Wash Hand Basin",
+          "code": "LVT",
+          "label": "Wash Basin / Lavatory",
           "description": "Sanitary basin fitting."
         },
         {
@@ -1378,7 +1483,7 @@
           "description": "Wall-hung / floor urinal."
         },
         {
-          "code": "SHR",
+          "code": "SHW",
           "label": "Shower",
           "description": "Shower enclosure / head."
         },
@@ -1398,22 +1503,12 @@
           "description": "Fire suppression discharge point."
         },
         {
-          "code": "SNS",
-          "label": "Sensor",
-          "description": "Smoke / PIR / occupancy sensor."
-        },
-        {
-          "code": "CCT",
-          "label": "CCTV Camera",
-          "description": "Security camera device."
-        },
-        {
           "code": "DR",
           "label": "Door",
           "description": "Architectural door element."
         },
         {
-          "code": "WN",
+          "code": "WIN",
           "label": "Window",
           "description": "Architectural window element."
         },
@@ -1433,8 +1528,8 @@
           "description": "Structural slab."
         },
         {
-          "code": "FND",
-          "label": "Foundation",
+          "code": "FDN",
+          "label": "Structural Foundation",
           "description": "Structural foundation / footing."
         }
       ]

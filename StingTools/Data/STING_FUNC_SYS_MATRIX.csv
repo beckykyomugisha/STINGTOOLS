@@ -86,11 +86,13 @@ BMS,Building Management / BACS,FCT,Field Controller (DDC / PLC),E,BS EN ISO 1648
 BMS,Building Management / BACS,GEN,General BMS,E,BS EN ISO 16484,TRUE
 MGS,Medical Gas Systems,O2,Oxygen,P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,N2O,Nitrous Oxide,P,HTM 02-01,TRUE
-MGS,Medical Gas Systems,MAP,Medical Air,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,MA4,Medical Air 400 kPa,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,MA7,Surgical Air 700 kPa,P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,VAC,Medical Vacuum (MGPS),P,HTM 02-01,TRUE
-MGS,Medical Gas Systems,EVAC,Anaesthetic Gas Scavenging,P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,AGS,Anaesthetic Gas Scavenging,P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,N2,Surgical Nitrogen,P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,CO2,Carbon Dioxide (medical),P,HTM 02-01,TRUE
+MGS,Medical Gas Systems,HE,Helium / Heliox,P,HTM 02-01,TRUE
 MGS,Medical Gas Systems,GEN,General Medical Gas,P,HTM 02-01,TRUE
 LPS,Lightning Protection System,AT,Air Termination Network,E,BS EN 62305-3,TRUE
 LPS,Lightning Protection System,DC,Down Conductor,E,BS EN 62305-3,TRUE

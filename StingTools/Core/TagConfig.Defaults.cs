@@ -476,6 +476,16 @@ namespace StingTools.Core
                         // Architectural reuse — natural air termination (BS EN 62305-3 §5.2.5)
                         "Roofs", "Walls", "Curtain Wall Mullions", "Wall Sweeps", "Fascia", "Gutter", "Roof Soffits"
                     } },
+                // Medical gas pipelines (HTM 02-01 / ISO 7396-1): pipework, terminal units
+                // (Plumbing Fixtures, as the MGPS tags and MgasNetwork read them) and plant.
+                // Never a category default — detected from the system or gas type.
+                { "MGS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment" } },
+                // High voltage (> 1 kV), building management and radiation protection are
+                // read off the family name (SystemNameClassifier.FromFamilyName) and are never
+                // a category default: each category below also lists its discipline's own system.
+                { "HV", new List<string> { "Electrical Equipment", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
+                { "BMS", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Mechanical Control Devices" } },
+                { "RAD", new List<string> { "Walls", "Doors", "Windows", "Floors", "Ceilings", "Specialty Equipment", "Medical Equipment", "Generic Models" } },
                 { "FLS", new List<string> { "Fire Alarm Devices", "Fire Protection" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices", "Audio Visual Devices" } },
                 { "ICT", new List<string> { "Data Devices" } },
@@ -593,6 +603,12 @@ namespace StingTools.Core
                 // STING_FUNC_SYS_MATRIX.csv does not list for SYS=LPS, so every such element
                 // failed the FUNC/SYS cross-check. GEN is listed, and is recorded as assumed.
                 { "LPS", "GEN" },
+                // Medical gas: the gas itself is the function (GetMgsSubFunction); GEN when
+                // no gas can be read.
+                { "MGS", "GEN" },
+                // HV → PWR (TRF for a transformer); BMS and RAD read their role off the
+                // name (SNS / CTL / FCT / MON, SHD / ZNE / MON) and are GEN when it is silent.
+                { "HV", "PWR" }, { "BMS", "GEN" }, { "RAD", "GEN" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
                 { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },

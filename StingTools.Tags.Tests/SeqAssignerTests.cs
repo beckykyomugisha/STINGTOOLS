@@ -25,6 +25,31 @@ namespace StingTools.Tags.Tests
         public void MaxSeqForPad_matches_digit_capacity(int pad, int expected)
             => Assert.Equal(expected, SeqAssigner.MaxSeqForPad(pad));
 
+        // A sequence is exactly the pad width and at least 1 (was: up to pad + 1 digits,
+        // any shorter width, and zero all accepted).
+        [Theory]
+        [InlineData("0001", 4, true)]
+        [InlineData("0042", 4, true)]
+        [InlineData("9999", 4, true)]
+        [InlineData("042", 3, true)]
+        [InlineData("12", 4, false)]      // not padded
+        [InlineData("00012", 4, false)]   // one digit too many
+        [InlineData("0000", 4, false)]    // sequences start at 1
+        [InlineData("+001", 4, false)]
+        [InlineData("-001", 4, false)]
+        [InlineData("00A1", 4, false)]
+        [InlineData("", 4, false)]
+        public void ValidateNumericSeq_requires_the_pad_width_and_a_positive_value(string seq, int pad, bool valid)
+            => Assert.Equal(valid, SeqAssigner.ValidateNumericSeq(seq, pad) == null);
+
+        [Fact]
+        public void Every_sequence_BuildSeqString_writes_is_valid()
+        {
+            foreach (int pad in new[] { 3, 4, 5 })
+                foreach (int n in new[] { 1, 7, 42, SeqAssigner.MaxSeqForPad(pad) })
+                    Assert.Null(SeqAssigner.ValidateNumericSeq(SeqAssigner.BuildSeqString(n, SeqScheme.Numeric, pad, ""), pad));
+        }
+
         // ── BuildSeqKey ─────────────────────────────────────────────────
         [Fact]
         public void BuildSeqKey_without_zone()

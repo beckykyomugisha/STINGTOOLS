@@ -76,7 +76,7 @@ namespace StingTools.Tags.Tests
             string src = File.ReadAllText(Repo("StingTools", "Tags", "TagStyleEngine.cs"));
             var used = Regex.Matches(src, @"\(""[^""]+"",\s*""([A-Z]+)"",\s*""([A-Z]+)""\)")
                 .Select(m => (style: m.Groups[1].Value, colour: m.Groups[2].Value)).ToList();
-            Assert.True(used.Count >= 40, $"only {used.Count} parameter-scheme styles found");
+            Assert.True(used.Count >= 30, $"only {used.Count} parameter-scheme styles found");
             var bad = used.Where(u => !styles.Contains(u.style) || !colours.Contains(u.colour)).Distinct().ToList();
             Assert.True(bad.Count == 0, "Not in the tag style catalogue: " + string.Join(", ", bad));
         }

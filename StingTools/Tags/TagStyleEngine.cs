@@ -513,15 +513,16 @@ namespace StingTools.Tags
         {
             // HTM 02-01 / BS EN ISO 32 gas identification. MGS_GAS_TYPE_TXT vocabulary:
             // O2 MA4 MA7 N2O N2 CO2 HE VAC (MedGasOutletPlacementCommand, HealthcareMaterialGate)
-            // plus AGSS. White (O2) is drawn light grey so it shows on a white sheet.
+            // (AGS is scavenging; "AGSS" is read as AGS by CanonicalGasCode, not here).
+            // White (O2) is drawn light grey so it shows on a white sheet.
             d["MedicalGas"] = new VariableColorScheme
             {
                 Name = "MedicalGas", Description = "Medical gas by type (HTM 02-01; MGS_GAS_TYPE_TXT)",
                 Variable = StyleVariable.Parameter, ParameterName = "MGS_GAS_TYPE_TXT",
                 ValueColors = Colors(("O2", 190, 190, 190), ("N2O", 0, 90, 200), ("MA4", 40, 40, 40), ("MA7", 90, 90, 90),
-                    ("N2", 0, 0, 0), ("CO2", 130, 130, 130), ("HE", 140, 90, 40), ("VAC", 230, 190, 0), ("AGSS", 140, 60, 170)),
+                    ("N2", 0, 0, 0), ("CO2", 130, 130, 130), ("HE", 140, 90, 40), ("VAC", 230, 190, 0), ("AGS", 140, 60, 170)),
                 ValueStyles = Styles(("O2", "BOLD", "BLACK"), ("N2O", "BOLD", "BLUE"), ("MA4", "NOM", "BLACK"), ("MA7", "ITALIC", "BLACK"),
-                    ("N2", "NOM", "BLACK"), ("CO2", "NOM", "GREY"), ("HE", "NOM", "ORANGE"), ("VAC", "BOLD", "ORANGE"), ("AGSS", "BOLD", "PURPLE")),
+                    ("N2", "NOM", "BLACK"), ("CO2", "NOM", "GREY"), ("HE", "NOM", "ORANGE"), ("VAC", "BOLD", "ORANGE"), ("AGS", "BOLD", "PURPLE")),
             };
 
             // HTM 03-01 pressure regime. CLN_PRESS_REGIME_TXT vocabulary: POS / NEG / NEUTRAL
@@ -575,16 +576,16 @@ namespace StingTools.Tags
                 ValueStyles = Styles(("1", "NOM", "GREEN"), ("2", "NOM", "GREEN"), ("3", "NOM", "ORANGE"), ("4", "BOLD", "ORANGE"), ("5", "BOLD", "PURPLE")),
             };
 
-            // HTM 04-01 water services by system token (the codes TagConfig assigns:
-            // DCW/CWS cold, DHW/HWS hot; HWR/DHWR return and TMV mixed where a project uses them).
+            // HTM 04-01 water services by system token. Only DCW and DHW are water-safety
+            // systems the tagger writes; return and mixed-water circuits are not separate
+            // SYS codes, so they cannot be told apart here. Heating water (HWS) and
+            // everything else draws grey.
             d["WaterSafety"] = new VariableColorScheme
             {
-                Name = "WaterSafety", Description = "Water services for HTM 04-01 (system token)",
+                Name = "WaterSafety", Description = "Domestic water services for HTM 04-01 (system token)",
                 Variable = StyleVariable.System,
-                ValueColors = Colors(("DCW", 0, 110, 220), ("CWS", 0, 110, 220), ("DHW", 220, 40, 40), ("HWS", 220, 40, 40),
-                    ("HWR", 230, 190, 0), ("DHWR", 230, 190, 0), ("TMV", 0, 160, 80)),
-                ValueStyles = Styles(("DCW", "NOM", "BLUE"), ("CWS", "NOM", "BLUE"), ("DHW", "BOLD", "RED"), ("HWS", "BOLD", "RED"),
-                    ("HWR", "NOM", "ORANGE"), ("DHWR", "NOM", "ORANGE"), ("TMV", "BOLD", "GREEN")),
+                ValueColors = Colors(("DCW", 0, 110, 220), ("DHW", 220, 40, 40)),
+                ValueStyles = Styles(("DCW", "NOM", "BLUE"), ("DHW", "BOLD", "RED")),
             };
         }
 
