@@ -102,6 +102,14 @@ jobs:
       - name: Parameter contract is current
         run: python3 tools/check_param_contract.py --check
 
+      # Every command tag the natural-language processor can hand to the dispatcher
+      # must resolve. 97 did not (2026-09-24) — each ended in "Unknown Command" — while
+      # the startup check that was meant to catch them asked one dispatch layer and
+      # vouched for the rest with an allowlist that included two dead tags. This reads
+      # all four layers NLP actually reaches.
+      - name: No NLP intent dispatches to nothing
+        run: python3 tools/check_nlp_dispatch.py --check
+
       # Revit gives a shared-parameter GUID one type. Ten parameters once had a
       # different type in STING_PARAMS_V4/V6 than in MR_PARAMETERS.txt, so a family
       # authored from one file would not load into a project bound from the other.

@@ -35,7 +35,6 @@ Elec_ArcFlashBoundary
 Elec_ArcFlashLabels
 Elec_ArcFlashSched
 Elec_AutoRoute
-Elec_BusbarModel
 Elec_CarbonRollup
 Elec_ClearOverrides
 Elec_DrawingLegend
