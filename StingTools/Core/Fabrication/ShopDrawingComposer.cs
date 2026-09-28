@@ -59,7 +59,7 @@ namespace StingTools.Core.Fabrication
             { "Duct",       "M"  },
             { "Electrical", "E"  },
             { "Hanger",     "HG" },
-            { "Generic",    "G"  }
+            { "Generic",    "Z"  }   // ISO19650DISC-1: Z = General / multi-disciplinary
         };
 
         // Session-scoped sequence per (discipline, level) bucket — ensures

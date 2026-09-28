@@ -49,9 +49,10 @@ namespace StingTools.Commands.Electrical.Lighting
             var spaceMap = LoadSpaceMap(doc);
 
             // Rooms → space rows
-            var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().OfType<Room>()
-                .Where(r => r.Area > 1e-6 && r.Location != null).ToList();
+            // LIGHTGRID-2: Rooms AND MEP Spaces. ComCheck input is per SPACE, so an MEP
+            // model was exactly the case this command could not serve.
+            var rooms = StingTools.Core.Placement.SpatialCompat.Collect(doc, 1e-6)
+                .Where(r => r.Location != null).ToList();
             if (rooms.Count == 0)
             {
                 TaskDialog.Show("ComCheck Export", "No placed rooms — ComCheck input is per space.");
@@ -66,7 +67,7 @@ namespace StingTools.Commands.Electrical.Lighting
                 if (string.IsNullOrEmpty(spaceType)) spaceType = MapSpaceType(spaceMap, name);
                 byRoom[r.Id.Value] = new SpaceRow
                 {
-                    Name = string.IsNullOrEmpty(r.Number) ? name : $"{r.Number} {name}".Trim(),
+                    Name = BuildSpaceName(StingTools.Core.Placement.SpatialCompat.NumberOf(r), name),
                     SpaceType = spaceType,
                     AreaFt2 = r.Area,
                     AreaM2 = r.Area * SqFtToM2,
@@ -79,8 +80,13 @@ namespace StingTools.Commands.Electrical.Lighting
             foreach (var fi in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_LightingFixtures)
                          .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
-                Room room = null;
-                try { room = ParameterHelpers.GetRoomAtElement(doc, fi) as Room; } catch { }
+                // LIGHTGRID-2: GetRoomAtElement returns a Room and nothing else.
+                SpatialElement room = StingTools.Core.Placement.SpatialCompat.SpatialOf(fi);
+                if (room == null)
+                {
+                    try { room = ParameterHelpers.GetRoomAtElement(doc, fi) as SpatialElement; }
+                    catch (Exception exr) { StingLog.Warn($"ComCheck room lookup: {exr.Message}"); }
+                }
                 if (room == null || !byRoom.TryGetValue(room.Id.Value, out var sr)) { unassigned++; continue; }
 
                 string type = ParameterHelpers.GetFamilySymbolName(fi);
@@ -142,6 +148,10 @@ namespace StingTools.Commands.Electrical.Lighting
             catch { }
             return 1;
         }
+
+        /// <summary>"12 Office" when a number exists, else just the name.</summary>
+        private static string BuildSpaceName(string number, string name)
+            => string.IsNullOrEmpty(number) ? name : $"{number} {name}".Trim();
 
         private static string MapSpaceType(List<(string Pattern, string Type)> map, string roomName)
         {

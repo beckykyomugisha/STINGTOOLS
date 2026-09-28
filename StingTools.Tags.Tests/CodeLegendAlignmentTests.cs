@@ -83,7 +83,7 @@ namespace StingTools.Tags.Tests
         {
             Assert.True(RuntimeSys().Count >= 18, "SysMap");
             Assert.True(RuntimeFunc().Count >= 25, "FUNC");
-            Assert.Equal(11, RuntimeDisc().Count);
+            Assert.Equal(12, RuntimeDisc().Count);
             Assert.True(RuntimeProd().Count > 300, "PROD");
         }
 

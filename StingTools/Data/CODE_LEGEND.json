@@ -435,7 +435,12 @@
         {
           "code": "G",
           "label": "General / Non-Disciplinary",
-          "description": "Elements that don't fit a specific discipline; default fallback."
+          "description": "Elements that don't fit a specific discipline; STING's shipped default for the generic categories. In the BS EN ISO 19650-2 UK National Annex role table G is geographical and land surveyor; a project that follows that table maps the generic categories to Z instead (DISC_MAP in project_config.json)."
+        },
+        {
+          "code": "Z",
+          "label": "General (non-disciplinary)",
+          "description": "The BS EN ISO 19650-2 UK National Annex code for general, non-disciplinary information. Accepted by the validator; not the shipped default. Set DISC_MAP in project_config.json to use it for the generic categories."
         },
         {
           "code": "H",

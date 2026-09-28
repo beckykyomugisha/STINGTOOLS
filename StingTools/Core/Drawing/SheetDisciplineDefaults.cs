@@ -34,7 +34,7 @@ namespace StingTools.Core.Drawing
                 { "LV", "LV" }, { "ICT", "LV" }, { "IT", "LV" },
                 { "I", "I" }, { "ID", "I" },
                 { "CO", "COORD" }, { "CD", "COORD" }, { "COORD", "COORD" },
-                { "G", "GEN" }, { "GEN", "GEN" },
+                { "G", "GEN" }, { "Z", "GEN" }, { "GEN", "GEN" },   // ISO19650DISC-1
             };
 
         /// <summary>Whole words in a sheet title, in decision order.</summary>

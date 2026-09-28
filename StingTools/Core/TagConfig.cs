@@ -2479,6 +2479,41 @@ namespace StingTools.Core
         /// skips the per-element FilteredElementCollector call in PhaseAutoDetect.DetectProjectRevision,
         /// improving batch performance from O(n²) to O(n).</param>
         /// <returns>True if the element was tagged, false if skipped.</returns>
+        /// <summary>
+        /// Why BuildAndWriteTag returned what it returned.
+        ///
+        /// TAGLOG-1. The bool says "was this element tagged", and the caller logged every
+        /// false as "BuildAndWriteTag failed". But TagCollisionMode.Skip returns false on
+        /// purpose for an element that already carries a complete tag — so a clean run of
+        /// 332 elements emitted 278 WARN lines claiming failure and 0 real ones. Noise at
+        /// that ratio is worse than no logging: it buries the one line that matters. In
+        /// the run that found this, exactly one element had a genuine fault and it sat
+        /// inside 278 false alarms.
+        ///
+        /// The report is OPTIONAL and additive. Every existing return value is unchanged,
+        /// so the eleven call sites that ignore the bool keep their exact behaviour; only
+        /// RunFullPipeline passes a report, and it now warns solely on Failed.
+        /// </summary>
+        public enum TagWriteOutcome
+        {
+            Tagged,
+            AlreadyCurrent,
+            SkippedComplete,
+            NotTaggable,
+            Failed,
+        }
+
+        /// <summary>Optional out-channel for <see cref="TagWriteOutcome"/>.</summary>
+        public sealed class TagWriteReport
+        {
+            public TagWriteOutcome Outcome { get; private set; } = TagWriteOutcome.Failed;
+            public void Set(TagWriteOutcome o) { Outcome = o; }
+            public bool IsDeliberateSkip =>
+                Outcome == TagWriteOutcome.SkippedComplete
+                || Outcome == TagWriteOutcome.AlreadyCurrent
+                || Outcome == TagWriteOutcome.NotTaggable;
+        }
+
         public static bool BuildAndWriteTag(Document doc, Element el,
             Dictionary<string, int> sequenceCounters, bool skipComplete = true,
             HashSet<string> existingTags = null,
@@ -2488,12 +2523,16 @@ namespace StingTools.Core
             List<Phase> cachedPhases = null,
             ElementId lastPhaseId = null,
             string prevTagHint = null,
-            string[] tokenValuesOut = null)
+            string[] tokenValuesOut = null,
+            TagWriteReport report = null)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             // F-14: Merge ContainsKey guard + TryGetValue into a single map lookup
             if (string.IsNullOrEmpty(catName) || !DiscMap.TryGetValue(catName, out string disc))
+            {
+                report?.Set(TagWriteOutcome.NotTaggable);
                 return false;
+            }
 
             // RunFullPipeline already read TAG1 once — accept
             // the value via the new prevTagHint parameter to avoid a second read.
@@ -2512,6 +2551,7 @@ namespace StingTools.Core
                     && string.Equals(prev, existingTag, StringComparison.Ordinal))
                 {
                     stats?.RecordSkipped(catName);
+                    report?.Set(TagWriteOutcome.AlreadyCurrent);
                     return true;
                 }
             }
@@ -2522,11 +2562,13 @@ namespace StingTools.Core
                 {
                     case TagCollisionMode.Skip:
                         stats?.RecordSkipped(catName);
+                        report?.Set(TagWriteOutcome.SkippedComplete);
                         return false; // Never touch existing complete tags
                     case TagCollisionMode.AutoIncrement:
                         if (skipComplete)
                         {
                             stats?.RecordSkipped(catName);
+                            report?.Set(TagWriteOutcome.SkippedComplete);
                             return false; // Default: skip complete tags
                         }
                         break;
@@ -2916,6 +2958,7 @@ namespace StingTools.Core
                 RestoreOwnTag();
                 StingLog.Warn($"TAG1 write failed on {el.Id} — SEQ counter rolled back for key '{seqKey}'");
                 stats?.RecordWarning($"Element {el.Id}: TAG1 write failed — SEQ rolled back");
+                report?.Set(TagWriteOutcome.Failed);
                 return false;
             }
 
@@ -3052,6 +3095,7 @@ namespace StingTools.Core
             if (!string.IsNullOrEmpty(displayModeSentinel))
             {
                 stats?.RecordTagged(catName, disc, sys, lvl);
+                report?.Set(TagWriteOutcome.Tagged);
                 return true;
             }
             try
@@ -3219,6 +3263,7 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"Display BOOL init on {el.Id}: {ex.Message}"); }
 
             stats?.RecordTagged(catName, disc, sys, lvl);
+            report?.Set(TagWriteOutcome.Tagged);
             return true;
         }
 

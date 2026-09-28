@@ -147,6 +147,11 @@
       "role": "export",
       "reason": "Consumed by 5 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Asset Register\". A schedule is a real reader; this scan only sees C#."
     },
+    "ATEX_CLASSIFICATION_OK": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "ATEX_EX_RATING_TXT": {
       "state": "read_only",
       "role": "input",
@@ -392,6 +397,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "BLE_RAIL_HEIGHT_MM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "BLE_ROOM_FINISH_BASE_TXT": {
       "state": "read_only",
       "role": "export",
@@ -602,6 +612,11 @@
       "role": "reference",
       "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
+    "ELC_CDT_SOFFIT_OFFSET_MM": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "ELC_CDT_SZ_MM": {
       "state": "read_only",
       "role": "export",
@@ -697,6 +712,26 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "ELC_JB_UPSTREAM_REF_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "ELC_LIGHTING_GRID_SPC_MM": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "ELC_LIGHTING_ROOM_TYPE": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "ELC_LIGHTING_TARGET_LUX_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "ELC_LPS_AIRTERM_TAG_TXT": {
       "state": "read_only",
       "role": "input",
@@ -777,6 +812,11 @@
       "role": "input",
       "reason": "A person sets the MET location on Project Information; read by the earthing diagram."
     },
+    "ELC_PANEL_REF_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "ELC_PANEL_SCHEDULE_REF_TXT": {
       "state": "write_only",
       "role": "export",
@@ -792,15 +832,65 @@
       "role": "input",
       "reason": "Bound in CATEGORY_BINDINGS v3.13 because a per-category schedule names it as a column (SCHEDULE_SPEC_all_disciplines.json). The READER is the schedule; there is no producer, so the column stays empty until an engineer enters a value. That is correct for a design input — the schedule is the entry surface."
     },
+    "ELC_TRANSFER_LOAD_OK": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "ELC_VLT_DROP_TXT": {
       "state": "write_only",
       "role": "export",
       "reason": "Schedule text for the voltage drop (ELEC-26): read by the STING panel schedule templates (STING_PANEL_SCHEDULE_SPECS.json, VD column) and the Voltage Drop Schedule, found by name. A schedule is a real reader; this scan only sees C#."
     },
+    "ELC_WIRE_AMPACITY_A": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
     "ELC_WIRE_BEND_COUNT_INT": {
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "ELC_WIRE_CIRCUIT_TYPE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "ELC_WIRE_CORE_COUNT_INT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "ELC_WIRE_CSA_MM2_NUM": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "ELC_WIRE_INSTALL_METHOD_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "ELC_WIRE_MAX_DEMAND_A": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "ELC_WIRE_PHASE_TXT": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "ELC_WIRE_PROFILE_ID_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "ELC_WIRE_VD_PCT_NUM": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "FAB_HANGER_LOAD_KN": {
       "state": "read_only",
@@ -862,6 +952,16 @@
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Equipment\". A schedule is a real reader; this scan only sees C#."
     },
+    "HVC_FLOW_LS": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "HVC_LOAD_SOURCE_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "HVC_LOAD_STALE_REASON_TXT": {
       "state": "write_only",
       "role": "reference",
@@ -887,6 +987,21 @@
       "role": "export",
       "reason": "Consumed by 1 Revit schedule(s) declared in MR_SCHEDULES.csv, including \"Hvac Pipe Schedule\". A schedule is a real reader; this scan only sees C#."
     },
+    "HVC_PRESSURE_DROP_PA": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "HVC_SELECTED_IDU_ID_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "HVC_SELECTED_IDU_LABEL_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "HVC_SPACE_TYPE_TXT": {
       "state": "read_only",
       "role": "input",
@@ -901,6 +1016,11 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "IPS_BRANCH_COMPLIANT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "LTG_CTRL_TYPE_TXT": {
       "state": "write_only",
@@ -1117,6 +1237,31 @@
       "role": "reference",
       "reason": "Written by the fixture, matrix and DWG placement engines as the mounting height they placed at. Carried for schedules and the properties palette; placement reads heights from its rules, not back from this."
     },
+    "PEN_BEAM_DEPTH_RATIO": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "PEN_BEAM_OFFSET_PCT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "PEN_CERTIFICATION_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "PEN_HOST_REF_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "PEN_INSTALL_STATUS_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "PER_SUST_CARBON_FOOTPRINT_KG": {
       "state": "read_only",
       "role": "input",
@@ -1131,6 +1276,21 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "PLM_FLOW_LS": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "PLM_FLUID_CATEGORY_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
+    "PLM_PIPE_INS_THK_MM": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PLM_PPE_MAT_TXT": {
       "state": "read_only",
@@ -1166,6 +1326,11 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "PLM_VLV_BACKFLOW_TYPE_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "PRJ_COMMENTS_TXT": {
       "state": "read_only",
@@ -1462,6 +1627,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "STRUCT_FRM_AXIAL_LOAD_KN": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
+    },
     "STR_AREA_LOAD_KN_M2": {
       "state": "write_only",
       "role": "export",
@@ -1641,6 +1811,11 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "TAG_PARA_DEPTH_INT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "Written by StingTools and claimed by no reader: not C#, not a Revit schedule, not COBie, not an IFC pset. Carried for whoever opens the properties palette. If it is meant to reach a deliverable, that route does not exist yet."
     },
     "WARN_STR_FND_BLACK_COTTON": {
       "state": "write_only",

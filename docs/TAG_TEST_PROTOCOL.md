@@ -15,48 +15,24 @@ the method, the ROADMAP is the state.
 
 ### 0.1 What must be deployed
 
-> ## ⚠️ READ THIS FIRST — the deployed DLL changed on 2026-09-17 15:57
+> **Updated 2026-09-28: every test here now runs on one build.** Until then this section
+> warned that the live DLL held only the Phase 295 branch (#967) and that T1–T10 needed
+> #966. Both are merged into `main`, so a build of `main` carries `MigrateBindingScope`,
+> `AuditBindingScope`, `SpatialCompat` and the Phase 295 `NOT WRITTEN` / `TOKEN BINDINGS`
+> reports together. Nothing is blocked any more.
 >
-> The live slot now holds a build of **`claude/func-prod-binding-strategy-8ac840`**
-> (main + the four Phase 295 commits). It **replaced** the `claude/tag-binding-scope`
-> build that was there, and the two branches are **not** merged — so the code T1–T10
-> were written against is **no longer deployed**.
->
-> Verified by UTF-16 probe of the live DLL, both byte alignments, with a control needle:
->
-> | Probe | Live DLL |
-> |---|---|
-> | `MigrateBindingScope` / `AuditBindingScope` | **absent** |
-> | `SpatialCompat` | **absent** |
-> | `NOT WRITTEN` / `TOKEN BINDINGS` (Phase 295) | present |
->
-> **What that means for this protocol**
->
-> | Tests | Status against the live DLL |
-> |---|---|
-> | **T11–T15** (Phase 295, below) | ✅ run these now |
-> | **T6** | ⚠️ **rewritten** — the old pass criteria now give a FALSE PASS, see T6 |
-> | **Section U** (manual family build) | ✅ run this now — `Propagate_UniversalTag` is in the live DLL, all five build docs are on main |
-> | **T1–T5, T7–T10** | ❌ need a build that contains `claude/tag-binding-scope` |
->
-> To run everything in one pass, build a **combined** DLL locally (merge
-> `claude/tag-binding-scope` into the Phase 295 branch for the build only, without
-> committing that merge to either PR) and redeploy. Until then, treat T1–T10 as
-> **blocked, not failed** — recording a fail for a command that is not in the binary is
-> the same defect this repo keeps producing.
->
-> **Section U is NOT blocked** — an earlier revision of this warning said it was, which
-> was wrong. U needs `Propagate_UniversalTag` (verified present in the live DLL),
-> `StampGateStatusCommand` (on main) and the five build docs (all on main). Nothing it
-> touches comes from `claude/tag-binding-scope`. U is the recommended starting point.
+> One behaviour differs from what #967 originally described, because the merge kept
+> `main`'s rule: a tag is always composed from what the element **holds**. When a token
+> parameter does not take its write (type-bound, or not bound to the category), the element
+> is **not tagged** that run: it is listed under `NOT WRITTEN` with the parameter and the
+> category, its SEQ number is released, and any existing tag is left as it was. The tag
+> never shows a value the parameter does not hold. T6 and T11 below are written to that.
 
 | | |
 |---|---|
-| Live manifest target | `C:\Dev\wt-sting-live\CompiledPlugin\StingTools.dll` |
-| Currently built from | `76b195be8` — main `114e38244` + Phase 295 (four commits) |
-| Built at | 2026-09-17 15:57:34 · 20,036,608 bytes |
-| Previous binary kept at | `CompiledPlugin\StingTools.dll.prev-20260917` (restores the pre-295 build, **not** the tag-binding-scope one) |
-| For T1–T10 you need | a build containing `claude/tag-binding-scope` (PR #966) |
+| Build from | `main`, at or after the commit that merged #966 |
+| Deploy | run `deploy.bat` from that checkout, then restart Revit |
+| Log file | `StingTools_yyyyMMdd.log`, next to the DLL the manifest names |
 
 Confirm the target has not moved — it has moved five times in two days before now, and
 building the right code into the wrong folder **succeeds silently**:
@@ -312,54 +288,51 @@ binder when it RUNS; a project bound earlier keeps its old scope. Re-bind first.
 3. Place a new door. **TAGGING → Auto Tag**.
 4. Read `ASS_TAG_1_TXT`.
 
-### ⚠️ Pass / fail — REWRITTEN for Phase 295. The old criteria now give a false pass.
+### Pass / fail
 
-Phase 295 made `BuildAndWriteTag` reconcile the read-back against what it derived: a token
-that reads back empty after a non-empty derive is treated as a **failed write**, and the
-derived value is kept. SEQ therefore now reaches the tag **whether or not the binding was
-ever repaired**.
-
-That invalidates two checks this test used to rely on:
-
-| Old check | Why it no longer discriminates |
-|---|---|
-| `ASS_TAG_1_TXT` ends `…-DR-0215` | the tag now carries a derived SEQ even on a type-bound model |
-| two doors get different SEQ **in the tag** | SEQ is derived per element, so they differ regardless |
-
-**Read the PARAMETER, not the tag.** The tag is now correct by construction; only the
-parameter still answers whether the binding is fixed.
+Phase 295 reconciles the read-back against what was derived, and the merged build composes
+the tag only from values the element **holds**. On a model where `ASS_SEQ_NUM_TXT` is still
+type-bound, the SEQ write fails, the element is **not tagged**, and the report lists it
+under `NOT WRITTEN`. So the tag and the parameter now agree by construction, and both are
+valid checks.
 
 | Read | Pass | Fail |
 |---|---|---|
 | `ASS_SEQ_NUM_TXT` greyed? | **not** greyed | still greyed → re-bind did not apply |
 | `ASS_SEQ_NUM_TXT` **value** | `0215`-style, and **differs between two doors of one type** | blank, or identical across two doors of one type → still type-scoped |
-| Auto Tag report | **no** `NOT WRITTEN` block | a `NOT WRITTEN` block naming `ASS_SEQ_NUM_TXT` → the write is still failing |
-| `ASS_TAG_1_TXT` | ends `…-DR-0215` | ends `…-DR-` → **regression**: Phase 295 should make this impossible |
+| Auto Tag report | **no** `NOT WRITTEN` block | a `NOT WRITTEN` block naming `ASS_SEQ_NUM_TXT` (the doors were refused, not tagged) |
+| `ASS_TAG_1_TXT` | ends `…-DR-0215`, and its SEQ equals `ASS_SEQ_NUM_TXT` | ends `…-DR-` → **regression**: the blank-segment guard should refuse it; or a SEQ that differs from the parameter → **regression** |
 | `ASS_TAG_6_TXT` | no leading separator | `- BLD1` → same disease, different container |
 
-The `NOT WRITTEN` block is now the authoritative signal and the cheapest one to read — it
-names the parameter **and** the category. A correct tag no longer means a correct model.
+The `NOT WRITTEN` block is the cheapest signal to read: it names the parameter **and** the
+category.
 
-- [ ] not greyed · [ ] two doors differ **in the parameter** · [ ] no NOT WRITTEN block
+- [ ] not greyed · [ ] two doors differ **in the parameter** · [ ] tag SEQ = parameter · [ ] no NOT WRITTEN block
 
 ---
 
-## T7 · Material suffix survives — `TAGPROD-1`
+## T7 · Material suffix stays out of the tag — `TAGPROD-1`
 
 `FSP-CON` and `DR-GLZ` were truncated to `FSP` / `DR` on every write because `-` is the tag
-separator. No material suffix has ever reached a tag.
+separator. #966 fixed that by joining the suffix with `_`; `main` had already fixed it the
+other way, and the merge kept main's: the material suffix is **not part of the PROD token**
+(`TagConfig.GetFamilyAwareProdCode`). It is used for type marks only
+(`TagConfig.GetProdCodeWithMaterial` → `TypeMarkSequencer`), where it cannot become an extra
+tag segment.
 
 1. Tag an element whose category has a material PROD override (a fire-stop, a glazed door).
-2. Read `ASS_PRODCT_COD_TXT`.
+2. Read `ASS_PRODCT_COD_TXT` and `ASS_TAG_1_TXT`.
+3. Run **Type Marks (preview)** (`TypeMark_Preview`) and read the proposed mark for that type.
 
-| Pass | Fail |
-|---|---|
-| `FSP_CON` — joined with `_`, not `-` | `FSP` → suffix still being truncated |
+| Read | Pass | Fail |
+|---|---|---|
+| `ASS_PRODCT_COD_TXT` | `FSP` / `DR` — the base code, no suffix | `FSP-CON`, `FSP_CON` or `FSP` followed by an empty segment |
+| `ASS_TAG_1_TXT` | 8 segments, PROD segment `FSP` | 9 segments → the suffix leaked into the tag |
+| Type mark preview | `FSP-CON…` / `DR-GLZ…` — the suffix appears here | no suffix → the override did not match |
 
-Confirm the log carries **no** `SetString: rejecting malformed ASS_PRODCT_COD_TXT` line. It
-is the only signal this defect ever gave.
+Confirm the log carries **no** `SetString: rejecting malformed ASS_PRODCT_COD_TXT` line.
 
-- [ ] suffix present · [ ] no malformed warning
+- [ ] PROD is the base code · [ ] suffix in the type mark · [ ] no malformed warning
 
 ---
 
@@ -507,7 +480,7 @@ Auto Tag the same GROUND FLOOR view. Read the **report**, not the model.
 | each category lists the parameters that failed **under it** | |
 
 ```
-NOT WRITTEN:  N element(s) tagged, but a token PARAMETER could not be written
+NOT WRITTEN:  N element(s) whose token PARAMETER could not be written
               Doors — 175 element(s)
                 ASS_SEQ_NUM_TXT × 175
               Rooms — 27 element(s)
@@ -601,8 +574,10 @@ Auto Tag. Then read the report, then the log.
 
 Two outcomes, both informative:
 
-- **No `CONTAINERS:` block** → the 175 are gone. Most likely cause: `WriteContainers` now
-  receives the reconciled token array instead of the empties the read-back used to hand it.
+- **No `CONTAINERS:` block** → the 175 are gone. Most likely cause: an element whose token
+  write failed is now refused before the containers are written, so `WriteContainers` no
+  longer receives the empties the read-back used to hand it. Those elements appear under
+  `NOT WRITTEN` instead (T12).
 - **Block present** → paste the stack trace and the category. That is the first time this
   failure has been diagnosable; do not guess at it from the message alone.
 
@@ -620,19 +595,19 @@ Two outcomes, both informative:
 | T4 renumber | `ROOM-1` | | |
 | T5 refusal | `TOKPOL-2` | | |
 | T6 SEQ reaches tag | `BINDSCOPE-2` | | |
-| T7 material suffix | `TAGPROD-1` | | |
+| T7 material suffix (type mark only) | `TAGPROD-1` | | |
 | T8 Spaces derive LOC/ZONE | `LIGHTGRID-5` | | |
 | T9 Rooms model unchanged | `LIGHTGRID-5` | | |
 | T10 Quick Lux on Spaces | `LIGHTGRID-2` | | |
-| **T11 no blank segment** | `ROOMTAG-1` | | Phase 295 - runs on the live DLL |
+| **T11 no blank segment** | `ROOMTAG-1` | | Phase 295 |
 | **T12 report names category** | `ROOMTAG-1` | | Phase 295 - answers "which 27" |
 | **T13 binding pre-flight** | `BINDSCOPE-3` | | Phase 295 - must agree with T12 |
 | **T14 GEN completeness** | `TOKPOL-3` | | Phase 295 - watch StrictPercent |
 | **T15 container failures** | `CONTAINER-1` | | Phase 295 - evidence only, no cause claimed |
 
-**T1-T10 are blocked, not failed, on the currently deployed DLL** - see section 0.1.
-Mark them `BLOCKED` rather than leaving them blank, so a later reader cannot mistake
-"not run" for "ran and passed".
+**All fifteen tests run on a build of `main` after #966 merged** (section 0.1). If a
+test cannot be run, mark it `BLOCKED` with the reason rather than leaving it blank, so a
+later reader cannot mistake "not run" for "ran and passed".
 
 Record outcomes against the ids in `docs/ROADMAP.md`. **Report both numbers** — what was
 expected and what appeared — rather than "works". An assertion that passes against an empty

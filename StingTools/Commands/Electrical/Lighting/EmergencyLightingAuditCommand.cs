@@ -33,12 +33,9 @@ namespace StingTools.Commands.Electrical.Lighting
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            var rooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType()
-                .OfType<Room>()
-                .Where(r => r.Area > 0)
-                .ToList();
+            // LIGHTGRID-2: Rooms AND MEP Spaces. Collected Rooms only, so on an MEP model
+            // this audit examined nothing and reported full compliance.
+            var rooms = StingTools.Core.Placement.SpatialCompat.Collect(doc);
             var fixtures = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_LightingFixtures)
                 .WhereElementIsNotElementType()
@@ -116,14 +113,16 @@ namespace StingTools.Commands.Electrical.Lighting
             return Result.Succeeded;
         }
 
-        private static bool InRoom(FamilyInstance fi, Room r)
+        private static bool InRoom(FamilyInstance fi, SpatialElement r)
         {
             try
             {
-                if (fi.Room is Room rr && rr.Id == r.Id) return true;
+                // LIGHTGRID-2: fi.Room is null for a fixture in a Space, and
+                // IsPointInRoom does not exist on one - both handled in SpatialCompat.
+                if (StingTools.Core.Placement.SpatialCompat.Contains(fi, r)) return true;
                 var pt = (fi.Location as LocationPoint)?.Point;
                 if (pt == null) return false;
-                return r.IsPointInRoom(pt);
+                return StingTools.Core.Placement.SpatialCompat.IsPointInside(r, pt);
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
         }
@@ -150,8 +149,11 @@ namespace StingTools.Commands.Electrical.Lighting
                 // ("Downlight : 3h EM"), so test the type name as well.
                 if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(fi.Symbol?.Name, kw)) return true;
                 // Type mark: same token rule - StartsWith("em") also caught
-                // marks like "EMX-1" / "EMBOSS".
-                string tm = fi.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "";
+                // marks like "EMX-1" / "EMBOSS". MAPTYPE-7: ALL_MODEL_TYPE_MARK is
+                // TYPE-scoped, so read from the instance it was always null; GetBip
+                // falls back to the type.
+                string tm = StingTools.Core.ParameterHelpers
+                                .GetBip(fi, BuiltInParameter.ALL_MODEL_TYPE_MARK)?.AsString() ?? "";
                 if (StingTools.Core.Electrical.EmergencyNameMatcher.IsEmergencyName(tm, kw)) return true;
                 // Canonical via MR_PARAMETERS: LTG_FIX_TYPE_CLASSIFICATION_TXT
                 // is the project-wide fixture type discriminator (Phase 188 fix
