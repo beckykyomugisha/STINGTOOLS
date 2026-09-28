@@ -2035,6 +2035,8 @@
                         <Border Style="{StaticResource GroupBorder}" BorderBrush="#1565C0">
                             <StackPanel>
                                 <WrapPanel>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Preflight" Tag="Symbols_Preflight" Click="Cmd_Click"
+                                            ToolTip="Read-only check, before Create All: the Revit family-template folder resolves and the Generic Annotation (SLD) and model templates are in it. An unset folder otherwise builds 0 families."/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Create All" Tag="Symbols_CreateAll" Click="Cmd_Click"
                                             ToolTip="Build the full MEP/FP/SLD symbol library (~190 families) into _BIM_COORD/Families/Symbols and load into the project" FontWeight="Bold"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="★ Set Profile" Tag="Symbols_SetProfile" Click="Cmd_Click" ToolTip="Set the active mixed-standard profile (Uganda / US-Intl / UK / Full-IEC)" FontWeight="Bold"/>
@@ -2066,6 +2068,7 @@
                                         <Button Style="{StaticResource ActionBtn}" Content="Auto Toggle" Tag="Symbols_AutoPlaceToggle" Click="Cmd_Click" ToolTip="Toggle whether the StingAutoTagger drops symbol overlays on every newly-placed MEP element"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Sync Filt" Tag="Symbols_SyncFilters" Click="Cmd_Click" ToolTip="Sync Filters — mirror host visibility onto symbol tags"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Std Audit" Tag="Symbols_Audit" Click="Cmd_Click" ToolTip="Std Audit — drift + coverage report"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Orient Audit" Tag="Symbols_OrientationAudit" Click="Cmd_Click" ToolTip="Orientation Audit — read-only list of the vertical / end-on variant families that concepts reference but that are not loaded or in the content library (placement falls back to the base family)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Content Cov" Tag="Content_Coverage" Click="Cmd_Click" ToolTip="Content Coverage — tag-family + model-seed ledger: built vs needs-build / needs-spec gaps, with CSV to _BIM_COORD"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Rm View" Tag="Symbols_RemoveInView" Click="Cmd_Click" ToolTip="Remove In View — delete every STING symbol overlay from the active view"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Rm All" Tag="Symbols_RemoveAll" Click="Cmd_Click" ToolTip="Remove All Views — delete every STING symbol overlay project-wide (chunked)"/>

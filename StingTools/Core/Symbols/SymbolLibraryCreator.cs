@@ -51,6 +51,19 @@ namespace StingTools.Core.Symbols
         public List<string> DegradedFillSymbols { get; } = new List<string>();
     }
 
+    /// <summary>Result of <see cref="SymbolLibraryCreator.Preflight"/>: whether the Revit
+    /// family-template folder resolves and the templates a build needs are in it.</summary>
+    public sealed class SymbolPreflightResult
+    {
+        public bool TemplateFolderFound { get; set; }
+        public string TemplateFolder { get; set; }
+        public bool GenericAnnotationOk { get; set; }
+        public bool GenericModelOk { get; set; }
+        public List<string> Notes { get; } = new List<string>();
+        /// <summary>OK to build: the annotation template (which SLD symbols need) resolves.</summary>
+        public bool Ok => TemplateFolderFound && GenericAnnotationOk;
+    }
+
     /// <summary>
     /// Suppresses "Highlighted lines overlap. Lines may not form closed
     /// loops." and a small handful of cosmetic warnings that the
@@ -2699,6 +2712,44 @@ namespace StingTools.Core.Symbols
         ///   4. DataPath/Templates/ (bundled minimal templates, future fallback).
         /// Returns the first folder that exists. Logs a warning (never throws) if none found.
         /// </summary>
+        /// <summary>Checks, before any build, that the Revit family-template folder resolves
+        /// and that the Generic Annotation template (SLD symbols) and a model template can
+        /// be found in it. An unset folder otherwise shows up only as "0 families built".</summary>
+        public static SymbolPreflightResult Preflight(Application app)
+        {
+            var r = new SymbolPreflightResult();
+            var sink = new SymbolCreationResult(); // absorbs ResolveTemplateFile warnings
+            r.TemplateFolder = ResolveTemplateFolder(app);
+            r.TemplateFolderFound = !string.IsNullOrEmpty(r.TemplateFolder)
+                                    && Directory.Exists(r.TemplateFolder);
+            if (!r.TemplateFolderFound)
+            {
+                r.Notes.Add("The Revit family-template folder is not set or cannot be found "
+                    + "(Options → File Locations → Family Template Files).");
+                return r;
+            }
+
+            var ga = new SymbolDefinition
+            {
+                Id = "preflight-annotation", FamilyType = "GenericAnnotation", Discipline = "General", SymbolSize = 3.0
+            };
+            r.GenericAnnotationOk = !string.IsNullOrEmpty(ResolveTemplateFile(ga, r.TemplateFolder, sink));
+            var gm = new SymbolDefinition
+            {
+                Id = "preflight-model", FamilyType = "MEPEquipment", Discipline = "Mechanical",
+                Category = "Mechanical Equipment", SymbolSize = 6.0
+            };
+            r.GenericModelOk = !string.IsNullOrEmpty(ResolveTemplateFile(gm, r.TemplateFolder, sink));
+
+            if (!r.GenericAnnotationOk)
+                r.Notes.Add("Generic Annotation .rft not found: SLD and schematic symbols will not build.");
+            if (!r.GenericModelOk)
+                r.Notes.Add("Generic Model / MEP equipment .rft not found: some model MEP symbols will not build.");
+            if (r.Ok && r.GenericModelOk)
+                r.Notes.Add("Template folder OK: Generic Annotation and model templates resolved.");
+            return r;
+        }
+
         public static string ResolveTemplateFolder(Application app)
         {
             // 1. Revit's own configured path — most reliable.
