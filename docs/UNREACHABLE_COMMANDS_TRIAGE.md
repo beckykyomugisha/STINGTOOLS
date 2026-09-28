@@ -21,13 +21,15 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-09-27
 
-- **Total IExternalCommand classes**: **1764**
-- **Reached by a dispatch layer**: **1739**
+- **Total IExternalCommand classes**: **1766**
+- **Reached by a dispatch layer**: **1741**
 - **Referenced only from non-dispatch code**: **0**
 - **Named nowhere outside their own file**: **11**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1764; the script fails if they stop adding up.
+The four buckets partition all 1766; the script fails if they stop adding up.
+
+**+2 on 2026-09-28 (#966 merged)**: `AuditBindingScopeCommand` (`AuditBindingScope`) and `MigrateBindingScopeCommand` (`MigrateBindingScope`), reached from their dock-panel buttons and handler cases.
 
 **+1 on 2026-09-27 (ELEC-21)**: `WireTablesReloadCommand` (`Cable_ReloadTables`), reached from the Electrical panel's CABLE tab, its handler, `WorkflowEngine.ResolveCommand` and the NLP processor.
 

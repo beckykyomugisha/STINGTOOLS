@@ -316,7 +316,7 @@ ASS_WELD_COUNT_NR,1,asset-universal,<ALL>,Total number of welds in the assembly
 ASS_WORKSET_TXT,1,asset-universal,<ALL>,Workset name for worksharing tracking
 ASS_ZONE_SOURCE_TXT,1,universal,<ALL>,ZONE detection source (Department/Room/Manual)
 ASS_ZONE_TXT,1,universal,<ALL>,Ass Zone Txt [ISO 19650-3:2020]
-ATEX_CLASSIFICATION_OK,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Atex Classification Ok [STING]
+ATEX_CLASSIFICATION_OK,4,curated-fallback,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Atex Classification Ok [STING]
 ATEX_EX_RATING_TXT,4,curated-fallback,Electrical Equipment|Electrical Fixtures,Equipment Ex marking (e.g. Ex d IIC T4 Gb) checked against ATEX_ZONE_TXT by ATEX Classification.
 ATEX_ZONE_TXT,4,curated-fallback,Electrical Equipment|Electrical Fixtures,"Hazardous-area zone the equipment is installed in (Zone 0 / 1 / 2 for gas, 20 / 21 / 22 for dust) per IEC 60079-10; read by ATEX Classification."
 BI_ACCENT_COLOR_TXT,11,curated-fallback,Generic Models,Accent colour RGB [ISO 19650-1:2018]
@@ -1510,20 +1510,20 @@ HVC_HEPA_REQ_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fi
 HVC_IDU_MOUNTING_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Per-space IDU mounting override (Ducted / CeilingCassette / WallMounted / FourWay) [Phase 187h]
 HVC_INSULATION_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Insulation [ISO 19650-1:2018]
 HVC_INS_THICKNESS_MM,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC insulation thickness in mm
-HVC_LOAD_SOURCE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Provenance string written by HvacPropagateLoadsCommand: served space + peak sensible + design OA → derived HVC_FLOW_LS [Phase 187b]
-HVC_LOAD_STALE_BOOL,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]
-HVC_LOAD_STALE_REASON_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]
+HVC_LOAD_SOURCE_TXT,5,space-scoped load stamp,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,Provenance string written by HvacPropagateLoadsCommand: served space + peak sensible + design OA → derived HVC_FLOW_LS [Phase 187b]
+HVC_LOAD_STALE_BOOL,5,space-scoped load stamp,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,1 when an envelope geometry change has invalidated this Space's last BlockLoad result. Cleared by Hvac_BlockLoad or Hvac_EnvelopeStaleClear [Phase 187f]
+HVC_LOAD_STALE_REASON_TXT,5,space-scoped load stamp,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Short tag identifying what envelope element changed (wall geom / window geom / roof geom / etc.) [Phase 187f]
 HVC_NC_CURVE_INT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVAC noise criterion NC curve target [H-24]
 HVC_NOISE_LEVEL_DB,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Noise Level Db [ISO 19650]
 HVC_NOISE_LEVEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,HVC_NOISE_LEVEL_DB display mirror [auto-generated]
-HVC_OA_LS,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
-HVC_OA_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_OA_LS display mirror [auto-generated]
-HVC_PEAK_HOUR,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Hour of day of the per-space peak from BlockLoadEngine as a whole number 0-23 (14 = 14:00) [Phase 187]
-HVC_PEAK_HOUR_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_HOUR display mirror [auto-generated]
-HVC_PEAK_LAT_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_LAT_W display mirror [auto-generated]
-HVC_PEAK_LAT_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak latent load in W from BlockLoadEngine [Phase 187]
-HVC_PEAK_SENS_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_SENS_W display mirror [auto-generated]
-HVC_PEAK_SENS_W,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak sensible load in W from BlockLoadEngine [Phase 187]
+HVC_OA_LS,5,space-scoped load stamp,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space design outdoor-air flow in L/s from BlockLoadEngine [Phase 187]
+HVC_OA_TXT,5,space-scoped load stamp,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_OA_LS display mirror [auto-generated]
+HVC_PEAK_HOUR,5,space-scoped load stamp,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Hour of day of the per-space peak from BlockLoadEngine as a whole number 0-23 (14 = 14:00) [Phase 187]
+HVC_PEAK_HOUR_TXT,5,space-scoped load stamp,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_HOUR display mirror [auto-generated]
+HVC_PEAK_LAT_TXT,5,space-scoped load stamp,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_LAT_W display mirror [auto-generated]
+HVC_PEAK_LAT_W,5,space-scoped load stamp,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak latent load in W from BlockLoadEngine [Phase 187]
+HVC_PEAK_SENS_TXT,5,space-scoped load stamp,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,HVC_PEAK_SENS_W display mirror [auto-generated]
+HVC_PEAK_SENS_W,5,space-scoped load stamp,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts|MEP Spaces|Rooms,Per-space peak sensible load in W from BlockLoadEngine [Phase 187]
 HVC_PIPE_FLOWRATE_LPS,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Pipe Flowrate Lps [ISO 19650-1:2018]
 HVC_PIPE_LENGTH_M,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,Hvc Pipe Length M [ISO 19650-1:2018]
 HVC_PIPE_LENGTH_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Pipes,HVC_PIPE_LENGTH_M display mirror [auto-generated]
@@ -1542,8 +1542,8 @@ HVC_REFRIGERANT_KG_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fitting
 HVC_REFRIGERANT_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Hvc Refrigerant Txt [ISO 19650-1:2018]
 HVC_REFRIGERANT_TYPE_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Mechanical Equipment|Mechanical Equipment Sets,Refrigerant id (R32 / R290 / R410A / R407C / R134A / R454B / R513A / R744 / R717 / R1234yf / R1234ze) [Phase 183]
 HVC_SEGMENT_ROLE_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Duct segment role classification (main / branch / runout / outdoor_air / exhaust / kitchen / smoke)  -  cached by HvacSegmentRoleDetector [Phase 182]
-HVC_SELECTED_IDU_ID_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Catalogue id of the indoor unit picked by HvacSelectIdusCommand for this Space [Phase 187h]
-HVC_SELECTED_IDU_LABEL_TXT,5,safe-prefix,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Duct Insulation|Flex Ducts,Human-readable label of the IDU picked by HvacSelectIdusCommand [Phase 187h]
+HVC_SELECTED_IDU_ID_TXT,5,space-scoped load stamp,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,Catalogue id of the indoor unit picked by HvacSelectIdusCommand for this Space [Phase 187h]
+HVC_SELECTED_IDU_LABEL_TXT,5,space-scoped load stamp,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|MEP Spaces|Mechanical Equipment|Rooms,Human-readable label of the IDU picked by HvacSelectIdusCommand [Phase 187h]
 HVC_SIZE_MODIFIED_DT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,ISO 8601 UTC timestamp of the most recent STING auto-sizing operation [Phase 182]
 HVC_SIZE_PREV_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,"Previous duct size before auto-sizing run, format WxH or Dia (audit trail) [Phase 182]"
 HVC_SIZE_RULE_ID_TXT,5,safe-prefix,Air Terminals|Duct Accessories|Duct Fittings|Duct Insulation|Ducts|Flex Ducts|Flex Pipes|Mechanical Equipment|Mechanical Equipment Sets|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,STING_MEP_SIZING_RULES.json role + source that drove the size (e.g. 'branch|CIBSE B3') [Phase 182]
@@ -1596,7 +1596,7 @@ ICT_TEL_PORT_TYPE_TXT,3,safe-prefix,Data Devices|Communication Devices|Telephone
 IFC_GLOBAL_ID_TXT,22,universal,<ALL>,Stable IFC GlobalId snapshot for cross-host sync [IFC interop]
 IFC_PSET_OVERRIDE_TXT,22,universal,<ALL>,Manual IFC property set override pipe-delimited (Pset_Name=Value)
 INS_MATERIAL_TXT,5,misc-meta,<ALL>,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
-IPS_BRANCH_COMPLIANT,4,code-usage,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Ips Branch Compliant [STING]
+IPS_BRANCH_COMPLIANT,4,curated-fallback,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Ips Branch Compliant [STING]
 LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
 LIG_FIT_TAG,32,tag-container,<ALL>,Anti-ligature fitting ISO 19650 tag container
 LIG_FORCE_LIMIT_KG_NR,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Release threshold (kg)
@@ -2506,8 +2506,8 @@ SLV_SERVICE_TXT,19,curated-fallback,Generic Models,Service passing through sleev
 SLV_STATUS_TXT,19,curated-fallback,Generic Models,Sleeve status (OPEN/SEALED/PENDING INSPECTION)
 SLV_SZ_MM,19,curated-fallback,Generic Models,Sleeve size in millimetres
 SLV_SZ_TXT,19,curated-fallback,Generic Models,SLV_SZ_MM display mirror [auto-generated]
-SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,MEP Sleeve discipline tag container [ISO 19650-3:2020]
-SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models,Sleeve paragraph container [ISO 19650-3:2020]
+SLV_TAG,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,MEP Sleeve discipline tag container [ISO 19650-3:2020]
+SLV_TAG_7_PARA_TXT,19,tag-sleeve,Walls|Floors|Ceilings|Roofs|Generic Models|Specialty Equipment,Sleeve paragraph container [ISO 19650-3:2020]
 SLV_TESTED_TO_TXT,19,curated-fallback,Generic Models,"Fire test standard (BS EN 1366-3, ASTM E814)"
 SLV_WALL_THICKNESS_MM,19,curated-fallback,Generic Models,Host element thickness in mm
 SLV_WALL_TYPE_TXT,19,curated-fallback,Generic Models,Host wall or floor type

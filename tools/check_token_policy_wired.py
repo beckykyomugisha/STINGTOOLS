@@ -55,7 +55,68 @@ REQUIRED_CALLS = [
         r"TagTokenPolicy\s*\.\s*Merge\s*\(",
         "The registry must layer the project override over the corporate baseline.",
     ),
+    # TOKPOL-1. The policy governed the TAG STRING from Phase 288, but the DERIVATION layer
+    # did not: SpatialAutoDetect returned the literals "Z01" and "BLD1" straight from
+    # ParameterHelpers.cs, so a project that overrode those fallbacks still got the
+    # hardcoded pair written onto every element and the tag could disagree with the
+    # parameter it came from. PolicyFallback closes that; without it the derivation layer
+    # silently stops honouring the policy again, which is invisible from the tag.
+    (
+        os.path.join("StingTools", "Core", "ParameterHelpers.cs"),
+        r"PolicyFallback\s*\(",
+        "The DERIVATION layer (DetectLoc / DetectZone) must take its fallback from the "
+        "policy, not from a literal in the source.",
+    ),
+    (
+        os.path.join("StingTools", "Core", "ParameterHelpers.cs"),
+        r"TagTokenPolicy\s*\.\s*Resolve\s*\(",
+        "PolicyFallback must actually ask the policy, not re-implement it.",
+    ),
 ]
+
+# Patterns that must NOT appear.
+#
+# The positive checks above are not enough on their own, and finding that out is the point
+# of writing this comment. `PolicyFallback\(` matches the METHOD DEFINITION, so deleting
+# every CALL to it left the gate green — a check satisfied by the existence of the thing
+# rather than by its use. That is the third vacuous assertion in this phase, after a gate
+# that read commented-out code as live data and one that scanned two files out of 1,656.
+#
+# So the real assertion is negative and specific: the literals must not be returned bare
+# from the derivation layer. That cannot be satisfied by a declaration.
+FORBIDDEN = [
+    (
+        os.path.join("StingTools", "Core", "ParameterHelpers.cs"),
+        "DetectZone",
+        r'return\s+"Z01"\s*;',
+        'DetectZone returns the literal "Z01" again. The ZONE fallback belongs to '
+        "STING_TAG_TOKEN_POLICY.json — a project that overrides it would be ignored, "
+        "and the tag and the parameter could disagree about the same element.",
+    ),
+    (
+        os.path.join("StingTools", "Core", "ParameterHelpers.cs"),
+        "DetectLoc",
+        r':\s*"BLD1"\s*;',
+        'DetectLoc falls back to the literal "BLD1" again. Same defect as the ZONE one '
+        "above: the policy stops being the single place that decides.",
+    ),
+]
+
+
+def method_body(src, name):
+    """From a method signature to the next method signature at the same indent.
+
+    The forbidden patterns MUST be scoped to a method. Applied file-wide,
+    /return "Z01";/ also matches `ParseZoneCode`, which legitimately maps "NORTH" to Z01 —
+    that is a parsed RESULT, not a fallback, and failing on it would be crying wolf. The
+    first draft of this check did exactly that, and went red on a correct tree.
+    """
+    m = re.search(r"public static string " + name + r"\s*\(", src)
+    if not m:
+        return None
+    rest = src[m.end():]
+    nxt = re.search(r"\n        (?:private|public|internal) static ", rest)
+    return rest[:nxt.start()] if nxt else rest
 
 # Literals that used to be substituted inline. Their return would mean a token stopped
 # going through the policy. Matched as an ASSIGNMENT to a token variable, so ordinary
@@ -127,6 +188,22 @@ def main():
                  "%s no longer matches /%s/.\n      %s\n      Without this call the "
                  "policy file is decorative again, which is the exact state this gate "
                  "exists to prevent." % (rel, pattern, why))
+
+    for rel, method, pattern, why in FORBIDDEN:
+        path = os.path.join(ROOT, rel)
+        if not os.path.exists(path):
+            continue
+        with io.open(path, encoding="utf-8-sig", errors="replace") as fh:
+            src = fh.read()
+        body = method_body(src, method)
+        if body is None:
+            fail(findings, "%s: method %s not found — this check can no longer assert "
+                           "anything." % (rel, method))
+            continue
+        if re.search(pattern, body):
+            fail(findings,
+                 "%s.%s matches the FORBIDDEN pattern /%s/.\n      %s"
+                 % (rel, method, pattern, why))
 
     # ── 4. The inline literals have not come back ───────────────────────────
     tagconfig = os.path.join(ROOT, "StingTools", "Core", "TagConfig.cs")

@@ -380,7 +380,7 @@ namespace StingTools.Core
             }
             if (TokenWriteFailureCount > 0)
             {
-                sb.AppendLine($"  NOT WRITTEN:  {TokenWriteFailureCount:N0} element(s) tagged, but a token PARAMETER could not be written");
+                sb.AppendLine($"  NOT WRITTEN:  {TokenWriteFailureCount:N0} element(s) whose token PARAMETER could not be written");
                 // Grouped by CATEGORY, because that is the unit of repair: a binding is
                 // fixed for one parameter ON one category. Naming only the parameter
                 // leaves the operator hunting for where, which is the same half-answer
@@ -392,7 +392,7 @@ namespace StingTools.Core
                     foreach (var kv in byParam.OrderByDescending(k => k.Value))
                         sb.AppendLine($"                    {kv.Key} × {kv.Value:N0}");
                 }
-                sb.AppendLine("                  The tag is correct; the parameter is not. Fix per category in");
+                sb.AppendLine("                  A tag with a blank segment is refused, never written. Fix per category in");
                 sb.AppendLine("                  Manage > Project Parameters: each must be an INSTANCE parameter");
                 sb.AppendLine("                  and must include that category.");
             }

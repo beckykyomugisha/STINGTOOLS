@@ -1979,6 +1979,8 @@ namespace StingTools.Core
                 case "CheckData":            return new Temp.CheckDataCommand();
                 case "LoadSharedParams":     return new Tags.LoadSharedParamsCommand();
                 case "Params_RebindCircuitNumberAsText": return new Tags.RebindCircuitNumberAsTextCommand();
+                case "AuditBindingScope":    return new Tags.AuditBindingScopeCommand();
+                case "MigrateBindingScope":  return new Tags.MigrateBindingScopeCommand();
                 case "PurgeSharedParams":    return new Tags.PurgeSharedParamsCommand();
                 case "AssetCondition":       return new Temp.AssetConditionCommand();
                 case "MaintenanceSchedule":  return new Temp.MaintenanceScheduleCommand();

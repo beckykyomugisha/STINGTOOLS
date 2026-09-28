@@ -1015,7 +1015,7 @@ namespace StingTools.Core.Drawing
                         .Select(t => (t.Discipline ?? "").Trim())
                         .Where(d => d.Length > 0),
                     StringComparer.OrdinalIgnoreCase);
-                discInUse.UnionWith(new[] { "A", "S", "M", "E", "P", "FP", "LV", "G", "H", "MG", "RP" });
+                discInUse.UnionWith(new[] { "A", "S", "M", "E", "P", "FP", "LV", "G", "Z", "H", "MG", "RP" });
                 foreach (var rule in DrawingTypeRegistry.ListRouting(doc))
                 {
                     var d = (rule.Discipline ?? "").Trim();

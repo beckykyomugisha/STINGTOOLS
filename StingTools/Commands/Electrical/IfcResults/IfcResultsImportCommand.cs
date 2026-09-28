@@ -54,9 +54,12 @@ namespace StingTools.Commands.Electrical.IfcResults
             // Each room offers: the IfcGUID parameter (written by Revit's IFC exporter
             // when "store GUID" is on) and the GlobalId re-encoded from the element
             // (IfcGuidEncoder — what STING's own DIALux export writes).
+            // LIGHTGRID-2: IFC results are per SPACE, and an MEP model holds MEP Spaces
+            // rather than Rooms, so both are candidates.
             var rooms = new FilteredElementCollector(doc)
-                .OfCategory(BuiltInCategory.OST_Rooms)
-                .WhereElementIsNotElementType().OfType<Room>()
+                .WherePasses(new ElementMulticategoryFilter(new List<BuiltInCategory>
+                    { BuiltInCategory.OST_Rooms, BuiltInCategory.OST_MEPSpaces }))
+                .WhereElementIsNotElementType().OfType<SpatialElement>()
                 .Where(r => r.Area > 0).ToList();
             var roomById = rooms.ToDictionary(r => r.Id.Value.ToString(), r => r);
             var roomKeys = new List<IfcSpaceMatcher.RoomKey>();
@@ -65,7 +68,7 @@ namespace StingTools.Commands.Electrical.IfcResults
                 var key = new IfcSpaceMatcher.RoomKey
                 {
                     Id = r.Id.Value.ToString(),
-                    Number = r.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? "",
+                    Number = r.get_Parameter(BuiltInParameter.ROOM_NUMBER)?.AsString() ?? r.Number ?? "",
                     Name = r.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? ""
                 };
                 try
