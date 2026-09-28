@@ -45,6 +45,23 @@ namespace StingTools.Core.Symbols
         public List<string> Warnings { get; } = new List<string>();
         public List<string> Errors { get; } = new List<string>();
         public List<string> CreatedRfaPaths { get; } = new List<string>();
+        /// <summary>Symbol ids whose filled regions fell back to a boundary outline because
+        /// no FilledRegionType could be resolved or created. Reported to the user so a
+        /// hollow-instead-of-solid symbol is never a silent substitution.</summary>
+        public List<string> DegradedFillSymbols { get; } = new List<string>();
+    }
+
+    /// <summary>Result of <see cref="SymbolLibraryCreator.Preflight"/>: whether the Revit
+    /// family-template folder resolves and the templates a build needs are in it.</summary>
+    public sealed class SymbolPreflightResult
+    {
+        public bool TemplateFolderFound { get; set; }
+        public string TemplateFolder { get; set; }
+        public bool GenericAnnotationOk { get; set; }
+        public bool GenericModelOk { get; set; }
+        public List<string> Notes { get; } = new List<string>();
+        /// <summary>OK to build: the annotation template (which SLD symbols need) resolves.</summary>
+        public bool Ok => TemplateFolderFound && GenericAnnotationOk;
     }
 
     /// <summary>
@@ -205,6 +222,11 @@ namespace StingTools.Core.Symbols
             Directory.CreateDirectory(outputFolder);
             var app = hostDoc.Application;
             var templateFolder = ResolveTemplateFolder(app);
+
+            // Prime the data-driven line-weight registry (corporate JSON plus this
+            // project's override) so curve weights come from data and edits are picked
+            // up without a recompile.
+            LineWeightRegistry.Load(hostDoc);
 
             // ── Cache invalidation (W-1) ──────────────────────────────────
             // Existence alone is not freshness. A .rfa on disk may have been
@@ -584,7 +606,7 @@ namespace StingTools.Core.Symbols
                     }
                     catch (Exception ccx) { result.Warnings.Add($"{def.Id}: could not set category '{def.Category}' — {ccx.Message}"); }
 
-                    DrawGeometry(fdoc, def, std, result);
+                    DrawGeometry(fdoc, def, std, result, app, templateFolder);
                     AddParameters(app, fdoc, def, result);
                     // PARAM-4 — SLD symbols carry their voltage tier / feed type as
                     // family parameters; see AddSldStampParameters.
@@ -694,7 +716,8 @@ namespace StingTools.Core.Symbols
         }
 
         private static void DrawGeometry(Document fdoc, SymbolDefinition def,
-            StandardDefinition std, SymbolCreationResult result)
+            StandardDefinition std, SymbolCreationResult result,
+            Application app = null, string templateFolder = null)
         {
             var geo = def.Geometry;
             if (geo == null) return;
@@ -719,21 +742,33 @@ namespace StingTools.Core.Symbols
             // Fix 4 — resolve the effective textHeightMm from the standard.
             double stdTextHeightMm = std?.AnnotationRules?.TextHeightMm ?? 2.5;
 
+            // Symbol-level subcategory and default line weight; per-curve values win.
+            string symSubcat = def.Subcategory;
+            int symWeight = def.LineWeight;
+
             if (geo.Lines != null)
                 foreach (var l in geo.Lines)
-                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id, symSubcat, symWeight);
 
             if (geo.ConnectionLines != null)
                 foreach (var l in geo.ConnectionLines)
-                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id);
+                    DrawLine(fdoc, planView, sketch, kind, l, s, result, def.Id, symSubcat, symWeight);
 
             if (geo.Arcs != null)
                 foreach (var a in geo.Arcs)
-                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id);
+                    DrawArc(fdoc, planView, sketch, kind, a, s, result, def.Id, symSubcat, symWeight);
 
-            if (geo.FilledRegions != null)
+            if (geo.FilledRegions != null && geo.FilledRegions.Count > 0)
+            {
+                // Resolve a solid FilledRegionType once per family document. Templates
+                // that ship none (model and MEP-fixture .rft) used to leave fill-only
+                // symbols blank.
+                ElementId frTypeId = ResolveSolidFilledRegionType(
+                    fdoc, app, templateFolder, def.Id, result);
                 foreach (var fr in geo.FilledRegions)
-                    DrawFilledRegion(fdoc, planView, fr, s, result, def.Id);
+                    DrawFilledRegion(fdoc, planView, sketch, fr, s, frTypeId, result, def.Id,
+                        symSubcat, symWeight);
+            }
 
             if (geo.Text != null)
                 foreach (var t in geo.Text)
@@ -793,10 +828,12 @@ namespace StingTools.Core.Symbols
 
                     if (section.Lines != null)
                         foreach (var l in section.Lines)
-                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)", isAnnotation: false);
+                            DrawLine(fdoc, v, sketch, l, symMm, result, def.Id + " (section)",
+                                isAnnotation: false, symSubcat: def.Subcategory, symWeight: def.LineWeight);
                     if (section.Arcs != null)
                         foreach (var a in section.Arcs)
-                            DrawArc(fdoc, v, sketch, TemplateKind.Model, a, symMm, result, def.Id + " (section)");
+                            DrawArc(fdoc, v, sketch, TemplateKind.Model, a, symMm, result,
+                                def.Id + " (section)", def.Subcategory, def.LineWeight);
                     if (section.Text != null)
                         foreach (var t in section.Text)
                             DrawText(fdoc, v, t, symMm, stdTextHeightMm, result, def.Id + " (section)");
@@ -862,7 +899,7 @@ namespace StingTools.Core.Symbols
         /// warned and skipped. The families still saved — empty. Annotation curves belong
         /// on the family's own view via NewDetailCurve, which needs no plane.</para>
         /// </summary>
-        private static void CreateFamilyCurve(Document fdoc, View view, SketchPlane sketch,
+        private static CurveElement CreateFamilyCurve(Document fdoc, View view, SketchPlane sketch,
             Curve curve, bool isAnnotation, string id, SymbolCreationResult result)
         {
             if (isAnnotation)
@@ -870,22 +907,22 @@ namespace StingTools.Core.Symbols
                 if (view == null)
                 {
                     result.Warnings.Add($"{id}: no view available for annotation curve — skipped.");
-                    return;
+                    return null;
                 }
-                fdoc.FamilyCreate.NewDetailCurve(view, curve);
-                return;
+                return fdoc.FamilyCreate.NewDetailCurve(view, curve);
             }
 
             if (sketch == null)
             {
                 result.Warnings.Add($"{id}: no sketch plane available for model curve — skipped.");
-                return;
+                return null;
             }
-            fdoc.FamilyCreate.NewModelCurve(curve, sketch);
+            return fdoc.FamilyCreate.NewModelCurve(curve, sketch);
         }
 
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
-            LineDefinition l, double symMm, SymbolCreationResult result, string id)
+            LineDefinition l, double symMm, SymbolCreationResult result, string id,
+            string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -902,15 +939,12 @@ namespace StingTools.Core.Symbols
                 XYZ p2 = new XYZ(Scale(l.X2, symMm), Scale(l.Y2, symMm), 0);
                 if (p1.DistanceTo(p2) < 1e-6) return;
                 Line line = Line.CreateBound(p1, p2);
-                if (fdoc.IsFamilyDocument)
-                {
-                    CreateFamilyCurve(fdoc, view, sketch, line,
-                        IsAnnotationFamily(fdoc, null), id, result);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, line);
-                }
+                CurveElement ce = fdoc.IsFamilyDocument
+                    ? CreateFamilyCurve(fdoc, view, sketch, line, IsAnnotationFamily(fdoc, null), id, result)
+                    : fdoc.Create.NewDetailCurve(view, line);
+                // Bind the curve to a weight-controlled family subcategory.
+                ApplyLineStyle(fdoc, ce, symSubcat, symWeight,
+                    l.Subcategory, l.LineWeight, l.Style, result, id);
             }
             catch (Exception ex)
             {
@@ -925,7 +959,7 @@ namespace StingTools.Core.Symbols
         /// </summary>
         private static void DrawLine(Document fdoc, View view, SketchPlane sketch,
             LineDefinition l, double symMm, SymbolCreationResult result, string id,
-            bool isAnnotation)
+            bool isAnnotation, string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -946,14 +980,11 @@ namespace StingTools.Core.Symbols
                 // branch drew the curve and then fell through into a switch that
                 // drew it a SECOND time — overlapping curves whose "lines overlap"
                 // warnings were swallowed by SymbolFailureSwallow.)
-                if (fdoc.IsFamilyDocument)
-                {
-                    CreateFamilyCurve(fdoc, view, sketch, line, isAnnotation, id, result);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, line);
-                }
+                CurveElement ce = fdoc.IsFamilyDocument
+                    ? CreateFamilyCurve(fdoc, view, sketch, line, isAnnotation, id, result)
+                    : fdoc.Create.NewDetailCurve(view, line);
+                ApplyLineStyle(fdoc, ce, symSubcat, symWeight,
+                    l.Subcategory, l.LineWeight, l.Style, result, id);
             }
             catch (Exception ex)
             {
@@ -962,7 +993,8 @@ namespace StingTools.Core.Symbols
         }
 
         private static void DrawArc(Document fdoc, View view, SketchPlane sketch, TemplateKind kind,
-            ArcDefinition a, double symMm, SymbolCreationResult result, string id)
+            ArcDefinition a, double symMm, SymbolCreationResult result, string id,
+            string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -992,15 +1024,11 @@ namespace StingTools.Core.Symbols
                     curve = Arc.Create(centre, r, startRad, endRad, XYZ.BasisX, XYZ.BasisY);
                 }
 
-                if (fdoc.IsFamilyDocument)
-                {
-                    CreateFamilyCurve(fdoc, view, sketch, curve,
-                        IsAnnotationFamily(fdoc, null), id, result);
-                }
-                else
-                {
-                    fdoc.Create.NewDetailCurve(view, curve);
-                }
+                CurveElement ce = fdoc.IsFamilyDocument
+                    ? CreateFamilyCurve(fdoc, view, sketch, curve, IsAnnotationFamily(fdoc, null), id, result)
+                    : fdoc.Create.NewDetailCurve(view, curve);
+                ApplyLineStyle(fdoc, ce, symSubcat, symWeight,
+                    a.Subcategory, a.LineWeight, a.Style, result, id);
             }
             catch (Exception ex)
             {
@@ -1008,8 +1036,10 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void DrawFilledRegion(Document fdoc, View view,
-            FilledRegionDefinition fr, double symMm, SymbolCreationResult result, string id)
+        private static void DrawFilledRegion(Document fdoc, View view, SketchPlane sketch,
+            FilledRegionDefinition fr, double symMm, ElementId frTypeId,
+            SymbolCreationResult result, string id,
+            string symSubcat = null, int symWeight = 0)
         {
             try
             {
@@ -1042,20 +1072,298 @@ namespace StingTools.Core.Symbols
                 }
                 if (curves.Count < 3) return;
 
-                var loop = CurveLoop.Create(curves);
-                ElementId frTypeId = new FilteredElementCollector(fdoc)
-                    .OfClass(typeof(FilledRegionType))
-                    .FirstElementId();
-                if (frTypeId == ElementId.InvalidElementId)
+                // frTypeId is resolved once per family document by
+                // ResolveSolidFilledRegionType. When even that failed, draw the boundary
+                // as an outline so the shape is visible, and record the degradation.
+                if (frTypeId == null || frTypeId == ElementId.InvalidElementId)
                 {
-                    result.Warnings.Add($"{id}: no FilledRegionType in template.");
+                    StingLog.Warn($"{id}: no FilledRegionType could be resolved or created in the template. " +
+                        "The filled region was drawn as an outline instead of solid.");
+                    result.Warnings.Add($"{id}: filled region degraded to outline (no FilledRegionType).");
+                    if (!result.DegradedFillSymbols.Contains(id)) result.DegradedFillSymbols.Add(id);
+                    DrawClosedOutline(fdoc, view, sketch, curves, result, id,
+                        fr.Subcategory ?? symSubcat, fr.LineWeight, symWeight, fr.FillType);
                     return;
                 }
+
+                // Apply the resolved boundary weight to the region type.
+                int frWeight = ResolveLineWeight(fr.Subcategory ?? symSubcat, fr.FillType,
+                    fr.LineWeight, symWeight);
+                if (frWeight >= 1 && frWeight <= 16 && fdoc.GetElement(frTypeId) is FilledRegionType frt)
+                {
+                    try { frt.LineWeight = frWeight; }
+                    catch (Exception ex) { StingLog.Warn($"{id} FR line weight: {ex.Message}"); }
+                }
+
+                var loop = CurveLoop.Create(curves);
                 FilledRegion.Create(fdoc, frTypeId, view.Id, new List<CurveLoop> { loop });
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"{id}: filled region failed — {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Resolves a solid black FilledRegionType for a family document. Reuses an
+        /// existing solid, non-masking type; otherwise duplicates one and makes it solid.
+        /// When the template ships no FilledRegionType at all (model and MEP-fixture
+        /// .rft), one is copied in from a transient Generic Annotation family. Returns
+        /// InvalidElementId when none can be resolved, and the caller then draws an
+        /// outline. The caller owns the family-document transaction.
+        /// </summary>
+        private static ElementId ResolveSolidFilledRegionType(Document fdoc, Application app,
+            string templateFolder, string id, SymbolCreationResult result)
+        {
+            try
+            {
+                var existing = new FilteredElementCollector(fdoc)
+                    .OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>().ToList();
+
+                var solidPat = FindSolidFillInDoc(fdoc);
+                if (existing.Count > 0)
+                {
+                    if (solidPat != null)
+                    {
+                        var already = existing.FirstOrDefault(t =>
+                        {
+                            try { return !t.IsMasking && t.ForegroundPatternId == solidPat.Id; }
+                            catch (Exception ex) { StingLog.Warn($"{id} FR probe: {ex.Message}"); return false; }
+                        });
+                        if (already != null) return already.Id;
+                    }
+                    var made = MakeSolidBlack(fdoc, existing[0], solidPat, result, id);
+                    return made != ElementId.InvalidElementId ? made : existing[0].Id;
+                }
+
+                // No type in the template: import one from a transient Generic
+                // Annotation family (which ships a FilledRegionType and a solid pattern).
+                return ImportFilledRegionType(fdoc, app, templateFolder, result, id);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: FilledRegionType resolve failed — {ex.Message}");
+                StingLog.Warn($"{id} ResolveSolidFilledRegionType: {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>Duplicates a FilledRegionType as "STING Solid Black" (or reuses a prior
+        /// one in the same document) and sets it solid black, non-masking. Returns
+        /// InvalidElementId when there is no solid pattern to use.</summary>
+        private static ElementId MakeSolidBlack(Document fdoc, FilledRegionType src,
+            FillPatternElement solidPat, SymbolCreationResult result, string id)
+        {
+            try
+            {
+                if (src == null || solidPat == null) return ElementId.InvalidElementId;
+                const string name = "STING Solid Black";
+                var prior = new FilteredElementCollector(fdoc).OfClass(typeof(FilledRegionType))
+                    .Cast<FilledRegionType>()
+                    .FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
+                FilledRegionType t = prior ?? src.Duplicate(name) as FilledRegionType;
+                if (t == null) return ElementId.InvalidElementId;
+                try { if (t.ForegroundPatternId != solidPat.Id) t.ForegroundPatternId = solidPat.Id; }
+                catch (Exception ex) { StingLog.Warn($"{id} FR fg pattern: {ex.Message}"); }
+                try { t.ForegroundPatternColor = new Color(0, 0, 0); }
+                catch (Exception ex) { StingLog.Warn($"{id} FR fg colour: {ex.Message}"); }
+                try { t.IsMasking = false; }
+                catch (Exception ex) { StingLog.Warn($"{id} FR masking: {ex.Message}"); }
+                return t.Id;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: could not create solid FilledRegionType — {ex.Message}");
+                StingLog.Warn($"{id} MakeSolidBlack: {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>Copies a FilledRegionType into <paramref name="fdoc"/> from a transient
+        /// Generic Annotation family and makes it solid black. The transient document is
+        /// closed without saving.</summary>
+        private static ElementId ImportFilledRegionType(Document fdoc, Application app,
+            string templateFolder, SymbolCreationResult result, string id)
+        {
+            Document src = null;
+            try
+            {
+                if (app == null || string.IsNullOrEmpty(templateFolder))
+                    return ElementId.InvalidElementId;
+
+                var fakeDef = new SymbolDefinition
+                {
+                    Id = id, FamilyType = "GenericAnnotation", Discipline = "General", SymbolSize = 3.0
+                };
+                string tmpl = ResolveTemplateFile(fakeDef, templateFolder, result);
+                if (string.IsNullOrEmpty(tmpl)) return ElementId.InvalidElementId;
+
+                src = app.NewFamilyDocument(tmpl);
+                if (src == null) return ElementId.InvalidElementId;
+
+                var srcType = new FilteredElementCollector(src)
+                    .OfClass(typeof(FilledRegionType)).Cast<FilledRegionType>().FirstOrDefault();
+                if (srcType == null) return ElementId.InvalidElementId;
+
+                var copied = ElementTransformUtils.CopyElements(src,
+                    new List<ElementId> { srcType.Id }, fdoc, Transform.Identity, new CopyPasteOptions());
+                var newId = copied?.FirstOrDefault() ?? ElementId.InvalidElementId;
+                if (newId == ElementId.InvalidElementId) return ElementId.InvalidElementId;
+
+                var solidPat = FindSolidFillInDoc(fdoc);
+                if (fdoc.GetElement(newId) is FilledRegionType t2 && solidPat != null)
+                {
+                    var solid = MakeSolidBlack(fdoc, t2, solidPat, result, id);
+                    if (solid != ElementId.InvalidElementId) return solid;
+                }
+                return newId;
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: FilledRegionType import failed — {ex.Message}");
+                StingLog.Warn($"{id} ImportFilledRegionType: {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+            finally
+            {
+                try { src?.Close(false); }
+                catch (Exception ex) { StingLog.Warn($"{id} close transient family doc: {ex.Message}"); }
+            }
+        }
+
+        /// <summary>Finds a solid FillPatternElement in this document. Deliberately not
+        /// cached: unsaved family documents share an empty PathName.</summary>
+        private static FillPatternElement FindSolidFillInDoc(Document doc)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(FillPatternElement)).Cast<FillPatternElement>()
+                    .FirstOrDefault(fp =>
+                    {
+                        try { return fp.GetFillPattern()?.IsSolidFill == true; }
+                        catch (Exception ex) { StingLog.Warn($"FindSolidFillInDoc probe: {ex.Message}"); return false; }
+                    });
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"FindSolidFillInDoc: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>Last-resort fill fallback: draws the region boundary as curves through
+        /// the same helper lines and arcs use, so a fill-only symbol shows its shape.</summary>
+        private static void DrawClosedOutline(Document fdoc, View view, SketchPlane sketch,
+            List<Curve> curves, SymbolCreationResult result, string id,
+            string subcat = null, int curveWeight = 0, int symWeight = 0, string style = null)
+        {
+            try
+            {
+                bool ann = fdoc.IsFamilyDocument && IsAnnotationFamily(fdoc, null);
+                foreach (var c in curves)
+                {
+                    CurveElement ce = fdoc.IsFamilyDocument
+                        ? CreateFamilyCurve(fdoc, view, sketch, c, ann, id, result)
+                        : fdoc.Create.NewDetailCurve(view, c);
+                    ApplyLineStyle(fdoc, ce, subcat, symWeight, subcat, curveWeight, style, result, id);
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: outline fallback failed — {ex.Message}");
+                StingLog.Warn($"{id} DrawClosedOutline: {ex.Message}");
+            }
+        }
+
+        // ── Curve line weight through family subcategories ───────────────────
+
+        /// <summary>Resolves the effective projection line weight (1–16), else 0 (unset,
+        /// template default). Precedence: explicit per-curve weight, then the subcategory
+        /// weight from <see cref="LineWeightRegistry"/> (STING_LINE_WEIGHTS.json plus the
+        /// project override), then the style hint, then the symbol-level default.</summary>
+        private static int ResolveLineWeight(string subcat, string style, int curveWeight, int symWeight)
+        {
+            if (curveWeight >= 1 && curveWeight <= 16) return curveWeight;
+            var reg = LineWeightRegistry.Active;
+            int w = reg.Resolve(subcat);
+            if (w >= 1 && w <= 16) return w;
+            int sw = reg.StyleWeight(style);
+            if (sw > 0) return sw;
+            if (symWeight >= 1 && symWeight <= 16) return symWeight;
+            return 0;
+        }
+
+        /// <summary>Binds a family curve to a weight-controlled subcategory: resolves the
+        /// effective subcategory (per-curve override, else the symbol's) and weight,
+        /// ensures the family subcategory exists with that projection weight, and assigns
+        /// the curve's LineStyle. Leaves the template default when there is nothing to
+        /// apply. Never throws.</summary>
+        private static void ApplyLineStyle(Document fdoc, CurveElement ce,
+            string symSubcat, int symWeight, string curveSubcat, int curveWeight,
+            string style, SymbolCreationResult result, string id)
+        {
+            try
+            {
+                if (ce == null) return;
+                string subcat = !string.IsNullOrWhiteSpace(curveSubcat) ? curveSubcat : symSubcat;
+                int weight = ResolveLineWeight(subcat, style, curveWeight, symWeight);
+                if (string.IsNullOrWhiteSpace(subcat) && weight <= 0) return;
+                if (string.IsNullOrWhiteSpace(subcat)) subcat = "STING Symbol"; // weight-only group
+                var gs = EnsureSubcategoryGraphicsStyle(fdoc, subcat, weight, result, id);
+                if (gs != null)
+                {
+                    try { ce.LineStyle = gs; }
+                    catch (Exception ex) { StingLog.Warn($"{id} assign LineStyle '{subcat}': {ex.Message}"); }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"{id} ApplyLineStyle: {ex.Message}"); }
+        }
+
+        /// <summary>Ensures a family subcategory exists under the owner-family category,
+        /// sets its projection line weight (1–16) and returns its projection GraphicsStyle.
+        /// Reuses an existing subcategory of the same name. Returns null on failure.</summary>
+        private static GraphicsStyle EnsureSubcategoryGraphicsStyle(Document fdoc, string name,
+            int weight, SymbolCreationResult result, string id)
+        {
+            try
+            {
+                if (fdoc == null || !fdoc.IsFamilyDocument || string.IsNullOrWhiteSpace(name)) return null;
+                var parent = fdoc.OwnerFamily?.FamilyCategory;
+                if (parent == null) return null;
+
+                Category sub = null;
+                try
+                {
+                    foreach (Category c in parent.SubCategories)
+                        if (c != null && string.Equals(c.Name, name, StringComparison.OrdinalIgnoreCase))
+                        { sub = c; break; }
+                }
+                catch (Exception ex) { StingLog.Warn($"{id} enumerate subcategories: {ex.Message}"); }
+
+                if (sub == null)
+                {
+                    try { sub = fdoc.Settings.Categories.NewSubcategory(parent, name); }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"{id} NewSubcategory '{name}': {ex.Message}");
+                        return null;
+                    }
+                }
+                if (sub == null) return null;
+
+                if (weight >= 1 && weight <= 16)
+                {
+                    try { sub.SetLineWeight(weight, GraphicsStyleType.Projection); }
+                    catch (Exception ex) { StingLog.Warn($"{id} SetLineWeight '{name}'={weight}: {ex.Message}"); }
+                }
+                return sub.GetGraphicsStyle(GraphicsStyleType.Projection);
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"{id}: subcategory '{name}' failed — {ex.Message}");
+                StingLog.Warn($"{id} EnsureSubcategoryGraphicsStyle '{name}': {ex.Message}");
+                return null;
             }
         }
 
@@ -2404,6 +2712,44 @@ namespace StingTools.Core.Symbols
         ///   4. DataPath/Templates/ (bundled minimal templates, future fallback).
         /// Returns the first folder that exists. Logs a warning (never throws) if none found.
         /// </summary>
+        /// <summary>Checks, before any build, that the Revit family-template folder resolves
+        /// and that the Generic Annotation template (SLD symbols) and a model template can
+        /// be found in it. An unset folder otherwise shows up only as "0 families built".</summary>
+        public static SymbolPreflightResult Preflight(Application app)
+        {
+            var r = new SymbolPreflightResult();
+            var sink = new SymbolCreationResult(); // absorbs ResolveTemplateFile warnings
+            r.TemplateFolder = ResolveTemplateFolder(app);
+            r.TemplateFolderFound = !string.IsNullOrEmpty(r.TemplateFolder)
+                                    && Directory.Exists(r.TemplateFolder);
+            if (!r.TemplateFolderFound)
+            {
+                r.Notes.Add("The Revit family-template folder is not set or cannot be found "
+                    + "(Options → File Locations → Family Template Files).");
+                return r;
+            }
+
+            var ga = new SymbolDefinition
+            {
+                Id = "preflight-annotation", FamilyType = "GenericAnnotation", Discipline = "General", SymbolSize = 3.0
+            };
+            r.GenericAnnotationOk = !string.IsNullOrEmpty(ResolveTemplateFile(ga, r.TemplateFolder, sink));
+            var gm = new SymbolDefinition
+            {
+                Id = "preflight-model", FamilyType = "MEPEquipment", Discipline = "Mechanical",
+                Category = "Mechanical Equipment", SymbolSize = 6.0
+            };
+            r.GenericModelOk = !string.IsNullOrEmpty(ResolveTemplateFile(gm, r.TemplateFolder, sink));
+
+            if (!r.GenericAnnotationOk)
+                r.Notes.Add("Generic Annotation .rft not found: SLD and schematic symbols will not build.");
+            if (!r.GenericModelOk)
+                r.Notes.Add("Generic Model / MEP equipment .rft not found: some model MEP symbols will not build.");
+            if (r.Ok && r.GenericModelOk)
+                r.Notes.Add("Template folder OK: Generic Annotation and model templates resolved.");
+            return r;
+        }
+
         public static string ResolveTemplateFolder(Application app)
         {
             // 1. Revit's own configured path — most reliable.

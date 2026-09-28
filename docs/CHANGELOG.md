@@ -2,6 +2,62 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (symbol library and SLD, ported from #951, 2026-09-28)
+
+PR #951 (`claude/symbol-sld-only`, 17 commits from 2026-07-02) shares no history with main,
+so each change was ported by hand onto main's current files, one commit per item. None of
+it has been exercised in Revit; the build is 0 errors and the gates below pass.
+
+- **SLD symbols were blank.** `SLDGenerator.FindOrLoadFamilySymbol` loaded from a hand-built
+  `<model folder>/_BIM_COORD/symbols` that nothing writes to, while `Symbols_CreateAll`
+  writes to `_BIM_COORD/Families/Symbols`. It now walks `ContentRoots.Resolve(doc)`
+  recursively (project, firm-wide shared root, deployed baseline), matches on type then
+  family name, and tells the user to run `Symbols_CreateAll`, not `Seeds_Build`.
+- **Fill-only symbols came out empty.** A solid black `FilledRegionType` is resolved once per
+  family document: reuse, duplicate and solidify, or copy one in from a transient Generic
+  Annotation family. If that fails the boundary is drawn as an outline, logged, and the
+  symbol is listed under "Degraded fills" in the Symbol Library report.
+- **Line weights by subcategory.** Curves bind to a family subcategory with its projection
+  weight set. Weights come from `Data/Symbols/STING_LINE_WEIGHTS.json`
+  (`LineWeightRegistry`: keywords, aliases, SLD_ prefix strip, longest substring) with a
+  project override at `_BIM_COORD/line_weights.json` via `StingPaths.MetaFile`. Per-curve
+  `subcategory` / `lineWeight` and a symbol-level `lineWeight` were added to the schema.
+  The branch's hard-coded fallback table is not ported: a missing JSON is logged and curves
+  keep the template default.
+- **73 indexed symbols** that `Data/MEP/STING_MEP_SYMBOLS_INDEX.csv` named but no catalogue
+  defined were merged into seven catalogues by id (insertions only; every geometry field
+  checked numeric, so the F3 `"startDeg": "Main"` corruption cannot return). Brought up to
+  main's contract: 38 model symbols got `realSizeMm` (16 from their solid's plan extent, 22
+  copied from the same device already in the catalogue); 25 have no source for a size and
+  are left unset, so the creator warns about each rather than building a guessed size;
+  27 got `overallExtent`.
+- **Orientation variants.** `SymbolConceptRegistry.GetFamilyNameCandidates` offers the
+  concept's per-orientation variant ahead of the base family; `SymbolOverlayManager` tries
+  them in order and logs a fallback. New read-only `Symbols_OrientationAudit` lists the
+  variants referenced but missing (all of them, today: none has been authored).
+- **Standard switch.** `Symbols_SwitchProject` now changes the type of placed symbol
+  instances (same category only, never a type it cannot resolve), reports swapped and
+  skipped, and refuses to switch to a standard with no built families, offering to build the
+  library first. The check now runs before the project standard is changed.
+- **Preflight.** New `Symbols_Preflight` checks the family-template folder and templates;
+  `Symbols_CreateAll` runs the same check and cancels instead of building 0 families. New
+  `Data/WORKFLOW_SymbolsAndSLD.json` chains preflight, parameters, build and SLD.
+  `Symbols_CreateAll` was not resolvable from `WorkflowEngine.ResolveCommand` until now.
+  SETUP > SYMBOLS & DEVICES gains Preflight and Orient Audit buttons (the branch had none).
+- **DWG walls** take the wall type named by their layer where one matches, then the closest
+  thickness as before.
+
+**Dropped.** 61fd5586a (P1-3, MEP placement inside `ModelDWGToModel`) and part (a) of
+4e2d6991e, which only served it. Main already converts MEP from DWG through
+`Mep_CadPreview` / `Mep_CadToModel` / `Mep_CadWizard` in `Model/MepCadCommands.cs`; a second
+MEP path would split the behaviour. The branch's `docs/SMOKE_TEST_SYMBOL_SLD.md` was not
+ported (it named the retired GOLD deploy, `StingTools.log` and wrong tab paths); the
+checklist is `docs/examples/SYMBOL_SLD/smoke_test.json`, rendered to
+`REVIT_SMOKE_TEST.md` and the `.docx` and gated by `tools/check_smoke_test.py`.
+
+**Not exercised in Revit.** Walk `docs/examples/SYMBOL_SLD/REVIT_SMOKE_TEST.md` before
+relying on any of it.
+
 #### Completed (#966 merged into main — tag defects found in Revit, 2026-09-28)
 
 #966 (16 commits, 2026-09-16/17) conflicted with main in 16 files. Its three vocabulary

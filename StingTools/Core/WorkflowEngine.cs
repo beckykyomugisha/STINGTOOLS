@@ -1656,6 +1656,9 @@ namespace StingTools.Core
                 case "Symbols_SwitchProject":       return new Commands.Symbols.SwitchProjectStandardCommand();
                 case "Symbols_SwitchView":          return new Commands.Symbols.SwitchViewStandardCommand();
                 case "Symbols_Audit":               return new Commands.Symbols.SymbolStandardAuditCommand();
+                case "Symbols_OrientationAudit":    return new Commands.Symbols.SymbolOrientationAuditCommand();
+                case "Symbols_Preflight":           return new Commands.Symbols.SymbolPreflightCommand();
+                case "Symbols_CreateAll":           return new Commands.Symbols.CreateSymbolLibraryCommand();
                 case "Symbols_Validate":            return new Commands.Symbols.SymbolValidateCommand();
                 case "Symbols_PlaceView":           return new Commands.Symbols.PlaceSymbolsInViewCommand();
                 case "Symbols_PlaceAll":            return new Commands.Symbols.PlaceSymbolsProjectWideCommand();

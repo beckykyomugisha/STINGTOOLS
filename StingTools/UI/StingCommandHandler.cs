@@ -495,6 +495,7 @@ namespace StingTools.UI
                     case "Fabrication_LinkDocRegister":   RunCommand<Commands.Fabrication.LinkDocRegisterCommand>(app); break;
 
                     // ── Phase 175: MEP/FP/SLD Symbol Library ──
+                    case "Symbols_Preflight":      RunCommand<Commands.Symbols.SymbolPreflightCommand>(app); break;
                     case "Symbols_CreateAll":      RunCommand<Commands.Symbols.CreateSymbolLibraryCommand>(app); break;
                     // Model SEED families (Data/Seeds/*.json) — distinct from the
                     // annotation symbol library above. Resolvable in WorkflowEngine
@@ -520,6 +521,7 @@ namespace StingTools.UI
                     case "Symbols_PlaceView":      RunCommand<Commands.Symbols.PlaceSymbolsInViewCommand>(app); break;
                     case "Symbols_PlaceAll":       RunCommand<Commands.Symbols.PlaceSymbolsProjectWideCommand>(app); break;
                     case "Symbols_Audit":          RunCommand<Commands.Symbols.SymbolStandardAuditCommand>(app); break;
+                    case "Symbols_OrientationAudit": RunCommand<Commands.Symbols.SymbolOrientationAuditCommand>(app); break;
                     case "Symbols_Validate":       RunCommand<Commands.Symbols.SymbolValidateCommand>(app); break;
                     case "Content_Coverage":       RunCommand<Commands.Content.ContentCoverageCommand>(app); break;
                     case "Symbols_SyncFilters":    RunCommand<Commands.Symbols.SyncViewFilterVisibilityCommand>(app); break;

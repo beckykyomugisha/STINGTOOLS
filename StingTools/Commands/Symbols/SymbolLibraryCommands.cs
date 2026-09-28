@@ -194,6 +194,7 @@ namespace StingTools.Commands.Symbols
             aggregate.Warnings.AddRange(r.Warnings);
             aggregate.Errors.AddRange(r.Errors);
             aggregate.CreatedRfaPaths.AddRange(r.CreatedRfaPaths);
+            aggregate.DegradedFillSymbols.AddRange(r.DegradedFillSymbols);
             return aggregate;
         }
 
@@ -283,6 +284,13 @@ namespace StingTools.Commands.Symbols
                 foreach (var e in r.Errors.Take(15)) sb.AppendLine("  ✗ " + e);
                 if (r.Errors.Count > 15) sb.AppendLine($"  … +{r.Errors.Count - 15} more (StingTools.log)");
             }
+            if (r.DegradedFillSymbols.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine($"Degraded fills ({r.DegradedFillSymbols.Distinct().Count()}): no FilledRegionType, "
+                    + "drawn as an outline instead of solid:");
+                foreach (var d in r.DegradedFillSymbols.Distinct().Take(20)) sb.AppendLine("  · " + d);
+            }
 
             foreach (var w in r.Warnings) StingLog.Warn($"SymbolLibrary: {w}");
             foreach (var e in r.Errors)   StingLog.Error($"SymbolLibrary: {e}");
@@ -299,6 +307,18 @@ namespace StingTools.Commands.Symbols
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { TaskDialog.Show("STING - Symbol Library", "No document open."); return Result.Failed; }
 
+            // Check the family-template folder before building. An unset folder is the
+            // usual cause of "0 families built"; stop up front with the fix instead.
+            var pre = SymbolLibraryCreator.Preflight(ctx.Doc.Application);
+            if (!pre.Ok)
+            {
+                StingLog.Warn("Symbols_CreateAll: preflight failed. " + string.Join(" ", pre.Notes));
+                TaskDialog.Show("STING - Symbol Library",
+                    "Preflight failed: building now would produce 0 families.\n\n"
+                    + string.Join("\n", pre.Notes) + "\n\n" + SymbolBatchHelper.TemplateFixHint);
+                return Result.Cancelled;
+            }
+
             var aggregate = new SymbolCreationResult();
             var emptyBatches = new List<string>();
             foreach (var b in SymbolBatchHelper.AllBatches)
@@ -309,6 +329,7 @@ namespace StingTools.Commands.Symbols
                 aggregate.Failed  += r.Failed;
                 aggregate.Warnings.AddRange(r.Warnings);
                 aggregate.Errors.AddRange(r.Errors);
+                aggregate.DegradedFillSymbols.AddRange(r.DegradedFillSymbols);
                 // Per-batch detection: the aggregate hides a single failed batch when
                 // others succeed, so flag the empty ones by name here.
                 if (SymbolBatchHelper.LooksLikeMissingTemplate(r))
@@ -326,6 +347,41 @@ namespace StingTools.Commands.Symbols
                     + "\n\n" + SymbolBatchHelper.DescribeTemplateProblem(aggregate);
             }
             TaskDialog.Show("STING - Symbol Library", report);
+            return Result.Succeeded;
+        }
+    }
+
+    /// <summary>Symbols_Preflight. Read-only check of the Revit family-template folder
+    /// before a build. The SLD chain (template folder, then Symbols_CreateAll, then
+    /// SLD_Generate) otherwise fails quietly when the folder is unset.</summary>
+    [Transaction(TransactionMode.ReadOnly)]
+    [Regeneration(RegenerationOption.Manual)]
+    public class SymbolPreflightCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
+        {
+            var ctx = ParameterHelpers.GetContext(data);
+            if (ctx == null) { TaskDialog.Show("STING - Symbols", "No document open."); return Result.Failed; }
+
+            var pre = SymbolLibraryCreator.Preflight(ctx.Doc.Application);
+            var sb = new StringBuilder();
+            sb.AppendLine($"Template folder found  : {(pre.TemplateFolderFound ? "YES" : "NO")}");
+            if (pre.TemplateFolderFound) sb.AppendLine($"  {pre.TemplateFolder}");
+            sb.AppendLine($"Generic Annotation .rft: {(pre.GenericAnnotationOk ? "OK" : "MISSING")}");
+            sb.AppendLine($"Model template .rft    : {(pre.GenericModelOk ? "OK" : "MISSING")}");
+            sb.AppendLine();
+            foreach (var n in pre.Notes) sb.AppendLine("  · " + n);
+            if (!pre.Ok) { sb.AppendLine(); sb.AppendLine(SymbolBatchHelper.TemplateFixHint); }
+
+            StingLog.Info($"Symbols_Preflight: folder={pre.TemplateFolderFound} GA={pre.GenericAnnotationOk} GM={pre.GenericModelOk}");
+            new TaskDialog("STING - Symbols Preflight")
+            {
+                MainInstruction = pre.Ok ? "Preflight OK: ready to build" : "Preflight failed: fix this before building",
+                MainContent = sb.ToString()
+            }.Show();
+            // Failed on a bad folder so a workflow with rollback_on_failure stops here
+            // instead of building 0 families and then an empty SLD.
+            if (!pre.Ok) { msg = "Family-template folder not configured; see the preflight dialog."; return Result.Failed; }
             return Result.Succeeded;
         }
     }

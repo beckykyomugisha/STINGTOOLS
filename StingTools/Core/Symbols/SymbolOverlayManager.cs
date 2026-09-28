@@ -28,20 +28,48 @@ namespace StingTools.Core.Symbols
                 string viewCtx = SymbolViewContextResolver.ToKey(SymbolViewContextResolver.Resolve(view));
                 string scaleTier = SymbolScaleEngine.GetScaleTier(view);
 
-                string famName = SymbolConceptRegistry.GetFamilyName(
-                    conceptId, standardId, viewCtx, scaleTier, null, doc);
-                if (string.IsNullOrEmpty(famName))
+                // The host's orientation against the view picks a data-driven variant
+                // (vertical riser, end-on) ahead of the base family. Horizontal plan is
+                // the default case: no key, no variant offered.
+                var orientState = SymbolOrientationEngine.Compute(host, view);
+                string orientKey = orientState == OrientationState.Horizontal
+                    ? null
+                    : SymbolOrientationEngine.GetOrientationStateKey(orientState);
+
+                var candidates = SymbolConceptRegistry.GetFamilyNameCandidates(
+                    conceptId, standardId, viewCtx, scaleTier, orientKey, doc);
+                if (candidates.Count == 0)
                 {
                     StingTools.Core.StingLog.Warn(
                         $"PlaceSymbolOverlay: no family for {conceptId}/{standardId}.");
                     return ElementId.InvalidElementId;
                 }
 
-                FamilySymbol sym = FindFamilySymbol(doc, famName);
+                // Use the first candidate that is actually loaded.
+                FamilySymbol sym = null;
+                string famName = null;
+                foreach (var cand in candidates)
+                {
+                    var found = FindFamilySymbol(doc, cand);
+                    if (found != null) { sym = found; famName = cand; break; }
+                }
+
+                // A requested orientation variant that is not available falls back to the
+                // base family; say so, so the gap is visible (Symbols_OrientationAudit
+                // lists every missing variant).
+                if (!string.IsNullOrEmpty(orientKey) && candidates.Count > 1
+                    && !string.IsNullOrEmpty(famName)
+                    && string.Equals(famName, candidates[candidates.Count - 1], StringComparison.OrdinalIgnoreCase))
+                {
+                    StingTools.Core.StingLog.Info(
+                        $"PlaceSymbolOverlay: orientation variant unavailable for {conceptId} " +
+                        $"[{orientState}]; used base '{famName}' (run Symbols_OrientationAudit for the gap list).");
+                }
                 if (sym == null)
                 {
                     StingTools.Core.StingLog.Warn(
-                        $"PlaceSymbolOverlay: family {famName} not loaded — skip.");
+                        $"PlaceSymbolOverlay: no candidate family loaded for {conceptId}/{standardId} " +
+                        $"(tried {string.Join(", ", candidates)}) — skip.");
                     return ElementId.InvalidElementId;
                 }
                 if (!sym.IsActive)

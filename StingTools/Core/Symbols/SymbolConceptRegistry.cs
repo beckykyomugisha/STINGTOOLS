@@ -66,9 +66,66 @@ namespace StingTools.Core.Symbols
             string viewContext = null, string scaleTier = null,
             string orientationState = null, Document doc = null)
         {
-            var concept = GetConcept(conceptId);
-            if (concept == null) return null;
+            // Orientation-aware: the per-orientation variant comes first, then the base
+            // family. A null orientationState gives the base family exactly as before.
+            var candidates = GetFamilyNameCandidates(
+                conceptId, standardId, viewContext, scaleTier, orientationState, doc);
+            return candidates.Count > 0 ? candidates[0] : null;
+        }
 
+        /// <summary>
+        /// Ordered candidate family names for a concept, most specific first. When
+        /// <paramref name="orientationStateKey"/> is a non-plan orientation (for example
+        /// <c>PIPE_VERTICAL_VIEW_PLAN</c>) and the concept declares that state in its
+        /// <c>orientationStates</c> map, the per-orientation variant is offered ahead of
+        /// the base family: first an explicit family in viewContextOverrides /
+        /// scaleVariants keyed by the orientation token, then the naming convention
+        /// <c>&lt;base&gt;_&lt;key without discipline prefix&gt;</c>. Callers try each in
+        /// turn; the base family always ends the list. Variant names are not filtered by
+        /// <paramref name="doc"/> (the caller checks what is loaded); the base is resolved
+        /// with <paramref name="doc"/> exactly as <see cref="GetFamilyName"/> did.
+        /// </summary>
+        public static IReadOnlyList<string> GetFamilyNameCandidates(
+            string conceptId, string standardId,
+            string viewContext = null, string scaleTier = null,
+            string orientationStateKey = null, Document doc = null)
+        {
+            var list = new List<string>();
+            var concept = GetConcept(conceptId);
+            if (concept == null) return list;
+
+            string baseFam = ResolveBaseFamily(concept, standardId, viewContext, scaleTier, doc);
+
+            if (!string.IsNullOrWhiteSpace(orientationStateKey)
+                && !string.IsNullOrWhiteSpace(baseFam)
+                && concept.OrientationStates != null
+                && concept.OrientationStates.TryGetValue(orientationStateKey, out var token)
+                && !string.IsNullOrWhiteSpace(token))
+            {
+                string explicitVar = ResolveOrientationOverride(concept, standardId, token);
+                if (!string.IsNullOrWhiteSpace(explicitVar)) list.Add(explicitVar);
+
+                string suffix = OrientationSuffix(orientationStateKey);
+                if (!string.IsNullOrEmpty(suffix))
+                {
+                    string conv = baseFam + "_" + suffix;
+                    if (!list.Contains(conv, StringComparer.OrdinalIgnoreCase)) list.Add(conv);
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(baseFam)
+                && !list.Contains(baseFam, StringComparer.OrdinalIgnoreCase))
+                list.Add(baseFam);
+
+            if (list.Count == 0)
+                StingTools.Core.StingLog.Warn(
+                    $"SymbolConceptRegistry: no family resolved for {conceptId}/{standardId}.");
+            return list;
+        }
+
+        private static string ResolveBaseFamily(SymbolConcept concept, string standardId,
+            string viewContext, string scaleTier, Document doc)
+        {
             // Walk fallback chain on standardId until a mapping exists.
             string std = standardId;
             for (int hop = 0; hop < 6 && !string.IsNullOrEmpty(std); hop++)
@@ -89,10 +146,39 @@ namespace StingTools.Core.Symbols
                 string fam = ResolveFromMapping(iec, viewContext, scaleTier, doc);
                 if (!string.IsNullOrWhiteSpace(fam)) return fam;
             }
-
-            StingTools.Core.StingLog.Warn(
-                $"SymbolConceptRegistry: no family resolved for {conceptId}/{standardId}.");
             return null;
+        }
+
+        /// <summary>An explicit per-orientation family declared in the standard mapping
+        /// (viewContextOverrides / scaleVariants keyed by the orientation token, e.g.
+        /// "vertical_plan"). Null when none is declared.</summary>
+        private static string ResolveOrientationOverride(SymbolConcept concept,
+            string standardId, string token)
+        {
+            if (concept?.StandardMappings == null || string.IsNullOrWhiteSpace(token)) return null;
+            foreach (var key in new[] { standardId, "IEC" })
+            {
+                if (string.IsNullOrEmpty(key)) continue;
+                if (!concept.StandardMappings.TryGetValue(key, out var map) || map == null) continue;
+                if (map.ViewContextOverrides != null
+                    && map.ViewContextOverrides.TryGetValue(token, out var vc)
+                    && !string.IsNullOrWhiteSpace(vc)) return vc;
+                if (map.ScaleVariants != null
+                    && map.ScaleVariants.TryGetValue(token, out var sv)
+                    && !string.IsNullOrWhiteSpace(sv)) return sv;
+            }
+            return null;
+        }
+
+        /// <summary>Family-name suffix for an orientation-state key, dropping the leading
+        /// discipline token: "PIPE_VERTICAL_VIEW_PLAN" gives "VERTICAL_VIEW_PLAN".</summary>
+        private static string OrientationSuffix(string orientationStateKey)
+        {
+            if (string.IsNullOrWhiteSpace(orientationStateKey)) return null;
+            string k = orientationStateKey.Trim();
+            int us = k.IndexOf('_');
+            string suffix = (us > 0 && us < k.Length - 1) ? k.Substring(us + 1) : k;
+            return string.IsNullOrWhiteSpace(suffix) ? null : suffix;
         }
 
         /// <summary>

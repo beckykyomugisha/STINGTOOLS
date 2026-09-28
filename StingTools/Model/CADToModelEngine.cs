@@ -912,9 +912,11 @@ namespace StingTools.Model
                     {
                         if (wall.LengthFt < MinWallLengthFt) continue;
 
-                        // Resolve wall type by thickness
+                        // Resolve the wall type by the DWG layer name first (exact name, then
+                        // every layer token in the type name), falling back to the type
+                        // closest in thickness when the layer names no type.
                         var thicknessMm = wall.ThicknessFt * Units.FeetToMm;
-                        var typeResult = resolver.ResolveWallType(null, thicknessMm);
+                        var typeResult = resolver.ResolveWallType(wall.LayerName, thicknessMm);
                         if (!typeResult.Success) continue;
 
                         try

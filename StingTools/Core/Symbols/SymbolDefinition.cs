@@ -118,6 +118,15 @@ namespace StingTools.Core.Symbols
         [JsonProperty("subcategory")] public string Subcategory { get; set; }
 
         /// <summary>
+        /// Default projection line weight (1–16) for this symbol's curves, applied to the
+        /// family subcategory named by <see cref="Subcategory"/>. 0 = unset: the creator
+        /// uses the subcategory weight from STING_LINE_WEIGHTS.json, then the per-curve
+        /// <c>style</c> hint, then the template default. A per-curve <c>lineWeight</c> or
+        /// <c>subcategory</c> wins over this.
+        /// </summary>
+        [JsonProperty("lineWeight")]  public int LineWeight { get; set; } = 0;
+
+        /// <summary>
         /// Hosting strategy. Drives the .rft template lookup so the
         /// creator can pick face-based / wall-based / ceiling-based
         /// templates instead of the freestanding default. Recognised:
@@ -405,6 +414,11 @@ namespace StingTools.Core.Symbols
         [JsonProperty("y2")] public double Y2 { get; set; }
         [JsonProperty("style", NullValueHandling = NullValueHandling.Ignore)]
         public string Style { get; set; }
+        /// <summary>Per-curve family subcategory override (else the symbol's).</summary>
+        [JsonProperty("subcategory", NullValueHandling = NullValueHandling.Ignore)]
+        public string Subcategory { get; set; }
+        /// <summary>Per-curve projection line weight (1–16); 0 = inherit.</summary>
+        [JsonProperty("lineWeight")] public int LineWeight { get; set; } = 0;
     }
 
     public sealed class ArcDefinition
@@ -416,6 +430,11 @@ namespace StingTools.Core.Symbols
         [JsonProperty("endDeg")]   public double EndDeg { get; set; } = 360;
         [JsonProperty("style", NullValueHandling = NullValueHandling.Ignore)]
         public string Style { get; set; }
+        /// <summary>Per-curve family subcategory override (else the symbol's).</summary>
+        [JsonProperty("subcategory", NullValueHandling = NullValueHandling.Ignore)]
+        public string Subcategory { get; set; }
+        /// <summary>Per-curve projection line weight (1–16); 0 = inherit.</summary>
+        [JsonProperty("lineWeight")] public int LineWeight { get; set; } = 0;
 
         // ── Spelling aliases ────────────────────────────────────────────
         // 375 of the 620 arcs in the shipped catalogues spell the sweep
@@ -448,6 +467,11 @@ namespace StingTools.Core.Symbols
             = new List<Point2D>();
         [JsonProperty("fillType", NullValueHandling = NullValueHandling.Ignore)]
         public string FillType { get; set; }
+        /// <summary>Boundary family subcategory override (else the symbol's).</summary>
+        [JsonProperty("subcategory", NullValueHandling = NullValueHandling.Ignore)]
+        public string Subcategory { get; set; }
+        /// <summary>Boundary projection line weight (1–16); 0 = inherit.</summary>
+        [JsonProperty("lineWeight")] public int LineWeight { get; set; } = 0;
 
         // ── Spelling alias ──────────────────────────────────────────────
         // 206 of the 217 filled regions in the shipped catalogues spell the
