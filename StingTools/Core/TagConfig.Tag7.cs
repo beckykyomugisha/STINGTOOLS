@@ -118,7 +118,7 @@ namespace StingTools.Core
             {
                 string val = i < parts.Length ? parts[i] : "";
                 result.Segments[i] = val;
-                result.Populated[i] = !string.IsNullOrEmpty(val) && val != "XX" && val != "ZZ" && val != "0000";
+                result.Populated[i] = !string.IsNullOrEmpty(val) && !SeqAssigner.IsUnresolvedToken(val);
 
                 if (i > 0) marked.Append($"\u00ABS\u00BB{Separator}\u00AB/S\u00BB");
                 marked.Append($"\u00ABD{i}\u00BB{val}\u00AB/D{i}\u00BB");

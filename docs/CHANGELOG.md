@@ -24536,3 +24536,18 @@ A review of how drawing types choose and size tags. The tag family names the shi
   - The FUNC/PROD contradiction table named codes the resolver never writes (WC, WHB, CHR, BLR, DAM, TRP, SWB, and CLT, which is cross-laminated timber), so its checks could not fire. It now uses produced codes, and a test holds it to them.
 - **Effect on existing projects.** Re-tagging changes the SYS token, and with it the SEQ group, of chilled, condenser and refrigerant pipework, steam and condensate, site storm water, treatment works and the other named plumbing systems. The FUNC token changes for lighting, sockets, DHW return and cooling-plant pipework. Sinks change PROD.
 - **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,838 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### TOKVOCAB-2 closed: heating return, healthcare disciplines, unnamed pipe systems, pad-aware SEQ placeholder (2026-09-28)
+
+- **Heating water return.** An HWS element whose system name says return ("LTHW Return", "Hydronic Return") is FUNC RTN, tested before the heating / hot-water detection (a return also says LTHW). Flow keeps HTG or DHW, as for CHW, CDW and DHW.
+- **Healthcare disciplines H / MG / RP are valid DISC codes.** The discipline cross-check (validator and `TagIntelligence`) accepts them as alternatives where they belong (`CategoryTokenDefaults.DiscAccepted`):
+  - MG on the medical gas system (MGS);
+  - RP on radiation protection (RAD);
+  - H on clinical equipment and fixture categories.
+
+  The tagger still writes the category or system discipline (P for medical gas pipework). The Code Legend lists the three, and drops its "H = HVAC (Uniclass alt)" entry, which clashed.
+- **Revit "Other" and unnamed pipe systems.**
+  - Detection now also reads the system's Revit classification (`RBS_SYSTEM_CLASSIFICATION_PARAM`: "Domestic Cold Water", "Hydronic Return", "Fire Protection Wet", "Sanitary" …) when the system type's name says nothing, such as "PS-01".
+  - A pipe whose system still cannot be read defaults to GEN, which marks the tag assumed. It used to default to HVAC (now air only), and before that a category without its discipline's system took whichever system was declared first. Pipe categories left the HVAC list and joined GEN.
+- **The unassigned-SEQ placeholder follows the pad width.** "0000" was a literal in six places, so at pad 3 or 5 it was never recognised as unassigned. `SeqAssigner.UnassignedSeq` / `IsUnassignedSeq` / `IsUnresolvedToken` now decide, and `TagHasPlaceholders` / `TagIsComplete` compare whole segments. A test fails on any new literal comparison; it was checked failing on one.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,865 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.

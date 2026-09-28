@@ -212,7 +212,9 @@ namespace StingTools.Tags.Tests
         [InlineData("Structural Foundations", "STR")]
         [InlineData("Generic Models", "GEN")]
         [InlineData("Electrical Equipment", "LV")]
-        [InlineData("Pipes", "HVAC")]
+        [InlineData("Pipes", "GEN")]                 // HVAC is air; an unread pipe is assumed, not HVAC or DCW
+        [InlineData("Pipe Insulation", "GEN")]
+        [InlineData("Ducts", "HVAC")]
         [InlineData("Plumbing Fixtures", "DCW")]
         [InlineData("Fire Alarm Devices", "FLS")]
         [InlineData("Communication Devices", "COM")]
@@ -346,5 +348,25 @@ namespace StingTools.Tags.Tests
                                 "private static string GetSysFromFamilyName(", "private static string GetSysFromRoomType(");
             Assert.Matches(@"SEWAGE""\)\)\)\s*return ""SAN"";", body);
         }
+
+        [Theory]
+        [InlineData("P", "P", "MGS", "Pipes", true)]
+        [InlineData("P", "MG", "MGS", "Pipes", true)]          // medical gas filed under MG
+        [InlineData("P", "MG", "DCW", "Pipes", false)]         // MG only on the medical gas system
+        [InlineData("A", "RP", "RAD", "Walls", true)]
+        [InlineData("A", "RP", "ARC", "Walls", false)]
+        [InlineData("G", "H", "GEN", "Medical Equipment", true)]
+        [InlineData("P", "H", "SAN", "Plumbing Fixtures", true)]
+        [InlineData("A", "H", "ARC", "Walls", false)]          // a wall is not clinical equipment
+        [InlineData("M", "E", "HVAC", "Ducts", false)]
+        public void Healthcare_disciplines_are_accepted_where_they_belong(string expected, string actual, string sys, string cat, bool ok)
+            => Assert.Equal(ok, CategoryTokenDefaults.DiscAccepted(expected, actual, sys, cat));
+
+        [Theory]
+        [InlineData("MG", "MGS")]
+        [InlineData("RP", "RAD")]
+        [InlineData("H", "GEN")]
+        public void Healthcare_discipline_default_system(string disc, string sys)
+            => Assert.Equal(sys, CategoryTokenDefaults.DisciplineDefaultSys(disc));
     }
 }

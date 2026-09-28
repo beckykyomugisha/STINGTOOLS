@@ -328,7 +328,7 @@ namespace StingTools.Core
 
             // DISC ↔ Category consistency
             string expectedDisc = TagConfig.DiscMap.TryGetValue(catName, out string ed) ? ed : null;
-            if (expectedDisc != null && expectedDisc != disc)
+            if (expectedDisc != null && !CategoryTokenDefaults.DiscAccepted(expectedDisc, disc, sys, catName))
                 issues.Add($"DISC={disc} doesn't match category '{catName}' (expected: {expectedDisc})");
 
             // SYS ↔ FUNC consistency (HVAC should have SUP/RTN/EXH/FRA, not PWR)

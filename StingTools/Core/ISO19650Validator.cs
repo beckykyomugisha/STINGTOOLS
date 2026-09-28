@@ -37,7 +37,11 @@ namespace StingTools.Core
         /// <summary>Built-in valid discipline codes per ISO 19650.</summary>
         private static readonly HashSet<string> _builtInDiscCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "M", "E", "P", "A", "S", "FP", "LV", "G"
+            "M", "E", "P", "A", "S", "FP", "LV", "G",
+            // Healthcare pack: Healthcare, Medical Gas, Radiation Protection. Accepted where
+            // they belong (CategoryTokenDefaults.DiscAccepted); the tagger itself writes the
+            // category / system discipline.
+            "H", "MG", "RP"
         };
 
         /// <summary>Valid discipline codes: built-in + custom from config (FLEX-001). Cached to avoid per-access allocation.</summary>
@@ -392,7 +396,7 @@ namespace StingTools.Core
                 // Apply system-aware DISC correction (e.g., M→P for plumbing pipes, M→FP for fire)
                 if (expectedDisc != null && !string.IsNullOrEmpty(sys))
                     expectedDisc = TagConfig.GetSystemAwareDisc(expectedDisc, sys, catName);
-                if (expectedDisc != null && expectedDisc != disc)
+                if (expectedDisc != null && !CategoryTokenDefaults.DiscAccepted(expectedDisc, disc, sys, catName))
                     errors.Add(new ValidationError(
                         $"DISC mismatch: element category '{catName}' expects '{expectedDisc}' but has '{disc}'",
                         ValidationErrorType.CrossValidation));
@@ -713,6 +717,10 @@ namespace StingTools.Core
                 { "A",  new HashSet<string> { "ARC" } },
                 { "S",  new HashSet<string> { "STR" } },
                 { "LV", new HashSet<string> { "LV", "ICT", "COM", "SEC", "NCL" } },
+                // Healthcare pack disciplines
+                { "MG", new HashSet<string> { "MGS" } },
+                { "RP", new HashSet<string> { "RAD" } },
+                { "H",  new HashSet<string> { "GEN", "MGS", "RAD", "NCL", "DCW", "DHW", "SAN" } },
             };
 
         /// <summary>

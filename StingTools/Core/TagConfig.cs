@@ -1779,9 +1779,12 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(hvacFunc)) return hvacFunc;
             }
 
-            // For HWS, distinguish heating vs domestic hot water
+            // For HWS, a return circuit is RTN (tested first: "LTHW Return" also says
+            // LTHW); otherwise heating vs domestic hot water.
             if (sysCode == "HWS")
             {
+                foreach (string n in SystemNamesOf(el))
+                    if (SystemNameClassifier.FlowDirection(n) == "RTN") return "RTN";
                 string hwsFunc = GetHwsSubFunction(el);
                 if (!string.IsNullOrEmpty(hwsFunc)) return hwsFunc;
             }
@@ -2415,23 +2418,20 @@ namespace StingTools.Core
             if (string.IsNullOrEmpty(tag))
                 return false;
             string sep = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-            foreach (string ph in placeholders)
-            {
-                // Check for placeholder as a delimited segment (not substring of a real token)
-                if (tag.StartsWith(ph + sep, StringComparison.Ordinal) ||
-                    tag.EndsWith(sep + ph, StringComparison.Ordinal) ||
-                    tag.Contains(sep + ph + sep, StringComparison.Ordinal) ||
-                    tag == ph)
+            // Whole segments only (not a substring of a real token). The unassigned SEQ is
+            // all zeros at whatever the pad width is (SeqAssigner.IsUnassignedSeq), not the
+            // literal "0000", which only matched at pad 4.
+            foreach (string part in tag.Split(new[] { sep }, StringSplitOptions.None))
+                if (placeholders.Contains(part) || SeqAssigner.IsUnassignedSeq(part))
                     return true;
-            }
             return false;
         }
 
-        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN", "0000" };
+        private static readonly HashSet<string> _placeholders = new HashSet<string> { "XX", "ZZ", "GEN" };
 
-        /// <summary>Placeholders that make a tag INCOMPLETE. GEN is an assumed value, not
-        /// an unresolved one — see <see cref="TagIsComplete"/>.</summary>
-        private static readonly HashSet<string> _unresolvedPlaceholders = new HashSet<string> { "XX", "ZZ", "0000" };
+        /// <summary>Placeholders that make a tag INCOMPLETE (plus an all-zero SEQ). GEN is an
+        /// assumed value, not an unresolved one — see <see cref="TagIsComplete"/>.</summary>
+        private static readonly HashSet<string> _unresolvedPlaceholders = new HashSet<string> { "XX", "ZZ" };
 
         /// <summary>
         /// Strict tag completeness check. In addition to the standard check,
@@ -3444,6 +3444,16 @@ namespace StingTools.Core
                 {
                     string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
                     string mapped = MapSystemNameToCode(val, categoryName);
+                    if (!string.IsNullOrEmpty(mapped)) return mapped;
+                }
+
+                // The system's Revit CLASSIFICATION ("Domestic Cold Water", "Hydronic Return",
+                // "Fire Protection Wet", "Sanitary" …), for a system type whose NAME says nothing
+                // ("PS-01", "Type 3"). "Other" classifies nothing and falls through.
+                Parameter cls = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM);
+                if (cls != null && cls.HasValue)
+                {
+                    string mapped = MapSystemNameToCode(cls.AsString() ?? cls.AsValueString(), categoryName);
                     if (!string.IsNullOrEmpty(mapped)) return mapped;
                 }
             }

@@ -67,7 +67,7 @@ namespace StingTools.Core
         /// or null when it is. A sequence is exactly <paramref name="pad"/> digits and at
         /// least 1: BuildSeqString always pads and counters start at 1. "12" at pad 4 or
         /// "00012" was written by hand or under an older pad setting, and "0000" is the
-        /// unassigned placeholder (ComplianceScan reports it as SEQ=0000). The check
+        /// unassigned placeholder at any pad width (IsUnassignedSeq). The check
         /// used to accept pad + 1 digits, any width below it, and 0.
         /// </summary>
         public static string ValidateNumericSeq(string value, int pad)
@@ -78,10 +78,25 @@ namespace StingTools.Core
                 return $"SEQ '{value}' is not a valid number";
             if (v.Length != pad)
                 return $"SEQ '{value}' is not {pad} digits (zero-padded, e.g. {1.ToString().PadLeft(pad, '0')})";
-            if (v.All(c => c == '0'))
+            if (IsUnassignedSeq(v))
                 return $"SEQ '{value}' is zero; sequences start at {1.ToString().PadLeft(pad, '0')}";
             return null;
         }
+
+        /// <summary>The unassigned-SEQ placeholder at <paramref name="pad"/> digits ("0000"
+        /// at the default 4). It was the literal "0000" everywhere, so at pad 3 or 5 the
+        /// placeholder no longer looked like a sequence and was never recognised.</summary>
+        public static string UnassignedSeq(int pad) => new string('0', pad > 0 ? pad : 4);
+
+        /// <summary>True for an unassigned SEQ at any pad width: one or more zeros and
+        /// nothing else.</summary>
+        public static bool IsUnassignedSeq(string value)
+            => !string.IsNullOrEmpty(value) && value.All(c => c == '0');
+
+        /// <summary>True for a token that was never resolved: XX, ZZ or an all-zero SEQ.
+        /// GEN is an assumed value, not an unresolved one (TagConfig.TagIsComplete).</summary>
+        public static bool IsUnresolvedToken(string value)
+            => value == "XX" || value == "ZZ" || IsUnassignedSeq(value);
 
         /// <summary>Highest value representable in <paramref name="pad"/> digits.</summary>
         public static int MaxSeqForPad(int pad)

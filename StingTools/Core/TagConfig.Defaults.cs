@@ -438,7 +438,10 @@ namespace StingTools.Core
         {
             return new Dictionary<string, List<string>>
             {
-                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Duct Insulation", "Duct Lining", "Flex Ducts", "Mechanical Equipment", "Mechanical Control Devices", "Mechanical Equipment Sets", "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Ductwork", "MEP Fabrication Ductwork Stiffeners", "MEP Fabrication Hangers", "MEP Ancillary", "Analytical Duct Segments" } },
+                // HVAC is AIR since 2026-09-28: chilled / condenser water and refrigerant are CHW /
+                // CDW / REF, so pipe categories are not listed here. A pipe whose system cannot be
+                // read defaults to GEN (assumed), not HVAC.
+                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Duct Insulation", "Duct Lining", "Flex Ducts", "Mechanical Equipment", "Mechanical Control Devices", "Mechanical Equipment Sets", "MEP Fabrication Ductwork", "MEP Fabrication Ductwork Stiffeners", "MEP Fabrication Hangers", "MEP Ancillary", "Analytical Duct Segments" } },
                 // Pipes default to DCW (cold water bias); runtime MEP detection overrides.
                 // All pipe categories appear in every applicable system entry so
                 // GetAllSysCodes() returns the full list for validation (BUG-001 fix).
@@ -519,7 +522,9 @@ namespace StingTools.Core
                 // Structure
                 { "STR", new List<string> { "Structural Columns", "Structural Framing", "Structural Foundations", "Columns", "Structural Stiffeners", "Structural Trusses", "Structural Connections", "Structural Beam Systems", "Structural Rebar", "Structural Rebar Couplers", "Structural Area Reinforcement", "Structural Path Reinforcement", "Structural Fabric Reinforcement", "Analytical Members", "Analytical Nodes", "Analytical Links", "Analytical Openings", "Analytical Panels" } },
                 // Generic
-                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment", "Mass", "Parts", "Assemblies", "Detail Items", "Model Groups", "Materials", "Profiles", "RVT Links", "Zones" } },
+                // Pipe categories are listed so GEN is the category default for a pipe whose system
+                // cannot be read (CategoryTokenDefaults.ChooseCategorySys): assumed, not a guess.
+                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment", "Mass", "Parts", "Assemblies", "Detail Items", "Model Groups", "Materials", "Profiles", "RVT Links", "Zones", "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Analytical Pipe Segments" } },
             };
         }
 

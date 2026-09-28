@@ -23,6 +23,10 @@ namespace StingTools.Tags.Tests
         [InlineData("Return Air", "Ducts", "HVAC")]
         [InlineData("Exhaust Air", "Ducts", "HVAC")]
         [InlineData("Other", "Pipes", null)]
+        // Revit system CLASSIFICATIONS, read when a system type's name says nothing.
+        [InlineData("Fire Protection Pre-Action", "Pipes", "FP")]
+        [InlineData("Fire Protection Other", "Pipes", "FP")]
+        [InlineData("Other Air", "Ducts", null)]
         // Rainwater before foul drainage.
         [InlineData("Storm Drainage", "Pipes", "SWD")]           // was SAN; site storm water is SWD
         [InlineData("Roof Drain", "Pipes", "RWD")]               // was SAN
@@ -162,6 +166,7 @@ namespace StingTools.Tags.Tests
         [InlineData("Chilled Water Flow", "SUP")]
         [InlineData("Hydronic Supply", "SUP")]
         [InlineData("Domestic Hot Water", null)]
+        [InlineData("LTHW Return", "RTN")]                   // heating return (HWS)
         public void Flow_direction(string name, string dir)
             => Assert.Equal(dir, SystemNameClassifier.FlowDirection(name));
 

@@ -4993,7 +4993,7 @@ namespace StingTools.Organise
                 {
                     issues.Add("PROD:empty"); emptyProd++;
                 }
-                if (seq == "0000" || seq == "XX") { issues.Add("SEQ:placeholder"); placeholderSeq++; }
+                if (SeqAssigner.IsUnassignedSeq(seq) || seq == "XX") { issues.Add("SEQ:placeholder"); placeholderSeq++; }
 
                 // TAG7 missing — element has TAG1 but no TAG7 narrative
                 string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);

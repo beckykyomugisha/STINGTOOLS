@@ -1978,14 +1978,9 @@ Author **2.5 mm and 3.5 mm** variants first — they cover every shipped drawing
 - **TOKVOCAB-1 ✅ CLOSED 2026-09-28:** CHW / CDW / REF split from HVAC; the 17 Phase 178b
   plumbing and process systems are runtime systems; LV lighting / emergency / small power have
   FUNC LTG / EMG / SML; DHW secondary return is FUNC RTN. See CHANGELOG.
-- **TOKVOCAB-2 (open, 2026-09-28):**
-  - Heating water (HWS) does not take flow / return from the system name (FUNC stays HTG or
-    DHW); CHW, CDW and DHW do.
-  - The healthcare disciplines H / MG / RP are not accepted as tag DISC codes (validator:
-    A M E P S FP LV G); medical gas pipework is DISC P, SYS MGS.
-  - The "0000" SEQ placeholder is a literal in ComplianceScan and TagConfig; at a pad width
-    other than 4 it no longer looks like a sequence.
-  - Revit's "Other" piping system and unnamed systems still fall to the category default.
+- **TOKVOCAB-2 ✅ CLOSED 2026-09-28:** HWS return is FUNC RTN; H / MG / RP are valid DISC codes,
+  accepted where they belong; the system classification is read when the name says nothing and an
+  unread pipe is GEN; the unassigned-SEQ placeholder follows the pad width. See CHANGELOG.
 - **TAGSCHEME-1 ✅ CLOSED 2026-09-27:** the eight pack tag colour schemes now exist. Seven read the
   parameter the healthcare validators already use (`MGS_GAS_TYPE_TXT`, `CLN_PRESS_REGIME_TXT`,
   `ELC_EES_BRANCH_TXT`, fire resistance minutes, `RAD_BARRIER_TYPE_TXT`, `CLN_LIG_RISK_LVL_TXT`, the

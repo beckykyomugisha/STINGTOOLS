@@ -826,7 +826,7 @@ namespace StingTools.Select
                     predictedTag = predictedTag + ParamRegistry.Separator + TagConfig.TagSuffix;
 
                 // Check for empty tokens
-                int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || t == "0000");
+                int emptyCount = tokens.Count(t => string.IsNullOrEmpty(t) || t == "XX" || SeqAssigner.IsUnassignedSeq(t));
 
                 preview.AppendLine($"  [{catName}] {famName ?? ""}");
                 if (!string.IsNullOrEmpty(currentTag))

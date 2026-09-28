@@ -436,6 +436,21 @@
           "code": "G",
           "label": "General / Non-Disciplinary",
           "description": "Elements that don't fit a specific discipline; default fallback."
+        },
+        {
+          "code": "H",
+          "label": "Healthcare",
+          "description": "Clinical equipment and healthcare fixtures (Medical / Specialty Equipment, Plumbing Fixtures, Nurse Call Devices, Furniture, Casework). Accepted as an alternative to the category discipline."
+        },
+        {
+          "code": "MG",
+          "label": "Medical Gas",
+          "description": "Accepted on elements on the medical gas system (SYS MGS). The tagger writes P for medical gas pipework."
+        },
+        {
+          "code": "RP",
+          "label": "Radiation Protection",
+          "description": "Accepted on elements on the radiation protection system (SYS RAD)."
         }
       ]
     },
@@ -445,7 +460,7 @@
         {
           "code": "—",
           "label": "Note",
-          "description": "The tag DISC token accepts only the eight codes above (ISO19650Validator). The letters below are used in document and role naming; a project that wants one in tags adds it to CUSTOM_VALID_DISC in project_config.json. Lightning protection is a system (SYS LPS), not a discipline."
+          "description": "The tag DISC token accepts only the codes above (ISO19650Validator). The letters below (H means Healthcare in a tag, not HVAC) are used in document and role naming; a project that wants one in tags adds it to CUSTOM_VALID_DISC in project_config.json. Lightning protection is a system (SYS LPS), not a discipline."
         },
         {
           "code": "C",
@@ -461,11 +476,6 @@
           "code": "K",
           "label": "Structural Engineering (Uniclass)",
           "description": "Uniclass 2015 structural code where S is taken by another discipline."
-        },
-        {
-          "code": "H",
-          "label": "HVAC (Uniclass alt)",
-          "description": "Uniclass 2015 HVAC code — used when M is reserved for Mechanical only."
         },
         {
           "code": "F",

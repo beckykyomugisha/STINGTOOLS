@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using StingTools.Core;
 using Xunit;
 
@@ -48,6 +50,45 @@ namespace StingTools.Tags.Tests
             foreach (int pad in new[] { 3, 4, 5 })
                 foreach (int n in new[] { 1, 7, 42, SeqAssigner.MaxSeqForPad(pad) })
                     Assert.Null(SeqAssigner.ValidateNumericSeq(SeqAssigner.BuildSeqString(n, SeqScheme.Numeric, pad, ""), pad));
+        }
+
+        [Theory]
+        [InlineData(3, "000")]
+        [InlineData(4, "0000")]
+        [InlineData(5, "00000")]
+        public void The_unassigned_placeholder_follows_the_pad(int pad, string placeholder)
+        {
+            Assert.Equal(placeholder, SeqAssigner.UnassignedSeq(pad));
+            Assert.True(SeqAssigner.IsUnassignedSeq(placeholder));
+            Assert.True(SeqAssigner.IsUnresolvedToken(placeholder));
+            Assert.NotNull(SeqAssigner.ValidateNumericSeq(placeholder, pad));
+        }
+
+        [Theory]
+        [InlineData("0001", false)]
+        [InlineData("XX", true)]
+        [InlineData("ZZ", true)]
+        [InlineData("GEN", false)]   // assumed, not unresolved
+        [InlineData("", false)]
+        public void Unresolved_tokens(string token, bool unresolved)
+            => Assert.Equal(unresolved, SeqAssigner.IsUnresolvedToken(token));
+
+        // The placeholder was the literal "0000" in six places, so at pad 3 or 5 it was
+        // never recognised. Any new literal comparison fails here.
+        [Fact]
+        public void No_plugin_source_compares_against_a_literal_0000_placeholder()
+        {
+            var dir = new System.IO.DirectoryInfo(AppContext.BaseDirectory);
+            while (dir != null && !System.IO.Directory.Exists(System.IO.Path.Combine(dir.FullName, "StingTools", "Core"))) dir = dir.Parent;
+            Assert.NotNull(dir);
+            var hits = System.IO.Directory.EnumerateFiles(System.IO.Path.Combine(dir.FullName, "StingTools"), "*.cs", System.IO.SearchOption.AllDirectories)
+                .Where(f => !f.Contains(System.IO.Path.DirectorySeparatorChar + "obj" + System.IO.Path.DirectorySeparatorChar))
+                .Where(f => !f.EndsWith("Iso19650DocumentCode.cs"))   // document numbers, not tag SEQ
+                .SelectMany(f => System.IO.File.ReadAllLines(f).Select((l, n) => (f, n, l)))
+                .Where(x => System.Text.RegularExpressions.Regex.IsMatch(x.l, @"(==|!=)\s*""0000""|""0000""\s*(==|!=)|\{[^}]*""0000""[^}]*\}"))
+                .Select(x => $"{System.IO.Path.GetFileName(x.f)}:{x.n + 1}")
+                .ToList();
+            Assert.True(hits.Count == 0, "Literal \"0000\" placeholder: " + string.Join(", ", hits));
         }
 
         // ── BuildSeqKey ─────────────────────────────────────────────────
