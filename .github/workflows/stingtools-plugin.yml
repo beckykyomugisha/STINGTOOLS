@@ -102,6 +102,12 @@ jobs:
       - name: Parameter contract is current
         run: python3 tools/check_param_contract.py --check
 
+      # Revit gives a shared-parameter GUID one type. Ten parameters once had a
+      # different type in STING_PARAMS_V4/V6 than in MR_PARAMETERS.txt, so a family
+      # authored from one file would not load into a project bound from the other.
+      - name: Shared-parameter files agree
+        run: python3 tools/check_shared_param_files.py
+
       # STING_TAG_TOKEN_POLICY.json shipped on 2026-08-10 documenting all ten ISO 19650
       # tag tokens, was named in two TagConfig comments, and was read by NOTHING until
       # 2026-09-15 — the fallbacks were hardcoded literals, so editing it changed no

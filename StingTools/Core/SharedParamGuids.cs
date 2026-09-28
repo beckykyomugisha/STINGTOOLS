@@ -478,16 +478,15 @@ namespace StingTools.Core
                 return -1;
             }
 
-            // Cross-CSV consistency: CATEGORY_BINDINGS.csv (per-param) must agree with
-            // PARAMETER_CATEGORIES.csv (the Categories column). A param whose two files
-            // disagree is a data-integrity error that would silently mis-bind.
+            // Cross-file consistency (PARAM-11): PARAMETER_CATEGORIES.csv must describe the
+            // spec in force (RESOLVED_BINDINGS.csv), from which it is generated.
             try
             {
                 int mismatches = AuditCrossCsvConsistency(out int checkedParams);
                 if (mismatches == 0)
-                    StingLog.Info($"Cross-CSV consistency passed: {checkedParams} params agree between CATEGORY_BINDINGS.csv and PARAMETER_CATEGORIES.csv");
+                    StingLog.Info($"Binding views consistent: {checkedParams} params in PARAMETER_CATEGORIES.csv match RESOLVED_BINDINGS.csv");
                 else
-                    StingLog.Warn($"Cross-CSV consistency: {mismatches} param(s) disagree between CATEGORY_BINDINGS.csv and PARAMETER_CATEGORIES.csv");
+                    StingLog.Warn($"Binding views: {mismatches} param(s) in PARAMETER_CATEGORIES.csv differ from RESOLVED_BINDINGS.csv - run tools/gen_binding_views.py");
                 discrepancies += mismatches;
             }
             catch (Exception ex) { StingLog.Warn($"Cross-CSV consistency check failed: {ex.Message}"); }
@@ -496,20 +495,22 @@ namespace StingTools.Core
         }
 
         /// <summary>
-        /// Assert that CATEGORY_BINDINGS.csv (per-param×category rows) and
-        /// PARAMETER_CATEGORIES.csv (per-param Categories column) describe the same
-        /// category set for every parameter present in both. Returns the number of
-        /// mismatched parameters and logs each one. Comparison is by resolvable
-        /// BuiltInCategory so unresolved names ("Materials", loads, analytical) don't
-        /// produce false positives.
+        /// PARAM-11: assert that PARAMETER_CATEGORIES.csv describes the binding spec in force.
+        /// The file is generated from RESOLVED_BINDINGS.csv by tools/gen_binding_views.py, so a
+        /// mismatch means the shipped data files are out of step with each other. It used to be
+        /// compared with CATEGORY_BINDINGS.csv, the resolver's hand-authored input, and 588
+        /// parameters "disagreed" for that reason alone. "&lt;ALL&gt;" in the Categories column is
+        /// a universal parameter. Compared by resolvable BuiltInCategory, so names Revit cannot
+        /// resolve (Materials, loads, analytical) do not produce false positives.
         /// </summary>
         public static int AuditCrossCsvConsistency(out int checkedParams)
         {
             checkedParams = 0;
-            var perParam = PerParamCategoryBindings; // CATEGORY_BINDINGS.csv, resolved
+            if (!HasResolvedSpec) return 0;
+            var scoped = ResolvedScopedBindings;
+            var universal = ResolvedUniversalParams;
             string pcPath = StingToolsApp.FindDataFile("PARAMETER_CATEGORIES.csv");
             if (pcPath == null) return 0;
-
             int mismatches = 0;
             foreach (string raw in File.ReadAllLines(pcPath))
             {
@@ -519,21 +520,23 @@ namespace StingTools.Core
                 string param = cols[0].Trim();
                 if (param.Length == 0 || param.Equals("Parameter Name", StringComparison.OrdinalIgnoreCase))
                     continue;
-                if (!perParam.TryGetValue(param, out var cbCats)) continue; // only params in both
-
-                // Resolve PARAMETER_CATEGORIES Categories column (comma-separated) to enums
                 var pcNames = cols[4].Split(',').Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
-                var pcEnums = ParamRegistry.ResolveCategoryEnums(pcNames);
-
-                var cbSet = new HashSet<BuiltInCategory>(cbCats);
-                var pcSet = new HashSet<BuiltInCategory>(pcEnums);
+                bool pcUniversal = pcNames.Contains("<ALL>");
+                bool specUniversal = universal.Contains(param);
                 checkedParams++;
-                if (!cbSet.SetEquals(pcSet))
+                if (pcUniversal != specUniversal)
                 {
                     mismatches++;
-                    var extra = cbSet.Except(pcSet).ToList();
-                    var missing = pcSet.Except(cbSet).ToList();
-                    StingLog.Warn($"Cross-CSV mismatch '{param}': CATEGORY_BINDINGS-only={string.Join("/", extra)} PARAMETER_CATEGORIES-only={string.Join("/", missing)}");
+                    StingLog.Warn($"Binding view mismatch '{param}': PARAMETER_CATEGORIES says {(pcUniversal ? "universal" : "scoped")}, RESOLVED_BINDINGS says {(specUniversal ? "universal" : "scoped")}");
+                    continue;
+                }
+                if (specUniversal) continue; // extras on a universal row are the universal-plus set
+                var pcSet = new HashSet<BuiltInCategory>(ParamRegistry.ResolveCategoryEnums(pcNames.Where(n => n != "<ALL>").ToArray()));
+                var specSet = new HashSet<BuiltInCategory>(scoped.TryGetValue(param, out var cats) ? cats : Array.Empty<BuiltInCategory>());
+                if (!pcSet.SetEquals(specSet))
+                {
+                    mismatches++;
+                    StingLog.Warn($"Binding view mismatch '{param}': RESOLVED-only={string.Join("/", specSet.Except(pcSet))} PARAMETER_CATEGORIES-only={string.Join("/", pcSet.Except(specSet))}");
                 }
             }
             return mismatches;

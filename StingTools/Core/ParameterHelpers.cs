@@ -438,6 +438,20 @@ namespace StingTools.Core
                 try { p.Set(value.ToString()); return true; }
                 catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return false; }
             }
+            if (p.StorageType == StorageType.Double)
+            {
+                // A count held in a NUMBER parameter (ELC_LPS_*_COUNT_NR, *_MONTHS ...) was
+                // silently dropped here. A unitless NUMBER takes the integer as is; a measured
+                // spec (LENGTH, AREA ...) needs a unit, so it goes through SetDoubleInNamedUnit.
+                bool unitless = false;
+                try { unitless = p.Definition?.GetDataType() == SpecTypeId.Number; }
+                catch (Exception exSpec) { StingLog.Warn($"SetInt spec '{paramName}': {exSpec.Message}"); }
+                if (!unitless)
+                    return SetDoubleInNamedUnit(el, paramName, value, overwrite);
+                if (!overwrite && p.HasValue && p.AsDouble() != 0) return false;
+                try { p.Set((double)value); WriteTxtMirror(el, paramName, value.ToString(System.Globalization.CultureInfo.InvariantCulture)); return true; }
+                catch (Exception ex) { StingLog.Warn($"SetInt '{paramName}': {ex.Message}"); return false; }
+            }
             return false;
         }
 

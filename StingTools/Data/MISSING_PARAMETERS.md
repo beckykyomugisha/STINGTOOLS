@@ -4,7 +4,7 @@
 > defined are now aligned across `MR_PARAMETERS.txt`, `MR_PARAMETERS.csv`,
 > `PARAMETER_REGISTRY.json`, `Core/ParamRegistry.cs` (a `const` and `_GUID` each, used
 > at every read), `RESOLVED_BINDINGS.csv` (both copies), `CATEGORY_BINDINGS.csv` (v3.17,
-> Yes rows), `PARAMETER_CATEGORIES.csv` (v2.7) and `BINDING_COVERAGE_MATRIX.csv` (v5.7):
+> Yes rows), `PARAMETER_CATEGORIES.csv` and `BINDING_COVERAGE_MATRIX.csv`:
 > `ELC_CBL_RATED_V_NR` (circuits, conduits, trays); `PROJECT_REGION`,
 > `PRJ_ORG_CURRENCY_TXT`, `PRJ_ORG_DISCIPLINES_TXT`, `PRJ_ORG_MAT_SIGNOFF_SUIT_TXT`,
 > `PRJ_ELC_SUPPLY_VOLTAGE_TXT`, `PLM_RECIRC_DELTA_T_K` (Project Information);
@@ -15,6 +15,14 @@
 > `7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00` (as `tools/transform_mr_params.py`).
 > `ELC_ENERGY_KWH_PA` moved to the equipment the carbon tracker reads for B6.
 > `FAMILY_PARAMETER_BINDINGS.csv` is not involved: none of these is a family parameter.
+> **Since PARAM-11 (same day) the surface list is shorter to maintain:**
+> `PARAMETER_CATEGORIES.csv` and `BINDING_COVERAGE_MATRIX.csv` are generated from
+> `RESOLVED_BINDINGS.csv` by `tools/gen_binding_views.py` (the resolver runs it), so a new
+> parameter needs the `.txt` row, the registry entry, a `ParamRegistry` const, and a
+> resolver rule or a `CATEGORY_BINDINGS.csv` Yes row; then run
+> `tools/param_binding_resolver.py` and `tools/sync_csv_from_txt.py`. Any other shipped
+> shared-parameter file that defines the same name must match it
+> (`tools/check_shared_param_files.py`).
 > The "pure 7-bit ASCII" note in the 2026-05-19 entry below no longer holds for the
 > file as a whole (75 lines carry °, §, · or similar); these thirteen are ASCII.
 >

@@ -24331,3 +24331,50 @@ every `GetString` read against the parameter's data type.
   and `PARAMETER_CATEGORIES.csv`; both are older than `RESOLVED_BINDINGS.csv`, which is what
   Load Shared Parameters binds from.
 - **Tests.** 3,576 passing; all gates pass. Not exercised in Revit.
+
+#### PARAM-11: one binding spec, generated views, and more hidden issues (2026-09-28)
+
+- **PARAM-11 closed.** `RESOLVED_BINDINGS.csv` is the one binding spec.
+  - `PARAMETER_CATEGORIES.csv` and `BINDING_COVERAGE_MATRIX.csv` are now generated from it
+    by the new `tools/gen_binding_views.py`. The resolver runs it, so the binding-spec
+    drift gate covers both views.
+  - Both views list every parameter the spec binds (3,332; they listed about 1,300 and
+    1,600). `<ALL>` stands for the 143 universal categories. Existing display names are
+    kept.
+- **Dynamic Bindings binds from the spec.** It read `CATEGORY_BINDINGS.csv` wholesale,
+  which is the resolver's hand-authored input: the resolver honours only its Yes rows.
+  - It put 1,141 parameters on Generic Models as Type parameters.
+  - It now adds the spec's categories as instance bindings and leaves universal parameters
+    to Load Shared Parameters. This is G-8 option D: neither binder creates a Type binding
+    any more.
+  - Its menu text named the matrix as its source, which was wrong too.
+- **The consistency checks compare with the spec.** The load-time audit and Validate
+  Binding Matrix (TEMP-06) compared the views with `CATEGORY_BINDINGS.csv`. That is where
+  the 588 "disagreements" came from.
+  - TEMP-06 also took each file's first line as its header. Both files open with `#`
+    comments, so it compared a comment with the category list and counted comment lines
+    as bindings.
+- **Shared-parameter files disagreed on type.** Ten parameters had one GUID but a
+  different type in `STING_PARAMS_V4.txt` / `STING_PARAMS_V6.txt` than in
+  `MR_PARAMETERS.txt`, for example `ASS_LENGTH_TOTAL_MM` LENGTH vs NUMBER.
+  - Revit gives a GUID one type, so a family authored from one file refuses to load into a
+    project bound from the other. The side files now match `MR_PARAMETERS.txt`, which is
+    what every writer assumes.
+  - The new `tools/check_shared_param_files.py` runs in plugin CI. It failed on main with
+    those ten and passes now.
+- **`ParameterHelpers.SetInt` dropped NUMBER parameters.** It returned false for any
+  Double storage, so a count written to a NUMBER parameter was lost. A unitless NUMBER now
+  takes the integer; a measured one goes through `SetDoubleInNamedUnit`.
+- **Validate Template's GUID check always failed.** It read the GUID from column 0 (the
+  word "PARAM") and counted the file's META and GROUP lines as parameters. It now checks
+  every PARAM row's GUID and reports duplicates.
+- **The plaster material database read the wrong columns.** It used fixed positions from
+  an older `BLE_MATERIALS.csv` layout:
+  - density came from the thickness-in-inches column (about 0.5 kg/m³);
+  - thermal conductivity came from the UGX cost column;
+  - the name came from the application column, and the code from the discipline column.
+
+  It now finds its columns by header name.
+- **pyRevit manifest check** counted its comment lines and header as scripts.
+- **Tests.** 3,576 (Tags) and 438 (Sustainability) passing; all gates pass. Not
+  exercised in Revit.

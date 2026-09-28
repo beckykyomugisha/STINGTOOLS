@@ -2172,7 +2172,10 @@ namespace StingTools.Core
             {
                 try
                 {
-                    var mLines = File.ReadAllLines(manifestPath).Skip(1).ToList();
+                    // The file opens with "#" comment lines before its header; Skip(1) alone
+                    // counted the other comments and the header row as scripts.
+                    var mLines = File.ReadAllLines(manifestPath)
+                        .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#")).Skip(1).ToList();
                     int missingScripts = mLines.Count(l => {
                         var p = ParseCsvLine(l);
                         return p.Length >= 2 && !string.IsNullOrEmpty(p[1].Trim()) && !File.Exists(p[1].Trim());

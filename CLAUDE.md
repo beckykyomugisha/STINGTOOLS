@@ -1635,11 +1635,11 @@ STINGTOOLS/
         ├── MATERIAL_LOOKUP.csv  # 237-row material reference
         ├── FORMULAS_WITH_DEPENDENCIES.csv  # 199 parameter formulas
         ├── SCHEDULE_FIELD_REMAP.csv  # 50+ field deprecation remaps
-        ├── BINDING_COVERAGE_MATRIX.csv  # Parameter-category coverage
+        ├── BINDING_COVERAGE_MATRIX.csv  # Generated view of RESOLVED_BINDINGS.csv (gen_binding_views.py)
         ├── BOQ_TEMPLATE.csv  # Bill of Quantities template
         ├── CATEGORY_BINDINGS.csv  # 10,661 category bindings
         ├── FAMILY_PARAMETER_BINDINGS.csv  # 4,686 family bindings
-        ├── PARAMETER_CATEGORIES.csv  # Parameter-category
+        ├── PARAMETER_CATEGORIES.csv  # Generated view of RESOLVED_BINDINGS.csv (gen_binding_views.py)
         ├── PARAMETER_REGISTRY.json  # Master parameter registry
         ├── LABEL_DEFINITIONS.json  # Label/legend definition specs
         ├── TAG_CONFIG_v5_0_CONTAINERS.csv  # 122+ tag container definitions
@@ -2762,7 +2762,7 @@ result set. Prove RED before GREEN and report both numbers.
 - Use `TaskDialog` for user-facing messages (not `MessageBox`)
 - Use `StingLog.Info/Warn/Error` for all logging — never use silent catch blocks
 - Read a parameter that may not be TEXT with `ParameterHelpers.GetValueText`, not `GetString` (which returns "" for NUMBER / LENGTH / AREA / INTEGER), and write a measured value with `SetDoubleInNamedUnit`, not `SetString` (which refuses it) or a raw `Set` (a LENGTH stores feet, so 3000 mm written raw is 3000 ft). An element's system name comes from `Core/Mep/ServiceSystemName.Read`
-- Name a parameter through a `ParamRegistry` constant, and add it to `MR_PARAMETERS.txt` through the generators (`param_binding_resolver.py`, `sync_csv_from_txt.py`) before reading it; `StingTools/Data/MISSING_PARAMETERS.md` lists every surface a new parameter goes on
+- Name a parameter through a `ParamRegistry` constant, and add it to `MR_PARAMETERS.txt` through the generators (`param_binding_resolver.py`, `sync_csv_from_txt.py`) before reading it; `StingTools/Data/MISSING_PARAMETERS.md` lists every surface a new parameter goes on. Bindings come from `RESOLVED_BINDINGS.csv` (Load Shared Parameters, Reconcile and Dynamic Bindings all bind from it); `CATEGORY_BINDINGS.csv` is the resolver's hand-authored input and only its Yes rows count; `PARAMETER_CATEGORIES.csv` and `BINDING_COVERAGE_MATRIX.csv` are generated views. Every shipped shared-parameter `.txt` must agree with `MR_PARAMETERS.txt` on GUID and type
 - Read electrical quantities through `Core/Electrical/ElecUnits` (`ToSi`, `Read`, `VoltsFromInternal`, `VAFromInternal`), never a raw `AsDouble()`: Revit stores 1 V as 10.7639 internal units (VA/W likewise), and API properties such as `ElectricalSystem.Voltage` / `ApparentLoad` return internal units too
 - Handle `OperationCanceledException` for user-cancelled operations
 - Use `FilteredElementCollector` with appropriate filters for performance

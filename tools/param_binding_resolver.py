@@ -543,3 +543,9 @@ print("explicit (Yes) categories added on top of the derivation:",_explicit_adde
 print("project-level (PRJ_) parameters given Project Information:",len(_project_info_added))
 print("tag-family keys stripped from category lists:",len(TAG_FAMILY_KEYS),"known")
 print("wrote StingTools/Data/RESOLVED_BINDINGS.csv (deployable)")
+
+# The two human-readable views (PARAMETER_CATEGORIES.csv, BINDING_COVERAGE_MATRIX.csv)
+# are projections of the spec just written. Regenerating them here means the drift
+# gate that re-runs this script covers them too; they cannot fall behind again.
+import subprocess as _sp, sys as _sys
+_sp.run([_sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "gen_binding_views.py")], check=True)
