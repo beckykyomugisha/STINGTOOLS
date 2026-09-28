@@ -274,6 +274,76 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Elements whose token PARAMETERS could not be written even though the tag
+        /// assembled correctly. The parameter is not reachable on the instance — bound
+        /// to the TYPE, or not bound to the element's category. Counted rather than
+        /// warned per element: at batch volume the per-row version is the noise that
+        /// hid the one real fault in TAGLOG-1.
+        /// </summary>
+        public int TokenWriteFailureCount { get; private set; }
+
+        /// <summary>Distinct token parameters that failed to write, with a count each.</summary>
+        public readonly Dictionary<string, int> TokenWriteFailuresByParam =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        /// <summary>Categories the failures fell in, with an element count each.</summary>
+        public readonly Dictionary<string, int> TokenWriteFailuresByCategory =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// category -> (parameter -> element count). The pair is what an operator acts
+        /// on: a binding is repaired for one parameter ON one category, so a report that
+        /// names only the parameter still leaves them hunting for where.
+        /// </summary>
+        public readonly Dictionary<string, Dictionary<string, int>> TokenWriteFailureDetail =
+            new Dictionary<string, Dictionary<string, int>>(StringComparer.Ordinal);
+
+        public void RecordTokenWriteFailure(long elementId, string categoryName, IEnumerable<string> paramNames)
+        {
+            TokenWriteFailureCount++;
+            string cat = string.IsNullOrWhiteSpace(categoryName) ? "(unknown category)" : categoryName;
+            Increment(TokenWriteFailuresByCategory, cat);
+            if (paramNames == null) return;
+
+            if (!TokenWriteFailureDetail.TryGetValue(cat, out var byParam))
+            {
+                byParam = new Dictionary<string, int>(StringComparer.Ordinal);
+                TokenWriteFailureDetail[cat] = byParam;
+            }
+            foreach (string p in paramNames)
+            {
+                if (string.IsNullOrEmpty(p)) continue;
+                Increment(TokenWriteFailuresByParam, p);
+                Increment(byParam, p);
+            }
+        }
+
+        /// <summary>
+        /// Elements whose CONTAINER write threw. Distinct from a token write failing:
+        /// the tag and its tokens are fine, but the 53 discipline containers assembled
+        /// from them are not. Counted so it reaches the report instead of living only
+        /// in the log, where 175 of them were sitting uninvestigated.
+        /// </summary>
+        public int ContainerWriteFailureCount { get; private set; }
+
+        public readonly Dictionary<string, int> ContainerWriteFailuresByCategory =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        /// <summary>First distinct exception messages seen, for the report.</summary>
+        public readonly List<string> ContainerWriteFailureSamples = new List<string>();
+
+        public void RecordContainerWriteFailure(string categoryName, string message)
+        {
+            ContainerWriteFailureCount++;
+            Increment(ContainerWriteFailuresByCategory,
+                string.IsNullOrWhiteSpace(categoryName) ? "(unknown category)" : categoryName);
+            if (string.IsNullOrEmpty(message)) return;
+            if (ContainerWriteFailureSamples.Count < 3
+                && !ContainerWriteFailureSamples.Contains(message))
+                ContainerWriteFailureSamples.Add(message);
+        }
+
         public void RecordWarning(string warning)
         {
             if (Warnings.Count < 100)
@@ -297,6 +367,34 @@ namespace StingTools.Core
                     sb.AppendLine($"                  {sample}");
                 if (IncompleteTagCount > IncompleteSamples.Count)
                     sb.AppendLine($"                  … +{IncompleteTagCount - IncompleteSamples.Count:N0} more");
+            }
+            if (ContainerWriteFailureCount > 0)
+            {
+                sb.AppendLine($"  CONTAINERS:   {ContainerWriteFailureCount:N0} element(s) threw while writing the discipline containers");
+                foreach (var kv in ContainerWriteFailuresByCategory.OrderByDescending(k => k.Value))
+                    sb.AppendLine($"                  {kv.Key} x {kv.Value:N0}");
+                foreach (var m in ContainerWriteFailureSamples)
+                    sb.AppendLine($"                  \"{m}\"");
+                sb.AppendLine("                  The tag is written; the containers are not. Full stack trace");
+                sb.AppendLine("                  is in the StingTools log.");
+            }
+            if (TokenWriteFailureCount > 0)
+            {
+                sb.AppendLine($"  NOT WRITTEN:  {TokenWriteFailureCount:N0} element(s) tagged, but a token PARAMETER could not be written");
+                // Grouped by CATEGORY, because that is the unit of repair: a binding is
+                // fixed for one parameter ON one category. Naming only the parameter
+                // leaves the operator hunting for where, which is the same half-answer
+                // the old "run FamilyStagePopulate" line gave.
+                foreach (var cat in TokenWriteFailuresByCategory.OrderByDescending(c => c.Value))
+                {
+                    sb.AppendLine($"                  {cat.Key} — {cat.Value:N0} element(s)");
+                    if (!TokenWriteFailureDetail.TryGetValue(cat.Key, out var byParam)) continue;
+                    foreach (var kv in byParam.OrderByDescending(k => k.Value))
+                        sb.AppendLine($"                    {kv.Key} × {kv.Value:N0}");
+                }
+                sb.AppendLine("                  The tag is correct; the parameter is not. Fix per category in");
+                sb.AppendLine("                  Manage > Project Parameters: each must be an INSTANCE parameter");
+                sb.AppendLine("                  and must include that category.");
             }
             if (RefusedTagCount > 0)
             {

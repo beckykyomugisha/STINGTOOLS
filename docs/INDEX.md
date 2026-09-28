@@ -260,6 +260,8 @@ document still describes the code.
 
 
 
+- `BINDING_PROFILES.md`
+
 - `BOQ_5D_ENHANCED_REBUILD_PROMPT.md`
 
 - `BOQ_5D_ENHANCEMENTS_PROMPT.md`
@@ -269,6 +271,8 @@ document still describes the code.
 - `CLIENT_SERVER_VOCABULARY_PROPOSALS.md`
 
 - `DOCUMENT_MANAGER_GAPS_RUNNER.md`
+
+- `HEALTHCARE_TAG_CATEGORY_PROPOSAL.md`
 
 - `HVAC_GAP_ANALYSIS.md`
 
@@ -306,6 +310,14 @@ document still describes the code.
 
 - `ROUND_TRIP_R1_R2_SPEC.md`
 
+- `TAG_FAMILY_LIBRARY_STRATEGY.md`
+
+- `TAG_TEST_PROTOCOL.md`
+
+- `UNIVERSAL_TAG_CONFLICT_RESOLUTION_RUNBOOK.md`
+
+- `UNIVERSAL_TAG_DUCT_SMOKE_TEST_RUN.md`
+
 - `UNIVERSAL_TAG_FIELDLIST_ADD_ORDER.md`
 
 - `UNIVERSAL_TAG_FINALIZE_RUNNER.md`
@@ -313,6 +325,8 @@ document still describes the code.
 - `UNIVERSAL_TAG_INTEGRATION_RUNNER.md`
 
 - `UNIVERSAL_TAG_LABEL_BUILD_SHEET.md`
+
+- `UNIVERSAL_TAG_MASTER_EDIT_DELTA.md`
 
 - `UNIVERSAL_TAG_TASK4_STEP2_PATCH.md`
 
@@ -327,7 +341,3 @@ document still describes the code.
 - `WIRE_ELEMENT_ANNOTATION_SCOPE.md`
 
 - `archicad-zone-mapping-guide.md`
-
-- `BINDING_PROFILES.md`
-
-- `HEALTHCARE_TAG_CATEGORY_PROPOSAL.md`

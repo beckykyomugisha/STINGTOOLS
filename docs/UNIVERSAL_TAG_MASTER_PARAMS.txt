@@ -24,17 +24,18 @@ PARAM	5753b5aa-000a-4000-8000-000000000003	ACC_SYNC_STATUS_TXT	TEXT		21	1	ACC sy
 PARAM	5753b5aa-0009-4000-8000-000000000002	ASBUILT_CAPTURE_DATE_TXT	TEXT		24	1	ISO 8601 date when as-built data captured from Planscape mobile	1	0
 PARAM	5ad7dbaa-5744-5ecb-98c1-80a316640285	ASBUILT_DEVIATION_MM_DISP_TXT	TEXT		24	1	As-built vs as-designed deviation in millimetres — TEXT display mirror for tag labels	1	0
 PARAM	6c883d6a-6671-5c6c-be21-968aa8918e8c	ASS_CAPACITY_TXT	TEXT		4	1	Asset capacity specification [ISO 19650-2:2018]	1	0
-PARAM	fbbf5b6d-776a-58e2-a3ce-cbd9fbfe3f93	ASS_CRITICALITY_RATING_NR	TEXT		1	1	Ass Criticality Rating Nr [ISO 19650-3:2020]	1	0
+PARAM	ab05e034-3374-5996-a39f-cefdf502e852	ASS_CRITICALITY_RATING_TXT	TEXT		1	1	ASS_CRITICALITY_RATING_NR display mirror [auto-generated]	1	0
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d45	ASS_CST_AS_OF_DT	TEXT		2	1	Pricing reference date for inflation indexing [Phase 184]	1	0
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d42	ASS_CST_CURRENCY_TXT	TEXT		2	1	ISO 4217 currency code (GBP / UGX / USD / EUR) of ASS_CST_UNIT_RATE_NR [Phase 184]	1	0
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d44	ASS_CST_FX_DATE_DT	TEXT		2	1	ISO 8601 date the FX rate was fixed (yyyy-MM-dd) [Phase 184]	1	0
 PARAM	2f6725f9-94b3-58f6-8d85-0f542659fd8f	ASS_CST_FX_TO_BASE_NR_DISP_TXT	TEXT		2	1	FX rate to project base currency at write time — TEXT display mirror for tag labels	1	0
 PARAM	01fcf005-60b1-5886-b52f-015cc7598787	ASS_CST_INSTALL_UGX_NR	TEXT		1	1	Ass Cst Install Ugx Nr [ISO 19650-3:2020]	1	0
-PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d46	ASS_CST_STALE_BOOL	TEXT		2	1	Set when geometry/material/type change invalidates the last-costed line [Phase 184]	1	0
+PARAM	59de159f-ea20-5f57-b508-5679ddc19d37	ASS_CST_STALE_TXT	TEXT		2	1	ASS_CST_STALE_BOOL display mirror [auto-generated]	1	0
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d47	ASS_CST_STALE_REASON_TXT	TEXT		2	1	Reason cost was flagged stale (Geometry / Material / Type / Rate) [Phase 184]	1	0
 PARAM	465171ad-d9b5-54c2-a002-86cbff6f15cf	ASS_CST_UNIT_RATE_NR_DISP_TXT	TEXT		2	1	Currency-neutral unit rate  -  Currency carried by ASS_CST_CURRENCY_TXT — TEXT display mirror for tag labels	1	0
 PARAM	3ee68ef4-0cad-505f-a973-8817e9cf5d08	ASS_DESCRIPTION_TXT	TEXT		1	1	Ass Description Txt [ISO 19650-3:2020]	1	0
 PARAM	88e92abe-385f-55a3-8734-43458adb98f2	ASS_DESIGN_OPTION_TXT	TEXT		1	1	Design option name for element	1	0
+PARAM	6954e197-0524-5620-a2bb-aea7f274475a	ASS_DISPLAY_TXT	TEXT		17	1	Display mode tag text (short-form tag)	1	0
 PARAM	3bc7b880-b296-532f-9faf-8c41d69df5c3	ASS_EXPECTED_LIFE_YEARS_YRS	TEXT		1	1	Ass Expected Life Years Yrs [ISO 19650-3:2020]	1	0
 PARAM	29ba93ba-238e-5aad-930a-a621b0f43b5b	ASS_FAB_STATUS_TXT	TEXT		1	1	Fabrication status (NOT_STARTED / CUT / WELDED / INSPECTED / SHIPPED / INSTALLED)	1	0
 PARAM	d9a5078f-1c08-56f9-b4e0-5feeb97692e0	ASS_FLOW_RATE_TXT	TEXT		5	1	Flow rate for MEP elements	1	0

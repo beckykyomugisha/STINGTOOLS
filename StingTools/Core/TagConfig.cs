@@ -16,15 +16,8 @@ namespace StingTools.Core
     /// <summary>
     /// Controls how tag collisions (duplicate tags) are handled during tagging operations.
     /// </summary>
-    public enum TagCollisionMode
-    {
-        /// <summary>Auto-increment SEQ until a unique tag is found (default).</summary>
-        AutoIncrement,
-        /// <summary>Skip elements that already have a complete tag — do not modify.</summary>
-        Skip,
-        /// <summary>Overwrite existing tags with newly generated values.</summary>
-        Overwrite,
-    }
+    // TagCollisionMode enum relocated to Core/TagCollisionMode.cs (same namespace) so
+    // it can be used without dragging in this Revit-bound file. Same move as SeqScheme.
 
     // SeqScheme enum relocated to Core/SeqAssigner.cs (same namespace) alongside
     // the pure sequence-assignment logic it parameterises.
@@ -2873,6 +2866,14 @@ namespace StingTools.Core
                     if (!string.Equals(actualTokens[i] ?? "", intended[i], StringComparison.Ordinal)) { matches = false; break; }
                 if (!matches)
                 {
+                    // Name the parameters, not just the fact: an operator needs to know
+                    // which token parameter to re-bind, and on which category.
+                    var failedParams = new List<string>();
+                    var tokenParams = ParamRegistry.AllTokenParams;
+                    for (int i = 0; i < 8; i++)
+                        if (!string.Equals(actualTokens[i] ?? "", intended[i], StringComparison.Ordinal))
+                            failedParams.Add(i < tokenParams.Length ? tokenParams[i] : $"token[{i}]");
+                    stats?.RecordTokenWriteFailure(el.Id.Value, catName, failedParams);
                     StingLog.WarnRateLimited("TokenWriteMismatch",
                         $"Element {el.Id}: token write did not take (stored '{string.Join(Separator, actualTokens)}', "
                       + $"intended '{string.Join(Separator, intended)}') — check the token parameters are bound and writable");
@@ -2891,20 +2892,16 @@ namespace StingTools.Core
             // contain the separator (they are policy-resolved or sanitised on read), so
             // this only fires on the read-back path above.
             {
-                int sepCount = 0;
-                string sepStr = !string.IsNullOrEmpty(Separator) ? Separator : "-";
-                int sIdx = 0;
-                while ((sIdx = tag.IndexOf(sepStr, sIdx, StringComparison.Ordinal)) >= 0)
+                // Counting separators cannot see a BLANK segment, and a blank segment is
+                // the failure this guard exists to catch: "A-BLD1-Z01-L01-ARC---" carries
+                // exactly seven separators, so it passed as eight segments. Check each one.
+                int expectedSegments = 8
+                    + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
+                    + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
+                if (!TagTokenIntegrity.AllSegmentsPresent(tag, Separator, expectedSegments))
                 {
-                    sepCount++;
-                    sIdx += sepStr.Length;
-                }
-                int expectedSeps = 7 + (!string.IsNullOrEmpty(TagPrefix) ? 1 : 0)
-                                     + (!string.IsNullOrEmpty(TagSuffix) ? 1 : 0);
-                if (sepCount < expectedSeps)
-                {
-                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' has {sepCount + 1} segments (expected {expectedSeps + 1})");
-                    stats?.RecordWarning($"Element {el.Id}: malformed tag with {sepCount + 1} segments — skipped");
+                    StingLog.Warn($"Malformed tag for element {el.Id}: '{tag}' is not {expectedSegments} non-empty segments");
+                    stats?.RecordWarning($"Element {el.Id}: malformed tag '{tag}' — a segment is missing or blank, skipped");
                     if (seqAllocated) sequenceCounters[seqKey] = seqPreAlloc;
                     RestoreOwnTag();
                     return false;
@@ -3031,8 +3028,13 @@ namespace StingTools.Core
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"Container write failed for {el.Id}: {ex.Message}");
-                stats?.RecordWarning($"Element {el.Id}: container write failed — {ex.Message}");
+                // CONTAINER-1: this logged a bare message, swallowed the exception and
+                // reported nothing to the user, so 175 of these sat in a log unread and
+                // undiagnosable — no stack trace, no category, no count in the report.
+                // The failure is still non-fatal (the tag itself is already written), but
+                // it is now visible and traceable.
+                StingLog.Error($"Container write failed for {el.Id} (category '{catName}')", ex);
+                stats?.RecordContainerWriteFailure(catName, ex.Message);
             }
 
             // ── Auto-initialize display BOOLs (v5.6) ─────────────────────────

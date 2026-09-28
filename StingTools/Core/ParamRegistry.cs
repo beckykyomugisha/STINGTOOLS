@@ -172,7 +172,12 @@ namespace StingTools.Core
         /// </summary>
         public static int DisplayModeDefault = 5;
         public const string DISPLAY_TXT = "ASS_DISPLAY_TXT";
-        public const string DISPLAY_TXT_GUID = "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C";
+        // DISPLAY_TXT_GUID removed 2026-09-17: it was declared, never referenced, and
+        // held "D3E4F5A6-B7C8-4D9E-0F1A-2B3C4D5E6F7C" — which is NOT this parameter.
+        // MR_PARAMETERS.txt and PARAMETER_REGISTRY.json both say
+        // 6954e197-0524-5620-a2bb-aea7f274475a. Resolution is by NAME via DISPLAY_TXT,
+        // so nothing was broken; but the first caller to trust the constant would have
+        // bound the wrong parameter. Deleting it makes that a compile error instead.
         public const string TAG_POS = "STING_TAG_POS";
         public const string TAG_POS_GUID = "E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
         public const string VIEW_TAG_STYLE = "STING_VIEW_TAG_STYLE";

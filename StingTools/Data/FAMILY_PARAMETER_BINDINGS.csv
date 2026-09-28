@@ -1,3 +1,4 @@
+# v3.4 | 20260928 | ELC_CKT_NR NUMBER->TEXT to match MR_PARAMETERS.txt (multi-pole circuit numbers such as 1,3,5)
 # v3.3 | 20260708 | HVC_TERMINAL->Air Terminals (removed Ducts/Generic/Mech) + discipline-scoped family rows (param->category binding accuracy)
 # v3.2 | 20260630 | +26 Tier-2 electrical/plumbing/design-option/IFC family bindings
 # v3.1 | 20260630 | +7 material cost/carbon/EPD family bindings (Sustainability/BOQ-cost)
@@ -2591,10 +2592,10 @@ TPL_TRACKING,TPL_TRACKING_SPARE_02_TXT,f6797951-44b8-4682-b23e-ef6fd1a29bc9,TEXT
 HVC_SYSTEMS,HVC_DUCT_LINING_TXT,971cd951-7bac-5a58-a887-ab87eecad874,TEXT,Type,Hvc Duct Lining Txt [ISO 19650-1:2018],Air Terminals,971cd951-7bac-5a58-a887-ab87eecad874
 HVC_SYSTEMS,HVC_DUCT_LINING_TXT,971cd951-7bac-5a58-a887-ab87eecad874,TEXT,Type,Hvc Duct Lining Txt [ISO 19650-1:2018],Ducts,971cd951-7bac-5a58-a887-ab87eecad874
 HVC_SYSTEMS,HVC_DUCT_LINING_TXT,971cd951-7bac-5a58-a887-ab87eecad874,TEXT,Type,Hvc Duct Lining Txt [ISO 19650-1:2018],Generic Models,971cd951-7bac-5a58-a887-ab87eecad874
-ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,NUMBER,Type,Elc Ckt Nr [ISO 19650-1:2018],Electrical Equipment,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
-ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,NUMBER,Type,Elc Ckt Nr [ISO 19650-1:2018],Electrical Fixtures,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
-ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,NUMBER,Type,Elc Ckt Nr [ISO 19650-1:2018],Generic Models,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
-ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,NUMBER,Type,Elc Ckt Nr [ISO 19650-1:2018],Lighting Fixtures,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
+ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018],Electrical Equipment,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
+ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018],Electrical Fixtures,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
+ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018],Generic Models,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
+ELC_PWR,ELC_CKT_NR,6ad8ee51-59c2-551d-8b26-ad7194c50ec8,TEXT,Type,Elc Ckt Nr [ISO 19650-1:2018],Lighting Fixtures,6ad8ee51-59c2-551d-8b26-ad7194c50ec8
 HVC_SYSTEMS,HVC_DCT_TAG_02_TXT,0a3ab853-91c0-4e01-9c93-68c7fb333a85,TEXT,Type,Hvc Dct tag 2,Air Terminals,0a3ab853-91c0-4e01-9c93-68c7fb333a85
 HVC_SYSTEMS,HVC_DCT_TAG_02_TXT,0a3ab853-91c0-4e01-9c93-68c7fb333a85,TEXT,Type,Hvc Dct tag 2,Ducts,0a3ab853-91c0-4e01-9c93-68c7fb333a85
 HVC_SYSTEMS,HVC_DCT_TAG_02_TXT,0a3ab853-91c0-4e01-9c93-68c7fb333a85,TEXT,Type,Hvc Dct tag 2,Flex Ducts,0a3ab853-91c0-4e01-9c93-68c7fb333a85
