@@ -486,6 +486,29 @@ namespace StingTools.Core
                 { "HV", new List<string> { "Electrical Equipment", "Conduits", "Conduit Fittings", "Cable Trays", "Cable Tray Fittings" } },
                 { "BMS", new List<string> { "Electrical Equipment", "Electrical Fixtures", "Mechanical Control Devices" } },
                 { "RAD", new List<string> { "Walls", "Doors", "Windows", "Floors", "Ceilings", "Specialty Equipment", "Medical Equipment", "Generic Models" } },
+                // Cooling plant water and refrigerant (were all HVAC), and the Phase 178b
+                // plumbing / process systems (were documented only). Detected from system and
+                // family names (SystemNameClassifier); never a category default.
+                { "CHW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment" } },   // chilled water
+                { "CDW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment" } },   // condenser water
+                { "REF", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment" } },   // refrigerant
+                { "SWD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures" } },   // surface water / external storm drainage
+                { "GWR", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment" } },   // greywater recycling
+                { "RWH", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment" } },   // rainwater harvesting
+                { "SDS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Generic Models", "Plumbing Equipment" } },   // SuDS attenuation / infiltration
+                { "SEP", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment", "Generic Models" } },   // septic tank
+                { "STW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment", "Generic Models" } },   // package sewage treatment
+                { "BGD", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Generic Models" } },   // below-ground drainage
+                { "SPH", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures" } },   // siphonic roof drainage
+                { "INT", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment", "Generic Models" } },   // grease / oil interceptor
+                { "CMP", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment", "Plumbing Equipment" } },   // compressed air (non-medical)
+                { "POL", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment" } },   // pool / spa circulation
+                { "LBW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment", "Mechanical Equipment" } },   // laboratory water (RO / DI / purified)
+                { "IRR", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Plumbing Fixtures", "Plumbing Equipment" } },   // irrigation
+                { "FOL", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment", "Plumbing Equipment" } },   // fuel oil / diesel
+                { "STM", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment" } },   // steam
+                { "CON", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment" } },   // steam condensate return
+                { "CHE", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Mechanical Equipment", "Plumbing Equipment" } },   // chemical dosing
                 { "FLS", new List<string> { "Fire Alarm Devices", "Fire Protection" } },
                 { "COM", new List<string> { "Communication Devices", "Telephone Devices", "Audio Visual Devices" } },
                 { "ICT", new List<string> { "Data Devices" } },
@@ -609,6 +632,10 @@ namespace StingTools.Core
                 // HV → PWR (TRF for a transformer); BMS and RAD read their role off the
                 // name (SNS / CTL / FCT / MON, SHD / ZNE / MON) and are GEN when it is silent.
                 { "HV", "PWR" }, { "BMS", "GEN" }, { "RAD", "GEN" },
+                // Cooling plant: CLG; direction (SUP / RTN) or refrigerant line (LIQ / SUC /
+                // HGS) read off the system name when it says. Plumbing / process systems use
+                // the functions TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv documented for them.
+                { "CHW", "CLG" }, { "CDW", "CLG" }, { "REF", "CLG" }, { "SWD", "SWD" }, { "GWR", "GWR" }, { "RWH", "RWH" }, { "SDS", "SDS" }, { "SEP", "SAN" }, { "STW", "SAN" }, { "BGD", "BGD" }, { "SPH", "RWD" }, { "INT", "SAN" }, { "CMP", "SUP" }, { "POL", "CIR" }, { "LBW", "LAB" }, { "IRR", "IRR" }, { "FOL", "FUL" }, { "STM", "STM" }, { "CON", "CND" }, { "CHE", "CHE" },
                 { "COM", "COM" }, { "ICT", "ICT" }, { "NCL", "NCL" },
                 { "SEC", "SEC" },
                 { "ARC", "FIT" }, { "STR", "STR" }, { "GEN", "GEN" },

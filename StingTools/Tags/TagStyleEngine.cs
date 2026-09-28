@@ -319,24 +319,52 @@ namespace StingTools.Tags
             {
                 Name = "System", Description = "Color by MEP system type (CIBSE/Uniclass codes)",
                 Variable = StyleVariable.System,
+                // Every runtime system (TagConfig.DefaultSysMap); TagColorSchemeNamesTests holds
+                // the two lists together.
                 ValueColors = new Dictionary<string, Color>(StringComparer.OrdinalIgnoreCase)
                 {
-                    { "HVAC", new Color(0, 128, 255) },     // Blue
-                    { "DCW", new Color(0, 180, 120) },       // Teal
-                    { "DHW", new Color(255, 140, 0) },       // Orange
-                    { "HWS", new Color(200, 60, 0) },        // Dark Orange
-                    { "SAN", new Color(0, 160, 0) },          // Green
-                    { "RWD", new Color(80, 130, 180) },       // Steel Blue
-                    { "GAS", new Color(200, 200, 0) },        // Yellow
-                    { "FP", new Color(200, 0, 0) },           // Red
-                    { "LV", new Color(160, 0, 200) },         // Purple
-                    { "FLS", new Color(255, 60, 60) },        // Bright Red
-                    { "COM", new Color(100, 100, 200) },      // Periwinkle
-                    { "ICT", new Color(0, 200, 200) },        // Cyan
-                    { "SEC", new Color(180, 0, 180) },        // Magenta
-                    { "ARC", new Color(120, 120, 120) },      // Grey
-                    { "STR", new Color(200, 0, 0) },          // Red
-                    { "GEN", new Color(80, 80, 80) },         // Dark Grey
+                    { "HVAC", new Color(0, 128, 255) }, // Blue
+                    { "CHW", new Color(0, 90, 200) },  // Dark blue
+                    { "CDW", new Color(0, 160, 220) },  // Sky blue
+                    { "REF", new Color(120, 80, 220) },  // Violet
+                    { "HWS", new Color(200, 60, 0) },  // Dark orange
+                    { "STM", new Color(170, 40, 0) },  // Brick
+                    { "CON", new Color(210, 120, 60) },  // Tan
+                    { "DCW", new Color(0, 180, 120) },  // Teal
+                    { "DHW", new Color(255, 140, 0) },  // Orange
+                    { "RWH", new Color(60, 170, 150) },  // Sea green
+                    { "GWR", new Color(110, 140, 110) },  // Sage
+                    { "LBW", new Color(0, 200, 170) },  // Aqua
+                    { "POL", new Color(0, 190, 230) },  // Pool blue
+                    { "IRR", new Color(90, 180, 60) },  // Grass green
+                    { "SAN", new Color(0, 160, 0) },  // Green
+                    { "BGD", new Color(0, 110, 0) },  // Dark green
+                    { "SEP", new Color(100, 90, 40) },  // Olive
+                    { "STW", new Color(120, 110, 60) },  // Khaki
+                    { "INT", new Color(140, 100, 40) },  // Brown
+                    { "RWD", new Color(80, 130, 180) },  // Steel blue
+                    { "SWD", new Color(60, 100, 150) },  // Slate blue
+                    { "SPH", new Color(100, 150, 200) },  // Light steel
+                    { "SDS", new Color(70, 120, 90) },  // Moss
+                    { "GAS", new Color(200, 200, 0) },  // Yellow
+                    { "FOL", new Color(160, 120, 0) },  // Amber
+                    { "CMP", new Color(150, 150, 200) },  // Lavender
+                    { "CHE", new Color(200, 100, 200) },  // Orchid
+                    { "MGS", new Color(230, 190, 0) },  // Gold
+                    { "FP", new Color(200, 0, 0) },   // Red
+                    { "FLS", new Color(255, 60, 60) },  // Bright red
+                    { "LV", new Color(160, 0, 200) },   // Purple
+                    { "HV", new Color(110, 0, 140) },   // Dark purple
+                    { "LPS", new Color(90, 90, 160) },  // Indigo
+                    { "BMS", new Color(0, 150, 150) },  // Dark cyan
+                    { "COM", new Color(100, 100, 200) },  // Periwinkle
+                    { "ICT", new Color(0, 200, 200) },  // Cyan
+                    { "SEC", new Color(180, 0, 180) },  // Magenta
+                    { "NCL", new Color(220, 100, 160) },  // Pink
+                    { "RAD", new Color(200, 0, 160) },  // Radiation magenta
+                    { "ARC", new Color(120, 120, 120) },  // Grey
+                    { "STR", new Color(150, 30, 30) },  // Maroon
+                    { "GEN", new Color(80, 80, 80) },  // Dark grey
                 },
                 ValueStyles = new Dictionary<string, StylePreset>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -576,10 +604,9 @@ namespace StingTools.Tags
                 ValueStyles = Styles(("1", "NOM", "GREEN"), ("2", "NOM", "GREEN"), ("3", "NOM", "ORANGE"), ("4", "BOLD", "ORANGE"), ("5", "BOLD", "PURPLE")),
             };
 
-            // HTM 04-01 water services by system token. Only DCW and DHW are water-safety
-            // systems the tagger writes; return and mixed-water circuits are not separate
-            // SYS codes, so they cannot be told apart here. Heating water (HWS) and
-            // everything else draws grey.
+            // HTM 04-01 water services by system token. DHW secondary return is SYS DHW with
+            // FUNC RTN, so it shares the DHW colour here; use the Function scheme to tell flow
+            // from return. Heating water (HWS) and everything else draws grey.
             d["WaterSafety"] = new VariableColorScheme
             {
                 Name = "WaterSafety", Description = "Domestic water services for HTM 04-01 (system token)",

@@ -1801,6 +1801,34 @@ namespace StingTools.Core
                 if (!string.IsNullOrEmpty(gas)) return gas;
             }
 
+            // DHW return (secondary circulation) is RTN; flow keeps DHW. Chilled and
+            // condenser water take their direction; refrigerant its line; LV lighting,
+            // emergency lighting and small power their own function. All from the system
+            // or family name (SystemNameClassifier), else FuncMap below.
+            if (sysCode == "DHW" || sysCode == "CHW" || sysCode == "CDW")
+            {
+                foreach (string n in SystemNamesOf(el))
+                {
+                    string dir = SystemNameClassifier.FlowDirection(n);
+                    if (dir == "RTN") return "RTN";
+                    if (dir == "SUP" && sysCode != "DHW") return "SUP";
+                }
+            }
+            if (sysCode == "REF")
+            {
+                foreach (string n in SystemNamesOf(el).Append(ParameterHelpers.GetFamilyName(el) + " " + ParameterHelpers.GetFamilySymbolName(el)))
+                {
+                    string line = SystemNameClassifier.RefrigerantFunction(n);
+                    if (line != null) return line;
+                }
+            }
+            if (sysCode == "LV")
+            {
+                string lv = SystemNameClassifier.LvFunction(ParameterHelpers.GetCategoryName(el),
+                    ParameterHelpers.GetFamilyName(el) + " " + ParameterHelpers.GetFamilySymbolName(el));
+                if (!string.IsNullOrEmpty(lv)) return lv;
+            }
+
             // HV, BMS and radiation protection: the role is in the family / type name.
             if (sysCode == SystemNameClassifier.HighVoltageSys || sysCode == SystemNameClassifier.BmsSys
                 || sysCode == SystemNameClassifier.RadiationSys)
@@ -1819,6 +1847,29 @@ namespace StingTools.Core
             }
 
             return FuncMap.TryGetValue(sysCode, out string val) && !string.IsNullOrEmpty(val) ? val : "GEN";
+        }
+
+        /// <summary>
+        /// The MEP system names an element carries: its connectors' systems and its pipe /
+        /// duct system type. Empty for an element with none.
+        /// </summary>
+        private static List<string> SystemNamesOf(Element el)
+        {
+            var names = new List<string>();
+            try
+            {
+                if (el is FamilyInstance fi && fi.MEPModel?.ConnectorManager != null)
+                    foreach (Connector conn in fi.MEPModel.ConnectorManager.Connectors)
+                        if (!string.IsNullOrEmpty(conn.MEPSystem?.Name)) names.Add(conn.MEPSystem.Name);
+                foreach (var bip in new[] { BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM, BuiltInParameter.RBS_SYSTEM_NAME_PARAM })
+                {
+                    Parameter p = el.get_Parameter(bip);
+                    string v = p != null && p.HasValue ? p.AsValueString() ?? p.AsString() : null;
+                    if (!string.IsNullOrEmpty(v)) names.Add(v);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"System name read failed: {ex.Message}"); }
+            return names;
         }
 
         /// <summary>
@@ -3463,14 +3514,20 @@ namespace StingTools.Core
             // Medical gas: an element that declares its gas, or a family whose name names
             // one ("Oxygen Outlet", "Medical Air Plant"). A name that only says "Medical"
             // is not enough — Medical Equipment families say that.
-            if (Plumbing.MedicalGasFixtures.CanonicalGasCode(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")) != null
-                || (SystemNameClassifier.TryMedicalGas(familyName, out string famGas) && famGas != null))
+            if ((Plumbing.MedicalGasFixtures.CanonicalGasCode(ParameterHelpers.GetString(el, "MGS_GAS_TYPE_TXT")) != null
+                 || (SystemNameClassifier.TryMedicalGas(familyName, out string famGas) && famGas != null))
+                && SysMap != null && SysMap.TryGetValue(SystemNameClassifier.MedicalGasSys, out var mgsCats)
+                && mgsCats.Contains(categoryName ?? ""))
                 return SystemNameClassifier.MedicalGasSys;
 
-            // High voltage, BMS and radiation protection, before the LV patterns below.
+            // Named systems (cooling plant, plumbing plant, HV, BMS, radiation protection),
+            // before the LV and HVAC patterns below. Only a system the category can belong
+            // to is taken: "Pool Table" (Furniture) or "MRI-safe Chair" is not a system.
             string special = SystemNameClassifier.FromFamilyName(
                 familyName + " " + ParameterHelpers.GetFamilySymbolName(el));
-            if (special != null) return special;
+            if (special != null && SysMap != null && SysMap.TryGetValue(special, out var specialCats)
+                && specialCats.Contains(categoryName ?? ""))
+                return special;
 
             // HVAC equipment patterns
             if (upper.Contains("AHU") || upper.Contains("AIR HANDLING") ||
@@ -3479,7 +3536,6 @@ namespace StingTools.Core
                 upper.Contains("EXHAUST FAN") || upper.Contains("EXTRACT FAN") ||
                 upper.Contains("HRU") || upper.Contains("HEAT RECOVERY") ||
                 upper.Contains("SPLIT") || upper.Contains("CASSETTE") ||
-                upper.Contains("CHILLER") || upper.Contains("COOLING TOWER") ||
                 upper.Contains("GRILLE") || upper.Contains("DIFFUSER"))
                 return "HVAC";
 

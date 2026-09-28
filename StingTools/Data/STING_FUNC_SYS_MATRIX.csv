@@ -125,3 +125,59 @@ STR,Structure,TRS,Truss,S,BS EN 1993,TRUE
 STR,Structure,RBR,Rebar / Reinforcement,S,BS EN 1992,TRUE
 STR,Structure,GEN,General Structure,S,BS EN 1990,TRUE
 GEN,General / Undefined,GEN,General,A,ISO 19650,TRUE
+CHW,Chilled Water,SUP,Chilled water flow,M,CIBSE Guide B,TRUE
+CHW,Chilled Water,RTN,Chilled water return,M,CIBSE Guide B,TRUE
+CHW,Chilled Water,CLG,Cooling,M,CIBSE Guide B,TRUE
+CHW,Chilled Water,GEN,General,M,CIBSE Guide B,TRUE
+CDW,Condenser Water,SUP,Condenser water flow,M,CIBSE Guide B,TRUE
+CDW,Condenser Water,RTN,Condenser water return,M,CIBSE Guide B,TRUE
+CDW,Condenser Water,CLG,Heat rejection,M,CIBSE Guide B,TRUE
+CDW,Condenser Water,GEN,General,M,CIBSE Guide B,TRUE
+REF,Refrigerant,LIQ,Liquid line,M,BS EN 378,TRUE
+REF,Refrigerant,SUC,Suction / gas line,M,BS EN 378,TRUE
+REF,Refrigerant,HGS,Hot gas / discharge,M,BS EN 378,TRUE
+REF,Refrigerant,CLG,Cooling,M,BS EN 378,TRUE
+REF,Refrigerant,GEN,General,M,BS EN 378,TRUE
+SWD,Surface Water Drainage,SWD,Surface water drainage,P,BS EN 752,TRUE
+SWD,Surface Water Drainage,GEN,General,P,BS EN 752,TRUE
+GWR,Greywater Recycling,GWR,Greywater,P,BS 8525,TRUE
+GWR,Greywater Recycling,SUP,Supply,P,BS 8525,TRUE
+GWR,Greywater Recycling,GEN,General,P,BS 8525,TRUE
+RWH,Rainwater Harvesting,RWH,Rainwater harvesting,P,BS 8515,TRUE
+RWH,Rainwater Harvesting,SUP,Supply,P,BS 8515,TRUE
+RWH,Rainwater Harvesting,GEN,General,P,BS 8515,TRUE
+SDS,SuDS,SDS,Attenuation / infiltration,P,CIRIA C753,TRUE
+SDS,SuDS,GEN,General,P,CIRIA C753,TRUE
+SEP,Septic Tank,SAN,Septic,P,BS 6297,TRUE
+SEP,Septic Tank,GEN,General,P,BS 6297,TRUE
+STW,Package Sewage Treatment,SAN,Treatment works,P,BS EN 12566,TRUE
+STW,Package Sewage Treatment,GEN,General,P,BS EN 12566,TRUE
+BGD,Below-ground Drainage,BGD,Below-ground drainage,P,BS EN 752,TRUE
+BGD,Below-ground Drainage,SAN,Foul,P,BS EN 752,TRUE
+BGD,Below-ground Drainage,GEN,General,P,BS EN 752,TRUE
+SPH,Siphonic Roof Drainage,RWD,Siphonic roof drainage,P,BS 8490,TRUE
+SPH,Siphonic Roof Drainage,GEN,General,P,BS 8490,TRUE
+INT,Interceptor,SAN,Interceptor,P,BS EN 1825 / BS EN 858,TRUE
+INT,Interceptor,GEN,General,P,BS EN 1825 / BS EN 858,TRUE
+CMP,Compressed Air (non-medical),SUP,Compressed air supply,M,BS EN ISO 8573,TRUE
+CMP,Compressed Air (non-medical),GEN,General,M,BS EN ISO 8573,TRUE
+POL,Pool / Spa Circulation,CIR,Circulation,P,BS EN 15288,TRUE
+POL,Pool / Spa Circulation,SUP,Flow,P,BS EN 15288,TRUE
+POL,Pool / Spa Circulation,RTN,Return,P,BS EN 15288,TRUE
+POL,Pool / Spa Circulation,GEN,General,P,BS EN 15288,TRUE
+LBW,Laboratory Water,LAB,Laboratory water,P,ISO 3696,TRUE
+LBW,Laboratory Water,SUP,Flow,P,ISO 3696,TRUE
+LBW,Laboratory Water,RTN,Return,P,ISO 3696,TRUE
+LBW,Laboratory Water,GEN,General,P,ISO 3696,TRUE
+IRR,Irrigation,IRR,Irrigation,P,BS EN 12484,TRUE
+IRR,Irrigation,GEN,General,P,BS EN 12484,TRUE
+FOL,Fuel Oil,FUL,Fuel oil,M,BS 5410,TRUE
+FOL,Fuel Oil,SUP,Flow,M,BS 5410,TRUE
+FOL,Fuel Oil,RTN,Return,M,BS 5410,TRUE
+FOL,Fuel Oil,GEN,General,M,BS 5410,TRUE
+STM,Steam,STM,Steam supply,M,CIBSE Guide C,TRUE
+STM,Steam,GEN,General,M,CIBSE Guide C,TRUE
+CON,Steam Condensate,CND,Condensate return,M,CIBSE Guide C,TRUE
+CON,Steam Condensate,GEN,General,M,CIBSE Guide C,TRUE
+CHE,Chemical Dosing,CHE,Chemical dosing,M,BS 7592,TRUE
+CHE,Chemical Dosing,GEN,General,M,BS 7592,TRUE

@@ -65,10 +65,10 @@ DISC,Nurse Call Devices,LV,Nurse call system devices
 # SECTION 2: SYSTEM MAP (System code → Category groups)
 # Format: SYS,SystemCode,CategoryList,Description
 #
-SYS,HVAC,"Mechanical Equipment,Ducts,Duct Fittings,Duct Accessories,Duct Insulations,Flex Ducts,Air Terminals",Heating ventilation and air conditioning
+SYS,HVAC,"Mechanical Equipment,Ducts,Duct Fittings,Duct Accessories,Duct Insulations,Flex Ducts,Air Terminals",Air systems (chilled / condenser water and refrigerant are CHW / CDW / REF)
 SYS,DCW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulations,Flex Pipes",Domestic cold water
 SYS,DHW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulations",Domestic hot water
-SYS,HWS,"Pipes,Pipe Fittings,Pipe Accessories,Mechanical Equipment",Heating hot water / LTHW / MTHW
+SYS,HWS,"Pipes,Pipe Fittings,Pipe Accessories,Mechanical Equipment",Heating hot water / LTHW / MTHW (steam and condensate are STM / CON)
 SYS,SAN,"Plumbing Fixtures,Pipes,Pipe Fittings,Pipe Accessories",Sanitary / above-ground drainage
 SYS,RWD,"Pipes,Pipe Fittings,Pipe Accessories",Rainwater drainage
 SYS,GAS,"Pipes,Pipe Fittings,Pipe Accessories",Natural gas distribution
@@ -83,6 +83,9 @@ SYS,SEC,"Security Devices",Security and access control
 SYS,ARC,"Walls,Floors,Ceilings,Roofs,Doors,Windows,Stairs,Railings,Ramps,Rooms,Furniture,Casework",Architectural elements
 SYS,STR,"Structural Columns,Structural Framing,Structural Foundations",Structural elements
 SYS,GEN,"Generic Models",General / unclassified
+SYS,CHW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Mechanical Equipment",Chilled water (was HVAC) — FUNC SUP / RTN / CLG
+SYS,CDW,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Mechanical Equipment",Condenser water (was HVAC) — FUNC SUP / RTN / CLG
+SYS,REF,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Mechanical Equipment",Refrigerant (was HVAC) — FUNC LIQ / SUC / HGS / CLG
 SYS,MGS,"Pipes,Pipe Fittings,Pipe Accessories,Pipe Insulation,Flex Pipes,MEP Fabrication Pipework,Plumbing Fixtures,Plumbing Equipment,Mechanical Equipment",Medical gas pipeline systems (HTM 02-01) — detected from system / gas type; FUNC is the gas
 SYS,HV,"Electrical Equipment,Conduits,Conduit Fittings,Cable Trays,Cable Tray Fittings",High voltage above 1 kV — detected from family name
 SYS,BMS,"Electrical Equipment,Electrical Fixtures,Mechanical Control Devices",Building management / BACS — detected from family name
@@ -96,7 +99,8 @@ FUNC,HVAC,RTN,Return air — detected from connector/system name
 FUNC,HVAC,EXH,Extract/exhaust air — detected from connector/system name
 FUNC,HVAC,FRA,Fresh air / outside air — detected from connector/system name
 FUNC,DCW,DCW,Domestic cold water supply
-FUNC,DHW,DHW,Domestic hot water supply
+FUNC,DHW,DHW,Domestic hot water flow
+FUNC,DHW,RTN,Domestic hot water secondary return (from the system name)
 FUNC,HWS,HTG,Heating — LTHW/MTHW for radiators/AHU coils
 FUNC,HWS,DHW,Domestic hot water — distinguished from heating by connector
 FUNC,SAN,SAN,Sanitary drainage
@@ -105,6 +109,9 @@ FUNC,GAS,GAS,Gas distribution
 FUNC,FP,FP,Fire protection
 FUNC,FLS,FLS,Fire/life safety
 FUNC,LV,PWR,Power distribution
+FUNC,LV,LTG,Lighting (Lighting Fixtures / Devices)
+FUNC,LV,EMG,Emergency lighting (name says emergency / exit / escape)
+FUNC,LV,SML,Small power (Electrical Fixtures)
 FUNC,LPS,GEN,Lightning protection — default when the name names no component
 FUNC,LPS,AT,Air termination (rod / mesh / catenary) — BS EN 62305-3 §5.2
 FUNC,LPS,DC,Down conductor — BS EN 62305-3 §5.3
@@ -119,6 +126,9 @@ FUNC,SEC,SEC,Security
 FUNC,ARC,FIT,Architectural fabric / fit-out
 FUNC,STR,STR,Structural function
 FUNC,GEN,GEN,General / unclassified
+FUNC,CHW,CLG,Chilled water — SUP / RTN when the system name says
+FUNC,CDW,CLG,Condenser water — SUP / RTN when the system name says
+FUNC,REF,CLG,Refrigerant — LIQ / SUC / HGS when the line name says
 FUNC,MGS,O2,Medical oxygen — MGS FUNC is the MGS_GAS_TYPE_TXT gas code
 FUNC,MGS,MA4,Medical air 400 kPa
 FUNC,MGS,MA7,Surgical air 700 kPa
@@ -298,10 +308,9 @@ PROD,Generic Models,RP,RAD,SHD,RAD-CRT,Lead curtain
 PROD,Generic Models,RP,RAD,ZNE,MR-FNC,MRI 5-Gauss fence / boundary marker
 PROD,Doors,H,GEN,GEN,LIG-DR,Anti-ligature door
 PROD,Plumbing Fixtures,H,GEN,GEN,LIG-WC,Anti-ligature WC / sink
-# ── Phase 178b — 17 plumbing system codes (PROPOSED) ──
-# NOT in the runtime SysMap: nothing writes these and ISO19650Validator rejects them. A project
-# that wants one adds it through project_config.json (SYS_MAP + FUNC_MAP + CUSTOM_VALID_SYS).
-# Adding one to TagConfig.Defaults changes what existing pipes tag as, and their SEQ groups.
+# ── Phase 178b — 17 plumbing / process system codes ──
+# Runtime systems since 2026-09-28 (TagConfig.Defaults, detected by SystemNameClassifier).
+# STM / CON / FOL / CMP / CHE stay Mechanical; the others route to Plumbing (below).
 SYS,SWD,"Pipes,Pipe Fittings,Pipe Accessories",Surface water / external stormwater drainage
 SYS,GWR,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures",Greywater recycling
 SYS,RWH,"Pipes,Pipe Fittings,Pipe Accessories,Plumbing Fixtures",Rainwater harvesting (non-potable)
@@ -350,3 +359,4 @@ DISC_OVERRIDE,M,INT,P,Interceptor → Plumbing
 DISC_OVERRIDE,M,POL,P,Pool → Plumbing
 DISC_OVERRIDE,M,LBW,P,Lab water → Plumbing
 DISC_OVERRIDE,M,IRR,P,Irrigation → Plumbing
+DISC_OVERRIDE,M,MGS,P,Medical gas → Plumbing

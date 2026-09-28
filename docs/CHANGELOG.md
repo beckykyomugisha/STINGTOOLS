@@ -24508,3 +24508,31 @@ A review of how drawing types choose and size tags. The tag family names the shi
   - HV plant, BMS devices and radiation-protection elements whose names identify them.
   These were wrong or unclassifiable before.
 - **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,756 passing. The new classifier tests were checked failing against the old rule order (11 failures). The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.
+
+#### TOKVOCAB-1 closed: wet HVAC, plumbing systems, lighting and DHW return (2026-09-28)
+
+- **Chilled water, condenser water and refrigerant are their own systems.** They were all SYS HVAC; they are now CHW, CDW and REF (DISC M).
+  - FUNC is SUP or RTN from the system name for CHW and CDW, and LIQ, SUC or HGS from the line name for REF. Otherwise it is CLG.
+  - Chillers, cooling towers and condensing units get the matching system from the family name when they have no connected system.
+  - HVAC now means air systems only.
+- **The 17 Phase 178b plumbing and process codes are runtime systems.** SWD, GWR, RWH, SDS, SEP, STW, BGD, SPH, INT, CMP, POL, LBW, IRR, FOL, STM, CON and CHE are detected from system names and plant family names. They use the functions the reference file documented.
+  - STM, CON, FOL, CMP and CHE pipework is DISC M; the rest is DISC P.
+  - Behaviour changes that follow:
+    - Site storm and surface water is SWD; roof rainwater stays RWD.
+    - Steam and condensate were HWS and are now STM and CON; an A/C condensate drain stays SAN.
+    - A sewage treatment works was SAN and is now STW.
+  - Guards against false matches: a fire hose reel is not irrigation, fuel gas is not fuel oil, and chemical waste drainage is not dosing.
+  - The family-name layer now only returns a system that the element's category can belong to, so "Pool Table" or "MRI-safe Chair" is not a system.
+- **Lighting and small power have their own FUNC.** Under LV, luminaires and lighting devices are LTG, emergency, exit and escape luminaires are EMG, and electrical fixtures (sockets) are SML. Distribution stays PWR. All four codes were already in the FUNC matrix but nothing resolved them.
+- **DHW secondary return is FUNC RTN**, read from the system name ("return", "circulation", "recirc"); flow keeps DHW.
+- **Aligned with the new vocabulary:**
+  - `MepRunBuilder.SysCodeFor` no longer calls Revit's hydronic classification HVAC; the system name decides between heating, chilled and condenser water.
+  - `TagIntelligence` no longer infers HVAC for anything connected to a chiller.
+  - The System tag colour scheme covers all 42 runtime systems, and a test holds the two lists together.
+  - The Code Legend, the FUNC/SYS matrix and the reference CSV are updated to match.
+  - Tag 7 narrative text has descriptions for the new codes.
+- **Product codes.**
+  - A kitchen or lab sink was PROD SKT, the same code as a socket outlet. It is now SNK.
+  - The FUNC/PROD contradiction table named codes the resolver never writes (WC, WHB, CHR, BLR, DAM, TRP, SWB, and CLT, which is cross-laminated timber), so its checks could not fire. It now uses produced codes, and a test holds it to them.
+- **Effect on existing projects.** Re-tagging changes the SYS token, and with it the SEQ group, of chilled, condenser and refrigerant pipework, steam and condensate, site storm water, treatment works and the other named plumbing systems. The FUNC token changes for lighting, sockets, DHW return and cooling-plant pipework. Sinks change PROD.
+- **Verification.** Plugin build: 0 errors. `StingTools.Tags.Tests`: 3,838 passing. The four gates pass; drawing-type checksums are unchanged. Not exercised in Revit.

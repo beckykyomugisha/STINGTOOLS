@@ -70,6 +70,7 @@ namespace StingTools.Core
         private static readonly HashSet<string> _fallbackSysCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "HVAC", "HWS", "DHW", "DCW", "SAN", "RWD", "GAS", "MGS", "FP", "LV", "LPS", "HV", "BMS", "RAD",
+            "CHW", "CDW", "REF", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "CMP", "POL", "LBW", "IRR", "FOL", "STM", "CON", "CHE",
             "FLS", "COM", "ICT", "NCL", "SEC",
             "ARC", "STR", "GEN"
         };
@@ -132,6 +133,9 @@ namespace StingTools.Core
             "O2", "MA4", "MA7", "N2O", "N2", "CO2", "HE", "VAC", "AGS",
             // High voltage, BMS, radiation protection - SystemNameClassifier.FunctionFromName
             "TRF", "SNS", "CTL", "FCT", "MON", "SHD", "ZNE",
+            // Chilled / condenser water direction, refrigerant line - FlowDirection /
+            // RefrigerantFunction; LV lighting, emergency lighting, small power - LvFunction
+            "LIQ", "SUC", "HGS", "LTG", "EMG", "SML",
         };
 
         /// <summary>
@@ -475,15 +479,17 @@ namespace StingTools.Core
             new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase)
             {
                 // Supply function should not have sanitary/plumbing products
-                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "URN", "SNK", "SHW", "BTH", "BID", "MOP" } },
+                // Codes are ones the resolver writes (WST / LVT / BDT, not WC / WHB / BID —
+                // those were never produced, so the checks could not fire).
+                { "SUP", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WST", "LVT", "URN", "SNK", "SHW", "BTH", "BDT", "MOP" } },
                 // Return function should not have electrical products
-                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SWB", "SKT", "LUM" } },
+                { "RTN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DB", "MCC", "MSB", "SKT", "LUM" } },
                 // Lighting function should not have HVAC products
-                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHR", "BLR", "RAD", "DAM" } },
+                { "LTG", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "CHW", "BCH", "RAD", "DMP" } },
                 // Power function should not have plumbing products
-                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WC", "WHB", "PP", "PFT", "PAC", "FPP", "TRP" } },
+                { "PWR", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "WST", "LVT", "PP", "PFT", "FPP" } },
                 // Sanitary function should not have HVAC products
-                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DAM", "CLT" } },
+                { "SAN", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AHU", "FCU", "VAV", "FAN", "HRU", "DMP" } },
                 // Fire protection function should not have architectural products
                 { "FLS", new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "DR", "WIN", "WL", "FL", "CLG", "RF", "FUR" } },
             };
@@ -700,9 +706,9 @@ namespace StingTools.Core
             new Dictionary<string, HashSet<string>>
             {
                 // FP: fire pumps and sprinkler valve sets are modelled as Mechanical Equipment.
-                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "MGS", "RWD", "SAN", "FP", "BMS" } },
+                { "M",  new HashSet<string> { "HVAC", "HWS", "DCW", "DHW", "GAS", "MGS", "RWD", "SAN", "FP", "BMS", "CHW", "CDW", "REF", "CMP", "FOL", "STM", "CON", "CHE", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "POL", "LBW", "IRR" } },
                 { "E",  new HashSet<string> { "LV", "HV", "BMS", "FLS", "SEC", "ICT", "COM", "NCL" } },
-                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS", "MGS" } },
+                { "P",  new HashSet<string> { "DCW", "DHW", "SAN", "RWD", "GAS", "MGS", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "POL", "LBW", "IRR" } },
                 { "FP", new HashSet<string> { "FP", "FLS" } },
                 { "A",  new HashSet<string> { "ARC" } },
                 { "S",  new HashSet<string> { "STR" } },

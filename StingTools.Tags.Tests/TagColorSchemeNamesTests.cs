@@ -92,5 +92,19 @@ namespace StingTools.Tags.Tests
             var missing = names.Where(n => !Regex.IsMatch(shared, @"\t" + n + @"\t")).ToList();
             Assert.True(missing.Count == 0, "Not in MR_PARAMETERS.txt: " + string.Join(", ", missing));
         }
+
+        [Fact]
+        public void The_System_scheme_colours_every_runtime_system()
+        {
+            string defaults = File.ReadAllText(Repo("StingTools", "Core", "TagConfig.Defaults.cs"));
+            int a = defaults.IndexOf("DefaultSysMap()", StringComparison.Ordinal), b = defaults.IndexOf("DefaultProdMap()", StringComparison.Ordinal);
+            var runtime = Regex.Matches(defaults.Substring(a, b - a), @"\{\s*""([A-Z]+)"",\s*new List<string>").Select(m => m.Groups[1].Value).ToList();
+            string src = File.ReadAllText(Repo("StingTools", "Tags", "TagStyleEngine.cs"));
+            int s1 = src.IndexOf("d[\"System\"] = new VariableColorScheme", StringComparison.Ordinal);
+            int s2 = src.IndexOf("ValueStyles", s1, StringComparison.Ordinal);
+            var coloured = Regex.Matches(src.Substring(s1, s2 - s1), @"\{\s*""([A-Z]+)"",\s*new Color").Select(m => m.Groups[1].Value).ToList();
+            Assert.True(runtime.Count >= 40, "runtime systems not read");
+            Assert.Equal(runtime.OrderBy(x => x), coloured.OrderBy(x => x));
+        }
     }
 }

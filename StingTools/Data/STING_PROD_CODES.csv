@@ -62,7 +62,7 @@ LVT,Plumbing Fixtures,*Lavatory*|*Basin*|*Washbasin*,Wash Basin / Lavatory,P,SAN
 SHW,Plumbing Fixtures,*Shower*,Shower,P,SAN,BS EN 1112
 BTH,Plumbing Fixtures,*Bath*,Bath,P,SAN,BS EN 232
 URN,Plumbing Fixtures,*Urinal*,Urinal,P,SAN,BS EN 80
-SKT,Plumbing Fixtures,*Sink*|*Kitchen Sink*,Kitchen / Lab Sink,P,SAN,BS EN 1694
+SNK,Plumbing Fixtures,*Sink*|*Kitchen Sink*,Kitchen / Lab Sink,P,SAN,BS EN 1694
 GRT,Plumbing Fixtures,*Gully*|*Floor Waste*,Floor Drain / Gully,P,SAN,BS EN 1253
 DBT,Plumbing Fixtures,*Drinking*|*Bubbler*,Drinking Fountain / Water Bubbler,P,DCW,BS EN 1717
 HTP,Plumbing Fixtures,*Hot Tap*|*Boiling*,Instant Hot Water Tap,P,HWS,BS EN 15091

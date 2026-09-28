@@ -732,6 +732,7 @@ namespace StingTools.Core
             // could never be a SYS token.
             { "MGS", "Medical Gas Pipeline System" },
             { "HV", "High Voltage Distribution" }, { "BMS", "Building Management System" },
+            { "CHW", "Chilled Water" }, { "CDW", "Condenser Water" }, { "REF", "Refrigerant" }, { "SWD", "Surface Water Drainage" }, { "GWR", "Greywater Recycling" }, { "RWH", "Rainwater Harvesting" }, { "SDS", "Sustainable Drainage (SuDS)" }, { "SEP", "Septic Tank" }, { "STW", "Package Sewage Treatment" }, { "BGD", "Below-ground Drainage" }, { "SPH", "Siphonic Roof Drainage" }, { "INT", "Grease / Oil Interceptor" }, { "CMP", "Compressed Air" }, { "POL", "Pool / Spa Circulation" }, { "LBW", "Laboratory Water" }, { "IRR", "Irrigation" }, { "FOL", "Fuel Oil" }, { "STM", "Steam" }, { "CON", "Steam Condensate" }, { "CHE", "Chemical Dosing" },
             { "LPS", "Lightning Protection System" },
             { "CLN", "Clinical Environment" }, { "RAD", "Radiation Protection" },
         };
@@ -765,6 +766,7 @@ namespace StingTools.Core
             { "TRF", "Transformation" }, { "SNS", "Sensing" }, { "CTL", "Control" },
             { "FCT", "Field Control" }, { "MON", "Monitoring" }, { "SHD", "Radiation Shielding" },
             { "ZNE", "Radiation Zone Boundary" },
+            { "CLG", "Cooling" }, { "LIQ", "Refrigerant Liquid" }, { "SUC", "Refrigerant Suction" }, { "HGS", "Refrigerant Hot Gas" }, { "EMG", "Emergency Lighting" }, { "SML", "Small Power" }, { "SWD", "Surface Water" }, { "GWR", "Greywater" }, { "RWH", "Rainwater Harvesting" }, { "SDS", "Attenuation / Infiltration" }, { "BGD", "Below-ground Drainage" }, { "CIR", "Circulation" }, { "LAB", "Laboratory Water" }, { "IRR", "Irrigation" }, { "FUL", "Fuel Oil" }, { "STM", "Steam Supply" }, { "CND", "Condensate Return" }, { "CHE", "Chemical Dosing" },
             // Healthcare Pack (Phase H-1)
             { "DIST", "Distribution" }, { "ISO", "Isolation" }, { "ALM", "Area Alarm" },
             { "TU", "Terminal Unit" }, { "ZVB", "Zone Valve Box" },

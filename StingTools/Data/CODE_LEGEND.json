@@ -1060,12 +1060,37 @@
         {
           "code": "HVAC",
           "label": "Heating, Ventilation & Air Conditioning",
-          "description": "Air systems (supply, return, extract, outside air) and cooling water (chilled and condenser water): ducts, AHUs, FCUs, VAVs, chillers."
+          "description": "Air systems: supply, return, extract and outside air; ducts, AHUs, FCUs, VAVs."
+        },
+        {
+          "code": "CHW",
+          "label": "Chilled Water",
+          "description": "Chilled water flow and return; FUNC SUP / RTN from the system name, else CLG."
+        },
+        {
+          "code": "CDW",
+          "label": "Condenser Water",
+          "description": "Condenser water and cooling-tower circuits; FUNC SUP / RTN, else CLG."
+        },
+        {
+          "code": "REF",
+          "label": "Refrigerant",
+          "description": "Refrigerant pipework (VRF / split); FUNC LIQ / SUC / HGS from the line name, else CLG."
         },
         {
           "code": "HWS",
           "label": "Heating Water",
-          "description": "Heating hot water, LTHW / MTHW, steam and condensate: radiators, underfloor heating, boilers, heating pipework. Revit \"Hydronic\" systems map here."
+          "description": "Heating hot water, LTHW / MTHW: radiators, underfloor heating, boilers, heating pipework. Revit \"Hydronic\" systems map here."
+        },
+        {
+          "code": "STM",
+          "label": "Steam",
+          "description": "Steam distribution and plant."
+        },
+        {
+          "code": "CON",
+          "label": "Steam Condensate",
+          "description": "Steam condensate return (an A/C condensate drain is SAN)."
         },
         {
           "code": "DHW",
@@ -1078,6 +1103,31 @@
           "description": "Potable cold water from the mains or boosted supply."
         },
         {
+          "code": "RWH",
+          "label": "Rainwater Harvesting",
+          "description": "Harvested rainwater, non-potable (BS 8515)."
+        },
+        {
+          "code": "GWR",
+          "label": "Greywater Recycling",
+          "description": "Greywater recycling (BS 8525)."
+        },
+        {
+          "code": "LBW",
+          "label": "Laboratory Water",
+          "description": "RO / DI / purified water."
+        },
+        {
+          "code": "POL",
+          "label": "Pool / Spa",
+          "description": "Pool and spa circulation."
+        },
+        {
+          "code": "IRR",
+          "label": "Irrigation",
+          "description": "Irrigation."
+        },
+        {
           "code": "SAN",
           "label": "Sanitary / Foul Drainage",
           "description": "Soil, waste and vent pipework; toilets, basins, showers."
@@ -1085,12 +1135,62 @@
         {
           "code": "RWD",
           "label": "Rainwater / Surface Water",
-          "description": "Roof drainage, gutters, downpipes, storm and surface-water drainage."
+          "description": "Roof rainwater: gutters, outlets, downpipes."
+        },
+        {
+          "code": "SWD",
+          "label": "Surface Water",
+          "description": "Site storm and surface-water drainage (RWD is roof rainwater)."
+        },
+        {
+          "code": "SPH",
+          "label": "Siphonic Roof Drainage",
+          "description": "Manufacturer-engineered siphonic roof drainage."
+        },
+        {
+          "code": "SDS",
+          "label": "SuDS",
+          "description": "Attenuation, soakaways, infiltration (CIRIA C753)."
+        },
+        {
+          "code": "BGD",
+          "label": "Below-ground Drainage",
+          "description": "Below-ground foul / combined drainage."
+        },
+        {
+          "code": "SEP",
+          "label": "Septic Tank",
+          "description": "Septic tanks."
+        },
+        {
+          "code": "STW",
+          "label": "Sewage Treatment",
+          "description": "Package sewage treatment works."
+        },
+        {
+          "code": "INT",
+          "label": "Interceptor",
+          "description": "Grease and oil interceptors (BS EN 1825 / BS EN 858)."
         },
         {
           "code": "GAS",
           "label": "Fuel Gas",
           "description": "Natural gas and LPG distribution."
+        },
+        {
+          "code": "FOL",
+          "label": "Fuel Oil",
+          "description": "Fuel oil and diesel."
+        },
+        {
+          "code": "CMP",
+          "label": "Compressed Air",
+          "description": "Compressed air, non-medical (medical air is MGS)."
+        },
+        {
+          "code": "CHE",
+          "label": "Chemical Dosing",
+          "description": "Water-treatment dosing."
         },
         {
           "code": "MGS",
@@ -1175,12 +1275,12 @@
         {
           "code": "SUP",
           "label": "Supply",
-          "description": "Supply air (HVAC); detected from the system or duct type."
+          "description": "Supply / flow: HVAC air, chilled and condenser water, compressed air."
         },
         {
           "code": "RTN",
           "label": "Return",
-          "description": "Return air (HVAC)."
+          "description": "Return: HVAC air, chilled and condenser water, DHW secondary return."
         },
         {
           "code": "EXH",
@@ -1200,7 +1300,7 @@
         {
           "code": "DHW",
           "label": "Domestic Hot Water",
-          "description": "Domestic hot water (DHW default; HWS elements identified as hot water service)."
+          "description": "Domestic hot water flow (DHW default; the return is RTN)."
         },
         {
           "code": "DCW",
@@ -1240,7 +1340,7 @@
         {
           "code": "PWR",
           "label": "Power",
-          "description": "LV power (LV default); high-voltage plant other than transformers (HV default)."
+          "description": "LV distribution (LV default); high-voltage plant other than transformers (HV default)."
         },
         {
           "code": "COM",
@@ -1381,6 +1481,101 @@
           "code": "ZNE",
           "label": "Zone Boundary",
           "description": "RAD: controlled-area and 5-gauss boundaries."
+        },
+        {
+          "code": "CLG",
+          "label": "Cooling",
+          "description": "Chilled / condenser water and refrigerant default."
+        },
+        {
+          "code": "LIQ",
+          "label": "Liquid Line",
+          "description": "REF."
+        },
+        {
+          "code": "SUC",
+          "label": "Suction Line",
+          "description": "REF."
+        },
+        {
+          "code": "HGS",
+          "label": "Hot Gas / Discharge",
+          "description": "REF."
+        },
+        {
+          "code": "LTG",
+          "label": "Lighting",
+          "description": "LV: luminaires and lighting devices."
+        },
+        {
+          "code": "EMG",
+          "label": "Emergency Lighting",
+          "description": "LV: emergency, exit and escape luminaires."
+        },
+        {
+          "code": "SML",
+          "label": "Small Power",
+          "description": "LV: socket outlets and other electrical fixtures."
+        },
+        {
+          "code": "SWD",
+          "label": "Surface Water",
+          "description": "SWD default."
+        },
+        {
+          "code": "GWR",
+          "label": "Greywater",
+          "description": "GWR default."
+        },
+        {
+          "code": "RWH",
+          "label": "Rainwater Harvesting",
+          "description": "RWH default."
+        },
+        {
+          "code": "SDS",
+          "label": "Attenuation",
+          "description": "SDS default."
+        },
+        {
+          "code": "BGD",
+          "label": "Below-ground Drainage",
+          "description": "BGD default."
+        },
+        {
+          "code": "CIR",
+          "label": "Circulation",
+          "description": "POL default."
+        },
+        {
+          "code": "LAB",
+          "label": "Laboratory Water",
+          "description": "LBW default."
+        },
+        {
+          "code": "IRR",
+          "label": "Irrigation",
+          "description": "IRR default."
+        },
+        {
+          "code": "FUL",
+          "label": "Fuel Oil",
+          "description": "FOL default."
+        },
+        {
+          "code": "STM",
+          "label": "Steam",
+          "description": "STM default."
+        },
+        {
+          "code": "CND",
+          "label": "Condensate",
+          "description": "CON default."
+        },
+        {
+          "code": "CHE",
+          "label": "Chemical Dosing",
+          "description": "CHE default."
         },
         {
           "code": "GEN",

@@ -124,5 +124,19 @@ namespace StingTools.Tags.Tests
                 Assert.Null(SeqAssigner.ValidateNumericSeq(p[7], 4));
             }
         }
+
+        // The FUNC/PROD contradiction table named WC, WHB, CHR, BLR, DAM … — codes the
+        // resolver never writes — so its checks could not fire.
+        [Fact]
+        public void Contradiction_table_names_codes_the_resolver_produces()
+        {
+            string block = Between(Src("StingTools", "Core", "ISO19650Validator.cs"), "_incompatibleFuncProdPairs =", "private static string ValidateFuncProdPair");
+            var prod = RuntimeProd();
+            var named = Regex.Matches(block, @"\{\s*""[A-Z]+"",\s*new HashSet<string>\([^)]*\)\s*\{([^}]*)\}")
+                .SelectMany(m => Regex.Matches(m.Groups[1].Value, @"""([A-Z0-9]+)""").Select(x => x.Groups[1].Value)).ToList();
+            Assert.True(named.Count > 20, "table not read");
+            var bad = named.Where(c => !prod.Contains(c)).Distinct().ToList();
+            Assert.True(bad.Count == 0, "Never produced: " + string.Join(", ", bad));
+        }
     }
 }

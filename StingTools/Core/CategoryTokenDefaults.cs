@@ -81,11 +81,31 @@ namespace StingTools.Core
                 case "RWD":
                 case "GAS":
                 case "MGS":   // medical gas pipework is Plumbing, as STING_FUNC_SYS_MATRIX files it
+                case "SWD":
+                case "GWR":
+                case "RWH":
+                case "SDS":
+                case "SEP":
+                case "STW":
+                case "BGD":
+                case "SPH":
+                case "INT":
+                case "POL":
+                case "LBW":
+                case "IRR":
                     return "P";
                 case "FP":
                     return "FP";
                 case "HVAC":
                 case "HWS":
+                case "CHW":
+                case "CDW":
+                case "REF":
+                case "CMP":
+                case "FOL":
+                case "STM":
+                case "CON":
+                case "CHE":
                     return "M";
                 default:
                     return disc;

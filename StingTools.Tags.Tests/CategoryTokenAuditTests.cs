@@ -193,7 +193,7 @@ namespace StingTools.Tags.Tests
         {
             // HV, BMS, RAD and MGS are read off names and systems; listing a category under
             // them makes them valid for it, never its default.
-            var hits = DiscMap.Value.Keys.Where(c => new[] { "HV", "BMS", "RAD", "MGS" }.Contains(Defaults(c).sys)).ToList();
+            var hits = DiscMap.Value.Keys.Where(c => new[] { "HV", "BMS", "RAD", "MGS", "CHW", "CDW", "REF", "SWD", "GWR", "RWH", "SDS", "SEP", "STW", "BGD", "SPH", "INT", "CMP", "POL", "LBW", "IRR", "FOL", "STM", "CON", "CHE" }.Contains(Defaults(c).sys)).ToList();
             Assert.True(hits.Count == 0, "Defaults to a name-detected system: " + string.Join(", ", hits));
         }
 
@@ -244,6 +244,31 @@ namespace StingTools.Tags.Tests
         [InlineData("Walls", "RAD")]
         [InlineData("Specialty Equipment", "RAD")]
         [InlineData("Doors", "RAD")]
+        [InlineData("Pipes", "CHW")]
+        [InlineData("Pipes", "CDW")]
+        [InlineData("Pipes", "REF")]
+        [InlineData("Pipes", "SWD")]
+        [InlineData("Pipes", "GWR")]
+        [InlineData("Pipes", "RWH")]
+        [InlineData("Pipes", "SDS")]
+        [InlineData("Pipes", "SEP")]
+        [InlineData("Pipes", "STW")]
+        [InlineData("Pipes", "BGD")]
+        [InlineData("Pipes", "SPH")]
+        [InlineData("Pipes", "INT")]
+        [InlineData("Pipes", "CMP")]
+        [InlineData("Pipes", "POL")]
+        [InlineData("Pipes", "LBW")]
+        [InlineData("Pipes", "IRR")]
+        [InlineData("Pipes", "FOL")]
+        [InlineData("Pipes", "STM")]
+        [InlineData("Pipes", "CON")]
+        [InlineData("Pipes", "CHE")]
+        [InlineData("Mechanical Equipment", "CHW")]
+        [InlineData("Mechanical Equipment", "CDW")]
+        [InlineData("Mechanical Equipment", "REF")]
+        [InlineData("Plumbing Fixtures", "INT")]
+        [InlineData("Plumbing Equipment", "SEP")]
         [InlineData("Plumbing Fixtures", "MGS")]
         [InlineData("Mechanical Equipment", "MGS")]
         [InlineData("Pipe Insulation", "DCW")]
@@ -266,6 +291,12 @@ namespace StingTools.Tags.Tests
         [InlineData("FP", "FP")]
         [InlineData("HWS", "M")]   // heating water is Mechanical; was P
         [InlineData("MGS", "P")]   // medical gas pipework is Plumbing
+        [InlineData("CHW", "M")]
+        [InlineData("REF", "M")]
+        [InlineData("STM", "M")]
+        [InlineData("SWD", "P")]
+        [InlineData("GWR", "P")]
+        [InlineData("INT", "P")]
         [InlineData("HVAC", "M")]
         public void Pipe_discipline_follows_the_system(string sys, string disc)
         {

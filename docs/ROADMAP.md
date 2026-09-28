@@ -1975,21 +1975,17 @@ Author **2.5 mm and 3.5 mm** variants first — they cover every shipped drawing
   explicitly, and the style grid marks them "not ISO"); a loaded catalogue or preset default that
   names one is moved to the ISO size with a logged warning. `IsoTagText` is the rule;
   `IsoTagStyleDefaultsTests` holds the shipped data to it.
-- **TOKVOCAB-1 (open, 2026-09-28): SYS vocabulary decisions left for the project.** The runtime
-  SYS set is 23 codes (TagConfig.Defaults). Not added, because each changes what existing
-  elements tag as and restarts their SEQ groups:
-  - Wet HVAC: chilled water, condenser water and refrigerant are all SYS HVAC (CHW / CDW / REF
-    would separate them); steam and condensate are HWS.
-  - The 17 Phase 178b plumbing codes (SWD, GWR, RWH, SDS, SEP, STW, BGD, SPH, INT, CMP, POL,
-    LBW, IRR, FOL, STM, CON, CHE) are documented as proposed in TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv.
-  - Lighting FUNC is PWR (the LV default); the matrix allows LTG / EMG / SML but nothing
-    resolves them, and ValidFuncCodes rejects them.
-  - DHW secondary return is not distinguished from flow (FUNC DHW), so the WaterSafety tag
-    scheme cannot colour it.
-  - The healthcare disciplines H / MG / RP are not accepted as tag DISC codes (validator: A M E
-    P S FP LV G); medical gas pipework is DISC P, SYS MGS.
+- **TOKVOCAB-1 ✅ CLOSED 2026-09-28:** CHW / CDW / REF split from HVAC; the 17 Phase 178b
+  plumbing and process systems are runtime systems; LV lighting / emergency / small power have
+  FUNC LTG / EMG / SML; DHW secondary return is FUNC RTN. See CHANGELOG.
+- **TOKVOCAB-2 (open, 2026-09-28):**
+  - Heating water (HWS) does not take flow / return from the system name (FUNC stays HTG or
+    DHW); CHW, CDW and DHW do.
+  - The healthcare disciplines H / MG / RP are not accepted as tag DISC codes (validator:
+    A M E P S FP LV G); medical gas pipework is DISC P, SYS MGS.
   - The "0000" SEQ placeholder is a literal in ComplianceScan and TagConfig; at a pad width
     other than 4 it no longer looks like a sequence.
+  - Revit's "Other" piping system and unnamed systems still fall to the category default.
 - **TAGSCHEME-1 ✅ CLOSED 2026-09-27:** the eight pack tag colour schemes now exist. Seven read the
   parameter the healthcare validators already use (`MGS_GAS_TYPE_TXT`, `CLN_PRESS_REGIME_TXT`,
   `ELC_EES_BRANCH_TXT`, fire resistance minutes, `RAD_BARRIER_TYPE_TXT`, `CLN_LIG_RISK_LVL_TXT`, the

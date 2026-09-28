@@ -24,15 +24,43 @@ namespace StingTools.Tags.Tests
         [InlineData("Exhaust Air", "Ducts", "HVAC")]
         [InlineData("Other", "Pipes", null)]
         // Rainwater before foul drainage.
-        [InlineData("Storm Drainage", "Pipes", "RWD")]           // was SAN
+        [InlineData("Storm Drainage", "Pipes", "SWD")]           // was SAN; site storm water is SWD
         [InlineData("Roof Drain", "Pipes", "RWD")]               // was SAN
-        [InlineData("Surface Water Drainage", "Pipes", "RWD")]   // was SAN
+        [InlineData("Surface Water Drainage", "Pipes", "SWD")]   // was SAN
+        [InlineData("Rainwater", "Pipes", "RWD")]
         [InlineData("Foul Drainage", "Pipes", "SAN")]
-        // Cooling water is HVAC; heating water is HWS.
-        [InlineData("Chilled Water Supply", "Pipes", "HVAC")]
-        [InlineData("Condenser Water Return", "Pipes", "HVAC")]
+        // Cooling plant water and refrigerant are their own systems (were all HVAC).
+        [InlineData("Chilled Water Supply", "Pipes", "CHW")]
+        [InlineData("CHW Return", "Pipes", "CHW")]
+        [InlineData("Condenser Water Return", "Pipes", "CDW")]
+        [InlineData("Cooling Tower Water", "Pipes", "CDW")]
+        [InlineData("Refrigerant Liquid", "Pipes", "REF")]
+        [InlineData("VRF Gas Line", "Pipes", "REF")]
         [InlineData("CW", "Pipes", "DCW")]
-        [InlineData("CW", "Mechanical Equipment", "HVAC")]
+        [InlineData("CW", "Mechanical Equipment", "CDW")]
+        // Steam and condensate (were HWS); an A/C condensate drain is drainage.
+        [InlineData("Steam Supply", "Pipes", "STM")]
+        [InlineData("Steam Condensate Return", "Pipes", "CON")]
+        [InlineData("Condensate Return", "Pipes", "CON")]
+        [InlineData("Condensate Drain", "Pipes", "SAN")]
+        // Phase 178b plumbing / process systems.
+        [InlineData("Rainwater Harvesting", "Pipes", "RWH")]
+        [InlineData("Greywater", "Pipes", "GWR")]
+        [InlineData("Lab Water RO", "Pipes", "LBW")]
+        [InlineData("Pool Circulation", "Pipes", "POL")]
+        [InlineData("Irrigation", "Pipes", "IRR")]
+        [InlineData("Fuel Oil", "Pipes", "FOL")]
+        [InlineData("Fuel Gas", "Pipes", "GAS")]                // not fuel oil
+        [InlineData("Compressed Air", "Pipes", "CMP")]
+        [InlineData("Chemical Dosing", "Pipes", "CHE")]
+        [InlineData("Chemical Waste Drainage", "Pipes", "SAN")] // not dosing
+        [InlineData("Siphonic Roof Drainage", "Pipes", "SPH")]
+        [InlineData("SuDS Attenuation", "Pipes", "SDS")]
+        [InlineData("Septic Tank Outlet", "Pipes", "SEP")]
+        [InlineData("Sewage Treatment Works", "Pipes", "STW")]  // not SAN
+        [InlineData("Grease Interceptor", "Pipes", "INT")]
+        [InlineData("Below Ground Foul", "Pipes", "BGD")]
+        [InlineData("Hose Reel", "Pipes", null)]                 // a fire hose reel is not irrigation
         [InlineData("LTHW Flow", "Pipes", "HWS")]
         [InlineData("Natural Gas", "Pipes", "GAS")]
         [InlineData("LPG", "Pipes", "GAS")]
@@ -113,5 +141,47 @@ namespace StingTools.Tags.Tests
         [InlineData("RAD", "X-Ray Unit", null)]
         public void Family_name_function(string sys, string family, string func)
             => Assert.Equal(func, SystemNameClassifier.FunctionFromName(sys, family));
+
+        [Theory]
+        [InlineData("Chiller 500kW", "Mechanical Equipment", "CHW")]
+        [InlineData("Cooling Tower", "Mechanical Equipment", "CDW")]
+        [InlineData("VRF Outdoor Unit", "Mechanical Equipment", "REF")]
+        [InlineData("Grease Trap", "Plumbing Fixtures", "INT")]
+        [InlineData("Septic Tank", "Plumbing Equipment", "SEP")]
+        [InlineData("Air Compressor", "Mechanical Equipment", "CMP")]
+        [InlineData("Medical Air Compressor", "Mechanical Equipment", "MGS")] // medical gas before compressed air
+        public void Plant_family_system(string family, string cat, string sys)
+        {
+            _ = cat;
+            Assert.Equal(sys, SystemNameClassifier.FromFamilyName(family));
+        }
+
+        [Theory]
+        [InlineData("DHW Secondary Return", "RTN")]
+        [InlineData("DHW Circulation", "RTN")]
+        [InlineData("Chilled Water Flow", "SUP")]
+        [InlineData("Hydronic Supply", "SUP")]
+        [InlineData("Domestic Hot Water", null)]
+        public void Flow_direction(string name, string dir)
+            => Assert.Equal(dir, SystemNameClassifier.FlowDirection(name));
+
+        [Theory]
+        [InlineData("Refrigerant Liquid", "LIQ")]
+        [InlineData("Refrigerant Suction", "SUC")]
+        [InlineData("VRF Gas Line", "SUC")]
+        [InlineData("Hot Gas Discharge", "HGS")]
+        [InlineData("Refrigerant", null)]
+        public void Refrigerant_line(string name, string func)
+            => Assert.Equal(func, SystemNameClassifier.RefrigerantFunction(name));
+
+        [Theory]
+        [InlineData("Lighting Fixtures", "Recessed LED Panel", "LTG")]
+        [InlineData("Lighting Fixtures", "Emergency Bulkhead 3h", "EMG")]
+        [InlineData("Lighting Fixtures", "Exit Sign", "EMG")]
+        [InlineData("Lighting Devices", "Switch 1G", "LTG")]
+        [InlineData("Electrical Fixtures", "Twin Socket 13A", "SML")]
+        [InlineData("Electrical Equipment", "Distribution Board", null)]  // stays PWR
+        public void Lv_function(string category, string family, string func)
+            => Assert.Equal(func, SystemNameClassifier.LvFunction(category, family));
     }
 }
