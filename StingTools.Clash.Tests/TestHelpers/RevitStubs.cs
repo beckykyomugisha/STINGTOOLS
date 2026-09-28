@@ -73,5 +73,14 @@ namespace StingTools.Core
                 "Resolving a real project output directory needs the Revit API and a " +
                 "project folder tree; returning a temp path here would make " +
                 "ClashPersistence.CanonicalPath look correct while measuring nothing.");
+
+        /// <summary>Same contract as GetOutputDirectory: CanonicalPath resolves the clash
+        /// store through GetStorePath (DOCX-11), and a stub that returned a path would make
+        /// that look correct while measuring nothing.</summary>
+        public static string GetStorePath(Autodesk.Revit.DB.Document doc, string fileName, string area = null,
+            params string[] carrySiblingDirs)
+            => throw new NotSupportedException(
+                "OutputLocationHelper.GetStorePath is a compile-time stub for StingTools.Clash.Tests; " +
+                "resolving the project store needs the Revit API and a project folder tree.");
     }
 }
