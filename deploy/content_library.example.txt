@@ -1,0 +1,5 @@
+# Copy this file to content_library.txt (same folder) and put the shared library
+# path on the first non-comment line. package.bat ships it in the zip, and
+# install.bat writes it to each user's %APPDATA%\STING\sting_content.json.
+# The folder should contain a Tags subfolder holding the STING tag families.
+\\server\share\STING\ContentLibrary

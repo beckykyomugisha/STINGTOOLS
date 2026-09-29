@@ -162,3 +162,7 @@ KUT_DOCS_WORKING/to_send/*
 Families/TitleBlocks/_seeds/*.[0-9][0-9][0-9][0-9].rfa
 # The plugin creates this beside any family it opens from here.
 Families/TitleBlocks/_seeds/STING_BIM_MANAGER/
+
+# The firm's shared content library path, read by deploy/install.ps1 and shipped
+# in the tester zip by package.bat. Machine-specific, so never committed.
+deploy/content_library.txt

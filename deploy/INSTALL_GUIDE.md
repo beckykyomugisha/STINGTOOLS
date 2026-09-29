@@ -144,6 +144,19 @@ That trio — button + expectation + log — is exactly what pins down a bug.
 
 ---
 
+## Shared tag library (optional, set by whoever sends you the zip)
+
+If your team keeps its STING tag families on a network drive, the installer points STING
+at it. Whoever builds the zip puts the folder path in `content_library.txt` next to
+`install.bat` (see `content_library.example.txt`); `install.bat` then saves it for you and
+says whether the folder's `Tags` subfolder can be reached.
+
+- You can also set or change it yourself: `install.bat -ContentLibrary \\server\share\STING\ContentLibrary`.
+- STING reads `<that folder>\Tags` first and its own shipped families second. Off the
+  network, it uses its own copy, so tagging still works.
+- The setting lives in `%APPDATA%\STING\sting_content.json` (`"content_root"`). An
+  environment variable `STING_CONTENT_LIB` overrides it.
+
 ## Updating to a newer build
 
 When we send a newer zip:

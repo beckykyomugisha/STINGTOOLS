@@ -1,6 +1,14 @@
-# STING Tools installer — writes a per-user .addin manifest for every
+﻿# STING Tools installer — writes a per-user .addin manifest for every
 # installed Revit version, pointing at the CompiledPlugin folder that
 # ships next to this script. No admin rights required.
+#
+# Shared content library (optional): the folder the team's tag families and
+# symbols live in, usually a network share such as \\server\STING\ContentLibrary.
+# Taken from -ContentLibrary, else from the first line of content_library.txt
+# next to this script, and written to %APPDATA%\STING\sting_content.json
+# ("content_root"). The plugin reads <that folder>\Tags before its own copy and
+# falls back to its own copy whenever the share cannot be reached.
+param([string]$ContentLibrary)
 $ErrorActionPreference = 'Stop'
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -55,6 +63,43 @@ if ($installed -eq 0) {
     Write-Host "No Autodesk Revit 2025 / 2026 / 2027 install was detected on this PC." -ForegroundColor Yellow
     Write-Host "Install Revit first, then run this installer again."
     exit 1
+}
+
+if (-not $ContentLibrary) {
+    $cfgFile = Join-Path $here 'content_library.txt'
+    if (Test-Path $cfgFile) {
+        $ContentLibrary = (Get-Content -LiteralPath $cfgFile |
+            Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') } |
+            Select-Object -First 1)
+        if ($ContentLibrary) { $ContentLibrary = $ContentLibrary.Trim() }
+    }
+}
+if ($ContentLibrary) {
+    $stingDir = Join-Path $env:APPDATA 'STING'
+    $jsonPath = Join-Path $stingDir 'sting_content.json'
+    New-Item -ItemType Directory -Force -Path $stingDir | Out-Null
+    $cfg = [ordered]@{}
+    if (Test-Path $jsonPath) {
+        try {
+            $old = Get-Content -LiteralPath $jsonPath -Raw | ConvertFrom-Json
+            foreach ($p in $old.PSObject.Properties) { $cfg[$p.Name] = $p.Value }
+            if ($old.content_root -and $old.content_root -ne $ContentLibrary) {
+                Write-Host "Shared library changed from $($old.content_root)" -ForegroundColor Yellow
+            }
+        } catch { Write-Host "Replacing unreadable $jsonPath" -ForegroundColor Yellow }
+    }
+    $cfg['content_root'] = $ContentLibrary
+    ($cfg | ConvertTo-Json) | Set-Content -LiteralPath $jsonPath -Encoding UTF8
+    Write-Host "Shared content library: $ContentLibrary  (saved in $jsonPath)" -ForegroundColor Green
+    if (Test-Path -LiteralPath (Join-Path $ContentLibrary 'Tags')) {
+        $n = (Get-ChildItem -LiteralPath (Join-Path $ContentLibrary 'Tags') -Filter 'STING - *.rfa' -File | Measure-Object).Count
+        Write-Host "  Tags folder reachable: $n tag families." -ForegroundColor Green
+    } else {
+        Write-Host "  $ContentLibrary\Tags is not reachable from this PC right now." -ForegroundColor Yellow
+        Write-Host "  STING will use the tag families shipped with the plugin until it is." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "No shared content library set; STING uses the tag families shipped with the plugin."
 }
 
 Write-Host ""
