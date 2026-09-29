@@ -1677,6 +1677,7 @@ namespace StingTools.Core
                 // Tagging
                 case "AutoTag": return new Tags.AutoTagCommand();
                 case "BatchTag": return new Tags.BatchTagCommand();
+                case "TagBehaviour": return new Tags.TagBehaviourSettingsCommand();
                 case "TagAndCombine": return new Tags.TagAndCombineCommand();
                 case "TagNewOnly": return new Tags.TagNewOnlyCommand();
                 case "TagChanged": return new Tags.TagChangedCommand();
