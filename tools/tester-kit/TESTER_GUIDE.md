@@ -38,7 +38,8 @@ Without a licence, every STING command opens the Activate dialog. That is expect
 
 The `SmokeTests` folder has the checklists. Work through them in this order:
 
-1. `TAG_TEST_PROTOCOL.md`: tagging, bindings and rooms/spaces (T1-T15, then section U).
+1. `TAG_TEST_PROTOCOL.md`: tagging, bindings and rooms/spaces (T1-T15), the tag library
+   (section L: loading, updating, Repair Lib, Promote Library), then section U.
 2. `SYMBOL_SLD_Revit_Smoke_Test_Checklist.docx` (same content as `SYMBOL_SLD_REVIT_SMOKE_TEST.md`):
    the symbol library, single line diagrams and the symbols workflow.
 

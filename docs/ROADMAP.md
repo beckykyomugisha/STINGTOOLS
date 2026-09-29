@@ -2533,6 +2533,10 @@ changed.
   lasting fix is to repoint the label rows at the `_TXT` display mirrors in the library
   itself (universal master first, then Propagate Universal), per
   `docs/UNIVERSAL_TAG_CONFLICT_RESOLUTION_RUNBOOK.md`.
+- **TAGLIB-3 — run the tag-library tests in Revit.** Loading, updating (tag styles kept),
+  Repair Lib, Promote Library's record and retire step, the shared-drift report and the
+  downgrade warning (#1006–#1015) are unit-tested on their file logic only. Section L of
+  `docs/TAG_TEST_PROTOCOL.md` (L1–L7) is the method; record results here.
 - **TAGLIB-2 — ten BOOL parameters have no Text mirror** (`ASS_TERM_CAPPED_BOOL`,
   `BLE_CASEWORK_ACCESSIBLE_BOOL`, `BLE_PARK_ACCESSIBLE_BOOL`, `BLE_PARK_EV_CHARGING_BOOL`,
   `BLE_SIGN_ILLUMINATED_BOOL`, `RGL_NEMA_APPROVAL_REQ_BOOL`, `RGL_NWSC_APPROVAL_BOOL`,
