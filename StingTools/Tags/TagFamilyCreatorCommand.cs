@@ -1741,6 +1741,7 @@ namespace StingTools.Tags
                     SaveAsOptions saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(outputPath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(outputPath, "CreateTagFamilies");
 
                     created++;
                     string paramStatus = paramsAdded
@@ -1871,6 +1872,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
@@ -1994,6 +1996,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Sheet Tag"))
@@ -2117,6 +2120,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Struct Variant Tag"))
@@ -2240,6 +2244,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load MEP Variant Tag"))
@@ -2363,6 +2368,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Healthcare Tag"))

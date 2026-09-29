@@ -180,6 +180,7 @@ namespace StingTools.Core.Content
                 try
                 {
                     rfas = Directory.EnumerateFiles(root, "*.rfa", SearchOption.AllDirectories)
+                        .Where(p => ContentFileFilter.IsLoadCandidate(p, req.Category))
                         .Where(p =>
                         {
                             var n = Path.GetFileNameWithoutExtension(p) ?? "";

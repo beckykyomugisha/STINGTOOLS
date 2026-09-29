@@ -204,7 +204,8 @@ namespace StingTools.Core.Content
         { try { return Directory.Exists(p); } catch { return false; } }
 
         private static List<string> SafeFiles(string p)
-        { try { return Directory.GetFiles(p, "*.rfa", SearchOption.TopDirectoryOnly).ToList(); }
+        { try { return Directory.GetFiles(p, "*.rfa", SearchOption.TopDirectoryOnly)
+                        .Where(f => !RevitBackupFiles.IsBackup(f)).ToList(); }
           catch { return new List<string>(); } }
 
         private static DateTime SafeWriteTime(string f)

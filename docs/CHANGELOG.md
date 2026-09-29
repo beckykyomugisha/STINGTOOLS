@@ -25644,3 +25644,26 @@ every `GetString` read against the parameter's data type.
   `deploy/INSTALL_GUIDE.md` gave the wrong tab for Promote Library (it is MODEL > Family
   quick edit > Advanced family ops) and now says what the unconfigured default is.
 - Plugin builds; Tags tests and gates pass. Not run in Revit.
+
+#### Content library review: tags never load as fixtures, backups swept, downgrade warning (2026-09-29)
+
+- **A tag could load as a fixture.** `ContentResolver` (used by the DWG to MEP fixture
+  builder) searches every content root recursively and loads the first `.rfa` whose name
+  contains the requested category. The shipped tag library is one of those roots, so a
+  request for "Audio Visual Devices" matched `STING - Audio Visual Devices Tag.rfa`, and when
+  no symbol of the category was found the first symbol, a tag type, was returned. Revit
+  backups and families moved to `_retired` were candidates too. `Core/Content/ContentFileFilter`
+  now excludes all three unless a tag category is asked for (12 tests).
+- **Backups were left by five save paths.** Create Tag Families, Migrate Tag Families,
+  Propagate Universal Tag (the primed master), the template manager's tag-family pass and
+  the family parameter processor overwrote families without removing the `.0001.rfa` Revit
+  writes beside them; those were the junk "… Tag.0001" families. Each now calls
+  `RevitBackupSweeper.Sweep`, as the two fix commands already did.
+- **One backup-name rule.** `RevitBackupSweeper.IsBackupName` and
+  `TagLibraryPromotion.IsRevitBackupName` delegate to `Core/RevitBackupFiles.IsBackup`
+  instead of carrying their own copies. The content-root report no longer counts backups as
+  families.
+- **Promote Library warns before a downgrade.** Families to update whose shared copy is
+  newer than the local one (`PromotionPlan.NewerInTarget`) are named in the confirmation,
+  since promoting from an older plugin would replace them with older versions (1 test).
+- Plugin builds; Tags 4,057 passing; gates pass. Not run in Revit.

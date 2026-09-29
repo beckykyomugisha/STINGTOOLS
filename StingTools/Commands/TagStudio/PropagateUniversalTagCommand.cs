@@ -1318,6 +1318,7 @@ namespace StingTools.Commands.TagStudio
                 string masterPath = Path.Combine(masterDir, master.Name.Replace('/', '-') + ".rfa");
                 mfd.SaveAs(masterPath, new SaveAsOptions { OverwriteExistingFile = true, MaximumBackups = 1 });
                 mfd.Close(false); mfd = null;
+                RevitBackupSweeper.Sweep(masterPath, "PrimeMaster");
 
                 using (var lt = new Transaction(doc, "STING Reload primed master"))
                 {

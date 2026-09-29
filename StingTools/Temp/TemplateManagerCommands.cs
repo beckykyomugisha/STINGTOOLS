@@ -3607,6 +3607,7 @@ namespace StingTools.Temp
                     famDoc.Save();
                     famDoc.Close(false);
                     famDoc = null;
+                    StingTools.Commands.TagStudio.RevitBackupSweeper.Sweep(rfaPath, "ProcessStingTagFamilies");
                 }
                 catch (Exception ex3)
                 {
