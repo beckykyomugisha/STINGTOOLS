@@ -37,6 +37,45 @@ namespace StingTools.Tags
         public string Blocked;
     }
 
+    /// <summary>
+    /// Loads families in one transaction that rolls back, without Revit's modal
+    /// failure list, if Revit refuses any of them, and says why.
+    /// </summary>
+    internal sealed class TagFamilyBatchLoader
+    {
+        private readonly Document _doc;
+        public int Transactions { get; private set; }
+        public TagFamilyBatchLoader(Document doc) { _doc = doc; }
+
+        public bool TryLoad(IList<string> paths, out string why)
+        {
+            why = null;
+            var failures = new CapturingFailuresPreprocessor(rollBackOnError: true);
+            var thrown = new List<string>();
+            TransactionStatus status;
+            Transactions++;
+            using (var tx = new Transaction(_doc, "STING Load Tag Families"))
+            {
+                tx.Start();
+                tx.SetFailureHandlingOptions(tx.GetFailureHandlingOptions().SetFailuresPreprocessor(failures));
+                foreach (string p in paths)
+                {
+                    try { _doc.LoadFamily(p, new TagFamilyLoadOptions(), out Family _); }
+                    catch (Exception ex)
+                    {
+                        thrown.Add($"{Path.GetFileNameWithoutExtension(p)}: {ex.Message}");
+                        StingLog.Warn($"LoadTagFamilies: LoadFamily threw for {p}: {ex.Message}");
+                    }
+                }
+                status = tx.Commit();
+            }
+            if (status == TransactionStatus.Committed) return true;
+            why = failures.Summary(4) ?? (thrown.Count > 0 ? string.Join("; ", thrown.Take(3)) : $"transaction {status}");
+            StingLog.Warn($"LoadTagFamilies: a group of {paths.Count} was refused: {why}");
+            return false;
+        }
+    }
+
     internal sealed class TagFamilyLoadRepair : IDisposable
     {
         private readonly Autodesk.Revit.ApplicationServices.Application _app;
@@ -71,7 +110,13 @@ namespace StingTools.Tags
                     return item;
                 }
                 var fm = famDoc.FamilyManager;
-                var conflicts = SharedParamConflictDetector.Detect(FamilySide(famDoc), _project);
+                var side = FamilySide(famDoc);
+                var conflicts = SharedParamConflictDetector.Detect(side, _project);
+                conflicts.AddRange(UnreadableTextCopies(side, conflicts));
+                StingLog.Info($"LoadTagFamilies: '{famName}' carries {side.Count} shared parameter(s), " +
+                              $"{side.Count(f => string.IsNullOrWhiteSpace(f.DataType))} with an unreadable type; " +
+                              $"{conflicts.Count} conflict(s): " +
+                              string.Join(", ", conflicts.Select(c => c.FamilyName)));
                 if (conflicts.Count == 0) return item;
 
                 var names = conflicts.Where(c => c.Kind == SharedParamConflictKind.NameCollision).ToList();
@@ -124,7 +169,9 @@ namespace StingTools.Tags
                     }
                 }
 
-                var left = SharedParamConflictDetector.Detect(FamilySide(famDoc), _project);
+                var leftSide = FamilySide(famDoc);
+                var left = SharedParamConflictDetector.Detect(leftSide, _project);
+                left.AddRange(UnreadableTextCopies(leftSide, left));
                 if (left.Count > 0)
                 {
                     item.Blocked = "still conflicts after repair: " + SharedParamConflictDetector.Describe(left, 4);
@@ -163,6 +210,70 @@ namespace StingTools.Tags
                          .Concat(SharedParamPreflight.CollectFamily(famDoc.FamilyManager)))
                 if (f.Guid != Guid.Empty) byGuid[f.Guid] = f;
             return byGuid.Values.ToList();
+        }
+
+        private HashSet<string> _libraryText;
+
+        /// <summary>
+        /// Parameters whose family-side type could not be read (the detector skips
+        /// those) but which the tag library is known to carry as TEXT while the project
+        /// holds another type. Only used on a family Revit has already refused.
+        /// </summary>
+        private List<SharedParamTypeConflict> UnreadableTextCopies(
+            List<SharedParamFacts> side, List<SharedParamTypeConflict> already)
+        {
+            var found = new List<SharedParamTypeConflict>();
+            if (_libraryText == null) _libraryText = LoadLibraryText();
+            var have = new HashSet<Guid>(already.Select(c => c.FamilyGuid));
+            var project = _project.Where(p => p.Guid != Guid.Empty)
+                .GroupBy(p => p.Guid).ToDictionary(g => g.Key, g => g.Last());
+            foreach (var f in side)
+            {
+                if (!string.IsNullOrWhiteSpace(f.DataType) || have.Contains(f.Guid)) continue;
+                if (!project.TryGetValue(f.Guid, out var proj)) continue;
+                if (SharedParamConflictDetector.SameType(proj.DataType, "TEXT")) continue;
+                if (!_libraryText.Contains(f.Name ?? proj.Name ?? "")) continue;
+                found.Add(new SharedParamTypeConflict
+                {
+                    Kind = SharedParamConflictKind.TypeMismatch,
+                    FamilyName = f.Name ?? proj.Name, ProjectName = proj.Name,
+                    FamilyGuid = f.Guid, ProjectGuid = proj.Guid,
+                    FamilyDataType = "TEXT (unreadable; tag library audit)", ProjectDataType = proj.DataType
+                });
+            }
+            return found;
+        }
+
+        /// <summary>Names TAG_PARAM_ALIGNMENT_AUDIT.csv records the tag library authoring as TEXT.</summary>
+        private static HashSet<string> LoadLibraryText()
+        {
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                string f = StingToolsApp.FindDataFile("TAG_PARAM_ALIGNMENT_AUDIT.csv");
+                if (string.IsNullOrEmpty(f) || !File.Exists(f))
+                {
+                    StingLog.Warn("LoadTagFamilies: TAG_PARAM_ALIGNMENT_AUDIT.csv not found; parameters with an unreadable type are not repaired.");
+                    return names;
+                }
+                int nameCol = -1, typeCol = -1;
+                foreach (string line in File.ReadLines(f))
+                {
+                    if (line.StartsWith("#") || string.IsNullOrWhiteSpace(line)) continue;
+                    var cells = StingToolsApp.ParseCsvLine(line);
+                    if (nameCol < 0)
+                    {
+                        nameCol = Array.FindIndex(cells, c => c.Trim() == "ParameterName");
+                        typeCol = Array.FindIndex(cells, c => c.Trim() == "MR_DataType");
+                        if (nameCol < 0 || typeCol < 0) { StingLog.Warn("LoadTagFamilies: audit CSV header not recognised."); return names; }
+                        continue;
+                    }
+                    if (cells.Length > Math.Max(nameCol, typeCol) && cells[typeCol].Trim() == "TEXT")
+                        names.Add(cells[nameCol].Trim());
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadTagFamilies: reading the tag library audit: {ex.Message}"); }
+            return names;
         }
 
         private ExternalDefinition MirrorFor(string paramName)

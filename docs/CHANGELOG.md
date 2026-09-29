@@ -25525,3 +25525,22 @@ every `GetString` read against the parameter's data type.
 - Not run in Revit. Whether `Document.Delete` on a label's shared parameter element is
   accepted is unverified; if it is refused, that family is reported as not loaded and the
   others still load.
+
+#### Load Tag Families: load first, isolate what Revit refuses, repair only that (2026-09-29)
+
+- **Both earlier fixes predicted refusals and loaded everything in one batch.** The
+  prediction reads each family's parameter types; when it missed a family, Revit refused
+  the batch and all 227 families were rolled back. `SharedParamConflictDetector` also skips
+  any parameter whose type it cannot read, silently, which is a plausible reason it missed.
+- **Now Revit decides.** Families load in groups of 32 (`TagFamilyBatchLoader`). A group
+  Revit refuses rolls back quietly (no modal list) and is split in half until the refused
+  families are isolated; every other family loads. No family is opened up front, so the
+  ten-minute pre-check is gone when nothing is refused.
+- **Only refused families are repaired**, then loaded one at a time. The repair also
+  treats a parameter whose type cannot be read as a Text copy when the project holds it
+  under another type and `TAG_PARAM_ALIGNMENT_AUDIT.csv` records the library authoring it
+  as TEXT. Each refused family logs how many shared parameters it carries, how many have an
+  unreadable type, and which it found in conflict.
+- **Reporting.** Every family not in the project afterwards is listed with the reason, or
+  with Revit's own text; a cancelled run keeps what already loaded.
+- Not run in Revit.
