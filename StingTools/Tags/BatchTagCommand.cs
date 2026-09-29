@@ -34,6 +34,9 @@ namespace StingTools.Tags
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // "Overwrite all and renumber" changes RENUMBER_ON_OVERWRITE for this run only;
+            // the saved project setting is restored however the run ends.
+            bool savedRenumber = TagConfig.RenumberOnOverwrite;
             try { return ExecuteCore(commandData, ref message, elements); }
             catch (OperationCanceledException) { return Result.Cancelled; }
             catch (Exception ex)
@@ -42,6 +45,7 @@ namespace StingTools.Tags
                 try { TaskDialog.Show("STING Tools", $"Batch Tag failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
                 return Result.Failed;
             }
+            finally { TagConfig.RenumberOnOverwrite = savedRenumber; }
         }
 
         private Result ExecuteCore(ExternalCommandData commandData,
@@ -103,11 +107,21 @@ namespace StingTools.Tags
                 new($"Skip existing — tag {untagged:N0} new only",
                     "Only tag untagged elements. Already-tagged elements are left unchanged.", "skip", true),
                 new($"Overwrite all {totalTaggable:N0}",
-                    "Re-derive and overwrite ALL tag tokens, even on already-tagged elements.", "overwrite"),
+                    TagConfig.RenumberOnOverwrite
+                        ? "Re-derive and overwrite ALL tag tokens, and give every element a NEW sequence number (project setting RENUMBER_ON_OVERWRITE = true — change it with Tag Rules)."
+                        : "Re-derive and overwrite ALL tag tokens, even on already-tagged elements. Sequence numbers are KEPT where still unique.",
+                    "overwrite"),
+                new($"Overwrite all {totalTaggable:N0} and renumber",
+                    "As Overwrite, but every element gets a new sequence number, for this run only. Printed tags, QR labels and exports made earlier will no longer match.",
+                    "overwrite_renumber"),
                 new("Auto-increment on collision",
                     "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.", "increment"),
             };
             string statusLine = $"Taggable: {totalTaggable:N0}  |  Already tagged: {alreadyTagged:N0}  |  Untagged: {untagged:N0}";
+            // Surface the behaviour switches where the run is chosen, not only in a config file.
+            statusLine += TagConfig.RetagMovedElements
+                ? "  |  Moved elements: tags update"
+                : "  |  Moved elements: tags fixed";
             if (skippedWorkset > 0) statusLine += $"  |  Skipped (workset): {skippedWorkset:N0}";
             if (skippedDemolished > 0) statusLine += $"  |  Skipped (demolished): {skippedDemolished:N0}";
             string modeResult = UI.StingModePicker.Show(
@@ -124,6 +138,10 @@ namespace StingTools.Tags
                     break;
                 case "overwrite":
                     collisionMode = TagCollisionMode.Overwrite;
+                    break;
+                case "overwrite_renumber":
+                    collisionMode = TagCollisionMode.Overwrite;
+                    TagConfig.RenumberOnOverwrite = true;   // restored in Execute's finally
                     break;
                 case "increment":
                     collisionMode = TagCollisionMode.AutoIncrement;
@@ -660,7 +678,10 @@ namespace StingTools.Tags
 
                 // Check LOC
                 string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                // Spatial answer only — the fallback (project LOC / BLD1) is not evidence the
+                // stored value is wrong, and "fixing" to it replaced LOCs that came from a
+                // neighbour, a type override or a scope box.
+                string currentLoc = SpatialAutoDetect.DetectLocSpatial(doc, el, roomIndex);
                 if (!string.IsNullOrEmpty(storedLoc) && !string.IsNullOrEmpty(currentLoc) &&
                     currentLoc != "XX" &&
                     !storedLoc.Equals(currentLoc, StringComparison.OrdinalIgnoreCase))
@@ -671,7 +692,7 @@ namespace StingTools.Tags
 
                 // Check ZONE
                 string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                string currentZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                string currentZone = SpatialAutoDetect.DetectZoneSpatial(doc, el, roomIndex);
                 if (!string.IsNullOrEmpty(storedZone) && !string.IsNullOrEmpty(currentZone) &&
                     currentZone != "XX" && currentZone != "ZZ" &&
                     !storedZone.Equals(currentZone, StringComparison.OrdinalIgnoreCase))

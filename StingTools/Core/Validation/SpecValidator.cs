@@ -155,7 +155,7 @@ namespace StingTools.Core.Validation
                     {
                         results.Add(new ValidationResult(el.Id, ValidationSeverity.Info,
                             "SPEC.FIRE.STING.MISSING",
-                            $"{el.Category?.Name} has native Fire Rating '{nativeMins} min' but no STING_FIRE_RATING_MIN — scheduling / BOQ will see 0",
+                            $"{(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))} has native Fire Rating '{nativeMins} min' but no STING_FIRE_RATING_MIN — scheduling / BOQ will see 0",
                             ValidatorTag));
                     }
                     else if (stingRating > 0 && nativeMins > 0 && stingRating < nativeMins)
@@ -208,7 +208,7 @@ namespace StingTools.Core.Validation
                     flagged++;
                     results.Add(new ValidationResult(el.Id, ValidationSeverity.Info,
                         "SPEC.ACOU.RW.MISSING",
-                        $"{el.Category?.Name} type '{typeName}' looks acoustic but STING_ACOUSTIC_RW_DB is 0 — set Rw in dB for auditable BS EN 12354 reporting",
+                        $"{(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))} type '{typeName}' looks acoustic but STING_ACOUSTIC_RW_DB is 0 — set Rw in dB for auditable BS EN 12354 reporting",
                         ValidatorTag));
                 }
                 if (flagged > 0)

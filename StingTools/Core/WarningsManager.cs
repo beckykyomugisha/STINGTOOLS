@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.IO;
@@ -1569,9 +1569,9 @@ namespace StingTools.Core
                     // 2. Bounding box validation — elements without geometry
                     var bb = el.get_BoundingBox(null);
                     if (bb == null)
-                        issues.Add($"Element {el.Id} ({el.Category?.Name}): no bounding box — may be invisible");
+                        issues.Add($"Element {el.Id} ({(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}): no bounding box — may be invisible");
                     else if ((bb.Max - bb.Min).GetLength() < 0.001)
-                        issues.Add($"Element {el.Id} ({el.Category?.Name}): zero-size bounding box");
+                        issues.Add($"Element {el.Id} ({(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}): zero-size bounding box");
 
                     // 3. Level association — elements without a level
                     var levelId = el.LevelId;
@@ -1579,7 +1579,7 @@ namespace StingTools.Core
                     {
                         // Only flag for elements that should have a level
                         if (el is Wall || el is Floor || el is FamilyInstance fi && fi.Host == null)
-                            issues.Add($"Element {el.Id} ({el.Category?.Name}): not associated with a level");
+                            issues.Add($"Element {el.Id} ({(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}): not associated with a level");
                     }
 
                     // 4. MEP system validation — connectors should be connected
@@ -1592,7 +1592,7 @@ namespace StingTools.Core
                             foreach (Connector c in connMgr.Connectors)
                                 if (!c.IsConnected) unconnected++;
                             if (unconnected > 0)
-                                issues.Add($"Element {el.Id} ({el.Category?.Name}): {unconnected} unconnected MEP connector(s)");
+                                issues.Add($"Element {el.Id} ({(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}): {unconnected} unconnected MEP connector(s)");
                         }
                     }
 

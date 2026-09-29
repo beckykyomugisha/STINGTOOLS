@@ -339,7 +339,7 @@ namespace StingTools.Core.Symbols
 
                             // Colour.
                             RgbColor c = opts.ColorOverride
-                                ?? GetSchemeColor(opts.ColorScheme, el.Category?.Name ?? "");
+                                ?? GetSchemeColor(opts.ColorScheme, global::StingTools.Core.ParameterHelpers.GetCategoryName(el));
                             ApplyColor(inst, c);
 
                             // Stamp.

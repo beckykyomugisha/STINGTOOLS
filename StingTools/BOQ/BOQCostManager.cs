@@ -1,4 +1,4 @@
-﻿// ══════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
 //  BOQCostManager.cs — Phase 3 of the BOQ & Cost Manager.
 //  Central engine. Builds a BOQDocument from the Revit model, writes cost
 //  parameters back to elements and the ProjectInformation record, persists
@@ -1312,7 +1312,7 @@ namespace StingTools.BOQ
                 // category — while the carbon path passed the real name. A tiled
                 // floor was carbon-counted at 10 % and priced at 5 %.
                 double wastePct = WasteTable.ResolveWastePercent(
-                    GetPrimaryMaterialName(el), el.Category?.Name, overrideWaste,
+                    GetPrimaryMaterialName(el), global::StingTools.Core.ParameterHelpers.GetCategoryName(el), overrideWaste,
                     TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
 
                 // Z-23b — discipline-specific MEASURED ADDITIONS, SEPARATE from the
@@ -1917,7 +1917,7 @@ namespace StingTools.BOQ
             // PM-5 — carbon path resolves the SAME per-material/category waste table.
             // E-4: material was null here too, so "the SAME" was not true — the two
             // Sustainability call sites pass the material name and this one did not.
-            return WasteTable.ResolveWastePercent(GetPrimaryMaterialName(el), el.Category?.Name, overrideWaste,
+            return WasteTable.ResolveWastePercent(GetPrimaryMaterialName(el), global::StingTools.Core.ParameterHelpers.GetCategoryName(el), overrideWaste,
                 TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0));
         }
 
@@ -4512,7 +4512,7 @@ namespace StingTools.BOQ
                 if (el?.Category != null)
                 {
                     if (el.Category.Id.Value == (long)BuiltInCategory.OST_Rebar) return true;
-                    string cat = el.Category.Name?.ToLowerInvariant() ?? "";
+                    string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el)?.ToLowerInvariant() ?? "";
                     if (cat.Contains("rebar") || cat.Contains("reinforc")) return true;
                 }
                 string m = GetPrimaryMaterialName(el).ToLowerInvariant();

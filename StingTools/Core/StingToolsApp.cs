@@ -333,6 +333,8 @@ namespace StingTools.Core
 
                 // R-02: Retry deferred auto-tag elements after sync-to-central
                 application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
+                // TAGACC-17: Reload Latest refreshes counters too — retry deferred elements then.
+                application.ControlledApplication.DocumentReloadedLatest += OnDocumentReloadedLatest;
 
                 // INT-03: Auto-sync to Planscape server after every successful STC.
                 // Separate handler from OnDocumentSynchronizedWithCentral so the
@@ -680,18 +682,66 @@ namespace StingTools.Core
         /// Elements skipped during auto-tagging due to workset ownership are retried here.</summary>
         private static void OnDocumentSynchronizedWithCentral(object sender,
             Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
+            => RetryAfterCentralRefresh(e.Document, "sync-to-central");
+
+        /// <summary>
+        /// TAGACC-17: Reload Latest also brings in other users' SEQ counters and tags, so it
+        /// retries deferred elements and repairs duplicates exactly as a sync does. Before
+        /// this, an element deferred because another user held the SEQ counter waited for
+        /// this user's own next sync even after they had reloaded.
+        /// </summary>
+        private static void OnDocumentReloadedLatest(object sender,
+            Autodesk.Revit.DB.Events.DocumentReloadedLatestEventArgs e)
+            => RetryAfterCentralRefresh(e.Document, "reload latest");
+
+        private static void RetryAfterCentralRefresh(Document doc, string trigger)
         {
             try
             {
                 var deferredIds = StingAutoTagger.DrainDeferredQueue();
-                if (deferredIds.Count == 0) return;
 
-                Document doc = e.Document;
                 if (doc == null || !doc.IsValidObject) return;
+
+                // TAGACC-2: SEQ numbers are allocated from the local model, so two users who
+                // tag before syncing can hand out the same number. After a sync both sets
+                // are in the model: rebuild the index (the auto-tagger's cached counters are
+                // stale too) and find every element holding a tag an older element holds.
+                StingAutoTagger.InvalidateContext();
+                // TAGACC-13: the sync relinquished the SEQ counter; forget the cached answer
+                // so the index build below borrows it afresh (and sees others' numbers).
+                StingTools.Core.Storage.StingSeqLockStore.Invalidate(doc);
+                var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var duplicateIds = TagConfig.DuplicateHoldersFor(tagIndex);
+                if (duplicateIds.Count > 0)
+                {
+                    if (StingAutoTagger.IsEnabled)
+                    {
+                        // Auto-tagging is on, so the user has asked for tags to be kept
+                        // right automatically: re-sequence the newer holders now. Elements
+                        // owned by someone else are skipped and stay reported.
+                        var queued = new HashSet<long>(deferredIds.Select(x => x.Value));
+                        foreach (long dupId in duplicateIds)
+                            if (queued.Add(dupId)) deferredIds.Add(new ElementId(dupId));
+                        StingLog.Warn($"After sync: {duplicateIds.Count} element(s) held a tag another element also holds — re-sequencing the newer ones.");
+                    }
+                    else
+                    {
+                        StingLog.Warn($"After sync: {duplicateIds.Count} element(s) hold a tag another element also holds.");
+                        try
+                        {
+                            TaskDialog.Show("STING — duplicate tags after sync",
+                                $"{duplicateIds.Count} element(s) now hold a tag that another element also holds. "
+                                + "This happens when two people tag before syncing, or when elements are copied.\n\n"
+                                + "Run Batch Tag (any mode) or Fix Duplicates: the newer element of each pair is "
+                                + "given a new sequence number and the older keeps its tag.");
+                        }
+                        catch (Exception dlgEx) { StingLog.Warn($"Duplicate-after-sync dialog: {dlgEx.Message}"); }
+                    }
+                }
+                if (deferredIds.Count == 0) return;
 
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-                var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 var formulas = TagPipelineHelper.LoadFormulas();
                 var gridLines = TagPipelineHelper.LoadGridLines(doc);
                 var stats = new TaggingStats();
@@ -708,6 +758,7 @@ namespace StingTools.Core
                             if (el == null || !el.IsValidObject) continue;
                             string cat = ParameterHelpers.GetCategoryName(el);
                             if (!known.Contains(cat)) continue;
+                            if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
 
                             bool ok = TagPipelineHelper.RunFullPipeline(
                                 doc, el, popCtx, tagIndex, seqCounters,
@@ -730,11 +781,11 @@ namespace StingTools.Core
                     StingAutoTagger.InvalidateContext();
                 }
 
-                StingLog.Info($"AutoTagger deferred retry: processed {processed}/{deferredIds.Count} elements after sync-to-central");
+                StingLog.Info($"AutoTagger deferred retry: processed {processed}/{deferredIds.Count} elements after {trigger}");
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"OnDocumentSynchronizedWithCentral deferred retry: {ex.Message}");
+                StingLog.Warn($"Deferred retry after {trigger}: {ex.Message}");
             }
         }
 

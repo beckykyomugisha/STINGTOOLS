@@ -614,7 +614,7 @@ namespace StingTools.Temp
                 int tagged = 0, untagged = 0, incomplete = 0;
                 var allElements = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
+                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                     .ToList();
 
                 foreach (var el in allElements)

@@ -268,7 +268,7 @@ namespace StingTools.Commands.Placement
                         foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
                         {
                             if (el is FamilySymbol fs && fs.Category != null
-                                && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
+                                && string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), cat, StringComparison.OrdinalIgnoreCase))
                             { hasSymbol = true; break; }
                         }
                     }

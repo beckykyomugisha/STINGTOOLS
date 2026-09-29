@@ -58,7 +58,7 @@ namespace StingTools.Model
             if (string.IsNullOrEmpty(categoryName)) return false;
             return new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
                 .Any(fs => fs.Category != null &&
-                           string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase));
+                           string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), categoryName, StringComparison.OrdinalIgnoreCase));
         }
 
         public struct PlaceOutcome

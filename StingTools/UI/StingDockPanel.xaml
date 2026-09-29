@@ -614,6 +614,7 @@
                                 <WrapPanel>
                                     <Button Style="{StaticResource GreenBtn}" Content="Auto Tag" Tag="AutoTag" Click="Cmd_Click" ToolTip="Tag elements in active view with collision handling"/>
                                     <Button Style="{StaticResource GreenBtn}" Content="Batch Tag" Tag="BatchTag" Click="Cmd_Click" ToolTip="Tag all elements in entire project"/>
+                                    <Button Style="{StaticResource ActionBtn}" Content="Tag Rules" Tag="TagBehaviour" Click="Cmd_Click" ToolTip="How tagging treats existing tags: update tags when elements move (RETAG_MOVED_ELEMENTS), keep or renumber sequence numbers on Overwrite (RENUMBER_ON_OVERWRITE), STATUS from phase. One click each; saved to project_config.json."/>
                                     <Button Style="{StaticResource PurpleBtn}" Content="Tag+Combine" Tag="TagAndCombine" Click="Cmd_Click" ToolTip="One-click: populate + tag + combine all 36 containers"/>
                                     <Button Style="{StaticResource TealBtn}" Content="Tag New" Tag="TagNewOnly" Click="Cmd_Click" ToolTip="Tag only new/untagged elements"/>
                                 </WrapPanel>

@@ -93,7 +93,7 @@ namespace StingTools.UI
                     if (HasCircuit(fi)) continue;
                     var (loadVA, voltage, poles) = ReadConnectorData(fi);
                     string family = fi.Symbol?.FamilyName ?? fi.Name ?? "";
-                    string cat = fi.Category?.Name ?? "";
+                    string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(fi);
                     var ue = new UnconnectedElement
                     {
                         Id = fi.Id,

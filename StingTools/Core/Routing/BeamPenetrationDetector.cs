@@ -118,7 +118,7 @@ namespace StingTools.Core.Routing
                         Location               = crossing,
                         SlabThicknessMm        = beamDepthMm,
                         FireRating             = ResolveFireRating(beam),
-                        MemberCategory         = curve.Category?.Name ?? "",
+                        MemberCategory         = global::StingTools.Core.ParameterHelpers.GetCategoryName(curve),
                         MemberDiameterMm       = memberOdMm,
                         BeamSpanMm             = spanMm,
                         BeamDepthMm            = beamDepthMm,

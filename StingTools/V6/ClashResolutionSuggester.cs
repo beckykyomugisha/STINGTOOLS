@@ -150,7 +150,7 @@ namespace StingTools.V6
 
         private static double DisciplineStepFt(Element el)
         {
-            string cat = el.Category?.Name ?? string.Empty;
+            string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             if (cat.Contains("Duct")) return 50.0 / 304.8;
             if (cat.Contains("Pipe")) return 25.0 / 304.8;
             if (cat.Contains("Conduit") || cat.Contains("Cable")) return 10.0 / 304.8;

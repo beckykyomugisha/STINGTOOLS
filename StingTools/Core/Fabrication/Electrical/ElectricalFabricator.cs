@@ -88,7 +88,7 @@ namespace StingTools.Core.Fabrication.Electrical
                     var el = doc.GetElement(id);
                     if (el == null) continue;
                     string nm = (el.Name ?? "").Replace(',', ';');
-                    string cat = el.Category?.Name ?? "";
+                    string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                     string upper = nm.ToUpperInvariant();
                     bool isBend = upper.Contains("ELBOW") || upper.Contains("BEND");
 

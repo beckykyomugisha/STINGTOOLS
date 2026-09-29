@@ -203,7 +203,7 @@ namespace StingTools.BIMManager
                                 ?? el.get_Parameter(BuiltInParameter.FAMILY_LEVEL_PARAM);
                             if (levelParam != null && levelParam.AsElementId() != ElementId.InvalidElementId)
                                 tokens["_LEVEL"] = doc.GetElement(levelParam.AsElementId())?.Name ?? "";
-                            tokens["_CATEGORY"] = el.Category?.Name ?? "";
+                            tokens["_CATEGORY"] = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                             // Workset context for worksharing change tracking
                             try
                             {

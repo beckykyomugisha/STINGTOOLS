@@ -197,7 +197,17 @@ namespace StingTools.Tags
             double leaderMargin = TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5);
             report.AppendLine($"  LEADER_CLEARANCE_MARGIN_FT     : {leaderMargin:F2} ft  ({leaderMargin * 304.8:F0} mm)");
             report.AppendLine($"    Minimum distance from element centre before a leader is added.");
-            report.AppendLine($"    Edit project_config.json to change either value.");
+            report.AppendLine($"  RETAG_MOVED_ELEMENTS           : {TagConfig.RetagMovedElements}");
+            report.AppendLine($"    When true, an element moved to another level or room has LVL / LOC / ZONE");
+            report.AppendLine($"    re-derived and its tag rebuilt on the next run (SEQ kept). False treats");
+            report.AppendLine($"    tags as fixed identifiers. Default: true.");
+            report.AppendLine($"  RENUMBER_ON_OVERWRITE          : {TagConfig.RenumberOnOverwrite}");
+            report.AppendLine($"    When false, Overwrite keeps each element's sequence number where it is still");
+            report.AppendLine($"    unique. True gives every element a fresh number. Default: false.");
+            report.AppendLine($"  SEQ_LOCK_MODE                  : {TagConfig.SeqLockMode}");
+            report.AppendLine($"    Workshared models: block = no new number while another user holds the SEQ counter;");
+            report.AppendLine($"    warn = number anyway, repaired after sync; off = ignore. Default: block (Tag Rules button).");
+            report.AppendLine($"    Use the buttons below to switch these; the leader margin is edited in project_config.json.");
 
             TaskDialog full = new TaskDialog("Full Tag Configuration");
             full.MainInstruction = $"{TagConfig.DiscMap.Count} disciplines | {TagConfig.SysMap.Count} systems | {TagConfig.ProdMap.Count} products";
@@ -205,10 +215,62 @@ namespace StingTools.Tags
             full.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
                 "Toggle AUTO_CORRECT_STATUS_FROM_PHASE",
                 $"Currently: {TagConfig.AutoCorrectStatusFromPhase} — flips and saves to project_config.json");
+            full.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                TagConfig.RetagMovedElements
+                    ? "Keep tags fixed when elements move (RETAG_MOVED_ELEMENTS → false)"
+                    : "Update tags when elements move (RETAG_MOVED_ELEMENTS → true)",
+                $"Currently: {TagConfig.RetagMovedElements} — saves to project_config.json");
+            full.AddCommandLink(TaskDialogCommandLinkId.CommandLink3,
+                TagConfig.RenumberOnOverwrite
+                    ? "Keep sequence numbers on Overwrite (RENUMBER_ON_OVERWRITE → false)"
+                    : "Renumber on Overwrite (RENUMBER_ON_OVERWRITE → true)",
+                $"Currently: {TagConfig.RenumberOnOverwrite} — saves to project_config.json");
             full.CommonButtons = TaskDialogCommonButtons.Close;
             var fullResult = full.Show();
             if (fullResult == TaskDialogResult.CommandLink1)
                 ToggleAutoCorrectStatus(configPath);
+            else if (fullResult == TaskDialogResult.CommandLink2)
+                ToggleBoolSetting(configPath, "RETAG_MOVED_ELEMENTS",
+                    !TagConfig.RetagMovedElements, v => TagConfig.RetagMovedElements = v);
+            else if (fullResult == TaskDialogResult.CommandLink3)
+                ToggleBoolSetting(configPath, "RENUMBER_ON_OVERWRITE",
+                    !TagConfig.RenumberOnOverwrite, v => TagConfig.RenumberOnOverwrite = v);
+        }
+
+        /// <summary>
+        /// Apply a tagging behaviour switch now and persist it to project_config.json,
+        /// patching only that key (the rest of the file is left as it is).
+        /// </summary>
+        internal static bool ToggleBoolSetting(string configPath, string key, bool newValue, Action<bool> apply)
+        {
+            if (string.IsNullOrEmpty(configPath))
+            {
+                TaskDialog.Show("STING", "Save the Revit project first — config path is not set.");
+                return false;
+            }
+            try
+            {
+                Dictionary<string, object> data;
+                if (System.IO.File.Exists(configPath))
+                    data = JsonConvert.DeserializeObject<Dictionary<string, object>>(System.IO.File.ReadAllText(configPath))
+                           ?? new Dictionary<string, object>();
+                else data = new Dictionary<string, object>();
+
+                data[key] = newValue;
+                string tmpPath = configPath + ".tmp";
+                System.IO.File.WriteAllText(tmpPath, JsonConvert.SerializeObject(data, Formatting.Indented));
+                System.IO.File.Move(tmpPath, configPath, true);
+                apply(newValue);
+                StingLog.Info($"ConfigEditor: {key} → {newValue}");
+                TaskDialog.Show("Setting Saved", $"{key} = {newValue}\n\nThis setting is now active for this project.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("Save Failed", $"Could not update config:\n{ex.Message}");
+                StingLog.Error($"ToggleBoolSetting {key} failed", ex);
+                return false;
+            }
         }
 
         /// <summary>GAP-UI-01: Toggle AUTO_CORRECT_STATUS_FROM_PHASE and persist to project_config.json.</summary>
@@ -275,6 +337,11 @@ namespace StingTools.Tags
                     },
                     // GAP-UI-01: Advanced settings — included so users can see and edit them in the JSON
                     { "AUTO_CORRECT_STATUS_FROM_PHASE", TagConfig.AutoCorrectStatusFromPhase },
+                    // Tagging behaviour switches (TAGACC-4 / -5). This save rewrites the file,
+                    // so leaving them out would silently reset them to their defaults.
+                    { "RENUMBER_ON_OVERWRITE", TagConfig.RenumberOnOverwrite },
+                    { "RETAG_MOVED_ELEMENTS", TagConfig.RetagMovedElements },
+                    { "SEQ_LOCK_MODE", TagConfig.SeqLockMode },
                     // GAP-UI-02: Leader clearance margin — persisted at whatever the current config value is
                     { "LEADER_CLEARANCE_MARGIN_FT", TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5) },
                 };

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
@@ -2642,7 +2642,7 @@ namespace StingTools.BIMManager
             // CRIT-03: Materialize FamilySymbol list once; reused by Spare section below
             var allFamilySymbols = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol))
                 .Cast<FamilySymbol>()
-                .Where(fs => fs.Category != null && knownCats.Contains(fs.Category.Name))
+                .Where(fs => fs.Category != null && knownCats.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs)))
                 .ToList();
             foreach (var fs in allFamilySymbols
                 .GroupBy(fs => fs.FamilyName + ": " + fs.Name).Select(g => g.First()))
@@ -7859,7 +7859,7 @@ namespace StingTools.BIMManager
 
                 var allElements = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
+                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                     .ToList();
 
                 foreach (string param in keyParams)
@@ -7965,12 +7965,12 @@ namespace StingTools.BIMManager
 
                 var elems = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
+                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                     .ToList();
 
                 var groups = elems
                     .GroupBy(e => new {
-                        Disc = TagConfig.DiscMap.TryGetValue(e.Category.Name, out string d) ? d : "?",
+                        Disc = TagConfig.DiscMap.TryGetValue(global::StingTools.Core.ParameterHelpers.GetCategoryName(e), out string d) ? d : "?",
                         Cat = e.Category.Name
                     })
                     .OrderBy(g => g.Key.Disc).ThenBy(g => g.Key.Cat);
@@ -8629,12 +8629,12 @@ namespace StingTools.BIMManager
 
             var elements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
+                .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                 .ToList();
 
             foreach (var el in elements)
             {
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
@@ -8677,7 +8677,7 @@ namespace StingTools.BIMManager
                 var headers = new List<string> { "ElementId","Category","Tag","Phase","Level","Discipline","StartDate","EndDate","Predecessors","Duration_Days" };
                 var xlRows = elements.Select(el =>
                 {
-                    string catN = el.Category?.Name ?? "";
+                    string catN = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                     string pn = "";
                     var pp = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
                     if (pp?.HasValue == true) pn = (doc.GetElement(pp.AsElementId()) as Phase)?.Name ?? "";
@@ -8719,7 +8719,7 @@ namespace StingTools.BIMManager
 
             var elements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
+                .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                 .ToList();
 
             var headers = new List<string> { "ElementId","Category","Tag","Discipline","Family","Type","Quantity","Unit","EstimatedCost_UGX","RateSource","RateConfidence" };
@@ -8732,7 +8732,7 @@ namespace StingTools.BIMManager
                 if (li == null) continue;
                 costed++;
 
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "";
                 string disc = !string.IsNullOrEmpty(li.Discipline)
                     ? li.Discipline : (ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "");
@@ -8788,10 +8788,10 @@ namespace StingTools.BIMManager
 
             var elements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
+                .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                 .ToList();
 
-            var groups = elements.GroupBy(e => e.Category.Name).OrderBy(g => g.Key);
+            var groups = elements.GroupBy(e => global::StingTools.Core.ParameterHelpers.GetCategoryName(e)).OrderBy(g => g.Key);
 
             const double ftToM = 0.3048;
             const double sqFtToSqM = 0.092903;
@@ -8990,7 +8990,7 @@ namespace StingTools.BIMManager
 
             foreach (Element elem in allElements)
             {
-                if (elem?.Category == null || !known.Contains(elem.Category.Name)) continue;
+                if (elem?.Category == null || !known.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(elem))) continue;
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                 string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);

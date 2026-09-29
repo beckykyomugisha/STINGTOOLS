@@ -121,7 +121,7 @@ namespace StingTools.UI.PlacementCenter
                 .OfClass(typeof(FamilySymbol))
                 .Cast<FamilySymbol>()
                 .Where(fs => fs.Category != null &&
-                             string.Equals(fs.Category.Name, vm.CategoryFilter, StringComparison.OrdinalIgnoreCase))
+                             string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), vm.CategoryFilter, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (symbols.Count == 0) return (0, 0);
@@ -253,7 +253,7 @@ namespace StingTools.UI.PlacementCenter
                     .OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
                     .FirstOrDefault(fs => fs.Category != null &&
-                                          string.Equals(fs.Category.Name, catName, StringComparison.OrdinalIgnoreCase));
+                                          string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), catName, StringComparison.OrdinalIgnoreCase));
             }
             catch { return null; }
         }
@@ -267,7 +267,7 @@ namespace StingTools.UI.PlacementCenter
                     .WhereElementIsNotElementType()
                     .Cast<Element>()
                     .FirstOrDefault(e => e.Category != null &&
-                                         string.Equals(e.Category.Name, catName, StringComparison.OrdinalIgnoreCase));
+                                         string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(e), catName, StringComparison.OrdinalIgnoreCase));
             }
             catch { return null; }
         }

@@ -1,4 +1,4 @@
-﻿// StingTools — SeedEnsurer (Item 1, seed-family-per-rule).
+// StingTools — SeedEnsurer (Item 1, seed-family-per-rule).
 //
 // The EnsureSeeds pre-pass. For each placement category that has NO
 // manufacturer family loaded, resolve the mapped STING seed family
@@ -195,8 +195,8 @@ namespace StingTools.Core.Placement
             {
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
                 {
-                    if (el is FamilySymbol fs && fs.Category != null && !string.IsNullOrEmpty(fs.Category.Name))
-                        set.Add(fs.Category.Name);
+                    if (el is FamilySymbol fs && fs.Category != null && !string.IsNullOrEmpty(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs)))
+                        set.Add(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"SeedEnsurer.LoadedCategoryNames: {ex.Message}"); }

@@ -127,7 +127,7 @@ namespace StingTools.Commands.Materials
             foreach (var t in new FilteredElementCollector(doc).OfClass(typeof(HostObjAttributes))
                                  .Cast<HostObjAttributes>())
             {
-                string cat = t.Category?.Name;
+                string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(t);
                 if (string.IsNullOrEmpty(cat)) continue;
 
                 var mt = new ModelledHostType { Category = cat, TypeName = t.Name };

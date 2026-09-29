@@ -281,7 +281,7 @@ namespace StingTools.Core.Fabrication
                 if (!string.IsNullOrEmpty(val)) return val;
             }
             catch { }
-            string cat = el.Category?.Name?.Replace(' ', '-') ?? "UNKNOWN";
+            string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el)?.Replace(' ', '-') ?? "UNKNOWN";
             return $"{cat.ToUpperInvariant()}-{boreMm:F0}";
         }
 

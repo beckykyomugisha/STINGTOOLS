@@ -237,7 +237,7 @@ namespace StingTools.Commands.IFC
                 string ifcGuid = ParameterHelpers.GetString(el, "IFC_GLOBAL_ID_TXT");
 
                 var key = new ClashElementKey(docGuid, -1, el.Id.Value, el.UniqueId, ifcGuid);
-                return new ClashMeshBuffer(key, el.Category.Name, verts.ToArray(), indices.ToArray());
+                return new ClashMeshBuffer(key, global::StingTools.Core.ParameterHelpers.GetCategoryName(el), verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex)
             {

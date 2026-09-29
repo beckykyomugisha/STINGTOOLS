@@ -1658,7 +1658,7 @@ namespace StingTools.Core.Placement
                     {
                         if ((BuiltInCategory)fs.Category.Id.Value != bic) continue;
                     }
-                    else if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                    else if (!string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), categoryName, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     // FamilyTypeRegex is an additional gate, applied to symbol name.
@@ -1813,7 +1813,7 @@ namespace StingTools.Core.Placement
                             if (doc.GetElement(symId) is FamilySymbol fs)
                             {
                                 if (fs.Category != null &&
-                                    string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                                    string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), categoryName, StringComparison.OrdinalIgnoreCase))
                                 {
                                     first = fs;
                                     break;
@@ -1853,7 +1853,7 @@ namespace StingTools.Core.Placement
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
                 {
                     if (!(el is FamilySymbol fs) || fs.Category == null) continue;
-                    if (!string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), categoryName, StringComparison.OrdinalIgnoreCase)) continue;
                     if (string.Equals(fs.Family?.Name, seedId, StringComparison.OrdinalIgnoreCase))
                     {
                         result.Warnings.Add($"Used STING seed '{seedId}' for category '{categoryName}' — swap to a manufacturer family later (Placement › Swap to Manufacturer).");
@@ -1875,7 +1875,7 @@ namespace StingTools.Core.Placement
                         foreach (var symId in fam.GetFamilySymbolIds())
                         {
                             if (doc.GetElement(symId) is FamilySymbol fs && fs.Category != null
-                                && string.Equals(fs.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                                && string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), categoryName, StringComparison.OrdinalIgnoreCase))
                             {
                                 result.Warnings.Add($"Loaded STING seed '{seedId}' from disk for category '{categoryName}' — swap to a manufacturer family later.");
                                 return fs;
@@ -2025,11 +2025,11 @@ namespace StingTools.Core.Placement
                 {
                     if (loaded.Category != null &&
                         !string.IsNullOrEmpty(categoryName) &&
-                        !string.Equals(loaded.Category.Name, categoryName, StringComparison.OrdinalIgnoreCase))
+                        !string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(loaded), categoryName, StringComparison.OrdinalIgnoreCase))
                     {
                         result.Warnings.Add(
                             $"Type catalog load: '{matchedType}' from '{Path.GetFileName(rfaPath)}' " +
-                            $"resolved category '{loaded.Category.Name}', expected '{categoryName}'.");
+                            $"resolved category '{(global::StingTools.Core.ParameterHelpers.GetCategoryName(loaded))}', expected '{categoryName}'.");
                     }
                     result.Warnings.Add(
                         $"Phase 185 type-catalog: loaded '{matchedType}' from " +

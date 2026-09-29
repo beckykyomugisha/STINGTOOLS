@@ -96,7 +96,7 @@ namespace StingTools.Core.Mep
         public static SleeveSizingRule Resolve(Element el)
         {
             if (el?.Category == null) return null;
-            string catName = el.Category.Name ?? "";
+            string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             BuiltInCategory bic;
             try { bic = (BuiltInCategory)el.Category.Id.Value; }
             catch { return null; }

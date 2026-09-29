@@ -1,4 +1,4 @@
-﻿// StingTools — SwapToManufacturerCommand.
+// StingTools — SwapToManufacturerCommand.
 //
 // Bulk-swap STING seed-family instances to manufacturer-specific real
 // families. Reads STING_SEED_FAMILY_TXT off every selected instance,
@@ -490,7 +490,7 @@ namespace StingTools.Commands.Symbols
                     p = new SwapPlan
                     {
                         SeedId   = seedId,
-                        Category = el.Category?.Name ?? "",
+                        Category = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                     };
                     plans[planKey] = p;
                     foreach (var c in ResolveCandidates(doc, registry, seedId))

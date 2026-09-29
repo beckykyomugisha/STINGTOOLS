@@ -1049,7 +1049,7 @@ namespace StingTools.Select
         {
             Element host = GetHostElement(doc, tag);
             if (host?.Category != null)
-                return host.Category.Name;
+                return global::StingTools.Core.ParameterHelpers.GetCategoryName(host);
             return "<No Host>";
         }
 

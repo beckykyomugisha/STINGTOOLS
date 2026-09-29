@@ -278,7 +278,7 @@ namespace StingTools.Docs
                 case "types":
                     foreach (ElementType et in new FilteredElementCollector(doc).WhereElementIsElementType()
                         .OfType<ElementType>().Where(e => e.Category != null).OrderBy(e => e.Name).Take(500))
-                        results.Add(new RenameTarget(et.Name, et.Category?.Name ?? "", et.Id));
+                        results.Add(new RenameTarget(et.Name, global::StingTools.Core.ParameterHelpers.GetCategoryName(et), et.Id));
                     break;
                 case "linestyles":
                     var linesCat = doc.Settings.Categories.get_Item(BuiltInCategory.OST_Lines);

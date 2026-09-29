@@ -575,7 +575,7 @@ namespace StingTools.Core.SLD
 
                 // 3. Category fallback.
                 var concept = Symbols.SymbolConceptRegistry
-                    .GetConceptsForCategory(el.Category?.Name)
+                    .GetConceptsForCategory(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))
                     .FirstOrDefault();
                 return concept?.ConceptId;
             }

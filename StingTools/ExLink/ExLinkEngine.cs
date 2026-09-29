@@ -474,7 +474,7 @@ namespace StingTools.ExLink
                 case "UNIQUEID":
                     return el.UniqueId;
                 case "CATEGORY":
-                    return el.Category?.Name ?? "";
+                    return global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 case "FAMILY":
                 case "FAMILY_NAME":
                     return (el as FamilyInstance)?.Symbol?.FamilyName

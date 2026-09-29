@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -891,6 +891,7 @@ namespace StingTools.UI
                     // ── Tag operations ──
                     case "AutoTag": RunCommand<Tags.AutoTagCommand>(app); break;
                     case "BatchTag": RunCommand<Tags.BatchTagCommand>(app); break;
+                    case "TagBehaviour": RunCommand<Tags.TagBehaviourSettingsCommand>(app); break;
                     case "TagAndCombine": RunCommand<Tags.TagAndCombineCommand>(app); break;
                     case "TagSelected": RunCommand<Organise.TagSelectedCommand>(app); break;
                     case "TagNewOnly": RunCommand<Tags.TagNewOnlyCommand>(app); break;
@@ -4969,7 +4970,7 @@ namespace StingTools.UI
 
             // Build category list
             var categories = viewElements
-                .Select(e => e.Category?.Name)
+                .Select(e => global::StingTools.Core.ParameterHelpers.GetCategoryName(e))
                 .Where(c => !string.IsNullOrEmpty(c))
                 .Distinct()
                 .OrderBy(c => c)
@@ -4983,7 +4984,7 @@ namespace StingTools.UI
                 (paramName, category) =>
                 {
                     var filtered = category != null
-                        ? viewElements.Where(e => e.Category?.Name == category)
+                        ? viewElements.Where(e => global::StingTools.Core.ParameterHelpers.GetCategoryName(e) == category)
                         : viewElements;
 
                     var groups = new Dictionary<string, List<long>>(StringComparer.OrdinalIgnoreCase);
@@ -5021,7 +5022,7 @@ namespace StingTools.UI
                 (conditions, category) =>
                 {
                     var filtered = category != null
-                        ? viewElements.Where(e => e.Category?.Name == category)
+                        ? viewElements.Where(e => global::StingTools.Core.ParameterHelpers.GetCategoryName(e) == category)
                         : viewElements;
 
                     var matchIds = new List<long>();
@@ -9061,7 +9062,7 @@ namespace StingTools.UI
                 string status = ParameterHelpers.GetString(elem, "ASS_TIEIN_STATUS_TXT");
                 string phase = ParameterHelpers.GetString(elem, ParamRegistry.STATUS);
                 string connected = ParameterHelpers.GetValueText(elem, "ASS_TIEIN_CONNECTED_BOOL") switch { "1" => "Yes", "0" => "No", var v => v };
-                string catName = elem.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(elem);
                 string level = ParameterHelpers.GetString(elem, ParamRegistry.LVL);
 
                 rows.Add($"\"{tieRef}\",\"{sys}\",\"{size}\",\"{status}\",\"{phase}\",\"{connected}\",{elem.Id.Value},\"{catName}\",\"{level}\"");
@@ -9283,7 +9284,7 @@ namespace StingTools.UI
                 string bond      = ParameterHelpers.GetString(el, "ELC_LPS_BOND_TYPE_TXT");
                 string verdict   = ParameterHelpers.GetString(el, "ELC_LPS_COMPLIANCE_STATUS_TXT");
                 string standard  = "BS EN 62305 (multi-part)";
-                string catName   = el.Category?.Name ?? "";
+                string catName   = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 string level     = ParameterHelpers.GetString(el, ParamRegistry.LVL);
 
                 rows.Add($"\"{tag}\",\"{kind}\",\"{cls}\",\"{lpz}\",\"{ohm}\",\"{crossMm2}\",\"{material}\",\"{downN}\",\"{testDate}\",\"{bond}\",\"{verdict}\",\"{standard}\",{el.Id.Value},\"{catName}\",\"{level}\"");

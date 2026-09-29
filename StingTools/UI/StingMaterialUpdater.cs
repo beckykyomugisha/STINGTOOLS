@@ -196,7 +196,7 @@ namespace StingTools.UI
             try
             {
                 p.Set(target.Id);
-                StingLog.Info($"AutoApply: {el.Category?.Name} {el.Id} → '{matchedName}'");
+                StingLog.Info($"AutoApply: {(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))} {el.Id} → '{matchedName}'");
             }
             catch (Exception ex) { StingLog.Warn($"AutoApply set: {ex.Message}"); }
         }
@@ -337,7 +337,7 @@ namespace StingTools.UI
             if (el == null || Rules == null || Rules.Count == 0) return null;
             try
             {
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 long catId = el.Category?.Id?.Value ?? 0;
                 string famName = "";
                 if (el is FamilyInstance fi) famName = fi.Symbol?.FamilyName ?? "";

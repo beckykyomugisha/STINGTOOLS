@@ -176,7 +176,7 @@ namespace StingTools.Core.Mep
 
                 // Back-compat + non-linear categories: match on the running session's
                 // localized Category.Name (works when the key was written in this locale).
-                string cat = el.Category.Name;
+                string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 if (!string.IsNullOrEmpty(cat)
                     && overrides.TryGetValue(cat, out string s)
                     && Enum.TryParse(s, ignoreCase: true, out TagVisualPolicy p))

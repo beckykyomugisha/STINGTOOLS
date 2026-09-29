@@ -2,6 +2,123 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-16 / 17, 2026-09-29)
+
+- **TAGACC-16** the 28 remaining `Category.Name` LOOKUPS (DiscMap, known-category lists,
+  category filters across BIM Manager, scheduling, Excel link, legends, smart placement, data
+  exchange, placement hints) now use `GetCategoryName`. Display-only reads are left as they are.
+- **TAGACC-17** `DocumentReloadedLatest` runs the same deferred retry and duplicate repair as a
+  sync (`StingToolsApp.RetryAfterCentralRefresh`).
+
+#### Completed (TAGACC-12..15 and the Tag Rules settings button, 2026-09-29)
+
+- **Tag Rules button** (TAGGING tab, beside Batch Tag; dispatch tag `TagBehaviour`,
+  `Tags/TagBehaviourSettingsCommand.cs`). Shows, in plain words, what tagging does to existing
+  tags and flips each switch with one click: RETAG_MOVED_ELEMENTS, RENUMBER_ON_OVERWRITE,
+  AUTO_CORRECT_STATUS_FROM_PHASE, SEQ_LOCK_MODE. Writes only that key to the
+  `project_config.json` beside the model and applies it at once. The same switches are in
+  Project Cfg → View Full Configuration. Batch Tag's mode picker states the move behaviour and
+  offers "Overwrite all and renumber" for one run (the saved setting is restored afterwards).
+- **Settings were lost on save.** Project Cfg → Save and `TagConfig.SaveToFile` rewrite the
+  whole file and did not write the new keys, so saving reset them. Both now write them, and
+  they are in the known-keys list (they were logged as possible typos).
+- **TAGACC-13** worksharing lock: `Core/Storage/StingSeqLockStore` keeps SEQ counters in a
+  DataStorage element borrowed before any new number is allocated (see ROADMAP).
+  `TagWriteOutcome.Deferred` marks an element that waited; the auto-tagger re-queues it.
+- **TAGACC-14** 129 direct `Category.Name` reads now go through `GetCategoryName`.
+- **TAGACC-15** `SpatialNameCodes.ZoneFromDepartment`: an exact declared code in a room's
+  Department is that zone, one letter included.
+- **TAGACC-12** `StingTools.Revit.SmokeTests/TaggingAccuracySmokeTests.cs` (4 in-Revit tests)
+  and `docs/TAGGING_ACCURACY_TEST_PROTOCOL.md` (two-user steps). **Not run; plugin not
+  compiled** in this environment.
+
+#### Completed (TAGACC-1..11: the open tagging-accuracy findings, 2026-09-29)
+
+Closes every finding the tagging review left open (ROADMAP "Tagging accuracy").
+
+- **TAGACC-1 copies.** `BuildTagIndexAndCounters` / `BuildExistingTagIndex` record which
+  element owns each tag (the lowest ElementId) alongside the index. A complete tag held by a
+  newer element while the owner still holds it is a copy: `RunFullPipeline` clears its LVL /
+  LOC / ZONE (locked tokens kept) and SEQ, and `BuildAndWriteTag` gives it a new SEQ in every
+  collision mode, leaving the owner's tag in the collision index. Previously every run skipped
+  the copy as complete.
+- **TAGACC-2 worksharing.** After each sync to central the index is rebuilt; duplicate holders
+  are re-sequenced at once when the auto-tagger is on (elements owned by others skipped), or
+  reported in a dialog with the fix. The auto-tagger context is invalidated so its SEQ counters
+  include the other users' numbers.
+- **TAGACC-3 one fallback.** `PopulateAll` and `BuildAndWriteTag` both follow
+  `STING_TAG_TOKEN_POLICY.json` for LOC, ZONE and LVL. `DetectProjectLocOrNull` stops treating
+  "nothing found" as BLD1. A null policy fallback leaves the token blank and the tag refused.
+  The unresolved-LOC count is reported after each run; default counts use the recorded source.
+- **TAGACC-4 stable numbers.** Overwrite keeps each element's SEQ (normalised to the current pad)
+  where still unique; `RENUMBER_ON_OVERWRITE` restores renumbering. The format migration no
+  longer renumbers either.
+- **TAGACC-5 moved elements.** A change of host level (against `ASS_LVL_ELEM_ID_INT`), or a stale
+  flag with a room that now names another LOC / ZONE, re-derives those tokens and rebuilds the
+  tag, keeping the SEQ if unique; the stale flag is cleared. `RETAG_MOVED_ELEMENTS = false` opts out.
+- **TAGACC-6 localised Revit.** `GetCategoryName` returns the English name for the
+  `BuiltInCategory` when the localised name is not a known key (`Core/CategoryEnglishNames.cs`);
+  direct `Category.Name` reads in the tagging core use it.
+- **TAGACC-7 / 8 SYS.** Primary connector, then the category's domain, then non-auxiliary
+  service. Hydronic systems with a fluid temperature ≤ 15 °C are CHW, not HWS.
+- **TAGACC-9 / 10 codes.** Project `ZONE_CODES` and project level codes
+  (`_BIM_COORD/spatial_codes.json`) are recognised first. "Level 1a" → L01A, "Mezzanine 2" → MZ2,
+  "Roof Plant" → RFP, "Roof 2" → RF2.
+- **TAGACC-11 proximity.** Same level, plan distance, and only neighbour values that were
+  themselves derived.
+- Tests: `SpatialNameCodesTests` extended, new `CategoryEnglishNamesTests`. **Not compiled or
+  run** (no .NET SDK in this environment; expectations checked against a Python port). The
+  Revit-bound behaviour is untested in Revit — ROADMAP TAGACC-12.
+
+#### Completed (tagging accuracy review, 2026-09-29)
+
+Deep review of the tagging pipeline for anything that stops a tag being right. Fixed here;
+the findings that need a decision or a larger change are TAGACC-1..11 in ROADMAP.
+
+- **Level codes.** The rules moved to the Revit-free `Core/SpatialNameCodes.cs`
+  (`GetLevelCodeForLevel` calls it). "21st / 22nd / 23rd / 31st Floor" read as L01 / L02 /
+  L03 because they contain "1st" / "2nd" / "3rd", and "Twenty-First" as L01; ordinals are now
+  read as whole numbers. "Level -1" lost its sign and became L01, the same code as Level 1;
+  it is now B1. An unrecognised level name was passed through with spaces turned into "-",
+  the tag separator: the write sanitiser stored "RING-BEAM" as "RING" (so "Plant Deck East"
+  and "Plant Deck West" both became "PLANT"), and an Overwrite run built a nine-segment tag
+  and refused to write it. Passthrough codes are now letters and digits only.
+- **ZONE and LOC text matching.** Codes matched with `Contains`, so "Zone 12" / "Z012" were
+  Z01, "Wing Annex" was Z01, "BLD10" / "Building 12" were BLD1 and "Block AB" was BLD1. They
+  now match only as whole tokens (`SpatialNameCodes.ZoneFromText`, `LocFromTextFallback`).
+  Workset-name LOC detection now passes the document, so project-declared LOC codes are
+  recognised there too (it consulted only the corporate baseline).
+- **"Detected" was decided by comparing with the fallback.** `PopulateAll` treated a LOC of
+  "BLD1" and a ZONE of "Z01" as undetected because those are the fallbacks, so a room that
+  genuinely said BLD1 / Z01 could have its value replaced by a scope box or a neighbour's,
+  and a project whose policy fallback is not Z01 had the fallback recorded as a detected
+  zone (ZONE_SOURCE "Room"). New `SpatialAutoDetect.DetectLocSpatial` / `DetectZoneSpatial`
+  return null when nothing in the element's context names a code; `DetectLoc` / `DetectZone`
+  keep their signatures on top. The workset LOC scan in `PopulateAll` was unreachable (the
+  value it tested was never empty) and matched with StartsWith, so "EXTRACT FANS" would have
+  read as EXT; it was removed rather than revived. LOC_SOURCE / ZONE_SOURCE are rewritten on
+  Overwrite (they kept the first run's value).
+- **Stale detection and the pre-tag audit** used the same fallback-as-detection: an element
+  whose LOC came from a neighbour, a type override or a scope box was flagged stale for not
+  being in a room (and Batch Tag's stale fix would have reset it to BLD1), and the audit
+  predicted every element as "spatial-auto". Both now compare only a positive detection.
+- **Overwrite undid token locks and category overrides.** `RunFullPipeline` restores
+  `ASS_TOKEN_LOCK_TXT` tokens and applies `CATEGORY_TOKEN_OVERRIDES` / `CATEGORY_FORCE_SYS`,
+  then `BuildAndWriteTag`'s overwrite path re-derived DISC / LVL / SYS / FUNC / PROD and wrote
+  them over the top. They now win on that path too.
+- **Containers could disagree with TAG1.** `BuildAndWriteTag` wrote containers with
+  overwrite:false on the normal path, so a container holding an older value (a partial tag
+  from an earlier run, a SEQ re-sequenced for a duplicate) kept it; and `WriteContainers`
+  stamped the token hash even when a write was refused, so the stale container was marked
+  current and skipped from then on. Containers are now always rewritten when the tag is, and
+  the hash is stamped only when every container matches.
+- **Electrical panel "MAINS"** mapped fixtures on a "MAINS DB" to SYS=DCW; now only "MAINS
+  WATER" does.
+- Tests: `SpatialNameCodesTests` (levels, zones, LOC aliases, including every defect above),
+  linked into `StingTools.Tags.Tests`. **Not compiled or run here** — the .NET SDK download
+  is blocked in this environment; the expectations were checked against a line-by-line port
+  of the new logic. The Revit-bound changes are not exercised in Revit.
+
 #### Completed (tester kit: install, 90-day licences, smoke tests, 2026-09-28)
 
 A package testers can install without developer tools or administrator rights. The

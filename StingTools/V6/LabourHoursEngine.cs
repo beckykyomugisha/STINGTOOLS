@@ -57,7 +57,7 @@ namespace StingTools.V6
         public static Rate Resolve(List<Rate> rates, Element el)
         {
             if (el?.Category == null) return null;
-            string catName = el.Category.Name;
+            string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             string familyName = "";
             if (el is FamilyInstance fi) familyName = fi.Symbol?.FamilyName ?? "";
             Rate best = null;
