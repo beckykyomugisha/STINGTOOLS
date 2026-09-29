@@ -1,4 +1,4 @@
-// PromoteTagLibraryCommand - publish the finished tag library to the shared
+﻿// PromoteTagLibraryCommand - publish the finished tag library to the shared
 // content root.
 //
 // The shared root is searched BEFORE the deployed library and a deploy cannot
@@ -115,6 +115,9 @@ namespace StingTools.Commands.TagStudio
                     {
                         failures.Add($"{name}: {ex.Message}");
                         StingLog.Warn($"PromoteTagLibrary: {name} failed: {ex.Message}");
+                        // The share still holds the old copy (or none), so the record must
+                        // not vouch for it; Load Tag Families then reports it.
+                        plan.SourceHashes.Remove(name);
                     }
                 }
 
@@ -171,7 +174,11 @@ namespace StingTools.Commands.TagStudio
                           $"{failures.Count} failed, manifest written to {target}");
 
             TaskDialog.Show("Promote Tag Library — done",
-                $"Published {written} of {plan.WouldWrite} family/families." +
+                (plan.WouldWrite > 0
+                    ? $"Published {written} of {plan.WouldWrite} family/families."
+                    : "No family needed copying; the shared library already matched.") +
+                $" The promotion record now lists {plan.SourceHashes.Count} family/families," +
+                " which Load Tag Families checks the shared library against." +
                 (plan.Retired.Count > 0 ? $" Retired {plan.Retired.Count} to {plan.RetiredFolder}." : "") + "\n\n" +
                 (failures.Count > 0
                     ? "FAILED:\n  " + string.Join("\n  ", failures.Take(8)) + "\n\n"

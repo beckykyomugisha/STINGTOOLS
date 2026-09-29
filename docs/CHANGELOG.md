@@ -25617,3 +25617,12 @@ every `GetString` read against the parameter's data type.
 - 10 tests in `TagLibraryPromotionTests` (manifest FILE and RETIRED lines, parsing, and
   each drift finding against real temp folders). Tags 4,044 passing; gates pass. Not run
   in Revit.
+
+#### Promote Library: clearer result when only the record is written (2026-09-29)
+
+- A promotion that copies nothing but rewrites the record reported "Published 0 of 0
+  family/families". It now says no family needed copying and how many families the record
+  lists.
+- A family whose copy to the share fails is left out of the record, so Load Tag Families
+  reports it instead of the record vouching for a file the share does not hold.
+- Plugin builds; gates pass. Not run in Revit.
