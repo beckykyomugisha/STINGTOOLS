@@ -233,6 +233,7 @@ namespace StingTools.Commands.TagStudio
                 }
                 famDoc.Close(false);
                 famDoc = null;
+                RevitBackupSweeper.Sweep(savePath, "MigrateTagFamilies");
 
                 // Reload into project (overwrite) so new params/types are live.
                 using (var tx = new Transaction(doc, $"STING Reload {fam.Name}"))

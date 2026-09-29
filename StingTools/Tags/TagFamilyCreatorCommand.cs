@@ -1254,6 +1254,17 @@ namespace StingTools.Tags
             return outList;
         }
 
+        /// <summary>True when Promote Library has published to this folder.</summary>
+        public static bool IsPromotionManaged(string dir)
+        {
+            try
+            {
+                return !string.IsNullOrEmpty(dir) &&
+                       File.Exists(Path.Combine(dir, Core.Content.TagLibraryPromotion.ManifestFileName));
+            }
+            catch (Exception ex) { StingLog.Warn($"IsPromotionManaged '{dir}': {ex.Message}"); return false; }
+        }
+
         /// <summary>Count of .rfa files directly in a folder; 0 when absent.</summary>
         private static int RfaCount(string dir)
         {
@@ -1278,9 +1289,15 @@ namespace StingTools.Tags
         ///      stale families would keep winning, and the move would silently
         ///      accomplish nothing. Migration is a deliberate act, not a side effect
         ///      of an upgrade.
-        ///   2. Otherwise the shared library, write-probed — an unwritable
+        ///   2. If Promote Library manages the shared library (it holds a
+        ///      promotion record), keep writing to legacy. Families on the share
+        ///      win every lookup, so an authoring command writing there would
+        ///      publish unreviewed work to everyone and put the share out of step
+        ///      with its record. Changes reach the share only through Promote
+        ///      Library.
+        ///   3. Otherwise the shared library, write-probed — an unwritable
         ///      ProgramData must DEGRADE to local, not fail the command.
-        ///   3. Otherwise legacy.
+        ///   4. Otherwise legacy.
         /// </summary>
         public static string GetOutputDirectory()
         {
@@ -1292,7 +1309,12 @@ namespace StingTools.Tags
                 int legacyCount = RfaCount(legacy);
                 int sharedCount = RfaCount(shared);
 
-                if (legacyCount > 0 && sharedCount == 0)
+                if (IsPromotionManaged(shared))
+                {
+                    StingLog.Info($"Tag output stays local: the shared library '{shared}' is published by " +
+                                  "Promote Library. Promote to publish changes made here.");
+                }
+                else if (legacyCount > 0 && sharedCount == 0)
                 {
                     StingLog.Info($"Tag output stays local: {legacyCount} family/families in "
                                 + $"'{legacy}' and none in the shared library '{shared}'. "
@@ -1719,6 +1741,7 @@ namespace StingTools.Tags
                     SaveAsOptions saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(outputPath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(outputPath, "CreateTagFamilies");
 
                     created++;
                     string paramStatus = paramsAdded
@@ -1849,6 +1872,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Tie-In Tag"))
@@ -1972,6 +1996,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Sheet Tag"))
@@ -2095,6 +2120,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Struct Variant Tag"))
@@ -2218,6 +2244,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load MEP Variant Tag"))
@@ -2341,6 +2368,7 @@ namespace StingTools.Tags
                     var saveOpts = new SaveAsOptions { OverwriteExistingFile = true };
                     famDoc.SaveAs(savePath, saveOpts);
                     famDoc.Close(false);
+                    Commands.TagStudio.RevitBackupSweeper.Sweep(savePath, "CreateTagFamilies");
                     created++;
 
                     using (Transaction t = new Transaction(doc, "STING Load Healthcare Tag"))
@@ -2985,7 +3013,7 @@ namespace StingTools.Tags
                         .Where(f => string.Equals(Path.GetDirectoryName(f)?.TrimEnd('\\', '/'),
                                                   sharedDir.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
                         .Select(Path.GetFileName).ToList();
-                    string record = Path.Combine(sharedDir, "_STING_PROMOTION_MANIFEST.txt");
+                    string record = Path.Combine(sharedDir, Core.Content.TagLibraryPromotion.ManifestFileName);
                     string recordText = File.Exists(record) ? File.ReadAllText(record) : null;
                     drift = Core.Content.TagLibraryPromotion.SharedDrift(
                         sharedDir, TagFamilyConfig.LegacyTagDirectory(), served, recordText);

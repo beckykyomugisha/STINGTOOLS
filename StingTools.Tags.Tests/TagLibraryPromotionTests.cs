@@ -299,6 +299,24 @@ namespace StingTools.Tags.Tests
         public void NothingServedFromTheShareMeansNothingToReport()
             => Assert.Empty(TagLibraryPromotion.SharedDrift(Dir("s"), Dir("p"), null, null));
 
+        [Fact]
+        public void AnUpdateThatWouldReplaceANewerSharedCopyIsNamed()
+        {
+            // Promoting from an older plugin would downgrade the share.
+            string src = Dir("src"), tgt = Dir("tgt");
+            Fam(src, "Old.rfa", "v1"); Fam(tgt, "Old.rfa", "v2");
+            Fam(src, "Fine.rfa", "v2"); Fam(tgt, "Fine.rfa", "v1");
+            File.SetLastWriteTimeUtc(Path.Combine(src, "Old.rfa"), new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc));
+            File.SetLastWriteTimeUtc(Path.Combine(tgt, "Old.rfa"), new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc));
+            File.SetLastWriteTimeUtc(Path.Combine(src, "Fine.rfa"), new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc));
+            File.SetLastWriteTimeUtc(Path.Combine(tgt, "Fine.rfa"), new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc));
+
+            var plan = TagLibraryPromotion.Plan(src, tgt, null);
+
+            Assert.Equal(new[] { "Old.rfa" }, plan.NewerInTarget);
+            Assert.True(plan.CanProceed);
+        }
+
         // ── hashing ──────────────────────────────────────────────────────────
 
         [Fact]

@@ -75,6 +75,7 @@
     <Compile Include="..\StingTools\Core\BindingProfiles.cs" Link="Core\BindingProfiles.cs" />
     <Compile Include="..\StingTools\Core\Bs8666Label.cs" Link="Core\Bs8666Label.cs" />
     <Compile Include="..\StingTools\Core\Content\ContentRootReport.cs" Link="Core\Content\ContentRootReport.cs" />
+    <Compile Include="..\StingTools\Core\Content\ContentFileFilter.cs" Link="Core\Content\ContentFileFilter.cs" />
     <Compile Include="..\StingTools\Core\Electrical\SpareCapacityTarget.cs" Link="Core\Electrical\SpareCapacityTarget.cs" />
     <Compile Include="..\StingTools\Core\Electrical\CircuitSlotParser.cs" Link="Core\Electrical\CircuitSlotParser.cs" />
     <!-- TAG7 / PARAM-5: a NUMBER-bound ELC_CKT_NR reads "3", not "3.00". -->
