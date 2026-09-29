@@ -1775,8 +1775,8 @@ namespace StingTools.BIMManager
                     report.AppendLine($"\n{phase.Name}: {phaseElements.Count} elements");
 
                     var byDisc = phaseElements
-                        .Where(e => TagConfig.DiscMap.ContainsKey(e.Category.Name))
-                        .GroupBy(e => TagConfig.DiscMap.TryGetValue(e.Category.Name, out string? d) ? d : "?")
+                        .Where(e => TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
+                        .GroupBy(e => TagConfig.DiscMap.TryGetValue(global::StingTools.Core.ParameterHelpers.GetCategoryName(e), out string? d) ? d : "?")
                         .OrderByDescending(g => g.Count());
 
                     foreach (var g in byDisc)
@@ -1857,8 +1857,8 @@ namespace StingTools.BIMManager
                     if (phaseElements.Count > 0)
                     {
                         var discGroup = phaseElements
-                            .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name))
-                            .GroupBy(e => TagConfig.DiscMap[e.Category.Name])
+                            .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
+                            .GroupBy(e => TagConfig.DiscMap[global::StingTools.Core.ParameterHelpers.GetCategoryName(e)])
                             .OrderByDescending(g => g.Count())
                             .FirstOrDefault();
                         if (discGroup != null) primaryDisc = discGroup.Key;

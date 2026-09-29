@@ -36,7 +36,7 @@ namespace StingTools.V6
                         rates.Select(r => r.Category), StringComparer.OrdinalIgnoreCase);
                     targets = new FilteredElementCollector(doc)
                         .WhereElementIsNotElementType()
-                        .Where(e => e.Category != null && allowed.Contains(e.Category.Name))
+                        .Where(e => e.Category != null && allowed.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                         .ToList();
                 }
 

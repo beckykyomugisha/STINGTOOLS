@@ -339,7 +339,7 @@ namespace StingTools.UI
 
             var elements = collector
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && categoryNames.Contains(e.Category.Name))
+                .Where(e => e.Category != null && categoryNames.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                 .ToList();
 
             if (elements.Count == 0)

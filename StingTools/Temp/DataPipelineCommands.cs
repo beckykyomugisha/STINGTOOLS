@@ -3952,7 +3952,7 @@ namespace StingTools.Temp
             // ── Step 3: Collect elements from selected categories ──
             var exportElements = new FilteredElementCollector(doc)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && selectedCats.Contains(e.Category.Name))
+                .Where(e => e.Category != null && selectedCats.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                 .ToList();
 
             if (exportElements.Count == 0)

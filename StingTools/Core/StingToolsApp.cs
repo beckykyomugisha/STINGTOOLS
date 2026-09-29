@@ -333,6 +333,8 @@ namespace StingTools.Core
 
                 // R-02: Retry deferred auto-tag elements after sync-to-central
                 application.ControlledApplication.DocumentSynchronizedWithCentral += OnDocumentSynchronizedWithCentral;
+                // TAGACC-17: Reload Latest refreshes counters too — retry deferred elements then.
+                application.ControlledApplication.DocumentReloadedLatest += OnDocumentReloadedLatest;
 
                 // INT-03: Auto-sync to Planscape server after every successful STC.
                 // Separate handler from OnDocumentSynchronizedWithCentral so the
@@ -680,12 +682,24 @@ namespace StingTools.Core
         /// Elements skipped during auto-tagging due to workset ownership are retried here.</summary>
         private static void OnDocumentSynchronizedWithCentral(object sender,
             Autodesk.Revit.DB.Events.DocumentSynchronizedWithCentralEventArgs e)
+            => RetryAfterCentralRefresh(e.Document, "sync-to-central");
+
+        /// <summary>
+        /// TAGACC-17: Reload Latest also brings in other users' SEQ counters and tags, so it
+        /// retries deferred elements and repairs duplicates exactly as a sync does. Before
+        /// this, an element deferred because another user held the SEQ counter waited for
+        /// this user's own next sync even after they had reloaded.
+        /// </summary>
+        private static void OnDocumentReloadedLatest(object sender,
+            Autodesk.Revit.DB.Events.DocumentReloadedLatestEventArgs e)
+            => RetryAfterCentralRefresh(e.Document, "reload latest");
+
+        private static void RetryAfterCentralRefresh(Document doc, string trigger)
         {
             try
             {
                 var deferredIds = StingAutoTagger.DrainDeferredQueue();
 
-                Document doc = e.Document;
                 if (doc == null || !doc.IsValidObject) return;
 
                 // TAGACC-2: SEQ numbers are allocated from the local model, so two users who
@@ -767,11 +781,11 @@ namespace StingTools.Core
                     StingAutoTagger.InvalidateContext();
                 }
 
-                StingLog.Info($"AutoTagger deferred retry: processed {processed}/{deferredIds.Count} elements after sync-to-central");
+                StingLog.Info($"AutoTagger deferred retry: processed {processed}/{deferredIds.Count} elements after {trigger}");
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"OnDocumentSynchronizedWithCentral deferred retry: {ex.Message}");
+                StingLog.Warn($"Deferred retry after {trigger}: {ex.Message}");
             }
         }
 

@@ -5285,13 +5285,13 @@ namespace StingTools.Organise
                     if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
                     scope = new FilteredElementCollector(doc, view.Id)
                         .WhereElementIsNotElementType()
-                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                         .ToList();
                     break;
                 case TaskDialogResult.CommandLink3:
                     scope = new FilteredElementCollector(doc)
                         .WhereElementIsNotElementType()
-                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                         .ToList();
                     break;
                 default: return Result.Cancelled;

@@ -2636,7 +2636,7 @@ namespace StingTools.Docs
                 // Collect all taggable elements
                 var allElements = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && known.Contains(e.Category.Name))
+                    .Where(e => e.Category != null && known.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                     .ToList();
 
                 // Group by discipline, system, level

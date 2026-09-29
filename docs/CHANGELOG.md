@@ -2,6 +2,14 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-16 / 17, 2026-09-29)
+
+- **TAGACC-16** the 28 remaining `Category.Name` LOOKUPS (DiscMap, known-category lists,
+  category filters across BIM Manager, scheduling, Excel link, legends, smart placement, data
+  exchange, placement hints) now use `GetCategoryName`. Display-only reads are left as they are.
+- **TAGACC-17** `DocumentReloadedLatest` runs the same deferred retry and duplicate repair as a
+  sync (`StingToolsApp.RetryAfterCentralRefresh`).
+
 #### Completed (TAGACC-12..15 and the Tag Rules settings button, 2026-09-29)
 
 - **Tag Rules button** (TAGGING tab, beside Batch Tag; dispatch tag `TagBehaviour`,

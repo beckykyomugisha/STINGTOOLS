@@ -1360,7 +1360,7 @@ namespace StingTools.Tags
 
                     var linkElements = new FilteredElementCollector(linkDoc)
                         .WhereElementIsNotElementType()
-                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                         .ToList();
 
                     foreach (Element linkEl in linkElements)
@@ -3095,7 +3095,7 @@ namespace StingTools.Tags
             {
                 scope = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
-                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                    .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                     .ToList();
             }
             else
