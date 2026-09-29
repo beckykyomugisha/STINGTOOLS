@@ -1,4 +1,4 @@
-// PromoteTagLibraryCommand - publish the finished tag library to the shared
+﻿// PromoteTagLibraryCommand - publish the finished tag library to the shared
 // content root.
 //
 // The shared root is searched BEFORE the deployed library and a deploy cannot
@@ -69,7 +69,7 @@ namespace StingTools.Commands.TagStudio
             bool needsRecord = true;
             try
             {
-                string existing = Path.Combine(target, "_STING_PROMOTION_MANIFEST.txt");
+                string existing = Path.Combine(target, TagLibraryPromotion.ManifestFileName);
                 needsRecord = !File.Exists(existing) ||
                               TagLibraryPromotion.ParsePublished(File.ReadAllText(existing)).Count == 0;
             }
@@ -115,6 +115,9 @@ namespace StingTools.Commands.TagStudio
                     {
                         failures.Add($"{name}: {ex.Message}");
                         StingLog.Warn($"PromoteTagLibrary: {name} failed: {ex.Message}");
+                        // The share still holds the old copy (or none), so the record must
+                        // not vouch for it; Load Tag Families then reports it.
+                        plan.SourceHashes.Remove(name);
                     }
                 }
 
@@ -135,7 +138,7 @@ namespace StingTools.Commands.TagStudio
                     };
                     if (retire.Show() == TaskDialogResult.Yes)
                     {
-                        plan.RetiredFolder = Path.Combine("_retired", DateTime.Now.ToString("yyyyMMdd_HHmm"));
+                        plan.RetiredFolder = Path.Combine(TagLibraryPromotion.RetiredFolderName, DateTime.Now.ToString("yyyyMMdd_HHmm"));
                         string dest = Path.Combine(target, plan.RetiredFolder);
                         Directory.CreateDirectory(dest);
                         foreach (var name in plan.ExtraInTarget)
@@ -158,7 +161,7 @@ namespace StingTools.Commands.TagStudio
                 // so a partial promotion never claims a complete one.
                 string manifest = TagLibraryPromotion.BuildManifest(
                     plan, Environment.UserName, DateTime.UtcNow);
-                File.WriteAllText(Path.Combine(target, "_STING_PROMOTION_MANIFEST.txt"), manifest);
+                File.WriteAllText(Path.Combine(target, TagLibraryPromotion.ManifestFileName), manifest);
             }
             catch (Exception ex)
             {
@@ -171,7 +174,11 @@ namespace StingTools.Commands.TagStudio
                           $"{failures.Count} failed, manifest written to {target}");
 
             TaskDialog.Show("Promote Tag Library — done",
-                $"Published {written} of {plan.WouldWrite} family/families." +
+                (plan.WouldWrite > 0
+                    ? $"Published {written} of {plan.WouldWrite} family/families."
+                    : "No family needed copying; the shared library already matched.") +
+                $" The promotion record now lists {plan.SourceHashes.Count} family/families," +
+                " which Load Tag Families checks the shared library against." +
                 (plan.Retired.Count > 0 ? $" Retired {plan.Retired.Count} to {plan.RetiredFolder}." : "") + "\n\n" +
                 (failures.Count > 0
                     ? "FAILED:\n  " + string.Join("\n  ", failures.Take(8)) + "\n\n"

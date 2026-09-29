@@ -1,4 +1,4 @@
-// StingTools — Repair Tag Library.
+﻿// StingTools — Repair Tag Library.
 //
 // The shipped tag families carry STING parameters as TEXT that MR_PARAMETERS.txt
 // gives other types, so every project set up with Load Params refuses them. Load Tag
@@ -136,7 +136,11 @@ namespace StingTools.Tags
                     (backupsRemoved > 0 ? $"Revit backup files removed from the deployed library: {backupsRemoved}\n" : "") +
                     (repo != null && repaired > 0
                         ? "\nNext: commit StingTools/Data/TagFamilies, then re-stamp the content manifest " +
-                          "(tools/restamp_content_manifest.py --apply StingTools/Data/TagFamilies)." : "")
+                          "(tools/restamp_content_manifest.py --apply StingTools/Data/TagFamilies)." : "") +
+                    (repaired > 0 && TagFamilyConfig.IsPromotionManaged(TagFamilyConfig.SharedTagDirectory())
+                        ? "\n\nThe shared library (" + TagFamilyConfig.SharedTagDirectory() + ") is read first and " +
+                          "still holds the old families. Run Promote Library (MODEL > Family quick edit > " +
+                          "Advanced family ops) to publish the repaired ones." : "")
             };
             if (report.Length > 0) td.ExpandedContent = report.ToString();
             td.Show();
