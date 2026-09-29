@@ -1638,6 +1638,7 @@ namespace StingTools.Core
                 // done one click at a time, in an order nobody wrote down.
                 case "TitleBlock_CreateAll":           return new Commands.Drawing.TitleBlockCreateAllCommand();
                 case "LoadTagFamilies":                return new Tags.LoadTagFamiliesCommand();
+                case "RepairTagLibrary":               return new Tags.RepairTagLibraryCommand();
                 case "AecFilters_Create":              return new Commands.Drawing.AecFiltersCreateCommand();
                 case "DrawingTypes_EnsureViewTypes":   return new Commands.Drawing.EnsureViewTypesCommand();
                 case "DrawingTypes_PresentationSetup": return new Commands.Drawing.PresentationStyleSetupCommand();

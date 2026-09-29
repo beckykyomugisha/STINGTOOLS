@@ -1670,6 +1670,7 @@ namespace StingTools.UI
                     // ── Tag Families ──
                     case "CreateTagFamilies": RunCommand<Tags.CreateTagFamiliesCommand>(app); break;
                     case "LoadTagFamilies": RunCommand<Tags.LoadTagFamiliesCommand>(app); break;
+                    case "RepairTagLibrary": RunCommand<Tags.RepairTagLibraryCommand>(app); break;
                     case "ConfigureTagLabels": RunCommand<Tags.ConfigureTagLabelsCommand>(app); break;
                     case "ConfigureLoadedFamilies": RunCommand<Tags.ConfigureLoadedFamiliesCommand>(app); break;
                     case "AuditTagFamilies": RunCommand<Tags.AuditTagFamiliesCommand>(app); break;

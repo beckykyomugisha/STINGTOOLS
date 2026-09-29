@@ -2821,6 +2821,7 @@ namespace StingTools.Tags
             var roots = TagFamilyConfig.GetTagLibraryRoots();
             var byName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var perRoot = new List<string>();
+            int backups = 0;
             foreach (var root in roots)
             {
                 int added = 0, shadowed = 0;
@@ -2830,6 +2831,9 @@ namespace StingTools.Tags
                     {
                         foreach (var f in Directory.GetFiles(root, "STING - *.rfa"))
                         {
+                            // A Revit backup ("… Tag.0001.rfa") would load as a second,
+                            // junk family named "… Tag.0001".
+                            if (RevitBackupFiles.IsBackup(f)) { backups++; continue; }
                             string n = Path.GetFileNameWithoutExtension(f);
                             if (byName.ContainsKey(n)) { shadowed++; continue; }
                             byName[n] = f; added++;
@@ -2974,7 +2978,8 @@ namespace StingTools.Tags
             td.MainContent =
                 $"Found: {rfaFiles.Length} .rfa files\n" +
                 $"Loaded: {loaded}" + (repaired > 0 ? $" ({repaired} repaired for this project's parameter types)" : "") + "\n" +
-                $"Skipped: {skipped} (already loaded)\n" +
+                $"Skipped: {skipped} (already loaded)" +
+                (backups > 0 ? $", {backups} Revit backup file(s) (.0001 …) ignored" : "") + "\n" +
                 $"Not loaded: {failed}" +
                 (repaired > 0 ? "\n\nRepaired families had parameters stored as Text that this project holds " +
                     "as numbers, lengths or yes/no, so Revit refused them. Where a family parameter held it, the label now reads " +

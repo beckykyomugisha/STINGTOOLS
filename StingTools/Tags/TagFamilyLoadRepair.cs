@@ -85,10 +85,44 @@ namespace StingTools.Tags
         public string TempDir { get; }
 
         public TagFamilyLoadRepair(Document projectDoc)
+            : this(projectDoc.Application, SharedParamPreflight.CollectProject(projectDoc)) { }
+
+        /// <summary>
+        /// Repair against a reference other than a project: the library repair passes
+        /// every definition in MR_PARAMETERS.txt, which is what any project set up with
+        /// Load Params holds.
+        /// </summary>
+        public TagFamilyLoadRepair(Autodesk.Revit.ApplicationServices.Application app, List<SharedParamFacts> reference)
         {
-            _app = projectDoc.Application;
-            _project = SharedParamPreflight.CollectProject(projectDoc);
+            _app = app;
+            _project = reference ?? new List<SharedParamFacts>();
             TempDir = Path.Combine(Path.GetTempPath(), ".sting-tagload-" + Guid.NewGuid().ToString("N"));
+        }
+
+        /// <summary>
+        /// Every definition in MR_PARAMETERS.txt as the facts a project would hold, or
+        /// null with <paramref name="error"/> set when the file cannot be read.
+        /// </summary>
+        public static List<SharedParamFacts> ReadParameterFile(
+            Autodesk.Revit.ApplicationServices.Application app, out string error)
+        {
+            error = null;
+            string mr = StingToolsApp.FindDataFile("MR_PARAMETERS.txt");
+            if (string.IsNullOrEmpty(mr) || !File.Exists(mr)) { error = "MR_PARAMETERS.txt not found"; return null; }
+            string previous = app.SharedParametersFilename;
+            try
+            {
+                app.SharedParametersFilename = mr;
+                var file = app.OpenSharedParameterFile();
+                if (file == null) { error = "MR_PARAMETERS.txt could not be opened"; return null; }
+                return SharedParamPreflight.CollectAllDefinitions(file);
+            }
+            catch (Exception ex) { error = "reading MR_PARAMETERS.txt: " + ex.Message; return null; }
+            finally
+            {
+                try { app.SharedParametersFilename = previous ?? ""; }
+                catch (Exception ex) { StingLog.Warn($"TagFamilyLoadRepair: restoring shared parameter file: {ex.Message}"); }
+            }
         }
 
         /// <summary>True when the project holds no shared parameters, so nothing can conflict.</summary>

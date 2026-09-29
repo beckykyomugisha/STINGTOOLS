@@ -25558,3 +25558,21 @@ every `GetString` read against the parameter's data type.
   conflicting GUID is deleted in the same transaction. One Revit refuses to delete is named
   in the report.
 - Not run in Revit.
+
+#### Repair Tag Library command; Load Tag Families skips Revit backups (2026-09-29)
+
+- **Repair Tag Library** (`RepairTagLibrary`, CREATE TAGS → ⚙ SETUP → Advanced setup →
+  "Tag families — load & migrate" → Repair Lib) corrects the library files themselves
+  instead of repairing on every load. It opens each family in the git-tracked library
+  (`StingTools/Data/TagFamilies` and `_master`, found by walking up from the plugin to a
+  checkout; else the deployed library), applies the Load Tag Families repair against every
+  definition in `MR_PARAMETERS.txt` (not a project), writes the file back, and copies it
+  into the deployed library. The repaired files are then committed and the content
+  manifest re-stamped (`tools/restamp_content_manifest.py --apply`). This closes TAGLIB-1
+  once run and committed; the label-only fields it removes stay removed.
+- **Revit backups.** A Load Tag Families run on a real project found 227 files where the
+  library holds 207: Revit's `<name>.0001.rfa` save backups had accumulated in the
+  deployed folder and were loaded as extra families named "… Tag.0001". Load Tag Families
+  now skips them (`Core/RevitBackupFiles`, 8 tests) and says how many; Repair Tag Library
+  deletes them from the deployed library.
+- Tags 4,034 passing; gates pass. Not run in Revit.
