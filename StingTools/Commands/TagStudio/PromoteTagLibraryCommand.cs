@@ -93,7 +93,13 @@ namespace StingTools.Commands.TagStudio
                     "The shared library is searched BEFORE the deployed one and a deploy cannot " +
                     "update it, so what is published here wins until it is published again.\n\n" +
                     "Nothing is deleted. A family already in the target and not in the source is " +
-                    "kept, unless you choose to move it to _retired in the next step.",
+                    "kept, unless you choose to move it to _retired in the next step." +
+                    (plan.NewerInTarget.Count > 0
+                        ? $"\n\nWARNING: {plan.NewerInTarget.Count} of the families to update are NEWER in the " +
+                          "shared library than here, so this plugin may be older than the one that published " +
+                          "them. Promoting replaces them with these copies: " +
+                          string.Join(", ", plan.NewerInTarget.Take(5)) + (plan.NewerInTarget.Count > 5 ? ", ..." : "")
+                        : ""),
                 CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                 DefaultButton = TaskDialogResult.Cancel,
             };

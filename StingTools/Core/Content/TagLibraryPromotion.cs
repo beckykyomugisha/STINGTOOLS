@@ -47,6 +47,13 @@ namespace StingTools.Core.Content
         /// <summary>In the target and not in the source. NEVER deleted - only reported.</summary>
         public List<string> ExtraInTarget { get; } = new List<string>();
 
+        /// <summary>
+        /// Families to update whose copy in the target was written later than the
+        /// source copy. Promoting from an older plugin would replace them with older
+        /// versions, so the command says so before it runs.
+        /// </summary>
+        public List<string> NewerInTarget { get; } = new List<string>();
+
         /// <summary>SHA-256 of every source family, by file name.</summary>
         public Dictionary<string, string> SourceHashes { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         /// <summary>Target families moved to _retired by this promotion.</summary>
@@ -131,6 +138,17 @@ namespace StingTools.Core.Content
 
             plan.ToAdd.Sort(StringComparer.Ordinal);
             plan.ToUpdate.Sort(StringComparer.Ordinal);
+            foreach (var name in plan.ToUpdate)
+            {
+                try
+                {
+                    // A minute of slack: copies across file systems round write times.
+                    if (File.GetLastWriteTimeUtc(Path.Combine(targetDir, name)) >
+                        File.GetLastWriteTimeUtc(Path.Combine(sourceDir, name)).AddMinutes(1))
+                        plan.NewerInTarget.Add(name);
+                }
+                catch (Exception ex) { StingLog.Warn($"TagLibraryPromotion: dates of {name}: {ex.Message}"); }
+            }
             plan.ExtraInTarget.Sort(StringComparer.Ordinal);
             return plan;
         }
@@ -267,14 +285,7 @@ namespace StingTools.Core.Content
         }
 
         /// <summary>"Family.0001.rfa" - Revit's own backup, not a family.</summary>
-        public static bool IsRevitBackupName(string fileName)
-        {
-            string stem = Path.GetFileNameWithoutExtension(fileName) ?? "";
-            int dot = stem.LastIndexOf('.');
-            if (dot < 0 || dot == stem.Length - 1) return false;
-            string tail = stem.Substring(dot + 1);
-            return tail.Length == 4 && tail.All(char.IsDigit);
-        }
+        public static bool IsRevitBackupName(string fileName) => RevitBackupFiles.IsBackup(fileName);
 
         private static bool DirExists(string d)
         { try { return !string.IsNullOrWhiteSpace(d) && Directory.Exists(d); } catch { return false; } }
