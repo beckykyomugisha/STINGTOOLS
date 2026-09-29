@@ -343,6 +343,15 @@ namespace StingTools.Tags
     public class CapturingFailuresPreprocessor : IFailuresPreprocessor
     {
         private readonly List<string> _messages = new List<string>();
+        private readonly bool _rollBackOnError;
+
+        public CapturingFailuresPreprocessor() : this(false) { }
+
+        /// <param name="rollBackOnError">
+        /// Roll the transaction back on an error-severity failure instead of letting
+        /// Revit show its modal list, so the caller reports the captured text.
+        /// </param>
+        public CapturingFailuresPreprocessor(bool rollBackOnError) { _rollBackOnError = rollBackOnError; }
 
         /// <summary>Distinct failure descriptions seen, in order.</summary>
         public IReadOnlyList<string> Messages => _messages;
@@ -359,10 +368,13 @@ namespace StingTools.Tags
 
         public FailureProcessingResult PreprocessFailures(FailuresAccessor accessor)
         {
+            bool anyError = false;
             try
             {
                 foreach (var f in accessor.GetFailureMessages())
                 {
+                    try { if (f.GetSeverity() == FailureSeverity.Error) anyError = true; }
+                    catch (Exception ex) { StingLog.Warn($"CapturingFailuresPreprocessor: severity: {ex.Message}"); }
                     string desc = null;
                     try { desc = f.GetDescriptionText(); }
                     catch (Exception ex) { StingLog.Warn($"CapturingFailuresPreprocessor: {ex.Message}"); }
@@ -375,6 +387,7 @@ namespace StingTools.Tags
                 StingLog.Warn($"CapturingFailuresPreprocessor: {ex.Message}");
             }
 
+            if (_rollBackOnError && anyError) return FailureProcessingResult.ProceedWithRollBack;
             // Capture only. Resolving or deleting here would change what the load
             // does; the caller already rolls the transaction back on failure.
             return FailureProcessingResult.Continue;

@@ -2920,7 +2920,7 @@ namespace StingTools.Tags
                 // CRASH FIX: Single transaction for all families instead of one per .rfa file.
                 // Rapid-fire tx.Commit() calls trigger Revit's deferred regeneration
                 // which causes native segfaults (same root cause as ENH-003).
-                var failures = new CapturingFailuresPreprocessor();
+                var failures = new CapturingFailuresPreprocessor(rollBackOnError: true);
                 TransactionStatus status = TransactionStatus.Uninitialized;
                 if (loadable.Count > 0)
                 {
@@ -2978,8 +2978,9 @@ namespace StingTools.Tags
                 $"Skipped: {skipped} (already loaded)\n" +
                 $"Not loaded: {failed}" +
                 (repaired > 0 ? "\n\nRepaired families had parameters stored as Text that this project holds " +
-                    "as numbers, lengths or yes/no. Their labels now read the Text display mirror. " +
-                    "The files in the tag library are unchanged." : "");
+                    "as numbers, lengths or yes/no. Where a family parameter held it, the label now reads " +
+                    "the Text display mirror; where only a label read it, that field was removed from " +
+                    "the label. 'Show details' lists each one. The files in the tag library are unchanged." : "");
             if (report.Length > 0) td.ExpandedContent = report.ToString();
             td.Show();
 

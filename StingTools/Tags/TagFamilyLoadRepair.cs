@@ -8,10 +8,12 @@
 // Load Params refuses those families. Because Load Tag Families loads every file
 // in one transaction, one refused family rolled all of them back.
 //
-// Here each family is opened before it is loaded. A conflicting TEXT parameter is
-// swapped for its TEXT display mirror (ReplaceParameter keeps every label cell),
-// or, when there is no mirror, turned into a plain family parameter so the family
-// can load with that one label field empty. The repaired copy is saved under the
+// Here each family is opened before it is loaded. A conflicting TEXT family
+// parameter is swapped for its TEXT display mirror (ReplaceParameter keeps every
+// label cell), or, when there is no mirror, turned into a plain family parameter.
+// A conflicting parameter that only a label reads (a shared parameter element,
+// not a family parameter, which is how tag labels hold them) is removed, since the
+// API cannot repoint a label row: the field drops off that tag and the family loads. The repaired copy is saved under the
 // family's exact file name in a temp folder and loaded from there. The shipped
 // .rfa files are not changed.
 
@@ -69,7 +71,7 @@ namespace StingTools.Tags
                     return item;
                 }
                 var fm = famDoc.FamilyManager;
-                var conflicts = SharedParamConflictDetector.Detect(SharedParamPreflight.CollectFamily(fm), _project);
+                var conflicts = SharedParamConflictDetector.Detect(FamilySide(famDoc), _project);
                 if (conflicts.Count == 0) return item;
 
                 var names = conflicts.Where(c => c.Kind == SharedParamConflictKind.NameCollision).ToList();
@@ -86,7 +88,18 @@ namespace StingTools.Tags
                     {
                         var fp = fm.Parameters.Cast<FamilyParameter>()
                             .FirstOrDefault(p => p.IsShared && p.GUID == c.FamilyGuid);
-                        if (fp == null) continue;
+                        if (fp == null)
+                        {
+                            // Read only by a label: a tag's label parameters are shared
+                            // parameter elements, not family parameters, and the API
+                            // cannot repoint a label row. Removing the element drops that
+                            // field from the label and lets the family load.
+                            var spe = SharedParameterElement.Lookup(famDoc, c.FamilyGuid);
+                            if (spe == null) continue;
+                            famDoc.Delete(spe.Id);
+                            item.Repairs.Add($"{c.FamilyName} removed from the label (field no longer shown)");
+                            continue;
+                        }
                         ForgeTypeId group = GroupOf(fp);
                         ExternalDefinition mirror = MirrorFor(c.FamilyName);
                         bool mirrorPresent = mirror != null && fm.Parameters.Cast<FamilyParameter>()
@@ -111,7 +124,7 @@ namespace StingTools.Tags
                     }
                 }
 
-                var left = SharedParamConflictDetector.Detect(SharedParamPreflight.CollectFamily(fm), _project);
+                var left = SharedParamConflictDetector.Detect(FamilySide(famDoc), _project);
                 if (left.Count > 0)
                 {
                     item.Blocked = "still conflicts after repair: " + SharedParamConflictDetector.Describe(left, 4);
@@ -136,6 +149,20 @@ namespace StingTools.Tags
                 try { famDoc?.Close(false); }
                 catch (Exception ex) { StingLog.Warn($"LoadTagFamilies: closing '{famName}': {ex.Message}"); }
             }
+        }
+
+        /// <summary>
+        /// Every shared parameter the family carries: its family parameters AND the
+        /// shared parameter elements its labels read. A tag family's label parameters
+        /// are only the latter, so reading family parameters alone saw no conflict.
+        /// </summary>
+        private static List<SharedParamFacts> FamilySide(Document famDoc)
+        {
+            var byGuid = new Dictionary<Guid, SharedParamFacts>();
+            foreach (var f in SharedParamPreflight.CollectProject(famDoc)
+                         .Concat(SharedParamPreflight.CollectFamily(famDoc.FamilyManager)))
+                if (f.Guid != Guid.Empty) byGuid[f.Guid] = f;
+            return byGuid.Values.ToList();
         }
 
         private ExternalDefinition MirrorFor(string paramName)
