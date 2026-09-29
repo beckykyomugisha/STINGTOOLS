@@ -414,7 +414,7 @@ namespace StingTools.Temp
                             string family = ParameterHelpers.GetFamilyName(el);
                             foreach (var check in systemChecks[sys])
                             {
-                                csvLines.Add($"{sys},{tag},{global::StingTools.Core.ParameterHelpers.GetCategoryName(el)},{family},{check},PENDING");
+                                csvLines.Add($"{sys},{tag},{(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))},{family},{check},PENDING");
                                 totalChecks++;
                             }
                             ParameterHelpers.SetString(el, "COM_COMMISSION_STATUS_TXT", "PENDING", false);
@@ -740,7 +740,7 @@ namespace StingTools.Temp
                                 if (roomEl != null) room = roomEl.get_Parameter(BuiltInParameter.ROOM_NAME)?.AsString() ?? "";
                                 string bmsAddr = $"BMS/{sensorType}/{tag}";
                                 ParameterHelpers.SetString(el, "ASS_BMS_ADDRESS_TXT", bmsAddr, false);
-                                csvLines.Add($"{sensorType},{tag},{global::StingTools.Core.ParameterHelpers.GetCategoryName(el)},{family},{room},{bmsAddr}");
+                                csvLines.Add($"{sensorType},{tag},{(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))},{family},{room},{bmsAddr}");
                                 sensorCount++;
                             }
                         }

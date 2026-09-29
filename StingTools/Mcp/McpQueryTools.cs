@@ -221,7 +221,7 @@ namespace StingTools.Mcp
                     ["parameters"] = allParams,
                 };
                 return McpJobResult.Success(
-                    $"Element {el.Id.Value} — {global::StingTools.Core.ParameterHelpers.GetCategoryName(el)}: {SafeFamily(el)} / {SafeType(el)} ({allParams.Count} params).",
+                    $"Element {el.Id.Value} — {(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}: {SafeFamily(el)} / {SafeType(el)} ({allParams.Count} params).",
                     data);
             }).ToCallResult();
         }

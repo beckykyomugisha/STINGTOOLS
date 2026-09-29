@@ -1170,7 +1170,7 @@ namespace StingTools.Tags
                 if (center.IsAlmostEqualTo(XYZ.Zero))
                 {
                     sb.NoCenter++; skipped++;
-                    StingLog.Info($"SmartPlace skip (no center): element {elem.Id} category='{global::StingTools.Core.ParameterHelpers.GetCategoryName(elem)}'");
+                    StingLog.Info($"SmartPlace skip (no center): element {elem.Id} category='{(global::StingTools.Core.ParameterHelpers.GetCategoryName(elem))}'");
                     continue;
                 }
 
@@ -1184,7 +1184,7 @@ namespace StingTools.Tags
                 if (tagTypeId == ElementId.InvalidElementId)
                 {
                     sb.NoTagFamily++; skipped++;
-                    StingLog.Info($"SmartPlace skip (no tag family loaded): element {elem.Id} category='{global::StingTools.Core.ParameterHelpers.GetCategoryName(elem)}'");
+                    StingLog.Info($"SmartPlace skip (no tag family loaded): element {elem.Id} category='{(global::StingTools.Core.ParameterHelpers.GetCategoryName(elem))}'");
                     continue;
                 }
 
@@ -3206,7 +3206,7 @@ namespace StingTools.Tags
                     try { hasLeader = tag.HasLeader; } catch (Exception ex) { StingLog.Warn($"Check tag leader: {ex.Message}"); }
 
                     csv.AppendLine($"\"{view.Name}\",{view.ViewType},{view.Scale}," +
-                        $"{host.Id.Value},\"{global::StingTools.Core.ParameterHelpers.GetCategoryName(host)}\",\"{tag.TagText}\"," +
+                        $"{host.Id.Value},\"{(global::StingTools.Core.ParameterHelpers.GetCategoryName(host))}\",\"{tag.TagText}\"," +
                         $"\"\",{tagPos.X * mmPerFt:F1},{tagPos.Y * mmPerFt:F1}," +
                         $"{offsetX:F1},{offsetY:F1},{hasLeader},\"{stingTag}\"");
                 }

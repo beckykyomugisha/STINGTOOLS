@@ -2029,7 +2029,7 @@ namespace StingTools.Core.Placement
                     {
                         result.Warnings.Add(
                             $"Type catalog load: '{matchedType}' from '{Path.GetFileName(rfaPath)}' " +
-                            $"resolved category '{global::StingTools.Core.ParameterHelpers.GetCategoryName(loaded)}', expected '{categoryName}'.");
+                            $"resolved category '{(global::StingTools.Core.ParameterHelpers.GetCategoryName(loaded))}', expected '{categoryName}'.");
                     }
                     result.Warnings.Add(
                         $"Phase 185 type-catalog: loaded '{matchedType}' from " +

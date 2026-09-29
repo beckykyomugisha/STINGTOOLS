@@ -79,17 +79,17 @@ namespace StingTools.Commands.DesignOptions
 
                 if (el.DesignOption != null)
                 {
-                    rejected.Add($"{el.Id} {global::StingTools.Core.ParameterHelpers.GetCategoryName(el)}: already in an option");
+                    rejected.Add($"{el.Id} {(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}: already in an option");
                     continue;
                 }
                 if (el.ViewSpecific)
                 {
-                    rejected.Add($"{el.Id} {global::StingTools.Core.ParameterHelpers.GetCategoryName(el)}: view-specific (annotation)");
+                    rejected.Add($"{el.Id} {(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}: view-specific (annotation)");
                     continue;
                 }
                 if (!IsModelCategory(el))
                 {
-                    rejected.Add($"{el.Id} {global::StingTools.Core.ParameterHelpers.GetCategoryName(el)}: not a model category");
+                    rejected.Add($"{el.Id} {(global::StingTools.Core.ParameterHelpers.GetCategoryName(el))}: not a model category");
                     continue;
                 }
                 movable.Add(id);

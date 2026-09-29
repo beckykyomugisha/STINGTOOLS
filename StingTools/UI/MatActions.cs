@@ -203,7 +203,7 @@ namespace StingTools.UI
                 if (rows.Count == 0)
                 {
                     TaskDialog.Show("Read Layers",
-                        $"'{global::StingTools.Core.ParameterHelpers.GetCategoryName(host)} {host.Id}' has no compound structure (or it couldn't be read). Layered tags only apply to System Family hosts.");
+                        $"'{(global::StingTools.Core.ParameterHelpers.GetCategoryName(host))} {host.Id}' has no compound structure (or it couldn't be read). Layered tags only apply to System Family hosts.");
                     return;
                 }
                 StingDockPanel.LastInstance?.SetLayerRows(rows, host.Id);

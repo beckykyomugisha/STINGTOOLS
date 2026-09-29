@@ -119,7 +119,7 @@ namespace StingTools.Core.Mep
                     var rule = SleeveSizingRules.Resolve(mep);
                     if (rule == null)
                     {
-                        result.Warnings.Add($"{mep.Id}: no sleeve rule for category {global::StingTools.Core.ParameterHelpers.GetCategoryName(mep)}");
+                        result.Warnings.Add($"{mep.Id}: no sleeve rule for category {(global::StingTools.Core.ParameterHelpers.GetCategoryName(mep))}");
                         result.Skipped++;
                         continue;
                     }
