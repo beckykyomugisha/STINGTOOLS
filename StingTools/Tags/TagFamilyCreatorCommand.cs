@@ -1254,6 +1254,31 @@ namespace StingTools.Tags
             return outList;
         }
 
+        /// <summary>
+        /// The git-tracked library, &lt;repo&gt;/StingTools/Data/TagFamilies, when the
+        /// plugin runs from a checkout (CompiledPlugin sits in the repository root);
+        /// null on an installed copy. ".git" may be a folder or, in a worktree, a file.
+        /// Repair Tag Library and Promote Library both use this one answer.
+        /// </summary>
+        public static string RepoTagDirectory()
+        {
+            try
+            {
+                string deployed = LegacyTagDirectory();
+                var dir = new DirectoryInfo(deployed);
+                for (int i = 0; dir != null && i < 6; i++, dir = dir.Parent)
+                {
+                    string lib = Path.Combine(dir.FullName, "StingTools", "Data", "TagFamilies");
+                    string git = Path.Combine(dir.FullName, ".git");
+                    if (Directory.Exists(lib) && (Directory.Exists(git) || File.Exists(git)) &&
+                        !string.Equals(lib.TrimEnd('\\', '/'), deployed.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+                        return lib;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"RepoTagDirectory: {ex.Message}"); }
+            return null;
+        }
+
         /// <summary>True when Promote Library has published to this folder.</summary>
         public static bool IsPromotionManaged(string dir)
         {
@@ -2806,6 +2831,27 @@ namespace StingTools.Tags
     /// <summary>
     /// Family load options that allow overwriting existing families with updated versions.
     /// </summary>
+    /// <summary>
+    /// Reloads a family already in the project without touching its types' parameter
+    /// values: tag styles set in the project (the TAG_*_BOOL switches) survive an update.
+    /// </summary>
+    internal class TagFamilyUpdateOptions : IFamilyLoadOptions
+    {
+        public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
+        {
+            overwriteParameterValues = false;
+            return true;
+        }
+
+        public bool OnSharedFamilyFound(Family sharedFamily, bool familyInUse,
+            out FamilySource source, out bool overwriteParameterValues)
+        {
+            source = FamilySource.Family;
+            overwriteParameterValues = false;
+            return true;
+        }
+    }
+
     internal class TagFamilyLoadOptions : IFamilyLoadOptions
     {
         public bool OnFamilyFound(bool familyInUse, out bool overwriteParameterValues)
@@ -2912,11 +2958,37 @@ namespace StingTools.Tags
             var report = new StringBuilder();
 
             var toLoad = new List<string>();
+            var inProject = new List<string>();
             foreach (string rfaPath in rfaFiles.OrderBy(f => f))
             {
-                if (loadedFamilies.Contains(Path.GetFileNameWithoutExtension(rfaPath))) skipped++;
+                if (loadedFamilies.Contains(Path.GetFileNameWithoutExtension(rfaPath))) inProject.Add(rfaPath);
                 else toLoad.Add(rfaPath);
             }
+
+            // A family already in the project was skipped outright, so a corrected
+            // library never reached a project that had loaded the old one. Offer to
+            // update them; project tag styles are kept (TagFamilyUpdateOptions).
+            bool update = false;
+            if (inProject.Count > 0)
+            {
+                var ask = new TaskDialog("Load Tag Families")
+                {
+                    MainInstruction = $"{inProject.Count} of the {rfaFiles.Length} tag families are already in this project",
+                    MainContent =
+                        "Update them from the library as well? Placed tags stay where they are and the " +
+                        "tag styles set in this project are kept; label and parameter changes in the " +
+                        "library are applied.\n\nYes: load the missing families and update the others.\n" +
+                        "No: load only the missing families.",
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No | TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.No
+                };
+                var answer = ask.Show();
+                if (answer == TaskDialogResult.Cancel) return Result.Cancelled;
+                update = answer == TaskDialogResult.Yes;
+            }
+            if (!update) skipped = inProject.Count;
+            var toUpdate = new HashSet<string>(update ? inProject : new List<string>(), StringComparer.OrdinalIgnoreCase);
+            int updated = 0;
 
             // Load, and let Revit say what it refuses. Predicting refusals from the
             // families' parameter types missed them twice, and one refused family in a
@@ -2926,18 +2998,24 @@ namespace StingTools.Tags
             var batch = new TagFamilyBatchLoader(doc);
             var refused = new List<(string path, string why)>();
             const int GroupSize = 32;
-            UI.StingProgressDialog progress = toLoad.Count == 0 ? null
-                : UI.StingProgressDialog.Show("STING — loading tag families", toLoad.Count);
+            // New families load with their own values; updated ones keep the project's.
+            var updateOptions = new TagFamilyUpdateOptions();
+            IFamilyLoadOptions OptionsFor(string path) => toUpdate.Contains(path) ? updateOptions : null;
+            int work = toLoad.Count + toUpdate.Count;
+            UI.StingProgressDialog progress = work == 0 ? null
+                : UI.StingProgressDialog.Show("STING — loading tag families", work);
             bool cancelled = false;
             try
             {
+                // Groups are all-new or all-update, so one set of load options fits each.
                 void Isolate(List<string> group)
                 {
                     if (cancelled || group.Count == 0) return;
                     if (progress != null && progress.IsCancelled) { cancelled = true; return; }
-                    if (batch.TryLoad(group, out string why))
+                    if (batch.TryLoad(group, out string why, OptionsFor(group[0])))
                     {
                         for (int i = 0; i < group.Count; i++) progress?.Increment(Path.GetFileNameWithoutExtension(group[i]));
+                        if (toUpdate.Contains(group[0])) updated += group.Count;
                         return;
                     }
                     if (group.Count == 1) { refused.Add((group[0], why)); return; }
@@ -2947,36 +3025,42 @@ namespace StingTools.Tags
                 }
                 for (int i = 0; i < toLoad.Count && !cancelled; i += GroupSize)
                     Isolate(toLoad.Skip(i).Take(GroupSize).ToList());
+                var updates = toUpdate.OrderBy(f => f).ToList();
+                for (int i = 0; i < updates.Count && !cancelled; i += GroupSize)
+                    Isolate(updates.Skip(i).Take(GroupSize).ToList());
 
                 if (refused.Count > 0 && !cancelled)
                 {
                     using (var repair = new TagFamilyLoadRepair(doc))
                     {
-                        progress?.UpdateTotal(toLoad.Count + refused.Count);
+                        progress?.UpdateTotal(work + refused.Count);
                         foreach (var (path, firstWhy) in refused)
                         {
                             if (progress != null && progress.IsCancelled) { cancelled = true; break; }
                             string name = Path.GetFileNameWithoutExtension(path);
                             progress?.Increment("Repairing " + name);
                             var it = repair.Prepare(path);
+                            bool isUpdate = toUpdate.Contains(path);
+                            string notDone = isUpdate ? "[NOT UPDATED, old version kept]" : "[NOT LOADED]";
                             if (it.Blocked != null)
                             {
-                                report.AppendLine($"  [NOT LOADED] {name} — {it.Blocked}. Revit said: {firstWhy ?? "(no reason given)"}");
+                                report.AppendLine($"  {notDone} {name} — {it.Blocked}. Revit said: {firstWhy ?? "(no reason given)"}");
                                 continue;
                             }
                             if (it.Repairs.Count == 0)
                             {
-                                report.AppendLine($"  [NOT LOADED] {name} — no conflicting parameter could be identified. " +
+                                report.AppendLine($"  {notDone} {name} — no conflicting parameter could be identified. " +
                                                   $"Revit said: {firstWhy ?? "(no reason given)"}");
                                 continue;
                             }
-                            if (batch.TryLoad(new List<string> { it.LoadPath }, out string why2))
+                            if (batch.TryLoad(new List<string> { it.LoadPath }, out string why2, OptionsFor(path)))
                             {
                                 repaired++;
+                                if (isUpdate) updated++;
                                 report.AppendLine($"  [OK, repaired] {name}: {string.Join("; ", it.Repairs)}");
                             }
                             else
-                                report.AppendLine($"  [NOT LOADED] {name} — still refused after repair ({string.Join("; ", it.Repairs)}). " +
+                                report.AppendLine($"  {notDone} {name} — still refused after repair ({string.Join("; ", it.Repairs)}). " +
                                                   $"Revit said: {why2 ?? "(no reason given)"}");
                         }
                     }
@@ -3030,10 +3114,16 @@ namespace StingTools.Tags
             catch (Exception ex) { StingLog.Warn($"LoadTagFamilies: checking the shared library: {ex.Message}"); }
 
             TaskDialog td = new TaskDialog("Load Tag Families");
-            td.MainInstruction = failed == 0 ? $"Loaded {loaded} tag families" : $"Loaded {loaded} tag families, {failed} not loaded";
+            int notUpdated = cancelled ? 0 : toUpdate.Count - updated;
+            td.MainInstruction = $"Loaded {loaded} tag families" +
+                (toUpdate.Count > 0 ? $", updated {updated}" : "") +
+                (failed > 0 ? $", {failed} not loaded" : "") +
+                (notUpdated > 0 ? $", {notUpdated} not updated" : "");
             td.MainContent =
                 $"Found: {rfaFiles.Length} .rfa files\n" +
-                $"Loaded: {loaded}" + (repaired > 0 ? $" ({repaired} repaired for this project's parameter types)" : "") + "\n" +
+                $"Loaded: {loaded}\n" +
+                (repaired > 0 ? $"Repaired for this project's parameter types: {repaired}\n" : "") +
+                (toUpdate.Count > 0 ? $"Updated: {updated} of {toUpdate.Count} already in the project (tag styles kept)\n" : "") +
                 $"Skipped: {skipped} (already loaded)" +
                 (backups > 0 ? $", {backups} Revit backup file(s) (.0001 …) ignored" : "") + "\n" +
                 (drift.Count > 0 ? $"Shared library: {drift.Count} family/families are not what this plugin ships " +
@@ -3047,7 +3137,8 @@ namespace StingTools.Tags
             if (report.Length > 0) td.ExpandedContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"LoadTagFamilies: loaded={loaded}, repaired={repaired}, skipped={skipped}, failed={failed}");
+            StingLog.Info($"LoadTagFamilies: loaded={loaded}, updated={updated}/{toUpdate.Count}, repaired={repaired}, " +
+                          $"skipped={skipped}, failed={failed}");
             return Result.Succeeded;
         }
     }

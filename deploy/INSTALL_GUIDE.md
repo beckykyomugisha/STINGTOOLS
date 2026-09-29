@@ -167,7 +167,9 @@ says whether the folder's `Tags` subfolder can be reached.
 - Promote Library offers to move families on the share that the plugin no longer ships
   into `_retired\<date>`; nothing is deleted.
 - The first load in a project reads every family over the network and takes longer on a
-  slow link. Later loads skip families the project already has.
+  slow link. When a project already has some of the families, **Load** asks whether to
+  update them too: Yes reloads them from the library and keeps the tag styles set in the
+  project; No loads only the missing ones, which is quicker.
 
 ## Updating to a newer build
 
