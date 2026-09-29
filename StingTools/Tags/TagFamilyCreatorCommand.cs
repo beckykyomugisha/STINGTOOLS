@@ -2973,6 +2973,34 @@ namespace StingTools.Tags
             StingLog.Info($"LoadTagFamilies: {refused.Count} family/families refused on first load; " +
                           $"{batch.Transactions} load transaction(s).");
 
+            // The shared library outranks the shipped one, so a stale or hand-edited
+            // family there silently wins. Say so, using the promotion record.
+            var drift = new List<string>();
+            try
+            {
+                string sharedDir = TagFamilyConfig.SharedTagDirectory();
+                if (!string.IsNullOrEmpty(sharedDir) && Directory.Exists(sharedDir))
+                {
+                    var served = byName.Values
+                        .Where(f => string.Equals(Path.GetDirectoryName(f)?.TrimEnd('\\', '/'),
+                                                  sharedDir.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase))
+                        .Select(Path.GetFileName).ToList();
+                    string record = Path.Combine(sharedDir, "_STING_PROMOTION_MANIFEST.txt");
+                    string recordText = File.Exists(record) ? File.ReadAllText(record) : null;
+                    drift = Core.Content.TagLibraryPromotion.SharedDrift(
+                        sharedDir, TagFamilyConfig.LegacyTagDirectory(), served, recordText);
+                    if (drift.Count > 0)
+                    {
+                        StingLog.Warn($"LoadTagFamilies: shared library {sharedDir}: {drift.Count} finding(s): " +
+                                      string.Join(" | ", drift.Take(10)));
+                        report.AppendLine();
+                        report.AppendLine($"Shared library {sharedDir}:");
+                        foreach (var d in drift) report.AppendLine("  " + d);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"LoadTagFamilies: checking the shared library: {ex.Message}"); }
+
             TaskDialog td = new TaskDialog("Load Tag Families");
             td.MainInstruction = failed == 0 ? $"Loaded {loaded} tag families" : $"Loaded {loaded} tag families, {failed} not loaded";
             td.MainContent =
@@ -2980,6 +3008,9 @@ namespace StingTools.Tags
                 $"Loaded: {loaded}" + (repaired > 0 ? $" ({repaired} repaired for this project's parameter types)" : "") + "\n" +
                 $"Skipped: {skipped} (already loaded)" +
                 (backups > 0 ? $", {backups} Revit backup file(s) (.0001 …) ignored" : "") + "\n" +
+                (drift.Count > 0 ? $"Shared library: {drift.Count} family/families are not what this plugin ships " +
+                    "or were changed outside Promote Library; they were used anyway. Show details, then run " +
+                    "Promote Library to bring the share in line.\n" : "") +
                 $"Not loaded: {failed}" +
                 (repaired > 0 ? "\n\nRepaired families had parameters stored as Text that this project holds " +
                     "as numbers, lengths or yes/no, so Revit refused them. Where a family parameter held it, the label now reads " +

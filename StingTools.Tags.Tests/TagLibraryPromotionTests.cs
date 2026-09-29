@@ -1,4 +1,4 @@
-// Tests for the promotion plan, against a REAL temp directory - the thing being
+﻿// Tests for the promotion plan, against a REAL temp directory - the thing being
 // judged is file content, and a mocked filesystem would prove nothing about it.
 //
 // The refusal is the feature. The shared root is searched before the deployed
@@ -188,6 +188,116 @@ namespace StingTools.Tags.Tests
             Assert.Contains("UPD\tchanged.rfa", m);
             Assert.Contains("KEPT\ttheirs.rfa", m);
         }
+
+        [Fact]
+        public void TheManifestListsEveryPublishedFileWithHashAndSize()
+        {
+            string src = Dir("src"), tgt = Dir("tgt");
+            Fam(src, "A.rfa", "aaaa"); Fam(src, "B.rfa", "bb"); Fam(tgt, "B.rfa", "bb");
+
+            var plan = TagLibraryPromotion.Plan(src, tgt, null);
+            var published = TagLibraryPromotion.ParsePublished(
+                TagLibraryPromotion.BuildManifest(plan, "t", DateTime.UtcNow));
+
+            // Unchanged families are published too; a record of only the writes
+            // could not vouch for the rest of the share.
+            Assert.Equal(2, published.Count);
+            Assert.Equal(4, published["A.rfa"].Size);
+            Assert.Equal(plan.SourceHashes["B.rfa"], published["b.rfa"].Sha);
+        }
+
+        [Fact]
+        public void RetiredFamiliesAreRecordedAndNotListedAsKept()
+        {
+            string src = Dir("src"), tgt = Dir("tgt");
+            Fam(src, "A.rfa", "a"); Fam(tgt, "old.rfa", "o"); Fam(tgt, "theirs.rfa", "t");
+
+            var plan = TagLibraryPromotion.Plan(src, tgt, null);
+            plan.Retired.Add("old.rfa");
+            plan.RetiredFolder = "_retired\\20260929_1200";
+            string m = TagLibraryPromotion.BuildManifest(plan, "t", DateTime.UtcNow);
+
+            Assert.Contains("RETIRED\told.rfa\t_retired\\20260929_1200", m);
+            Assert.DoesNotContain("KEPT\told.rfa", m);
+            Assert.Contains("KEPT\ttheirs.rfa", m);
+        }
+
+        [Fact]
+        public void ParsePublishedIgnoresOtherLinesAndCarriageReturns()
+        {
+            var p = TagLibraryPromotion.ParsePublished(
+                "# comment\r\nADD\tA.rfa\r\nFILE\tA.rfa\tabc\t12\r\nFILE\tbroken\r\n");
+            Assert.Single(p);
+            Assert.Equal(("abc", 12L), p["A.rfa"]);
+            Assert.Empty(TagLibraryPromotion.ParsePublished(null));
+        }
+
+        // ── shared-library drift ─────────────────────────────────────────────
+
+        private (string shared, string shipped, string manifest) Promoted(params (string name, string content)[] fams)
+        {
+            string shipped = Dir("shipped"), shared = Dir("shared");
+            foreach (var f in fams) { Fam(shipped, f.name, f.content); Fam(shared, f.name, f.content); }
+            var plan = TagLibraryPromotion.Plan(shipped, shared, null);
+            return (shared, shipped, TagLibraryPromotion.BuildManifest(plan, "t", DateTime.UtcNow));
+        }
+
+        [Fact]
+        public void AFreshlyPromotedShareHasNoDrift()
+        {
+            var (shared, shipped, m) = Promoted(("A.rfa", "a"), ("B.rfa", "b"));
+            Assert.Empty(TagLibraryPromotion.SharedDrift(shared, shipped, new[] { "A.rfa", "B.rfa" }, m));
+        }
+
+        [Fact]
+        public void AShareWithNoRecordIsReportedNotPassed()
+        {
+            var (shared, shipped, _) = Promoted(("A.rfa", "a"));
+            var d = TagLibraryPromotion.SharedDrift(shared, shipped, new[] { "A.rfa" }, null);
+            Assert.Single(d);
+            Assert.Contains("no promotion record", d[0]);
+        }
+
+        [Fact]
+        public void AnOldRecordWithoutFileLinesAsksForAPromotion()
+        {
+            var (shared, shipped, _) = Promoted(("A.rfa", "a"));
+            var d = TagLibraryPromotion.SharedDrift(shared, shipped, new[] { "A.rfa" }, "promotedBy=x\nADD\tA.rfa\n");
+            Assert.Contains("promote again", Assert.Single(d));
+        }
+
+        [Fact]
+        public void AFamilyCopiedOntoTheShareByHandIsFlagged()
+        {
+            var (shared, shipped, m) = Promoted(("A.rfa", "a"));
+            Fam(shared, "Hand.rfa", "h");
+            var d = TagLibraryPromotion.SharedDrift(shared, shipped, new[] { "A.rfa", "Hand.rfa" }, m);
+            Assert.Contains("Hand.rfa: in the shared library but not published", Assert.Single(d));
+        }
+
+        [Fact]
+        public void AFamilyEditedOnTheShareIsFlagged()
+        {
+            var (shared, shipped, m) = Promoted(("A.rfa", "a"));
+            Fam(shared, "A.rfa", "edited in place");
+            var d = TagLibraryPromotion.SharedDrift(shared, shipped, new[] { "A.rfa" }, m);
+            Assert.Contains("changed on the share", Assert.Single(d));
+        }
+
+        [Fact]
+        public void AShareOlderThanThePluginIsFlagged()
+        {
+            // The stale-share case: the plugin was updated with a fix, the share
+            // still serves the old family, and it wins every lookup.
+            var (shared, shipped, m) = Promoted(("A.rfa", "a"));
+            Fam(shipped, "A.rfa", "b");   // same size, new content
+            var d = TagLibraryPromotion.SharedDrift(shared, shipped, new[] { "A.rfa" }, m);
+            Assert.Contains("differs from the version this plugin ships", Assert.Single(d));
+        }
+
+        [Fact]
+        public void NothingServedFromTheShareMeansNothingToReport()
+            => Assert.Empty(TagLibraryPromotion.SharedDrift(Dir("s"), Dir("p"), null, null));
 
         // ── hashing ──────────────────────────────────────────────────────────
 

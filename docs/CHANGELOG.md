@@ -25594,3 +25594,26 @@ every `GetString` read against the parameter's data type.
   first and the shipped library when it cannot be reached.
 - Tested on Linux with pwsh against a temporary APPDATA: path from the file, from the
   argument, existing keys kept, unreachable folder reported. Not run on Windows.
+
+#### Shared tag library: stale families are reported, retired families are moved aside (2026-09-29)
+
+- **Stale families win.** Families on the share are read before the shipped ones, so a
+  family left there overrides a fix in a newer build. Promote Library now writes a
+  `FILE<TAB>name<TAB>sha256<TAB>bytes` line for every published family in
+  `_STING_PROMOTION_MANIFEST.txt`. Load Tag Families reads that one file and reports each
+  family it took from the share that is not in the record, has changed size since it was
+  promoted, or differs from the copy this plugin ships (`TagLibraryPromotion.SharedDrift`,
+  which hashes only the local copies). The families are still used; the dialog says how
+  many and the details list them. A share with no record, or one written before FILE lines
+  existed, is reported as unchecked rather than passed.
+- **Promotion never deleted.** When the share holds families the source does not, Promote
+  Library now asks whether to move them to `_retired\yyyyMMdd_HHmm` beside the library
+  (moved, not deleted) and records them as `RETIRED` in the manifest. Declining keeps them
+  as before (`KEPT`). A share with nothing to copy but no per-file record can now be
+  promoted once to write the record.
+- **Load time** is unchanged: the first load in a project reads every family from the
+  share; later loads skip families already in the project, and an unreachable share falls
+  back to the shipped library. Documented in `deploy/INSTALL_GUIDE.md`.
+- 10 tests in `TagLibraryPromotionTests` (manifest FILE and RETIRED lines, parsing, and
+  each drift finding against real temp folders). Tags 4,044 passing; gates pass. Not run
+  in Revit.
