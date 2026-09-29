@@ -1,4 +1,4 @@
-// TagLibraryPromotion - publish the finished tag library to the shared content
+﻿// TagLibraryPromotion - publish the finished tag library to the shared content
 // root, and refuse when the thing being published is not the thing in version
 // control.
 //
@@ -68,6 +68,12 @@ namespace StingTools.Core.Content
     /// <summary>Plans and records a tag-library promotion.</summary>
     public static class TagLibraryPromotion
     {
+        /// <summary>The record Promote Library writes beside the published families.</summary>
+        public const string ManifestFileName = "_STING_PROMOTION_MANIFEST.txt";
+
+        /// <summary>Sub-folder of the shared library that retired families are moved to.</summary>
+        public const string RetiredFolderName = "_retired";
+
         /// <summary>
         /// Compares source against target and against the git-tracked copy.
         ///

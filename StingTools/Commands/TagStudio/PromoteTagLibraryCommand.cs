@@ -69,7 +69,7 @@ namespace StingTools.Commands.TagStudio
             bool needsRecord = true;
             try
             {
-                string existing = Path.Combine(target, "_STING_PROMOTION_MANIFEST.txt");
+                string existing = Path.Combine(target, TagLibraryPromotion.ManifestFileName);
                 needsRecord = !File.Exists(existing) ||
                               TagLibraryPromotion.ParsePublished(File.ReadAllText(existing)).Count == 0;
             }
@@ -138,7 +138,7 @@ namespace StingTools.Commands.TagStudio
                     };
                     if (retire.Show() == TaskDialogResult.Yes)
                     {
-                        plan.RetiredFolder = Path.Combine("_retired", DateTime.Now.ToString("yyyyMMdd_HHmm"));
+                        plan.RetiredFolder = Path.Combine(TagLibraryPromotion.RetiredFolderName, DateTime.Now.ToString("yyyyMMdd_HHmm"));
                         string dest = Path.Combine(target, plan.RetiredFolder);
                         Directory.CreateDirectory(dest);
                         foreach (var name in plan.ExtraInTarget)
@@ -161,7 +161,7 @@ namespace StingTools.Commands.TagStudio
                 // so a partial promotion never claims a complete one.
                 string manifest = TagLibraryPromotion.BuildManifest(
                     plan, Environment.UserName, DateTime.UtcNow);
-                File.WriteAllText(Path.Combine(target, "_STING_PROMOTION_MANIFEST.txt"), manifest);
+                File.WriteAllText(Path.Combine(target, TagLibraryPromotion.ManifestFileName), manifest);
             }
             catch (Exception ex)
             {

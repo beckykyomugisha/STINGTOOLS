@@ -25626,3 +25626,21 @@ every `GetString` read against the parameter's data type.
 - A family whose copy to the share fails is left out of the record, so Load Tag Families
   reports it instead of the record vouching for a file the share does not hold.
 - Plugin builds; gates pass. Not run in Revit.
+
+#### Shared tag library review: authoring stays local once the share is promoted (2026-09-29)
+
+- **Authoring commands wrote to the share.** `TagFamilyConfig.GetOutputDirectory` returned
+  the shared library whenever it held families. Once Promote Library had published there,
+  Create Tag Families, Propagate Universal Tag, Migrate Tag Families, Migrate Label
+  References and the template manager's tag-family pass saved straight into it: unreviewed
+  families went to everyone and the share drifted from its record. When the shared library
+  holds a promotion record (`IsPromotionManaged`), output now stays in the plugin's own
+  library; the share changes only through Promote Library.
+- **The template manager's tag-family pass scanned sub-folders**, so it would have edited
+  families in `_retired` and Revit backups. Both are now skipped.
+- **Repair Tag Library** says, when a promoted shared library exists, that it still holds
+  the old families and names the Promote Library button.
+- The record file name and `_retired` are constants on `TagLibraryPromotion`.
+  `deploy/INSTALL_GUIDE.md` gave the wrong tab for Promote Library (it is MODEL > Family
+  quick edit > Advanced family ops) and now says what the unconfigured default is.
+- Plugin builds; Tags tests and gates pass. Not run in Revit.

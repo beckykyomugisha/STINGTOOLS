@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -3418,6 +3418,9 @@ namespace StingTools.Temp
             {
                 string rel = Path.GetDirectoryName(p) ?? "";
                 if (rel.IndexOf("Seeds", StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                // Retired families and Revit backups are not the library.
+                if (rel.IndexOf(Core.Content.TagLibraryPromotion.RetiredFolderName, StringComparison.OrdinalIgnoreCase) >= 0) continue;
+                if (RevitBackupFiles.IsBackup(p)) continue;
                 rfaPaths.Add(p);
             }
 
