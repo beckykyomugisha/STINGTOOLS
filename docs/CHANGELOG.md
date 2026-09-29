@@ -25505,3 +25505,23 @@ every `GetString` read against the parameter's data type.
   label field loads empty. Tests: `DisplayMirrorNamesTests` (28). Tags 4,026 passing, plugin
   build 0 errors. Not run in Revit: `ReplaceParameter` on these families is the same call
   Migrate Refs uses, but the load path itself is untested.
+
+#### Load Tag Families: check the parameters labels read, not only family parameters (2026-09-29)
+
+- **The 2026-09-28 fix did not work in Revit.** On a real project it checked 227 families
+  (about ten minutes), found no conflicts, loaded them in one batch, hit the same 24 errors
+  and rolled everything back: `loaded=0, repaired=0, skipped=0, failed=227`.
+- **Why.** The pre-check read only `FamilyManager.Parameters`. A tag family's label
+  parameters are shared parameter elements in the family document, not family
+  parameters, so the conflicting ones were invisible to it.
+- **Fix.** The family side is now its shared parameter elements plus its family
+  parameters. A conflicting family parameter is still swapped for its Text display
+  mirror; a conflicting parameter only a label reads is deleted from the family, which
+  drops that field from the label (the API cannot repoint a label row). A family whose
+  repair fails is left out and named; the rest load.
+- The load transaction now rolls back on an error-severity failure instead of showing
+  Revit's modal list (`CapturingFailuresPreprocessor(rollBackOnError: true)`), so an
+  unforeseen refusal is reported with Revit's text rather than stopping the command.
+- Not run in Revit. Whether `Document.Delete` on a label's shared parameter element is
+  accepted is unverified; if it is refused, that family is reported as not loaded and the
+  others still load.
