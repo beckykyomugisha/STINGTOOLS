@@ -8,9 +8,10 @@
 // version-controlled copy - see TagLibraryPromotion for the full reasoning and
 // the 2026-09-21 case that prompted it.
 //
-// Copies only. It never deletes from the target: a family in the shared library
-// that is absent from the source is reported and kept, because this command
-// cannot know whether it is stale or something another team published.
+// It never deletes from the target. A family in the shared library that is absent
+// from the source is reported, and moved to _retired only if the user agrees,
+// because this command cannot know whether it is stale or something another team
+// published.
 
 using System;
 using System.IO;
@@ -40,7 +41,7 @@ namespace StingTools.Commands.TagStudio
 
             string source = Tags.TagFamilyConfig.LegacyTagDirectory();
             string target = Tags.TagFamilyConfig.SharedTagDirectory();
-            string git = FindRepoLibrary(source);
+            string git = Tags.TagFamilyConfig.RepoTagDirectory();
 
             if (string.IsNullOrWhiteSpace(target))
             {
@@ -194,33 +195,6 @@ namespace StingTools.Commands.TagStudio
                 "library now answers family lookups.");
 
             return failures.Count > 0 ? Result.Failed : Result.Succeeded;
-        }
-
-        /// <summary>
-        /// The version-controlled copy, if this machine has the checkout.
-        ///
-        /// <para>The deployed library sits at &lt;repo&gt;/CompiledPlugin/data/TagFamilies
-        /// on a developer machine, so the git copy is a short walk up and back
-        /// down. Returns null on an end-user machine, where the check is skipped
-        /// rather than failed - refusing there would block the people the library
-        /// is for.</para>
-        /// </summary>
-        private static string FindRepoLibrary(string deployedDir)
-        {
-            try
-            {
-                var dir = new DirectoryInfo(deployedDir);
-                for (int i = 0; i < 6 && dir != null; i++, dir = dir.Parent)
-                {
-                    string candidate = Path.Combine(dir.FullName, "StingTools", "Data", "TagFamilies");
-                    if (Directory.Exists(candidate) &&
-                        !string.Equals(candidate.TrimEnd('\\'), deployedDir.TrimEnd('\\'),
-                                       StringComparison.OrdinalIgnoreCase))
-                        return candidate;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"PromoteTagLibrary.FindRepoLibrary: {ex.Message}"); }
-            return null;
         }
     }
 }

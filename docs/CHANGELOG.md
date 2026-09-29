@@ -25667,3 +25667,20 @@ every `GetString` read against the parameter's data type.
   newer than the local one (`PromotionPlan.NewerInTarget`) are named in the confirmation,
   since promoting from an older plugin would replace them with older versions (1 test).
 - Plugin builds; Tags 4,057 passing; gates pass. Not run in Revit.
+
+#### Load Tag Families can update families already in a project (2026-09-29)
+
+- **A corrected library never reached an existing project.** Load Tag Families skipped every
+  family the project already had, so a family fixed by Repair Tag Library, a new build or a
+  promotion stayed old in every project that had loaded it. When some are present it now
+  asks whether to update them. Updates load with `TagFamilyUpdateOptions`, which keeps the
+  project's type parameter values, so tag styles set with the TAG_*_BOOL switches survive;
+  the existing options overwrite them and are still used for new families. New and updated
+  families load in separate groups, a refused update is repaired like a refused load, and
+  the result counts updates and any family left at its old version.
+- **One answer for "is this a checkout?".** Repair Tag Library required a `.git` folder
+  (so a worktree, where `.git` is a file, repaired the deployed copy) and Promote Library
+  did not look for `.git` at all. Both now use `TagFamilyConfig.RepoTagDirectory`.
+- Promote Library's header comment still said families only in the target are always kept;
+  it now describes the optional move to `_retired`.
+- Plugin builds; Tags tests and gates pass. Not run in Revit.

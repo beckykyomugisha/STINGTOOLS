@@ -35,7 +35,7 @@ namespace StingTools.Tags
             var app = ctx.Doc.Application;
 
             string deployed = TagFamilyConfig.LegacyTagDirectory();
-            string repo = FindRepoLibrary();
+            string repo = TagFamilyConfig.RepoTagDirectory();
             string target = repo ?? deployed;
             if (string.IsNullOrEmpty(target) || !Directory.Exists(target))
             {
@@ -145,25 +145,6 @@ namespace StingTools.Tags
             if (report.Length > 0) td.ExpandedContent = report.ToString();
             td.Show();
             return Result.Succeeded;
-        }
-
-        /// <summary>
-        /// &lt;repo&gt;/StingTools/Data/TagFamilies when the plugin runs from a checkout
-        /// (CompiledPlugin sits in the repository root), else null.
-        /// </summary>
-        private static string FindRepoLibrary()
-        {
-            try
-            {
-                var dir = new DirectoryInfo(Path.GetDirectoryName(StingToolsApp.AssemblyPath) ?? "");
-                for (int i = 0; dir != null && i < 4; i++, dir = dir.Parent)
-                {
-                    string lib = Path.Combine(dir.FullName, "StingTools", "Data", "TagFamilies");
-                    if (Directory.Exists(lib) && Directory.Exists(Path.Combine(dir.FullName, ".git"))) return lib;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"RepairTagLibrary: locating the repository: {ex.Message}"); }
-            return null;
         }
 
         /// <summary>Deletes Revit backups (*.0001.rfa) from the deployed library.</summary>
