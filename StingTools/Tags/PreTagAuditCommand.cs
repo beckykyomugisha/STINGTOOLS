@@ -265,7 +265,10 @@ namespace StingTools.Tags
                 if (string.IsNullOrEmpty(currentLoc))
                 {
                     missingLocCount++;
-                    string detectedLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                    // The spatial answer only: DetectLoc never returns empty, so every
+                    // element was predicted "spatial-auto" and the default branch below was
+                    // unreachable — the audit could not show how many would be defaulted.
+                    string detectedLoc = SpatialAutoDetect.DetectLocSpatial(doc, el, roomIndex);
                     if (!string.IsNullOrEmpty(detectedLoc))
                     {
                         locWillAutoDetect++;
@@ -274,15 +277,15 @@ namespace StingTools.Tags
                     }
                     else
                     {
-                        locSource = "DEFAULT(BLD1)";
-                        currentLoc = "BLD1";
+                        currentLoc = SpatialAutoDetect.LocFallback(doc, projectLoc);
+                        locSource = $"DEFAULT({currentLoc})";
                     }
                 }
 
                 if (string.IsNullOrEmpty(currentZone))
                 {
                     missingZoneCount++;
-                    string detectedZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                    string detectedZone = SpatialAutoDetect.DetectZoneSpatial(doc, el, roomIndex);
                     if (!string.IsNullOrEmpty(detectedZone))
                     {
                         zoneWillAutoDetect++;
@@ -291,8 +294,8 @@ namespace StingTools.Tags
                     }
                     else
                     {
-                        zoneSource = "DEFAULT(Z01)";
-                        currentZone = "Z01";
+                        currentZone = SpatialAutoDetect.ZoneFallback(doc);
+                        zoneSource = $"DEFAULT({currentZone})";
                     }
                 }
 

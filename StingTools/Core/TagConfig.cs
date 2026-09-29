@@ -2614,6 +2614,44 @@ namespace StingTools.Core
                 return ParamRegistry.IsTokenEffectivelyEmpty(v) ? "" : v.Trim();
             }
 
+            // Overwrite re-derives DISC / LVL / SYS / FUNC / PROD below, but three things
+            // must still win over a fresh derivation, exactly as they do in RunFullPipeline
+            // (which applies them after PopulateAll and before calling here): a token
+            // listed in ASS_TOKEN_LOCK_TXT, a CATEGORY_TOKEN_OVERRIDES value, and a
+            // CATEGORY_FORCE_SYS system. Until 2026-09-29 the overwrite path derived these
+            // afresh and wrote them with overwrite:true, so "Overwrite all" silently undid
+            // every token lock and category override the pipeline had just restored.
+            HashSet<string> lockedKeys = null;
+            Dictionary<string, string> catOverrides = null;
+            if (overwriteTokens)
+            {
+                string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                if (!string.IsNullOrWhiteSpace(lockStr))
+                    lockedKeys = new HashSet<string>(
+                        lockStr.Split(',').Select(k => k.Trim()).Where(k => k.Length > 0),
+                        StringComparer.OrdinalIgnoreCase);
+                CategoryTokenOverrides?.TryGetValue(catName, out catOverrides);
+            }
+            string Pinned(string key, string param)
+            {
+                if (!overwriteTokens) return "";
+                if (lockedKeys != null && lockedKeys.Contains(key))
+                {
+                    string held = RawToken(param);
+                    if (held.Length > 0) return held;
+                }
+                if (catOverrides != null)
+                    foreach (var kv in catOverrides)
+                        if (string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase)
+                            && !ParamRegistry.IsTokenEffectivelyEmpty(kv.Value))
+                            return kv.Value.Trim();
+                if (key == "SYS" && CategoryForceSys != null
+                    && CategoryForceSys.TryGetValue(catName, out string forced)
+                    && !ParamRegistry.IsTokenEffectivelyEmpty(forced))
+                    return forced.Trim();
+                return "";
+            }
+
             string loc = overwriteTokens ? RawToken(ParamRegistry.LOC) : Stored(1);
             if (string.IsNullOrEmpty(loc) || loc == "XX")
             {
@@ -2644,6 +2682,7 @@ namespace StingTools.Core
             }
 
             string lvl = Stored(3);
+            if (string.IsNullOrEmpty(lvl)) lvl = Pinned("LVL", ParamRegistry.LVL);
             if (string.IsNullOrEmpty(lvl))
             {
                 lvl = ParameterHelpers.GetLevelCode(doc, el);
@@ -2665,6 +2704,7 @@ namespace StingTools.Core
             // literal ahead of the policy, so the policy's fallback was never reached, no
             // substitution was ever recorded, and a project override changed nothing.
             string sys = Stored(4);
+            if (string.IsNullOrEmpty(sys)) sys = Pinned("SYS", ParamRegistry.SYS);
             if (string.IsNullOrEmpty(sys))
             {
                 // Intelligence Layer: 6-layer system detection:
@@ -2680,8 +2720,14 @@ namespace StingTools.Core
             // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
             disc = GetSystemAwareDisc(disc, sys, catName);
             if (!string.IsNullOrEmpty(Stored(0))) disc = Stored(0);
+            else
+            {
+                string pinnedDisc = Pinned("DISC", ParamRegistry.DISC);
+                if (pinnedDisc.Length > 0) disc = pinnedDisc;
+            }
 
             string func = Stored(5);
+            if (string.IsNullOrEmpty(func)) func = Pinned("FUNC", ParamRegistry.FUNC);
             if (string.IsNullOrEmpty(func))
             {
                 // Smart FUNC from the SYS that will be WRITTEN, so the pair always agrees:
@@ -2691,6 +2737,7 @@ namespace StingTools.Core
             }
 
             string prod = Stored(6);
+            if (string.IsNullOrEmpty(prod)) prod = Pinned("PROD", ParamRegistry.PROD);
             if (string.IsNullOrEmpty(prod))
             {
                 prod = GetFamilyAwareProdCode(el, catName);
@@ -3058,7 +3105,12 @@ namespace StingTools.Core
                 {
                     if (tokenVals[i] == null) tokenVals[i] = "";
                 }
-                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+                // Containers are a pure function of the tokens and TAG1 was just
+                // (re)written from them, so they are always brought into line. With
+                // overwrite:false a container that already held an older value (a
+                // partial tag from an earlier run, a SEQ re-sequenced for a duplicate,
+                // values copied with a pasted element) was left disagreeing with TAG1.
+                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
 
                 // hand the freshly-built token array back to
                 // the caller so RunFullPipeline doesn't have to do its own
@@ -3539,7 +3591,9 @@ namespace StingTools.Core
                     if (panel.Contains("SAN") || panel.Contains("SEWAGE") || panel.Contains("DRAIN")) return "SAN";
                     if (panel.Contains("DHW") || panel.Contains("HOT WATER")) return "DHW";
                     if (panel.Contains("HWS") || panel.Contains("LTHW")) return "HWS";
-                    if (panel.Contains("DCW") || panel.Contains("COLD WATER") || panel.Contains("MAINS")) return "DCW";
+                    // "MAINS WATER", not bare "MAINS": an electrical "MAINS DB" / "MAINS
+                    // SWITCHBOARD" fed every fixture on it SYS=DCW.
+                    if (panel.Contains("DCW") || panel.Contains("COLD WATER") || panel.Contains("MAINS WATER")) return "DCW";
                     if (panel.Contains("GAS")) return "GAS";
                     if (panel.Contains("HVAC") || panel.Contains("AHU") || panel.Contains("FCU")) return "HVAC";
                     // Default electrical panels → LV

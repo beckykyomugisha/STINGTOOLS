@@ -660,7 +660,10 @@ namespace StingTools.Tags
 
                 // Check LOC
                 string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
-                string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                // Spatial answer only — the fallback (project LOC / BLD1) is not evidence the
+                // stored value is wrong, and "fixing" to it replaced LOCs that came from a
+                // neighbour, a type override or a scope box.
+                string currentLoc = SpatialAutoDetect.DetectLocSpatial(doc, el, roomIndex);
                 if (!string.IsNullOrEmpty(storedLoc) && !string.IsNullOrEmpty(currentLoc) &&
                     currentLoc != "XX" &&
                     !storedLoc.Equals(currentLoc, StringComparison.OrdinalIgnoreCase))
@@ -671,7 +674,7 @@ namespace StingTools.Tags
 
                 // Check ZONE
                 string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
-                string currentZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                string currentZone = SpatialAutoDetect.DetectZoneSpatial(doc, el, roomIndex);
                 if (!string.IsNullOrEmpty(storedZone) && !string.IsNullOrEmpty(currentZone) &&
                     currentZone != "XX" && currentZone != "ZZ" &&
                     !storedZone.Equals(currentZone, StringComparison.OrdinalIgnoreCase))

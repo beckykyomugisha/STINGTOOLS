@@ -3772,6 +3772,7 @@ namespace StingTools.Core
             var writtenParams = _writtenParamsScratch
                 ??= new HashSet<string>(StringComparer.Ordinal);
             writtenParams.Clear();
+            bool containerStale = false;
 
             foreach (var c in containers)
             {
@@ -3792,17 +3793,25 @@ namespace StingTools.Core
                 {
                     if (ParameterHelpers.SetString(el, c.ParamName, assembled, overwrite))
                         written++;
-                    else
+                    else if (!string.Equals(ParameterHelpers.GetString(el, c.ParamName), assembled, StringComparison.Ordinal))
+                    {
+                        // The container does not hold what the tokens say. A refusal that
+                        // left the right value in place (overwrite=false, already current)
+                        // is not a failure and is not logged.
+                        containerStale = true;
                         StingLog.Warn($"WriteContainers: did not write {c.ParamName} on element " +
                                       $"{el.Id.Value}: {ParameterHelpers.ExplainWriteFailure(el, c.ParamName, overwrite)}");
+                    }
                 }
             }
 
-            // EFF-15: stamp the new hash AFTER successful writes so a partial
-            // failure (logged above) doesn't trick the next pass into skipping
-            // containers that didn't actually get written. We only stamp on
-            // the full-sweep path (skipParam null).
-            if (string.IsNullOrEmpty(skipParam))
+            // EFF-15: stamp the new hash only when every container now matches the
+            // tokens, so a partial failure (logged above) doesn't trick the next pass
+            // into skipping containers that didn't actually get written. The comment
+            // said this; until 2026-09-29 the stamp was unconditional, so a container
+            // left stale by a refused write was marked current and never revisited.
+            // We only stamp on the full-sweep path (skipParam null).
+            if (string.IsNullOrEmpty(skipParam) && !containerStale)
                 ParameterHelpers.SetString(el, "ASS_LAST_TOKEN_HASH_TXT", newHash, overwrite: true);
 
             return written;

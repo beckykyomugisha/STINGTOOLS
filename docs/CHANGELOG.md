@@ -2,6 +2,55 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (tagging accuracy review, 2026-09-29)
+
+Deep review of the tagging pipeline for anything that stops a tag being right. Fixed here;
+the findings that need a decision or a larger change are TAGACC-1..11 in ROADMAP.
+
+- **Level codes.** The rules moved to the Revit-free `Core/SpatialNameCodes.cs`
+  (`GetLevelCodeForLevel` calls it). "21st / 22nd / 23rd / 31st Floor" read as L01 / L02 /
+  L03 because they contain "1st" / "2nd" / "3rd", and "Twenty-First" as L01; ordinals are now
+  read as whole numbers. "Level -1" lost its sign and became L01, the same code as Level 1;
+  it is now B1. An unrecognised level name was passed through with spaces turned into "-",
+  the tag separator: the write sanitiser stored "RING-BEAM" as "RING" (so "Plant Deck East"
+  and "Plant Deck West" both became "PLANT"), and an Overwrite run built a nine-segment tag
+  and refused to write it. Passthrough codes are now letters and digits only.
+- **ZONE and LOC text matching.** Codes matched with `Contains`, so "Zone 12" / "Z012" were
+  Z01, "Wing Annex" was Z01, "BLD10" / "Building 12" were BLD1 and "Block AB" was BLD1. They
+  now match only as whole tokens (`SpatialNameCodes.ZoneFromText`, `LocFromTextFallback`).
+  Workset-name LOC detection now passes the document, so project-declared LOC codes are
+  recognised there too (it consulted only the corporate baseline).
+- **"Detected" was decided by comparing with the fallback.** `PopulateAll` treated a LOC of
+  "BLD1" and a ZONE of "Z01" as undetected because those are the fallbacks, so a room that
+  genuinely said BLD1 / Z01 could have its value replaced by a scope box or a neighbour's,
+  and a project whose policy fallback is not Z01 had the fallback recorded as a detected
+  zone (ZONE_SOURCE "Room"). New `SpatialAutoDetect.DetectLocSpatial` / `DetectZoneSpatial`
+  return null when nothing in the element's context names a code; `DetectLoc` / `DetectZone`
+  keep their signatures on top. The workset LOC scan in `PopulateAll` was unreachable (the
+  value it tested was never empty) and matched with StartsWith, so "EXTRACT FANS" would have
+  read as EXT; it was removed rather than revived. LOC_SOURCE / ZONE_SOURCE are rewritten on
+  Overwrite (they kept the first run's value).
+- **Stale detection and the pre-tag audit** used the same fallback-as-detection: an element
+  whose LOC came from a neighbour, a type override or a scope box was flagged stale for not
+  being in a room (and Batch Tag's stale fix would have reset it to BLD1), and the audit
+  predicted every element as "spatial-auto". Both now compare only a positive detection.
+- **Overwrite undid token locks and category overrides.** `RunFullPipeline` restores
+  `ASS_TOKEN_LOCK_TXT` tokens and applies `CATEGORY_TOKEN_OVERRIDES` / `CATEGORY_FORCE_SYS`,
+  then `BuildAndWriteTag`'s overwrite path re-derived DISC / LVL / SYS / FUNC / PROD and wrote
+  them over the top. They now win on that path too.
+- **Containers could disagree with TAG1.** `BuildAndWriteTag` wrote containers with
+  overwrite:false on the normal path, so a container holding an older value (a partial tag
+  from an earlier run, a SEQ re-sequenced for a duplicate) kept it; and `WriteContainers`
+  stamped the token hash even when a write was refused, so the stale container was marked
+  current and skipped from then on. Containers are now always rewritten when the tag is, and
+  the hash is stamped only when every container matches.
+- **Electrical panel "MAINS"** mapped fixtures on a "MAINS DB" to SYS=DCW; now only "MAINS
+  WATER" does.
+- Tests: `SpatialNameCodesTests` (levels, zones, LOC aliases, including every defect above),
+  linked into `StingTools.Tags.Tests`. **Not compiled or run here** — the .NET SDK download
+  is blocked in this environment; the expectations were checked against a line-by-line port
+  of the new logic. The Revit-bound changes are not exercised in Revit.
+
 #### Completed (tester kit: install, 90-day licences, smoke tests, 2026-09-28)
 
 A package testers can install without developer tools or administrator rights. The

@@ -1060,76 +1060,16 @@ namespace StingTools.Core
             if (lvl == null) return "XX";
             try
             {
-                string name = lvl.Name.Trim();
-                string lower = name.ToLowerInvariant();
-
-                if (lower.StartsWith("level ") && name.Length > 6)
-                {
-                    string suffix = ExtractDigits(name.Substring(6));
-                    if (suffix.Length > 0 && suffix.Length <= 3)
-                        return "L" + suffix.PadLeft(2, '0');
-                    // Non-numeric suffix (e.g., "Level 1a") — fall through to digit extraction
-                }
-                if (lower == "ground" || lower == "ground floor" || lower == "ground level")
-                    return "GF";
-                if (lower.StartsWith("lower ground") || lower == "lg")
-                    return "LG";
-                if (lower.StartsWith("upper ground") || lower == "ug")
-                    return "UG";
-                if (lower.StartsWith("sub-basement") || lower.StartsWith("sub basement") || lower == "sb")
-                {
-                    string sbDigits = ExtractDigits(name);
-                    return "SB" + (sbDigits.Length > 0 ? sbDigits : "");
-                }
-                if (lower.StartsWith("basement") || lower == "b1" || lower == "b2" ||
-                    lower == "b3" || lower == "b4" || lower == "b5" ||
-                    (lower.Length >= 2 && lower[0] == 'b' && char.IsDigit(lower[1])))
-                {
-                    string bDigits = ExtractDigits(name);
-                    return "B" + (bDigits.Length > 0 ? bDigits : "1");
-                }
-                if (lower.StartsWith("roof") || lower == "rf")
-                    return "RF";
-                if (lower.StartsWith("penthouse") || lower == "ph" || lower == "pent")
-                    return "PH";
-                if (lower.StartsWith("attic") || lower == "at" || lower == "att")
-                    return "AT";
-                if (lower.StartsWith("terrace") || lower == "tr")
-                    return "TR";
-                if (lower.StartsWith("podium") || lower == "pod")
-                    return "POD";
-                if (lower.StartsWith("mezzanine") || lower == "mezz")
-                    return "MZ";
-                if (lower.StartsWith("plant") && lower.Contains("room"))
-                    return "PL";
-
-                // Extract digits for "1st floor", "2nd floor", "L01" etc.
-                if (lower.Contains("first") || lower.Contains("1st"))
-                    return "L01";
-                if (lower.Contains("second") || lower.Contains("2nd"))
-                    return "L02";
-                if (lower.Contains("third") || lower.Contains("3rd"))
-                    return "L03";
-                if (lower.Contains("fourth") || lower.Contains("4th"))
-                    return "L04";
-                if (lower.Contains("fifth") || lower.Contains("5th"))
-                    return "L05";
-
-                // Try to extract a floor number from patterns like "L01", "L1", "Floor 3"
-                string digits = ExtractDigits(name);
-                if (digits.Length > 0 && digits.Length <= 3)
-                    return "L" + digits.PadLeft(2, '0');
-
-                // Item 6 — unrecognized but REAL name: sanitize + pass through (trim + collapse
-                // spaces → UPPER, e.g. "Ring beam" → "RING-BEAM") instead of flattening to XX,
-                // which loses the level across all tagging. Cap to 12 chars to keep tag-container
-                // length assumptions sane; only fall back to XX if sanitization yields nothing.
-                string sane = System.Text.RegularExpressions.Regex.Replace(name, @"\s+", "-");
-                sane = System.Text.RegularExpressions.Regex.Replace(sane, @"[^A-Za-z0-9\-]", "").ToUpperInvariant().Trim('-');
-                if (sane.Length > 12) sane = sane.Substring(0, 12).Trim('-');
-                if (string.IsNullOrEmpty(sane)) { StingLog.Info($"GetLevelCode: level name '{name}' sanitized to empty, defaulting to XX"); return "XX"; }
-                StingLog.Info($"GetLevelCode: unrecognized level name '{name}' → passthrough code '{sane}'");
-                return sane;
+                // The rules live in the Revit-free SpatialNameCodes (unit-tested): whole-number
+                // ordinals, "Level -1" below ground, and a passthrough that cannot contain the
+                // tag separator.
+                string name = lvl.Name ?? "";
+                string code = SpatialNameCodes.LevelCodeFromName(name, out bool passthrough);
+                if (code == "XX")
+                    StingLog.Info($"GetLevelCode: level name '{name}' sanitized to empty, defaulting to XX");
+                else if (passthrough)
+                    StingLog.Info($"GetLevelCode: unrecognized level name '{name}' → passthrough code '{code}'");
+                return code;
             }
             catch (Exception ex)
             {
@@ -1451,17 +1391,6 @@ namespace StingTools.Core
             return null;
         }
 
-        private static string ExtractDigits(string s)
-        {
-            var sb = new System.Text.StringBuilder();
-            foreach (char c in s)
-            {
-                if (char.IsDigit(c))
-                    sb.Append(c);
-            }
-            return sb.ToString();
-        }
-
     }
 
     /// <summary>
@@ -1639,6 +1568,19 @@ namespace StingTools.Core
         public static string DetectLoc(Document doc, Element el,
             Dictionary<ElementId, Room> roomIndex, string projectLoc)
         {
+            string spatial = DetectLocSpatial(doc, el, roomIndex);
+            return !string.IsNullOrEmpty(spatial) ? spatial : LocFallback(doc, projectLoc);
+        }
+
+        /// <summary>
+        /// LOC from the element's own context (room / space name or number, the exterior
+        /// heuristic, its workset), or null when none of them names one. Callers that need
+        /// to know WHETHER the element was located use this: comparing DetectLoc's result
+        /// against "BLD1" treated a room that genuinely says BLD1 as undetected.
+        /// </summary>
+        public static string DetectLocSpatial(Document doc, Element el,
+            Dictionary<ElementId, Room> roomIndex)
+        {
             try
             {
                 // LIGHTGRID-4: Room first, then MEP Space. Rooms still win.
@@ -1662,7 +1604,7 @@ namespace StingTools.Core
                     // Heuristic: if the project has rooms defined and this element
                     // has a valid location but isn't in any room, check the element's
                     // category and family name for exterior indicators
-                    if (roomIndex.Count > 0)
+                    if (roomIndex != null && roomIndex.Count > 0)
                     {
                         string familyName = ParameterHelpers.GetFamilyName(el).ToUpperInvariant();
                         string catName = ParameterHelpers.GetCategoryName(el).ToUpperInvariant();
@@ -1685,9 +1627,17 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectLoc: {ex.Message}");
             }
 
-            // TOKPOL-1: a detected project LOC still wins; only the last resort is policy-driven.
-            return !string.IsNullOrEmpty(projectLoc) ? projectLoc : PolicyFallback(doc, "LOC", "BLD1");
+            return null;
         }
+
+        /// <summary>The LOC for an element nothing located: the project LOC, else the
+        /// token policy's fallback (TOKPOL-1: a detected project LOC still wins).</summary>
+        public static string LocFallback(Document doc, string projectLoc)
+            => !string.IsNullOrEmpty(projectLoc) ? projectLoc : PolicyFallback(doc, "LOC", "BLD1");
+
+        /// <summary>The ZONE for an element nothing zoned: the token policy's fallback.</summary>
+        public static string ZoneFallback(Document doc)
+            => PolicyFallback(doc, "ZONE", "Z01");
 
         // ScopeBoxLoc (plan-rectangle + most-specific selection) lives in the
         // Revit-free Core/ScopeBoxLoc.cs so it can be unit-tested.
@@ -1816,6 +1766,17 @@ namespace StingTools.Core
         public static string DetectZone(Document doc, Element el,
             Dictionary<ElementId, Room> roomIndex)
         {
+            string spatial = DetectZoneSpatial(doc, el, roomIndex);
+            return !string.IsNullOrEmpty(spatial) ? spatial : ZoneFallback(doc);   // TOKPOL-1
+        }
+
+        /// <summary>
+        /// ZONE from the element's own context (room department, name, number, workset),
+        /// or null. See <see cref="DetectLocSpatial"/> for why callers need the null.
+        /// </summary>
+        public static string DetectZoneSpatial(Document doc, Element el,
+            Dictionary<ElementId, Room> roomIndex)
+        {
             try
             {
                 // LIGHTGRID-4: Room first, then MEP Space. Rooms still win.
@@ -1851,7 +1812,7 @@ namespace StingTools.Core
                 StingLog.Warn($"DetectZone: {ex.Message}");
             }
 
-            return PolicyFallback(doc, "ZONE", "Z01");   // TOKPOL-1: policy decides, Z01 is only the floor
+            return null;
         }
 
         /// <summary>
@@ -1867,7 +1828,8 @@ namespace StingTools.Core
         /// project override, honouring each code's wordBoundary guard), then the
         /// original hard-coded aliases as a fallback so existing projects behave
         /// exactly as before. Registry misses cost nothing — the fallback is the
-        /// old body, unchanged.
+        /// old alias set, matched as whole tokens since 2026-09-29
+        /// (SpatialNameCodes.LocFromTextFallback).
         /// </summary>
         private static string ParseLocCode(string text) => ParseLocCode(text, null);
 
@@ -1887,65 +1849,16 @@ namespace StingTools.Core
                 StingLog.WarnRateLimited("ParseLocCode.Registry", $"registry lookup: {ex.Message}");
             }
 
-            if (string.IsNullOrWhiteSpace(text)) return null;
-            string upper = text.ToUpperInvariant();
-
-            // Direct match
-            if (upper.Contains("BLD1") || upper.Contains("BUILDING 1") || upper.Contains("BLOCK A"))
-                return "BLD1";
-            if (upper.Contains("BLD2") || upper.Contains("BUILDING 2") || upper.Contains("BLOCK B"))
-                return "BLD2";
-            if (upper.Contains("BLD3") || upper.Contains("BUILDING 3") || upper.Contains("BLOCK C"))
-                return "BLD3";
-            // Require word-boundary match for EXT to avoid matching "NEXT", "TEXTILE", "EXTENSION"
-            if (upper == "EXT" || upper.Contains("EXTERNAL") || upper.Contains("EXTERIOR") ||
-                upper.StartsWith("EXT ") || upper.Contains(" EXT ") || upper.EndsWith(" EXT"))
-                return "EXT";
-
-            return null;
+            // Built-in aliases, matched as whole tokens (BLD1 no longer matches BLD10,
+            // "Building 1" no longer matches "Building 12").
+            return SpatialNameCodes.LocFromTextFallback(text);
         }
 
         /// <summary>
-        /// Parse a string for ZONE code patterns.
-        /// Recognizes: Z01-Z04, Zone 1-4, Wing A-D, North/South/East/West.
+        /// Parse a string for ZONE code patterns (Z01-Z04, Zone 1-4 / A-D, Wing A-D,
+        /// North/South/East/West), each as a whole token: "Zone 12" is not Z01.
         /// </summary>
-        private static string ParseZoneCode(string text)
-        {
-            if (string.IsNullOrWhiteSpace(text)) return null;
-            string upper = text.ToUpperInvariant();
-
-            // Direct zone codes
-            if (upper.Contains("Z01") || upper.Contains("ZONE 1") || upper.Contains("ZONE A") || upper.Contains("WING A"))
-                return "Z01";
-            if (upper.Contains("Z02") || upper.Contains("ZONE 2") || upper.Contains("ZONE B") || upper.Contains("WING B"))
-                return "Z02";
-            if (upper.Contains("Z03") || upper.Contains("ZONE 3") || upper.Contains("ZONE C") || upper.Contains("WING C"))
-                return "Z03";
-            if (upper.Contains("Z04") || upper.Contains("ZONE 4") || upper.Contains("ZONE D") || upper.Contains("WING D"))
-                return "Z04";
-
-            // Directional terms — require word-boundary match to avoid "NORTHAMPTON" etc.
-            if (MatchesWord(upper, "NORTH")) return "Z01";
-            if (MatchesWord(upper, "SOUTH")) return "Z02";
-            if (MatchesWord(upper, "EAST")) return "Z03";
-            if (MatchesWord(upper, "WEST")) return "Z04";
-
-            return null;
-        }
-
-        /// <summary>Check if a word appears as a standalone token (not part of a longer word).</summary>
-        private static bool MatchesWord(string text, string word)
-        {
-            int idx = text.IndexOf(word);
-            while (idx >= 0)
-            {
-                bool startOk = idx == 0 || !char.IsLetter(text[idx - 1]);
-                bool endOk = (idx + word.Length) >= text.Length || !char.IsLetter(text[idx + word.Length]);
-                if (startOk && endOk) return true;
-                idx = text.IndexOf(word, idx + 1);
-            }
-            return false;
-        }
+        private static string ParseZoneCode(string text) => SpatialNameCodes.ZoneFromText(text);
 
         /// <summary>
         /// Detect LOC from workset name patterns when room-based detection fails.
@@ -1964,7 +1877,9 @@ namespace StingTools.Core
                 Workset ws = table.GetWorkset(wsId);
                 if (ws == null) return null;
 
-                string loc = ParseLocCode(ws.Name);
+                // Pass the document so a project-declared LOC code in the workset name is
+                // recognised; without it only the corporate baseline was consulted.
+                string loc = ParseLocCode(ws.Name, el.Document);
                 if (!string.IsNullOrEmpty(loc)) return loc;
             }
             catch (Exception ex)
@@ -2799,22 +2714,28 @@ namespace StingTools.Core
                         ParameterHelpers.SetString(el, ParamRegistry.LOC, typeLocOverride, overwrite: true);
                     else
                         ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC, typeLocOverride);
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, "TYPE_OVERRIDE");
+                    ParameterHelpers.SetString(el, ParamRegistry.LOC_SOURCE, "TYPE_OVERRIDE", overwrite: overwrite);
                     result.LocDetected = true;
                     result.TokensSet++;
                 }
                 else
                 {
-                    string loc = SpatialAutoDetect.DetectLoc(doc, el, ctx.RoomIndex, ctx.ProjectLoc);
-                    bool locFromSpatial = !string.IsNullOrEmpty(loc) && loc != "BLD1";
+                    // Ask the element's own context first and keep the answer null when it
+                    // has none. Until 2026-09-29 this took DetectLoc's result — which is
+                    // never empty (it falls back to the project LOC / BLD1) — and decided
+                    // "detected" by comparing it with "BLD1". A room that genuinely said
+                    // BLD1 therefore counted as undetected, and its LOC could be replaced
+                    // by a scope box or a neighbour's; and the workset fallback that
+                    // followed, gated on an empty LOC, could never run.
+                    string loc = SpatialAutoDetect.DetectLocSpatial(doc, el, ctx.RoomIndex);
+                    bool locFromSpatial = !string.IsNullOrEmpty(loc);
 
                     // Phase 192 (A4): scope-box containment — beats the project-info /
                     // BLD1 default for site elements (civil, external lighting) that
                     // have no room and no meaningful workset. A genuine room/workset
-                    // signal already in `loc` wins, so only try when detection fell to
-                    // the project default.
+                    // signal already in `loc` wins.
                     bool locFromScopeBox = false;
-                    if (!locFromSpatial || (ctx != null && loc == ctx.ProjectLoc))
+                    if (!locFromSpatial)
                     {
                         string sbLoc = SpatialAutoDetect.DetectLocFromScopeBox(ctx?.ScopeBoxLocs, el);
                         if (!string.IsNullOrEmpty(sbLoc))
@@ -2825,44 +2746,16 @@ namespace StingTools.Core
                         }
                     }
 
-                    // Phase 67: LOC fallback chain — workset name extraction when spatial/project detection fails
-                    // F-04: Hoist wsName to outer scope so the logging block can reuse it (avoids double GetWorkset call)
+                    // (DetectLocSpatial already reads the workset name, against the
+                    // project's code registry. The older workset scan that lived here
+                    // matched LocCodes with StartsWith/Contains, so "EXTRACT FANS" read as
+                    // EXT; it was unreachable and has been removed rather than revived.)
                     string _cachedWsName = null;
-                    if (string.IsNullOrEmpty(loc) && doc.IsWorkshared)
-                    {
-                        try
-                        {
-                            var wsParam = el.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
-                            if (wsParam != null)
-                            {
-                                int wsId = wsParam.AsInteger();
-                                if (wsId > 0)
-                                {
-                                    _cachedWsName = doc.GetWorksetTable().GetWorkset(new WorksetId(wsId))?.Name ?? "";
-                                    // Extract LOC code from workset name (e.g., "BLD2_Mechanical" → "BLD2")
-                                    foreach (string locCode in TagConfig.LocCodes ?? new List<string>())
-                                    {
-                                        if (_cachedWsName.StartsWith(locCode, StringComparison.OrdinalIgnoreCase) ||
-                                            _cachedWsName.Contains("_" + locCode, StringComparison.OrdinalIgnoreCase) ||
-                                            _cachedWsName.Contains(locCode + "_", StringComparison.OrdinalIgnoreCase))
-                                        {
-                                            loc = locCode;
-                                            locFromSpatial = true; // workset-derived counts as detected
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception wsEx) { StingLog.Warn($"LOC workset fallback: {wsEx.Message}"); }
-                    }
 
                     // Phase 68 (NEW-02): nothing located the element — inherit LOC from the
                     // nearest tagged element of the same category BEFORE writing a default.
-                    // This ran after the default until 2026-09-27, when the slot was already
-                    // filled, so CopyTokensFromNearest (which never overwrites) copied nothing.
                     bool locFromNeighbour = false;
-                    if (!overwrite && !locFromScopeBox && (!locFromSpatial || loc == ctx?.ProjectLoc))
+                    if (!overwrite && !locFromSpatial)
                     {
                         if (CopyTokensFromNearest(doc, el, _spatialLocOnly) > 0)
                         {
@@ -2872,7 +2765,7 @@ namespace StingTools.Core
                         }
                     }
 
-                    if (string.IsNullOrEmpty(loc)) loc = "BLD1";
+                    if (string.IsNullOrEmpty(loc)) loc = SpatialAutoDetect.LocFallback(doc, ctx?.ProjectLoc);
                     if (locFromNeighbour)
                     {
                         // LOC already inherited; the default below would be a no-op.
@@ -2889,8 +2782,7 @@ namespace StingTools.Core
 
                     // Track LOC detection source (Phase 67: Workset layer; Phase 192: ScopeBox layer)
                     string locSource = locFromScopeBox ? "ScopeBox"
-                        : locFromSpatial
-                        ? (loc == ctx?.ProjectLoc ? "ProjectInfo" : "Room")
+                        : locFromSpatial ? "Room"
                         : (!string.IsNullOrEmpty(ctx?.ProjectLoc) ? "ProjectInfo" : "Default");
                     // Phase 67: Override source if workset-detected (was marked locFromSpatial=true above)
                     // F-04: Reuse _cachedWsName from detection block above — no second GetWorkset() call needed
@@ -2911,7 +2803,8 @@ namespace StingTools.Core
                         }
                         catch (Exception ex) { StingLog.Warn($"PopulateAll LOC_SOURCE workset check: {ex.Message}"); }
                     }
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.LOC_SOURCE, locSource);
+                    // Overwrite re-derives LOC, so its recorded source must follow it.
+                    ParameterHelpers.SetString(el, ParamRegistry.LOC_SOURCE, locSource, overwrite: overwrite);
                 }
             }
 
@@ -2926,14 +2819,19 @@ namespace StingTools.Core
                         ParameterHelpers.SetString(el, ParamRegistry.ZONE, typeZoneOverride, overwrite: true);
                     else
                         ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE, typeZoneOverride);
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, "TYPE_OVERRIDE");
+                    ParameterHelpers.SetString(el, ParamRegistry.ZONE_SOURCE, "TYPE_OVERRIDE", overwrite: overwrite);
                     result.ZoneDetected = true;
                     result.TokensSet++;
                 }
                 else
                 {
-                    string zone = SpatialAutoDetect.DetectZone(doc, el, ctx.RoomIndex);
-                    bool zoneFromSpatial = !string.IsNullOrEmpty(zone) && zone != "Z01";
+                    // Null when the element's context names no zone. Comparing DetectZone's
+                    // result with "Z01" (its fallback) marked a room that genuinely says
+                    // Z01 as undetected, so a neighbour's zone could replace it — and a
+                    // project whose policy fallback is not Z01 had its fallback recorded
+                    // as a detected zone.
+                    string zone = SpatialAutoDetect.DetectZoneSpatial(doc, el, ctx.RoomIndex);
+                    bool zoneFromSpatial = !string.IsNullOrEmpty(zone);
 
                     // Phase 68 (NEW-02): as for LOC — inherit from the nearest tagged element
                     // before the Z01 default fills the slot.
@@ -2944,7 +2842,7 @@ namespace StingTools.Core
                         ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, "Proximity");
                     }
 
-                    if (string.IsNullOrEmpty(zone)) zone = "Z01";
+                    if (string.IsNullOrEmpty(zone)) zone = SpatialAutoDetect.ZoneFallback(doc);
                     if (overwrite)
                     {
                         if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
@@ -2957,7 +2855,7 @@ namespace StingTools.Core
 
                     // Track ZONE detection source
                     string zoneSource = zoneFromSpatial ? "Room" : "Default";
-                    ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, zoneSource);
+                    ParameterHelpers.SetString(el, ParamRegistry.ZONE_SOURCE, zoneSource, overwrite: overwrite);
                 }
             }
 
