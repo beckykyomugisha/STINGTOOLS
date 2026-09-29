@@ -181,6 +181,24 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// TAGACC-15: ZONE from a room's Department field. The field exists to hold a zone, so
+        /// when its whole value IS a declared code it is that zone — at any length, so a
+        /// project using one-letter zones ("A", "B") is recognised here. Anything else falls
+        /// back to <see cref="ZoneFromText(string, IEnumerable{string})"/>, where one-letter
+        /// codes are not matched inside free text ("Store A" is not zone A).
+        /// </summary>
+        public static string ZoneFromDepartment(string department, IEnumerable<string> declaredCodes)
+        {
+            if (string.IsNullOrWhiteSpace(department)) return null;
+            string whole = department.Trim().ToUpperInvariant();
+            if (declaredCodes != null && whole != "XX" && whole != "ZZ")
+                foreach (string c in declaredCodes)
+                    if (!string.IsNullOrWhiteSpace(c) && string.Equals(c.Trim(), whole, StringComparison.OrdinalIgnoreCase))
+                        return c.Trim().ToUpperInvariant();
+            return ZoneFromText(department, declaredCodes);
+        }
+
+        /// <summary>
         /// The built-in LOC aliases (BLD1–BLD3, "Building 1–3", "Block A–C", EXT), each as
         /// a whole token, or null. The project/corporate SpatialCodeRegistry is consulted
         /// before this and wins.

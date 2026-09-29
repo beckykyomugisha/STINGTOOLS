@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.Revit.Attributes;
@@ -220,7 +220,7 @@ namespace StingTools.Tags
                         // directly. The tag-to-annotated-category map this used to
                         // need was removed with the skip above: it existed only to
                         // translate a tag type's category, and no tag type arrives.
-                        var ov = TokenDepthOverrides.Resolve(doc, typeEl.Category?.Name);
+                        var ov = TokenDepthOverrides.Resolve(doc, global::StingTools.Core.ParameterHelpers.GetCategoryName(typeEl));
                         if (ov != null && ov.Depth.HasValue)
                             effDepth = Math.Max(1, Math.Min(MaxTier, ov.Depth.Value));
                         bool anySet = false;

@@ -181,6 +181,28 @@ namespace StingTools.Tags.Tests
             Assert.Null(SpatialNameCodes.ZoneFromText(text, declared));
         }
 
+        // TAGACC-15: a Department field holding exactly a declared code is that zone,
+        // even a one-letter one; free text still never matches a one-letter code.
+        [Theory]
+        [InlineData("A", "A")]
+        [InlineData(" b ", "B")]
+        [InlineData("WARD1", "WARD1")]
+        [InlineData("Zone 3", "Z03")]
+        public void A_department_that_is_a_declared_code_is_that_zone(string dept, string expected)
+        {
+            var declared = new[] { "A", "B", "WARD1" };
+            Assert.Equal(expected, SpatialNameCodes.ZoneFromDepartment(dept, declared));
+        }
+
+        [Theory]
+        [InlineData("Store A")]
+        [InlineData("XX")]
+        [InlineData("")]
+        public void A_department_that_only_contains_a_one_letter_code_is_not_that_zone(string dept)
+        {
+            Assert.Null(SpatialNameCodes.ZoneFromDepartment(dept, new[] { "A", "XX" }));
+        }
+
         // ── LOC fallback aliases ────────────────────────────────────────────
 
         [Theory]

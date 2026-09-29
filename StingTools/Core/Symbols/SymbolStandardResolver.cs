@@ -74,7 +74,7 @@ namespace StingTools.Core.Symbols
             {
                 if (host != null)
                 {
-                    string disc = GuessDisciplineFromCategory(host.Category?.Name);
+                    string disc = GuessDisciplineFromCategory(global::StingTools.Core.ParameterHelpers.GetCategoryName(host));
                     if (!string.IsNullOrEmpty(disc))
                         return ResolveStandardForDiscipline(doc, disc);
                 }

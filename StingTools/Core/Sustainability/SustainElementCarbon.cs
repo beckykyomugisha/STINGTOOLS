@@ -44,7 +44,7 @@ namespace StingTools.Core.Sustainability
             // material/category NRM2 allowance, else the project default) shared with
             // the cost path. Resolved per material inside the loop below.
             double wasteDefault = TagConfig.GetConfigDouble("COST_DEFAULT_WASTE_PCT", 5.0);
-            string catName = el.Category?.Name;
+            string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             double total = 0;
             try
             {

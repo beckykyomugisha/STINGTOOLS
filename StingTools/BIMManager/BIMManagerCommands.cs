@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Diagnostics;
@@ -8634,7 +8634,7 @@ namespace StingTools.BIMManager
 
             foreach (var el in elements)
             {
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1);
                 string disc = ParameterHelpers.GetString(el, ParamRegistry.DISC);
                 string lvl = ParameterHelpers.GetString(el, ParamRegistry.LVL);
@@ -8677,7 +8677,7 @@ namespace StingTools.BIMManager
                 var headers = new List<string> { "ElementId","Category","Tag","Phase","Level","Discipline","StartDate","EndDate","Predecessors","Duration_Days" };
                 var xlRows = elements.Select(el =>
                 {
-                    string catN = el.Category?.Name ?? "";
+                    string catN = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                     string pn = "";
                     var pp = el.get_Parameter(BuiltInParameter.PHASE_CREATED);
                     if (pp?.HasValue == true) pn = (doc.GetElement(pp.AsElementId()) as Phase)?.Name ?? "";
@@ -8732,7 +8732,7 @@ namespace StingTools.BIMManager
                 if (li == null) continue;
                 costed++;
 
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 string tag = ParameterHelpers.GetString(el, ParamRegistry.TAG1) ?? "";
                 string disc = !string.IsNullOrEmpty(li.Discipline)
                     ? li.Discipline : (ParameterHelpers.GetString(el, ParamRegistry.DISC) ?? "");
@@ -8990,7 +8990,7 @@ namespace StingTools.BIMManager
 
             foreach (Element elem in allElements)
             {
-                if (elem?.Category == null || !known.Contains(elem.Category.Name)) continue;
+                if (elem?.Category == null || !known.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(elem))) continue;
                 string disc = ParameterHelpers.GetString(elem, ParamRegistry.DISC);
                 string loc = ParameterHelpers.GetString(elem, ParamRegistry.LOC);
                 string zone = ParameterHelpers.GetString(elem, ParamRegistry.ZONE);

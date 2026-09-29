@@ -185,7 +185,7 @@ namespace StingTools.BIMManager
             // same key through the same helper; if one side changes, both must.
             _currentUniqueId = ElementKey(doc, _doc, el);
             _currentName = el.Name ?? "";
-            _currentCategory = el.Category?.Name ?? "";
+            _currentCategory = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             _currentRgb = ResolveCategoryColour(el);
             _current = new MeshNode
             {

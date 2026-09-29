@@ -298,6 +298,18 @@ namespace StingTools.Core
                             ? $"; {duplicateHolders} element(s) hold a tag another element also holds and will be re-sequenced when tagged"
                             : ""));
 
+            // TAGACC-13: counters recorded in the model by other users (synced), and borrow the
+            // counter element now — before any tagging transaction, which cannot borrow.
+            try
+            {
+                MergeSeqSidecar(maxSeq, StingTools.Core.Storage.StingSeqLockStore.Load(doc));
+                if (!StingTools.Core.Storage.StingSeqLockStore.Reserve(doc, out string lockReason) && lockReason != null)
+                    StingLog.Warn($"SEQ lock: {lockReason}. Elements that need a NEW sequence number will be "
+                                + (string.Equals(SeqLockMode, "warn", StringComparison.OrdinalIgnoreCase)
+                                    ? "numbered anyway (SEQ_LOCK_MODE = warn)." : "deferred (SEQ_LOCK_MODE = block)."));
+            }
+            catch (Exception ex) { StingLog.Warn($"SEQ lock: {ex.Message}"); }
+
             // P6 / G3.1: Merge sidecar counters — take max(doc_count, sidecar_count) per key
             try
             {
@@ -331,6 +343,12 @@ namespace StingTools.Core
 
                 BIMManager.SidecarVersioning.WriteSidecar(sidecarPath, seqCounters, "1.0");
             }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SaveSeqSidecar: {ex.Message}");
+            }
+            // TAGACC-13: the model copy is what other users see after a sync.
+            try { StingTools.Core.Storage.StingSeqLockStore.Save(doc, seqCounters); }
             catch (Exception ex)
             {
                 StingLog.Warn($"SaveSeqSidecar: {ex.Message}");

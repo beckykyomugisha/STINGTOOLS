@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -3331,7 +3331,7 @@ namespace StingTools.Docs
                     {
                         foreach (var el in discGroup.Value.OrderBy(e => ParameterHelpers.GetString(e, ParamRegistry.TAG1)))
                         {
-                            string cat = el.Category?.Name ?? "";
+                            string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                             string family = ParameterHelpers.GetFamilyName(el);
                             string typeName = ParameterHelpers.GetFamilySymbolName(el);
                             string tag1 = ParameterHelpers.GetString(el, ParamRegistry.TAG1);

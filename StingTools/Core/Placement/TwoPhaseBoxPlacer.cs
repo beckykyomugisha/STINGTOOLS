@@ -335,7 +335,7 @@ namespace StingTools.Core.Placement
                 {
                     if (!(el is FamilySymbol fs)) continue;
                     if (fs.Category == null) continue;
-                    if (!string.Equals(fs.Category.Name, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (!string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), rule.CategoryFilter, StringComparison.OrdinalIgnoreCase)) continue;
                     if (first == null) first = fs;
                     if (typeRx != null && typeRx.IsMatch(fs.Name ?? ""))
                     {

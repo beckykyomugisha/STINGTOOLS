@@ -658,7 +658,7 @@ namespace StingTools.Commands.Hvac
             {
                 var el = doc.GetElement(boundaryId);
                 if (el == null) return 0;
-                string name = ($"{el.Name} {el.Category?.Name}").ToLowerInvariant();
+                string name = ($"{el.Name} {global::StingTools.Core.ParameterHelpers.GetCategoryName(el)}").ToLowerInvariant();
                 // Pull the wall type name / finish material name too when a Wall.
                 if (el is Wall w)
                 {

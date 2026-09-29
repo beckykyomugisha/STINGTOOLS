@@ -361,7 +361,7 @@ namespace StingTools.UI
             {
                 var row = new List<string>();
                 if (config.IncludeElementId) row.Add(el.Id.ToString());
-                row.Add(el.Category?.Name ?? "");
+                row.Add(global::StingTools.Core.ParameterHelpers.GetCategoryName(el));
                 if (config.IncludeFamilyType)
                 {
                     row.Add(ParameterHelpers.GetFamilyName(el));

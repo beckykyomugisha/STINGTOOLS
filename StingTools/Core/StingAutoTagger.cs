@@ -748,13 +748,21 @@ namespace StingTools.Core
                                 // (replaces inline pipeline that was missing CategorySkipList,
                                 //  CategoryForceSys, CategoryTokenOverrides, TokenLock, AuditTrail,
                                 //  and had NativeMapper in wrong order)
+                                var autoReport = new TagConfig.TagWriteReport();
                                 bool pipelineOk = TagPipelineHelper.RunFullPipeline(
                                     doc, el, ctx, existingTags, seqCounters,
                                     _formulas, _gridLines,
                                     overwrite: false,
                                     skipComplete: true,
-                                    collisionMode: TagCollisionMode.AutoIncrement);
+                                    collisionMode: TagCollisionMode.AutoIncrement,
+                                    report: autoReport);
 
+                                // TAGACC-13: another user holds the SEQ counter — retry after sync.
+                                if (!pipelineOk && autoReport.Outcome == TagConfig.TagWriteOutcome.Deferred)
+                                {
+                                    EnqueueDeferred(id);
+                                    continue;
+                                }
                                 if (!pipelineOk) continue;
 
                                 // Stamp [AUTO_TAGGER] audit marker so elements tagged

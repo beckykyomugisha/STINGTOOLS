@@ -113,7 +113,7 @@ namespace StingTools.Core.Routing
                         Location          = crossing,
                         SlabThicknessMm   = thicknessFt * 304.8,
                         FireRating        = ResolveFireRating(wall),
-                        MemberCategory    = curve.Category?.Name ?? "",
+                        MemberCategory    = global::StingTools.Core.ParameterHelpers.GetCategoryName(curve),
                         MemberDiameterMm  = ReadDiameterMm(curve),
                     };
                     records.Add(rec);

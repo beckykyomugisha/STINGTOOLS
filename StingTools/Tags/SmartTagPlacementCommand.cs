@@ -1170,7 +1170,7 @@ namespace StingTools.Tags
                 if (center.IsAlmostEqualTo(XYZ.Zero))
                 {
                     sb.NoCenter++; skipped++;
-                    StingLog.Info($"SmartPlace skip (no center): element {elem.Id} category='{elem.Category?.Name}'");
+                    StingLog.Info($"SmartPlace skip (no center): element {elem.Id} category='{global::StingTools.Core.ParameterHelpers.GetCategoryName(elem)}'");
                     continue;
                 }
 
@@ -1184,7 +1184,7 @@ namespace StingTools.Tags
                 if (tagTypeId == ElementId.InvalidElementId)
                 {
                     sb.NoTagFamily++; skipped++;
-                    StingLog.Info($"SmartPlace skip (no tag family loaded): element {elem.Id} category='{elem.Category?.Name}'");
+                    StingLog.Info($"SmartPlace skip (no tag family loaded): element {elem.Id} category='{global::StingTools.Core.ParameterHelpers.GetCategoryName(elem)}'");
                     continue;
                 }
 
@@ -1204,7 +1204,7 @@ namespace StingTools.Tags
                 }
                 catch (Exception ex2) { StingLog.Warn($"ResolveTagTypeForPlacement: {ex2.Message}"); }
 
-                string catName = elem.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(elem);
                 // Apply per-category scale multiplier to offset
                 double catOffset = offset;
                 if (scaleMultipliers.TryGetValue(catName, out double scaleMult))
@@ -1383,7 +1383,7 @@ namespace StingTools.Tags
 
                             XYZ center = GetElementCenter(linkEl, view);
                             double offset = GetModelOffset(view);
-                            int preferred = GetPreferredSide(linkEl.Category?.Name ?? "");
+                            int preferred = GetPreferredSide(global::StingTools.Core.ParameterHelpers.GetCategoryName(linkEl));
                             XYZ[] candidates = GetCandidateOffsets(offset);
                             XYZ tagPos = center + candidates[preferred < candidates.Length ? preferred : 0];
 
@@ -1535,7 +1535,7 @@ namespace StingTools.Tags
                     double dy = tagPos.Y - hostCenter.Y;
                     string orient = tag.TagOrientation == TagOrientation.Vertical ? "Vertical" : "Horizontal";
 
-                    string catName = host.Category.Name;
+                    string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(host);
                     if (!catOffsets.TryGetValue(catName, out var list))
                     {
                         list = new List<(double, double, bool, string)>();
@@ -1613,7 +1613,7 @@ namespace StingTools.Tags
                 XYZ center = TagPlacementEngine.GetElementCenter(elem, view);
                 if (center.IsAlmostEqualTo(XYZ.Zero)) { skipped++; continue; }
 
-                string catName = elem.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(elem);
                 ElementId catId = elem.Category.Id;
                 if (!tagTypeCache.TryGetValue(catId, out ElementId tagTypeId))
                 {
@@ -1922,7 +1922,7 @@ namespace StingTools.Tags
                         if (elem?.Category == null) { skipped++; continue; }
 
                         ElementId catId = elem.Category.Id;
-                        string catName = elem.Category?.Name ?? "";
+                        string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(elem);
                         if (!tagTypeCache.TryGetValue(catId, out ElementId tagTypeId))
                         {
                             // Prefer a tag family from the active ViewStylePack's CategoryTagStyles
@@ -3206,7 +3206,7 @@ namespace StingTools.Tags
                     try { hasLeader = tag.HasLeader; } catch (Exception ex) { StingLog.Warn($"Check tag leader: {ex.Message}"); }
 
                     csv.AppendLine($"\"{view.Name}\",{view.ViewType},{view.Scale}," +
-                        $"{host.Id.Value},\"{host.Category?.Name ?? ""}\",\"{tag.TagText}\"," +
+                        $"{host.Id.Value},\"{global::StingTools.Core.ParameterHelpers.GetCategoryName(host)}\",\"{tag.TagText}\"," +
                         $"\"\",{tagPos.X * mmPerFt:F1},{tagPos.Y * mmPerFt:F1}," +
                         $"{offsetX:F1},{offsetY:F1},{hasLeader},\"{stingTag}\"");
                 }

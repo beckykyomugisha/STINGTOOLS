@@ -253,7 +253,7 @@ namespace StingTools.Model
         public static FittingType DetectFittingType(Element fitting)
         {
             string name = (fitting.Name ?? "").ToLower();
-            string catName = fitting.Category?.Name?.ToLower() ?? "";
+            string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(fitting)?.ToLower() ?? "";
 
             if (name.Contains("elbow") || name.Contains("bend"))
             {

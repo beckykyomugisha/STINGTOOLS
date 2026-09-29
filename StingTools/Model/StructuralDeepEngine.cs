@@ -781,7 +781,7 @@ namespace StingTools.Model
                 var bb = el.get_BoundingBox(null);
                 if (bb == null) return checks;
 
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 double lengthFt = 0;
                 var locCurve = el.Location as LocationCurve;
                 if (locCurve?.Curve != null) lengthFt = locCurve.Curve.Length;

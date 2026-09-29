@@ -725,7 +725,7 @@ namespace StingTools.Commands.Hvac
             {
                 if (el is FamilyInstance fi)
                     return $"{fi.Symbol?.Family?.Name}/{fi.Symbol?.Name} #{fi.Id.Value}";
-                return $"{el.Category?.Name} #{el.Id.Value}";
+                return $"{global::StingTools.Core.ParameterHelpers.GetCategoryName(el)} #{el.Id.Value}";
             }
             catch { return $"#{el?.Id.Value}"; }
         }

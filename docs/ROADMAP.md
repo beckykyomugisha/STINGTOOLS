@@ -8,30 +8,21 @@ Review of the tagging pipeline (`TagPipelineHelper.RunFullPipeline`, `TagConfig.
 `TokenAutoPopulator.PopulateAll`, `SpatialAutoDetect`, SEQ allocation, `StingAutoTagger`). All eleven
 findings were closed on 2026-09-29 (CHANGELOG "Tagging accuracy review" and "TAGACC-1..11").
 None of it is compiled or exercised in Revit yet — the .NET SDK was unavailable where it was written.
-What remains is listed under **Residual**.
-
-| ID | Pri | Finding | Resolution |
-|---|---|---|---|
-| TAGACC-1 | ~~P0~~ **Done 2026-09-29** | Copied / pasted / arrayed / mirrored elements kept the source's complete tag. | The tag index records the owner of each tag (lowest ElementId). A complete tag held by a newer element whose owner still holds it is a copy: `RunFullPipeline` clears its LVL / LOC / ZONE (unless locked) and SEQ, and `BuildAndWriteTag` re-sequences it in every collision mode. |
-| TAGACC-2 | ~~P1~~ **Done 2026-09-29** | Worksharing: SEQ allocated from the local model. | After every sync the index is rebuilt and duplicate holders found. With the auto-tagger on, the newer holders are re-sequenced at once (elements owned by others are skipped); otherwise a dialog names the count and the fix (Batch Tag, any mode). |
-| TAGACC-3 | ~~P1~~ **Done 2026-09-29** | Undetectable LOC written as BLD1 by one layer and XX by the other. | Both layers follow `STING_TAG_TOKEN_POLICY.json` (project override in `_BIM_COORD`). A LOC named in Project Information wins; otherwise the policy's fallback, counted and reported after each run; a null fallback leaves the token blank and refuses the tag. Same for ZONE and LVL. `DefaultLocCount` / `DefaultZoneCount` count by recorded source. |
-| TAGACC-4 | ~~P1~~ **Done 2026-09-29** | "Overwrite all" renumbered every element. | Overwrite keeps the stored SEQ (normalised to the current pad) wherever it is still unique. `RENUMBER_ON_OVERWRITE = true` in `project_config.json` restores renumbering. |
-| TAGACC-5 | ~~P2~~ **Done 2026-09-29** | Tokens did not follow an element that moved. | Decided: the tag describes where the element is. A complete-tagged element whose host level differs from the one recorded in `ASS_LVL_ELEM_ID_INT`, or that the stale marker flagged and whose room now names a different LOC / ZONE, has those tokens re-derived and its tag rebuilt (SEQ kept if unique); the stale flag is then cleared. Locks and type overrides win. `RETAG_MOVED_ELEMENTS = false` treats tags as fixed identifiers. |
-| TAGACC-6 | ~~P2~~ **Done 2026-09-29** | Category lookups used the localised `Category.Name`. | `GetCategoryName` answers the English name for the element's `BuiltInCategory` when the localised name is not a known key (`CategoryEnglishNames`); the tagging core's direct `Category.Name` reads now go through it. |
-| TAGACC-7 | ~~P2~~ **Done 2026-09-29** | Multi-service equipment took the first connector's system. | Primary connector first; then the category's own domain (air for Mechanical Equipment / Air Terminals, piping for plumbing); then the first non-auxiliary service (gas, fuel, condensate, drainage are auxiliary). |
-| TAGACC-8 | ~~P2~~ **Done 2026-09-29** | "Hydronic" classification always read as HWS. | When HWS came from the word HYDRONIC and the piping system type's fluid temperature is ≤ 15 °C, SYS is CHW. |
-| TAGACC-9 | ~~P3~~ **Done 2026-09-29** | ZONE ignored project codes; project level codes were never used. | Declared `ZONE_CODES` (two characters or more) are matched first, as whole tokens. Level codes declared in `_BIM_COORD/spatial_codes.json` win over the naming rules (exact code or alias). |
-| TAGACC-10 | ~~P3~~ **Done 2026-09-29** | "Level 1a" / "Level 1", numbered mezzanines, roof plant shared codes. | L01A, MZ2, RF2, RFP, PH2 … (standalone numbers only; "Roof +45.000" stays RF). |
-| TAGACC-11 | ~~P3~~ **Done 2026-09-29** | Proximity used 3D distance and copied neighbours' defaults. | Same level only (or within 1.5 m vertically when a level is missing), plan distance, and only a value the neighbour derived (not Default / ProjectInfo / Proximity, not SYS layer 6–7). |
-
-**Residual**
+What remains is listed under **Residual**
 
 | ID | Pri | Item |
 |---|---|---|
-| TAGACC-12 | P1 | Build and run in Revit: copy/paste an equipment item, move one to another level, run Overwrite twice, sync two users — the four behaviours above have not been observed. |
-| TAGACC-13 | P2 | Worksharing without the Planscape server still allocates locally; TAGACC-2 detects and repairs after sync, it does not prevent the duplicate. Reserving SEQ blocks on the server by default would. |
-| TAGACC-14 | P3 | Commands outside the tagging core that read `Category.Name` directly are still localised on a non-English Revit. |
-| TAGACC-15 | P3 | A room department named with a one-letter zone code ("A") is not matched, to avoid "Store A"; such projects need two-character codes. |
+| TAGACC-12 | P1 | **Run in Revit.** The tests now exist (`StingTools.Revit.SmokeTests/TaggingAccuracySmokeTests.cs`: copy, move to another level, Overwrite twice, simulated sync duplicate) and the two-user steps are in [`TAGGING_ACCURACY_TEST_PROTOCOL.md`](TAGGING_ACCURACY_TEST_PROTOCOL.md). Neither has been run: `pwsh tools/run_revit_smoke.ps1`, then Part B with two users. The plugin has not been compiled since TAGACC-1; a PR to `main` runs the Windows build. |
+| TAGACC-13 | ~~P2~~ **Done 2026-09-29** | Worksharing prevention without the server: the SEQ counters live in a model element (`Core/Storage/StingSeqLockStore`) that a user must borrow before handing out a new number. While another user holds it, or central has a newer copy, new numbers wait (`SEQ_LOCK_MODE = block`, default) — the auto-tagger defers and retries after sync; Batch Tag reports the elements. `warn` numbers anyway; `off` ignores the lock. Remaining window: two users tagging for the very first time before either syncs each create a counter element; that one-off overlap is repaired by TAGACC-2. |
+| TAGACC-14 | ~~P3~~ **Mostly done 2026-09-29** | 129 direct `Category.Name` reads converted to `GetCategoryName` where the variable is declared as an element type in the same file. See TAGACC-16. |
+| TAGACC-15 | ~~P3~~ **Done 2026-09-29** | A room Department whose whole value is a declared ZONE code is that zone at any length ("A"); free text still never matches a one-letter code. |
+| TAGACC-16 | P3 | 87 `Category.Name` reads left as they are: the variable's type is not visible in the file, or the read has a non-empty fallback (`?? "Import"`) whose meaning would change. Convert by hand with a compiler at hand. |
+| TAGACC-17 | P3 | Deferred auto-tagger elements retry after THIS user's next sync, not the holder's. Acceptable (the sync also brings the latest counters), but a user who never syncs never gets them tagged. |
+
+**Settings.** RETAG_MOVED_ELEMENTS, RENUMBER_ON_OVERWRITE, AUTO_CORRECT_STATUS_FROM_PHASE and
+SEQ_LOCK_MODE are switched from the **Tag Rules** button (TAGGING tab, beside Batch Tag) and
+listed in Project Cfg → View Full Configuration. Batch Tag also offers "Overwrite all and
+renumber" for one run.
 
 ## Panel schedule enhancements — competitor review (2026-09-24)
 

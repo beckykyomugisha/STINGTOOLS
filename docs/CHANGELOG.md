@@ -2,6 +2,28 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-12..15 and the Tag Rules settings button, 2026-09-29)
+
+- **Tag Rules button** (TAGGING tab, beside Batch Tag; dispatch tag `TagBehaviour`,
+  `Tags/TagBehaviourSettingsCommand.cs`). Shows, in plain words, what tagging does to existing
+  tags and flips each switch with one click: RETAG_MOVED_ELEMENTS, RENUMBER_ON_OVERWRITE,
+  AUTO_CORRECT_STATUS_FROM_PHASE, SEQ_LOCK_MODE. Writes only that key to the
+  `project_config.json` beside the model and applies it at once. The same switches are in
+  Project Cfg → View Full Configuration. Batch Tag's mode picker states the move behaviour and
+  offers "Overwrite all and renumber" for one run (the saved setting is restored afterwards).
+- **Settings were lost on save.** Project Cfg → Save and `TagConfig.SaveToFile` rewrite the
+  whole file and did not write the new keys, so saving reset them. Both now write them, and
+  they are in the known-keys list (they were logged as possible typos).
+- **TAGACC-13** worksharing lock: `Core/Storage/StingSeqLockStore` keeps SEQ counters in a
+  DataStorage element borrowed before any new number is allocated (see ROADMAP).
+  `TagWriteOutcome.Deferred` marks an element that waited; the auto-tagger re-queues it.
+- **TAGACC-14** 129 direct `Category.Name` reads now go through `GetCategoryName`.
+- **TAGACC-15** `SpatialNameCodes.ZoneFromDepartment`: an exact declared code in a room's
+  Department is that zone, one letter included.
+- **TAGACC-12** `StingTools.Revit.SmokeTests/TaggingAccuracySmokeTests.cs` (4 in-Revit tests)
+  and `docs/TAGGING_ACCURACY_TEST_PROTOCOL.md` (two-user steps). **Not run; plugin not
+  compiled** in this environment.
+
 #### Completed (TAGACC-1..11: the open tagging-accuracy findings, 2026-09-29)
 
 Closes every finding the tagging review left open (ROADMAP "Tagging accuracy").

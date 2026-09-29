@@ -459,6 +459,15 @@ namespace StingTools.Core
         /// </summary>
         public static bool RetagMovedElements { get; internal set; } = true;
 
+        /// <summary>
+        /// TAGACC-13: how the worksharing SEQ lock (Core/Storage/StingSeqLockStore) is used.
+        /// "block" (default): no new sequence number while another user holds the counter or
+        /// central has a newer one — the element is deferred and retried. "warn": allocate
+        /// anyway and log (duplicates are repaired after sync). "off": ignore the lock.
+        /// Set SEQ_LOCK_MODE in project_config.json or with the Tag Rules button.
+        /// </summary>
+        public static string SeqLockMode { get; internal set; } = "block";
+
         /// <summary>FE-06: Full per-category token overrides. Key=category name, Value=dict of token->value.</summary>
         public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
             = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -750,6 +759,7 @@ namespace StingTools.Core
                     "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
                     "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
                     "SEQ_INCLUDE_ZONE","SEQ_INCLUDE_LOC","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
+                    "RENUMBER_ON_OVERWRITE","RETAG_MOVED_ELEMENTS","SEQ_LOCK_MODE",
                     "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT","TAG1_ONLY",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
                     "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
@@ -1172,6 +1182,13 @@ namespace StingTools.Core
 
                 RenumberOnOverwrite = ReadConfigBool(data, "RENUMBER_ON_OVERWRITE", false);
                 RetagMovedElements = ReadConfigBool(data, "RETAG_MOVED_ELEMENTS", true);
+                SeqLockMode = "block";
+                if (data.TryGetValue("SEQ_LOCK_MODE", out object slmObj) && slmObj != null)
+                {
+                    string slm = slmObj.ToString().Trim().ToLowerInvariant();
+                    if (slm == "block" || slm == "warn" || slm == "off") SeqLockMode = slm;
+                    else StingLog.Warn($"TagConfig: SEQ_LOCK_MODE '{slmObj}' is not block / warn / off — using block.");
+                }
 
                 // Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;
@@ -1354,6 +1371,7 @@ namespace StingTools.Core
             AutoCorrectStatusFromPhase = false;
             RenumberOnOverwrite = false;
             RetagMovedElements = true;
+            SeqLockMode = "block";
             // Reload FUNC/SYS matrix from CSV so custom project additions aren't lost on reset
             // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
             ISO19650Validator.InvalidateValidatorCaches();
@@ -1563,6 +1581,13 @@ namespace StingTools.Core
                 if (AutoTaggerVisual.HasValue) data["AUTO_TAGGER_VISUAL"] = AutoTaggerVisual.Value;
                 else data["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled;
                 if (AutoTaggerStaleMarker.HasValue) data["AUTO_TAGGER_STALE_MARKER"] = AutoTaggerStaleMarker.Value;
+
+                // Tagging behaviour switches. This save rewrites the whole file, so a key it
+                // does not write is lost — these two were added 2026-09-29 (TAGACC-4 / -5).
+                data["RENUMBER_ON_OVERWRITE"] = RenumberOnOverwrite;
+                data["RETAG_MOVED_ELEMENTS"] = RetagMovedElements;
+                data["SEQ_LOCK_MODE"] = SeqLockMode;
+                data["AUTO_CORRECT_STATUS_FROM_PHASE"] = AutoCorrectStatusFromPhase;
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
                 string dir = Path.GetDirectoryName(path);
@@ -2552,6 +2577,9 @@ namespace StingTools.Core
             SkippedComplete,
             NotTaggable,
             Failed,
+            /// <summary>TAGACC-13: a new SEQ was needed but another user holds the counter;
+            /// retry after they synchronise. Not a fault.</summary>
+            Deferred,
         }
 
         /// <summary>Optional out-channel for <see cref="TagWriteOutcome"/>.</summary>
@@ -2562,7 +2590,8 @@ namespace StingTools.Core
             public bool IsDeliberateSkip =>
                 Outcome == TagWriteOutcome.SkippedComplete
                 || Outcome == TagWriteOutcome.AlreadyCurrent
-                || Outcome == TagWriteOutcome.NotTaggable;
+                || Outcome == TagWriteOutcome.NotTaggable
+                || Outcome == TagWriteOutcome.Deferred;
         }
 
         public static bool BuildAndWriteTag(Document doc, Element el,
@@ -2944,6 +2973,27 @@ namespace StingTools.Core
                     seqReassigned = true;
                     StingLog.Warn($"Element {el.Id}: stored SEQ '{storedSeq}' would duplicate tag '{candidate}' — allocating a new SEQ");
                     stats?.RecordWarning($"Element {el.Id}: SEQ {storedSeq} duplicated an existing tag — re-sequenced");
+                }
+            }
+
+            // TAGACC-13: a NEW number may only be handed out while this user holds the
+            // model's SEQ counter (worksharing lock). An element that keeps its stored SEQ
+            // never reaches here.
+            if (seq == null && !StingTools.Core.Storage.StingSeqLockStore.AllocationAllowed(doc, out string lockReason))
+            {
+                if (string.Equals(SeqLockMode, "warn", StringComparison.OrdinalIgnoreCase))
+                {
+                    StingLog.WarnRateLimited("SeqLockWarn",
+                        $"Allocating SEQ without the worksharing lock ({lockReason}); duplicates are repaired after sync.");
+                }
+                else
+                {
+                    StingLog.WarnRateLimited("SeqLockBlocked",
+                        $"No new sequence numbers: {lockReason}. Elements needing one are deferred.");
+                    stats?.RecordTokenRefusal("SEQ deferred — " + lockReason, el.Id?.Value ?? -1);
+                    RestoreOwnTag();
+                    report?.Set(TagWriteOutcome.Deferred);
+                    return false;
                 }
             }
 

@@ -861,7 +861,7 @@ namespace StingTools.BIMManager
 
                 // A — resolve the element's MEP system ONCE (used by both tagged + untagged
                 // entries). Non-MEP elements → empty SYS (they just won't colour by System).
-                var catName = el.Category?.Name ?? "";
+                var catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 var (mepSys, sysClass, sysName, isMep) = ResolveMepSystem(el, catName);
                 if (!string.IsNullOrEmpty(mepSys))
                 {
@@ -894,10 +894,10 @@ namespace StingTools.BIMManager
                     var untaggedEntry = new JObject
                     {
                         ["name"]      = el.Name ?? "",
-                        ["category"]  = el.Category?.Name ?? "",
+                        ["category"]  = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                         // M3 — derive a discipline from the Revit category so the viewer's
                         // BY DISCIPLINE / colour-by-discipline work on as-built (untagged) models.
-                        ["discipline"] = DeriveDisciplineFromCategory(el.Category?.Name ?? ""),
+                        ["discipline"] = DeriveDisciplineFromCategory(global::StingTools.Core.ParameterHelpers.GetCategoryName(el)),
                         ["level"]     = lvlOnly,
                         // A — MEP system (resolved from Revit's MEPSystem at export, since
                         // untagged/as-built elements carry no ASS_SYSTEM_TYPE_TXT token).
@@ -928,9 +928,9 @@ namespace StingTools.BIMManager
                 {
                     ["tag"]        = tag ?? "",
                     ["name"]       = el.Name ?? "",
-                    ["category"]   = el.Category?.Name ?? "",
+                    ["category"]   = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                     // Fall back to a category-derived discipline if the DISC token is blank.
-                    ["discipline"] = string.IsNullOrWhiteSpace(disc) ? DeriveDisciplineFromCategory(el.Category?.Name ?? "") : disc,
+                    ["discipline"] = string.IsNullOrWhiteSpace(disc) ? DeriveDisciplineFromCategory(global::StingTools.Core.ParameterHelpers.GetCategoryName(el)) : disc,
                     ["location"]   = loc,
                     ["zone"]       = zone,
                     ["level"]      = lvl,

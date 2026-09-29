@@ -236,7 +236,7 @@ namespace StingTools.Core.Cad.Mep
                 foreach (var fs in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
                 {
                     if (fs.Category == null ||
-                        !string.Equals(fs.Category.Name, category, StringComparison.OrdinalIgnoreCase)) continue;
+                        !string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), category, StringComparison.OrdinalIgnoreCase)) continue;
                     if (first == null) first = fs;
                     if (famRx != null && !famRx.IsMatch(fs.Family?.Name ?? "")) continue;
                     if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;

@@ -1856,7 +1856,8 @@ namespace StingTools.Core
                     if (deptParam != null)
                     {
                         string dept = deptParam.AsString() ?? "";
-                        string zone = ParseZoneCode(dept);
+                        // TAGACC-15: a Department that IS a declared code wins at any length.
+                        string zone = SpatialNameCodes.ZoneFromDepartment(dept, TagConfig.ZoneCodes);
                         if (!string.IsNullOrEmpty(zone)) return zone;
                     }
 

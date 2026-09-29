@@ -155,7 +155,7 @@ namespace StingTools.Mcp
                 var rows = page.Select(el => (object)new Dictionary<string, object>
                 {
                     ["id"]        = el.Id.Value,
-                    ["category"]  = el.Category?.Name ?? "",
+                    ["category"]  = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                     ["family"]    = SafeFamily(el),
                     ["type"]      = SafeType(el),
                     ["keyParams"] = BuildKeyParams(doc, el, filters),
@@ -210,7 +210,7 @@ namespace StingTools.Mcp
                 var data = new Dictionary<string, object>
                 {
                     ["id"]         = el.Id.Value,
-                    ["category"]   = el.Category?.Name ?? "",
+                    ["category"]   = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                     ["family"]     = SafeFamily(el),
                     ["type"]       = SafeType(el),
                     ["name"]       = SafeName(el),
@@ -221,7 +221,7 @@ namespace StingTools.Mcp
                     ["parameters"] = allParams,
                 };
                 return McpJobResult.Success(
-                    $"Element {el.Id.Value} — {el.Category?.Name}: {SafeFamily(el)} / {SafeType(el)} ({allParams.Count} params).",
+                    $"Element {el.Id.Value} — {global::StingTools.Core.ParameterHelpers.GetCategoryName(el)}: {SafeFamily(el)} / {SafeType(el)} ({allParams.Count} params).",
                     data);
             }).ToCallResult();
         }

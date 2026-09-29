@@ -136,7 +136,7 @@ namespace StingTools.Commands.Baseline
 
             foreach (var s in Collect<FamilySymbol>(doc))
             {
-                string cat = s.Category?.Name;
+                string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(s);
                 if (string.IsNullOrWhiteSpace(cat)) continue;
                 if (!inv.FamilyTypesByCategory.TryGetValue(cat, out var list))
                     inv.FamilyTypesByCategory[cat] = list = new List<string>();
@@ -391,7 +391,7 @@ namespace StingTools.Commands.Baseline
                 return new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol))
                     .Cast<FamilySymbol>()
                     .FirstOrDefault(s =>
-                        string.Equals(s.Category?.Name, category, StringComparison.OrdinalIgnoreCase)
+                        string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(s), category, StringComparison.OrdinalIgnoreCase)
                         && string.Equals(SafeFamily(s), familyName, StringComparison.OrdinalIgnoreCase));
             }
             catch (Exception ex) { StingLog.Warn("FirstSymbolOf: " + ex.Message); return null; }

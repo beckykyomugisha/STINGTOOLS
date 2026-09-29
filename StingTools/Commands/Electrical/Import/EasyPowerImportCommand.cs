@@ -214,7 +214,7 @@ namespace StingTools.Commands.Electrical.Import
             var param = el.LookupParameter(p);
             if (param == null)
             {
-                if (w.Count < 20) w.Add($"{p} is not bound on {el.Category?.Name} — run Load Params");
+                if (w.Count < 20) w.Add($"{p} is not bound on {global::StingTools.Core.ParameterHelpers.GetCategoryName(el)} — run Load Params");
                 return false;
             }
             if (ParameterHelpers.SetString(el, p, v, overwrite: true)) return true;

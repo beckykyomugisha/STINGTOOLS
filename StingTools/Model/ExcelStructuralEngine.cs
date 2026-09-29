@@ -1293,7 +1293,7 @@ namespace StingTools.Model
                     foreach (var el in new FilteredElementCollector(ctx.Doc).OfCategory(bic)
                         .WhereElementIsNotElementType().ToList())
                     {
-                        ws.Cell(row, 1).Value = el.Category?.Name ?? "";
+                        ws.Cell(row, 1).Value = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                         ws.Cell(row, 2).Value = ParameterHelpers.GetFamilyName(el);
                         ws.Cell(row, 3).Value = ParameterHelpers.GetFamilySymbolName(el);
                         ws.Cell(row, 4).Value = ParameterHelpers.GetString(el, ParamRegistry.LVL);
@@ -1348,7 +1348,7 @@ namespace StingTools.Model
             sb.AppendLine("AUTO REBAR DESIGN (EC2 BS EN 1992-1-1)\n");
             foreach (var el in selected)
             {
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 if (catName.Contains("Framing") || catName.Contains("Beam"))
                 {
                     // Get span from element length

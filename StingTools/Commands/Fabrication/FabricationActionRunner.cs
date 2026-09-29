@@ -153,7 +153,7 @@ namespace StingTools.Commands.Fabrication
                 rows.Add(new WeldMapRow
                 {
                     ElementId = id.Value,
-                    Category  = el.Category?.Name ?? "",
+                    Category  = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                     Name      = nm,
                     WeldType  = type,
                 });
@@ -308,7 +308,7 @@ namespace StingTools.Commands.Fabrication
                 rows.Add(new MajFabRow
                 {
                     ElementId   = id.Value,
-                    Category    = el.Category?.Name ?? "",
+                    Category    = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                     ServiceName = StingTools.Core.Mep.ServiceSystemName.Read(el),
                     PartName    = el.Name ?? "",
                 });

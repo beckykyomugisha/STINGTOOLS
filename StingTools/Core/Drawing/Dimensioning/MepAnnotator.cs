@@ -111,7 +111,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                     var cref = lc.Curve.Reference ?? new Reference(mc);
 
                     var verdict = TryPlaceSpotSlope(doc, view, cref, mid, bend, end, slopeTypeId,
-                        $"{mc.Category?.Name} {mc.Id}", result);
+                        $"{global::StingTools.Core.ParameterHelpers.GetCategoryName(mc)} {mc.Id}", result);
                     if (verdict == SlopePlacement.Blocked) return;   // same answer for every run in the view
                     if (verdict != SlopePlacement.Placed) continue;
                     result.SpotsPlaced++;
@@ -629,7 +629,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                     var end  = origin + new XYZ(2.0, 1.0, 0);
 
                     var verdict = TryPlaceSpotSlope(doc, view, new Reference(el), origin, bend, end, slopeTypeId,
-                        $"{el.Category?.Name} {el.Id}", result);
+                        $"{global::StingTools.Core.ParameterHelpers.GetCategoryName(el)} {el.Id}", result);
                     if (verdict == SlopePlacement.Blocked) return;
                     if (verdict != SlopePlacement.Placed) continue;
                     result.SpotsPlaced++;

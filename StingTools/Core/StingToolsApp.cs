@@ -693,6 +693,9 @@ namespace StingTools.Core
                 // are in the model: rebuild the index (the auto-tagger's cached counters are
                 // stale too) and find every element holding a tag an older element holds.
                 StingAutoTagger.InvalidateContext();
+                // TAGACC-13: the sync relinquished the SEQ counter; forget the cached answer
+                // so the index build below borrows it afresh (and sees others' numbers).
+                StingTools.Core.Storage.StingSeqLockStore.Invalidate(doc);
                 var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 var duplicateIds = TagConfig.DuplicateHoldersFor(tagIndex);
                 if (duplicateIds.Count > 0)

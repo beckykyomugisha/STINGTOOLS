@@ -3840,7 +3840,7 @@ namespace StingTools.Temp
                 .WhereElementIsNotElementType()
                 .Where(e => e.Category != null && !string.IsNullOrEmpty(e.Category.Name)))
             {
-                string catName = el.Category.Name;
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 if (!catCounts.TryGetValue(catName, out int ccVal))
                 {
                     try
@@ -4162,7 +4162,7 @@ namespace StingTools.Temp
                     switch (paramName)
                     {
                         case "Category":
-                            value = el.Category?.Name ?? "";
+                            value = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                             break;
                         case "Family":
                             value = ParameterHelpers.GetFamilyName(el);
@@ -5580,7 +5580,7 @@ namespace StingTools.Temp
                 if (string.IsNullOrEmpty(ifcGuid)) continue;
                 total++;
 
-                string catName = el.Category?.Name ?? "";
+                string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 bool hasRequiredPsets = true;
 
                 foreach (var kv in RequiredPsets)

@@ -48,7 +48,7 @@ namespace StingTools.Core
                     var el = doc.GetElement(id);
                     if (el == null) continue;
 
-                    string catName = el.Category?.Name ?? "";
+                    string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
 
                     // INT-01: Acoustic check for walls
                     if (catName.Contains("Wall"))

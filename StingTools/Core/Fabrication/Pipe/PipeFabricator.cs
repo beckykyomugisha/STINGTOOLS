@@ -77,7 +77,7 @@ namespace StingTools.Core.Fabrication.Pipe
                 {
                     var el = doc.GetElement(id);
                     if (el == null) continue;
-                    string cat = el.Category?.Name ?? "";
+                    string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                     string nm = (el.Name ?? "").Replace(',', ';');
                     string type = nm.ToUpperInvariant().Contains("FIELD") ? "FIELD"
                                 : nm.ToUpperInvariant().Contains("SHOP") ? "SHOP" : "FIELD-FIT";

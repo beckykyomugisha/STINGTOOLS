@@ -120,7 +120,7 @@ namespace StingTools.UI
             {
                 foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
-                    string catName = el.Category?.Name ?? "";
+                    string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                     if (catSet.Count > 0 && !catSet.Contains(catName)) continue;
 
                     foreach (var r in gate.Rules)
