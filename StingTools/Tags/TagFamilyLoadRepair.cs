@@ -162,6 +162,20 @@ namespace StingTools.Tags
                                 (mirror == null ? (_mirrorError != null ? $"; {_mirrorError}" : "; no display mirror") : "") + ")");
                         }
                     }
+                    // ReplaceParameter leaves the old shared parameter element in the
+                    // family with its GUID and TEXT type, and Revit still refuses the
+                    // family over it. Remove every element still holding a conflicting GUID.
+                    foreach (var c in conflicts)
+                    {
+                        var orphan = SharedParameterElement.Lookup(famDoc, c.FamilyGuid);
+                        if (orphan == null) continue;
+                        try { famDoc.Delete(orphan.Id); }
+                        catch (Exception ex)
+                        {
+                            item.Repairs.Add($"{c.FamilyName}: Revit would not remove the old Text copy ({ex.Message})");
+                            StingLog.Warn($"LoadTagFamilies: '{famName}': deleting {c.FamilyName}: {ex.Message}");
+                        }
+                    }
                     if (tx.Commit() != TransactionStatus.Committed)
                     {
                         item.Blocked = "the parameter repair did not commit";

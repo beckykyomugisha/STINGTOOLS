@@ -25544,3 +25544,17 @@ every `GetString` read against the parameter's data type.
 - **Reporting.** Every family not in the project afterwards is listed with the reason, or
   with Revit's own text; a cancelled run keeps what already loaded.
 - Not run in Revit.
+
+#### Load Tag Families: remove the old Text copy left behind by ReplaceParameter (2026-09-29)
+
+- **Result of the group-and-isolate load in Revit:** 210 of 227 tag families loaded; 17
+  (Air Terminal, Analytical *, Areas, Duct, Cable Tray Fitting and others) were reported
+  "still conflicts after repair" with the same parameters listed before and after.
+- **Cause.** In those families the parameters are family parameters, repaired with
+  `FamilyManager.ReplaceParameter`. That swaps the label onto the Text mirror but leaves
+  the old `SharedParameterElement` in the family, still carrying the old GUID as Text, and
+  both the re-check and Revit's load see it.
+- **Fix.** After the replacements, every shared parameter element still holding a
+  conflicting GUID is deleted in the same transaction. One Revit refuses to delete is named
+  in the report.
+- Not run in Revit.
