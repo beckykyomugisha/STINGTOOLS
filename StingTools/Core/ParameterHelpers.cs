@@ -1064,6 +1064,20 @@ namespace StingTools.Core
                 // ordinals, "Level -1" below ground, and a passthrough that cannot contain the
                 // tag separator.
                 string name = lvl.Name ?? "";
+
+                // TAGACC-9: a level code the project declares in _BIM_COORD/spatial_codes.json
+                // wins over the naming rules. MatchLevel existed but nothing called it.
+                try
+                {
+                    var declared = SpatialCodeRegistry.MatchProjectLevel(lvl.Document, name);
+                    if (declared != null)
+                    {
+                        string dc = System.Text.RegularExpressions.Regex.Replace(declared.Code, @"[^A-Za-z0-9]", "").ToUpperInvariant();
+                        if (dc.Length > 0) return dc;
+                    }
+                }
+                catch (Exception regEx) { StingLog.WarnRateLimited("LevelCodeRegistry", $"Project level codes: {regEx.Message}"); }
+
                 string code = SpatialNameCodes.LevelCodeFromName(name, out bool passthrough);
                 if (code == "XX")
                     StingLog.Info($"GetLevelCode: level name '{name}' sanitized to empty, defaulting to XX");
@@ -1083,13 +1097,42 @@ namespace StingTools.Core
         {
             try
             {
-                return el.Category?.Name ?? string.Empty;
+                Category cat = el?.Category;
+                if (cat == null) return string.Empty;
+                string name = cat.Name ?? string.Empty;
+
+                // TAGACC-6: every tagging table is keyed on the ENGLISH display name, and
+                // Category.Name is localised ("Portes", "Gaines"), so a non-English Revit
+                // matched nothing and tagged nothing. When the localised name is not a known
+                // key, answer the English name the BuiltInCategory stands for. A no-op on an
+                // English install: the known name matches first.
+                var known = TagConfig.DiscMap;
+                if (known != null && name.Length > 0 && !known.ContainsKey(name))
+                {
+                    string english = EnglishCategoryName(cat, known);
+                    if (english != null) return english;
+                }
+                return name;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"GetCategoryName failed for element {el?.Id}: {ex.Message}");
                 return string.Empty;
             }
+        }
+
+        private static readonly ConcurrentDictionary<long, IReadOnlyList<string>> _englishCategoryCandidates =
+            new ConcurrentDictionary<long, IReadOnlyList<string>>();
+
+        private static string EnglishCategoryName(Category cat, Dictionary<string, string> known)
+        {
+            BuiltInCategory bic = cat.BuiltInCategory;
+            if (bic == BuiltInCategory.INVALID) return null;
+            var candidates = _englishCategoryCandidates.GetOrAdd((long)bic,
+                _ => CategoryEnglishNames.Candidates(bic.ToString()));
+            foreach (string c in candidates)
+                if (known.ContainsKey(c)) return c;
+            return null;
         }
 
         /// <summary>
@@ -1532,33 +1575,36 @@ namespace StingTools.Core
         /// Returns the default LOC code or empty string if uncertain.
         /// </summary>
         public static string DetectProjectLoc(Document doc)
+            => DetectProjectLocOrNull(doc) ?? PolicyFallback(doc, "LOC", "BLD1");
+
+        /// <summary>
+        /// The LOC Project Information actually names (BuildingName, then Name, then
+        /// Address), or null when it names none. TAGACC-3: DetectProjectLoc answered
+        /// "BLD1" when nothing was found, so the tagging context could not tell a project
+        /// that says BLD1 from one that says nothing — the token policy's LOC fallback was
+        /// unreachable and every unlocated element was silently filed under BLD1.
+        /// </summary>
+        public static string DetectProjectLocOrNull(Document doc)
         {
             try
             {
-                ProjectInfo info = doc.ProjectInformation;
-                if (info == null) return "BLD1";
+                ProjectInfo info = doc?.ProjectInformation;
+                if (info == null) return null;
 
-                // Check BuildingName parameter first
-                string buildingName = info.BuildingName ?? "";
-                string locFromName = ParseLocCode(buildingName, doc);
+                string locFromName = ParseLocCode(info.BuildingName ?? "", doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
-                // Check project name
-                string projName = info.Name ?? "";
-                locFromName = ParseLocCode(projName, doc);
+                locFromName = ParseLocCode(info.Name ?? "", doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
 
-                // Check address
-                string address = info.Address ?? "";
-                locFromName = ParseLocCode(address, doc);
+                locFromName = ParseLocCode(info.Address ?? "", doc);
                 if (!string.IsNullOrEmpty(locFromName)) return locFromName;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DetectProjectLoc: {ex.Message}");
             }
-
-            return "BLD1"; // Safe default
+            return null;
         }
 
         /// <summary>
@@ -1634,6 +1680,28 @@ namespace StingTools.Core
         /// token policy's fallback (TOKPOL-1: a detected project LOC still wins).</summary>
         public static string LocFallback(Document doc, string projectLoc)
             => !string.IsNullOrEmpty(projectLoc) ? projectLoc : PolicyFallback(doc, "LOC", "BLD1");
+
+        /// <summary>
+        /// The token policy's fallback for <paramref name="token"/>, or null when the policy
+        /// REFUSES it (fallback null, level not OPTIONAL). TAGACC-3: the derivation layer used
+        /// to write a legacy literal even then, so BuildAndWriteTag found the slot filled and
+        /// could never refuse. A caller that gets null leaves the parameter blank.
+        /// </summary>
+        public static string PolicyFallbackOrNull(Document doc, string token)
+        {
+            try
+            {
+                var res = TagTokenPolicy.Resolve(TagTokenPolicyRegistry.Get(doc), token, null);
+                if (res == null) return null;
+                if (res.Refused) return null;
+                return string.IsNullOrEmpty(res.Value) ? null : res.Value;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PolicyFallbackOrNull('{token}'): {ex.Message}");
+                return null;
+            }
+        }
 
         /// <summary>The ZONE for an element nothing zoned: the token policy's fallback.</summary>
         public static string ZoneFallback(Document doc)
@@ -1858,7 +1926,8 @@ namespace StingTools.Core
         /// Parse a string for ZONE code patterns (Z01-Z04, Zone 1-4 / A-D, Wing A-D,
         /// North/South/East/West), each as a whole token: "Zone 12" is not Z01.
         /// </summary>
-        private static string ParseZoneCode(string text) => SpatialNameCodes.ZoneFromText(text);
+        private static string ParseZoneCode(string text)
+            => SpatialNameCodes.ZoneFromText(text, TagConfig.ZoneCodes);   // TAGACC-9: project ZONE_CODES first
 
         /// <summary>
         /// Detect LOC from workset name patterns when room-based detection fails.
@@ -2459,7 +2528,9 @@ namespace StingTools.Core
                 return new PopulationContext
                 {
                     RoomIndex = SpatialAutoDetect.BuildRoomIndex(doc),
-                    ProjectLoc = SpatialAutoDetect.DetectProjectLoc(doc),
+                    // Null when Project Information names no LOC, so an unlocated element
+                    // reaches the token policy's fallback instead of a hardcoded BLD1.
+                    ProjectLoc = SpatialAutoDetect.DetectProjectLocOrNull(doc),
                     ProjectRev = PhaseAutoDetect.DetectProjectRevision(doc),
                     KnownCategories = new HashSet<string>(TagConfig.DiscMap.Keys),
                     CachedPhases = phases,
@@ -2765,10 +2836,34 @@ namespace StingTools.Core
                         }
                     }
 
-                    if (string.IsNullOrEmpty(loc)) loc = SpatialAutoDetect.LocFallback(doc, ctx?.ProjectLoc);
+                    // TAGACC-3: what an unlocated element gets is the token policy's decision
+                    // (Data/STING_TAG_TOKEN_POLICY.json, project override in _BIM_COORD), the
+                    // same one BuildAndWriteTag applies, so the two layers cannot disagree.
+                    // A LOC that Project Information names is still used first. A policy
+                    // that refuses LOC leaves the parameter blank, so BuildAndWriteTag
+                    // refuses the tag instead of finding a legacy BLD1 already written.
+                    bool locFromProject = false;
+                    if (string.IsNullOrEmpty(loc) && !locFromNeighbour)
+                    {
+                        if (!string.IsNullOrEmpty(ctx?.ProjectLoc))
+                        {
+                            loc = ctx.ProjectLoc;
+                            locFromProject = true;
+                        }
+                        else
+                        {
+                            loc = SpatialAutoDetect.PolicyFallbackOrNull(doc, "LOC");
+                            TagConfig.NoteUnresolvedLoc();
+                        }
+                    }
                     if (locFromNeighbour)
                     {
                         // LOC already inherited; the default below would be a no-op.
+                    }
+                    else if (string.IsNullOrEmpty(loc))
+                    {
+                        // Refused by the policy: blank, so the tag is refused and counted.
+                        if (overwrite) ParameterHelpers.SetString(el, ParamRegistry.LOC, "", overwrite: true);
                     }
                     else if (overwrite)
                     {
@@ -2783,7 +2878,7 @@ namespace StingTools.Core
                     // Track LOC detection source (Phase 67: Workset layer; Phase 192: ScopeBox layer)
                     string locSource = locFromScopeBox ? "ScopeBox"
                         : locFromSpatial ? "Room"
-                        : (!string.IsNullOrEmpty(ctx?.ProjectLoc) ? "ProjectInfo" : "Default");
+                        : locFromProject ? "ProjectInfo" : "Default";
                     // Phase 67: Override source if workset-detected (was marked locFromSpatial=true above)
                     // F-04: Reuse _cachedWsName from detection block above — no second GetWorkset() call needed
                     // Phase 192: a scope-box hit is authoritative — don't let the workset name re-tag it.
@@ -2842,8 +2937,13 @@ namespace StingTools.Core
                         ParameterHelpers.SetIfEmpty(el, ParamRegistry.ZONE_SOURCE, "Proximity");
                     }
 
-                    if (string.IsNullOrEmpty(zone)) zone = SpatialAutoDetect.ZoneFallback(doc);
-                    if (overwrite)
+                    // TAGACC-3: the policy's ZONE fallback, or blank when the policy refuses.
+                    if (string.IsNullOrEmpty(zone)) zone = SpatialAutoDetect.PolicyFallbackOrNull(doc, "ZONE");
+                    if (string.IsNullOrEmpty(zone))
+                    {
+                        if (overwrite) ParameterHelpers.SetString(el, ParamRegistry.ZONE, "", overwrite: true);
+                    }
+                    else if (overwrite)
                     {
                         if (ParameterHelpers.SetString(el, ParamRegistry.ZONE, zone, overwrite: true)) result.TokensSet++;
                     }
@@ -2861,9 +2961,15 @@ namespace StingTools.Core
 
             // LVL — deterministic from element level
             // Guaranteed default: replace unresolved "XX" with "L00" for levelless elements
+            // A levelless element takes the policy's LVL fallback (L00 in the baseline), or
+            // stays blank when a project refuses it — the hardcoded L00 made refusal impossible.
             string lvl = ParameterHelpers.GetLevelCode(doc, el);
-            if (lvl == "XX") lvl = "L00";
-            if (overwrite)
+            if (lvl == "XX") lvl = SpatialAutoDetect.PolicyFallbackOrNull(doc, "LVL");
+            if (string.IsNullOrEmpty(lvl))
+            {
+                if (overwrite) ParameterHelpers.SetString(el, ParamRegistry.LVL, "", overwrite: true);
+            }
+            else if (overwrite)
             {
                 if (ParameterHelpers.SetString(el, ParamRegistry.LVL, lvl, overwrite: true)) result.TokensSet++;
             }
@@ -3164,6 +3270,40 @@ namespace StingTools.Core
             catch (Exception ex) { StingLog.Warn($"BuildSpatialCandidateCache: {ex.Message}"); }
         }
 
+        /// <summary>TAGACC-11: vertical tolerance for "same floor" when either element has no level (about 1.5 m).</summary>
+        private const double SameFloorToleranceFt = 5.0;
+
+        /// <summary>
+        /// TAGACC-11: true when every value <paramref name="tokens"/> would copy from
+        /// <paramref name="neighbour"/> was derived for it rather than defaulted. LOC must
+        /// not come from "Default", "ProjectInfo" or "Proximity"; ZONE not from "Default" or
+        /// "Proximity"; SYS / FUNC not from the category or discipline fallback (detection
+        /// layer 6 or 7). An element tagged before sources were recorded (blank source,
+        /// layer 0) is accepted, as before.
+        /// </summary>
+        private static bool NeighbourValuesAreDerived(Element neighbour, string[] tokens)
+        {
+            foreach (string t in tokens)
+            {
+                if (t == ParamRegistry.LOC)
+                {
+                    string src = ParameterHelpers.GetString(neighbour, ParamRegistry.LOC_SOURCE);
+                    if (src == "Default" || src == "ProjectInfo" || src == "Proximity") return false;
+                }
+                else if (t == ParamRegistry.ZONE)
+                {
+                    string src = ParameterHelpers.GetString(neighbour, ParamRegistry.ZONE_SOURCE);
+                    if (src == "Default" || src == "Proximity") return false;
+                }
+                else if (t == ParamRegistry.SYS || t == ParamRegistry.FUNC)
+                {
+                    int layer = ParameterHelpers.GetInt(neighbour, ParamRegistry.SYS_DETECT_LAYER, 0);
+                    if (layer >= 6) return false;
+                }
+            }
+            return true;
+        }
+
         /// <summary>Invalidate spatial candidate cache (call after batch tagging completes).</summary>
         public static void InvalidateSpatialCache() { _spatialCandidateCache.Clear(); }
 
@@ -3201,6 +3341,24 @@ namespace StingTools.Core
 
                 double radiusFt = TagConfig.ProximityRadiusFt;
 
+                // TAGACC-11: a neighbour only counts when it is on the SAME level (this used
+                // a 3D distance, so the nearest tagged element could be on the floor above),
+                // distance is measured in plan, and the value to be copied was itself DERIVED
+                // for the neighbour — copying a neighbour's default (or its own proximity
+                // copy) propagated a guess while recording it as "Proximity".
+                ElementId elLevel = el.LevelId;
+                bool elHasLevel = elLevel != null && elLevel != ElementId.InvalidElementId;
+                double PlanDist(XYZ c) => Math.Sqrt((point.X - c.X) * (point.X - c.X) + (point.Y - c.Y) * (point.Y - c.Y));
+                bool Eligible(Element cand, XYZ cPoint)
+                {
+                    if (cand == null) return false;
+                    ElementId cl = cand.LevelId;
+                    bool cHasLevel = cl != null && cl != ElementId.InvalidElementId;
+                    if (elHasLevel && cHasLevel) { if (cl != elLevel) return false; }
+                    else if (Math.Abs(cPoint.Z - point.Z) > SameFloorToleranceFt) return false;
+                    return NeighbourValuesAreDerived(cand, tokensToCopy);
+                }
+
                 // Use pre-built spatial candidate cache for O(n) instead of O(n²).
                 // Falls back to candidatePool or collector if cache is empty.
                 Element nearest = null;
@@ -3219,8 +3377,8 @@ namespace StingTools.Core
                         if (cLoc is LocationPoint clp) cPoint = clp.Point;
                         else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
                         if (cPoint == null) continue;
-                        double dist = point.DistanceTo(cPoint);
-                        if (dist < minDist && dist <= radiusFt) { minDist = dist; nearest = candidate; }
+                        double dist = PlanDist(cPoint);
+                        if (dist < minDist && dist <= radiusFt && Eligible(candidate, cPoint)) { minDist = dist; nearest = candidate; }
                     }
                 }
                 else
@@ -3237,8 +3395,9 @@ namespace StingTools.Core
                             // Cache already pre-filters to tagged elements (line 1910),
                             // but guard against stale cache with empty TAG1
                             if (string.IsNullOrEmpty(cTag1)) continue;
-                            double dist = point.DistanceTo(cCenter);
-                            if (dist < minDist && dist <= radiusFt) { minDist = dist; nearestId = cId; }
+                            double dist = PlanDist(cCenter);
+                            if (dist < minDist && dist <= radiusFt && Eligible(doc.GetElement(cId), cCenter))
+                            { minDist = dist; nearestId = cId; }
                         }
                         if (nearestId != null) nearest = doc.GetElement(nearestId);
                     }
@@ -3258,8 +3417,8 @@ namespace StingTools.Core
                             if (cLoc is LocationPoint clp) cPoint = clp.Point;
                             else if (cLoc is LocationCurve clc) cPoint = clc.Curve.Evaluate(0.5, true);
                             if (cPoint == null) continue;
-                            double dist = point.DistanceTo(cPoint);
-                            if (dist < minDist && dist <= radiusFt) { minDist = dist; nearest = candidate; }
+                            double dist = PlanDist(cPoint);
+                            if (dist < minDist && dist <= radiusFt && Eligible(candidate, cPoint)) { minDist = dist; nearest = candidate; }
                         }
                     }
                 }
@@ -3433,7 +3592,7 @@ namespace StingTools.Core
             written += MapMepParams(el);
 
             // ── WARN-XS: Warning-activation dimensional parameter mappings ────
-            string catNameW = el.Category?.Name ?? "";
+            string catNameW = ParameterHelpers.GetCategoryName(el);
             string catUpperW = catNameW.ToUpperInvariant();
             const double ftToMmW = 304.8;
 
@@ -3477,7 +3636,7 @@ namespace StingTools.Core
         private static int MapDimensionalParams(Element el)
         {
             int written = 0;
-            string catName = (el.Category?.Name ?? "");
+            string catName = ParameterHelpers.GetCategoryName(el);
 
             const double ftToMm = 304.8;
             const double sqFtToSqM = 0.092903;
@@ -3626,14 +3785,14 @@ namespace StingTools.Core
 
         private static bool IsBipKnownMissing(Element el, BuiltInParameter bip)
         {
-            string catKey = el.Category?.Name ?? "";
+            string catKey = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catKey)) return false;
             return _bipMissingByCategory.TryGetValue(catKey, out var missing) && missing.ContainsKey(bip);
         }
 
         private static void MarkBipMissing(Element el, BuiltInParameter bip)
         {
-            string catKey = el.Category?.Name ?? "";
+            string catKey = ParameterHelpers.GetCategoryName(el);
             if (string.IsNullOrEmpty(catKey)) return;
             var set = _bipMissingByCategory.GetOrAdd(catKey, _ => new System.Collections.Concurrent.ConcurrentDictionary<BuiltInParameter, byte>());
             set.TryAdd(bip, 0);
@@ -4890,7 +5049,7 @@ namespace StingTools.Core
         {
             const double ftToMm = 304.8;
             int written = 0;
-            string catName = (el.Category?.Name ?? "");
+            string catName = ParameterHelpers.GetCategoryName(el);
             string catUpper = catName.ToUpperInvariant();
 
             // ── Electrical Equipment & Fixtures ────────────────────────────────
@@ -5323,16 +5482,32 @@ namespace StingTools.Core
             // it would be spent on the first messy model and every later run would
             // log nothing — silence being the exact failure mode G-5 removed.
             Temp.FormulaEngine.ResetWarnBudget();
-            // F-2: report, then reset, the count of elements whose LOC could not be
-            // derived. These now carry XX instead of being absorbed into the first
-            // building code — the count is the only visible trace, so it must be said.
+            // F-2 / TAGACC-3: report, then reset, the count of elements whose LOC nothing
+            // could establish. They carry the token policy's LOC fallback — the count is the
+            // only visible trace, so it must be said.
             int unresolvedLoc = TagConfig.UnresolvedLocCount;
             if (unresolvedLoc > 0)
-                StingLog.Warn($"{commandName}: {unresolvedLoc} element(s) had no derivable LOC and were "
-                            + "tagged XX. Previously these were filed under the first building code, "
-                            + "inflating it. Set ASS_LOC_TXT, or accept XX as 'location not established'.");
+                StingLog.Warn($"{commandName}: {unresolvedLoc} element(s) had no derivable LOC (no room, "
+                            + "scope box, workset, neighbour or Project Information code) and took the "
+                            + "tag token policy's LOC fallback. Set ASS_LOC_TXT, add STING-LOC:: scope "
+                            + "boxes, or set the LOC fallback in _BIM_COORD/tag_token_policy.json "
+                            + "(\"XX\" to mark them, null to refuse them).");
             TagConfig.ResetUnresolvedLocCount();
             TagConfig.CheckComplianceGate(doc, commandName);
+        }
+
+        /// <summary>The token keys listed in ASS_TOKEN_LOCK_TXT, or null when none.</summary>
+        private static HashSet<string> ReadTokenLocks(Element el)
+        {
+            try
+            {
+                string s = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                if (string.IsNullOrWhiteSpace(s)) return null;
+                return new HashSet<string>(
+                    s.Split(',').Select(k => k.Trim()).Where(k => k.Length > 0),
+                    StringComparer.OrdinalIgnoreCase);
+            }
+            catch (Exception ex) { StingLog.Warn($"ReadTokenLocks on {el?.Id}: {ex.Message}"); return null; }
         }
 
         /// <summary>
@@ -5406,9 +5581,91 @@ namespace StingTools.Core
                 // runs regardless. NativeParamMapper + FormulaEngine + the
                 // BuildAndWriteTag / container / audit tail still run below
                 // so side-effect params (cost, carbon, grid-ref) stay fresh.
+                // TAGACC-1 / TAGACC-5: two reasons a COMPLETE tag must still be rebuilt.
+                bool prevComplete = TagConfig.TagIsComplete(_prevTag);
+                bool forceRebuild = false;
+                if (prevComplete)
+                {
+                    HashSet<string> locked = ReadTokenLocks(el);
+                    bool Unlocked(string key) => locked == null || !locked.Contains(key);
+
+                    if (TagConfig.IsDuplicateTagHolder(doc, tagIndex, _prevTag, el))
+                    {
+                        // A copy (copy / paste / array / mirror copy instance parameters):
+                        // its LVL / LOC / ZONE describe where the SOURCE is and its SEQ is the
+                        // source's. Clear them so they are derived for this element and a new
+                        // number is allocated. Locked tokens are kept.
+                        if (Unlocked("LVL")) ParameterHelpers.SetString(el, ParamRegistry.LVL, "", overwrite: true);
+                        if (Unlocked("LOC"))
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.LOC, "", overwrite: true);
+                            ParameterHelpers.SetString(el, ParamRegistry.LOC_SOURCE, "", overwrite: true);
+                        }
+                        if (Unlocked("ZONE"))
+                        {
+                            ParameterHelpers.SetString(el, ParamRegistry.ZONE, "", overwrite: true);
+                            ParameterHelpers.SetString(el, ParamRegistry.ZONE_SOURCE, "", overwrite: true);
+                        }
+                        ParameterHelpers.SetString(el, ParamRegistry.SEQ, "", overwrite: true);
+                        long dupLvlId = el.LevelId?.Value ?? -1;
+                        if (dupLvlId > 0 && dupLvlId <= int.MaxValue)
+                            ParameterHelpers.SetInt(el, ParamRegistry.LVL_ELEM_ID, (int)dupLvlId, overwrite: true);
+                        forceRebuild = true;
+                    }
+                    else if (TagConfig.RetagMovedElements)
+                    {
+                        // A moved element: LVL follows a change of host level (recorded in
+                        // LVL_ELEM_ID when the element was tagged); LOC / ZONE are checked only
+                        // when the stale marker has flagged the element, and only a POSITIVE
+                        // detection that disagrees replaces them. Type overrides and locks win.
+                        try
+                        {
+                            long curLvlId = el.LevelId?.Value ?? -1;
+                            int taggedLvlId = ParameterHelpers.GetInt(el, ParamRegistry.LVL_ELEM_ID, 0);
+                            if (taggedLvlId > 0 && curLvlId > 0 && curLvlId <= int.MaxValue
+                                && taggedLvlId != curLvlId && Unlocked("LVL"))
+                            {
+                                ParameterHelpers.SetString(el, ParamRegistry.LVL, "", overwrite: true);
+                                ParameterHelpers.SetInt(el, ParamRegistry.LVL_ELEM_ID, (int)curLvlId, overwrite: true);
+                                forceRebuild = true;
+                            }
+
+                            if (ParameterHelpers.GetInt(el, ParamRegistry.STALE, 0) == 1)
+                            {
+                                if (Unlocked("LOC")
+                                    && ParameterHelpers.GetString(el, ParamRegistry.LOC_SOURCE) != "TYPE_OVERRIDE")
+                                {
+                                    string nowLoc = SpatialAutoDetect.DetectLocSpatial(doc, el, ctx?.RoomIndex);
+                                    if (!string.IsNullOrEmpty(nowLoc)
+                                        && !nowLoc.Equals(ParameterHelpers.GetString(el, ParamRegistry.LOC), StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        ParameterHelpers.SetString(el, ParamRegistry.LOC, "", overwrite: true);
+                                        ParameterHelpers.SetString(el, ParamRegistry.LOC_SOURCE, "", overwrite: true);
+                                        forceRebuild = true;
+                                    }
+                                }
+                                if (Unlocked("ZONE")
+                                    && ParameterHelpers.GetString(el, ParamRegistry.ZONE_SOURCE) != "TYPE_OVERRIDE")
+                                {
+                                    string nowZone = SpatialAutoDetect.DetectZoneSpatial(doc, el, ctx?.RoomIndex);
+                                    if (!string.IsNullOrEmpty(nowZone)
+                                        && !nowZone.Equals(ParameterHelpers.GetString(el, ParamRegistry.ZONE), StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        ParameterHelpers.SetString(el, ParamRegistry.ZONE, "", overwrite: true);
+                                        ParameterHelpers.SetString(el, ParamRegistry.ZONE_SOURCE, "", overwrite: true);
+                                        forceRebuild = true;
+                                    }
+                                }
+                            }
+                        }
+                        catch (Exception mvEx) { StingLog.Warn($"TagPipeline moved-element check on {el.Id}: {mvEx.Message}"); }
+                    }
+                }
+
                 bool skipDerivation = !overwrite
                     && skipComplete
-                    && TagConfig.TagIsComplete(_prevTag);
+                    && prevComplete
+                    && !forceRebuild;
 
                 Dictionary<string, string> lockedSnapshot = null;
 
@@ -5584,7 +5841,8 @@ namespace StingTools.Core
                     lastPhaseId: ctx?.LastPhaseId,
                     prevTagHint: _prevTag,
                     tokenValuesOut: tokenVals,
-                    report: tagReport);
+                    report: tagReport,
+                    forceRebuild: forceRebuild);
                 if (!tagWriteOk)
                 {
                     if (!tagReport.IsDeliberateSkip)
@@ -5592,6 +5850,13 @@ namespace StingTools.Core
                     // Phase 79b: Balanced hook call — notify plugins that tagging failed (null tag)
                     StingPluginHooks.FireAfterTag(doc, el, null);
                     return false;
+                }
+
+                // TAGACC-5: the move has been taken into the tag; the element is current again.
+                if (forceRebuild)
+                {
+                    try { ParameterHelpers.SetInt(el, ParamRegistry.STALE, 0, overwrite: true); }
+                    catch (Exception stEx) { StingLog.Warn($"TagPipeline stale clear on {el.Id}: {stEx.Message}"); }
                 }
 
                 // Write ALL audit trail AFTER successful tag change only

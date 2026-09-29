@@ -19,6 +19,103 @@ namespace StingTools.Core
 {
     public static partial class TagConfig
     {
+        // ── TAGACC-1: which element OWNS each tag ───────────────────────────
+        //
+        // Revit copies instance parameters on copy / paste / array / mirror, so a copy
+        // arrives holding its source's complete tag, SEQ and TAG_PREV. The index is a
+        // HashSet: it records that the tag exists, not that two elements hold it, so every
+        // non-overwrite run skipped the copy as "already tagged" and the duplicate stayed.
+        //
+        // The owner of a tag is the lowest ElementId holding it — the original, since a
+        // copy always gets a newer id. Any other holder is re-sequenced when tagged. The
+        // map rides alongside the index (keyed on the HashSet instance) so no call site of
+        // BuildAndWriteTag had to change.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<HashSet<string>, Dictionary<string, long>>
+            _tagOwners = new System.Runtime.CompilerServices.ConditionalWeakTable<HashSet<string>, Dictionary<string, long>>();
+
+        /// <summary>Record <paramref name="id"/> as holding <paramref name="tag"/>; true when
+        /// another element already held it (this one or the previous owner is a duplicate).</summary>
+        private static bool NoteTagOwner(Dictionary<string, long> owners, string tag, long id,
+            HashSet<long> duplicateHolders = null)
+        {
+            if (owners.TryGetValue(tag, out long cur))
+            {
+                // The newer of the two is the copy; the older keeps (or takes) the tag.
+                duplicateHolders?.Add(Math.Max(id, cur));
+                if (id < cur) owners[tag] = id;
+                return true;
+            }
+            owners[tag] = id;
+            return false;
+        }
+
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<HashSet<string>, HashSet<long>>
+            _duplicateHolders = new System.Runtime.CompilerServices.ConditionalWeakTable<HashSet<string>, HashSet<long>>();
+
+        private static void RegisterTagOwners(HashSet<string> index, Dictionary<string, long> owners,
+            HashSet<long> duplicateHolders = null)
+        {
+            if (index == null || owners == null) return;
+            try
+            {
+                _tagOwners.Remove(index); _tagOwners.Add(index, owners);
+                _duplicateHolders.Remove(index);
+                if (duplicateHolders != null) _duplicateHolders.Add(index, duplicateHolders);
+            }
+            catch (Exception ex) { StingLog.Warn($"RegisterTagOwners: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// TAGACC-1 / TAGACC-2: ElementIds of the elements that, when the index was built,
+        /// held a tag an older element also held (copies, or two users who tagged before
+        /// syncing). Tagging each one re-sequences it. Empty for an index built elsewhere.
+        /// </summary>
+        public static IReadOnlyCollection<long> DuplicateHoldersFor(HashSet<string> index)
+            => index != null && _duplicateHolders.TryGetValue(index, out var ids)
+                ? (IReadOnlyCollection<long>)ids : Array.Empty<long>();
+
+        /// <summary>Owner map for an index built by BuildTagIndexAndCounters /
+        /// BuildExistingTagIndex, or null for an index built some other way.</summary>
+        internal static Dictionary<string, long> TagOwnersFor(HashSet<string> index)
+            => index != null && _tagOwners.TryGetValue(index, out var map) ? map : null;
+
+        /// <summary>
+        /// TAGACC-1: true when <paramref name="el"/> holds <paramref name="tag"/> but another,
+        /// older element that still exists holds the same tag — a copy. When the recorded
+        /// owner is gone or no longer holds the tag, this element takes ownership, so the
+        /// next remaining holder is the one treated as the duplicate.
+        /// </summary>
+        public static bool IsDuplicateTagHolder(Document doc, HashSet<string> index, string tag, Element el)
+        {
+            if (doc == null || el == null || string.IsNullOrEmpty(tag)) return false;
+            var owners = TagOwnersFor(index);
+            if (owners == null) return false;
+            long me = el.Id.Value;
+            if (!owners.TryGetValue(tag, out long owner)) { owners[tag] = me; return false; }
+            if (owner == me) return false;
+            try
+            {
+                Element ownerEl = doc.GetElement(new ElementId(owner));
+                if (ownerEl != null && ownerEl.IsValidObject
+                    && string.Equals(ParameterHelpers.GetString(ownerEl, ParamRegistry.TAG1), tag, StringComparison.Ordinal))
+                    return true;
+            }
+            catch (Exception ex) { StingLog.Warn($"IsDuplicateTagHolder owner check: {ex.Message}"); }
+            owners[tag] = me;
+            return false;
+        }
+
+        /// <summary>Record the element that now holds a freshly written tag.</summary>
+        internal static void ClaimTag(HashSet<string> index, string newTag, string oldTag, long id)
+        {
+            var owners = TagOwnersFor(index);
+            if (owners == null) return;
+            if (!string.IsNullOrEmpty(oldTag) && owners.TryGetValue(oldTag, out long o) && o == id)
+                owners.Remove(oldTag);
+            if (!string.IsNullOrEmpty(newTag) && !owners.ContainsKey(newTag))
+                owners[newTag] = id;
+        }
+
         /// <summary>
         /// Build a HashSet of all existing ASS_TAG_1_TXT values in the project.
         /// Call once before a batch tagging loop and pass to BuildAndWriteTag
@@ -42,13 +139,21 @@ namespace StingTools.Core
             {
                 collector = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             }
+            var owners = new Dictionary<string, long>(StringComparer.Ordinal);
+            var dupIds = new HashSet<long>();
+            int duplicateHolders = 0;
             foreach (Element elem in collector)
             {
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag))
+                {
                     index.Add(tag);
+                    if (NoteTagOwner(owners, tag, elem.Id.Value, dupIds)) duplicateHolders++;
+                }
             }
-            StingLog.Info($"Tag index built: {index.Count} existing tags");
+            RegisterTagOwners(index, owners, dupIds);
+            StingLog.Info($"Tag index built: {index.Count} existing tags"
+                        + (duplicateHolders > 0 ? $", {duplicateHolders} element(s) holding a tag another element also holds" : ""));
             return index;
         }
 
@@ -142,11 +247,17 @@ namespace StingTools.Core
                 elements = new FilteredElementCollector(doc).WhereElementIsNotElementType();
             }
 
+            var owners = new Dictionary<string, long>(StringComparer.Ordinal);
+            var dupIds = new HashSet<long>();
+            int duplicateHolders = 0;
             foreach (Element elem in elements)
             {
                 string tag = ParameterHelpers.GetString(elem, ParamRegistry.TAG1);
                 if (!string.IsNullOrEmpty(tag))
+                {
                     index.Add(tag);
+                    if (NoteTagOwner(owners, tag, elem.Id.Value, dupIds)) duplicateHolders++;
+                }
 
                 string cat = ParameterHelpers.GetCategoryName(elem);
                 if (!known.Contains(cat)) continue;
@@ -181,7 +292,11 @@ namespace StingTools.Core
                 }
             }
 
-            StingLog.Info($"Tag index built: {index.Count} existing tags, {maxSeq.Count} SEQ groups");
+            RegisterTagOwners(index, owners, dupIds);
+            StingLog.Info($"Tag index built: {index.Count} existing tags, {maxSeq.Count} SEQ groups"
+                        + (duplicateHolders > 0
+                            ? $"; {duplicateHolders} element(s) hold a tag another element also holds and will be re-sequenced when tagged"
+                            : ""));
 
             // P6 / G3.1: Merge sidecar counters — take max(doc_count, sidecar_count) per key
             try

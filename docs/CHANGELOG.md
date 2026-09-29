@@ -2,6 +2,44 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-1..11: the open tagging-accuracy findings, 2026-09-29)
+
+Closes every finding the tagging review left open (ROADMAP "Tagging accuracy").
+
+- **TAGACC-1 copies.** `BuildTagIndexAndCounters` / `BuildExistingTagIndex` record which
+  element owns each tag (the lowest ElementId) alongside the index. A complete tag held by a
+  newer element while the owner still holds it is a copy: `RunFullPipeline` clears its LVL /
+  LOC / ZONE (locked tokens kept) and SEQ, and `BuildAndWriteTag` gives it a new SEQ in every
+  collision mode, leaving the owner's tag in the collision index. Previously every run skipped
+  the copy as complete.
+- **TAGACC-2 worksharing.** After each sync to central the index is rebuilt; duplicate holders
+  are re-sequenced at once when the auto-tagger is on (elements owned by others skipped), or
+  reported in a dialog with the fix. The auto-tagger context is invalidated so its SEQ counters
+  include the other users' numbers.
+- **TAGACC-3 one fallback.** `PopulateAll` and `BuildAndWriteTag` both follow
+  `STING_TAG_TOKEN_POLICY.json` for LOC, ZONE and LVL. `DetectProjectLocOrNull` stops treating
+  "nothing found" as BLD1. A null policy fallback leaves the token blank and the tag refused.
+  The unresolved-LOC count is reported after each run; default counts use the recorded source.
+- **TAGACC-4 stable numbers.** Overwrite keeps each element's SEQ (normalised to the current pad)
+  where still unique; `RENUMBER_ON_OVERWRITE` restores renumbering. The format migration no
+  longer renumbers either.
+- **TAGACC-5 moved elements.** A change of host level (against `ASS_LVL_ELEM_ID_INT`), or a stale
+  flag with a room that now names another LOC / ZONE, re-derives those tokens and rebuilds the
+  tag, keeping the SEQ if unique; the stale flag is cleared. `RETAG_MOVED_ELEMENTS = false` opts out.
+- **TAGACC-6 localised Revit.** `GetCategoryName` returns the English name for the
+  `BuiltInCategory` when the localised name is not a known key (`Core/CategoryEnglishNames.cs`);
+  direct `Category.Name` reads in the tagging core use it.
+- **TAGACC-7 / 8 SYS.** Primary connector, then the category's domain, then non-auxiliary
+  service. Hydronic systems with a fluid temperature ≤ 15 °C are CHW, not HWS.
+- **TAGACC-9 / 10 codes.** Project `ZONE_CODES` and project level codes
+  (`_BIM_COORD/spatial_codes.json`) are recognised first. "Level 1a" → L01A, "Mezzanine 2" → MZ2,
+  "Roof Plant" → RFP, "Roof 2" → RF2.
+- **TAGACC-11 proximity.** Same level, plan distance, and only neighbour values that were
+  themselves derived.
+- Tests: `SpatialNameCodesTests` extended, new `CategoryEnglishNamesTests`. **Not compiled or
+  run** (no .NET SDK in this environment; expectations checked against a Python port). The
+  Revit-bound behaviour is untested in Revit — ROADMAP TAGACC-12.
+
 #### Completed (tagging accuracy review, 2026-09-29)
 
 Deep review of the tagging pipeline for anything that stops a tag being right. Fixed here;

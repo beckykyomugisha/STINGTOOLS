@@ -860,7 +860,7 @@ namespace StingTools.Core
                                         && !(doc.ActiveView is ViewSheet))
                                     {
                                         var concept = StingTools.Core.Symbols.SymbolConceptRegistry
-                                            .GetConceptsForCategory(el.Category?.Name)
+                                            .GetConceptsForCategory(ParameterHelpers.GetCategoryName(el))
                                             .FirstOrDefault();
                                         if (concept != null)
                                         {

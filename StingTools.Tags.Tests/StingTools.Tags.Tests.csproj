@@ -125,6 +125,8 @@
     <!-- LVL / ZONE / LOC codes read from level, room and workset names (tagging accuracy
          review 2026-09-29). Revit-free; SpatialAutoDetect and GetLevelCodeForLevel call it. -->
     <Compile Include="..\StingTools\Core\SpatialNameCodes.cs" Link="Core\SpatialNameCodes.cs" />
+    <!-- TAGACC-6: English category names for a localised Revit. Revit-free. -->
+    <Compile Include="..\StingTools\Core\CategoryEnglishNames.cs" Link="Core\CategoryEnglishNames.cs" />
     <Compile Include="..\StingTools\Core\TierGateScope.cs" Link="Core\TierGateScope.cs" />
     <Compile Include="..\StingTools\Core\Content\TagLibraryPromotion.cs" Link="Core\Content\TagLibraryPromotion.cs" />
     <Compile Include="..\StingTools\Commands\TagStudio\RevitBackupSweeper.cs" Link="Commands\TagStudio\RevitBackupSweeper.cs" />

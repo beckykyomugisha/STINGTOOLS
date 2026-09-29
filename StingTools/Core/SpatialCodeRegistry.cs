@@ -46,6 +46,9 @@ namespace StingTools.Core
         /// "new" (this registry introduces it).</summary>
         [JsonProperty("origin")]    public string Origin { get; set; } = "reconciled";
         [JsonProperty("note")]      public string Note { get; set; }
+        /// <summary>True when the entry came from the project override
+        /// (<c>_BIM_COORD/spatial_codes.json</c>) rather than the corporate baseline.</summary>
+        [JsonIgnore] public bool FromProject { get; set; }
     }
 
     public class SpatialLocCode
@@ -122,6 +125,27 @@ namespace StingTools.Core
                         return l;
 
             return SynthesiseLevel(n);
+        }
+
+        /// <summary>
+        /// TAGACC-9: the level code a PROJECT declares for this level name (exact code or
+        /// exact alias, case-insensitive), or null. Only project-override entries count, so
+        /// a project's own level vocabulary wins over the built-in naming rules while the
+        /// corporate baseline cannot silently re-code levels the rules already handle.
+        /// </summary>
+        public static SpatialLevelCode MatchProjectLevel(Document doc, string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            string n = name.Trim();
+            foreach (var l in GetLibrary(doc).Levels)
+            {
+                if (!l.FromProject || string.IsNullOrWhiteSpace(l.Code)) continue;
+                if (string.Equals(l.Code, n, StringComparison.OrdinalIgnoreCase)) return l;
+                foreach (var a in l.Aliases ?? new List<string>())
+                    if (!string.IsNullOrWhiteSpace(a) && string.Equals(a.Trim(), n, StringComparison.OrdinalIgnoreCase))
+                        return l;
+            }
+            return null;
         }
 
         /// <summary>Match text to a LOC code. Honours per-code wordBoundary.</summary>
@@ -306,6 +330,7 @@ namespace StingTools.Core
             foreach (var l in over.Levels ?? new List<SpatialLevelCode>())
             {
                 bas.Levels.RemoveAll(x => string.Equals(x.Code, l.Code, StringComparison.OrdinalIgnoreCase));
+                l.FromProject = true;
                 bas.Levels.Add(l);
             }
             foreach (var l in over.Locations ?? new List<SpatialLocCode>())

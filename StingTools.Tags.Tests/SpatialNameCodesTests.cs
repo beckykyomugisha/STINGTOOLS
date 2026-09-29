@@ -97,6 +97,31 @@ namespace StingTools.Tags.Tests
                             SpatialNameCodes.LevelCodeFromName("Plant Deck West"));
         }
 
+        // TAGACC-10: distinct levels no longer share a code.
+        [Theory]
+        [InlineData("Level 1a", "L01A")]
+        [InlineData("Level 1 B", "L01B")]
+        [InlineData("Level 2 Mezzanine", "MZ2")]
+        [InlineData("Mezzanine 2", "MZ2")]
+        [InlineData("Mezzanine L3", "MZ3")]
+        [InlineData("Roof 2", "RF2")]
+        [InlineData("Roof Plant", "RFP")]
+        [InlineData("Roof +45.000", "RF")]
+        [InlineData("Penthouse 2", "PH2")]
+        public void Level_variants_get_their_own_code(string name, string expected)
+        {
+            Assert.Equal(expected, SpatialNameCodes.LevelCodeFromName(name));
+        }
+
+        [Fact]
+        public void Level_one_and_level_one_a_differ()
+        {
+            Assert.NotEqual(SpatialNameCodes.LevelCodeFromName("Level 1"),
+                            SpatialNameCodes.LevelCodeFromName("Level 1a"));
+            Assert.NotEqual(SpatialNameCodes.LevelCodeFromName("Mezzanine 1"),
+                            SpatialNameCodes.LevelCodeFromName("Mezzanine 2"));
+        }
+
         [Theory]
         [InlineData(null)]
         [InlineData("")]
@@ -132,6 +157,28 @@ namespace StingTools.Tags.Tests
         public void A_zone_code_inside_a_longer_one_is_not_a_match(string text)
         {
             Assert.Null(SpatialNameCodes.ZoneFromText(text));
+        }
+
+        // TAGACC-9: project-declared zone codes.
+        [Theory]
+        [InlineData("Ward1 Bay 3", "WARD1")]
+        [InlineData("ZA-101", "ZA")]
+        [InlineData("Theatre Suite WARD12", "WARD12")]
+        [InlineData("Zone 2", "Z02")]
+        public void Declared_zone_codes_are_recognised_first(string text, string expected)
+        {
+            var declared = new[] { "WARD1", "WARD12", "ZA", "XX", "ZZ", "A" };
+            Assert.Equal(expected, SpatialNameCodes.ZoneFromText(text, declared));
+        }
+
+        [Theory]
+        [InlineData("Store A")]
+        [InlineData("WARD10")]
+        [InlineData("XX")]
+        public void Declared_zone_codes_match_only_whole_tokens_and_never_placeholders(string text)
+        {
+            var declared = new[] { "WARD1", "A", "XX", "ZZ" };
+            Assert.Null(SpatialNameCodes.ZoneFromText(text, declared));
         }
 
         // ── LOC fallback aliases ────────────────────────────────────────────

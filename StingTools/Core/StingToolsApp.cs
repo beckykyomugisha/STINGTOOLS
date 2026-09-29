@@ -684,14 +684,47 @@ namespace StingTools.Core
             try
             {
                 var deferredIds = StingAutoTagger.DrainDeferredQueue();
-                if (deferredIds.Count == 0) return;
 
                 Document doc = e.Document;
                 if (doc == null || !doc.IsValidObject) return;
 
+                // TAGACC-2: SEQ numbers are allocated from the local model, so two users who
+                // tag before syncing can hand out the same number. After a sync both sets
+                // are in the model: rebuild the index (the auto-tagger's cached counters are
+                // stale too) and find every element holding a tag an older element holds.
+                StingAutoTagger.InvalidateContext();
+                var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
+                var duplicateIds = TagConfig.DuplicateHoldersFor(tagIndex);
+                if (duplicateIds.Count > 0)
+                {
+                    if (StingAutoTagger.IsEnabled)
+                    {
+                        // Auto-tagging is on, so the user has asked for tags to be kept
+                        // right automatically: re-sequence the newer holders now. Elements
+                        // owned by someone else are skipped and stay reported.
+                        var queued = new HashSet<long>(deferredIds.Select(x => x.Value));
+                        foreach (long dupId in duplicateIds)
+                            if (queued.Add(dupId)) deferredIds.Add(new ElementId(dupId));
+                        StingLog.Warn($"After sync: {duplicateIds.Count} element(s) held a tag another element also holds — re-sequencing the newer ones.");
+                    }
+                    else
+                    {
+                        StingLog.Warn($"After sync: {duplicateIds.Count} element(s) hold a tag another element also holds.");
+                        try
+                        {
+                            TaskDialog.Show("STING — duplicate tags after sync",
+                                $"{duplicateIds.Count} element(s) now hold a tag that another element also holds. "
+                                + "This happens when two people tag before syncing, or when elements are copied.\n\n"
+                                + "Run Batch Tag (any mode) or Fix Duplicates: the newer element of each pair is "
+                                + "given a new sequence number and the older keeps its tag.");
+                        }
+                        catch (Exception dlgEx) { StingLog.Warn($"Duplicate-after-sync dialog: {dlgEx.Message}"); }
+                    }
+                }
+                if (deferredIds.Count == 0) return;
+
                 var known = new HashSet<string>(TagConfig.DiscMap.Keys);
                 var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
-                var (tagIndex, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
                 var formulas = TagPipelineHelper.LoadFormulas();
                 var gridLines = TagPipelineHelper.LoadGridLines(doc);
                 var stats = new TaggingStats();
@@ -708,6 +741,7 @@ namespace StingTools.Core
                             if (el == null || !el.IsValidObject) continue;
                             string cat = ParameterHelpers.GetCategoryName(el);
                             if (!known.Contains(cat)) continue;
+                            if (!TagPipelineHelper.IsEditableInWorksharing(doc, el)) continue;
 
                             bool ok = TagPipelineHelper.RunFullPipeline(
                                 doc, el, popCtx, tagIndex, seqCounters,

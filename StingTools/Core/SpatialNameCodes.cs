@@ -19,6 +19,8 @@
 // not be a letter or a digit.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -55,6 +57,15 @@ namespace StingTools.Core
                 if (below.Success)
                     return "B" + int.Parse(below.Groups[1].Value);
 
+                // TAGACC-10: "Level 2 Mezzanine" is its own level, not Level 2.
+                if (rest.ToLowerInvariant().Contains("mezz"))
+                    return WithNumber("MZ", rest);
+
+                // TAGACC-10: "Level 1a" / "Level 1 B" are distinct from Level 1.
+                var lettered = Regex.Match(rest, @"^(\d{1,3})\s*([A-Za-z])$");
+                if (lettered.Success)
+                    return "L" + lettered.Groups[1].Value.PadLeft(2, '0') + lettered.Groups[2].Value.ToUpperInvariant();
+
                 string suffix = ExtractDigits(rest);
                 if (suffix.Length > 0 && suffix.Length <= 3)
                     return "L" + suffix.PadLeft(2, '0');
@@ -76,18 +87,22 @@ namespace StingTools.Core
                 string bDigits = ExtractDigits(name);
                 return "B" + (bDigits.Length > 0 ? bDigits : "1");
             }
+            // Keyword levels keep a standalone number ("Roof 2" → RF2, "Mezzanine 2" → MZ2),
+            // so two such levels no longer share one code (TAGACC-10). A roof plant deck is
+            // RFP, not the roof. A number glued to punctuation ("Roof +45.000") is an
+            // elevation, not a level number, and is ignored.
             if (lower.StartsWith("roof") || lower == "rf")
-                return "RF";
+                return WithNumber(lower.Contains("plant") ? "RFP" : "RF", name);
             if (lower.StartsWith("penthouse") || lower == "ph" || lower == "pent")
-                return "PH";
+                return WithNumber("PH", name);
             if (lower.StartsWith("attic") || lower == "at" || lower == "att")
-                return "AT";
+                return WithNumber("AT", name);
             if (lower.StartsWith("terrace") || lower == "tr")
-                return "TR";
+                return WithNumber("TR", name);
             if (lower.StartsWith("podium") || lower == "pod")
-                return "POD";
+                return WithNumber("POD", name);
             if (lower.StartsWith("mezzanine") || lower == "mezz")
-                return "MZ";
+                return WithNumber("MZ", name);
             if (lower.StartsWith("plant") && lower.Contains("room"))
                 return "PL";
 
@@ -122,10 +137,32 @@ namespace StingTools.Core
         /// name), or null. Recognises Z01–Z04, "Zone 1–4", "Zone A–D", "Wing A–D" and the
         /// four compass words, each as a whole token.
         /// </summary>
-        public static string ZoneFromText(string text)
+        public static string ZoneFromText(string text) => ZoneFromText(text, null);
+
+        /// <summary>
+        /// As <see cref="ZoneFromText(string)"/>, but a code the project declares
+        /// (ZONE_CODES in project_config.json, e.g. "WARD1", "ZA") is tried first, as a
+        /// whole token, longest first. XX and ZZ are placeholders and never matched.
+        /// TAGACC-9: only Z01–Z04 and their aliases were ever recognised.
+        /// </summary>
+        public static string ZoneFromText(string text, IEnumerable<string> declaredCodes)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
             string upper = text.ToUpperInvariant();
+
+            if (declaredCodes != null)
+            {
+                foreach (string code in declaredCodes
+                    .Where(c => !string.IsNullOrWhiteSpace(c))
+                    .Select(c => c.Trim().ToUpperInvariant())
+                    // One-letter codes ("A") would match "Store A"; they need a room department.
+                    .Where(c => c.Length >= 2 && c != "XX" && c != "ZZ")
+                    .Distinct()
+                    .OrderByDescending(c => c.Length))
+                {
+                    if (ContainsToken(upper, code)) return code;
+                }
+            }
 
             string[] letters = { "A", "B", "C", "D" };
             for (int i = 0; i < 4; i++)
@@ -185,6 +222,14 @@ namespace StingTools.Core
                 idx = text.IndexOf(token, idx + 1, StringComparison.Ordinal);
             }
             return false;
+        }
+
+        /// <summary><paramref name="code"/> plus a standalone one- or two-digit number in
+        /// <paramref name="text"/> ("2", "L2"), or the bare code when there is none.</summary>
+        private static string WithNumber(string code, string text)
+        {
+            var m = Regex.Match(text ?? "", @"(?:^|\s)[Ll]?(\d{1,2})(?=\s|$)");
+            return m.Success ? code + int.Parse(m.Groups[1].Value) : code;
         }
 
         private static string ExtractDigits(string s)

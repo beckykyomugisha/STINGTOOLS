@@ -103,7 +103,7 @@ namespace StingTools.Tags
                 new($"Skip existing — tag {untagged:N0} new only",
                     "Only tag untagged elements. Already-tagged elements are left unchanged.", "skip", true),
                 new($"Overwrite all {totalTaggable:N0}",
-                    "Re-derive and overwrite ALL tag tokens, even on already-tagged elements.", "overwrite"),
+                    "Re-derive and overwrite ALL tag tokens, even on already-tagged elements. Sequence numbers are kept where still unique (set RENUMBER_ON_OVERWRITE to renumber).", "overwrite"),
                 new("Auto-increment on collision",
                     "Tag untagged elements; if a generated tag collides with an existing one, auto-increment SEQ.", "increment"),
             };
