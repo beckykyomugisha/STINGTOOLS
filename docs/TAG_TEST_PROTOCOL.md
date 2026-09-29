@@ -1,6 +1,7 @@
-# Tag / Room Test Protocol — Phases 287–295
+# Tag / Room Test Protocol — Phases 287–295, tag library
 
-Ten tests that can only be answered inside Revit, in the order they must be run, plus
+Tests that can only be answered inside Revit, in the order they must be run: T1–T15,
+**section L** (loading, updating, repairing and promoting the tag library), plus
 **section U** — the manual universal-tag build, which is the critical path and the one thing
 here that no code can do. Every fix
 in Phases 287–293 is a data or source change verified against shipped data; **none has been
@@ -585,6 +586,114 @@ Two outcomes, both informative:
 
 ---
 
+## L · Tag library — load, update, repair, promote (L1–L7)
+
+Added 2026-09-29 for #1006–#1015. Run these on a build of `main` at or after `852ec89`
+(the #1015 merge). Where section 0 says `deploy.bat`, that still applies. **None of this has
+been seen in Revit yet**; the unit tests cover the file logic, not Revit's load behaviour.
+
+Buttons used here:
+
+| Need | Tab | Where | Button |
+|---|---|---|---|
+| Bind the shared parameters | **CREATE TAGS** | `SETUP` | **Load Params** |
+| Load or update the tag families | **CREATE TAGS** | expand `Advanced setup, schema & migration` → `Tag families — load & migrate` | **Load** |
+| Correct the library files | **CREATE TAGS** | same row | **Repair Lib** (orange) |
+| Publish to the shared library | **MODEL** | `FAMILY QUICK EDIT` → expand `Advanced family ops` | **Promote Library** |
+
+The shipped library is **206** families (`STING - *.rfa`). The shared library is
+`%APPDATA%\STING\sting_content.json` → `"content_root"` + `\Tags`; with nothing set it is
+`C:\ProgramData\STING\ContentLibrary\Tags` on this PC.
+
+### L1 · First load in a new project
+
+1. New project from your usual template. **Load Params**, then **Load**.
+2. Pass: the dialog says **Found: 206**, **Loaded: 206**, **Not loaded: 0**. If any
+   `*.0001.rfa` were in a library folder it adds "N Revit backup file(s) ignored".
+3. Pass: no family whose name ends in `.0001` (or any `.NNNN`) appears in the Project
+   Browser under Families → Annotation Symbols.
+4. Fail: any `[NOT LOADED]` line under **Show details**. Copy the whole line; it names the
+   family and what Revit said.
+
+- [ ] Found ___ · Loaded ___ · Not loaded ___ · backups ignored ___
+
+### L2 · Second load asks about families already present
+
+1. Same project, **Load** again.
+2. Pass: a question "206 of the 206 tag families are already in this project", with Yes /
+   No / Cancel, default **No**.
+3. **No** → Pass: Loaded 0, Skipped 206, nothing else changes.
+4. **Cancel** → Pass: nothing happens, no result dialog.
+
+- [ ] question shown · [ ] No skipped 206 · [ ] Cancel did nothing
+
+### L3 · Update keeps the project's tag styles ⭐
+
+This is the check that matters: an update must not reset styles set in the project.
+
+1. Place a few tags (any category). On one tag type, change its style with **TAG STUDIO**
+   style buttons (or set a `TAG_*_BOOL` switch in Type Properties) and note which one.
+2. **Load**, answer **Yes**.
+3. Pass: the dialog shows **Updated: N of 206 already in the project (tag styles kept)**,
+   placed tags are still there, and the type you changed **still has your style**.
+4. Fail: the style reverted to the family default. Report the type name and the switch.
+5. Check the log line `LoadTagFamilies: loaded=…, updated=…/…` matches the dialog.
+
+- [ ] Updated ___ of ___ · [ ] style kept on ______ · [ ] tags still placed
+
+### L4 · Repair Lib reports a clean library
+
+1. **Repair Lib**, OK. It opens every family, so it takes several minutes.
+2. Pass on the committed library: **Repaired 0 tag families; 207 needed nothing** (206 +
+   `_master`). Any `.0001` files in the deployed library are reported as removed.
+3. If it reports repairs, that is not a failure of the tool, but tell us: the library has
+   drifted from `MR_PARAMETERS.txt`. From a checkout it names the files to commit.
+
+- [ ] repaired ___ · needed nothing ___ · backups removed ___
+
+### L5 · Promote Library writes a record, and authoring stays local
+
+1. **Promote Library**. On a fresh shared library it asks to publish; on one that already
+   matches it asks "Update its promotion record?". OK.
+2. Pass: the done message says the record lists **206** families. The shared `Tags`
+   folder now holds `_STING_PROMOTION_MANIFEST.txt` with 206 `FILE` lines.
+3. If the share held families the plugin does not ship, a second question offers to move
+   them to `_retired\<date>`. Pass either way: **Yes** moves them (nothing deleted),
+   **No** keeps them and the record lists them as `KEPT`.
+4. After a promotion, check where tag-authoring commands would write, **without writing
+   anything**: **CREATE TAGS** → `SETUP` → **Create Tag Fams**, read the confirmation, then
+   **Cancel**. Pass: its `Output:` line is the plugin's own `data\TagFamilies`, not the
+   shared `Tags` folder, and the log says "Tag output stays local: the shared library … is
+   published by Promote Library". Do not click OK: it would re-create families on disk.
+
+- [ ] record lists ___ · [ ] retire prompt: shown / not needed · [ ] authoring stayed local
+
+### L6 · Load flags a shared family that is not what was promoted
+
+1. After L5, copy any one `STING - … Tag.rfa` from the shared `Tags` folder, open it in the
+   Family Editor, change anything visible (a line), save it back to the shared folder.
+2. **Load** in a project that does not have that family (or answer **Yes** to update).
+3. Pass: the dialog has a line "Shared library: 1 family/families are not what this
+   plugin ships or were changed outside Promote Library". **Show details** names the file
+   as "changed on the share after it was promoted" (or "differs from the version this
+   plugin ships" if the size did not change).
+4. Clean up: **Promote Library** again. Pass: the next **Load** has no shared-library line.
+
+- [ ] flagged ______ · [ ] clean after re-promote
+
+### L7 · Downgrade warning
+
+Only if you have two builds, or can edit a file date. On the shared library, set one
+family's modified date later than the plugin's copy (or promote from a newer build first),
+change the plugin's copy so it differs, then **Promote Library**.
+
+- Pass: the confirmation shows **WARNING: 1 of the families to update are NEWER in the
+  shared library**, and names it. Cancel is the default.
+
+- [ ] warning shown / BLOCKED (reason) ______
+
+---
+
 ## Results
 
 | Test | Id | Result | Notes |
@@ -604,8 +713,16 @@ Two outcomes, both informative:
 | **T13 binding pre-flight** | `BINDSCOPE-3` | | Phase 295 - must agree with T12 |
 | **T14 GEN completeness** | `TOKPOL-3` | | Phase 295 - watch StrictPercent |
 | **T15 container failures** | `CONTAINER-1` | | Phase 295 - evidence only, no cause claimed |
+| **L1 first load** | `TAGLIB-3` | | 206 found, 206 loaded, no `.0001` families |
+| **L2 already-present prompt** | `TAGLIB-3` | | default No |
+| **L3 update keeps styles** | `TAGLIB-3` | | the one that matters |
+| **L4 Repair Lib clean** | `TAGLIB-1` | | 0 repaired expected |
+| **L5 promote record, authoring local** | `TAGLIB-3` | | |
+| **L6 shared drift flagged** | `TAGLIB-3` | | |
+| **L7 downgrade warning** | `TAGLIB-3` | | may be BLOCKED |
 
-**All fifteen tests run on a build of `main` after #966 merged** (section 0.1). If a
+**All fifteen T tests run on a build of `main` after #966 merged** (section 0.1); the L
+tests need `852ec89` or later. If a
 test cannot be run, mark it `BLOCKED` with the reason rather than leaving it blank, so a
 later reader cannot mistake "not run" for "ran and passed".
 

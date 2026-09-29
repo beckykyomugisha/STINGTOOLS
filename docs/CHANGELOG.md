@@ -25684,3 +25684,12 @@ every `GetString` read against the parameter's data type.
 - Promote Library's header comment still said families only in the target are always kept;
   it now describes the optional move to `_retired`.
 - Plugin builds; Tags tests and gates pass. Not run in Revit.
+
+#### Smoke test for the tag library (2026-09-29)
+
+- `docs/TAG_TEST_PROTOCOL.md` gains section L (L1–L7): first load, the already-present
+  prompt, an update that must keep project tag styles, Repair Lib on the committed library,
+  Promote Library's record and retire step with a read-only check that authoring stays
+  local, the shared-drift report, and the downgrade warning. Each names the button, where
+  it is, and the numbers to record. Results table rows and ROADMAP TAGLIB-3 added.
+- The tester guide (Markdown and Word) lists section L.
