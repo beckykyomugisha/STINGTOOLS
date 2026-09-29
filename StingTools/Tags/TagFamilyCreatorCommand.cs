@@ -2886,89 +2886,88 @@ namespace StingTools.Tags
                 else toLoad.Add(rfaPath);
             }
 
-            using (var repair = new TagFamilyLoadRepair(doc))
+            // Load, and let Revit say what it refuses. Predicting refusals from the
+            // families' parameter types missed them twice, and one refused family in a
+            // batch rolls the whole batch back. So: load in groups, roll a refused
+            // group back quietly and split it until the refused families are isolated,
+            // repair only those, and load each on its own.
+            var batch = new TagFamilyBatchLoader(doc);
+            var refused = new List<(string path, string why)>();
+            const int GroupSize = 32;
+            UI.StingProgressDialog progress = toLoad.Count == 0 ? null
+                : UI.StingProgressDialog.Show("STING — loading tag families", toLoad.Count);
+            bool cancelled = false;
+            try
             {
-                // Each family is opened and checked first: a shared parameter the
-                // project holds under another type makes Revit refuse the family, and
-                // in the one batch transaction below that refusal rolled back every
-                // other family too. A conflicting family is repaired in memory.
-                var items = new List<TagFamilyLoadItem>();
-                UI.StingProgressDialog progress = repair.NothingToCheck || toLoad.Count == 0
-                    ? null : UI.StingProgressDialog.Show("STING — checking tag families", toLoad.Count);
-                try
+                void Isolate(List<string> group)
                 {
-                    foreach (string rfaPath in toLoad)
+                    if (cancelled || group.Count == 0) return;
+                    if (progress != null && progress.IsCancelled) { cancelled = true; return; }
+                    if (batch.TryLoad(group, out string why))
                     {
-                        if (progress != null && progress.IsCancelled)
-                        {
-                            TaskDialog.Show("Load Tag Families", "Cancelled. No tag families were loaded.");
-                            return Result.Cancelled;
-                        }
-                        progress?.Increment(Path.GetFileNameWithoutExtension(rfaPath));
-                        items.Add(repair.Prepare(rfaPath));
+                        for (int i = 0; i < group.Count; i++) progress?.Increment(Path.GetFileNameWithoutExtension(group[i]));
+                        return;
                     }
+                    if (group.Count == 1) { refused.Add((group[0], why)); return; }
+                    int half = group.Count / 2;
+                    Isolate(group.Take(half).ToList());
+                    Isolate(group.Skip(half).ToList());
                 }
-                finally { progress?.Close(); }
+                for (int i = 0; i < toLoad.Count && !cancelled; i += GroupSize)
+                    Isolate(toLoad.Skip(i).Take(GroupSize).ToList());
 
-                foreach (var it in items.Where(i => i.Blocked != null))
+                if (refused.Count > 0 && !cancelled)
                 {
-                    failed++;
-                    report.AppendLine($"  [NOT LOADED] {it.FamilyName} — {it.Blocked}");
-                }
-                var loadable = items.Where(i => i.Blocked == null).ToList();
-
-                // CRASH FIX: Single transaction for all families instead of one per .rfa file.
-                // Rapid-fire tx.Commit() calls trigger Revit's deferred regeneration
-                // which causes native segfaults (same root cause as ENH-003).
-                var failures = new CapturingFailuresPreprocessor(rollBackOnError: true);
-                TransactionStatus status = TransactionStatus.Uninitialized;
-                if (loadable.Count > 0)
-                {
-                    using (Transaction tx = new Transaction(doc, "STING Load Tag Families"))
+                    using (var repair = new TagFamilyLoadRepair(doc))
                     {
-                        tx.Start();
-                        var fho = tx.GetFailureHandlingOptions();
-                        tx.SetFailureHandlingOptions(fho.SetFailuresPreprocessor(failures));
-                        foreach (var it in loadable)
+                        progress?.UpdateTotal(toLoad.Count + refused.Count);
+                        foreach (var (path, firstWhy) in refused)
                         {
-                            try
+                            if (progress != null && progress.IsCancelled) { cancelled = true; break; }
+                            string name = Path.GetFileNameWithoutExtension(path);
+                            progress?.Increment("Repairing " + name);
+                            var it = repair.Prepare(path);
+                            if (it.Blocked != null)
                             {
-                                if (!doc.LoadFamily(it.LoadPath, new TagFamilyLoadOptions(), out Family _))
-                                    StingLog.Warn($"LoadTagFamilies: LoadFamily returned false for {it.FamilyName}");
+                                report.AppendLine($"  [NOT LOADED] {name} — {it.Blocked}. Revit said: {firstWhy ?? "(no reason given)"}");
+                                continue;
                             }
-                            catch (Exception ex)
+                            if (it.Repairs.Count == 0)
                             {
-                                StingLog.Error($"Load tag family failed: {it.FamilyName}", ex);
+                                report.AppendLine($"  [NOT LOADED] {name} — no conflicting parameter could be identified. " +
+                                                  $"Revit said: {firstWhy ?? "(no reason given)"}");
+                                continue;
                             }
-                        }
-                        status = tx.Commit();
-                    }
-                }
-
-                // Count what is in the project now, not what LoadFamily returned.
-                var present = new HashSet<string>(new FilteredElementCollector(doc)
-                    .OfClass(typeof(Family)).Cast<Family>().Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
-                foreach (var it in loadable)
-                {
-                    if (present.Contains(it.FamilyName))
-                    {
-                        loaded++;
-                        if (it.Repairs.Count > 0)
-                        {
-                            repaired++;
-                            report.AppendLine($"  [OK, repaired] {it.FamilyName}: {string.Join("; ", it.Repairs)}");
+                            if (batch.TryLoad(new List<string> { it.LoadPath }, out string why2))
+                            {
+                                repaired++;
+                                report.AppendLine($"  [OK, repaired] {name}: {string.Join("; ", it.Repairs)}");
+                            }
+                            else
+                                report.AppendLine($"  [NOT LOADED] {name} — still refused after repair ({string.Join("; ", it.Repairs)}). " +
+                                                  $"Revit said: {why2 ?? "(no reason given)"}");
                         }
                     }
-                    else
-                    {
-                        failed++;
-                        report.AppendLine($"  [FAIL] {it.FamilyName}");
-                    }
                 }
-                if (loadable.Count > 0 && status != TransactionStatus.Committed)
-                    report.Insert(0, $"The load transaction did not commit ({status}); nothing from this run was kept.\n" +
-                        (failures.Summary() is string why ? $"Revit said: {why}\n" : "") + "\n");
             }
+            finally { progress?.Close(); }
+
+            // Count what is in the project now, not what LoadFamily returned.
+            var present = new HashSet<string>(new FilteredElementCollector(doc)
+                .OfClass(typeof(Family)).Cast<Family>().Select(f => f.Name), StringComparer.OrdinalIgnoreCase);
+            var refusedPaths = new HashSet<string>(refused.Select(r => r.path), StringComparer.OrdinalIgnoreCase);
+            foreach (string path in toLoad)
+            {
+                string name = Path.GetFileNameWithoutExtension(path);
+                if (present.Contains(name)) { loaded++; continue; }
+                failed++;
+                if (!refusedPaths.Contains(path) && !cancelled)
+                    report.AppendLine($"  [NOT LOADED] {name} — Revit accepted the load but the family is not in the project");
+            }
+            if (cancelled)
+                report.Insert(0, "Cancelled. Families already loaded stay loaded.\n\n");
+            StingLog.Info($"LoadTagFamilies: {refused.Count} family/families refused on first load; " +
+                          $"{batch.Transactions} load transaction(s).");
 
             TaskDialog td = new TaskDialog("Load Tag Families");
             td.MainInstruction = failed == 0 ? $"Loaded {loaded} tag families" : $"Loaded {loaded} tag families, {failed} not loaded";
@@ -2978,7 +2977,7 @@ namespace StingTools.Tags
                 $"Skipped: {skipped} (already loaded)\n" +
                 $"Not loaded: {failed}" +
                 (repaired > 0 ? "\n\nRepaired families had parameters stored as Text that this project holds " +
-                    "as numbers, lengths or yes/no. Where a family parameter held it, the label now reads " +
+                    "as numbers, lengths or yes/no, so Revit refused them. Where a family parameter held it, the label now reads " +
                     "the Text display mirror; where only a label read it, that field was removed from " +
                     "the label. 'Show details' lists each one. The files in the tag library are unchanged." : "");
             if (report.Length > 0) td.ExpandedContent = report.ToString();
