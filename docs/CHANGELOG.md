@@ -25576,3 +25576,21 @@ every `GetString` read against the parameter's data type.
   now skips them (`Core/RevitBackupFiles`, 8 tests) and says how many; Repair Tag Library
   deletes them from the deployed library.
 - Tags 4,034 passing; gates pass. Not run in Revit.
+
+#### Installer sets the shared tag library; the 17 refused tag families were Revit backups (2026-09-29)
+
+- **Finding.** Repair Tag Library on the git-tracked library reported "Repaired 0; 207
+  needed nothing" and removed 21 Revit backups from the deployed library. Every family
+  refused in the earlier loads was one of those backups ("… Tag.0001", "Duct Tag.0003"),
+  saved when the parameters were still TEXT. The committed library is consistent with
+  `MR_PARAMETERS.txt`; no library files change and the content manifest needs no re-stamp.
+- **Shared content library from the installer.** `deploy/install.ps1` takes
+  `-ContentLibrary <folder>` or the first line of `content_library.txt` beside it, writes it
+  to `%APPDATA%\STING\sting_content.json` ("content_root", other keys kept), and reports
+  whether `<folder>\Tags` is reachable. `install.bat` passes arguments through.
+  `package.bat` already ships every file in `deploy/`, so a firm path in
+  `deploy/content_library.txt` (git-ignored; `content_library.example.txt` shows the form)
+  reaches every tester. Plugin behaviour is unchanged: the shared `Tags` folder is read
+  first and the shipped library when it cannot be reached.
+- Tested on Linux with pwsh against a temporary APPDATA: path from the file, from the
+  argument, existing keys kept, unreachable folder reported. Not run on Windows.
