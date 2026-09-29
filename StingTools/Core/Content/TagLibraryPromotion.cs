@@ -47,6 +47,13 @@ namespace StingTools.Core.Content
         /// <summary>In the target and not in the source. NEVER deleted - only reported.</summary>
         public List<string> ExtraInTarget { get; } = new List<string>();
 
+        /// <summary>SHA-256 of every source family, by file name.</summary>
+        public Dictionary<string, string> SourceHashes { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Target families moved to _retired by this promotion.</summary>
+        public List<string> Retired { get; } = new List<string>();
+        /// <summary>The _retired sub-folder they went to, relative to the target.</summary>
+        public string RetiredFolder { get; set; }
+
         /// <summary>Reasons the promotion must not run. Empty means go.</summary>
         public List<string> Blockers { get; } = new List<string>();
 
@@ -81,6 +88,7 @@ namespace StingTools.Core.Content
             }
 
             var source = Families(sourceDir);
+            foreach (var kv in source) plan.SourceHashes[kv.Key] = kv.Value;
             if (source.Count == 0)
             {
                 plan.Blockers.Add($"the source library '{sourceDir}' holds no .rfa files - " +
@@ -142,8 +150,79 @@ namespace StingTools.Core.Content
             sb.AppendLine("# files written by this promotion:");
             foreach (var f in plan.ToAdd) sb.AppendLine("ADD\t" + f);
             foreach (var f in plan.ToUpdate) sb.AppendLine("UPD\t" + f);
-            foreach (var f in plan.ExtraInTarget) sb.AppendLine("KEPT\t" + f);   // present, untouched
+            foreach (var f in plan.ExtraInTarget.Where(n => !plan.Retired.Contains(n)))
+                sb.AppendLine("KEPT\t" + f);   // present, untouched
+            foreach (var f in plan.Retired) sb.AppendLine($"RETIRED\t{f}\t{plan.RetiredFolder}");
+            // Every published family with its hash and size. Load Tag Families reads
+            // this one small file to tell whether a shared family is the one this
+            // plugin ships, or was changed on the share without a promotion, without
+            // reading every family over the network.
+            sb.AppendLine("# published families: FILE<TAB>name<TAB>sha256<TAB>bytes");
+            foreach (var kv in plan.SourceHashes.OrderBy(k => k.Key, StringComparer.Ordinal))
+            {
+                long size = -1;
+                try { size = new FileInfo(Path.Combine(plan.SourceDir ?? "", kv.Key)).Length; }
+                catch (Exception ex) { StingLog.Warn($"TagLibraryPromotion: size of {kv.Key}: {ex.Message}"); }
+                sb.AppendLine($"FILE\t{kv.Key}\t{kv.Value}\t{size}");
+            }
             return sb.ToString();
+        }
+
+        /// <summary>The FILE lines of a promotion manifest: name to (sha256, bytes).</summary>
+        public static Dictionary<string, (string Sha, long Size)> ParsePublished(string manifestText)
+        {
+            var map = new Dictionary<string, (string, long)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var line in (manifestText ?? "").Split('\n'))
+            {
+                var parts = line.TrimEnd('\r').Split('\t');
+                if (parts.Length < 4 || parts[0] != "FILE") continue;
+                long.TryParse(parts[3], out long size);
+                map[parts[1]] = (parts[2], size);
+            }
+            return map;
+        }
+
+        /// <summary>
+        /// Families served from the shared library that are not what this plugin
+        /// ships, or not what was promoted. Hashes only the local shipped copies; the
+        /// shared side is judged from the manifest and a file-size read, so nothing is
+        /// re-read over the network.
+        /// </summary>
+        /// <param name="servedFromShared">File names the loader took from the shared library.</param>
+        /// <param name="manifestText">The shared library's promotion manifest, or null when it has none.</param>
+        public static List<string> SharedDrift(string sharedDir, string shippedDir,
+            IEnumerable<string> servedFromShared, string manifestText)
+        {
+            var findings = new List<string>();
+            var names = (servedFromShared ?? Enumerable.Empty<string>()).ToList();
+            if (names.Count == 0) return findings;
+            if (manifestText == null)
+            {
+                findings.Add($"the shared library has no promotion record, so its {names.Count} " +
+                             "family/families cannot be checked against the ones this plugin ships");
+                return findings;
+            }
+            var published = ParsePublished(manifestText);
+            if (published.Count == 0)
+            {
+                findings.Add("the shared library was promoted before promotion records listed each file; " +
+                             "promote again to make it checkable");
+                return findings;
+            }
+            foreach (var name in names.OrderBy(n => n, StringComparer.Ordinal))
+            {
+                if (!published.TryGetValue(name, out var rec))
+                { findings.Add($"{name}: in the shared library but not published by Promote Library"); continue; }
+                long actual = -1;
+                try { actual = new FileInfo(Path.Combine(sharedDir, name)).Length; }
+                catch (Exception ex) { StingLog.Warn($"TagLibraryPromotion: size of shared {name}: {ex.Message}"); }
+                if (rec.Size >= 0 && actual >= 0 && actual != rec.Size)
+                { findings.Add($"{name}: changed on the share after it was promoted"); continue; }
+                string shipped = Path.Combine(shippedDir ?? "", name);
+                if (File.Exists(shipped) && !string.Equals(Hash(shipped), rec.Sha, StringComparison.Ordinal))
+                    findings.Add($"{name}: differs from the version this plugin ships");
+            }
+            return findings;
         }
 
         /// <summary>File name to SHA-256, for the .rfa directly in a folder.</summary>

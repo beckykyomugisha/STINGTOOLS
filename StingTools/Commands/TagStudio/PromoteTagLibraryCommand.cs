@@ -64,7 +64,18 @@ namespace StingTools.Commands.TagStudio
                 return Result.Cancelled;
             }
 
-            if (plan.WouldWrite == 0)
+            // A share promoted before records listed each file cannot be checked by
+            // Load Tag Families, so rewriting the record is work even with no copies.
+            bool needsRecord = true;
+            try
+            {
+                string existing = Path.Combine(target, "_STING_PROMOTION_MANIFEST.txt");
+                needsRecord = !File.Exists(existing) ||
+                              TagLibraryPromotion.ParsePublished(File.ReadAllText(existing)).Count == 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"PromoteTagLibrary: reading the existing record: {ex.Message}"); }
+
+            if (plan.WouldWrite == 0 && plan.ExtraInTarget.Count == 0 && !needsRecord)
             {
                 TaskDialog.Show("Promote Tag Library",
                     $"Nothing to do — the shared library already matches.\n\n{plan.Summary()}\n\n" +
@@ -74,13 +85,15 @@ namespace StingTools.Commands.TagStudio
 
             var confirm = new TaskDialog("Promote Tag Library")
             {
-                MainInstruction = $"Publish {plan.WouldWrite} family/families to the shared library?",
+                MainInstruction = plan.WouldWrite > 0
+                    ? $"Publish {plan.WouldWrite} family/families to the shared library?"
+                    : "The shared library already matches. Update its promotion record?",
                 MainContent =
                     $"From: {source}\nTo:   {target}\n\n{plan.Summary()}\n\n" +
                     "The shared library is searched BEFORE the deployed one and a deploy cannot " +
                     "update it, so what is published here wins until it is published again.\n\n" +
                     "Nothing is deleted. A family already in the target and not in the source is " +
-                    "kept and listed in the manifest.",
+                    "kept, unless you choose to move it to _retired in the next step.",
                 CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                 DefaultButton = TaskDialogResult.Cancel,
             };
@@ -105,6 +118,42 @@ namespace StingTools.Commands.TagStudio
                     }
                 }
 
+                // Families in the share that the source no longer has would keep
+                // winning lookups. Offer to move them aside; never delete.
+                if (plan.ExtraInTarget.Count > 0)
+                {
+                    var retire = new TaskDialog("Promote Tag Library")
+                    {
+                        MainInstruction = $"{plan.ExtraInTarget.Count} family/families in the shared library are not in the source",
+                        MainContent =
+                            "They still answer lookups for everyone. Move them to a dated _retired " +
+                            "folder in the shared library? Nothing is deleted; moving a file back restores it.\n\n" +
+                            string.Join("\n", plan.ExtraInTarget.Take(12)) +
+                            (plan.ExtraInTarget.Count > 12 ? $"\n… and {plan.ExtraInTarget.Count - 12} more" : ""),
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No,
+                    };
+                    if (retire.Show() == TaskDialogResult.Yes)
+                    {
+                        plan.RetiredFolder = Path.Combine("_retired", DateTime.Now.ToString("yyyyMMdd_HHmm"));
+                        string dest = Path.Combine(target, plan.RetiredFolder);
+                        Directory.CreateDirectory(dest);
+                        foreach (var name in plan.ExtraInTarget)
+                        {
+                            try
+                            {
+                                File.Move(Path.Combine(target, name), Path.Combine(dest, name));
+                                plan.Retired.Add(name);
+                            }
+                            catch (Exception ex)
+                            {
+                                failures.Add($"retire {name}: {ex.Message}");
+                                StingLog.Warn($"PromoteTagLibrary: retiring {name}: {ex.Message}");
+                            }
+                        }
+                    }
+                }
+
                 // The manifest is written LAST and only for what actually copied,
                 // so a partial promotion never claims a complete one.
                 string manifest = TagLibraryPromotion.BuildManifest(
@@ -122,7 +171,8 @@ namespace StingTools.Commands.TagStudio
                           $"{failures.Count} failed, manifest written to {target}");
 
             TaskDialog.Show("Promote Tag Library — done",
-                $"Published {written} of {plan.WouldWrite} family/families.\n\n" +
+                $"Published {written} of {plan.WouldWrite} family/families." +
+                (plan.Retired.Count > 0 ? $" Retired {plan.Retired.Count} to {plan.RetiredFolder}." : "") + "\n\n" +
                 (failures.Count > 0
                     ? "FAILED:\n  " + string.Join("\n  ", failures.Take(8)) + "\n\n"
                     : "") +
