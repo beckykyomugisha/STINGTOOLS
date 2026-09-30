@@ -1022,21 +1022,20 @@ namespace StingTools.Model
                 var wizard = new StructuralDWGDialog(doc);
                 wizard.ShowDialog();
                 if (!wizard.Confirmed) return Result.Cancelled;
-                var dlg = wizard.GetConfig();
-                if (dlg == null) return Result.Cancelled;
+                var cfg = wizard.GetConfig();
+                if (cfg == null) return Result.Cancelled;
 
-                if (dlg.SelectedLayers == null || dlg.SelectedLayers.Count == 0)
+                if (cfg.SelectedLayers == null || cfg.SelectedLayers.Count == 0)
                 {
                     TaskDialog.Show("STRUCT — DWG-to-BIM", "No layers selected. Run 'Analyze' first and select layers.");
                     return Result.Cancelled;
                 }
 
-                // Run pipeline with dialog settings + layer mappings + auto-detected sizes
+                // The whole wizard config drives the conversion — top level, repeat
+                // levels, foundations, wall / structural-wall switches, size detection,
+                // numbering, tagging and dry run. The legacy 9-argument RunFullPipeline
+                // took only base level + five switches + three sizes and ignored the rest.
                 var pipeline = new StructuralCADPipeline(doc);
-                pipeline.SelectedLayers = dlg.SelectedLayers;
-
-                // Use dialog beam depth
-                double beamDepth = dlg.BeamDepthMm;
 
                 // Find a DWG import instance for the pipeline
                 var imports = new FilteredElementCollector(doc)
@@ -1054,48 +1053,88 @@ namespace StingTools.Model
                     ? wizard.SelectedImport
                     : imports.First();
 
-                var result = pipeline.RunFullPipeline(
-                    selectedImport,
-                    dlg.BaseLevelName,
-                    dlg.CreateColumns,
-                    dlg.CreateBeams,
-                    dlg.CreateSlabs,
-                    dlg.CreateGrids,
-                    beamDepth,
-                    dlg.SlabThicknessMm,
-                    dlg.ColumnHeightMm);
-
-                // Auto-tag created elements
-                if (result.CreatedIds.Count > 0)
+                // One undo step. The pipeline opens its own transactions (columns,
+                // beams, walls, slabs, grids, numbering, tagging, ...); the group
+                // assimilates them. A dry run or a failed run is rolled back, so a dry
+                // run leaves the model untouched and a failure leaves no partial state.
+                StructuralModelResult result = null;
+                bool kept = false;
+                using (var tg = new TransactionGroup(doc, "STING DWG-to-BIM"))
                 {
+                    tg.Start();
                     try
                     {
-                        ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
-                        var (_, seqCtrs) = TagConfig.BuildTagIndexAndCounters(doc);
-                        TagConfig.SaveSeqSidecar(doc, seqCtrs);
-                        result.Summary += $" | Auto-tagged {result.CreatedIds.Count} elements";
+                        result = pipeline.RunFullPipelineWithConfig(selectedImport, cfg);
                     }
-                    catch (Exception ex) { StingLog.Warn($"Auto-tag after DWG: {ex.Message}"); }
+                    catch (Exception ex)
+                    {
+                        StingLog.Error("StrCADWizard: pipeline threw — rolling back", ex);
+                        if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack();
+                        throw;
+                    }
+
+                    if (result != null && result.Success && !result.WasDryRun)
+                    {
+                        tg.Assimilate();
+                        kept = true;
+                    }
+                    else if (tg.HasStarted() && !tg.HasEnded())
+                    {
+                        tg.RollBack();
+                    }
                 }
 
-                // Invalidate caches so dashboards and auto-tagger reflect new elements
-                ComplianceScan.InvalidateCache();
-                StingAutoTagger.InvalidateContext();
+                if (result == null)
+                {
+                    TaskDialog.Show("STRUCT — DWG-to-BIM", "The conversion returned no result. Nothing was created.");
+                    return Result.Failed;
+                }
 
-                var msg = result.Summary;
+                string msg;
+                if (result.WasDryRun)
+                {
+                    msg = result.Summary + "\n\nDry run — nothing was created. " +
+                        "Untick 'Dry run' in the wizard and convert again to build the model.";
+                }
+                else if (!result.Success)
+                {
+                    msg = result.Summary + "\n\nThe conversion failed and was rolled back — nothing was kept.";
+                }
+                else
+                {
+                    msg = result.Summary;
+                    if (cfg.AutoTag)
+                        msg += $"\nAuto-tagged {result.ElementsTagged} of {result.CreatedIds.Count} created element(s).";
+                    else
+                        msg += "\nAuto-tag was off in the wizard — created elements are not tagged.";
+                }
                 if (result.Warnings.Count > 0)
                     msg += $"\n\nWarnings ({result.Warnings.Count}):\n" +
                         string.Join("\n", result.Warnings.Take(15).Select(w => $"\u2022 {w}"));
 
-                TaskDialog.Show("STRUCT — DWG-to-BIM", msg);
-
-                if (result.CreatedIds.Count > 0)
+                if (kept)
                 {
-                    uidoc.Selection.SetElementIds(result.CreatedIds);
-                    // AUTO-R1: Auto-tag structural elements with ISO 19650 tags after creation
-                    ModelEngine.AutoTagCreatedElements(doc, result.CreatedIds);
+                    // Invalidate caches so dashboards and auto-tagger reflect new elements.
+                    ComplianceScan.InvalidateCache();
+                    StingAutoTagger.InvalidateContext();
                 }
 
+                TaskDialog.Show("STRUCT — DWG-to-BIM", msg);
+
+                // Tagging already happened inside the pipeline (once, only when the
+                // wizard's Auto-tag box was ticked) — do not tag again here.
+                if (kept && result.CreatedIds.Count > 0)
+                {
+                    var live = result.CreatedIds
+                        .Where(id => doc.GetElement(id) != null).ToList();
+                    if (live.Count > 0) uidoc.Selection.SetElementIds(live);
+                }
+
+                if (!kept && !result.WasDryRun)
+                {
+                    message = result.Summary;
+                    return Result.Failed;
+                }
                 return Result.Succeeded;
             }
             catch (Autodesk.Revit.Exceptions.OperationCanceledException) { return Result.Cancelled; }

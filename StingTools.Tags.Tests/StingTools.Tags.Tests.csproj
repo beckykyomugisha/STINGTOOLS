@@ -356,6 +356,8 @@
     <Compile Include="..\StingTools\Core\Plumbing\MedicalGasFixtures.Rule.cs" Link="Core\Plumbing\MedicalGasFixtures.Rule.cs" />
     <!-- ELEC-8: rdf:ID allocation for the ETAP hand-off (circuit numbers repeat per panel). -->
     <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
+    <!-- CAD-2: interactive DWG pickers + type factory width matching (Revit-free half). -->
+    <Compile Include="..\StingTools\Model\DwgPickGeometry.cs" Link="Model\DwgPickGeometry.cs" />
   </ItemGroup>
 
 </Project>

@@ -495,6 +495,58 @@ namespace StingTools.Model
                 best.entry.TypeName, TypeMatchMethod.CloseMatch, ranked.First().score);
         }
 
+        /// <summary>
+        /// Width-only beam match, for when a plan pick measures the beam's width but
+        /// nothing measures its depth. Returns the framing type whose width is within
+        /// ±<paramref name="toleranceMm"/>; otherwise duplicates the nearest-width type
+        /// with the new width and that type's own depth. <see cref="TypeMatchResult.DepthMm"/>
+        /// reports the depth that was kept, so callers can say so.
+        /// </summary>
+        public TypeMatchResult FindOrCreateBeamTypeByWidth(double widthMm,
+            double toleranceMm = 5.0, bool allowDuplicate = true)
+        {
+            EnsureCatalog();
+            var candidates = _catalog
+                .Where(e => e.Category == BuiltInCategory.OST_StructuralFraming && e.WidthMm > 0)
+                .ToList();
+            if (candidates.Count == 0)
+                return TypeMatchResult.NotFound(
+                    "No structural framing type with a readable width is loaded. Load a beam family first.");
+
+            var widths = candidates.Select(c => c.WidthMm).ToList();
+            int exactIdx = DwgPickGeometry.IndexWithinTolerance(widths, widthMm, toleranceMm);
+            if (exactIdx >= 0)
+            {
+                var e = candidates[exactIdx];
+                EnsureActive(e);
+                var r = TypeMatchResult.Found(e.TypeId, e.FamilyName, e.TypeName,
+                    TypeMatchMethod.ExactMatch, 1.0);
+                r.WidthMm = e.WidthMm; r.DepthMm = e.DepthMm;
+                return r;
+            }
+
+            var nearest = candidates[DwgPickGeometry.NearestIndex(widths, widthMm)];
+            if (allowDuplicate)
+            {
+                double keepDepth = nearest.DepthMm > 0 ? nearest.DepthMm : widthMm * 2;
+                var dup = DuplicateAndResize(nearest, widthMm, keepDepth,
+                    $"{nearest.FamilyName} {keepDepth:F0}x{widthMm:F0}");
+                if (dup.Success)
+                {
+                    dup.WidthMm = widthMm; dup.DepthMm = keepDepth;
+                    return dup;
+                }
+            }
+
+            EnsureActive(nearest);
+            var fb = TypeMatchResult.Found(nearest.TypeId, nearest.FamilyName, nearest.TypeName,
+                TypeMatchMethod.CloseMatch, 0.5);
+            fb.WidthMm = nearest.WidthMm; fb.DepthMm = nearest.DepthMm;
+            fb.Message = $"No {widthMm:F0} mm wide beam type could be created; used " +
+                $"{nearest.TypeName} ({nearest.WidthMm:F0} mm wide).";
+            return fb;
+        }
+
         // ── Wall Type Resolution ─────────────────────────────────────────
 
         /// <summary>
@@ -503,7 +555,7 @@ namespace StingTools.Model
         /// </summary>
         public TypeMatchResult FindOrCreateWallType(double thicknessMm,
             bool isStructural = true, string preferredName = null,
-            bool allowDuplicate = true)
+            bool allowDuplicate = true, double exactToleranceMm = 2.0)
         {
             EnsureCatalog();
 
@@ -520,18 +572,12 @@ namespace StingTools.Model
             if (wallTypes.Count == 0)
                 return TypeMatchResult.NotFound("No basic wall types in the project.");
 
-            // Find exact or closest thickness match
-            WallType exact = null, closest = null;
-            double closestDiff = double.MaxValue;
-
-            foreach (var wt in wallTypes)
-            {
-                double wtThickMm = wt.Width * Units.FeetToMm;
-                double diff = Math.Abs(wtThickMm - thicknessMm);
-
-                if (diff < 2.0) { exact = wt; break; }
-                if (diff < closestDiff) { closestDiff = diff; closest = wt; }
-            }
+            // Nearest thickness; "exact" when within the caller's tolerance.
+            var widthsMm = wallTypes.Select(wt => wt.Width * Units.FeetToMm).ToList();
+            int nearestIdx = DwgPickGeometry.NearestIndex(widthsMm, thicknessMm);
+            int exactIdx = DwgPickGeometry.IndexWithinTolerance(widthsMm, thicknessMm, exactToleranceMm);
+            WallType exact = exactIdx >= 0 ? wallTypes[exactIdx] : null;
+            WallType closest = nearestIdx >= 0 ? wallTypes[nearestIdx] : null;
 
             if (exact != null)
                 return TypeMatchResult.Found(exact.Id, "System Wall", exact.Name,
@@ -564,7 +610,7 @@ namespace StingTools.Model
                     }
 
                     WallType newWt = null;
-                    using (var tx = new Transaction(_doc, "STING STRUCT: Create Wall Type"))
+                    using (var tx = new NestableTransaction(_doc, "STING STRUCT: Create Wall Type"))
                     {
                         tx.Start();
                         newWt = closest.Duplicate(newName) as WallType;
@@ -681,7 +727,7 @@ namespace StingTools.Model
                     }
 
                     FloorType newFt = null;
-                    using (var tx = new Transaction(_doc, "STING STRUCT: Create Floor Type"))
+                    using (var tx = new NestableTransaction(_doc, "STING STRUCT: Create Floor Type"))
                     {
                         tx.Start();
                         newFt = closest.Duplicate(newName) as FloorType;
@@ -854,7 +900,7 @@ namespace StingTools.Model
                 }
 
                 FamilySymbol newSymbol = null;
-                using (var tx = new Transaction(_doc, "STING STRUCT: Create Type"))
+                using (var tx = new NestableTransaction(_doc, "STING STRUCT: Create Type"))
                 {
                     tx.Start();
                     newSymbol = sourceSymbol.Duplicate(newName) as FamilySymbol;
@@ -958,7 +1004,7 @@ namespace StingTools.Model
                 var sym = _doc.GetElement(entry.TypeId) as FamilySymbol;
                 if (sym != null && !sym.IsActive)
                 {
-                    using (var tx = new Transaction(_doc, "STING: Activate Symbol"))
+                    using (var tx = new NestableTransaction(_doc, "STING: Activate Symbol"))
                     {
                         tx.Start();
                         sym.Activate();
@@ -996,6 +1042,58 @@ namespace StingTools.Model
             }
 
             return sb.ToString();
+        }
+    }
+
+    /// <summary>
+    /// A Transaction when none is open, a SubTransaction when one is. The factory is
+    /// called both from commands with no transaction open and from inside the CAD
+    /// pipeline's creation transactions; a plain <c>new Transaction(...).Start()</c>
+    /// throws in the second case, so type duplication failed there and every element
+    /// silently fell back to the closest existing type instead of its measured size.
+    /// Disposing an uncommitted scope rolls it back.
+    /// </summary>
+    internal sealed class NestableTransaction : IDisposable
+    {
+        private readonly Document _doc;
+        private readonly string _name;
+        private Transaction _tx;
+        private SubTransaction _sub;
+
+        public NestableTransaction(Document doc, string name)
+        {
+            _doc = doc ?? throw new ArgumentNullException(nameof(doc));
+            _name = name;
+        }
+
+        public void Start()
+        {
+            if (_doc.IsModifiable)
+            {
+                _sub = new SubTransaction(_doc);
+                _sub.Start();
+            }
+            else
+            {
+                _tx = new Transaction(_doc, _name);
+                _tx.Start();
+            }
+        }
+
+        public void Commit()
+        {
+            if (_sub != null) _sub.Commit();
+            else _tx?.Commit();
+        }
+
+        public void Dispose()
+        {
+            if (_sub != null && _sub.HasStarted() && !_sub.HasEnded())
+                StingLog.Warn($"{_name}: rolled back (not committed)");
+            if (_tx != null && _tx.HasStarted() && !_tx.HasEnded())
+                StingLog.Warn($"{_name}: rolled back (not committed)");
+            _sub?.Dispose();
+            _tx?.Dispose();
         }
     }
 }
