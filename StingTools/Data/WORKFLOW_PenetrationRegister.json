@@ -44,10 +44,13 @@
     },
     {
       "id": "place-on-sheet",
-      "label": "Place register schedule on A1 sheet",
-      "commandTag": "DrawingTypes_FromScopeBoxes",
-      "drawingTypeId": "penetration-register-A1",
-      "_notes": "Creates or updates the A1 Penetration Register sheet using the 'penetration-register-A1' drawing type profile. The schedule is placed in the single Main slot. Idempotent — re-running on an existing sheet refreshes the viewport without creating a duplicate."
+      "label": "Produce the register's scope-box drawing (penetration-register-A1)",
+      "commandTag": "DrawingTypes_ProduceFromScopeBoxes",
+      "params": {
+        "drawingTypes": "penetration-register-A1",
+        "output": "Views and sheets"
+      },
+      "_notes": "Runs the drawing-type producer (DrawingTypes_ProduceFromScopeBoxes) for the STING::penetration-register-A1 scope box(es). The older DrawingTypes_FromScopeBoxes tag made views with different stamps and no sheets; it now runs this same producer. Idempotent: re-running finds the box's view and sheet by the box's id. Fails the step, with the reason, when no STING:: box is bound to penetration-register-A1 - no command places the register schedule on a sheet yet (see DrawingRouteRequests PENETRATION_REGISTER)."
     },
     {
       "id": "export-register",

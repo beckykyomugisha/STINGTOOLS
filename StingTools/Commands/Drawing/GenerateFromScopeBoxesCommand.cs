@@ -1,25 +1,22 @@
-// StingTools — Drawing Template Manager · Week 5
+// StingTools — Drawing Template Manager · DrawingTypes_FromScopeBoxes
 //
-// GenerateFromScopeBoxesCommand: the single "Generate" button that
-// walks every scope box named with the STING::<drawing-type> magic
-// pattern, creates a view of the matching ViewFamily per box,
-// assigns the scope box as crop, applies the profile's scale /
-// template / style pack / annotation, and reports what was created
-// vs updated vs skipped.
+// DTW-41: this was a second, older producer for STING::<drawing-type> scope boxes,
+// running beside ProduceViewsFromScopeBoxesCommand (DrawingTypes_ProduceFromScopeBoxes)
+// and disagreeing with it on everything that matters:
+//   • its own identity stamps (drawing type + the box assigned as crop), so a view one
+//     made the other did not find — running both gave every box two views;
+//   • ungated TaskDialogs, so inside a workflow preset it stopped and waited for a click;
+//   • a "contains" level match, so a box coded L1 produced on Level 10;
+//   • an empty catch around the rename; and no sheets at all.
 //
-// Idempotent by design — a re-run only touches views that don't
-// already exist for that (DrawingType, scope box) pair.
+// The tag stays — dock-panel buttons, the NLP processor, the Drawing Type Editor and
+// saved workflows name it — but it now runs the one producer. A view the old command
+// made (stamped with the drawing type, cropped to the box, no production context) is
+// adopted by that producer on its first run, not duplicated beside it.
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
-using StingTools.Core;
-using StingTools.Core.Drawing;
 
 namespace StingTools.Commands.Drawing
 {
@@ -28,254 +25,6 @@ namespace StingTools.Commands.Drawing
     public class GenerateFromScopeBoxesCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
-        {
-            try
-            {
-                var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
-                if (doc == null) { msg = "No document open."; return Result.Failed; }
-
-                // PERF-01: warm view-template + pack caches once before the
-                // batch so per-view Apply() calls hit cached lookups.
-                DrawingTypePresentation.Prewarm(doc);
-                // GAP-F: prime the (DrawingType, ScopeBox) → existing-view
-                // index so per-binding FindExistingView is O(1) instead of
-                // O(views) per call.
-                ScopeBoxBinder.PrimeExistingViewIndex(doc);
-
-                var bindings = ScopeBoxBinder.ScanProject(doc, out var nameWarnings);
-                if (bindings.Count == 0 && nameWarnings.Count == 0)
-                {
-                    TaskDialog.Show("STING — Generate from Scope Boxes",
-                        "No scope boxes matching the STING::<drawing-type> pattern.\n\n" +
-                        "Rename a scope box to e.g.\n" +
-                        "   STING::arch-plan-A1-1to100::L02\n" +
-                        "and re-run.");
-                    return Result.Succeeded;
-                }
-
-                int created = 0, updated = 0, skipped = 0;
-                var warnings = new List<string>();
-                // ACC-02: surface scope-box names that begin with STING::
-                // but fail strict parsing — typos that previously vanished.
-                foreach (var nw in nameWarnings)
-                    warnings.Add($"'{nw.Name}' → name rejected: {nw.Reason}");
-
-                using (var tx = new Transaction(doc, "STING — Generate from Scope Boxes"))
-                {
-                    tx.Start();
-
-                    foreach (var b in bindings)
-                    {
-                        var dt = DrawingTypeRegistry.Get(doc, b.DrawingTypeId);
-                        if (dt == null)
-                        {
-                            warnings.Add($"'{b.ScopeBox.Name}' → unknown DrawingType '{b.DrawingTypeId}'");
-                            skipped++;
-                            continue;
-                        }
-
-                        try
-                        {
-                            var existing = ScopeBoxBinder.FindExistingView(doc, b);
-                            if (existing != null)
-                            {
-                                DrawingTypePresentation.Apply(doc, existing, dt, runAnnotation: false);
-                                StampScopeBoxTag(existing, b, warnings);
-                                updated++;
-                                continue;
-                            }
-
-                            var v = CreateView(doc, dt, b, warnings);
-                            if (v == null) { skipped++; continue; }
-                            DrawingTypePresentation.Apply(doc, v, dt,
-                                new DrawingTypePresentation.ApplyOptions { SkipSymbolDriftCheck = true }); // batch from scope boxes
-                            StampScopeBoxTag(v, b, warnings);
-                            created++;
-                        }
-                        catch (Exception ex)
-                        {
-                            warnings.Add($"'{b.ScopeBox.Name}' → {ex.Message}");
-                            skipped++;
-                        }
-                    }
-
-                    var status = tx.Commit();
-                    if (status != TransactionStatus.Committed)
-                    {
-                        warnings.Insert(0, $"The transaction did not commit ({status}); the {created} created and {updated} updated view(s) were not kept.");
-                        created = 0; updated = 0;
-                    }
-                }
-
-                var sb = new StringBuilder();
-                sb.AppendLine($"Scope boxes scanned: {bindings.Count}");
-                sb.AppendLine($"  Views created:  {created}");
-                sb.AppendLine($"  Views updated:  {updated}");
-                sb.AppendLine($"  Skipped:        {skipped}");
-                if (warnings.Count > 0)
-                {
-                    sb.AppendLine();
-                    sb.AppendLine("Warnings:");
-                    foreach (var w in warnings.Take(15)) sb.AppendLine("  " + w);
-                    if (warnings.Count > 15) sb.AppendLine($"  …({warnings.Count - 15} more)");
-                }
-                TaskDialog.Show("STING — Generate from Scope Boxes", sb.ToString());
-                return Result.Succeeded;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Error("GenerateFromScopeBoxes", ex);
-                msg = ex.Message;
-                return Result.Failed;
-            }
-        }
-
-        /// <summary>
-        /// INT-01: persist the scope-box tag on the produced view so any
-        /// downstream automation can group / filter by tag, and emit an
-        /// info message if the view ever gets placed on a sheet so the
-        /// operator knows TitleBlockParamApplier will run on the sheet
-        /// (not the view).
-        /// </summary>
-        private static void StampScopeBoxTag(View v, ScopeBoxBinding b, List<string> warnings)
-        {
-            if (v == null || b == null) return;
-            if (!string.IsNullOrEmpty(b.Tag))
-            {
-                try
-                {
-                    var p = v.LookupParameter(ParamRegistry.STING_SCOPE_BOX_TAG);
-                    if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
-                        p.Set(b.Tag);
-                    else if (p == null)
-                        // Unbound: the write is a no-op. Say so rather than let the
-                        // tag vanish — Load Shared Params binds it.
-                        warnings.Add($"{ParamRegistry.STING_SCOPE_BOX_TAG} is not bound to Views; " +
-                                     $"tag '{b.Tag}' was not stamped on '{v.Name}'. Run Load Shared Params.");
-                }
-                catch (Exception ex)
-                {
-                    warnings.Add($"Tag stamp '{b.Tag}': {ex.Message}");
-                }
-            }
-        }
-
-        private static View CreateView(Document doc, DrawingType dt, ScopeBoxBinding b, List<string> warnings)
-        {
-            var family = FamilyForPurpose(dt, warnings);
-            if (family == null) return null;
-            var vft = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(t => t.ViewFamily == family);
-            if (vft == null)
-            {
-                warnings.Add($"No ViewFamilyType for purpose '{dt.Purpose}'");
-                return null;
-            }
-
-            View v = null;
-            try
-            {
-                switch (family)
-                {
-                    case ViewFamily.FloorPlan:
-                    case ViewFamily.CeilingPlan:
-                    case ViewFamily.StructuralPlan:
-                    case ViewFamily.AreaPlan:
-                        {
-                            var level = ResolveLevel(doc, b.LevelCode);
-                            if (level == null) { warnings.Add($"No Level matches '{b.LevelCode ?? "(unset)"}'"); return null; }
-                            v = ViewPlan.Create(doc, vft.Id, level.Id);
-                            break;
-                        }
-                    case ViewFamily.ThreeDimensional:
-                        v = View3D.CreateIsometric(doc, vft.Id);
-                        break;
-                    default:
-                        warnings.Add($"Purpose '{dt.Purpose}' does not auto-create from scope box; use BatchSections/Elevations instead.");
-                        return null;
-                }
-                if (v == null) return null;
-
-                // Name it something recognisable and bind the scope box
-                var safeName = $"STING - {dt.Id} - {b.ScopeBox.Name}";
-                foreach (var ch in System.IO.Path.GetInvalidFileNameChars())
-                    safeName = safeName.Replace(ch, '_');
-                try { v.Name = UniqueViewName(doc, safeName); } catch { }
-
-                var sbParam = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
-                if (sbParam != null && !sbParam.IsReadOnly)
-                    sbParam.Set(b.ScopeBox.Id);
-
-                return v;
-            }
-            catch (Exception ex)
-            {
-                warnings.Add($"CreateView('{dt.Id}'): {ex.Message}");
-                return null;
-            }
-        }
-
-        // D-7: purpose -> view kind comes from the one shared table. This used to
-        // be a second copy of the switch whose default was FloorPlan, so a
-        // Schematic profile bound to a scope box was produced as a floor plan.
-        // An unknown purpose is now reported instead of guessed.
-        private static ViewFamily? FamilyForPurpose(DrawingType dt, List<string> warnings)
-        {
-            if (!DrawingPurposeViewKind.TryResolve(dt.Purpose, out var kind))
-            {
-                warnings.Add($"'{dt.Id}': purpose '{dt.Purpose ?? "(none)"}' maps to no view kind — skipped. " +
-                             $"Known purposes: {string.Join(", ", DrawingPurpose.All)}.");
-                return null;
-            }
-            switch (kind)
-            {
-                case DrawingViewKind.FloorPlan: return ViewFamily.FloorPlan;
-                case DrawingViewKind.Rcp:       return ViewFamily.CeilingPlan;
-                case DrawingViewKind.ThreeD:    return ViewFamily.ThreeDimensional;
-                case DrawingViewKind.Section:   return ViewFamily.Section;
-                case DrawingViewKind.Elevation: return ViewFamily.Elevation;
-                case DrawingViewKind.Detail:    return ViewFamily.Detail;
-                case DrawingViewKind.Schedule:  return ViewFamily.Schedule;
-                case DrawingViewKind.Legend:    return ViewFamily.Legend;
-                case DrawingViewKind.Drafting:  return ViewFamily.Drafting;
-                default:
-                    warnings.Add($"'{dt.Id}': view kind '{kind}' has no ViewFamily mapping — skipped.");
-                    return null;
-            }
-        }
-
-        private static Level ResolveLevel(Document doc, string levelCode)
-        {
-            var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
-            if (levels.Count == 0) return null;
-            if (string.IsNullOrWhiteSpace(levelCode)) return levels.OrderBy(l => l.Elevation).FirstOrDefault();
-
-            // P-13b: exact name match, then case-insensitive contains, then
-            // FAIL. The old third fallback returned the lowest-elevation level,
-            // so a typo in a scope box's level code silently produced the view
-            // on the wrong level — and the caller's `level == null` warn-and-skip
-            // could never fire, because a project with any levels always matched
-            // something. An unmatched code now yields null so that guard works.
-            // A level code that was never specified still defaults to the lowest
-            // level (handled above) — that default is deliberate.
-            return levels.FirstOrDefault(l => string.Equals(l.Name, levelCode, StringComparison.OrdinalIgnoreCase))
-                ?? levels.FirstOrDefault(l => l.Name?.IndexOf(levelCode, StringComparison.OrdinalIgnoreCase) >= 0);
-        }
-
-        private static string UniqueViewName(Document doc, string baseName)
-        {
-            var existing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
-                if (el is View vv) existing.Add(vv.Name);
-            if (!existing.Contains(baseName)) return baseName;
-            for (int i = 2; i < 1000; i++)
-            {
-                var c = baseName + " (" + i + ")";
-                if (!existing.Contains(c)) return c;
-            }
-            return baseName + "-" + Guid.NewGuid().ToString("N").Substring(0, 4);
-        }
+            => new ProduceViewsFromScopeBoxesCommand().Execute(data, ref msg, els);
     }
 }

@@ -585,6 +585,19 @@ namespace StingTools.Commands.Drawing
                         try
                         {
                             var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = bnd.Tag, PackageId = packageId };
+                            // DTW-41: a view the retired DrawingTypes_FromScopeBoxes producer made
+                            // for this box (stamped with the type, cropped to the box, no
+                            // production context) is adopted, not duplicated.
+                            bnd.ScopeBox = scope;
+                            var legacyView = ScopeBoxBinder.FindExistingView(doc, bnd);
+                            if (legacyView != null
+                                && string.IsNullOrEmpty(ParameterHelpers.GetString(legacyView, ParamRegistry.STING_VIEW_CONTEXT_TAG)))
+                            {
+                                var firstRule = (dt.ProductionRules ?? new List<ProductionRule>()).OrderBy(r => r.Idx).FirstOrDefault()
+                                             ?? new ProductionRule { Idx = 0 };
+                                if (DrawingProducer.AdoptView(doc, dt, dctx, firstRule, legacyView))
+                                    warnings.Add($"{scope.Name}: '{legacyView.Name}' (made by the old Generate from Scope Boxes) was adopted, not duplicated.");
+                            }
                             var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                             warnings.AddRange(pr.Warnings);
                             var status = t.Commit();
