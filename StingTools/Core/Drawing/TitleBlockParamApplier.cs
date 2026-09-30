@@ -88,6 +88,15 @@ namespace StingTools.Core.Drawing
                     RefuseSheetIdentity(r, sheet, kv.Key);
                     continue;
                 }
+                // DTW-60: a legacy label whose target is also declared by its real
+                // name is dropped; the real name wins.
+                if (TitleBlockParamAliases.IsShadowed(kv.Key, dt.TitleBlockParams.Keys, ParamAliases))
+                {
+                    r.Warnings.Add(
+                        $"'{kv.Key}' ignored: '{TitleBlockParamAliases.Target(kv.Key, ParamAliases)}' is declared too. " +
+                        "Remove the legacy key from the profile's titleBlockParams.");
+                    continue;
+                }
                 TitleBlockTemplateResult res;
                 try { res = ResolveTemplate(doc, kv.Value ?? "", tokens); }
                 catch (Exception ex)
@@ -154,7 +163,9 @@ namespace StingTools.Core.Drawing
 
                 try
                 {
-                    var p = tb.LookupParameter(paramName);
+                    // DTW-60: a legacy display-label key ("Client Name") reaches
+                    // the family parameter it names through paramAliases.
+                    var p = LookupDeclared(tb, paramName);
                     if (p == null)
                     {
                         if (!r.ParametersMissing.Contains(paramName)) r.ParametersMissing.Add(paramName);
@@ -502,7 +513,7 @@ namespace StingTools.Core.Drawing
                     {
                         try
                         {
-                            var p = tb.LookupParameter(key);
+                            var p = LookupDeclared(tb, key);
                             if (p == null || p.IsReadOnly) continue;
                             switch (p.StorageType)
                             {
@@ -600,10 +611,59 @@ namespace StingTools.Core.Drawing
             foreach (var key in keys)
             {
                 if (string.IsNullOrWhiteSpace(key)) continue;
-                try { if (tb.LookupParameter(key) != null) return true; }
+                try { if (LookupDeclared(tb, key) != null) return true; }
                 catch { /* defensive */ }
             }
             return false;
+        }
+
+        private static IReadOnlyDictionary<string, string> _paramAliases;
+
+        /// <summary>
+        /// DTW-60: legacy display-label keys -> title-block family parameter, read
+        /// once from "paramAliases" in STING_TITLE_BLOCKS.json. Empty when the file
+        /// or the block is missing, so keys are then used exactly as written.
+        /// </summary>
+        internal static IReadOnlyDictionary<string, string> ParamAliases
+        {
+            get
+            {
+                var cached = _paramAliases;
+                if (cached != null) return cached;
+                Dictionary<string, string> map;
+                try
+                {
+                    var path = StingTools.Core.StingToolsApp.FindDataFile("STING_TITLE_BLOCKS.json");
+                    map = !string.IsNullOrEmpty(path) && System.IO.File.Exists(path)
+                        ? TitleBlockParamAliases.FromLibraryJson(System.IO.File.ReadAllText(path))
+                        : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    if (map.Count == 0)
+                        StingTools.Core.StingLog.Warn("TitleBlockParamApplier: no paramAliases in STING_TITLE_BLOCKS.json; legacy label keys will not resolve.");
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: paramAliases unreadable, legacy label keys will not resolve: {ex.Message}");
+                    map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                }
+                _paramAliases = map;
+                return map;
+            }
+        }
+
+        /// <summary>
+        /// DTW-60: the title-block parameter a declared key addresses: the key as
+        /// written, else its alias target. Shared by Apply, ClearStale and the drift
+        /// detector so they agree on which cell a key means.
+        /// </summary>
+        internal static Parameter LookupDeclared(Element tb, string key)
+        {
+            if (tb == null) return null;
+            foreach (var name in TitleBlockParamAliases.Candidates(key, ParamAliases))
+            {
+                var p = tb.LookupParameter(name);
+                if (p != null) return p;
+            }
+            return null;
         }
 
     }
