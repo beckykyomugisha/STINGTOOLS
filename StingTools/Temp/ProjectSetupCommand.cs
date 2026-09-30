@@ -407,7 +407,7 @@ namespace StingTools.Temp
 
                     if (data.CreateTemplates)
                     {
-                        passed += RunStep(ref stepNum, report, "Create View Templates (23)",
+                        passed += RunStep(ref stepNum, report, "Create View Templates",
                             () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
                         passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
                             () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));

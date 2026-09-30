@@ -2948,7 +2948,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "EvaluateFormulas", Label = "Evaluate Formulas (199)" },
                             new WorkflowStep { CommandTag = "CreateFilters", Label = "Create View Filters (28+)" },
                             new WorkflowStep { CommandTag = "CreateWorksets", Label = "Create Worksets (35)", Condition = "workshared", Optional = true },
-                            new WorkflowStep { CommandTag = "ViewTemplates", Label = "Create View Templates (23)" },
+                            new WorkflowStep { CommandTag = "ViewTemplates", Label = "Create View Templates" },
                             new WorkflowStep { CommandTag = "CreateFillPatterns", Label = "Create Fill Patterns" },
                             new WorkflowStep { CommandTag = "CreateLineStyles", Label = "Create Line Styles" },
                             new WorkflowStep { CommandTag = "CreateObjectStyles", Label = "Create Object Styles" },
