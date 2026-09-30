@@ -25829,5 +25829,57 @@ every `GetString` read against the parameter's data type.
   its dry-run tick box, are ignored), CAD-2, MDP-1 (medical-gas and four other placement packs
   never load), MDP-2 (missing MEP drawing types), MDP-3 (`E / PLAN` routes to a section).
 
-Built 0/0. The two code fixes are Revit-bound and not run in Revit; the guide is read from the
-code and says so.
+**Then every logged gap was closed on the same branch (2026-09-30):**
+
+- **DWG modelling.** CAD Wizard Convert runs the full config pipeline on the picked DWG as one
+  undo step (every dialog option, real dry-run, one tagging pass); four pipeline bugs fixed on
+  the way (type duplication failed inside the conversion transaction, so size detection never
+  created a type; post-steps ran with no transaction; dry-run wrote to the model; connection
+  synthesis unwired). Pick Wall / Column / Beam size from what they measure (`DwgPickGeometry`).
+- **Drawing types.** 11 MEP types (data / comms, security, containment, emergency lighting, fire
+  alarm schematic, CHW / LTHW pipework, HVAC schematic, water supply, fire riser, services
+  section, services detail) and `elec-sld-A1-NTS`; `E / PLAN` → power plan (JSON and fallback).
+  The templates step creates every `viewTemplateName` the types name, from temporary base views
+  when the model has none (`DrawingTemplateCatalogue`, `TemporaryBaseViews`).
+- **Production.**
+  - "Duplicate as Dependent" works (`DependentViewPlanner`).
+  - The producers, Renumber, Heal TBs and Panel_PlaceOnSheets run in workflows with `params`.
+  - "⚡ Produce & Export" never produced anything: its production phase had no Transaction.
+  - Presets report instead of popping dialogs (`PresetDialog`).
+  - New presets `MEPDrawingSetup`, `MEPDrawingProduction` (route chosen by `has_area_boxes` /
+    `no_area_boxes` / `has_sting_boxes`) and `MEPPreIssue`.
+  - Match lines pair the same drawing type and level, work for overlapping and turned area
+    boxes, and skip seed / building boxes (`MatchLineGeometry`).
+  - Sync Styles and re-runs keep a view's scope-box crop (`ViewContextTag`).
+  - SLD and riser views go on stamped sheets; panel circuit schedules get their own sheets
+    (AutoSheets).
+  - The wizard's views and sheets and the HVAC "Per-level + sheets" go through
+    `DrawingProducer`.
+  - Produce & Export option 1 asks which types to produce.
+  - `STING_SCOPE_BOX_TAG_TXT` is registered; `sync_csv_from_txt.py` takes a new row's category
+    from its group.
+- **Placement / zones / wizard.**
+  - The medical-gas pack is registered, with clinical-only room filters (the healthcare
+    bedhead trunking too).
+  - `PlacementPackRegistry` names every pack left out and why, and a test fails on an
+    unlisted one.
+  - "Run Wall Chase" finally loads its rule.
+  - Medical-gas outlet buttons were added.
+  - `STING-ZONE::` boxes set ZONE.
+  - The wizard offers short codes for level names with spaces, and renames scope boxes to
+    `STING-ZONE::` / `STING-LOC::` names only.
+- **Seeds.**
+  - The seed model read `"instance"` while all 33 seed files write `"isInstance"`, so every
+    seed parameter was built as instance. It now reads both. 58 catalogue parameters become
+    type parameters; 3 that code writes per element stay instance. A strict test fails on any
+    seed key the model does not bind.
+  - SEED-1: ten parameter names corrected to their registered names (`ASS_TAG_1` →
+    `ASS_TAG_1_TXT` in all 33 seeds, the ELC panel / photometric keys, `LTG_DIMMABLE_TXT`, …),
+    with a test that every shared seed parameter is registered or allow-listed.
+  - `followsType` + `SeedTypeSwapUpdater`: a type swap restamps type-defining instance values
+    unless the user typed their own.
+  - `renamedFrom` migrates renamed seed types (MG-2) under the same rule.
+- ROADMAP CAD-1, CAD-2, MDP-1..3, MG-1, MG-2, SEED-1 closed.
+
+Build 0/0; Tags.Tests all green; `run_ci_gates.py` 0 failed. Everything new is Revit-bound where
+it touches the model and has not been run in Revit; the guide's Part E lists what to check.
