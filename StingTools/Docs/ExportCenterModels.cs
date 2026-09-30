@@ -516,6 +516,8 @@ namespace StingTools.Docs
         public bool Cancelled { get; set; }
         /// <summary>Where the run's CSV report was written; null when none was.</summary>
         public string ReportPath { get; set; }
+        /// <summary>The optional ACC upload's outcome (C2); null when the profile does not upload.</summary>
+        public ExportAccUploadTally Acc { get; set; }
 
         public int Success => Rows.FindAll(r => r.Success).Count;
         public int Failed  => Rows.FindAll(r => !r.Success).Count;

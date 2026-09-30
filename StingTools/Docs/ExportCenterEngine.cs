@@ -1027,7 +1027,17 @@ namespace StingTools.Docs
             if (doc == null || profile?.Output == null || !profile.Output.UploadToAcc) return;
             if (result == null || result.Cancelled) return;
             var rows = result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? "")).ToList();
+            var tally = new ExportAccUploadTally { Requested = true };
+            result.Acc = tally;
             if (rows.Count == 0) return;
+            // A whole-run block: recorded on the tally (which fails a scheduled step) and put
+            // first in the warnings, where the result dialog cannot cut it off.
+            void Block(string why, string rowNote)
+            {
+                tally.BlockedReason = why;
+                result.Warnings.Insert(0, tally.Line());
+                foreach (var r in rows) r.AccUpload = rowNote;
+            }
 
             const string who = "Export Centre ACC upload";
             V6.AccCredentials creds;
@@ -1040,16 +1050,14 @@ namespace StingTools.Docs
             catch (Exception ex)
             {
                 StingLog.Warn("Export Centre ACC upload: settings: " + ex.Message);
-                result.Warnings.Add("ACC upload: NOTHING was uploaded — the project's ACC settings could not be read: " + ex.Message);
-                foreach (var r in rows) r.AccUpload = "not uploaded: ACC settings unreadable";
+                Block("the project's ACC settings could not be read: " + ex.Message, "not uploaded: ACC settings unreadable");
                 return;
             }
             if (creds == null || string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                result.Warnings.Add("ACC upload: NOTHING was uploaded — ACC is not set up for this project on this machine " +
-                                    "(BIM Coordination Center > ACC: sign in, then Discover the project).");
-                foreach (var r in rows) r.AccUpload = "not uploaded: ACC not set up";
+                Block("ACC is not set up for this project on this machine " +
+                      "(BIM Coordination Center > ACC: sign in, then Discover the project).", "not uploaded: ACC not set up");
                 return;
             }
 
@@ -1064,16 +1072,13 @@ namespace StingTools.Docs
                 {
                     // An unreadable ledger is not an empty one: treating it as empty would re-send
                     // every file as "never sent" and stack duplicate versions in ACC.
-                    result.Warnings.Add("ACC upload: NOTHING was uploaded — the upload ledger could not be read (" +
-                                        ledgerErr + "): " + ledgerPath);
-                    foreach (var r in rows) r.AccUpload = "not uploaded: ledger unreadable";
+                    Block("the upload ledger could not be read (" + ledgerErr + "): " + ledgerPath, "not uploaded: ledger unreadable");
                     return;
                 }
             }
             catch (Exception ex)
             {
-                result.Warnings.Add("ACC upload: NOTHING was uploaded — the upload ledger path could not be resolved: " + ex.Message);
-                foreach (var r in rows) r.AccUpload = "not uploaded: ledger unavailable";
+                Block("the upload ledger path could not be resolved: " + ex.Message, "not uploaded: ledger unavailable");
                 return;
             }
 
@@ -1091,7 +1096,7 @@ namespace StingTools.Docs
                     if (string.IsNullOrEmpty(r.Suitability))
                     {
                         r.AccUpload = "not uploaded: not a single sheet, so there is no suitability or revision to file it by";
-                        refused++; problems.Add($"{name}: not a single sheet"); continue;
+                        tally.NotEligible++; continue;
                     }
                     if (r.IsoFieldsUnset != null && r.IsoFieldsUnset.Count > 0)
                     {
@@ -1111,6 +1116,7 @@ namespace StingTools.Docs
                     if (!gate.ShouldUpload)
                     {
                         r.AccUpload = "not uploaded: " + gate.Reason;
+                        if (gate.HeldAsReissue) { tally.Held++; continue; }
                         refused++; problems.Add($"{name}: {gate.Reason}"); continue;
                     }
 
@@ -1162,10 +1168,13 @@ namespace StingTools.Docs
                 }
             }
 
-            result.Warnings.Add($"ACC upload: {sent} uploaded, {identical} already in ACC (identical, skipped), " +
-                                $"{refused} refused, {failed} failed. The export itself is complete either way.");
-            foreach (var p in problems.Take(10)) result.Warnings.Add("ACC: " + p);
-            if (problems.Count > 10) result.Warnings.Add($"ACC: … and {problems.Count - 10} more (see the export report).");
+            tally.Uploaded = sent; tally.Identical = identical; tally.Refused = refused; tally.Failed = failed;
+            // First, not last: the result dialog shows only the first warnings, and this is the
+            // line that says whether the issue set reached the CDE.
+            var accLines = new List<string> { tally.Line() + " The export itself is complete either way." };
+            accLines.AddRange(problems.Take(10).Select(p => "ACC: " + p));
+            if (problems.Count > 10) accLines.Add($"ACC: … and {problems.Count - 10} more (see the export report).");
+            result.Warnings.InsertRange(0, accLines);
             StingLog.Info($"Export Centre ACC upload: {sent} sent, {identical} identical, {refused} refused, {failed} failed.");
         }
 

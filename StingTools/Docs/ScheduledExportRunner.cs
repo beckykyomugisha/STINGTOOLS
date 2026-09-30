@@ -111,6 +111,7 @@ namespace StingTools.Docs
                         // duplicate name), not a failure to export.
                         outcome.FilesSkipped = res.Rows.Count(r => !r.Success && (r.Error ?? "").StartsWith("Skipped", StringComparison.OrdinalIgnoreCase));
                         outcome.FilesFailed = res.Failed - outcome.FilesSkipped;
+                        outcome.Acc = res.Acc;
                         StingLog.Info($"Scheduled export '{sch.ProfileName}' [{setName}]: {sch.LastResult}");
                     }
                 }

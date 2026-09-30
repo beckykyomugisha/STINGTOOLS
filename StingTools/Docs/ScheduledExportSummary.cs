@@ -18,6 +18,37 @@ namespace StingTools.Docs
 
     public enum ScheduledJobState { Ran, ProfileMissing, NoSheets, Blocked, Error }
 
+    /// <summary>
+    /// What the Export Centre's optional ACC upload did in one run (C2). It used to reach
+    /// the run only as warning text, so a scheduled step whose every upload failed (an
+    /// expired sign-in, unreadable settings) still read as a green export.
+    /// </summary>
+    public sealed class ExportAccUploadTally
+    {
+        /// <summary>The profile asked for an ACC upload.</summary>
+        public bool Requested { get; set; }
+        /// <summary>Set when nothing could be uploaded at all (settings, sign-in, ledger).</summary>
+        public string BlockedReason { get; set; }
+        public int Uploaded { get; set; }
+        public int Identical { get; set; }
+        /// <summary>Sheets refused by rule: suitability/revision unset, pairing, re-issue.</summary>
+        public int Refused { get; set; }
+        /// <summary>Already in ACC at this revision with other bytes: held, not sent (a re-issue
+        /// needs a revision). Reported, not a fault — a whole-set scheduled re-export of
+        /// unchanged sheets lands here whenever the renderer is not byte-stable (C6).</summary>
+        public int Held { get; set; }
+        /// <summary>Not a single sheet (combined PDF, model export): never uploaded, not a fault.</summary>
+        public int NotEligible { get; set; }
+        public int Failed { get; set; }
+
+        public string Line() => !Requested ? "" :
+            !string.IsNullOrEmpty(BlockedReason) ? "ACC upload: NOTHING was uploaded — " + BlockedReason
+            : $"ACC upload: {Uploaded} uploaded, {Identical} already in ACC (identical, skipped), " +
+              $"{Refused} refused, {Failed} failed" +
+              (Held > 0 ? $", {Held} held (already in ACC at this revision with different bytes — revise to re-issue)" : "") +
+              (NotEligible > 0 ? $", {NotEligible} not a single sheet (not uploaded)" : "") + ".";
+    }
+
     public enum ScheduledExportVerdict { Succeeded, NothingDue, Failed }
 
     public sealed class ScheduledJobOutcome
@@ -30,6 +61,8 @@ namespace StingTools.Docs
         public int FilesSkipped { get; set; }
         public int FilesFailed { get; set; }
         public string Detail { get; set; }
+        /// <summary>The run's ACC upload outcome; null when the profile does not upload.</summary>
+        public ExportAccUploadTally Acc { get; set; }
     }
 
     public sealed class ScheduledExportSummary
@@ -54,6 +87,15 @@ namespace StingTools.Docs
             if (!string.IsNullOrEmpty(LoadError)) return ScheduledExportVerdict.Failed;
             if (Jobs.Any(j => j.State != ScheduledJobState.Ran)) return ScheduledExportVerdict.Failed;
             if (FilesFailed > 0) return ScheduledExportVerdict.Failed;
+            // C2: a profile that uploads to ACC exists to put the issue set in the CDE. An upload
+            // that could not run, or a file that failed, fails the step; inside a preset so
+            // does a refused sheet (unset or contradictory ISO fields, a re-issue without a
+            // revision change) — the run was meant to deliver it.
+            foreach (var acc in Jobs.Select(j => j.Acc).Where(a => a != null && a.Requested))
+            {
+                if (!string.IsNullOrEmpty(acc.BlockedReason) || acc.Failed > 0) return ScheduledExportVerdict.Failed;
+                if (inPreset && acc.Refused > 0) return ScheduledExportVerdict.Failed;
+            }
             if (FilesOk == 0)
                 return inPreset ? ScheduledExportVerdict.Failed : ScheduledExportVerdict.NothingDue;
             return ScheduledExportVerdict.Succeeded;
@@ -78,6 +120,7 @@ namespace StingTools.Docs
                     _ => "NOT RUN — error",
                 };
                 lines.Add($"• {j.Name}: {what}" + (string.IsNullOrEmpty(j.Detail) ? "" : $" ({j.Detail})"));
+                if (j.Acc != null && j.Acc.Requested) lines.Add("    " + j.Acc.Line());
             }
             return $"{Ran} of {Jobs.Count} due job(s) ran; {FilesOk} file(s) exported, {FilesFailed} failed.\n" +
                    string.Join("\n", lines);

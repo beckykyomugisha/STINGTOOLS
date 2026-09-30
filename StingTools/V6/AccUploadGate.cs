@@ -54,6 +54,10 @@ namespace StingTools.V6
         public bool ShouldUpload => Decision == AccUploadGateDecision.Upload;
         /// <summary>Sent as a new ACC version under an unchanged revision because it was allowed.</summary>
         public bool ReissueAllowed => Ledger?.Decision == AccLedgerDecision.UploadReissueAllowed;
+        /// <summary>Refused only because this document + revision + format was already sent with
+        /// other bytes. A whole-set re-export of unchanged sheets lands here when the renderer is
+        /// not byte-stable (C6), so callers report it apart from a real refusal.</summary>
+        public bool HeldAsReissue => Ledger?.Decision == AccLedgerDecision.RefuseReissueWithoutRevisionChange;
     }
 
     public static class AccUploadGate
