@@ -58,6 +58,8 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 [`QR1_REVIT_TEST_SCRIPT.md`](QR1_REVIT_TEST_SCRIPT.md) ✅ — the in-Revit checks for the sheet QR
 stamp. Everything else in the QR work is covered by tests; the `ImageType.Create` /
 `ImageInstance.Create` path is confirmed only by the compiler, and this closes it.
+[`WORKLOG_DRAWING_TYPES.md`](WORKLOG_DRAWING_TYPES.md) ✅ — the running review-and-fix log for drawing
+production: resume point, findings, decisions and the in-Revit checks still to run.
 [`DRAWING_CATALOGUE_TEST_PLAN.md`](DRAWING_CATALOGUE_TEST_PLAN.md) ✅ — test plan for the drawing
 catalogue (93 types, 36 style packs, 290 filters): §1 lists the automated checks that run on a plain
 test host, §2 the in-Revit checks that have never been run.
