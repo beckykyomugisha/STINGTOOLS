@@ -178,6 +178,16 @@ namespace StingTools.Core.Drawing
                         "Run DrawingTypes_EnsureViewTypes (SETUP → Drawing production) to create it.");
             }
 
+            // DTW-66: a type whose only view cannot be created (a legend) is a
+            // place-existing type. Say so up front instead of letting production
+            // report it as something that did not happen.
+            if ((dt.ProductionRules == null || dt.ProductionRules.Count == 0)
+                && DrawingPurposeViewKind.TryResolve(dt.Purpose, out var onlyKind)
+                && !DrawingPurposeViewKind.IsProducible(onlyKind))
+                r.Add(ValidationSeverity.Info, "DT-032",
+                    $"'{dt.Id}' is placed, not produced: {DrawingPurposeViewKind.NotProducibleReason(onlyKind) ?? $"no producer makes a {onlyKind} view."}",
+                    "Create the view in Revit, then place it with Sheet Manager (Place Unplaced Views) on a sheet of this type.");
+
             // Tag families ------------------------------------------------
             if (dt.Annotation?.TagFamilies != null)
             {

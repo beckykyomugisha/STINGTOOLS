@@ -2113,7 +2113,7 @@
       "id": "legend-A3",
       "name": "Legend Sheet — A3",
       "origin": "corporate",
-      "checksum": "a1968ca85a3e4a71ece4afc003a8094b359e404ac7e8fcbe582d1ebe49578673",
+      "checksum": "4172a221213e506ee3b8f1797b72a47c85a6fa007f62d3e99bd937987c144f96",
       "purpose": "Legend",
       "discipline": "*",
       "paperSize": "A3",
@@ -2161,10 +2161,9 @@
       "annotation": {
         "rules": []
       },
-      "description": "Multi-Discipline legend on A3 at 1:100.",
+      "description": "Legend and notes sheet on A3. Placed, not produced: the Revit API cannot create a legend view, so create the legend in Revit and place it on a sheet of this type with Sheet Manager (Place Unplaced Views).",
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
-      "viewTemplateName": "STING - Multi-Discipline Legend",
       "isoNaming": {
         "volume": "01",
         "type": "DR",
