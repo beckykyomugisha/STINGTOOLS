@@ -589,7 +589,7 @@ namespace StingTools.UI.PlacementCenter
                     Status = "Save aborted — project must be saved on disk first.";
                     return false;
                 }
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir))
                 {
                     Status = "Save aborted — could not derive project directory.";

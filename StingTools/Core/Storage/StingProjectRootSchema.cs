@@ -123,7 +123,19 @@ namespace StingTools.Core.Storage
                 if (stamp == null || string.IsNullOrEmpty(stamp.RootRelativePath)) return null;
                 string rvtDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(rvtDir)) return null;
-                string resolved = Path.GetFullPath(Path.Combine(rvtDir, stamp.RootRelativePath));
+                // "central:<rel>" (ACC-HARD-3b) is relative to the CENTRAL model's folder, so it
+                // means the same folder in every user's local copy. Opened as the central itself
+                // (or no longer workshared), the model's own folder is that folder.
+                var kind = WorksharedProjectRoot.ClassifyStamp(stamp.RootRelativePath, out string rel);
+                string baseDir = rvtDir;
+                if (kind == RootStampKind.Central)
+                {
+                    string central = CloudProjectRootResolver.CentralPathOf(doc);
+                    if (WorksharedProjectRoot.IsLocalCopy(doc.PathName, central))
+                        baseDir = WorksharedProjectRoot.CentralDirOf(central);
+                    if (string.IsNullOrEmpty(baseDir) || string.IsNullOrWhiteSpace(rel)) return null;
+                }
+                string resolved = Path.GetFullPath(Path.Combine(baseDir, rel));
                 return Directory.Exists(resolved) ? resolved : null;
             }
             catch (Exception ex) { StingLog.Warn($"StingProjectRootSchema.ResolveStampedRoot: {ex.Message}"); return null; }
@@ -158,8 +170,26 @@ namespace StingTools.Core.Storage
                 string rvtDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(root) || string.IsNullOrEmpty(rvtDir)) return false;
 
-                string rel = MakeRelative(rvtDir, root);
-                if (string.IsNullOrEmpty(rel)) return false;
+                string rel;
+                // Workshared local copy under the ACC-HARD-3b rule: stamp relative to the
+                // central folder ("central:<rel>"). A root the user mapped by hand is per machine
+                // and is not stamped; an existing per-user project keeps the old stamp shape.
+                CloudProjectRootResolver.TryResolveWorkshared(doc, out var wd, allowPrompt: false);
+                if (wd.Kind == WorksharedRootKind.Central)
+                {
+                    rel = CentralStampFor(wd.CentralDir, root);
+                    if (rel == null) return false;
+                }
+                else if (wd.Kind != WorksharedRootKind.NotApplicable)
+                {
+                    StingLog.Info($"StingProjectRootSchema.EnsureStamped: workshared root is {wd.Kind} — not stamped.");
+                    return false;
+                }
+                else
+                {
+                    rel = MakeRelative(rvtDir, root);
+                    if (string.IsNullOrEmpty(rel)) return false;
+                }
 
                 if (doc.IsModifiable) return Write(doc, rel); // a transaction is already open
 
@@ -172,6 +202,25 @@ namespace StingTools.Core.Storage
                 }
             }
             catch (Exception ex) { StingLog.Warn($"StingProjectRootSchema.EnsureStamped: {ex.Message}"); return false; }
+        }
+
+        /// <summary>"central:&lt;rel&gt;" for a root under the central folder; null when it is not under it.</summary>
+        public static string CentralStampFor(string centralDir, string root)
+        {
+            if (string.IsNullOrEmpty(centralDir) || string.IsNullOrEmpty(root)) return null;
+            string rel = MakeRelative(centralDir, root);
+            if (string.IsNullOrEmpty(rel) || rel == "." || rel.StartsWith("..")) return null;
+            return WorksharedProjectRoot.CentralStampPrefix + rel;
+        }
+
+        /// <summary>
+        /// Replace the stamp with "central:&lt;rel&gt;" (the consented move to a shared root).
+        /// Requires an open transaction. False when the root is not under the central folder.
+        /// </summary>
+        public static bool WriteCentralStamp(Document doc, string centralDir, string root)
+        {
+            string stamp = CentralStampFor(centralDir, root);
+            return stamp != null && Write(doc, stamp);
         }
 
         private static string MakeRelative(string baseDir, string target)

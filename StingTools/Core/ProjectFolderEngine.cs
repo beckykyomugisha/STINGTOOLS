@@ -147,6 +147,7 @@ namespace StingTools.Core
             _rootByDoc.TryRemove(docPath, out _);
             _greenfieldByDoc.TryRemove(docPath, out _);
             _folderStatsByDoc.TryRemove(docPath, out _);
+            CloudProjectRootResolver.InvalidateWorkshared(docPath);
         }
 
         /// <summary>Drop all cached setups.</summary>
@@ -154,6 +155,7 @@ namespace StingTools.Core
         {
             _setupCache.Clear();
             _rootByDoc.Clear();
+            CloudProjectRootResolver.InvalidateWorkshared();
         }
 
         /// <summary>Cache a resolved root per-document and record it as the most recent for display.</summary>
@@ -227,11 +229,14 @@ namespace StingTools.Core
             //    ("Autodesk Docs://…") has no directory, so steps 0-5 below could only ever
             //    land in the per-user Documents fallback — splitting _data/coord per user.
             //    Null here is deliberate and logged; callers already treat null as "no root".
-            //    Local models skip this block entirely (IsCloud is false) — unchanged.
-            if (CloudProjectRootResolver.IsCloud(doc))
+            //    W. File-based workshared LOCAL COPY with no existing root (ACC-HARD-3b): the
+            //    root is beside the CENTRAL model, shared by every user's local copy. A local
+            //    copy that is already stamped or already has a root keeps it (NotApplicable).
+            //    Non-workshared local models skip this block entirely — unchanged.
+            string externalRoot = CloudProjectRootResolver.ExternalRoot(doc, out bool governed);
+            if (governed)
             {
-                string cloudRoot = CloudProjectRootResolver.TryResolve(doc, out _);
-                if (!string.IsNullOrEmpty(cloudRoot)) { RememberRoot(doc, cloudRoot); return cloudRoot; }
+                if (!string.IsNullOrEmpty(externalRoot)) { RememberRoot(doc, externalRoot); return externalRoot; }
                 return null;
             }
 
@@ -316,19 +321,48 @@ namespace StingTools.Core
             string docKey = doc.PathName;
             if (_setupCache.TryGetValue(docKey, out var cached) && cached != null) return cached;
 
-            // Cloud model: the setup lives in the mapped root, never next to a cloud URL.
-            if (CloudProjectRootResolver.IsCloud(doc))
+            // Cloud model / central-rooted workshared local copy: the setup lives in the
+            // external root, never next to a cloud URL or a per-user local copy.
+            try
             {
-                try
+                string extRoot = CloudProjectRootResolver.ExternalRoot(doc, out bool governed);
+                if (governed)
                 {
-                    string cloudRoot = CloudProjectRootResolver.TryResolve(doc, out _);
-                    if (string.IsNullOrEmpty(cloudRoot)) return null;
-                    var cloudSetup = ProjectSetup.Load(Path.Combine(cloudRoot, "_data"));
-                    if (cloudSetup != null) _setupCache[docKey] = cloudSetup;
-                    return cloudSetup;
+                    if (string.IsNullOrEmpty(extRoot)) return null;
+                    var extSetup = ProjectSetup.Load(Path.Combine(extRoot, "_data"));
+                    if (extSetup != null) _setupCache[docKey] = extSetup;
+                    return extSetup;
                 }
-                catch (Exception ex) { StingLog.Warn($"LoadOrDetectSetup (cloud): {ex.Message}"); return null; }
             }
+            catch (Exception ex) { StingLog.Warn($"LoadOrDetectSetup (external root): {ex.Message}"); return null; }
+
+            return LoadOrDetectLocalSetup(doc);
+        }
+
+        /// <summary>
+        /// True when a STING root already exists beside the model file: the &lt;rvtDir&gt;/&lt;CODE&gt;
+        /// folder, or any setup the unchanged local scan recognises. Used to keep an existing
+        /// workshared project's root exactly where it is (ACC-HARD-3b). Errs towards true
+        /// (keep the old behaviour) when it cannot tell.
+        /// </summary>
+        internal static bool HasRootBesideModel(Document doc, string code)
+        {
+            try
+            {
+                string projDir = Path.GetDirectoryName(doc?.PathName ?? "");
+                if (string.IsNullOrEmpty(projDir)) return false;
+                if (Directory.Exists(Path.Combine(projDir, code ?? DetectProjectCode(doc)))) return true;
+                return LoadOrDetectLocalSetup(doc) != null;
+            }
+            catch (Exception ex) { StingLog.Warn($"HasRootBesideModel: {ex.Message}"); return true; }
+        }
+
+        /// <summary>The original, model-folder-relative setup discovery (local models).</summary>
+        private static ProjectSetup LoadOrDetectLocalSetup(Document doc)
+        {
+            if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
+            string docKey = doc.PathName;
+            if (_setupCache.TryGetValue(docKey, out var cached) && cached != null) return cached;
 
             try
             {
@@ -412,7 +446,10 @@ namespace StingTools.Core
             if (doc == null || string.IsNullOrEmpty(doc.PathName) || doc.IsFamilyDocument) return null;
             // A cloud model with no recorded root gets no setup: minting one would have nowhere
             // to live but a per-user fallback. GetRootPath has already logged why.
-            if (CloudProjectRootResolver.IsCloud(doc) && string.IsNullOrEmpty(GetRootPath(doc))) return null;
+            {
+                CloudProjectRootResolver.ExternalRoot(doc, out bool governed);
+                if (governed && string.IsNullOrEmpty(GetRootPath(doc))) return null;
+            }
             try
             {
                 string code = DetectProjectCode(doc);
@@ -540,12 +577,13 @@ namespace StingTools.Core
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return false;
-                if (CloudProjectRootResolver.IsCloud(doc))
                 {
-                    // Never prompts from here (this runs at the top of DocumentOpened). An
-                    // unresolved root, or a mapped root with no _data yet, is a new tree.
-                    string cloudRoot = CloudProjectRootResolver.TryResolve(doc, out _, allowPrompt: false);
-                    return string.IsNullOrEmpty(cloudRoot) || !Directory.Exists(Path.Combine(cloudRoot, "_data"));
+                    // Cloud / central-rooted workshared. Never prompts from here (this runs at
+                    // the top of DocumentOpened). An unresolved root, or one with no _data yet,
+                    // is a new tree.
+                    string extRoot = CloudProjectRootResolver.ExternalRoot(doc, out bool governed, allowPrompt: false);
+                    if (governed)
+                        return string.IsNullOrEmpty(extRoot) || !Directory.Exists(Path.Combine(extRoot, "_data"));
                 }
                 if (Storage.StingProjectRootSchema.Read(doc) != null) return false;
                 string projDir = Path.GetDirectoryName(doc.PathName);
@@ -924,8 +962,9 @@ namespace StingTools.Core
         public static string ResolveSetupRoot(Document doc, ProjectSetup setup)
         {
             if (setup == null) return null;
-            if (CloudProjectRootResolver.IsCloud(doc))
-                return GetRootPath(doc); // the mapping is the one root; see GetRootPath step C
+            CloudProjectRootResolver.ExternalRoot(doc, out bool governed, allowPrompt: false);
+            if (governed)
+                return GetRootPath(doc); // the external root is the one root; see GetRootPath steps C/W
             return setup.ResolveRootPath(doc?.PathName);
         }
 
@@ -1528,6 +1567,104 @@ namespace StingTools.Core
             {
                 rep.Warnings.Add(ex.Message);
                 StingLog.Warn($"MigrateFromLegacy: {ex.Message}");
+            }
+            return rep;
+        }
+
+        /// <summary>
+        /// Move a whole project root to another folder — the consented "move this per-user
+        /// workshared root to the shared root beside the central model" (ACC-HARD-3b).
+        /// Same rules as <see cref="MigrateFromLegacy"/>: refuses without
+        /// <paramref name="consented"/>; moves files only, never deletes; a name collision
+        /// keeps both (unique name); a drained source is renamed <c>*.migrated_yyyyMMdd</c>
+        /// (and left in place if anything failed to move); every relocation is appended to
+        /// <c>&lt;toRoot&gt;/_data/.sting_consolidation.json</c> under <c>root_relocations</c>.
+        /// It does not switch the root: the caller re-stamps and invalidates afterwards.
+        /// </summary>
+        public static MigrationReport RelocateProjectRoot(Document doc, string fromRoot, string toRoot, bool consented)
+        {
+            var rep = new MigrationReport();
+            if (!consented) { rep.SkippedReason = "consent required"; return rep; }
+            if (string.IsNullOrEmpty(fromRoot) || !Directory.Exists(fromRoot)) { rep.SkippedReason = "nothing to move — the source root does not exist"; return rep; }
+            if (string.IsNullOrEmpty(toRoot)) { rep.SkippedReason = "no destination"; return rep; }
+
+            string from = Path.GetFullPath(fromRoot).TrimEnd(Path.DirectorySeparatorChar);
+            string to = Path.GetFullPath(toRoot).TrimEnd(Path.DirectorySeparatorChar);
+            if (string.Equals(from, to, StringComparison.OrdinalIgnoreCase)) { rep.SkippedReason = "source and destination are the same folder"; return rep; }
+            if (to.StartsWith(from + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                || from.StartsWith(to + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            { rep.SkippedReason = "one folder is inside the other"; return rep; }
+
+            try
+            {
+                Directory.CreateDirectory(to);
+                foreach (string f in Directory.GetFiles(from, "*.*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        string rel = f.Substring(from.Length).TrimStart(Path.DirectorySeparatorChar);
+                        string dest = Path.Combine(to, rel);
+                        string ddir = Path.GetDirectoryName(dest);
+                        if (!string.IsNullOrEmpty(ddir)) Directory.CreateDirectory(ddir);
+                        if (File.Exists(dest))
+                        {
+                            dest = GetUniqueFileName(dest);
+                            rep.Warnings.Add($"Both kept: {rel} already existed in the shared root; the moved copy is {Path.GetFileName(dest)}");
+                        }
+                        File.Move(f, dest);
+                        rep.FilesMoved++;
+                        rep.Moves.Add(f + "|" + dest);
+                    }
+                    catch (Exception ex) { rep.FilesFailed++; rep.Warnings.Add($"Move {f}: {ex.Message}"); }
+                }
+                if (rep.FilesFailed == 0) RetireLegacyFolder(from, rep);
+                else rep.Warnings.Add($"{rep.FilesFailed} file(s) did not move — '{from}' left in place; re-run to finish.");
+
+                try
+                {
+                    string crumb = Path.Combine(to, "_data", ".sting_consolidation.json");
+                    Directory.CreateDirectory(Path.GetDirectoryName(crumb));
+                    JObject o;
+                    try { o = File.Exists(crumb) ? JObject.Parse(File.ReadAllText(crumb)) : new JObject(); }
+                    catch (Exception ex)
+                    {
+                        // Never overwrite a record we cannot read — write beside it instead.
+                        StingLog.Warn($"RelocateProjectRoot: unreadable {crumb}: {ex.Message}");
+                        crumb = GetUniqueFileName(crumb);
+                        o = new JObject();
+                    }
+                    var arr = o["root_relocations"] as JArray ?? new JArray();
+                    arr.Add(new JObject
+                    {
+                        ["relocated_utc"] = DateTime.UtcNow.ToString("o"),
+                        ["model"]         = doc?.PathName ?? "",
+                        ["from_root"]     = from,
+                        ["to_root"]       = to,
+                        ["files_moved"]   = rep.FilesMoved,
+                        ["files_failed"]  = rep.FilesFailed,
+                        ["moves"]         = new JArray(rep.Moves.Select(m => (JToken)new JObject
+                        {
+                            ["from"] = m.Split('|')[0],
+                            ["to"]   = m.Split('|').Length > 1 ? m.Split('|')[1] : "",
+                        })),
+                        ["retired_folders"] = new JArray(rep.RetiredFolders.Select(m => (JToken)m)),
+                        ["warnings"]      = new JArray(rep.Warnings.Select(w => (JToken)w)),
+                        ["undo_hint"]     = "No file was deleted. To undo, move the files back and rename the *.migrated_* folder.",
+                    });
+                    o["root_relocations"] = arr;
+                    OutputLocationHelper.WriteAllTextAtomic(crumb, o.ToString(Newtonsoft.Json.Formatting.Indented));
+                    rep.BreadcrumbPath = crumb;
+                }
+                catch (Exception ex) { rep.Warnings.Add($"Breadcrumb: {ex.Message}"); }
+
+                if (doc != null) InvalidateSetupCache(doc.PathName);
+                InvalidateFolderStatsCache();
+                StingLog.Info($"RelocateProjectRoot: {from} → {to}: {rep.FilesMoved} moved, {rep.FilesFailed} failed.");
+            }
+            catch (Exception ex)
+            {
+                rep.Warnings.Add(ex.Message);
+                StingLog.Warn($"RelocateProjectRoot: {ex.Message}");
             }
             return rep;
         }

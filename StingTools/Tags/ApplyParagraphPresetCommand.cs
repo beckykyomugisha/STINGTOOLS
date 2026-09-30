@@ -158,7 +158,7 @@ namespace StingTools.Tags
             try
             {
                 string cfgPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                     "project_config.json");
                 if (!File.Exists(cfgPath)) return null;
                 var jo = JObject.Parse(File.ReadAllText(cfgPath));
@@ -356,7 +356,7 @@ namespace StingTools.Tags
             try
             {
                 string cfgPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                     "project_config.json");
                 JObject jo = File.Exists(cfgPath)
                     ? JObject.Parse(File.ReadAllText(cfgPath))

@@ -433,7 +433,7 @@ namespace StingTools.Commands.Lightning
             {
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName);
+                    string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                     if (!string.IsNullOrEmpty(projDir)) return Path.Combine(projDir, "Families", "LPS");
                 }
             }

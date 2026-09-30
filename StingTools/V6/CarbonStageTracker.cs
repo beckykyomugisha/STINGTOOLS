@@ -321,7 +321,7 @@ namespace StingTools.V6
         {
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName) ??
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc) ??
                     Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                 string name = $"STING_CARBON_ISO14064_{DateTime.UtcNow:yyyyMMdd_HHmm}.csv";
                 string path = Path.Combine(dir, name);

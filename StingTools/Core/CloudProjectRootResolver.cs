@@ -27,6 +27,8 @@ namespace StingTools.Core
         public string Reason;
         /// <summary>The currently recorded folder, if any (unreachable or unusable).</summary>
         public string CurrentFolder;
+        /// <summary>Set for a file-based workshared local copy (ACC-HARD-3b): the central model path.</summary>
+        public string CentralPath;
     }
 
     /// <summary>Cloud identity of an open Document.</summary>
@@ -303,6 +305,185 @@ namespace StingTools.Core
         {
             if (string.IsNullOrEmpty(key)) return;
             lock (_promptedKeys) _promptedKeys.Remove(key);
+        }
+
+        // ── File-based worksharing: local copies (ACC-HARD-3b) ─────────────────────────
+
+        private static readonly ConcurrentDictionary<string, WorksharedRootDecision> _wsByPath = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Forget cached workshared decisions (called by ProjectFolderEngine's cache invalidation).</summary>
+        public static void InvalidateWorkshared(string pathName = null)
+        {
+            if (string.IsNullOrEmpty(pathName)) _wsByPath.Clear();
+            else _wsByPath.TryRemove(pathName, out _);
+        }
+
+        /// <summary>User-visible central path of a workshared document; null when not workshared / unavailable.</summary>
+        public static string CentralPathOf(Document doc)
+        {
+            try
+            {
+                if (doc == null || !doc.IsWorkshared) return null;
+                ModelPath mp = doc.GetWorksharingCentralModelPath();
+                if (mp == null) return null;
+                string p = ModelPathUtils.ConvertModelPathToUserVisiblePath(mp);
+                return string.IsNullOrWhiteSpace(p) ? null : p;
+            }
+            catch (Exception ex) { StingLog.Warn($"CloudProjectRootResolver.CentralPathOf: {ex.Message}"); return null; }
+        }
+
+        /// <summary>True for a file-based workshared LOCAL COPY (not the central itself, not cloud).</summary>
+        public static bool IsWorksharedLocalCopy(Document doc)
+        {
+            if (doc == null || IsCloud(doc)) return false;
+            try { if (!doc.IsWorkshared) return false; } catch { return false; }
+            string local = null;
+            try { local = doc.PathName; } catch { }
+            return WorksharedProjectRoot.IsLocalCopy(local, CentralPathOf(doc));
+        }
+
+        /// <summary>
+        /// Resolve the root of a workshared local copy. Kind NotApplicable ⇒ the caller keeps its
+        /// unchanged local resolution. Otherwise the returned root (null ⇒ refused, logged).
+        /// </summary>
+        public static string TryResolveWorkshared(Document doc, out WorksharedRootDecision decision, bool allowPrompt = true)
+        {
+            decision = new WorksharedRootDecision { Kind = WorksharedRootKind.NotApplicable, Reason = "not a workshared local copy" };
+            if (doc == null || IsCloud(doc)) return null;
+            bool ws;
+            try { ws = doc.IsWorkshared && !doc.IsFamilyDocument; } catch { ws = false; }
+            if (!ws) return null; // the common case: one property read, nothing else
+
+            string pathName = null;
+            try { pathName = doc.PathName; } catch { }
+            if (string.IsNullOrEmpty(pathName)) return null;
+
+            if (_wsByPath.TryGetValue(pathName, out var cached))
+            {
+                decision = cached;
+                if (cached.Kind == WorksharedRootKind.NotApplicable) return null;
+                if (!string.IsNullOrEmpty(cached.Root) && Directory.Exists(cached.Root)) return cached.Root;
+                _wsByPath.TryRemove(pathName, out _);
+            }
+
+            string central = CentralPathOf(doc);
+            if (!WorksharedProjectRoot.IsLocalCopy(pathName, central))
+            {
+                decision = new WorksharedRootDecision { Kind = WorksharedRootKind.NotApplicable, Reason = "the central model itself" };
+                _wsByPath[pathName] = decision;
+                return null;
+            }
+
+            string stampText = null;
+            try { stampText = Storage.StingProjectRootSchema.Read(doc)?.RootRelativePath; } catch { }
+            var stampKind = WorksharedProjectRoot.ClassifyStamp(stampText, out string stampRel);
+            string code = ProjectFolderEngine.DetectProjectCode(doc);
+            bool hasLocal = stampKind == RootStampKind.None && ProjectFolderEngine.HasRootBesideModel(doc, code);
+
+            string text = ReadMappingText(out string readError);
+            string key = WorksharedProjectRoot.KeyFor(central);
+            bool interactive;
+            lock (_promptedKeys)
+            {
+                interactive = allowPrompt && PromptHandler != null && UiThreadId != 0
+                    && Thread.CurrentThread.ManagedThreadId == UiThreadId && _suppressDepth == 0
+                    && key != null && !_promptedKeys.Contains(key);
+            }
+
+            decision = WorksharedProjectRoot.Decide(new WorksharedRootInputs
+            {
+                IsCloud = false,
+                IsWorkshared = true,
+                LocalPath = pathName,
+                CentralPath = central,
+                ProjectCode = code,
+                Stamp = stampKind,
+                CentralStampRelative = stampRel,
+                HasExistingLocalRoot = hasLocal,
+                // An unreadable mapping file must refuse, like a malformed one.
+                MappingJson = readError != null ? "<unreadable>" : text,
+                Interactive = interactive,
+            });
+
+            if (decision.Kind == WorksharedRootKind.Central)
+            {
+                try { Directory.CreateDirectory(decision.Root); }
+                catch (Exception ex)
+                {
+                    decision = new WorksharedRootDecision
+                    {
+                        Kind = interactive ? WorksharedRootKind.PromptUser : WorksharedRootKind.Refuse,
+                        Key = key, CentralDir = decision.CentralDir,
+                        Reason = $"cannot create '{decision.Root}' beside the central model ({ex.Message})",
+                    };
+                }
+            }
+
+            if (decision.Kind == WorksharedRootKind.PromptUser)
+            {
+                lock (_promptedKeys) _promptedKeys.Add(key);
+                LogWs(pathName, decision);
+                string picked = null;
+                try
+                {
+                    picked = PromptHandler(new CloudRootPromptRequest
+                    {
+                        Key = key, ModelDisplayPath = pathName, ProjectCode = code,
+                        Reason = decision.Reason, CentralPath = central,
+                    });
+                }
+                catch (Exception ex) { StingLog.Error("CloudProjectRootResolver workshared prompt failed", ex); }
+                string root = string.IsNullOrWhiteSpace(picked) ? null : CloudProjectRoot.RootForPickedFolder(picked, code);
+                if (root != null && SetMapping(key, root, out string err))
+                    decision = new WorksharedRootDecision
+                    {
+                        Kind = WorksharedRootKind.Mapped, Key = key, CentralDir = decision.CentralDir, Root = root,
+                        Reason = "chosen by the user and recorded",
+                    };
+                else
+                    decision = new WorksharedRootDecision
+                    {
+                        Kind = WorksharedRootKind.Refuse, Key = key, CentralDir = decision.CentralDir,
+                        Reason = root == null ? "the user declined to choose a shared folder"
+                                              : "the chosen folder could not be recorded",
+                    };
+            }
+
+            LogWs(pathName, decision);
+            if (decision.Kind == WorksharedRootKind.NotApplicable
+                || decision.Kind == WorksharedRootKind.Central
+                || decision.Kind == WorksharedRootKind.Mapped)
+                _wsByPath[pathName] = decision; // Refuse is never cached, so a later attempt can still ask
+            return decision.Kind == WorksharedRootKind.Central || decision.Kind == WorksharedRootKind.Mapped
+                ? decision.Root : null;
+        }
+
+        /// <summary>
+        /// The root for a model governed by an explicit external rule — a cloud model, or a
+        /// workshared local copy that the ACC-HARD-3b rule applies to. <paramref name="governed"/>
+        /// false ⇒ the caller's unchanged local resolution applies. governed true and null ⇒ refused.
+        /// </summary>
+        public static string ExternalRoot(Document doc, out bool governed, bool allowPrompt = true)
+        {
+            governed = false;
+            if (doc == null) return null;
+            if (IsCloud(doc))
+            {
+                governed = true;
+                return TryResolve(doc, out _, allowPrompt);
+            }
+            string ws = TryResolveWorkshared(doc, out var d, allowPrompt);
+            governed = d.Kind != WorksharedRootKind.NotApplicable;
+            return ws;
+        }
+
+        private static void LogWs(string pathName, WorksharedRootDecision d)
+        {
+            string sig = "ws|" + d.Kind + "|" + d.Root + "|" + d.Reason;
+            if (_lastLogged.TryGetValue(pathName, out string prev) && prev == sig) return;
+            _lastLogged[pathName] = sig;
+            string line = $"WORKSHARED ROOT [{pathName}]: {d}";
+            if (d.Kind == WorksharedRootKind.Refuse) StingLog.Warn(line); else StingLog.Info(line);
         }
 
         private static void WriteAtomic(string text)

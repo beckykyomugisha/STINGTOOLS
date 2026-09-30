@@ -688,7 +688,7 @@ namespace StingTools.Temp
 
             // Prefer project-adjacent path to prevent config bleed between projects (Phase 15b)
             string configDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
+                ? global::StingTools.Core.StingPaths.ModelDir(doc)
                 : null;
             string configPath = !string.IsNullOrEmpty(configDir)
                 ? Path.Combine(configDir, "project_config.json")

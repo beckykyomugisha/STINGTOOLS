@@ -116,7 +116,7 @@ namespace StingTools.Tags
             try
             {
                 if (doc == null) return false;
-                string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 if (string.IsNullOrEmpty(dir)) return false;
                 string cfg = Path.Combine(dir, "project_config.json");
                 if (!File.Exists(cfg)) return false;

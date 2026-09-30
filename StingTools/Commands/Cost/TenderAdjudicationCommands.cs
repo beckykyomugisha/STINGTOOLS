@@ -63,7 +63,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                string parent = Path.GetDirectoryName(doc?.PathName ?? "");
+                string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(parent)) return null;
                 return StingPaths.MetaFile(doc, "_BIM_COORD", "tender_adjudication.json");
             }

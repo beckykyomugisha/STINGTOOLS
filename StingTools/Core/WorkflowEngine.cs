@@ -1265,7 +1265,7 @@ namespace StingTools.Core
                 try
                 {
                     string cfgPath = System.IO.Path.Combine(
-                        System.IO.Path.GetDirectoryName(doc.PathName) ?? "",
+                        global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                         "_BIM_COORD", "planscape_link.json");
                     Guid serverProjectId = StingTools.BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
                     if (serverProjectId != Guid.Empty)
@@ -3639,7 +3639,7 @@ namespace StingTools.Core
             try
             {
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-                    dir = Path.GetDirectoryName(doc.PathName);
+                    dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             }
             catch (Exception ex) { StingLog.Warn($"Workflow log path resolution failed: {ex.Message}"); }
             if (string.IsNullOrEmpty(dir))

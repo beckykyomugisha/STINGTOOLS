@@ -105,7 +105,7 @@ namespace StingTools.Core.Placement
             try
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return null;
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 return string.IsNullOrEmpty(dir) ? null : StingPaths.MetaFile(doc, "_BIM_COORD", "dwg_symbol_map.json");
             }
             catch { return null; }
@@ -275,7 +275,7 @@ namespace StingTools.Core.Placement
             try
             {
                 string baseDir = null;
-                try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
+                try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = global::StingTools.Core.StingPaths.ModelDir(doc); }
                 catch { }
                 if (string.IsNullOrEmpty(baseDir)) return;
                 string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "dwg_symbol_map.json");

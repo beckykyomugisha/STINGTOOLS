@@ -40,7 +40,7 @@ namespace StingTools.Commands.Validation
             var map = new ProgramAuditMap();
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(dir))
                 {
                     string p = StingPaths.MetaFile(doc, "_BIM_COORD", "program_audit_map.json");

@@ -711,7 +711,7 @@ namespace StingTools.ExLink
                     return Result.Succeeded;
                 }
 
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 string baseName = Path.GetFileNameWithoutExtension(doc.PathName);
 
                 // Find backup files (*.0001.rvt, *.0002.rvt, etc.)

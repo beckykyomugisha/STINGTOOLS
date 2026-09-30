@@ -195,7 +195,7 @@ namespace StingTools.Core.Symbols
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return new SymbolAliasFile();
                 string path = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName),
+                    global::StingTools.Core.StingPaths.ModelDir(doc),
                     "_BIM_COORD", "symbol_aliases.json");
                 if (!File.Exists(path)) return new SymbolAliasFile();
                 return JsonConvert.DeserializeObject<SymbolAliasFile>(File.ReadAllText(path))

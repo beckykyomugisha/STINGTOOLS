@@ -229,7 +229,7 @@ namespace StingTools.Temp
         public static string ProjectCustomPath(Document doc)
         {
             string projDir = "";
-            try { projDir = Path.GetDirectoryName(doc.PathName) ?? ""; }
+            try { projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? ""; }
             catch (Exception ex) { StingLog.Warn($"BOQTemplateLibrary project path: {ex.Message}"); }
             if (string.IsNullOrEmpty(projDir))
                 projDir = Path.Combine(Path.GetTempPath(), "STING");

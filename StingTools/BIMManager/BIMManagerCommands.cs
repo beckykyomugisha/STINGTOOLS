@@ -8015,7 +8015,7 @@ namespace StingTools.BIMManager
         {
             try
             {
-                string modelDir = Path.GetDirectoryName(doc.PathName);
+                string modelDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(modelDir)) return 0;
                 string hcDir = StingPaths.MetaFile(doc, "_BIM_COORD", "healthcare");
                 if (!Directory.Exists(hcDir)) return 0;
@@ -9983,7 +9983,7 @@ namespace StingTools.BIMManager
             if (string.IsNullOrEmpty(exportPath))
             {
                 string dir = StingTools.Core.ProjectFolderEngine.GetDataPath(doc)
-                    ?? Path.GetDirectoryName(doc.PathName)
+                    ?? global::StingTools.Core.StingPaths.ModelDir(doc)
                     ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
                 exportPath = Path.Combine(dir, $"STING_TagMap_{DateTime.Now:yyyyMMdd_HHmm}.sting_tagmap.json");
             }
@@ -10255,7 +10255,7 @@ namespace StingTools.BIMManager
             html.AppendLine("</body></html>");
 
             // Save
-            string dir = Path.GetDirectoryName(doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             string reportPath = Path.Combine(dir, $"STING_Weekly_Report_{DateTime.Now:yyyyMMdd}.html");
             OutputLocationHelper.WriteAllTextAtomic(reportPath, html.ToString());
 
@@ -10665,7 +10665,7 @@ namespace StingTools.BIMManager
             try
             {
                 string logPath = doc.PathName != null
-                    ? Path.Combine(Path.GetDirectoryName(doc.PathName), "STING_WORKFLOW_LOG.json")
+                    ? Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc), "STING_WORKFLOW_LOG.json")
                     : null;
                 if (logPath != null && File.Exists(logPath))
                 {

@@ -63,7 +63,7 @@ namespace StingTools.V6
                 report.Errors.Add("Document unsaved; no sidecar path available.");
                 return report;
             }
-            string side = Path.Combine(Path.GetDirectoryName(doc.PathName)!,
+            string side = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc)!,
                 Path.GetFileNameWithoutExtension(doc.PathName) + "_asbuilt_captures.json");
             if (!File.Exists(side))
             {

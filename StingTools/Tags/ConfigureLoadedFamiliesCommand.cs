@@ -222,7 +222,7 @@ namespace StingTools.Tags
             try
             {
                 string logDir = !string.IsNullOrEmpty(doc.PathName)
-                    ? Path.GetDirectoryName(doc.PathName)
+                    ? global::StingTools.Core.StingPaths.ModelDir(doc)
                     : Path.GetTempPath();
                 string logPath = Path.Combine(logDir,
                     $"STING_ConfigureLoadedFamilies_{DateTime.Now:yyyyMMdd_HHmmss}.csv");

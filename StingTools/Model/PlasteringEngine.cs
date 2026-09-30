@@ -75,7 +75,7 @@ namespace StingTools.Model
             try
             {
                 var path = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(doc.PathName) ?? "", "project_config.json");
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? "", "project_config.json");
                 if (!System.IO.File.Exists(path)) return;
                 var json = System.IO.File.ReadAllText(path);
                 var obj = Newtonsoft.Json.Linq.JObject.Parse(json);

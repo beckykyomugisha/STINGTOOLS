@@ -47,7 +47,7 @@ namespace StingTools.Commands.Hvac
                     return Result.Cancelled;
                 }
 
-                string projectFolder = System.IO.Path.GetDirectoryName(doc.PathName);
+                string projectFolder = global::StingTools.Core.StingPaths.ModelDir(doc);
                 string writtenPath = panel.SaveSizingRolesToProjectOverride(projectFolder);
 
                 if (string.IsNullOrEmpty(writtenPath))

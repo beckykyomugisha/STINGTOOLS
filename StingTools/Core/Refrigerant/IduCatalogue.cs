@@ -69,7 +69,7 @@ namespace StingTools.Core.Refrigerant
                     Apply(JObject.Parse(File.ReadAllText(basePath)), cat);
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                    string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                     string projPath = Path.Combine(projDir, ProjectOverrideRelPath);
                     if (File.Exists(projPath))
                         Apply(JObject.Parse(File.ReadAllText(projPath)), cat);

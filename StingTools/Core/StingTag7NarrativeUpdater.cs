@@ -198,7 +198,7 @@ namespace StingTools.Core
             try
             {
                 string cfgPath = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                     "project_config.json");
                 if (!System.IO.File.Exists(cfgPath)) return null;
                 var jo = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(cfgPath));

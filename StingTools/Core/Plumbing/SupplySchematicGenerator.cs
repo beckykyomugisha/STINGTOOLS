@@ -483,7 +483,7 @@ namespace StingTools.Core.Plumbing
             try
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return null;
-                var dir = Path.GetDirectoryName(doc.PathName);
+                var dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 return StingPaths.MetaFile(doc, "_BIM_COORD", "exports");
             }

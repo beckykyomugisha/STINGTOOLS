@@ -48,7 +48,7 @@ namespace StingTools.Core.Schedule
         {
             try
             {
-                string parent = Path.GetDirectoryName(doc?.PathName ?? "");
+                string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(parent)) return null;
                 return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
             }
@@ -57,7 +57,7 @@ namespace StingTools.Core.Schedule
 
         private static string BimCoordDir(Document doc)
         {
-            string parent = Path.GetDirectoryName(doc?.PathName ?? "");
+            string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
             return string.IsNullOrEmpty(parent) ? null : StingPaths.Meta(doc, "_BIM_COORD");
         }
 
@@ -330,7 +330,7 @@ namespace StingTools.Core.Schedule
         {
             try
             {
-                string parent = Path.GetDirectoryName(doc?.PathName ?? "");
+                string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(parent)) return null;
                 // path-discipline: legacy-fallback -- reads the PRE-consolidation location
                 // on purpose, to find a 4D schedule written before the move.

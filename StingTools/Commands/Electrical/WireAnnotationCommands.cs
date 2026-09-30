@@ -211,7 +211,7 @@ namespace StingTools.Commands.Electrical
             try
             {
                 if (!doc.IsWorkshared && !string.IsNullOrEmpty(doc.PathName))
-                    projDir = Path.GetDirectoryName(doc.PathName);
+                    projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 else if (doc.IsWorkshared)
                     projDir = Path.GetDirectoryName(
                         ModelPathUtils.ConvertModelPathToUserVisiblePath(doc.GetWorksharingCentralModelPath()));

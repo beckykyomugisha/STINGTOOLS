@@ -101,7 +101,7 @@ namespace StingTools.Docs
                         $"\"{projectName}\",{DateTime.Now:yyyy-MM-dd}");
                 }
 
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
                 csvPath = Path.Combine(dir, $"STING_Transmittal_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllText(csvPath, csv.ToString());

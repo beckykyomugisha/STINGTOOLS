@@ -46,7 +46,7 @@ namespace StingTools.Core.TemplateManager
             try
             {
                 if (doc == null || result == null) return "";
-                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 if (string.IsNullOrEmpty(projDir)) return "";
                 string dir = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);

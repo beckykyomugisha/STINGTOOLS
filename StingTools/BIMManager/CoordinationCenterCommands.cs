@@ -77,7 +77,7 @@ namespace StingTools.BIMManager
             try
             {
                 string configPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName) ?? StingToolsApp.DataPath,
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? StingToolsApp.DataPath,
                     "project_config.json");
                 if (!File.Exists(configPath)) return;
 
@@ -723,7 +723,7 @@ namespace StingTools.BIMManager
             try
             {
                 string dir = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName) ?? "",
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                     "STING_BIM_MANAGER");
                 Directory.CreateDirectory(dir);
                 OutputLocationHelper.WriteAllTextAtomic(
@@ -767,7 +767,7 @@ namespace StingTools.BIMManager
         /// <summary>Generate self-contained HTML dashboard alongside the .rvt file.</summary>
         internal static string Generate(Document doc)
         {
-            string dir = Path.GetDirectoryName(doc.PathName) ?? "";
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
             string htmlPath = Path.Combine(dir, "_STING_DASHBOARD.html");
             string dataPath = Path.Combine(dir, "_STING_DATA.json");
 
@@ -1521,7 +1521,7 @@ render();
             {
                 try
                 {
-                    string dir = Path.GetDirectoryName(doc.PathName) ?? "";
+                    string dir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                     string dataPath = Path.Combine(dir, "_STING_DATA.json");
                     var data = typeof(DashboardGenerator)
                         .GetMethod("BuildDashboardData", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)

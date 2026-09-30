@@ -78,7 +78,7 @@ namespace StingTools.Core.Acoustic
                 LoadSilencers(data, StingTools.Core.StingToolsApp.FindDataFile(SilencerFileName));
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                    string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                     LoadFans(data, Path.Combine(projDir, FanOverrideRel));
                     LoadSilencers(data, Path.Combine(projDir, SilencerOverrideRel));
                 }

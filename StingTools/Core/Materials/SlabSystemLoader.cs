@@ -101,7 +101,7 @@ namespace StingTools.Core.Materials
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 return StingPaths.MetaFile(doc, "_BIM_COORD", "STING_SLAB_SYSTEMS.json");
             }

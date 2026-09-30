@@ -1399,7 +1399,7 @@ namespace StingTools.UI.PlacementCenter
                 {
                     // Reload the just-written learned rules into the grid so they
                     // are reviewable and "Honour learned offsets" picks them up.
-                    string dir = System.IO.Path.GetDirectoryName(_doc.PathName);
+                    string dir = global::StingTools.Core.StingPaths.ModelDir(_doc);
                     string learnedPath = System.IO.Path.Combine(dir ?? "", "STING_PLACEMENT_RULES.learned.json");
                     if (System.IO.File.Exists(learnedPath))
                     {
@@ -2636,7 +2636,7 @@ namespace StingTools.UI.PlacementCenter
                 // the import is live (closes the round-trip refresh gap).
                 if (rules != null && rules.Count > 0 && !string.IsNullOrEmpty(_doc?.PathName))
                 {
-                    string dir = System.IO.Path.GetDirectoryName(_doc.PathName);
+                    string dir = global::StingTools.Core.StingPaths.ModelDir(_doc);
                     string overridePath = System.IO.Path.Combine(dir ?? "", "STING_PLACEMENT_RULES.project.json");
                     var set = new PlacementRuleSet { Version = "v4", Rules = rules };
                     System.IO.File.WriteAllText(overridePath,

@@ -1265,7 +1265,7 @@ namespace StingTools.Core.Sustainability
         {
             try
             {
-                string dir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return "0";
                 string path = StingPaths.MetaFile(doc, "_BIM_COORD", "boq_epd_map.json");
                 return System.IO.File.Exists(path)

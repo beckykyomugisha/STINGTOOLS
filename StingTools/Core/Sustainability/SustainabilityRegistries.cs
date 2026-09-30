@@ -114,7 +114,7 @@ namespace StingTools.Core.Sustainability
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-                string dir = Path.GetDirectoryName(doc.PathName) ?? "";
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 return StingPaths.MetaFile(doc, "_BIM_COORD", "sustainability", fileName);
             }
             catch { return null; }
@@ -126,7 +126,7 @@ namespace StingTools.Core.Sustainability
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-                return Path.GetDirectoryName(doc.PathName);
+                return global::StingTools.Core.StingPaths.ModelDir(doc);
             }
             catch { return null; }
         }

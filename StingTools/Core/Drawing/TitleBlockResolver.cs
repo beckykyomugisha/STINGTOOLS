@@ -207,7 +207,7 @@ namespace StingTools.Core.Drawing
         private static IEnumerable<string> BaseDirs(Document doc)
         {
             string prjDir = null, asmDir = null;
-            try { if (!string.IsNullOrEmpty(doc?.PathName)) prjDir = Path.GetDirectoryName(doc.PathName); }
+            try { if (!string.IsNullOrEmpty(doc?.PathName)) prjDir = global::StingTools.Core.StingPaths.ModelDir(doc); }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             try { var asm = StingToolsApp.AssemblyPath; if (!string.IsNullOrEmpty(asm)) asmDir = Path.GetDirectoryName(asm); }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

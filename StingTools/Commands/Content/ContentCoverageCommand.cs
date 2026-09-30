@@ -104,7 +104,7 @@ namespace StingTools.Commands.Content
         {
             try
             {
-                var dir = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+                var dir = string.IsNullOrEmpty(doc.PathName) ? null : global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 var outDir = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(outDir);

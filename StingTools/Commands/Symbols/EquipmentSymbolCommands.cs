@@ -145,7 +145,7 @@ namespace StingTools.Commands.Symbols
             try
             {
                 if (!string.IsNullOrEmpty(doc.PathName))
-                    projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                    projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
             }
             catch { }
 

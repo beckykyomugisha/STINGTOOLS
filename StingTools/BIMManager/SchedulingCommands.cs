@@ -1127,7 +1127,7 @@ namespace StingTools.BIMManager
                 .Distinct().ToList();
 
             // Also check project directory
-            string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+            string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
             if (!string.IsNullOrEmpty(projDir) && Directory.Exists(projDir))
             {
                 xmlFiles.AddRange(Directory.GetFiles(projDir, "*.xml")

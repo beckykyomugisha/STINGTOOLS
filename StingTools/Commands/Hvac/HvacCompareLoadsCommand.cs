@@ -322,7 +322,7 @@ namespace StingTools.Commands.Hvac
         {
             try
             {
-                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 if (string.IsNullOrEmpty(projDir)) return null;
                 string outDir = StingPaths.Meta(doc, "_BIM_COORD", "acoustic");
                 Directory.CreateDirectory(outDir);

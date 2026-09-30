@@ -169,7 +169,7 @@ namespace StingTools.Core.Placement.Matrix
             try
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return null;
-                string baseDir = Path.GetDirectoryName(doc.PathName);
+                string baseDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(baseDir)) return null;
                 return StingPaths.MetaFile(doc, "_BIM_COORD", FileName);
             }

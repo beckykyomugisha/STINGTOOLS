@@ -2,6 +2,131 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Workshared local copies + model-folder sweep — ACC-HARD-3b / 3c, 2026-09-30)
+
+**3b — file-based worksharing.** A local copy's `doc.PathName` is the user's own copy
+(usually in Documents), so `<rvtDir>/<CODE>` was a different root per user. Existing projects
+are not moved:
+
+- `Core/WorksharedProjectRoot.cs` (Revit-free) decides. Not workshared, the central itself,
+  or cloud: NotApplicable. A legacy ES stamp, or a root already beside the local copy
+  (`<localDir>/<CODE>` or any setup the old scan recognises): NotApplicable, so it keeps its
+  current root. Otherwise (greenfield, or a `central:` stamp): a mapping for this central
+  (`central:<path>` key in `%APPDATA%\Planscape\cloud_project_roots.json`) is used, then
+  `<centralDir>/<CODE>`. If the central folder is unreachable (share offline, or a Revit Server
+  `RSN://` central), STING asks once on the UI thread or refuses when unattended. It never
+  falls back to the local copy's folder.
+- The ES stamp for these projects is `central:<rel>`, relative to the central folder, so it
+  means the same folder in every user's copy. Unprefixed stamps keep their meaning. Hand-mapped
+  roots are per machine and not stamped.
+- `ProjectFolderEngine`: one `CloudProjectRootResolver.ExternalRoot` gate (cloud or
+  central-rooted) now covers `GetRootPath`, `LoadOrDetectSetup`, `ResolveSetupRoot`, the
+  greenfield probe and bootstrap. The old local scan is `LoadOrDetectLocalSetup`, and it is
+  unchanged.
+- **Consented move for existing per-user projects:** `Cloud_SetProjectRoot` on a workshared
+  local copy shows the local copy, the central, the stamp, the root in use and the shared root.
+  It offers "Move to the shared root" when the root is under the local-copy folder, or "merge"
+  when a per-user tree is left behind. On consent it writes the `central:` stamp in a
+  transaction, then calls `ProjectFolderEngine.RelocateProjectRoot`. That uses the
+  `MigrateFromLegacy` rules: it moves files only and never deletes, keeps both copies on a
+  name collision, renames a drained source `*.migrated_yyyyMMdd` and leaves it in place if
+  anything failed, and appends to `root_relocations` in
+  `<shared root>/_data/.sting_consolidation.json`. The command is now `TransactionMode.Manual`.
+
+**3c — sweep of folders derived from `doc.PathName`.** New `StingPaths.ModelDir(doc)` returns
+exactly `Path.GetDirectoryName(doc.PathName)` for a local model. For a cloud or central-rooted
+model it returns the parent of the project root, so `<modelDir>/<CODE>` is still the root and
+siblings are shared. With no root it returns null, the same answer an unsaved model gets.
+`StingPaths.ModelSidecar(doc, suffix)` replaces `Path.ChangeExtension(doc.PathName, suffix)`
+and uses the central's name for a central-rooted copy. **Changed: 192 sites.** Read-only
+sites were changed too, because the helper gives the same answer for local models. The sites:
+BIMManager/BIMManagerCommands.cs (4), BIMManager/CoordinationCenterCommands.cs (4),
+BIMManager/GapFixCommands.cs (2, one a sidecar), BIMManager/PlatformLinkCommands.cs,
+BIMManager/RevitGltfExporter.cs, BIMManager/SchedulingCommands.cs, BOQ/BOQCostManager.cs,
+BOQ/BOQRateSourceHeatMapCommand.cs, BOQ/BOQSupportCommands.cs (2), BOQ/BoqDriftStatus.cs,
+BOQ/BoqEpd.cs, BOQ/BoqPrelims.cs, BOQ/BoqProvisional.cs, BOQ/BoqSignOff.cs, BOQ/BoqWbsMap.cs,
+BOQ/Rates/RateFeedsConfig.cs, BOQ/UgCarbonFactors.cs, Commands/Classification/CsiCommands.cs,
+Commands/Content/ContentCoverageCommand.cs, Commands/Cost/FinalAccountCommands.cs,
+Commands/Cost/FluctuationsCommands.cs, Commands/Cost/ScheduleCpmCommands.cs (2),
+Commands/Cost/TenderAdjudicationCommands.cs, Commands/Delivery/DeliveryCommands.cs,
+Commands/Drawing/TitleBlockMigrateCsvToRecipeCommand.cs, Commands/Drawing/TitleBlockMigrationCommands.cs,
+Commands/Electrical/Lighting/ComCheckExportCommand.cs, Commands/Electrical/Photometric/AssignPhotometricCommand.cs,
+Commands/Electrical/WireAnnotationCommands.cs, Commands/Fabrication/ExportPcfCommand.cs (now
+`StingPaths.Meta(doc, "_BIM_COORD", "pcf")`; a hand-built `<rvtDir>/_BIM_COORD/pcf` the
+Tier-2 regex missed because it spans two lines), Commands/Hvac/HvacCompareLoadsCommand.cs,
+Commands/Hvac/HvacCrossTalkAuditCommand.cs, Commands/Hvac/HvacGenerateCxChecklistCommand.cs,
+Commands/Hvac/HvacLifeCycleCompareCommand.cs, Commands/Hvac/HvacRtsBenchmarkCommand.cs (2),
+Commands/Hvac/HvacSaveRulesCommand.cs, Commands/Kpi/OwnerKpiDashboardCommand.cs (3),
+Commands/Lightning/LpsBatchFamilyStamperCommand.cs, Commands/Lightning/LpsCreateFamilyShellsCommand.cs,
+Commands/Mep/MepSystemFilterCommands.cs, Commands/Placement/LearnPlacementV4Command.cs,
+Commands/Plumbing/PlumbingDocsCommands.cs, Commands/SLD/SLDGeneratorCommands.cs,
+Commands/Storage/MigrateToExtensibleStorageCommand.cs (2), Commands/Sustainability/SustainExportCommands.cs,
+Commands/Symbols/EquipmentSymbolCommands.cs, Commands/Symbols/SwapParameterBridge.cs,
+Commands/Symbols/SwapToManufacturerCommand.cs, Commands/Symbols/SymbolLibraryCommands.cs (2),
+Commands/TemplateManager/TemplateManagerCommandsV2.cs, Commands/Validation/DeviceCoordinationCommand.cs,
+Commands/Validation/LodVerifyCommand.cs, Commands/Validation/OwnerStandardsAuditCommand.cs,
+Commands/Validation/ProgramAuditCommand.cs, Core/Acoustic/AcousticDataRegistry.cs,
+Core/Branding/CorporateBrand.cs, Core/Cad/Mep/MepFixtureMap.cs, Core/Cad/Mep/MepRunRules.cs,
+Core/Classification/ClassificationStandard.cs, Core/ComplianceScan.cs (sidecar), Core/Content/ContentRoots.cs,
+Core/CoordLog.cs (2), Core/CoordStores.cs (2), Core/Drawing/AecFilterRegistry.cs,
+Core/Drawing/TitleBlockFactory.cs (2), Core/Drawing/TitleBlockResolver.cs, Core/Electrical/CableManifest.cs,
+Core/Electrical/WireProfile.cs (2), Core/HandoverModeHelper.cs, Core/Hvac/Loads/LoadAssumptionsRegistry.cs,
+Core/Lightning/LpsSldRules.cs, Core/Materials/SlabSystemLoader.cs, Core/Mep/MepSystemTypeRegistry.cs,
+Core/Mep/PipeServiceDetector.cs, Core/MultiBuildingExtraCommands.cs, Core/OutputLocationHelper.cs,
+Core/Phase74Enhancements.cs, Core/Phase75Enhancements.cs (2), Core/Placement/CategoryHeightDefaults.cs,
+Core/Placement/CategoryToSeedRegistry.cs, Core/Placement/DwgSymbolMapRegistry.cs (2),
+Core/Placement/FamilyHostConverter.cs, Core/Placement/Matrix/MatrixDefaults.cs, Core/Placement/Matrix/MatrixModel.cs,
+Core/Placement/SeedEnsurer.cs, Core/Plumbing/PlumbingSystemConfig.cs, Core/Plumbing/PlumbingTables.cs,
+Core/Plumbing/SupplySchematicGenerator.cs, Core/Refrigerant/IduCatalogue.cs, Core/Refrigerant/RefnetTreeSizer.cs,
+Core/Refrigerant/RefrigerantChargeCalculator.cs, Core/Refrigerant/RefrigerantVendorLimits.cs,
+Core/SLD/SLDSyncUpdater.cs, Core/ScaleTiers.cs, Core/Schedule/ScheduleModel.cs (3), Core/StingAutoTagger.cs (2),
+Core/StingTag7NarrativeUpdater.cs, Core/StingToolsApp.cs, Core/Sustainability/SustainabilityEngine.cs,
+Core/Sustainability/SustainabilityRegistries.cs (2), Core/Symbols/MepSymbolEngine.cs,
+Core/Symbols/SymbolAliasRegistry.cs, Core/Symbols/SymbolStandardResolver.cs, Core/TagSchemeEngine.cs,
+Core/TemplateManager/AuditLog.cs, Core/TemplateManager/CorporateLibrary.cs, Core/TemplateManager/TemplateRulesRegistry.cs,
+Core/Validation/LodVerificationEngine.cs, Core/Validation/OwnerStandardsPack.cs, Core/WarningSnapshotStore.cs,
+Core/WarningsManager.cs (5), Core/WorkflowEngine.cs (2), Docs/DocAutomationExtCommands.cs (2),
+Docs/HandoverExportCommands.cs (5), Docs/ReviewCommentCommands.cs, Docs/SheetManagerCommands.cs (sidecar),
+Docs/SheetManagerEngineExt.cs, Docs/SheetOrganizerCommand.cs, Docs/SheetTemplateEngine.cs, Docs/TitleBlockCommands.cs,
+Docs/TransmittalCommand.cs, Docs/ViewOrganizerCommand.cs, ExLink/AutomationEngine.cs, ExLink/FohlioLink.cs,
+Model/MEPIntelligenceEngine.cs, Model/PlasteringEngine.cs, Model/StructuralAdvancedDesignExt.cs,
+Organise/TagOperationCommands.cs (2), Select/SelectionSetCommands.cs, Tags/ApplyParagraphPresetCommand.cs (2),
+Tags/ConfigEditorCommand.cs (2), Tags/ConfigureLoadedFamiliesCommand.cs, Tags/FamilyConformanceCheckCommand.cs,
+Tags/SmartTagPlacementCommand.cs (2), Tags/TagBehaviourSettingsCommand.cs, Tags/TagConfigPlanResolver.cs,
+Tags/TagIntelligenceCommands.cs (2), Temp/BOQTemplateLibrary.cs, Temp/DataPipelineCommands.cs (2),
+Temp/ProjectSetupCommand.cs, Temp/RoomSpaceCommands.cs, UI/BOQCostManagerPanel.cs (2), UI/COBieExportWizard.cs,
+UI/DocumentManagementDialog.cs, UI/ExcelExchangeWizard.cs, UI/PlacementCenter/PlacementExcelCommands.cs,
+UI/PlacementCenter/PlacementRulesViewModel.cs, UI/PlacementCenter/StingPlacementCenter.xaml.cs (2),
+V6/AsBuiltReconciler.cs, V6/CarbonStageTracker.cs.
+
+**Left deliberately:**
+- `Clash/AccPullClashesCommand.cs:459`: another agent owns `Clash/Acc*`. It is baselined (1)
+  and should be routed when that work lands.
+- `Commands/Cloud/CloudProjectRootCommands.cs`: needs the local copy's folder, because that is
+  where the per-user root being moved lives. Marked `path-discipline: model-dir`.
+- The resolvers themselves: `ProjectFolderEngine`, `StingPaths`, `CloudProjectRootResolver`,
+  `StingProjectRootSchema`.
+- Non-folder uses: cache keys (`ParameterHelpers:4570`), file names
+  (`DataPipelineCommands:2867`, `AsBuiltReconciler:67`), path comparisons
+  (`ScopeBoxPlannerService`), and file-size reads (`ExLink/AutomationEngine` `FileInfo`).
+- The `LuminaireRegistry` comment.
+- Path-only callers (`StingPaths.MetaFrom(rvtPath, …)`) resolve a central-rooted or cloud copy
+  through the per-document root cache, which `GetRootPath` fills at document open.
+  Until then they get null for cloud and the legacy sibling for a workshared copy.
+
+**Gate:** `tools/check_path_discipline.ps1` Tier 3 fails on any new
+`GetDirectoryName(… .PathName` or `ChangeExtension(… .PathName` outside the resolvers. The
+baseline is `tools/path_discipline_modeldir_baseline.txt` (1). The gate was checked against a
+probe file: it failed on the probe and passed without it.
+
+Tests: `StingTools.Tags.Tests/WorksharedProjectRootTests.cs` (17 cases: stamped and existing
+roots unchanged, a greenfield copy goes to the central folder, two users share one root,
+central unreachable interactive and unattended, Revit Server central, mapping and malformed
+mapping, non-workshared / cloud / the central itself unchanged, a hostile stamp). Tags
+4213/4213, Acc 283/283, Mep 87/87 (a `StingPaths.ModelDir` shim was added to its
+`RevitShims`). Plugin build 0/0; path-discipline and workflow-wiring gates pass. **Not run in
+Revit** (ROADMAP ACC-HARD-3a).
+
 #### Completed (Cloud model project root — ACC-HARD-3, 2026-09-30)
 
 A Revit cloud model (Autodesk Docs / BIM 360, incl. Cloud Worksharing) has

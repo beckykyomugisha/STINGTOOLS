@@ -33,7 +33,7 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"WarningSnapshotStore.ResolvePath: {ex.Message}"); }
 
-            return Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "",
+            return Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                                 WarningSnapshotFormat.SidecarFileName);
         }
 

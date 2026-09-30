@@ -577,7 +577,7 @@ namespace StingTools.Core
                 var history = new List<(DateTime Date, int Count)>();
                 try
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName ?? "");
+                    string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                     string baselinePath = ProjectFolderEngine.GetDataPath(doc, "warnings_baseline.json");
                     if (string.IsNullOrEmpty(baselinePath) || !File.Exists(baselinePath))
                         baselinePath = Path.Combine(projDir ?? "", ".sting_warnings_baseline.json");

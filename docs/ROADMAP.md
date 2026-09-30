@@ -2601,15 +2601,14 @@ Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1
     not been exercised in Revit. Check the log for the `CLOUD ROOT [...]` line, confirm two users
     mapped to one share see the same `_data/coord`, and that "Not now" leaves no folder under
     Documents.
-  - **ACC-HARD-3b — file-based worksharing splits too.** A *local copy* of a file-based central
-    model usually sits in each user's Documents, and `doc.PathName` is that local copy — so
-    `<localDir>/<CODE>` is per user as well. Unchanged by the fix (local behaviour is untouched
-    by design). Resolving through `GetWorksharingCentralModelPath()` would fix it, but moves
-    existing projects' roots; needs a consented migration like `Folders_ConsolidateAll`.
-  - **ACC-HARD-3c — callers that bypass `StingPaths`.** Code that still does
-    `Path.GetDirectoryName(doc.PathName)` itself (outside `ProjectFolderEngine`) gets
-    `Autodesk Docs:\<project>` for a cloud model and fails on write rather than splitting —
-    loud, but a failure. Worth a sweep.
+  - ~~**ACC-HARD-3b — file-based worksharing splits too.**~~ **Closed in code 2026-09-30**
+    (CHANGELOG "Workshared local copies"). A new project's root is beside the CENTRAL model
+    (`central:` ES stamp); existing per-user roots are untouched and move only through
+    `Cloud_SetProjectRoot` → "Move to the shared root" (consented, move-never-delete).
+    Needs the ACC-HARD-3a Revit check too: two users on one file-based central.
+  - ~~**ACC-HARD-3c — callers that bypass `StingPaths`.**~~ **Closed 2026-09-30**: 192 sites moved
+    to `StingPaths.ModelDir` / `ModelSidecar` / `Meta`; path-discipline Tier 3 gates new ones.
+    One baselined site left: `Clash/AccPullClashesCommand.cs:459` (ACC workstream).
 - ~~**ACC-HARD-4 — retire the machine-file fallback.**~~ **Done 2026-09-30**: project values come only from the project; the machine file's old ids are shown on the ACC card and adopted only by an explicit Save. `projectId`, `hubId` and `folderUrn` are
   still read from `%APPDATA%\Planscape\acc_credentials.json` when a project has none (logged as
   DEPRECATED). Remove it after one live KUT cycle on project settings (as IM-18 planned).

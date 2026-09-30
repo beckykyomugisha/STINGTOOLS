@@ -23,6 +23,13 @@ namespace StingTools.Core
         public static void Error(string msg, Exception ex = null) { }
     }
 
+    /// <summary>StingPaths.ModelDir for a local, non-workshared model: the model's folder.</summary>
+    internal static class StingPaths
+    {
+        public static string ModelDir(Autodesk.Revit.DB.Document doc)
+            => string.IsNullOrEmpty(doc?.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+    }
+
     internal static class StingToolsApp
     {
         /// <summary>Resolves a shipped data file from the repository's StingTools/Data.</summary>

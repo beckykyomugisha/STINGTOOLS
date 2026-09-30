@@ -130,7 +130,7 @@ namespace StingTools.Commands.Drawing
             {
                 if (!string.IsNullOrEmpty(doc?.PathName))
                 {
-                    var alongside = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "",
+                    var alongside = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                         "_BIM_COORD", fileName);
                     if (File.Exists(alongside)) return alongside;
                 }

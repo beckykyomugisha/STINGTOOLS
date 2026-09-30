@@ -98,7 +98,7 @@ namespace StingTools.Commands.Validation
         {
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 string reportDir = StingPaths.MetaFile(doc, "_BIM_COORD", "owner_standards_reports");
                 Directory.CreateDirectory(reportDir);

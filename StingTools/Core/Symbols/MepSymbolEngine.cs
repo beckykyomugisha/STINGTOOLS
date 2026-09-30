@@ -758,7 +758,7 @@ namespace StingTools.Core.Symbols
                 try
                 {
                     string docDir = string.IsNullOrEmpty(doc.PathName)
-                        ? null : Path.GetDirectoryName(doc.PathName);
+                        ? null : global::StingTools.Core.StingPaths.ModelDir(doc);
                     if (!string.IsNullOrEmpty(docDir))
                     {
                         string bimCoordRoot = StingPaths.Meta(doc, "_BIM_COORD", "Families", "Symbols");

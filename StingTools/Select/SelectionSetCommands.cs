@@ -104,7 +104,7 @@ namespace StingTools.Select
         private static string GetFilePath(Document doc)
         {
             if (!string.IsNullOrEmpty(doc.PathName))
-                return Path.Combine(Path.GetDirectoryName(doc.PathName), FileName);
+                return Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc), FileName);
             return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), FileName);
         }
     }

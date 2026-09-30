@@ -106,7 +106,7 @@ namespace StingTools.UI.PlacementCenter
                     return Result.Cancelled;
                 }
 
-                string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 string outPath = Path.Combine(projDir, "STING_PLACEMENT_RULES.project.json");
                 var set = new PlacementRuleSet
                 {

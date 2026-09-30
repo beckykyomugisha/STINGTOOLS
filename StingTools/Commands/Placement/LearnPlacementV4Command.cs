@@ -172,7 +172,7 @@ namespace StingTools.Commands.Placement
                     return -1;
                 }
 
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 string path = Path.Combine(dir, "STING_PLACEMENT_RULES.learned.json");
                 var set = new PlacementRuleSet
                 {

@@ -40,7 +40,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                string parent = Path.GetDirectoryName(doc?.PathName ?? "");
+                string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(parent)) return new WorkingCalendarConfig();
                 string p = StingPaths.MetaFile(doc, "_BIM_COORD", "working_calendar.json");
                 if (!File.Exists(p)) return new WorkingCalendarConfig();
@@ -372,7 +372,7 @@ namespace StingTools.Commands.Cost
         {
             try
             {
-                string parent = Path.GetDirectoryName(doc?.PathName ?? "");
+                string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(parent)) return null;
                 return StingPaths.MetaFile(doc, "_BIM_COORD", "cash_flow_scurve.json");
             }

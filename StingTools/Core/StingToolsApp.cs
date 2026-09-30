@@ -1277,7 +1277,7 @@ namespace StingTools.Core
                     try
                     {
                         string cfg = System.IO.Path.Combine(
-                            System.IO.Path.GetDirectoryName(e.Document.PathName) ?? "", "project_config.json");
+                            global::StingTools.Core.StingPaths.ModelDir(e.Document) ?? "", "project_config.json");
                         WorkflowScheduler.LoadFromConfig(cfg);
                     }
                     catch (Exception tEx) { StingLog.Warn($"WorkflowScheduler.LoadFromConfig: {tEx.Message}"); }

@@ -149,7 +149,7 @@ namespace StingTools.Core.Electrical
 
         public static string PathFor(Document doc)
         {
-            var dir = Path.GetDirectoryName(doc?.PathName ?? "") ?? Path.GetTempPath();
+            var dir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? Path.GetTempPath();
             return StingPaths.MetaFile(doc, "_BIM_COORD", "cables.json");
         }
     }

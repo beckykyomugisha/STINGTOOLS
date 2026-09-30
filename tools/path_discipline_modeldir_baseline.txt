@@ -1,0 +1,5 @@
+# Tier 3 baseline -- folders derived from doc.PathName (ACC-HARD-3c).
+# Format: <relative path under StingTools/><TAB><count>. May fall, never rise.
+# Clash/AccPullClashesCommand.cs: owned by the ACC workstream at the time of the sweep; route it
+# through StingPaths.ModelDir / OutputLocationHelper and drop this line.
+Clash/AccPullClashesCommand.cs	1

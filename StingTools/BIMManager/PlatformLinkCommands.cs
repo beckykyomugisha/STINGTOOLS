@@ -1817,7 +1817,7 @@ namespace StingTools.BIMManager
                 }
 
                 // Also check project directory
-                string docDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                string docDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 if (!string.IsNullOrEmpty(docDir) && Directory.Exists(docDir))
                 {
                     foreach (var f in Directory.GetFiles(docDir, "*.bcfzip"))

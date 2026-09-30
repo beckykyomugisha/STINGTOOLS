@@ -929,7 +929,7 @@ namespace StingTools.Core
                 {
                     if (doc == null || string.IsNullOrEmpty(doc.PathName)) return false;
                     string p = System.IO.Path.Combine(
-                        System.IO.Path.GetDirectoryName(doc.PathName), "project_config.json");
+                        global::StingTools.Core.StingPaths.ModelDir(doc), "project_config.json");
                     if (!System.IO.File.Exists(p)) return false;
                     var root = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(p));
                     return (bool)(root["symbol_auto_place"] ?? false);
@@ -1269,7 +1269,7 @@ namespace StingTools.Core
             {
                 var doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
-                string dir = System.IO.Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return;
                 string cfgPath = System.IO.Path.Combine(dir, "project_config.json");
                 TagConfig.SaveToFile(cfgPath);

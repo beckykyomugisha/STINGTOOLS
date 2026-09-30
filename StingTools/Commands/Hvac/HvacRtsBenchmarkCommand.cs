@@ -173,7 +173,7 @@ namespace StingTools.Commands.Hvac
                     Parse(File.ReadAllText(basePath), list);
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string proj = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "",
+                    string proj = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                                                "_BIM_COORD", "rts_reference_cases.json");
                     if (File.Exists(proj)) Parse(File.ReadAllText(proj), list);
                 }
@@ -260,7 +260,7 @@ namespace StingTools.Commands.Hvac
         {
             try
             {
-                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 if (string.IsNullOrEmpty(projDir)) return null;
                 string outDir = StingPaths.Meta(doc, "_BIM_COORD", "acoustic");
                 Directory.CreateDirectory(outDir);

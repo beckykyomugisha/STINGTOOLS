@@ -472,7 +472,7 @@ namespace StingTools.UI
                 try
                 {
                     defaultDir = Path.Combine(
-                        Path.GetDirectoryName(_doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                        global::StingTools.Core.StingPaths.ModelDir(_doc) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                         "STING_BIM_MANAGER",
                         $"COBie_V24_{DateTime.Now:yyyyMMdd}");
                 }

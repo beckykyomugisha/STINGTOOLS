@@ -80,7 +80,7 @@ namespace StingTools.Docs
                     }
                 }
 
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
                 string csvPath = Path.Combine(dir, $"STING_SheetOrganizer_{DateTime.Now:yyyyMMdd}.csv");
                 File.WriteAllText(csvPath, csv.ToString());

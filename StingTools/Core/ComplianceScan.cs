@@ -1066,7 +1066,7 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-            return System.IO.Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+            return global::StingTools.Core.StingPaths.ModelSidecar(doc, ".sting_compliance_trend.json");
         }
 
         /// <summary>Record today's compliance snapshot.</summary>

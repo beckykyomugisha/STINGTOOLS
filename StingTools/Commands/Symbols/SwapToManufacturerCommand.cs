@@ -408,7 +408,7 @@ namespace StingTools.Commands.Symbols
                 try
                 {
                     string baseDir = null;
-                    try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
+                    try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = global::StingTools.Core.StingPaths.ModelDir(doc); }
                     catch (Exception exDir) { StingLog.Warn($"LoadRegistry override dir: {exDir.Message}"); }
 
                     if (!string.IsNullOrEmpty(baseDir))

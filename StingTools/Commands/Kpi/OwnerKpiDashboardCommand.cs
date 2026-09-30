@@ -197,7 +197,7 @@ namespace StingTools.Commands.Kpi
 
         private static string KpiDir(Document doc)
         {
-            string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(dir)) return null;
             string p = StingPaths.MetaFile(doc, "_BIM_COORD", "kpi");
             Directory.CreateDirectory(p);
@@ -292,7 +292,7 @@ namespace StingTools.Commands.Kpi
                 // savings + level), not just tag/clash KPIs. Read-only; absent => skipped.
                 try
                 {
-                    string projDir = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                    string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                     var edge = string.IsNullOrEmpty(projDir)
                         ? null
                         : StingTools.Core.Sustainability.EdgeKpiSnapshot.LoadPrevious(
@@ -443,7 +443,7 @@ namespace StingTools.Commands.Kpi
                 // on-programme %; kept there to avoid re-parsing the plan here).
                 try
                 {
-                    string projDir2 = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+                    string projDir2 = global::StingTools.Core.StingPaths.ModelDir(doc);
                     string delivJson = string.IsNullOrEmpty(projDir2) ? null
                         : System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "deliverables.json");
                     int delivCount = 0;

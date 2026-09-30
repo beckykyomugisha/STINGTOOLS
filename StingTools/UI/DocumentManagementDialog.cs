@@ -6125,7 +6125,7 @@ namespace StingTools.UI
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
-                string projDir = Path.GetDirectoryName(doc.PathName);
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(projDir)) return;
                 string exportsDir = Path.Combine(projDir, "STING_Exports");
                 if (!Directory.Exists(exportsDir)) return;

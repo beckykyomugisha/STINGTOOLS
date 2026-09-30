@@ -212,7 +212,7 @@ namespace StingTools.Core.Placement
         public static string ResolveSeedOutputFolder(Document doc)
         {
             string baseDir = null;
-            try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
+            try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = global::StingTools.Core.StingPaths.ModelDir(doc); }
             catch (Exception ex) { StingLog.Warn($"SeedEnsurer.ResolveSeedOutputFolder: {ex.Message}"); }
             if (string.IsNullOrEmpty(baseDir))
                 baseDir = Path.Combine(Path.GetTempPath(), "STING_Seeds");

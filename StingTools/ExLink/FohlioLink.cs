@@ -116,7 +116,7 @@ namespace StingTools.ExLink
 
         public static string ProjectFile(Document doc, string name)
         {
-            string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(dir)) return null;
             return StingPaths.MetaFile(doc, "_BIM_COORD", name);
         }

@@ -37,7 +37,7 @@ namespace StingTools.Commands.Validation
 
         private static string DocKey(Document doc)
         {
-            try { return Path.GetDirectoryName(doc?.PathName ?? "") ?? ""; } catch { return ""; }
+            try { return global::StingTools.Core.StingPaths.ModelDir(doc) ?? ""; } catch { return ""; }
         }
 
         private static DeviceCoordRulePack Load(Document doc)

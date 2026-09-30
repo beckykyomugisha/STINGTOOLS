@@ -2176,7 +2176,7 @@ namespace StingTools.Docs
             // Export CSV
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
                 string csvPath = Path.Combine(dir, $"STING_DrawingRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 File.WriteAllText(csvPath, string.Join("\n", csv));
@@ -2724,7 +2724,7 @@ namespace StingTools.Docs
                 double pct = allElements.Count > 0 ? (tagged * 100.0 / allElements.Count) : 0;
 
                 // ── Save dialog (.xlsx) ─────────────────────────────────────────
-                string defaultDir = Path.GetDirectoryName(doc.PathName);
+                string defaultDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(defaultDir)) defaultDir = Path.GetTempPath();
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 string defaultName = $"STING_COBie_FM_Handover_{timestamp}.xlsx";

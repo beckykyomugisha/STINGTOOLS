@@ -142,7 +142,7 @@ namespace StingTools.Core.Placement.Matrix
             try
             {
                 string baseDir = null;
-                try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = Path.GetDirectoryName(doc.PathName); }
+                try { if (!string.IsNullOrEmpty(doc?.PathName)) baseDir = global::StingTools.Core.StingPaths.ModelDir(doc); }
                 catch { }
                 if (string.IsNullOrEmpty(baseDir)) return;
                 string ovr = StingPaths.MetaFile(doc, "_BIM_COORD", "category_load_defaults.json");

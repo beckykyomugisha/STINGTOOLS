@@ -3469,7 +3469,7 @@ namespace StingTools.Core
             var issues = new List<string>();
             try
             {
-                string docDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                string docDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 string docsPath = CoordStores.Register(doc);
                 string issuesPath = CoordStores.Issues(doc);
 
@@ -4129,7 +4129,7 @@ namespace StingTools.Core
                 // Phase 49: Load compliance trend from workflow log
                 try
                 {
-                    string logPath = Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "",
+                    string logPath = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                         "STING_WORKFLOW_LOG.json");
                     if (File.Exists(logPath))
                     {
@@ -4270,7 +4270,7 @@ namespace StingTools.Core
                 {
                     if (!string.IsNullOrEmpty(doc.PathName))
                     {
-                        string cfgPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                        string cfgPath = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc), "project_config.json");
                         if (File.Exists(cfgPath))
                         {
                             var cfgObj = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cfgPath));
@@ -4939,7 +4939,7 @@ namespace StingTools.Core
             try
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) { TaskDialog.Show("STING", "Save the Revit project before saving permissions."); return; }
-                string configPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                string configPath = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc), "project_config.json");
                 Newtonsoft.Json.Linq.JObject cfg = File.Exists(configPath)
                     ? Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(configPath))
                     : new Newtonsoft.Json.Linq.JObject();
@@ -4988,7 +4988,7 @@ namespace StingTools.Core
                 // Load current role from project config
                 string configPath = "";
                 if (!string.IsNullOrEmpty(doc.PathName))
-                    configPath = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                    configPath = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc), "project_config.json");
                 string currentRole = "C";
                 if (File.Exists(configPath))
                 {

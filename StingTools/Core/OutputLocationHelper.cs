@@ -462,7 +462,7 @@ namespace StingTools.Core
                     "Use last folder", lastFolder);
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2,
                     "Navigate to folder", "Open file browser");
-                string pd = routed ?? Path.GetDirectoryName(doc?.PathName ?? "");
+                string pd = routed ?? global::StingTools.Core.StingPaths.ModelDir(doc);
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3,
                     routed != null ? "Project folder for this export" : "Project folder",
                     string.IsNullOrEmpty(pd) ? "Save project first" : pd);

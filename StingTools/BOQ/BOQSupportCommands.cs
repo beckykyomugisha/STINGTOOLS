@@ -293,7 +293,7 @@ namespace StingTools.BOQ
                 string csvPath = null;
                 try
                 {
-                    string parent = Path.GetDirectoryName(doc.PathName ?? "");
+                    string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
                     if (!string.IsNullOrEmpty(parent))
                     {
                         string dir = StingPaths.Meta(doc, "_BIM_COORD");
@@ -497,7 +497,7 @@ namespace StingTools.BOQ
                 string csvPath = null;
                 try
                 {
-                    string parent = Path.GetDirectoryName(doc.PathName ?? "");
+                    string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
                     if (!string.IsNullOrEmpty(parent))
                     {
                         string dir = StingPaths.Meta(doc, "_BIM_COORD");

@@ -179,7 +179,7 @@ namespace StingTools.Commands.Electrical.Lighting
             // Project overlay first (wins), then corporate.
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(dir))
                 {
                     string p = StingPaths.MetaFile(doc, "_BIM_COORD", "comcheck_space_map.csv");
