@@ -2,6 +2,36 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC federated tag compliance — every consultant model, no Revit open, 2026-10-01)
+
+- **`ACC_FederatedCompliance`** (ReadOnly; BCC ACC card "🏷 Federation Tags"; optional
+  `failOnError` step 3a of `WORKFLOW_KUT_CoordinationCycle.json`). Takes the remembered
+  coordination model set, reads its **latest version**
+  (`bim360/modelset/v3/…/versions/latest`, new `AccModelCoordSync.GetLatestModelSetVersionAsync`)
+  and checks the STING tag of every element in every model through the **ACC Model Properties
+  (Index) API** — `construction/index/v2/projects/{p}/indexes:batch-status` (lazy index per
+  document version) → poll → `…/fields` (gzipped NDJSON) → `…/queries` → poll →
+  `…/queries/{q}/properties`. Parameters are matched by **name** (ParamRegistry's DISC…SEQ +
+  TAG1) across every key that carries them, so a shared parameter grouped differently in two
+  models is still found.
+- **Report** (`V6/AccFederatedCompliance.cs`, Revit-free): per model, per DISC and
+  federation-wide fully / partly / un-tagged, most-missing tokens, DISC/SYS/FUNC codes outside
+  `ISO19650Validator`'s lists, STING parameters absent from a model, and **tags duplicated
+  across models** — which no in-model check can see. Two CSVs routed to Compliance (summary +
+  worklist).
+- **Failure rule.** An index that FAILED, never finished (bounded polling, 15 min default), a
+  403, or a payload the client does not recognise is a *failed read* carried with its reason,
+  never "0 elements"; the command then returns Failed and the headline says INCOMPLETE. Zero
+  elements in scope has no percentage. Non-Revit documents (no `_RC` field) are listed, not
+  counted.
+- **Tests**: 13 new in `StingTools.Acc.Tests` (loopback: index/poll/fields/query/gzip NDJSON,
+  key coalescing, raw-row shape, FAILED, timeout, 403, schema change, non-Revit, malformed
+  line; tally incl. cross-model duplicates; latest model set version). Mutating the poll to
+  accept FAILED/timeout turns two of them red. `LoopbackServer` can now send raw bytes.
+- **Unverified live**: the aliased `columns` result shape (the raw-row shape is also parsed),
+  `_RC` category names from a Revit in another language (tagged elements are still found via
+  `ASS_TAG_1_TXT`), and index build time on the KUT federation.
+
 #### Completed (ACC workarounds where Autodesk has no API: transmittals, model sets, project folder check, 2026-09-30)
 
 - **ACC transmittals (API is read-only).** STING cannot create an ACC transmittal, so after

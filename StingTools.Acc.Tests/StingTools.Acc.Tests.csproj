@@ -86,6 +86,10 @@
     <Compile Include="..\StingTools\V6\AccClashLocate.cs" Link="V6\AccClashLocate.cs" />
     <Compile Include="..\StingTools\V6\AccIssueAttachment.cs" Link="V6\AccIssueAttachment.cs" />
     <Compile Include="..\StingTools\Core\PlanscapeProtocol.cs" Link="Core\PlanscapeProtocol.cs" />
+    <!-- ACC_FederatedCompliance: the Model Properties (Index API) read of every model in the
+         federation, and the Revit-free tag tally over it (incl. cross-model duplicate tags). -->
+    <Compile Include="..\StingTools\V6\AccModelProperties.cs" Link="V6\AccModelProperties.cs" />
+    <Compile Include="..\StingTools\V6\AccFederatedCompliance.cs" Link="V6\AccFederatedCompliance.cs" />
     <Compile Include="..\StingTools\BIMManager\BcfEngine.cs" Link="BIMManager\BcfEngine.cs" />
     <Compile Include="..\StingTools\Core\IssueSchema.cs" Link="Core\IssueSchema.cs" />
     <Compile Include="..\StingTools\Core\IssueStatusNormalizer.cs" Link="Core\IssueStatusNormalizer.cs" />

@@ -5676,6 +5676,7 @@ namespace StingTools.UI
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
             AddAct("📥 Import Issues",    "AccImportIssues",    Color.FromRgb(0x2E, 0x7D, 0x32), "Import every ACC issue into the STING issue register (new rows, title/status/assignee updates). Never deletes STING issues; an issue edited in both places is reported as a conflict, not overwritten.");
+            AddAct("🏷 Federation Tags",   "AccFederatedCompliance", Color.FromRgb(0x00, 0x69, 0x5C), "ISO 19650 tag compliance of EVERY model in the coordination model set, read from ACC (Model Properties API) without opening them: fully / partly / un-tagged per model and discipline, most-missing tokens, invalid codes, and tags duplicated ACROSS models. Read-only.");
             AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into a local ACC-ready bundle (manual upload).");
 
             // ── Project operating settings (PROJECT-scoped, not machine-scoped) ──
