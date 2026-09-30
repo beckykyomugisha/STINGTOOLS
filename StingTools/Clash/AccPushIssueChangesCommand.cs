@@ -91,6 +91,21 @@ namespace StingTools.Core.Clash
                 // ── Plan: re-read every candidate from ACC ────────────────────────
                 var plans = new List<AccPushPlanItem>();
                 var readFailures = new List<string>();
+
+                // A changed assignee is resolved against the project's members (one cached read),
+                // the same way clash escalation resolves its configured assignee.
+                AccProjectDirectory members = null;
+                string membersFailure = "";
+                if (candidates.Any(c => c.Changes.Any(ch => ch.Field == "assigned_to" && !string.IsNullOrWhiteSpace(ch.LocalValue))))
+                {
+                    try
+                    {
+                        var dir = AccProjectMembers.GetDirectoryAsync(creds).GetAwaiter().GetResult();
+                        if (dir.Succeeded) members = dir.Value; else membersFailure = dir.Detail;
+                    }
+                    catch (Exception ex) { membersFailure = ex.Message; }
+                }
+
                 foreach (var c in candidates)
                 {
                     AccFetchResult<AccIssue> cur;
@@ -102,7 +117,7 @@ namespace StingTools.Core.Clash
                         if (cur.Status == AccFetchStatus.AuthFailed) break;   // every other read fails the same way
                         continue;
                     }
-                    plans.Add(AccIssuePush.Plan(c, cur.Value));
+                    plans.Add(AccIssuePush.Plan(c, cur.Value, members, membersFailure));
                 }
 
                 var ready = plans.Where(p => p.HasWrite).ToList();
