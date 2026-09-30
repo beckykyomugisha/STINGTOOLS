@@ -282,6 +282,10 @@
     <Compile Include="..\StingTools\Core\Drawing\ExistingViewPlacement.cs" Link="Core\Drawing\ExistingViewPlacement.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewContextTag.cs" Link="Core\Drawing\ViewContextTag.cs" />
     <Compile Include="..\StingTools\Core\Panels\PanelSheetPlacementMode.cs" Link="Core\Panels\PanelSheetPlacementMode.cs" />
+    <!-- Revit-free halves of fix/review-six: Seeds_Build's preset mode, and which stamped
+         sheets Produce & Export covers. -->
+    <Compile Include="..\StingTools\Core\Symbols\SeedBuildPresetMode.cs" Link="Core\Symbols\SeedBuildPresetMode.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ExportSheetScope.cs" Link="Core\Drawing\ExportSheetScope.cs" />
     <Compile Include="..\StingTools\Core\StepMessage.cs" Link="Core\StepMessage.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

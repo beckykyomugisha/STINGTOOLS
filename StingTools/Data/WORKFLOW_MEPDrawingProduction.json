@@ -1,6 +1,6 @@
 {
   "name": "MEPDrawingProduction",
-  "description": "Produce the MEP drawing set: tag first (the annotation pass and the rich tags read the tokens), then produce cropped plans from the Scope Box Planner's area boxes and from STING:: scope boxes, and whole-floor plans per level; then match lines (they quote sheet numbers, so they follow the sheets), then panel schedules. Production takes its inputs from each step's params instead of a dialog: with none given it produces every M, E, P, FP and MG Plan drawing type, on every level, as views and sheets. Re-runs reuse views and sheets matched by stamp, so it is safe to run again after model changes.",
+  "description": "Produce the MEP drawing set: tag first (the annotation pass and the rich tags read the tokens), then produce cropped plans from the Scope Box Planner's area boxes and from STING:: scope boxes, and whole-floor plans per level; then match lines (they quote sheet numbers, so they follow the sheets), then panel schedules. Production takes its inputs from each step's params instead of a dialog: with none given, each M, E, P, FP and MG discipline that has anything modelled gets the one plan type its PLAN routes to (the set the dialogs pre-tick), on the levels it occupies, as views and sheets; STING:: boxes are produced only when bound to an MEP drawing type. Re-runs reuse views and sheets matched by stamp, so it is safe to run again after model changes.",
   "rollback_on_failure": false,
   "steps": [
     {
@@ -17,7 +17,7 @@
     },
     {
       "commandTag": "ScopeBox_ProduceAreas",
-      "label": "Produce MEP plans from the Scope Box Planner area boxes (runs only when the project has STING-AREA:: boxes)",
+      "label": "Produce MEP plans from the STING-AREA:: area boxes (runs only when the project has some; boxes the saved Scope Box Planner plan does not list, or all of them when no plan is saved, are produced from their name with the routed MEP plan types)",
       "optional": true,
       "params": {
         "output": "Views and sheets",
@@ -27,7 +27,7 @@
     },
     {
       "commandTag": "DrawingTypes_ProduceFromScopeBoxes",
-      "label": "Produce from STING::<type>::<level>::<zone> scope boxes (runs only when there are some)",
+      "label": "Produce from STING::<type>::<level>::<zone> scope boxes bound to an M/E/P/FP/MG drawing type (runs only when there are some)",
       "optional": true,
       "params": {
         "output": "Views and sheets"
@@ -36,7 +36,7 @@
     },
     {
       "commandTag": "DrawingTypes_ProducePerLevel",
-      "label": "Produce whole-floor MEP plans per level (runs only when the project has no area boxes; every M/E/P/FP/MG Plan type unless params.drawingTypes names them)",
+      "label": "Produce whole-floor MEP plans per level (runs only when the project has no area boxes; the routed plan type of each modelled M/E/P/FP/MG discipline, on the levels it occupies, unless params.drawingTypes names them)",
       "optional": true,
       "params": {
         "output": "Views and sheets"
@@ -68,8 +68,8 @@
     }
   ],
   "_notes": [
-    "Step params: drawingTypes (comma list of ids; default every M, E, P, FP, MG Plan type), levels (comma list of level names; default all), output ('Views and sheets' | 'Views only'), duplicateOption ('Duplicate' | 'DuplicateAsDependent' | 'DuplicateWithDetailing'), packageId.",
+    "Step params: drawingTypes (comma list of ids; default: for each M, E, P, FP, MG discipline with anything modelled, the plan type its PLAN routes to — not every MEP Plan type, which would add the presentation, technical, fabrication, 1:500 and healthcare variants — produced only on the levels that discipline occupies; for STING:: boxes, the boxes bound to an MEP type; for area boxes, the saved plan's types, and the routed default for a box the plan does not list), levels (comma list of level names; default all), output ('Views and sheets' | 'Views only'), duplicateOption ('Duplicate' | 'DuplicateAsDependent' | 'DuplicateWithDetailing'), packageId.",
     "An unknown drawing type or level, or an unreadable output / duplicateOption, fails the step with the reason in the workflow report.",
-    "The production route is chosen by condition: area boxes when the project has STING-AREA:: boxes, whole-floor per level otherwise, and STING:: boxes whenever any exist."
+    "The production route is chosen by condition: area boxes when the project has STING-AREA:: boxes (a saved Scope Box Planner plan is not required — a hand-made STING-AREA::<area>[::<level>] box is produced on its ::level, or on every level it reaches), whole-floor per level otherwise, and STING:: boxes whenever any exist."
   ]
 }

@@ -141,7 +141,11 @@ namespace StingTools.Core.Drawing
                     }
                     if (opts.PruneOrphans)
                         PruneOrphans(doc, groupedEdges, existingByGuid, r);
-                    tx.Commit();
+                    // A commit a failure handler rolls back placed nothing: say so, so the
+                    // run's counts are not read as match lines in the model.
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                        r.Errors.Add($"the match-line transaction did not commit ({status}); nothing placed or updated was kept.");
                 }
             }
             catch (Exception ex)

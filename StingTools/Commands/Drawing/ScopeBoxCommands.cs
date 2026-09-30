@@ -5,7 +5,10 @@
 //   ScopeBox_ImportSeeds    copy STING-SEED boxes from another project or template
 //   ScopeBox_Colour         colour every STING box in all plan views by a chosen mode
 //   ScopeBox_ClearColour    remove those colours
-//   ScopeBox_ProduceAreas   produce views (and sheets) for every area box from the saved plan
+//   ScopeBox_ProduceAreas   produce views (and sheets) for every area box: as the saved plan
+//                           says, or — for a box it does not list, or with no plan — from the
+//                           box's name (::level, else the levels it reaches) and the routed
+//                           per-level MEP types (or params.drawingTypes in a workflow)
 //
 // Each is a thin shell over ScopeBoxPlannerService, so a button, a workflow step and
 // the dialog all run the same code.
@@ -143,8 +146,10 @@ namespace StingTools.Commands.Drawing
         /// <summary>
         /// Inside a workflow there is no one to answer "Views and sheets / Views only":
         /// params.output answers it (views and sheets by default), params.duplicateOption
-        /// chooses dependents. No saved plan, or nothing to produce, fails the step — the
-        /// plan and its boxes are this step's required input.
+        /// chooses dependents, params.drawingTypes limits the types, params.packageId
+        /// stamps the package. The boxes are this step's required input; a saved plan is
+        /// not — without one each box is produced from its name. Nothing to produce fails
+        /// the step.
         /// </summary>
         private static Result RunInWorkflow(ExternalCommandData data, ref string message)
         {
@@ -153,20 +158,48 @@ namespace StingTools.Commands.Drawing
             {
                 var doc = ScopeBoxCommandBase.App(data)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = title + ": no document open."; return Result.Failed; }
-                if (!BatchProduceCommons.TryStepOptions(out var opts, out _, out var err))
+                if (!BatchProduceCommons.TryStepOptions(out var opts, out var packageId, out var err))
                 { message = title + ": " + err; return Result.Failed; }
 
                 var notes = new List<string>();
                 var plan = ScopeBoxPlannerService.LoadPlan(doc, out var loadErr);
                 if (loadErr != null) { message = title + ": " + loadErr; return Result.Failed; }
-                var items = ScopeBoxPlannerService.PlanProduction(doc, plan, notes);
+
+                // params.drawingTypes: the types to produce (a box the plan lists keeps only
+                // these of its planned types; a box it does not list is produced with them).
+                // Without it, a box the plan does not list gets the per-level default.
+                var requested = HeadlessProductionInputs.ParseList(WorkflowEngine.StepParam("drawingTypes"));
+                List<string> defaults;
+                Func<DrawingType, Level, bool> include = null;
+                if (requested.Count > 0)
+                {
+                    HeadlessProductionInputs.SelectTypes(DrawingTypeRegistry.ListAll(doc), requested, new string[0], out var unknown);
+                    if (unknown.Count > 0)
+                    { message = $"{title}: params.drawingTypes names drawing type(s) not in the catalogue: {string.Join(", ", unknown)}."; return Result.Failed; }
+                    defaults = requested;
+                }
+                else
+                {
+                    var sel = BatchProduceCommons.RoutedMepPerLevel(doc);
+                    defaults = sel.Types.Select(t => t.Id).ToList();
+                    include = sel.Include;
+                }
+
+                var items = ScopeBoxPlannerService.PlanProduction(doc, plan, notes, defaults, include);
+                if (requested.Count > 0)
+                {
+                    var keep = new HashSet<string>(requested, StringComparer.OrdinalIgnoreCase);
+                    int before = items.Count;
+                    items = items.Where(i => keep.Contains(i.Type.Id)).ToList();
+                    if (before > items.Count) notes.Add($"{before - items.Count} planned item(s) of other drawing types left out (params.drawingTypes).");
+                }
                 foreach (var n in notes) StingLog.Warn($"{title}: {n}");
                 if (items.Count == 0)
                 {
                     message = title + ": nothing to produce" + (notes.Count > 0 ? " — " + string.Join("; ", notes.Take(5)) : ".");
                     return Result.Failed;
                 }
-                var outcome = ScopeBoxPlannerService.ProduceWithOutcome(doc, items, opts.CreateSheet, opts.DuplicateOption);
+                var outcome = ScopeBoxPlannerService.ProduceWithOutcome(doc, items, opts.CreateSheet, opts.DuplicateOption, packageId);
                 StingLog.Info($"{title}: {outcome.Report}");
                 message = $"{title}: {outcome.Made} new, {outcome.Refreshed} refreshed, {outcome.NotCropped} not cropped, "
                         + $"{outcome.Failed} failed of {items.Count} (details in the STING log).";
@@ -189,7 +222,11 @@ namespace StingTools.Commands.Drawing
             var notes = new List<string>();
             var plan = ScopeBoxPlannerService.LoadPlan(doc, out var err);
             if (err != null) return err;
-            var items = ScopeBoxPlannerService.PlanProduction(doc, plan, notes);
+            // A box the saved plan does not list (or every box, with no plan) is produced
+            // with the routed per-level default; the confirmation below lists it in Notes.
+            var sel = BatchProduceCommons.RoutedMepPerLevel(doc);
+            var items = ScopeBoxPlannerService.PlanProduction(doc, plan, notes,
+                sel.Types.Select(t => t.Id).ToList(), sel.Include);
             if (items.Count == 0)
                 return "Nothing to produce." + (notes.Count > 0 ? "\n• " + string.Join("\n• ", notes) : "");
 

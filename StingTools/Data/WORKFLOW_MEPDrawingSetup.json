@@ -28,6 +28,7 @@
   ],
   "_notes": [
     "Run MEPDrawingProduction after modelling and tagging; run MEPPreIssue before every issue.",
+    "Every step runs unattended: results go to the workflow report and the STING log, not dialogs. Seeds_Build builds Missing Only unless its step params.mode says RebuildUnfinalized or RebuildAll (an unknown mode fails the step); MEP_BuildSystems works on the whole project, whatever is selected.",
     "Choose the sheet-number policy (per drawing type, or ISO 19650) on the Project Setup Wizard's Automation page first; it writes PRJ_ORG_SHEET_NUMBER_POLICY_TXT."
   ]
 }

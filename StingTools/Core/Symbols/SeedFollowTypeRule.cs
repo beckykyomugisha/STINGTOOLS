@@ -61,4 +61,64 @@ namespace StingTools.Core.Symbols
             return s;
         }
     }
+
+    /// <summary>How a followsType parameter stores its value (Revit's StorageType, restated Revit-free).</summary>
+    public enum FollowStorage { Text, Integer, Double, ElementId, Other }
+
+    /// <summary>What <see cref="SeedFollowTypeWrite.Plan"/> tells the Revit layer to do.</summary>
+    public enum FollowWriteAction
+    {
+        /// <summary>Parameter.Set(string).</summary>
+        SetText,
+        /// <summary>Parameter.Set(int) with the parsed value.</summary>
+        SetInteger,
+        /// <summary>Parameter.Set(double) with the parsed value (unitless Number only).</summary>
+        SetDouble,
+        /// <summary>Parameter.ClearValue(): a numeric or id value has no "" to write.</summary>
+        Clear,
+        /// <summary>Nothing to do: a clear on a parameter that already has no value.</summary>
+        AlreadyClear,
+        /// <summary>The value cannot be written to this storage (unparseable, unit-bearing, id).</summary>
+        Invalid,
+    }
+
+    /// <summary>
+    /// The storage → write mapping for a followsType decision. A "clear" (write == "")
+    /// used to be parsed as a number on an Integer / Double parameter, so it always
+    /// failed: the value was never cleared and every swap logged a warning. A clear on
+    /// numeric or id storage is now Parameter.ClearValue() when the parameter holds a
+    /// value, and nothing when it does not; text is still cleared by writing "".
+    /// </summary>
+    public static class SeedFollowTypeWrite
+    {
+        public static FollowWriteAction Plan(FollowStorage storage, bool unitless, bool hasValue, string value,
+            out int intValue, out double doubleValue)
+        {
+            intValue = 0; doubleValue = 0;
+            var v = (value ?? "").Trim();
+            if (storage == FollowStorage.Text) return FollowWriteAction.SetText;
+            if (storage == FollowStorage.Other) return FollowWriteAction.Invalid;
+            // A unit-bearing Double (Length, ...) is never read or written from seed text:
+            // the seed's value is not in Revit's internal units.
+            if (storage == FollowStorage.Double && !unitless) return FollowWriteAction.Invalid;
+            if (v.Length == 0)
+                return hasValue ? FollowWriteAction.Clear : FollowWriteAction.AlreadyClear;
+            switch (storage)
+            {
+                case FollowStorage.Integer:
+                    if (int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out intValue))
+                        return FollowWriteAction.SetInteger;
+                    // "630.0" for an Integer parameter: a whole number written as a double.
+                    if (double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out var d)
+                        && d == Math.Floor(d) && d >= int.MinValue && d <= int.MaxValue)
+                    { intValue = (int)d; return FollowWriteAction.SetInteger; }
+                    return FollowWriteAction.Invalid;
+                case FollowStorage.Double:
+                    return unitless && double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out doubleValue)
+                        ? FollowWriteAction.SetDouble : FollowWriteAction.Invalid;
+                default:
+                    return FollowWriteAction.Invalid;   // an ElementId cannot be written from text
+            }
+        }
+    }
 }

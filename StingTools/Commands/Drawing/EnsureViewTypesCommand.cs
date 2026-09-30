@@ -99,7 +99,11 @@ namespace StingTools.Commands.Drawing
                           (createdNames.Count > 0 ? "\n  " + string.Join("\n  ", createdNames) : "") +
                           (problems.Count > 0 ? "\n\nNot done:\n  " + string.Join("\n  ", problems) : "");
             StingLog.Info("EnsureViewTypes: " + body.Replace('\n', ' '));
-            TaskDialog.Show("STING — View Types", body);
+            PresetDialog.Show("STING — View Types", body, ref msg);
+            if (PresetDialog.Quiet)
+                msg = $"View types: {wanted.Count} named, {present} present, {created} created"
+                    + (problems.Count > 0 ? $", {problems.Count} not done (see the STING log)." : ".");
+            if (problems.Count > 0) foreach (var p in problems) StingLog.Warn("EnsureViewTypes: " + p);
             return problems.Count > 0 && created == 0 && present == 0 ? Result.Failed : Result.Succeeded;
         }
     }

@@ -23,7 +23,10 @@
 //     (PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT).
 //
 //   Phase D — PDF export
-//     Every STING-stamped sheet is exported to PDF via doc.Export, ordered
+//     Every STING-stamped sheet (or, when the project has a current revision, the
+//     ones carrying it — asked in the dialog, params.sheets in a workflow) is
+//     exported to PDF via doc.Export and recorded in the document register the way
+//     the Export Centre records its output, ordered
 //     by PRJ_SHEET_SEQUENCE_INT then SheetNumber.  Output goes to the
 //     project output folder (OutputLocationHelper).
 //
@@ -145,6 +148,38 @@ namespace StingTools.Commands.Drawing
                     return Result.Succeeded;
                 }
 
+                // ── Which sheets: those carrying the current revision, or all ────
+                // Exporting every stamped sheet re-issued sheets the current revision
+                // never touched. When some stamped sheets do not carry it, ask.
+                var onRevision = ScopeToRevision(doc, stampedSheets, ExportSheetScope.CurrentRevision,
+                    out var currentRev, out int notOnRevision);
+                if (currentRev != null && notOnRevision > 0)
+                {
+                    var ask = new TaskDialog("STING — Produce & Export")
+                    {
+                        MainInstruction = $"{onRevision.Count} of {stampedSheets.Count} stamped sheet(s) carry the current revision {currentRev}.",
+                        MainContent = "Export only the sheets being issued in this revision, or every stamped sheet?",
+                        CommonButtons = TaskDialogCommonButtons.Cancel,
+                    };
+                    ask.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        $"Only the {onRevision.Count} sheet(s) carrying revision {currentRev}");
+                    ask.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        $"All {stampedSheets.Count} stamped sheets");
+                    ask.DefaultButton = doProduction ? TaskDialogResult.CommandLink2 : TaskDialogResult.CommandLink1;
+                    var pick = ask.Show();
+                    if (pick == TaskDialogResult.CommandLink1)
+                    {
+                        if (onRevision.Count == 0)
+                        {
+                            TaskDialog.Show("STING — Produce & Export",
+                                $"No stamped sheet carries revision {currentRev}; nothing exported.");
+                            return Result.Cancelled;
+                        }
+                        stampedSheets = onRevision;
+                    }
+                    else if (pick != TaskDialogResult.CommandLink2) return Result.Cancelled;
+                }
+
                 // ── Phases D + E: PDF export, sheet register ─────────────────────
                 var outDir = ExportStamped(doc, stampedSheets, stats);
 
@@ -162,8 +197,10 @@ namespace StingTools.Commands.Drawing
 
         /// <summary>
         /// Inside a workflow: params.mode "produce" (default — produce, finalize, export)
-        /// or "finalize" (existing sheets only); params.drawingTypes (default every MEP
-        /// Plan type), params.levels (default every level), params.output /
+        /// or "finalize" (existing sheets only); params.sheets "current-revision" | "all"
+        /// (ExportSheetScope); params.drawingTypes (default the routed plan type of each
+        /// modelled M/E/P/FP/MG discipline, on the levels it occupies),
+        /// params.levels (default every level), params.output /
         /// duplicateOption / packageId as for Produce Per Level. The summary goes to the
         /// workflow report and the log, not a dialog. No stamped sheet to export fails
         /// the step: an export step that exported nothing has not done its job.
@@ -177,33 +214,50 @@ namespace StingTools.Commands.Drawing
             else if (modeRaw.StartsWith("finali", StringComparison.OrdinalIgnoreCase)) doProduction = false;
             else { message = $"{title}: params.mode '{modeRaw}' is not 'produce' or 'finalize'."; return Result.Failed; }
 
+            // Which stamped sheets the export covers. A produce run defaults to all (the
+            // sheets it has just made carry no revision yet); a finalize run to the sheets
+            // carrying the current revision (ExportSheetScope).
+            var scope = ExportSheetScope.Parse(WorkflowEngine.StepParam("sheets"),
+                doProduction ? ExportSheetScope.All : ExportSheetScope.CurrentRevision, out var scopeErr);
+            if (scope == null) { message = $"{title}: {scopeErr}"; return Result.Failed; }
+
             var stats = new RunStats();
             if (doProduction)
             {
-                if (!BatchProduceCommons.TryStepTypes(DrawingTypeRegistry.ListAll(doc), new[] { "Plan" }, out var types, out var err)
+                if (!BatchProduceCommons.TryStepPerLevelTypes(doc, out var sel, out var err)
                     || !BatchProduceCommons.TryStepOptions(out var opts, out var packageId, out err))
                 { message = $"{title}: {err}"; return Result.Failed; }
+                var types = sel.Types;
                 var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
                 if (levels.Count == 0) { message = $"{title}: the model has no levels."; return Result.Failed; }
                 var names = HeadlessProductionInputs.SelectNames(levels.Select(l => l.Name).ToList(),
                     HeadlessProductionInputs.ParseList(WorkflowEngine.StepParam("levels")), out var unknownLevels);
                 if (unknownLevels.Count > 0)
                 { message = $"{title}: params.levels names level(s) not in the model: {string.Join(", ", unknownLevels)}."; return Result.Failed; }
-                RunProductionPhase(doc, types, levels.Where(l => names.Contains(l.Name)).ToList(), stats, opts, packageId);
+                RunProductionPhase(doc, types, levels.Where(l => names.Contains(l.Name)).ToList(), stats, opts, packageId, sel.Include);
             }
 
             RunStyleSyncPhase(doc, stats);
             RunRevisionSyncPhase(doc, stats);
 
-            var stampedSheets = CollectStampedSheets(doc);
-            if (stampedSheets.Count == 0)
+            var allStamped = CollectStampedSheets(doc);
+            if (allStamped.Count == 0)
             { message = $"{title}: no STING-stamped sheets to export — produce sheets first."; return Result.Failed; }
+            var stampedSheets = ScopeToRevision(doc, allStamped, scope, out var currentRev, out int excluded);
+            if (stampedSheets.Count == 0)
+            {
+                message = $"{title}: none of the {allStamped.Count} stamped sheet(s) carries the current revision {currentRev}; "
+                        + "nothing exported. Add the revision to the sheets being issued, or set params.sheets to 'all'.";
+                return Result.Failed;
+            }
 
             ExportStamped(doc, stampedSheets, stats);
 
             foreach (var w in stats.Warnings.Distinct()) StingLog.Warn($"{title}: {w}");
             message = $"{title}: {stats.ViewsProduced} view(s), {stats.SheetsProduced} new sheet(s), "
                     + $"{stats.PdfsExported} PDF(s) of {stampedSheets.Count} sheet(s)"
+                    + (excluded > 0 ? $" carrying revision {currentRev} ({excluded} other stamped sheet(s) not exported)" : "")
+                    + $", {stats.Registered} recorded in the document register"
                     + (stats.Warnings.Count > 0 ? $", {stats.Warnings.Distinct().Count()} warning(s) (see the STING log)." : ".");
             StingLog.Info(message);
             return stats.PdfsExported > 0 ? Result.Succeeded : Result.Failed;
@@ -221,9 +275,53 @@ namespace StingTools.Commands.Drawing
         {
             var outDir = OutputLocationHelper.GetOutputDirectory(doc);
             RunPdfExportPhase(doc, stampedSheets, outDir, stats);
+            // The PDFs go into the document register the way Export Centre output does
+            // (ExportCenterEngine.RegisterExportedFiles): until now Produce & Export left
+            // them as loose files the Document Manager never listed.
+            try
+            {
+                stats.Registered = StingTools.Docs.ExportCenterEngine.RegisterExportedFiles(doc, stats.Exported);
+                if (stats.Exported.Count > 0 && stats.Registered == 0)
+                    stats.Warnings.Add($"Document register: none of the {stats.Exported.Count} exported PDF(s) was recorded (see the STING log).");
+            }
+            catch (Exception ex)
+            {
+                stats.Warnings.Add($"Document register: {ex.Message}");
+                StingLog.Warn($"ProduceAndExport register: {ex.Message}");
+            }
             string regDir = ProjectFolderEngine.GetExportFolder(doc, "DocRegister");
             RunSheetRegisterPhase(doc, stampedSheets, string.IsNullOrEmpty(regDir) ? outDir : regDir, stats);
             return outDir;
+        }
+
+        /// <summary>
+        /// The project's current revision (newest in the revision sequence) and the
+        /// stamped sheets <paramref name="scope"/> keeps (ExportSheetScope.Select).
+        /// <paramref name="currentLabel"/> is null when the project has no revision.
+        /// </summary>
+        private static List<ViewSheet> ScopeToRevision(Document doc, List<ViewSheet> sheets, string scope,
+            out string currentLabel, out int excluded)
+        {
+            currentLabel = null;
+            long? currentId = null;
+            try
+            {
+                var ids = Revision.GetAllRevisionIds(doc);
+                if (ids != null && ids.Count > 0 && doc.GetElement(ids[ids.Count - 1]) is Revision cur)
+                {
+                    currentId = cur.Id.Value;
+                    currentLabel = string.IsNullOrWhiteSpace(cur.RevisionNumber) ? cur.Description : cur.RevisionNumber;
+                    if (string.IsNullOrWhiteSpace(currentLabel)) currentLabel = $"#{cur.SequenceNumber}";
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ProduceAndExport current revision: {ex.Message}"); }
+
+            IEnumerable<long> RevsOf(ViewSheet s)
+            {
+                try { return s.GetAllRevisionIds().Select(i => i.Value).ToList(); }
+                catch (Exception ex) { StingLog.Warn($"ProduceAndExport revisions of '{s.SheetNumber}': {ex.Message}"); return new List<long>(); }
+            }
+            return ExportSheetScope.Select(sheets, RevsOf, currentId, scope, out excluded);
         }
 
         // ── Type selection (dialog only) ────────────────────────────────────────
@@ -284,7 +382,8 @@ namespace StingTools.Commands.Drawing
 
         private static void RunProductionPhase(
             Document doc, List<DrawingType> planTypes, List<Level> levels, RunStats stats,
-            ProduceOptions opts = null, string packageId = null)
+            ProduceOptions opts = null, string packageId = null,
+            Func<DrawingType, Level, bool> include = null)
         {
             opts = opts ?? new ProduceOptions
             {
@@ -302,6 +401,8 @@ namespace StingTools.Commands.Drawing
                 {
                     foreach (var level in levels)
                     {
+                        // The routed default skips a discipline on a level where it has nothing modelled.
+                        if (include != null && !include(dt, level)) continue;
                         // The producer does not open transactions (see its header), and
                         // this loop used to run it under the group alone — so every sheet
                         // and view creation threw "outside a transaction" and was caught
@@ -318,12 +419,20 @@ namespace StingTools.Commands.Drawing
                             // idempotency. The level is already in the key via ctx.Level.
                             var ctx = new DrawingContext { Level = level, PackageId = packageId };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
-                            t.Commit();
+                            stats.Warnings.AddRange(res.Warnings);
+                            // Counted only once Revit has committed: a commit a failure
+                            // handler rolls back kept nothing.
+                            var status = t.Commit();
+                            if (status != TransactionStatus.Committed)
+                            {
+                                stats.Warnings.Add($"Produce [{dt.Id}@{level.Name}]: the transaction did not commit ({status}); "
+                                                 + $"{res.ViewIds.Count} view(s) were not kept.");
+                                continue;
+                            }
 
                             stats.ViewsProduced   += res.ViewIds.Count;
                             stats.SheetsProduced  += res.SheetId != ElementId.InvalidElementId && !res.SheetReused ? 1 : 0;
                             stats.ViewsIdempotent += res.WasIdempotent ? 1 : 0;
-                            stats.Warnings.AddRange(res.Warnings);
                         }
                         catch (Exception ex)
                         {
@@ -346,6 +455,7 @@ namespace StingTools.Commands.Drawing
                 var allReports = DrawingDriftDetector.Scan(doc);
                 var reports    = allReports.Where(r => r.AnyActionable).ToList();
                 if (reports.Count == 0) return;
+                int resyncedBefore = stats.StylesResynced;
 
                 using (TitleBlockParamApplier.Batch())
                 using (var tx = new Transaction(doc, "STING Produce & Export — Sync Styles"))
@@ -389,7 +499,12 @@ namespace StingTools.Commands.Drawing
                             stats.Warnings.Add($"StyleSync [{v.Name}]: {ex.Message}");
                         }
                     }
-                    tx.Commit();
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        stats.Warnings.Add($"StyleSync: the transaction did not commit ({status}); no view was re-aligned.");
+                        stats.StylesResynced = resyncedBefore;
+                    }
                 }
             }
             catch (Exception ex)
@@ -456,9 +571,25 @@ namespace StingTools.Commands.Drawing
                         $"{sheet.SheetNumber}_{sheet.Name}");
                     var exportOpts = new PDFExportOptions { FileName = filename };
                     string dir = StingTools.Docs.ExportCenterEngine.DeliverableFolderForSheet(doc, sheet) ?? outDir;
-                    doc.Export(dir, new List<ElementId> { sheet.Id }, exportOpts);
+                    bool ok = doc.Export(dir, new List<ElementId> { sheet.Id }, exportOpts);
+                    string path = Path.Combine(dir, filename + ".pdf");
+                    if (!ok)
+                    {
+                        stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: Revit reported the export as failed.");
+                        continue;
+                    }
                     stats.PdfsExported++;
                     stats.PdfFolders.Add(dir);
+                    if (!File.Exists(path))
+                    {
+                        stats.Warnings.Add($"PDF [{sheet.SheetNumber}]: exported, but not found at {path}, so it was not recorded in the document register.");
+                        continue;
+                    }
+                    stats.Exported.Add(new StingTools.Docs.ExportCenterEngine.ExportedFile
+                    {
+                        Sheet = sheet, Path = path, Format = "PDF",
+                        Title = sheet.Name, SheetNumber = sheet.SheetNumber,
+                    });
                 }
                 catch (Exception ex2)
                 {
@@ -530,6 +661,7 @@ namespace StingTools.Commands.Drawing
                 : $"PDF export:  {stats.PdfsExported} sheet(s) into {stats.PdfFolders.Count} discipline/state folders:\n    "
                   + string.Join("\n    ", stats.PdfFolders.OrderBy(f => f)));
 
+            sb.AppendLine($"Doc register: {stats.Registered} PDF(s) recorded");
             if (!string.IsNullOrEmpty(stats.RegisterCsvPath))
                 sb.AppendLine($"Register:    {Path.GetFileName(stats.RegisterCsvPath)}");
 
@@ -571,6 +703,9 @@ namespace StingTools.Commands.Drawing
             public int StylesResynced  { get; set; }
             public int RevisionsUpdated { get; set; }
             public int PdfsExported    { get; set; }
+            public int Registered      { get; set; }
+            public List<StingTools.Docs.ExportCenterEngine.ExportedFile> Exported { get; }
+                = new List<StingTools.Docs.ExportCenterEngine.ExportedFile>();
             public string RegisterCsvPath { get; set; }
             public List<string> Warnings { get; } = new List<string>();
             public HashSet<string> PdfFolders { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

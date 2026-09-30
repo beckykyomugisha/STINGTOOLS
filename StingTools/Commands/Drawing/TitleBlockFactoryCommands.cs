@@ -105,16 +105,16 @@ namespace StingTools.Commands.Drawing
             var uiApp = data?.Application ?? StingCommandHandler.CurrentApp;
             if (uiApp == null)
             {
-                TaskDialog.Show("STING — Title Block Factory",
-                    "No active Revit UIApplication — cannot resolve shared parameter file.");
+                PresetDialog.Show("STING — Title Block Factory",
+                    "No active Revit UIApplication — cannot resolve shared parameter file.", ref msg);
                 return Result.Failed;
             }
 
             var lib = TitleBlockSpecRegistry.Load();
             if (lib?.Families == null || lib.Families.Count == 0)
             {
-                TaskDialog.Show("STING — Title Block Factory",
-                    "No families declared in STING_TITLE_BLOCKS.json.");
+                PresetDialog.Show("STING — Title Block Factory",
+                    "No families declared in STING_TITLE_BLOCKS.json.", ref msg);
                 return Result.Failed;
             }
 
@@ -171,7 +171,11 @@ namespace StingTools.Commands.Drawing
                     sb.AppendLine($"    - Families/TitleBlocks/_seeds/{id}.rfa");
             }
 
-            TaskDialog.Show("STING — Title Block Factory", sb.ToString());
+            PresetDialog.Show("STING — Title Block Factory", sb.ToString(), ref msg);
+            if (PresetDialog.Quiet)
+                msg = $"Title blocks: {ok} of {concrete.Count} built, {failed} failed"
+                    + (needsSeed.Count > 0 ? $", {needsSeed.Count} as a bare frame (need a seed: {string.Join(", ", needsSeed.Take(5))})" : "")
+                    + " (report in the STING log).";
             return failed == 0 ? Result.Succeeded : Result.Failed;
         }
     }
