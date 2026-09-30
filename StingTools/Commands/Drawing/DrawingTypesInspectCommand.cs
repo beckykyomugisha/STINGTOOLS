@@ -236,9 +236,19 @@ namespace StingTools.Commands.Drawing
                         .Select(fs => fs.FamilyName ?? ""),
                     StringComparer.OrdinalIgnoreCase);
 
+                // DTW-12: a profile names a LOGICAL title block (STING_TB_SHEET_A1 …)
+                // that is never loaded under that name, so comparing it with the
+                // loaded families marked every one ✗. Resolve it the way the
+                // producer and the Validator do: variant rules (+ "Family:Symbol"),
+                // then the resolver's concrete built family.
                 var referenced = lib.DrawingTypes
-                    .Where(t => !string.IsNullOrWhiteSpace(t.TitleBlockFamily))
-                    .GroupBy(t => t.TitleBlockFamily, StringComparer.OrdinalIgnoreCase)
+                    .Where(t => t != null && !string.IsNullOrWhiteSpace(t.Id))
+                    .Select(t => DrawingTypeRegistry.Get(doc, t.Id) ?? t)
+                    .Where(t => !string.IsNullOrWhiteSpace(t.TitleBlockFamily)
+                                || (t.TitleBlockVariantRules?.Count ?? 0) > 0)
+                    .Select(t => new { Dt = t, Fam = ConcreteTitleBlockFamily(doc, t) })
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Fam.concrete))
+                    .GroupBy(x => x.Fam.concrete, StringComparer.OrdinalIgnoreCase)
                     .OrderBy(g => g.Key)
                     .ToList();
 
@@ -253,11 +263,23 @@ namespace StingTools.Commands.Drawing
                     foreach (var grp in referenced)
                     {
                         bool loaded = loadedFamilies.Contains(grp.Key);
-                        if (!loaded) missing++;
-                        sb.AppendLine($"  {(loaded ? "✓" : "✗")} {grp.Key}  ({grp.Count()} profile{(grp.Count() == 1 ? "" : "s")})");
+                        bool onDisk = false;
+                        if (!loaded)
+                        {
+                            try { onDisk = TitleBlockResolver.BuiltRfaExists(doc, grp.Key); }
+                            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect built-rfa probe '{grp.Key}': {ex.Message}"); }
+                            if (!onDisk) missing++;
+                        }
+                        var logical = grp.Select(x => x.Fam.declared)
+                            .Where(d => !string.IsNullOrWhiteSpace(d) && !string.Equals(d, grp.Key, StringComparison.OrdinalIgnoreCase))
+                            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                        string from = logical.Count > 0 ? $"  ← {string.Join(", ", logical.Take(3))}{(logical.Count > 3 ? " …" : "")}" : "";
+                        string mark = loaded ? "✓" : onDisk ? "○" : "✗";
+                        string note = !loaded && onDisk ? "  (built, loads on demand)" : "";
+                        sb.AppendLine($"  {mark} {grp.Key}  ({grp.Count()} profile{(grp.Count() == 1 ? "" : "s")}){note}{from}");
                     }
                     if (missing > 0)
-                        sb.AppendLine($"  ⚠ {missing} family(ies) not loaded — sheets created from those profiles will fall back to the first available title block, and populated cells may silently drop.");
+                        sb.AppendLine($"  ⚠ {missing} family(ies) neither loaded nor built — sheets created from those profiles will fall back to the first available title block, and populated cells may silently drop. Run TitleBlock_CreateAll.");
                 }
 
                 // TitleBlockRouter status
@@ -277,6 +299,25 @@ namespace StingTools.Commands.Drawing
             {
                 sb.AppendLine($"Title-block readiness check failed: {ex.Message}");
             }
+        }
+
+        /// <summary>DTW-12: the concrete title-block family a profile produces on,
+        /// resolved as the Validator does (variant → resolver). <c>declared</c>
+        /// is the name before resolution, for the "resolved from" note.</summary>
+        private static (string declared, string concrete) ConcreteTitleBlockFamily(Document doc, DrawingType dt)
+        {
+            string declared = dt?.TitleBlockFamily;
+            try { declared = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; }
+            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect variant '{dt?.Id}': {ex.Message}"); }
+            if (string.IsNullOrWhiteSpace(declared)) declared = dt?.TitleBlockFamily;
+            string concrete = declared;
+            try
+            {
+                var res = TitleBlockResolver.Resolve(doc, dt, declared);
+                if (res.IsResolved) concrete = res.Family;
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect resolve '{dt?.Id}': {ex.Message}"); }
+            return (declared, concrete);
         }
 
         private static void AppendParamCardinalitySummary(Document doc, DrawingTypeLibrary lib, StringBuilder sb)
