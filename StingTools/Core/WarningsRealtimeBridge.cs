@@ -65,6 +65,8 @@ namespace StingTools.Core
                 {
                     PlanscapeRealtimeClient.Instance.WarningsReported += OnWarningsReported;
                     _wired = true;
+                    // Same login hook, same threading contract: ACC issue webhook relay.
+                    AccIssueRealtimeBridge.Wire();
                     StingLog.Info("WarningsRealtimeBridge: subscribed to WarningsReported.");
                 }
                 catch (Exception ex) { StingLog.Warn($"WarningsRealtimeBridge.Wire: {ex.Message}"); }

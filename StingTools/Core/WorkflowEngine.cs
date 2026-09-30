@@ -254,6 +254,7 @@ namespace StingTools.Core
             "ACC_ImportIssues", "AccImportIssues", "ACC_SelfCheck", "AccSelfCheck",
             "ACC_FederatedCompliance", "AccFederatedCompliance",
             "ACC_SyncProjectInfo", "AccSyncProjectInfo", "ACC_CheckLocations", "AccCheckLocations",
+            "ACC_ImportIssuesFull", "AccImportIssuesFull", "ACC_PushIssueChanges", "AccPushIssueChanges",
             "ACC_UploadModel", "ACC_UploadLastBundle",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
@@ -2131,6 +2132,10 @@ namespace StingTools.Core
                 case "AccSyncIssueStatus":      return new Core.Clash.AccSyncIssueStatusCommand();
                 case "ACC_ImportIssues":
                 case "AccImportIssues":         return new Core.Clash.AccImportIssuesCommand();
+                case "ACC_ImportIssuesFull":
+                case "AccImportIssuesFull":     return new Core.Clash.AccImportIssuesFullCommand();
+                case "ACC_PushIssueChanges":
+                case "AccPushIssueChanges":     return new Core.Clash.AccPushIssueChangesCommand();
                 case "ACC_SelfCheck":
                 case "AccSelfCheck":            return new Core.Clash.AccSelfCheckCommand();
                 case "ACC_FederatedCompliance":

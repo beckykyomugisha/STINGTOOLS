@@ -16,8 +16,9 @@
 //  * Identity is the ACC issue id, stored on the row as `acc_issue_id`. One ACC issue →
 //    at most one STING row, found under any status, so a closed row is updated rather
 //    than duplicated.
-//  * ACC owns four fields: title, description, status, assigned_to. Nothing else on the
-//    row is touched after creation, so comments, linked transmittals and history that a
+//  * ACC owns five fields: title, description, status, assigned_to, date_due (ACC's dueDate;
+//    a row imported before it was mapped has an implicit base of "" - see LegacyBase). Nothing
+//    else on the row is touched after creation, so comments, linked transmittals and history that a
 //    coordinator adds in STING survive every import.
 //  * STING rows are NEVER deleted. An ACC issue that has disappeared from the container is
 //    reported (MissingFromAcc) and left alone.
@@ -25,7 +26,9 @@
 //    of each owned field as it was last imported. That is the common base of a three-way
 //    compare, per field:
 //        local == base, acc != base  → ACC changed it: update.
-//        local != base, acc == base  → edited locally: keep the local value, no conflict.
+//        local != base, acc == base  → edited locally: keep the local value, no conflict,
+//            REPORTED as LocalAhead ("changed in STING, not in ACC"). Nothing is written to
+//            ACC by an import; ACC_PushIssueChanges (AccIssuePush.cs) sends it on request.
 //        local != base, acc != base, local != acc → BOTH changed: CONFLICT. Local value kept,
 //            base left where it was so the conflict is reported again next run until
 //            somebody reconciles it. Recorded on the row as `acc_conflicts`.
@@ -38,7 +41,9 @@
 //    row is marked `acc_origin` + `acc_origin_key` and, if a STING row already carries
 //    that key (`acc_origin_key` or `source_hash`), THAT row is linked to the ACC id rather
 //    than a second one created.
-//  * The caller must only pass a COMPLETE pull. A partial read would make every unseen
+//  * An INCREMENTAL pull (filter[updatedAt]) is merged with completePull: false - the rules
+//    hold for every issue it returned, and MissingFromAcc is not computed at all.
+//  * Otherwise the caller must only pass a COMPLETE pull. A partial read would make every unseen
 //    issue look deleted — the defect AccFetchResult exists to prevent. The command checks
 //    pull.Succeeded before calling this; this file cannot tell.
 //
@@ -76,13 +81,17 @@ namespace StingTools.V6
         public string AssignedToName { get; set; } = string.Empty;
         public string LocationDescription { get; set; } = string.Empty;
 
-        // TODO(AccIssue fields): AccIssue does not yet carry these. When AccIssueSync maps the
-        // ACC Issues v1 payload, add to AccIssue: DisplayId (displayId), DueDate (dueDate),
-        // UpdatedAt (updatedAt), and set CreatedAt from createdAt (PullIssuesAsync currently
-        // leaves it at its DateTime.UtcNow default, so it is NOT read here — importing it would
-        // stamp every issue with the time of the pull). Then fill these in From().
+        /// <summary>The human number ACC shows (#123). Bookkeeping, never a conflict.</summary>
         public string DisplayId { get; set; } = string.Empty;
+        /// <summary>ACC's due date as yyyy-MM-dd, or empty. ACC-owned (see OwnedFields).</summary>
         public string DueDate { get; set; } = string.Empty;
+        /// <summary>ACC's updatedAt, ISO 8601 UTC, or empty. Bookkeeping.</summary>
+        public string UpdatedAt { get; set; } = string.Empty;
+        /// <summary>Custom attribute definition id -> value text. Read to link an issue STING
+        /// escalated back to its clash when the sidecar has lost it.</summary>
+        public Dictionary<string, string> CustomAttributes { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
+        // createdAt is still NOT read: ParseIssue defaults it to the time of the pull when ACC
+        // omits it, so copying it would stamp an issue with a time that is not ACC's.
 
         public static AccIssueImportRecord From(AccIssue a)
         {
@@ -97,6 +106,15 @@ namespace StingTools.V6
                 AssignedTo = a.AssignedToUserId ?? string.Empty,
                 AssignedToType = a.AssignedToType ?? string.Empty,
                 LocationDescription = a.LocationDescription ?? string.Empty,
+                DisplayId = a.DisplayId ?? string.Empty,
+                DueDate = a.DueDate.HasValue ? a.DueDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) : string.Empty,
+                UpdatedAt = a.UpdatedAt.HasValue
+                    ? DateTime.SpecifyKind(a.UpdatedAt.Value, DateTimeKind.Utc).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture)
+                    : string.Empty,
+                CustomAttributes = (a.CustomAttributes ?? new List<AccCustomAttributeValue>())
+                    .Where(c => c != null && !string.IsNullOrEmpty(c.AttributeDefinitionId))
+                    .GroupBy(c => c.AttributeDefinitionId, StringComparer.Ordinal)
+                    .ToDictionary(g => g.Key, g => g.First().ValueText, StringComparer.Ordinal),
             };
         }
     }
@@ -121,6 +139,26 @@ namespace StingTools.V6
                 into[kv.Value] = new AccOriginLink { Origin = origin, Key = kv.Key };
             }
         }
+
+        /// <summary>Recover links from a custom attribute STING wrote on create (e.g. the clash
+        /// signature). The sidecar wins: an ACC id it already names is not overwritten, so the
+        /// two sources cannot disagree silently. Returns how many links were added.</summary>
+        public static int AddFromAttribute(IDictionary<string, AccOriginLink> into, string origin,
+            IEnumerable<AccIssueImportRecord> pulled, string attributeDefinitionId)
+        {
+            if (into == null || pulled == null || string.IsNullOrWhiteSpace(attributeDefinitionId)) return 0;
+            int added = 0;
+            foreach (var r in pulled)
+            {
+                string id = r?.Id?.Trim();
+                if (string.IsNullOrEmpty(id) || into.ContainsKey(id)) continue;
+                if (r.CustomAttributes == null || !r.CustomAttributes.TryGetValue(attributeDefinitionId, out string key)) continue;
+                if (string.IsNullOrWhiteSpace(key)) continue;
+                into[id] = new AccOriginLink { Origin = origin, Key = key.Trim() };
+                added++;
+            }
+            return added;
+        }
     }
 
     /// <summary>One field both sides changed since the last import.</summary>
@@ -130,6 +168,19 @@ namespace StingTools.V6
         public string AccIssueId { get; set; }
         public string Field { get; set; }
         /// <summary>Value at the last import; null when the row was never imported (a link).</summary>
+        public string BaseValue { get; set; }
+        public string LocalValue { get; set; }
+        public string AccValue { get; set; }
+    }
+
+    /// <summary>One owned field changed in STING since the last import while ACC still holds
+    /// the imported value: STING is AHEAD. The import keeps the local value and writes nothing
+    /// to ACC; ACC_PushIssueChanges is the only thing that sends it.</summary>
+    public sealed class AccLocalAhead
+    {
+        public string IssueId { get; set; }
+        public string AccIssueId { get; set; }
+        public string Field { get; set; }
         public string BaseValue { get; set; }
         public string LocalValue { get; set; }
         public string AccValue { get; set; }
@@ -146,6 +197,11 @@ namespace StingTools.V6
         public int StatusChanges { get; set; }
         public int Unchanged { get; set; }
         public List<AccImportConflict> Conflicts { get; } = new List<AccImportConflict>();
+        /// <summary>Fields changed in STING, not in ACC — kept locally, NOT sent to ACC.</summary>
+        public List<AccLocalAhead> LocalAhead { get; } = new List<AccLocalAhead>();
+        /// <summary>True when the pull was an updated-since window, so an issue it did not
+        /// return is NOT evidence of deletion and <see cref="MissingFromAcc"/> was not computed.</summary>
+        public bool Incremental { get; set; }
         /// <summary>STING issue ids whose ACC issue was not in the pull. Kept, never deleted.</summary>
         public List<string> MissingFromAcc { get; } = new List<string>();
         /// <summary>ACC records with no id (cannot be keyed) or repeated ids (pagination overlap).</summary>
@@ -208,21 +264,42 @@ namespace StingTools.V6
         public const string ClashEscalationOrigin = "sting_clash_escalation";
         public const string LifecycleGapOrigin = "sting_lifecycle_gap";
 
-        /// <summary>The fields ACC owns, as (row field, ACC value) pairs. Status is compared
-        /// in canonical form so "in_review" → "pending" (both IN_PROGRESS) is not a change.</summary>
-        private static readonly string[] OwnedFields = { "title", "description", "status", "assigned_to" };
+        public const string CommentsPushedField = "acc_comments_pushed";
 
-        private static string AccValue(AccIssueImportRecord a, string field) => field switch
+        /// <summary>The fields ACC owns, as (row field, ACC value) pairs. Status is compared
+        /// in canonical form so "in_review" → "pending" (both IN_PROGRESS) is not a change.
+        /// date_due joined the set when ACC's dueDate was mapped (see LegacyBase).</summary>
+        internal static readonly string[] OwnedFields = { "title", "description", "status", "assigned_to", "date_due" };
+
+        /// <summary>The base a row imported BEFORE a field was owned implicitly had for it. The
+        /// importer that predates date_due always wrote date_due = "", so that is its base; any
+        /// other answer would report every ACC due date as a conflict on the first run after
+        /// upgrading. Applies only to rows that already carried a base object.</summary>
+        private static readonly Dictionary<string, string> LegacyBase =
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["date_due"] = "" };
+
+        internal static string AccValue(AccIssueImportRecord a, string field) => field switch
         {
             "title" => a.Title ?? "",
             "description" => a.Description ?? "",
             "status" => IssueStatusNormalizer.CanonicalAcc(a.Status),
             "assigned_to" => a.AssignedTo ?? "",
+            "date_due" => a.DueDate ?? "",
             _ => throw new ArgumentOutOfRangeException(nameof(field), field, "not an ACC-owned field"),
         };
 
-        private static string LocalValue(JObject row, string field)
+        internal static string LocalValue(JObject row, string field)
             => field == "status" ? IssueSchema.StatusOf(row) : (row[field]?.ToString() ?? "");
+
+        /// <summary>The recorded base for a field, honouring <see cref="LegacyBase"/>. Null
+        /// when the row has never been imported for that field.</summary>
+        internal static string BaseValue(JObject baseObj, string field, bool baseExisted)
+        {
+            if (baseObj?[field]?.Type == JTokenType.String) return (string)baseObj[field];
+            if (baseExisted && baseObj != null && baseObj[field] == null && LegacyBase.TryGetValue(field, out string legacy))
+                return legacy;
+            return null;
+        }
 
         /// <summary>
         /// Merge a COMPLETE ACC pull into the register rows. See the file header for the rules.
@@ -231,13 +308,16 @@ namespace StingTools.V6
         /// through <paramref name="writer"/> or by in-place field edits reported to it.</param>
         /// <param name="pulled">Every issue in the container. Must be a complete read.</param>
         /// <param name="origins">ACC id → the STING push that created it (may be null).</param>
+        /// <param name="completePull">False for an updated-since (incremental) read: every rule
+        /// above still holds for what WAS returned, but an issue that was not returned proves
+        /// nothing, so MissingFromAcc is not computed.</param>
         public static AccIssueImportResult Merge(JArray rows, IEnumerable<AccIssueImportRecord> pulled,
             IReadOnlyDictionary<string, AccOriginLink> origins, IAccIssueWriter writer,
-            DateTime now, string user)
+            DateTime now, string user, bool completePull = true)
         {
             if (rows == null) throw new ArgumentNullException(nameof(rows));
             if (writer == null) throw new ArgumentNullException(nameof(writer));
-            var result = new AccIssueImportResult();
+            var result = new AccIssueImportResult { Incremental = !completePull };
             user = string.IsNullOrWhiteSpace(user) ? "unknown" : user;
             string stamp = now.ToString("o", CultureInfo.InvariantCulture);
 
@@ -287,9 +367,9 @@ namespace StingTools.V6
                 result.Created.Add(created);
             }
 
-            // Report — never delete — rows whose ACC issue is gone.
+            // Report — never delete — rows whose ACC issue is gone. Only a complete pull can say so.
             foreach (var kv in byAccId)
-                if (!seen.Contains(kv.Key))
+                if (completePull && !seen.Contains(kv.Key))
                     result.MissingFromAcc.Add(IssueSchema.IdOf(kv.Value) ?? kv.Key);
 
             return result;
@@ -321,9 +401,11 @@ namespace StingTools.V6
 
             // Create() writes OPEN and an SLA due date computed from priority. For an issue
             // that lives in ACC both would be invented: ACC's status is known, and ACC's due
-            // date is ACC's (not yet mapped — see the TODO on AccIssueImportRecord).
+            // date is ACC's (empty when ACC has none — never the invented SLA date).
             row["status"] = IssueStatusNormalizer.CanonicalAcc(a.Status);
             row["date_due"] = a.DueDate ?? "";
+            if (!string.IsNullOrWhiteSpace(a.UpdatedAt)) row["acc_updated_at"] = a.UpdatedAt;
+            if (!string.IsNullOrWhiteSpace(a.AssignedToType)) row["acc_assigned_to_type"] = a.AssignedToType;
             row[AccIdField] = a.Id;
             row["acc_status"] = a.Status ?? "";
             row["acc_issue_type_id"] = a.IssueTypeId ?? "";
@@ -353,13 +435,14 @@ namespace StingTools.V6
             var conflicts = new List<AccImportConflict>();
 
             JObject baseObj = row[BaseField] as JObject;
+            bool baseExisted = baseObj != null;
             if (baseObj == null) { baseObj = new JObject(); row[BaseField] = baseObj; touched = true; }
 
             foreach (string f in OwnedFields)
             {
                 string acc = AccValue(a, f);
                 string local = LocalValue(row, f);
-                string baseVal = baseObj[f]?.Type == JTokenType.String ? (string)baseObj[f] : null;
+                string baseVal = BaseValue(baseObj, f, baseExisted);
 
                 if (string.Equals(local, acc, StringComparison.Ordinal))
                 {
@@ -396,7 +479,20 @@ namespace StingTools.V6
                         AccValue = acc,
                     });
                 }
-                // else: only the local side changed — the local edit stands.
+                else
+                {
+                    // Only the local side changed — the local edit stands, and is REPORTED:
+                    // "changed in STING, not in ACC". Nothing is written to ACC here.
+                    result.LocalAhead.Add(new AccLocalAhead
+                    {
+                        IssueId = IssueSchema.IdOf(row),
+                        AccIssueId = a.Id,
+                        Field = f,
+                        BaseValue = baseVal,
+                        LocalValue = local,
+                        AccValue = acc,
+                    });
+                }
             }
 
             // ACC-only bookkeeping: always ACC's, never a conflict.
@@ -413,6 +509,8 @@ namespace StingTools.V6
                 touched |= SetIfDifferent(row, AssignedNameField, a.AssignedToName);
             else if (row[AssignedNameField] != null && !string.Equals(prevAccAssignee, a.AssignedTo ?? "", StringComparison.Ordinal))
             { row.Remove(AssignedNameField); touched = true; }
+            if (!string.IsNullOrWhiteSpace(a.DisplayId)) touched |= SetIfDifferent(row, "acc_display_id", a.DisplayId);
+            if (!string.IsNullOrWhiteSpace(a.UpdatedAt)) touched |= SetIfDifferent(row, "acc_updated_at", a.UpdatedAt);
             if (origin != null && string.IsNullOrWhiteSpace((string)row[OriginField]))
             {
                 row[OriginField] = origin.Origin;

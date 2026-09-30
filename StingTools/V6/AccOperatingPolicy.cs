@@ -98,6 +98,9 @@ namespace StingTools.V6
         public bool Resolved => Resolution == AccModelSetResolution.Chosen && Chosen != null;
     }
 
+    /// <summary>What ACC_PushIssueChanges may do - see <see cref="AccOperatingPolicy.IssuePushMode"/>.</summary>
+    public enum AccIssuePushMode { PreviewAndConfirm, PushUnattended, ReportOnly }
+
     /// <summary>How many clashes to escalate to ACC Issues, and above what triage score.
     ///
     /// BOTH, never either. A count alone escalates trivia on a clean model; a score alone
@@ -171,7 +174,16 @@ namespace StingTools.V6
             "escalateDueDays", "escalateAssignedTo", "escalateAssignedToType", "escalateExcludeStatuses",
             // ACC-HARD-5: how an escalated clash issue lets its assignee FIND the objects.
             "issueDeepLinks", "issueViewerLinks", "issueBcfAttachment",
+            // Two-way issues: push STING-side changes back, auto-import on the server's
+            // webhook signal, and what an escalated issue carries in ACC's own fields.
+            "pushIssueChanges", "autoImportIssues", "issueCustomAttributes", "issueRootCause",
         };
+
+        /// <summary>The STING values an escalated clash issue can carry as ACC custom
+        /// attributes - the only keys issueCustomAttributes accepts. A key outside this set
+        /// is a typo, and a typo that silently sent nothing would look configured.</summary>
+        public static readonly IReadOnlyCollection<string> IssueAttributeFields =
+            new[] { "clashSignature", "clashId", "triageScore", "modelSet" };
 
         public AccPolicySource Source { get; private set; } = AccPolicySource.Absent;
 
@@ -282,6 +294,31 @@ namespace StingTools.V6
         /// <summary>ACC clash statuses that are never escalated.</summary>
         public IReadOnlyCollection<string> EscalateExcludeStatuses { get; private set; } = DefaultExcludedClashStatuses;
 
+        /// <summary>May ACC_PushIssueChanges write to ACC WITHOUT a person confirming the
+        /// preview? Only consulted when the project is unattended; an interactive run always
+        /// previews and asks. Off by default: it changes issues assigned to real people.</summary>
+        public bool PushIssueChanges { get; private set; }
+
+        /// <summary>Import ACC issues when the Planscape server relays an ACC issue webhook.
+        /// Off by default.</summary>
+        public bool AutoImportIssues { get; private set; }
+
+        /// <summary>STING field (see <see cref="IssueAttributeFields"/>) -> ACC custom attribute
+        /// TITLE. Resolved to definition ids per container at push time; empty = send none.</summary>
+        public IReadOnlyDictionary<string, string> IssueCustomAttributes { get; private set; } =
+            new Dictionary<string, string>(StringComparer.Ordinal);
+
+        /// <summary>ACC root cause TITLE for escalated clash issues; empty = none.</summary>
+        public string IssueRootCause { get; private set; } = string.Empty;
+
+        /// <summary>What ACC_PushIssueChanges may do on this project. Interactive: preview and
+        /// ask. Unattended: write only when <see cref="PushIssueChanges"/> says so in writing,
+        /// otherwise report what WOULD be pushed and write nothing.</summary>
+        public AccIssuePushMode IssuePushMode =>
+            MayPrompt ? AccIssuePushMode.PreviewAndConfirm
+            : PushIssueChanges ? AccIssuePushMode.PushUnattended
+            : AccIssuePushMode.ReportOnly;
+
         public static readonly IReadOnlyCollection<string> DefaultExcludedClashStatuses =
             new[] { "closed", "resolved", "approved", "not_an_issue" };
 
@@ -350,6 +387,9 @@ namespace StingTools.V6
             var cdeFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var disciplineMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             List<string> excludeStatuses = null;
+            bool pushChanges = false, autoImport = false;
+            var issueAttrs = new Dictionary<string, string>(StringComparer.Ordinal);
+            string rootCause = string.Empty;
 
             try
             {
@@ -426,6 +466,21 @@ namespace StingTools.V6
                         excludeStatuses.Add(((string)t ?? string.Empty).Trim().ToLowerInvariant());
                     }
                 }
+                if (TryGet(o, "pushIssueChanges", out var piTok)) pushChanges = RequireBool(piTok, "pushIssueChanges");
+                if (TryGet(o, "autoImportIssues", out var aiTok)) autoImport = RequireBool(aiTok, "autoImportIssues");
+                if (TryGet(o, "issueRootCause", out var rcTok)) rootCause = RequireString(rcTok, "issueRootCause").Trim();
+                if (TryGet(o, "issueCustomAttributes", out var caTok))
+                {
+                    var raw = RequireStringMap(caTok, "issueCustomAttributes");
+                    foreach (var kv in raw)
+                    {
+                        string field = IssueAttributeFields.FirstOrDefault(f => string.Equals(f, kv.Key, StringComparison.OrdinalIgnoreCase));
+                        if (field == null)
+                            throw new FormatException($"'issueCustomAttributes' key '{kv.Key}' is not a STING issue field " +
+                                                      $"({string.Join(", ", IssueAttributeFields)})");
+                        issueAttrs[field] = kv.Value;
+                    }
+                }
             }
             catch (FormatException ex) { return Malformed(policy, ex.Message); }
 
@@ -454,6 +509,10 @@ namespace StingTools.V6
             policy.EscalateAssignedTo = assignedTo;
             policy.EscalateAssignedToType = assignedToType;
             if (excludeStatuses != null) policy.EscalateExcludeStatuses = excludeStatuses;
+            policy.PushIssueChanges = pushChanges;
+            policy.AutoImportIssues = autoImport;
+            policy.IssueCustomAttributes = issueAttrs;
+            policy.IssueRootCause = rootCause;
             return policy;
         }
 

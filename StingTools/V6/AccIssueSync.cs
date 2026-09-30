@@ -103,6 +103,57 @@ namespace StingTools.V6
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
         public string LocationDescription { get; set; } = string.Empty;
+        /// <summary>Custom attribute values (Issues v1 customAttributes). Sent on create only
+        /// when non-empty; read from every pulled issue.</summary>
+        public List<AccCustomAttributeValue> CustomAttributes { get; set; } = new List<AccCustomAttributeValue>();
+        /// <summary>Root cause id (Issues v1 rootCauseId); empty = none.</summary>
+        public string RootCauseId { get; set; } = string.Empty;
+        /// <summary>Statuses THIS user may move the issue to, as ACC reported them on a read.
+        /// Null when ACC did not say — never an empty list standing in for "unknown".</summary>
+        public List<string> PermittedStatuses { get; set; }
+        /// <summary>Fields THIS user may edit, as ACC reported them. Null when not reported.</summary>
+        public List<string> PermittedAttributes { get; set; }
+    }
+
+    /// <summary>One custom attribute value on an ACC issue.</summary>
+    public sealed class AccCustomAttributeValue
+    {
+        public string AttributeDefinitionId { get; set; } = string.Empty;
+        /// <summary>The value as ACC carries it (string or number); null = no value.</summary>
+        public JToken Value { get; set; }
+        public string ValueText => Value == null || Value.Type == JTokenType.Null ? string.Empty : Value.ToString();
+    }
+
+    /// <summary>An issue custom attribute definition (GET …/issue-attribute-definitions).</summary>
+    public sealed class AccIssueAttributeDefinition
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        /// <summary>list / text / paragraph / numeric.</summary>
+        public string DataType { get; set; } = string.Empty;
+    }
+
+    /// <summary>A root cause (GET …/issue-root-cause-categories?include=rootcauses).</summary>
+    public sealed class AccRootCause
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string CategoryTitle { get; set; } = string.Empty;
+    }
+
+    /// <summary>How a write to an existing ACC issue (PATCH, comment) ended.</summary>
+    public sealed class AccWriteResult
+    {
+        public bool Ok { get; set; }
+        public int HttpStatus { get; set; }
+        public AccFetchStatus Status { get; set; } = AccFetchStatus.TransportFailed;
+        public string Detail { get; set; } = string.Empty;
+        /// <summary>The parsed response body on success (the updated issue / the comment).</summary>
+        public JObject Response { get; set; }
+        /// <summary>True when the request may have been applied although no success came back
+        /// (no response, or a gateway 5xx). The caller must NOT advance any local record on
+        /// the assumption either way, and must say so.</summary>
+        public bool Ambiguous => !Ok && (HttpStatus == 0 || HttpStatus == 502 || HttpStatus == 503 || HttpStatus == 504);
     }
 
     /// <summary>How pushing one issue ended. <see cref="Id"/> is set only on success.</summary>
@@ -438,7 +489,172 @@ namespace StingTools.V6
                 body["assignedToType"] = issue.AssignedToType;
             }
             if (issue.DueDate.HasValue) body["dueDate"] = issue.DueDate.Value.ToString("yyyy-MM-dd");
+            var attrs = (issue.CustomAttributes ?? new List<AccCustomAttributeValue>())
+                .Where(a => a != null && !string.IsNullOrEmpty(a.AttributeDefinitionId) &&
+                            a.Value != null && a.Value.Type != JTokenType.Null)
+                .ToList();
+            if (attrs.Count > 0)
+                body["customAttributes"] = new JArray(attrs.Select(a => new JObject
+                {
+                    ["attributeDefinitionId"] = a.AttributeDefinitionId,
+                    ["value"] = a.Value.DeepClone(),
+                }));
+            if (!string.IsNullOrEmpty(issue.RootCauseId)) body["rootCauseId"] = issue.RootCauseId;
             return body;
+        }
+
+        // ── Two-way: read one issue, change it, comment on it ───────────────
+
+        /// <summary>GET …/issues/{id}. A read, so retried like every other read.</summary>
+        public static async Task<AccFetchResult<AccIssue>> GetIssueAsync(AccCredentials creds, string issueId)
+        {
+            if (creds == null || string.IsNullOrWhiteSpace(issueId))
+                return AccFetchResult<AccIssue>.Failure(AccFetchStatus.NotFound, null, 0, "no credentials or no issue id");
+            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
+                    $"{ProjectUrl(creds)}/issues/{Uri.EscapeDataString(issueId.Trim())}"), creds),
+                creds, idempotent: true).ConfigureAwait(false);
+            if (!resp.IsSuccess)
+                return AccFetchResult<AccIssue>.Failure(resp.Classify(), null, resp.Status,
+                    $"reading ACC issue {issueId}: {resp.Describe()}");
+            try
+            {
+                var j = JObject.Parse(resp.Body);
+                if (string.IsNullOrEmpty((string)j["id"]))
+                    return AccFetchResult<AccIssue>.Failure(AccFetchStatus.TransportFailed, null, resp.Status,
+                        $"the response for ACC issue {issueId} carried no 'id'");
+                var r = AccFetchResult<AccIssue>.Success(ParseIssue(j), empty: false);
+                r.HttpStatus = resp.Status;
+                return r;
+            }
+            catch (Exception ex)
+            {
+                return AccFetchResult<AccIssue>.Failure(AccFetchStatus.TransportFailed, null, resp.Status,
+                    $"the response for ACC issue {issueId} was not JSON: {ex.Message}");
+            }
+        }
+
+        /// <summary>PATCH …/issues/{id} with the given fields (status, assignedTo, …).
+        ///
+        /// NOT idempotent for our purposes: a PATCH that timed out or met a gateway 5xx may
+        /// have been applied, and ACC records every change in the issue's activity log under
+        /// the user's name. AccHttp therefore retries it only when the server said it was not
+        /// processed (429, 503 with Retry-After); an ambiguous failure is reported as such.</summary>
+        public static async Task<AccWriteResult> PatchIssueAsync(AccCredentials creds, string issueId, JObject fields)
+        {
+            if (creds == null || string.IsNullOrWhiteSpace(issueId) || fields == null || !fields.HasValues)
+                return new AccWriteResult { Detail = "nothing to change (no credentials, issue id or fields)" };
+            string payload = fields.ToString(Newtonsoft.Json.Formatting.None);
+            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(new HttpMethod("PATCH"),
+                    $"{ProjectUrl(creds)}/issues/{Uri.EscapeDataString(issueId.Trim())}")
+                { Content = new StringContent(payload, Encoding.UTF8, "application/json") }, creds),
+                creds, idempotent: false).ConfigureAwait(false);
+            return ToWriteResult(resp, "changing ACC issue " + issueId);
+        }
+
+        /// <summary>POST …/issues/{id}/comments. Not idempotent: a retried comment is a
+        /// duplicate comment in front of the whole project.</summary>
+        public static async Task<AccWriteResult> AddCommentAsync(AccCredentials creds, string issueId, string text)
+        {
+            if (creds == null || string.IsNullOrWhiteSpace(issueId) || string.IsNullOrWhiteSpace(text))
+                return new AccWriteResult { Detail = "nothing to comment (no credentials, issue id or text)" };
+            string payload = new JObject { ["body"] = Cap(text.Trim(), 10000) }.ToString(Newtonsoft.Json.Formatting.None);
+            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Post,
+                    $"{ProjectUrl(creds)}/issues/{Uri.EscapeDataString(issueId.Trim())}/comments")
+                { Content = new StringContent(payload, Encoding.UTF8, "application/json") }, creds),
+                creds, idempotent: false).ConfigureAwait(false);
+            return ToWriteResult(resp, "commenting on ACC issue " + issueId);
+        }
+
+        private static AccWriteResult ToWriteResult(AccHttpResponse resp, string what)
+        {
+            var r = new AccWriteResult { HttpStatus = resp.Status };
+            if (!resp.IsSuccess)
+            {
+                r.Status = resp.Classify();
+                string why = resp.Status switch
+                {
+                    403 => " — ACC refused: this user may not make that change (permittedStatuses / permittedAttributes)",
+                    409 => " — ACC reported a conflict: the issue changed underneath this request",
+                    429 => $" — Autodesk rate-limited all {resp.Attempts} attempt(s)",
+                    400 or 422 => " — ACC rejected the change: " + Trim(resp.Body),
+                    _ => "",
+                };
+                r.Detail = $"{what}: {resp.Describe()}{why}";
+                if (resp.Status == 0 || resp.Status == 502 || resp.Status == 503 || resp.Status == 504)
+                    r.Detail += " — the change MAY have been applied; check the issue in ACC before retrying";
+                StingLog.Warn("AccIssueSync: " + r.Detail);
+                return r;
+            }
+            r.Ok = true;
+            r.Status = AccFetchStatus.Ok;
+            try { r.Response = string.IsNullOrWhiteSpace(resp.Body) ? new JObject() : JObject.Parse(resp.Body); }
+            catch (Exception) { r.Response = new JObject(); }
+            return r;
+        }
+
+        /// <summary>The container's issue custom attribute definitions (all pages).</summary>
+        public static async Task<AccFetchResult<List<AccIssueAttributeDefinition>>> GetAttributeDefinitionsAsync(AccCredentials creds)
+        {
+            var list = new List<AccIssueAttributeDefinition>();
+            int offset = 0;
+            for (int page = 0; page < 20; page++)
+            {
+                int off = offset;
+                var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
+                        $"{ProjectUrl(creds)}/issue-attribute-definitions?limit=200&offset={off}"), creds),
+                    creds, idempotent: true).ConfigureAwait(false);
+                if (!resp.IsSuccess)
+                    return AccFetchResult<List<AccIssueAttributeDefinition>>.Failure(resp.Classify(), list, resp.Status,
+                        "listing ACC issue custom attributes: " + resp.Describe());
+                JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
+                if (results == null)
+                    return AccFetchResult<List<AccIssueAttributeDefinition>>.Failure(AccFetchStatus.TransportFailed, list, resp.Status,
+                        "the issue-attribute-definitions response carried no 'results' array");
+                foreach (var t in results)
+                    list.Add(new AccIssueAttributeDefinition
+                    {
+                        Id = (string)t["id"] ?? string.Empty,
+                        Title = (string)t["title"] ?? string.Empty,
+                        DataType = (string)t["dataType"] ?? string.Empty,
+                    });
+                int? total = (int?)(results.Parent?.Parent as JObject)?["pagination"]?["totalResults"];
+                if (results.Count == 0 || (total.HasValue ? list.Count >= total.Value : results.Count < 200))
+                    return AccFetchResult<List<AccIssueAttributeDefinition>>.Success(list, list.Count == 0);
+                offset += results.Count;
+            }
+            return AccFetchResult<List<AccIssueAttributeDefinition>>.Failure(AccFetchStatus.TransportFailed, list, 200,
+                "stopped at the 20-page cap reading custom attribute definitions");
+        }
+
+        /// <summary>The container's root causes, flattened from their categories.</summary>
+        public static async Task<AccFetchResult<List<AccRootCause>>> GetRootCausesAsync(AccCredentials creds)
+        {
+            var list = new List<AccRootCause>();
+            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
+                    $"{ProjectUrl(creds)}/issue-root-cause-categories?include=rootcauses&limit=200"), creds),
+                creds, idempotent: true).ConfigureAwait(false);
+            if (!resp.IsSuccess)
+                return AccFetchResult<List<AccRootCause>>.Failure(resp.Classify(), list, resp.Status,
+                    "listing ACC root causes: " + resp.Describe());
+            JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
+            if (results == null)
+                return AccFetchResult<List<AccRootCause>>.Failure(AccFetchStatus.TransportFailed, list, resp.Status,
+                    "the issue-root-cause-categories response carried no 'results' array");
+            foreach (var cat in results)
+            {
+                if (cat["isActive"] != null && (bool?)cat["isActive"] == false) continue;
+                foreach (var rc in (cat["rootCauses"] as JArray) ?? new JArray())
+                {
+                    if (rc["isActive"] != null && (bool?)rc["isActive"] == false) continue;
+                    list.Add(new AccRootCause
+                    {
+                        Id = (string)rc["id"] ?? string.Empty,
+                        Title = (string)rc["title"] ?? string.Empty,
+                        CategoryTitle = (string)cat["title"] ?? string.Empty,
+                    });
+                }
+            }
+            return AccFetchResult<List<AccRootCause>>.Success(list, list.Count == 0);
         }
 
         /// <summary>Read an issue from Issues v1 (camelCase). The pre-v1 snake_case names are
@@ -457,7 +673,22 @@ namespace StingTools.V6
             CreatedAt = ReadDate(t["createdAt"]) ?? DateTime.UtcNow,
             UpdatedAt = ReadDate(t["updatedAt"]),
             LocationDescription = (string)(t["locationDetails"] ?? t["location_description"]) ?? string.Empty,
+            RootCauseId = (string)t["rootCauseId"] ?? string.Empty,
+            CustomAttributes = ((t["customAttributes"] as JArray) ?? new JArray())
+                .Where(a => a is JObject && !string.IsNullOrEmpty((string)a["attributeDefinitionId"]))
+                .Select(a => new AccCustomAttributeValue
+                {
+                    AttributeDefinitionId = (string)a["attributeDefinitionId"],
+                    Value = a["value"]?.DeepClone(),
+                }).ToList(),
+            PermittedStatuses = StringList(t["permittedStatuses"]),
+            PermittedAttributes = StringList(t["permittedAttributes"]),
         };
+
+        /// <summary>A JSON string array as a list; null when absent or not an array, so "ACC
+        /// did not say" stays distinguishable from "ACC said nothing is permitted".</summary>
+        private static List<string> StringList(JToken t)
+            => t is JArray a ? a.Where(x => x.Type == JTokenType.String).Select(x => (string)x).ToList() : null;
 
         private static DateTime? ReadDate(JToken t)
         {
@@ -473,9 +704,13 @@ namespace StingTools.V6
         /// <summary>Pull the full issue set, following pagination. A PARTIAL read is a
         /// FAILURE: only a run that saw the last page is Ok/EmptyOk; rows read before a break
         /// are still in Value for diagnostics, and Detail names how many pages succeeded.</summary>
+        /// <param name="updatedSince">When set, only issues updated at or after this instant
+        /// (filter[updatedAt]=&lt;from&gt;..). A successful filtered read is complete FOR THAT
+        /// WINDOW only — the caller must not treat an issue it did not return as deleted.</param>
         public static async Task<AccFetchResult<List<AccIssue>>> PullIssuesAsync(
-            AccCredentials creds, int pageSize = 100, int maxPages = 200)
+            AccCredentials creds, int pageSize = 100, int maxPages = 200, DateTime? updatedSince = null)
         {
+            string filter = updatedSince.HasValue ? "&" + UpdatedSinceQuery(updatedSince.Value) : string.Empty;
             var list = new List<AccIssue>();
             var auth = await EnsureAuthDetailedAsync(creds).ConfigureAwait(false);
             if (!auth.Ok)
@@ -488,7 +723,7 @@ namespace StingTools.V6
             {
                 int off = offset;
                 var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
-                        $"{ProjectUrl(creds)}/issues?limit={pageSize}&offset={off}"), creds),
+                        $"{ProjectUrl(creds)}/issues?limit={pageSize}&offset={off}{filter}"), creds),
                     creds, idempotent: true).ConfigureAwait(false);
 
                 if (!resp.IsSuccess)
@@ -528,6 +763,15 @@ namespace StingTools.V6
             return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, 200,
                 $"stopped at the {maxPages}-page cap with {pagesRead} page(s) read and no final page — the " +
                 "container holds more issues than this read covered, so the set is INCOMPLETE");
+        }
+
+        /// <summary>The Issues v1 updated-since filter: filter[updatedAt]=&lt;ISO UTC&gt;.. (an
+        /// open-ended range). Milliseconds and a Z suffix, the form the API documents.</summary>
+        internal static string UpdatedSinceQuery(DateTime sinceUtc)
+        {
+            var u = sinceUtc.Kind == DateTimeKind.Local ? sinceUtc.ToUniversalTime() : sinceUtc;
+            string iso = u.ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture);
+            return "filter[updatedAt]=" + Uri.EscapeDataString(iso + "..");
         }
 
         /// <summary>True when an ACC issue status is finished work. Routed through the one
