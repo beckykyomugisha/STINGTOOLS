@@ -9,6 +9,23 @@
     "PUBLISHED": { "state": 3, "color": "#2E7D32" },
     "ARCHIVED": { "state": 4, "color": "#616161" }
   },
+  "paramAliases": {
+    "_comment": "DTW-60: legacy display-label keys in a drawing type's titleBlockParams -> the title-block family parameter they mean. TitleBlockParamApplier tries a key as written first, then its alias. The shipped drawing types use the real names; this keeps project overrides written with labels working.",
+    "Client Name": "PRJ_TB_CLIENT_NAME_TXT",
+    "Project Code": "PRJ_ORG_PROJECT_CODE_TXT",
+    "Originator": "PRJ_ORG_ORIGINATOR_CODE_TXT",
+    "Company Name": "PRJ_TB_COMPANY_NAME_TXT",
+    "Company Address": "PRJ_TB_COMPANY_ADDRESS_TXT",
+    "Appointing Party": "PRJ_ORG_APPOINTING_PARTY_TXT",
+    "Lead Appointed Party": "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT",
+    "Discipline": "PRJ_TB_DISCIPLINE_TXT",
+    "Suitability": "PRJ_DWG_SUITABILITY_COD_TXT",
+    "Revision": "PRJ_TB_REVISION_NR_TXT",
+    "Sheet Status": "PRJ_TB_DELIVERABLE_STATUS_TXT",
+    "Spool Number": "ASS_SPOOL_NR_TXT",
+    "System Code": "PRJ_SHEET_SYSTEM_TXT",
+    "Level Code": "PRJ_SHEET_LEVEL_TXT"
+  },
   "families": [
     {
       "id": "A1_common_v2.0",

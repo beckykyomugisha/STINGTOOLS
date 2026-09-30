@@ -409,6 +409,9 @@ namespace StingTools.Core
         // browser organisers can find STING-produced artefacts.
         public const string STING_VIEW_CONTEXT_TAG     = "STING_VIEW_CONTEXT_TAG_TXT";
         public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
+        // DTW-75: written to viewports / schedule sheet instances, which take no
+        // bound shared parameter, so it never landed. Mark those with
+        // SheetPlacementBridge.MarkAutoPlaced (Extensible Storage) instead.
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
         public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";

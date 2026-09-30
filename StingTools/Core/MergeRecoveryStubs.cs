@@ -578,7 +578,7 @@ namespace StingTools.Core.Drawing
             if (tb == null || keys == null) return false;
             foreach (var k in keys)
             {
-                try { if (tb.LookupParameter(k) != null) return true; }
+                try { if (LookupDeclared(tb, k) != null) return true; }
                 catch (Exception ex)
                 {
                     // V-10: a throw reads as "title block has none of these keys",

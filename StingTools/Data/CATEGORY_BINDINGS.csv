@@ -1,4 +1,5 @@
 ﻿# BINDSCOPE-1 | 20260916 | 14 rows Type -> Instance. A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence (this is why a new door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ), and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed.
+# v3.22 | 20261001 | DTW-76: STING_PLACER_* and STING_PLACED_BY_SYMBOL_PLACER_BOOL homed on the categories the symbol placers write them to: Detail Items, Generic Annotations, Generic Models, Lines (the 5 Detail Items rows said False, which the resolver ignores; +15 Yes rows). They were <ALL>, which has no Generic Annotations or Lines, and Load Shared Parameters binds from RESOLVED_BINDINGS.csv, so its STING_PLACER group override never ran: a placed annotation or detail curve never took the idempotency stamp and every re-run placed the symbol again. Needs "Generic Annotations": "OST_GenericAnnotation" in PARAMETER_REGISTRY.json category_enum_map (added). Whether Revit accepts OST_GenericAnnotation / OST_Lines (Category.AllowsBoundParameters) is an in-Revit check.
 # v3.21 | 20261001 | DTW-59: +1 Yes row, STING_DEFAULT_TAG_STYLE_TXT on Views. ManagedTemplateSyncer writes a view style pack's defaultTagStyle onto the managed view template under this name, which no shared-parameter file defined, so the write never landed. Now in MR_PARAMETERS.txt (group 27, UUIDv5 4e90ed9d-5b3a-5791-ab43-c90a1f440310), PARAMETER_REGISTRY.json and ParamRegistry.DEFAULT_TAG_STYLE.
 # v3.20 | 20261001 | DTW-58: +61 Yes rows so every STING parameter an AEC filter's rule names is bound to every category that filter targets. Revit only offers a filter the parameters common to all its categories, so ParameterFilterElement.Create refused 49 filters in STING_AEC_FILTERS.json: 46 healthcare (clin-press-*, clin-infect-*, clin-decon-*, clin-room-dept-*, clin-accessible-routes, rad-*, lig-*, ceq-*, mgs-zone-valve-box / area-alarm / verify-fail / terminal-unit, ees-*) whose rule parameters sat on the HEALTH equipment set (Specialty / Mechanical Equipment, Plumbing Fixtures, Medical Equipment) while the filters target Rooms, Walls, Doors, Generic Models, pipes, devices; and 3 LPS (elec-lps-downcond / earth / bonding) whose ELC_LPS_ELEMENT_TYPE_TXT reached Electrical Equipment + Generic Models only. The filter's category list is taken as the statement of where the value lives. Additive. Computed, not hand-listed; checked by tools/check_drawing_bindings.py.
 # v3.19 | 20261001 | DTW-56: +3 Yes rows putting the match-line stamps (STING_MATCH_REF_TXT / _LINE_GUID_TXT / _DIR_TXT) on Lines. MatchLineEngine writes them only to the DetailCurves it creates (OST_Lines) and finds a previous run's curves by STING_MATCH_LINE_GUID_TXT; bound <ALL> (element categories + Sheets, no Lines) the stamp never landed, so every MatchLine_Generate / _Sync placed a second set. Needs "Lines": "OST_Lines" in PARAMETER_REGISTRY.json category_enum_map (added). Whether Revit accepts a binding on OST_Lines (Category.AllowsBoundParameters) is an in-Revit check: if it does not, Load Shared Parameters logs "0/1 categories resolved" for these three and the stamp needs Extensible Storage instead.
@@ -16844,13 +16845,13 @@ SHT_REV_DATE_TXT,Sheets,Instance,False
 CLASH_LIVE_FLAG,Walls,Instance,False
 CLASH_COUNT_INT,Walls,Instance,False
 STING_VIEW_TOKEN_MASK_TXT,Views,Instance,Yes
-STING_PLACED_BY_SYMBOL_PLACER_BOOL,Detail Items,Instance,False
+STING_PLACED_BY_SYMBOL_PLACER_BOOL,Detail Items,Instance,Yes
 STING_FINISH_CODE_TXT,Floors,Instance,False
 STING_FINISH_SRC_ROOM_ID_TXT,Floors,Instance,False
-STING_PLACER_ASSY_ID_TXT,Detail Items,Instance,False
-STING_PLACER_MEMBER_ID_TXT,Detail Items,Instance,False
-STING_PLACER_SYMBOL_CODE_TXT,Detail Items,Instance,False
-STING_PLACER_VIEW_ID_TXT,Detail Items,Instance,False
+STING_PLACER_ASSY_ID_TXT,Detail Items,Instance,Yes
+STING_PLACER_MEMBER_ID_TXT,Detail Items,Instance,Yes
+STING_PLACER_SYMBOL_CODE_TXT,Detail Items,Instance,Yes
+STING_PLACER_VIEW_ID_TXT,Detail Items,Instance,Yes
 CEQ_EQP_TAG,Specialty Equipment,Instance,True
 CEQ_EQP_TAG,Medical Equipment,Instance,True
 CEQ_EQP_TAG,Mechanical Equipment,Instance,True
@@ -19929,3 +19930,18 @@ RAD_LEAD_MM_NR,Doors,Instance,Yes
 RAD_LEAD_MM_NR,Floors,Instance,Yes
 RAD_LEAD_MM_NR,Walls,Instance,Yes
 STING_DEFAULT_TAG_STYLE_TXT,Views,Instance,Yes
+STING_PLACED_BY_SYMBOL_PLACER_BOOL,Generic Annotations,Instance,Yes
+STING_PLACED_BY_SYMBOL_PLACER_BOOL,Generic Models,Instance,Yes
+STING_PLACED_BY_SYMBOL_PLACER_BOOL,Lines,Instance,Yes
+STING_PLACER_ASSY_ID_TXT,Generic Annotations,Instance,Yes
+STING_PLACER_ASSY_ID_TXT,Generic Models,Instance,Yes
+STING_PLACER_ASSY_ID_TXT,Lines,Instance,Yes
+STING_PLACER_MEMBER_ID_TXT,Generic Annotations,Instance,Yes
+STING_PLACER_MEMBER_ID_TXT,Generic Models,Instance,Yes
+STING_PLACER_MEMBER_ID_TXT,Lines,Instance,Yes
+STING_PLACER_SYMBOL_CODE_TXT,Generic Annotations,Instance,Yes
+STING_PLACER_SYMBOL_CODE_TXT,Generic Models,Instance,Yes
+STING_PLACER_SYMBOL_CODE_TXT,Lines,Instance,Yes
+STING_PLACER_VIEW_ID_TXT,Generic Annotations,Instance,Yes
+STING_PLACER_VIEW_ID_TXT,Generic Models,Instance,Yes
+STING_PLACER_VIEW_ID_TXT,Lines,Instance,Yes

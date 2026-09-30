@@ -604,6 +604,16 @@ namespace StingTools.Core.Drawing
     //  SECTION / ELEVATION MARKER
     // ─────────────────────────────────────────────────────────────────────
 
+    // DTW-65 — what each field does today:
+    //   family      the marker family to use when loaded. No STING marker .rfa ships
+    //               and nothing creates one, so Revit's default head is normally used;
+    //               the validator reports that as info (DT-030), not a warning.
+    //   farClipMm   applied by DrawingTypePresentation.ApplySectionMarkerFarClip when
+    //               the caller has not chosen a depth (ApplyOptions.ApplyTypeFarClip).
+    //   markPrefix, bubbleStyle
+    //               DECLARATIVE: nothing reads them. Revit numbers a marker from the
+    //               viewport's Detail Number on the sheet, and the bubble is the
+    //               marker family's own geometry. Kept so the intent survives.
     public sealed class SectionMarkerSpec
     {
         [JsonProperty("family")]      public string Family { get; set; }

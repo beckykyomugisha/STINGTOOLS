@@ -2570,11 +2570,11 @@ STING_PACK_CHECKSUM_TXT,27,explicit,Views,SHA-256 checksum of ViewStylePack JSON
 STING_PACK_ID_TXT,27,explicit,Views,ViewStylePack registry id stamped on managed view templates [Phase 137]
 STING_PENETRATION_FIRE_RATING_TXT,34,universal-meta,<ALL>,Required fire rating at the penetration point -- copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.
 STING_PENETRATION_REF_TXT,34,universal-meta,<ALL>,Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.
-STING_PLACED_BY_SYMBOL_PLACER_BOOL,37,universal-meta,<ALL>,Idempotency stamp: instance was placed by the STING symbol placer [Symbols]
-STING_PLACER_ASSY_ID_TXT,37,universal-meta,<ALL>,Source assembly element id for the placed symbol (undo/idempotency) [Symbols]
-STING_PLACER_MEMBER_ID_TXT,37,universal-meta,<ALL>,Source assembly-member element id for the placed symbol [Symbols]
-STING_PLACER_SYMBOL_CODE_TXT,37,universal-meta,<ALL>,Resolved symbol code stamped on the placed symbol [Symbols]
-STING_PLACER_VIEW_ID_TXT,37,universal-meta,<ALL>,View id where the symbol was placed (per-view idempotency) [Symbols]
+STING_PLACED_BY_SYMBOL_PLACER_BOOL,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Idempotency stamp: instance was placed by the STING symbol placer [Symbols]
+STING_PLACER_ASSY_ID_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Source assembly element id for the placed symbol (undo/idempotency) [Symbols]
+STING_PLACER_MEMBER_ID_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Source assembly-member element id for the placed symbol [Symbols]
+STING_PLACER_SYMBOL_CODE_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Resolved symbol code stamped on the placed symbol [Symbols]
+STING_PLACER_VIEW_ID_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,View id where the symbol was placed (per-view idempotency) [Symbols]
 STING_PREDECESSOR_TAGS_TXT,17,universal-meta,<ALL>,Predecessor element tags semicolon-delimited [ISO 19650-2:2018]
 STING_PRODUCTION_RULE_IDX_INT,27,explicit,Views,ProductionRule index that produced this view [STING DT v137]
 STING_RETROFIT_TS,13,universal-meta,<ALL>,Sting Retrofit Ts [STING]

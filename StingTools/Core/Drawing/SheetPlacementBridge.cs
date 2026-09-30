@@ -40,6 +40,24 @@ namespace StingTools.Core.Drawing
 
     internal static class SheetPlacementBridge
     {
+        /// <summary>
+        /// DTW-75: record that STING placed this viewport / schedule instance, in
+        /// Extensible Storage (StingProvenanceSchema; read back with
+        /// StingProvenanceSchema.IsAutoCreated). Viewports and schedule sheet
+        /// instances take no bound shared parameters, so the old
+        /// STING_AUTO_PLACED_BOOL write never landed. A failure is reported once
+        /// in the placement result.
+        /// </summary>
+        internal static bool MarkAutoPlaced(Element placed, PlacementResult pr = null)
+        {
+            if (placed == null) return false;
+            if (StingTools.Core.Storage.StingProvenanceSchema.Stamp(placed, "SheetPlacement", placed.Category?.Name ?? ""))
+                return true;
+            const string msg = "Could not mark placed viewports as STING-placed (Extensible Storage write failed; see the log).";
+            if (pr?.Warnings != null && !pr.Warnings.Contains(msg)) pr.Warnings.Add(msg);
+            return false;
+        }
+
         private const double MarginMm = 25.0;
         private const double MmPerFt = 304.8;
         private static double MmToFt(double mm) => mm / MmPerFt;
@@ -434,13 +452,11 @@ namespace StingTools.Core.Drawing
                             if (ssi != null)
                             {
                                 pr.ViewportIds.Add(ssi.Id);
-                                // H-4 — was a silent catch. STING_AUTO_PLACED_BOOL is how a later run
-                                // tells its own viewports from hand-placed ones; if the write
-                                // never lands, re-running re-places on top of itself. SetInt
-                                // RETURNS false when unbound and throws nothing.
-                                StingTools.Core.SafeWrite.Set(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL,
-                                    () => StingTools.Core.ParameterHelpers.SetInt(ssi, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true),
-                                    "SheetPlacementBridge.ScheduleInstance", pr?.Warnings);
+                                // DTW-75: the "placed by STING" mark is Extensible Storage, not
+                                // STING_AUTO_PLACED_BOOL. A schedule instance (and a viewport)
+                                // is not a category a shared parameter can be bound to, so the
+                                // parameter write returned false on every placement.
+                                MarkAutoPlaced(ssi, pr);
                             }
                         }
                         catch (Exception ex)
@@ -455,10 +471,8 @@ namespace StingTools.Core.Drawing
                     if (vp != null)
                     {
                         pr.ViewportIds.Add(vp.Id);
-                        // H-4 — the viewport branch of the same stamp; same defect.
-                        StingTools.Core.SafeWrite.Set(vp, ParamRegistry.STING_AUTO_PLACED_BOOL,
-                            () => StingTools.Core.ParameterHelpers.SetInt(vp, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true),
-                            "SheetPlacementBridge.Viewport", pr?.Warnings);
+                        // DTW-75: the viewport branch of the same mark.
+                        MarkAutoPlaced(vp, pr);
 
                         // SLOT-1: apply per-slot viewport type if declared
                         if (!string.IsNullOrWhiteSpace(slot?.ViewportType))

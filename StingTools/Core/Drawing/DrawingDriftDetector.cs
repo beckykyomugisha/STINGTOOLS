@@ -663,7 +663,7 @@ namespace StingTools.Core.Drawing
                     foreach (var tb in tbs)
                     {
                         Parameter p;
-                        try { p = tb.LookupParameter(paramName); } catch { continue; }
+                        try { p = TitleBlockParamApplier.LookupDeclared(tb, paramName); } catch { continue; }
                         if (p == null || p.IsReadOnly) continue;
                         // DTW-5: the applier refuses the sheet's own number/name,
                         // so a mismatch there is not drift Heal could repair.
