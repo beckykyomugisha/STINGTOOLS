@@ -36,6 +36,9 @@ namespace StingTools.Core.Drawing
         public int CellsUnresolved { get; set; }
         /// <summary>Title-block instances skipped because PRJ_TB_LOCK_BOOL was set.</summary>
         public int LockedSkipped { get; set; }
+        /// <summary>Cells that already held the value — not re-written and not
+        /// counted in <see cref="ParamsWritten"/> (DTW-16).</summary>
+        public int ParamsUnchanged { get; set; }
         /// <summary>Declared keys refused because they address the sheet's own
         /// number or name (DTW-5) — those change only through SheetNumbering.</summary>
         public List<string> SheetIdentityRefused { get; } = new List<string>();
@@ -167,6 +170,13 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"Parameter '{paramName}' is read-only.");
                         continue;
                     }
+                    // DTW-16: a cell that already holds the value is not a write —
+                    // counting it made every Heal report "healed" on every sheet.
+                    if (CurrentValueMatches(tb, p, paramName, resolved))
+                    {
+                        r.ParamsUnchanged++;
+                        continue;
+                    }
                     bool written;
                     switch (p.StorageType)
                     {
@@ -265,6 +275,35 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"IsSheetIdentityParameter '{key}': {ex.Message}"); }
             return DrawingQaRules.IsSheetIdentityParam(key, bip);
+        }
+
+        /// <summary>DTW-16: does the cell already hold <paramref name="resolved"/>,
+        /// compared the way the write would store it?</summary>
+        private static bool CurrentValueMatches(Element tb, Parameter p, string paramName, string resolved)
+        {
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        return string.Equals(p.AsString() ?? string.Empty, resolved ?? string.Empty, StringComparison.Ordinal);
+                    case StorageType.Integer:
+                        if (!p.HasValue) return false;
+                        if (string.IsNullOrEmpty(resolved)) return p.AsInteger() == 0;
+                        return int.TryParse(resolved, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv)
+                            && p.AsInteger() == iv;
+                    case StorageType.Double:
+                        return p.HasValue && DrawingQaRules.NumericTextEquals(
+                            ParameterHelpers.GetValueText(tb, paramName), resolved);
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: could not read '{paramName}' before writing: {ex.Message}");
+                return false;
+            }
         }
 
         private static void RefuseSheetIdentity(TitleBlockApplyResult r, ViewSheet sheet, string key)
