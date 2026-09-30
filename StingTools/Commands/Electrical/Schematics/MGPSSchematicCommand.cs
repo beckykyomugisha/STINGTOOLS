@@ -125,9 +125,17 @@ namespace StingTools.Commands.Electrical.Schematics
                 if (!gasTypesPresent.Contains(g, StringComparer.OrdinalIgnoreCase))
                     gasTypesPresent.Add(g);
 
-            // If nothing is found, still produce a schematic with a placeholder riser.
+            // Nothing carries MGS_GAS_TYPE_TXT: there is no pipeline system to draw. This
+            // used to draw a placeholder O2 riser — a medical-gas schematic of a system
+            // the model does not have, now on a stamped sheet. Say why instead.
             if (gasTypesPresent.Count == 0)
-                gasTypesPresent.Add("O2");  // placeholder to show structure
+            {
+                PresetDialog.Show("STING MGPS Schematic",
+                    "No element carries MGS_GAS_TYPE_TXT, so there is no medical gas pipeline system to draw. " +
+                    "Place the medical-gas outlets (Placement › medical-gases pack) or set the gas type on " +
+                    "sources, zone valves and terminal units, then run this again.", ref message);
+                return Result.Cancelled;
+            }
 
             int totalTU = tuByGas.Values.SelectMany(x => x).Count();
 
@@ -139,8 +147,8 @@ namespace StingTools.Commands.Electrical.Schematics
                 if (view == null)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("STING MGPS Schematic",
-                        "Could not create a drafting view — no Drafting ViewFamilyType found.");
+                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    if (!PresetDialog.Quiet) TaskDialog.Show("STING MGPS Schematic", message);
                     return Result.Failed;
                 }
 
@@ -149,12 +157,16 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 tx.Commit();
 
+                // Onto the sheet of the drawing type routing gives MG / SCHEMATIC.
+                string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.MgpsSchematic, view);
+
                 string gasList = string.Join(", ", gasTypesPresent);
-                TaskDialog.Show("STING MGPS Schematic",
+                PresetDialog.Show("STING MGPS Schematic",
                     $"MGPS schematic generated.\n\n" +
                     $"View:          {view.Name}\n" +
                     $"Gas types:     {gasList}\n" +
-                    $"Terminal units found: {totalTU}");
+                    $"Terminal units found: {totalTU}\n\n{sheetLine}", ref message);
             }
 
             return Result.Succeeded;
@@ -308,7 +320,10 @@ namespace StingTools.Commands.Electrical.Schematics
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
             if (vft == null) return null;
             var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch { }
+            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"MGPSSchematic view name '{name}': {ex.Message}"); }
+            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
+            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
+            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"MGPSSchematic scale: {ex.Message}"); }
             return v;
         }
 

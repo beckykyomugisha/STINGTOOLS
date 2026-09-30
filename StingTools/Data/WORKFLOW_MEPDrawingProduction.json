@@ -65,11 +65,42 @@
         "mode": "AutoSheets"
       },
       "optional": true
+    },
+    {
+      "commandTag": "SLD_Generate",
+      "label": "Single line diagram onto its sheet (routing E / SLD; a re-run replaces the earlier SLD there)",
+      "optional": true
+    },
+    {
+      "commandTag": "SLD_RiserDiagram",
+      "label": "Electrical riser diagram onto its sheet (routing E / RISER; skipped when the model has no distribution hierarchy)",
+      "optional": true
+    },
+    {
+      "commandTag": "FireAlarm_Schematic",
+      "label": "Fire alarm loop schematic onto its sheet (routing E / FIRE_ALARM_SCHEMATIC; skipped when there are no fire alarm devices)",
+      "optional": true
+    },
+    {
+      "commandTag": "MGPS_Schematic",
+      "label": "Medical gas pipeline schematic onto its sheet (routing MG / SCHEMATIC; skipped when nothing carries MGS_GAS_TYPE_TXT)",
+      "optional": true
+    },
+    {
+      "commandTag": "LPS_Schematic",
+      "label": "Lightning protection schematic onto its sheet (routing E / LPS_SCHEMATIC; skipped when no LPS components are marked)",
+      "optional": true
+    },
+    {
+      "commandTag": "Earthing_Diagram",
+      "label": "Earthing arrangement onto its sheet (routing E / EARTHING_SCHEMATIC; skipped when ELC_EARTHING_SYSTEM_TXT is not set)",
+      "optional": true
     }
   ],
   "_notes": [
     "Step params: drawingTypes (comma list of ids; default every M, E, P, FP, MG Plan type), levels (comma list of level names; default all), output ('Views and sheets' | 'Views only'), duplicateOption ('Duplicate' | 'DuplicateAsDependent' | 'DuplicateWithDetailing'), packageId.",
     "An unknown drawing type or level, or an unreadable output / duplicateOption, fails the step with the reason in the workflow report.",
-    "The production route is chosen by condition: area boxes when the project has STING-AREA:: boxes, whole-floor per level otherwise, and STING:: boxes whenever any exist."
+    "The diagram steps (SLD, riser, fire alarm, MGPS, LPS, earthing) draw from the model and place each diagram on the sheet routing gives its (discipline, docType); each skips with its reason when the model has nothing to draw. Panel_DoorDiagram is per board and is not a default step — add it with params.panel naming the board. Schematic drawing types no generator draws (HVAC, plumbing DCW/DHW/LTHW/drainage/vent, fire riser, ESS riser, nuclear medicine) are skipped by production with a message, never produced as an empty sheet.",
+    "The production route is chosen by condition:area boxes when the project has STING-AREA:: boxes, whole-floor per level otherwise, and STING:: boxes whenever any exist."
   ]
 }

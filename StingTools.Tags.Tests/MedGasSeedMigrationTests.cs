@@ -173,7 +173,7 @@ namespace StingTools.Tags.Tests
         {
             var map = Map();
             var tus = map.TypeNames.Where(n => n.StartsWith("TERMINAL_UNIT_", StringComparison.Ordinal)).ToList();
-            Assert.Equal(8, tus.Count);
+            Assert.Equal(9, tus.Count);   // + TERMINAL_UNIT_AGS, the AGSS unit the med-gas pack places
             foreach (var t in tus)
             {
                 var g = map.GasForType(t);
@@ -208,7 +208,8 @@ namespace StingTools.Tags.Tests
         {
             Assert.Equal(new[] { "TERMINAL_UNIT_VAC" }, Map().TypesForGas("VAC"));
             Assert.Equal(new[] { "TERMINAL_UNIT_MEDAIR" }, Map().TypesForGas("AIR"));   // alias
-            Assert.Empty(Map().TypesForGas("AGS"));
+            // The seed now declares an AGSS terminal unit, so a room asking for scavenging gets one.
+            Assert.Equal(new[] { "TERMINAL_UNIT_AGS" }, Map().TypesForGas("AGSS"));
         }
 
         [Theory]

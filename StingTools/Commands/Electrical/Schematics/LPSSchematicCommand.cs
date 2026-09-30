@@ -90,6 +90,16 @@ namespace StingTools.Commands.Electrical.Schematics
             int totalComponents = airTerminals.Count + downConductors.Count
                                 + earthElectrodes.Count + bondingBars.Count;
 
+            // No marked components used to draw "placeholder geometry" — a schematic of
+            // an LPS the model does not have, now placed on a stamped sheet. Say why instead.
+            if (totalComponents == 0)
+            {
+                PresetDialog.Show("STING LPS Schematic",
+                    "No LPS components found (ELC_LPS_ELEMENT_TYPE_TXT not populated) — nothing to draw. " +
+                    "Run LPS Mark Element Types, then run this again.", ref message);
+                return Result.Cancelled;
+            }
+
             using (var tx = new Transaction(doc, "STING LPS Schematic"))
             {
                 tx.Start();
@@ -98,8 +108,8 @@ namespace StingTools.Commands.Electrical.Schematics
                 if (view == null)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("STING LPS Schematic",
-                        "Could not create a drafting view — no Drafting ViewFamilyType found.");
+                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    if (!PresetDialog.Quiet) TaskDialog.Show("STING LPS Schematic", message);
                     return Result.Failed;
                 }
 
@@ -107,6 +117,10 @@ namespace StingTools.Commands.Electrical.Schematics
                     airTerminals, downConductors, earthElectrodes, bondingBars);
 
                 tx.Commit();
+
+                // Onto the sheet of the drawing type routing gives E / LPS_SCHEMATIC.
+                string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.LpsSchematic, view);
 
                 string summary = totalComponents > 0
                     ? $"Components found and drawn:\n" +
@@ -121,8 +135,8 @@ namespace StingTools.Commands.Electrical.Schematics
                     summary += "\n\nLPS class not set on Project Information (ELC_LPS_CLASS_TXT) — " +
                                "drawn as Class I. Run LPS Class Setup to set it.";
 
-                TaskDialog.Show("STING LPS Schematic",
-                    $"LPS schematic generated.\n\nView: {view.Name}\n\n{summary}");
+                PresetDialog.Show("STING LPS Schematic",
+                    $"LPS schematic generated.\n\nView: {view.Name}\n\n{summary}\n\n{sheetLine}", ref message);
             }
 
             return Result.Succeeded;
@@ -247,7 +261,10 @@ namespace StingTools.Commands.Electrical.Schematics
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
             if (vft == null) return null;
             var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch { }
+            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"LPSSchematic view name '{name}': {ex.Message}"); }
+            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
+            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
+            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"LPSSchematic scale: {ex.Message}"); }
             return v;
         }
 
