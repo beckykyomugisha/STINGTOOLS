@@ -88,6 +88,7 @@ namespace StingTools.Core
             ["IFC"]            = "MODELS",
             ["NWC"]            = "MODELS",
             ["RVT"]            = "MODELS",
+            ["DXF"]            = "MODELS",
             ["COBie"]          = "COBIE",
             ["COBieStream"]    = "COBIE",
             ["BEP"]            = "BEP",
