@@ -4,10 +4,9 @@
 Welcome, and thank you for testing. This guide takes you from a zip file to a
 working, licensed plugin in about **5 minutes**. Follow it top to bottom.
 
-> **Licensing in one line:** a fresh install runs a **90-day trial** straight away —
-> nothing to send or paste. To keep using STING after that, add a licence (**Step 2**).
-> If we sent you a **portable licence** (`StingTools.lic`), put it next to
-> `install.bat` before installing and the installer activates this PC for you.
+> **Licensing in one line:** this build has **no licence check** — install it and
+> every command works, on any PC, with nothing to send or paste. You can skip **Step 2**.
+> (It describes how activation works in builds that have the check switched on.)
 
 ---
 
@@ -42,8 +41,7 @@ working, licensed plugin in about **5 minutes**. Follow it top to bottom.
 3. **Fully close Revit** if it's open (all windows), then **reopen it**.
 
 4. On the Revit ribbon you'll now see a **"STING Tools"** tab and the STING panels.
-   On the trial there is also an **"Activate STING"** button — it shows how many trial
-   days are left, and is where you paste a licence (Step 2).
+   You're ready — go to Step 3.
 
 > **Do not move or rename the extract folder after installing.** The manifest points
 > at that exact location. If you must move it, run `install.bat` again from the new

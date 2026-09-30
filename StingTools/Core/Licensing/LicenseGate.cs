@@ -7,13 +7,28 @@ namespace StingTools.Core.Licensing
     {
         private static LicenseResult _cached;
 
+        /// <summary>
+        /// Master switch for licensing. False = no licence check, no trial, no activation
+        /// prompt: STING loads fully on every machine. Set true to restore the gate (machine
+        /// and portable licences, plus the 90-day trial); nothing else needs changing.
+        /// A readonly field rather than a const so the compiler does not flag the gated
+        /// branches as unreachable.
+        /// </summary>
+        public static readonly bool Enforced = false;
+
+        private static readonly LicenseResult Disabled = new LicenseResult
+        {
+            State = LicenseState.Valid,
+            Message = "Licence check is switched off in this build."
+        };
+
         public static string MachineCode => MachineFingerprint.Current;
         public static string LicenseDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "Planscape", "StingTools");
         public static string LicensePath => Path.Combine(LicenseDir, "StingTools.lic");
 
-        public static LicenseResult Status => _cached ??= Evaluate();
+        public static LicenseResult Status => Enforced ? (_cached ??= Evaluate()) : Disabled;
         public static bool IsLicensed => Status.IsValid;
         public static void Invalidate() => _cached = null;
 

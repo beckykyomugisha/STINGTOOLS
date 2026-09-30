@@ -126,7 +126,7 @@ if ($Licence) {
         Write-Host "Licence file not found: $Licence" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "No licence file supplied: STING runs a 90-day trial from its first launch on this PC."
+    Write-Host "No licence file supplied. None is needed: this build has the licence check switched off."
 }
 
 Write-Host ""

@@ -60,6 +60,10 @@ namespace StingTools.Core
                 LogAssemblyEnvironment();
 
                 // --- LICENSE GATE (hard lock) -------------------------------
+                // Switched off while LicenseGate.Enforced is false: IsLicensed is
+                // then always true and none of the branches below do anything.
+                if (!StingTools.Core.Licensing.LicenseGate.Enforced)
+                    StingLog.Info("Licence check switched off in this build (LicenseGate.Enforced = false).");
                 // No valid licence (machine-bound or portable) and the 90-day
                 // trial is over => register only an "Activate STING" button
                 // and load nothing else.
@@ -94,13 +98,17 @@ namespace StingTools.Core
                 // Report which licence this machine is running. Fire-and-forget
                 // and entirely advisory — the licence is verified offline above
                 // and does not depend on this call succeeding, or happening at
-                // all. Opt out with STING_LICENSE_PRESENT=0.
-                try
+                // all. Opt out with STING_LICENSE_PRESENT=0. Skipped entirely
+                // while licensing is switched off (LicenseGate.Enforced).
+                if (StingTools.Core.Licensing.LicenseGate.Enforced)
                 {
-                    StingTools.Core.Licensing.LicensePresenter.PresentInBackground(
-                        application.ControlledApplication.VersionNumber);
+                    try
+                    {
+                        StingTools.Core.Licensing.LicensePresenter.PresentInBackground(
+                            application.ControlledApplication.VersionNumber);
+                    }
+                    catch (Exception pex) { StingLog.Warn("License presentation: " + pex.Message); }
                 }
-                catch (Exception pex) { StingLog.Warn("License presentation: " + pex.Message); }
 
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
