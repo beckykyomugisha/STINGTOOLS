@@ -2458,19 +2458,19 @@ STING_BOX_LOCATION_ID,Box Location Id,TEXT,Instance,<ALL>,ASS_MNG,c7a3f2e1-9b04-
 STING_BRIEFCASE_EXPORT_TXT,Briefcase Export,TEXT,Instance,<ALL>,STINGTags_ISO19650,c2f3f189-f903-560d-b824-9dbd5c9d00ad,Last briefcase export timestamp [ISO 19650-2:2018]
 STING_BUS_VOLTAGE_TIER,Bus Voltage Tier,TEXT,Instance,Views,STING_DRAWING,139d87fd-60d1-57e8-959e-d7e4e966339c,Dominant voltage tier (LV / MV / HV) of the single line diagram drawn in this drafting view; written by SLD Generate.
 STING_CDE_STATE_TXT,Cde State,TEXT,Instance,<ALL>,STING_DRAWING,a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9,CDE state stamp for ISO 19650-2 document lifecycle [Phase 141]
-STING_CIRCUIT_FILTER_TXT,Circuit Filter,TEXT,Instance,<ALL>,ELC_PWR,cae6c5b9-c109-59c5-97c9-32121162052e,Sting Circuit Filter Txt [STING]
+STING_CIRCUIT_FILTER_TXT,Circuit Filter,TEXT,Instance,Views,ELC_PWR,cae6c5b9-c109-59c5-97c9-32121162052e,Sting Circuit Filter Txt [STING]
 STING_CLUSTER_COUNT,Cluster Count,INTEGER,Instance,<ALL>,STINGTags_ISO19650,d1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a,Number of elements in tag cluster
 STING_CLUSTER_LABEL,Cluster Label,TEXT,Instance,<ALL>,STINGTags_ISO19650,d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6b,Cluster representative label text
 STING_CLUSTER_MEMBER_POS_TXT,Cluster Member Pos,TEXT,Instance,<ALL>,STINGTags_ISO19650,a1b2c3d4-5032-4a01-b001-000000000150,Cluster member bounding box centers (pipe-delimited)
 STING_COMPOUND_PARENT_ID,Sting Compound Parent Id,TEXT,Instance,<ALL>,ASS_MNG,2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F,Parent compound-symbol element id (multi-connector grouping) [Symbols]
 STING_CONDUIT_FILL_SUMMARY_TXT,Sting Conduit Fill Summary,TEXT,Instance,<ALL>,ELC_PWR,7cd6fb48-fe09-54c6-af5d-73ade7627e17,Conduit fill summary string for audit reporting [Electrical]
-STING_CROP_KIND_TXT,Crop Kind,TEXT,Instance,<ALL>,STING_DRAWING,b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01,Crop kind stamped onto views for drift detection [Phase 183]
-STING_CROP_MARGIN_MM_TXT,Crop Margin Mm,TEXT,Instance,<ALL>,STING_DRAWING,c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
+STING_CROP_KIND_TXT,Crop Kind,TEXT,Instance,Views,STING_DRAWING,b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01,Crop kind stamped onto views for drift detection [Phase 183]
+STING_CROP_MARGIN_MM_TXT,Crop Margin Mm,TEXT,Instance,Views,STING_DRAWING,c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
 STING_DATA_HASH,Data Hash,TEXT,Instance,<ALL>,ASS_MNG,c9e60453-1ba4-5f3c-d6c2-508a3af4be27,Hash of data directory for workflow skip-if-unchanged detection
 STING_DESIGN_REF_TXT,Design Ref,TEXT,Instance,<ALL>,Identity,bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f,Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.
 STING_DISPLAY_MODE,Display Mode,INTEGER,Instance,<ALL>,STINGTags_ISO19650,d0e1f2a3-b4c5-4d6e-8f7a-8b9c0d1e2f3a,"Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)"
-STING_DRAWING_PACKAGE_ID_TXT,Drawing Package Id,TEXT,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000002,Drawing package this view or sheet belongs to [STING DT v137]
-STING_DRAWING_TYPE_ID_TXT,Drawing Type Id,TEXT,Instance,<ALL>,STING_DRAWING,c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5,DrawingType registry id stamped on views/sheets [Phase 113]
+STING_DRAWING_PACKAGE_ID_TXT,Drawing Package Id,TEXT,Instance,"Sheets, Views",STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000002,Drawing package this view or sheet belongs to [STING DT v137]
+STING_DRAWING_TYPE_ID_TXT,Drawing Type Id,TEXT,Instance,"Sheets, Views",STING_DRAWING,c1d2e3f4-a5b6-4c7d-8e9f-a0b1c2d3e4f5,DrawingType registry id stamped on views/sheets [Phase 113]
 STING_EMB_CARBON_NR,Sting Emb Carbon,NUMBER,Instance,<ALL>,MAT_INFO,800e0d61-f88d-5071-bc87-0c4ca3e51243,"Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon]"
 STING_FINISH_CODE_TXT,Finish Code,TEXT,Instance,<ALL>,STING_FINISHES,c914565f-e02b-5c67-b9b6-c086cc17d2cf,Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]
 STING_FINISH_SRC_ROOM_ID_TXT,Finish Src Room Id,TEXT,Instance,<ALL>,STING_FINISHES,5e4ca8e4-f098-57f8-8829-7fb8353f9536,Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]
@@ -2491,8 +2491,8 @@ STING_NOGGIN_REQUIRED,Noggin Required,YESNO,Instance,<ALL>,ASS_MNG,d8b4a3f2-7c05
 STING_NOTE_AUTHOR_TXT,Note Author,TEXT,Instance,<ALL>,STINGTags_ISO19650,01256e6f-5896-5dda-b701-48afe7cac121,Sticky note author [ISO 19650-2:2018]
 STING_NOTE_DATE_TXT,Note Date,TEXT,Instance,<ALL>,STINGTags_ISO19650,ee109391-b639-55bb-95c9-1490e4a84157,Sticky note timestamp [ISO 19650-2:2018]
 STING_P6_PCT_TXT,P6 Pct,TEXT,Instance,<ALL>,ASBUILT,7ed7e5cb-2dde-536b-89b6-76bff797358c,Sting P6 Pct Txt [STING]
-STING_PACK_CHECKSUM_TXT,Pack Checksum,TEXT,Instance,<ALL>,STING_DRAWING,f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]
-STING_PACK_ID_TXT,Pack Id,TEXT,Instance,<ALL>,STING_DRAWING,e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7,ViewStylePack registry id stamped on managed view templates [Phase 137]
+STING_PACK_CHECKSUM_TXT,Pack Checksum,TEXT,Instance,Views,STING_DRAWING,f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]
+STING_PACK_ID_TXT,Pack Id,TEXT,Instance,Views,STING_DRAWING,e3f4a5b6-c7d8-4e9f-a0b1-c2d3e4f5a6b7,ViewStylePack registry id stamped on managed view templates [Phase 137]
 STING_PENETRATION_FIRE_RATING_TXT,Penetration Fire Rating,TEXT,Instance,<ALL>,Routing,07182a3a-52b3-d261-149d-035303c23289,Required fire rating at the penetration point -- copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.
 STING_PENETRATION_REF_TXT,Penetration Ref,TEXT,Instance,<ALL>,Routing,f6071829-41a2-c150-038c-f242b2b12178,Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.
 STING_PLACED_BY_SYMBOL_PLACER_BOOL,Placed By Symbol Placer,YESNO,Instance,<ALL>,STING_PLACER,8a7365eb-60a1-5224-90d2-d0176ff2e65f,Idempotency stamp: instance was placed by the STING symbol placer [Symbols]
@@ -2501,9 +2501,9 @@ STING_PLACER_MEMBER_ID_TXT,Placer Member Id,TEXT,Instance,<ALL>,STING_PLACER,091
 STING_PLACER_SYMBOL_CODE_TXT,Placer Symbol Code,TEXT,Instance,<ALL>,STING_PLACER,f44c8c2c-5981-517e-91e0-2a1c2970a74d,Resolved symbol code stamped on the placed symbol [Symbols]
 STING_PLACER_VIEW_ID_TXT,Placer View Id,TEXT,Instance,<ALL>,STING_PLACER,e2b1686a-8c6a-5db8-ba02-144add1cc43f,View id where the symbol was placed (per-view idempotency) [Symbols]
 STING_PREDECESSOR_TAGS_TXT,Predecessor Tags,TEXT,Instance,<ALL>,STINGTags_ISO19650,30aff8d6-72d0-5180-b453-856e5407da82,Predecessor element tags semicolon-delimited [ISO 19650-2:2018]
-STING_PRODUCTION_RULE_IDX_INT,Production Rule Idx,INTEGER,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000004,ProductionRule index that produced this view [STING DT v137]
+STING_PRODUCTION_RULE_IDX_INT,Production Rule Idx,INTEGER,Instance,Views,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000004,ProductionRule index that produced this view [STING DT v137]
 STING_RETROFIT_TS,Retrofit Ts,TEXT,Instance,<ALL>,PRJ_INFORMATION,f5f8e898-1b01-5f00-94c5-0b24dd00e1bc,Sting Retrofit Ts [STING]
-STING_SCOPE_BOX_TAG_TXT,Scope Box Tag,TEXT,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000007,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
+STING_SCOPE_BOX_TAG_TXT,Scope Box Tag,TEXT,Instance,Views,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000007,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
 STING_SEED_FAMILY_TXT,Seed Family,TEXT,Instance,<ALL>,Identity,abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e,Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.
 STING_SETUP_COMPLETE,Setup Complete,TEXT,Instance,<ALL>,ASS_MNG,daf71564-2cb5-504d-e7d3-619b4b05cf38,Timestamp of last MasterSetup completion for idempotency check
 STING_SHEET_CONTEXT_TXT,Sheet Context,TEXT,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000006,Production context (level / scope box / room) this sheet was produced for [STING DT v137]
@@ -2522,7 +2522,7 @@ STING_SLEEVE_UL_SYS,Sleeve Ul Sys,TEXT,Instance,<ALL>,RGL_CMPL,3ec85c17-a7f3-5b2
 STING_SLEEVE_WIDTH_MM,Sleeve Width Mm,TEXT,Instance,<ALL>,RGL_CMPL,5e90a1f3-7c5b-5a8f-9d2c-1a4b6e8f0c14,Rectangular sleeve clear-opening width in millimetres.
 STING_STALE_BOOL,Stale,YESNO,Instance,<ALL>,STINGTags_ISO19650,c9d0e1f2-a3b4-4c5d-8e6f-7a8b9c0d1e2f,Element stale flag (geometry/level changed since last tag)
 STING_STICKY_NOTE_TXT,Sticky Note,TEXT,Instance,<ALL>,STINGTags_ISO19650,1aef2db5-5248-59c8-9f40-1f6de5921a51,Element sticky note text [ISO 19650-2:2018]
-STING_STYLE_LOCKED_BOOL,Style Locked,YESNO,Instance,<ALL>,STING_DRAWING,d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6,Style-locked flag: prevents SyncStyles from overwriting [Phase 113]
+STING_STYLE_LOCKED_BOOL,Style Locked,YESNO,Instance,"Sheets, Views",STING_DRAWING,d2e3f4a5-b6c7-4d8e-9f0a-b1c2d3e4f5a6,Style-locked flag: prevents SyncStyles from overwriting [Phase 113]
 STING_SWAP_HISTORY_TXT,Swap History,TEXT,Instance,<ALL>,Identity,cde6f708-9b0c-1d2e-3f4a-5b6c7d8e9fa0,Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.
 STING_SYMBOL_ID,Symbol Id,TEXT,Instance,<ALL>,STING_DRAWING,a4b5c6d7-e8f9-4a0b-1c2d-3e4f5a6b7c8d,Symbol library concept id stamped on placed instances [STING Phase 175 / IEC 60617]
 STING_SYMBOL_LABEL_ID,Symbol Label Id,TEXT,Instance,<ALL>,STING_DRAWING,d7e8f9a0-b1c2-4d3e-4f5a-6b7c8d9e0f1a,Stable id linking SLD label / annotation to its symbol family instance [STING Phase 175]
@@ -2531,12 +2531,12 @@ STING_SYMBOL_OVERRIDE,Symbol Override,TEXT,Instance,<ALL>,STING_DRAWING,e8f9a0b1
 STING_SYMBOL_STANDARD,Symbol Standard,TEXT,Instance,<ALL>,STING_DRAWING,b5c6d7e8-f9a0-4b1c-2d3e-4f5a6b7c8d9e,Symbol standard variant -- IEC 60617 / IEEE 315 / ISO 14617 [STING Phase 175]
 STING_TAG3D_HOST_ID_TXT,Tag3d Host Id,TEXT,Instance,<ALL>,ASS_MNG,35e4567f-833b-5b43-90e5-6d22faa0a7e5,Source host element id stamped on placed Tag3D family instance for idempotent re-runs (Int64 as decimal string)
 STING_TAG_POS,Tag Pos,INTEGER,Instance,<ALL>,STINGTags_ISO19650,e1f2a3b4-c5d6-4e7f-8a9b-0c1d2e3f4a5b,Tag position (1-16 compass positions)
-STING_TEMPLATE_CHECKSUM_TXT,Template Checksum,TEXT,Instance,<ALL>,TPL_TRACKING,a1f2b3c4-d5e6-4f70-8123-456789abcd01,SHA-256 checksum of view template's VG state — DriftDetector baseline [Template Manager v2]
-STING_TEMPLATE_LOCKED_BOOL,Template Locked,YESNO,Instance,<ALL>,TPL_TRACKING,a1f2b3c4-d5e6-4f70-8123-456789abcd02,"When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]"
-STING_VIEW_CONTEXT_TAG_TXT,View Context Tag,TEXT,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000001,Production context tag written by STING per-level / sections / elevations engine [STING DT v137]
-STING_VIEW_SYMBOL_STANDARD,View Symbol Standard,TEXT,Instance,<ALL>,STING_DRAWING,f9a0b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c,Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175]
-STING_VIEW_TAG_STYLE,View Tag Style,TEXT,Instance,<ALL>,STINGTags_ISO19650,e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6c,View-level tag style routing (Discipline/Monochrome/Warm/Cool)
-STING_VIEW_TOKEN_MASK_TXT,View Token Mask,TEXT,Instance,<ALL>,STING_VIEWPARAMS,F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]
+STING_TEMPLATE_CHECKSUM_TXT,Template Checksum,TEXT,Instance,Views,TPL_TRACKING,a1f2b3c4-d5e6-4f70-8123-456789abcd01,SHA-256 checksum of view template's VG state — DriftDetector baseline [Template Manager v2]
+STING_TEMPLATE_LOCKED_BOOL,Template Locked,YESNO,Instance,Views,TPL_TRACKING,a1f2b3c4-d5e6-4f70-8123-456789abcd02,"When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]"
+STING_VIEW_CONTEXT_TAG_TXT,View Context Tag,TEXT,Instance,Views,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000001,Production context tag written by STING per-level / sections / elevations engine [STING DT v137]
+STING_VIEW_SYMBOL_STANDARD,View Symbol Standard,TEXT,Instance,Views,STING_DRAWING,f9a0b1c2-d3e4-4f5a-6b7c-8d9e0f1a2b3c,Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175]
+STING_VIEW_TAG_STYLE,View Tag Style,TEXT,Instance,Views,STINGTags_ISO19650,e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6c,View-level tag style routing (Discipline/Monochrome/Warm/Cool)
+STING_VIEW_TOKEN_MASK_TXT,View Token Mask,TEXT,Instance,Views,STING_VIEWPARAMS,F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]
 STING_WALL_ROUTING_FLAG,Wall Routing Flag,TEXT,Instance,<ALL>,Routing,d4e5f607-2f80-af2f-e1a0-d020909fc056,"When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB."
 STRUCT_COL_AXIAL_LOAD_KN,Col Axial Load Kn,TEXT,Instance,"Columns, Structural Columns",BLE_STRUCTURE,21f21930-316c-4b70-8174-b8bd0670f5dc,Column axial load
 STRUCT_COL_BUCKLING_CHECK_BOOL,Col Buckling Check,YESNO,Instance,"Columns, Structural Columns",BLE_STRUCTURE,ab62a703-a19d-41d3-884b-dc2f3ab135af,Column buckling check passed

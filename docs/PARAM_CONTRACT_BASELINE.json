@@ -1597,6 +1597,11 @@
       "role": "reference",
       "reason": "Written by SLD Generate on the drafting view through LookupParameter(...).Set, which this scan counts as a read. Nothing reads it back yet; it is there for a view filter or the drawing's reader."
     },
+    "STING_CIRCUIT_FILTER_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "CircuitViewFilterCommand stamps the name of the circuit filter it applied onto the view, so the author can see which STING filter drives that view's colouring. No C# reader; the view's own filter list is the functional state."
+    },
     "STING_COMPOUND_PARENT_ID": {
       "state": "read_only",
       "role": "input",
@@ -1606,6 +1611,16 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "STING_DRAWING_PACKAGE_ID_TXT": {
+      "state": "write_only",
+      "role": "pipeline",
+      "reason": "Written by DrawingTypeStamper.StampPackage and DrawingProducer.StampViewParameters on views and sheets; read by DrawingPackageManager and DrawingProducer. The reads go through DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID, a constant this scan does not follow, which is why it reports write_only."
+    },
+    "STING_DRAWING_TYPE_ID_TXT": {
+      "state": "read_only",
+      "role": "pipeline",
+      "reason": "Written by DrawingTypeStamper.Stamp (LookupParameter(PARAM_DRAWING_TYPE_ID).Set) on views and sheets; read by DrawingProducer.FindExistingView, DrawingDriftDetector and the inspect commands. The write is Parameter.Set through a DrawingTypeStamper constant, which this scan does not see, so it reports read_only."
     },
     "STING_FIRE_RATING_TXT": {
       "state": "read_only",
@@ -1626,6 +1641,26 @@
       "state": "read_only",
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
+    },
+    "STING_SCOPE_BOX_TAG_TXT": {
+      "state": "read_only",
+      "role": "reference",
+      "reason": "GenerateFromScopeBoxesCommand writes the STING:: scope-box tag onto each view it generates (LookupParameter(...).Set, which this scan reads as a read). Carried so the author, a view list schedule or a filter can see which scope box produced the view; no C# reader yet."
+    },
+    "STING_TEMPLATE_CHECKSUM_TXT": {
+      "state": "read_only",
+      "role": "pipeline",
+      "reason": "Written by TemplateManager.DriftDetector.WriteStamp (Parameter.Set, invisible to this scan) onto STING view templates and read back by the same detector's ReadStampedChecksum to detect drift."
+    },
+    "STING_TEMPLATE_LOCKED_BOOL": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A human ticks it on a view template to freeze it; TemplateManager.DriftDetector.IsLocked reads it and skips the template. No writer expected."
+    },
+    "STING_VIEW_SYMBOL_STANDARD": {
+      "state": "read_only",
+      "role": "pipeline",
+      "reason": "Written by SLDGenerator.StampViewStandard (Parameter.Set, invisible to this scan) on the SLD drafting view and read by SLDGenerator and SymbolStandardResolver to pick the symbol standard for that view."
     },
     "STRUCT_FRM_AXIAL_LOAD_KN": {
       "state": "write_only",

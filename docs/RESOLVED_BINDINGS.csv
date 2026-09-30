@@ -2532,19 +2532,19 @@ STING_BOX_LOCATION_ID,1,universal-meta,<ALL>,Phase 139.2 -- GUID linking first-f
 STING_BRIEFCASE_EXPORT_TXT,17,universal-meta,<ALL>,Last briefcase export timestamp [ISO 19650-2:2018]
 STING_BUS_VOLTAGE_TIER,27,explicit,Views,Dominant voltage tier (LV / MV / HV) of the single line diagram drawn in this drafting view; written by SLD Generate.
 STING_CDE_STATE_TXT,27,universal-meta,<ALL>,CDE state stamp for ISO 19650-2 document lifecycle [Phase 141]
-STING_CIRCUIT_FILTER_TXT,4,universal-meta,<ALL>,Sting Circuit Filter Txt [STING]
+STING_CIRCUIT_FILTER_TXT,4,explicit,Views,Sting Circuit Filter Txt [STING]
 STING_CLUSTER_COUNT,17,universal-meta,<ALL>,Number of elements in tag cluster
 STING_CLUSTER_LABEL,17,universal-meta,<ALL>,Cluster representative label text
 STING_CLUSTER_MEMBER_POS_TXT,17,universal-meta,<ALL>,Cluster member bounding box centers (pipe-delimited)
 STING_COMPOUND_PARENT_ID,1,universal-meta,<ALL>,Parent compound-symbol element id (multi-connector grouping) [Symbols]
 STING_CONDUIT_FILL_SUMMARY_TXT,4,universal-meta,<ALL>,Conduit fill summary string for audit reporting [Electrical]
-STING_CROP_KIND_TXT,27,universal-meta,<ALL>,Crop kind stamped onto views for drift detection [Phase 183]
-STING_CROP_MARGIN_MM_TXT,27,universal-meta,<ALL>,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
+STING_CROP_KIND_TXT,27,explicit,Views,Crop kind stamped onto views for drift detection [Phase 183]
+STING_CROP_MARGIN_MM_TXT,27,explicit,Views,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
 STING_DATA_HASH,1,universal-meta,<ALL>,Hash of data directory for workflow skip-if-unchanged detection
 STING_DESIGN_REF_TXT,33,universal-meta,<ALL>,Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.
 STING_DISPLAY_MODE,17,universal-meta,<ALL>,"Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)"
-STING_DRAWING_PACKAGE_ID_TXT,27,universal-meta,<ALL>,Drawing package this view or sheet belongs to [STING DT v137]
-STING_DRAWING_TYPE_ID_TXT,27,universal-meta,<ALL>,DrawingType registry id stamped on views/sheets [Phase 113]
+STING_DRAWING_PACKAGE_ID_TXT,27,explicit,Sheets|Views,Drawing package this view or sheet belongs to [STING DT v137]
+STING_DRAWING_TYPE_ID_TXT,27,explicit,Sheets|Views,DrawingType registry id stamped on views/sheets [Phase 113]
 STING_EMB_CARBON_NR,12,universal-meta,<ALL>,"Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon]"
 STING_FINISH_CODE_TXT,38,universal-meta,<ALL>,Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]
 STING_FINISH_SRC_ROOM_ID_TXT,38,universal-meta,<ALL>,Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]
@@ -2565,8 +2565,8 @@ STING_NOGGIN_REQUIRED,1,universal-meta,<ALL>,Phase 139.2 -- flag set on a placed
 STING_NOTE_AUTHOR_TXT,17,universal-meta,<ALL>,Sticky note author [ISO 19650-2:2018]
 STING_NOTE_DATE_TXT,17,universal-meta,<ALL>,Sticky note timestamp [ISO 19650-2:2018]
 STING_P6_PCT_TXT,24,universal-meta,<ALL>,Sting P6 Pct Txt [STING]
-STING_PACK_CHECKSUM_TXT,27,universal-meta,<ALL>,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]
-STING_PACK_ID_TXT,27,universal-meta,<ALL>,ViewStylePack registry id stamped on managed view templates [Phase 137]
+STING_PACK_CHECKSUM_TXT,27,explicit,Views,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]
+STING_PACK_ID_TXT,27,explicit,Views,ViewStylePack registry id stamped on managed view templates [Phase 137]
 STING_PENETRATION_FIRE_RATING_TXT,34,universal-meta,<ALL>,Required fire rating at the penetration point -- copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.
 STING_PENETRATION_REF_TXT,34,universal-meta,<ALL>,Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.
 STING_PLACED_BY_SYMBOL_PLACER_BOOL,37,universal-meta,<ALL>,Idempotency stamp: instance was placed by the STING symbol placer [Symbols]
@@ -2575,9 +2575,9 @@ STING_PLACER_MEMBER_ID_TXT,37,universal-meta,<ALL>,Source assembly-member elemen
 STING_PLACER_SYMBOL_CODE_TXT,37,universal-meta,<ALL>,Resolved symbol code stamped on the placed symbol [Symbols]
 STING_PLACER_VIEW_ID_TXT,37,universal-meta,<ALL>,View id where the symbol was placed (per-view idempotency) [Symbols]
 STING_PREDECESSOR_TAGS_TXT,17,universal-meta,<ALL>,Predecessor element tags semicolon-delimited [ISO 19650-2:2018]
-STING_PRODUCTION_RULE_IDX_INT,27,universal-meta,<ALL>,ProductionRule index that produced this view [STING DT v137]
+STING_PRODUCTION_RULE_IDX_INT,27,explicit,Views,ProductionRule index that produced this view [STING DT v137]
 STING_RETROFIT_TS,13,universal-meta,<ALL>,Sting Retrofit Ts [STING]
-STING_SCOPE_BOX_TAG_TXT,27,universal-meta,<ALL>,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
+STING_SCOPE_BOX_TAG_TXT,27,explicit,Views,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
 STING_SEED_FAMILY_TXT,33,universal-meta,<ALL>,Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.
 STING_SETUP_COMPLETE,1,universal-meta,<ALL>,Timestamp of last MasterSetup completion for idempotency check
 STING_SHEET_CONTEXT_TXT,27,universal-meta,<ALL>,Production context (level / scope box / room) this sheet was produced for [STING DT v137]
@@ -2596,7 +2596,7 @@ STING_SLEEVE_UL_SYS,15,universal-meta,<ALL>,UL or BS EN 1366-3 firestop system r
 STING_SLEEVE_WIDTH_MM,15,universal-meta,<ALL>,Rectangular sleeve clear-opening width in millimetres.
 STING_STALE_BOOL,17,universal-meta,<ALL>,Element stale flag (geometry/level changed since last tag)
 STING_STICKY_NOTE_TXT,17,universal-meta,<ALL>,Element sticky note text [ISO 19650-2:2018]
-STING_STYLE_LOCKED_BOOL,27,universal-meta,<ALL>,Style-locked flag: prevents SyncStyles from overwriting [Phase 113]
+STING_STYLE_LOCKED_BOOL,27,explicit,Sheets|Views,Style-locked flag: prevents SyncStyles from overwriting [Phase 113]
 STING_SWAP_HISTORY_TXT,33,universal-meta,<ALL>,Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.
 STING_SYMBOL_ID,27,universal-meta,<ALL>,Symbol library concept id stamped on placed instances [STING Phase 175 / IEC 60617]
 STING_SYMBOL_LABEL_ID,27,universal-meta,<ALL>,Stable id linking SLD label / annotation to its symbol family instance [STING Phase 175]
@@ -2605,12 +2605,12 @@ STING_SYMBOL_OVERRIDE,27,universal-meta,<ALL>,Project-level symbol override id (
 STING_SYMBOL_STANDARD,27,universal-meta,<ALL>,Symbol standard variant -- IEC 60617 / IEEE 315 / ISO 14617 [STING Phase 175]
 STING_TAG3D_HOST_ID_TXT,1,universal-meta,<ALL>,Source host element id stamped on placed Tag3D family instance for idempotent re-runs (Int64 as decimal string)
 STING_TAG_POS,17,universal-meta,<ALL>,Tag position (1-16 compass positions)
-STING_TEMPLATE_CHECKSUM_TXT,11,universal-meta,<ALL>,SHA-256 checksum of view template's VG state — DriftDetector baseline [Template Manager v2]
-STING_TEMPLATE_LOCKED_BOOL,11,universal-meta,<ALL>,"When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]"
-STING_VIEW_CONTEXT_TAG_TXT,27,universal-meta,<ALL>,Production context tag written by STING per-level / sections / elevations engine [STING DT v137]
-STING_VIEW_SYMBOL_STANDARD,27,universal-meta,<ALL>,Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175]
-STING_VIEW_TAG_STYLE,17,universal-meta,<ALL>,View-level tag style routing (Discipline/Monochrome/Warm/Cool)
-STING_VIEW_TOKEN_MASK_TXT,36,universal-meta,<ALL>,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]
+STING_TEMPLATE_CHECKSUM_TXT,11,explicit,Views,SHA-256 checksum of view template's VG state — DriftDetector baseline [Template Manager v2]
+STING_TEMPLATE_LOCKED_BOOL,11,explicit,Views,"When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]"
+STING_VIEW_CONTEXT_TAG_TXT,27,explicit,Views,Production context tag written by STING per-level / sections / elevations engine [STING DT v137]
+STING_VIEW_SYMBOL_STANDARD,27,explicit,Views,Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175]
+STING_VIEW_TAG_STYLE,17,explicit,Views,View-level tag style routing (Discipline/Monochrome/Warm/Cool)
+STING_VIEW_TOKEN_MASK_TXT,36,explicit,Views,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]
 STING_WALL_ROUTING_FLAG,34,universal-meta,<ALL>,"When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB."
 STRUCT_COL_AXIAL_LOAD_KN,16,struct-col,Columns|Structural Columns,Column axial load
 STRUCT_COL_BUCKLING_CHECK_BOOL,16,struct-col,Columns|Structural Columns,Column buckling check passed
