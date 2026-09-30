@@ -50,6 +50,36 @@ foreach ($ver in '2025','2026','2027') {
     }
 }
 
+# 1b. Autodesk app bundles: every Revit version loads *.addin found inside these.
+Say ""
+Say "App bundles (ApplicationPlugins):" Cyan
+foreach ($root in @((Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins'), 'C:\ProgramData\Autodesk\ApplicationPlugins', 'C:\Program Files\Autodesk\ApplicationPlugins')) {
+    if (-not (Test-Path -LiteralPath $root)) { continue }
+    Get-ChildItem -LiteralPath $root -Recurse -File | Where-Object { $_.Name -like '*.addin*' } | ForEach-Object {
+        $t = Get-Content -LiteralPath $_.FullName -Raw
+        if ($t -match 'A1B2C3D4-5678-9ABC-DEF0-123456789ABC' -or $t -match 'StingTools') {
+            Copy-Item -LiteralPath $_.FullName (Join-Path $out ('bundle_' + $_.Name))
+            $colour = if ($_.Name -like '*.addin') { 'Red' } else { 'DarkGray' }
+            Say "  $($_.FullName)" $colour
+        }
+    }
+}
+
+# 1c. Every StingTools.dll in the usual places, newest first. An old one that a
+#     manifest above points at is the build Revit is actually running.
+Say ""
+Say "StingTools.dll copies on this PC:" Cyan
+$roots = @([Environment]::GetFolderPath('Desktop'), (Join-Path $env:USERPROFILE 'Downloads'),
+           [Environment]::GetFolderPath('MyDocuments'), $env:APPDATA, $env:LOCALAPPDATA,
+           'C:\ProgramData', 'C:\Program Files\Autodesk', 'C:\STINGTOOLS') | Select-Object -Unique
+$copies = foreach ($r in $roots) {
+    if (Test-Path -LiteralPath $r) { Get-ChildItem -LiteralPath $r -Recurse -Filter 'StingTools.dll' -File -ErrorAction SilentlyContinue }
+}
+$copies | Sort-Object LastWriteTime -Descending | Select-Object -First 25 | ForEach-Object {
+    Say ("  {0:yyyy-MM-dd HH:mm}  {1}" -f $_.LastWriteTime, $_.FullName)
+}
+if (-not $copies) { Say "  none found in the usual places" }
+
 # 2. STING's own logs (date-stamped: StingTools_yyyyMMdd.log) beside each DLL.
 Say ""
 $dirs = @($loadedDirs) + @(Join-Path $here 'CompiledPlugin') | Select-Object -Unique
