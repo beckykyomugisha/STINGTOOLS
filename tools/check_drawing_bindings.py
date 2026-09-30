@@ -23,7 +23,7 @@ Measured 2026-10-01 (DTW-55..59):
 WHAT IT CHECKS
 ==============
   (a) every parameter in tools/drawing_binding_contract.json "views" / "sheets" /
-      "lines" is bound (in StingTools/Data/RESOLVED_BINDINGS.csv, as the loader
+      "lines" (and each "categories" entry, by category name) is bound (in StingTools/Data/RESOLVED_BINDINGS.csv, as the loader
       resolves it) to Views / Sheets / Lines;
   (b) a grep over StingTools/**/*.cs: every STING parameter read or written on a
       view-typed receiver (view, v, template, tmpl, ...) is in the contract's
@@ -109,6 +109,24 @@ for key, ost in (('views', 'OST_Views'), ('sheets', 'OST_Sheets'), ('lines', 'OS
         got = bound_osts(name)
         if ost not in got:
             failures.append(f"(a) {name}: written to {key} but bound to "
+                            f"'{spec.get(name, '') or 'NOTHING'}' -- no {ost}")
+        else:
+            passes.append(f"(a) {name} -> {ost}")
+
+# DTW-76: other categories the drawing layer writes to, keyed by the
+# category_enum_map display name ("Detail Items", "Generic Annotations", ...).
+for cat, names in sorted(contract.get('categories', {}).items()):
+    if cat.startswith('_'):
+        continue
+    ost = ENUM.get(cat)
+    if ost is None:
+        failures.append(f"(a) contract category '{cat}' is not in PARAMETER_REGISTRY.json category_enum_map")
+        continue
+    for name in names:
+        if name not in declared:
+            failures.append(f"(a) {name}: in the '{cat}' contract but not declared in MR_PARAMETERS.txt")
+        elif ost not in bound_osts(name):
+            failures.append(f"(a) {name}: written to {cat} but bound to "
                             f"'{spec.get(name, '') or 'NOTHING'}' -- no {ost}")
         else:
             passes.append(f"(a) {name} -> {ost}")
