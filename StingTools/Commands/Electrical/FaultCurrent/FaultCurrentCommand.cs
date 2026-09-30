@@ -36,7 +36,24 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
+            // Workflow preset (Calc_FaultCurrent): no dialog; the report goes to the step message.
+            // Step param: utilityFaultKa (kA at the origin). Default: the Electrical panel's field
+            // when the panel is open; with neither the step FAILS — the 25 kA placeholder is not
+            // used unattended (ElectricalStepInputs.UtilityFaultKa).
+            bool headless = WorkflowEngine.IsRunningPreset;
             double utilityKa = StingElectricalCommandHandler.CurrentUtilityFaultKa;
+            string utilitySource = "Electrical panel input";
+            if (headless)
+            {
+                if (!ElectricalStepInputs.UtilityFaultKa(out utilityKa, out var err))
+                { message = "Fault current: " + err; return Result.Failed; }
+                if (utilityKa <= 0)
+                {
+                    message = "Fault current: the Electrical panel's utility fault level is blank — enter it, or set params.utilityFaultKa.";
+                    return Result.Failed;
+                }
+                if (!string.IsNullOrWhiteSpace(WorkflowEngine.StepParam("utilityFaultKa"))) utilitySource = "step param utilityFaultKa";
+            }
             bool utilityAssumed = utilityKa <= 0;
             // The dock panel field defaults to 25 kA; 0/blank falls back to the
             // same figure and says so below. It is a placeholder, not a UMEME value.
@@ -45,6 +62,11 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             var root = StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc);
             if (root == null)
             {
+                if (headless)
+                {
+                    message = "Fault current: no SLD hierarchy found — place an electrical incomer panel first.";
+                    return Result.Failed;
+                }
                 TaskDialog.Show("STING Fault Current",
                     "No SLD hierarchy found. Place an electrical incomer panel first.");
                 return Result.Cancelled;
@@ -86,7 +108,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                           $"for {results.Count} panel(s). Stamped {written} ELC_PNL_SHORT_CIRCUIT_RATING_KA values.");
             if (top != null) sb.AppendLine($"Highest: {top.FaultKa:0.0} kA at {top.PanelName}.");
             sb.AppendLine($"Upstream fault level at origin: {utilityKa:0.0} kA" +
-                          (utilityAssumed ? " (ASSUMED — no value entered on the Electrical panel)" : " (Electrical panel input)"));
+                          (utilityAssumed ? " (ASSUMED — no value entered on the Electrical panel)" : $" ({utilitySource})"));
             sb.AppendLine($"Source R/X split: IEC 60909-0 §6.2 default (RQ = {Iec60909Lv.SourceROverX}·XQ) — ASSUMED for an LV source.");
             var withNotes = results.Where(r => r.Assumptions != null && r.Assumptions.Count > 0)
                                    .OrderBy(r => r.PanelName).ToList();
@@ -100,7 +122,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 foreach (var r in withNotes)
                     StingLog.Info($"FaultCurrent {r.PanelName}: {r.FaultKa:0.00} kA — {string.Join("; ", r.Assumptions)}");
             }
-            TaskDialog.Show("STING Fault Current", sb.ToString());
+            PresetDialog.Show("STING Fault Current", sb.ToString(), ref message);
             return Result.Succeeded;
         }
 
@@ -253,9 +275,17 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
+            // Workflow preset (Calc_AicStamp): no step params — it stamps the tiers for the fault
+            // levels the last Calc_FaultCurrent computed; without them the step fails. The
+            // summary goes to the step message.
             var results = FaultCurrentCommand.LastResults;
             if (results == null || results.Count == 0)
             {
+                if (WorkflowEngine.IsRunningPreset)
+                {
+                    message = "AIC stamp: no fault levels to rate — run Calc_FaultCurrent earlier in the preset.";
+                    return Result.Failed;
+                }
                 TaskDialog.Show("STING AIC", "Run fault-current calculation first.");
                 return Result.Failed;
             }
@@ -283,7 +313,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING AIC", $"AIC ratings stamped to {stamped} panel(s).");
+            PresetDialog.Show("STING AIC", $"AIC ratings stamped to {stamped} panel(s).", ref message);
             return Result.Succeeded;
         }
     }
