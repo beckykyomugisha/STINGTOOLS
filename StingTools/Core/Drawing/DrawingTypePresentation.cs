@@ -256,6 +256,16 @@ namespace StingTools.Core.Drawing
             /// instead. Default false preserves the single-view diagnostic.
             /// </summary>
             public bool SkipSymbolDriftCheck { get; set; }
+
+            /// <summary>
+            /// DTW-65: apply the type's <c>sectionMarker.farClipMm</c> to a section,
+            /// elevation or detail view. Off by default because most callers have
+            /// already chosen the depth: a section box from a production preset, or an
+            /// elevation preset's far clip, and re-applying a profile (Sync Styles,
+            /// heal) must not reset a depth someone adjusted. Set it where the view was
+            /// made with no depth of its own (the producer's default section box).
+            /// </summary>
+            public bool ApplyTypeFarClip { get; set; }
         }
 
         public sealed class ApplyResult
@@ -494,6 +504,41 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-65: set a section / elevation / detail view's far clip to the type's
+        /// <c>sectionMarker.farClipMm</c>. Turns far clipping on ("clip without
+        /// line") when it is off, because the offset does nothing otherwise. A
+        /// template that controls far clipping makes the parameters read-only; that
+        /// is logged and left to the template. Returns true when the depth was set.
+        /// </summary>
+        public static bool ApplySectionMarkerFarClip(View view, DrawingType dt, ApplyResult r = null)
+        {
+            var spec = dt?.SectionMarker;
+            if (view == null || spec == null || string.IsNullOrWhiteSpace(spec.Family) || spec.FarClipMm <= 0) return false;
+            if (view.ViewType != ViewType.Section && view.ViewType != ViewType.Elevation && view.ViewType != ViewType.Detail)
+                return false;
+            try
+            {
+                var offset = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
+                if (offset == null || offset.IsReadOnly)
+                {
+                    StingTools.Core.StingLog.Info($"'{view.Name}': far clip is controlled elsewhere (template or view type); {dt.Id} farClipMm not applied.");
+                    return false;
+                }
+                var clipping = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_FAR_CLIPPING);
+                if (clipping != null && !clipping.IsReadOnly && clipping.StorageType == StorageType.Integer && clipping.AsInteger() == 0)
+                    clipping.Set(2); // 0 no clip · 1 clip with line · 2 clip without line
+                bool ok = offset.Set(spec.FarClipMm / 304.8);
+                if (!ok) r?.Warnings.Add($"'{view.Name}': Revit refused far clip {spec.FarClipMm:0} mm.");
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                r?.Warnings.Add($"'{view.Name}': far clip {spec.FarClipMm:0} mm: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// DTW-62: the explicit template name for <paramref name="view"/>: the
         /// <c>viewTemplateOverride</c> of the first production rule that makes this
         /// kind of view, else the type's <c>viewTemplateName</c>.
@@ -701,6 +746,10 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { r.Warnings.Add($"CropApplier: {ex.Message}"); }
             }
+
+            // Section-marker far clip (DTW-65, opt-in) ----------------
+            if (options?.ApplyTypeFarClip == true)
+                ApplySectionMarkerFarClip(view, dt, r);
 
             // View Style Pack (shared graphic overrides) ---------------
             // Phase 137 — managed packs route through ManagedTemplateSyncer
