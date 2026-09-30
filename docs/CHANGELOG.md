@@ -2,6 +2,45 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC audit fixes A7 / A9 / A10 / A12 / A13 / A14-card / A16, 2026-10-01)
+
+- **A7 — a review starts on the CURRENT version.** `AccReviewStarter` re-reads the item's tip
+  from ACC (`AccReviews.CurrentVersionAsync` → DM `items/{item}` → `relationships.tip`; the item is
+  the remembered one or derived from the version URN) and starts the review on it. A failed or
+  tip-less read refuses — it never falls back to the remembered version, which may be the previous
+  revision. Loopback tests.
+- **A10 — pushed assignee resolved.** `AccIssuePush.Plan` resolves a changed assignee through
+  `AccProjectMembers.Resolve` (as clash escalation does): email / name → Autodesk id, ids checked,
+  an email is always a user. Unresolvable → that field is refused with the reason; status and the
+  comment still go. After the push the row records the id (+ name), so the next import agrees.
+- **A12 — one upload discipline.** New Revit-free `V6/AccUploadGate.cs`: revision/suitability
+  pairing (recorded revision and the one in the file name), SHA-256, then the upload ledger
+  (identical → skipped as Succeeded; changed under the same revision → refused unless allowed).
+  `ACC_UploadModel` / `ACC_UploadLastBundle` and the Export Centre auto-upload both call it and
+  record into the one ledger (`AccUploadCommandBase.LedgerPath`). New settings key
+  `"uploadAllowReissue"` (bool, default false) for the commands; the Export Centre keeps its
+  profile option.
+- **A9 — BCC ACC card threading.** `CoordData.AccSettingsPath` is resolved on the API thread when
+  the BCC data is built; the card reads that string and sends every settings write through a new
+  `BIMCoordinationCenter.ApiDispatcher` (queued work on the existing BCC ExternalEvent), which
+  re-resolves the active document's path and refuses when it is not the card's project. No Revit
+  / StingPaths call from the WPF thread or after an await.
+- **A13** — changing Issue Type ID on the card clears the stored `issueSubtypeId`; the false
+  "cached per container" comment in `AccIssueSync.ResolveIssueTypeAsync` now says what happens
+  (per run, by name, not persisted). **A14 (card)** — escalation count/score parse and display with
+  `InvariantCulture`.
+- **A16 — docs.** Playbook §6 lists every `KnownKeys` entry with type and meaning; stale claims
+  fixed (uploads DO route by `cdeFolders` and stamp `docsAttributes`; issue type is active-only /
+  by name / refuse; root causes, Reviews, transmittal read-back, webhooks exist; an email alone is
+  a valid assignee; `escalateExcludeStatuses` replaces the defaults and the example keeps them);
+  strategy doc rows + R12 closed; card tooltip no longer places the escalation history in
+  %APPDATA%. `AccPlaybookSettingsDocTests` loads every playbook json block through
+  `AccOperatingPolicy.Load` and checks §6 against `KnownKeys` both ways.
+- **Verified**: build 0/0; `StingTools.Acc.Tests` 562 passed (was 526); path-discipline,
+  workflow-wiring, export-routing and KUT workflow-tag gates OK. **Not verified in Revit**: the
+  BCC card (ApiDispatcher round trip, refusal on a document switch), the upload skip/refuse
+  dialogs, the live DM `items/{item}` tip read.
+
 #### Completed (ACC federated tag compliance — every consultant model, no Revit open, 2026-10-01)
 
 - **`ACC_FederatedCompliance`** (ReadOnly; BCC ACC card "🏷 Federation Tags"; optional
