@@ -30,7 +30,15 @@ namespace StingTools.Core.Delivery
         public string Discipline { get; set; } = "";
         public string Milestone { get; set; } = "";       // e.g. "RIBA 3" / "Data Drop 2"
         public DateTime PlannedDate { get; set; }
-        public string RequiredSuitability { get; set; } = "S2";  // S0..S7 / A / B
+        /// <summary>The suitability the plan requires. Empty when the MIDP row states none —
+        /// it used to default to "S2", which is a code nobody chose.</summary>
+        public string RequiredSuitability { get; set; } = "";  // S0..S7 / A / B
+        /// <summary>The plan's own "Actual Date" column, when the MIDP carries one.</summary>
+        public DateTime? PlanActualDate { get; set; }
+        /// <summary>Relative month as written in the MIDP ("M3"), kept for the record.</summary>
+        public string PlannedRelMonth { get; set; } = "";
+        public string TidpRef { get; set; } = "";
+        public string Rag { get; set; } = "";
 
         // Live lifecycle join (filled from deliverables.json):
         public bool Issued { get; set; }

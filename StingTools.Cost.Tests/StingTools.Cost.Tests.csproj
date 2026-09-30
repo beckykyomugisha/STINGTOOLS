@@ -36,6 +36,7 @@
     <!-- PM-8 delivery-management engines (risk register / MIDP drift). -->
     <Compile Include="..\StingTools\Core\Delivery\RiskRegister.cs" Link="Delivery\RiskRegister.cs" />
     <Compile Include="..\StingTools\Core\Delivery\MidpEngine.cs" Link="Delivery\MidpEngine.cs" />
+    <Compile Include="..\StingTools\Core\Delivery\MidpCsv.cs" Link="Delivery\MidpCsv.cs" />
   </ItemGroup>
 
 </Project>

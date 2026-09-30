@@ -68,7 +68,8 @@ namespace StingTools.Commands.Delivery
                 // Same parser the drift report uses — one header-matching
                 // implementation, so the two commands cannot disagree about which
                 // column is the planned date.
-                var plan = MidpDriftReportCommand.ParseMidpCsv(dlg.FileName, out int skipped);
+                var plan = MidpDriftReportCommand.ParseMidpInteractive(dlg.FileName, out int skipped, out int relativeLeftOut);
+                if (relativeLeftOut > 0) StingLog.Warn($"MIDP import: {relativeLeftOut} row(s) left out — relative month only");
                 if (plan.Count == 0)
                 {
                     StingResultPanel.Create("MIDP import")
@@ -119,6 +120,8 @@ namespace StingTools.Commands.Delivery
                              + "import never overwrites lifecycle state (status, CDE, revision history).");
                 if (skipped > 0)
                     panel.Text($"{skipped} row(s) skipped: no parseable date in the planned-date column.");
+                if (relativeLeftOut > 0)
+                    panel.Text($"{relativeLeftOut} row(s) left out: only a relative month (M0, M1 …), no Planned Date.");
                 if (failures.Count > 0)
                     panel.Text("Failed to save: " + string.Join(", ", failures)
                              + (failed > failures.Count ? $" (+{failed - failures.Count} more)" : "")
@@ -169,10 +172,13 @@ namespace StingTools.Commands.Delivery
             // The CSV's Milestone column is the register's DataDrop.
             DataDrop = row.Milestone ?? "",
 
-            // Planned, not yet issued: the required suitability IS the current
-            // suitability until something is actually produced against it.
-            Suitability = row.RequiredSuitability ?? "",
+            // Planned, not yet issued: nothing has been produced, so there is no current
+            // suitability. Copying the REQUIRED one in made an A1 row sit in WIP claiming A1,
+            // and made the drift report count it as issued.
+            Suitability = "",
             RequiredSuitability = row.RequiredSuitability ?? "",
+            TidpRef = row.TidpRef ?? "",
+            PlannedRelMonth = row.PlannedRelMonth ?? "",
 
             // yyyy-MM-dd so BuildCoordData's DateTime.TryParse resolves it
             // culture-independently and its IsOverdue comparison is meaningful.

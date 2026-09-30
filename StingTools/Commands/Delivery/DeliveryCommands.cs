@@ -238,7 +238,8 @@ namespace StingTools.Commands.Delivery
                 };
                 if (dlg.ShowDialog() != true) return Result.Cancelled;
 
-                var plan = ParseMidpCsv(dlg.FileName, out int skipped);
+                var plan = ParseMidpInteractive(dlg.FileName, out int skipped, out int relativeLeftOut);
+                if (relativeLeftOut > 0) StingLog.Warn($"Midp_DriftReport: {relativeLeftOut} row(s) left out — relative month only");
                 if (plan.Count == 0)
                 {
                     StingResultPanel.Create("MIDP drift")
@@ -278,6 +279,7 @@ namespace StingTools.Commands.Delivery
                                                    || x.State == DeliveryDriftState.SuitShort).Take(12))
                     panel.Text($"[{d.State}] {d.Code} {d.Title} (planned {d.PlannedDate:yyyy-MM-dd})");
                 if (skipped > 0) panel.Text($"{skipped} row(s) skipped (unparseable date).");
+                if (relativeLeftOut > 0) panel.Text($"{relativeLeftOut} row(s) left out: only a relative month (M0, M1 …), no Planned Date.");
                 panel.Text($"CSV: {Path.GetFileName(csv)}").Show();
                 return Result.Succeeded;
             }
@@ -299,39 +301,51 @@ namespace StingTools.Commands.Delivery
         /// <see cref="ResolveDeliverablesPath"/> internal.
         /// </summary>
         internal static List<DeliverablePlanItem> ParseMidpCsv(string path, out int skipped)
-        {
-            skipped = 0;
-            var rows = new List<DeliverablePlanItem>();
-            var lines = File.ReadAllLines(path);
-            if (lines.Length < 2) return rows;
-            var header = SplitCsv(lines[0]).Select(h => h.Trim().ToLowerInvariant()).ToList();
-            int Ix(params string[] names) => header.FindIndex(h => names.Contains(h));
-            int iCode = Ix("code", "deliverable", "ref");
-            int iTitle = Ix("title", "name", "description");
-            int iDisc = Ix("discipline", "disc");
-            int iMile = Ix("milestone", "stage", "datadrop");
-            int iDate = Ix("planneddate", "planned", "date", "duedate");
-            int iSuit = Ix("requiredsuitability", "suitability", "status", "scode");
+            => ParseMidpCsv(path, out skipped, out _, null);
 
-            for (int r = 1; r < lines.Length; r++)
+        /// <summary>
+        /// Parse, and when rows carry only a relative month ("M3", as the KUT MIDP template
+        /// ships), ask once which date is M0 — or leave those rows out. The count left out is
+        /// returned so the caller REPORTS it: before, those rows vanished without a word.
+        /// </summary>
+        internal static List<DeliverablePlanItem> ParseMidpInteractive(string path, out int skipped, out int relativeLeftOut)
+        {
+            var plan = ParseMidpCsv(path, out skipped, out int rel, null);
+            relativeLeftOut = rel;
+            if (rel == 0) return plan;
+
+            var td = new Autodesk.Revit.UI.TaskDialog("MIDP — relative months")
             {
-                if (string.IsNullOrWhiteSpace(lines[r])) continue;
-                var c = SplitCsv(lines[r]);
-                string code = Get(c, iCode);
-                if (string.IsNullOrWhiteSpace(code)) { continue; }
-                if (!TryParseDate(Get(c, iDate), out var pd)) { skipped++; continue; }
-                rows.Add(new DeliverablePlanItem
-                {
-                    Code = code,
-                    Title = Get(c, iTitle),
-                    Discipline = Get(c, iDisc),
-                    Milestone = Get(c, iMile),
-                    PlannedDate = pd,
-                    RequiredSuitability = string.IsNullOrWhiteSpace(Get(c, iSuit)) ? "S2" : Get(c, iSuit).Trim(),
-                });
-            }
-            return rows;
+                MainInstruction = $"{rel} row(s) have no Planned Date, only a relative month (M0, M1 …).",
+                MainContent = "Which date is month M0 (mobilisation)? Rows are dated M0 + n months. " +
+                              "Or leave them out and fill Planned Date in the MIDP.",
+                AllowCancellation = true,
+            };
+            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1, $"M0 = today ({DateTime.Today:dd MMM yyyy})");
+            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2, $"M0 = tomorrow ({DateTime.Today.AddDays(1):dd MMM yyyy})");
+            td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3, "Leave those rows out");
+            var r = td.Show();
+            DateTime? m0 = r == Autodesk.Revit.UI.TaskDialogResult.CommandLink1 ? DateTime.Today
+                         : r == Autodesk.Revit.UI.TaskDialogResult.CommandLink2 ? DateTime.Today.AddDays(1)
+                         : (DateTime?)null;
+            if (m0 == null) return plan;
+            relativeLeftOut = 0;
+            return ParseMidpCsv(path, out skipped, out _, m0);
         }
+
+        /// <summary>
+        /// Headers are compared NORMALISED (case, spaces, underscores and punctuation
+        /// ignored) and aliases are tried in PRIORITY order. Before, "Planned Date" (the KUT
+        /// template's header, with a space) matched nothing, so every row was skipped, and
+        /// "Deliverable" was taken as the code so the title was always blank.
+        ///
+        /// A row whose Planned Date is empty but whose "Planned Rel Month" says Mn is dated
+        /// <paramref name="mobilisation"/> + n months when a mobilisation date is supplied;
+        /// otherwise it is counted in <paramref name="relativeOnly"/> — reported, never
+        /// dated by guess and never silently dropped.
+        /// </summary>
+        internal static List<DeliverablePlanItem> ParseMidpCsv(string path, out int skipped, out int relativeOnly, DateTime? mobilisation)
+            => MidpCsv.Parse(File.ReadAllLines(path), out skipped, out relativeOnly, mobilisation);
 
         /// <summary>
         /// Resolve deliverables.json from the consolidated metadata root
@@ -398,7 +412,9 @@ namespace StingTools.Commands.Delivery
                     d.ActualSuitability = suit;
                     if (TryParseDate(issuedDate, out var idt)) { d.Issued = true; d.ActualDate = idt; }
                     else if (TryParseDate(LatestRevisionTimestamp(o), out var rdt)) { d.Issued = true; d.ActualDate = rdt; }
-                    else if (!string.IsNullOrWhiteSpace(suit)) { d.Issued = true; d.ActualDate = DateTime.Now; }
+                    // A suitability with no issue record is NOT an issue: this used to mark
+                    // the row issued TODAY, so a freshly imported plan read as delivered.
+                    else if (d.PlanActualDate.HasValue) { d.Issued = true; d.ActualDate = d.PlanActualDate; }
                 }
             }
             catch (Exception ex) { StingLog.Warn($"MIDP lifecycle join: {ex.Message}"); }
@@ -427,27 +443,8 @@ namespace StingTools.Commands.Delivery
             catch (Exception ex) { StingLog.Warn($"MIDP revision timestamp: {ex.Message}"); return null; }
         }
 
-        private static bool TryParseDate(string s, out DateTime dt)
-        {
-            dt = DateTime.MinValue;
-            if (string.IsNullOrWhiteSpace(s)) return false;
-            return DateTime.TryParse(s.Trim(), CultureInfo.InvariantCulture, DateTimeStyles.None, out dt)
-                || DateTime.TryParseExact(s.Trim(), new[] { "yyyy-MM-dd", "dd/MM/yyyy", "MM/dd/yyyy", "dd-MMM-yy" },
-                    CultureInfo.InvariantCulture, DateTimeStyles.None, out dt);
-        }
-
-        private static List<string> SplitCsv(string line)
-        {
-            var outp = new List<string>(); var sb = new StringBuilder(); bool q = false;
-            foreach (char ch in line)
-            {
-                if (ch == '"') q = !q;
-                else if (ch == ',' && !q) { outp.Add(sb.ToString()); sb.Clear(); }
-                else sb.Append(ch);
-            }
-            outp.Add(sb.ToString());
-            return outp;
-        }
+        private static bool TryParseDate(string s, out DateTime dt) => MidpCsv.TryParseDate(s, out dt);
+        private static List<string> SplitCsv(string line) => MidpCsv.SplitCsv(line);
 
         private static string Get(List<string> c, int i) => (i >= 0 && i < c.Count) ? c[i].Trim() : "";
         private static string Q(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
