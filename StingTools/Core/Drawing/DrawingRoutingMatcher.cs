@@ -60,6 +60,38 @@ namespace StingTools.Core.Drawing
 
         private static bool IsWildcard(string v) => string.IsNullOrEmpty(v) || v == "*";
 
+        /// <summary>
+        /// The routing walk: the id of the first rule that matches the key and whose
+        /// drawing type exists (<paramref name="typeExists"/>). A matching rule whose
+        /// target is missing is reported to <paramref name="onDangling"/> and walked
+        /// past (E-12), so a stale project rule cannot hide the corporate rule behind it.
+        /// <paramref name="extra"/> is any predicate this file cannot evaluate (the
+        /// design-option one needs the Revit API). DrawingDispatcher.Resolve runs this.
+        /// Null when nothing matches.
+        /// </summary>
+        public static string FirstMatchId(IEnumerable<DrawingRoutingRule> routing,
+            string discipline, string phase, string docType, string levelCode, string projectCode,
+            Func<DrawingRoutingRule, bool> extra, Func<string, bool> typeExists,
+            Action<DrawingRoutingRule> onDangling = null)
+        {
+            if (routing == null) return null;
+            foreach (var rule in routing)
+            {
+                if (rule == null) continue;
+                if (!MatchesField(rule.Discipline, rule.DisciplineMatches, discipline)) continue;
+                if (!MatchesField(rule.Phase,      rule.PhaseMatches,      phase))      continue;
+                if (!MatchesField(rule.DocType,    rule.DocTypeMatches,    docType))    continue;
+                if (!string.IsNullOrEmpty(rule.LevelMatches)
+                    && !RegexMatches(rule.LevelMatches, levelCode)) continue;
+                if (!string.IsNullOrEmpty(rule.ProjectCodeMatches)
+                    && !RegexMatches(rule.ProjectCodeMatches, projectCode)) continue;
+                if (extra != null && !extra(rule)) continue;
+                if (typeExists == null || typeExists(rule.DrawingTypeId)) return rule.DrawingTypeId;
+                onDangling?.Invoke(rule);
+            }
+            return null;
+        }
+
         // ─────────────────────────────────────────────────────────────────
         //  Static audit
         // ─────────────────────────────────────────────────────────────────

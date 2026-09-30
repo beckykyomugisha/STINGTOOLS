@@ -349,7 +349,7 @@
                                 <CheckBox x:Name="chkTwoSectionsPerScopeBox" Style="{StaticResource WizCheck}"
                                           Content="Create two building sections per scope box (through centre, both directions)"/>
                                 <CheckBox x:Name="chkRenameScopeBoxes" Style="{StaticResource WizCheck}"
-                                          Content="Rename scope boxes to the standard pattern on Run"/>
+                                          Content="Rename ticked scope boxes on Run to STING-LOC:: / STING-ZONE:: names (the tagger reads them; area boxes come from the Scope Box Planner)"/>
 
                                 <TextBlock x:Name="lblScopeBoxEmpty"
                                            Text="No scope boxes in this project yet. Create scope boxes first, or skip this section."
@@ -383,15 +383,15 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" Style="{StaticResource WizLabel}" Text="Rename pattern:"
-                                               ToolTip="Supported tokens: {BLD}, {LOC}, {ZONE}, {INDEX}, {NAME}"/>
+                                               ToolTip="Must give a name STING reads: STING-LOC::{LOC} (sets LOC) or STING-ZONE::{ZONE} (sets ZONE). Tokens: {LOC}, {BLD}, {ZONE}, {INDEX}, {NAME}"/>
                                     <TextBox Grid.Column="1" x:Name="txtScopeBoxPattern" Style="{StaticResource WizInput}"
-                                             Text="{}{BLD}-{ZONE}-{INDEX}"/>
+                                             Text="STING-ZONE::{ZONE}"/>
                                     <Button Grid.Column="2" Content="Apply to checked"
                                             Click="ScopeBoxPatternApply_Click"
                                             Padding="8,2" Margin="4,2,0,2" FontSize="10"
                                             ToolTip="Regenerate the 'Rename To' column from the pattern for ticked rows"/>
                                 </Grid>
-                                <TextBlock Text="Tokens: {BLD}=first LOC code · {LOC}=location code (cycles) · {ZONE}=zone code (cycles) · {INDEX}=1,2,3… · {NAME}=current name"
+                                <TextBlock Text="Names must be STING-LOC::&lt;loc&gt; (sets LOC) or STING-ZONE::&lt;zone&gt; (sets ZONE), unique, on unrotated boxes. Tokens: {LOC}=location code (cycles) · {ZONE}=zone code (cycles) · {BLD}=first LOC code · {INDEX}=01,02… · {NAME}=current name"
                                            FontSize="9" Foreground="#999" Margin="0,2,0,0" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
@@ -1083,11 +1083,11 @@
                             <StackPanel>
                                 <TextBlock Style="{StaticResource WizSubHeader}" Text="Documentation"/>
                                 <CheckBox x:Name="chkCreateViews" Style="{StaticResource WizCheck}"
-                                          Content="Create views (plans + RCPs per level per discipline)" IsChecked="True"/>
+                                          Content="Produce plan views per level (each ticked discipline's PLAN / RCP drawing types, stamped)" IsChecked="True"/>
                                 <CheckBox x:Name="chkCreateDependents" Style="{StaticResource WizCheck}"
                                           Content="Create dependent views from scope boxes (if any exist)"/>
                                 <CheckBox x:Name="chkCreateSheets" Style="{StaticResource WizCheck}"
-                                          Content="Create sheets with auto-numbering and viewport placement" IsChecked="True"/>
+                                          Content="…and put each on a drawing-type sheet (title block, number and name from the type)" IsChecked="True"/>
                                 <CheckBox x:Name="chkCreateSections" Style="{StaticResource WizCheck}"
                                           Content="Create building sections from grids"/>
                                 <CheckBox x:Name="chkCreateElevations" Style="{StaticResource WizCheck}"

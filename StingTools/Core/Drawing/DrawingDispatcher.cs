@@ -56,30 +56,20 @@ namespace StingTools.Core.Drawing
 
             string projectCode = ReadProjectCode(doc);
 
-            foreach (var rule in lib.Routing)
-            {
-                if (!MatchesField(rule.Discipline, rule.DisciplineMatches, discipline)) continue;
-                if (!MatchesField(rule.Phase,      rule.PhaseMatches,      phase))      continue;
-                if (!MatchesField(rule.DocType,    rule.DocTypeMatches,    docType))    continue;
-                if (!string.IsNullOrEmpty(rule.LevelMatches)
-                    && !RegexMatches(rule.LevelMatches, levelCode)) continue;
-                if (!string.IsNullOrEmpty(rule.ProjectCodeMatches)
-                    && !RegexMatches(rule.ProjectCodeMatches, projectCode)) continue;
-                if (!DrawingOptionApplier.MatchesOptionPredicate(rule, optionName)) continue;
-
-                // E-12: a matching rule whose target id does not resolve used to
-                // return null, ending the search. Because project rules are
-                // PREPENDED, one stale project rule silently disabled routing for
-                // that whole key — the corporate rule behind it never got a look.
-                // Warn and keep walking so later rules still apply.
-                var resolved = DrawingTypeRegistry.Get(doc, rule.DrawingTypeId);
-                if (resolved != null) return resolved;
-                StingTools.Core.StingLog.Warn(
+            // The walk itself is DrawingRoutingMatcher.FirstMatchId (Revit-free, tested
+            // over the shipped table). E-12: a matching rule whose target id does not
+            // resolve used to end the search; because project rules are PREPENDED, one
+            // stale project rule silently disabled routing for that whole key. It is
+            // warned about and walked past so later rules still apply.
+            var id = DrawingRoutingMatcher.FirstMatchId(lib.Routing, discipline, phase, docType,
+                levelCode, projectCode,
+                rule => DrawingOptionApplier.MatchesOptionPredicate(rule, optionName),
+                typeId => DrawingTypeRegistry.Get(doc, typeId) != null,
+                rule => StingTools.Core.StingLog.Warn(
                     $"DrawingDispatcher: routing rule matched (disc='{discipline}' phase='{phase}' " +
                     $"docType='{docType}') but its drawingTypeId '{rule.DrawingTypeId}' does not exist; " +
-                    "continuing to later rules.");
-            }
-            return null;
+                    "continuing to later rules."));
+            return id == null ? null : DrawingTypeRegistry.Get(doc, id);
         }
 
         // Field and regex matching live in DrawingRoutingMatcher (Revit-free,
