@@ -2,6 +2,42 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC seam-audit fixes A2 / A3 / A6 / A8 / A11 / A14 / A15, 2026-10-01)
+
+- **A2 — `KUT_PushLifecycleGapsToAcc` follows the ACC operating policy.** It created ACC issues
+  with no opt-in or cap, opened modal windows on unattended projects, saved its sidecar only after
+  the loop, returned Succeeded after failed pushes and filed everything under the clash subtype.
+  Now every message goes through `AccPullClashesCommand.Report`; unattended creates **nothing**
+  unless `acc_settings.json` has `"lifecycleGapEscalation": {"maxCount": n}` (cap required; stray
+  sub-keys make the file malformed), then at most *n*, largest amounts first; interactive shows the
+  plan and asks (cap *n*, else 25). Issues go under `lifecycleGapEscalation.issueTypeId/issueSubtypeId`,
+  else an issue type **named Lifecycle** (`IssueTypeChooser.ChooseByName`,
+  `AccIssueSync.ResolveNamedIssueTypeAsync` — never the clash type, never writes the credentials
+  file); unresolved = nothing created, Failed. Each issue is recorded as it is created, an auth
+  failure stops the run, any failure fails the step.
+- **A3 — `ACCPublish`:** no modal window on an unattended project (all messages via `Report`, the
+  offline gate checked directly); closing the suitability picker **cancels** instead of inventing S3.
+- **A6 — escalation record:** `pushed_clashes.json` / `pushed_lifecycle_gaps.json` load tri-state
+  (`V6/AccEscalationRecord.cs`): unreadable refuses to escalate (Pull still triages + CSV) or sync,
+  leaves the file untouched and fails the step. Saves are atomic; an issue created in ACC but not
+  recorded is counted, reported ("will be raised AGAIN") and fails the step. Shared
+  `AccIssueCreateLoop` (save after each, stop on AuthFailed).
+- **A15 — origin record:** `_BIM_COORD/acc/acc_issue_origins.json`, append-only, written by Pull and
+  the lifecycle-gap push; Sync writes the origin of what it untracks *before* untracking; Import reads
+  it first, then the two tracking sidecars (backward compatible).
+- **A8 — `tools/check_unattended_cycle.py`** scans every `WORKFLOW_KUT_*.json` and counts
+  `TaskDialog.Show(` / `new TaskDialog(` (the no-document guard exempt). Baseline gains a reviewed
+  section: ACC commands GATED, 40-odd non-ACC commands UNGATED and named as real blockers. Probes (an
+  injected dialog; the pre-A2 command) fail it.
+- **A11 (safe part):** `UploadResult.MetadataRequested` / `MetadataIncomplete`; stamping renews a
+  stale sign-in first and a throw while stamping no longer turns a completed upload into a failure;
+  Export Centre lists an incomplete stamp as a problem. `AccDocsMetadata` transport unchanged.
+- **A14:** the ACC clash triage CSV writes invariant-culture numbers (`V6/AccClashCsv.cs`). The BCC
+  card's escalation parse is left to its owner.
+- **Tests:** `AccEscalationRecordTests`, `AccLifecycleGapPolicyTests` (incl. loopback type
+  resolution), `AccClashCsvTests` in `StingTools.Acc.Tests` (573 cases, 0 failing). Build 0/0; all five gates pass.
+  Not verified in Revit or against live ACC.
+
 #### Completed (ACC federated tag compliance — every consultant model, no Revit open, 2026-10-01)
 
 - **`ACC_FederatedCompliance`** (ReadOnly; BCC ACC card "🏷 Federation Tags"; optional
