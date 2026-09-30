@@ -68,7 +68,7 @@
           "name": "PEN_FIRE_RATING_TXT",
           "type": "Text",
           "shared": true,
-          "isInstance": false,
+          "isInstance": true,
           "default": "FR60"
         },
         {
@@ -103,7 +103,7 @@
           "name": "PEN_CERTIFICATION_TXT",
           "type": "Text",
           "shared": true,
-          "isInstance": false,
+          "isInstance": true,
           "default": "BS EN 15650 / EN 1366-2"
         },
         {

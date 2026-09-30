@@ -386,7 +386,18 @@ namespace StingTools.Core.Symbols
         /// <summary>Text | Integer | Number | Length | YesNo | Material</summary>
         [JsonProperty("type")]   public string Type { get; set; } = "Text";
         [JsonProperty("shared")] public bool IsShared { get; set; }
-        [JsonProperty("instance")] public bool IsInstance { get; set; } = true;
+        /// <summary>
+        /// Instance (true) or type (false) parameter. The seed specs
+        /// (Data/Seeds/STING_SEED_*.json) spell this <c>isInstance</c>; this
+        /// property used to bind only <c>instance</c>, so Newtonsoft dropped
+        /// every seed's key and all 348 seed parameters were built as instance
+        /// parameters, including the ones declared type. Both spellings bind.
+        /// </summary>
+        [JsonProperty("isInstance")] public bool IsInstance { get; set; } = true;
+
+        /// <summary>Legacy spelling, still used by the Data/Symbols/*.json libraries. Read-only alias.</summary>
+        [JsonProperty("instance")] private bool LegacyInstance { set => IsInstance = value; }
+
         [JsonProperty("default", NullValueHandling = NullValueHandling.Ignore)]
         public string Default { get; set; }
     }

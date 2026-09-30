@@ -124,7 +124,7 @@
           "name": "ELC_PNL_CIRCUIT_GROUP_TXT",
           "type": "Text",
           "shared": true,
-          "isInstance": false
+          "isInstance": true
         }
       ],
       "_connector_notes": [
