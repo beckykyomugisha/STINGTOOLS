@@ -6,7 +6,7 @@
 // ISO 19650-2 field set — volume, level, type, role, suitability,
 // revision — yet only 9 of the 93 profiles NUMBER by it. The other 84
 // use bespoke short codes: "A-RCP-{lvl}-{seq:D3}", "HO-{seq:D3}",
-// "LG-{seq:D2}", "RFI-{seq:D4}", "PH-SCHEM-{seq:D2}". So a project that
+// "LG-{seq:D2}", "RFI-{seq:D4}", "P-DRN-SCH-{seq:D3}". So a project that
 // has adopted ISO 19650 numbering gets it on nine drawings and legacy
 // short numbers on eighty-four, while every profile carries the ISO
 // metadata needed to do it properly. DT-096 only warns on the inverse
