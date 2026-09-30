@@ -68,18 +68,15 @@ namespace StingTools.Commands.Plumbing
                         return Result.Cancelled;
                     }
 
-                    string joined = string.Join("\n", systemNames.Take(20));
-                    var picker = new TaskDialog("Select System")
-                    {
-                        MainInstruction = "Enter system name (exactly as listed):",
-                        MainContent     = $"Available systems:\n{joined}",
-                        CommonButtons   = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel
-                    };
-                    // Note: In production, replace with StingListPicker for proper selection
-                    if (picker.Show() != TaskDialogResult.Ok)
+                    // A real picker: the old "Select System" box only had OK / Cancel and then
+                    // used the FIRST system whatever was chosen.
+                    var picked = StingTools.Select.StingListPicker.Show(
+                        "Drainage Schematic — system", "Pick the drainage / sanitary system to draw.",
+                        systemNames.ToList());
+                    if (string.IsNullOrEmpty(picked))
                         return Result.Cancelled;
 
-                    systemFilter = systemNames.FirstOrDefault() ?? "";
+                    systemFilter = picked;
                 }
                 else if (dlgResult == TaskDialogResult.Cancel)
                 {
