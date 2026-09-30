@@ -623,7 +623,7 @@ namespace StingTools.Temp
             ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref message); return Result.Failed; }
             Document doc = ctx.Doc;
 
             // Find existing view templates
@@ -690,9 +690,9 @@ namespace StingTools.Temp
 
             if (!baseViews.ContainsKey(ViewType.FloorPlan))
             {
-                TaskDialog.Show("View Templates",
+                PresetDialog.Show("View Templates",
                     "No floor plan view found to use as a template base.\n" +
-                    "Create at least one floor plan view first.");
+                    "Create at least one floor plan view first.", ref message);
                 return Result.Failed;
             }
 
@@ -909,7 +909,8 @@ namespace StingTools.Temp
                 (dtResult?.Summary() ?? "") +
                 $"\n\nBase views: {baseReport.ToString().TrimEnd(',', ' ')}";
 
-            TaskDialog.Show("View Templates", result);
+            // Quiet inside a preset: the setup presets run this step unattended.
+            PresetDialog.Show("View Templates", result, ref message);
 
             return Result.Succeeded;
         }

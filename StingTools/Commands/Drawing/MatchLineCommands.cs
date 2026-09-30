@@ -40,7 +40,7 @@ namespace StingTools.Commands.Drawing
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
             var ctx = ParameterHelpers.GetContext(data);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref msg); return Result.Failed; }
 
             var r = MatchLineEngine.Run(ctx.Doc, new MatchLineRunOptions
             {
@@ -123,7 +123,7 @@ namespace StingTools.Commands.Drawing
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
             var ctx = ParameterHelpers.GetContext(data);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref msg); return Result.Failed; }
 
             var rep = MatchLineEngine.Validate(ctx.Doc);
 
