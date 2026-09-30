@@ -58,6 +58,12 @@ namespace StingTools.UI
         private TreeView _typesTree;
         private ListBox _contextsList;
         private ComboBox _presetCombo;
+        // DTW-22: presets load, are named, and overwrite by name.
+        private TextBox _presetName;
+        private List<DrawingProductionPreset> _presets = new List<DrawingProductionPreset>();
+        private string _loadedPresetId;
+        private TabItem _vgTab;
+        private bool _loadingPreset;
 
         // Tab 1 — general
         private RadioButton _dupNormal, _dupDetailing, _dupDependent;
@@ -173,19 +179,20 @@ namespace StingTools.UI
                 onNone: () => SetAllContextsChecked(false),
                 label:  "levels / contexts"));
 
+            // DTW-22: picking a preset loads it into every control; Save Preset writes the
+            // controls under the name below, overwriting the preset of that name. The combo
+            // had no SelectionChanged and a save always minted a new unnamed id, so a saved
+            // preset could never be used again from here.
             stack.Children.Add(MakeHeading("Preset"));
             var presetRow = new DockPanel { LastChildFill = true, Margin = new Thickness(0,0,0,4) };
-            _presetCombo = new ComboBox();
-            _presetCombo.Items.Add("— New —");
-            try
-            {
-                foreach (var p in ProductionPresetRegistry.Load(_doc))
-                    _presetCombo.Items.Add(p.Name ?? p.Id);
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            _presetCombo.SelectedIndex = 0;
+            _presetCombo = new ComboBox { ToolTip = "Load a saved preset into the dialog" };
+            _presetCombo.SelectionChanged += OnPresetPicked;
             presetRow.Children.Add(_presetCombo);
             stack.Children.Add(presetRow);
+            stack.Children.Add(MakeLabel("Preset name (Save Preset overwrites a preset of this name):"));
+            _presetName = new TextBox { Margin = new Thickness(0, 2, 0, 4) };
+            stack.Children.Add(_presetName);
+            RefreshPresetCombo(null);
 
             return stack;
         }
@@ -258,7 +265,8 @@ namespace StingTools.UI
             Grid.SetColumn(tabs, 2);
 
             tabs.Items.Add(new TabItem { Header = "General",    Content = BuildGeneralTab() });
-            tabs.Items.Add(new TabItem { Header = "VG Overrides", Content = BuildVgTab() });
+            _vgTab = new TabItem { Header = "VG Overrides", Content = BuildVgTab() };
+            tabs.Items.Add(_vgTab);
             tabs.Items.Add(new TabItem { Header = "Annotation", Content = BuildAnnotationTab() });
 
             var t4 = new TabItem { Header = "Section / Elevation", Content = BuildSectionElevTab() };
@@ -329,7 +337,7 @@ namespace StingTools.UI
         private RevitVgEditor _vgEditor;
         private Dictionary<string, PresetCategoryOverride> _vgData;
 
-        private UIElement BuildVgTab()
+        private UIElement BuildVgTab(IEnumerable<PresetCategoryOverride> seed = null)
         {
             var dp = new DockPanel { LastChildFill = true, Margin = new Thickness(8) };
             var topBar = new TextBlock {
@@ -343,6 +351,17 @@ namespace StingTools.UI
             dp.Children.Add(topBar);
 
             _vgData = new Dictionary<string, PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
+            // DTW-22: a loaded preset's rows are keyed as the editor's display-name fallback
+            // reads them — "Walls" for a category, "Walls/Cut Pattern"-style or the bare
+            // subcategory name for a subcategory — and re-keyed by BIC as rows bind.
+            foreach (var o in seed ?? Enumerable.Empty<PresetCategoryOverride>())
+            {
+                if (o == null) continue;
+                string key = !string.IsNullOrEmpty(o.SubCategory)
+                    ? (!string.IsNullOrEmpty(o.Category) ? $"{o.Category}/{o.SubCategory}" : o.SubCategory)
+                    : o.Category;
+                if (!string.IsNullOrEmpty(key)) _vgData[key] = o;
+            }
             _vgEditor = new RevitVgEditor(_doc, _vgData);
             dp.Children.Add(_vgEditor.Build());
             return dp;
@@ -530,13 +549,28 @@ namespace StingTools.UI
             try
             {
                 var preset = CollectPreset();
-                if (string.IsNullOrEmpty(preset.Name))
-                    preset.Name = $"Preset {DateTime.UtcNow:yyyyMMdd-HHmmss}";
+                if (string.IsNullOrWhiteSpace(preset.Name))
+                    preset.Name = $"{_commandType} {DateTime.Now:yyyy-MM-dd HH.mm}";
                 var existing = ProductionPresetRegistry.Load(_doc) ?? new List<DrawingProductionPreset>();
+                // DTW-22: one preset per name (for this command). Saving under a name that
+                // exists overwrites it, keeping its id and creation date; a new name is a
+                // new preset.
+                var same = existing.FirstOrDefault(p => string.Equals((p.Name ?? "").Trim(), preset.Name.Trim(), StringComparison.OrdinalIgnoreCase)
+                                                     && (string.IsNullOrEmpty(p.CommandType) || string.Equals(p.CommandType, _commandType, StringComparison.OrdinalIgnoreCase)));
+                if (same != null)
+                {
+                    preset.Id = same.Id;
+                    preset.CreatedAt = same.CreatedAt ?? preset.CreatedAt;
+                }
+                else if (_loadedPresetId != null && string.Equals(preset.Id, _loadedPresetId, StringComparison.OrdinalIgnoreCase))
+                    preset.Id = NewPresetId();   // renamed: a new preset, the loaded one kept
                 existing.RemoveAll(p => string.Equals(p.Id, preset.Id, StringComparison.OrdinalIgnoreCase));
                 existing.Add(preset);
                 ProductionPresetRegistry.Save(_doc, existing);
-                MessageBox.Show(this, $"Saved preset '{preset.Name}'.", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+                _loadedPresetId = preset.Id;
+                RefreshPresetCombo(preset.Id);
+                MessageBox.Show(this, same != null ? $"Preset '{preset.Name}' updated." : $"Saved preset '{preset.Name}'.",
+                    "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -579,7 +613,8 @@ namespace StingTools.UI
         {
             var preset = new DrawingProductionPreset
             {
-                Id = $"preset-{Guid.NewGuid():N}".Substring(0, 16),
+                Id = _loadedPresetId ?? NewPresetId(),
+                Name = _presetName?.Text?.Trim(),
                 CommandType = _commandType,
                 CreatedAt = DateTime.UtcNow.ToString("o"),
                 CreatedBy = "STING",
@@ -655,6 +690,114 @@ namespace StingTools.UI
             }
 
             return preset;
+        }
+
+        private static string NewPresetId() => $"preset-{Guid.NewGuid():N}".Substring(0, 16);
+
+        /// <summary>DTW-22: the saved presets for this command (and command-less ones) in the combo.</summary>
+        private void RefreshPresetCombo(string selectId)
+        {
+            _loadingPreset = true;
+            try
+            {
+                try
+                {
+                    _presets = (ProductionPresetRegistry.Load(_doc) ?? new List<DrawingProductionPreset>())
+                        .Where(p => p != null && (string.IsNullOrEmpty(p.CommandType)
+                                 || string.Equals(p.CommandType, _commandType, StringComparison.OrdinalIgnoreCase)))
+                        .OrderBy(p => p.Name ?? p.Id, StringComparer.OrdinalIgnoreCase).ToList();
+                }
+                catch (Exception ex) { StingLog.Warn($"Production presets: {ex.Message}"); _presets = new List<DrawingProductionPreset>(); }
+                _presetCombo.Items.Clear();
+                _presetCombo.Items.Add("— New —");
+                foreach (var p in _presets) _presetCombo.Items.Add(p.Name ?? p.Id);
+                int i = selectId == null ? -1 : _presets.FindIndex(p => string.Equals(p.Id, selectId, StringComparison.OrdinalIgnoreCase));
+                _presetCombo.SelectedIndex = i < 0 ? 0 : i + 1;
+            }
+            finally { _loadingPreset = false; }
+        }
+
+        private void OnPresetPicked(object sender, SelectionChangedEventArgs e)
+        {
+            if (_loadingPreset) return;
+            int i = _presetCombo.SelectedIndex - 1;
+            if (i < 0 || i >= _presets.Count) { _loadedPresetId = null; if (_presetName != null) _presetName.Text = ""; return; }
+            try { LoadPreset(_presets[i]); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Loading preset '{_presets[i]?.Name}': {ex.Message}");
+                MessageBox.Show(this, $"The preset could not be loaded: {ex.Message}", "Preset", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>DTW-22: every control from <paramref name="p"/> — the inverse of CollectPreset.</summary>
+        private void LoadPreset(DrawingProductionPreset p)
+        {
+            if (p == null) return;
+            _loadedPresetId = p.Id;
+            _presetName.Text = p.Name ?? "";
+            var g = p.General ?? new ProductionGeneralSettings();
+
+            _dupDetailing.IsChecked = g.DuplicateOption == "DuplicateWithDetailing";
+            _dupDependent.IsChecked = g.DuplicateOption == "DuplicateAsDependent";
+            _dupNormal.IsChecked = _dupDetailing.IsChecked != true && _dupDependent.IsChecked != true;
+            _idempotent.IsChecked = g.Idempotent;
+            _createSheets.IsChecked = p.CreateSheets;
+            _packageId.Text = p.PackageId ?? "";
+            SelectComboText(_scaleOverride, g.ScaleOverride is int sc && sc > 0 ? $"1:{sc}" : "None");
+            SelectComboText(_detailLevelOverride, string.IsNullOrWhiteSpace(g.DetailLevelOverride) ? "By View" : g.DetailLevelOverride);
+            _onlyDefault.IsChecked = g.GenerateOnlyDefault;
+            if (_skipEmptyLevels != null) _skipEmptyLevels.IsChecked = g.SkipEmptyLevels;
+
+            _runAnno.IsChecked = g.RunAnnotation;
+            _runTags.IsChecked = g.RunAutoTag;
+            _runDims.IsChecked = g.RunAutoDim;
+            _runDec.IsChecked = g.RunDecorative;
+            _runSpots.IsChecked = g.RunSpots;
+
+            AnnotationRulePack pack = null;
+            p.AnnotationOverrides?.TryGetValue("*", out pack);
+            _tagRows.Clear(); _dimRows.Clear();
+            foreach (var r in pack?.Rules ?? new List<AutoAnnotationRule>())
+            {
+                if (r == null) continue;
+                if ((r.RuleType ?? "").IndexOf("Dim", StringComparison.OrdinalIgnoreCase) >= 0) _dimRows.Add(r);
+                else _tagRows.Add(r);
+            }
+            _northArrowFamily.Text = pack?.NorthArrowFamily ?? "";
+            SelectComboText(_northArrowPos, pack?.NorthArrowPosition);
+            _scaleBarFamily.Text = pack?.ScaleBarFamily ?? "";
+            SelectComboText(_scaleBarPos, pack?.ScaleBarPosition);
+            _keyPlanFamily.Text = pack?.KeyPlanFamily ?? "";
+            SelectComboText(_keyPlanPos, pack?.KeyPlanPosition);
+            _matchlineMm.Text = pack?.MatchlineOffsetMm?.ToString(System.Globalization.CultureInfo.CurrentCulture) ?? "";
+
+            List<PresetCategoryOverride> vg = null;
+            p.VgOverrides?.TryGetValue("*", out vg);
+            if (_vgTab != null) _vgTab.Content = BuildVgTab(vg);
+
+            if (_sectDepth != null && p.SectionConfig != null)
+                _sectDepth.Text = (p.SectionConfig.DepthMm > 0 ? p.SectionConfig.DepthMm : 10000).ToString(System.Globalization.CultureInfo.CurrentCulture);
+            if (_elevN != null && p.ElevationConfig != null)
+            {
+                var faces = new HashSet<string>(p.ElevationConfig.FacesTo ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                _elevN.IsChecked = faces.Contains("North"); _elevS.IsChecked = faces.Contains("South");
+                _elevE.IsChecked = faces.Contains("East");  _elevW.IsChecked = faces.Contains("West");
+                _elevOffset.Text = p.ElevationConfig.OffsetMm.ToString(System.Globalization.CultureInfo.CurrentCulture);
+                _elevFar.Text = p.ElevationConfig.FarClipMm.ToString(System.Globalization.CultureInfo.CurrentCulture);
+                _elev1Plus4.IsChecked = p.ElevationConfig.UseOneFourViewSheet;
+            }
+        }
+
+        /// <summary>Select <paramref name="text"/> in a combo, adding it when it is not an item (a saved 1:75).</summary>
+        private static void SelectComboText(ComboBox cb, string text)
+        {
+            if (cb == null) return;
+            if (string.IsNullOrWhiteSpace(text)) { if (cb.Items.Count > 0) cb.SelectedIndex = 0; return; }
+            foreach (var item in cb.Items)
+                if (string.Equals(item?.ToString(), text, StringComparison.OrdinalIgnoreCase)) { cb.SelectedItem = item; return; }
+            cb.Items.Add(text);
+            cb.SelectedItem = text;
         }
 
         private void LoadDefaults()
