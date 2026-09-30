@@ -668,16 +668,8 @@ namespace StingTools.Core.Clash
         {
             try
             {
-                var rows = new List<string> { "Score,Category,ClashId,PenetrationMm,Status,LeftDocument,RightDocument,LeftObjectId,RightObjectId,Rationale" };
-                foreach (var s in scored)
-                {
-                    byId.TryGetValue(s.ClashId, out var c);
-                    rows.Add(string.Join(",",
-                        s.Score.ToString("F3"), Csv(s.Category), Csv(s.ClashId),
-                        (c?.PenetrationMm ?? 0).ToString("F0"), Csv(c?.Status),
-                        Csv(c?.LeftDocument), Csv(c?.RightDocument),
-                        c?.LeftObjectId ?? 0, c?.RightObjectId ?? 0, Csv(s.Rationale)));
-                }
+                // A14: invariant-culture numbers - see AccClashCsv.
+                var rows = AccClashCsv.Rows(scored, byId);
                 string safe = new string((set.Name ?? "set").Where(ch => char.IsLetterOrDigit(ch) || ch == '_').ToArray());
                 string path = OutputLocationHelper.GetRoutedPath(doc, "Clash", $"STING_ACC_Clashes_{safe}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
@@ -692,7 +684,5 @@ namespace StingTools.Core.Clash
             s = Path.GetFileNameWithoutExtension(s);
             return s.Length > 24 ? s.Substring(0, 24) : s;
         }
-
-        private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
     }
 }
