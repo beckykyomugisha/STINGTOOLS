@@ -2481,9 +2481,9 @@ STING_GATE_QA_MSG_TXT,Gate Qa Msg,TEXT,Instance,<ALL>,STINGTags_ISO19650,b7f3e2a
 STING_GATE_QA_STATUS_INT,Gate Qa Status,INTEGER,Instance,<ALL>,STINGTags_ISO19650,b7f3e2a1-0002-4a01-b001-0000000a0002,QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge
 STING_HOST_ELEMENT_ID,Host Element Id,TEXT,Instance,<ALL>,STING_DRAWING,c6d7e8f9-a0b1-4c2d-3e4f-5a6b7c8d9e0f,Element id of the host modelled element this symbol represents [STING Phase 175]
 STING_MASTER_SETUP_TS,Master Setup Ts,TEXT,Instance,<ALL>,PRJ_INFORMATION,98edec6a-cfd6-5ce7-9080-50e3f3fae0ba,Sting Master Setup Ts [STING]
-STING_MATCH_DIR_TXT,Match Dir,TEXT,Instance,<ALL>,STING_DRAWING,a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]
-STING_MATCH_LINE_GUID_TXT,Match Line Guid,TEXT,Instance,<ALL>,STING_DRAWING,a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd,Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]
-STING_MATCH_REF_TXT,Match Ref,TEXT,Instance,<ALL>,STING_DRAWING,a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec,Paired sheet reference written on match-line + caption tags [STING Phase 168]
+STING_MATCH_DIR_TXT,Match Dir,TEXT,Instance,Lines,STING_DRAWING,a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]
+STING_MATCH_LINE_GUID_TXT,Match Line Guid,TEXT,Instance,Lines,STING_DRAWING,a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd,Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]
+STING_MATCH_REF_TXT,Match Ref,TEXT,Instance,Lines,STING_DRAWING,a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec,Paired sheet reference written on match-line + caption tags [STING Phase 168]
 STING_MAT_EPD_DATE_TXT,Sting Mat Epd Date,TEXT,Instance,<ALL>,MAT_INFO,c02ad751-5de9-50cc-a018-d7469595f8cf,EPD publication / validity date ISO 8601 [Sustainability Carbon]
 STING_MAT_EPD_SRC_TXT,Sting Mat Epd Src,TEXT,Instance,<ALL>,MAT_INFO,2776ca48-33b8-57a8-b2a6-ee982e442767,EPD data source / publisher reference [Sustainability Carbon]
 STING_MAT_LIFECYCLE_TXT,Sting Mat Lifecycle,TEXT,Instance,<ALL>,MAT_INFO,e5455edb-f4f9-5585-a65e-363aa31f0b59,Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager]

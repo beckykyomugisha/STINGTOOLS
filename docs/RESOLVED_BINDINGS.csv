@@ -2555,9 +2555,9 @@ STING_GATE_QA_MSG_TXT,17,universal-meta,<ALL>,QA gate terse reason stamped by Co
 STING_GATE_QA_STATUS_INT,17,universal-meta,<ALL>,QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge
 STING_HOST_ELEMENT_ID,27,universal-meta,<ALL>,Element id of the host modelled element this symbol represents [STING Phase 175]
 STING_MASTER_SETUP_TS,13,universal-meta,<ALL>,Sting Master Setup Ts [STING]
-STING_MATCH_DIR_TXT,27,universal-meta,<ALL>,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]
-STING_MATCH_LINE_GUID_TXT,27,universal-meta,<ALL>,Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]
-STING_MATCH_REF_TXT,27,universal-meta,<ALL>,Paired sheet reference written on match-line + caption tags [STING Phase 168]
+STING_MATCH_DIR_TXT,27,explicit,Lines,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]
+STING_MATCH_LINE_GUID_TXT,27,explicit,Lines,Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]
+STING_MATCH_REF_TXT,27,explicit,Lines,Paired sheet reference written on match-line + caption tags [STING Phase 168]
 STING_MAT_EPD_DATE_TXT,12,universal-meta,<ALL>,EPD publication / validity date ISO 8601 [Sustainability Carbon]
 STING_MAT_EPD_SRC_TXT,12,universal-meta,<ALL>,EPD data source / publisher reference [Sustainability Carbon]
 STING_MAT_LIFECYCLE_TXT,12,universal-meta,<ALL>,Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager]
