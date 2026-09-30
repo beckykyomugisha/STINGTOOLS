@@ -3415,7 +3415,7 @@
       "id": "mep-plantroom-A1-1to50",
       "name": "Plant Room Plan — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "425925acb7a55577ef5810f7a0fbda5d46a5566de5e6867ee73709d9b3648a34",
+      "checksum": "c9c32319d31e015dd3a8623904784e5f8508622169c17247253a673058a6a671",
       "purpose": "Plan",
       "discipline": "M",
       "paperSize": "A1",
@@ -3425,7 +3425,7 @@
       "viewTemplateName": "STING - Plant Room",
       "viewStylePackId": "corp-standard-hvac",
       "sheetNumberPattern": "M-PR-{seq:D3}",
-      "sheetNamePattern": "PLANT ROOM — {mark}",
+      "sheetNamePattern": "PLANT ROOM — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 100
@@ -5249,7 +5249,7 @@
       "id": "pres-context-site-A1",
       "name": "Presentation Context / Site — A1 @ 1:500",
       "origin": "corporate",
-      "checksum": "e7ab7aa87753316205757f5e3e817e04b743de3ea5d692b6e6bfc4760e97dde4",
+      "checksum": "fe54ddb80ee231bcde974a460139773f0fb3ddc09a012a6b17a944f4369074af",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -5259,7 +5259,7 @@
       "viewTemplateName": "STING - Presentation Context",
       "viewStylePackId": "corp-presentation-rich",
       "sheetNumberPattern": "PR-CX-{seq:D2}",
-      "sheetNamePattern": "CONTEXT PLAN — {mark}",
+      "sheetNamePattern": "CONTEXT PLAN — {lvl}",
       "crop": {
         "kind": "TightBbox",
         "marginMm": 3000
@@ -5365,7 +5365,7 @@
       "id": "clar-markup-A1",
       "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
-      "checksum": "80efbf1d55d83475c3ae20a03c427e89d1292bba5323996267d5d05bbcd5c2cf",
+      "checksum": "24f741326260bc0a16e435ccafbf6415de698b52f508d9831e079f57e1c97e75",
       "purpose": "Clarification",
       "discipline": "A",
       "paperSize": "A1",
@@ -5374,7 +5374,7 @@
       "detailLevel": "Medium",
       "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
-      "sheetNamePattern": "CLARIFICATION — {mark}",
+      "sheetNamePattern": "CLARIFICATION — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 150
@@ -5583,7 +5583,7 @@
       "id": "clar-design-intent-A1",
       "name": "Design Intent Presentation — A1",
       "origin": "corporate",
-      "checksum": "6299ca48636180fc9e26a5db485f6dbfdf3b9d15d6d44a3fd63bb26bf406126a",
+      "checksum": "4bd04d87dc649c401f07f130ea5c384de42567bcb348bc0e2bd37c8c9c5e30c4",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -5593,7 +5593,7 @@
       "viewTemplateName": "STING - Design Intent",
       "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "DI-{seq:D3}",
-      "sheetNamePattern": "DESIGN INTENT — {mark}",
+      "sheetNamePattern": "DESIGN INTENT — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 200
@@ -8627,7 +8627,7 @@
       "id": "health-mri-zoning-A1-1to50",
       "name": "Healthcare — MRI Suite Zoning (A1 1:50)",
       "origin": "corporate",
-      "checksum": "979cecc8ece35e2d08bed545c66cebf5cf3547dae3d246d43e35dc4d09025e45",
+      "checksum": "9456dda93e5ada1842dfe845ffd893fd33fd8b28f3bc417df9cfb2ba9e5ff5bd",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8640,7 +8640,7 @@
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-shielding",
       "sheetNumberPattern": "RP-MRI-{lvl}-{seq:D3}",
-      "sheetNamePattern": "MRI Zoning — {mark}",
+      "sheetNamePattern": "MRI Zoning — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
@@ -8925,7 +8925,7 @@
       "id": "health-or-ceiling-A3-1to50",
       "name": "Healthcare — OR Ceiling RCP (A3 1:50)",
       "origin": "corporate",
-      "checksum": "ac345d82c6c7cd88df417af8e525382ee3eb9840c6b2b28603193d53777b2b6d",
+      "checksum": "8ff8e3552b3f653714c5d6f883d3887861e07eaeb298178de94d088bee48d157",
       "purpose": "RCP",
       "discipline": "H",
       "phase": "*",
@@ -8938,7 +8938,7 @@
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-healthcare-clinical",
       "sheetNumberPattern": "H-RCP-{lvl}-{seq:D3}",
-      "sheetNamePattern": "OR Ceiling RCP — {mark}",
+      "sheetNamePattern": "OR Ceiling RCP — {lvl}",
       "crop": {
         "kind": "ScopeBoxOrBbox",
         "marginMm": 50
