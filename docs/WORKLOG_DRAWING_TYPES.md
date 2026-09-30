@@ -86,13 +86,13 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-29 | DrawingProductionConfigDialog.cs:298,315 | Med | Hide-unwanted / skip-empty-levels / create-package options unread | Agent `fix/dt-producers` | In progress |
 | DTW-30 | DrawingProductionConfigDialog.cs:284 | Med | All/Selected levels radios unread | Agent `fix/dt-producers` | In progress |
 | DTW-31 | ScopeBoxCommands.cs:220 | Med | Area-box production has no interactive Dependent option | Agent `fix/dt-producers` | In progress |
-| DTW-32 | StingDockPanel.xaml tooltips 1446/1455/1477/1490/1491/2209 | Med | Tooltips promise behaviour the code lacks (planner, Sync Styles, pre-flight, counts) | Agent `fix/dt-ui` | In progress |
-| DTW-33 | StingDockPanel.xaml:1483/1493, DrawingTypeEditorDialog.cs:467 | Med | Three confusable scope-box producers | Agent `fix/dt-ui` | In progress |
-| DTW-34 | ProjectSetupCommand.cs:538 | Med | Wizard dependents/sections/elevations use legacy unstamped commands | Agent `fix/dt-ui` | In progress |
-| DTW-35 | StingHvacPanel.xaml:503 | Low | HVAC Produce views makes unstamped views | Agent `fix/dt-ui` | In progress |
-| DTW-36 | DrawingTypeEditorDialog.cs:1875,1887 | Low | Duplicate swap / variant buttons | Agent `fix/dt-ui` | In progress |
-| DTW-37 | StingCommandHandler.cs:6587, StingDockPanel.xaml:1452/2206 | Low | Mislabelled result title; one command under two labels | Agent `fix/dt-ui` | In progress |
-| DTW-38 | MEP_DRAWING_PRODUCTION_GUIDE.md A1/A6/A7 | Low-Med | Guide places Produce From Areas, Dependent and Rename scope boxes wrongly | Agent `fix/dt-ui` | In progress |
+| DTW-32 | StingDockPanel.xaml tooltips 1446/1455/1477/1490/1491/2209 | Med | Tooltips promise behaviour the code lacks (planner, Sync Styles, pre-flight, counts) | Merged 796a5a041 | Done |
+| DTW-33 | StingDockPanel.xaml:1483/1493, DrawingTypeEditorDialog.cs:467 | Med | Three confusable scope-box producers | Merged 796a5a041 | Done |
+| DTW-34 | ProjectSetupCommand.cs:538 | Med | Wizard dependents/sections/elevations use legacy unstamped commands | Merged 796a5a041 | Done |
+| DTW-35 | StingHvacPanel.xaml:503 | Low | HVAC Produce views makes unstamped views | Merged 796a5a041 | Done |
+| DTW-36 | DrawingTypeEditorDialog.cs:1875,1887 | Low | Duplicate swap / variant buttons | Merged 796a5a041 | Done |
+| DTW-37 | StingCommandHandler.cs:6587, StingDockPanel.xaml:1452/2206 | Low | Mislabelled result title; one command under two labels | Merged 796a5a041 | Done |
+| DTW-38 | MEP_DRAWING_PRODUCTION_GUIDE.md A1/A6/A7 | Low-Med | Guide places Produce From Areas, Dependent and Rename scope boxes wrongly | Merged 796a5a041 | Done |
 | DTW-39 | ScopeBoxPlannerService.cs:355 | High | No saved plan: NullReferenceException in area production (headless preset fails) | Fixed f91f8c42c | Done |
 | DTW-40 | BatchProduceCommands.cs:514 / ScopeBoxBinder | High | STING:: level segment matched to Level.Name only; "Level 1" unaddressable | fix/dt-producers | In progress |
 | DTW-41 | GenerateFromScopeBoxesCommand.cs | High | Legacy duplicate producer: blocks presets, duplicate views, L1 matches L10 | fix/dt-producers | In progress |
@@ -128,6 +128,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-71 | Id convention | Low | Ids missing paper/scale suffix; inconsistent prefixes | Aliases if renamed | Queued |
 | DTW-72 | {mark} in per-level type names | Low | Prints XX | Use {lvl} | Queued |
 | DTW-73 | CLAUDE.md catalogue counts | Low | Says 93 types / 113 rules; data has 114 / 141 | Update | Queued |
+| DTW-74 | ProjectSetupCommand.CreateTwoSectionsPerScopeBox | Med | Wizard "two building sections per scope box" still makes unstamped sections | After fix/dt-producers (section-from-box helper, DTW-52) | Queued |
 
 ## Decisions
 
