@@ -31,6 +31,44 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
 - **Unverified live**: the aliased `columns` result shape (the raw-row shape is also parsed),
   `_RC` category names from a Revit in another language (tagged elements are still found via
   `ASS_TAG_1_TXT`), and index build time on the KUT federation.
+#### Completed (ACC account data: project record, members / assignees, locations, 2026-10-01)
+
+- **`ACC_SyncProjectInfo` (Manual).** `V6/AccProjectDetails.cs` reads
+  `construction/admin/v1/projects/{id}`. The command shows the ACC name, job number, address,
+  status and currency against Revit Project Information, `PRJ_ORG_PROJECT_CODE_TXT` and
+  `PRJ_ORG_CURRENCY_TXT`. Only ticked rows are written, and no row is pre-ticked. When
+  unattended it only reports (log + routed CSV). Start/end dates, time zone, type, phase,
+  value and lat/long are shown for information; STING has no parameter for them. A 403 on
+  the Admin API falls back to the Data Management project name and states the limitation.
+- **Assignees by email or name.** `V6/AccProjectMembers.cs` reads
+  `construction/admin/v1/projects/{id}/users` (paged, cached for the session).
+  `escalateAssignedTo` now also accepts an email (type optional, implies user) or a
+  user / role / company name (type required). It is resolved to the ACC id at run time,
+  using the user's **Autodesk ID**, which is what Issues `assignedTo` takes. An unknown or
+  ambiguous name, a pending member, or a name/email with an unreadable member list
+  **refuses the escalation** with the reason; no issue is created. An id whose member list
+  cannot be read is sent unverified, as before.
+- **Import shows names.** `ACC_ImportIssues` stores `acc_assigned_to_id`, `_type` and `_name`
+  next to `assigned_to`, which is unchanged and still the merged field. A name is never left
+  beside a different id. The CSV has AssigneeId/AssigneeName columns. When names are
+  unavailable the report says so.
+- **Self-check 4.3 "Escalation assignee resolves".** PASS names the assignee. FAIL when
+  escalation would be refused. WARN for an id that could not be verified. SKIPPED when none is
+  configured. A 403 from the admin-only member list is not counted as a scope fault in 7.1.
+- **`ACC_CheckLocations` (ReadOnly).** `V6/AccLocations.cs` reads the ACC Locations tree (v2,
+  all pages). It compares the tree with TagConfig LOC/ZONE codes and each Revit level's code
+  (`GetLevelCodeForLevel`) by name, barcode, whole token, or derived level code. It reports
+  ACC nodes with no code, codes with no node, and level names that differ, plus a routed CSV.
+  It is report only: the `project_config.json` writer rewrites the whole file, so it is not
+  used.
+- Wired on `StingCommandHandler`, `WorkflowEngine.ResolveCommand` (both spellings), and the
+  BCC ACC card (the "Project info" and "Check locations" buttons, plus the WarningsManager
+  action map). No new settings keys. The ACC data sources found are documented in
+  `docs/ACC_INTEGRATION_STRATEGY.md` §6.
+- Plugin build 0/0. `StingTools.Acc.Tests` 350/350 (+32: loopback success, pagination,
+  403-means-admin, partial page = failure, email/name → id, ambiguous name refused, diff and
+  location logic). **Unverified live:** whether a non-admin member gets 403 from the Admin API,
+  whether Issues accepts Admin role/company ids, and the Locations permission for members.
 
 #### Completed (ACC workarounds where Autodesk has no API: transmittals, model sets, project folder check, 2026-09-30)
 

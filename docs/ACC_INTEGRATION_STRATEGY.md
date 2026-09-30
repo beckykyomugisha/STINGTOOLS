@@ -227,3 +227,52 @@ That is a per-project mapping, not a machine-global one, so it is safe with two 
   one-off UI tasks.
 - **Replacing ACC's clash engine.** ACC stays the system of record. STING adds triage and the
   tolerance matrix (`WORKFLOW_KUT_CoordinationCycle.json` already states this).
+
+## 6. ACC account data STING now reads (2026-10-01)
+
+Read from the APS reference (developer.doc.autodesk.com, `acc_v1` index) on 2026-09-30. **None
+of this has been run against the live KUT tenant yet** [U]. "Member?" = can a normal project
+member call it with STING's 3-legged sign-in (scopes `data:read data:write data:create account:read`).
+
+| Built | Endpoint | Auth / scope | Member? | Paging |
+|---|---|---|---|---|
+| `ACC_SyncProjectInfo` | `GET construction/admin/v1/projects/{projectId}` (bare GUID) | 2- or 3-legged, `account:read` | **[U] expected no** (Admin API). 403 → falls back to `GET project/v1/hubs/{hub}/projects/{b.id}` (`data:read`, any member) for the **name only**, and says so | none |
+| Assignee resolution, import names, self-check 4.3 | `GET construction/admin/v1/projects/{projectId}/users?limit=200&offset=` | 2- or 3-legged, `account:read` | **[U] expected Project/Account Admin only.** 403 → an id is sent unverified; an email/name is refused | 200/page, `pagination.totalResults` |
+| `ACC_CheckLocations` | `GET construction/locations/v2/projects/{projectId}/trees/default/nodes` | **3-legged only**, `data:read`; ACC only (not BIM 360) | [U] expected yes | limit ≤ 10000, `totalResults` |
+
+Facts that shaped the code:
+
+- **Issues wants the Autodesk ID.** `assignedTo` is "the Autodesk ID of the member, role or
+  company" [C]. So a user resolved from the member list is sent as `autodeskId`, not the Forma
+  `id`. Whether an Admin **role id** or **company id** is the id Issues accepts is [U]. The
+  Issues reference says there is no endpoint to list assignable ids and points to the Data
+  Connector.
+- **Companies are taken from the user list** (`companyId` / `companyName` / `roles[]`). The
+  dedicated `hq/v1/accounts/{a}/projects/{p}/companies` endpoint is **2-legged "app only"** [C],
+  which needs a Custom Integration that STING does not have.
+- `GET construction/admin/v1/accounts/{a}/users/{u}/roles` is documented as **hub admin only** [C].
+- **Region.** Admin and Locations document a `Region` header. STING sends `x-ads-region` like
+  every other ACC call. APS routes unlabelled requests anyway, so this is a latency hint and
+  not a correctness issue.
+- **No write into `project_config.json` from `ACC_CheckLocations`.** The only writer,
+  `TagConfig.SaveToFile`, rewrites the whole file and drops keys it does not know. That is not
+  a safe writer to call from here, so adding codes stays a manual Tag Config edit.
+
+### Future ACC data sources (not built)
+
+Paths come from the APS reference index. Permissions have **not** been checked live.
+
+| Source | Endpoint | What STING could automate | Permission (expected) |
+|---|---|---|---|
+| Issue custom attributes | `GET construction/issues/v1/projects/{id}/issue-attribute-definitions` (+ `issue-attribute-mappings`) | Stamp STING DISC/LOC/ZONE and the clash score into typed issue fields instead of description text | `data:read`; member |
+| Issue root causes | `GET construction/issues/v1/projects/{id}/issue-root-cause-categories` | Pre-fill a root cause on escalated clashes (e.g. "Coordination") | `data:read`; member |
+| Issue permissions | `GET construction/issues/v1/projects/{id}/users/me` | Self-check: prove *create* permission before a cycle, without writing | `data:read`; member |
+| Issue location | `locationId` on issues (an LBS node id) | Once `ACC_CheckLocations` is clean, set `locationId` on escalated clashes from the element's LOC/ZONE/LVL | `data:write`; Issues create |
+| Forms | `construction/forms/v1/projects/{id}/forms`, `form-templates` | Commissioning / HTM / QA checklists → STING Cx register and healthcare workflows | `data:read`; Forms access |
+| Assets | `construction/assets/v2/projects/{id}/assets`, `categories`, `status-step-sets`, `custom-attributes` | Two-way COBie: ACC asset categories ↔ `COBIE_TYPE_MAP`, asset status ↔ commissioning state, keyed by the STING tag | `data:read`; Assets access |
+| Photos | `construction/photos/v1` (filter by location / issue) | Site-photo evidence against LBS nodes / issues (SitePhotos feature) | `data:read`; [U] |
+| Cost | `cost/v1/containers/{id}/budgets`, `contracts`, `change-orders`, `expenses`, `payments` | Reconcile the STING BOQ / cost plan / EVM / payment certificates against ACC Cost | `data:read`; Cost access |
+| Sheets | `construction/sheets/v1/projects/{id}/sheets` | Match the STING drawing register / sheet ISO ids to published ACC sheets | `data:read`; member |
+| RFIs / Submittals | `construction/rfis/…`, `construction/submittals/…/items` | Submittal log seeded from `CSI_Assign`; RFIs linked to issues | `data:read`; module access |
+| Data Connector | `POST data-connector/v1/accounts/{a}/requests` → `jobs/{j}/data/{file}` | Daily CSV extract of users, companies, roles, issues and forms: the documented way to get assignable ids for a **non-admin** STING | 3-legged `data:read`; **Project Admin or Executive Overview** [C] |
+| Locations write | `POST/PATCH construction/locations/v2/.../nodes` | Push missing STING LOC/ZONE codes into the LBS (the reverse of `ACC_CheckLocations`) | `data:write`; [U] |

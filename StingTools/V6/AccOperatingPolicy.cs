@@ -263,8 +263,9 @@ namespace StingTools.V6
         /// <summary>Due date for an escalated clash issue, in days from today; null = none.</summary>
         public int? EscalateDueDays { get; private set; }
 
-        /// <summary>Who an escalated clash issue is assigned to (an ACC user, company or role
-        /// id), and which of those it is. Both or neither.</summary>
+        /// <summary>Who an escalated clash issue is assigned to - an ACC id, a member's EMAIL, or
+        /// a user / company / role NAME - and which of those kinds it is. Resolved to an id at
+        /// run time (AccProjectMembers.Resolve); an email implies "user".</summary>
         public string EscalateAssignedTo { get; private set; } = string.Empty;
         public string EscalateAssignedToType { get; private set; } = string.Empty;
 
@@ -400,9 +401,19 @@ namespace StingTools.V6
                     if (assignedToType.Length > 0 && assignedToType != "user" && assignedToType != "company" && assignedToType != "role")
                         throw new FormatException($"'escalateAssignedToType' must be user, company or role, found '{assignedToType}'");
                 }
+                // An EMAIL names a user, so its type may be left out (and, if given, must be
+                // user). An id or a NAME means nothing without saying whether it is a user,
+                // company or role. Emails and names are turned into ids at run time against
+                // the project's member list (AccProjectMembers); an unresolvable one refuses
+                // the escalation rather than assigning someone else.
+                bool isEmail = assignedTo.Contains("@");
+                if (isEmail && assignedToType.Length == 0) assignedToType = "user";
+                if (isEmail && assignedToType != "user")
+                    throw new FormatException($"'escalateAssignedTo' is an email, which names a user, but 'escalateAssignedToType' is '{assignedToType}'");
                 if ((assignedTo.Length > 0) != (assignedToType.Length > 0))
                     throw new FormatException("'escalateAssignedTo' and 'escalateAssignedToType' must be set together - " +
-                                              "an assignee id means nothing without saying whether it is a user, company or role");
+                                              "an assignee id or name means nothing without saying whether it is a user, company or role " +
+                                              "(only an email may leave the type out)");
                 if (TryGet(o, "escalateExcludeStatuses", out var exTok))
                 {
                     if (exTok.Type != JTokenType.Array)

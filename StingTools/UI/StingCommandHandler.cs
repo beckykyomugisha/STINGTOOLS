@@ -2948,6 +2948,12 @@ namespace StingTools.UI
                     // Tag compliance of every model in the ACC federation (Model Properties API).
                     case "AccFederatedCompliance":
                     case "ACC_FederatedCompliance": RunCommand<Core.Clash.AccFederatedComplianceCommand>(app); break;
+                    // ACC project record -> Project Information: a diff, and only ticked rows written.
+                    case "AccSyncProjectInfo":
+                    case "ACC_SyncProjectInfo": RunCommand<Core.Clash.AccSyncProjectInfoCommand>(app); break;
+                    // ACC locations tree vs STING LOC / ZONE / LVL codes (read-only report).
+                    case "AccCheckLocations":
+                    case "ACC_CheckLocations":  RunCommand<Core.Clash.AccCheckLocationsCommand>(app); break;
                     // The REAL upload (APS Data Management), as distinct from ACCPublish,
                     // which only builds a local ACC-ready bundle for manual upload.
                     case "ACC_UploadModel":     RunCommand<Core.Clash.AccUploadModelCommand>(app); break;

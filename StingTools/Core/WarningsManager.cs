@@ -5617,6 +5617,8 @@ namespace StingTools.Core
                 { "AccImportIssues", "AccImportIssues" },
                 { "AccSelfCheck", "AccSelfCheck" },
                 { "AccFederatedCompliance", "AccFederatedCompliance" },
+                { "AccSyncProjectInfo", "AccSyncProjectInfo" },
+                { "AccCheckLocations", "AccCheckLocations" },
                 { "ACC_UploadModel", "ACC_UploadModel" },
                 { "SharePointExport", "SharePointExport" },
 

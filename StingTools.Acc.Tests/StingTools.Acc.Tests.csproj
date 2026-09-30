@@ -80,6 +80,11 @@
     <!-- ACC_SelfCheck: every decision the go-live check makes (PASS / WARN / FAIL / SKIPPED),
          driven over loopback against the real clients above. -->
     <Compile Include="..\StingTools\V6\AccSelfCheck.cs" Link="V6\AccSelfCheck.cs" />
+    <!-- ACC account data: the project record, the member list + assignee resolution
+         (AccSelfCheck row 4.3 uses it), and the locations tree + its comparison. -->
+    <Compile Include="..\StingTools\V6\AccProjectDetails.cs" Link="V6\AccProjectDetails.cs" />
+    <Compile Include="..\StingTools\V6\AccProjectMembers.cs" Link="V6\AccProjectMembers.cs" />
+    <Compile Include="..\StingTools\V6\AccLocations.cs" Link="V6\AccLocations.cs" />
     <!-- ACC-HARD-5: locating an escalated clash (dbId -> Revit UniqueId via Model Derivative,
          ACC viewer link via Data Management), the planscape://revit/select link it carries,
          and the BCF attachment (written by the shared BcfEngine). -->
