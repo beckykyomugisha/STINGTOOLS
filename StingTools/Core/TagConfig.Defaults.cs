@@ -512,9 +512,7 @@ namespace StingTools.Core
                 { "MEP Fabrication Ductwork Stiffeners", "M" },
                 { "MEP Fabrication Hangers", "M" },
                 { "MEP Fabrication Pipework", "M" },
-                { "MEP Ancillary", "M" },
-                // MEP — Analytical
-                { "Analytical Duct Segments", "M" }, { "Analytical Pipe Segments", "M" },
+                { "MEP Ancillary Framing", "M" },
                 // Architecture — Enclosure
                 { "Doors", "A" }, { "Windows", "A" },
                 { "Walls", "A" }, { "Floors", "A" },
@@ -536,7 +534,7 @@ namespace StingTools.Core
                 { "Parking", "A" }, { "Site", "A" }, { "Entourage", "A" },
                 { "Planting", "A" }, { "Hardscape", "A" }, { "Roads", "A" },
                 { "Pads", "A" }, { "Toposolid", "A" }, { "Toposolid Links", "A" },
-                { "Temporary Structures", "A" }, { "Wash", "A" },
+                { "Temporary Structures", "A" },
                 { "Areas", "A" }, { "Spaces", "A" },
                 { "Property Lines", "A" }, { "Property Line Segments", "A" },
                 // Structure
@@ -553,7 +551,7 @@ namespace StingTools.Core
                 { "Analytical Links", "S" }, { "Analytical Openings", "S" },
                 { "Analytical Panels", "S" },
                 // Loads
-                { "Area Based Loads", "S" }, { "Area Loads", "S" },
+                { "Area Loads", "S" },
                 { "Line Loads", "S" }, { "Point Loads", "S" },
                 { "Internal Area Loads", "S" }, { "Internal Line Loads", "S" },
                 { "Internal Point Loads", "S" },
@@ -574,11 +572,11 @@ namespace StingTools.Core
                 // HVAC is AIR since 2026-09-28: chilled / condenser water and refrigerant are CHW /
                 // CDW / REF, so pipe categories are not listed here. A pipe whose system cannot be
                 // read defaults to GEN (assumed), not HVAC.
-                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Duct Insulation", "Duct Lining", "Flex Ducts", "Mechanical Equipment", "Mechanical Control Devices", "Mechanical Equipment Sets", "MEP Fabrication Ductwork", "MEP Fabrication Ductwork Stiffeners", "MEP Fabrication Hangers", "MEP Ancillary", "Analytical Duct Segments" } },
+                { "HVAC", new List<string> { "Air Terminals", "Duct Accessories", "Duct Fittings", "Ducts", "Duct Insulation", "Duct Lining", "Flex Ducts", "Mechanical Equipment", "Mechanical Control Devices", "Mechanical Equipment Sets", "MEP Fabrication Ductwork", "MEP Fabrication Ductwork Stiffeners", "MEP Fabrication Hangers", "MEP Ancillary Framing" } },
                 // Pipes default to DCW (cold water bias); runtime MEP detection overrides.
                 // All pipe categories appear in every applicable system entry so
                 // GetAllSysCodes() returns the full list for validation (BUG-001 fix).
-                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment", "MEP Fabrication Pipework", "Analytical Pipe Segments" } },
+                { "DCW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment", "MEP Fabrication Pipework" } },
                 { "DHW", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
                 { "HWS", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes" } },
                 { "SAN", new List<string> { "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "Plumbing Fixtures", "Plumbing Equipment" } },
@@ -657,7 +655,7 @@ namespace StingTools.Core
                 // Generic
                 // Pipe categories are listed so GEN is the category default for a pipe whose system
                 // cannot be read (CategoryTokenDefaults.ChooseCategorySys): assumed, not a guess.
-                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment", "Mass", "Parts", "Assemblies", "Detail Items", "Model Groups", "Materials", "Profiles", "RVT Links", "Zones", "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework", "Analytical Pipe Segments" } },
+                { "GEN", new List<string> { "Generic Models", "Specialty Equipment", "Medical Equipment", "Mass", "Parts", "Assemblies", "Detail Items", "Model Groups", "Materials", "Profiles", "RVT Links", "Zones", "Pipes", "Pipe Fittings", "Pipe Accessories", "Pipe Insulation", "Flex Pipes", "MEP Fabrication Pipework" } },
             };
         }
 
@@ -696,9 +694,7 @@ namespace StingTools.Core
                 { "MEP Fabrication Ductwork Stiffeners", "FDS" },
                 { "MEP Fabrication Hangers", "FHG" },
                 { "MEP Fabrication Pipework", "FPW" },
-                { "MEP Ancillary", "ANC" },
-                // MEP — Analytical
-                { "Analytical Duct Segments", "ADS" }, { "Analytical Pipe Segments", "APS" },
+                { "MEP Ancillary Framing", "ANC" },
                 // Architecture — Enclosure
                 { "Doors", "DR" }, { "Windows", "WIN" },
                 { "Walls", "WL" }, { "Floors", "FL" },
@@ -720,7 +716,7 @@ namespace StingTools.Core
                 { "Parking", "PKG" }, { "Site", "STE" }, { "Entourage", "ENT" },
                 { "Planting", "PLT" }, { "Hardscape", "HSC" }, { "Roads", "RD" },
                 { "Pads", "PAD" }, { "Toposolid", "TPO" }, { "Toposolid Links", "TPL" },
-                { "Temporary Structures", "TMP" }, { "Wash", "WSH" },
+                { "Temporary Structures", "TMP" },
                 { "Areas", "ARA" }, { "Spaces", "SPC" },
                 { "Property Lines", "PRL" }, { "Property Line Segments", "PLS" },
                 // Structure
@@ -737,7 +733,7 @@ namespace StingTools.Core
                 { "Analytical Links", "ALK" }, { "Analytical Openings", "AOP" },
                 { "Analytical Panels", "APN" },
                 // Loads
-                { "Area Based Loads", "ABL" }, { "Area Loads", "ARL" },
+                { "Area Loads", "ARL" },
                 { "Line Loads", "LNL" }, { "Point Loads", "PTL" },
                 { "Internal Area Loads", "IAL" }, { "Internal Line Loads", "ILL" },
                 { "Internal Point Loads", "IPL" },

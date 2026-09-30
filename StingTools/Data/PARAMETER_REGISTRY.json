@@ -27744,7 +27744,6 @@
         "Structural Trusses",
         "Structural Rebar",
         "Rebar",
-        "Area Based Loads",
         "Area Loads",
         "Internal Area Loads",
         "Internal Line Loads",
@@ -30386,7 +30385,7 @@
         "guid": "9b88b580-3cc1-5d10-933c-07e6022d66a2",
         "description": "MEP ancillary paragraph",
         "categories": [
-          "MEP Ancillary"
+          "MEP Ancillary Framing"
         ]
       },
       {
@@ -30852,7 +30851,7 @@
           "Detail Items",
           "Profiles",
           "Planting",
-          "MEP Ancillary"
+          "MEP Ancillary Framing"
         ],
         "threshold": 800
       },
@@ -31145,8 +31144,7 @@
         "standard": "CIBSE Guide B / ASHRAE",
         "categories": [
           "Ducts",
-          "MEP Fabrication Ductwork",
-          "Analytical Duct Segments"
+          "MEP Fabrication Ductwork"
         ],
         "threshold": 6.0
       },
@@ -31237,8 +31235,7 @@
         "description": "Fixture flow rate exceeded",
         "standard": "BS EN 806-3",
         "categories": [
-          "Plumbing Fixtures",
-          "Wash"
+          "Plumbing Fixtures"
         ]
       },
       {
@@ -31282,8 +31279,7 @@
         "categories": [
           "Pipes",
           "Flex Pipes",
-          "MEP Fabrication Pipework",
-          "Analytical Pipe Segments"
+          "MEP Fabrication Pipework"
         ],
         "threshold": 2.0
       },
@@ -33028,14 +33024,11 @@
   },
   "category_enum_map": {
     "Air Terminals": "OST_DuctTerminal",
-    "Analytical Duct Segments": "OST_AnalyticalDuctSegments",
     "Analytical Links": "OST_AnalyticalLinks",
     "Analytical Members": "OST_AnalyticalMember",
     "Analytical Nodes": "OST_AnalyticalNodes",
     "Analytical Openings": "OST_AnalyticalOpenings",
     "Analytical Panels": "OST_AnalyticalPanels",
-    "Analytical Pipe Segments": "OST_AnalyticalPipeSegments",
-    "Area Based Loads": "OST_AreaLoads",
     "Area Loads": "OST_AreaLoads",
     "Areas": "OST_Areas",
     "Assemblies": "OST_Assemblies",
@@ -33096,7 +33089,7 @@
     "Lighting Devices": "OST_LightingDevices",
     "Lighting Fixtures": "OST_LightingFixtures",
     "Line Loads": "OST_LineLoads",
-    "MEP Ancillary": "OST_MechanicalEquipment",
+    "MEP Ancillary Framing": "OST_MEPAncillaryFraming",
     "MEP Fabrication Containment": "OST_FabricationContainment",
     "MEP Fabrication Ductwork": "OST_FabricationDuctwork",
     "MEP Fabrication Ductwork Stiffeners": "OST_FabricationDuctworkStiffeners",
@@ -33176,7 +33169,6 @@
     "Walls": "OST_Walls",
     "Views": "OST_Views",
     "Title Blocks": "OST_TitleBlocks",
-    "Wash": "OST_Planting",
     "Windows": "OST_Windows",
     "Wire": "OST_Wire",
     "Zones": "OST_Zones",
@@ -33186,14 +33178,11 @@
   },
   "universal_categories": [
     "Air Terminals",
-    "Analytical Duct Segments",
     "Analytical Links",
     "Analytical Members",
     "Analytical Nodes",
     "Analytical Openings",
     "Analytical Panels",
-    "Analytical Pipe Segments",
-    "Area Based Loads",
     "Area Loads",
     "Areas",
     "Assemblies",
@@ -33249,7 +33238,7 @@
     "Lighting Devices",
     "Lighting Fixtures",
     "Line Loads",
-    "MEP Ancillary",
+    "MEP Ancillary Framing",
     "MEP Fabrication Containment",
     "MEP Fabrication Ductwork",
     "MEP Fabrication Ductwork Stiffeners",
@@ -33324,7 +33313,6 @@
     "Vibration Management",
     "Wall Sweeps",
     "Walls",
-    "Wash",
     "Windows",
     "Wire",
     "Zones"

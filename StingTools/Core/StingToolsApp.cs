@@ -2208,7 +2208,7 @@ namespace StingTools.Core
                 if (missingFromCreator.Count == 0 && extraInCreator.Count == 0)
                 {
                     StingLog.Info(
-                        $"Tag-family catalogue aligned: {StingTools.Tags.TagFamilyConfig.TotalFamilyCount} families " +
+                        $"Tag-family catalogue aligned: {StingTools.Tags.TagFamilyConfig.BuiltInFamilyCount} families " +
                         "match LABEL_DEFINITIONS.json category_labels 1:1.");
                 }
                 else
@@ -3304,10 +3304,16 @@ namespace StingTools.Core
 
     // ── STING Hub button dispatchers ────────────────────────────────────────
     // Each ribbon button on the STING Hub panel is bound to one of these thin
-    // wrappers. They delegate to StingDockPanel.DispatchCommand, which raises
-    // the shared ExternalEvent so the request is processed by
-    // StingCommandHandler.Execute on the Revit API thread — same dispatch
-    // path the dockable panel buttons use.
+    // wrappers. They run the dock-panel command SYNCHRONOUSLY inside this
+    // IExternalCommand (StingDockPanel.DispatchCommandSync, see HubDispatcher.Run).
+    //
+    // So they must be TransactionMode.Manual, not ReadOnly. They were ReadOnly
+    // from when they only raised an ExternalEvent and the work ran later in its
+    // own context; once dispatch became synchronous, the wrapped command ran
+    // inside a read-only command and every write it attempted failed with
+    // "Cannot modify the document for either a read-only external command…".
+    // Measured 2026-09-30: the Tag Families hub button built 5 families and
+    // loaded none of the 211. Manual lets a read-only command run unchanged.
 
     internal static class HubDispatcher
     {
@@ -3356,7 +3362,7 @@ namespace StingTools.Core
         }
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubBIMCoordCenterCommand : IExternalCommand
     {
@@ -3364,7 +3370,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "BIMCoordinationCenter", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubSheetManagerCommand : IExternalCommand
     {
@@ -3372,7 +3378,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "SheetManager", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubDrawingTypesCommand : IExternalCommand
     {
@@ -3380,7 +3386,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "DrawingTypes_Editor", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubDocumentMgmtCommand : IExternalCommand
     {
@@ -3388,7 +3394,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "DocumentManager", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubBoqExportCostCommand : IExternalCommand
     {
@@ -3396,7 +3402,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "BOQCostManager", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubFabricationCommand : IExternalCommand
     {
@@ -3404,7 +3410,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "Fabrication_OpenWorkspace", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubPlacementCommand : IExternalCommand
     {
@@ -3412,7 +3418,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "Placement_OpenCentre", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubStructuralDwgWizardCommand : IExternalCommand
     {
@@ -3423,7 +3429,7 @@ namespace StingTools.Core
     /// <summary>Opens the Visibility Center dropdown (show/hide by category or
     /// ISO tag token). ReadOnly: the popup only reads to build its lists — the
     /// writes happen in Vis_Apply / Vis_Isolate / Vis_ResetAll.</summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubVisibilityCommand : IExternalCommand
     {
@@ -3431,7 +3437,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "Vis_OpenFloating", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubSchedulingDashboardCommand : IExternalCommand
     {
@@ -3444,7 +3450,7 @@ namespace StingTools.Core
     /// it can be right-clicked onto the Quick Access Toolbar — the QAT only
     /// accepts ribbon items.
     /// </summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubSchedulerCommand : IExternalCommand
     {
@@ -3452,7 +3458,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "Scheduler", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubTag3DCommand : IExternalCommand
     {
@@ -3460,7 +3466,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "Tag3D", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubCreateTagFamiliesCommand : IExternalCommand
     {
@@ -3468,7 +3474,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "CreateTagFamilies", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubAutoTagCommand : IExternalCommand
     {
@@ -3476,7 +3482,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "AutoTag", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubExportCenterCommand : IExternalCommand
     {
@@ -3484,7 +3490,7 @@ namespace StingTools.Core
             => HubDispatcher.Run(data, "ExportCenter", ref message);
     }
 
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class HubTemplateManagerCommand : IExternalCommand
     {

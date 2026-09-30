@@ -36,7 +36,21 @@ namespace StingTools.Tags.Tests
             return src.Substring(i, j - i);
         }
 
+        /// <summary>Everything Create Tag Families builds: its own tables plus the families
+        /// declared only in the tag config, as TagFamilyConfig.AllFamilyNames() does.</summary>
         internal static HashSet<string> CreatorFamilyNames()
+        {
+            var names = BuiltInCreatorFamilyNames();
+            var declared = new List<StingTools.Tags.TagDeclaration>();
+            foreach (var f in Directory.GetFiles(Path.Combine(RepoRoot(), "StingTools", "Data"), "STING_TAG_CONFIG_v5_0_*.csv"))
+                declared.AddRange(StingTools.Tags.TagConfigDeclarations.Parse(File.ReadLines(f)));
+            foreach (var d in StingTools.Tags.DeclaredTagFamilies.NotBuiltBy(declared, names))
+                names.Add(d.FamilyName);
+            return names;
+        }
+
+        /// <summary>The names in the creator's C# tables only.</summary>
+        internal static HashSet<string> BuiltInCreatorFamilyNames()
         {
             string src = File.ReadAllText(Path.Combine(RepoRoot(), "StingTools", "Tags", "TagFamilyCreatorCommand.cs"));
             var bics = Regex.Matches(Block(src, "CategoryTemplateMap ="), @"BuiltInCategory\.(OST_\w+)\s*,")
