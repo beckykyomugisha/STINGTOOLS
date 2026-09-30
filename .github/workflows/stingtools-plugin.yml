@@ -132,6 +132,16 @@ jobs:
       - name: No new tag rows that can never display
         run: python3 tools/check_tag_row_bindings.py --check
 
+      # A stamp bound where it is never written is a no-op nobody sees. Sixteen view
+      # stamps sat at <ALL> (element categories, no Views), so drawing production
+      # could not find its own views and duplicated them on every run; the match-line
+      # stamps missed OST_Lines the same way; 49 AEC filters named a rule parameter
+      # not bound to the filter's categories, so Revit refused to create them
+      # (DTW-55..59). Checks tools/drawing_binding_contract.json against the spec, a
+      # grep of every STING parameter used on a view receiver, and every filter rule.
+      - name: Drawing-layer parameters are bound where they are written
+        run: python3 tools/check_drawing_bindings.py
+
       # Every NativeParamMapper helper used to end at SetString, which returns false the
       # moment the target is not String storage. 28 of 57 map targets are declared
       # LENGTH/AREA/NUMBER/CURRENCY, so those writes did nothing and logged nothing — a

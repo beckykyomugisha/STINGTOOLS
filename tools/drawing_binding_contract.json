@@ -1,0 +1,39 @@
+{
+  "_comment": "Read by tools/check_drawing_bindings.py. Parameters the drawing layer (and the other view-stamping code) writes to Views, Sheets and match-line detail curves (Lines). Each must resolve, in StingTools/Data/RESOLVED_BINDINGS.csv, to that category. Change a binding through CATEGORY_BINDINGS.csv (Yes rows) or tools/param_binding_resolver.py, never by editing the generated spec.",
+  "views": [
+    "STING_BUS_VOLTAGE_TIER",
+    "STING_CIRCUIT_FILTER_TXT",
+    "STING_CROP_KIND_TXT",
+    "STING_CROP_MARGIN_MM_TXT",
+    "STING_DEFAULT_TAG_STYLE_TXT",
+    "STING_DRAWING_PACKAGE_ID_TXT",
+    "STING_DRAWING_TYPE_ID_TXT",
+    "STING_PACK_CHECKSUM_TXT",
+    "STING_PACK_ID_TXT",
+    "STING_PRODUCTION_RULE_IDX_INT",
+    "STING_SCOPE_BOX_TAG_TXT",
+    "STING_STYLE_LOCKED_BOOL",
+    "STING_TEMPLATE_CHECKSUM_TXT",
+    "STING_TEMPLATE_LOCKED_BOOL",
+    "STING_VIEW_CONTEXT_TAG_TXT",
+    "STING_VIEW_SYMBOL_STANDARD",
+    "STING_VIEW_TAG_STYLE",
+    "STING_VIEW_TOKEN_MASK_TXT"
+  ],
+  "sheets": [
+    "PRJ_SHEET_SEQUENCE_INT",
+    "STING_DRAWING_PACKAGE_ID_TXT",
+    "STING_DRAWING_TYPE_ID_TXT",
+    "STING_SHEET_CONTEXT_TXT",
+    "STING_STYLE_LOCKED_BOOL"
+  ],
+  "lines": [
+    "STING_MATCH_DIR_TXT",
+    "STING_MATCH_LINE_GUID_TXT",
+    "STING_MATCH_REF_TXT"
+  ],
+  "view_receiver_allow": {
+    "STING_DISPLAY_MODE": "An ELEMENT parameter (tag display mode). AnnotationRunner probes it on the view with a default of 0 and nothing writes it to a view, so the probe reads the default by design. Binding it to Views would not change what any code writes."
+  },
+  "filter_rule_allow": {}
+}
