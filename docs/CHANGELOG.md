@@ -29,6 +29,7 @@ still machine-bound, 365 days for paid plans. Tests: 26 pass in `StingTools.Lice
 (13 new — portable accept/expire/forgery, trial day 89/90, clock rollback, edited and
 copied stamps). Plugin and issuer build 0/0. The trial and portable paths have not yet been
 run inside Revit.
+
 #### Completed (TAGACC-16 / 17, 2026-09-29)
 
 - **TAGACC-16** the 28 remaining `Category.Name` LOOKUPS (DiscMap, known-category lists,
