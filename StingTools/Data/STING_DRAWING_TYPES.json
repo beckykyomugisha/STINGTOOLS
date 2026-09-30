@@ -12891,6 +12891,18 @@
       "phase": "*",
       "docType": "ARC_FLASH_SCHEDULE",
       "drawingTypeId": "elec-arc-flash-schedule"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "SECTION",
+      "drawingTypeId": "arch-section-A1-1to50"
+    },
+    {
+      "discipline": "*",
+      "phase": "*",
+      "docType": "ELEVATION",
+      "drawingTypeId": "arch-elev-A1-1to100"
     }
   ]
 }
