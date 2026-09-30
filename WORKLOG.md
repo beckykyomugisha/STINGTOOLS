@@ -3,7 +3,7 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Deploy `claude/kut-combined-acc-tags` to `C:\Dev\STING_KUT_LIVE` when Revit is closed (`tasklist | grep Revit` empty): merge the integration branch in first (R2–R14 landed after aada7ddfb), rebuild, run the tests and gates, then deploy and verify (see "Deploy").
+1. Deploy `claude/kut-combined-acc-tags` @ `2f4e5ada0` to `C:\Dev\STING_KUT_LIVE` when Revit is closed (`tasklist | grep Revit` empty). It is verified: build 0/0, Acc 604, Tags 4704, Cost 147, Mep 87, all gates green. Detach STING_KUT_LIVE at that commit, run deploy.bat, and verify (see "Deploy"). Deferred all session because Revit was open.
 2. Next audit pass: area 2, everything ACC touches. That covers Export Centre auto-upload end to end, Document Manager ↔ register ↔ ACC metadata, transmittals (bundle SENT marking), and the server AccSyncService ↔ plugin issue round trip.
 3. Area 3 backlog: the UNGATED non-ACC dialogs in `tools/unattended_cycle_baseline.txt` (40 lines) block unattended KUT workflows. Route them through PresetDialog, like main does.
 
