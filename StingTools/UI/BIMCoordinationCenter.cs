@@ -5676,6 +5676,10 @@ namespace StingTools.UI
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
             AddAct("📥 Import Issues",    "AccImportIssues",    Color.FromRgb(0x2E, 0x7D, 0x32), "Import every ACC issue into the STING issue register (new rows, title/status/assignee updates). Never deletes STING issues; an issue edited in both places is reported as a conflict, not overwritten.");
+            AddAct("📋 Read Reviews",     "AccReadReviews",     Color.FromRgb(0x00, 0x69, 0x5C), "Read ACC review decisions (approved / rejected) on the files STING put in ACC and queue them as proposals. Changes nothing in STING.");
+            AddAct("✅ Review Decisions", "AccReviewProposals", Color.FromRgb(0x00, 0x89, 0x7B), "Accept or dismiss the queued ACC review decisions. Accept applies them to the deliverable, transmittal and register through the normal lifecycle.");
+            AddAct("▶ Start Review",      "AccStartReview",     Color.FromRgb(0x5D, 0x40, 0x37), "Start an ACC review on a file version STING has seen in ACC, using the project's startAccReviewOnPublish workflow.");
+            AddAct("📨 Read Transmittals","AccReadTransmittals",Color.FromRgb(0x37, 0x47, 0x4F), "Copy ACC transmittals into STING's transmittal list as read-only rows (source 'acc').");
             AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into a local ACC-ready bundle (manual upload).");
 
             // ── Project operating settings (PROJECT-scoped, not machine-scoped) ──

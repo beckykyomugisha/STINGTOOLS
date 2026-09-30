@@ -197,12 +197,23 @@ namespace Planscape.Docs.Templates
     public class PublishDeliverableCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => LifecycleCommandHelper.Run(data, ref message, (doc, engine) =>
+        {
+            string published = null;
+            var result = LifecycleCommandHelper.Run(data, ref message, (doc, engine) =>
             {
                 dynamic d = LifecycleCommandHelper.ResolveSelection(doc);
                 if (d == null) return new DeliverableLifecycle.LifecycleResult { Ok = false, Message = "No deliverable selected." };
+                published = DeliverableLifecycle.DeliverableKey(d);
                 return DeliverableLifecycle.Publish(d, doc, engine.Registry.Manifest, Environment.UserName, stage: 3);
             }, "Publish Deliverable");
+
+            // ACC Reviews is the approval authority where a project names a review workflow
+            // (startAccReviewOnPublish): offer to start one on the deliverable's ACC version.
+            // After the publish, never instead of it; a failure here is reported, not raised.
+            if (result == Result.Succeeded && !string.IsNullOrEmpty(published))
+                StingTools.Core.Clash.AccReviewStarter.OfferAfterPublish(data.Application.ActiveUIDocument?.Document, published);
+            return result;
+        }
     }
 
     [Transaction(TransactionMode.Manual)]

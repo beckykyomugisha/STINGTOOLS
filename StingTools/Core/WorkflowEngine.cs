@@ -253,6 +253,8 @@ namespace StingTools.Core
             "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
             "ACC_ImportIssues", "AccImportIssues", "ACC_SelfCheck", "AccSelfCheck",
             "ACC_UploadModel", "ACC_UploadLastBundle",
+            "ACC_ReadReviews", "AccReadReviews", "ACC_ReviewProposals", "AccReviewProposals",
+            "ACC_ReadTransmittals", "AccReadTransmittals", "ACC_StartReview", "AccStartReview",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
             "CreateFilters", "CreateWorksets", "ViewTemplates", "AutoAssignTemplates", "AutoFixTemplate",
@@ -2135,6 +2137,17 @@ namespace StingTools.Core
                 // in any shipped KUT workflow, because a step cannot answer "which file?".
                 case "ACC_UploadModel":         return new Core.Clash.AccUploadModelCommand();
                 case "ACC_UploadLastBundle":    return new Core.Clash.AccUploadLastBundleCommand();
+                // ACC Reviews as the approval authority. Reading is safe in a scheduled cycle
+                // (it changes no STING record); accepting is a person's act and does nothing
+                // unattended; starting a review notifies real reviewers.
+                case "ACC_ReadReviews":
+                case "AccReadReviews":          return new Core.Clash.AccReadReviewsCommand();
+                case "ACC_ReviewProposals":
+                case "AccReviewProposals":      return new Core.Clash.AccReviewProposalsCommand();
+                case "ACC_ReadTransmittals":
+                case "AccReadTransmittals":     return new Core.Clash.AccReadTransmittalsCommand();
+                case "ACC_StartReview":
+                case "AccStartReview":          return new Core.Clash.AccStartReviewCommand();
                 case "BatchSystemPush":         return new Tags.BatchSystemPushCommand();
                 case "ExportSheetRegister":     return new Docs.ExportSheetRegisterCommand();
                 case "COBieHandoverExport":     return new Docs.COBieHandoverExportCommand();

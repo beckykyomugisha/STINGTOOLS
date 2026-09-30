@@ -2,6 +2,46 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC Reviews read back as proposals — ACC is the approval authority, 2026-10-01)
+
+- **Why.** On KUT, ACC Reviews is the ISO 19650 approval authority, but STING never read an
+  ACC decision back: a drawing ACC approved still read S3 / SHARED in STING, and a rejected
+  one read as if nothing had happened.
+- **`ACC_ReadReviews`** (`Clash/AccReadReviewsCommand.cs`, client `V6/AccReviews.cs`). It
+  reads ACC approval statuses (`GET construction/reviews/v1/projects/{id}/versions/{urn}/approval-statuses`)
+  for every version the upload recorded on a transmittal (`acc_version_urn`,
+  `acc_cover_version_urn`) and for the files in each configured `cdeFolders` folder. It
+  queues **proposals** in `_BIM_COORD/acc/acc_review_proposals.json`, one per (version,
+  review). It changes no STING record. It proposes nothing until a review is CLOSED with
+  APPROVED or REJECTED. A rejection carries the reviewer notes from the review's progress.
+  A decided proposal is never proposed again. A failed read proposes and removes nothing.
+- **No guessed codes.** The new `reviewApprovalMap` setting maps an ACC approval label
+  (then the outcome value) to an ISO 19650 code. Only S1–S7, A1–A5, B1–B5 or CR are
+  accepted, and anything else makes the settings file malformed. With no entry, the
+  proposal reads "approved — code to be chosen" and the person picks the code on accept.
+- **`ACC_ReviewProposals`.** A person accepts or dismisses queued proposals in a list picker.
+  Accept goes through the existing lifecycle code: `DeliverableLifecycle.ApproveFromReview`
+  / `RejectFromReview` (same state machine, audit and persistence as Publish),
+  `TransmittalRecord.RecordReviewDecision` (SENT → ACKNOWLEDGED or REJECTED, with history),
+  and the register's `UpdateDocumentSuitability`. A file is matched to a STING record only
+  by exact document number or a separator-bounded prefix. A proposal with no match cannot
+  be accepted. It does nothing when the project runs unattended.
+- **`ACC_StartReview` + Publish offer.** A new `startAccReviewOnPublish: {workflowId,
+  unattended}` setting names the review workflow. After Publish Deliverable, STING offers
+  to start an ACC review (`POST …/reviews`, not retried) on the deliverable's ACC version,
+  if it has seen that version. `RevisionApprovalWorkflowCommand` now warns that ACC Reviews
+  is the approval authority when ACC is configured.
+- **`ACC_ReadTransmittals`.** Copies ACC transmittals (read-only API) and their documents
+  into `transmittals.json` as read-only rows (`source: "acc"`). STING's own rows are never
+  touched.
+- `DeliverableLifecycle.Persist` now overlays the row instead of replacing it. Fields the
+  POCO does not declare (MIDP import columns) used to be dropped on the first transition.
+- Wired: StingCommandHandler, WorkflowEngine (+ known tags), 4 BCC ACC-card buttons, and
+  the BCC action map. Plugin build 0/0; `StingTools.Acc.Tests` 367/367. Gates pass:
+  workflow wiring, path discipline, export routing. **Needs a live tenant:** the encoding of
+  the version URN in the approval-statuses path; whether an approval is final while its
+  review is OPEN; the transmittal `status` values; and POST reviews' exact validator.
+
 #### Completed (ACC workarounds where Autodesk has no API: transmittals, model sets, project folder check, 2026-09-30)
 
 - **ACC transmittals (API is read-only).** STING cannot create an ACC transmittal, so after
