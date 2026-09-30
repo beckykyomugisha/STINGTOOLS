@@ -5366,14 +5366,13 @@
       "id": "clar-markup-A1",
       "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
-      "checksum": "8197d0371d3c673e40144c4ac1baf70057ee5ac43317bd3a5879555de8bf7a05",
+      "checksum": "80efbf1d55d83475c3ae20a03c427e89d1292bba5323996267d5d05bbcd5c2cf",
       "purpose": "Clarification",
       "discipline": "A",
       "paperSize": "A1",
       "titleBlockFamily": "STING_TB_SHEET_A1",
       "scale": 100,
       "detailLevel": "Medium",
-      "viewTemplateName": "STING - Clarification Markup",
       "viewStylePackId": "corp-clarification",
       "sheetNumberPattern": "CL-MK-{lvl}-{seq:D3}",
       "sheetNamePattern": "CLARIFICATION — {mark}",
@@ -5468,7 +5467,8 @@
           "viewType": "FloorPlan",
           "slotIndex": 0,
           "required": true,
-          "nameSuffix": " - MARKUP"
+          "nameSuffix": " - MARKUP",
+          "viewTemplateOverride": "STING - Clarification Markup"
         }
       ]
     },

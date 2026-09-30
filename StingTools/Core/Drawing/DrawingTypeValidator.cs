@@ -125,6 +125,17 @@ namespace StingTools.Core.Drawing
                         $"View template '{dt.ViewTemplateName}' not found in project.",
                         "Create the template via Template Mgr > Template Setup Wizard, or clear the profile's viewTemplateName.");
             }
+            // DTW-62: a production rule may name the template for its own view kind.
+            if (dt.ProductionRules != null)
+                foreach (var rule in dt.ProductionRules)
+                {
+                    var over = rule?.ViewTemplateOverride?.Trim();
+                    if (string.IsNullOrEmpty(over) || DrawingTemplateCatalogue.IsManagedName(over)) continue;
+                    if (!HasViewTemplate(doc, over))
+                        r.Add(ValidationSeverity.Warning, "DT-020",
+                            $"View template '{over}' (production rule {rule.Idx}, {rule.ViewType}) not found in project.",
+                            "Create it with View Templates (it is in the drawing-type template catalogue), or clear the rule's viewTemplateOverride.");
+                }
 
             // Viewport type ----------------------------------------------
             if (!string.IsNullOrWhiteSpace(dt.ViewportTypeName))

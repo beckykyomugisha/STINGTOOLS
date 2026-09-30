@@ -493,6 +493,28 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// DTW-62: the explicit template name for <paramref name="view"/>: the
+        /// <c>viewTemplateOverride</c> of the first production rule that makes this
+        /// kind of view, else the type's <c>viewTemplateName</c>.
+        /// </summary>
+        internal static string ExplicitTemplateNameFor(DrawingType dt, View view)
+        {
+            if (dt == null) return null;
+            if (dt.ProductionRules != null && view != null)
+            {
+                string kind = DrawingTemplateCatalogue.ViewKindOf(view.ViewType.ToString());
+                if (kind != null)
+                {
+                    var rule = dt.ProductionRules.FirstOrDefault(pr =>
+                        !string.IsNullOrWhiteSpace(pr?.ViewTemplateOverride)
+                        && string.Equals(DrawingTemplateCatalogue.ViewKindOf(pr.ViewType), kind, StringComparison.OrdinalIgnoreCase));
+                    if (rule != null) return rule.ViewTemplateOverride.Trim();
+                }
+            }
+            return dt.ViewTemplateName;
+        }
+
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, ApplyOptions options)
         {
             var r = new ApplyResult();
@@ -606,35 +628,53 @@ namespace StingTools.Core.Drawing
             }
 
             // Template Priority (highest to lowest):
-            //   1. dt.ViewTemplateName — explicit user/corporate named template; applied if found.
-            //   2. Managed pack template (STING:{packId}:{ViewType}) — applied if dt.ViewTemplateName
-            //      is absent or not found in the project.
+            //   1. The explicit template for THIS view: the viewTemplateOverride of the
+            //      production rule that makes this kind of view, else dt.ViewTemplateName.
+            //   2. Managed pack template (STING:{packId}:{ViewType}) — applied when there is
+            //      no explicit template, it is not in the project, or it is for another
+            //      kind of view.
             // Rationale: named templates carry user customisations that should not be silently
             // discarded; managed templates are the fallback for new projects without existing templates.
+            //
+            // DTW-62: a mixed-kind type (spool plan + ISO, coordination plan + ISO +
+            // section, 3D axon + key plan) names one template, which fits only one of
+            // its views. Assigning it to the others threw, and every sheet reported a
+            // warning for what is the expected case. A template of another kind is now
+            // skipped with a log line and the pack's kind-appropriate template applies.
             //
             // C-1: cached lookup; FilteredElementCollector<View> only runs
             // on first miss per (docKey, templateName).
             bool explicitTemplateApplied = false;
-            if (!string.IsNullOrWhiteSpace(dt.ViewTemplateName))
+            string explicitTemplateName = ExplicitTemplateNameFor(dt, view);
+            if (!string.IsNullOrWhiteSpace(explicitTemplateName))
             {
                 try
                 {
-                    ElementId tplId = ResolveViewTemplate(doc, dt.ViewTemplateName);
+                    ElementId tplId = ResolveViewTemplate(doc, explicitTemplateName);
                     if (tplId != null && tplId != ElementId.InvalidElementId)
                     {
-                        view.ViewTemplateId = tplId;
-                        r.TemplateApplied = true;
-                        explicitTemplateApplied = true;
+                        if (view.IsValidViewTemplate(tplId))
+                        {
+                            view.ViewTemplateId = tplId;
+                            r.TemplateApplied = true;
+                            explicitTemplateApplied = true;
+                        }
+                        else
+                        {
+                            StingTools.Core.StingLog.Info(
+                                $"DrawingTypePresentation.Apply: '{explicitTemplateName}' ({dt.Id}) is not a {view.ViewType} template; " +
+                                $"'{view.Name}' takes the view style pack's template instead.");
+                        }
                     }
                     else
                     {
-                        StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: viewTemplateName '{dt.ViewTemplateName}' not found in project — falling back to managed pack template.");
-                        r.Warnings.Add($"View template '{dt.ViewTemplateName}' not found in project; falling back to managed pack template.");
+                        StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: viewTemplateName '{explicitTemplateName}' not found in project — falling back to managed pack template.");
+                        r.Warnings.Add($"View template '{explicitTemplateName}' not found in project; falling back to managed pack template.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: could not apply view template '{dt.ViewTemplateName}' — {ex.Message}");
+                    StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: could not apply view template '{explicitTemplateName}' — {ex.Message}");
                     r.Warnings.Add($"ViewTemplate: {ex.Message}");
                 }
             }
