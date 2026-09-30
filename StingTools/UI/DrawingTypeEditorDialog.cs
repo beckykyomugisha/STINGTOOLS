@@ -464,7 +464,7 @@ namespace StingTools.UI
                 ("Reload JSON",     "DrawingTypes_Reload"),
                 ("Group Browser",   "DrawingTypes_GroupBrowser"),
                 ("Sync Styles",     "DrawingTypes_SyncStyles"),
-                ("From Scope Boxes","DrawingTypes_FromScopeBoxes"),
+                ("Produce From Scope Boxes","DrawingTypes_ProduceFromScopeBoxes"),
                 // Phase 137 — STING-Managed View Templates
                 ("Convert to Managed",  "DrawingTypes_ConvertToManaged"),
                 ("Detach Managed",      "DrawingTypes_DetachManaged"),
