@@ -347,7 +347,8 @@ namespace StingTools.Tags
             return _labelMaster.TryGetValue(key, out g) ? g : TagConfigDeclarations.UniversalGroup;
         }
 
-        private static Category FindTagCategory(Document doc, string hostCategoryName)
+        /// <summary>The tag category in <paramref name="doc"/> that serves a host category ("Doors" -> "Door Tags"). Null when there is none; never a guess.</summary>
+        internal static Category FindTagCategory(Document doc, string hostCategoryName)
         {
             string host = hostCategoryName.Trim();
             if (host.Length == 0) return null;

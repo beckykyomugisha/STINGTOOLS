@@ -2,6 +2,77 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-2 first Revit run, hub buttons, TAGFAM-4 category decisions, 2026-09-30)
+
+- **Run in Revit 2025** (this branch's build, throwaway `Project1`): the confirmation listed 211 families,
+  5 of them from the config. The four specialist families were built, each with 199 parameters,
+  types `2.5_NOM_BLACK_Open30_T2` / `3.5_NOM_BLACK_Open30_T2` and its `_build\*.params.txt` (checked:
+  only the label's parameters and their groups, UTF-8 no BOM, LF). Measured: adding the parameters
+  takes about 5 minutes per family — the same `AddSharedParameters` every creator path uses.
+- **Curtain System Tag cannot be made this way.** Revit 2025 ships no Curtain System Tag template and
+  refused the move from Generic Tag: *"The input category id cannot be assigned as the new category
+  for this family."* The command reported it and saved nothing, as designed. The declaration is
+  removed; `DeclaredTagFamiliesTests` now fails if one is added back.
+- **Every STING Hub ribbon button was read-only.** The 16 `Hub*Command` wrappers were
+  `TransactionMode.ReadOnly` but run the dock-panel command synchronously (since `15efd95a5`), so any
+  write failed with *"Cannot modify the document for either a read-only external command…"*. The run
+  above loaded 0 of 211 families through the Tag Families hub button. All 16 are now `Manual`.
+- **TAGFAM-4, decided and applied** (names checked against `BuiltInCategory` in Revit 2025's
+  `RevitAPI.dll`):
+  - *No longer tagged:* Analytical Duct Segments, Analytical Pipe Segments (analysis objects, not
+    assets; their enum names in the category map, `OST_Analytical*Segments`, did not exist in Revit —
+    the real ones are `OST_DuctAnalyticalSegments` / `OST_PipeAnalyticalSegments`) and Area Based Loads
+    (an electrical analysis category, mapped to structural `OST_AreaLoads` and filed under S).
+  - *Removed:* `Wash` — no such Revit category; the map bound its parameters to `OST_Planting`.
+  - *Renamed:* `MEP Ancillary` → `MEP Ancillary Framing`, mapped to `OST_MEPAncillaryFraming`. The old
+    name matched no Revit category, so those elements were never tagged, and the map bound their
+    parameters to Mechanical Equipment.
+  - *Declared (universal label):* `STING - Temporary Structure Tag` and `STING - MEP Ancillary Framing
+    Tag`. Revit has tag categories for both (`OST_TemporaryStructureTags`,
+    `OST_MEPAncillaryFramingTags`); whether Revit lets a Generic Tag family move into them is **not yet
+    tested** — the next run reports it either way.
+  - Applied to the `DISC_MAP` / SYS / PROD defaults (`TagConfig.Defaults.cs`) and to
+    `PARAMETER_REGISTRY.json` (`category_enum_map`, `universal_categories`, container groups). A
+    project whose `project_config.json` carries its own `DISC_MAP` keeps its own entries.
+- Tests 4,192 passing; plugin build 0 / 0.
+
+#### Completed (TAGFAM-1: Create Tag Fams builds the families the tag config declares, 2026-09-30)
+
+- **The gap.** Create Tag Fams built only the families in `TagFamilyConfig`'s C# tables. The four
+  specialist tags (Fire Door, Accessible Door, Room Finish, Fire Compartment) were declared in the
+  ARCH config, bound, preset and wanted by drawing types, yet the button reported every family
+  already loaded. Measured: tables 206 = library 206; config declares 4 more.
+- **A declaration is now the request to build.** `TagFamilyConfig.DeclaredOnlyFamilies()` reads
+  every `STING_TAG_CONFIG_v5_0_*.csv` through `TagConfigDeclarations` and returns the `STING - …`
+  families the tables do not produce (masters such as `STING_LPS_Tag_Universal` are excluded; names
+  compare by `NormaliseKey`, so spelling variants of built families are not built twice). Create Tag
+  Fams builds them in a new step, counts them in its totals and confirmation, and
+  `AllFamilyNames()` offers them in the Drawing Type editor. Adding a family is one config row.
+- **Born in the declared category.** Each is created from the category's template when installed,
+  else Generic Tag, then moved to the tag category its declaration names
+  (`TagCategoryResolver.FindTagCategory`, now internal). A host with no tag category fails that
+  family instead of saving it in the wrong one. This matters most for hand-built families, which
+  Propagate Universal never touches.
+- **Hand-built labels get everything but the rows.** A family with its own `LabelMaster` also gets
+  (a) its size types from the style catalogue: the declared discipline's default at each ISO 3098
+  size (`2.5_NOM_BLACK_Open30_T2`, `3.5_NOM_BLACK_Open30_T2` for A), with family Yes/No switches
+  `TXT_2_5` / `TXT_3_5` ticked one per type; and (b) `_build\<family>.params.txt`, a
+  shared-parameter file cut from `MR_PARAMETERS.txt` (`Tags/SharedParamSubset.cs`, GUIDs copied
+  verbatim, UTF-8 no BOM, LF) holding only the parameters its label reads, so Edit Label lists ten
+  parameters, not 3,000. The report lists these families as waiting for their label.
+- **Config.** `TagDeclaration` gains `Discipline` (row field 2) and `Params` (`Params: A B C` on the
+  declaring line). The four specialist rows carry their label parameters; a new universal row
+  declares `STING - Curtain System Tag` (Curtain Systems were tagged with no family to show it).
+- **Build sheet.** `docs/SPECIALIST_TAG_BUILD_SHEET.md` starts from the family the command makes and
+  drops the 2 mm type: since the ISO 3098 alignment (2026-09-27) no drawing type asks for 2 mm.
+- **Also corrected:** the confirmation dialog said created families got "the standard depth/style type
+  variants". They never did — Propagate Universal creates those; the text now says so.
+- **Tests** (`StingTools.Tags.Tests`, 4,191 passing): `DeclaredTagFamiliesTests` (parsing, merge,
+  masters excluded, size-switch names, parameter subset, and a data gate that every hand-built family
+  declares parameters that exist). Two of those fail against the previous config and pass now.
+  `DrawingTypeTagFamilyGateTests.CreatorFamilyNames` includes declared families as the runtime does.
+  Plugin build 0 errors / 0 warnings. **Not yet run in Revit.**
+
 #### Completed (TAGACC-16 / 17, 2026-09-29)
 
 - **TAGACC-16** the 28 remaining `Category.Name` LOOKUPS (DiscMap, known-category lists,
