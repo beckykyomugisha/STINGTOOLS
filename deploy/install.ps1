@@ -12,7 +12,10 @@
 # Licence (optional): -Licence <path>, else the first *.lic next to this script,
 # is copied to C:\ProgramData\Planscape\StingTools\StingTools.lic. A portable
 # licence (issued with --any-machine) activates every PC it is installed on.
-# Without one, STING runs a built-in 90-day trial from its first launch.
+# Only relevant to builds with LicenseGate.Enforced = true.
+#
+# Older STING manifests (other file names, machine-wide copies) are disabled so
+# Revit cannot keep loading a previous build.
 param([string]$ContentLibrary, [string]$Licence)
 $ErrorActionPreference = 'Stop'
 
@@ -44,24 +47,63 @@ $template = @"
 "@
 $addin = $template.Replace('__DLL__', $dll)
 
+# Revit holds the old DLL and re-reads manifests only at startup.
+if (Get-Process -Name 'Revit' -ErrorAction SilentlyContinue) {
+    Write-Host "ERROR: Revit is running. Close every Revit window, then run install.bat again." -ForegroundColor Red
+    exit 1
+}
+
+# A zip downloaded from the internet marks every file as blocked; clear that.
+Get-ChildItem -LiteralPath $here -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
+
+# Any OTHER manifest that loads STING (an older install, a different file name, a
+# machine-wide copy) wins or collides with ours, and Revit then runs that old DLL -
+# which is how an old build keeps showing its licence window after an update.
+function Find-StingManifests([string]$dir) {
+    if (-not (Test-Path -LiteralPath $dir)) { return @() }
+    Get-ChildItem -LiteralPath $dir -Filter '*.addin' -File -ErrorAction SilentlyContinue | Where-Object {
+        $t = Get-Content -LiteralPath $_.FullName -Raw -ErrorAction SilentlyContinue
+        $t -and ($t -match 'A1B2C3D4-5678-9ABC-DEF0-123456789ABC' -or $t -match 'StingTools\.Core\.StingToolsApp')
+    }
+}
+
+$blocked = @()
 $installed = 0
 foreach ($ver in '2025','2026','2027') {
     $revitApi = "C:\Program Files\Autodesk\Revit $ver\RevitAPI.dll"
     if (Test-Path $revitApi) {
         $addinsDir = Join-Path $env:APPDATA "Autodesk\Revit\Addins\$ver"
         New-Item -ItemType Directory -Force -Path $addinsDir | Out-Null
+        $ours = Join-Path $addinsDir 'StingTools.addin'
 
-        # Remove any per-machine duplicate that would make Revit load STING twice.
-        $machineDup = "C:\ProgramData\Autodesk\Revit\Addins\$ver\StingTools.addin"
-        if (Test-Path $machineDup) {
-            Remove-Item $machineDup -Force -ErrorAction SilentlyContinue
-            Write-Host "Removed conflicting machine-wide copy for $ver" -ForegroundColor Yellow
+        foreach ($m in (Find-StingManifests $addinsDir)) {
+            if ($m.FullName -ieq $ours) { continue }
+            $old = '?'
+            try { $old = ([xml](Get-Content -LiteralPath $m.FullName -Raw)).RevitAddIns.AddIn.Assembly } catch { }
+            Rename-Item -LiteralPath $m.FullName -NewName ($m.Name + '.disabled') -Force
+            Write-Host "Revit ${ver}: disabled old manifest $($m.Name) (it loaded $old)" -ForegroundColor Yellow
+        }
+        foreach ($m in (Find-StingManifests "C:\ProgramData\Autodesk\Revit\Addins\$ver")) {
+            try {
+                Remove-Item -LiteralPath $m.FullName -Force -ErrorAction Stop
+                Write-Host "Revit ${ver}: removed machine-wide manifest $($m.FullName)" -ForegroundColor Yellow
+            } catch {
+                Write-Host "Revit ${ver}: could NOT remove $($m.FullName) - it needs administrator rights." -ForegroundColor Red
+                $blocked += $m.FullName
+            }
         }
 
-        Set-Content -LiteralPath (Join-Path $addinsDir 'StingTools.addin') -Value $addin -Encoding UTF8
-        Write-Host ("Installed for Revit {0}  ->  {1}\StingTools.addin" -f $ver, $addinsDir) -ForegroundColor Green
+        Set-Content -LiteralPath $ours -Value $addin -Encoding UTF8
+        Write-Host ("Installed for Revit {0}  ->  {1}" -f $ver, $ours) -ForegroundColor Green
         $installed++
     }
+}
+
+if ($blocked.Count -gt 0) {
+    Write-Host ""
+    Write-Host "An older STING install is still registered for all users, so Revit would keep loading it:" -ForegroundColor Red
+    $blocked | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host "Right-click install.bat > 'Run as administrator' to remove it, or delete those files by hand." -ForegroundColor Red
 }
 
 if ($installed -eq 0) {
