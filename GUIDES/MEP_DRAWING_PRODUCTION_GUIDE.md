@@ -99,8 +99,12 @@ model has no view of the kind a template needs (a section, an elevation, a 3D vi
 temporary one is made and deleted. Only legend templates cannot be made this way; the report
 says so.
 
-Or run **SETUP → WORKFLOW AUTOMATION → "Run preset" → `MEPDrawingSetup`**: drawing-production
-setup, MEP system types, MEP systems, system filters and seeds, in one run.
+Or run the `MEPDrawingSetup` preset: drawing-production setup, MEP system types, MEP systems,
+system filters and seeds, in one run. Two ways to start a preset, both on the SETUP tab:
+**QUICK WORKFLOWS → pick "MEP drawing setup" in the Preset list → "Run preset"**, or
+**WORKFLOW AUTOMATION → "Run"**, which lists every preset (built-in and `WORKFLOW_*.json`) to
+pick from. The Preset list also carries "MEP drawing production", "MEP pre-issue checks" and
+"Revision issue".
 
 ## A3. Backgrounds
 
@@ -206,11 +210,15 @@ Then, in this order:
 4. The schedule drawing types: `mech-equip-schedule-A3`, `elec-panel-schedule-A3`,
    `valve-schedule-A3`, `plumb-pressure-schedule-A3`, `penetration-register-A1`.
 
-**One click for the whole set:** **"Run preset" → `MEPDrawingProduction`** tags the project,
-then produces from area boxes when the project has them, per level when it doesn't, and from
-`STING::` boxes when there are any; then match lines, panel templates, schedules and schedule
-sheets. It shows no dialogs: each step's result goes into the workflow report and the full text
-into the STING log. Re-runs reuse everything by stamp.
+**One click for the whole set:** **QUICK WORKFLOWS → "MEP drawing production" → "Run
+preset"** (the `MEPDrawingProduction` preset) tags the project (whole project; Tag & Combine
+takes `params.scope`), then produces from area boxes when the project has them, per level
+when it doesn't, and from `STING::` boxes when there are any; then colours every produced MEP
+plan by system with the filters `MEPDrawingSetup` built (`MEP_ApplyMepCoordination` with
+`params.scope = produced`; a view whose template controls filters is coloured through the
+template), then match lines, panel templates, schedules, schedule sheets and the diagrams.
+It shows no dialogs (every step was checked; see C7): each step's result goes into the
+workflow report and the full text into the STING log. Re-runs reuse everything by stamp.
 
 Style sync ("Sync Styles") and production re-runs keep each view's scope-box crop: the box is
 recovered from the view's own context stamp, so re-applying a drawing type no longer replaces
@@ -226,14 +234,25 @@ a box crop with the type's default crop.
 5. **DOCS → "Match Lines: Validate"**.
 
 Run **"Heal TBs"** and **"Renumber"** (same expander as Doctor) only if something was
-reported. **"Run preset" → `MEPPreIssue`** runs steps 1–5 in one go, without dialogs.
+reported. **QUICK WORKFLOWS → "MEP pre-issue checks" → "Run preset"** (the `MEPPreIssue`
+preset) runs steps 1–5 in one go, without dialogs.
 
 ## A9. Issue
 
-1. Run `WORKFLOW_RevisionIssue` (Create Revision → Auto Revision Cloud → Issue Sheets →
-   Revision Sync → Revision Schedule). On a first issue there are no clouds, so Issue Sheets
-   takes the STING-stamped sheets (or `params.sheets`); it never marks a revision issued with
-   no sheets on it.
+1. Run the `RevisionIssue` preset (**QUICK WORKFLOWS → "Revision issue" → "Run preset"**):
+   Create Revision → Auto Revision Cloud → Issue Sheets → Revision Schedule.
+   - **Clouds.** Create Revision snapshots the tags as it makes the revision, so in the
+     preset Auto Revision Cloud compares against the *previous* revision's snapshot
+     (`params.baseline = previous`) — the clouds show what changed since the last revision
+     was opened. Run on its own it compares against the latest snapshot (create the
+     revision first, edit, then cloud). On a project's first revision there is no earlier
+     snapshot, so nothing is clouded. Clouds go in the active view.
+   - **Sheets.** A step `params.sheets` list wins (the step named the sheets); else the
+     sheets carrying a cloud for the revision — in a placed view or drawn on the sheet
+     itself; else the STING-stamped sheets (a first issue has no clouds). It never marks a
+     revision issued with no sheets on it, and counts a sheet only if the issue commits.
+   - Issue Sheets refreshes the title blocks itself, so there is no separate Revision Sync
+     step.
 2. **"⚡ Produce & Export" → option 2, "Finalize + Export (existing sheets only)"**. This
    writes PDFs plus a register CSV, records each PDF in the document register (so the
    transmittal can attach it), and by default exports only the sheets carrying the current
@@ -516,25 +535,51 @@ Presets: `WORKFLOW_PlumbingDesign` (20 steps), `WORKFLOW_PlumbingRoughIn`,
 
 ## C7. Running modelling unattended
 
-**SETUP → WORKFLOW AUTOMATION → "Run preset"** runs a chain without clicks, but only for
-commands the workflow engine can resolve.
+A preset (SETUP → **WORKFLOW AUTOMATION → "Run"**, or **QUICK WORKFLOWS → "Run preset"**)
+runs a chain without clicks, but only for commands the workflow engine can resolve, and only
+unattended if the command opens no dialog inside a preset. A command that does open one
+stops the run until someone closes it.
 
-These run headless:
-- `Seeds_Build`, `Placement_PlaceFixtures`, `Placement_MedGasOutlets`
-- `Routing_AutoDrop`, `Plumb_*`, `MEP_Build*`
-- `Cable_Calculate`, `Calc_VoltageDrop`, `Calc_FaultCurrent`
-- `Panel_BatchSchedules`, `Panel_ComplianceCheck`, `Panel_BalanceApply`
-- `SLD_Generate`, `Fire_SprinklerHydraulics`, `BOQExport`, `COBieExport`
-- `DrawingTypes_SetupProduction`, the `ScopeBox_*` commands, `MatchLine_*`, `DrawingTypes_Doctor`
-- the producers `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceFromScopeBoxes`,
-  `DrawingTypes_ProduceAndExport`, plus `DrawingTypes_Renumber`, `DrawingTypes_HealTitleBlocks`,
-  `Panel_PlaceOnSheets`
+These run unattended (checked against the code; results go to the workflow report and the
+STING log). Step params in brackets, default after the `=`:
+- Setup: `DrawingTypes_SetupProduction`, `MEP_BuildSystemTypes`, `MEP_BuildSystems` (whole
+  project), `MEP_GenerateSystemFilters`, `Seeds_Build` (`mode` = MissingOnly;
+  RebuildUnfinalized / RebuildAll)
+- Tagging: `TagAndCombine` (`scope` = project; view / selected), `TokenConfidenceAudit`
+- Production: `ScopeBox_ProduceAreas`, `DrawingTypes_ProducePerLevel`,
+  `DrawingTypes_ProduceFromScopeBoxes` (`drawingTypes`, `levels`, `output` = Views and sheets,
+  `duplicateOption` = Duplicate, `packageId`), `MEP_ApplyMepCoordination` (`scope` = view;
+  `produced` colours every STING-produced MEP plan), `MatchLine_Generate`
+- Electrical documents: `Panel_TemplatesCreate`, `Panel_BatchSchedules`, `Panel_PlaceOnSheets`
+  (`mode` = AutoSheets), `SLD_Generate`, `SLD_RiserDiagram` (both take their options from the
+  Electrical panel's last settings), `FireAlarm_Schematic`, `MGPS_Schematic`, `LPS_Schematic`,
+  `Earthing_Diagram`
+- Plumbing documents: `Plumb_SupplySchematic`, `Plumb_DrainageSchematic`
+- Checks: `DrawingTypes_Doctor`, `SheetComplianceCheck`, `Validation_RunAll`, `ValidateTags`,
+  `MatchLine_Validate`
+- Revisions: `CreateRevision`, `AutoRevisionCloud` (`baseline` = latest; previous),
+  `IssueSheetsForRevision` (`sheets`), `RevisionSchedule`
 
-A step passes inputs through `params`: `drawingTypes`, `levels`, `output`, `duplicateOption`,
-`packageId`, `mode`, `sheets`, `suitability`. With no `drawingTypes`, production makes each
-modelled discipline's routed plan type (M / E / P / FP / MG), only on the levels where that
-discipline has elements, as views and sheets. An unknown type or level fails the step with the
+With no `drawingTypes`, production makes each modelled discipline's routed plan type
+(M / E / P / FP / MG), only on the levels where that discipline has elements, as views and
+sheets. An unknown type or level, or an unreadable param value, fails the step with the
 reason. A view or sheet is counted only if its transaction commits.
+
+These resolve in a preset but still open a dialog there, so run them from their panels:
+- `Placement_PlaceFixtures` (asks to confirm or preview, then shows its result),
+  `Placement_MedGasOutlets` (result dialog)
+- `Routing_AutoDrop` (needs a selection; result panel)
+- `Cable_Calculate` and every `Calc_*` (`Calc_LoadSummary`, `Calc_VoltageDrop`, `Calc_FlagVD`,
+  `Calc_SizeBreakers`, `Calc_ApplyBreakers`, `Calc_FaultCurrent`, `Calc_AicStamp`,
+  `Calc_FeederSize`): each shows its summary, and they read their inputs from the Electrical
+  panel, not from step params
+- `Fire_SprinklerHydraulics` (needs a selection; asks for hazard, area and supply pressure)
+- `BOQExport` (coverage gate and result panel), `COBieExport` (opens the export wizard)
+- `Panel_ComplianceCheck` and `Panel_BalanceApply` until their preset-safe versions
+  (`params.apply`) are merged
+
+Not checked for unattended use yet: the other `Plumb_*` commands, `DrawingTypes_ProduceAndExport`,
+`DrawingTypes_Renumber`, `DrawingTypes_HealTitleBlocks`.
 
 These are still panel-only:
 - `Placement_LightingGrid`, `Placement_ToiletRoom`
@@ -657,6 +702,10 @@ Revit yet:
 - SLD / riser / schematic / panel schedule sheets (and whether a large plumbing schematic fits
   an A1 slot at 1:50)
 - revision issue of freshly produced sheets, and PDFs reaching the transmittal
+- the `RevisionIssue` preset's clouds against the previous revision's snapshot, and issue of
+  a sheet whose cloud is drawn on the sheet itself
+- colouring produced MEP plans through their view templates (`MEP_ApplyMepCoordination`,
+  `scope = produced`)
 - medical-gas pack placement placing the seed types with the gas stamped
 - temporary base views for templates
 - medical-gas placement in a hospital model (and none in a residential one)

@@ -2764,6 +2764,19 @@ namespace StingTools.UI
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
                     }
+                    // Data/WORKFLOW_*.json presets on the SETUP quick-workflow combo. Their
+                    // "name" is the tag suffix verbatim; the space reconstruction above
+                    // would turn "MEPDrawingSetup" into "MEPDrawing Setup", which matches
+                    // no preset and falls through to the picker.
+                    case "RunWorkflow_MEPDrawingSetup":
+                    case "RunWorkflow_MEPDrawingProduction":
+                    case "RunWorkflow_MEPPreIssue":
+                    case "RunWorkflow_RevisionIssue":
+                    {
+                        SetExtraParam("WorkflowPresetName", tag.Substring("RunWorkflow_".Length));
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
                     case "SaveExtendedBaseline":
                     {
                         var d = app.ActiveUIDocument?.Document;
