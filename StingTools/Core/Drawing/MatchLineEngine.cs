@@ -340,12 +340,13 @@ namespace StingTools.Core.Drawing
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
                 {
                     if (!(el is View v) || v.IsTemplate) continue;
+                    // Plans only. DTW-52: a section or 3D view is now produced FROM a scope
+                    // box (cut through it / boxed by it); it does not continue onto the next
+                    // box's sheet, and a plan-shaped match line drawn in it is nonsense.
                     if (v.ViewType != ViewType.FloorPlan
                         && v.ViewType != ViewType.CeilingPlan
                         && v.ViewType != ViewType.AreaPlan
-                        && v.ViewType != ViewType.EngineeringPlan
-                        && v.ViewType != ViewType.Section
-                        && v.ViewType != ViewType.Elevation)
+                        && v.ViewType != ViewType.EngineeringPlan)
                         continue;
                     var p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
                     if (p == null) continue;

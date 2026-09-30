@@ -795,8 +795,19 @@ namespace StingTools.Core.Drawing
                         return ViewPlan.Create(doc, vft.Id, ctx.Level.Id).Id;
 
                     case "Section":
-                        var sectionBox = ctx.CustomBounds ?? BuildDefaultSectionBbox(ctx);
+                    {
+                        // DTW-52: a section produced for a scope box is cut from the box.
+                        // The fixed default below — 10 m wide at the project origin —
+                        // is now only for a context that gives no place at all, and says so.
+                        var sectionBox = ctx.CustomBounds ?? BuildSectionBoxFromScopeBox(doc, ctx, result);
+                        if (sectionBox == null)
+                        {
+                            sectionBox = BuildDefaultSectionBbox(ctx);
+                            result.Warnings.Add($"'{dt.Id}': the section has no grid, box or bounds to cut from — "
+                                + "made as a 10 m section at the project origin; move it into place.");
+                        }
                         return ViewSection.CreateSection(doc, vft.Id, sectionBox).Id;
+                    }
 
                     case "Detail":
                         var detailBox = ctx.CustomBounds ?? BuildDefaultDetailBbox(ctx);
@@ -818,7 +829,21 @@ namespace StingTools.Core.Drawing
                         return marker.CreateElevation(doc, ownerPlan.Id, 0).Id;
 
                     case "ThreeD":
-                        return View3D.CreateIsometric(doc, vft.Id).Id;
+                    {
+                        var v3 = View3D.CreateIsometric(doc, vft.Id);
+                        // DTW-52: a 3D view produced for a scope box shows the box, turned
+                        // with it — its section box is the box's own frame.
+                        if (v3 != null && ctx.ScopeBox != null)
+                        {
+                            var sb = BuildSectionBoxFor3D(ctx.ScopeBox, result);
+                            if (sb != null)
+                            {
+                                try { v3.SetSectionBox(sb); v3.IsSectionBoxActive = true; }
+                                catch (Exception ex) { result.Warnings.Add($"3D section box from '{ctx.ScopeBox.Name}': {ex.Message}"); }
+                            }
+                        }
+                        return v3?.Id ?? ElementId.InvalidElementId;
+                    }
 
                     case "DraftingView":
                         return ViewDrafting.Create(doc, vft.Id).Id;
@@ -959,6 +984,65 @@ namespace StingTools.Core.Drawing
                 Min = new XYZ(-halfW, yLo, -depth),
                 Max = new XYZ( halfW, yHi, 0.0),
             };
+        }
+
+        /// <summary>
+        /// DTW-52: the section a scope box gives — through its centre along its long
+        /// side, as deep as the box's far face (SectionFromBox), over the context level's
+        /// storey clipped to the box, or the box's full height with no level. Null when
+        /// the context has no box or the box cannot be measured (reported).
+        /// </summary>
+        private static BoundingBoxXYZ BuildSectionBoxFromScopeBox(Document doc, DrawingContext ctx, ProduceResult result)
+        {
+            if (ctx?.ScopeBox == null) return null;
+            if (!ScopeBoxRevit.TryMeasure(ctx.ScopeBox, out var m, out var why))
+            {
+                result.Warnings.Add($"Section from scope box '{ctx.ScopeBox.Name}': the box {why}.");
+                return null;
+            }
+            var frame = SectionFromBox.Frame(m.Centre.X, m.Centre.Y,
+                m.WidthM * ScopeBoxRevit.FeetPerMetre, m.DepthM * ScopeBoxRevit.FeetPerMetre, m.AngleRad);
+            if (frame == null) return null;
+            double? lvl = null, next = null;
+            if (ctx.Level != null)
+            {
+                lvl = ctx.Level.Elevation;
+                try
+                {
+                    next = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                        .Where(l => l.Elevation > ctx.Level.Elevation + 1e-6)
+                        .OrderBy(l => l.Elevation).Select(l => (double?)l.Elevation).FirstOrDefault();
+                }
+                catch (Exception ex) { StingLog.Warn($"Section band next level: {ex.Message}"); }
+            }
+            const double mToFt = 1.0 / 0.3048;
+            var (bottom, top) = SectionFromBox.Band(m.ZMinFt, m.ZMaxFt, lvl, next, 1.0 * mToFt, 4.0 * mToFt);
+            return BuildSectionBox(
+                origin:       new XYZ(frame.OriginX, frame.OriginY, bottom),
+                cutDirection: new XYZ(frame.DirX, frame.DirY, 0),
+                halfWidthFt:  frame.HalfWidth,
+                bottomZ:      bottom,
+                topZ:         top,
+                depthFt:      frame.Depth);
+        }
+
+        /// <summary>DTW-52: a 3D section box that is the scope box, in the box's own frame.</summary>
+        private static BoundingBoxXYZ BuildSectionBoxFor3D(Element box, ProduceResult result)
+        {
+            if (!ScopeBoxRevit.TryMeasure(box, out var m, out var why))
+            {
+                result.Warnings.Add($"3D view for scope box '{box?.Name}': the box {why}.");
+                return null;
+            }
+            double w = m.WidthM * ScopeBoxRevit.FeetPerMetre, d = m.DepthM * ScopeBoxRevit.FeetPerMetre;
+            var t = Transform.Identity;
+            t.Origin = m.Centre;
+            t.BasisX = new XYZ(Math.Cos(m.AngleRad), Math.Sin(m.AngleRad), 0);
+            t.BasisY = new XYZ(-Math.Sin(m.AngleRad), Math.Cos(m.AngleRad), 0);
+            t.BasisZ = XYZ.BasisZ;
+            double zLo = Math.Min(m.ZMinFt, m.ZMaxFt) - m.Centre.Z, zHi = Math.Max(m.ZMinFt, m.ZMaxFt) - m.Centre.Z;
+            if (zHi - zLo < 1e-6) zHi = zLo + 1.0;
+            return new BoundingBoxXYZ { Transform = t, Min = new XYZ(-w / 2, -d / 2, zLo), Max = new XYZ(w / 2, d / 2, zHi) };
         }
 
         private static BoundingBoxXYZ BuildDefaultSectionBbox(DrawingContext ctx)

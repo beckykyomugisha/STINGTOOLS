@@ -356,6 +356,14 @@ namespace StingTools.Core.Drawing
                         && (Math.Min(m.WidthM, m.DepthM) > Math.Min(w, d) + 0.05 || Math.Max(m.WidthM, m.DepthM) > Math.Max(w, d) + 0.05))
                         report.Add($"'{box.Name}' ({ScopeBoxNames.Metres(m.WidthM)} × {ScopeBoxNames.Metres(m.DepthM)} m) is larger than '{id}' allows "
                                  + $"({ScopeBoxNames.Metres(w)} × {ScopeBoxNames.Metres(d)} m) — its plan will not fit the slot at 1:{dt.Scale}.");
+                    // DTW-52: a section type is cut from the box once — it has no level
+                    // loop (SectionFromBox spans the box's height).
+                    if (DrawingPurposeViewKind.TryResolve(dt.Purpose, out var kind) && kind == DrawingViewKind.Section)
+                    {
+                        if (!items.Any(i => i.Box.Id == box.Id && i.Level == null && string.Equals(i.Type.Id, dt.Id, StringComparison.OrdinalIgnoreCase)))
+                            items.Add(new ProductionItem { Box = box, Level = null, Type = dt });
+                        continue;
+                    }
                     foreach (var l in reached)
                     {
                         if (!fromPlan && defaultInclude != null && !defaultInclude(dt, l)) continue;
@@ -393,7 +401,9 @@ namespace StingTools.Core.Drawing
                 tg.Start();
                 foreach (var it in items)
                 {
-                    using (var t = new Transaction(doc, $"STING Area {it.Box.Name} {it.Level.Name} {it.Type.Id}"))
+                    // DTW-52: a section item has no level.
+                    string where = it.Level != null ? $"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}" : $"{it.Box.Name} / {it.Type.Id}";
+                    using (var t = new Transaction(doc, $"STING Area {where}"))
                     {
                         t.Start();
                         try
@@ -408,15 +418,21 @@ namespace StingTools.Core.Drawing
                             bool BoxCrops(ElementId vid) =>
                                 doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId() == it.Box.Id;
                             var planIds = pr.ViewIds.Where(vid => doc.GetElement(vid) is ViewPlan).ToList();
-                            bool cropped = planIds.Count > 0 && planIds.All(BoxCrops);
-                            if (cropped)
+                            // A section item's section is CUT from the box (SectionFromBox), so
+                            // it needs no scope-box crop: it is kept when a section was made.
+                            bool cropped = it.Level == null
+                                ? pr.ViewIds.Any(vid => doc.GetElement(vid) is ViewSection)
+                                : planIds.Count > 0 && planIds.All(BoxCrops);
+                            if (cropped && it.Level != null)
                                 foreach (var vid in pr.ViewIds.Where(vid => !(doc.GetElement(vid) is ViewPlan) && !BoxCrops(vid)))
-                                    warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: '{doc.GetElement(vid)?.Name}' is not cropped to the box (kept — only its plan must be).");
+                                    warnings.Add($"{where}: '{doc.GetElement(vid)?.Name}' is not cropped to the box (kept — only its plan must be).");
                             if (!cropped)
                             {
                                 t.RollBack();
                                 notCropped++;
-                                warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: the view could not be cropped to the box — nothing kept.");
+                                warnings.Add(it.Level == null
+                                    ? $"{where}: no section could be cut from the box — nothing kept."
+                                    : $"{where}: the view could not be cropped to the box — nothing kept.");
                                 warnings.AddRange(pr.Warnings);
                                 continue;
                             }
@@ -427,7 +443,7 @@ namespace StingTools.Core.Drawing
                             if (status != TransactionStatus.Committed)
                             {
                                 failed++;
-                                warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: the transaction did not commit ({status}) — nothing kept.");
+                                warnings.Add($"{where}: the transaction did not commit ({status}) — nothing kept.");
                                 continue;
                             }
                             if (pr.WasIdempotent) refreshed += pr.ViewIds.Count; else made += pr.ViewIds.Count;
@@ -437,7 +453,7 @@ namespace StingTools.Core.Drawing
                         {
                             if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
                             failed++;
-                            warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: {ex.Message}");
+                            warnings.Add($"{where}: {ex.Message}");
                         }
                     }
                 }
