@@ -405,7 +405,11 @@ namespace StingTools.Core.Plumbing
                 if (styleId != null && styleId != ElementId.InvalidElementId)
                 {
                     try { dc.LineStyle = doc.GetElement(styleId) as GraphicsStyle; }
-                    catch (Exception ex) { StingLog.Warn($"SupplySchematic: line style: {ex.Message}"); }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"SupplySchematic: line style: {ex.Message}");
+                        if (r.Warnings.Count < 20) r.Warnings.Add($"A line was drawn without its line style: {ex.Message}");
+                    }
                 }
                 return true;
             }
