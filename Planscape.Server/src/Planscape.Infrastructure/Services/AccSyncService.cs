@@ -65,7 +65,7 @@ public class AccSyncService
     public const string KeyWebhookHooks  = "accWebhookHooks";
 
     /// <summary>ConfigJson keys only the server writes. A client PUT must not replace them.</summary>
-    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyWebhookHooks };
+    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
 
     // Documented Issues v1 POST limits.
     private const int TitleMax = 100;

@@ -18,7 +18,8 @@
 //   * Payload: { version, resourceUrn, hook:{ hookId, tenant, event, system,
 //     scope }, payload:{ … } }. The event name is hook.event.
 //   * Delivery is at-least-once; x-adsk-delivery-id identifies a delivery and is
-//     used to drop duplicates. Respond 2xx within 7 s.
+//     used to drop duplicates — claimed atomically in the ApsWebhookDeliveries
+//     table (ApsWebhookDeliveryGuard). Respond 2xx within 7 s.
 //
 // TENANCY: this endpoint is anonymous, so there is no tenant context and the
 // global filter would match nothing (Guid.Empty). Every read uses
@@ -41,11 +42,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
 using Planscape.Infrastructure.Services.Aps;
 using Planscape.Infrastructure.SignalR;
 
@@ -57,26 +58,24 @@ namespace Planscape.API.Controllers;
 public class AutodeskWebhooksController : ControllerBase
 {
     public const string SignaturePrefix = "sha1hash=";
-    private const string DeliveryKeyPrefix = "aps-webhook-delivery:";
-    private static readonly TimeSpan DeliveryMemory = TimeSpan.FromHours(48);
 
     private readonly PlanscapeDbContext _db;
     private readonly IHubContext<NotificationHub> _hub;
     private readonly IConfiguration _config;
-    private readonly IDistributedCache _cache;
+    private readonly ApsWebhookDeliveryGuard _deliveries;
     private readonly ILogger<AutodeskWebhooksController> _log;
 
     public AutodeskWebhooksController(
         PlanscapeDbContext db,
         IHubContext<NotificationHub> hub,
         IConfiguration config,
-        IDistributedCache cache,
+        ApsWebhookDeliveryGuard deliveries,
         ILogger<AutodeskWebhooksController> log)
     {
         _db = db;
         _hub = hub;
         _config = config;
-        _cache = cache;
+        _deliveries = deliveries;
         _log = log;
     }
 
@@ -130,25 +129,38 @@ public class AutodeskWebhooksController : ControllerBase
             return BadRequest(new { error = "invalid json" });
         }
 
-        // At-least-once delivery: drop a delivery already processed. The cache is
-        // an optimisation — if it is down, process anyway (handlers are idempotent).
+        // At-least-once delivery: drop a delivery already processed. The claim is
+        // an atomic insert (ApsWebhookDeliveryGuard, ACC-SRV-7), so two concurrent
+        // deliveries of one id cannot both pass. A claim that cannot be taken
+        // (database error) processes anyway — the handlers are idempotent in effect.
         string deliveryId = Request.Headers["x-adsk-delivery-id"].FirstOrDefault() ?? "";
+        bool claimed = false;
         if (deliveryId.Length > 0)
         {
-            try
+            var claim = await _deliveries.TryClaimAsync(deliveryId, ct);
+            if (claim == ApsWebhookDeliveryGuard.Claim.Duplicate)
             {
-                if (await _cache.GetStringAsync(DeliveryKeyPrefix + deliveryId, ct) != null)
-                {
-                    _log.LogInformation("Autodesk webhook: duplicate delivery {Delivery} ignored.", deliveryId);
-                    return Ok(new { ok = true, duplicate = true });
-                }
+                _log.LogInformation("Autodesk webhook: duplicate delivery {Delivery} ignored.", deliveryId);
+                return Ok(new { ok = true, duplicate = true });
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _log.LogWarning(ex, "Autodesk webhook: dedupe cache unavailable; processing delivery {Delivery} without dedupe.", deliveryId);
-            }
+            claimed = claim == ApsWebhookDeliveryGuard.Claim.Claimed;
         }
 
+        try
+        {
+            return await ProcessAsync(root, connectionId, deliveryId, ct);
+        }
+        catch
+        {
+            // Processing failed: give the claim back so APS's redelivery is applied,
+            // not dropped as a duplicate of an event that never took effect.
+            if (claimed) await _deliveries.ReleaseAsync(deliveryId, CancellationToken.None);
+            throw;
+        }
+    }
+
+    private async Task<IActionResult> ProcessAsync(JsonElement root, Guid? connectionId, string deliveryId, CancellationToken ct)
+    {
         string ev = Str(root, "hook", "event");
         string urn = Str(root, "resourceUrn");
 
@@ -184,18 +196,6 @@ public class AutodeskWebhooksController : ControllerBase
                 break;
         }
 
-        if (deliveryId.Length > 0)
-        {
-            try
-            {
-                await _cache.SetStringAsync(DeliveryKeyPrefix + deliveryId, "1",
-                    new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = DeliveryMemory }, ct);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _log.LogWarning(ex, "Autodesk webhook: could not record delivery {Delivery} for dedupe.", deliveryId);
-            }
-        }
         return Ok(new { ok = true });
     }
 

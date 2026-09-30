@@ -2634,18 +2634,27 @@ Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1
 - ~~**ACC-SRV-3 — webhook tests (dedupe, tenancy, signature).**~~ **Done 2026-09-30.**
 - ~~**ACC-SRV-4 — unverified `payload.projectId` resolution.**~~ **Done 2026-09-30.**
   `POST acc/webhooks/subscribe` registers hooks with `?connectionId=`; payload lookup is a fallback.
-- **ACC-SRV-5 — run the server path live.** Not confirmed against APS: the secret-token
-  endpoints (`PUT /webhooks/v1/tokens/@me`, `POST /webhooks/v1/tokens`), the
-  `dm.version.modified` event name, and `x-ads-region` on webhook calls. Also check that the
-  first deploy logs `key ring store: database table "DataProtectionKeys"` on both the API and
-  the worker. Tokens stored before that deploy were encrypted under an ephemeral key; those
-  connections will show `RECONNECT_REQUIRED` and need one reconnect.
-- **ACC-SRV-6 — Data Management hooks need folder URNs.** APS scopes DM hooks to a folder, so
-  `subscribe` creates them only for the `folderUrns` it is given. There is no UI to pick them;
-  the ACC Docs CDE folder mapping (ACC-DOCS-1) is the likely source.
-- **ACC-SRV-7 — webhook dedupe is check-then-set.** Two concurrent deliveries with one
-  `x-adsk-delivery-id` can both be processed. The handlers are idempotent in effect (a second
-  `UpdatedAt` stamp, a second broadcast); make it an atomic set-if-absent if that matters.
-- **ACC-SRV-8 — DataProtection keys are not encrypted at rest.** The database store holds the
-  key XML unencrypted (the ASP.NET default without an XML encryptor). Anyone with database read
-  access can decrypt the stored ACC tokens. Add `ProtectKeysWith…` if the threat model needs it.
+- ~~**ACC-SRV-5 — APS webhook details unconfirmed.**~~ **Done 2026-09-30.** Secret-token
+  endpoints, `dm.version.modified`, `x-ads-region` and the 409 on hook create confirmed against
+  the APS OpenAPI spec; create→update secret fallback, event validation and 409 adoption built.
+  **Still to do on the first live run** (ACC-SRV-9 below).
+- ~~**ACC-SRV-6 — Data Management hooks need folder URNs.**~~ **Done 2026-09-30.**
+  `GET acc/folders` browses them; `subscribe` defaults to the project's top folders. No UI —
+  there is no ACC screen in the web or mobile app (runbook §3g documents the API).
+- ~~**ACC-SRV-7 — webhook dedupe is check-then-set.**~~ **Done 2026-09-30.** Atomic claim in
+  `ApsWebhookDeliveries` (`ApsWebhookDeliveryGuard`).
+- ~~**ACC-SRV-8 — DataProtection keys are not encrypted at rest.**~~ **Done 2026-09-30.**
+  `DataProtection:CertificateBase64` → `ProtectKeysWithCertificate`; WARNING when absent in
+  Production. **Operator action:** set it on Render (runbook §3f).
+- **ACC-SRV-9 — first live run.** The spec says what APS *accepts*; only a live tenant shows
+  what it *does*. On the first `subscribe` against a real ACC project check: `secretSetBy` (which
+  call worked), that a delivery arrives signed with our secret (APS notes up to 10 min for a
+  secret change), that the Location header carries the hook id, that `x-ads-region` matches the
+  hub's region for EMEA projects, and that `topFolders?projectFilesOnly=true` returns Project
+  Files for the connecting account. Also check the first deploy logs `key ring store: database
+  table "DataProtectionKeys"` and `keys at rest: encrypted with certificate …` on both API and
+  worker, then run `GET /api/acc/reconnect-required` — connections created before the durable
+  key store will be listed and need one reconnect each (their old key ring is gone by design).
+- **ACC-SRV-10 — ACC settings screen.** Connect / reconnect, hub + project selection, folder
+  picker and webhook subscribe are API-only; the web app (`planscape-web`) has no project
+  integrations screen to host them.

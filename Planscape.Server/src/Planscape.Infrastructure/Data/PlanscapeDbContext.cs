@@ -155,6 +155,9 @@ public class PlanscapeDbContext : DbContext,
     /// </summary>
     public DbSet<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey> DataProtectionKeys
         => Set<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>();
+
+    /// <summary>APS webhook delivery claims (ApsWebhookDeliveryGuard). Not tenant-scoped.</summary>
+    public DbSet<ApsWebhookDelivery> ApsWebhookDeliveries => Set<ApsWebhookDelivery>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
     public DbSet<SyncConflict> SyncConflicts => Set<SyncConflict>();
     public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
@@ -1183,6 +1186,15 @@ public class PlanscapeDbContext : DbContext,
         {
             e.ToTable("DataProtectionKeys");
             e.HasKey(k => k.Id);
+        });
+
+        // APS webhook delivery claims (ACC-SRV-7). The PK is the atomic claim.
+        modelBuilder.Entity<ApsWebhookDelivery>(e =>
+        {
+            e.ToTable("ApsWebhookDeliveries");
+            e.HasKey(d => d.DeliveryId);
+            e.Property(d => d.DeliveryId).HasMaxLength(200);
+            e.HasIndex(d => d.ReceivedAt);
         });
 
         // ── DocumentVersion ──

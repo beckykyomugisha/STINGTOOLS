@@ -46,8 +46,23 @@ public static class AccTokenRefresher
     /// </param>
     public sealed record Outcome(bool Success, string? Error = null, bool ReconnectRequired = false);
 
+    /// <summary>
+    /// What a person must DO about RECONNECT_REQUIRED. There is no Reconnect
+    /// button in the Planscape web or mobile app yet, so this names the call.
+    /// </summary>
+    public const string ReconnectInstruction =
+        "To fix it, reconnect ACC: a project manager or tenant administrator calls GET /api/acc/oauth/start?projectId=<this project's id>, " +
+        "opens the returned authorizeUrl and signs in to Autodesk with an account that can see the ACC project. " +
+        "The issue mapping and chosen hub / project are kept. GET /api/acc/reconnect-required lists every connection that needs this.";
+
     public const string UnreadableTokenError =
-        "The stored ACC tokens could not be decrypted (the server's DataProtection key ring changed) — reconnect ACC, or restore the key ring.";
+        "The stored ACC tokens could not be decrypted — reconnect ACC. They were encrypted under a server key ring that no longer exists " +
+        "(tokens saved before the durable key store was deployed, or a lost / replaced key ring) and cannot be recovered; restoring the old " +
+        "key ring is the only alternative. " + ReconnectInstruction;
+
+    public const string NoRefreshTokenError = "No refresh token is stored — reconnect ACC. " + ReconnectInstruction;
+
+    public const string InvalidGrantHint = " ACC rejected the stored refresh token (invalid_grant: revoked, expired, or already rotated) — reconnect ACC. " + ReconnectInstruction;
 
     /// <summary>True when either stored token is still ciphertext (decrypt failed).</summary>
     public static bool TokensUnreadable(PlatformConnection c)
@@ -97,7 +112,7 @@ public static class AccTokenRefresher
             if (string.IsNullOrWhiteSpace(conn.RefreshToken))
             {
                 if (tx != null) await tx.RollbackAsync(ct);
-                return new Outcome(false, "No refresh token is stored — connect ACC.", ReconnectRequired: true);
+                return new Outcome(false, NoRefreshTokenError, ReconnectRequired: true);
             }
 
             var result = await connector.RefreshTokenAsync(conn, ct);   // rotates onto the entity
@@ -122,7 +137,7 @@ public static class AccTokenRefresher
 
             logger?.LogWarning("ACC connection {Id}: token refresh failed: {Error}", conn.Id, result.Error);
             bool invalidGrant = result.Error?.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase) == true;
-            return new Outcome(false, result.Error ?? "Token refresh failed.", ReconnectRequired: invalidGrant);
+            return new Outcome(false, (result.Error ?? "Token refresh failed.") + (invalidGrant ? InvalidGrantHint : ""), ReconnectRequired: invalidGrant);
         }
         finally
         {

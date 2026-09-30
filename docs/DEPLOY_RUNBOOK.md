@@ -208,6 +208,77 @@ npx wrangler pages secret put CLOUD_APP_ORIGIN --project-name=planscape-marketin
 > disabled. An unset secret is a disabled feature; a wrong one is a broken
 > customer journey.
 
+### 3f. DataProtection key encryption (recommended) — `planscape-api` **and** `planscape-worker`
+
+The DataProtection key ring encrypts the stored ACC tokens and the MFA / SSO
+secrets. It lives in the `DataProtectionKeys` table. **Without a certificate the
+keys in that table are plain XML**: anyone who can read the database can decrypt
+every ACC token. With one, new keys are written encrypted. Keys already written
+unencrypted stay readable, so this can be turned on at any time — no migration.
+
+```bash
+# 1. RSA key + self-signed certificate (10 years; it only encrypts keys, nothing validates the chain)
+openssl req -x509 -newkey rsa:3072 -sha256 -days 3650 -nodes \
+  -subj "/CN=planscape-dataprotection" -keyout dp.key -out dp.crt
+# 2. PFX with a password
+openssl pkcs12 -export -inkey dp.key -in dp.crt -out dp.pfx -passout pass:'<pfx password>'
+# 3. One-line base64 for the env var (macOS: base64 -i dp.pfx | tr -d '\n')
+base64 -w0 dp.pfx
+```
+
+Set on **both** services (API and worker read the same keys — a value on one only
+means the other cannot read keys the first one writes):
+
+| Key | Value |
+|---|---|
+| `DataProtection__CertificateBase64` | the `base64 -w0 dp.pfx` output |
+| `DataProtection__CertificatePassword` | the PFX password |
+
+Keep `dp.pfx` + password in the password manager — **losing it makes every key
+written after this point unreadable** (every ACC connection then needs a
+reconnect, MFA re-enrolment, SSO secrets re-entered). Delete `dp.key` from disk.
+
+Verify after deploy — the startup log (Warning level, so it is in the production
+log) says either:
+
+- `[DataProtection] keys at rest: encrypted with certificate <thumbprint> (expires …)` — done;
+- `[DataProtection] keys at rest: NOT encrypted …` (WARNING) — not set; keys still work;
+- `[DataProtection] keys at rest: NOT encrypted (the configured certificate cannot be used) — …` (ERROR) — bad base64, wrong password, no private key or not RSA; the message names which.
+
+**Rotation:** put the old base64 PFX into `DataProtection__PreviousCertificatesBase64`
+(comma-separated for several; same password), set a new
+`DataProtection__CertificateBase64`, redeploy both services. Keys written under the
+old certificate stay readable; new keys use the new one. Drop the old one only
+after DataProtection has rotated past every key it protected (keys live 90 days).
+
+On Windows hosts `DataProtection__CertificateThumbprint` (a certificate with a
+private key in `CurrentUser\My` or `LocalMachine\My`) may be used instead.
+
+### 3g. ACC webhooks and reconnects (only when ACC is used)
+
+There is no ACC settings screen in the Planscape web or mobile app yet, so these
+are API calls made as a project manager / tenant administrator (bearer token):
+
+| Call | What it does |
+|---|---|
+| `GET /api/projects/{id}/acc/folders` | The ACC project's top folders (hidden ones flagged). `?parentUrn=<folder urn>` lists that folder's sub-folders. |
+| `POST /api/projects/{id}/acc/webhooks/subscribe` body `{}` | Sets the APS webhook secret (`Autodesk__WebhookSecret`), creates the issue hooks and the file-version hooks on the project's top folders (Project Files). The response lists `folderSource` / `folders`. |
+| … body `{"folderUrns":["urn:…"]}` | Version hooks on exactly those folders instead (a hook on a folder covers its sub-folders). `"folderUrns": []` = issue hooks only. |
+| `DELETE /api/projects/{id}/acc/webhooks` | Removes every hook Planscape recorded. |
+| `GET /api/acc/reconnect-required` | Every ACC connection in the tenant (or the projects you administer) that needs a reconnect, why, and the call to make. |
+
+Default top folders need the hub recorded on the connection
+(`PUT /api/projects/{id}/acc/selection` with `hubId`). Webhook `subscribe` needs
+`Autodesk__WebhookSecret` and an https callback (`Autodesk__WebhookCallbackUrl`,
+else the `Acc__CallbackUrl` origin).
+
+**Connections created before the durable key store** (ACC server follow-ups,
+2026-09-30) were encrypted under a key ring that was thrown away on the next
+restart. Those tokens **cannot be recovered** — by design, the old ring no longer
+exists. They show `RECONNECT_REQUIRED`; the fix is one reconnect per project:
+`GET /api/acc/oauth/start?projectId=<id>`, open the returned `authorizeUrl`, sign
+in to Autodesk. The issue mapping and hub / project selection are kept.
+
 ---
 
 ## 4. DNS + custom domains
