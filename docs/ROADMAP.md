@@ -2680,3 +2680,12 @@ Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1
 - **ACC-SRV-10 — ACC settings screen.** Connect / reconnect, hub + project selection, folder
   picker and webhook subscribe are API-only; the web app (`planscape-web`) has no project
   integrations screen to host them.
+
+### ACC seam audit (2026-10-01) — ACC-SEAM-1..16
+
+These are the integration seams between the ACC branches merged on 2026-09-30 and 2026-10-01. The working table, with file, line, severity and owner, is in `WORKLOG.md` ("Findings"). The ids there are `A1`…`A16` and map to `ACC-SEAM-n`.
+
+- ~~**ACC-SEAM-1** — auto-import shared the dock panel's command slot.~~ **Done** (13dafb71c): the import now runs on its own `ExternalEvent`.
+- ~~**ACC-SEAM-4** — a malformed `acc_settings.json` read as "not configured".~~ **Done** (686930e8a): `AccProjectSettingsFile.NotConfigured` names the file and fails.
+- ~~**ACC-SEAM-5** — an unattended upload decline read as a skip.~~ **Done** (686930e8a): it now fails the `failOnError` step with the reason.
+- **ACC-SEAM-2, 3, 6–16** — open, in progress: lifecycle-gap push policy, the ACCPublish picker, escalation-record durability, the review version, the unattended gate, BCC card threading, assignee resolution, metadata visibility, one upload discipline, issue subtype, invariant CSV, the origin record, and the playbook §6 keys.
