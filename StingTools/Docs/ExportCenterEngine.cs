@@ -1157,6 +1157,10 @@ namespace StingTools.Docs
                     r.AccUpload = "uploaded" +
                                   (verdict.Decision == V6.AccLedgerDecision.UploadReissueAllowed ? " (re-issue allowed by the profile)" : "") +
                                   (up.MetadataComplete ? "" : " — " + up.MetadataNote);
+                    // A11: the file is in ACC without the attributes asked for; that belongs in
+                    // the run's problem list, not only in one row's note.
+                    if (up.MetadataIncomplete)
+                        problems.Add($"{name}: uploaded, but its ISO 19650 attributes are incomplete — {up.MetadataNote}");
                     sent++;
                 }
                 catch (Exception ex)

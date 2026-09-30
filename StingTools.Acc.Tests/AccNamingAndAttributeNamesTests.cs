@@ -290,6 +290,7 @@ namespace StingTools.Acc.Tests
             Assert.True(r.Ok, r.Message);                           // the upload stands; the stamp does not
             Assert.False(r.MetadataComplete);
             Assert.Contains("not one of its drop-list values", r.MetadataNote);
+            Assert.True(r.MetadataIncomplete);                      // A11: visible to the caller as one flag
             Assert.Null(sent);                                       // nothing partial was sent
         }
 

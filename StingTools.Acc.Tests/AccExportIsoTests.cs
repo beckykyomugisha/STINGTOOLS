@@ -383,6 +383,7 @@ namespace StingTools.Acc.Tests
 
             Assert.True(r.Ok, r.Message);
             Assert.True(r.MetadataComplete, r.MetadataNote);
+            Assert.False(r.MetadataIncomplete);
             var body = batch();
             Assert.NotNull(body);
             var rev = body.OfType<JObject>().SingleOrDefault(t => (int)t["id"] == 2003);

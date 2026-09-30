@@ -101,6 +101,12 @@ namespace StingTools.V6
             /// A metadata failure does not undo an upload that happened — it is reported here.</summary>
             public string MetadataNote { get; set; } = "";
             public bool MetadataComplete { get; set; } = true;
+            /// <summary>Metadata stamping was asked for on this upload.</summary>
+            public bool MetadataRequested { get; set; }
+            /// <summary>A11: the upload happened but the ISO 19650 attributes asked for are not all
+            /// on the version (not written, partly written, or not confirmed by ACC). A caller
+            /// that reports an upload must report this too; <see cref="MetadataNote"/> says why.</summary>
+            public bool MetadataIncomplete => Ok && MetadataRequested && !MetadataComplete;
             /// <summary>What the naming-standard check found; empty when it was not run.</summary>
             public string NamingNote { get; set; } = "";
             public AccFetchStatus Status { get; set; } = AccFetchStatus.Ok;
@@ -195,9 +201,35 @@ namespace StingTools.V6
                 result.FolderReason = folder.reason;
                 result.NamingNote = namingNote;
 
-                // 5. ISO 19650 attributes.
+                // 5. ISO 19650 attributes. The file is in ACC by now, so nothing here may turn
+                //    the upload into a failure: a stamping problem - including one that throws
+                //    - is recorded on the result (MetadataRequested && !MetadataComplete) for
+                //    the caller to report, never swallowed and never promoted to "upload failed".
                 if (options?.Metadata != null)
-                    await StampMetadataAsync(creds, projectId, folderUrn, result, options).ConfigureAwait(false);
+                {
+                    result.MetadataRequested = true;
+                    try
+                    {
+                        // AccDocsMetadata sends the access token as it is (no refresh of its
+                        // own - A11, deferred). A large upload can outlive the token, so renew
+                        // a stale one first; a refusal is reported rather than sent to 401.
+                        var reAuth = await AccIssueSync.EnsureAuthDetailedAsync(creds).ConfigureAwait(false);
+                        if (!reAuth.Ok)
+                        {
+                            result.MetadataComplete = false;
+                            result.MetadataNote = "ISO 19650 attributes NOT written: the Autodesk sign-in could not be renewed " +
+                                                  "after the upload - " + reAuth.Detail;
+                        }
+                        else
+                            await StampMetadataAsync(creds, projectId, folderUrn, result, options).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        result.MetadataComplete = false;
+                        result.MetadataNote = "ISO 19650 attributes NOT written: " + ex.Message;
+                        StingLog.Warn("AccModelUpload: metadata stamping threw after a successful upload: " + ex.Message);
+                    }
+                }
 
                 StingLog.Info($"AccModelUpload: '{fileName}' → {result.VersionUrn} in {folderUrn} ({folder.reason})");
                 return result;
