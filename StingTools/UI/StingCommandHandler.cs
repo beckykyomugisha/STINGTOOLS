@@ -6584,11 +6584,11 @@ namespace StingTools.UI
                         if (!vpOk)  { missingVp++;  miss.Add($"  {t.Id}  →  viewport type '{t.ViewportTypeName}'"); }
                     }
                 }
-                TaskDialog.Show("Drawing Types — Sync Styles",
+                TaskDialog.Show("Drawing Types — Audit Style Refs",
                     $"OK: {ok}\nMissing view templates: {missingTpl}\nMissing viewport types: {missingVp}\n\n" +
                     (miss.Count == 0 ? "All references resolved." : string.Join("\n", miss.Take(40))));
             }
-            catch (Exception ex) { StingLog.Error("DrawingTypes_SyncStyles", ex); }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_AuditStyleRefs", ex); }
         }
 
         private static void DrawingTypesFromScopeBoxesInline(UIApplication app)

@@ -44,7 +44,7 @@ namespace StingTools.Core.Drawing
             new Entry(MainGroup, "Type Marks (assign)", "TypeMark_Assign"),
             new Entry(MainGroup, "Type Schedules", "TypeSchedule_Create"),
             new Entry(MainGroup, "Reload JSON", "DrawingTypes_Reload"),
-            new Entry(MainGroup, "Pres Setup", "DrawingTypes_PresentationSetup"),
+            new Entry(MainGroup, "Presentation Setup","DrawingTypes_PresentationSetup"),
             new Entry(MainGroup, "Group Browser", "DrawingTypes_GroupBrowser"),
             new Entry(MainGroup, "Audit Style Refs", "DrawingTypes_AuditStyleRefs"),
             new Entry(MainGroup, "Sync Styles", "DrawingTypes_SyncStyles"),
