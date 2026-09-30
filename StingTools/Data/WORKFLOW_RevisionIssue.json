@@ -16,7 +16,7 @@
     },
     {
       "commandTag": "IssueSheetsForRevision",
-      "label": "3. Assign revision to clouded sheets + mark issued",
+      "label": "3. Assign revision to clouded sheets (else params.sheets, else STING-produced sheets) + mark issued; fails, un-issued, when there are none",
       "optional": false
     },
     {

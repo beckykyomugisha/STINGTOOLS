@@ -441,6 +441,16 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void A_box_at_exactly_45_degrees_is_moved_not_mismatched()
+        {
+            // Both neighbouring quarter turns are equally near; the size check tests both
+            // orientations, so either fold gives Moved and the same turn back into place.
+            var p = Planned(10, 20, 50, 35);
+            Assert.Equal(PlannedBoxStatus.Moved, Judge(p, new ExistingScopeBox { CentreX = 10, CentreY = 20, WidthM = 35, DepthM = 50, AngleRad = Math.PI / 4 }));
+            Assert.Equal(Math.PI / 4, Math.Abs(p.RotateBy), 6);
+        }
+
+        [Fact]
         public void A_box_lying_across_the_plan_is_turned_a_quarter()
         {
             // Measured square to the grid but 35 along X where the plan wants 50: the same box, lying the other way.

@@ -83,7 +83,7 @@ namespace StingTools.Tags.Tests
             Assert.Contains(seed["parameters"], p => (string)p["name"] == "MGS_GAS_TYPE_TXT");
             var tus = seed["typeVariants"]
                 .Where(v => ((string)v["name"] ?? "").StartsWith("TERMINAL_UNIT_", StringComparison.Ordinal)).ToList();
-            Assert.Equal(8, tus.Count);
+            Assert.Equal(9, tus.Count);   // 8 supply gases + the AGSS scavenging unit the med-gas pack places
             var bad = tus.Where(v => !NetworkGases.Contains((string)v["params"]?["MGS_GAS_TYPE_TXT"] ?? ""))
                 .Select(v => (string)v["name"]).ToList();
             Assert.True(bad.Count == 0,

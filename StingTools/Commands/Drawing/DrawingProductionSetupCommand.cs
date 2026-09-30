@@ -45,7 +45,7 @@ namespace StingTools.Commands.Drawing
             {
                 msg = $"Workflow preset '{PresetName}' was not found — WORKFLOW_{PresetName}.json is missing from the data folder.";
                 LastOutcome = new WorkflowEngine.WorkflowOutcome { PresetName = PresetName, Failed = 1, Report = msg };
-                if (!Unattended) TaskDialog.Show("STING — Drawing Production Setup", msg);
+                if (!Unattended && !PresetDialog.Quiet) TaskDialog.Show("STING — Drawing Production Setup", msg);
                 return Result.Failed;
             }
             try

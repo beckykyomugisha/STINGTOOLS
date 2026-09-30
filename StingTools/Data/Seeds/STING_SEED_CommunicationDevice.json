@@ -42,7 +42,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -59,6 +59,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "WAP"
         },
         {
@@ -66,6 +67,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "WIFI_AP"
         },
         {

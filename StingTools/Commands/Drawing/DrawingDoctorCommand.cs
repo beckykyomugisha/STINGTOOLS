@@ -123,7 +123,13 @@ namespace StingTools.Commands.Drawing
                     ExpandedContent = sb.ToString(),
                     CommonButtons = TaskDialogCommonButtons.Close,
                 };
-                dlg.Show();
+                // Inside a workflow preset: the full report to the log, the headline to the step message.
+                if (PresetDialog.Quiet)
+                {
+                    StingLog.Info(sb.ToString());
+                    msg = $"Drawing Doctor: {dlg.MainInstruction}; {unstamped.Count} unstamped of {totalSheets} sheet(s) (details in the STING log).";
+                }
+                else dlg.Show();
                 return Result.Succeeded;
             }
             catch (Exception ex)

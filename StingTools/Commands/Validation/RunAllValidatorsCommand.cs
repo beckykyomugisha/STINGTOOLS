@@ -67,11 +67,11 @@ namespace StingTools.Commands.Validation
             }
             catch (Exception sx) { StingLog.Warn($"Suppression filter: {sx.Message}"); }
 
-            ShowResult(all, suppressed);
+            ShowResult(all, suppressed, ref message);
             return Result.Succeeded;
         }
 
-        private void ShowResult(List<ValidationResult> all, int suppressed = 0)
+        private void ShowResult(List<ValidationResult> all, int suppressed, ref string message)
         {
             int errors   = all.Count(r => r.Severity == ValidationSeverity.Error);
             int warnings = all.Count(r => r.Severity == ValidationSeverity.Warning);
@@ -101,7 +101,10 @@ namespace StingTools.Commands.Validation
                 if (rest > 0) panel.Text($"(+{rest} more findings — see StingLog)");
             }
 
-            panel.Show();
+            // Inside a workflow preset: the findings go to the log, the counts to the step message.
+            PresetDialog.Show(panel, ref message);
+            if (PresetDialog.Quiet)
+                message = $"Validators: {all.Count} finding(s) — {errors} error(s), {warnings} warning(s), {infos} info, {suppressed} suppressed (findings in the STING log).";
         }
     }
 }

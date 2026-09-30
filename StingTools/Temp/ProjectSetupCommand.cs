@@ -138,6 +138,16 @@ namespace StingTools.Temp
                     report.AppendLine($"  {stepNum,2}. Rename Scope Boxes — SKIPPED");
                     skipped++;
                 }
+                // Renames whose new name STING does not read were not applied (see
+                // ScopeBoxRenamePattern). Say which, so the person is not left thinking
+                // the boxes now drive LOC / ZONE.
+                if (data.RenameScopeBoxes && data.ScopeBoxRenamesRefused != null && data.ScopeBoxRenamesRefused.Count > 0)
+                {
+                    report.AppendLine($"      {data.ScopeBoxRenamesRefused.Count} rename(s) not applied:");
+                    foreach (var r in data.ScopeBoxRenamesRefused.Take(10)) report.AppendLine($"        • {r}");
+                    if (data.ScopeBoxRenamesRefused.Count > 10)
+                        report.AppendLine($"        • … {data.ScopeBoxRenamesRefused.Count - 10} more");
+                }
 
                 // Step: Create Grids
                 if (data.CreateGrids && (data.GridHCount > 0 || data.GridVCount > 0))
@@ -407,7 +417,7 @@ namespace StingTools.Temp
 
                     if (data.CreateTemplates)
                     {
-                        passed += RunStep(ref stepNum, report, "Create View Templates (23)",
+                        passed += RunStep(ref stepNum, report, "Create View Templates",
                             () => RunCommand(new ViewTemplatesCommand(), commandData, elements));
                         passed += RunStep(ref stepNum, report, "Apply Filters to Templates",
                             () => RunCommand(new ApplyFiltersToViewsCommand(), commandData, elements));
@@ -501,24 +511,26 @@ namespace StingTools.Temp
                     skipped++;
                 }
 
-                // Step: Create Views (plans + RCPs per level per discipline)
-                if (data.CreateViews)
+                // Step: Produce each discipline's plan drawings (and sheets) per level.
+                // Through DrawingProducer, from the drawing types each ticked
+                // discipline's PLAN / RCP routes to: the views and sheets are stamped,
+                // so Doctor, Renumber, Heal TBs and Produce & Export see them, and a
+                // later drawing-type production (or a re-run of this wizard) reuses
+                // them instead of making a second set. The view template / style pack
+                // comes from the drawing type, so no auto-assign pass follows.
+                if (data.CreateViews || data.CreateSheets)
                 {
+                    var produceDetail = new StringBuilder();
                     passed += RunStep(ref stepNum, report,
-                        $"Create Views ({data.Disciplines.Count} disciplines x {data.Levels.Count} levels)",
-                        () => CreateDisciplineViews(doc, data));
-
-                    // Immediately auto-assign view templates to the newly-created views so
-                    // sheet/viewport creation below uses the correct filters, detail level, VG overrides.
-                    // Runs even when UseLatestTemplateSetup=false — existing templates may already match.
-                    passed += RunStep(ref stepNum, report,
-                        "Apply Templates to New Views (auto-match by type/name/phase/level)",
-                        () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
+                        $"Produce Discipline Drawings ({data.Disciplines.Count} disciplines, " +
+                        (data.CreateSheets ? "views + sheets" : "views only") + ")",
+                        () => ProduceDisciplineDrawings(doc, data, produceDetail));
+                    report.Append(produceDetail);
                 }
                 else
                 {
                     stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Create Views — SKIPPED");
+                    report.AppendLine($"  {stepNum,2}. Produce Discipline Drawings — SKIPPED");
                     skipped++;
                 }
 
@@ -532,19 +544,6 @@ namespace StingTools.Temp
                 {
                     stepNum++;
                     report.AppendLine($"  {stepNum,2}. Create Dependents — SKIPPED");
-                    skipped++;
-                }
-
-                // Step: Create Sheets
-                if (data.CreateSheets)
-                {
-                    passed += RunStep(ref stepNum, report, "Create Sheets",
-                        () => RunCommand(new Docs.BatchCreateSheetsCommand(), commandData, elements));
-                }
-                else
-                {
-                    stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Create Sheets — SKIPPED");
                     skipped++;
                 }
 
@@ -603,7 +602,7 @@ namespace StingTools.Temp
                         "Second-Pass Template Assignment (sections, elevations, dependents)",
                         () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
                 }
-                else if (doTemplatePost && !data.CreateViews)
+                else if (doTemplatePost && !(data.CreateViews || data.CreateSheets))
                 {
                     // Phase 4 didn't create views, so no first pass ran — do it now.
                     passed += RunStep(ref stepNum, report,
@@ -613,7 +612,7 @@ namespace StingTools.Temp
                 else
                 {
                     stepNum++;
-                    report.AppendLine($"  {stepNum,2}. Auto-Assign Templates — SKIPPED (already applied in Phase 4)");
+                    report.AppendLine($"  {stepNum,2}. Auto-Assign Templates — SKIPPED (Phase 4's drawings take their drawing type's template)");
                     skipped++;
                 }
                 if (doTemplatePost)
@@ -1603,115 +1602,69 @@ namespace StingTools.Temp
         // ══════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// Create floor plans and RCPs per level per discipline.
-        /// Uses intelligent naming: "{Discipline} - {Level Name}" pattern.
+        /// Documentation phase: each ticked discipline's plan drawings, per level, through
+        /// DrawingProducer. The drawing types are the ones the discipline's PLAN (and RCP)
+        /// routes to — DrawingDispatcher's answer, the same one every other production
+        /// path uses. So the views and sheets carry the drawing-type stamp (Doctor,
+        /// Renumber, Heal TBs and Produce &amp; Export see them), the template / style pack /
+        /// crop / annotation come from the type, and a re-run — of the wizard or of any
+        /// drawing-type production — finds them by stamp and reuses them.
+        ///
+        /// This replaced a hand-rolled "{Discipline} Plan - {Level}" loop plus
+        /// BatchCreateSheets, whose unstamped output every drawing-type command ignored
+        /// and a later production duplicated.
         /// </summary>
-        private static Result CreateDisciplineViews(Document doc, ProjectSetupData data)
+        private static Result ProduceDisciplineDrawings(Document doc, ProjectSetupData data, StringBuilder detail)
         {
-            // Get the default floor plan and RCP view family types
-            var vfts = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .ToList();
-
-            var floorPlanType = vfts.FirstOrDefault(v => v.ViewFamily == ViewFamily.FloorPlan);
-            var rcpType = vfts.FirstOrDefault(v => v.ViewFamily == ViewFamily.CeilingPlan);
-
-            if (floorPlanType == null)
-            {
-                StingLog.Error("No floor plan ViewFamilyType found");
-                return Result.Failed;
-            }
-
-            // Get all levels
             var levels = new FilteredElementCollector(doc)
-                .OfClass(typeof(Level))
-                .Cast<Level>()
-                .OrderBy(l => l.Elevation)
-                .ToList();
-
+                .OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.Elevation).ToList();
             if (levels.Count == 0)
             {
-                StingLog.Error("No levels found for view creation");
+                detail.AppendLine("      The model has no levels — nothing to produce.");
                 return Result.Failed;
             }
 
-            // Build name index for dedup
-            var existingNames = new HashSet<string>(
-                new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .Where(v => !v.IsTemplate)
-                    .Select(v => v.Name),
-                StringComparer.OrdinalIgnoreCase);
+            var routing = Commands.Drawing.BatchProduceCommons.RoutePerLevel(doc, data.Disciplines ?? new List<string>());
+            foreach (var pick in routing.Picks)
+                detail.AppendLine($"      {pick.Discipline,-3} {pick.DocType,-4} → {pick.Type.Id}");
+            foreach (var disc in routing.Unrouted)
+                detail.AppendLine($"      {disc,-3} no drawing type routes from {disc} / PLAN — nothing produced for it (add a routing rule to produce it).");
+            foreach (var n in routing.NotPerLevel)
+                detail.AppendLine($"      {n} is not a per-level plan — not produced here.");
 
-            // Discipline code to long name mapping (all valid STING disc codes)
-            var discNames = new Dictionary<string, string>
+            var types = routing.Types;
+            if (types.Count == 0)
             {
-                { "A", "Architectural" }, { "S", "Structural" },
-                { "M", "Mechanical" }, { "E", "Electrical" },
-                { "P", "Plumbing" }, { "FP", "Fire Protection" },
-                { "LV", "Low Voltage" }, { "G", "Generic" }
-            };
-
-            int created = 0;
-
-            using (Transaction tx = new Transaction(doc, "STING Create Discipline Views"))
-            {
-                tx.Start();
-
-                foreach (string disc in data.Disciplines)
-                {
-                    if (!discNames.TryGetValue(disc, out string discName))
-                        discName = disc;
-
-                    foreach (Level level in levels)
-                    {
-                        // Floor Plan
-                        string planName = $"{discName} Plan - {level.Name}";
-                        if (!existingNames.Contains(planName))
-                        {
-                            try
-                            {
-                                ViewPlan plan = ViewPlan.Create(doc, floorPlanType.Id, level.Id);
-                                plan.Name = planName;
-                                existingNames.Add(planName);
-                                created++;
-                            }
-                            catch (Exception ex)
-                            {
-                                StingLog.Warn($"View creation failed '{planName}': {ex.Message}");
-                            }
-                        }
-
-                        // Reflected Ceiling Plan (disciplines that need ceiling views)
-                        if (rcpType != null &&
-                            (disc == "A" || disc == "M" || disc == "E" || disc == "LV"))
-                        {
-                            string rcpName = $"{discName} RCP - {level.Name}";
-                            if (!existingNames.Contains(rcpName))
-                            {
-                                try
-                                {
-                                    ViewPlan rcp = ViewPlan.Create(doc, rcpType.Id, level.Id);
-                                    rcp.Name = rcpName;
-                                    existingNames.Add(rcpName);
-                                    created++;
-                                }
-                                catch (Exception ex)
-                                {
-                                    StingLog.Warn($"View creation failed '{rcpName}': {ex.Message}");
-                                }
-                            }
-                        }
-                    }
-                }
-
-                tx.Commit();
+                detail.AppendLine("      No ticked discipline routes to a plan drawing type.");
+                return Result.Failed;
             }
 
-            StingLog.Info($"Discipline views: {created} created");
-            return created > 0 ? Result.Succeeded : Result.Failed;
+            var opts = new Core.Drawing.ProduceOptions
+            {
+                CreateSheet = data.CreateSheets,
+                PlaceOnSheet = data.CreateSheets,
+                RunAnnotation = true,
+                Idempotent = true,
+            };
+            int views = 0, sheets = 0;
+            var warnings = new List<string>();
+            Core.Drawing.DrawingTypePresentation.Prewarm(doc);
+            using (Core.Drawing.DrawingProducer.PrimeBatchScope(doc))
+                Commands.Drawing.ProduceViewsPerLevelCommand.Produce(doc, types, levels, opts, null,
+                    ref views, ref sheets, warnings);
+
+            detail.AppendLine($"      {views} view(s) across {levels.Count} level(s) (existing stamped views reused, not duplicated), " +
+                              $"{sheets} new sheet(s){(data.CreateSheets ? "" : " — sheets not requested")}.");
+            var distinct = warnings.Distinct().ToList();
+            foreach (var w in distinct) StingLog.Warn($"Project Setup produce: {w}");
+            if (distinct.Count > 0)
+            {
+                detail.AppendLine($"      {distinct.Count} warning(s):");
+                foreach (var w in distinct.Take(8)) detail.AppendLine($"        • {w}");
+                if (distinct.Count > 8) detail.AppendLine($"        • … {distinct.Count - 8} more in the STING log");
+            }
+            return views > 0 ? Result.Succeeded : Result.Failed;
         }
 
         // ══════════════════════════════════════════════════════════════

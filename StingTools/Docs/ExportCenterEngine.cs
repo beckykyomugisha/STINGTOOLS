@@ -977,13 +977,48 @@ namespace StingTools.Docs
             if (result == null || result.Cancelled) return;
             // Collected, then recorded with one register load and one save (DOCX-13):
             // per-file calls re-read and re-wrote the whole register for every file.
+            var files = result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? ""))
+                .Select(r => new ExportedFile
+                {
+                    Sheet = ResolveSheet(doc, r.SheetId),
+                    Path = r.OutputPath,
+                    Format = r.Format,
+                    Title = r.SheetTitle,
+                    SheetNumber = r.SheetNumber,
+                });
+            int n = RegisterExportedFiles(doc, files);
+            if (n > 0) StingLog.Info($"Export Centre: {n} file(s) recorded in the document register.");
+        }
+
+        /// <summary>One exported file, for <see cref="RegisterExportedFiles"/>.</summary>
+        internal sealed class ExportedFile
+        {
+            public ViewSheet Sheet;
+            public string Path;
+            public string Format;
+            public string Title;
+            public string SheetNumber;
+        }
+
+        /// <summary>
+        /// Record exported files in the project's document register, the way the Export
+        /// Centre does: suitability, revision and CDE state from the sheet, a sheet's PDF
+        /// under its ISO document number. Shared by the Export Centre and Produce &amp;
+        /// Export so every exported drawing reaches the Document Manager the same way.
+        /// Returns the number of rows recorded.
+        /// </summary>
+        internal static int RegisterExportedFiles(Document doc, IEnumerable<ExportedFile> files)
+        {
+            if (doc == null || files == null) return 0;
+            // Collected, then recorded with one register load and one save (DOCX-13):
+            // per-file calls re-read and re-wrote the whole register for every file.
             var batch = new List<BIMManager.ExportRegistration>();
-            foreach (var r in result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? "")))
+            foreach (var r in files)
             {
                 try
                 {
-                    var sheet = ResolveSheet(doc, r.SheetId);
-                    string code = null, rev = null, docNumber = null, title = r.SheetTitle;
+                    var sheet = r.Sheet;
+                    string code = null, rev = null, docNumber = null, title = r.Title;
                     if (sheet != null)
                     {
                         code = SheetSuitabilityCode(sheet);
@@ -997,7 +1032,7 @@ namespace StingTools.Docs
                     string type = r.Format is "IFC" or "NWC" ? "M3" : "DR";
                     batch.Add(new BIMManager.ExportRegistration
                     {
-                        FilePath = r.OutputPath,
+                        FilePath = r.Path,
                         DocType = type,
                         Description = $"{title} ({r.Format})",
                         Suitability = code ?? Core.Drawing.Iso19650Suitability.DefaultFor(state),
@@ -1006,10 +1041,9 @@ namespace StingTools.Docs
                         DocNumber = docNumber,
                     });
                 }
-                catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber}/{r.Format}: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber ?? r.Sheet?.SheetNumber}/{r.Format}: {ex.Message}"); }
             }
-            int n = BIMManager.BIMManagerEngine.AutoRegisterExports(doc, batch);
-            if (n > 0) StingLog.Info($"Export Centre: {n} file(s) recorded in the document register.");
+            return batch.Count == 0 ? 0 : BIMManager.BIMManagerEngine.AutoRegisterExports(doc, batch);
         }
 
         /// <summary>Resolve a ViewSheet from an ExportResultRow.SheetId string

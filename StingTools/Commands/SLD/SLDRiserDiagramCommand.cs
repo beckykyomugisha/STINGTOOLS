@@ -166,7 +166,9 @@ namespace StingTools.Commands.SLD
     [Regeneration(RegenerationOption.Manual)]
     public class SLDRiserDiagramCommand : IExternalCommand
     {
-        private const string RiserDrawingTypeId = "elec-riser-A3-1to200";
+        // The riser's drawing type is whatever routing gives E / RISER (shipped:
+        // elec-riser-A3-1to200) — DrawingRouteRequests.Riser — so a project override
+        // re-points it. It used to be this id, hard-coded.
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -177,10 +179,11 @@ namespace StingTools.Commands.SLD
             var root = StingTools.Core.SLD.SLDCircuitTraverser.BuildHierarchy(doc);
             if (root == null)
             {
-                TaskDialog.Show("STING Riser", "No SLD hierarchy found.");
+                PresetDialog.Show("STING Riser", "No SLD hierarchy found.", ref message);
                 return Result.Cancelled;
             }
             var opts = StingElectricalCommandHandler.CurrentRiserOptions;
+            string riserTypeId = StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, StingTools.Core.Drawing.DrawingRouteRequests.Riser);
 
             ViewDrafting view = null;
             using (var tx = new Transaction(doc, "STING Generate Riser Diagram"))
@@ -191,17 +194,32 @@ namespace StingTools.Commands.SLD
                 if (view == null)
                 { tx.RollBack(); message = "Could not create drafting view."; return Result.Failed; }
                 SLDRiserEngine.DrawRiser(doc, view, root, opts);
-                StampDrawingType(doc, view, RiserDrawingTypeId);
+                StampDrawingType(doc, view, riserTypeId);
                 tx.Commit();
             }
 
-            if (view != null)
-            {
-                try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            }
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Riser", $"Riser diagram generated: '{view?.Name}'.");
+            // Onto the riser drawing type's sheet. The context tag keeps this sheet apart
+            // from any section sheets the same type gets from Produce Sections.
+            string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc, riserTypeId, view,
+                StingTools.Core.Drawing.DrawingRouteRequests.Riser.ContextTag,
+                StingTools.Core.Drawing.DrawingRouteRequests.StampIds(riserTypeId, StingTools.Core.Drawing.DrawingRouteRequests.Riser));
+
+            if (view != null && !PresetDialog.Quiet) ShowView(ctx.UIDoc, view);
+            InvalidateComplianceCache();
+            PresetDialog.Show("STING Riser", $"Riser diagram generated: '{view?.Name}'.\n\n{sheetLine}", ref message);
             return Result.Succeeded;
+        }
+
+        /// <summary>Make the new riser the active view — a convenience; the diagram exists either way.</summary>
+        /// <summary>The dashboard's cached scan is stale after a model change; a failure only delays its refresh.</summary>
+        private static void InvalidateComplianceCache()
+        {
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Riser: compliance cache invalidate: {ex.Message}"); }
+        }
+
+        private static void ShowView(UIDocument uidoc, View view)
+        {
+            try { uidoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Activate riser view: {ex.Message}"); }
         }
 
         private static ViewDrafting CreateOrReplaceView(Document doc, string name)

@@ -340,18 +340,9 @@ namespace StingTools.UI
 
         // ── ISO 19650 level naming ──────────────────────────────────
 
-        /// <summary>Valid ISO 19650 level code pattern: B##, GF, L##, MZ##, RF, UR, XX.</summary>
-        private static readonly System.Text.RegularExpressions.Regex IsoLevelRegex =
-            new System.Text.RegularExpressions.Regex(
-                @"^(B\d{1,2}|GF|L\d{2,3}|MZ\d{1,2}|RF\d?|UR|XX)(\s*[-–_]\s*.+)?$",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
-
-        /// <summary>True when the level name starts with an ISO 19650 code (B01, GF, L02, MZ01, RF, etc.).</summary>
-        internal static bool IsIsoLevelName(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return false;
-            return IsoLevelRegex.IsMatch(name.Trim());
-        }
+        /// <summary>True when the level name starts with an ISO 19650 code (B01, GF, L02, MZ01, RF, etc.).
+        /// The rule lives in the Revit-free <see cref="LevelNameAdvice"/>, which is unit-tested.</summary>
+        internal static bool IsIsoLevelName(string name) => LevelNameAdvice.IsIsoLevelName(name);
 
         /// <summary>Propose an ISO 19650 code from a level's current name + elevation.
         /// Basements elevate below zero, ground floor ≈ 0, mezzanine hints via name.</summary>
@@ -797,6 +788,56 @@ namespace StingTools.UI
                                 return false;
                             // CommandLink2 → continue
                         }
+
+                        // Whitespace audit — non-blocking. The level NAME is used raw as {lvl}
+                        // in sheet numbers and as the level segment of scope-box names, which
+                        // forbid spaces; an ISO-prefixed name like "L02 - Office Level" passes
+                        // the check above and still breaks both.
+                        var spaced = LevelNameAdvice.WhitespaceFindings(
+                            LevelRows.Select(r => r.Name));
+                        if (spaced.Count > 0)
+                        {
+                            var wdlg = new TaskDialog("Level Names Contain Spaces")
+                            {
+                                MainInstruction = $"{spaced.Count} level name(s) contain spaces",
+                                MainContent =
+                                    "The level name is used as-is for {lvl} in sheet numbers, and scope-box names " +
+                                    "(STING::<type>::<level>) cannot contain spaces. A short code avoids both.\n\n" +
+                                    string.Join("\n", spaced.Take(5).Select(f => $"'{f.Name}'  →  suggested '{f.Suggestion}'")) +
+                                    (spaced.Count > 5 ? $"\n(+{spaced.Count - 5} more)" : ""),
+                                CommonButtons = TaskDialogCommonButtons.Cancel
+                            };
+                            wdlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                                "Use the suggested short codes",
+                                "Renames each spaced level to its short code, unless that code is already taken.");
+                            wdlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                                "Continue with these names",
+                                "Names are left as-is; sheet numbers built from {lvl} will contain spaces.");
+
+                            var wres = wdlg.Show();
+                            if (wres == TaskDialogResult.Cancel) return false;
+                            if (wres == TaskDialogResult.CommandLink1)
+                            {
+                                var taken = new HashSet<string>(
+                                    LevelRows.Where(r => !string.IsNullOrWhiteSpace(r.Name)).Select(r => r.Name.Trim()),
+                                    StringComparer.OrdinalIgnoreCase);
+                                int renamed = 0, skipped = 0;
+                                foreach (var row in LevelRows)
+                                {
+                                    if (!LevelNameAdvice.HasWhitespace(row.Name) || string.IsNullOrWhiteSpace(row.Name)) continue;
+                                    string code = LevelNameAdvice.SuggestShortCode(row.Name);
+                                    if (string.IsNullOrEmpty(code) || taken.Contains(code)) { skipped++; continue; }
+                                    taken.Remove(row.Name.Trim());
+                                    taken.Add(code);
+                                    row.Name = code;
+                                    renamed++;
+                                }
+                                if (skipped > 0)
+                                    StingLog.Info($"ProjectSetup: renamed {renamed} spaced level name(s); {skipped} kept because the short code was taken.");
+                                return false; // stay on page so the user sees the new names
+                            }
+                            // CommandLink2 → continue
+                        }
                         return true;
                     }
 
@@ -1002,33 +1043,41 @@ namespace StingTools.UI
 
         private void ScopeBoxPatternApply_Click(object sender, RoutedEventArgs e)
         {
+            // Only names STING reads: STING-LOC::<loc> / STING-ZONE::<zone>. The old default
+            // {BLD}-{ZONE}-{INDEX} produced names nothing in STING reads (see
+            // Core/Drawing/ScopeBoxRenamePattern.cs). Area / seed / drawing-type boxes come
+            // from the Scope Box Planner and Manager, not from a rename.
             string pattern = txtScopeBoxPattern.Text?.Trim();
             if (string.IsNullOrEmpty(pattern))
             {
-                MessageBox.Show(
-                    "Enter a rename pattern (e.g. {BLD}-{ZONE}-{INDEX}).",
-                    "STING Setup", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
+                pattern = StingTools.Core.Drawing.ScopeBoxRenamePattern.DefaultPattern;
+                txtScopeBoxPattern.Text = pattern;
             }
-            var locs = ParseCodes(txtLocCodes.Text);
-            var zones = ParseCodes(txtZoneCodes.Text);
-            string bld = locs.FirstOrDefault() ?? "BLD1";
+            var ticked = ScopeBoxRows.Where(sb => sb.Include).ToList();
+            var others = ScopeBoxRows.Where(sb => !sb.Include).Select(sb => sb.CurrentName).ToList();
+            var planned = StingTools.Core.Drawing.ScopeBoxRenamePattern.Apply(pattern,
+                ticked.Select(sb => new StingTools.Core.Drawing.ScopeBoxRenameRow
+                {
+                    CurrentName = sb.CurrentName,
+                    Rotated = StingTools.Core.Drawing.ScopeBoxRenamePattern.IsRotated(sb.RotationDegrees),
+                }).ToList(),
+                ParseCodes(txtLocCodes.Text), ParseCodes(txtZoneCodes.Text), others);
 
-            int idx = 1;
-            foreach (var sb in ScopeBoxRows)
+            var refused = new List<string>();
+            for (int i = 0; i < ticked.Count; i++)
             {
-                if (!sb.Include) continue;
-                string loc = locs.Count > 0 ? locs[(idx - 1) % locs.Count] : bld;
-                string zone = zones.Count > 0 ? zones[(idx - 1) % zones.Count] : "Z01";
-                string newName = pattern
-                    .Replace("{BLD}", bld)
-                    .Replace("{LOC}", loc)
-                    .Replace("{ZONE}", zone)
-                    .Replace("{INDEX}", idx.ToString("D2"))
-                    .Replace("{NAME}", sb.CurrentName ?? "");
-                sb.NewName = newName;
-                idx++;
+                if (planned[i].NewName != null) { ticked[i].NewName = planned[i].NewName; continue; }
+                ticked[i].NewName = ticked[i].CurrentName;   // unchanged = not renamed on Run
+                refused.Add($"• {ticked[i].CurrentName}: {planned[i].Problem}");
             }
+            if (refused.Count > 0)
+                MessageBox.Show(
+                    $"{refused.Count} of {ticked.Count} box(es) keep their current name:\n\n"
+                    + string.Join("\n", refused.Take(12))
+                    + (refused.Count > 12 ? $"\n• … {refused.Count - 12} more" : "")
+                    + "\n\nThe pattern must give each box a STING-LOC::<loc> or STING-ZONE::<zone> name. "
+                    + "For area boxes use DOCS → Scope boxes → Scope Box Planner.",
+                    "STING Setup", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
 
         // ── Parse helpers ────────────────────────────────────────────
@@ -1106,11 +1155,23 @@ namespace StingTools.UI
             data.TwoSectionsPerScopeBox = chkTwoSectionsPerScopeBox.IsChecked == true;
             data.RenameScopeBoxes = chkRenameScopeBoxes.IsChecked == true;
             data.ScopeBoxRenamePattern = txtScopeBoxPattern.Text?.Trim() ?? "";
-            data.ScopeBoxRenames = ScopeBoxRows
+            // A hand-typed "Rename To" is held to the same rule as the pattern: only a
+            // name STING reads (STING-LOC:: / STING-ZONE::, valid, unrotated box) is
+            // renamed on Run; the rest are reported, not applied.
+            var renameCandidates = ScopeBoxRows
                 .Where(sb => sb.Include
                              && !string.IsNullOrWhiteSpace(sb.NewName)
                              && !string.Equals(sb.NewName, sb.CurrentName, StringComparison.Ordinal))
-                .ToDictionary(sb => sb.CurrentName, sb => sb.NewName.Trim());
+                .ToList();
+            data.ScopeBoxRenames = new Dictionary<string, string>();
+            data.ScopeBoxRenamesRefused = new List<string>();
+            foreach (var sb in renameCandidates)
+            {
+                var why = StingTools.Core.Drawing.ScopeBoxRenamePattern.Check(sb.NewName,
+                    StingTools.Core.Drawing.ScopeBoxRenamePattern.IsRotated(sb.RotationDegrees));
+                if (why == null) data.ScopeBoxRenames[sb.CurrentName] = sb.NewName.Trim();
+                else data.ScopeBoxRenamesRefused.Add($"{sb.CurrentName} → {sb.NewName.Trim()}: {why}");
+            }
             data.ScopeBoxSelection = ScopeBoxRows
                 .Where(sb => sb.Include)
                 .Select(sb => sb.CurrentName)
@@ -1532,9 +1593,10 @@ namespace StingTools.UI
                 : data.SheetNumberPolicy == null
                     ? $"Sheet-number policy: {policyName} (not changed — nothing picked)"
                     : $"Sheet-number policy: {policyName} (already set)");
-            AddStep(data.CreateViews, $"Create views ({data.Disciplines.Count} disc x {data.Levels.Count} levels)");
+            AddStep(data.CreateViews || data.CreateSheets,
+                $"Produce each discipline's plan drawing types per level ({data.Disciplines.Count} disc, "
+                + (data.CreateSheets ? "views + stamped sheets" : "views only") + "; re-runs reuse them)");
             AddStep(data.CreateDependents, "Create dependent views from scope boxes");
-            AddStep(data.CreateSheets, "Create sheets with viewports");
             AddStep(data.CreateSections, "Create building sections from grids");
             AddStep(data.CreateElevations, "Create 4 exterior elevations");
             AddStep(data.CreateViews || data.CreateSheets, "Organize project browser");
@@ -1745,6 +1807,8 @@ namespace StingTools.UI
         public string ScopeBoxRenamePattern { get; set; } = "";
         /// <summary>Current-name → new-name map for checked scope boxes where the name actually changed.</summary>
         public Dictionary<string, string> ScopeBoxRenames { get; set; } = new Dictionary<string, string>();
+        /// <summary>"old → new: reason" for renames refused because the new name is not one STING reads.</summary>
+        public List<string> ScopeBoxRenamesRefused { get; set; } = new List<string>();
         /// <summary>Current names of checked scope boxes (used for grid scoping + section creation).</summary>
         public List<string> ScopeBoxSelection { get; set; } = new List<string>();
 

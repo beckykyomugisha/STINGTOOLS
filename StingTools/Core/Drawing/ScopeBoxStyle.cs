@@ -33,7 +33,7 @@ namespace StingTools.Core.Drawing
         Building,
         /// <summary>By level code (level-less boxes share one colour).</summary>
         Level,
-        /// <summary>By kind: drawing-type / area / building / seed / plain.</summary>
+        /// <summary>By kind: drawing-type / area / building / zone / seed / plain.</summary>
         Kind,
     }
 

@@ -32,7 +32,7 @@ namespace StingTools.Commands.Panels
 
             var run = Run(doc);
             if (run == null) { message = "Panel template build failed — see the STING log."; return Result.Failed; }
-            Report(run);
+            Report(run, ref message);
             return run.Results.Any(r => !r.Failed) ? Result.Succeeded : Result.Failed;
         }
 
@@ -80,6 +80,13 @@ namespace StingTools.Commands.Panels
 
         public static void Report(RunResult run)
         {
+            string ignored = null;
+            Report(run, ref ignored);
+        }
+
+        /// <summary>The result panel; inside a workflow preset, the log and <paramref name="message"/> instead.</summary>
+        public static void Report(RunResult run, ref string message)
+        {
             var ok = run.Results.Where(r => !r.Failed).ToList();
             var panel = StingResultPanel.Create("STING Panel Schedule Templates");
             panel.SetSubtitle($"{ok.Count(r => r.Created)} created · {ok.Count(r => !r.Created)} rebuilt · {run.Results.Count(r => r.Failed)} failed");
@@ -110,7 +117,7 @@ namespace StingTools.Commands.Panels
                  .Text("PNLS → ⚡ Batch Create Schedules now picks these templates by board type (rules in STING_PANEL_SCHEDULE_TEMPLATES.json).")
                  .Text("Shared-parameter columns need Load Params first; run CALCS → Recalculate All so VD (%) is filled.")
                  .Text("If a section looks wrong, run 'Inspect template' and send the CSV — it shows every cell.");
-            panel.Show();
+            PresetDialog.Show(panel, ref message);
         }
     }
 

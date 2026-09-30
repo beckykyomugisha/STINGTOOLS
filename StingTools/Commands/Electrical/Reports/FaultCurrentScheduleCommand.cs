@@ -17,13 +17,13 @@ namespace StingTools.Commands.Electrical.Reports
     [Regeneration(RegenerationOption.Manual)]
     public class FaultCurrentScheduleCommand : IExternalCommand
     {
-        private const string DrawingTypeId = "elec-panel-schedule-A3";
-
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+            // The id routing gives E / ELEC_PANEL_SCHEDULE, once per run.
+            string drawingTypeId = StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, StingTools.Core.Drawing.DrawingRouteRequests.PanelSchedule);
             if (FaultCurrentCommand.LastResults == null || FaultCurrentCommand.LastResults.Count == 0)
             {
                 TaskDialog.Show("STING Fault Schedule", "Run fault-current calculation first.");
@@ -38,7 +38,7 @@ namespace StingTools.Commands.Electrical.Reports
                     new ElementId(BuiltInCategory.OST_ElectricalEquipment));
                 try { view.Name = $"STING - Fault Level Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 AddFields(view);
-                StampDrawingType(view);
+                StampDrawingType(view, drawingTypeId);
                 tx.Commit();
             }
             TaskDialog.Show("STING Fault Schedule",
@@ -76,11 +76,11 @@ namespace StingTools.Commands.Electrical.Reports
             catch (Exception ex) { StingLog.Info($"AddByName {paramName}: {ex.Message}"); }
         }
 
-        private static void StampDrawingType(View v)
+        private static void StampDrawingType(View v, string drawingTypeId)
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, drawingTypeId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

@@ -27,6 +27,12 @@ namespace StingTools.Core.Drawing
         public BoundingBoxXYZ CustomBounds { get; set; }
         public string Tag { get; set; }
         public string PackageId { get; set; }
+        /// <summary>
+        /// Drawing-type ids an earlier run may have stamped on this request's sheet and
+        /// views — the shipped id, when a project override now routes the key elsewhere.
+        /// A sheet found under one of them is re-stamped and reused, never duplicated.
+        /// </summary>
+        public IReadOnlyCollection<string> FormerDrawingTypeIds { get; set; }
     }
 
     public sealed class ProduceOptions
@@ -285,6 +291,86 @@ namespace StingTools.Core.Drawing
             return result;
         }
 
+        /// <summary>
+        /// Put a view some other engine made (an SLD or riser drafting view, a panel
+        /// schedule) on its drawing type's sheet, through the same path production uses:
+        /// the sheet is found by stamp + context (<paramref name="ctx"/>) or created with
+        /// the type's title block, number and name, and the view is stamped with the type
+        /// and context and placed in slot 0 at its own scale (no fit-to-slot: these views
+        /// are drawn at the scale their text is sized for). A re-run reuses the sheet;
+        /// another view of the same type already on it — an earlier run's — comes off the
+        /// sheet first (ExistingViewPlacement). The view's presentation is not touched.
+        /// Caller owns the transaction.
+        /// </summary>
+        public static ProduceResult PlaceExistingView(Document doc, DrawingType dt, DrawingContext ctx, View view)
+        {
+            var result = new ProduceResult();
+            if (doc == null || dt == null || view == null) return result;
+            ctx = ctx ?? new DrawingContext();
+            var opts = new ProduceOptions { CreateSheet = true, PlaceOnSheet = true, RunAnnotation = false, Idempotent = true };
+            var rule = new ProductionRule
+            {
+                Idx = 0,
+                ViewType = view is ViewSchedule ? "Schedule" : view is ViewDrafting ? "DraftingView" : view.ViewType.ToString(),
+                SlotIndex = 0,
+                Required = true,
+                // Pins the scale: PlaceViewOnSheet fits a view to its slot only when no
+                // override is set, and a fit would re-scale a 1:1 diagram whose text is
+                // paper-sized. Schedules have no scale to fit; the value only gates the fit.
+                ScaleOverride = view is ViewSchedule ? 1 : (SafeScale(view) ?? 1),
+            };
+
+            DrawingTypeStamper.Stamp(view, dt.Id);
+            StampViewParameters(doc, view.Id, dt, rule, ctx);
+            result.ViewIds.Add(view.Id);
+
+            result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
+            if (result.SheetId == ElementId.InvalidElementId)
+            {
+                result.Warnings.Add($"No sheet could be made for '{dt.Id}'; '{view.Name}' is not on a sheet.");
+                return result;
+            }
+
+            // Earlier runs' views of this type make way; anything else on the sheet stays.
+            try
+            {
+                var onSheet = new List<(Element vp, Element v)>();
+                foreach (var el in new FilteredElementCollector(doc, result.SheetId).WhereElementIsNotElementType())
+                {
+                    if (el is Viewport vpt) onSheet.Add((vpt, doc.GetElement(vpt.ViewId)));
+                    else if (el is ScheduleSheetInstance ssi && !ssi.IsTitleblockRevisionSchedule)
+                        onSheet.Add((ssi, doc.GetElement(ssi.ScheduleId)));
+                }
+                onSheet = onSheet.Where(x => x.v != null).ToList();
+                var decision = ExistingViewPlacement.Decide(onSheet.Select(x => new PlacedView
+                {
+                    ViewId = x.v.Id.Value,
+                    DrawingTypeId = StingTools.Core.ParameterHelpers.GetString(x.v, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                }), view.Id.Value, dt.Id, ctx.FormerDrawingTypeIds);
+                foreach (var x in onSheet.Where(x => decision.RemoveViewIds.Contains(x.v.Id.Value)))
+                {
+                    result.Warnings.Add($"'{x.v.Name}' (an earlier {dt.Id} view) was taken off the sheet for '{view.Name}'.");
+                    doc.Delete(x.vp.Id);
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"Clearing the earlier {dt.Id} view off the sheet: {ex.Message}"); }
+
+            var famCtx = SheetPlacementBridge.BuildFamilySlotContext(doc, doc.GetElement(result.SheetId) as ViewSheet, dt, result);
+            var vpId = PlaceViewOnSheet(doc, result.SheetId, view.Id, dt, rule, result, famCtx);
+            if (vpId != ElementId.InvalidElementId)
+            {
+                result.ViewportIds.Add(vpId);
+                StampAutoPlaced(doc, vpId);
+            }
+            return result;
+        }
+
+        private static int? SafeScale(View v)
+        {
+            try { return v.Scale > 0 ? v.Scale : (int?)null; }
+            catch (Exception ex) { StingLog.Warn($"Scale of '{v?.Name}': {ex.Message}"); return null; }
+        }
+
         // D-7: the purpose -> view-kind decision lives in DrawingPurposeViewKind
         // (Revit-free, tested). The old switch defaulted every unlisted purpose
         // — Schematic, Clarification, Legend, Spool, Coordination — to
@@ -292,7 +378,18 @@ namespace StingTools.Core.Drawing
         // Unknown or unproducible purposes now yield no rule and a warning.
         private static ProductionRule SynthesizeSingleRule(DrawingType dt, ProduceResult result)
         {
-            var vt = DrawingPurposeViewKind.ResolveForProduction(dt.Id, dt.Purpose, out var problem);
+            // A Schematic type with no productionRules used to produce an empty drafting
+            // view on a numbered sheet, reported as produced. A schematic is drawn by its
+            // generator (SLD_Generate, FireAlarm_Schematic …) or by a person; production
+            // makes neither an empty view nor a sheet for it, and says which.
+            if (string.Equals(dt.Purpose, DrawingPurpose.Schematic, StringComparison.OrdinalIgnoreCase))
+            {
+                string why = DrawingRouteRequests.SchematicNotProducedReason(dt.Id);
+                StingLog.Warn($"DrawingProducer: {why}");
+                result.Warnings.Add(why);
+                return null;
+            }
+            var vt =DrawingPurposeViewKind.ResolveForProduction(dt.Id, dt.Purpose, out var problem);
             if (vt == null)
             {
                 StingLog.Warn($"DrawingProducer: {problem}");
@@ -306,12 +403,33 @@ namespace StingTools.Core.Drawing
         {
             try
             {
+                // "Duplicate as Dependent": one parent plan per (type, level, rule), each
+                // scope box's view a dependent of it. See DependentViewPlanner.
+                bool dependent = DependentViewPlanner.UsesDependents(
+                    opts.DuplicateOption == ViewDuplicateOption.AsDependent,
+                    ctx?.ScopeBox != null, ctx?.Level != null, rule?.ViewType);
+
                 if (opts.Idempotent)
                 {
                     var existing = FindExistingView(doc, dt.Id, ctx, rule.Idx);
                     if (existing != null)
                     {
                         result.WasIdempotent = true;
+                        if (dependent)
+                        {
+                            var parent = FindExistingView(doc, dt.Id, ParentContext(ctx), rule.Idx);
+                            var action = DependentViewPlanner.ForBoxView(true, true,
+                                PrimaryViewIdValue(existing), parent?.Id.Value ?? -1);
+                            if (action == DependentViewAction.ReuseDependent)
+                            {
+                                // A dependent takes template, scale and annotation from its
+                                // parent; only its crop is its own.
+                                CropToContextBox(doc, existing, dt, ctx, result);
+                                return existing.Id;
+                            }
+                            result.Warnings.Add(DependentViewPlanner.KeptIndependentWarning(
+                                existing.Name, ctx.ScopeBox?.Name));
+                        }
                         // GAP-H: re-apply the profile so a re-run after a
                         // profile edit refreshes scale / template / pack /
                         // stamps. SyncStyles flag (annotation off) avoids
@@ -327,7 +445,10 @@ namespace StingTools.Core.Drawing
                                     SkipAutoTag = true, SkipAutoDim = true,
                                     SkipDecorative = true, SkipSpots = true
                                 },
-                                SkipSymbolDriftCheck = true // idempotent refresh — batch path
+                                SkipSymbolDriftCheck = true, // idempotent refresh — batch path
+                                // The box this view is produced for: without it the
+                                // refresh re-ran the profile's own crop over the box crop.
+                                ContextScopeBox = ctx?.ScopeBox
                             };
                             var refreshed = DrawingTypePresentation.Apply(doc, existing, dt, refreshOpts);
                             result.Warnings.AddRange(refreshed.Warnings);
@@ -340,6 +461,139 @@ namespace StingTools.Core.Drawing
                     }
                 }
 
+                if (dependent)
+                {
+                    var depId = ProduceDependentView(doc, dt, rule, ctx, opts, result);
+                    if (depId != ElementId.InvalidElementId) return depId;
+                    // ProduceDependentView said why; the box still gets its drawing,
+                    // as an independent view, rather than nothing.
+                }
+
+                return CreatePresentedView(doc, dt, rule, ctx, opts, result, BuildViewName(dt, rule, ctx));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        // ── "Duplicate as Dependent" ─────────────────────────────────────────
+
+        /// <summary>The parent's context: same level and package, the parent tag, no box.</summary>
+        private static DrawingContext ParentContext(DrawingContext ctx)
+            => new DrawingContext { Level = ctx?.Level, PackageId = ctx?.PackageId, Tag = DependentViewPlanner.ParentTag };
+
+        private static long PrimaryViewIdValue(View v)
+        {
+            try
+            {
+                var id = v?.GetPrimaryViewId();
+                return id == null || id == ElementId.InvalidElementId ? -1 : id.Value;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetPrimaryViewId({v?.Id}): {ex.Message}"); return -1; }
+        }
+
+        /// <summary>
+        /// The parent plan for (drawing type, level, rule): found by its stamps, or made
+        /// with the drawing type's full presentation — template, pack, annotation. It is
+        /// a working view and is never placed on a sheet.
+        /// </summary>
+        private static View EnsureParentView(Document doc, DrawingType dt, ProductionRule rule,
+            DrawingContext ctx, ProduceOptions opts, ProduceResult result)
+        {
+            var pctx = ParentContext(ctx);
+            var found = FindExistingView(doc, dt.Id, pctx, rule.Idx);
+            if (found != null) return found;
+
+            var id = CreatePresentedView(doc, dt, rule, pctx, opts, result,
+                DependentViewPlanner.ParentViewName(dt.Name ?? dt.Id, ctx.Level?.Name, rule.NameSuffix));
+            if (id == ElementId.InvalidElementId) return null;
+            StampViewParameters(doc, id, dt, rule, pctx);
+            try
+            {
+                if (_existingViewCache != null && CacheMatchesDoc(doc))
+                    _existingViewCache[ViewKey(dt.Id, BuildContextTag(pctx), rule.Idx)] = id;
+            }
+            catch (Exception ex) { StingLog.Warn($"Parent view cache: {ex.Message}"); }
+            return doc.GetElement(id) as View;
+        }
+
+        /// <summary>
+        /// The box's view as a dependent of the level's parent, cropped to the box.
+        /// Returns InvalidElementId, with the reason in the warnings, when it cannot be
+        /// made — the caller then produces an independent view instead.
+        /// </summary>
+        private static ElementId ProduceDependentView(Document doc, DrawingType dt, ProductionRule rule,
+            DrawingContext ctx, ProduceOptions opts, ProduceResult result)
+        {
+            string box = ctx.ScopeBox?.Name ?? "";
+            var parent = EnsureParentView(doc, dt, rule, ctx, opts, result);
+            if (parent == null)
+            {
+                result.Warnings.Add($"No parent view could be made for '{dt.Id}' on {ctx.Level?.Name}; " +
+                                    $"'{box}' was produced as an independent view instead.");
+                return ElementId.InvalidElementId;
+            }
+            if (!parent.CanViewBeDuplicated(ViewDuplicateOption.AsDependent))
+            {
+                result.Warnings.Add($"Revit will not make a dependent of '{parent.Name}'; " +
+                                    $"'{box}' was produced as an independent view instead.");
+                return ElementId.InvalidElementId;
+            }
+
+            var depId = parent.Duplicate(ViewDuplicateOption.AsDependent);
+            if (!(doc.GetElement(depId) is View dep))
+            {
+                result.Warnings.Add($"Duplicating '{parent.Name}' as a dependent returned no view; " +
+                                    $"'{box}' was produced as an independent view instead.");
+                return ElementId.InvalidElementId;
+            }
+            try { dep.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); }
+            catch (Exception ex) { StingLog.Warn($"Dependent view name: {ex.Message}"); }
+            // Duplicate copies the parent's stamps; the caller restamps context and rule,
+            // and the drawing type is stamped here so the view is found by type even if
+            // the copy did not carry it.
+            DrawingTypeStamper.Stamp(dep, dt.Id);
+            CropToContextBox(doc, dep, dt, ctx, result);
+            return depId;
+        }
+
+        /// <summary>
+        /// Crop a view to the context's scope box: the profile's crop strategy first
+        /// (the context box wins there), then a direct bind if the strategy did not take.
+        /// A profile with no crop block would otherwise leave a dependent uncropped —
+        /// a whole-level copy of its parent.
+        /// </summary>
+        private static void CropToContextBox(Document doc, View view, DrawingType dt, DrawingContext ctx, ProduceResult result)
+        {
+            if (view == null || ctx?.ScopeBox == null) return;
+            try { result.Warnings.AddRange(DrawingCropApplier.Apply(doc, view, dt, ctx.ScopeBox)); }
+            catch (Exception ex) { result.Warnings.Add($"Crop '{view.Name}': {ex.Message}"); }
+            try
+            {
+                var p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                if (p != null && p.AsElementId() != ctx.ScopeBox.Id)
+                {
+                    if (!p.IsReadOnly) p.Set(ctx.ScopeBox.Id);
+                    if (p.AsElementId() != ctx.ScopeBox.Id)
+                        result.Warnings.Add($"'{view.Name}' could not be cropped to scope box '{ctx.ScopeBox.Name}'.");
+                }
+                if (!view.CropBoxActive) view.CropBoxActive = true;
+            }
+            catch (Exception ex) { result.Warnings.Add($"Crop '{view.Name}' to '{ctx.ScopeBox.Name}': {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Create a view for the rule, name it, and apply the drawing type's presentation
+        /// (template, pack, crop to <paramref name="ctx"/>'s scope box, annotation). The one
+        /// creation path for both an ordinary view and a dependent's parent.
+        /// </summary>
+        private static ElementId CreatePresentedView(Document doc, DrawingType dt, ProductionRule rule,
+            DrawingContext ctx, ProduceOptions opts, ProduceResult result, string viewName)
+        {
+            try
+            {
                 var vft = ResolveViewFamilyType(doc, rule, result, dt?.ViewFamilyTypeName);
                 if (vft == null) return ElementId.InvalidElementId;
 
@@ -349,7 +603,7 @@ namespace StingTools.Core.Drawing
                 var view = doc.GetElement(viewId) as View;
                 if (view == null) return ElementId.InvalidElementId;
 
-                try { view.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { view.Name = MakeUniqueViewName(doc, viewName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
@@ -676,26 +930,61 @@ namespace StingTools.Core.Drawing
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             string sheetCtx = BuildContextTag(ctx);
+
+            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, result);
+            if (existing != null) return existing;
+
+            // A sheet stamped with an id this request used to route to (the shipped id,
+            // before a project re-routed the key) is the same sheet: adopt and re-stamp it
+            // rather than mint a duplicate beside it.
+            foreach (var former in (ctx.FormerDrawingTypeIds ?? Array.Empty<string>())
+                         .Where(f => !string.IsNullOrWhiteSpace(f) && !string.Equals(f, dt.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, result);
+                if (existing == null) continue;
+                try
+                {
+                    if (doc.GetElement(existing) is ViewSheet adopted && DrawingTypeStamper.Stamp(adopted, dt.Id))
+                    {
+                        if (_existingSheetCache != null) _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = existing;
+                        result.Warnings.Add($"Sheet {adopted.SheetNumber} was stamped '{former}'; routing now gives '{dt.Id}', so it was re-stamped and reused.");
+                    }
+                    else
+                        result.Warnings.Add($"Sheet {existing} (stamped '{former}') is reused but could not be re-stamped '{dt.Id}'.");
+                }
+                catch (Exception ex) { result.Warnings.Add($"Re-stamping sheet {existing} '{dt.Id}': {ex.Message}"); }
+                return existing;
+            }
+
+            return CreateSheet(doc, dt, ctx, opts, result, effectivePackage, sheetCtx);
+        }
+
+        /// <summary>
+        /// The existing sheet stamped <paramref name="typeId"/> for this package and
+        /// production context, or null. Sets <see cref="ProduceResult.SheetReused"/> on a hit.
+        /// </summary>
+        private static ElementId FindExistingSheet(Document doc, string typeId, string effectivePackage, string sheetCtx, ProduceResult result)
+        {
             try
             {
                 // GAP-L: per-batch cache hit, fall back to fresh collector.
                 if (_existingSheetCache != null
                     && CacheMatchesDoc(doc)
-                    && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage, sheetCtx), out var cachedSheetId))
+                    && _existingSheetCache.TryGetValue(SheetKey(typeId, effectivePackage, sheetCtx), out var cachedSheetId))
                 {
                     if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
                     {
                         result.SheetReused = true;   // P-9: reuse is not production
                         return vsCached.Id;
                     }
-                    _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage, sheetCtx));
+                    _existingSheetCache.Remove(SheetKey(typeId, effectivePackage, sheetCtx));
                 }
 
                 var candidates = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
                     .Where(s =>
-                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), dt.Id, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), typeId, StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal))
                     .ToList();
 
@@ -740,7 +1029,12 @@ namespace StingTools.Core.Drawing
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return null;
+        }
 
+        private static ElementId CreateSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts,
+            ProduceResult result, string effectivePackage, string sheetCtx)
+        {
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {
@@ -967,8 +1261,11 @@ namespace StingTools.Core.Drawing
                 }
                 // P12.A — fit the view to its slot before placement, unless the
                 // production rule pins an explicit scale override.
+                // A dependent's scale belongs to its parent: fitting each dependent
+                // would rescale the parent, and so every sibling, once per box.
                 if (sp != null && !rule.ScaleOverride.HasValue
-                    && doc.GetElement(viewId) is View vFit)
+                    && doc.GetElement(viewId) is View vFit
+                    && PrimaryViewIdValue(vFit) < 0)
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
 
                 // SLOT-3: warn on a view/slot type mismatch rather than
@@ -1131,8 +1428,9 @@ namespace StingTools.Core.Drawing
             string sbox = "";
             try { sbox = ctx?.ScopeBox?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"BuildContextTag scope box: {ex.Message}"); }
 
-            var tag = $"{lvl}::{room}::{ctx?.Tag ?? ""}";
-            return string.IsNullOrEmpty(sbox) ? tag : tag + "::" + sbox;
+            // One format, parsed back by ViewContextTag.ScopeBoxName when a re-sync has
+            // to recover the box (DrawingTypePresentation.Apply).
+            return ViewContextTag.Compose(lvl, room, ctx?.Tag, sbox);
         }
 
         private static View FindExistingView(Document doc, string dtId, DrawingContext ctx, int ruleIdx)

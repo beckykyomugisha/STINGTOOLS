@@ -173,7 +173,14 @@ namespace StingTools.Tags
                     : $"{low} low-confidence token-fills, {silentBld1} silent BLD1 default(s)",
                 MainContent = report.ToString()
             };
-            td.Show();
+            // Inside a workflow preset: the report to the log, the headline to the step message.
+            if (PresetDialog.Quiet)
+            {
+                StingLog.Info("Token Confidence Audit:" + Environment.NewLine + report);
+                msg = $"Token confidence: {td.MainInstruction} ({tagged} tagged elements, {scopeLabel})"
+                    + (csvPath != null ? $"; CSV {csvPath}" : "") + ".";
+            }
+            else td.Show();
             StingLog.Info($"TokenConfidenceAudit: {tagged} tagged, hi={hi} med={med} low={low}, silentBLD1={silentBld1} ({scopeLabel})");
             return Result.Succeeded;
         }

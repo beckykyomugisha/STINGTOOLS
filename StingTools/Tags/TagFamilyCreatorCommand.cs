@@ -2931,13 +2931,13 @@ namespace StingTools.Tags
                 // is precisely the instruction that trains a user to re-author the
                 // library per project, and on a machine whose families live in the
                 // shared root it was simply wrong. Say where we looked instead.
-                TaskDialog.Show("Load Tag Families",
+                PresetDialog.Show("Load Tag Families",
                     "No STING tag family .rfa files were found.\n\n"
                   + "Roots searched, in order:\n" + string.Join("\n", perRoot) + "\n\n"
                   + "If the firm library is elsewhere, point STING_CONTENT_LIB at it, or set\n"
                   + "\"content_root\" in %APPDATA%\\STING\\sting_content.json.\n\n"
                   + "Only run 'Create Tag Families' if this machine genuinely has no library —\n"
-                  + "it mints families that still need their label rows authored by hand.");
+                  + "it mints families that still need their label rows authored by hand.", ref message);
                 return Result.Failed;
             }
 
@@ -2968,8 +2968,12 @@ namespace StingTools.Tags
             // A family already in the project was skipped outright, so a corrected
             // library never reached a project that had loaded the old one. Offer to
             // update them; project tag styles are kept (TagFamilyUpdateOptions).
+            // Inside a workflow preset there is nobody to ask: load the missing families
+            // and keep the ones already in the project (the dialog's safe default, "No").
             bool update = false;
-            if (inProject.Count > 0)
+            if (inProject.Count > 0 && PresetDialog.Quiet)
+                StingLog.Info($"LoadTagFamilies (preset): {inProject.Count} already in the project kept, not updated.");
+            else if (inProject.Count > 0)
             {
                 var ask = new TaskDialog("Load Tag Families")
                 {
@@ -3135,7 +3139,12 @@ namespace StingTools.Tags
                     "the Text display mirror; where only a label read it, that field was removed from " +
                     "the label. 'Show details' lists each one. The files in the tag library are unchanged." : "");
             if (report.Length > 0) td.ExpandedContent = report.ToString();
-            td.Show();
+            if (PresetDialog.Quiet)
+            {
+                StingLog.Info($"LoadTagFamilies: {td.MainInstruction}\n{td.MainContent}\n{report}");
+                message = $"{td.MainInstruction}; {skipped} already loaded and kept (details in the STING log).";
+            }
+            else td.Show();
 
             StingLog.Info($"LoadTagFamilies: loaded={loaded}, updated={updated}/{toUpdate.Count}, repaired={repaired}, " +
                           $"skipped={skipped}, failed={failed}");

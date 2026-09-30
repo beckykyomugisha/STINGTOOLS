@@ -70,7 +70,12 @@ namespace StingTools.Tags
                 new("Entire Project",
                     "Process all taggable elements across the entire model", "project"),
             };
-            string scopeResult = UI.StingModePicker.Show(
+            // A workflow step may answer the scope question in params.scope (view /
+            // selected / project); without it the picker asks, as it always has.
+            string stepScope = WorkflowEngine.IsRunningPreset ? (WorkflowEngine.StepParam("scope") ?? "").Trim().ToLowerInvariant() : "";
+            if (stepScope.Length > 0 && stepScope != "view" && stepScope != "selected" && stepScope != "project")
+            { message = $"Tag & Combine: params.scope '{stepScope}' is not view, selected or project."; return Result.Failed; }
+            string scopeResult = stepScope.Length > 0 ? stepScope : UI.StingModePicker.Show(
                 "Tag & Combine All",
                 "Auto-populate tokens, tag, and combine into all 53 containers",
                 scopeOptions,
@@ -242,7 +247,14 @@ namespace StingTools.Tags
             TaskDialog td = new TaskDialog("Tag & Combine All");
             td.MainInstruction = $"Processed {totalProcessed} elements ({stats.TotalTagged:N0} tagged)";
             td.MainContent = report.ToString();
-            td.Show();
+            // Inside a workflow preset: the report to the log, the headline to the step message.
+            if (PresetDialog.Quiet)
+            {
+                StingLog.Info("Tag & Combine All:" + Environment.NewLine + report);
+                string compliance = postScan?.StatusBarText ?? "n/a";
+                message = $"Tag & Combine ({scopeLabel}): {td.MainInstruction}; compliance {compliance}.";
+            }
+            else td.Show();
 
             StingLog.Info($"TagAndCombine: scope={scopeLabel}, processed={totalProcessed}, " +
                 $"tagged={stats.TotalTagged}, skipped={stats.TotalSkipped}, " +

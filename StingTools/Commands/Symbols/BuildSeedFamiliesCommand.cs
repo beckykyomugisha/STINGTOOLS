@@ -89,10 +89,24 @@ namespace StingTools.Commands.Symbols
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // ── Rebuild mode picker ───────────────────────────────────────
-            var mode = PromptRebuildMode();
-            if (mode == null) return Result.Cancelled;
-            var rebuildMode = mode.Value;
+            // ── Rebuild mode ──────────────────────────────────────────────
+            // A person picks it; a workflow preset reads params.mode (Missing Only
+            // when absent — SeedBuildPresetMode) and never opens the picker.
+            SeedRebuildMode rebuildMode;
+            if (PresetDialog.Quiet)
+            {
+                var canonical = SeedBuildPresetMode.Resolve(WorkflowEngine.StepParam("mode"), out var modeError);
+                if (canonical == null) { message = "Seed families: " + modeError; return Result.Failed; }
+                rebuildMode = canonical == SeedBuildPresetMode.RebuildAll ? SeedRebuildMode.RebuildAll
+                            : canonical == SeedBuildPresetMode.RebuildUnfinalized ? SeedRebuildMode.RebuildUnfinalized
+                            : SeedRebuildMode.MissingOnly;
+            }
+            else
+            {
+                var mode = PromptRebuildMode();
+                if (mode == null) return Result.Cancelled;
+                rebuildMode = mode.Value;
+            }
 
             string outRoot = ResolveSeedOutputFolder(doc);
             Directory.CreateDirectory(outRoot);
@@ -100,9 +114,9 @@ namespace StingTools.Commands.Symbols
             var specs = ResolveSpecs();
             if (specs.Count == 0)
             {
-                TaskDialog.Show("STING Seed Families",
+                PresetDialog.Show("STING Seed Families",
                     "No seed JSON specs found. Looked in Data/Seeds/. " +
-                    "Tier-1 ships with the plug-in; tier-2 + custom seeds drop in alongside.");
+                    "Tier-1 ships with the plug-in; tier-2 + custom seeds drop in alongside.", ref message);
                 return Result.Cancelled;
             }
 
@@ -148,6 +162,17 @@ namespace StingTools.Commands.Symbols
                 }
             }
 
+            // ── MG-2: migrate renamed seed types ──────────────────────────
+            // Runs in every mode, Missing Only included (the default): a reload never
+            // deletes a type the project holds, and Missing Only may not reload at all.
+            var migration = new SeedTypeMigrationReport();
+            foreach (var spec in specs)
+            {
+                try { SeedTypeMigrator.MigrateFromFile(doc, spec, migration); }
+                catch (Exception ex) { migration.Warnings.Add($"Type migration '{Path.GetFileName(spec)}': {ex.Message}"); }
+            }
+            aggregate.Warnings.AddRange(migration.Warnings);
+
             // ── Auto-register swap candidates ──────────────────────────────
             try { AutoRegisterSwapCandidates(specs, outRoot, aggregate); }
             catch (Exception ex) { StingLog.Warn($"AutoRegisterSwapCandidates: {ex.Message}"); }
@@ -179,10 +204,20 @@ namespace StingTools.Commands.Symbols
             }
             catch (Exception ex) { StingLog.Warn($"ValidateFinalizationGates: {ex.Message}"); }
 
-            ShowResult(aggregate, perSeed, outRoot, rebuildMode, gateIncomplete);
+            ShowResult(aggregate, perSeed, outRoot, rebuildMode, ref message, gateIncomplete, migration);
+            if (PresetDialog.Quiet)
+            {
+                message = $"Seed families ({rebuildMode}): {aggregate.Created} created, {aggregate.Existed} existed, " +
+                          $"{aggregate.Failed} failed, {aggregate.Errors.Count} error(s), {aggregate.Warnings.Count} warning(s)" +
+                          (migration.Types > 0 ? $", {migration.Types} renamed type(s) migrated" : "") +
+                          " (details in the STING log).";
+                if (aggregate.Errors.Count > 0)
+                    message += " First error: " + aggregate.Errors[0];
+            }
 
             try { ActionAuditLog.Record("BuildSeedFamilies",
-                $"mode={rebuildMode} built={built} failed={failed} protected={aggregate.Protected} outRoot={outRoot}"); }
+                $"mode={rebuildMode} built={built} failed={failed} protected={aggregate.Protected} " +
+                $"migratedTypes={migration.Types} migratedInstances={migration.Instances} outRoot={outRoot}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
 
             return aggregate.Errors.Count == 0 ? Result.Succeeded : Result.Failed;
@@ -537,12 +572,15 @@ namespace StingTools.Commands.Symbols
 
         private static void ShowResult(SymbolCreationResult r,
             List<(string seed, int created, int failed, int warnings, int prot)> perSeed,
-            string outRoot, SeedRebuildMode mode,
-            List<(string seedName, string reason)> gateIncomplete = null)
+            string outRoot, SeedRebuildMode mode, ref string message,
+            List<(string seedName, string reason)> gateIncomplete = null,
+            SeedTypeMigrationReport migration = null)
         {
             var panel = StingResultPanel.Create("Seed Families — Build");
+            string migrated = migration != null && migration.Types > 0
+                ? $"  |  migrated {migration.Types} type(s), {migration.Instances} instance(s)" : "";
             panel.SetSubtitle($"Mode: {mode}  |  {r.Created} created, {r.Existed} existed, " +
-                              $"{r.Protected} protected, {r.Failed} failed");
+                              $"{r.Protected} protected, {r.Failed} failed" + migrated);
 
             panel.AddSection("SUMMARY")
                 .Metric("Mode",       mode.ToString())
@@ -552,6 +590,13 @@ namespace StingTools.Commands.Symbols
                 .Metric("Failed",     r.Failed.ToString())
                 .Metric("Warnings",   r.Warnings.Count.ToString())
                 .Metric("Output",     outRoot);
+
+            if (migration != null && (migration.Types > 0 || migration.Messages.Count > 0))
+            {
+                panel.AddSection("RENAMED TYPES MIGRATED")
+                    .Metric("Migrated", $"{migration.Types} type(s), {migration.Instances} instance(s)");
+                foreach (var m in migration.Messages.Take(20)) panel.Text(m);
+            }
 
             if (perSeed.Count > 0)
             {
@@ -612,7 +657,7 @@ namespace StingTools.Commands.Symbols
                 .Text("To import a pre-built family as the seed base, set sourceFamilyPath in the JSON spec.")
                 .Text("Pre-register manufacturer swap variants via swapCandidates[] in the JSON spec.")
                 .Text("Run 'Swap to Manufacturer' once procurement decides on real product families.");
-            panel.Show();
+            PresetDialog.Show(panel, ref message);
         }
 
         /// <summary>

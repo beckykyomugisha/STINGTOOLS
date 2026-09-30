@@ -623,7 +623,7 @@ namespace StingTools.Temp
             ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref message); return Result.Failed; }
             Document doc = ctx.Doc;
 
             // Find existing view templates
@@ -690,9 +690,9 @@ namespace StingTools.Temp
 
             if (!baseViews.ContainsKey(ViewType.FloorPlan))
             {
-                TaskDialog.Show("View Templates",
+                PresetDialog.Show("View Templates",
                     "No floor plan view found to use as a template base.\n" +
-                    "Create at least one floor plan view first.");
+                    "Create at least one floor plan view first.", ref message);
                 return Result.Failed;
             }
 
@@ -702,6 +702,7 @@ namespace StingTools.Temp
             int noBase = 0;
             int csvCreated = 0, csvSkipped = 0;
             var csvTemplates = TemplateManager.LoadViewTemplatesFromCsv();
+            DrawingTypeTemplateResult dtResult = null;
 
             using (Transaction tx = new Transaction(doc, "STING Create View Templates"))
             {
@@ -882,6 +883,9 @@ namespace StingTools.Temp
                     }
                 }
 
+                // ── Phase 3: every template a drawing type names ──
+                dtResult = CreateDrawingTypeTemplates(doc, baseViews, filterLookup, solidFill);
+
                 tx.Commit();
             }
             var baseReport = new StringBuilder();
@@ -893,7 +897,8 @@ namespace StingTools.Temp
                   $"(from {csvTemplates.Count} VIEW_TEMPLATE rows)"
                 : "";
 
-            string result = $"Created {created + csvCreated} view templates.\n" +
+            int dtCreated = dtResult?.Created.Count ?? 0;
+            string result = $"Created {created + csvCreated + dtCreated} view templates.\n" +
                 $"Configured VG on {configured} existing templates.\n" +
                 $"Skipped {skipped + csvSkipped} (already exist).\n" +
                 (noBase > 0 ? $"No base view: {noBase}\n" : "") +
@@ -901,11 +906,301 @@ namespace StingTools.Temp
                 $"  • 7 discipline plans, 2 coordination, 3 special, 2 RCP\n" +
                 $"  • 2 presentation, 3 section, 2 3D, 2 elevation" +
                 csvNote +
+                (dtResult?.Summary() ?? "") +
                 $"\n\nBase views: {baseReport.ToString().TrimEnd(',', ' ')}";
 
-            TaskDialog.Show("View Templates", result);
+            // Quiet inside a preset: the setup presets run this step unattended.
+            PresetDialog.Show("View Templates", result, ref message);
 
             return Result.Succeeded;
+        }
+
+        internal sealed class DrawingTypeTemplateResult
+        {
+            public List<string> Created { get; } = new List<string>();
+            public int AlreadyPresent { get; set; }
+            /// <summary>"name — reason" for every template that could not be made.</summary>
+            public List<string> Problems { get; } = new List<string>();
+            /// <summary>Temporary base views made (and deleted) because the model had none of a kind.</summary>
+            public int TemporaryBases { get; set; }
+
+            public string Summary()
+            {
+                var sb = new StringBuilder();
+                sb.Append($"\n\nDrawing types: {Created.Count} created, {AlreadyPresent} already present");
+                if (TemporaryBases > 0)
+                    sb.Append($" ({TemporaryBases} temporary base view(s) made for kinds the model had none of, then removed)");
+                if (Problems.Count > 0)
+                {
+                    sb.Append($", {Problems.Count} not created:");
+                    foreach (var p in Problems.Take(12)) sb.Append("\n  • ").Append(p);
+                    if (Problems.Count > 12) sb.Append($"\n  • … {Problems.Count - 12} more (see log)");
+                }
+                return sb.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Phase 3 — create every view template a drawing type names
+        /// (<see cref="StingTools.Core.Drawing.DrawingTemplateCatalogue"/>), so
+        /// DrawingTypePresentation.Apply finds it instead of warning "not found".
+        /// Each template is made from a view of the kind its drawing type
+        /// produces; a template cannot be applied to another view type, so it is
+        /// never substituted with a floor plan. When the model has no view of the
+        /// kind, a temporary one is made (TemporaryBaseViews) and deleted once the
+        /// templates exist; a kind with no creatable base (legend) is reported.
+        /// Must run inside an open transaction.
+        /// </summary>
+        internal static DrawingTypeTemplateResult CreateDrawingTypeTemplates(Document doc,
+            Dictionary<ViewType, View> baseViews,
+            Dictionary<string, ParameterFilterElement> filterLookup,
+            FillPatternElement solidFill)
+        {
+            var res = new DrawingTypeTemplateResult();
+            StingTools.Core.Drawing.DrawingTemplatePlan plan;
+            try
+            {
+                plan = StingTools.Core.Drawing.DrawingTemplateCatalogue.Plan(
+                    StingTools.Core.Drawing.DrawingTypeRegistry.ListAll(doc));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error("ViewTemplates: could not read the drawing types", ex);
+                res.Problems.Add($"drawing types could not be read — {ex.Message}");
+                return res;
+            }
+            foreach (var p in plan.NotCreatable)
+            {
+                StingLog.Warn("ViewTemplates: " + p);
+                res.Problems.Add(p);
+            }
+
+            var existing = new HashSet<string>(
+                new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                    .Where(v => v.IsTemplate).Select(v => v.Name));
+
+            // Views of each kind: the model's own first, then any temporary one made
+            // below. A template can only be made from a view of the kind it will be
+            // applied to, and the model often has none (a fresh project has no section,
+            // elevation, ceiling plan or schedule), so a temporary base is created,
+            // the template made from it, and the base deleted at the end.
+            var bases = ExistingBases(doc, baseViews);
+            var temps = new List<ElementId>();
+            int tempMade = 0;
+            foreach (var spec in plan.Creatable)
+            {
+                if (existing.Contains(spec.Name)) { res.AlreadyPresent++; continue; }
+
+                View baseView = BaseViewFor(doc, spec.BaseKind, bases, temps, ref tempMade, out string why);
+                if (baseView == null)
+                {
+                    string p = $"{spec.Name} — {why}";
+                    StingLog.Warn("ViewTemplates: " + p);
+                    res.Problems.Add(p);
+                    continue;
+                }
+
+                try
+                {
+                    View template = baseView.CreateViewTemplate();
+                    if (template == null)
+                    {
+                        res.Problems.Add($"{spec.Name} — Revit returned no template from '{baseView.Name}'");
+                        continue;
+                    }
+                    template.Name = spec.Name;
+                    ConfigureTemplateVG(template, spec.VgCode, filterLookup, solidFill,
+                        ParseDetailLevel(spec.DetailLevel));
+                    ReleaseScaleAndDetail(template, releaseDetail: spec.DetailLevel == null);
+                    existing.Add(spec.Name);
+                    res.Created.Add(spec.Name);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"ViewTemplates: '{spec.Name}' from {spec.BaseKind} failed: {ex.Message}");
+                    res.Problems.Add($"{spec.Name} — {ex.Message}");
+                }
+            }
+
+            // The temporary bases are not something the user asked for — remove them now
+            // the templates exist (a template does not depend on the view it came from).
+            // Newest first: an elevation goes before the plan its marker sits in.
+            for (int i = temps.Count - 1; i >= 0; i--)
+            {
+                try { if (doc.GetElement(temps[i]) != null) doc.Delete(temps[i]); }
+                catch (Exception ex) { StingLog.Warn($"ViewTemplates: could not delete temporary base view {temps[i]}: {ex.Message}"); }
+            }
+            res.TemporaryBases = tempMade;
+
+            StingLog.Info($"ViewTemplates phase 3: {res.Created.Count} created, {res.AlreadyPresent} present, " +
+                          $"{res.Problems.Count} not created, {tempMade} temporary base view(s) made and removed, " +
+                          $"{plan.Managed.Count} managed names left to ManagedTemplateSyncer.");
+            return res;
+        }
+
+        /// <summary>The model's own base view per kind (DrawingViewKind), non-template.</summary>
+        private static Dictionary<string, View> ExistingBases(Document doc, Dictionary<ViewType, View> baseViews)
+        {
+            var bases = new Dictionary<string, View>();
+            if (baseViews.TryGetValue(ViewType.FloorPlan, out var v)) bases[StingTools.Core.Drawing.DrawingViewKind.FloorPlan] = v;
+            if (baseViews.TryGetValue(ViewType.CeilingPlan, out v)) bases[StingTools.Core.Drawing.DrawingViewKind.Rcp] = v;
+            if (baseViews.TryGetValue(ViewType.Section, out v)) bases[StingTools.Core.Drawing.DrawingViewKind.Section] = v;
+            if (baseViews.TryGetValue(ViewType.Elevation, out v)) bases[StingTools.Core.Drawing.DrawingViewKind.Elevation] = v;
+            if (baseViews.TryGetValue(ViewType.ThreeD, out v)) bases[StingTools.Core.Drawing.DrawingViewKind.ThreeD] = v;
+            var drafting = new FilteredElementCollector(doc).OfClass(typeof(ViewDrafting)).Cast<View>()
+                .FirstOrDefault(x => !x.IsTemplate);
+            if (drafting != null) bases[StingTools.Core.Drawing.DrawingViewKind.Drafting] = drafting;
+            var schedule = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                .Where(x => !x.IsTemplate && !x.IsTitleblockRevisionSchedule && !x.IsInternalKeynoteSchedule)
+                .FirstOrDefault(x => { try { return x.IsViewValidForTemplateCreation(); } catch { return false; } });
+            if (schedule != null) bases[StingTools.Core.Drawing.DrawingViewKind.Schedule] = schedule;
+            return bases;
+        }
+
+        /// <summary>
+        /// A view of the kind <paramref name="kind"/>'s template is made from: the
+        /// model's, an earlier temporary one, or a temporary one made now
+        /// (<see cref="StingTools.Core.Drawing.TemporaryBaseViews"/> says which). Every
+        /// temporary element is appended to <paramref name="temps"/> for deletion.
+        /// Must run inside an open transaction.
+        /// </summary>
+        private static View BaseViewFor(Document doc, string kind, Dictionary<string, View> bases,
+            List<ElementId> temps, ref int tempMade, out string why)
+        {
+            var steps = StingTools.Core.Drawing.TemporaryBaseViews.Plan(kind, bases.Keys, out why);
+            if (steps == null) return null;
+            foreach (var step in steps)
+            {
+                var made = CreateTemporaryBase(doc, step, bases, temps, out why);
+                if (made == null)
+                {
+                    why = $"no {step} view in the model and a temporary one could not be made: {why}";
+                    return null;
+                }
+                bases[step] = made;
+                tempMade++;
+            }
+            return bases.TryGetValue(StingTools.Core.Drawing.TemporaryBaseViews.BaseKindFor(kind), out var v) ? v : null;
+        }
+
+        private static View CreateTemporaryBase(Document doc, string kind, Dictionary<string, View> bases,
+            List<ElementId> temps, out string why)
+        {
+            why = null;
+            try
+            {
+                var level = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).FirstOrDefault();
+                ViewFamilyType Vft(ViewFamily f) => new FilteredElementCollector(doc).OfClass(typeof(ViewFamilyType))
+                    .Cast<ViewFamilyType>().FirstOrDefault(t => t.ViewFamily == f);
+                View v = null;
+                switch (kind)
+                {
+                    case StingTools.Core.Drawing.DrawingViewKind.FloorPlan:
+                    case StingTools.Core.Drawing.DrawingViewKind.Rcp:
+                    {
+                        var family = kind == StingTools.Core.Drawing.DrawingViewKind.Rcp ? ViewFamily.CeilingPlan : ViewFamily.FloorPlan;
+                        var vft = Vft(family);
+                        if (vft == null) { why = $"the model has no {family} view type"; return null; }
+                        if (level == null) { why = "the model has no level"; return null; }
+                        v = ViewPlan.Create(doc, vft.Id, level.Id);
+                        break;
+                    }
+                    case StingTools.Core.Drawing.DrawingViewKind.Section:
+                    {
+                        var vft = Vft(ViewFamily.Section);
+                        if (vft == null) { why = "the model has no section view type"; return null; }
+                        double z = level?.Elevation ?? 0.0;
+                        var box = StingTools.Core.Drawing.DrawingProducer.BuildSectionBox(
+                            new XYZ(0, 0, z), XYZ.BasisX, 10.0, z, z + 10.0, 10.0);
+                        v = ViewSection.CreateSection(doc, vft.Id, box);
+                        break;
+                    }
+                    case StingTools.Core.Drawing.DrawingViewKind.Elevation:
+                    {
+                        var vft = Vft(ViewFamily.Elevation);
+                        if (vft == null) { why = "the model has no elevation view type"; return null; }
+                        if (!bases.TryGetValue(StingTools.Core.Drawing.DrawingViewKind.FloorPlan, out var owner) || !(owner is ViewPlan))
+                        { why = "no floor plan to host the elevation marker"; return null; }
+                        var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, XYZ.Zero, 100);
+                        temps.Add(marker.Id);
+                        v = marker.CreateElevation(doc, owner.Id, 0);
+                        break;
+                    }
+                    case StingTools.Core.Drawing.DrawingViewKind.ThreeD:
+                    {
+                        var vft = Vft(ViewFamily.ThreeDimensional);
+                        if (vft == null) { why = "the model has no 3D view type"; return null; }
+                        v = View3D.CreateIsometric(doc, vft.Id);
+                        break;
+                    }
+                    case StingTools.Core.Drawing.DrawingViewKind.Drafting:
+                    {
+                        var vft = Vft(ViewFamily.Drafting);
+                        if (vft == null) { why = "the model has no drafting view type"; return null; }
+                        v = ViewDrafting.Create(doc, vft.Id);
+                        break;
+                    }
+                    case StingTools.Core.Drawing.DrawingViewKind.Schedule:
+                    {
+                        var s = ViewSchedule.CreateSchedule(doc, new ElementId(BuiltInCategory.OST_Walls));
+                        temps.Add(s.Id);
+                        if (!s.IsViewValidForTemplateCreation())
+                        { why = "Revit does not accept a new wall schedule as a template base"; return null; }
+                        return s;
+                    }
+                    default:
+                        why = $"no temporary base for {kind}";
+                        return null;
+                }
+                if (v == null) { why = "Revit returned no view"; return null; }
+                temps.Add(v.Id);
+                return v;
+            }
+            catch (Exception ex)
+            {
+                why = ex.Message;
+                return null;
+            }
+        }
+
+        private static ViewDetailLevel ParseDetailLevel(string s)
+        {
+            if (string.Equals(s, "Fine", StringComparison.OrdinalIgnoreCase)) return ViewDetailLevel.Fine;
+            if (string.Equals(s, "Coarse", StringComparison.OrdinalIgnoreCase)) return ViewDetailLevel.Coarse;
+            return ViewDetailLevel.Medium;
+        }
+
+        /// <summary>
+        /// Leave View Scale (and, when the drawing types sharing the template
+        /// disagree, Detail Level) uncontrolled. DrawingTypePresentation sets
+        /// both from the drawing type before it applies the template; a
+        /// controlled value would silently overwrite them with the base view's.
+        /// </summary>
+        private static void ReleaseScaleAndDetail(View template, bool releaseDetail)
+        {
+            try
+            {
+                var controlled = new HashSet<ElementId>(template.GetTemplateParameterIds());
+                var released = template.GetNonControlledTemplateParameterIds().ToList();
+                var bips = new List<BuiltInParameter>
+                {
+                    BuiltInParameter.VIEW_SCALE_PULLDOWN_METRIC,
+                    BuiltInParameter.VIEW_SCALE_PULLDOWN_IMPERIAL,
+                    BuiltInParameter.VIEW_SCALE,
+                };
+                if (releaseDetail) bips.Add(BuiltInParameter.VIEW_DETAIL_LEVEL);
+                foreach (var bip in bips)
+                {
+                    var id = new ElementId(bip);
+                    if (controlled.Contains(id) && !released.Contains(id)) released.Add(id);
+                }
+                template.SetNonControlledTemplateParameterIds(released);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ViewTemplates: could not release scale on '{template.Name}': {ex.Message}");
+            }
         }
 
         /// <summary>

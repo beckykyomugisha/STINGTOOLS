@@ -136,6 +136,8 @@ namespace StingTools.Model
         public int WallsRejectedByThickness { get; set; }
         /// <summary>True when the run was a dry-run (no elements written).</summary>
         public bool WasDryRun { get; set; }
+        /// <summary>Elements the pipeline's own auto-tag step tagged (0 when AutoTag is off).</summary>
+        public int ElementsTagged { get; set; }
 
         public int TotalCreated => ColumnsCreated + BeamsCreated + BracesCreated +
             SlabsCreated + FootingsCreated + WallsCreated + TrussesCreated;

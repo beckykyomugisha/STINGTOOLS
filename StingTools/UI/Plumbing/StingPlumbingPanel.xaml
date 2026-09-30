@@ -920,6 +920,7 @@
                             <Button Content="Generate Spools" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_GenerateSpools" Click="Cmd_Click" ToolTip="Group pipes into spools, stamp numbers, build assemblies."/>
                             <Button Content="Spool Schedule" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_SpoolSchedule" Click="Cmd_Click" ToolTip="Create/refresh the pipe-spool schedule view."/>
                             <Button Content="Drainage Schematic" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_DrainageSchematic" Click="Cmd_Click" ToolTip="Generate the drainage riser schematic drafting view."/>
+                            <Button Content="Supply Schematic" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_SupplySchematic" Click="Cmd_Click" ToolTip="Generate the domestic cold water supply schematic drafting view."/>
                             <Button Content="TMV Engine" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_TMVEngine" Click="Cmd_Click" ToolTip="Scan TMVs and export the CSV register."/>
                             <Button Content="Legionella Report" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_LegionellaReport" Click="Cmd_Click" ToolTip="ACOP L8 Legionella risk report (docx/text)."/>
                             <Button Content="Water Safety Plan" Style="{StaticResource PlumbActionBtn}" Tag="Plumb_WaterSafetyPlan" Click="Cmd_Click" ToolTip="RAG dashboard: dead legs / TMV / backflow."/>

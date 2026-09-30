@@ -647,6 +647,10 @@ namespace StingTools.Model
         public bool Confirmed { get; private set; }
         public DWGConversionConfig GetConfig() => BuildConfig();
 
+        /// <summary>The DWG chosen in the "DWG Import:" dropdown — Convert must use this one,
+        /// not whichever import the project happens to list first.</summary>
+        public ImportInstance SelectedImport => _selectedImport;
+
         // ── Map To categories ──
         private static readonly string[] MapToCategories = {
             "", "Column", "Beam", "Wall", "Slab", "Foundation",

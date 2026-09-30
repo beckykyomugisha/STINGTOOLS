@@ -5741,35 +5741,68 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Inside a workflow preset nobody answers the pre-flight or the suitability
+            // picker: the pre-flight becomes a note in the step message (running the
+            // step is the "continue"), and params.suitability chooses the code — the
+            // project default for SHARED (Iso19650Suitability.DefaultFor) when absent.
+            bool quiet = PresetDialog.Quiet;
+            var presetNotes = new List<string>();
+
             // GAP-015: CDE status pre-flight check before transmittal
             string cdeStatus = ParameterHelpers.GetString(doc.ProjectInformation, "ASS_CDE_STATUS_TXT");
             if (string.IsNullOrEmpty(cdeStatus) || cdeStatus == "WIP")
             {
-                var warn = new TaskDialog("STING Transmittal Pre-Flight");
-                warn.MainInstruction = "CDE Status Warning";
-                warn.MainContent = $"Current CDE status is '{(string.IsNullOrEmpty(cdeStatus) ? "NOT SET" : cdeStatus)}'.\n" +
-                    "ISO 19650 requires SHARED or PUBLISHED status before transmittal.\n\n" +
-                    "Continue anyway?";
-                warn.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
-                if (warn.Show() == TaskDialogResult.No) return Result.Cancelled;
+                string cdeNote = $"CDE status is '{(string.IsNullOrEmpty(cdeStatus) ? "NOT SET" : cdeStatus)}'; " +
+                                 "ISO 19650 requires SHARED or PUBLISHED before transmittal.";
+                if (quiet)
+                {
+                    StingLog.Warn("Transmittal (preset): " + cdeNote);
+                    presetNotes.Add(cdeNote);
+                }
+                else
+                {
+                    var warn = new TaskDialog("STING Transmittal Pre-Flight");
+                    warn.MainInstruction = "CDE Status Warning";
+                    warn.MainContent = $"Current CDE status is '{(string.IsNullOrEmpty(cdeStatus) ? "NOT SET" : cdeStatus)}'.\n" +
+                        "ISO 19650 requires SHARED or PUBLISHED status before transmittal.\n\n" +
+                        "Continue anyway?";
+                    warn.CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No;
+                    if (warn.Show() == TaskDialogResult.No) return Result.Cancelled;
+                }
             }
 
             // Suitability
-            var suitDlg = new TaskDialog("STING Transmittal — Suitability");
-            suitDlg.MainInstruction = "Suitability code for this transmittal:";
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "S1 — Fit for Coordination");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "S2 — Fit for Information");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "S3 — Fit for Review and Comment");
-            suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "S4 — Fit for Stage Approval");
-            var suitResult = suitDlg.Show();
-            string suitability = suitResult switch
+            string suitability;
+            if (quiet)
             {
-                TaskDialogResult.CommandLink1 => "S1",
-                TaskDialogResult.CommandLink2 => "S2",
-                TaskDialogResult.CommandLink3 => "S3",
-                TaskDialogResult.CommandLink4 => "S4",
-                _ => "S3"
-            };
+                string raw = (WorkflowEngine.StepParam("suitability") ?? "").Trim().ToUpperInvariant();
+                suitability = raw.Length == 0 ? Core.Drawing.Iso19650Suitability.DefaultFor("SHARED") : raw;
+                string state = Core.Drawing.Iso19650Suitability.CdeStateFor(suitability);
+                if (state == null || state == "WIP" || !BIMManagerEngine.SuitabilityCodes.ContainsKey(suitability))
+                {
+                    message = $"Transmittal: params.suitability '{raw}' is not a suitability code a transmittal can carry "
+                            + "(S1–S7, or an A / B / CR code).";
+                    return Result.Failed;
+                }
+            }
+            else
+            {
+                var suitDlg = new TaskDialog("STING Transmittal — Suitability");
+                suitDlg.MainInstruction = "Suitability code for this transmittal:";
+                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "S1 — Fit for Coordination");
+                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "S2 — Fit for Information");
+                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "S3 — Fit for Review and Comment");
+                suitDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink4, "S4 — Fit for Stage Approval");
+                var suitResult = suitDlg.Show();
+                suitability = suitResult switch
+                {
+                    TaskDialogResult.CommandLink1 => "S1",
+                    TaskDialogResult.CommandLink2 => "S2",
+                    TaskDialogResult.CommandLink3 => "S3",
+                    TaskDialogResult.CommandLink4 => "S4",
+                    _ => "S3"
+                };
+            }
 
             // Auto-attach registered documents
             string docsPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json");
@@ -5881,8 +5914,21 @@ namespace StingTools.BIMManager
             try { OutputLocationHelper.WriteAllTextAtomic(txtPath, note.ToString()); }
             catch (Exception ex) { StingLog.Warn($"Transmittal text file write failed: {ex.Message}"); }
 
-            TaskDialog.Show("STING Transmittal", note.ToString());
             StingLog.Info($"Transmittal: {transmittal["transmittal_id"]}, {outgoingIds.Count} docs");
+            if (quiet)
+            {
+                // The note goes to the log; the step says what was issued. Stamping sheets
+                // needs a person to pick them, so a preset leaves the title blocks alone.
+                StingLog.Info("Transmittal (preset):\n" + note);
+                message = $"Transmittal {transmittal["transmittal_id"]}: suitability {suitability}, "
+                        + $"{outgoingIds.Count} document(s) from the register"
+                        + (transmittal["gate_pass"]?.Type == JTokenType.Boolean && !(bool)transmittal["gate_pass"]
+                            ? $", gate: {transmittal["gate_summary"]}" : "")
+                        + (presetNotes.Count > 0 ? ". " + string.Join(" ", presetNotes) : "")
+                        + ". Sheets not stamped (pick them with Create Transmittal run by hand).";
+                return Result.Succeeded;
+            }
+            TaskDialog.Show("STING Transmittal", note.ToString());
 
             // Phase 97 — spec §6.2/§7.7: offer to stamp PRJ_TB_LAST_TRANSMITTAL_* on sheets
             // in this transmittal so title-block Band 6 reflects the new submission.

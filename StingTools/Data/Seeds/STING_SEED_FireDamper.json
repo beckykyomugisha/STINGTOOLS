@@ -45,7 +45,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -62,18 +62,20 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "FD"
         },
         {
           "name": "PEN_FIRE_RATING_TXT",
           "type": "Text",
           "shared": true,
-          "isInstance": false,
+          "isInstance": true,
+          "followsType": true,
           "default": "FR60"
         },
         {
           "name": "PEN_OD_MM",
-          "type": "Text",
+          "type": "Number",
           "shared": true,
           "isInstance": true,
           "default": "0"
@@ -103,7 +105,7 @@
           "name": "PEN_CERTIFICATION_TXT",
           "type": "Text",
           "shared": true,
-          "isInstance": false,
+          "isInstance": true,
           "default": "BS EN 15650 / EN 1366-2"
         },
         {

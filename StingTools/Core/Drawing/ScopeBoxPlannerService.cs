@@ -310,16 +310,32 @@ namespace StingTools.Core.Drawing
             public Element Box; public Level Level; public DrawingType Type;
         }
 
-        public static List<ProductionItem> PlanProduction(Document doc, ScopeBoxPlanFile plan, List<string> report)
+        /// <summary>
+        /// The box × level × type items to produce. A box the saved plan lists is produced
+        /// as planned. A box it does not list — or every box, when no plan is saved — is
+        /// produced from itself (AreaBoxResolution) with <paramref name="defaultTypes"/>,
+        /// skipping the (type, level) pairs <paramref name="defaultInclude"/> rejects.
+        /// With no default types such a box is reported and skipped, as before.
+        /// </summary>
+        public static List<ProductionItem> PlanProduction(Document doc, ScopeBoxPlanFile plan, List<string> report,
+            IList<string> defaultTypes = null, Func<DrawingType, Level, bool> defaultInclude = null)
         {
             var items = new List<ProductionItem>();
-            if (plan == null) { report.Add($"No saved plan ({PlanFileName}) — create boxes in the Scope Box Planner first."); return items; }
+            bool haveDefaults = defaultTypes != null && defaultTypes.Count > 0;
+            if (plan == null && !haveDefaults) { report.Add($"No saved plan ({PlanFileName}) — create boxes in the Scope Box Planner first."); return items; }
+            if (plan == null)
+                report.Add($"No saved plan ({PlanFileName}): each area box is produced from its name — its ::level, or every level it reaches — "
+                         + $"with {string.Join(", ", defaultTypes)}.");
             var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
             var codes = ScopeBoxRevit.LevelCodes(doc);
             var drawables = LoadDrawables(report);
             foreach (var box in ScopeBoxRevit.AllBoxes(doc).Where(b => ScopeBoxNames.Classify(b.Name) == ScopeBoxKind.Area))
             {
-                if (!plan.TryResolve(box.Name, out var typeIds, out var levelCodes, out var why)) { report.Add($"'{box.Name}': {why}."); continue; }
+                if (!AreaBoxResolution.Resolve(plan, box.Name, defaultTypes, codes.Values.ToList(),
+                        out var typeIds, out var levelCodes, out var fromPlan, out var why))
+                { report.Add($"'{box.Name}': {why}."); continue; }
+                if (!fromPlan && plan != null)
+                    report.Add($"'{box.Name}' is not in the saved plan — produced from its name with {string.Join(", ", typeIds)}.");
                 if (!ScopeBoxRevit.TryMeasure(box, out var m, out var mwhy))
                 { report.Add($"'{box.Name}' {mwhy} — skipped, because its size and height cannot be checked."); continue; }
 
@@ -340,15 +356,34 @@ namespace StingTools.Core.Drawing
                         && (Math.Min(m.WidthM, m.DepthM) > Math.Min(w, d) + 0.05 || Math.Max(m.WidthM, m.DepthM) > Math.Max(w, d) + 0.05))
                         report.Add($"'{box.Name}' ({ScopeBoxNames.Metres(m.WidthM)} × {ScopeBoxNames.Metres(m.DepthM)} m) is larger than '{id}' allows "
                                  + $"({ScopeBoxNames.Metres(w)} × {ScopeBoxNames.Metres(d)} m) — its plan will not fit the slot at 1:{dt.Scale}.");
-                    foreach (var l in reached) items.Add(new ProductionItem { Box = box, Level = l, Type = dt });
+                    foreach (var l in reached)
+                    {
+                        if (!fromPlan && defaultInclude != null && !defaultInclude(dt, l)) continue;
+                        items.Add(new ProductionItem { Box = box, Level = l, Type = dt });
+                    }
                 }
             }
             return items;
         }
 
-        public static string Produce(Document doc, List<ProductionItem> items, bool sheets)
+        /// <summary>What an area-box production run did — the counts a workflow step judges by.</summary>
+        public sealed class AreaProduceOutcome
         {
-            var opts = new ProduceOptions { CreateSheet = sheets, PlaceOnSheet = sheets };
+            public int Made, Refreshed, Sheets, NotCropped, Failed;
+            public string Report;
+        }
+
+        public static string Produce(Document doc, List<ProductionItem> items, bool sheets)
+            => ProduceWithOutcome(doc, items, sheets, ViewDuplicateOption.Duplicate).Report;
+
+        /// <summary>
+        /// Produce every item. <paramref name="duplicateOption"/> AsDependent makes each
+        /// box's plan a dependent of one parent per (type, level) — see DependentViewPlanner.
+        /// </summary>
+        public static AreaProduceOutcome ProduceWithOutcome(Document doc, List<ProductionItem> items, bool sheets,
+            ViewDuplicateOption duplicateOption, string packageId = null)
+        {
+            var opts = new ProduceOptions { CreateSheet = sheets, PlaceOnSheet = sheets, DuplicateOption = duplicateOption };
             int made = 0, refreshed = 0, madeSheets = 0, notCropped = 0, failed = 0;
             var warnings = new List<string>();
             DrawingTypePresentation.Prewarm(doc);
@@ -365,7 +400,7 @@ namespace StingTools.Core.Drawing
                         {
                             ScopeBoxNames.TryParseArea(it.Box.Name, out var area, out _, out _);
                             var pr = DrawingProducer.ProduceAllViews(doc, it.Type,
-                                new DrawingContext { Level = it.Level, ScopeBox = it.Box, Tag = area }, opts);
+                                new DrawingContext { Level = it.Level, ScopeBox = it.Box, Tag = area, PackageId = packageId }, opts);
                             // A view the box could not crop is not a produced drawing of that area.
                             // Undo this item and count it, rather than report an uncropped view as made.
                             // The plan is the area drawing, so it must take the box. A type's other
@@ -385,10 +420,18 @@ namespace StingTools.Core.Drawing
                                 warnings.AddRange(pr.Warnings);
                                 continue;
                             }
+                            warnings.AddRange(pr.Warnings);
+                            // Counted only once Revit has committed the item: a commit a
+                            // failure handler rolls back kept nothing.
+                            var status = t.Commit();
+                            if (status != TransactionStatus.Committed)
+                            {
+                                failed++;
+                                warnings.Add($"{it.Box.Name} / {it.Level.Name} / {it.Type.Id}: the transaction did not commit ({status}) — nothing kept.");
+                                continue;
+                            }
                             if (pr.WasIdempotent) refreshed += pr.ViewIds.Count; else made += pr.ViewIds.Count;
                             if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) madeSheets++;
-                            warnings.AddRange(pr.Warnings);
-                            t.Commit();
                         }
                         catch (Exception ex)
                         {
@@ -408,7 +451,11 @@ namespace StingTools.Core.Drawing
             foreach (var w in warnings.Distinct().Take(25)) sb.Append("\n• ").Append(w);
             if (warnings.Distinct().Count() > 25) sb.Append($"\n… {warnings.Distinct().Count() - 25} more in the log.");
             foreach (var w in warnings) StingLog.Warn("ScopeBox produce: " + w);
-            return sb.ToString();
+            return new AreaProduceOutcome
+            {
+                Made = made, Refreshed = refreshed, Sheets = madeSheets,
+                NotCropped = notCropped, Failed = failed, Report = sb.ToString(),
+            };
         }
     }
 }

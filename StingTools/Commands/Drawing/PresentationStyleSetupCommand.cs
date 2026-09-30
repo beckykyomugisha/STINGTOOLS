@@ -46,7 +46,7 @@ namespace StingTools.Commands.Drawing
                 var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null)
                 {
-                    TaskDialog.Show("STING — Presentation Setup", "No active document.");
+                    PresetDialog.Show("STING — Presentation Setup", "No active document.", ref msg);
                     return Result.Failed;
                 }
 
@@ -104,7 +104,14 @@ namespace StingTools.Commands.Drawing
                     if (grnd.skipped) subCatsSkipped++;
                     if (grnd.err != null) warnings.Add(grnd.err);
 
-                    tx.Commit();
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        msg = $"Presentation setup: the transaction did not commit ({status}); nothing was created.";
+                        StingLog.Warn(msg);
+                        if (!PresetDialog.Quiet) TaskDialog.Show("STING — Presentation Setup", msg);
+                        return Result.Failed;
+                    }
                 }
 
                 var msgBody =
@@ -112,7 +119,7 @@ namespace StingTools.Commands.Drawing
                     $"Subcategories: {subCatsCreated} created, {subCatsSkipped} skipped.";
                 if (warnings.Count > 0)
                     msgBody += "\n\nWarnings:\n  " + string.Join("\n  ", warnings);
-                TaskDialog.Show("STING — Presentation Setup", msgBody);
+                PresetDialog.Show("STING — Presentation Setup", msgBody, ref msg);
                 return Result.Succeeded;
             }
             catch (Exception ex)

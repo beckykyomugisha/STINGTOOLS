@@ -141,7 +141,11 @@ namespace StingTools.Core.Drawing
                     }
                     if (opts.PruneOrphans)
                         PruneOrphans(doc, groupedEdges, existingByGuid, r);
-                    tx.Commit();
+                    // A commit a failure handler rolls back placed nothing: say so, so the
+                    // run's counts are not read as match lines in the model.
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                        r.Errors.Add($"the match-line transaction did not commit ({status}); nothing placed or updated was kept.");
                 }
             }
             catch (Exception ex)
@@ -170,6 +174,12 @@ namespace StingTools.Core.Drawing
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
                     .WhereElementIsNotElementType())
                 {
+                    // STING-LOC:: (a building footprint that sets the LOC token) and
+                    // STING-SEED:: (a size to copy) are never drawn on a sheet. Pairing
+                    // them put match lines from a building's whole footprint across
+                    // every area plan inside it.
+                    if (!MatchLineGeometry.IsMatchLineBox(el.Name)) continue;
+
                     // Optional discipline filter — match against the scope-
                     // box name prefix (e.g. arch- / struct- / mep-) which
                     // is the convention from the Week 5 scope-box auto-binder.
@@ -209,6 +219,15 @@ namespace StingTools.Core.Drawing
         // same pair) is reserved for Phase II — for now multiple edges
         // between the same pair are emitted as separate entries.
 
+        //
+        // The test above was the original one, on each box's AABB with 1 mm face
+        // coincidence. It never matched the Scope Box Planner's area boxes, which
+        // overlap by 2 m and may be turned to the grid (a turned box's AABB is not
+        // the box). The decision now lives in MatchLineGeometry (Revit-free, tested):
+        // each box is measured in its own frame, the pair must share a frame, touch
+        // or overlap along one axis and share an edge along the other, and the line
+        // sits on the face or down the middle of the overlap strip.
+
         private static List<ScopeBoxAdjacency> ComputeAdjacency(
             List<Element> scopeBoxes, MatchLineConfig cfg)
         {
@@ -216,62 +235,40 @@ namespace StingTools.Core.Drawing
             double tolFt    = MmToFt(cfg.Adjacency.CoplanarToleranceMm);
             double minOverlapFt = MmToFt(cfg.Adjacency.MinOverlapMm);
 
-            for (int i = 0; i < scopeBoxes.Count; i++)
+            // Measure each box once, in its own frame.
+            var measured = new List<(Element Box, MatchLineRect Rect, double ZMin)>();
+            foreach (var box in scopeBoxes)
             {
-                var a = scopeBoxes[i];
-                var bbA = a.get_BoundingBox(null);
-                if (bbA == null) continue;
-                for (int j = i + 1; j < scopeBoxes.Count; j++)
+                if (!ScopeBoxRevit.TryMeasure(box, out var m, out var why))
                 {
-                    var b = scopeBoxes[j];
-                    var bbB = b.get_BoundingBox(null);
-                    if (bbB == null) continue;
+                    StingLog.Warn($"MatchLineEngine: scope box '{box?.Name}' skipped — {why}");
+                    continue;
+                }
+                measured.Add((box, new MatchLineRect(m.Centre.X, m.Centre.Y,
+                    m.WidthM * ScopeBoxRevit.FeetPerMetre, m.DepthM * ScopeBoxRevit.FeetPerMetre,
+                    m.AngleRad), m.ZMinFt));
+            }
 
-                    // X-aligned shared face?
-                    foreach (var dirX in new[] { (a:"east",  ax:bbA.Max.X, bx:bbB.Min.X),
-                                                  (a:"west",  ax:bbA.Min.X, bx:bbB.Max.X) })
+            for (int i = 0; i < measured.Count; i++)
+            {
+                for (int j = i + 1; j < measured.Count; j++)
+                {
+                    var a = measured[i];
+                    var b = measured[j];
+                    var seg = MatchLineGeometry.Find(a.Rect, b.Rect, tolFt, minOverlapFt);
+                    if (seg == null) continue;
+                    double zMin = Math.Min(a.ZMin, b.ZMin);
+                    var s = new XYZ(seg.X0, seg.Y0, zMin);
+                    var e = new XYZ(seg.X1, seg.Y1, zMin);
+                    var adj = new ScopeBoxAdjacency
                     {
-                        if (Math.Abs(dirX.ax - dirX.bx) > tolFt) continue;
-                        double yMin = Math.Max(bbA.Min.Y, bbB.Min.Y);
-                        double yMax = Math.Min(bbA.Max.Y, bbB.Max.Y);
-                        if ((yMax - yMin) < minOverlapFt) continue;
-                        double zMin = Math.Min(bbA.Min.Z, bbB.Min.Z);
-                        double x0 = dirX.ax;
-                        var sV = new XYZ(x0, yMin, zMin);
-                        var eV = new XYZ(x0, yMax, zMin);
-                        var adj = new ScopeBoxAdjacency
-                        {
-                            ScopeBoxA = a, ScopeBoxB = b,
-                            LineStart = sV, LineEnd = eV,
-                            Direction = "vertical",
-                            PairGuid  = DerivePairGuid(a, b),
-                        };
-                        adj.Segments.Add((sV, eV));
-                        edges.Add(adj);
-                    }
-
-                    // Y-aligned shared face?
-                    foreach (var dirY in new[] { (a:"north", ay:bbA.Max.Y, by:bbB.Min.Y),
-                                                  (a:"south", ay:bbA.Min.Y, by:bbB.Max.Y) })
-                    {
-                        if (Math.Abs(dirY.ay - dirY.by) > tolFt) continue;
-                        double xMin = Math.Max(bbA.Min.X, bbB.Min.X);
-                        double xMax = Math.Min(bbA.Max.X, bbB.Max.X);
-                        if ((xMax - xMin) < minOverlapFt) continue;
-                        double zMin = Math.Min(bbA.Min.Z, bbB.Min.Z);
-                        double y0 = dirY.ay;
-                        var sH = new XYZ(xMin, y0, zMin);
-                        var eH = new XYZ(xMax, y0, zMin);
-                        var adj = new ScopeBoxAdjacency
-                        {
-                            ScopeBoxA = a, ScopeBoxB = b,
-                            LineStart = sH, LineEnd = eH,
-                            Direction = "horizontal",
-                            PairGuid  = DerivePairGuid(a, b),
-                        };
-                        adj.Segments.Add((sH, eH));
-                        edges.Add(adj);
-                    }
+                        ScopeBoxA = a.Box, ScopeBoxB = b.Box,
+                        LineStart = s, LineEnd = e,
+                        Direction = seg.Direction,
+                        PairGuid  = DerivePairGuid(a.Box, b.Box),
+                    };
+                    adj.Segments.Add((s, e));
+                    edges.Add(adj);
                 }
             }
             return edges;
@@ -470,17 +467,21 @@ namespace StingTools.Core.Drawing
             // match line. When views are at different levels we still
             // pair them — the line geometry is taken from the shared face
             // projected onto the view plane.
+            // Only the same drawing on the same level continues across a match line.
+            // Every view on box A used to pair with every view on box B, so a box
+            // carrying M, E and P plans drew nine cross-discipline match lines per
+            // edge — an M plan saying "continued on" an E sheet. The level test is
+            // no longer optional (adjacency.considerLevelMatch): a level-1 plan
+            // never continues on a level-2 sheet. See MatchLineGeometry.ShouldPairViews.
             foreach (var viewA in viewsA)
             foreach (var viewB in viewsB)
             {
-                if (cfg.Adjacency.ConsiderLevelMatch)
-                {
-                    var lvA = viewA.GenLevel?.Id ?? ElementId.InvalidElementId;
-                    var lvB = viewB.GenLevel?.Id ?? ElementId.InvalidElementId;
-                    if (lvA != ElementId.InvalidElementId
-                        && lvB != ElementId.InvalidElementId
-                        && lvA != lvB) continue;
-                }
+                if (!MatchLineGeometry.ShouldPairViews(
+                        ParameterHelpers.GetString(viewA, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                        ParameterHelpers.GetString(viewB, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                        LevelKey(viewA), LevelKey(viewB),
+                        FallbackPairKey(viewA), FallbackPairKey(viewB)))
+                    continue;
 
                 var refA = ResolveSheetRef(doc, viewA);
                 var refB = ResolveSheetRef(doc, viewB);
@@ -512,6 +513,24 @@ namespace StingTools.Core.Drawing
                 if (existed) r.PairsUpdated++;
                 else         r.PairsCreated++;
             }
+        }
+
+        private static string LevelKey(View v)
+        {
+            try
+            {
+                var id = v?.GenLevel?.Id;
+                return id == null || id == ElementId.InvalidElementId ? null : id.Value.ToString();
+            }
+            catch (Exception ex) { StingLog.Warn($"MatchLineEngine.LevelKey: {ex.Message}"); return null; }
+        }
+
+        /// <summary>What stands in for the drawing when a view carries no drawing-type
+        /// stamp: its view type and view template.</summary>
+        private static string FallbackPairKey(View v)
+        {
+            try { return $"{v.ViewType}|{v.ViewTemplateId?.Value ?? -1}"; }
+            catch (Exception ex) { StingLog.Warn($"MatchLineEngine.FallbackPairKey: {ex.Message}"); return null; }
         }
 
         private static bool AllRefsMatch(List<CurveElement> existing, string refA, string refB)

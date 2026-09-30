@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace StingTools.Core.Plumbing
 {
@@ -39,6 +40,20 @@ namespace StingTools.Core.Plumbing
             foreach (var g in GasCodes)
                 if (string.Equals(g, c, StringComparison.OrdinalIgnoreCase)) return g;
             return GasAliases.TryGetValue(c, out var mapped) ? mapped : null;
+        }
+
+        /// <summary>
+        /// The family is STING's own medical-gas seed (Revit appends a digit when a
+        /// same-named family is loaded twice). STING_SEED_FAMILY_TXT is deliberately NOT
+        /// the test: it is an instance value that survives a swap to a manufacturer
+        /// family, and a manufacturer outlet's gas must never be overwritten from the seed.
+        /// </summary>
+        public static bool IsSeedFamilyName(string familyName)
+        {
+            string n = (familyName ?? "").Trim();
+            if (!n.StartsWith(SeedFamilyId, StringComparison.OrdinalIgnoreCase)) return false;
+            string rest = n.Substring(SeedFamilyId.Length);
+            return rest.All(char.IsDigit);
         }
 
         /// <summary>

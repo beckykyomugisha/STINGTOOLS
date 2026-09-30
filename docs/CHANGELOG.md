@@ -25801,3 +25801,111 @@ every `GetString` read against the parameter's data type.
 - Promote Library's header comment still said families only in the target are always kept;
   it now describes the optional move to `_retired`.
 - Plugin builds; Tags tests and gates pass. Not run in Revit.
+
+#### Completed (MEP modelling and drawing production guide, branch `claude/mep-production-guide`)
+
+- **`GUIDES/MEP_DRAWING_PRODUCTION_GUIDE.md` rewritten** against `main` (it was a week old and
+  several of its facts had moved).
+  - **Part A, the fastest route:** the one-click "★ Set up drawing production", the wizard's
+    Drawing Production group and sheet-number policy, and area boxes / seeds.
+  - **Part B, modelling from DWG:** structural CAD Wizard, DWG → Model and the MEP Wizard, with
+    what each actually does and the fastest order from CAD.
+  - **Part C:** MEP modelling → data, by discipline, with exact button names, the workflow
+    presets and which commands run headless.
+  - **Part D:** a typical comprehensive MEP set, marked produced-by-type / tool-only / manual.
+  - Corrected on the way:
+    - wrong drawing-type ids (`plumb-drainage` → `plumb-drainage-A1-1to100`, …)
+    - "49" plan types is now 50
+    - three fire-protection types now exist
+    - scope-box fan-out is now the Scope Box Planner
+    - several button labels (`Tag+Combine`, `Token Conf`, `ISO Check`, `Valid`, `Heal TBs`)
+- **MODEL → "DWG Wizard" never worked.** It dispatched `StructuralDWGWizard` and `DWGToModel`,
+  tags no dock handler knows, so every run ended in "Unknown Command", and MEP drawings were
+  aimed at the walls-and-rooms converter. It now routes to `StrCADWizard`, `ModelDWGToModel`
+  and `Mep_CadWizard`.
+- **CAD Wizard Convert converted the wrong DWG** whenever a project held more than one. It
+  took `imports.First()`; it now uses the import picked in the dialog.
+- **ROADMAP:** CAD-1 (Convert still runs the legacy pipeline, so most dialog options, including
+  its dry-run tick box, are ignored), CAD-2, MDP-1 (medical-gas and four other placement packs
+  never load), MDP-2 (missing MEP drawing types), MDP-3 (`E / PLAN` routes to a section).
+
+**Then every logged gap was closed on the same branch (2026-09-30):**
+
+- **DWG modelling.** CAD Wizard Convert runs the full config pipeline on the picked DWG as one
+  undo step (every dialog option, real dry-run, one tagging pass); four pipeline bugs fixed on
+  the way (type duplication failed inside the conversion transaction, so size detection never
+  created a type; post-steps ran with no transaction; dry-run wrote to the model; connection
+  synthesis unwired). Pick Wall / Column / Beam size from what they measure (`DwgPickGeometry`).
+- **Drawing types.** 11 MEP types (data / comms, security, containment, emergency lighting, fire
+  alarm schematic, CHW / LTHW pipework, HVAC schematic, water supply, fire riser, services
+  section, services detail) and `elec-sld-A1-NTS`; `E / PLAN` → power plan (JSON and fallback).
+  The templates step creates every `viewTemplateName` the types name, from temporary base views
+  when the model has none (`DrawingTemplateCatalogue`, `TemporaryBaseViews`).
+- **Production.**
+  - "Duplicate as Dependent" works (`DependentViewPlanner`).
+  - The producers, Renumber, Heal TBs and Panel_PlaceOnSheets run in workflows with `params`.
+  - "⚡ Produce & Export" never produced anything: its production phase had no Transaction.
+  - Presets report instead of popping dialogs (`PresetDialog`).
+  - New presets `MEPDrawingSetup`, `MEPDrawingProduction` (route chosen by `has_area_boxes` /
+    `no_area_boxes` / `has_sting_boxes`) and `MEPPreIssue`.
+  - Match lines pair the same drawing type and level, work for overlapping and turned area
+    boxes, and skip seed / building boxes (`MatchLineGeometry`).
+  - Sync Styles and re-runs keep a view's scope-box crop (`ViewContextTag`).
+  - SLD and riser views go on stamped sheets; panel circuit schedules get their own sheets
+    (AutoSheets).
+  - The wizard's views and sheets and the HVAC "Per-level + sheets" go through
+    `DrawingProducer`.
+  - Produce & Export option 1 asks which types to produce.
+  - `STING_SCOPE_BOX_TAG_TXT` is registered; `sync_csv_from_txt.py` takes a new row's category
+    from its group.
+- **Placement / zones / wizard.**
+  - The medical-gas pack is registered, with clinical-only room filters (the healthcare
+    bedhead trunking too).
+  - `PlacementPackRegistry` names every pack left out and why, and a test fails on an
+    unlisted one.
+  - "Run Wall Chase" finally loads its rule.
+  - Medical-gas outlet buttons were added.
+  - `STING-ZONE::` boxes set ZONE.
+  - The wizard offers short codes for level names with spaces, and renames scope boxes to
+    `STING-ZONE::` / `STING-LOC::` names only.
+- **Seeds.**
+  - The seed model read `"instance"` while all 33 seed files write `"isInstance"`, so every
+    seed parameter was built as instance. It now reads both. 58 catalogue parameters become
+    type parameters; 3 that code writes per element stay instance. A strict test fails on any
+    seed key the model does not bind.
+  - SEED-1: ten parameter names corrected to their registered names (`ASS_TAG_1` →
+    `ASS_TAG_1_TXT` in all 33 seeds, the ELC panel / photometric keys, `LTG_DIMMABLE_TXT`, …),
+    with a test that every shared seed parameter is registered or allow-listed.
+  - `followsType` + `SeedTypeSwapUpdater`: a type swap restamps type-defining instance values
+    unless the user typed their own.
+  - `renamedFrom` migrates renamed seed types (MG-2) under the same rule.
+- **Production, second pass.**
+  - Views and sheets are counted only when their transaction commits.
+  - The setup chain (text / dimension styles, view templates, production setup, match lines)
+    reports through `PresetDialog`, including on failure, so a preset never stops on a dialog.
+  - The per-level default makes each modelled discipline's routed plan type on the levels where
+    that discipline has elements (`RoutedMepPerLevel`), not every M/E/P/FP/MG type everywhere.
+  - Area boxes are made even when no plan exists yet.
+  - Pre-flight fails only on types that are in use (stamped or routed); unused broken types are
+    listed, not blocking (`PreflightScope`, 4 tests).
+- **Diagrams.**
+  - Fire alarm, earthing, LPS, MGPS and panel door diagrams, and the plumbing supply and drainage
+    schematics, are placed on the sheet type their routing names (`DrawingRouteRequests`,
+    falling back to the shipped id). They draw only from what is modelled; the LPS and earthing
+    diagrams no longer invent placeholder content.
+  - They are in `MEPDrawingProduction` and, new, on buttons: Electrical panel → SLD →
+    SCHEMATICS, and Plumbing DOCS "Supply Schematic". Before this only "Drainage Schematic" had
+    a button; the panel door diagram could not be reached at all.
+  - The supply schematic draws domestic cold water systems only (it drew any network).
+  - Drainage "Named system…" lets the user pick the system (it took the first one).
+  - Panel schedules are routed and placed on their own sheets.
+- **Issue.** Revision issue takes the STING-stamped sheets when there are no clouds yet, never
+  issuing a revision with no sheets; Produce + Export records its PDFs in the document register
+  and exports only sheets carrying the current revision; transmittals run in a preset
+  (`params.suitability`, default S3).
+- **Medical gas.** Pack rules name their seed and type (`PlacementRule.SeedId`), so the pack
+  places the STING outlet seed's types with the gas stamped.
+- ROADMAP CAD-1, CAD-2, MDP-1..3, MG-1, MG-2, SEED-1 closed.
+
+Build 0/0; Tags.Tests all green; `run_ci_gates.py` 0 failed. Everything new is Revit-bound where
+it touches the model and has not been run in Revit; the guide's Part E lists what to check.

@@ -2008,7 +2008,14 @@ namespace StingTools.Model
                 // extraction so geometry hidden inside blocks is surfaced onto its host
                 // layer. Delegates to StructuralDWGEnhancements.ExplodeHelper.
                 // Silently no-ops on Revit builds where the Explode API isn't exposed.
-                if (config.ExplodeOnImport && importInstance != null)
+                // A dry run writes nothing, so it never explodes — it reports instead.
+                if (config.ExplodeOnImport && importInstance != null && config.DryRun)
+                {
+                    totalResult.Warnings.Add(
+                        "Explode-on-import skipped in dry run (it modifies the model); " +
+                        "counts below are from the un-exploded import.");
+                }
+                else if (config.ExplodeOnImport && importInstance != null)
                 {
                     if (!StructuralDWGEnhancements.ExplodeHelper.IsProgrammaticExplodeSupported)
                     {
@@ -2063,7 +2070,8 @@ namespace StingTools.Model
                 // DetectJunctions has always classified beam intersections, but the
                 // legacy pipeline only used the result for the summary string.
                 // Place "WARNING" + "Free end" cases as visible TextNote markers.
-                if (config.ShowJunctionWarningsInView && _doc.ActiveView != null)
+                // Not in a dry run: placing notes is a model write.
+                if (config.ShowJunctionWarningsInView && !config.DryRun && _doc.ActiveView != null)
                 {
                     try
                     {
@@ -2084,8 +2092,11 @@ namespace StingTools.Model
                         }
                         if (warningMessages.Count > 0)
                         {
-                            int placed = StructuralWarningPlacer.PlaceWarningsAtPoints(
-                                _doc, _doc.ActiveView, warningMessages, warningPoints);
+                            // The placer opens a SubTransaction, which throws unless a
+                            // Transaction is already open — so give it one.
+                            int placed = InTransaction("STING STRUCT: Junction Warnings", () =>
+                                StructuralWarningPlacer.PlaceWarningsAtPoints(
+                                    _doc, _doc.ActiveView, warningMessages, warningPoints));
                             if (placed > 0)
                             {
                                 StingLog.Info($"  Junction warnings: placed {placed} TextNote(s) " +
@@ -2470,8 +2481,9 @@ namespace StingTools.Model
                             var grouped = SlabVoidDetector.Group(extraction.SlabBoundaries);
                             var outerLoops = grouped.Select(g => g.Outer).ToList();
                             var voidLoops = grouped.SelectMany(g => g.Voids).ToList();
-                            var seed = SlabRoomSeeder.Seed(_doc, baseLevel,
-                                outerLoops, voidLoops, config);
+                            var seed = InTransaction("STING STRUCT: Seed Rooms", () =>
+                                SlabRoomSeeder.Seed(_doc, baseLevel,
+                                    outerLoops, voidLoops, config));
                             if (seed.RoomsCreated > 0)
                                 StingLog.Info($"  Slab room seed: {seed.RoomsCreated} created" +
                                     $" (skipped {seed.Skipped_HasRoom} existing, " +
@@ -2606,6 +2618,47 @@ namespace StingTools.Model
                     }
                 }
 
+                // DWG-STRUCT-DEEP-6b: connection detail synthesis. The wizard's
+                // "Synthesize connections" tick box was only read by the legacy
+                // pipeline, which the wizard never ran — so it did nothing.
+                if (config.SynthesizeConnectionDetails && totalResult.TotalCreated > 0)
+                {
+                    var activeView = _doc.ActiveView;
+                    if (activeView != null &&
+                        (activeView.ViewType == ViewType.Detail
+                         || activeView.ViewType == ViewType.DraftingView
+                         || activeView.ViewType == ViewType.FloorPlan
+                         || activeView.ViewType == ViewType.Section))
+                    {
+                        try
+                        {
+                            var junctions = DetectJunctions(extraction);
+                            using (var txConn = new Transaction(_doc, "STING STRUCT: Connection Details"))
+                            {
+                                txConn.Start();
+                                var synResults = ConnectionDetailSynthesizer.SynthesizeAll(
+                                    _doc, junctions, activeView,
+                                    config.ConnectionShearDemand_kN,
+                                    config.ConnectionMomentDemand_kNm);
+                                foreach (var sr in synResults)
+                                    totalResult.Warnings.AddRange(sr.Warnings);
+                                txConn.Commit();
+                                StingLog.Info($"  Connection details: {synResults.Count} synthesized in {activeView.Name}");
+                            }
+                        }
+                        catch (Exception cex)
+                        {
+                            totalResult.Warnings.Add($"Connection synthesis failed: {cex.Message}");
+                            StingLog.Warn($"ConnectionDetailSynthesizer: {cex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        totalResult.Warnings.Add(
+                            "Connection synthesis: active view is not a Detail/Plan/Section — skipped.");
+                    }
+                }
+
                 // Post-pipeline connectivity audit
                 if (totalResult.TotalCreated > 0)
                 {
@@ -2622,8 +2675,9 @@ namespace StingTools.Model
                         {
                             try
                             {
-                                var ids = StructuralWarningPlacer.PlaceWarnings(
-                                    _doc, _doc.ActiveView, auditResult.Warnings);
+                                var ids = InTransaction("STING STRUCT: Structural Warnings", () =>
+                                    StructuralWarningPlacer.PlaceWarnings(
+                                        _doc, _doc.ActiveView, auditResult.Warnings));
                                 if (ids.Count > 0)
                                 {
                                     totalResult.CreatedIds.AddRange(ids);
@@ -2644,10 +2698,18 @@ namespace StingTools.Model
                 {
                     try
                     {
-                        ModelEngine.AutoTagCreatedElements(_doc, totalResult.CreatedIds);
-                        StingLog.Info($"  Auto-tagged {totalResult.CreatedIds.Count} elements");
+                        // AutoTagCreatedElements opens its own transaction and saves the
+                        // SEQ sidecar, so callers must not tag these ids again.
+                        totalResult.ElementsTagged =
+                            ModelEngine.AutoTagCreatedElements(_doc, totalResult.CreatedIds);
+                        StingLog.Info($"  Auto-tagged {totalResult.ElementsTagged} of " +
+                            $"{totalResult.CreatedIds.Count} elements");
                     }
-                    catch (Exception ex) { StingLog.Warn($"Auto-tag: {ex.Message}"); }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"Auto-tag: {ex.Message}");
+                        totalResult.Warnings.Add($"Auto-tag failed: {ex.Message}");
+                    }
                 }
 
                 // Apply numbering. Phase-140 P1-E: when the wizard populated
@@ -2742,8 +2804,9 @@ namespace StingTools.Model
                     try
                     {
                         var jx = DetectJunctions(extraction);
-                        var stamp = JunctionMarkStamper.Stamp(_doc, jx,
-                            totalResult.CreatedIds, config);
+                        var stamp = InTransaction("STING STRUCT: Junction Marks", () =>
+                            JunctionMarkStamper.Stamp(_doc, jx,
+                                totalResult.CreatedIds, config));
                         if (stamp.ColumnsStamped > 0 || stamp.BeamsStamped > 0)
                             StingLog.Info($"  Junction marks: stamped " +
                                 $"{stamp.ColumnsStamped} column(s), " +
@@ -2759,8 +2822,9 @@ namespace StingTools.Model
                 {
                     try
                     {
-                        var v = StructuralViewCreator.CreateViews(_doc,
-                            totalResult.CreatedIds, config);
+                        var v = InTransaction("STING STRUCT: Structural Views", () =>
+                            StructuralViewCreator.CreateViews(_doc,
+                                totalResult.CreatedIds, config));
                         if (v.LevelsProcessed > 0)
                         {
                             totalResult.CreatedIds.AddRange(v.CreatedViewIds);
@@ -2806,6 +2870,34 @@ namespace StingTools.Model
             }
 
             return totalResult;
+        }
+
+        /// <summary>
+        /// Runs <paramref name="body"/> inside a Transaction unless one is already open.
+        /// The post-processors (warning placers, room seeder, view creator, junction
+        /// stamper) use SubTransactions, which throw when no Transaction is open —
+        /// and this pipeline runs them between its own transactions, so without this
+        /// wrapper they failed every time and only logged a warning.
+        /// </summary>
+        private T InTransaction<T>(string name, Func<T> body)
+        {
+            if (_doc.IsModifiable) return body();
+            using (var tx = new Transaction(_doc, name))
+            {
+                tx.Start();
+                try
+                {
+                    var r = body();
+                    tx.Commit();
+                    return r;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"{name}: rolled back — {ex.Message}");
+                    if (tx.HasStarted() && !tx.HasEnded()) tx.RollBack();
+                    throw;
+                }
+            }
         }
 
         // ── Column creation with base-to-top level and soffit adjustment ──

@@ -37,10 +37,74 @@ namespace StingTools.Core.Placement
         /// <summary>Ensure seeds for every distinct CategoryFilter in the supplied rules.</summary>
         public static SeedEnsureResult EnsureSeedsForRules(Document doc, IEnumerable<PlacementRule> rules)
         {
-            var cats = (rules ?? Enumerable.Empty<PlacementRule>())
-                .Select(r => r?.CategoryFilter ?? "")
+            var list = (rules ?? Enumerable.Empty<PlacementRule>()).Where(r => r != null).ToList();
+            // A rule that names its own seed (PlacementRule.SeedId) is served by that
+            // seed, not by whatever family the category happens to have loaded — so
+            // it neither counts toward the category map nor is skipped because some
+            // other family of its category is loaded.
+            var cats = list
+                .Where(r => string.IsNullOrWhiteSpace(r.SeedId))
+                .Select(r => r.CategoryFilter ?? "")
                 .Where(c => !string.IsNullOrWhiteSpace(c));
-            return EnsureSeedsForCategories(doc, cats);
+            var result = EnsureSeedsForCategories(doc, cats);
+
+            var explicitSeeds = new HashSet<string>(list
+                .Select(r => r.SeedId?.Trim())
+                .Where(s => !string.IsNullOrEmpty(s)), StringComparer.OrdinalIgnoreCase);
+            if (doc == null || explicitSeeds.Count == 0) return result;
+
+            var loadedFamilies = LoadedFamilyNames(doc);
+            var missing = explicitSeeds.Where(s => !loadedFamilies.Contains(s)).ToList();
+            if (missing.Count > 0) BuildSeeds(doc, missing, result);
+            return result;
+        }
+
+        /// <summary>Build + load each seed from its Data/Seeds JSON spec (missing-only).</summary>
+        private static void BuildSeeds(Document doc, IEnumerable<string> seedIds, SeedEnsureResult result)
+        {
+            string outRoot = ResolveSeedOutputFolder(doc);
+            try { Directory.CreateDirectory(outRoot); } catch (Exception ex) { StingLog.Warn($"SeedEnsurer mkdir: {ex.Message}"); }
+            foreach (var seedId in seedIds)
+            {
+                try
+                {
+                    string spec = StingToolsApp.FindDataFile(seedId + ".json");
+                    if (string.IsNullOrEmpty(spec) || !File.Exists(spec))
+                    {
+                        result.Messages.Add($"Seed '{seedId}' — spec Data/Seeds/{seedId}.json not found; cannot build.");
+                        StingLog.Warn($"SeedEnsurer: spec not found for seed '{seedId}'.");
+                        continue;
+                    }
+                    var r = SymbolLibraryCreator.CreateAllFromFile(doc, spec, outRoot, loadIntoProject: true);
+                    int touched = r.Created + r.Existed;
+                    if (touched > 0)
+                    {
+                        result.SeedsBuiltOrLoaded += touched;
+                        result.Messages.Add($"Seed '{seedId}' — {r.Created} built, {r.Existed} loaded into project.");
+                    }
+                    else if (r.Failed > 0)
+                        result.Messages.Add($"Seed '{seedId}' — build FAILED ({r.Failed}); rule(s) naming it will skip (no symbol).");
+                    foreach (var w in r.Warnings.Take(3)) StingLog.Info($"SeedEnsurer[{seedId}]: {w}");
+                }
+                catch (Exception ex)
+                {
+                    result.Messages.Add($"Seed '{seedId}' — error: {ex.Message}");
+                    StingLog.Warn($"SeedEnsurer build '{seedId}': {ex.Message}");
+                }
+            }
+        }
+
+        /// <summary>Names of the loaded families (a seed family is named after its seed id).</summary>
+        private static HashSet<string> LoadedFamilyNames(Document doc)
+        {
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(Family)))
+                    if (el is Family f && !string.IsNullOrEmpty(f.Name)) set.Add(f.Name);
+            }
+            catch (Exception ex) { StingLog.Warn($"SeedEnsurer.LoadedFamilyNames: {ex.Message}"); }
+            return set;
         }
 
         /// <summary>
@@ -126,10 +190,12 @@ namespace StingTools.Core.Placement
             var result = new SeedEnsureResult();
             if (doc == null) return result;
             var cats = (rules ?? Enumerable.Empty<PlacementRule>())
-                .Select(r => r?.CategoryFilter ?? "")
+                .Where(r => r != null && string.IsNullOrWhiteSpace(r.SeedId))
+                .Select(r => r.CategoryFilter ?? "")
                 .Where(c => !string.IsNullOrWhiteSpace(c));
             var distinct = new HashSet<string>(cats, StringComparer.OrdinalIgnoreCase);
-            if (distinct.Count == 0) return result;
+            bool anyExplicit = (rules ?? Enumerable.Empty<PlacementRule>()).Any(r => !string.IsNullOrWhiteSpace(r?.SeedId));
+            if (distinct.Count == 0 && !anyExplicit) return result;
 
             // Distinct mapped seed ids.
             var seeds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -139,6 +205,9 @@ namespace StingTools.Core.Placement
                 if (!string.IsNullOrWhiteSpace(sid)) seeds.Add(sid);
                 else result.CategoriesSeedless++;
             }
+            // Seeds a rule names directly (PlacementRule.SeedId) rebuild too.
+            foreach (var r in rules ?? Enumerable.Empty<PlacementRule>())
+                if (!string.IsNullOrWhiteSpace(r?.SeedId)) seeds.Add(r.SeedId.Trim());
             if (seeds.Count == 0) return result;
 
             string outRoot = ResolveSeedOutputFolder(doc);
