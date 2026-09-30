@@ -33,28 +33,45 @@ namespace StingTools.Docs
         /// number of jobs run. <paramref name="fromSave"/> gates the save-triggered
         /// path behind the opt-in flag so files never appear unexpectedly.
         /// </summary>
-        public static int RunDue(Document doc, bool fromSave)
+        public static int RunDue(Document doc, bool fromSave) => RunDueDetailed(doc, fromSave).Ran;
+
+        /// <summary>As RunDue, with one outcome per due job (R9): what ran, what was
+        /// blocked and why, and how many files were actually produced.</summary>
+        public static ScheduledExportSummary RunDueDetailed(Document doc, bool fromSave)
         {
-            if (doc == null) return 0;
+            var summary = new ScheduledExportSummary();
+            if (doc == null) { summary.LoadError = "no document"; return summary; }
 
             ExportCenterState state;
             try { state = ExportCenterEngine.LoadState(doc); }
-            catch (Exception ex) { StingLog.Warn($"ScheduledExportRunner load: {ex.Message}"); return 0; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ScheduledExportRunner load: {ex.Message}");
+                summary.LoadError = ex.Message;
+                return summary;
+            }
 
-            if (fromSave && !state.EnableSaveTriggeredSchedules) return 0;
-            if (state.ScheduledExports == null || state.ScheduledExports.Count == 0) return 0;
+            if (fromSave && !state.EnableSaveTriggeredSchedules) return summary;
+            if (state.ScheduledExports == null || state.ScheduledExports.Count == 0) return summary;
 
             var now = DateTime.UtcNow;
-            int ran = 0;
             bool dirty = false;
 
             foreach (var sch in state.ScheduledExports)
             {
                 if (sch == null || !sch.Enabled || sch.NextRunUtc > now) continue;
 
+                var outcome = new ScheduledJobOutcome { Name = sch.ProfileName ?? "(unnamed)" };
+                summary.Jobs.Add(outcome);
+
                 var profile = state.Profiles.FirstOrDefault(p =>
                     string.Equals(p.Name, sch.ProfileName, StringComparison.OrdinalIgnoreCase));
-                if (profile == null) { sch.LastResult = "Profile not found"; dirty = true; continue; }
+                if (profile == null)
+                {
+                    sch.LastResult = "Profile not found"; dirty = true;
+                    outcome.State = ScheduledJobState.ProfileMissing;
+                    continue;
+                }
 
                 string setName = string.IsNullOrEmpty(sch.SetName) ? profile.DefaultSetName : sch.SetName;
                 var set = state.SavedSets.FirstOrDefault(s =>
@@ -67,6 +84,8 @@ namespace StingTools.Docs
                     if (ids.Count == 0)
                     {
                         sch.LastResult = "No sheets resolved";
+                        outcome.State = ScheduledJobState.NoSheets;
+                        outcome.Detail = "set '" + setName + "'";
                     }
                     else if (ExportCenterEngine.PreflightCheck(doc, profile, ids)
                                  .Where(i => i.Level == ExportPreflightIssue.Severity.Error)
@@ -77,6 +96,8 @@ namespace StingTools.Docs
                         // output folder failed every sheet with a path error instead of
                         // saying what was wrong. Same gate, recorded on the job.
                         sch.LastResult = "Blocked by pre-flight: " + string.Join(" | ", blockers);
+                        outcome.State = ScheduledJobState.Blocked;
+                        outcome.Detail = string.Join(" | ", blockers);
                         StingLog.Warn($"Scheduled export '{sch.ProfileName}' [{setName}]: {sch.LastResult}");
                     }
                     else
@@ -84,13 +105,20 @@ namespace StingTools.Docs
                         var res = ExportCenterEngine.Run(doc, profile, ids);
                         sch.LastResult = $"{res.Success} ok / {res.Failed} failed"
                             + (res.Warnings.Count > 0 ? $" ({res.Warnings.Count} warning(s))" : "");
-                        ran++;
+                        outcome.State = ScheduledJobState.Ran;
+                        outcome.FilesOk = res.Success;
+                        // "Skipped — ..." rows are the engine declining by rule (file exists,
+                        // duplicate name), not a failure to export.
+                        outcome.FilesSkipped = res.Rows.Count(r => !r.Success && (r.Error ?? "").StartsWith("Skipped", StringComparison.OrdinalIgnoreCase));
+                        outcome.FilesFailed = res.Failed - outcome.FilesSkipped;
                         StingLog.Info($"Scheduled export '{sch.ProfileName}' [{setName}]: {sch.LastResult}");
                     }
                 }
                 catch (Exception ex)
                 {
                     sch.LastResult = "Error: " + ex.Message;
+                    outcome.State = ScheduledJobState.Error;
+                    outcome.Detail = ex.Message;
                     StingLog.Error($"Scheduled export '{sch.ProfileName}' failed", ex);
                 }
 
@@ -103,7 +131,7 @@ namespace StingTools.Docs
                 try { ExportCenterEngine.SaveState(state, doc); }
                 catch (Exception ex) { StingLog.Warn($"ScheduledExportRunner save: {ex.Message}"); }
 
-            return ran;
+            return summary;
         }
 
         /// <summary>Advance from the job's own slot, not from "now". Stepping from now
@@ -173,12 +201,21 @@ namespace StingTools.Docs
                 var doc = ParameterHelpers.GetDoc(data);
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
-                int ran = ScheduledExportRunner.RunDue(doc, fromSave: false);
-                TaskDialog.Show("STING Export Centre",
-                    ran == 0
-                        ? "No scheduled export jobs were due."
-                        : $"Ran {ran} scheduled export job(s).\nSee the export folder and the STING_Export_Report CSV for details.");
-                return Result.Succeeded;
+                var summary = ScheduledExportRunner.RunDueDetailed(doc, fromSave: false);
+                var verdict = summary.Verdict(WorkflowEngine.IsRunningPreset);
+                string text = summary.Describe();
+                StingLog.Info("ExportCenterRunSchedules: " + verdict + " — " + text.Replace("\n", " | "));
+                // R9: a workflow step reports through its result and message; a dialog only
+                // when someone is there to read it.
+                if (!WorkflowEngine.IsUnattended)
+                    TaskDialog.Show("STING Export Centre",
+                        text + (summary.FilesOk > 0 ? "\n\nSee the export folder and the STING_Export_Report CSV for details." : ""));
+                switch (verdict)
+                {
+                    case ScheduledExportVerdict.Succeeded: return Result.Succeeded;
+                    case ScheduledExportVerdict.NothingDue: return Result.Cancelled;
+                    default: message = text; return Result.Failed;
+                }
             }
             catch (Exception ex)
             {
