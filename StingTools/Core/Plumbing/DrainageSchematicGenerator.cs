@@ -73,6 +73,11 @@ namespace StingTools.Core.Plumbing
     {
         /// <summary>Filter to a single named system; empty = all drainage systems.</summary>
         public string SystemNameFilter    = "";
+        /// <summary>
+        /// Pipe-system classifications drawn. Default sanitary + vent: without it every
+        /// pipe in the model (cold water, heating …) was drawn as drainage stacks.
+        /// </summary>
+        public PipeSystemType[] Classifications = { PipeSystemType.Sanitary, PipeSystemType.Vent };
         /// <summary>Horizontal spacing between adjacent stacks in the schematic (mm).</summary>
         public double StackSpacingMm     = 800.0;
         /// <summary>Vertical height representing one floor in the schematic (mm).</summary>
@@ -143,12 +148,23 @@ namespace StingTools.Core.Plumbing
                 try
                 {
                     network = PipeNetworkBuilder.Build(doc,
-                        string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? null : opts.SystemNameFilter);
+                        string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? null : opts.SystemNameFilter,
+                        opts.Classifications);
                 }
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"PipeNetworkBuilder.Build failed: {ex.Message}");
                     network = new PipeNetwork();
+                }
+
+                // Nothing to draw: no view, and the reason (never an empty drafting view).
+                if (network.Nodes.Count == 0)
+                {
+                    result.Warnings.Add("No drainage pipework found (no pipe on a system classified "
+                        + string.Join(" / ", opts.Classifications ?? new PipeSystemType[0])
+                        + (string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? "" : $" named '{opts.SystemNameFilter}'")
+                        + ") — nothing to draw.");
+                    return result;
                 }
 
                 // 2. Identify stacks (nodes typed Stack or with many downstream edges) ──

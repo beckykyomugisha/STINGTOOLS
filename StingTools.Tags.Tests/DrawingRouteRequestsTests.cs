@@ -100,5 +100,45 @@ namespace StingTools.Tags.Tests
             Assert.Contains("mep-hvac-schematic-A1", orphan);
             Assert.DoesNotContain("elec-fire-alarm-schematic-A1", orphan);
         }
+
+        [Fact]
+        public void The_panel_schedule_key_is_asked_for_by_its_commands()
+        {
+            // Five commands stamp and place panel schedules; they route E / ELEC_PANEL_SCHEDULE.
+            Assert.True(DrawingRouteRequests.IsRequested("ELEC_PANEL_SCHEDULE"));
+            Assert.False(DrawingRouteRequests.Unrequested.ContainsKey("ELEC_PANEL_SCHEDULE"));
+            var req = DrawingRouteRequests.All.Single(r => r.DocType == "ELEC_PANEL_SCHEDULE");
+            Assert.Equal("E", req.Discipline);
+            Assert.Equal("elec-panel-schedule-A3", Route(Shipped(), req.Discipline, req.DocType)?.Id);
+            Assert.Equal(req.FallbackDrawingTypeId, Route(Shipped(), req.Discipline, req.DocType)?.Id);
+            // A schedule is not a diagram generator: production never skips its type as one.
+            Assert.DoesNotContain(req, DrawingRouteRequests.DiagramGenerators);
+            Assert.Null(DrawingRouteRequests.GeneratorFor("elec-panel-schedule-A3"));
+        }
+
+        [Theory]
+        [InlineData("DCW_SCHEMATIC", "plumb-dcw-schematic-A1-NTS", "Plumb_SupplySchematic")]
+        [InlineData("DRAINAGE_SCHEMATIC", "plumb-drainage-schematic-A1", "Plumb_DrainageSchematic")]
+        public void The_plumbing_schematics_are_drawn_by_their_generator(string docType, string typeId, string caller)
+        {
+            Assert.True(DrawingRouteRequests.IsRequested(docType));
+            Assert.False(DrawingRouteRequests.Unrequested.ContainsKey(docType));
+            var gen = DrawingRouteRequests.GeneratorFor(typeId);
+            Assert.NotNull(gen);
+            Assert.Equal("P", gen.Discipline);
+            Assert.Equal(docType, gen.DocType);
+            Assert.Equal(caller, gen.Caller);
+            // Production names the generator rather than "no STING generator".
+            Assert.Contains(caller, DrawingRouteRequests.SchematicNotProducedReason(typeId));
+        }
+
+        [Fact]
+        public void Hot_water_still_has_no_generator()
+        {
+            // The supply schematic draws cold water only; DHW stays flagged.
+            Assert.Null(DrawingRouteRequests.GeneratorFor("plumb-dhw-schematic-A1-NTS"));
+            Assert.True(DrawingRouteRequests.Unrequested.ContainsKey("DHW_SCHEMATIC"));
+            Assert.Contains("no STING generator", DrawingRouteRequests.SchematicNotProducedReason("plumb-dhw-schematic-A1-NTS"));
+        }
     }
 }

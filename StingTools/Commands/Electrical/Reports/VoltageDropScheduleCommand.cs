@@ -18,13 +18,13 @@ namespace StingTools.Commands.Electrical.Reports
     [Regeneration(RegenerationOption.Manual)]
     public class VoltageDropScheduleCommand : IExternalCommand
     {
-        private const string DrawingTypeId = "elec-panel-schedule-A3";
-
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+            // The id routing gives E / ELEC_PANEL_SCHEDULE, once per run.
+            string drawingTypeId = StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, StingTools.Core.Drawing.DrawingRouteRequests.PanelSchedule);
 
             var opts = StingElectricalCommandHandler.CurrentVDOptions
                        ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
@@ -58,7 +58,7 @@ namespace StingTools.Commands.Electrical.Reports
                 try { view.Name = $"STING - Voltage Drop Schedule - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 AddVDFields(doc, view);
                 AddSortPanelCircuit(view);
-                StampDrawingType(view);
+                StampDrawingType(view, drawingTypeId);
                 tx.Commit();
             }
             int fail = results.Count(r => r.ExceedsThreshold);
@@ -134,11 +134,11 @@ namespace StingTools.Commands.Electrical.Reports
             catch (Exception ex) { StingLog.Warn($"AddSort: {ex.Message}"); }
         }
 
-        private static void StampDrawingType(View v)
+        private static void StampDrawingType(View v, string drawingTypeId)
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, drawingTypeId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

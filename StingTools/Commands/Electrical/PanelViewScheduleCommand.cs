@@ -23,13 +23,15 @@ namespace StingTools.Commands.Electrical
     [Regeneration(RegenerationOption.Manual)]
     public class PanelViewScheduleCommand : IExternalCommand
     {
-        private const string DrawingTypeId = "elec-panel-schedule-A3";
+        // The id routing gives E / ELEC_PANEL_SCHEDULE, resolved once per run (Execute).
+        private string _drawingTypeId;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+            _drawingTypeId = StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, StingTools.Core.Drawing.DrawingRouteRequests.PanelSchedule);
 
             // Inside a workflow preset the unattended AutoSheets mode is the default
             // (PanelSheetPlacementMode): GuidedManual would only list schedules to drag.
@@ -40,7 +42,7 @@ namespace StingTools.Commands.Electrical
             if (mode == null) { message = "Panel schedules on sheets: " + modeError; return Result.Failed; }
 
             if (mode == StingTools.Core.Panels.PanelSheetPlacementMode.AutoSheets)
-                return PlaceOnDrawingTypeSheets(doc, ref message);
+                return PlaceOnDrawingTypeSheets(doc, _drawingTypeId, ref message);
 
             if (mode == "GuidedManual")
             {
@@ -96,7 +98,7 @@ namespace StingTools.Commands.Electrical
                         try { schedule.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         AddCircuitFields(schedule);
                         AddPanelFilter(schedule, panel.Name);
-                        StampDrawingType(schedule);
+                        StampDrawingType(schedule, _drawingTypeId);
                         created++;
 
                         if (sheet != null)
@@ -131,12 +133,12 @@ namespace StingTools.Commands.Electrical
 
         /// <summary>
         /// AutoSheets: one circuit ViewSchedule per board — reused by name on a re-run,
-        /// not deleted and remade — each placed on its own elec-panel-schedule-A3 sheet
+        /// not deleted and remade — each placed on its own panel-schedule drawing-type sheet
         /// through DrawingProducer.PlaceExistingView, so the sheet is stamped, numbered
         /// by the drawing type, and found again (by the board's context tag) next time.
         /// The result goes to a dialog, or inside a preset to the log and the step message.
         /// </summary>
-        private static Result PlaceOnDrawingTypeSheets(Document doc, ref string message)
+        private static Result PlaceOnDrawingTypeSheets(Document doc, string DrawingTypeId, ref string message)
         {
             const string title = "STING Panel Schedules on Sheets";
             var dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, DrawingTypeId);
@@ -156,6 +158,9 @@ namespace StingTools.Commands.Electrical
                 return Result.Succeeded;
             }
 
+            // Sheets stamped with the shipped id before a project re-routed the key are
+            // the same boards' sheets: found under either id, never duplicated.
+            var stampIds = StingTools.Core.Drawing.DrawingRouteRequests.StampIds(DrawingTypeId, StingTools.Core.Drawing.DrawingRouteRequests.PanelSchedule);
             int made = 0, reusedSchedules = 0, placed = 0, alreadyPlaced = 0, newSheets = 0, failed = 0;
             var warnings = new List<string>();
             using (StingTools.Core.Drawing.DrawingProducer.PrimeBatchScope(doc))
@@ -184,7 +189,7 @@ namespace StingTools.Commands.Electrical
                         else reusedSchedules++;
 
                         var pr = StingTools.Core.Drawing.DrawingProducer.PlaceExistingView(doc, dt,
-                            new StingTools.Core.Drawing.DrawingContext { Tag = "PANEL-" + panel.Id.Value }, schedule);
+                            new StingTools.Core.Drawing.DrawingContext { Tag = "PANEL-" + panel.Id.Value, FormerDrawingTypeIds = stampIds }, schedule);
                         warnings.AddRange(pr.Warnings.Select(w => $"{panelName}: {w}"));
                         if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) newSheets++;
                         if (pr.ViewportIds.Count == 0) { failed++; continue; }
@@ -302,11 +307,11 @@ namespace StingTools.Commands.Electrical
             catch (Exception ex) { StingLog.Warn($"AddPanelFilter: {ex.Message}"); }
         }
 
-        private static void StampDrawingType(View v)
+        private static void StampDrawingType(View v, string drawingTypeId)
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, drawingTypeId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }
