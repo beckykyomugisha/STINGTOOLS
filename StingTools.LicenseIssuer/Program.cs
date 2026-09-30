@@ -17,7 +17,12 @@ static void Help()
 {
     Console.WriteLine("StingLicenseIssuer keygen");
     Console.WriteLine("StingLicenseIssuer selfcode");
-    Console.WriteLine("StingLicenseIssuer issue --code <machineCode> --name \"<licensee>\" --days 365 [--out StingTools.lic]");
+    Console.WriteLine("StingLicenseIssuer issue --code <machineCode> --name \"<licensee>\" [--days 90] [--out StingTools.lic]");
+    Console.WriteLine("StingLicenseIssuer issue --any-machine --name \"<licensee>\" [--days 90] [--out StingTools.lic]");
+    Console.WriteLine();
+    Console.WriteLine("--days defaults to 90. --any-machine issues a portable licence: it works on");
+    Console.WriteLine("every PC it is copied to until it expires, so keep --days short and label it.");
+    Console.WriteLine("Without any licence, each new install runs a built-in 90-day trial.");
     Console.WriteLine();
     Console.WriteLine("Sign the code the user copies from the Activate STING dialog.");
     Console.WriteLine("That dialog shows the MachineGuid-only 'Stable' code, which is what");
@@ -60,36 +65,54 @@ static void KeyGen()
 static void Issue(string[] args)
 {
     if (!File.Exists("private.pem")) { Console.WriteLine("private.pem not found — run keygen first."); return; }
+    bool anyMachine = Array.Exists(args, a => a == "--any-machine");
     string code = Arg(args, "--code"), name = Arg(args, "--name") ?? "Unnamed",
-           daysS = Arg(args, "--days") ?? "365", outPath = Arg(args, "--out") ?? "StingTools.lic";
-    if (string.IsNullOrWhiteSpace(code)) { Console.WriteLine("--code is required."); return; }
+           daysS = Arg(args, "--days") ?? "90", outPath = Arg(args, "--out") ?? "StingTools.lic";
 
-    code = code.Trim().ToUpperInvariant();
-
-    // A machine code that is not in the exact XXXX-XXXX-XXXX-XXXX-XXXX hex shape can
-    // never match a fingerprint, so a licence signed against it is dead on arrival and
-    // the user is the one who finds out. Refuse it here instead.
-    if (!IsWellFormedCode(code))
+    if (!int.TryParse(daysS, out int days) || days < 1 || days > 3650)
     {
-        Console.WriteLine($"--code '{code}' is not a valid machine code.");
-        Console.WriteLine("Expected 20 hex characters as XXXX-XXXX-XXXX-XXXX-XXXX,");
-        Console.WriteLine("exactly as shown in the Activate STING dialog. Nothing was written.");
+        Console.WriteLine($"--days '{daysS}' must be a whole number from 1 to 3650. Nothing was written.");
         return;
     }
 
-    // The classic mistake: signing this machine's WMI-composite Current code (what
-    // `selfcode` used to print) instead of the Stable code the dialog shows. Such a
-    // licence works until the next transient WMI miss and then silently stops.
-    if (code == MachineFingerprint.Current && code != MachineFingerprint.Stable)
+    if (anyMachine)
     {
-        Console.WriteLine("REFUSED: that is this machine's unstable 'Current' fingerprint,");
-        Console.WriteLine("not the 'Stable' code the Activate STING dialog shows.");
-        Console.WriteLine($"A licence signed against it dies at the next WMI hiccup. Use: {MachineFingerprint.Stable}");
-        Console.WriteLine("Nothing was written.");
-        return;
+        if (!string.IsNullOrWhiteSpace(code))
+        {
+            Console.WriteLine("Use either --code or --any-machine, not both. Nothing was written.");
+            return;
+        }
+        code = LicensePayload.AnyMachine;
     }
+    else
+    {
+        if (string.IsNullOrWhiteSpace(code)) { Console.WriteLine("--code is required (or --any-machine for a portable licence)."); return; }
 
-    int days = int.Parse(daysS);
+        code = code.Trim().ToUpperInvariant();
+
+        // A machine code that is not in the exact XXXX-XXXX-XXXX-XXXX-XXXX hex shape can
+        // never match a fingerprint, so a licence signed against it is dead on arrival and
+        // the user is the one who finds out. Refuse it here instead.
+        if (!IsWellFormedCode(code))
+        {
+            Console.WriteLine($"--code '{code}' is not a valid machine code.");
+            Console.WriteLine("Expected 20 hex characters as XXXX-XXXX-XXXX-XXXX-XXXX,");
+            Console.WriteLine("exactly as shown in the Activate STING dialog. Nothing was written.");
+            return;
+        }
+
+        // The classic mistake: signing this machine's WMI-composite Current code (what
+        // `selfcode` used to print) instead of the Stable code the dialog shows. Such a
+        // licence works until the next transient WMI miss and then silently stops.
+        if (code == MachineFingerprint.Current && code != MachineFingerprint.Stable)
+        {
+            Console.WriteLine("REFUSED: that is this machine's unstable 'Current' fingerprint,");
+            Console.WriteLine("not the 'Stable' code the Activate STING dialog shows.");
+            Console.WriteLine($"A licence signed against it dies at the next WMI hiccup. Use: {MachineFingerprint.Stable}");
+            Console.WriteLine("Nothing was written.");
+            return;
+        }
+    }
 
     long now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
     var payload = new LicensePayload
@@ -112,7 +135,7 @@ static void Issue(string[] args)
                     $"{DateTimeOffset.FromUnixTimeSeconds(payload.IssuedUnix).UtcDateTime:yyyy-MM-dd}," +
                     $"{DateTimeOffset.FromUnixTimeSeconds(payload.ExpiryUnix).UtcDateTime:yyyy-MM-dd},{outPath}");
     }
-    Console.WriteLine($"Wrote {outPath} for {payload.MachineCode}, expires " +
+    Console.WriteLine($"Wrote {outPath} for {(anyMachine ? "ANY machine (portable)" : payload.MachineCode)}, expires " +
         $"{DateTimeOffset.FromUnixTimeSeconds(payload.ExpiryUnix).UtcDateTime:yyyy-MM-dd}.");
 }
 

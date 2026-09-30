@@ -22,7 +22,24 @@ namespace StingTools.Core.Licensing
             string text = null;
             try { if (File.Exists(LicensePath)) text = File.ReadAllText(LicensePath).Trim(); }
             catch { /* unreadable => NoLicense */ }
-            return VerifyEither(text, DateTimeOffset.UtcNow);
+            var now = DateTimeOffset.UtcNow;
+            var licence = VerifyEither(text, now);
+            if (licence.IsValid) return licence;
+
+            // No usable licence: fall back to the built-in 90-day trial. It starts on the
+            // first launch that needs it, so a licensed machine never starts one.
+            LicenseResult trial;
+            try { trial = TrialStore.EvaluateAndRecord(MachineFingerprint.Stable, now); }
+            catch (Exception ex)
+            {
+                StingLog.Warn("STING trial check failed: " + ex.Message);
+                return licence;
+            }
+            if (trial.IsValid) return trial;
+
+            // Trial over. Report the licence problem when there is a licence file (an expired
+            // or wrong-machine licence is the actionable fact); otherwise the trial end.
+            return licence.State == LicenseState.NoLicense ? trial : licence;
         }
 
         /// <summary>

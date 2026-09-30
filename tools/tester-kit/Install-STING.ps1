@@ -68,7 +68,8 @@ foreach ($v in $versions) {
 
 Say ""
 Say "Installed. Next:" Cyan
-Say "  1. If you have not sent your machine code yet, run Get-MachineCode.cmd and send the code to Planscape."
-Say "  2. When you receive StingTools.lic, run Install-Licence.cmd (or paste it in Revit: STING > Activate)."
+Say "  1. STING runs a 90-day trial from its first launch - no licence needed to start."
+Say "  2. To keep using it, run Install-Licence.cmd with the StingTools.lic you received (or paste it in Revit: STING > Activate)."
+Say "     A portable licence works on any PC. For a machine licence, send the code from Get-MachineCode.cmd."
 Say "  3. Start Revit. The STING panel is under View > User Interface if it is not already docked."
 Say "  Log file (attach it to bug reports): $dest\StingTools_yyyyMMdd.log"

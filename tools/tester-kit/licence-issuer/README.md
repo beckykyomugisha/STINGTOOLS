@@ -3,8 +3,19 @@
 Do not send this folder to testers. It works with your `private.pem`, and a leaked key
 would let anyone issue licences.
 
-The plugin is locked until a signed licence is installed. Each licence names one PC (its
-machine code) and has an expiry date. This kit issues 90-day licences for a list of testers.
+Every new install runs a built-in 90-day trial, then locks until a signed licence is
+installed. A licence either names one PC (its machine code) or is portable (any PC); both
+have an expiry date. This kit issues 90-day machine licences for a list of testers.
+
+**Portable licence** (no machine codes needed): from the folder holding `private.pem`,
+
+```powershell
+dotnet run --project C:\Dev\STINGTOOLS\StingTools.LicenseIssuer -- issue --any-machine --name "Tester group Oct" --days 90
+```
+
+Anyone holding that file can activate any PC until it expires, so keep `--days` short,
+give each group its own file, and treat it like a key. Put it next to `install.bat` (the
+installer copies it) or send it for `Install-Licence.cmd`.
 
 1. Each tester runs `Get-MachineCode.cmd` from the tester kit and sends you the code
    (`XXXX-XXXX-XXXX-XXXX-XXXX`).

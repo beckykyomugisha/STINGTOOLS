@@ -8,7 +8,12 @@
 # next to this script, and written to %APPDATA%\STING\sting_content.json
 # ("content_root"). The plugin reads <that folder>\Tags before its own copy and
 # falls back to its own copy whenever the share cannot be reached.
-param([string]$ContentLibrary)
+#
+# Licence (optional): -Licence <path>, else the first *.lic next to this script,
+# is copied to C:\ProgramData\Planscape\StingTools\StingTools.lic. A portable
+# licence (issued with --any-machine) activates every PC it is installed on.
+# Without one, STING runs a built-in 90-day trial from its first launch.
+param([string]$ContentLibrary, [string]$Licence)
 $ErrorActionPreference = 'Stop'
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -100,6 +105,28 @@ if ($ContentLibrary) {
     }
 } else {
     Write-Host "No shared content library set; STING uses the tag families shipped with the plugin."
+}
+
+if (-not $Licence) {
+    $Licence = Get-ChildItem -LiteralPath $here -Filter '*.lic' -File -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty FullName
+}
+if ($Licence) {
+    if (Test-Path -LiteralPath $Licence) {
+        $licDir = 'C:\ProgramData\Planscape\StingTools'
+        try {
+            New-Item -ItemType Directory -Force -Path $licDir | Out-Null
+            Copy-Item -LiteralPath $Licence -Destination (Join-Path $licDir 'StingTools.lic') -Force
+            Write-Host "Licence installed: $licDir\StingTools.lic  (STING > Activate shows its expiry)" -ForegroundColor Green
+        } catch {
+            Write-Host "Could not install the licence: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "Paste it in Revit instead: STING Tools > Activate STING." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Licence file not found: $Licence" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "No licence file supplied: STING runs a 90-day trial from its first launch on this PC."
 }
 
 Write-Host ""

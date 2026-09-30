@@ -11,7 +11,7 @@ namespace StingTools.UI
             var win = new Window
             {
                 Title = "Activate STING Tools",
-                Width = 540, Height = 420, WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                Width = 540, Height = 460, WindowStartupLocation = WindowStartupLocation.CenterScreen,
                 ResizeMode = ResizeMode.NoResize,
                 // Topmost so the dialog is never hidden behind the "Always on top" STING
                 // dock panel — otherwise an unlicensed state reads as a frozen/"Busy"
@@ -20,13 +20,20 @@ namespace StingTools.UI
                 ShowInTaskbar = true
             };
             var root = new StackPanel { Margin = new Thickness(16) };
+            var current = LicenseGate.Status;
 
+            string heading =
+                current.IsTrial ? "STING Tools trial — " + current.DaysLeft + " day" + (current.DaysLeft == 1 ? "" : "s") + " left." :
+                current.IsValid ? "STING Tools is activated on this machine." :
+                current.State == LicenseState.TrialExpired ? "Your STING Tools trial has ended." :
+                                  "STING Tools is not activated on this machine.";
             root.Children.Add(new TextBlock {
-                Text = "STING Tools is not activated on this machine.",
+                Text = heading, TextWrapping = TextWrapping.Wrap,
                 FontSize = 14, FontWeight = FontWeights.Bold, Margin = new Thickness(0, 0, 0, 8) });
             root.Children.Add(new TextBlock {
-                Text = "Get your licence at https://planscape.build/licences — sign in, " +
-                       "paste the machine code below, and download the file.",
+                Text = "Paste a licence below. A portable licence from Planscape works on any machine " +
+                       "as-is. For a licence tied to this machine, get it at https://planscape.build/licences — " +
+                       "sign in, paste the machine code below, and download the file.",
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
 
             var codeBox = new TextBox {
@@ -53,7 +60,7 @@ namespace StingTools.UI
 
             var status = new TextBlock {
                 Margin = new Thickness(0, 8, 0, 8), TextWrapping = TextWrapping.Wrap,
-                Text = LicenseGate.Status.Message };
+                Text = current.Message };
             root.Children.Add(status);
 
             var applyBtn = new Button { Content = "Apply license", Width = 140, HorizontalAlignment = HorizontalAlignment.Left };
@@ -62,7 +69,10 @@ namespace StingTools.UI
                 string err = LicenseGate.Apply(licBox.Text);
                 if (err == null)
                 {
-                    status.Text = "Activated. Please restart Revit to load STING.";
+                    // Already running (trial or a licence being renewed): nothing to reload.
+                    status.Text = current.IsValid
+                        ? "Activated. " + LicenseGate.Status.Message
+                        : "Activated. Please restart Revit to load STING.";
                     status.Foreground = System.Windows.Media.Brushes.Green;
                 }
                 else
