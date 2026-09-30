@@ -70,6 +70,9 @@ namespace StingTools.Core.Drawing
             if (doc == null || sheet == null || dt?.TitleBlockParams == null
                 || dt.TitleBlockParams.Count == 0) return r;
             r.ParametersDeclared = dt.TitleBlockParams.Keys.Count(k => !string.IsNullOrWhiteSpace(k));
+            // DTW-18: {rev} / {suit} resolve to the sheet's own revision and
+            // suitability when it has them; a new sheet keeps the profile default.
+            tokens = WithSheetFacts(sheet, tokens);
 
             // Resolve once per key, not once per title-block instance: the
             // payload is identical for every TB on the sheet.
@@ -275,6 +278,25 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"IsSheetIdentityParameter '{key}': {ex.Message}"); }
             return DrawingQaRules.IsSheetIdentityParam(key, bip);
+        }
+
+        /// <summary>
+        /// DTW-18: <paramref name="tokens"/> with the sheet's real revision (the
+        /// native SHEET_CURRENT_REVISION the revision box prints) and suitability
+        /// (PRJ_DWG_SUITABILITY_COD_TXT, what the Export Centre files by) laid over
+        /// the profile defaults. Shared by Apply and the drift detector so the
+        /// two agree on what a cell should hold.
+        /// </summary>
+        internal static Dictionary<string, string> WithSheetFacts(ViewSheet sheet, IDictionary<string, string> tokens)
+        {
+            string rev = null, suit = null;
+            if (sheet != null)
+            {
+                try { rev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString(); }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: revision read on '{sheet.SheetNumber}': {ex.Message}"); }
+                suit = ParameterHelpers.GetString(sheet, ParamRegistry.DWG_SUITABILITY_COD);
+            }
+            return DrawingQaRules.OverlaySheetFacts(tokens, rev, suit);
         }
 
         /// <summary>DTW-16: does the cell already hold <paramref name="resolved"/>,

@@ -150,6 +150,56 @@ namespace StingTools.Tags.Tests
             Assert.Empty(plan.Moves);
         }
 
+        // ── DTW-18: revision / suitability cells follow the sheet, not a literal ──
+
+        private static System.Collections.Generic.Dictionary<string, string> ProfileTokens()
+            => new System.Collections.Generic.Dictionary<string, string> { ["rev"] = "P01", ["suit"] = "S2", ["disc"] = "A" };
+
+        [Fact]
+        public void SheetFacts_ReplaceProfileDefaults()
+        {
+            var d = DrawingQaRules.OverlaySheetFacts(ProfileTokens(), "C03", "A1");
+            Assert.Equal("C03", d["rev"]);
+            Assert.Equal("A1", d["suit"]);
+            Assert.Equal("A", d["disc"]);
+        }
+
+        [Fact]
+        public void NewSheet_KeepsProfileDefaults()
+        {
+            var d = DrawingQaRules.OverlaySheetFacts(ProfileTokens(), null, "  ");
+            Assert.Equal("P01", d["rev"]);
+            Assert.Equal("S2", d["suit"]);
+        }
+
+        [Fact]
+        public void Overlay_DoesNotMutateTheCallersDict()
+        {
+            var t = ProfileTokens();
+            DrawingQaRules.OverlaySheetFacts(t, "C03", "A1");
+            Assert.Equal("P01", t["rev"]);
+        }
+
+        [Fact]
+        public void ShippedDrawingTypes_WriteRevisionAndSuitabilityFromTokens()
+        {
+            // The resolved template must equal the old literal on a NEW sheet (backward
+            // compatible) and follow the sheet on an existing one.
+            var path = System.IO.Path.Combine(RepoRoot(), "StingTools", "Data", "STING_DRAWING_TYPES.json");
+            var root = Newtonsoft.Json.Linq.JObject.Parse(System.IO.File.ReadAllText(path));
+            var literalHardCodes = new System.Collections.Generic.List<string>();
+            foreach (var dt in root["drawingTypes"])
+            {
+                if (!(dt["titleBlockParams"] is Newtonsoft.Json.Linq.JObject tb)) continue;
+                var isoRev = (string)dt["isoNaming"]?["revision"];
+                var isoSuit = (string)dt["isoNaming"]?["suitability"];
+                if ((string)tb["Revision"] == "P01" && isoRev == "P01") literalHardCodes.Add($"{dt["id"]}:Revision");
+                if ((string)tb["Suitability"] == "S2" && isoSuit == "S2") literalHardCodes.Add($"{dt["id"]}:Suitability");
+                if ((string)tb["Sheet Status"] == "WIP") literalHardCodes.Add($"{dt["id"]}:Sheet Status");
+            }
+            Assert.Empty(literalHardCodes);
+        }
+
         private static string RepoRoot()
         {
             var dir = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);

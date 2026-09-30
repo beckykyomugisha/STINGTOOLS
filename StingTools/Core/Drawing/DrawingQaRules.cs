@@ -126,6 +126,29 @@ namespace StingTools.Core.Drawing
             return plan;
         }
 
+        // ── DTW-18: {rev} / {suit} on an existing sheet are the sheet's own ──
+
+        /// <summary>
+        /// DTW-18: the token dict a title-block write resolves against, with the
+        /// sheet's REAL revision and suitability laid over the profile defaults.
+        /// 112 corporate profiles wrote the literals "P01" / "S2" into Revision /
+        /// Suitability cells, so Heal reset a sheet at C03 / A1 back to P01 / S2.
+        /// Those cells now read {rev} / {suit}: a new sheet (no revision, no
+        /// suitability) still gets the profile default, byte-for-byte as before;
+        /// an existing sheet gets what it actually is. Never mutates
+        /// <paramref name="tokens"/>; a blank fact never overrides.
+        /// </summary>
+        internal static Dictionary<string, string> OverlaySheetFacts(
+            IDictionary<string, string> tokens, string sheetRevision, string sheetSuitability)
+        {
+            var d = tokens == null
+                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                : new Dictionary<string, string>(tokens, StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(sheetRevision)) d["rev"] = sheetRevision.Trim();
+            if (!string.IsNullOrWhiteSpace(sheetSuitability)) d["suit"] = sheetSuitability.Trim();
+            return d;
+        }
+
         internal static bool TryParseInvariant(string text, out double value)
         {
             if (string.IsNullOrWhiteSpace(text)) { value = 0; return true; }

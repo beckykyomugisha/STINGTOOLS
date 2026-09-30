@@ -647,7 +647,10 @@ namespace StingTools.Core.Drawing
                 // T-5: same token source as Heal, and only compare cells Heal
                 // would actually write — an unresolved template has no
                 // "expected" value, so reporting "{lvl}" as drift is noise.
-                var tokens = DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
+                // DTW-18: the same sheet facts Apply lays over the profile defaults,
+                // so a sheet at C03 is not reported as drifted from "P01".
+                var tokens = TitleBlockParamApplier.WithSheetFacts(sheet,
+                    DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt));
                 var expected = TitleBlockParamApplier.PeekResolved(doc, dt, tokens)
                     .Where(kv => kv.Value.IsResolved)
                     .ToDictionary(kv => kv.Key, kv => kv.Value.Text);
