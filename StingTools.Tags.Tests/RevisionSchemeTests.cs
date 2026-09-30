@@ -36,7 +36,9 @@ namespace StingTools.Tags.Tests
             var s = RevisionScheme.Parse(null);
 
             Assert.Equal("C01", s.PromoteToContractual("P01"));
-            Assert.Equal("C07", s.PromoteToContractual("P07"));
+            // The contractual series counts from C01 on its own — P07 → C07 was the defect
+            // (deliverables.json said C07 while Revit's C-series printed C01).
+            Assert.Equal("C01", s.PromoteToContractual("P07"));
             // A bare "P" carries no number — must not become a malformed single-letter "C".
             Assert.Equal("C01", s.PromoteToContractual("P"));
             // Blank ⇒ first contractual.

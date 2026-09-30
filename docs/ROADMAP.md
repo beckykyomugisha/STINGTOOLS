@@ -2,6 +2,28 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Revision workflow — residual (2026-10-01)
+
+The core landed on 2026-10-01 (CHANGELOG "Revision workflow core"). These items are still open:
+
+- **REV-1: nobody writes a per-document ACC record.** Supersede/Replace retires a document in
+  ACC only when its register row carries `acc_version_urn` + `acc_folder_urn`. `ACC_UploadModel`
+  records the upload only on a bundle's transmittal row. It should also record it on the
+  register row whose `doc_number` matches the uploaded file (that file is owned by the ACC
+  upload work).
+- **REV-2: an ACC upload refused unattended reads as "skipped".** `AccUploadCommandBase` turns
+  every `BuildOptions` refusal, including the new revision/suitability refusal, into
+  `Result.Cancelled`. A `failOnError` step therefore does not fail. The refusal should return
+  `Failed` when `policy.MayPrompt` is false.
+- **REV-3: `Midp_DriftReport` asks for its CSV.** In `WORKFLOW_KUT_FortnightlyIssue` the step is
+  optional and meant for attended runs. It needs a configured plan path to be unattended-safe.
+- **REV-4: Revit verification.** Still to check in Revit: the per-sheet switch and its renumber
+  preview on a model that has issued revisions, `GetRevisionNumberOnSheet` in both modes, and a
+  title block that labels Revit's built-in Current Revision (it prints the draft; the leak
+  check reports it as DRAFT-AHEAD).
+- **REV-5: live ACC.** Still to check against a real tenant: the 201 shape of `copyFrom`, and
+  whether it carries custom attribute values.
+
 ## Tagging accuracy — deep review (2026-09-29)
 
 Review of the tagging pipeline (`TagPipelineHelper.RunFullPipeline`, `TagConfig.BuildAndWriteTag`,

@@ -83,6 +83,7 @@
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
     <Compile Include="..\StingTools\V6\AccCdeRouting.cs" Link="V6\AccCdeRouting.cs" />
     <Compile Include="..\StingTools\V6\AccDocsMetadata.cs" Link="V6\AccDocsMetadata.cs" />
+    <Compile Include="..\StingTools\V6\AccDocsLifecycle.cs" Link="V6\AccDocsLifecycle.cs" />
     <!-- ACC_SelfCheck: every decision the go-live check makes (PASS / WARN / FAIL / SKIPPED),
          driven over loopback against the real clients above. -->
     <Compile Include="..\StingTools\V6\AccSelfCheck.cs" Link="V6\AccSelfCheck.cs" />

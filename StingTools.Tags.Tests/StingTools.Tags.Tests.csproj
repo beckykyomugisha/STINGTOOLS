@@ -338,6 +338,13 @@
     <!-- IM-15: config-driven revision scheme. Kept Revit-free so the P→C default and the
          per-appointment override are provable without a Revit host. -->
     <Compile Include="..\StingTools\Docs\Templates\RevisionScheme.cs" Link="Docs\Templates\RevisionScheme.cs" />
+    <!-- Revision workflow: resolver (issued-only, per-sheet), P/C suitability pairing,
+         deliverable revision derivation, and the issue-completion hook. All Revit-free. -->
+    <Compile Include="..\StingTools\Core\RevisionSeries.cs" Link="Core\RevisionSeries.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetRevisionResolver.cs" Link="Core\Drawing\SheetRevisionResolver.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\Iso19650RevisionRules.cs" Link="Core\Drawing\Iso19650RevisionRules.cs" />
+    <Compile Include="..\StingTools\Docs\Templates\DeliverableRevisionRule.cs" Link="Docs\Templates\DeliverableRevisionRule.cs" />
+    <Compile Include="..\StingTools\BIMManager\RevisionIssueCompletion.cs" Link="BIMManager\RevisionIssueCompletion.cs" />
     <!-- IM-13: the shared document-identity rule and the register merge core. Both kept
          Revit-free so the cross-store dedup regression (a trailing space forking one
          document into two rows) is provable without a Revit host. -->

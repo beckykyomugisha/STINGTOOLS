@@ -184,6 +184,9 @@ namespace StingTools.V6
             // created (one set, not a STING set beside the admin's), and whether file names
             // are the 7-field ISO 19650 name or carry suitability + revision (9 fields).
             "docsAttributeNames", "fileNamingFields",
+            // Revision workflow: what Supersede / Replace does to the deliverable's ACC
+            // document ("ask" | "always" | "never"). Read by AccRetireDeliverable.
+            "retireSupersededInAcc",
         };
 
         /// <summary>The STING values an escalated clash issue can carry as ACC custom
