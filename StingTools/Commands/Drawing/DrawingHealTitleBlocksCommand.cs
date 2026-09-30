@@ -117,7 +117,15 @@ namespace StingTools.Commands.Drawing
                         // destructive change and is deliberately not automatic.
                         try
                         {
-                            var wanted = TitleBlockResolver.ToConcreteFamily(doc, dt, dt.TitleBlockFamily);
+                            // DTW-17: resolve the variant first (TitleBlockVariantRules
+                            // and the "Family:Symbol" form), as Doctor and the
+                            // Validator do — the raw TitleBlockFamily flagged every
+                            // variant-routed or colon-form sheet as a wrong family.
+                            string declared = dt.TitleBlockFamily;
+                            try { declared = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; }
+                            catch (Exception exVar) { StingLog.Warn($"Heal variant resolve '{dt.Id}': {exVar.Message}"); }
+                            if (string.IsNullOrWhiteSpace(declared)) declared = dt.TitleBlockFamily;
+                            var wanted = TitleBlockResolver.ToConcreteFamily(doc, dt, declared);
                             if (!string.IsNullOrWhiteSpace(wanted))
                             {
                                 foreach (var el in new FilteredElementCollector(doc, x.Sheet.Id)
