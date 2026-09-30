@@ -197,7 +197,10 @@ Then, in this order:
    reuse the sheets). Revit cannot place a native panel schedule by API, so those still need
    dragging.
 3. **Electrical panel → SLD → "▶ Generate SLD Drafting View"**, and **"▶ Generate Riser
-   Diagram"**. Build the SLD symbols first. Each view is now put on its own stamped sheet
+   Diagram"**, then the **SCHEMATICS** section (fire alarm, earthing, lightning protection,
+   MGPS, panel door) and Plumbing DOCS **"Supply Schematic"** / **"Drainage Schematic"**.
+   Build the SLD symbols first. Each diagram command looks its sheet type up through the
+   routing table (so a project can re-route it) and draws only from what is modelled. Each view is now put on its own stamped sheet
    (`elec-sld-A1-NTS`; the riser on an `elec-riser-A3-1to200` sheet), and a re-run replaces
    the old view on that sheet.
 4. The schedule drawing types: `mech-equip-schedule-A3`, `elec-panel-schedule-A3`,
@@ -228,12 +231,17 @@ reported. **"Run preset" → `MEPPreIssue`** runs steps 1–5 in one go, without
 ## A9. Issue
 
 1. Run `WORKFLOW_RevisionIssue` (Create Revision → Auto Revision Cloud → Issue Sheets →
-   Revision Sync → Revision Schedule).
+   Revision Sync → Revision Schedule). On a first issue there are no clouds, so Issue Sheets
+   takes the STING-stamped sheets (or `params.sheets`); it never marks a revision issued with
+   no sheets on it.
 2. **"⚡ Produce & Export" → option 2, "Finalize + Export (existing sheets only)"**. This
-   writes PDFs plus a register CSV of the stamped sheets. (Option 1, "Produce + Finalize +
+   writes PDFs plus a register CSV, records each PDF in the document register (so the
+   transmittal can attach it), and by default exports only the sheets carrying the current
+   revision. (Option 1, "Produce + Finalize +
    Export", now asks which plan drawing types to produce, with those of the disciplines in the
    model pre-ticked.)
-3. **BIM → Issue Deliverable / Create Transmittal**.
+3. **BIM → Issue Deliverable / Create Transmittal** (runs in a preset too: `params.suitability`,
+   default S3).
 
 ---
 
@@ -493,7 +501,9 @@ Presets: `WORKFLOW_PlumbingDesign` (20 steps), `WORKFLOW_PlumbingRoughIn`,
   `MGS_GAS_REQUIREMENT_TXT`, using the STING outlet seed or a manufacturer family.
   - Buttons: TAG STUDIO → Fixtures → **"Med gas outlets"**, and Placement Centre → Run &
     Routing → **"Med Gas Outlets"**.
-  - The medical-gas rule pack is also loaded by "Run All Rules" (C0).
+  - The medical-gas rule pack is also loaded by "Run All Rules" (C0), and places the STING
+    outlet seed's own types (`TERMINAL_UNIT_<gas>`, theatre panel, bedhead unit) with the gas
+    stamped — each rule names its seed and type.
 - **Audit:** HEALTHCARE → MGPS → **"Run audit"**, **"Full verify"** (`WORKFLOW_MgasVerification`).
 - **Drawings:** `health-medgas-pln-A1-1to100`, `health-medgas-schem-A1`.
 
@@ -521,8 +531,10 @@ These run headless:
   `Panel_PlaceOnSheets`
 
 A step passes inputs through `params`: `drawingTypes`, `levels`, `output`, `duplicateOption`,
-`packageId`, `mode`. With none, production makes every M / E / P / FP / MG plan type on every
-level, as views and sheets. An unknown type or level fails the step with the reason.
+`packageId`, `mode`, `sheets`, `suitability`. With no `drawingTypes`, production makes each
+modelled discipline's routed plan type (M / E / P / FP / MG), only on the levels where that
+discipline has elements, as views and sheets. An unknown type or level fails the step with the
+reason. A view or sheet is counted only if its transaction commits.
 
 These are still panel-only:
 - `Placement_LightingGrid`, `Placement_ToiletRoom`
@@ -541,6 +553,9 @@ each item.
 - 🟡 **Tool**: a STING command makes the content, but there is no drawing type for the sheet.
   Place it with Sheet Manager.
 - ❌ **Manual**: no drawing type and no tool. Draw it in Revit.
+- 📐 **Sheet only**: a drawing type gives the sheet, title block and number, but nothing draws
+  the diagram. Draw it in a drafting view and place it. Production skips these types with a
+  message rather than making an empty sheet.
 
 ## D1. Model (the deliverable behind the drawings)
 
@@ -566,7 +581,7 @@ each item.
 | Ductwork layouts | ✅ | `mep-hvac-duct-A1-1to100` |
 | Plant rooms | ✅ | `mep-plantroom-A1-1to50` |
 | Chilled / LTHW pipework layouts | ✅ | `mep-hvac-pipe-A1-1to100` |
-| HVAC schematics (air, water, controls) | ✅ | `mep-hvac-schematic-A1` (drafting, NTS) |
+| HVAC schematics (air, water, controls) | 📐 | `mep-hvac-schematic-A1` — draw by hand |
 | Equipment schedules | ✅ | `mech-equip-schedule-A3` |
 | Duct spools / isometrics | ✅ | `duct-spool-A1-1to50`; HVAC FAB "Isometrics" |
 | **Electrical** | | |
@@ -574,34 +589,38 @@ each item.
 | Emergency lighting layouts | ✅ | `elec-emergency-lighting-A1-1to100`; LITE "▶ Emergency Circuit Audit" |
 | Power / small power layouts | ✅ | `elec-power-A1-1to100` (one type for both) |
 | Fire alarm layouts | ✅ | `elec-fire-alarm-A1-1to100` |
-| Fire alarm schematic | ✅ | `elec-fire-alarm-schematic-A1` (drafting, NTS) |
+| Fire alarm schematic | ✅ | Electrical panel → SLD → SCHEMATICS **"Fire Alarm Schematic"**, placed on an `elec-fire-alarm-schematic-A1` sheet |
 | Data / comms / telecoms | ✅ | `elec-data-comms-A1-1to100` |
 | Security / access control | ✅ | `elec-security-A1-1to100` |
 | Containment / cable tray layouts | ✅ | `elec-containment-A1-1to100` |
 | Single line diagram | ✅ | "▶ Generate SLD Drafting View", placed on an `elec-sld-A1-NTS` sheet |
 | Riser diagrams | ✅ | `elec-riser-A3-1to200` ("▶ Generate Riser Diagram" places it), `health-ess-power-riser-A1` |
 | Panel / distribution board schedules | ✅ | `elec-panel-schedule-A3`; PNLS "▶ Place Schedules on Sheets" (Auto mode) |
-| Earthing and lightning protection | ❌ | LPS commands calculate and report; no drawing type |
+| Earthing and lightning protection | ✅ | SCHEMATICS **"Lightning Protection Schematic"** and **"Earthing Diagram"**, placed on `elec-lps-schematic-A1-NTS` / `elec-earthing-schematic-A1-NTS` sheets. Each draws only from real model data and skips with its reason when there is none (they used to draw placeholder diagrams). No LPS / earthing *layout plan* type. |
+| Distribution board door diagrams | ✅ | SCHEMATICS **"Panel Door Diagram"** (select the board first; in a preset `params.panel` names it), one `elec-panel-door-diagram-A3-NTS` sheet per board |
 | **Plumbing and drainage** | | |
 | Above-ground drainage layouts | ✅ | `plumb-ag-drainage-A1-1to100` |
 | Below-ground drainage layouts | ✅ | `plumb-drainage-A1-1to100` |
 | Rainwater | ✅ | `plumb-rwd-layout-A1-1to100`; SuDS `plumb-suds-A1-1to500` |
 | Cold / hot water layouts | ✅ | `plumb-water-supply-A1-1to100` |
-| Cold / hot / LTHW schematics | ✅ | `plumb-dcw-schematic-A1-NTS`, `plumb-dhw-schematic-A1-NTS`, `plumb-lthw-schematic-A1-NTS` |
-| Drainage schematic, vent riser | ✅ | `plumb-drainage-schematic-A1`, `plumb-vent-riser-A3-NTS` |
+| Cold water schematic | ✅ | Plumbing DOCS **"Supply Schematic"** (domestic cold water systems only), placed on a `plumb-dcw-schematic-A1-NTS` sheet at 1:50 |
+| Hot water / LTHW schematics | 📐 | `plumb-dhw-schematic-A1-NTS`, `plumb-lthw-schematic-A1-NTS` — draw by hand |
+| Drainage schematic | ✅ | Plumbing DOCS **"Drainage Schematic"** (sanitary and vent systems), placed on a `plumb-drainage-schematic-A1` sheet at 1:50 |
+| Vent riser | 📐 | `plumb-vent-riser-A3-NTS` — draw by hand |
 | Water treatment plant | ✅ | `plumb-water-treatment-A1-1to50` |
 | Valve and pressure schedules | ✅ | `valve-schedule-A3`, `plumb-pressure-schedule-A3` |
 | Pipe spools / isometrics | ✅ | `pipe-spool-A1-1to50`; Plumbing DOCS "Plumbing Isometric" |
 | **Fire protection** | | |
 | Sprinkler layouts, sections, details | ✅ | `fire-sprinkler-layout-A1-1to100`, `fire-section-A1-1to50`, `fire-detail-A3-1to20` |
-| Fire riser / wet-dry riser schematic | ✅ | `fire-riser-schematic-A1` (drafting, NTS) |
+| Fire riser / wet-dry riser schematic | 📐 | `fire-riser-schematic-A1` — draw by hand |
 | **Medical gas (healthcare)** | | |
-| MGPS layouts and schematic | ✅ | `health-medgas-pln-A1-1to100`, `health-medgas-schem-A1` |
+| MGPS layouts and schematic | ✅ | `health-medgas-pln-A1-1to100`; SCHEMATICS **"Medical Gas (MGPS) Schematic"** placed on `health-medgas-schem-A1` (drawn from the modelled gas network only) |
 | **Sections and details (all services)** | | |
 | Services sections, typical details | ✅ | `mep-section-A1-1to50`, `mep-detail-A3-1to20` (and the fire-protection pair) |
 
-Set it up once and the ✅ rows cost one click each on every re-issue. What is left is the
-earthing and lightning protection layout, which still has no drawing type.
+Set it up once and the ✅ rows cost one click each on every re-issue — the `MEPDrawingProduction`
+preset runs the diagram commands too. The 📐 rows (HVAC, hot water / LTHW, vent riser and fire
+riser schematics) are the drawings to plan hand time for.
 
 ---
 
@@ -619,7 +638,9 @@ earthing and lightning protection layout, which still has no drawing type.
 
 ## What is left
 
-- **No earthing / lightning-protection drawing type.** The LPS commands calculate and report.
+- **Schematics nothing draws:** HVAC, hot water / LTHW, vent riser, fire riser and the ESS power
+  riser have drawing types but no generator (📐 in Part D).
+- **No earthing / lightning-protection layout plan type** (the schematics exist).
 - **Photometric parameters** (`ELC_PHOTO_*`) are type parameters in the seed families but bound
   as instance parameters in the project; which wins in a loaded family needs a Revit check.
 - The planner offers plan and RCP types only; coordination plans come per level or from
@@ -633,7 +654,10 @@ Revit yet:
 - the wizard's stamped views / sheets, level rename and scope-box rename
 - area-box match lines, dependent views, crop recovery on Sync Styles
 - the three MEP presets end to end with no dialogs
-- SLD / riser / panel schedule sheets
+- SLD / riser / schematic / panel schedule sheets (and whether a large plumbing schematic fits
+  an A1 slot at 1:50)
+- revision issue of freshly produced sheets, and PDFs reaching the transmittal
+- medical-gas pack placement placing the seed types with the gas stamped
 - temporary base views for templates
 - medical-gas placement in a hospital model (and none in a residential one)
 - the seed type-swap updater and the renamed-type migration

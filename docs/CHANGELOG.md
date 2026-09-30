@@ -25879,6 +25879,32 @@ every `GetString` read against the parameter's data type.
   - `followsType` + `SeedTypeSwapUpdater`: a type swap restamps type-defining instance values
     unless the user typed their own.
   - `renamedFrom` migrates renamed seed types (MG-2) under the same rule.
+- **Production, second pass.**
+  - Views and sheets are counted only when their transaction commits.
+  - The setup chain (text / dimension styles, view templates, production setup, match lines)
+    reports through `PresetDialog`, including on failure, so a preset never stops on a dialog.
+  - The per-level default makes each modelled discipline's routed plan type on the levels where
+    that discipline has elements (`RoutedMepPerLevel`), not every M/E/P/FP/MG type everywhere.
+  - Area boxes are made even when no plan exists yet.
+  - Pre-flight fails only on types that are in use (stamped or routed); unused broken types are
+    listed, not blocking (`PreflightScope`, 4 tests).
+- **Diagrams.**
+  - Fire alarm, earthing, LPS, MGPS and panel door diagrams, and the plumbing supply and drainage
+    schematics, are placed on the sheet type their routing names (`DrawingRouteRequests`,
+    falling back to the shipped id). They draw only from what is modelled; the LPS and earthing
+    diagrams no longer invent placeholder content.
+  - They are in `MEPDrawingProduction` and, new, on buttons: Electrical panel → SLD →
+    SCHEMATICS, and Plumbing DOCS "Supply Schematic". Before this only "Drainage Schematic" had
+    a button; the panel door diagram could not be reached at all.
+  - The supply schematic draws domestic cold water systems only (it drew any network).
+  - Drainage "Named system…" lets the user pick the system (it took the first one).
+  - Panel schedules are routed and placed on their own sheets.
+- **Issue.** Revision issue takes the STING-stamped sheets when there are no clouds yet, never
+  issuing a revision with no sheets; Produce + Export records its PDFs in the document register
+  and exports only sheets carrying the current revision; transmittals run in a preset
+  (`params.suitability`, default S3).
+- **Medical gas.** Pack rules name their seed and type (`PlacementRule.SeedId`), so the pack
+  places the STING outlet seed's types with the gas stamped.
 - ROADMAP CAD-1, CAD-2, MDP-1..3, MG-1, MG-2, SEED-1 closed.
 
 Build 0/0; Tags.Tests all green; `run_ci_gates.py` 0 failed. Everything new is Revit-bound where

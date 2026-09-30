@@ -1178,6 +1178,24 @@
                             </StackPanel>
                         </Expander>
 
+                        <Expander Header="SCHEMATICS" Style="{StaticResource ElecExpander}">
+                            <StackPanel Margin="4">
+                                <TextBlock Text="Each diagram is drawn from the modelled system only, and placed on the sheet type its routing names. Nothing modelled = skipped with the reason."
+                                           FontSize="9" Opacity="0.7" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                <Button Content="▶ Fire Alarm Schematic" Style="{StaticResource ElecActionBtn}"
+                                        Tag="FireAlarm_Schematic" Click="Cmd_Click"/>
+                                <Button Content="▶ Earthing Diagram" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Earthing_Diagram" Click="Cmd_Click"/>
+                                <Button Content="▶ Lightning Protection Schematic" Style="{StaticResource ElecActionBtn}"
+                                        Tag="LPS_Schematic" Click="Cmd_Click"/>
+                                <Button Content="▶ Medical Gas (MGPS) Schematic" Style="{StaticResource ElecActionBtn}"
+                                        Tag="MGPS_Schematic" Click="Cmd_Click"/>
+                                <Button Content="▶ Panel Door Diagram" Style="{StaticResource ElecActionBtn}"
+                                        Tag="Panel_DoorDiagram" Click="Cmd_Click"
+                                        ToolTip="Select a distribution board first, or pick one when asked."/>
+                            </StackPanel>
+                        </Expander>
+
                         <!-- INLINE ANNOTATIONS expander -->
                         <Expander Header="INLINE ANNOTATIONS" Style="{StaticResource ElecExpander}">
                             <StackPanel Margin="4">
