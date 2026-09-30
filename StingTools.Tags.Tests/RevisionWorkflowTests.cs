@@ -312,6 +312,26 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void AStaleSuitability_ThatContradictsTheNewRevision_IsClearedAndReported()
+        {
+            // R5: published A1 earlier, now issued at P01 with no issue suitability — never "P01 / A1".
+            var ev = Ev(); ev.Suitability = "";
+            var arr = JArray.Parse(@"[{""DocNumber"":""D-1"",""Revision"":""C01"",""Suitability"":""A1"",""SheetNumbers"":[""A-101""]}]");
+            var rep = new IssueCompletionReport();
+            RevisionIssueCompletion.ApplyToDeliverables(arr, ev, DateTime.UtcNow, rep);
+            Assert.Equal("P01", (string)arr[0]["Revision"]);
+            Assert.Equal("", (string)arr[0]["Suitability"]);
+            Assert.Contains("A1", (string)arr[0]["IsoConflict"]);
+            Assert.Contains(rep.Warnings, w => w.Contains("D-1") && w.Contains("A1"));
+
+            // A consistent kept code stays, and clears an earlier conflict flag.
+            var arr2 = JArray.Parse(@"[{""DocNumber"":""D-2"",""Revision"":""P00"",""Suitability"":""S3"",""IsoConflict"":""old"",""SheetNumbers"":[""A-101""]}]");
+            RevisionIssueCompletion.ApplyToDeliverables(arr2, ev, DateTime.UtcNow);
+            Assert.Equal("S3", (string)arr2[0]["Suitability"]);
+            Assert.Null(arr2[0]["IsoConflict"]);
+        }
+
+        [Fact]
         public void UnknownSuitability_IsNotWritten()
         {
             var ev = Ev(); ev.Suitability = "whatever";

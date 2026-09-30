@@ -93,6 +93,20 @@ namespace StingTools.BIMManager
                 row["RevisionSource"] = decision.Source;
                 if (suit.Length > 0) row["Suitability"] = suit;
                 if (!string.IsNullOrEmpty(cde)) row["CDE"] = cde;
+
+                // R5: a new revision with no issue suitability kept the row's earlier code, so a
+                // deliverable published A1 and then issued at P04 read "P04 / A1". A pair ISO 19650
+                // does not allow is never persisted: the stale code is cleared and the conflict
+                // recorded on the row and reported, for a person to set the right suitability.
+                string keptSuit = (string)row["Suitability"] ?? "";
+                var pairing = Iso19650RevisionRules.Check(decision.Revision, keptSuit);
+                if (pairing.IsInconsistent)
+                {
+                    row["Suitability"] = "";
+                    row["IsoConflict"] = $"{decision.Revision} cannot carry {keptSuit}: {pairing.Reason}";
+                    report?.Warnings.Add($"Deliverable {key}: suitability {keptSuit} cleared — {pairing.Reason}. Set its suitability.");
+                }
+                else row.Remove("IsoConflict");
                 row["IssuedDate"] = ev.IssuedDate ?? "";
                 row["IssuedBy"] = ev.User ?? "";
 

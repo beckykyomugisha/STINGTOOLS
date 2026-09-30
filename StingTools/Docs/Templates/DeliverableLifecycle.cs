@@ -174,6 +174,24 @@ namespace Planscape.Docs.Templates
                 // the workflow is a tracking overlay that enforces only when a transition
                 // declares allowed_roles (empty ⇒ any; K/C always permitted).
                 bool cancelling = string.Equals(action, "cancelled", StringComparison.OrdinalIgnoreCase);
+
+                // R5: a deliverable linked to sheets takes its revision from their Revit issue,
+                // and that revision is not promoted. Publishing it (A1) while its sheets are issued
+                // at a P revision would persist "P03 / A1"; refuse before anything changes.
+                DeliverableRevisionDecision fromSheets = DeriveFromSheets(doc, d);
+                if (fromSheets.FromSheets && !string.IsNullOrEmpty(newSuitability))
+                {
+                    var pairing = StingTools.Core.Drawing.Iso19650RevisionRules.Check(fromSheets.Revision, newSuitability);
+                    if (pairing.IsInconsistent)
+                        return new LifecycleResult
+                        {
+                            Ok = false,
+                            Message = $"{DeliverableKey(d)} was NOT {action.Replace('_', ' ')}: its sheets are issued at " +
+                                      $"{fromSheets.Revision}, which cannot carry {newSuitability} ({pairing.Reason}). " +
+                                      "Issue the sheets at a contractual revision first (C01 on the first authorisation).",
+                        };
+                }
+
                 // Explicitly-typed target: DriveWorkflow takes a dynamic 'd', so the call is
                 // dynamic-dispatched and cannot be `var`-deconstructed.
                 (bool blocked, string blockMsg) wf =
@@ -191,7 +209,6 @@ namespace Planscape.Docs.Templates
                 // those sheets; only an unlinked one (or one whose sheets are not issued yet)
                 // runs its own counter. RevisionSource says which, so nobody reads an own-counter
                 // value as the drawing's revision.
-                DeliverableRevisionDecision fromSheets = DeriveFromSheets(doc, d);
                 if (fromSheets.FromSheets)
                 {
                     d.Revision = fromSheets.Revision;
