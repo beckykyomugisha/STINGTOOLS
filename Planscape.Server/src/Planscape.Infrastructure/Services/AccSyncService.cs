@@ -34,7 +34,9 @@ namespace Planscape.Infrastructure.Services;
 ///
 /// STATUS (LastSyncStatus): OK · PARTIAL (some pushes failed, or the ACC status
 /// read-back failed) · FAILED (every attempted push failed, the open-count pull
-/// failed, or the sync could not start) · BUSY (another sync holds the lock).
+/// failed, or the sync could not start) · BUSY (another sync holds the lock) ·
+/// RECONNECT_REQUIRED (the stored tokens cannot be decrypted, there is no refresh
+/// token, or ACC answered invalid_grant — a person must reconnect ACC).
 ///
 /// READ-BACK: for every mapped issue the ACC status is fetched and recorded under
 /// <c>accIssueStatus</c> (+ <c>accIssueStatusAt</c>), and the report counts how many
@@ -52,6 +54,7 @@ public class AccSyncService
     public const string StatusPartial = "PARTIAL";
     public const string StatusFailed  = "FAILED";
     public const string StatusBusy    = "BUSY";
+    public const string StatusReconnect = "RECONNECT_REQUIRED";
 
     public const string KeyIssueMap      = "accIssueMap";
     public const string KeyIssueStatus   = "accIssueStatus";
@@ -59,9 +62,10 @@ public class AccSyncService
     public const string KeySubtypeId     = "accIssueSubtypeId";
     public const string KeyHubId         = "accHubId";
     public const string KeyRegion        = "accRegion";
+    public const string KeyWebhookHooks  = "accWebhookHooks";
 
     /// <summary>ConfigJson keys only the server writes. A client PUT must not replace them.</summary>
-    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt };
+    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyWebhookHooks };
 
     // Documented Issues v1 POST limits.
     private const int TitleMax = 100;
@@ -103,6 +107,7 @@ public class AccSyncService
         IReadOnlyList<string>? Failures = null);
 
     private static AccSyncReport Fail(string error) => new(false, StatusFailed, Error: error);
+    private static AccSyncReport Reconnect(string error) => new(false, StatusReconnect, Error: error);
 
     // ── public entry points ──
 
@@ -149,6 +154,7 @@ public class AccSyncService
                     case StatusOk: ok++; break;
                     case StatusPartial: partial++; break;
                     case StatusBusy: busy++; break;
+                    case StatusReconnect: fail++; break;
                     default: fail++; break;
                 }
             }
@@ -180,6 +186,30 @@ public class AccSyncService
         if (conn == null) return (null, "No active ACC connection for this project.");
         var t = await AccTokenRefresher.EnsureFreshAsync(_db, _connectorFactory.GetConnector(PlatformType.ACC), conn, _logger, ct);
         return t.Success ? (conn.AccessToken, null) : (null, t.Error);
+    }
+
+    /// <summary>
+    /// Connectivity test for the generic PlatformController /test endpoint. Goes
+    /// through <see cref="AccTokenRefresher"/> (advisory lock + immediate persist
+    /// of a rotated refresh token) BEFORE the connector's hubs probe, so the
+    /// connector never refreshes on its own. When the token cannot be obtained
+    /// the connection's LastSyncStatus becomes RECONNECT_REQUIRED if that is the
+    /// reason; a successful test does not touch the sync status.
+    /// </summary>
+    public async Task<PlatformTestResult> TestConnectionAsync(PlatformConnection conn, CancellationToken ct = default)
+    {
+        var connector = _connectorFactory.GetConnector(PlatformType.ACC);
+        var t = await AccTokenRefresher.EnsureFreshAsync(_db, connector, conn, _logger, ct);
+        if (!t.Success)
+        {
+            if (t.ReconnectRequired)
+            {
+                Mark(conn, Reconnect($"Couldn't obtain an ACC access token — reconnect ACC. {t.Error}"));
+                await _db.SaveChangesAsync(ct);
+            }
+            return new PlatformTestResult(false, $"Couldn't obtain an ACC access token — {(t.ReconnectRequired ? "reconnect ACC" : "try again")}. {t.Error}");
+        }
+        return await connector.TestConnectionAsync(conn, ct);
     }
 
     // ── discovery (hubs → projects → issue subtype) ──
@@ -354,7 +384,9 @@ public class AccSyncService
 
         var tok = await AccTokenRefresher.EnsureFreshAsync(_db, _connectorFactory.GetConnector(PlatformType.ACC), conn, _logger, ct);
         if (!tok.Success)
-            return Mark(conn, Fail($"Couldn't obtain an ACC access token — (re)connect ACC. {tok.Error}"));
+            return Mark(conn, tok.ReconnectRequired
+                ? Reconnect($"Couldn't obtain an ACC access token — reconnect ACC. {tok.Error}")
+                : Fail($"Couldn't obtain an ACC access token — {tok.Error}"));
 
         var map = ReadIssueMap(cfg);
 

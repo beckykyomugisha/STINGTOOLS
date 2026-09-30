@@ -42,7 +42,8 @@ public class AccController : ControllerBase
 
     /// <summary>
     /// Push open Planscape issues to ACC. 200 for OK and PARTIAL (the report says
-    /// which), 409 when another sync holds the lock, 502 when the sync FAILED.
+    /// which), 409 when another sync holds the lock or ACC must be reconnected
+    /// (report.Status says which), 502 when the sync FAILED.
     /// </summary>
     [HttpPost("sync")]
     public async Task<ActionResult<AccSyncService.AccSyncReport>> Sync(Guid projectId, CancellationToken ct)
@@ -53,7 +54,7 @@ public class AccController : ControllerBase
         return report.Status switch
         {
             AccSyncService.StatusOk or AccSyncService.StatusPartial => Ok(report),
-            AccSyncService.StatusBusy => Conflict(report),
+            AccSyncService.StatusBusy or AccSyncService.StatusReconnect => Conflict(report),
             _ => StatusCode(502, report),
         };
     }

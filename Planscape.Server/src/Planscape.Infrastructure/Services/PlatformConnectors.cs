@@ -53,9 +53,11 @@ public class AccConnector : IPlatformConnector
         var (id, secret) = AppCreds();
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret))
             return new PlatformTokenResult(false, Error: "Acc:ClientId / Acc:ClientSecret not configured on the server.");
+        if (Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(connection.RefreshToken))
+            return new PlatformTokenResult(false, Error: AccTokenRefresher.UnreadableTokenError);
         if (string.IsNullOrWhiteSpace(connection.RefreshToken))
             return new PlatformTokenResult(false, Error:
-                "No usable refresh token — connect ACC via /api/acc/oauth/start (or the stored token could not be decrypted after a DataProtection key-ring change).");
+                "No usable refresh token — connect ACC via /api/acc/oauth/start.");
 
         var gate = _refreshLocks.GetOrAdd(connection.Id, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);

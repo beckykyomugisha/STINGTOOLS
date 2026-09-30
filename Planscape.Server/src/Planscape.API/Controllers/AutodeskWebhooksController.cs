@@ -1,8 +1,16 @@
 // Pack 13 — Autodesk Platform Services webhook receiver.
 //
-//   * dm.version.added         → stamp UpdatedAt on the matching DocumentRecord
+//   * dm.version.added / dm.version.modified → stamp UpdatedAt on the matching DocumentRecord
 //   * docs.approval.completed  → DocumentRecord.CdeStatus WIP/SHARED → PUBLISHED
 //   * model.review.completed   → SignalR notice to the project's group
+//   * issue.created-1.0 / issue.updated-1.0 → "acc.issue.changed" to the project's group
+//
+// CONNECTION RESOLUTION: hooks registered by POST acc/webhooks/subscribe
+// (AccWebhookService) carry ?connectionId=… in their callback URL, and their hook
+// ids are recorded on the connection; a pinned delivery from a hook id the
+// connection did not record is ignored. The payload.projectId lookup is kept
+// only as a fallback for hooks created before that endpoint existed — that field
+// is not verified.
 //
 // APS CONTRACT (verified 2026-09-30)
 //   * Signature: header x-adsk-signature = "sha1hash=" + hex(HMAC-SHA1(raw body,
@@ -155,7 +163,15 @@ public class AutodeskWebhooksController : ControllerBase
         switch (ev)
         {
             case "dm.version.added":
+            case "dm.version.modified":
                 await HandleVersionAdded(conn.Value.TenantId, conn.Value.ProjectId, urn, ct);
+                break;
+            case "issue.created-1.0":
+            case "issue.updated-1.0":
+                // Reported, not applied: Planscape issue status is never changed from
+                // ACC (see AccSyncService READ-BACK). Clients refresh on this signal.
+                await Broadcast(conn.Value.ProjectId, "acc.issue.changed",
+                    new { @event = ev, accIssueId = Str(root, "payload", "id"), at = DateTime.UtcNow });
                 break;
             case "docs.approval.completed":
                 await HandleApprovalCompleted(conn.Value.TenantId, conn.Value.ProjectId, urn, ct);
@@ -196,8 +212,22 @@ public class AutodeskWebhooksController : ControllerBase
         if (connectionId is Guid id && id != Guid.Empty)
         {
             var pinned = await active.Where(c => c.Id == id)
-                .Select(c => new { c.TenantId, c.ProjectId }).FirstOrDefaultAsync(ct);
-            return pinned == null ? null : (pinned.TenantId, pinned.ProjectId);
+                .Select(c => new { c.TenantId, c.ProjectId, c.ConfigJson }).FirstOrDefaultAsync(ct);
+            if (pinned == null) return null;
+
+            // When the connection recorded its hooks, the delivering hook must be one
+            // of them — a stray or foreign hook pointed at this URL is not trusted.
+            string hookId = Str(root, "hook", "hookId");
+            var probe = new PlatformConnection { ConfigJson = pinned.ConfigJson };
+            if (hookId.Length > 0
+                && Planscape.Infrastructure.Services.AccSyncService.TryParseConfig(probe, out var cfg, out _)
+                && Planscape.Infrastructure.Services.AccWebhookService.ReadHooks(cfg) is { Count: > 0 } recorded
+                && !recorded.Any(h => h.HookId == hookId))
+            {
+                _log.LogWarning("Autodesk webhook: hook {Hook} is not registered on connection {Connection} — ignored.", hookId, id);
+                return null;
+            }
+            return (pinned.TenantId, pinned.ProjectId);
         }
 
         string accProject = Str(root, "payload", "projectId");
@@ -205,7 +235,10 @@ public class AutodeskWebhooksController : ControllerBase
         if (accProject.Length == 0) return null;
         accProject = ApsEndpoints.StripHubPrefix(accProject);
 
-        var matches = await active.Where(c => c.ExternalProjectId == accProject)
+        // A stored id may carry the Data Management "b." prefix (connections made
+        // before SaveSelection normalised it) — match both forms.
+        string prefixed = "b." + accProject;
+        var matches = await active.Where(c => c.ExternalProjectId == accProject || c.ExternalProjectId == prefixed)
             .Select(c => new { c.TenantId, c.ProjectId }).Take(2).ToListAsync(ct);
         return matches.Count == 1 ? (matches[0].TenantId, matches[0].ProjectId) : null;
     }

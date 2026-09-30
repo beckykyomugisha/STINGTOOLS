@@ -39,10 +39,24 @@ public static class AccTokenRefresher
 {
     public static readonly TimeSpan DefaultBuffer = TimeSpan.FromMinutes(5);
 
-    public sealed record Outcome(bool Success, string? Error = null);
+    /// <param name="ReconnectRequired">
+    /// True when no amount of retrying will help and a person must reconnect ACC:
+    /// the stored tokens could not be decrypted, there is no refresh token, or
+    /// ACC answered invalid_grant. Callers surface it as RECONNECT_REQUIRED.
+    /// </param>
+    public sealed record Outcome(bool Success, string? Error = null, bool ReconnectRequired = false);
+
+    public const string UnreadableTokenError =
+        "The stored ACC tokens could not be decrypted (the server's DataProtection key ring changed) — reconnect ACC, or restore the key ring.";
+
+    /// <summary>True when either stored token is still ciphertext (decrypt failed).</summary>
+    public static bool TokensUnreadable(PlatformConnection c)
+        => Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(c.AccessToken)
+           || Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(c.RefreshToken);
 
     public static bool IsFresh(PlatformConnection c, TimeSpan buffer)
         => !string.IsNullOrEmpty(c.AccessToken)
+           && !Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(c.AccessToken)
            && c.TokenExpiresAt.HasValue
            && c.TokenExpiresAt.Value > DateTime.UtcNow.Add(buffer);
 
@@ -74,6 +88,18 @@ public static class AccTokenRefresher
                 }
             }
 
+            if (Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(conn.RefreshToken))
+            {
+                logger?.LogError("ACC connection {Id}: stored refresh token cannot be decrypted — RECONNECT_REQUIRED.", conn.Id);
+                if (tx != null) await tx.RollbackAsync(ct);
+                return new Outcome(false, UnreadableTokenError, ReconnectRequired: true);
+            }
+            if (string.IsNullOrWhiteSpace(conn.RefreshToken))
+            {
+                if (tx != null) await tx.RollbackAsync(ct);
+                return new Outcome(false, "No refresh token is stored — connect ACC.", ReconnectRequired: true);
+            }
+
             var result = await connector.RefreshTokenAsync(conn, ct);   // rotates onto the entity
             if (result.Success)
             {
@@ -95,7 +121,8 @@ public static class AccTokenRefresher
             }
 
             logger?.LogWarning("ACC connection {Id}: token refresh failed: {Error}", conn.Id, result.Error);
-            return new Outcome(false, result.Error ?? "Token refresh failed.");
+            bool invalidGrant = result.Error?.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase) == true;
+            return new Outcome(false, result.Error ?? "Token refresh failed.", ReconnectRequired: invalidGrant);
         }
         finally
         {

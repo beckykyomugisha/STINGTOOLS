@@ -5,7 +5,8 @@ using Planscape.Core.Interfaces;
 
 namespace Planscape.Infrastructure.Data;
 
-public class PlanscapeDbContext : DbContext
+public class PlanscapeDbContext : DbContext,
+    Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.IDataProtectionKeyContext
 {
     private readonly IHttpContextAccessor? _httpContextAccessor;
     private readonly ITenantContext? _tenantContext;
@@ -147,6 +148,13 @@ public class PlanscapeDbContext : DbContext
     public DbSet<CostItem> CostItems => Set<CostItem>();
     public DbSet<DocumentApproval> DocumentApprovals => Set<DocumentApproval>();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
+
+    /// <summary>
+    /// ASP.NET DataProtection key ring (DataProtectionKeyStore, database store).
+    /// Not tenant-scoped. Reaches existing databases via PlatformSchemaPatcher.
+    /// </summary>
+    public DbSet<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey> DataProtectionKeys
+        => Set<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>();
     public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
     public DbSet<SyncConflict> SyncConflicts => Set<SyncConflict>();
     public DbSet<SyncWatermark> SyncWatermarks => Set<SyncWatermark>();
@@ -1169,6 +1177,12 @@ public class PlanscapeDbContext : DbContext
                     v => Planscape.Infrastructure.Security.PlatformTokenProtection.Protect(v!),
                     v => Planscape.Infrastructure.Security.PlatformTokenProtection.Unprotect(v));
             e.Property(c => c.WebhookSecret).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>(e =>
+        {
+            e.ToTable("DataProtectionKeys");
+            e.HasKey(k => k.Id);
         });
 
         // ── DocumentVersion ──

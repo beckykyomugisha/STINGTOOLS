@@ -490,23 +490,14 @@ else if (!string.IsNullOrEmpty(builder.Configuration["Smtp:Host"])
 else
     builder.Services.AddSingleton<Planscape.Core.Interfaces.IEmailService, Planscape.Infrastructure.Services.NullEmailService>();
 
-// ── DataProtection key ring (WS5) ──
-// When DataProtection:KeysPath is set (prod mounts a persistent named volume at
-// /app/keys), persist the key ring to disk + pin the application name so keys
-// survive container restarts/redeploys. Without this, ASP.NET regenerates an
-// ephemeral in-memory key ring on every boot — logging the "No XML encryptor /
-// keys not persisted" warning and invalidating anything protected by the prior
-// key (auth cookies, antiforgery tokens, share links) on each restart. Unset
-// (dev) keeps the default ephemeral behaviour, so a bare `docker compose up`
-// is unchanged.
-var dpKeysPath = builder.Configuration["DataProtection:KeysPath"];
-if (!string.IsNullOrWhiteSpace(dpKeysPath))
-{
-    try { Directory.CreateDirectory(dpKeysPath); } catch { /* dir may already exist / be a mount */ }
-    builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo(dpKeysPath))
-        .SetApplicationName("Planscape");
-}
+// ── DataProtection key ring (WS5, durable by default since the ACC follow-ups) ──
+// The ring encrypts the ACC OAuth tokens at rest, the MFA/SSO *Encrypted columns
+// and the ACC OAuth state. An ephemeral ring makes all of that unreadable after
+// every restart, and differs between the API and the worker. Default store is
+// the app database ("DataProtectionKeys", shared by API + worker); KeysPath is
+// still honoured when set. See Services/DataProtectionKeyStore for the rules.
+// The choice is logged once the app is built (ERROR if ephemeral in Production).
+var dpKeyStore = Planscape.API.Services.DataProtectionKeyStore.Configure(builder.Services, builder.Configuration);
 
 // ── Push Notifications ──
 // Supports both raw FCM tokens (via Firebase Project) and ExponentPushToken[…]
@@ -674,6 +665,7 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.MappingReconciliati
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 // #3 — server-side ACC issue sync (push Planscape issues → ACC + token-unification seam).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.AccSyncService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.AccWebhookService>();
 // ACC OAuth state: sealed (DataProtection, time-limited) + single-use (IReplayGuard).
 builder.Services.AddScoped<Planscape.API.Services.AccOAuthState>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
@@ -1206,12 +1198,16 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.IReplayGuard,
 
 var app = builder.Build();
 
+Planscape.API.Services.DataProtectionKeyStore.LogChoice(
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("DataProtection"),
+    dpKeyStore, app.Environment.IsProduction());
+
 // Platform OAuth tokens (PlatformConnection.AccessToken / RefreshToken) are
 // encrypted at rest by an EF value converter. It refuses to write plaintext, so
 // it must be configured before the first DbContext write. Same DataProtection
-// key ring as the MFA / SSO *Encrypted columns — without DataProtection:KeysPath
-// the ring is ephemeral and stored tokens become unreadable after a restart
-// (the connection then reports "reconnect ACC"; nothing is fabricated).
+// key ring as the MFA / SSO *Encrypted columns (DataProtectionKeyStore above).
+// If the ring is ever lost, stored tokens read back as unreadable and the
+// connection reports RECONNECT_REQUIRED; nothing is fabricated.
 Planscape.Infrastructure.Security.PlatformTokenProtection.Configure(
     new Planscape.API.Services.DataProtectionSecretCipher(
         app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>()

@@ -2,6 +2,44 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC server follow-ups — one code path, durable keys, webhooks, 2026-09-30)
+
+Closes the items the server-side ACC fix (535c425fc) left open. `Planscape.Server` only; not
+run against a live ACC tenant or a deployed server (ROADMAP ACC-SRV-5).
+
+- **One ACC code path.** `PlatformController` `/test` and `/sync` no longer call `AccConnector`
+  for an ACC connection. `/sync` is `AccSyncService.SyncProjectAsync` with the same write gate
+  and status codes as `acc/sync`, and returns the `AccSyncReport`; `/test` refreshes through
+  `AccTokenRefresher` (advisory lock, rotation saved at once) before the hubs probe. The generic
+  path used to overwrite OK / PARTIAL / FAILED with a count-only "OK".
+- **Durable DataProtection keys (`Services/DataProtectionKeyStore`).** The key ring is stored in
+  the app database by default (`DataProtectionKeys`, via
+  `Microsoft.AspNetCore.DataProtection.EntityFrameworkCore`; OnModelCreating for a fresh DB,
+  `PlatformSchemaPatcher` `CREATE TABLE IF NOT EXISTS` for an existing one — no EF migration).
+  API and worker share it; Render's API/worker have no disk. `DataProtection:KeysPath` is still
+  honoured; `DataProtection:KeyStore` = auto | database | filesystem | ephemeral. The store in
+  use is logged at startup; an ephemeral ring in Production is logged as an ERROR.
+- **Unreadable tokens.** A token that cannot be decrypted now reads back as its ciphertext
+  (`PlatformTokenProtection.IsUnreadable`), not as null. It is never sent to APS or handed to
+  the plugin. The sync, `/test` and webhook registration report the new status
+  `RECONNECT_REQUIRED`, which also covers invalid_grant and a missing refresh token. The
+  connection DTO has `TokensUnreadable`. A client may not store a value that starts `enc:v1:`.
+- **Webhook registration (`AccWebhookService`, `AccWebhookSubscriptionsController`).**
+  `POST acc/webhooks/subscribe` (project access + `CanAdministerProject`) sets the APS webhook
+  secret to `Autodesk:WebhookSecret`, then creates `autodesk.construction.issues`
+  `issue.created-1.0` / `issue.updated-1.0` hooks (project scope) and, per folder URN given,
+  `data` `dm.version.added` / `dm.version.modified` hooks (folder scope). The callback URL
+  carries `?connectionId=`; hook ids (from the `Location` header) are saved per hook under the
+  server-owned `accWebhookHooks` key. `DELETE acc/webhooks` removes them.
+- **Webhook receiver.** A pinned delivery from a hook the connection did not register is
+  ignored. `dm.version.modified` and the issue events are handled (issues: an
+  `acc.issue.changed` broadcast; ACC status is still not applied). The `payload.projectId`
+  fallback matches a stored id with or without the `b.` prefix.
+- **Tests.** `AccServerIntegrationTests` 45 (was 25): PlatformController ACC routing, key-store
+  selection and a database ring surviving a restart, unreadable token, invalid_grant, webhook
+  duplicate delivery, tenant scoping, unsigned / wrongly signed / secretless rejection,
+  registration with a fake APS.
+
 #### Completed (ACC hardening — review findings, APS-verified, 2026-09-30)
 
 A review of the whole ACC integration, then fixes checked against the APS reference and
