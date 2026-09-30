@@ -914,7 +914,9 @@ namespace StingTools.Commands.Lightning
                     // and SyncStyles can manage it like any other STING-produced
                     // view. Silently skips when STING_DRAWING_TYPE_ID_TXT isn't
                     // bound on Views (projects pre-Phase 113).
-                    try { DrawingTypeStamper.Stamp(draftingView, "elec-lps-coverage-A3"); }
+                    // The id comes from routing (E / LPS_COVERAGE); "elec-lps-coverage-A3",
+                    // stamped here before, was in no drawing type until it was added.
+                    try { DrawingTypeStamper.Stamp(draftingView, DrawingRouteResolver.IdFor(doc, DrawingRouteRequests.LpsCoverage)); }
                     catch (Exception ex) { StingLog.Warn($"DrawingType stamp: {ex.Message}"); }
 
                     // Resolve filled region type

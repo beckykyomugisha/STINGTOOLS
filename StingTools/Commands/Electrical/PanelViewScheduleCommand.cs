@@ -76,44 +76,64 @@ namespace StingTools.Commands.Electrical
                 ? doc.GetElement(sheetId) as ViewSheet
                 : null;
 
-            int created = 0, placed = 0, skipped = 0;
+            int created = 0, reused = 0, placed = 0, alreadyPlaced = 0, skipped = 0;
             using (var tx = new Transaction(doc, "STING Place Panel ViewSchedules"))
             {
                 tx.Start();
                 double y = 0;
+                var byName = SchedulesByName(doc);
                 foreach (var panel in panels)
                 {
+                    // The board's Panel Name, as AutoSheets uses: panel.Name is the family type
+                    // name, which the circuits' "Panel" field never equals, so the filter left
+                    // every schedule empty — and boards sharing a type deleted each other's.
+                    string panelName = BoardName(panel);
                     try
                     {
-                        string viewName = $"STING - Panel - {panel.Name}";
-                        var existing = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
-                            .FirstOrDefault(v => string.Equals(v.Name, viewName, StringComparison.OrdinalIgnoreCase));
-                        if (existing != null)
+                        string viewName = $"STING - Panel - {panelName}";
+                        // Reused (refiltered), not deleted and remade: deleting took the schedule
+                        // off every sheet AutoSheets had put it on. It is the same schedule both
+                        // modes make.
+                        if (byName.TryGetValue(viewName, out var schedule))
                         {
-                            try { doc.Delete(existing.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); skipped++; continue; }
+                            ResetPanelFilter(schedule, panelName);
+                            reused++;
                         }
-                        var schedule = ViewSchedule.CreateSchedule(doc,
-                            new ElementId(BuiltInCategory.OST_ElectricalCircuit));
-                        try { schedule.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                        AddCircuitFields(schedule);
-                        AddPanelFilter(schedule, panel.Name);
+                        else
+                        {
+                            schedule = ViewSchedule.CreateSchedule(doc,
+                                new ElementId(BuiltInCategory.OST_ElectricalCircuit));
+                            try { schedule.Name = viewName; }
+                            catch (Exception ex) { StingLog.Warn($"Panel schedule name '{viewName}': {ex.Message}"); }
+                            AddCircuitFields(schedule);
+                            AddPanelFilter(schedule, panelName);
+                            byName[viewName] = schedule;
+                            created++;
+                        }
                         StampDrawingType(schedule, _drawingTypeId);
-                        created++;
 
                         if (sheet != null)
                         {
                             try
                             {
-                                var pt = new XYZ(0.5, 0.5 - y, 0);
-                                Viewport.Create(doc, sheet.Id, schedule.Id, pt);
-                                placed++;
-                                y += 0.4;
+                                // A schedule goes on a sheet as a ScheduleSheetInstance;
+                                // Viewport.Create refuses a schedule view, so nothing was placed.
+                                bool onSheet = new FilteredElementCollector(doc, sheet.Id)
+                                    .OfClass(typeof(ScheduleSheetInstance)).Cast<ScheduleSheetInstance>()
+                                    .Any(i => i.ScheduleId == schedule.Id);
+                                if (onSheet) alreadyPlaced++;
+                                else
+                                {
+                                    var pt = new XYZ(0.5, 0.5 - y, 0);
+                                    ScheduleSheetInstance.Create(doc, sheet.Id, schedule.Id, pt);
+                                    placed++;
+                                    y += 0.4;
+                                }
                             }
-                            catch (Exception ex2) { StingLog.Warn($"Viewport.Create: {ex2.Message}"); }
+                            catch (Exception ex2) { StingLog.Warn($"Place schedule '{viewName}' on sheet: {ex2.Message}"); }
                         }
                     }
-                    catch (Exception ex2) { StingLog.Warn($"PanelViewSchedule {panel.Name}: {ex2.Message}"); skipped++; }
+                    catch (Exception ex2) { StingLog.Warn($"PanelViewSchedule {panelName}: {ex2.Message}"); skipped++; }
                 }
                 var status = tx.Commit();
                 if (status != TransactionStatus.Committed)
@@ -126,7 +146,9 @@ namespace StingTools.Commands.Electrical
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Sheet Placement",
-                $"Created {created} ViewSchedule(s). Placed on sheet: {placed}. Skipped: {skipped}.\n\n" +
+                $"ViewSchedules: {created} created, {reused} reused. Placed on sheet: {placed}"
+                + (alreadyPlaced > 0 ? $" ({alreadyPlaced} already there)" : "")
+                + (sheet == null ? " (no target sheet chosen)" : "") + $". Skipped: {skipped}.\n\n" +
                 "Note: ViewSchedule does not show Revit-computed totals. For live computed-cell data, use the native panel schedule and drag manually.");
             return Result.Succeeded;
         }
@@ -167,10 +189,7 @@ namespace StingTools.Commands.Electrical
             using (var tx = new Transaction(doc, "STING Panel Schedules on Sheets"))
             {
                 tx.Start();
-                var byName = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
-                    .Where(v => !v.IsTemplate)
-                    .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                var byName = SchedulesByName(doc);
                 foreach (var panel in panels)
                 {
                     string panelName = BoardName(panel);
@@ -189,7 +208,7 @@ namespace StingTools.Commands.Electrical
                         else reusedSchedules++;
 
                         var pr = StingTools.Core.Drawing.DrawingProducer.PlaceExistingView(doc, dt,
-                            new StingTools.Core.Drawing.DrawingContext { Tag = "PANEL-" + panel.Id.Value, FormerDrawingTypeIds = stampIds }, schedule);
+                            new StingTools.Core.Drawing.DrawingContext { Tag = StingTools.Core.Drawing.BoardNaming.ScheduleSheetTag(panel.Id.Value), FormerDrawingTypeIds = stampIds }, schedule);
                         warnings.AddRange(pr.Warnings.Select(w => $"{panelName}: {w}"));
                         if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) newSheets++;
                         if (pr.ViewportIds.Count == 0) { failed++; continue; }
@@ -226,15 +245,31 @@ namespace StingTools.Commands.Electrical
         }
 
         /// <summary>The board's Panel Name — what a circuit's "Panel" field reads — else its element name.</summary>
-        private static string BoardName(FamilyInstance panel)
+        private static string BoardName(FamilyInstance panel) => StingTools.Core.Drawing.BoardNames.Of(panel);
+
+        private static Dictionary<string, ViewSchedule> SchedulesByName(Document doc)
+            => new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                .Where(v => !v.IsTemplate)
+                .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Point a reused schedule's Panel filter at <paramref name="panelName"/>: a schedule
+        /// made before the filter used the Panel Name filtered on the type name and was empty.
+        /// </summary>
+        private static void ResetPanelFilter(ViewSchedule sched, string panelName)
         {
             try
             {
-                var n = panel.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
-                if (!string.IsNullOrWhiteSpace(n)) return n.Trim();
+                var def = sched.Definition;
+                var panelField = def.GetFieldOrder().Select(id => def.GetField(id))
+                    .FirstOrDefault(f => f.GetName() == "Panel");
+                if (panelField == null) return;
+                for (int i = def.GetFilterCount() - 1; i >= 0; i--)
+                    if (def.GetFilter(i).FieldId == panelField.FieldId) def.RemoveFilter(i);
+                def.AddFilter(new ScheduleFilter(panelField.FieldId, ScheduleFilterType.Equal, panelName));
             }
-            catch (Exception ex) { StingLog.Warn($"Panel name {panel?.Id}: {ex.Message}"); }
-            return panel?.Name ?? panel?.Id.ToString() ?? "(unnamed)";
+            catch (Exception ex) { StingLog.Warn($"ResetPanelFilter '{sched?.Name}': {ex.Message}"); }
         }
 
         private static void ShowGuidedManual(Document doc)

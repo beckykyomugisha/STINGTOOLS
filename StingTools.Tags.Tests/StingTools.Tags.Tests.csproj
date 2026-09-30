@@ -262,6 +262,8 @@
          DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingRouteRequests.cs" Link="Core\Drawing\DrawingRouteRequests.cs" />
+    <!-- Board name + per-board sheet keys. PanelViewSchedule and PanelDoorDiagram call this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\BoardNaming.cs" Link="Core\Drawing\BoardNaming.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingSlotGeometry.cs" Link="Core\Drawing\DrawingSlotGeometry.cs" />
     <!-- Scope-box planner: grammar, sizing, seed choice, tiling, saved plan and colours.
          ScopeBoxPlannerDialog and the ScopeBox_* commands call these same files. -->

@@ -14,6 +14,7 @@ using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Electrical;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Commands.Electrical.Schematics
 {
@@ -61,7 +62,7 @@ namespace StingTools.Commands.Electrical.Schematics
                         && fi.Category?.Id?.Value ==
                            (long)BuiltInCategory.OST_ElectricalEquipment);
             }
-            catch { /* no active selection — fall through to picker */ }
+            catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram: read selection: {ex.Message}"); }
 
             // Inside a preset nobody can pick: the step names the board in params.panel
             // (its Panel Name or element name). No name is a skip with the reason.
@@ -75,7 +76,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     return Result.Cancelled;
                 }
                 chosenPanel = panels.FirstOrDefault(p =>
-                    string.Equals(p.LookupParameter("Panel Name")?.AsString(), want, StringComparison.OrdinalIgnoreCase)
+                    string.Equals(BoardNames.Of(p), want, StringComparison.OrdinalIgnoreCase)
                     || string.Equals(p.Name, want, StringComparison.OrdinalIgnoreCase));
                 if (chosenPanel == null)
                 {
@@ -104,10 +105,7 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 for (int i = 0; i < candidates.Count; i++)
                 {
-                    string nm = candidates[i]
-                        .LookupParameter("Panel Name")?.AsString()
-                        ?? candidates[i].Name
-                        ?? $"Panel {i + 1}";
+                    string nm = BoardNames.Of(candidates[i]);
                     td.AddCommandLink(cmdLinks[i], nm);
                 }
 
@@ -129,10 +127,10 @@ namespace StingTools.Commands.Electrical.Schematics
             }
 
             // Read panel data.
-            string panelName = chosenPanel
-                .LookupParameter("Panel Name")?.AsString()
-                ?? chosenPanel.Name
-                ?? "Panel";
+            // One reading of the board's name (Panel Name, else element name), shared with
+            // the panel schedules. LookupParameter("Panel Name") gave "" for an empty Panel
+            // Name, so the ?? fall-back never reached the element name.
+            string panelName = BoardNames.Of(chosenPanel);
 
             // ELEC-15 — the shared slot-count rule (Max Single Pole Breakers, then
             // Max Number of Circuits). The old "24" fallback invented a board size.
@@ -156,7 +154,7 @@ namespace StingTools.Commands.Electrical.Schematics
                 .Where(es =>
                 {
                     try { return es.BaseEquipment?.Id == chosenPanel.Id; }
-                    catch { return false; }
+                    catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram: base equipment of {es?.Id}: {ex.Message}"); return false; }
                 })
                 .ToList();
 
@@ -225,11 +223,11 @@ namespace StingTools.Commands.Electrical.Schematics
                 tx.Start();
 
                 string viewName = $"STING - Panel Layout - {panelName}";
-                var view = CreateDraftingView(doc, viewName);
+                var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, viewName, out string viewError);
                 if (view == null)
                 {
                     tx.RollBack();
-                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING Panel Door Diagram", message);
                     return Result.Failed;
                 }
@@ -240,8 +238,12 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 // Onto a sheet of the drawing type routing gives E / PANEL_DOOR_DIAGRAM —
                 // one sheet per board (the context tag), so boards do not replace each other.
+                // Keyed by element id: keyed by name, renaming the board minted a second
+                // sheet. A sheet made under the old name-keyed tag is adopted first.
+                string sheetTag = BoardNaming.DoorDiagramSheetTag(chosenPanel.Id.Value);
+                AdoptLegacySheet(doc, panelName, sheetTag);
                 string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,
-                    StingTools.Core.Drawing.DrawingRouteRequests.PanelDoorDiagram, view, "PANEL-DOOR:" + panelName);
+                    DrawingRouteRequests.PanelDoorDiagram, view, sheetTag);
 
                 PresetDialog.Show("STING Panel Door Diagram",
                     $"Panel door diagram generated.\n\n" +
@@ -318,8 +320,8 @@ namespace StingTools.Commands.Electrical.Schematics
                     DrawBox(doc, view, brkX, brkY, brkW, brkH);
 
                     // Circuit description and rating.
-                    string desc   = es.LookupParameter("ELC_CIRCUIT_DESC_TXT")?.AsString() ?? "";
-                    string rating = es.LookupParameter("ELC_CIRCUIT_RATING_TXT")?.AsString() ?? "";
+                    string desc   = es.LookupParameter(ParamRegistry.CIRCUIT_DESC)?.AsString() ?? "";
+                    string rating = es.LookupParameter(ParamRegistry.CIRCUIT_RATING)?.AsString() ?? "";
                     if (string.IsNullOrEmpty(rating))
                         rating = es.get_Parameter(BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM)
                                     ?.AsValueString() ?? "";
@@ -349,6 +351,37 @@ namespace StingTools.Commands.Electrical.Schematics
 
         // ---------------------------------------------------------------- helpers
 
+        /// <summary>
+        /// A door-diagram sheet made before sheets were keyed by element id carries the
+        /// board's name as its context tag. Re-tag it by id, so the placement finds it (and
+        /// a later rename keeps it) instead of making a second sheet.
+        /// </summary>
+        private static void AdoptLegacySheet(Document doc, string boardName, string idTag)
+        {
+            try
+            {
+                var req = DrawingRouteRequests.PanelDoorDiagram;
+                var typeIds = new HashSet<string>(
+                    DrawingRouteRequests.StampIds(DrawingRouteResolver.IdFor(doc, req), req), StringComparer.OrdinalIgnoreCase);
+                var sheets = new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>().ToList();
+                if (sheets.Any(s => string.Equals(DrawingTypeStamper.ReadSheetContext(s), idTag, StringComparison.Ordinal)))
+                    return;   // already keyed by id
+                var legacy = sheets.FirstOrDefault(s =>
+                    BoardNaming.IsLegacyDoorDiagramTagFor(DrawingTypeStamper.ReadSheetContext(s), boardName)
+                    && typeIds.Contains(ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID)));
+                if (legacy == null) return;
+                using (var tx = new Transaction(doc, "STING Re-key Panel Door Sheet"))
+                {
+                    tx.Start();
+                    bool ok = DrawingTypeStamper.StampSheetContext(legacy, idTag);
+                    var status = tx.Commit();
+                    StingLog.Info($"PanelDoorDiagram: sheet {legacy.SheetNumber} re-keyed from '{boardName}' to {idTag}: "
+                                  + (ok && status == TransactionStatus.Committed ? "done" : $"not done ({status})"));
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram: adopt legacy sheet for '{boardName}': {ex.Message}"); }
+        }
+
         private static List<int> ParseCircuitSlots(string circuitNumber)
             => StingTools.Core.Electrical.CircuitSlotParser.Parse(circuitNumber);
 
@@ -364,20 +397,6 @@ namespace StingTools.Commands.Electrical.Schematics
             catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram poles {es?.Id}: {ex.Message}"); return 1; }
         }
 
-        private static ViewDrafting CreateDraftingView(Document doc, string name)
-        {
-            var vft = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
-            if (vft == null) return null;
-            var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram view name '{name}': {ex.Message}"); }
-            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
-            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
-            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram scale: {ex.Message}"); }
-            return v;
-        }
 
         private static double Mm(double mm) => mm / 304.8;
 

@@ -25,7 +25,7 @@ namespace StingTools.Commands.Electrical.ArcFlash
         private const double RowSpacingMm  = 105;
         private const double ColWidthMm    = 110;
         private const int    LabelsPerRow  = 5;
-        private const string DrawingTypeId = "elec-arc-flash-labels";
+        private const string ViewName      = "STING - Arc Flash Labels (" + ArcFlashEngine.BasisShort + ")";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -36,22 +36,29 @@ namespace StingTools.Commands.Electrical.ArcFlash
             var rows = ArcFlashCommand.LastResults;
             if (rows == null || rows.Count == 0)
             {
-                TaskDialog.Show("STING Arc Flash Labels",
-                    "No arc-flash results found. Run Arc Flash Calc first.");
+                PresetDialog.Show("STING Arc Flash Labels",
+                    "No arc-flash results found. Run Arc Flash Calc first.", ref message);
                 return Result.Cancelled;
             }
+
+            // The drawing type routing gives E / ARC_FLASH_LABELS. The id this stamped,
+            // "elec-arc-flash-labels", used to be in no drawing type.
+            var req = StingTools.Core.Drawing.DrawingRouteRequests.ArcFlashLabels;
+            string drawingTypeId = StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, req);
 
             ViewDrafting view = null;
             using (var tx = new Transaction(doc, "STING Arc Flash Label Sheet"))
             {
                 tx.Start();
-                var dvft = new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewFamilyType)).Cast<ViewFamilyType>()
-                    .FirstOrDefault(v => v.ViewFamily == ViewFamily.Drafting);
-                if (dvft == null) { tx.RollBack(); message = "No drafting view family type found."; return Result.Failed; }
-
-                view = ViewDrafting.Create(doc, dvft.Id);
-                try { view.Name = $"STING - Arc Flash Labels ({ArcFlashEngine.BasisShort}) - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                // One view, redrawn on every run (a timestamped name left one per run).
+                view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, ViewName, out string viewError);
+                if (view == null)
+                {
+                    tx.RollBack();
+                    message = "Could not make the drafting view: " + viewError;
+                    if (!PresetDialog.Quiet) TaskDialog.Show("STING Arc Flash Labels", message);
+                    return Result.Failed;
+                }
 
                 var solidFill = ParameterHelpers.GetSolidFillPattern(doc);
                 var frt = new FilteredElementCollector(doc)
@@ -90,14 +97,21 @@ namespace StingTools.Commands.Electrical.ArcFlash
                     if (col >= LabelsPerRow) { col = 0; row++; }
                 }
 
-                StampDrawingType(view);
+                StampDrawingType(view, drawingTypeId);
                 tx.Commit();
             }
-            try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Arc Flash Labels",
-                $"Created drafting view '{view?.Name}' with {rows.Count} label(s).\n\n" +
-                $"Basis: {ArcFlashEngine.Basis}. Panels that could not be calculated have no label.");
+
+            // Onto its drawing type's sheet (found again by stamp; a re-run's labels replace these).
+            string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc, req, view);
+
+            if (!PresetDialog.Quiet)
+            {
+                try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Arc flash labels: activate view: {ex.Message}"); }
+            }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Arc flash labels: compliance cache: {ex.Message}"); }
+            PresetDialog.Show("STING Arc Flash Labels",
+                $"Drafting view '{view?.Name}' drawn with {rows.Count} label(s).\n\n" +
+                $"Basis: {ArcFlashEngine.Basis}. Panels that could not be calculated have no label.\n\n" + sheetLine, ref message);
             return Result.Succeeded;
         }
 
@@ -132,11 +146,11 @@ namespace StingTools.Commands.Electrical.ArcFlash
             catch (Exception ex) { StingLog.Warn($"DrawLabelBorder: {ex.Message}"); }
         }
 
-        private static void StampDrawingType(View v)
+        private static void StampDrawingType(View v, string drawingTypeId)
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, drawingTypeId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }
