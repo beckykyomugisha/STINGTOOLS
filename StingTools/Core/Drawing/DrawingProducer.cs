@@ -1632,10 +1632,13 @@ namespace StingTools.Core.Drawing
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
 
                 // SLOT-3: warn on a view/slot type mismatch rather than
-                // placing it silently into the wrong slot.
+                // placing it silently into the wrong slot. DTW-63: slot terms
+                // are STING vocabulary ("Plan", "3D", "RCP"), not Revit enum
+                // names ("FloorPlan", "ThreeD", "CeilingPlan"); compare through
+                // the predicate the placement bridge uses.
                 if (sp?.Slot != null && !string.IsNullOrWhiteSpace(sp.Slot.ViewType)
                     && doc.GetElement(viewId) is View vChk
-                    && !string.Equals(vChk.ViewType.ToString(), sp.Slot.ViewType, StringComparison.OrdinalIgnoreCase))
+                    && !SlotViewTypeCompatibility.IsCompatible(vChk.ViewType.ToString(), sp.Slot.ViewType))
                 {
                     result.Warnings.Add(
                         $"View '{vChk.Name}' ({vChk.ViewType}) placed into slot '{sp.Slot.Label}' " +
