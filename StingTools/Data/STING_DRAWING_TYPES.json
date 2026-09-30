@@ -61,7 +61,7 @@
       "id": "arch-plan-A1-1to100",
       "name": "Architectural Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "4631f17fff518d44324faa8e1daf0422cda826c9fc40da42fc04bb0ece2a9cbe",
+      "checksum": "54b3264ac6632f7e2378b3d71bd6d988a5a50d54593cb4f90b42e2b83ea587bb",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -218,8 +218,7 @@
         "Discipline": "Architectural",
         "Suitability": "S2",
         "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "A-{lvl}-{seq:D3}"
+        "Revision": "P01"
       },
       "isoNaming": {
         "volume": "01",
@@ -1422,7 +1421,7 @@
       "id": "pipe-spool-A1-1to50",
       "name": "Pipe Spool — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "6f4b6b8220762d10f15752f0f83211cf039c3f1866d19896b2245dae6066cd34",
+      "checksum": "184b42631263a75b1228820962a3e9e219495ae5eb2e0c909412e3e4cd11c244",
       "purpose": "Spool",
       "discipline": "P",
       "paperSize": "A1",
@@ -1579,8 +1578,7 @@
         "Sheet Status": "FOR FABRICATION",
         "Spool Number": "{spool}",
         "System Code": "{sys}",
-        "Level Code": "{lvl}",
-        "Sheet Number": "SP-{disc}-{sys}-{lvl}-{seq:D4}"
+        "Level Code": "{lvl}"
       },
       "isoNaming": {
         "volume": "02",
@@ -10316,7 +10314,7 @@
       "id": "mech-equip-schedule-A3",
       "name": "Mechanical Equipment Schedule - A3",
       "origin": "corporate",
-      "checksum": "adbdcf0ccfbe3750e86b81434804011adf09d5456d7190166cb3e358dac768eb",
+      "checksum": "deb60bfe9546a18aa689f84bf7812d971703b7eedb13e589e9ed5a99e4b29411",
       "purpose": "Schedule",
       "discipline": "M",
       "system": "HVAC",
@@ -10336,8 +10334,7 @@
         "Discipline": "Mechanical",
         "Suitability": "S2",
         "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "M-SCH-EQ-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "M-SCH-EQ-{seq:D2}",
       "sheetNamePattern": "MECHANICAL EQUIPMENT SCHEDULE",
@@ -10376,7 +10373,7 @@
       "id": "elec-panel-schedule-A3",
       "name": "Electrical Panel / Equipment Schedule - A3",
       "origin": "corporate",
-      "checksum": "c987755f048a6884465a1ae0e86626ec6f901755d5564d1daf27997579c2eb6e",
+      "checksum": "510ae5f64e903944b3789e7ba5e722f30faa7fc1f2c76abb04d59734c3d10dea",
       "purpose": "Schedule",
       "discipline": "E",
       "system": "LV",
@@ -10396,8 +10393,7 @@
         "Discipline": "Electrical",
         "Suitability": "S2",
         "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "E-SCH-PNL-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "E-SCH-PNL-{seq:D2}",
       "sheetNamePattern": "ELECTRICAL PANEL SCHEDULE",
@@ -10436,7 +10432,7 @@
       "id": "valve-schedule-A3",
       "name": "Valve Schedule - A3",
       "origin": "corporate",
-      "checksum": "3734ab369fb060c3847ecfc50b967d19d744e451b03ae96976473b78a63a80b0",
+      "checksum": "5fd14d1b0cf49e224d054055e9be5e0a3759056c4475efc5de69bcb9496643a4",
       "purpose": "Schedule",
       "discipline": "P",
       "paperSize": "A3",
@@ -10455,8 +10451,7 @@
         "Discipline": "Plumbing",
         "Suitability": "S2",
         "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "P-SCH-VLV-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "P-SCH-VLV-{seq:D2}",
       "sheetNamePattern": "VALVE SCHEDULE",
@@ -12125,7 +12120,7 @@
       "id": "elec-arc-flash-schedule",
       "name": "Arc Flash Schedule - A3",
       "origin": "corporate",
-      "checksum": "cc056b5be9c88eecf2c8b5b47ced95050a492ee405557ff0a4d822acff0f2fa3",
+      "checksum": "81443e559ac66548eeae310e80d25ee7130a42ac8f806f131cf4e4762dd9cff6",
       "purpose": "Schedule",
       "discipline": "E",
       "system": "LV",
@@ -12145,8 +12140,7 @@
         "Discipline": "Electrical",
         "Suitability": "S2",
         "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "E-SCH-AF-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "E-SCH-AF-{seq:D2}",
       "sheetNamePattern": "ARC FLASH SCHEDULE (INDICATIVE)",

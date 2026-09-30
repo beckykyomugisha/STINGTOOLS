@@ -662,6 +662,9 @@ namespace StingTools.Core.Drawing
                         Parameter p;
                         try { p = tb.LookupParameter(paramName); } catch { continue; }
                         if (p == null || p.IsReadOnly) continue;
+                        // DTW-5: the applier refuses the sheet's own number/name,
+                        // so a mismatch there is not drift Heal could repair.
+                        if (TitleBlockParamApplier.IsSheetIdentityParameter(paramName, p)) break;
                         string actual;
                         switch (p.StorageType)
                         {

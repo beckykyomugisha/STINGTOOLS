@@ -35,6 +35,9 @@ namespace StingTools.Core.Drawing
         public int CellsUnresolved { get; set; }
         /// <summary>Title-block instances skipped because PRJ_TB_LOCK_BOOL was set.</summary>
         public int LockedSkipped { get; set; }
+        /// <summary>Declared keys refused because they address the sheet's own
+        /// number or name (DTW-5) — those change only through SheetNumbering.</summary>
+        public List<string> SheetIdentityRefused { get; } = new List<string>();
         /// <summary>Declared keys the title-block family has no parameter for.</summary>
         public List<string> ParametersMissing { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
@@ -70,6 +73,14 @@ namespace StingTools.Core.Drawing
             foreach (var kv in dt.TitleBlockParams)
             {
                 if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                // DTW-5: a title block exposes the sheet's own Sheet Number / Sheet
+                // Name, so writing one from a profile renumbered the sheet behind
+                // SheetNumbering.Apply — no ISO policy, no lock check, no history.
+                if (DrawingQaRules.IsSheetIdentityParam(kv.Key, null))
+                {
+                    RefuseSheetIdentity(r, sheet, kv.Key);
+                    continue;
+                }
                 TitleBlockTemplateResult res;
                 try { res = ResolveTemplate(doc, kv.Value ?? "", tokens); }
                 catch (Exception ex)
@@ -143,6 +154,13 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"Title block has no parameter '{paramName}'.");
                         continue;
                     }
+                    // DTW-5: the key may be a localised or aliased name for the
+                    // built-in sheet number / name — decide by what it IS.
+                    if (IsSheetIdentityParameter(paramName, p))
+                    {
+                        RefuseSheetIdentity(r, sheet, paramName);
+                        continue;
+                    }
                     if (p.IsReadOnly)
                     {
                         r.Warnings.Add($"Parameter '{paramName}' is read-only.");
@@ -211,6 +229,33 @@ namespace StingTools.Core.Drawing
                 StingTools.Core.StingLog.Warn($"IsTitleBlockLocked: {ex.Message}");
             }
             return false;
+        }
+
+        /// <summary>
+        /// DTW-5: true when <paramref name="p"/> is the sheet's own number or
+        /// name, recognised by its BuiltInParameter (so a localised label or
+        /// an alias is still caught) as well as by the declared key.
+        /// </summary>
+        internal static bool IsSheetIdentityParameter(string key, Parameter p)
+        {
+            string bip = null;
+            try
+            {
+                if (p?.Definition is InternalDefinition idef)
+                    bip = idef.BuiltInParameter.ToString();
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"IsSheetIdentityParameter '{key}': {ex.Message}"); }
+            return DrawingQaRules.IsSheetIdentityParam(key, bip);
+        }
+
+        private static void RefuseSheetIdentity(TitleBlockApplyResult r, ViewSheet sheet, string key)
+        {
+            if (r.SheetIdentityRefused.Contains(key)) return;
+            r.SheetIdentityRefused.Add(key);
+            r.Warnings.Add(
+                $"Sheet '{sheet?.SheetNumber}': '{key}' not written — it is the sheet's own number/name, " +
+                "which changes only through the renumber tools (SheetNumbering.Apply). Remove the key " +
+                "from the profile's titleBlockParams.");
         }
 
         public static IDisposable Batch() => NoOpScope.Instance;
