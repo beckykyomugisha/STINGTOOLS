@@ -1779,6 +1779,59 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// The ZONE twin of <see cref="BuildScopeBoxLocIndex"/>: every scope box named
+        /// <c>STING-ZONE::&lt;zoneCode&gt;</c> becomes a plan rectangle tagged with that
+        /// zone code (carried in <see cref="ScopeBoxLoc.Loc"/>). A name that claims the
+        /// prefix but fails the grammar (<see cref="Drawing.ScopeBoxNames.TryParseZone"/>)
+        /// is skipped and logged — its code would otherwise land in the tag. Same
+        /// containment rules as LOC: plan extents only, so draw zone boxes UNROTATED.
+        /// </summary>
+        public static List<ScopeBoxLoc> BuildScopeBoxZoneIndex(Document doc)
+        {
+            var result = new List<ScopeBoxLoc>();
+            if (doc == null) return result;
+            try
+            {
+                var boxes = new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType()
+                    .ToList();
+                foreach (var box in boxes)
+                {
+                    string name = box?.Name ?? "";
+                    if (!Drawing.ScopeBoxNames.TryParseZone(name, out var zone, out var reason))
+                    {
+                        if (reason != null) StingLog.Warn($"BuildScopeBoxZoneIndex: '{name}' ignored — {reason}");
+                        continue;
+                    }
+
+                    BoundingBoxXYZ bb = box.get_BoundingBox(null);
+                    if (bb == null) continue;
+                    result.Add(new ScopeBoxLoc
+                    {
+                        Loc = zone,
+                        MinX = Math.Min(bb.Min.X, bb.Max.X),
+                        MinY = Math.Min(bb.Min.Y, bb.Max.Y),
+                        MaxX = Math.Max(bb.Min.X, bb.Max.X),
+                        MaxY = Math.Max(bb.Min.Y, bb.Max.Y),
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildScopeBoxZoneIndex: {ex.Message}");
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// ZONE from the SMALLEST <c>STING-ZONE::*</c> scope box containing the element's
+        /// bounding-box centre (XY), or null — <see cref="DetectLocFromScopeBox"/> for ZONE.
+        /// </summary>
+        public static string DetectZoneFromScopeBox(List<ScopeBoxLoc> scopeBoxes, Element el)
+            => DetectLocFromScopeBox(scopeBoxes, el);
+
+        /// <summary>
         /// Fallback for a token the detection layer could not derive (TOKPOL-1).
         ///
         /// `STING_TAG_TOKEN_POLICY.json` is the single place that decides what an
@@ -2393,6 +2446,10 @@ namespace StingTools.Core
             /// boxes exist (the common case).</summary>
             public List<ScopeBoxLoc> ScopeBoxLocs { get; set; }
 
+            /// <summary>Cached STING-ZONE::&lt;zone&gt; scope-box plan rectangles — the
+            /// ZONE twin of <see cref="ScopeBoxLocs"/>. Empty when none exist.</summary>
+            public List<ScopeBoxLoc> ScopeBoxZones { get; set; }
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
@@ -2539,6 +2596,7 @@ namespace StingTools.Core
                     CachedGrids = grids,
                     // Phase 192 (A4) — STING-LOC scope-box rectangles for site elements
                     ScopeBoxLocs = SpatialAutoDetect.BuildScopeBoxLocIndex(doc),
+                    ScopeBoxZones = SpatialAutoDetect.BuildScopeBoxZoneIndex(doc),
                     // Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
@@ -2929,6 +2987,21 @@ namespace StingTools.Core
                     string zone = SpatialAutoDetect.DetectZoneSpatial(doc, el, ctx.RoomIndex);
                     bool zoneFromSpatial = !string.IsNullOrEmpty(zone);
 
+                    // STING-ZONE::<code> scope-box containment, with LOC's precedence: a
+                    // room / department / workset signal wins; a box beats the neighbour
+                    // copy and the policy default.
+                    bool zoneFromScopeBox = false;
+                    if (!zoneFromSpatial)
+                    {
+                        string sbZone = SpatialAutoDetect.DetectZoneFromScopeBox(ctx?.ScopeBoxZones, el);
+                        if (!string.IsNullOrEmpty(sbZone))
+                        {
+                            zone = sbZone;
+                            zoneFromSpatial = true;
+                            zoneFromScopeBox = true;
+                        }
+                    }
+
                     // Phase 68 (NEW-02): as for LOC — inherit from the nearest tagged element
                     // before the Z01 default fills the slot.
                     if (!overwrite && !zoneFromSpatial
@@ -2955,7 +3028,7 @@ namespace StingTools.Core
                     result.ZoneDetected = zoneFromSpatial;
 
                     // Track ZONE detection source
-                    string zoneSource = zoneFromSpatial ? "Room" : "Default";
+                    string zoneSource = zoneFromScopeBox ? "ScopeBox" : zoneFromSpatial ? "Room" : "Default";
                     ParameterHelpers.SetString(el, ParamRegistry.ZONE_SOURCE, zoneSource, overwrite: overwrite);
                 }
             }

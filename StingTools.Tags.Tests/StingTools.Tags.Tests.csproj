@@ -166,6 +166,10 @@
     <Compile Include="..\StingTools\Commands\Electrical\Coordination\IecMcbBands.cs" Link="Commands\Electrical\Coordination\IecMcbBands.cs" />
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
+    <!-- MDP-1: which placement packs load, and the wizard's level-name advice.
+         PlacementRuleLoader and ProjectSetupWizard read these same files. -->
+    <Compile Include="..\StingTools\Core\Placement\PlacementPackRegistry.cs" Link="Core\Placement\PlacementPackRegistry.cs" />
+    <Compile Include="..\StingTools\Core\LevelNameAdvice.cs" Link="Core\LevelNameAdvice.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
     <Compile Include="..\StingTools\Core\TagTokenIntegrity.cs" Link="Core\TagTokenIntegrity.cs" />
