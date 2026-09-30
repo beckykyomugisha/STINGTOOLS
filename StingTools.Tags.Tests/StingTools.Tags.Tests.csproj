@@ -295,6 +295,10 @@
     <Compile Include="..\StingTools\Core\Symbols\SeedBuildPresetMode.cs" Link="Core\Symbols\SeedBuildPresetMode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ExportSheetScope.cs" Link="Core\Drawing\ExportSheetScope.cs" />
     <Compile Include="..\StingTools\Core\StepMessage.cs" Link="Core\StepMessage.cs" />
+    <!-- Inputs a command reads from a workflow step's params instead of a dialog
+         (Place Fixtures, Auto-drop, the Calc_* / Cable commands, sprinkler hydraulics,
+         BOQ and COBie export). Those commands call this same file. -->
+    <Compile Include="..\StingTools\Core\PresetStepInputs.cs" Link="Core\PresetStepInputs.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

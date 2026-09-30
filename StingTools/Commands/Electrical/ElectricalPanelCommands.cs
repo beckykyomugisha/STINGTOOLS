@@ -387,7 +387,16 @@ namespace StingTools.Commands.Electrical
             // load-summary rows, so all this command does is invalidate any cache
             // and surface a confirmation.
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Electrical", "Load summary refreshed — see the LOAD SUMMARY grid.");
+            // Workflow preset (Calc_LoadSummary): no step params; the confirmation goes to the
+            // step message instead of a dialog. The grid itself is rebuilt by the Electrical
+            // panel's dispatcher after ITS commands, which a preset step does not go through,
+            // so the step says what it did rather than claim the grid was refreshed.
+            if (WorkflowEngine.IsRunningPreset)
+                PresetDialog.Show("STING Electrical",
+                    "Load data cache cleared. This step computes no figures itself: the LOAD SUMMARY grid is " +
+                    "rebuilt the next time a command runs from the Electrical panel.", ref message);
+            else
+                TaskDialog.Show("STING Electrical", "Load summary refreshed — see the LOAD SUMMARY grid.");
             return Result.Succeeded;
         }
     }

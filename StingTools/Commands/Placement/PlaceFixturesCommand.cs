@@ -2,6 +2,18 @@
 //
 // Reads the current selection (if empty, treats scope = all rooms),
 // runs FixturePlacementEngine, and shows the result in StingResultPanel.
+//
+// Workflow preset (WorkflowEngine.IsRunningPreset): no dialog is shown. Step params:
+//   scope       selection | activeview | project   default: the Fixtures tab's scope radio
+//               (Selected rooms unless changed). "selection" with no rooms selected
+//               FAILS the step — select the rooms before launching, or name a scope.
+//   mode        place | preview                     default: place (preview = dry run)
+//   categories  list of Revit category names        default: the Fixtures tab's checkboxes
+//   packs       list of rule packs (SourcePack)      default: every loaded pack
+//   rules       list of rule ids (RuleId)            default: every rule in the packs
+//   An unknown category, pack or rule id fails the step and names it. Ticked
+//   categories with no loaded Type do not stop the run; the result names them.
+//   The result panel goes to the step message (PresetDialog).
 
 using System;
 using System.Collections.Generic;
@@ -85,6 +97,14 @@ namespace StingTools.Commands.Placement
         /// </summary>
         public static StingTools.Core.Placement.ProjectBuildingProfile SessionProfile { get; set; }
 
+        /// <summary>Every category the Fixtures tab can tick — what params.categories may name.</summary>
+        public static readonly string[] AllCategoryNames =
+        {
+            "Electrical Fixtures", "Lighting Devices", "Lighting Fixtures", "Communication Devices",
+            "Data Devices", "Security Devices", "Fire Alarm Devices", "Plumbing Fixtures",
+            "Air Terminals", "Sprinklers",
+        };
+
         /// <summary>
         /// Return the set of Revit category names this command should
         /// consider, based on the discipline checkboxes. Used by
@@ -118,6 +138,45 @@ namespace StingTools.Commands.Placement
             var doc  = ctx.Doc;
             var uidoc = ctx.UIDoc;
 
+            // Inside a workflow preset nobody can answer a dialog: inputs come from
+            // the step's params (see the header), and a missing or unreadable one
+            // fails the step with the reason.
+            bool headless = WorkflowEngine.IsRunningPreset;
+            var scopeMode = PlaceFixturesOptions.ScopeMode;
+            string headlessMode = PresetStepInputs.ModePlace;
+            HashSet<string> requestedCats = null;
+            List<string> requestedPacks = null, requestedRules = null;
+            if (headless)
+            {
+                string panelScope = scopeMode == FixtureScopeMode.ActiveView ? PresetStepInputs.ScopeActiveView
+                                  : scopeMode == FixtureScopeMode.AllRooms ? PresetStepInputs.ScopeProject
+                                  : PresetStepInputs.ScopeSelection;
+                if (!PresetStepInputs.TryChoice("scope", WorkflowEngine.StepParam("scope"), panelScope,
+                        PresetStepInputs.Scopes, out var scopeWord, out var err)
+                    || !PresetStepInputs.TryChoice("mode", WorkflowEngine.StepParam("mode"), PresetStepInputs.ModePlace,
+                        PresetStepInputs.PlaceModes, out headlessMode, out err))
+                { message = "Place Fixtures: " + err; return Result.Failed; }
+                scopeMode = scopeWord == PresetStepInputs.ScopeActiveView ? FixtureScopeMode.ActiveView
+                          : scopeWord == PresetStepInputs.ScopeProject ? FixtureScopeMode.AllRooms
+                          : FixtureScopeMode.SelectedRooms;
+
+                var cats = PresetStepInputs.ParseList(WorkflowEngine.StepParam("categories"));
+                if (cats.Count > 0)
+                {
+                    var known = PlaceFixturesOptions.AllCategoryNames;
+                    var unknownCats = PresetStepInputs.Unknown(cats, known);
+                    if (unknownCats.Count > 0)
+                    {
+                        message = $"Place Fixtures: params.categories names {string.Join(", ", unknownCats)} — " +
+                                  $"not one of: {string.Join(", ", known)}.";
+                        return Result.Failed;
+                    }
+                    requestedCats = new HashSet<string>(cats, StringComparer.OrdinalIgnoreCase);
+                }
+                requestedPacks = PresetStepInputs.ParseList(WorkflowEngine.StepParam("packs"));
+                requestedRules = PresetStepInputs.ParseList(WorkflowEngine.StepParam("rules"));
+            }
+
             // Phase 139.7 — honour the FxScope radio (Selected / Active view /
             // All rooms). Pre-139.7 the engine only saw rooms in
             // uidoc.Selection.GetElementIds() and silently fell through to
@@ -125,13 +184,18 @@ namespace StingTools.Commands.Placement
             // radio the user picked. Now we explicitly collect rooms per mode.
             var selectedRoomIds = new List<ElementId>();
             string scopeLabel;
-            switch (PlaceFixturesOptions.ScopeMode)
+            switch (scopeMode)
             {
                 case FixtureScopeMode.ActiveView:
                 {
                     var view = uidoc.ActiveView;
                     if (view == null)
                     {
+                        if (headless)
+                        {
+                            message = "Place Fixtures: scope is the active view but no view is active.";
+                            return Result.Failed;
+                        }
                         TaskDialog.Show("STING v4 — Place Fixtures",
                             "Scope is Active view but no active view found. Open a plan view and try again.");
                         return Result.Cancelled;
@@ -186,6 +250,12 @@ namespace StingTools.Commands.Placement
                         : "no rooms selected";
                     if (selectedRoomIds.Count == 0)
                     {
+                        if (headless)
+                        {
+                            message = "Place Fixtures: scope is the selected rooms but no rooms are selected. " +
+                                      "Select the rooms before launching the preset, or set params.scope = activeview | project.";
+                            return Result.Failed;
+                        }
                         TaskDialog.Show("STING v4 — Place Fixtures",
                             "Scope is 'Selected rooms' but no rooms are selected. " +
                             "Select rooms in the model or switch the scope to 'Active view' / 'All rooms' in the Fixtures tab.");
@@ -199,7 +269,11 @@ namespace StingTools.Commands.Placement
             // whether we prompt. When unchecked, go straight to a
             // confirm-only dialog.
             bool dryRun;
-            if (PlaceFixturesOptions.DryRunPreference)
+            if (headless)
+            {
+                dryRun = headlessMode == PresetStepInputs.ModePreview;
+            }
+            else if (PlaceFixturesOptions.DryRunPreference)
             {
                 dryRun = PromptDryRunChoice(scopeLabel);
             }
@@ -208,16 +282,23 @@ namespace StingTools.Commands.Placement
                 if (!ConfirmPlacement(scopeLabel)) return Result.Cancelled;
                 dryRun = false;
             }
-            if (dryRun == false
+            if (!headless
+                && dryRun == false
                 && PlaceFixturesOptions.DryRunPreference == false
                 && !ConfirmPlacement(scopeLabel)) return Result.Cancelled;
 
             // Category filter: discipline checkboxes from the Fixtures
             // panel restrict which PlacementRule.CategoryFilter values
             // the engine evaluates. Null/empty set means "all".
-            var allowedCats = PlaceFixturesOptions.AllowedCategoryNames();
+            var allowedCats = requestedCats ?? PlaceFixturesOptions.AllowedCategoryNames();
             if (allowedCats.Count == 0)
             {
+                if (headless)
+                {
+                    message = "Place Fixtures: every category checkbox on the Fixtures tab is off — nothing to place. " +
+                              "Tick a category or set params.categories.";
+                    return Result.Failed;
+                }
                 TaskDialog.Show("STING v4 — Place Fixtures",
                     "All category checkboxes are off — nothing to place. " +
                     "Enable at least one category in the Fixtures tab.");
@@ -237,6 +318,31 @@ namespace StingTools.Commands.Placement
                 StingLog.Warn($"PlaceFixturesCommand: rule load failed: {ex.Message}");
             }
 
+            // Preset only: narrow to the named packs / rule ids. A name that matches
+            // nothing loaded fails the step — it would otherwise place a different set.
+            if (headless && (requestedPacks.Count > 0 || requestedRules.Count > 0))
+            {
+                if (rules == null || rules.Count == 0)
+                {
+                    message = "Place Fixtures: params.packs / params.rules were given but no placement rules loaded.";
+                    return Result.Failed;
+                }
+                var unknownPacks = PresetStepInputs.Unknown(requestedPacks, rules.Select(r => r.SourcePack ?? ""));
+                var unknownRules = PresetStepInputs.Unknown(requestedRules, rules.Select(r => r.RuleId ?? ""));
+                if (unknownPacks.Count > 0 || unknownRules.Count > 0)
+                {
+                    message = "Place Fixtures: " +
+                        (unknownPacks.Count > 0 ? $"params.packs names pack(s) not loaded: {string.Join(", ", unknownPacks)}. " : "") +
+                        (unknownRules.Count > 0 ? $"params.rules names rule id(s) not loaded: {string.Join(", ", unknownRules)}." : "");
+                    return Result.Failed;
+                }
+                var packSet = new HashSet<string>(requestedPacks, StringComparer.OrdinalIgnoreCase);
+                var ruleSet = new HashSet<string>(requestedRules, StringComparer.OrdinalIgnoreCase);
+                rules = rules.Where(r => (packSet.Count == 0 || packSet.Contains(r.SourcePack ?? ""))
+                                      && (ruleSet.Count == 0 || ruleSet.Contains(r.RuleId ?? ""))).ToList();
+            }
+
+            var noTypeNotes = new List<string>();
             List<PlacementRule> filtered = null;
             if (rules != null && rules.Count > 0)
             {
@@ -245,6 +351,12 @@ namespace StingTools.Commands.Placement
                     .ToList();
                 if (filtered.Count == 0)
                 {
+                    if (headless)
+                    {
+                        message = "Place Fixtures: no placement rule matches the categories " +
+                                  $"({string.Join(", ", allowedCats)}) and the packs / rules named.";
+                        return Result.Failed;
+                    }
                     TaskDialog.Show("STING v4 — Place Fixtures",
                         "No placement rules match the selected categories. " +
                         "Either enable more categories in the Fixtures tab, " +
@@ -275,7 +387,15 @@ namespace StingTools.Commands.Placement
                     catch { }
                     if (!hasSymbol) emptyCats.Add(cat);
                 }
-                if (emptyCats.Count > 0)
+                if (emptyCats.Count > 0 && headless)
+                {
+                    // Unattended: the rules for these categories are skipped by the
+                    // engine; say so in the result instead of stopping the run.
+                    noTypeNotes.Add($"No Family Type loaded for {emptyCats.Count} categor{(emptyCats.Count == 1 ? "y" : "ies")} " +
+                                    $"— their rules placed nothing: {string.Join(", ", emptyCats.Take(15))}" +
+                                    (emptyCats.Count > 15 ? $" + {emptyCats.Count - 15} more" : "") + ".");
+                }
+                else if (emptyCats.Count > 0)
                 {
                     var td2 = new TaskDialog("STING v4 — Categories without a placeable Type")
                     {
@@ -312,7 +432,7 @@ namespace StingTools.Commands.Placement
                 return Result.Failed;
             }
 
-            ShowResult(res);
+            ShowResult(res, noTypeNotes, ref message);
 
             // Select placed elements so user sees immediate feedback
             if (!dryRun && res.PlacedIds.Count > 0)
@@ -354,7 +474,7 @@ namespace StingTools.Commands.Placement
             return r == TaskDialogResult.Yes;
         }
 
-        private void ShowResult(PlacementResult res)
+        private void ShowResult(PlacementResult res, List<string> notes, ref string message)
         {
             var panel = StingResultPanel.Create("v4 Fixture Placement");
 
@@ -392,15 +512,17 @@ namespace StingTools.Commands.Placement
                     panel.Text($"⚠ {zeroPlaced} rule(s) generated candidates but placed nothing — see skip reasons above.");
             }
 
-            if (res.Warnings != null && res.Warnings.Count > 0)
+            if ((res.Warnings != null && res.Warnings.Count > 0) || (notes != null && notes.Count > 0))
             {
                 panel.AddSection("WARNINGS");
-                foreach (var w in res.Warnings.Take(30)) panel.Text(w);
-                if (res.Warnings.Count > 30)
-                    panel.Text($"(+{res.Warnings.Count - 30} more — see StingLog)");
+                foreach (var n in notes ?? new List<string>()) panel.Text(n);
+                var warnings = res.Warnings ?? new List<string>();
+                foreach (var w in warnings.Take(30)) panel.Text(w);
+                if (warnings.Count > 30)
+                    panel.Text($"(+{warnings.Count - 30} more — see StingLog)");
             }
 
-            panel.Show();
+            PresetDialog.Show(panel, ref message);
         }
     }
 }

@@ -44,6 +44,10 @@ namespace StingTools.Commands.Electrical.VoltageDrop
     /// dock panel via the snapshot builder so the VD grid reflects the
     /// calculation.
     /// </summary>
+    // Workflow preset (Calc_VoltageDrop): no dialog; the summary goes to the step message.
+    // Step params (ElectricalStepInputs.VdOptions): lightingLimitPct, otherLimitPct,
+    // material (Cu | Al), operatingTempC, standard. Defaults: the Electrical panel's VOLTAGE
+    // DROP expander (re-read at the step), else 3 % lighting / 5 % other, Cu, 70 °C, BS 7671.
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class VoltageDropCommand : IExternalCommand
@@ -53,10 +57,16 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
-            var opts = StingElectricalCommandHandler.CurrentVDOptions
-                       ?? new VDOptionsSnapshot
+            var fallback = new VDOptionsSnapshot
                        { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
                          Material = "Cu", OperatingTempC = 70.0, Standard = "BS7671" };
+            VDOptionsSnapshot opts;
+            if (WorkflowEngine.IsRunningPreset)
+            {
+                if (!ElectricalStepInputs.VdOptions(fallback, out opts, out var err))
+                { message = "Voltage drop: " + err; return Result.Failed; }
+            }
+            else opts = StingElectricalCommandHandler.CurrentVDOptions ?? fallback;
 
             var results = Calculate(doc, opts.Standard, opts.LightingLimitPct, opts.OtherLimitPct,
                                     opts.Material, opts.OperatingTempC);
@@ -85,14 +95,14 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                 tx.Commit();
             }
 
-            TaskDialog.Show("STING Voltage Drop",
+            PresetDialog.Show("STING Voltage Drop",
                 $"Circuits: {results.Count}\n" +
                 $"Exceeding the limit: {exceed}\n" +
                 (possible > 0 ? $"Possibly exceeding (upper bound, no cable recorded): {possible}\n" : "") +
                 (bounded > 0 ? $"Upper-bound figures (A4-MAX — apply a cable size to record the cable): {bounded}\n" : "") +
                 (notCalc > 0 ? $"Not calculated (basis NONE gives the reason): {notCalc}\n" : "") +
                 $"Voltage drop and basis stamped: {stamped}" +
-                (stamped == 0 && results.Count > 0 ? "\n\nNothing was stamped: ELC_CKT_VD_BASIS_TXT is not bound to Electrical Circuits. Run Load Shared Params." : ""));
+                (stamped == 0 && results.Count > 0 ? "\n\nNothing was stamped: ELC_CKT_VD_BASIS_TXT is not bound to Electrical Circuits. Run Load Shared Params." : ""), ref message);
             return Result.Succeeded;
         }
 
@@ -211,6 +221,9 @@ namespace StingTools.Commands.Electrical.VoltageDrop
     /// Highlights circuits whose voltage drop exceeds the configured limit by
     /// applying a graphic override in the active view.
     /// </summary>
+    // Workflow preset (Calc_FlagVD): no dialog; the summary goes to the step message.
+    // Same step params and defaults as Calc_VoltageDrop. Overrides go on the ACTIVE view;
+    // with no active view the step fails.
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class VoltageDropFlagCommand : IExternalCommand
@@ -221,11 +234,21 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
             var view = doc.ActiveView;
-            if (view == null) { TaskDialog.Show("STING Voltage Drop", "Activate a graphical view first."); return Result.Cancelled; }
+            if (view == null)
+            {
+                if (WorkflowEngine.IsRunningPreset) { message = "Flag voltage drop: no active graphical view to flag in."; return Result.Failed; }
+                TaskDialog.Show("STING Voltage Drop", "Activate a graphical view first."); return Result.Cancelled;
+            }
 
-            var opts = StingElectricalCommandHandler.CurrentVDOptions
-                       ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
+            var fallback = new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
                                                   Material = "Cu", OperatingTempC = 70.0 };
+            VDOptionsSnapshot opts;
+            if (WorkflowEngine.IsRunningPreset)
+            {
+                if (!ElectricalStepInputs.VdOptions(fallback, out opts, out var err))
+                { message = "Flag voltage drop: " + err; return Result.Failed; }
+            }
+            else opts = StingElectricalCommandHandler.CurrentVDOptions ?? fallback;
             var results = VoltageDropCommand.Calculate(doc, opts.Standard, opts.LightingLimitPct,
                                                        opts.OtherLimitPct, opts.Material, opts.OperatingTempC);
 
@@ -252,8 +275,8 @@ namespace StingTools.Commands.Electrical.VoltageDrop
                 }
                 tx.Commit();
             }
-            TaskDialog.Show("STING Voltage Drop",
-                $"Flagged {flagged} element(s) on {results.Count(r => r.ExceedsThreshold)} circuit(s).");
+            PresetDialog.Show("STING Voltage Drop",
+                $"Flagged {flagged} element(s) on {results.Count(r => r.ExceedsThreshold)} circuit(s).", ref message);
             return Result.Succeeded;
         }
     }

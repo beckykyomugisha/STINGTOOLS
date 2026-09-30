@@ -13,6 +13,14 @@ namespace StingTools.Commands.Electrical.CableSizer
     /// runs <see cref="CableSizerEngine.Calculate"/>, stashes the result in
     /// <see cref="StingElectricalCommandHandler.LastCableSizeResult"/>, and
     /// pushes it back to the panel for display.
+    ///
+    /// Workflow preset (Cable_Calculate): no dialog. Step params
+    /// (ElectricalStepInputs.CableInputs): loadKW, voltageV, phases (1 | 3), powerFactor,
+    /// lengthM, vdLimitPct, installMethod, material, insulation, cableType, standard. Base:
+    /// the panel's CABLE tab when the panel is open (re-read at the step). Without the
+    /// panel loadKW, voltageV and lengthM are REQUIRED — the step fails naming them; the
+    /// rest default to PF 0.85, method C, Cu, PVC70, Multicore, VD 3 %, BS 7671, 1-phase.
+    /// The result (or the refusal) goes to the step message; a refusal fails the step.
     /// </summary>
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
@@ -22,7 +30,14 @@ namespace StingTools.Commands.Electrical.CableSizer
         {
             try
             {
-                var snap = StingElectricalCommandHandler.CurrentCableSizeInput;
+                bool headless = WorkflowEngine.IsRunningPreset;
+                CableSizerInputSnapshot snap;
+                if (headless)
+                {
+                    if (!ElectricalStepInputs.CableInputs(out snap, out var err))
+                    { message = "Cable sizing: " + err; return Result.Failed; }
+                }
+                else snap = StingElectricalCommandHandler.CurrentCableSizeInput;
                 if (snap == null)
                 {
                     TaskDialog.Show("STING Electrical", "No cable inputs captured. Enter values on the CABLE tab and click Calculate.");
@@ -46,6 +61,23 @@ namespace StingTools.Commands.Electrical.CableSizer
                     CableSizerEngine.Bs7671Tables(ParameterHelpers.GetContext(commandData)?.Doc));
                 StingElectricalCommandHandler.LastCableSizeResult = result;
                 StingElectricalCommandHandler.ActivePanel?.RefreshCableResult(result);
+                if (headless)
+                {
+                    string inputs = $"{input.LoadKW:0.###} kW, {input.VoltageV:0} V {input.Phases}-ph, PF {input.PowerFactor:0.##}, " +
+                                    $"{input.LengthM:0.#} m, method {input.InstallMethod}, {input.Material}/{input.Insulation} {input.CableType}, " +
+                                    $"VD limit {input.VDLimitPct:0.##} %, {input.Standard}";
+                    if (!result.Sized)
+                    {
+                        message = $"Cable sizing: NOT SIZED ({inputs}) — {result.Warning}";
+                        return Result.Failed;
+                    }
+                    PresetDialog.Show("STING Cable Sizing",
+                        $"{result.CsaLabel} · Ib {result.DesignCurrentA:0.#} A · {result.ProposedBreakerA} A {result.ProtectiveDevice} · " +
+                        $"VD {result.ActualVoltDropPct:0.##} % ({(result.VDCompliant ? "within" : "OVER")} limit)\n" +
+                        $"Inputs: {inputs}" +
+                        (string.IsNullOrEmpty(result.Warning) ? "" : $"\nWarning: {result.Warning}") +
+                        (string.IsNullOrEmpty(result.Basis) ? "" : $"\nBasis: {result.Basis}"), ref message);
+                }
                 return Result.Succeeded;
             }
             catch (Exception ex)
