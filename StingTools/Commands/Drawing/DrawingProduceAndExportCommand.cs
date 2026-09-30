@@ -357,7 +357,7 @@ namespace StingTools.Commands.Drawing
         }
 
         /// <summary>The discipline codes with anything modelled: A, S and the MEP set.</summary>
-        private static List<string> DisciplinesModelled(Document doc)
+        internal static List<string> DisciplinesModelled(Document doc)
         {
             var list = new List<string>();
             bool Any(params BuiltInCategory[] cats)
