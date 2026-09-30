@@ -7,15 +7,17 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-1. Merge `fix/review-headless` (preset-safe placement / calc / BOQ / COBie commands) into
-   `fix/drawing-review` when its agent reports. Then rewrite the "still open a dialog"
-   block in the guide (§C7, about line 567).
-2. Triage the four research reports (data consistency, producers, QA tools, UI) into the
-   **Findings** table. Fix the high-severity ones first, on disjoint file sets.
-3. Open the PR for `fix/drawing-review` with all gates green, merge it, then redeploy. The live
-   plugin is `C:\Dev\STING_KUT_LIVE`, owned by the ACC session on
-   `claude/kut-combined-acc-tags`. Merge `main` into that branch, or ask that session to,
-   so its work stays live.
+1. Merge the running fix branches one at a time into `fix/drawing-review`, re-running build,
+   tests and `tools/run_ci_gates.py --quick` after each: `fix/dt-qa` (DTW-2..19),
+   `fix/dt-producers` (DTW-20..31, 40..54), `fix/dt-ui` (DTW-32..38), `fix/dt-bindings`
+   (DTW-55..59).
+2. After `fix/dt-qa` merges, fix the queued JSON items DTW-60..62 and 65..72 on
+   `STING_DRAWING_TYPES.json` (re-stamp checksums). After `fix/dt-producers` merges, fix
+   DTW-63. Then update guide §C7 with the preset params from `fix/review-headless`
+   (params table in its commit 20f2782c6) once `fix/dt-ui` has merged, since it edits the
+   guide.
+3. Open the PR, merge it, and redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by
+   the ACC session: merge `main` into `claude/kut-combined-acc-tags`, or ask that session to.
 
 ## State (2026-10-01)
 
@@ -107,6 +109,25 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-52 | DrawingProducer.cs:725/891 | Low | Section in box context is a fixed 10 m cut at the origin; planner gap 9 | fix/dt-producers | In progress |
 | DTW-53 | DrawingProducer.cs:1547 | Low | Unique-name cap at 99; dead lock check | fix/dt-producers | In progress |
 | DTW-54 | DrawingProducer.cs:743 | Low-Med | Interior elevations: one face, owner plan from any level | fix/dt-producers | In progress |
+| DTW-55 | RESOLVED_BINDINGS (STING_DRAWING_TYPE_ID_TXT + 11 view stamps) | High | <ALL> binds to the core set (no Views): every stamp on a view is a no-op, so re-runs cannot find their views | fix/dt-bindings | In progress |
+| DTW-56 | STING_MATCH_* params | High | Not bound to Lines: match-line pair keys never stored, re-runs duplicate curves | fix/dt-bindings | In progress |
+| DTW-57 | TAG_SEG_MASK_TXT | High | No binding row: token-profile segment masks of 18 types do nothing | fix/dt-bindings | In progress |
+| DTW-58 | STING_AEC_FILTERS.json healthcare (46) | High | Rule params not bound to the filters' categories, so filter creation fails | fix/dt-bindings | In progress |
+| DTW-59 | STING_DEFAULT_TAG_STYLE_TXT | Med | Written to templates but unregistered | fix/dt-bindings | In progress |
+| DTW-60 | titleBlockParams keys (114 types) | High | Keys are display labels no title-block family has; ~10-13 warnings per sheet, nothing written | After fix/dt-qa merges (same JSON) | Queued |
+| DTW-61 | mep-coord-A1-1to50 | Med-High | 3 production rules, 1 slot: ISO and section stacked on the plan | After fix/dt-qa | Queued |
+| DTW-62 | spool / mep-coord / pres-3d / clar-markup | Med | One view template for mixed view kinds, so it throws and falls back | After fix/dt-qa | Queued |
+| DTW-63 | DrawingProducer.cs:1277 SLOT-3 | Med | Raw string view-type compare: spurious mismatch warning on most sheets | After fix/dt-producers (same file) | Queued |
+| DTW-64 | STING_MATCH_LINES.json caption text type / line style | Med | Created by nothing: captions silently skipped | TemplateManager style defs | Queued |
+| DTW-65 | sectionMarker on 14 types | Med | Families created by nothing; markPrefix/bubble/farClip read by nothing | Decide: ship/author, or drop the dead fields | Queued |
+| DTW-66 | legend-A3 | Low-Med | Routed type can never be produced | Document place-existing, or add rules | Queued |
+| DTW-67 | DocAutomationExtCommands.cs:1763,1882 | Low-Med | Resolve("*",…,Section/Elevation) matches no rule | Add * * SECTION / ELEVATION rules or pass a discipline | Queued |
+| DTW-68 | Pack viewTemplate / textStyleName | Low | Names created and read by nothing; dead effectiveTemplateName | Align or delete | Queued |
+| DTW-69 | Routing semantics | Low | S DETAIL → rebar detail; P PLAN → drainage; E/P SECTION → M types | Review, dedicated types | Queued |
+| DTW-70 | Sheet-number codes | Low | SCH / PR / EL mean two things; possible profile collisions | Normalise | Queued |
+| DTW-71 | Id convention | Low | Ids missing paper/scale suffix; inconsistent prefixes | Aliases if renamed | Queued |
+| DTW-72 | {mark} in per-level type names | Low | Prints XX | Use {lvl} | Queued |
+| DTW-73 | CLAUDE.md catalogue counts | Low | Says 93 types / 113 rules; data has 114 / 141 | Update | Queued |
 
 ## Decisions
 
