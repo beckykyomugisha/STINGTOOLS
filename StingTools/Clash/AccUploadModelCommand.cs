@@ -27,6 +27,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using StingTools.Core.Drawing;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -74,9 +75,10 @@ namespace StingTools.Core.Clash
 
             AccModelUpload.UploadResult result;
             AccUploadOptions options;
+            System.Collections.Generic.List<string> factNotes = null;
             try
             {
-                options = BuildOptions(doc, file, policy, out string optionsRefusal);
+                options = BuildOptions(doc, file, policy, out string optionsRefusal, out factNotes);
                 if (options == null)
                 {
                     if (!string.IsNullOrEmpty(optionsRefusal)) TaskDialog.Show(DialogTitle, optionsRefusal);
@@ -119,6 +121,7 @@ namespace StingTools.Core.Clash
                 (string.IsNullOrWhiteSpace(result.FolderReason) ? "" : "\n\nFolder: " + result.FolderReason) +
                 (string.IsNullOrWhiteSpace(result.ItemUrn) ? "" : "\nItem: " + result.ItemUrn) +
                 (string.IsNullOrWhiteSpace(result.MetadataNote) ? "" : "\n\n" + result.MetadataNote) +
+                (options?.Metadata == null || factNotes == null || factNotes.Count == 0 ? "" : "\n\n" + string.Join("\n", factNotes)) +
                 (txNote == null ? "" : "\n\n" + txNote));
             if (!result.MetadataComplete) StingLog.Warn("ACC upload: " + result.MetadataNote);
             StingLog.Info($"ACC upload: uploaded '{file}' -> {result.ItemUrn}");
@@ -132,12 +135,29 @@ namespace StingTools.Core.Clash
         /// suitability decides where a deliverable may go, so it is never inferred from a
         /// file name. Returns null (with a reason, or none if the person cancelled) to stop.
         /// </summary>
-        private static AccUploadOptions BuildOptions(Document doc, string file, AccOperatingPolicy policy, out string refusal)
+        private static AccUploadOptions BuildOptions(Document doc, string file, AccOperatingPolicy policy, out string refusal,
+            out System.Collections.Generic.List<string> notes)
         {
             refusal = null;
+            notes = new System.Collections.Generic.List<string>();
             var rec = AccBundleRecord.ReadExisting(BundleRecordPath(doc));
             bool isBundle = rec != null && string.Equals(Path.GetFullPath(rec.Path), Path.GetFullPath(file), StringComparison.OrdinalIgnoreCase);
-            string suitability = isBundle ? rec.Suitability : string.Empty;
+
+            // What the file itself carries: the bundle record, else its document-register row.
+            // A file exported with no suitability / revision (name marker or iso_unset) is
+            // refused here, before anything is sent.
+            JArray register = null;
+            try { register = BIMManager.BIMManagerEngine.LoadJsonArray(BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json")); }
+            catch (Exception ex) { StingLog.Warn("ACC upload: document register: " + ex.Message); }
+            var facts = AccFileIso.Decide(file, isBundle ? rec : null, AccFileIso.FindRegisterRow(register, file));
+            if (facts.Refused)
+            {
+                refusal = "Nothing was uploaded.\n\n" + facts.Refusal;
+                StingLog.Warn("ACC upload refused: " + facts.Refusal);
+                return null;
+            }
+            notes = facts.Notes.ToList();
+            string suitability = facts.Suitability;
 
             if (policy.CdeFolders.Count > 0 && string.IsNullOrWhiteSpace(suitability))
             {
@@ -171,9 +191,11 @@ namespace StingTools.Core.Clash
                 catch (Exception ex) { StingLog.Warn("ACC upload: originator code: " + ex.Message); }
                 options.Metadata = new AccDocMetadataInput
                 {
-                    DocumentNumber = Path.GetFileNameWithoutExtension(file),
+                    DocumentNumber = facts.DocumentNumber,
                     Suitability = suitability,
-                    Revision = string.Empty,
+                    // The file's recorded revision (bundle record / register), or none —
+                    // never a default. An empty value is left unset on ACC, not written as "".
+                    Revision = facts.Revision,
                     TransmittalId = isBundle ? rec.TransmittalId : string.Empty,
                     Originator = originator,
                 };

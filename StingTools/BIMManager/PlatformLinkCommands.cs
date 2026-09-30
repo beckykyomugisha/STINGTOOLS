@@ -1252,6 +1252,23 @@ namespace StingTools.BIMManager
                     string recPath = Path.Combine(recDir, V6.AccBundleRecord.FileName);
                     var rec = V6.AccBundleRecord.ForFile(zipPath, suitability, deliverables.Count);
                     if (rec != null) rec.TransmittalId = TransmittalRecord.Id(tx);
+                    if (rec != null)
+                    {
+                        // The bundle's revision is the one revision its deliverables carry in
+                        // the document register — or none, with the reason, when they carry
+                        // none or several. Sent to ACC as ISO Revision; never defaulted.
+                        var register = BIMManagerEngine.LoadJsonArray(BIMManagerEngine.GetBIMManagerFilePath(doc, "document_register.json"));
+                        var perFile = deliverables.Select(d =>
+                        {
+                            var row = V6.AccFileIso.FindRegisterRow(register, d.FilePath);
+                            string r = row?["revision"]?.ToString() ?? "";
+                            return Core.Drawing.ExportIsoFields.IsNotSetMarker(r) ? "" : r;
+                        });
+                        var (bundleRev, revNote) = V6.AccBundleRecord.CommonRevision(perFile);
+                        rec.Revision = bundleRev;
+                        rec.RevisionNote = revNote;
+                        if (string.IsNullOrEmpty(bundleRev)) StingLog.Info("ACC publish: no bundle revision recorded — " + revNote);
+                    }
                     if (rec == null)
                         StingLog.Warn("ACC publish: could not record the bundle for later upload " +
                                       "(the ZIP was not found on disk).");

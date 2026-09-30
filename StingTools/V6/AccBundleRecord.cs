@@ -19,7 +19,9 @@
 // same contract CommissioningSource works under.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -37,10 +39,39 @@ namespace StingTools.V6
         /// <summary>The PREPARED transmittal ACCPublish recorded for this bundle. A
         /// successful upload of this exact file marks that row SENT (IM-17).</summary>
         [JsonProperty("transmittalId")] public string TransmittalId { get; set; } = string.Empty;
+        /// <summary>The ONE revision every deliverable in the bundle carries, per the document
+        /// register; empty when they carry none or several (see <see cref="RevisionNote"/>).
+        /// Sent to ACC as the ISO Revision attribute. Never defaulted.</summary>
+        [JsonProperty("revision")] public string Revision { get; set; } = string.Empty;
+        /// <summary>Why <see cref="Revision"/> is empty, in a sentence; empty when it is set.</summary>
+        [JsonProperty("revisionNote")] public string RevisionNote { get; set; } = string.Empty;
+
+        /// <summary>
+        /// The bundle's revision from its deliverables' revisions (one entry per deliverable,
+        /// blank where the register records none). A bundle is one revision only when EVERY
+        /// deliverable carries the same one; otherwise no revision is recorded and the note
+        /// says why — a bundle spanning P02 and P03 is not "P03", and a register that records
+        /// no revision is not "P01".
+        /// </summary>
+        public static (string revision, string note) CommonRevision(IEnumerable<string> perDeliverable)
+        {
+            var all = (perDeliverable ?? Enumerable.Empty<string>()).Select(r => (r ?? string.Empty).Trim()).ToList();
+            if (all.Count == 0) return (string.Empty, "the bundle has no deliverables to take a revision from");
+            int blank = all.Count(r => r.Length == 0);
+            var distinct = all.Where(r => r.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (distinct.Count == 0)
+                return (string.Empty, "none of the bundle's deliverables carries a revision in the document register");
+            if (distinct.Count > 1)
+                return (string.Empty, $"the bundle spans {distinct.Count} revisions ({string.Join(", ", distinct)}), so it carries none");
+            if (blank > 0)
+                return (string.Empty, $"{blank} of {all.Count} deliverables carry no revision, so the bundle's revision is not known");
+            return (distinct[0], string.Empty);
+        }
 
         /// <summary>One line for a dialog: what would be uploaded, and how old it is.</summary>
         public string Describe() =>
-            $"{System.IO.Path.GetFileName(Path)}  ({Suitability}, {DeliverableCount} deliverable(s), " +
+            $"{System.IO.Path.GetFileName(Path)}  ({Suitability}, " +
+            $"{(string.IsNullOrWhiteSpace(Revision) ? "no revision" : "revision " + Revision)}, {DeliverableCount} deliverable(s), " +
             $"{SizeBytes / 1024.0 / 1024.0:F1} MB, built {CreatedUtc:yyyy-MM-dd HH:mm}Z)";
 
         /// <summary>Write the record. Failures are returned, not thrown: recording the

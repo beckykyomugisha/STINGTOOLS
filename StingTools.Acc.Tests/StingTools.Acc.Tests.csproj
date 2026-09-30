@@ -89,6 +89,15 @@
     <Compile Include="..\StingTools\BIMManager\BcfEngine.cs" Link="BIMManager\BcfEngine.cs" />
     <Compile Include="..\StingTools\Core\IssueSchema.cs" Link="Core\IssueSchema.cs" />
     <Compile Include="..\StingTools\Core\IssueStatusNormalizer.cs" Link="Core\IssueStatusNormalizer.cs" />
+    <!-- Export -> register -> ACC: the one suitability/revision resolver (with its XX / NOREV
+         not-set markers), the per-file upload facts (bundle record / register row, refusal of
+         a not-set file) and the upload ledger (identical skip, re-issue-without-revision
+         refusal). The register row mapper is the plugin's own. -->
+    <Compile Include="..\StingTools\Core\Drawing\ExportIsoFields.cs" Link="Core\Drawing\ExportIsoFields.cs" />
+    <Compile Include="..\StingTools\V6\AccFileIsoFacts.cs" Link="V6\AccFileIsoFacts.cs" />
+    <Compile Include="..\StingTools\V6\AccUploadLedger.cs" Link="V6\AccUploadLedger.cs" />
+    <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />
+    <Compile Include="..\StingTools\Core\DocumentIdentity.cs" Link="Core\DocumentIdentity.cs" />
     <!-- TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob;
          StingTools/Core/StingLog.cs cannot be linked (it drags in StingTools.Core.Drawing). -->
   </ItemGroup>

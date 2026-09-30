@@ -471,7 +471,7 @@ namespace StingTools.Docs
                 t["DrawingSet"]   = ReadParam(sheet, "Sheet Issue Date") ?? "";
                 t["Discipline"]   = SheetDiscipline(sheet);
 
-                var (rev, revDate) = GetCurrentRevision(doc, sheet);
+                var (_, revDate) = GetCurrentRevision(doc, sheet);
                 t["RevDate"] = revDate ?? "";
 
                 // ── ISO 19650 token resolution chain ──
@@ -523,11 +523,15 @@ namespace StingTools.Docs
                 string disc      = t["Discipline"];
                 t["Role"]        = ReadParam(sheet, "STING_ROLE_TXT")        ?? idSegs?.Role   ?? dtIso?.Role
                                    ?? Core.Drawing.Iso19650DocumentCode.NormaliseRole(disc);
-                t["Suitability"] = ReadParam(sheet, "STING_SUITABILITY_TXT")
-                                   ?? ReadSuitabilityCode(sheet)
-                                   ?? dtIso?.Suitability ?? "S2";
-                t["CdeState"]    = Core.Drawing.Iso19650Suitability.CdeStateFor(t["Suitability"]) ?? "";
-                t["Revision"]    = !string.IsNullOrEmpty(rev) ? rev : (dtIso?.Revision ?? "P01");
+                // Suitability and revision are what the SHEET carries, or an explicit
+                // not-set marker (XX / NOREV) — never the drawing type's template default
+                // ("S2"/"P01" on 91 of 93 corporate types) and never an invented code. The
+                // same resolver feeds the export row, the register row and the ACC upload,
+                // so the file name and the register cannot disagree (ExportIsoFields).
+                var iso = ResolveIsoFields(doc, sheet);
+                t["Suitability"] = iso.Suitability;
+                t["CdeState"]    = iso.CdeState ?? "";
+                t["Revision"]    = iso.Revision;
                 t["Format"]      = ""; // filled in by caller per format
             }
             else if (view != null)
@@ -647,6 +651,16 @@ namespace StingTools.Docs
             if (string.IsNullOrWhiteSpace(label))
                 label = ReadParam(sheet, "PRJ_TB_REVISION_NR_TXT");
             return (string.IsNullOrWhiteSpace(label) ? null : label.Trim(), date);
+        }
+
+        /// <summary>The sheet's suitability and revision as the export file name, the
+        /// register row and the ACC upload all use them: the sheet's own suitability code
+        /// and current revision, or the explicit not-set markers. One chain, so the three
+        /// cannot disagree about the same file.</summary>
+        internal static Core.Drawing.ExportIsoFieldValues ResolveIsoFields(Document doc, ViewSheet sheet)
+        {
+            if (sheet == null) return Core.Drawing.ExportIsoFields.Resolve(null, null);
+            return Core.Drawing.ExportIsoFields.Resolve(SheetSuitabilityCode(sheet), GetCurrentRevision(doc, sheet).rev);
         }
 
         /// <summary>The sheet's ISO 19650 identifier, decomposed — SHT_TAG_1_TXT when
@@ -911,9 +925,205 @@ namespace StingTools.Docs
                 StingLog.Error("ExportCenterEngine.Run failed", ex);
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
+            AnnotateIsoFields(doc, result);
             StampLastExports(doc, profile, result);
             RegisterExports(doc, profile, result);
+            UploadExportsToAcc(doc, profile, result);
             return Finalize(profile, result);
+        }
+
+        /// <summary>
+        /// Stamp each single-sheet row with the suitability, revision and document number its
+        /// file name was built from (ResolveIsoFields — the same chain BuildTokenContext used),
+        /// flag the rows where either was not set, and add ONE summary warning naming them.
+        /// The register and the ACC upload read these fields; neither re-derives them.
+        /// </summary>
+        private static void AnnotateIsoFields(Document doc, ExportRunResult result)
+        {
+            if (doc == null || result == null) return;
+            var flagged = new List<string>();
+            foreach (var r in result.Rows.Where(x => x.Success))
+            {
+                try
+                {
+                    var sheet = ResolveSheet(doc, r.SheetId);
+                    if (sheet == null) continue;
+                    var iso = ResolveIsoFields(doc, sheet);
+                    r.Suitability = iso.Suitability;
+                    r.Revision = iso.Revision;
+                    DecomposeSheetIdentifier(sheet, out string id);
+                    r.DocumentNumber = id ?? sheet.SheetNumber;
+                    r.IsoFieldsUnset = iso.Unset;
+                    if (!iso.Complete)
+                        flagged.Add($"{sheet.SheetNumber} ({r.Format}: {Core.Drawing.ExportIsoFields.DescribeUnset(iso.Unset)})");
+                }
+                catch (Exception ex) { StingLog.Warn($"Export ISO fields {r.SheetNumber}/{r.Format}: {ex.Message}"); }
+            }
+            if (flagged.Count == 0) return;
+            result.Warnings.Add(
+                $"{flagged.Count} file(s) exported from sheets with no suitability and/or no revision. Their names carry " +
+                $"'{Core.Drawing.ExportIsoFields.NotSetSuitability}' / '{Core.Drawing.ExportIsoFields.NotSetRevision}' in place " +
+                "of the missing value, the register records them as not set, and they will not be uploaded to ACC. " +
+                "Set the suitability (Title Block Populate / PRJ_DWG_SUITABILITY_COD_TXT) and a revision on: " +
+                string.Join(", ", flagged.Take(12)) + (flagged.Count > 12 ? $" … and {flagged.Count - 12} more" : "") + ".");
+            StingLog.Warn($"Export Centre: {flagged.Count} file(s) exported without suitability/revision: " + string.Join(", ", flagged));
+        }
+
+        /// <summary>
+        /// Optional (Output.UploadToAcc): send each exported sheet file to ACC after the register
+        /// is written. Per file: a file whose suitability or revision is not set is refused; the
+        /// ledger skips an identical file already sent and refuses a CHANGED file under a document
+        /// number + revision already sent (a re-issue without a revision change) unless the
+        /// profile allows it; everything else goes through AccModelUpload with the project's CDE
+        /// folders and ISO 19650 attributes. Every outcome is recorded on the row and summarised
+        /// in the warnings. Nothing here undoes the export.
+        /// </summary>
+        private static void UploadExportsToAcc(Document doc, ExportProfile profile, ExportRunResult result)
+        {
+            if (doc == null || profile?.Output == null || !profile.Output.UploadToAcc) return;
+            if (result == null || result.Cancelled) return;
+            var rows = result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? "")).ToList();
+            if (rows.Count == 0) return;
+
+            const string who = "Export Centre ACC upload";
+            V6.AccCredentials creds;
+            V6.AccOperatingPolicy policy;
+            try
+            {
+                policy = Core.Clash.AccProjectSettingsFile.LoadFor(doc, who);
+                creds = Core.Clash.AccProjectSettingsFile.LoadCredentials(doc, who);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("Export Centre ACC upload: settings: " + ex.Message);
+                result.Warnings.Add("ACC upload: NOTHING was uploaded — the project's ACC settings could not be read: " + ex.Message);
+                foreach (var r in rows) r.AccUpload = "not uploaded: ACC settings unreadable";
+                return;
+            }
+            if (creds == null || string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
+                string.IsNullOrEmpty(creds.ProjectId))
+            {
+                result.Warnings.Add("ACC upload: NOTHING was uploaded — ACC is not set up for this project on this machine " +
+                                    "(BIM Coordination Center > ACC: sign in, then Discover the project).");
+                foreach (var r in rows) r.AccUpload = "not uploaded: ACC not set up";
+                return;
+            }
+
+            string ledgerPath;
+            V6.AccUploadLedger ledger;
+            try
+            {
+                ledgerPath = Path.Combine(StingPaths.MetaFile(doc, "_BIM_COORD", "acc"), V6.AccUploadLedger.FileName);
+                ledger = V6.AccUploadLedger.Load(ledgerPath, out string ledgerErr);
+                if (ledger == null)
+                {
+                    // An unreadable ledger is not an empty one: treating it as empty would re-send
+                    // every file as "never sent" and stack duplicate versions in ACC.
+                    result.Warnings.Add("ACC upload: NOTHING was uploaded — the upload ledger could not be read (" +
+                                        ledgerErr + "): " + ledgerPath);
+                    foreach (var r in rows) r.AccUpload = "not uploaded: ledger unreadable";
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add("ACC upload: NOTHING was uploaded — the upload ledger path could not be resolved: " + ex.Message);
+                foreach (var r in rows) r.AccUpload = "not uploaded: ledger unavailable";
+                return;
+            }
+
+            string originator = "";
+            try { originator = ParameterHelpers.GetString(doc.ProjectInformation, ParamRegistry.ORG_ORIGINATOR_CODE); }
+            catch (Exception ex) { StingLog.Warn("Export Centre ACC upload: originator code: " + ex.Message); }
+
+            int sent = 0, identical = 0, refused = 0, failed = 0;
+            var problems = new List<string>();
+            foreach (var r in rows)
+            {
+                string name = Path.GetFileName(r.OutputPath);
+                try
+                {
+                    if (string.IsNullOrEmpty(r.Suitability))
+                    {
+                        r.AccUpload = "not uploaded: not a single sheet, so there is no suitability or revision to file it by";
+                        refused++; problems.Add($"{name}: not a single sheet"); continue;
+                    }
+                    if (r.IsoFieldsUnset != null && r.IsoFieldsUnset.Count > 0)
+                    {
+                        r.AccUpload = "not uploaded: " + Core.Drawing.ExportIsoFields.DescribeUnset(r.IsoFieldsUnset);
+                        refused++; problems.Add($"{name}: {Core.Drawing.ExportIsoFields.DescribeUnset(r.IsoFieldsUnset)}"); continue;
+                    }
+                    string sha = V6.AccUploadLedger.Sha256OfFile(r.OutputPath);
+                    string fmt = V6.AccUploadLedger.FormatOf(r.OutputPath);
+                    var verdict = ledger.Check(r.DocumentNumber, r.Revision, fmt, sha,
+                        profile.Output.AccAllowReissueWithoutRevisionChange);
+                    if (verdict.Decision == V6.AccLedgerDecision.SkipIdentical)
+                    {
+                        r.AccUpload = "skipped: " + verdict.Reason;
+                        identical++; continue;
+                    }
+                    if (!verdict.ShouldUpload)
+                    {
+                        r.AccUpload = "not uploaded: " + verdict.Reason;
+                        refused++; problems.Add($"{name}: {verdict.Reason}"); continue;
+                    }
+
+                    var options = new V6.AccUploadOptions
+                    {
+                        Suitability = r.Suitability,
+                        CdeFolders = policy.CdeFolders,
+                        CreateMissingAttributes = policy.DocsAttributesCreateMissing,
+                    };
+                    if (policy.DocsAttributes)
+                        options.Metadata = new V6.AccDocMetadataInput
+                        {
+                            DocumentNumber = r.DocumentNumber,
+                            Suitability = r.Suitability,
+                            Revision = r.Revision,
+                            Originator = originator ?? "",
+                        };
+                    var up = V6.AccModelUpload.UploadAsync(creds, r.OutputPath, options).GetAwaiter().GetResult();
+                    if (up == null || !up.Ok)
+                    {
+                        string why = up?.Message ?? "the upload returned no result";
+                        r.AccUpload = $"FAILED ({up?.Status.ToString() ?? "TransportFailed"}): {why}";
+                        failed++; problems.Add($"{name}: FAILED — {why}");
+                        StingLog.Warn($"Export Centre ACC upload FAILED for '{r.OutputPath}': {why}");
+                        continue;
+                    }
+                    ledger.Record(new V6.AccLedgerEntry
+                    {
+                        DocumentNumber = r.DocumentNumber,
+                        Revision = r.Revision,
+                        Format = fmt,
+                        Sha256 = sha,
+                        FileName = name,
+                        Suitability = r.Suitability,
+                        UploadedUtc = DateTime.UtcNow,
+                        ItemUrn = up.ItemUrn ?? "",
+                        VersionUrn = up.VersionUrn ?? "",
+                    });
+                    // Save after every upload: a crash half-way must not forget what already went.
+                    if (!ledger.TrySave(ledgerPath, out string saveErr))
+                        problems.Add($"{name}: uploaded, but the ledger could not be saved ({saveErr}) — a re-run may send it again");
+                    r.AccUpload = "uploaded" +
+                                  (verdict.Decision == V6.AccLedgerDecision.UploadReissueAllowed ? " (re-issue allowed by the profile)" : "") +
+                                  (up.MetadataComplete ? "" : " — " + up.MetadataNote);
+                    sent++;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Error($"Export Centre ACC upload '{r.OutputPath}'", ex);
+                    r.AccUpload = "FAILED: " + ex.Message;
+                    failed++; problems.Add($"{name}: FAILED — {ex.Message}");
+                }
+            }
+
+            result.Warnings.Add($"ACC upload: {sent} uploaded, {identical} already in ACC (identical, skipped), " +
+                                $"{refused} refused, {failed} failed. The export itself is complete either way.");
+            foreach (var p in problems.Take(10)) result.Warnings.Add("ACC: " + p);
+            if (problems.Count > 10) result.Warnings.Add($"ACC: … and {problems.Count - 10} more (see the export report).");
+            StingLog.Info($"Export Centre ACC upload: {sent} sent, {identical} identical, {refused} refused, {failed} failed.");
         }
 
         /// <summary>
@@ -983,27 +1193,32 @@ namespace StingTools.Docs
                 try
                 {
                     var sheet = ResolveSheet(doc, r.SheetId);
-                    string code = null, rev = null, docNumber = null, title = r.SheetTitle;
+                    string docNumber = null, title = r.SheetTitle;
+                    // The row's Suitability / Revision are the values the FILE NAME printed
+                    // (AnnotateIsoFields) — a real code, or the XX / NOREV not-set marker. The
+                    // register used to re-derive them with a different fallback (S0), so one
+                    // file said S2 in its name and S0 in the register.
+                    bool isSheetRow = sheet != null && !string.IsNullOrEmpty(r.Suitability);
                     if (sheet != null)
                     {
-                        code = SheetSuitabilityCode(sheet);
-                        rev = GetCurrentRevision(doc, sheet).rev;
-                        DecomposeSheetIdentifier(sheet, out string id);
                         if (string.Equals(r.Format, "PDF", StringComparison.OrdinalIgnoreCase))
-                            docNumber = id ?? sheet.SheetNumber;
+                            docNumber = r.DocumentNumber;
                         title = $"{sheet.SheetNumber} - {sheet.Name}";
                     }
-                    string state = Core.Drawing.Iso19650Suitability.CdeStateFor(code) ?? "WIP";
+                    string state = isSheetRow ? Core.Drawing.Iso19650Suitability.CdeStateFor(r.Suitability) : null;
                     string type = r.Format is "IFC" or "NWC" ? "M3" : "DR";
                     batch.Add(new BIMManager.ExportRegistration
                     {
                         FilePath = r.OutputPath,
                         DocType = type,
                         Description = $"{title} ({r.Format})",
-                        Suitability = code ?? Core.Drawing.Iso19650Suitability.DefaultFor(state),
-                        Revision = rev,
-                        CdeStatus = state,
+                        // A non-sheet row (model export, combined PDF) keeps the register's
+                        // documented WIP/S0 convention; it carries no ISO fields to flag.
+                        Suitability = isSheetRow ? r.Suitability : null,
+                        Revision = isSheetRow ? r.Revision : null,
+                        CdeStatus = state ?? "WIP",
                         DocNumber = docNumber,
+                        IsoUnset = isSheetRow ? r.IsoFieldsUnset : null,
                     });
                 }
                 catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber}/{r.Format}: {ex.Message}"); }
@@ -2198,7 +2413,8 @@ namespace StingTools.Docs
                 string folder = profile.Output.LocalFolder;
                 if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return;
                 string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string[] header = { "Format", "SheetNumber", "SheetTitle", "OutputPath", "Bytes", "Success", "Error", "DurationMs" };
+                string[] header = { "Format", "SheetNumber", "SheetTitle", "OutputPath", "Bytes", "Success", "Error", "DurationMs",
+                                    "Suitability", "Revision", "IsoFieldsNotSet", "AccUpload" };
                 bool xlsx = string.Equals(profile.Output.ReportFormat, "XLSX", StringComparison.OrdinalIgnoreCase);
                 string path = Path.Combine(folder, $"STING_Export_Report_{stamp}.{(xlsx ? "xlsx" : "csv")}");
 
@@ -2219,6 +2435,10 @@ namespace StingTools.Docs
                         ws.Cell(rowIx, 6).Value = r.Success ? "OK" : "FAILED";
                         ws.Cell(rowIx, 7).Value = r.Error ?? "";
                         ws.Cell(rowIx, 8).Value = (long)r.Duration.TotalMilliseconds;
+                        ws.Cell(rowIx, 9).Value = r.Suitability ?? "";
+                        ws.Cell(rowIx, 10).Value = r.Revision ?? "";
+                        ws.Cell(rowIx, 11).Value = string.Join(" + ", r.IsoFieldsUnset ?? new List<string>());
+                        ws.Cell(rowIx, 12).Value = r.AccUpload ?? "";
                         rowIx++;
                     }
                     ws.Row(1).Style.Font.Bold = true;
@@ -2238,6 +2458,8 @@ namespace StingTools.Docs
                             Csv(r.OutputPath), r.FileSizeBytes.ToString(),
                             r.Success ? "1" : "0", Csv(r.Error),
                             ((long)r.Duration.TotalMilliseconds).ToString(),
+                            Csv(r.Suitability), Csv(r.Revision),
+                            Csv(string.Join(" + ", r.IsoFieldsUnset ?? new List<string>())), Csv(r.AccUpload),
                         }));
                     }
                 }

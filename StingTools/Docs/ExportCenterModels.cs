@@ -234,6 +234,21 @@ namespace StingTools.Docs
         /// <summary>Record per-sheet last-exported revision + path so the
         /// "Changed Since Last Export" delta set works. On by default.</summary>
         public bool StampLastExport { get; set; } = true;
+
+        /// <summary>After the register is written, send each exported sheet file to ACC
+        /// (AccModelUpload, with the project's CDE folders and ISO 19650 attributes from
+        /// acc_settings.json). Off by default: pushing into an issued CDE container is the
+        /// Information Manager's decision. A file with no suitability or revision is never
+        /// sent; an identical file already sent is skipped; a changed file under the same
+        /// document number and revision is refused unless
+        /// <see cref="AccAllowReissueWithoutRevisionChange"/>. Upload failures are reported
+        /// per file and never undo the export.</summary>
+        public bool UploadToAcc { get; set; }
+
+        /// <summary>Allow a CHANGED file to go to ACC as a new version under a document
+        /// number + revision already uploaded with different content. Off by default: that
+        /// is a re-issue without a revision change, which ISO 19650 does not allow.</summary>
+        public bool AccAllowReissueWithoutRevisionChange { get; set; }
     }
 
     /// <summary>Persistent saved selection — names + a list of sheet/view ElementIds (as strings to survive across docs).</summary>
@@ -464,6 +479,21 @@ namespace StingTools.Docs
         public DateTime StartedUtc { get; set; }
         public DateTime FinishedUtc { get; set; }
         public TimeSpan Duration => FinishedUtc - StartedUtc;
+
+        // ── ISO 19650 fields, as the file name printed them (ExportIsoFields) ──
+        /// <summary>The sheet's suitability code, or "XX" when the sheet carries none. Empty
+        /// for a row that is not one sheet (a view, a combined PDF, a model export).</summary>
+        public string Suitability { get; set; }
+        /// <summary>The sheet's revision label, or "NOREV" when it carries none.</summary>
+        public string Revision { get; set; }
+        /// <summary>The ISO identifier (SHT_TAG_1_TXT / an ISO sheet number), else the sheet number.</summary>
+        public string DocumentNumber { get; set; }
+        /// <summary>Which of suitability / revision were NOT set; empty when both were. A
+        /// flagged file is recorded as such in the register and never uploaded to ACC.</summary>
+        public List<string> IsoFieldsUnset { get; set; } = new();
+        /// <summary>What the optional post-export ACC upload did with this file; null when
+        /// the profile does not upload.</summary>
+        public string AccUpload { get; set; }
     }
 
     /// <summary>Aggregate result from one export run.</summary>
