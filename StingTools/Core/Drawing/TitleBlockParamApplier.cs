@@ -121,7 +121,7 @@ namespace StingTools.Core.Drawing
                 // Heal / RevisionSync / Migrate. Skip and report, never skip
                 // silently: an unreported skip looks identical to a
                 // successful write in the result dialog.
-                if (IsTitleBlockLocked(tb))
+                if (IsTitleBlockLocked(tb, sheet))
                 {
                     r.LockedSkipped++;
                     r.Warnings.Add(
@@ -211,13 +211,19 @@ namespace StingTools.Core.Drawing
         /// fallback for projects that bound the parameter to Sheets instead.
         /// Single definition so the applier, the revision syncer and the heal
         /// command cannot drift apart on what "locked" means.
+        /// <para>DTW-6: the lock is checked on the instance AND its family type,
+        /// through the same <c>TitleBlockLock.Probe</c> the Lock / Unlock
+        /// commands use. A seed family authored with the box ticked carries the
+        /// lock on the type, and an instance-only check wrote straight through it
+        /// while the Unlock command reported the sheet locked.</para>
         /// </summary>
         public static bool IsTitleBlockLocked(Element titleBlock, ViewSheet sheet = null)
         {
             try
             {
                 if (titleBlock != null &&
-                    StingTools.Core.ParameterHelpers.GetInt(titleBlock, ParamRegistry.TB_LOCK, 0) != 0)
+                    StingTools.Commands.Drawing.TitleBlockLock.Probe(titleBlock.Document, titleBlock)
+                        != StingTools.Commands.Drawing.TitleBlockLock.LockHeldOn.None)
                     return true;
                 if (sheet != null &&
                     StingTools.Core.ParameterHelpers.GetInt(sheet, ParamRegistry.TB_LOCK, 0) != 0)
