@@ -4,7 +4,8 @@
 // that chains every drawing-production sub-system in the correct order:
 //
 //   Phase A — Production (optional, idempotent)
-//     For every Plan-purpose DrawingType × every Level in the model,
+//     For every Plan-purpose DrawingType the person ticks (pre-ticked: the
+//     routed plan type of each discipline modelled) × every Level,
 //     DrawingProducer.ProduceAllViews creates the view+sheet (or reuses the
 //     existing stamped one). All writes run inside a TransactionGroup so a
 //     failure rolls back only the current view, not the whole batch.
@@ -65,7 +66,8 @@ namespace StingTools.Commands.Drawing
                     MainInstruction = "What would you like to do?",
                     MainContent =
                         "Produce + Finalize + Export\n" +
-                        "  Creates plan views for every level × drawing type, syncs\n" +
+                        "  Asks which plan drawing types (those of the disciplines\n" +
+                        "  modelled here are pre-ticked), produces them on every level, syncs\n" +
                         "  styles and revisions, then exports all stamped sheets to PDF.\n\n" +
                         "Finalize + Export (existing sheets only)\n" +
                         "  Syncs styles and revisions on already-produced sheets,\n" +
@@ -92,6 +94,20 @@ namespace StingTools.Commands.Drawing
                     .Cast<Level>()
                     .OrderBy(l => l.Elevation)
                     .ToList();
+
+                // Option 1 used to produce EVERY Plan drawing type (50+: architectural,
+                // structural, presentation, healthcare…) on every level. Ask which,
+                // with the plan types of the disciplines modelled here ticked.
+                if (doProduction && planTypes.Count > 0)
+                {
+                    planTypes = PickPlanTypes(doc, planTypes);
+                    if (planTypes == null) return Result.Cancelled;
+                    if (planTypes.Count == 0)
+                    {
+                        TaskDialog.Show("STING — Produce & Export", "No drawing type was ticked — nothing produced, nothing exported.");
+                        return Result.Cancelled;
+                    }
+                }
 
                 var stats = new RunStats();
 
@@ -208,6 +224,60 @@ namespace StingTools.Commands.Drawing
             string regDir = ProjectFolderEngine.GetExportFolder(doc, "DocRegister");
             RunSheetRegisterPhase(doc, stampedSheets, string.IsNullOrEmpty(regDir) ? outDir : regDir, stats);
             return outDir;
+        }
+
+        // ── Type selection (dialog only) ────────────────────────────────────────
+
+        /// <summary>
+        /// Let the person tick the Plan types to produce. Pre-ticked: the type each
+        /// discipline modelled in the project routes its PLAN to (DisciplinePlanRouting,
+        /// the same answer the wizard and the HVAC per-level button use). Null on cancel.
+        /// </summary>
+        private static List<DrawingType> PickPlanTypes(Document doc, List<DrawingType> planTypes)
+        {
+            var present = DisciplinesModelled(doc);
+            var routed = BatchProduceCommons.RoutePerLevel(doc, present);
+            var preselect = new HashSet<string>(routed.Types.Select(t => t.Id), StringComparer.OrdinalIgnoreCase);
+
+            var items = planTypes
+                .OrderBy(t => t.Discipline ?? "", StringComparer.OrdinalIgnoreCase)
+                .ThenBy(t => t.Id, StringComparer.OrdinalIgnoreCase)
+                .Select(t => new StingTools.Select.StingListPicker.ListItem
+                {
+                    Label = t.Id,
+                    Detail = $"{t.Discipline} · {t.Name}",
+                    Tag = t,
+                    IsSelected = preselect.Contains(t.Id),
+                })
+                .ToList();
+            string subtitle = present.Count == 0
+                ? "Nothing is modelled yet, so nothing is pre-ticked. Tick the plan drawing types to produce on every level."
+                : $"Pre-ticked: the plan type of each discipline modelled here ({string.Join(", ", present)}). "
+                  + "Each ticked type is produced on every level.";
+            var picked = StingTools.Select.StingListPicker.Show("Produce & Export — drawing types", subtitle, items, true);
+            return picked?.Select(i => i.Tag as DrawingType).Where(t => t != null).ToList();
+        }
+
+        /// <summary>The discipline codes with anything modelled: A, S and the MEP set.</summary>
+        private static List<string> DisciplinesModelled(Document doc)
+        {
+            var list = new List<string>();
+            bool Any(params BuiltInCategory[] cats)
+            {
+                try
+                {
+                    return new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                        .WherePasses(new ElementMulticategoryFilter(cats)).FirstElementId() != ElementId.InvalidElementId;
+                }
+                catch (Exception ex) { StingLog.Warn($"ProduceAndExport presence: {ex.Message}"); return false; }
+            }
+            if (Any(BuiltInCategory.OST_Walls, BuiltInCategory.OST_Doors, BuiltInCategory.OST_Windows, BuiltInCategory.OST_Rooms))
+                list.Add("A");
+            if (Any(BuiltInCategory.OST_StructuralColumns, BuiltInCategory.OST_StructuralFraming, BuiltInCategory.OST_StructuralFoundation))
+                list.Add("S");
+            var mep = StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
+            list.AddRange(StingTools.Core.Mep.MepLevelViewProducer.Disciplines.Where(mep.ContainsKey));
+            return list;
         }
 
         // ── Phase A ─────────────────────────────────────────────────────────────

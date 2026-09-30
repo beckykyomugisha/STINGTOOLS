@@ -71,6 +71,17 @@ namespace StingTools.Commands.Drawing
                 .ToList();
         }
 
+        /// <summary>
+        /// The per-level drawing types each discipline's PLAN (and RCP) routes to in this
+        /// project's routing table — the same answer DrawingDispatcher gives every other
+        /// caller. Phase is left blank so only phase-wildcard rules match: the
+        /// PRESENTATION / TECHNICAL / FABRICATION variants are chosen deliberately, not
+        /// by a per-level default.
+        /// </summary>
+        internal static DisciplineRouting RoutePerLevel(Document doc, IEnumerable<string> disciplines)
+            => DisciplinePlanRouting.Select(disciplines,
+                (disc, docType) => DrawingDispatcher.Resolve(doc, disc, null, docType));
+
         // ── Workflow (headless) inputs ─────────────────────────────────────────
         // Inside a preset these commands take their inputs from the step's "params"
         // (see HeadlessProductionInputs for the keys and defaults) instead of a dialog.
@@ -244,9 +255,16 @@ namespace StingTools.Commands.Drawing
             return Result.Succeeded;
         }
 
-        /// <summary>One transaction per level, every picked type on it — shared by the dialog and the workflow.</summary>
-        private static void Produce(Document doc, List<DrawingType> types, List<Level> levels, ProduceOptions opts,
-            string packageId, ref int views, ref int sheets, List<string> warnings)
+        /// <summary>
+        /// One transaction per level, every picked type on it — shared by the dialog, the
+        /// workflow, the Project Setup Wizard and the HVAC panel's per-level button.
+        /// <paramref name="include"/> (optional) skips a (type, level) pair, e.g. a
+        /// discipline with nothing modelled on that level. Must be called with no
+        /// transaction open.
+        /// </summary>
+        internal static void Produce(Document doc, List<DrawingType> types, List<Level> levels, ProduceOptions opts,
+            string packageId, ref int views, ref int sheets, List<string> warnings,
+            Func<DrawingType, Level, bool> include = null)
         {
             using (var tg = new TransactionGroup(doc, "STING Produce Per Level"))
             {
@@ -260,6 +278,7 @@ namespace StingTools.Commands.Drawing
                         {
                             foreach (var dt in types)
                             {
+                                if (include != null && !include(dt, level)) continue;
                                 var dctx = new DrawingContext { Level = level, PackageId = packageId };
                                 var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                                 views += pr.ViewIds.Count;

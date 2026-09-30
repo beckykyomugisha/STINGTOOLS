@@ -311,6 +311,7 @@
                                           SelectionChanged="SheetPlacementMode_Changed">
                                     <ComboBoxItem Content="Guided manual — step-through" IsSelected="True" Tag="GuidedManual"/>
                                     <ComboBoxItem Content="Convert to linked ViewSchedule" Tag="ViewSchedule"/>
+                                    <ComboBoxItem Content="Auto — one circuit schedule per board, each on its own stamped sheet" Tag="AutoSheets"/>
                                     <ComboBoxItem Content="Export PDF → embed as image" Tag="PDF"/>
                                 </ComboBox>
                                 <Button Content="▶ Place Schedules on Sheets" Margin="0,6,0,0"

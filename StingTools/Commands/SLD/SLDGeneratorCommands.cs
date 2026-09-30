@@ -44,10 +44,14 @@ namespace StingTools.Commands.SLD
                 TaskDialog.Show("STING", $"SLD generation failed: {result.Warning}");
                 return Result.Failed;
             }
+            // Onto the SLD drawing type's sheet (found by stamp on a re-run, where the
+            // previous run's SLD makes way for this one).
+            string sheetLine = SldSheetPlacement.Place(ctx.Doc, SLDGenerator.DrawingTypeId, result.SLDView);
+
             try { ctx.UIDoc.ActiveView = result.SLDView; }
             catch (Exception ex) { StingLog.Warn($"Activate SLD view: {ex.Message}"); }
 
-            TaskDialog.Show("STING - SLD", SLDGenerator.DescribeResult(result));
+            TaskDialog.Show("STING - SLD", SLDGenerator.DescribeResult(result) + "\n\n" + sheetLine);
             return Result.Succeeded;
         }
     }

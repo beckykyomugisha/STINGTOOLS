@@ -272,6 +272,17 @@
     <!-- Production commands' inputs inside a workflow preset. The Produce commands call this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\HeadlessProductionInputs.cs" Link="Core\Drawing\HeadlessProductionInputs.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingTypeActions.cs" Link="Core\Drawing\DrawingTypeActions.cs" />
+    <!-- Production gaps: the per-discipline plan routing (wizard / HVAC per-level / Produce & Export),
+         wizard scope-box renames, temporary template bases, placing an engine-made view on its
+         type's sheet, crop recovery from the context tag, panel sheet-placement mode, and the
+         one-line step message a preset shows instead of a dialog. The plugin calls these same files. -->
+    <Compile Include="..\StingTools\Core\Drawing\DisciplinePlanRouting.cs" Link="Core\Drawing\DisciplinePlanRouting.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxRenamePattern.cs" Link="Core\Drawing\ScopeBoxRenamePattern.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TemporaryBaseViews.cs" Link="Core\Drawing\TemporaryBaseViews.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ExistingViewPlacement.cs" Link="Core\Drawing\ExistingViewPlacement.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewContextTag.cs" Link="Core\Drawing\ViewContextTag.cs" />
+    <Compile Include="..\StingTools\Core\Panels\PanelSheetPlacementMode.cs" Link="Core\Panels\PanelSheetPlacementMode.cs" />
+    <Compile Include="..\StingTools\Core\StepMessage.cs" Link="Core\StepMessage.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

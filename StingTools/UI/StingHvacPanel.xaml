@@ -505,7 +505,7 @@
                                     ToolTip="Phase E — duplicate the ACTIVE plan once per present discipline (M / E / P), coloured + typed"/>
                             <Button Style="{StaticResource HvacPrimaryBtn}" Content="Per-level + sheets"
                                     Tag="MEP_ProduceMepViewsByLevel" Click="Cmd_Click"
-                                    ToolTip="Phase F — one coordinated plan per level × discipline, each placed on its own sheet"/>
+                                    ToolTip="Each modelled MEP discipline's plan drawing type (M / E / P / FP / MG), on every level it occupies — stamped views and sheets via the drawing-type producer; re-runs reuse them"/>
                         </WrapPanel>
                     </StackPanel>
                 </ScrollViewer>

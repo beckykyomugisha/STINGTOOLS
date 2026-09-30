@@ -195,12 +195,16 @@ namespace StingTools.Commands.SLD
                 tx.Commit();
             }
 
+            // Onto the riser drawing type's sheet. The context tag keeps this sheet apart
+            // from any section sheets the same type gets from Produce Sections.
+            string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc, RiserDrawingTypeId, view, "RISER-DIAGRAM");
+
             if (view != null)
             {
                 try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Riser", $"Riser diagram generated: '{view?.Name}'.");
+            TaskDialog.Show("STING Riser", $"Riser diagram generated: '{view?.Name}'.\n\n{sheetLine}");
             return Result.Succeeded;
         }
 

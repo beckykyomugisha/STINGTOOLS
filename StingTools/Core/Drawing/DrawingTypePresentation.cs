@@ -416,6 +416,58 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// The scope box a view was produced for, when the caller did not pass one: the
+        /// box it is cropped to now, or — if that was lost — the box its context tag
+        /// names. Null for a view produced without a box (the profile's crop applies).
+        /// <paramref name="leaveCrop"/> is set when the tag names a box that no longer
+        /// exists and the view has none: re-cropping by the profile would then replace a
+        /// scope-box crop with something else, so the crop is left as it is.
+        /// </summary>
+        private static Element RecoverContextScopeBox(Document doc, View view, ApplyResult r, out bool leaveCrop)
+        {
+            leaveCrop = false;
+            string tagBox;
+            try { tagBox = ViewContextTag.ScopeBoxName(StingTools.Core.ParameterHelpers.GetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG)); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Context tag of '{view?.Name}': {ex.Message}"); return null; }
+            if (string.IsNullOrEmpty(tagBox)) return null;
+
+            Element assigned = null;
+            try
+            {
+                var id = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId();
+                if (id != null && id != ElementId.InvalidElementId) assigned = doc.GetElement(id);
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"Scope box of '{view?.Name}': {ex.Message}"); }
+
+            Element named = null;
+            if (assigned == null)
+            {
+                try
+                {
+                    named = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                        .WhereElementIsNotElementType()
+                        .FirstOrDefault(e => string.Equals(e.Name, tagBox, StringComparison.OrdinalIgnoreCase));
+                }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"Find scope box '{tagBox}': {ex.Message}"); }
+            }
+
+            switch (ViewContextTag.Decide(tagBox, assigned != null, named != null))
+            {
+                case CropRecovery.KeepAssigned:
+                    return assigned;
+                case CropRecovery.RestoreFromTag:
+                    r.Warnings.Add($"'{view.Name}' had lost its scope box; re-cropped to '{tagBox}', the box it was produced for.");
+                    return named;
+                case CropRecovery.LeaveAlone:
+                    leaveCrop = true;
+                    r.Warnings.Add($"'{view.Name}' was produced for scope box '{tagBox}', which is gone; its crop was left as it is.");
+                    return null;
+                default:
+                    return null;
+            }
+        }
+
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, ApplyOptions options)
         {
             var r = new ApplyResult();
@@ -567,9 +619,20 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    var cropWarns = DrawingCropApplier.Apply(doc, view, dt, options?.ContextScopeBox);
-                    r.Warnings.AddRange(cropWarns);
-                    r.CropApplied = true;
+                    // A caller that re-applies the profile (Sync Styles, Produce &
+                    // Export's style phase, a production re-run's refresh, drift heal)
+                    // has no production context. Without the box the view was produced
+                    // for, the profile's own crop kind ran and replaced it. Recover it
+                    // from the view (ViewContextTag.Decide).
+                    var contextBox = options?.ContextScopeBox;
+                    bool leaveCrop = false;
+                    if (contextBox == null) contextBox = RecoverContextScopeBox(doc, view, r, out leaveCrop);
+                    if (!leaveCrop)
+                    {
+                        var cropWarns = DrawingCropApplier.Apply(doc, view, dt, contextBox);
+                        r.Warnings.AddRange(cropWarns);
+                        r.CropApplied = true;
+                    }
                 }
                 catch (Exception ex) { r.Warnings.Add($"CropApplier: {ex.Message}"); }
             }

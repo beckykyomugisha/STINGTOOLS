@@ -1038,7 +1038,10 @@ namespace StingTools.Core
                                          stepResult == Result.Cancelled ? "SKIP" :
                                          stepResult == Result.Failed ? "FAIL" : "WARN";
                         report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
-                        if (stepResult != Result.Succeeded && !string.IsNullOrWhiteSpace(_lastStepMessage))
+                        // A failed step's reason, and a passed step's result: inside a preset
+                        // commands return their result here instead of a modal dialog
+                        // (PresetDialog), so this line is where the person reads it.
+                        if (!string.IsNullOrWhiteSpace(_lastStepMessage))
                             report.AppendLine($"       {_lastStepMessage.Trim()}");
 
                         // Phase 39: Record per-step result for audit trail

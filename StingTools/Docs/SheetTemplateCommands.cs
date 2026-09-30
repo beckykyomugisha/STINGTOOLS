@@ -221,9 +221,9 @@ namespace StingTools.Docs
             var results = SheetTemplateEngine.CheckCompliance(ctx.Doc);
             string report = SheetTemplateEngine.BuildComplianceReport(results);
 
-            TaskDialog.Show("ISO 19650 Sheet Compliance", report);
+            PresetDialog.Show("ISO 19650 Sheet Compliance", report, ref message);
 
-            // Offer to select non-compliant sheets
+            // Offer to select non-compliant sheets (not inside a preset: nobody to answer)
             var failIds = new List<ElementId>();
             foreach (var r in results.Where(r => !r.IsCompliant))
             {
@@ -234,7 +234,7 @@ namespace StingTools.Docs
                 if (sheet != null) failIds.Add(sheet.Id);
             }
 
-            if (failIds.Count > 0 && ctx.UIDoc != null)
+            if (failIds.Count > 0 && ctx.UIDoc != null && !PresetDialog.Quiet)
             {
                 var td2 = new TaskDialog("Compliance Results")
                 {

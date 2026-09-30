@@ -46,7 +46,10 @@ namespace StingTools.Core.SLD
 
     public static class SLDGenerator
     {
-        private const string DrawingTypeId = "elec-sld-A1-1to100";
+        // The catalogue's SLD drawing type (Schematic, E / SLD). This stamped
+        // "elec-sld-A1-1to100", an id no drawing type had, so the SLD belonged to no
+        // type and no sheet. Views stamped with the old id stay where they are.
+        internal const string DrawingTypeId = "elec-sld-A1-NTS";
 
         /// <summary>
         /// Result text for the user. Zero symbols is not a quiet success: it
