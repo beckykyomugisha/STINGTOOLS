@@ -148,6 +148,17 @@ namespace StingTools.Commands.Symbols
                 }
             }
 
+            // ── MG-2: migrate renamed seed types ──────────────────────────
+            // Runs in every mode, Missing Only included (the default): a reload never
+            // deletes a type the project holds, and Missing Only may not reload at all.
+            var migration = new SeedTypeMigrationReport();
+            foreach (var spec in specs)
+            {
+                try { SeedTypeMigrator.MigrateFromFile(doc, spec, migration); }
+                catch (Exception ex) { migration.Warnings.Add($"Type migration '{Path.GetFileName(spec)}': {ex.Message}"); }
+            }
+            aggregate.Warnings.AddRange(migration.Warnings);
+
             // ── Auto-register swap candidates ──────────────────────────────
             try { AutoRegisterSwapCandidates(specs, outRoot, aggregate); }
             catch (Exception ex) { StingLog.Warn($"AutoRegisterSwapCandidates: {ex.Message}"); }
@@ -179,10 +190,11 @@ namespace StingTools.Commands.Symbols
             }
             catch (Exception ex) { StingLog.Warn($"ValidateFinalizationGates: {ex.Message}"); }
 
-            ShowResult(aggregate, perSeed, outRoot, rebuildMode, gateIncomplete);
+            ShowResult(aggregate, perSeed, outRoot, rebuildMode, gateIncomplete, migration);
 
             try { ActionAuditLog.Record("BuildSeedFamilies",
-                $"mode={rebuildMode} built={built} failed={failed} protected={aggregate.Protected} outRoot={outRoot}"); }
+                $"mode={rebuildMode} built={built} failed={failed} protected={aggregate.Protected} " +
+                $"migratedTypes={migration.Types} migratedInstances={migration.Instances} outRoot={outRoot}"); }
             catch (Exception ex) { StingLog.Warn($"audit: {ex.Message}"); }
 
             return aggregate.Errors.Count == 0 ? Result.Succeeded : Result.Failed;
@@ -538,11 +550,14 @@ namespace StingTools.Commands.Symbols
         private static void ShowResult(SymbolCreationResult r,
             List<(string seed, int created, int failed, int warnings, int prot)> perSeed,
             string outRoot, SeedRebuildMode mode,
-            List<(string seedName, string reason)> gateIncomplete = null)
+            List<(string seedName, string reason)> gateIncomplete = null,
+            SeedTypeMigrationReport migration = null)
         {
             var panel = StingResultPanel.Create("Seed Families — Build");
+            string migrated = migration != null && migration.Types > 0
+                ? $"  |  migrated {migration.Types} type(s), {migration.Instances} instance(s)" : "";
             panel.SetSubtitle($"Mode: {mode}  |  {r.Created} created, {r.Existed} existed, " +
-                              $"{r.Protected} protected, {r.Failed} failed");
+                              $"{r.Protected} protected, {r.Failed} failed" + migrated);
 
             panel.AddSection("SUMMARY")
                 .Metric("Mode",       mode.ToString())
@@ -552,6 +567,13 @@ namespace StingTools.Commands.Symbols
                 .Metric("Failed",     r.Failed.ToString())
                 .Metric("Warnings",   r.Warnings.Count.ToString())
                 .Metric("Output",     outRoot);
+
+            if (migration != null && (migration.Types > 0 || migration.Messages.Count > 0))
+            {
+                panel.AddSection("RENAMED TYPES MIGRATED")
+                    .Metric("Migrated", $"{migration.Types} type(s), {migration.Instances} instance(s)");
+                foreach (var m in migration.Messages.Take(20)) panel.Text(m);
+            }
 
             if (perSeed.Count > 0)
             {

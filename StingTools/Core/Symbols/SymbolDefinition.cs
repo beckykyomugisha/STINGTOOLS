@@ -344,6 +344,40 @@ namespace StingTools.Core.Symbols
         /// </summary>
         [JsonProperty("connectors", NullValueHandling = NullValueHandling.Ignore)]
         public List<ConnectorDefinition> Connectors { get; set; }
+
+        /// <summary>
+        /// MG-2 — earlier names of this type, as a string or an array. Build Seeds never
+        /// deletes a type a project already holds, so without this a renamed variant
+        /// leaves the old type (and its instances) behind in every built project.
+        /// SeedTypeMigrator renames the old type, or moves its instances
+        /// onto this one and deletes it. An old name must not be a type the spec still
+        /// declares (<see cref="SeedTypeRenames.Validate"/>, enforced by a data test).
+        /// </summary>
+        [JsonProperty("renamedFrom", NullValueHandling = NullValueHandling.Ignore)]
+        [JsonConverter(typeof(StringOrArrayConverter))]
+        public List<string> RenamedFrom { get; set; }
+    }
+
+    /// <summary>Reads a JSON string or array of strings as a list; writes an array.</summary>
+    public sealed class StringOrArrayConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType) => objectType == typeof(List<string>);
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonToken.Null: return null;
+                case JsonToken.String: return new List<string> { (string)reader.Value };
+                case JsonToken.StartArray: return serializer.Deserialize<List<string>>(reader);
+                default:
+                    throw new JsonSerializationException(
+                        $"Expected a string or an array of strings, got {reader.TokenType} at {reader.Path}.");
+            }
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            => serializer.Serialize(writer, value as List<string>);
     }
 
     public sealed class ParameterDefinition

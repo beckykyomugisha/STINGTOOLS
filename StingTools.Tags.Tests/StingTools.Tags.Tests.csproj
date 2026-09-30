@@ -354,6 +354,11 @@
     <Compile Include="..\StingTools\Photometrics\LdtParser.cs" Link="Photometrics\LdtParser.cs" />
     <Compile Include="..\StingTools\IfcResults\IfcSpaceMatcher.cs" Link="IfcResults\IfcSpaceMatcher.cs" />
     <Compile Include="..\StingTools\Core\Plumbing\MedicalGasFixtures.Rule.cs" Link="Core\Plumbing\MedicalGasFixtures.Rule.cs" />
+    <!-- MG-1 / MG-2: the seed POCO (so renamedFrom binds through the real model), the
+         rename planner, and the medical-gas type -> gas map. All Revit-free. -->
+    <Compile Include="..\StingTools\Core\Symbols\SymbolDefinition.cs" Link="Core\Symbols\SymbolDefinition.cs" />
+    <Compile Include="..\StingTools\Core\Symbols\SeedTypeRenames.cs" Link="Core\Symbols\SeedTypeRenames.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\MedGasSeedTypeMap.cs" Link="Core\Plumbing\MedGasSeedTypeMap.cs" />
     <!-- ELEC-8: rdf:ID allocation for the ETAP hand-off (circuit numbers repeat per panel). -->
     <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
   </ItemGroup>

@@ -23,6 +23,34 @@ namespace StingTools.Core.Plumbing
             return IsMedicalGas(Read(el, ParamRegistry.DISC), Read(el, "MGS_GAS_TYPE_TXT"), Read(el, "STING_SEED_FAMILY_TXT"));
         }
 
+        private static MedGasSeedTypeMap _seedTypes;
+        private static readonly object _seedTypesLock = new object();
+
+        /// <summary>
+        /// The seed's type -> gas map, read once from the shipped
+        /// STING_SEED_MedGasOutlet.json. Empty (and logged) when the spec is missing.
+        /// </summary>
+        public static MedGasSeedTypeMap SeedTypes
+        {
+            get
+            {
+                if (_seedTypes != null) return _seedTypes;
+                lock (_seedTypesLock)
+                {
+                    if (_seedTypes == null)
+                        _seedTypes = MedGasSeedTypeMap.Load(StingToolsApp.FindDataFile(MedGasSeedTypeMap.SeedFileName));
+                    return _seedTypes;
+                }
+            }
+        }
+
+        /// <summary>The element's family is STING's own medical-gas seed (never a manufacturer family).</summary>
+        public static bool IsSeedFamily(FamilySymbol symbol)
+        {
+            try { return symbol?.Family != null && IsSeedFamilyName(symbol.Family.Name); }
+            catch (Exception ex) { StingLog.Warn($"MedicalGasFixtures.IsSeedFamily: {ex.Message}"); return false; }
+        }
+
         private static string Read(Element el, string name)
         {
             try
