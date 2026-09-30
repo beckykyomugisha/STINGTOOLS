@@ -42,9 +42,9 @@ namespace StingTools.Tags
                 StingLog.Error("LoadSharedParamsCommand crashed", ex);
                 try
                 {
-                    TaskDialog.Show("STING Tools - Load Shared Params",
+                    PresetDialog.Show("STING Tools - Load Shared Params",
                         $"Command failed with an unexpected error:\n\n{ex.Message}\n\n" +
-                        "Check StingTools.log for details.");
+                        "Check StingTools.log for details.", ref message);
                 }
                 catch (Exception ex2) { StingLog.Warn($"If even the dialog fails, don't crash Revit: {ex2.Message}"); }
                 return Result.Failed;
@@ -59,8 +59,8 @@ namespace StingTools.Tags
             // BUG FIX: null check ActiveUIDocument — crashes if no document open
             if (uiApp.ActiveUIDocument == null)
             {
-                TaskDialog.Show("STING Tools - Load Shared Params",
-                    "No document is open. Please open a project first.");
+                PresetDialog.Show("STING Tools - Load Shared Params",
+                    "No document is open. Please open a project first.", ref message);
                 return Result.Failed;
             }
 
@@ -82,12 +82,12 @@ namespace StingTools.Tags
             {
                 if (string.IsNullOrEmpty(previousSpFile) || !File.Exists(previousSpFile))
                 {
-                    TaskDialog.Show("STING Tools - Load Shared Params",
+                    PresetDialog.Show("STING Tools - Load Shared Params",
                         "Could not find MR_PARAMETERS.txt.\n\n" +
                         "Expected location: " +
                         (StingToolsApp.DataPath ?? "(DataPath not set)") +
                         "\n\nEither place the file in the data directory or go to " +
-                        "Manage → Shared Parameters and set the path manually.");
+                        "Manage → Shared Parameters and set the path manually.", ref message);
                     return Result.Failed;
                 }
                 mrParamsPath = previousSpFile;
@@ -101,8 +101,8 @@ namespace StingTools.Tags
             DefinitionFile defFile = app.OpenSharedParameterFile();
             if (defFile == null)
             {
-                TaskDialog.Show("STING Tools - Load Shared Params",
-                    "Could not open shared parameter file:\n" + spFile);
+                PresetDialog.Show("STING Tools - Load Shared Params",
+                    "Could not open shared parameter file:\n" + spFile, ref message);
                 return Result.Failed;
             }
 
@@ -324,7 +324,7 @@ namespace StingTools.Tags
                     earlyMsg.AppendLine($"Material cleanup: removed Materials from {matRemovedOnly} params, added to {matAddedOnly} params.");
                 }
                 earlyMsg.AppendLine($"\nSource: {spFile}");
-                TaskDialog.Show("STING Tools - Load Shared Params", earlyMsg.ToString());
+                PresetDialog.Show("STING Tools - Load Shared Params", earlyMsg.ToString(), ref message);
                 return Result.Succeeded;
             }
 
@@ -371,8 +371,8 @@ namespace StingTools.Tags
 
             if (coreCats.Size == 0)
             {
-                TaskDialog.Show("STING Tools - Load Shared Params",
-                    "No categories found that accept bound parameters.");
+                PresetDialog.Show("STING Tools - Load Shared Params",
+                    "No categories found that accept bound parameters.", ref message);
                 return Result.Failed;
             }
 
@@ -812,14 +812,24 @@ namespace StingTools.Tags
                 + "parameters already bound are skipped by name, so only names added since "
                 + "the last run are created.");
 
-            var td = new TaskDialog("STING Tools - Load Shared Params");
-            td.MainInstruction = requiredMissing > 0
+            string headline = requiredMissing > 0
                 ? $"Binding complete — {bound} bound, {requiredMissing} REQUIRED missing!"
                 : $"Shared parameter binding complete — {bound} bound.";
-            td.MainContent = report.ToString();
-            td.CommonButtons = TaskDialogCommonButtons.Ok;
-            td.DefaultButton = TaskDialogResult.Ok;
-            td.Show();
+            if (PresetDialog.Quiet)
+            {
+                // Inside a workflow preset: the report to the log, the headline to the step.
+                StingLog.Info($"LoadSharedParams report:\n{report}");
+                message = $"{headline} {alreadyBound} already present, {skipped} skipped (report in the STING log).";
+            }
+            else
+            {
+                var td = new TaskDialog("STING Tools - Load Shared Params");
+                td.MainInstruction = headline;
+                td.MainContent = report.ToString();
+                td.CommonButtons = TaskDialogCommonButtons.Ok;
+                td.DefaultButton = TaskDialogResult.Ok;
+                td.Show();
+            }
             StingLog.Info($"LoadSharedParams complete: {bound} bound, {alreadyBound} already present, {skipped} skipped");
 
             return Result.Succeeded;

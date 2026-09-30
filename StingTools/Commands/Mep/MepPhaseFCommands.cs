@@ -52,6 +52,7 @@ namespace StingTools.Commands.Mep
                 // Which types, and for which disciplines.
                 List<DrawingType> types;
                 Func<DrawingType, List<string>> discsFor;
+                Func<DrawingType, Level, bool> routedInclude = null;
                 var notes = new List<string>();
                 var requested = HeadlessProductionInputs.ParseList(headless ? WorkflowEngine.StepParam("drawingTypes") : "");
                 if (requested.Count > 0)
@@ -64,15 +65,12 @@ namespace StingTools.Commands.Mep
                 }
                 else
                 {
-                    var present = MepLevelViewProducer.Disciplines.Where(presence.ContainsKey).ToList();
-                    var routing = BatchProduceCommons.RoutePerLevel(doc, present);
-                    types = routing.Types;
-                    discsFor = dt => routing.DisciplinesFor(dt.Id);
-                    foreach (var p in routing.Picks) notes.Add($"{p.Discipline} / {p.DocType} → {p.Type.Id}");
-                    foreach (var d in routing.Unrouted) notes.Add($"{d}: no drawing type routes from {d} / PLAN — not produced.");
-                    foreach (var n in routing.NotPerLevel) notes.Add($"{n} is not a per-level plan — not produced.");
-                    foreach (var d in MepLevelViewProducer.Disciplines.Where(d => !presence.ContainsKey(d)))
-                        notes.Add($"{d}: nothing modelled — skipped.");
+                    // The same routed default Produce Per Level and Produce & Export use.
+                    var sel = BatchProduceCommons.RoutedMepPerLevel(doc);
+                    types = sel.Types;
+                    routedInclude = sel.Include;
+                    discsFor = null;
+                    notes.AddRange(sel.Notes);
                 }
                 if (types.Count == 0)
                 {
@@ -92,6 +90,7 @@ namespace StingTools.Commands.Mep
                 }
                 bool Include(DrawingType dt, Level lvl)
                 {
+                    if (routedInclude != null) return routedInclude(dt, lvl);
                     foreach (var d in discsFor(dt))
                         if (!presence.TryGetValue(d, out var set) || set.Contains(lvl.Id)) return true;
                     return false;

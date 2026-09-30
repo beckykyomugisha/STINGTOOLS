@@ -601,4 +601,56 @@ namespace StingTools.Core.Drawing
             return true;
         }
     }
+
+    /// <summary>
+    /// What to produce for one STING-AREA:: box, with or without a saved plan.
+    ///
+    /// The saved plan (scope_box_plan.json) says, per box, which drawing types and
+    /// levels it was created for. A project whose area boxes were drawn by hand — or
+    /// whose plan file was never saved, or does not list a box — has no such record,
+    /// and production used to fail outright; the MEP preset then also skipped the
+    /// per-level route (the project HAS area boxes), so no plans were produced at all.
+    /// Without a plan entry the box is produced from itself: its ::level when the name
+    /// carries one, else every level (the caller keeps only the levels the box's height
+    /// reaches), with the caller's default drawing types.
+    /// </summary>
+    public static class AreaBoxResolution
+    {
+        /// <summary>
+        /// The plan's answer when it has one for <paramref name="boxName"/>; otherwise the
+        /// box's own level (or <paramref name="allLevelCodes"/>) with
+        /// <paramref name="defaultTypes"/>. <paramref name="fromPlan"/> says which.
+        /// False with <paramref name="why"/> for a malformed name, or when there is no plan
+        /// entry and no default types.
+        /// </summary>
+        public static bool Resolve(ScopeBoxPlanFile plan, string boxName, IList<string> defaultTypes,
+            IList<string> allLevelCodes, out List<string> drawingTypes, out List<string> levels,
+            out bool fromPlan, out string why)
+        {
+            drawingTypes = null; levels = null; fromPlan = false; why = null;
+            if (!ScopeBoxNames.TryParseArea(boxName, out _, out var level, out var bad))
+            { why = bad ?? "not an area box"; return false; }
+
+            string planWhy = null;
+            if (plan != null && plan.TryResolve(boxName, out var pt, out var pl, out planWhy))
+            { drawingTypes = pt; levels = pl; fromPlan = true; return true; }
+
+            var types = (defaultTypes ?? new List<string>()).Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (types.Count == 0)
+            {
+                why = plan == null
+                    ? "no saved plan, and no default drawing types to produce it with"
+                    : (planWhy ?? "not in the saved plan") + ", and no default drawing types to produce it with";
+                return false;
+            }
+            drawingTypes = types;
+            levels = level != null
+                ? new List<string> { level }
+                : (allLevelCodes ?? new List<string>()).Where(c => !string.IsNullOrWhiteSpace(c))
+                    .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (levels.Count == 0) { why = "its name carries no level and the project has no levels"; return false; }
+            return true;
+        }
+    }
 }

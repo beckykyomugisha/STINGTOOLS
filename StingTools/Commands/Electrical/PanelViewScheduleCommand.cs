@@ -49,9 +49,12 @@ namespace StingTools.Commands.Electrical
             }
             if (mode == "PDF")
             {
-                TaskDialog.Show("STING Sheet Placement",
-                    "PDF embed mode is queued for Phase 179. Use Guided Manual or ViewSchedule for now.");
-                return Result.Succeeded;
+                // Not built: it places nothing, so it must not report success. Cancelled
+                // tells the panel (and a workflow report, as SKIP) that nothing was done.
+                message = "Panel schedules on sheets: PDF embed mode is not implemented — nothing was placed. "
+                        + "Use AutoSheets, ViewSchedule or Guided Manual.";
+                TaskDialog.Show("STING Sheet Placement", message);
+                return Result.Cancelled;
             }
 
             // ViewSchedule mode.
@@ -110,7 +113,14 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex2) { StingLog.Warn($"PanelViewSchedule {panel.Name}: {ex2.Message}"); skipped++; }
                 }
-                tx.Commit();
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    message = $"STING Sheet Placement: the transaction did not commit ({status}); nothing was created or placed.";
+                    StingLog.Warn(message);
+                    TaskDialog.Show("STING Sheet Placement", message);
+                    return Result.Failed;
+                }
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Sheet Placement",
@@ -187,7 +197,17 @@ namespace StingTools.Commands.Electrical
                         StingLog.Warn($"PanelViewSchedule AutoSheets {panelName}: {ex.Message}");
                     }
                 }
-                tx.Commit();
+                // Counted only once Revit has committed: a commit a failure handler rolls
+                // back placed nothing, however many schedules the loop created.
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    message = $"{title}: the transaction did not commit ({status}); {made} schedule(s), {placed} placement(s) "
+                            + $"and {newSheets} sheet(s) were not kept.";
+                    StingLog.Warn(message);
+                    if (!PresetDialog.Quiet) TaskDialog.Show(title, message);
+                    return Result.Failed;
+                }
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 

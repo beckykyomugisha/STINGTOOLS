@@ -133,9 +133,29 @@ namespace StingTools.Core.Symbols
             string n = (familyName ?? "").Trim();
             if (n.Length == 0) return null;
             if (_byId.ContainsKey(n)) return _byId[n].Id;
-            string core = n.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
+            string core = SeedFamilyCore(n);
             return core.Length < n.Length && _byId.TryGetValue(core, out var s) ? s.Id : null;
         }
+
+        /// <summary>
+        /// True when <paramref name="familyName"/> is the family built from seed
+        /// <paramref name="seedId"/>: the seed id itself, or the seed id plus the digits
+        /// Revit appends when a second copy is loaded (STING_SEED_MedGasOutlet1). The same
+        /// rule as <see cref="SeedIdForFamily"/>, but for any seed — that lookup only knows
+        /// seeds with followsType parameters.
+        /// </summary>
+        public static bool IsFamilyOfSeed(string familyName, string seedId)
+        {
+            string n = (familyName ?? "").Trim();
+            string id = (seedId ?? "").Trim();
+            if (n.Length == 0 || id.Length == 0) return false;
+            if (string.Equals(n, id, StringComparison.OrdinalIgnoreCase)) return true;
+            string core = SeedFamilyCore(n);
+            return core.Length < n.Length && string.Equals(core, id, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string SeedFamilyCore(string name)
+            => name.TrimEnd('0', '1', '2', '3', '4', '5', '6', '7', '8', '9');
 
         public IReadOnlyList<string> FollowsTypeParams(string seedId)
             => seedId != null && _byId.TryGetValue(seedId, out var s) ? s.Params : (IReadOnlyList<string>)Array.Empty<string>();

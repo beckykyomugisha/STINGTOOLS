@@ -37,7 +37,12 @@ namespace StingTools.Core.SLD
                 {
                     tx.Start();
                     pr = DrawingProducer.PlaceExistingView(doc, dt, new DrawingContext { Tag = contextTag }, view);
-                    tx.Commit();
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        foreach (var w in pr.Warnings.Distinct()) StingLog.Warn($"SldSheetPlacement {drawingTypeId}: {w}");
+                        return $"'{view.Name}' is not on a sheet: the placement did not commit ({status}).";
+                    }
                 }
                 foreach (var w in pr.Warnings.Distinct()) StingLog.Warn($"SldSheetPlacement {drawingTypeId}: {w}");
                 if (!(doc.GetElement(pr.SheetId) is ViewSheet sheet))

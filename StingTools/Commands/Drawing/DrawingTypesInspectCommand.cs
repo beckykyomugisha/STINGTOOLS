@@ -152,9 +152,29 @@ namespace StingTools.Commands.Drawing
                         sb.AppendLine($"  …(+{infoOnlyReports.Count - 20} more)");
                 }
 
-                TaskDialog.Show("STING — Drawing Types", sb.ToString().Length > 10000
-                    ? sb.ToString().Substring(0, 10000) + "\n…(truncated)"
-                    : sb.ToString());
+                // The pre-flight's verdict: Error-severity findings fail the step (a
+                // pre-flight that passes whatever it finds is not a gate).
+                var failing = reports.Where(r => r.HasErrors).Select(r => r.DrawingTypeId).ToList();
+                string verdict = $"Drawing-type pre-flight: {errors} error(s) in {failing.Count} drawing type(s), "
+                               + $"{warnings} warning(s), {infos} info"
+                               + (failing.Count > 0
+                                   ? $" — {string.Join(", ", failing.Take(6))}{(failing.Count > 6 ? $" +{failing.Count - 6} more" : "")} (details in the STING log)."
+                                   : ".");
+                if (PresetDialog.Quiet)
+                {
+                    StingLog.Info("DrawingTypesInspect:\n" + sb);
+                    msg = verdict;
+                }
+                else
+                    TaskDialog.Show("STING — Drawing Types", sb.ToString().Length > 10000
+                        ? sb.ToString().Substring(0, 10000) + "\n…(truncated)"
+                        : sb.ToString());
+                if (errors > 0)
+                {
+                    msg = verdict;
+                    StingLog.Warn(verdict);
+                    return Result.Failed;
+                }
                 return Result.Succeeded;
             }
             catch (Exception ex)

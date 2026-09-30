@@ -54,9 +54,9 @@ namespace StingTools.Commands.Mep
                 int enabled = rules.Enabled.Count();
                 if (enabled == 0)
                 {
-                    TaskDialog.Show("STING MEP",
+                    PresetDialog.Show("STING MEP",
                         "No enabled MEP system-type definitions found in STING_MEP_SYSTEM_TYPES.json " +
-                        "(or the project override). Nothing to build.");
+                        "(or the project override). Nothing to build.", ref message);
                     return Result.Cancelled;
                 }
 
@@ -66,7 +66,13 @@ namespace StingTools.Commands.Mep
                 {
                     t.Start();
                     res = MepSystemTypeMaterializer.Materialize(doc, rules, overwriteGraphics);
-                    t.Commit();
+                    var status = t.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        message = $"MEP system types: the transaction did not commit ({status}); nothing was created.";
+                        StingLog.Warn(message);
+                        return Result.Failed;
+                    }
                 }
 
                 var panel = StingResultPanel.Create(
@@ -97,10 +103,13 @@ namespace StingTools.Commands.Mep
                            "AecFilters_Create + apply a coordination View Style Pack to see them colour up.");
                 panel.Text("Assign ducts/pipes to these types (or route new runs) so the System Browser " +
                            "and the colour filters have data to act on.");
-                panel.Show();
+                PresetDialog.Show(panel, ref message);
 
                 StingLog.Info($"MEP system types: created={res.Created} updated={res.Updated} " +
                               $"skipped={res.Skipped} failed={res.Failed} overwrite={overwriteGraphics}");
+                if (PresetDialog.Quiet)
+                    message = $"MEP system types: {res.Created} created, {res.Updated} updated, {res.Skipped} skipped, " +
+                              $"{res.Failed} failed of {enabled} definition(s), {res.Warnings.Count} warning(s) (rows in the STING log).";
                 return Result.Succeeded;
             }
             catch (Exception ex)

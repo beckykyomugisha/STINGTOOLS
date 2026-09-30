@@ -58,23 +58,52 @@ namespace StingTools.Core.Symbols
             }
         }
 
+        /// <summary>
+        /// Write <paramref name="value"/> ("" clears) as SeedFollowTypeWrite.Plan says for
+        /// the parameter's storage. True when the parameter now holds it — including a clear
+        /// on a parameter that was already empty, and a clear Revit refuses (logged once as
+        /// Info: the value stays, which is what the rule would leave for a user's value).
+        /// </summary>
         private static bool Write(Parameter p, string value)
         {
             if (p == null || p.IsReadOnly) return false;
             value = value ?? "";
+            FollowStorage storage;
             switch (p.StorageType)
             {
-                case StorageType.String:
-                    return p.Set(value);
-                case StorageType.Integer:
-                    return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i) && p.Set(i);
-                case StorageType.Double:
-                    return IsUnitless(p)
-                        && double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out double d)
-                        && p.Set(d);
-                default:
-                    return false;
+                case StorageType.String:    storage = FollowStorage.Text; break;
+                case StorageType.Integer:   storage = FollowStorage.Integer; break;
+                case StorageType.Double:    storage = FollowStorage.Double; break;
+                case StorageType.ElementId: storage = FollowStorage.ElementId; break;
+                default:                    storage = FollowStorage.Other; break;
             }
+            bool unitless = storage == FollowStorage.Double && IsUnitless(p);
+            switch (SeedFollowTypeWrite.Plan(storage, unitless, p.HasValue, value, out int i, out double d))
+            {
+                case FollowWriteAction.SetText:      return p.Set(value);
+                case FollowWriteAction.SetInteger:   return p.Set(i);
+                case FollowWriteAction.SetDouble:    return p.Set(d);
+                case FollowWriteAction.AlreadyClear: return true;
+                case FollowWriteAction.Clear:
+                    try { p.ClearValue(); return true; }
+                    catch (Exception ex)
+                    {
+                        LogClearUnsupported(p, ex);
+                        return true;
+                    }
+                default: return false;
+            }
+        }
+
+        private static readonly HashSet<string> _clearUnsupportedLogged = new HashSet<string>(StringComparer.Ordinal);
+
+        private static void LogClearUnsupported(Parameter p, Exception ex)
+        {
+            string name = p.Definition?.Name ?? "?";
+            lock (_clearUnsupportedLogged)
+                if (!_clearUnsupportedLogged.Add(name)) return;
+            StingLog.Info($"SeedFollowTypeApplier: '{name}' ({p.StorageType}) cannot be cleared by the API ({ex.Message}); "
+                        + "its value is left as it is when the new type declares none. Logged once per parameter.");
         }
 
         private static bool IsUnitless(Parameter p)

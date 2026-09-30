@@ -49,7 +49,13 @@ namespace StingTools.Commands.Mep
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
                 ICollection<ElementId> sel = null;
-                try { sel = ctx.UIDoc?.Selection?.GetElementIds(); } catch { }
+                // A workflow preset builds the whole project: whatever happens to be
+                // selected when the preset starts is not a scope anyone chose.
+                if (!PresetDialog.Quiet)
+                {
+                    try { sel = ctx.UIDoc?.Selection?.GetElementIds(); }
+                    catch (Exception ex) { StingLog.Warn($"MEP build systems: selection unreadable, using whole project: {ex.Message}"); }
+                }
                 bool scopedToSelection = sel != null && sel.Count > 0;
 
                 MepSystemBuildResult res;
@@ -59,7 +65,13 @@ namespace StingTools.Commands.Mep
                     t.Start();
                     res = MepSystemInstanceBuilder.Build(doc, scopedToSelection ? sel : null,
                                                          attemptCreateOrphans);
-                    t.Commit();
+                    var status = t.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        message = $"MEP build systems: the transaction did not commit ({status}); no system was typed or stamped.";
+                        StingLog.Warn(message);
+                        return Result.Failed;
+                    }
                 }
 
                 var panel = StingResultPanel.Create("MEP — Build System Instances");
@@ -102,10 +114,14 @@ namespace StingTools.Commands.Mep
                            "MEP_GenerateSystemFilters then MEP_ApplyMepCoordination to colour the view by " +
                            "system (Phase D). Orphan networks with a valid source can be force-built via " +
                            "MEP_BuildSystemsForce.");
-                panel.Show();
+                PresetDialog.Show(panel, ref message);
 
                 StingLog.Info($"MEP build systems: networks={res.Networks} typed={res.Typed} " +
                               $"created={res.Created} stamped={res.Stamped} skipped={res.Skipped} force={attemptCreateOrphans}");
+                if (PresetDialog.Quiet)
+                    message = $"MEP systems: {res.Networks} network(s), {res.Typed} typed, {res.Created} created, " +
+                              $"{res.Stamped} stamped, {res.Skipped} skipped, {res.Failed} failed, " +
+                              $"{res.Warnings.Count} warning(s) (rows in the STING log).";
                 return Result.Succeeded;
             }
             catch (Exception ex)

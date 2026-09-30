@@ -4,14 +4,18 @@
 // Export ask their inputs in dialogs, so until now they could only be clicked.
 // Inside a workflow preset they read the step's "params" instead:
 //
-//   drawingTypes     comma/semicolon list of drawing-type ids   default: every M, E, P,
-//                                                                FP and MG Plan type
+//   drawingTypes     comma/semicolon list of drawing-type ids   default (per level): the
+//                                                                plan type each modelled M, E,
+//                                                                P, FP, MG discipline routes to
+//                                                                (BatchProduceCommons.RoutedMepPerLevel);
+//                                                                STING:: boxes: the MEP-bound ones
 //   levels           comma/semicolon list of level names        default: every level
 //   output           "Views and sheets" | "Views only"          default: views and sheets
 //   duplicateOption  "Duplicate" | "DuplicateAsDependent"
 //                    | "DuplicateWithDetailing"                 default: Duplicate
 //   packageId        drawing package id                         default: none
 //   mode             Produce & Export only: "produce" | "finalize"   default: produce
+//   sheets           Produce & Export only: "current-revision" | "all" (ExportSheetScope)
 //
 // This file turns those strings into decisions and says what is wrong with them.
 // An unknown drawing-type id or level, or an output value it cannot read, is an

@@ -99,7 +99,12 @@ namespace StingTools.Commands.Drawing
                         }
                     }
 
-                    tx.Commit();
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        warnings.Insert(0, $"The transaction did not commit ({status}); the {created} created and {updated} updated view(s) were not kept.");
+                        created = 0; updated = 0;
+                    }
                 }
 
                 var sb = new StringBuilder();

@@ -68,10 +68,30 @@ namespace StingTools.Core.Symbols
         private static void MigrateFamily(Document doc, SymbolDefinition def, SeedFollowTypeCatalog catalog,
             SeedTypeMigrationReport report)
         {
-            var fam = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
-                .FirstOrDefault(f => string.Equals(f.Name, def.Id, StringComparison.OrdinalIgnoreCase));
-            if (fam == null) return;   // not in this project — nothing was ever built from the old name
+            // Every family built from this seed: the seed id, and the digit-suffixed copies
+            // Revit makes when the seed is loaded a second time (STING_SEED_MedGasOutlet1) —
+            // the same families SeedFollowTypeCatalog.SeedIdForFamily recognises. Matching
+            // the exact name alone left the copies' old types unmigrated.
+            var families = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
+                .Where(f => SeedFollowTypeCatalog.IsFamilyOfSeed(f.Name, def.Id))
+                .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            // None: not in this project — nothing was ever built from the old name.
+            foreach (var fam in families)
+            {
+                // One family failing (rolled back, counts restored) must not stop its copies.
+                try { MigrateOneFamily(doc, def, fam, catalog, report); }
+                catch (Exception ex)
+                {
+                    report.Warnings.Add($"Type migration: {fam.Name} failed — {ex.Message}");
+                    StingLog.Error($"SeedTypeMigrator: {fam.Name}", ex);
+                }
+            }
+        }
 
+        private static void MigrateOneFamily(Document doc, SymbolDefinition def, Family fam,
+            SeedFollowTypeCatalog catalog, SeedTypeMigrationReport report)
+        {
             var byName = new Dictionary<string, FamilySymbol>(StringComparer.Ordinal);
             foreach (var id in fam.GetFamilySymbolIds())
                 if (doc.GetElement(id) is FamilySymbol s && !byName.ContainsKey(s.Name)) byName[s.Name] = s;
@@ -84,7 +104,7 @@ namespace StingTools.Core.Symbols
             int messagesBefore = report.Messages.Count;
             try
             {
-                MigrateSteps(doc, def, catalog, steps, byName, report);
+                MigrateSteps(doc, def, fam.Name, catalog, steps, byName, report);
             }
             catch
             {
@@ -95,7 +115,7 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void MigrateSteps(Document doc, SymbolDefinition def, SeedFollowTypeCatalog catalog,
+        private static void MigrateSteps(Document doc, SymbolDefinition def, string label, SeedFollowTypeCatalog catalog,
             List<SeedTypeMigrationStep> steps,
             Dictionary<string, FamilySymbol> byName, SeedTypeMigrationReport report)
         {
@@ -113,10 +133,10 @@ namespace StingTools.Core.Symbols
                         byName.Remove(step.OldName);
                         byName[step.NewName] = oldSym;
                         int n = 0;
-                        foreach (var inst in InstancesOf(doc, oldSym)) { Restamp(inst, def, catalog, step, report); n++; }
+                        foreach (var inst in InstancesOf(doc, oldSym)) { Restamp(inst, def, label, catalog, step, report); n++; }
                         report.Types++;
                         report.Instances += n;
-                        report.Messages.Add($"{def.Id}: renamed type {step.OldName} -> {step.NewName} ({n} instance(s)).");
+                        report.Messages.Add($"{label}: renamed type {step.OldName} -> {step.NewName} ({n} instance(s)).");
                     }
                     else if (step.Action == SeedTypeMigrationAction.Merge)
                     {
@@ -128,13 +148,13 @@ namespace StingTools.Core.Symbols
                             try
                             {
                                 inst.ChangeTypeId(newSym.Id);
-                                Restamp(inst, def, catalog, step, report);
+                                Restamp(inst, def, label, catalog, step, report);
                                 moved++;
                             }
                             catch (Exception ex)
                             {
                                 failed++;
-                                report.Warnings.Add($"{def.Id}: instance {inst.Id} could not move {step.OldName} -> {step.NewName} — {ex.Message}");
+                                report.Warnings.Add($"{label}: instance {inst.Id} could not move {step.OldName} -> {step.NewName} — {ex.Message}");
                             }
                         }
                         report.Instances += moved;
@@ -143,11 +163,11 @@ namespace StingTools.Core.Symbols
                             doc.Delete(oldSym.Id);
                             byName.Remove(step.OldName);
                             report.Types++;
-                            report.Messages.Add($"{def.Id}: moved {moved} instance(s) {step.OldName} -> {step.NewName}; deleted {step.OldName}.");
+                            report.Messages.Add($"{label}: moved {moved} instance(s) {step.OldName} -> {step.NewName}; deleted {step.OldName}.");
                         }
                         else
                         {
-                            report.Warnings.Add($"{def.Id}: kept type {step.OldName} — {failed} instance(s) still on it; swap them to {step.NewName} by hand, then purge it.");
+                            report.Warnings.Add($"{label}: kept type {step.OldName} — {failed} instance(s) still on it; swap them to {step.NewName} by hand, then purge it.");
                         }
                     }
                 }
@@ -192,17 +212,17 @@ namespace StingTools.Core.Symbols
         /// The seed's followsType values follow the migrated type — over the OLD type's
         /// declared value or a blank only (SeedFollowTypeRule): a value a user typed survives.
         /// </summary>
-        private static void Restamp(FamilyInstance inst, SymbolDefinition def, SeedFollowTypeCatalog catalog,
+        private static void Restamp(FamilyInstance inst, SymbolDefinition def, string label, SeedFollowTypeCatalog catalog,
             SeedTypeMigrationStep step, SeedTypeMigrationReport report)
         {
             try
             {
                 SeedFollowTypeApplier.Apply(inst, def.Id, step.NewName, catalog, step.OldName,
-                    w => report.Warnings.Add($"{def.Id}: {w}"));
+                    w => report.Warnings.Add($"{label}: {w}"));
             }
             catch (Exception ex)
             {
-                report.Warnings.Add($"{def.Id}: instance {inst.Id} values not restamped — {ex.Message}");
+                report.Warnings.Add($"{label}: instance {inst.Id} values not restamped — {ex.Message}");
             }
         }
     }

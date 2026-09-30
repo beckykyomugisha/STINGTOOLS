@@ -38,9 +38,9 @@ namespace StingTools.Commands.Mep
                 var defs = MepSystemFilterGenerator.Generate(rules);
                 if (defs.Count == 0)
                 {
-                    TaskDialog.Show("STING MEP",
+                    PresetDialog.Show("STING MEP",
                         "No enabled system-type definitions with an abbreviation + colour to generate filters from. " +
-                        "Check STING_MEP_SYSTEM_TYPES.json (or the project override).");
+                        "Check STING_MEP_SYSTEM_TYPES.json (or the project override).", ref message);
                     return Result.Cancelled;
                 }
 
@@ -63,7 +63,13 @@ namespace StingTools.Commands.Mep
                         if (fr.Created) created++; else existing++;
                         rows.Add($"{(fr.Created ? "✚" : "◉")} {def.Name}");
                     }
-                    t.Commit();
+                    var status = t.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        message = $"MEP system filters: the transaction did not commit ({status}); no filter was created in the model.";
+                        StingLog.Warn(message);
+                        return Result.Failed;
+                    }
                 }
 
                 var panel = StingResultPanel.Create("MEP — Generate System Filters");
@@ -86,9 +92,12 @@ namespace StingTools.Commands.Mep
                 panel.Text("These 'STING - Sys: …' filters key on ASS_MEP_SYS_NAME_TXT begins-with '<abbr>-' so they " +
                            "distinguish CHWF / LTHWF / CWF etc. — reference them from a View Style Pack, or run " +
                            "MEP_ApplyMepCoordination to colour the active view automatically.");
-                panel.Show();
+                PresetDialog.Show(panel, ref message);
 
                 StingLog.Info($"MEP system filters: generated={defs.Count} created={created} existing={existing} persisted={persisted}");
+                if (PresetDialog.Quiet)
+                    message = $"MEP system filters: {defs.Count} generated, {created} created, {existing} existing, {failed} failed; " +
+                              (persistPath != null ? $"{persisted} written to the project override." : $"not persisted ({(string.IsNullOrEmpty(persistNote) ? "unsaved project" : persistNote)}).");
                 return Result.Succeeded;
             }
             catch (Exception ex)
