@@ -166,12 +166,15 @@ namespace StingTools.Temp
                     skipped++;
                 }
 
-                // Step: Two sections per scope box (centred, both directions)
+                // Step: Two sections per scope box (centred, both directions), through
+                // the drawing-type producer (DTW-74) like the grid sections below.
                 if (data.TwoSectionsPerScopeBox && data.ScopeBoxSelection != null && data.ScopeBoxSelection.Count > 0)
                 {
+                    var sbSecDetail = new StringBuilder();
                     passed += RunStep(ref stepNum, report,
-                        $"Scope-Box Sections ({data.ScopeBoxSelection.Count * 2} views)",
-                        () => CreateTwoSectionsPerScopeBox(doc, data));
+                        $"Scope-Box Sections ({data.ScopeBoxSelection.Count * 2} views, drawing types)",
+                        () => ProduceScopeBoxSections(doc, data, sbSecDetail));
+                    report.Append(sbSecDetail);
                 }
                 else
                 {
@@ -1317,129 +1320,92 @@ namespace StingTools.Temp
         }
 
         /// <summary>
-        /// Create two building sections per checked scope box — one through the centre in each
-        /// principal direction of the box (handles tilted scope boxes via BoundingBox.Transform).
+        /// "Two building sections per scope box", through the drawing-type producer
+        /// (DTW-74): for each checked box, the section the box gives along its long side
+        /// (the cut DrawingProducer takes for a Section rule on a box, DTW-52) and the one
+        /// perpendicular to it, both through the box's centre over its full height, of the
+        /// section drawing type the architectural discipline routes to (structural if
+        /// none). The context tags "ScopeBox-&lt;box&gt;-Long" / "-Cross" are stable, so a
+        /// re-run finds the stamped views and reuses them; Doctor, Renumber and Heal see
+        /// them like any produced drawing. Sheets follow the wizard's "Create sheets".
         /// </summary>
-        private static Result CreateTwoSectionsPerScopeBox(Document doc, ProjectSetupData data)
+        private static Result ProduceScopeBoxSections(Document doc, ProjectSetupData data, StringBuilder detail)
         {
-            // Find the section ViewFamilyType
-            ViewFamilyType sectionVft = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(v => v.ViewFamily == ViewFamily.Section);
-            if (sectionVft == null)
+            var dt = RouteFirst(doc, "SECTION", "Section", "A", "S");
+            if (dt == null)
             {
-                StingLog.Error("No Section ViewFamilyType in project");
+                detail.AppendLine("      No drawing type routes from A / SECTION or S / SECTION — nothing produced (add a routing rule).");
                 return Result.Failed;
             }
-
-            // Collect checked scope boxes by name
             var selected = new HashSet<string>(data.ScopeBoxSelection ?? new List<string>(), StringComparer.Ordinal);
-            var scopeBoxes = new FilteredElementCollector(doc)
+            var boxes = new FilteredElementCollector(doc)
                 .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
                 .WhereElementIsNotElementType()
                 .Where(e => selected.Contains(e.Name))
+                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
-            if (scopeBoxes.Count == 0)
+            if (boxes.Count == 0)
+            {
+                detail.AppendLine("      None of the checked scope boxes is in the model — nothing to produce.");
                 return Result.Failed;
+            }
 
-            // Existing view-name cache to avoid duplicates
-            var viewNames = new HashSet<string>(
-                new FilteredElementCollector(doc)
-                    .OfClass(typeof(View))
-                    .Cast<View>()
-                    .Where(v => !v.IsTemplate)
-                    .Select(v => v.Name),
-                StringComparer.Ordinal);
-
-            int created = 0;
-            using (Transaction tx = new Transaction(doc, "STING Scope-Box Sections"))
+            var opts = new Core.Drawing.ProduceOptions
             {
-                tx.Start();
-                foreach (var sb in scopeBoxes)
+                CreateSheet = data.CreateSheets,
+                PlaceOnSheet = data.CreateSheets,
+                RunAnnotation = true,
+                Idempotent = true,
+            };
+            int views = 0, sheets = 0;
+            var warnings = new List<string>();
+            detail.AppendLine($"      A / SECTION → {dt.Id}");
+            Core.Drawing.DrawingTypePresentation.Prewarm(doc);
+            using (Core.Drawing.DrawingProducer.PrimeBatchScope(doc))
+            using (var tg = new TransactionGroup(doc, "STING Project Setup — Scope-Box Sections"))
+            {
+                tg.Start();
+                foreach (var box in boxes)
                 {
-                    BoundingBoxXYZ box = sb.get_BoundingBox(null);
-                    if (box == null) continue;
-
-                    Transform boxT = box.Transform ?? Transform.Identity;
-                    XYZ boxBX = Normalise(boxT.BasisX);
-                    XYZ boxBY = Normalise(boxT.BasisY);
-
-                    // Centre in world coordinates (BB.Min/Max are in the box's local frame when a Transform is set)
-                    XYZ localCentre = (box.Min + box.Max) * 0.5;
-                    XYZ worldCentre = boxT.OfPoint(localCentre);
-
-                    // Extents along each local axis
-                    double halfX = (box.Max.X - box.Min.X) * 0.5;
-                    double halfY = (box.Max.Y - box.Min.Y) * 0.5;
-                    double halfZ = (box.Max.Z - box.Min.Z) * 0.5;
-
-                    // Two sections: one looking along −BoxY (cuts perpendicular to Y), one along −BoxX
-                    // Section 1: section line runs along BoxX, view looks towards −BoxY
-                    created += TryCreateSection(
-                        doc, sectionVft, $"Section - {sb.Name} - A", worldCentre,
-                        viewRight: boxBX, viewUp: XYZ.BasisZ, viewDir: -boxBY,
-                        halfWidth: halfX, halfHeight: halfZ, halfDepth: halfY,
-                        scopeBoxId: sb.Id, viewNames: viewNames) ? 1 : 0;
-
-                    // Section 2: section line runs along BoxY, view looks towards −BoxX
-                    created += TryCreateSection(
-                        doc, sectionVft, $"Section - {sb.Name} - B", worldCentre,
-                        viewRight: boxBY, viewUp: XYZ.BasisZ, viewDir: -boxBX,
-                        halfWidth: halfY, halfHeight: halfZ, halfDepth: halfX,
-                        scopeBoxId: sb.Id, viewNames: viewNames) ? 1 : 0;
+                    var cuts = new[]
+                    {
+                        (Which: "Long",  Bounds: Core.Drawing.DrawingProducer.BuildLongSectionBoxFromScopeBox(doc, box, warnings)),
+                        (Which: "Cross", Bounds: Core.Drawing.DrawingProducer.BuildCrossSectionBoxFromScopeBox(doc, box, warnings)),
+                    };
+                    foreach (var cut in cuts)
+                    {
+                        if (cut.Bounds == null) { warnings.Add($"{box.Name} ({cut.Which}): no section could be cut from the box."); continue; }
+                        string tag = $"ScopeBox-{box.Name}-{cut.Which}";
+                        using (var t = new Transaction(doc, $"STING Section {tag}"))
+                        {
+                            t.Start();
+                            try
+                            {
+                                var dctx = new Core.Drawing.DrawingContext { CustomBounds = cut.Bounds, Tag = tag };
+                                var pr = Core.Drawing.DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                                warnings.AddRange(pr.Warnings);
+                                if (t.Commit() == TransactionStatus.Committed)
+                                {
+                                    views += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
+                                }
+                                else warnings.Add($"{tag}: the transaction did not commit.");
+                            }
+                            catch (Exception ex)
+                            {
+                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();
+                                warnings.Add($"{tag}: {ex.Message} — rolled back.");
+                            }
+                        }
+                    }
                 }
-                tx.Commit();
+                tg.Assimilate();
             }
 
-            StingLog.Info($"Scope-box sections: {created} created");
-            return created > 0 ? Result.Succeeded : Result.Failed;
-        }
-
-        private static bool TryCreateSection(Document doc, ViewFamilyType vft, string name,
-            XYZ origin, XYZ viewRight, XYZ viewUp, XYZ viewDir,
-            double halfWidth, double halfHeight, double halfDepth,
-            ElementId scopeBoxId, HashSet<string> viewNames)
-        {
-            // Guard against degenerate geometry
-            halfWidth = Math.Max(halfWidth, 1.0);
-            halfHeight = Math.Max(halfHeight, 1.0);
-            halfDepth = Math.Max(halfDepth, 1.0);
-
-            string unique = name;
-            int i = 2;
-            while (viewNames.Contains(unique)) { unique = $"{name} ({i++})"; }
-
-            try
-            {
-                var sectionBox = new BoundingBoxXYZ();
-                var t = Transform.Identity;
-                t.Origin = origin;
-                t.BasisX = Normalise(viewRight);
-                t.BasisY = Normalise(viewUp);
-                t.BasisZ = Normalise(viewDir);
-                sectionBox.Transform = t;
-                sectionBox.Min = new XYZ(-halfWidth, -halfHeight, 0);
-                sectionBox.Max = new XYZ(halfWidth, halfHeight, halfDepth * 2);
-
-                ViewSection view = ViewSection.CreateSection(doc, vft.Id, sectionBox);
-                if (view == null) return false;
-                try { view.Name = unique; viewNames.Add(unique); } catch { }
-
-                // Assign scope box to the section view
-                try
-                {
-                    Parameter p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
-                    if (p != null && !p.IsReadOnly) p.Set(scopeBoxId);
-                }
-                catch { }
-                return true;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Section '{name}': {ex.Message}");
-                return false;
-            }
+            detail.AppendLine($"      {views} section(s) from {boxes.Count} scope box(es) (existing stamped views reused), " +
+                              $"{sheets} new sheet(s){(data.CreateSheets ? "" : " — sheets not requested")}.");
+            AppendWarnings(detail, warnings, "scope-box sections");
+            return views > 0 ? Result.Succeeded : Result.Failed;
         }
 
         private static XYZ Normalise(XYZ v)
