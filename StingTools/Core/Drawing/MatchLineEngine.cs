@@ -47,6 +47,8 @@ namespace StingTools.Core.Drawing
         public int  TipCaptionsPlaced   { get; set; }
         public List<string> Warnings    { get; set; } = new List<string>();
         public List<string> Errors      { get; set; } = new List<string>();
+        /// <summary>DTW-48: parameters already reported unwritable in this run (said once).</summary>
+        internal HashSet<string> UnwritableParams { get; } = new HashSet<string>(StringComparer.Ordinal);
     }
 
     public sealed class MatchLineRunOptions
@@ -127,6 +129,10 @@ namespace StingTools.Core.Drawing
                 // re-collected per view pair and per segment.
                 var cache = new SweepCache(doc, cfg);
 
+                // DTW-47: the view pairs this run still pairs, and the box pairs whose
+                // placement failed (never pruned on the strength of a partial run).
+                var liveViewPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var failedPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 using (var tx = new Transaction(doc, "STING Match-Line sweep"))
                 {
                     tx.Start();
@@ -135,16 +141,17 @@ namespace StingTools.Core.Drawing
                         try
                         {
                             PlaceOrUpdatePair(doc, edge, cfg, viewByScope,
-                                              existingByGuid, opts, r, cache);
+                                              existingByGuid, opts, r, cache, liveViewPairs);
                         }
                         catch (Exception ex)
                         {
+                            failedPairs.Add(edge.PairGuid ?? "");
                             r.Errors.Add($"pair {edge.Key}: {ex.Message}");
                             StingLog.Error($"MatchLineEngine pair {edge.Key}", ex);
                         }
                     }
-                    if (opts.PruneOrphans)
-                        PruneOrphans(doc, groupedEdges, existingByGuid, r);
+                    if (opts.PruneOrphans && !cache.GuidUnstampable)
+                        PruneOrphans(doc, groupedEdges, existingByGuid, r, liveViewPairs, failedPairs);
                     // A commit a failure handler rolls back placed nothing: say so, so the
                     // run's counts are not read as match lines in the model.
                     var status = tx.Commit();
@@ -340,12 +347,13 @@ namespace StingTools.Core.Drawing
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
                 {
                     if (!(el is View v) || v.IsTemplate) continue;
+                    // Plans only. DTW-52: a section or 3D view is now produced FROM a scope
+                    // box (cut through it / boxed by it); it does not continue onto the next
+                    // box's sheet, and a plan-shaped match line drawn in it is nonsense.
                     if (v.ViewType != ViewType.FloorPlan
                         && v.ViewType != ViewType.CeilingPlan
                         && v.ViewType != ViewType.AreaPlan
-                        && v.ViewType != ViewType.EngineeringPlan
-                        && v.ViewType != ViewType.Section
-                        && v.ViewType != ViewType.Elevation)
+                        && v.ViewType != ViewType.EngineeringPlan)
                         continue;
                     var p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
                     if (p == null) continue;
@@ -508,7 +516,8 @@ namespace StingTools.Core.Drawing
         private static void PlaceOrUpdatePair(Document doc, ScopeBoxAdjacency edge,
             MatchLineConfig cfg, Dictionary<long, List<View>> viewByScope,
             Dictionary<string, List<CurveElement>> existingByGuid,
-            MatchLineRunOptions opts, MatchLineRunResult r, SweepCache cache)
+            MatchLineRunOptions opts, MatchLineRunResult r, SweepCache cache,
+            HashSet<string> liveViewPairs = null)
         {
             // Resolve a representative view per side (first view bound to
             // the scope box; multi-level pairs get one match line per
@@ -546,13 +555,15 @@ namespace StingTools.Core.Drawing
                 // stamp — drift can flag one view's match line stale
                 // without affecting the rest.
                 string viewPairGuid = $"{edge.PairGuid}:{viewA.UniqueId}:{viewB.UniqueId}";
+                liveViewPairs?.Add(viewPairGuid);   // DTW-47: this view pair still pairs
 
                 bool existed = existingByGuid.TryGetValue(viewPairGuid, out var existing);
                 if (existed && !opts.ForceRestamp)
                 {
-                    // Verify ref still matches; if it does, no-op.
+                    // No-op only when the refs still match AND the lines are still where
+                    // the boundary is (DTW-46) — a moved box used to keep its old lines.
                     bool refsCurrent = AllRefsMatch(existing, refA, refB);
-                    if (refsCurrent) { r.PairsSkipped++; continue; }
+                    if (refsCurrent && GeometryCurrent(existing, edge, viewA, viewB, cfg)) { r.PairsSkipped++; continue; }
                 }
 
                 // Strip any prior pair (idempotent re-apply).
@@ -564,6 +575,7 @@ namespace StingTools.Core.Drawing
                 // curve in viewB referencing refA.
                 PlaceCurve(doc, viewA, edge, cfg, viewPairGuid, refB, r, cache);
                 PlaceCurve(doc, viewB, edge, cfg, viewPairGuid, refA, r, cache);
+                if (cache.GuidUnstampable) return;   // DTW-48: nothing was placed; the error says why
 
                 if (existed) r.PairsUpdated++;
                 else         r.PairsCreated++;
@@ -626,42 +638,113 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// Where a boundary segment is drawn in <paramref name="view"/>: on a plan at the
+        /// view's level, extended past the crop by the configured distance. The one
+        /// definition placement and the DTW-46 "has the boundary moved?" check share.
+        /// </summary>
+        private static void ProjectSegment(View view, XYZ segStart, XYZ segEnd, MatchLineConfig cfg, out XYZ a, out XYZ b)
+        {
+            // Project the line onto the view plane. For plans
+            // (FloorPlan / CeilingPlan / AreaPlan) we drop Z.
+            if (view.ViewType == ViewType.FloorPlan
+                || view.ViewType == ViewType.CeilingPlan
+                || view.ViewType == ViewType.AreaPlan
+                || view.ViewType == ViewType.EngineeringPlan)
+            {
+                double z = view.GenLevel?.Elevation ?? 0.0;
+                a = new XYZ(segStart.X, segStart.Y, z);
+                b = new XYZ(segEnd.X,   segEnd.Y,   z);
+            }
+            else
+            {
+                a = segStart; b = segEnd;
+            }
+
+            // Optional extension beyond the crop edge so the line
+            // visually breaks the drawable zone instead of stopping
+            // exactly at the boundary.
+            double extFt = MmToFt(cfg.Geometry.ExtendBeyondCropMm);
+            if (extFt > 1e-6)
+            {
+                var dir = (b - a).Normalize();
+                a = a - dir * extFt;
+                b = b + dir * extFt;
+            }
+        }
+
+        /// <summary>
+        /// DTW-46: true when the pair's placed curves still lie where the boundary is now
+        /// (MatchLineUpkeep.SegmentsMatch, within 5 mm, in plan). A box moved after the
+        /// lines were drawn fails this, and the pair is redrawn.
+        /// </summary>
+        private static bool GeometryCurrent(List<CurveElement> existing, ScopeBoxAdjacency edge,
+            View viewA, View viewB, MatchLineConfig cfg)
+        {
+            try
+            {
+                var segments = (edge.Segments != null && edge.Segments.Count > 0)
+                    ? edge.Segments
+                    : new List<(XYZ Start, XYZ End)> { (edge.LineStart, edge.LineEnd) };
+                var expected = new List<(double, double, double, double)>();
+                foreach (var v in new[] { viewA, viewB })
+                    foreach (var seg in segments)
+                    {
+                        ProjectSegment(v, seg.Start, seg.End, cfg, out var a, out var b);
+                        expected.Add((a.X, a.Y, b.X, b.Y));
+                    }
+                var placed = new List<(double, double, double, double)>();
+                foreach (var ce in existing ?? new List<CurveElement>())
+                {
+                    if (!(ce?.GeometryCurve is Line ln)) return false;
+                    var p0 = ln.GetEndPoint(0); var p1 = ln.GetEndPoint(1);
+                    placed.Add((p0.X, p0.Y, p1.X, p1.Y));
+                }
+                return MatchLineUpkeep.SegmentsMatch(placed, expected, MmToFt(5.0));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MatchLineEngine geometry check {edge?.PairGuid}: {ex.Message}");
+                return false;   // redraw rather than keep lines that might be stale
+            }
+        }
+
         private static void PlaceCurveSegment(Document doc, View view, ScopeBoxAdjacency edge,
             MatchLineConfig cfg, string viewPairGuid, string pairedRef,
             XYZ segStart, XYZ segEnd, MatchLineRunResult r, SweepCache cache)
         {
             try
             {
-                // Project the line onto the view plane. For plans
-                // (FloorPlan / CeilingPlan / AreaPlan) we drop Z.
-                XYZ a, b;
-                if (view.ViewType == ViewType.FloorPlan
-                    || view.ViewType == ViewType.CeilingPlan
-                    || view.ViewType == ViewType.AreaPlan
-                    || view.ViewType == ViewType.EngineeringPlan)
-                {
-                    double z = view.GenLevel?.Elevation ?? 0.0;
-                    a = new XYZ(segStart.X, segStart.Y, z);
-                    b = new XYZ(segEnd.X,   segEnd.Y,   z);
-                }
-                else
-                {
-                    a = segStart; b = segEnd;
-                }
+                ProjectSegment(view, segStart, segEnd, cfg, out var a, out var b);
 
-                // Optional extension beyond the crop edge so the line
-                // visually breaks the drawable zone instead of stopping
-                // exactly at the boundary.
-                double extFt = MmToFt(cfg.Geometry.ExtendBeyondCropMm);
-                if (extFt > 1e-6)
-                {
-                    var dir = (b - a).Normalize();
-                    a = a - dir * extFt;
-                    b = b + dir * extFt;
-                }
+                // DTW-48: once a curve has refused the pair stamp, place no more.
+                if (cache.GuidUnstampable) return;
 
                 var line = Line.CreateBound(a, b);
                 var dc = doc.Create.NewDetailCurve(view, line);
+
+                // DTW-48: the pair GUID is what lets the next run find this curve. A curve
+                // that cannot carry it would be re-added on every run, so it is removed and
+                // the sweep stops placing, with one error that says why.
+                if (cfg.Stamping.WritePairGuid)
+                {
+                    if (!TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid, r))
+                    {
+                        try { doc.Delete(dc.Id); }
+                        catch (Exception ex) { StingLog.Warn($"MatchLine: removing unstampable curve: {ex.Message}"); }
+                        cache.GuidUnstampable = true;
+                        r.Errors.Add($"{ParamRegistry.MATCH_LINE_GUID} could not be written on a detail line, so match lines were not placed "
+                                   + "(an unstamped line is invisible to the next run, which would add another). "
+                                   + "Run Load Shared Params to bind it to Lines, then run match lines again.");
+                        return;
+                    }
+                }
+                else if (!cache.GuidOffWarned)
+                {
+                    cache.GuidOffWarned = true;
+                    r.Warnings.Add("Match-line config has stamping.writePairGuid off: the lines placed now cannot be found by the next run, "
+                                 + "so every re-run adds another set. Turn it on to make match lines idempotent.");
+                }
 
                 // Apply line style.
                 var styleId = cache.LineStyleId;
@@ -674,11 +757,9 @@ namespace StingTools.Core.Drawing
                 // Stamp parameters (skip silently when binding missing —
                 // pre-flight check should have warned).
                 if (cfg.Stamping.WritePairedRef)
-                    TrySet(dc, ParamRegistry.MATCH_REF, pairedRef);
-                if (cfg.Stamping.WritePairGuid)
-                    TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid);
+                    TrySet(dc, ParamRegistry.MATCH_REF, pairedRef, r);
                 if (cfg.Stamping.WriteDirection)
-                    TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction);
+                    TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction, r);
 
                 // Phase 169 — discipline tint via per-element
                 // OverrideGraphicSettings. The view-style-pack default
@@ -746,14 +827,34 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static void TrySet(Element el, string paramName, string value)
+        /// <summary>
+        /// DTW-48: write a text stamp and say whether it took. It swallowed every failure in
+        /// an empty catch and did nothing when the parameter was unbound, so a missing
+        /// binding looked like success. An unbound or read-only parameter is reported once.
+        /// </summary>
+        private static bool TrySet(Element el, string paramName, string value, MatchLineRunResult r = null)
         {
             try
             {
                 var p = el.LookupParameter(paramName);
-                if (p != null && !p.IsReadOnly) p.Set(value ?? "");
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+                {
+                    if (r == null || r.UnwritableParams.Add(paramName))
+                    {
+                        var why = p == null ? "not bound to Lines" : p.IsReadOnly ? "read-only" : $"a {p.StorageType} parameter, not text";
+                        StingLog.Warn($"MatchLineEngine: {paramName} is {why}; match lines cannot carry it.");
+                        r?.Warnings.Add($"{paramName} is {why} — match lines cannot carry it. Run Load Shared Params.");
+                    }
+                    return false;
+                }
+                return p.Set(value ?? "");
             }
-            catch { /* binding missing — pre-flight warns */ }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MatchLineEngine: writing {paramName}: {ex.Message}");
+                r?.Warnings.Add($"Writing {paramName} on a match line failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Phase 169 — sets a per-element OverrideGraphicSettings
@@ -941,6 +1042,13 @@ namespace StingTools.Core.Drawing
 
             public SweepCache(Document doc, MatchLineConfig cfg) { _doc = doc; _cfg = cfg; }
 
+            /// <summary>DTW-48: set once a placed curve refused the pair-GUID stamp. The
+            /// rest of the sweep places nothing — an unstamped curve is invisible to the
+            /// next run, which would add another beside it.</summary>
+            public bool GuidUnstampable { get; set; }
+            /// <summary>DTW-48: "stamping switched off in the config" said once per sweep.</summary>
+            public bool GuidOffWarned { get; set; }
+
             public string SheetRef(View view)
             {
                 if (_sheetRefs == null) _sheetRefs = BuildSheetRefIndex(_doc);
@@ -1109,26 +1217,28 @@ namespace StingTools.Core.Drawing
         // ── Orphan pruning + validation ──────────────────────────────────
 
         private static void PruneOrphans(Document doc, List<ScopeBoxAdjacency> currentEdges,
-            Dictionary<string, List<CurveElement>> existingByGuid, MatchLineRunResult r)
+            Dictionary<string, List<CurveElement>> existingByGuid, MatchLineRunResult r,
+            ISet<string> liveViewPairs = null, ISet<string> failedPairs = null)
         {
-            // An orphan is a stamped match-line whose viewPairGuid prefix
-            // (the scope-box pair GUID) doesn't appear in `currentEdges`.
+            // An orphan is a stamped match line whose box pair is no longer adjacent, or —
+            // DTW-47 — whose key names two views this run did not pair (a view deleted, or
+            // retyped so it no longer pairs). Those used to survive every run beside the
+            // new pair's lines. See MatchLineUpkeep.ShouldPrune.
             var liveScopePairs = new HashSet<string>(
                 currentEdges.Select(e => e.PairGuid),
                 StringComparer.OrdinalIgnoreCase);
             int pruned = 0;
             foreach (var kv in existingByGuid)
             {
-                var key = kv.Key ?? "";
-                // viewPairGuid format: "<scopePairGuid>:<viewA>:<viewB>"
-                var sep = key.IndexOf(':');
-                var scopePairGuid = sep > 0 ? key.Substring(0, sep) : key;
-                if (liveScopePairs.Contains(scopePairGuid)) continue;
+                if (!MatchLineUpkeep.ShouldPrune(kv.Key ?? "", liveScopePairs, liveViewPairs, failedPairs)) continue;
                 foreach (var dc in kv.Value)
-                    try { doc.Delete(dc.Id); pruned++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                {
+                    if (dc == null || !dc.IsValidObject) continue;   // already replaced this run
+                    try { doc.Delete(dc.Id); pruned++; } catch (Exception ex) { StingLog.Warn($"Match-line prune {dc.Id}: {ex.Message}"); }
+                }
             }
             if (pruned > 0)
-                r.Warnings.Add($"pruned {pruned} orphan match-line curve(s) — paired scope boxes no longer adjacent");
+                r.Warnings.Add($"pruned {pruned} orphan match-line curve(s) — their scope boxes are no longer adjacent, or their views no longer pair");
 
             // Their captions too. Only STAMPED captions can be tied to a pair, so
             // only those are pruned; an unstamped caption might be a person's note.
@@ -1140,9 +1250,7 @@ namespace StingTools.Core.Drawing
                     var s = Storage.StingAnnotationProvenanceSchema.Read(el);
                     if (s == null || s.Value.Producer != AnnotationProvenance.MatchCaption) continue;
                     var host = AnnotationProvenance.HostOf(s.Value.Key) ?? "";
-                    var sep = host.IndexOf(':');
-                    var scopePairGuid = sep > 0 ? host.Substring(0, sep) : host;
-                    if (liveScopePairs.Contains(scopePairGuid)) continue;
+                    if (!MatchLineUpkeep.ShouldPrune(host, liveScopePairs, liveViewPairs, failedPairs)) continue;
                     try { doc.Delete(el.Id); captions++; }
                     catch (Exception ex) { StingLog.Warn($"Orphan caption prune {el.Id}: {ex.Message}"); }
                 }

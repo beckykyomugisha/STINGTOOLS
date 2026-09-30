@@ -290,6 +290,17 @@
     <Compile Include="..\StingTools\Core\Drawing\TemporaryBaseViews.cs" Link="Core\Drawing\TemporaryBaseViews.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ExistingViewPlacement.cs" Link="Core\Drawing\ExistingViewPlacement.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewContextTag.cs" Link="Core\Drawing\ViewContextTag.cs" />
+    <!-- fix/dt-producers: the Revit-free decisions behind the producers (level segment,
+         context identity, batch name ledger, unique view name, section from box, match-line
+         upkeep, link levels, elevation faces). DrawingProducer and the commands call these files. -->
+    <Compile Include="..\StingTools\Core\Drawing\LevelSegmentResolver.cs" Link="Core\Drawing\LevelSegmentResolver.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ProductionContextKey.cs" Link="Core\Drawing\ProductionContextKey.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\BatchNameLedger.cs" Link="Core\Drawing\BatchNameLedger.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewNameUniquifier.cs" Link="Core\Drawing\ViewNameUniquifier.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SectionFromBox.cs" Link="Core\Drawing\SectionFromBox.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\MatchLineUpkeep.cs" Link="Core\Drawing\MatchLineUpkeep.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ElevationFaces.cs" Link="Core\Drawing\ElevationFaces.cs" />
+    <Compile Include="..\StingTools\Core\Mep\LinkLevelMapper.cs" Link="Core\Mep\LinkLevelMapper.cs" />
     <Compile Include="..\StingTools\Core\Panels\PanelSheetPlacementMode.cs" Link="Core\Panels\PanelSheetPlacementMode.cs" />
     <!-- Revit-free halves of fix/review-six: Seeds_Build's preset mode, and which stamped
          sheets Produce & Export covers. -->

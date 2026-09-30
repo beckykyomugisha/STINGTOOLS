@@ -40,6 +40,7 @@
 // -control event, not a side effect of a plugin update.
 
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
 
@@ -69,12 +70,22 @@ namespace StingTools.Core.Drawing
         public const string PolicyParameterName = "PRJ_ORG_SHEET_NUMBER_POLICY_TXT";
 
         /// <summary>
-        /// The canonical ISO 19650-2 sheet-number pattern. Field order is
-        /// Project–Originator–Volume–Level–Type–Role–Number, then the
-        /// suitability and revision suffixes STING appends.
+        /// The canonical ISO 19650-2 container identifier: Project–Originator–
+        /// Volume–Level–Type–Role–Number.
+        /// <para>
+        /// DTW-44: it used to end "-{suit}-{rev}". Those two are METADATA of the
+        /// container in ISO 19650-2 (§5.1.7 / Annex A status and revision codes),
+        /// not part of its identifier — and here they were frozen at the profile's
+        /// values when the sheet was numbered (S2-P01), so a sheet issued at A1-C02
+        /// still carried "S2-P01" in its number. Suitability and revision are
+        /// stamped on the sheet and printed by the title block instead.
+        /// Existing sheets keep their numbers: production finds a sheet by its
+        /// context stamp, never by re-deriving its number, so only sheets created
+        /// from now on take the shorter form.
+        /// </para>
         /// </summary>
         public const string IsoPattern =
-            "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}-{suit}-{rev}";
+            "{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}";
 
         /// <summary>Parse the policy string. Anything unrecognised — including null — is Profile.</summary>
         public static SheetNumberPolicyKind Parse(string value)
@@ -188,6 +199,37 @@ namespace StingTools.Core.Drawing
             note = $"DrawingType '{dt.Id}': ISO sheet-number policy active — pattern '{own}' replaced by "
                  + $"'{IsoPattern}'.";
             return IsoPattern;
+        }
+
+        private static readonly Regex _statusSuffix =
+            new Regex(@"-(S\d|A\d{1,2}|B\d{1,2}|CR|AB|AR)-[PC]\d{2,3}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// DTW-44: a sheet number with the suitability-revision tail the old
+        /// <see cref="IsoPattern"/> appended ("…-0003-S2-P01") cut back to its container
+        /// identifier ("…-0003"); any other number unchanged. Used to seed the ISO counter
+        /// from sheets numbered before the tail was dropped, so a new sheet does not take
+        /// a sequence an existing one already carries.
+        /// </summary>
+        public static string StripStatusSuffix(string sheetNumber)
+            => string.IsNullOrEmpty(sheetNumber) ? sheetNumber : _statusSuffix.Replace(sheetNumber, "");
+
+        /// <summary>
+        /// DTW-43: the value {lvl} takes in <paramref name="pattern"/> for the level
+        /// called <paramref name="levelName"/>. An ISO-shaped number carries the ISO
+        /// 19650 level code — the one the sheet's own level stamp uses
+        /// (IsoLevelCode, built over every level in <paramref name="isoCodesByName"/>) —
+        /// not the level's name cut to eight characters, which gave "Level1" and
+        /// "Mezzanin" and let "Level 10" and "Level 1 A" collide. Any other pattern
+        /// keeps the name, as before. Null in, null out (the profile's fallback applies).
+        /// </summary>
+        public static string LevelToken(string pattern, string levelName, IDictionary<string, string> isoCodesByName)
+        {
+            if (levelName == null) return null;
+            if (!IsAlreadyIso(pattern)) return levelName;
+            if (isoCodesByName != null && isoCodesByName.TryGetValue(levelName, out var code) && !string.IsNullOrWhiteSpace(code))
+                return code;
+            return IsoLevelCode.FromNameOnly(levelName);
         }
 
         /// <summary>

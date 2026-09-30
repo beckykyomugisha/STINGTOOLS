@@ -9,7 +9,9 @@
 //
 // The command now produces through DrawingProducer (MepProduceMepViewsByLevelCommand).
 // What stays here is the part only this file knew: on which levels each discipline has
-// anything modelled, so a level with no ductwork gets no HVAC plan.
+// anything modelled, so a level with no ductwork gets no HVAC plan — counting what the
+// host holds and what its loaded links hold, a link's levels mapped onto the host level
+// at or below them (DTW-49; a federated model keeps its MEP in links).
 //
 //   M   ducts, flex ducts, air terminals, mechanical equipment
 //   P   pipes and plumbing fixtures, except fire-protection systems
@@ -47,27 +49,10 @@ namespace StingTools.Core.Mep
             var found = new Dictionary<string, HashSet<ElementId>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType()
-                    .WherePasses(new ElementMulticategoryFilter(CategoryMap.Keys.ToList()));
-                foreach (var el in collector)
+                foreach (var kv in CollectPresence(doc))
                 {
-                    var catId = el.Category?.Id;
-                    if (catId == null || !CategoryMap.TryGetValue((BuiltInCategory)catId.Value, out var cat)) continue;
-                    var discs = MepPresenceClassifier.Classify(cat,
-                        () => IsFireProtection(el),
-                        () =>
-                        {
-                            try { return ParameterHelpers.GetString(el, ParamRegistry.DISC); }
-                            catch (Exception ex) { StingLog.Warn($"MepLevelViewProducer DISC read {el.Id}: {ex.Message}"); return null; }
-                        });
-                    if (discs.Count == 0) continue;
-                    var lid = LevelOf(el);
-                    if (lid == ElementId.InvalidElementId) continue;
-                    foreach (var d in discs)
-                    {
-                        if (!found.TryGetValue(d, out var set)) found[d] = set = new HashSet<ElementId>();
-                        set.Add(lid);
-                    }
+                    if (!found.TryGetValue(kv.Key, out var set)) found[kv.Key] = set = new HashSet<ElementId>();
+                    set.UnionWith(kv.Value);
                 }
             }
             catch (Exception ex)
@@ -75,10 +60,105 @@ namespace StingTools.Core.Mep
                 StingLog.Warn($"MepLevelViewProducer collect: {ex.Message}");
             }
 
+            // DTW-49: on a federated job the MEP is in LINKS. Only the host used to be
+            // read, so every discipline there reported "nothing modelled" and no plans
+            // were produced. Each loaded link document is collected once (one pass, the
+            // same rules), and each link level is mapped to the host level at or below it,
+            // through each instance's transform (LinkLevelMapper).
+            try { AddLinkedPresence(doc, found); }
+            catch (Exception ex) { StingLog.Warn($"MepLevelViewProducer links: {ex.Message}"); }
+
             // Keys in the order the per-rule passes used to add them.
             foreach (var d in new[] { "M", "E", "FP", "P", "MG" })
                 if (found.TryGetValue(d, out var set)) map[d] = set;
             return map;
+        }
+
+        /// <summary>
+        /// One collector pass over <paramref name="doc"/>: discipline → the ids of the
+        /// levels (of that document) hosting at least one element of it.
+        /// </summary>
+        private static Dictionary<string, HashSet<ElementId>> CollectPresence(Document doc)
+        {
+            var found = new Dictionary<string, HashSet<ElementId>>(StringComparer.OrdinalIgnoreCase);
+            var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                .WherePasses(new ElementMulticategoryFilter(CategoryMap.Keys.ToList()));
+            foreach (var el in collector)
+            {
+                var catId = el.Category?.Id;
+                if (catId == null || !CategoryMap.TryGetValue((BuiltInCategory)catId.Value, out var cat)) continue;
+                var discs = MepPresenceClassifier.Classify(cat,
+                    () => IsFireProtection(el),
+                    () =>
+                    {
+                        try { return ParameterHelpers.GetString(el, ParamRegistry.DISC); }
+                        catch (Exception ex) { StingLog.Warn($"MepLevelViewProducer DISC read {el.Id}: {ex.Message}"); return null; }
+                    });
+                if (discs.Count == 0) continue;
+                var lid = LevelOf(el);
+                if (lid == ElementId.InvalidElementId) continue;
+                foreach (var d in discs)
+                {
+                    if (!found.TryGetValue(d, out var set)) found[d] = set = new HashSet<ElementId>();
+                    set.Add(lid);
+                }
+            }
+            return found;
+        }
+
+        /// <summary>
+        /// DTW-49: add what the loaded links hold, mapped onto host levels. A link that is
+        /// not loaded is skipped (and logged) — its content cannot be read.
+        /// </summary>
+        private static void AddLinkedPresence(Document host, Dictionary<string, HashSet<ElementId>> found)
+        {
+            var instances = new FilteredElementCollector(host).OfClass(typeof(RevitLinkInstance))
+                .Cast<RevitLinkInstance>().ToList();
+            if (instances.Count == 0) return;
+            // Levels in the internal-origin frame on both sides: ProjectElevation is
+            // relative to the internal origin, which the link transform maps between.
+            var hostLevels = new FilteredElementCollector(host).OfClass(typeof(Level)).Cast<Level>()
+                .Select(l => (l.Id.Value, l.ProjectElevation)).ToList();
+            if (hostLevels.Count == 0) return;
+
+            var perDoc = new Dictionary<string, (Document Doc, Dictionary<string, HashSet<ElementId>> Presence)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var inst in instances)
+            {
+                Document linkDoc = null;
+                try { linkDoc = inst.GetLinkDocument(); }
+                catch (Exception ex) { StingLog.Warn($"MepLevelViewProducer link '{inst.Name}': {ex.Message}"); }
+                if (linkDoc == null) { StingLog.Info($"MepLevelViewProducer: link '{inst.Name}' is not loaded — its MEP is not counted."); continue; }
+
+                var key = string.IsNullOrEmpty(linkDoc.PathName) ? linkDoc.Title : linkDoc.PathName;
+                if (!perDoc.TryGetValue(key, out var entry))
+                    perDoc[key] = entry = (linkDoc, CollectPresence(linkDoc));   // one pass per link document
+                if (entry.Presence.Count == 0) continue;
+
+                Transform tf;
+                try { tf = inst.GetTotalTransform() ?? Transform.Identity; }
+                catch (Exception ex) { StingLog.Warn($"MepLevelViewProducer link transform '{inst.Name}': {ex.Message}"); tf = Transform.Identity; }
+
+                var toHost = new Dictionary<long, long?>();
+                foreach (var kv in entry.Presence)
+                {
+                    foreach (var linkLevelId in kv.Value)
+                    {
+                        if (!toHost.TryGetValue(linkLevelId.Value, out var hostId))
+                        {
+                            hostId = null;
+                            if (linkDoc.GetElement(linkLevelId) is Level ll)
+                            {
+                                double z = tf.OfPoint(new XYZ(0, 0, ll.ProjectElevation)).Z;
+                                hostId = LinkLevelMapper.HostLevelFor(z, hostLevels);
+                            }
+                            toHost[linkLevelId.Value] = hostId;
+                        }
+                        if (!hostId.HasValue) continue;
+                        if (!found.TryGetValue(kv.Key, out var set)) found[kv.Key] = set = new HashSet<ElementId>();
+                        set.Add(new ElementId(hostId.Value));
+                    }
+                }
+            }
         }
 
         /// <summary>Every category a presence rule reads → its Revit-free name.</summary>

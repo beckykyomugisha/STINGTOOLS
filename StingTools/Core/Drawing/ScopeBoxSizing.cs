@@ -70,16 +70,18 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
-        /// True when the drawing type is produced as a plan cropped by a scope box —
-        /// the only kind an area box can serve. Sections, schedules and 3D are not.
+        /// True when the drawing type is produced from a scope box: a plan or RCP
+        /// cropped by one, or (DTW-52) a section cut from one — SectionFromBox cuts it
+        /// through the box along its long side, one per box with no level loop.
+        /// Schedules, 3D, elevations and details are not.
         /// </summary>
         public static bool IsAreaCandidate(DrawingType dt, out string why)
         {
             why = null;
             if (dt == null) { why = "no drawing type"; return false; }
             if (!DrawingPurposeViewKind.TryResolve(dt.Purpose, out var kind)
-                || (kind != DrawingViewKind.FloorPlan && kind != DrawingViewKind.Rcp))
-            { why = $"purpose '{dt.Purpose}' is not a plan"; return false; }
+                || (kind != DrawingViewKind.FloorPlan && kind != DrawingViewKind.Rcp && kind != DrawingViewKind.Section))
+            { why = $"purpose '{dt.Purpose}' is not a plan or section"; return false; }
             var crop = dt.Crop?.Kind ?? "";
             if (crop.IndexOf("ScopeBox", StringComparison.OrdinalIgnoreCase) < 0)
             { why = $"crop '{crop}' does not use a scope box"; return false; }
@@ -90,14 +92,22 @@ namespace StingTools.Core.Drawing
         private static readonly HashSet<string> _planSlotTypes =
             new HashSet<string>(new[] { "Plan", "RCP", "Coordination" }, StringComparer.OrdinalIgnoreCase);
 
+        private static readonly HashSet<string> _sectionSlotTypes =
+            new HashSet<string>(new[] { "Section" }, StringComparer.OrdinalIgnoreCase);
+
+        private static bool IsSection(DrawingType dt)
+            => DrawingPurposeViewKind.TryResolve(dt?.Purpose, out var k) && k == DrawingViewKind.Section;
+
         /// <summary>
-        /// The slot the cropped plan lands in: the required plan-like slot, else the
-        /// largest plan-like slot. None means the type has nowhere to put a plan.
+        /// The slot the cropped plan (or, for a section type, the section) lands in: the
+        /// required slot of that kind, else the largest. None means the type has nowhere
+        /// to put it.
         /// </summary>
         public static DrawingSlot MainSlot(DrawingType dt)
         {
+            var kinds = IsSection(dt) ? _sectionSlotTypes : _planSlotTypes;
             var plans = (dt?.Slots ?? new List<DrawingSlot>())
-                .Where(s => s != null && _planSlotTypes.Contains(s.ViewType ?? "") && s.NormW > 0 && s.NormH > 0)
+                .Where(s => s != null && kinds.Contains(s.ViewType ?? "") && s.NormW > 0 && s.NormH > 0)
                 .ToList();
             return plans.FirstOrDefault(s => s.Required)
                 ?? plans.OrderByDescending(s => s.NormW * s.NormH).FirstOrDefault();
@@ -113,13 +123,17 @@ namespace StingTools.Core.Drawing
             widthM = depthM = 0; why = null;
             if (!IsAreaCandidate(dt, out why)) return false;
             var slot = MainSlot(dt);
-            if (slot == null) { why = "no plan slot"; return false; }
+            if (slot == null) { why = IsSection(dt) ? "no section slot" : "no plan slot"; return false; }
             if (drawables == null || !drawables.TryGetValue(DrawableKey(dt.PaperSize, dt.Orientation), out var dr))
             { why = $"no drawable area for {dt.PaperSize} {dt.Orientation} in STING_TITLE_BLOCKS.json"; return false; }
             if (fitFactor <= 0 || fitFactor > 1) { why = $"fit factor {fitFactor} is outside (0, 1]"; return false; }
             int scale = slot.Scale ?? dt.Scale;
             widthM = dr.W * slot.NormW * scale / 1000.0 * fitFactor;
             depthM = dr.H * slot.NormH * scale / 1000.0 * fitFactor;
+            // A section is cut along the box's LONG side and its slot's height carries the
+            // building's height, not the box's depth. So only the long side is limited — by
+            // the slot's width — and a box within that on both sides fits.
+            if (IsSection(dt)) depthM = widthM;
             return true;
         }
 

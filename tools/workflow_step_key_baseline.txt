@@ -28,5 +28,4 @@
 
 skipIfFamilyLoaded	WORKFLOW_PenetrationRegister step 1, WORKFLOW_PenetrationSweep step 1. Intent: skip the seed-family build when the families are already loaded. The engine has SkipIfDataUnchanged, which is a different question (has the DATA changed), so this cannot simply be renamed onto it.
 scheduleNameFilter	WORKFLOW_PenetrationRegister step 6, WORKFLOW_PenetrationSweep step 5. Intent: restrict the step to schedules whose name matches. No step-scoped filtering exists in WorkflowEngine at all - the engine runs a command, it does not narrow what the command sees.
-drawingTypeId	WORKFLOW_PenetrationRegister step 7. Intent: pin the produced drawing to one DrawingType id. DrawingTypeRegistry can resolve an id, but nothing plumbs a per-step value through to it.
 sheetNumberFilter	WORKFLOW_PenetrationRegister step 8. Intent: restrict the step to sheets whose number matches. Same missing capability as scheduleNameFilter.
