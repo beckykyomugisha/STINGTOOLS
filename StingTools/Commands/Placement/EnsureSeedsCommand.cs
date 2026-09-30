@@ -54,7 +54,9 @@ namespace StingTools.Commands.Placement
             }
 
             SeedEnsurer.SeedEnsureResult res;
-            try { res = SeedEnsurer.EnsureSeedsForCategories(doc, cats); }
+            // ForRules, not ForCategories: a rule naming its own seed (SeedId,
+            // e.g. the medical-gas pack) is built from that seed, not the category map.
+            try { res = SeedEnsurer.EnsureSeedsForRules(doc, rules); }
             catch (Exception ex)
             {
                 StingLog.Error("EnsureSeedsCommand: EnsureSeeds", ex);

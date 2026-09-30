@@ -38,20 +38,24 @@ namespace StingTools.Commands.Plumbing
             try
             {
                 // ── Options dialog (simplified TaskDialog) ─────────────────
-                var scopeDlg = new TaskDialog("Drainage Schematic")
+                // In a workflow preset nobody can answer it: all drainage systems.
+                var dlgResult = TaskDialogResult.CommandLink1;
+                if (!PresetDialog.Quiet)
                 {
-                    MainInstruction = "Generate Drainage Riser Schematic",
-                    MainContent     = "Choose scope for the drainage schematic diagram.",
-                    CommonButtons   = TaskDialogCommonButtons.Cancel
-                };
-                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                    "All drainage systems in project",
-                    "Builds the schematic from all drainage/sanitary pipe systems.");
-                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                    "Named system…",
-                    "Filter to a specific named plumbing system.");
-
-                var dlgResult = scopeDlg.Show();
+                    var scopeDlg = new TaskDialog("Drainage Schematic")
+                    {
+                        MainInstruction = "Generate Drainage Riser Schematic",
+                        MainContent     = "Choose scope for the drainage schematic diagram.",
+                        CommonButtons   = TaskDialogCommonButtons.Cancel
+                    };
+                    scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                        "All drainage systems in project",
+                        "Builds the schematic from all drainage/sanitary pipe systems.");
+                    scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                        "Named system…",
+                        "Filter to a specific named plumbing system.");
+                    dlgResult = scopeDlg.Show();
+                }
 
                 string systemFilter = "";
                 if (dlgResult == TaskDialogResult.CommandLink2)
@@ -64,18 +68,15 @@ namespace StingTools.Commands.Plumbing
                         return Result.Cancelled;
                     }
 
-                    string joined = string.Join("\n", systemNames.Take(20));
-                    var picker = new TaskDialog("Select System")
-                    {
-                        MainInstruction = "Enter system name (exactly as listed):",
-                        MainContent     = $"Available systems:\n{joined}",
-                        CommonButtons   = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel
-                    };
-                    // Note: In production, replace with StingListPicker for proper selection
-                    if (picker.Show() != TaskDialogResult.Ok)
+                    // A real picker: the old "Select System" box only had OK / Cancel and then
+                    // used the FIRST system whatever was chosen.
+                    var picked = StingTools.Select.StingListPicker.Show(
+                        "Drainage Schematic — system", "Pick the drainage / sanitary system to draw.",
+                        systemNames.ToList());
+                    if (string.IsNullOrEmpty(picked))
                         return Result.Cancelled;
 
-                    systemFilter = systemNames.FirstOrDefault() ?? "";
+                    systemFilter = picked;
                 }
                 else if (dlgResult == TaskDialogResult.Cancel)
                 {
@@ -102,6 +103,17 @@ namespace StingTools.Commands.Plumbing
                     try
                     {
                         schResult = DrainageSchematicGenerator.Generate(ctx.Doc, opts);
+                        // Nothing real drawn: keep no empty drafting view, say why.
+                        if (schResult == null || schResult.ViewId == ElementId.InvalidElementId || schResult.NodesDrawn == 0)
+                        {
+                            t.RollBack();
+                            string why = schResult?.Warnings.FirstOrDefault() ?? "no drainage stack was found to draw.";
+                            PresetDialog.Show("Drainage Schematic",
+                                "No drainage schematic was drawn: " + why +
+                                "\n\nModel the sanitary / vent pipework (systems classified Sanitary or Vent) and re-run.",
+                                ref message);
+                            return Result.Cancelled;
+                        }
                         t.Commit();
                     }
                     catch (Exception ex)
@@ -113,21 +125,17 @@ namespace StingTools.Commands.Plumbing
                     }
                 }
 
-                if (schResult == null)
-                {
-                    message = "Schematic result was null.";
-                    return Result.Failed;
-                }
+                var schView = ctx.Doc.GetElement(schResult.ViewId) as View;
+
+                // Onto the sheet of the drawing type routing gives P / DRAINAGE_SCHEMATIC
+                // (stamped; a re-run's diagram replaces this one there).
+                string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(ctx.Doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.DrainageSchematic, schView);
 
                 // ── Activate the new view ──────────────────────────────────
-                if (schResult.ViewId != ElementId.InvalidElementId)
+                if (schView != null && !PresetDialog.Quiet)
                 {
-                    try
-                    {
-                        var view = ctx.Doc.GetElement(schResult.ViewId) as View;
-                        if (view != null)
-                            ctx.UIDoc.ActiveView = view;
-                    }
+                    try { ctx.UIDoc.ActiveView = schView; }
                     catch (Exception ex)
                     {
                         StingLog.Warn($"Could not activate schematic view: {ex.Message}");
@@ -138,6 +146,7 @@ namespace StingTools.Commands.Plumbing
                 // ── Result panel ───────────────────────────────────────────
                 var sb = new StringBuilder();
                 sb.AppendLine($"Drainage schematic created successfully.");
+                sb.AppendLine($"  {sheetLine}");
                 sb.AppendLine($"  Stacks / nodes drawn : {schResult.NodesDrawn}");
                 sb.AppendLine($"  Detail lines drawn   : {schResult.LinesDrawn}");
                 sb.AppendLine($"  Annotations placed   : {schResult.AnnotationsPlaced}");
@@ -153,7 +162,7 @@ namespace StingTools.Commands.Plumbing
                         sb.AppendLine($"  … and {schResult.Warnings.Count - 10} more (see STING log).");
                 }
 
-                TaskDialog.Show("Drainage Schematic", sb.ToString());
+                PresetDialog.Show("Drainage Schematic", sb.ToString(), ref message);
                 StingLog.Info($"PlumbDrainageSchematicCommand: nodes={schResult.NodesDrawn}, lines={schResult.LinesDrawn}");
                 return Result.Succeeded;
             }
@@ -645,21 +654,26 @@ namespace StingTools.Commands.Plumbing
             if (ctx?.Doc == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Scope picker
-            var scopeDlg = new TaskDialog("Supply Schematic")
+            // Scope picker — in a workflow preset nobody can answer it: schematic only.
+            bool exportDxf = false;
+            if (!PresetDialog.Quiet)
             {
-                MainInstruction = "Generate Water Supply Schematic",
-                MainContent     = "Choose scope and outputs for the supply schematic.",
-                CommonButtons   = TaskDialogCommonButtons.Cancel
-            };
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
-                "Schematic only (drafting view)");
-            scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
-                "Schematic + export DXF",
-                "Drops a .dxf into <project>/_BIM_COORD/exports/ alongside the view.");
-            var pick = scopeDlg.Show();
-            if (pick == TaskDialogResult.Cancel) return Result.Cancelled;
-            bool exportDxf = pick == TaskDialogResult.CommandLink2;
+                var scopeDlg = new TaskDialog("Supply Schematic")
+                {
+                    MainInstruction = "Generate Cold Water Supply Schematic",
+                    MainContent     = "Draws the domestic cold water network (pipes on systems classified " +
+                                      "Domestic Cold Water) and places it on the DCW schematic sheet.",
+                    CommonButtons   = TaskDialogCommonButtons.Cancel
+                };
+                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Schematic only (drafting view)");
+                scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Schematic + export DXF",
+                    "Drops a .dxf into <project>/_BIM_COORD/exports/ alongside the view.");
+                var pick = scopeDlg.Show();
+                if (pick == TaskDialogResult.Cancel) return Result.Cancelled;
+                exportDxf = pick == TaskDialogResult.CommandLink2;
+            }
 
             // Read inlet pressure + DXF target version from project config
             var cfg = PlumbingSystemConfig.Load(doc);
@@ -684,6 +698,17 @@ namespace StingTools.Commands.Plumbing
                 {
                     tx.Start();
                     result = SupplySchematicGenerator.Generate(doc, opts);
+                    // Nothing real drawn: keep no empty drafting view, say why.
+                    if (result.ViewId == null || result.ViewId == ElementId.InvalidElementId || result.PipesDrawn == 0)
+                    {
+                        tx.RollBack();
+                        string why = result.Warnings.FirstOrDefault() ?? "no cold water pipe could be laid out from an inlet.";
+                        PresetDialog.Show("Supply Schematic",
+                            "No cold water supply schematic was drawn: " + why +
+                            "\n\nModel the cold water pipework on a system classified Domestic Cold Water and re-run.",
+                            ref message);
+                        return Result.Cancelled;
+                    }
                     tx.Commit();
                 }
             }
@@ -694,8 +719,15 @@ namespace StingTools.Commands.Plumbing
                 return Result.Failed;
             }
 
-            var panel = StingResultPanel.Create("Supply Schematic");
+            var schView = doc.GetElement(result.ViewId) as View;
+            // Onto the sheet of the drawing type routing gives P / DCW_SCHEMATIC
+            // (stamped; a re-run's diagram replaces this one there).
+            string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,
+                StingTools.Core.Drawing.DrawingRouteRequests.DcwSchematic, schView);
+
+            var panel = StingResultPanel.Create("Supply Schematic (DCW)");
             panel.SetSubtitle($"Inlet pressure: {opts.InletPressureKpa:F0} kPa");
+            panel.AddSection("SHEET").Text(sheetLine);
             panel.AddSection("SUMMARY")
                  .Metric("Pipes drawn",       result.PipesDrawn.ToString())
                  .Metric("Accessories drawn", result.AccessoriesDrawn.ToString())
@@ -707,11 +739,11 @@ namespace StingTools.Commands.Plumbing
                 panel.AddSection("WARNINGS");
                 foreach (var w in result.Warnings.Take(20)) panel.Text("⚠ " + w);
             }
-            panel.Show();
+            PresetDialog.Show(panel, ref message);
 
-            if (result.ViewId != null && result.ViewId != ElementId.InvalidElementId)
+            if (schView != null && !PresetDialog.Quiet)
             {
-                try { ctx.UIDoc.ActiveView = doc.GetElement(result.ViewId) as View; }
+                try { ctx.UIDoc.ActiveView = schView; }
                 catch (Exception ex) { StingLog.Warn($"ActivateView: {ex.Message}"); }
             }
             return Result.Succeeded;

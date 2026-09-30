@@ -84,6 +84,42 @@ def load_txt():
         }
     return params
 
+def derive_category(name, group, existing):
+    """Revit_Category for a NEW row, the way the existing rows have it.
+
+    The .txt carries no category, and this script used to write 'Generic Models' for
+    every new row -- so STING_SCOPE_BOX_TAG_TXT, a parameter written on VIEWS, landed
+    as Generic Models beside eleven STING_DRAWING siblings that say Views. The existing
+    rows are the record of where each group's parameters live, so read it:
+
+      1. rows of the same group whose names share the longest leading run of
+         underscore tokens with this one (at least two: STING_VIEW_, SHT_REV_ ...)
+      2. otherwise every row of the same group
+      3. otherwise (a group with no rows yet) 'Generic Models', as before
+
+    and take the most common category among them, ties broken alphabetically so the
+    answer never depends on row order. 'Multiple' is a summary, not a category, and
+    is not counted. ``existing`` is a list of (name, group, category).
+    """
+    toks = name.split('_')
+    pool = [(n.split('_'), c) for n, g, c in existing if g == group and c and c != 'Multiple']
+    if not pool:
+        return 'Generic Models'
+
+    def shared(a, b):
+        k = 0
+        while k < min(len(a), len(b)) and a[k] == b[k]:
+            k += 1
+        return k
+
+    best = max(shared(toks, t) for t, _ in pool)
+    cands = [c for t, c in pool if shared(toks, t) == best] if best >= 2 else [c for _, c in pool]
+    counts = {}
+    for c in cands:
+        counts[c] = counts.get(c, 0) + 1
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+
+
 def load_csv():
     lines = CSV.read_text(encoding='utf-8-sig').splitlines(keepends=True)
     comment_lines = [l for l in lines if l.startswith('#')]
@@ -135,12 +171,16 @@ def main():
                 parts[col['Group_Name']] = txt_group
                 group_fixes += 1
 
-    # Add missing mirror params
+    # Add missing mirror params. The category is derived from the existing rows of
+    # the same group (derive_category); it used to be 'Generic Models' for every row.
+    existing = [(p[col['Parameter_Name']], p[col['Group_Name']], p[col['Revit_Category']])
+                for k, p in rows if k == 'data']
     new_rows = []
     for name, info in txt_params.items():
         if name not in existing_by_name:
-            new_row = ['Generic Models', name, info['guid'], info['type'],
-                       group_name(info['group_id'], name), 'Instance', info['description'],
+            grp = group_name(info['group_id'], name)
+            new_row = [derive_category(name, grp, existing), name, info['guid'], info['type'],
+                       grp, 'Instance', info['description'],
                        'False', '', '', 'MULTI', info['user_mod'], '0']
             new_rows.append(new_row)
             added += 1

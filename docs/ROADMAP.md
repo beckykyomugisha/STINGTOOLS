@@ -23,6 +23,18 @@ The core landed on 2026-10-01 (CHANGELOG "Revision workflow core"). These items 
   check reports it as DRAFT-AHEAD).
 - **REV-5: live ACC.** Still to check against a real tenant: the 201 shape of `copyFrom`, and
   whether it carries custom attribute values.
+## Tag family library — missing families (2026-09-30)
+
+The C# tables and the library agree (206 = 206). The gaps were families declared outside the
+tables, and tagged categories with no family at all. TAGFAM-1 and TAGFAM-4 are in the CHANGELOG.
+
+| ID | Status | Item |
+|---|---|---|
+| TAGFAM-2 | **PARTLY DONE — second run needed** | First Revit 2025 run (2026-09-30): the four specialist families were built with their types and parameter files; Curtain System was refused by Revit (declaration removed); nothing loaded because the Tag Families hub button was read-only (fixed, all 16 hub buttons). Still to see in Revit: a run with the fixed build that LOADS the families, and whether Revit accepts `STING - Temporary Structure Tag` and `STING - MEP Ancillary Framing Tag` (Generic Tag → their tag categories). Then *Propagate Universal* those two. |
+| TAGFAM-3 | **OPEN — manual** | Build the four specialist labels (`docs/SPECIALIST_TAG_BUILD_SHEET.md`), starting from the families TAGFAM-2 built; commit the finished `.rfa` files to `Data/TagFamilies`; then point the DT-2 drawing types (`arch-fire-strategy`, `arch-accessibility`, `arch-floor-finishes`) at them. The drawing-type test requires the `.rfa` to exist first, so the repoint comes after the files. |
+| TAGFAM-4 | **DONE 2026-09-30** (see CHANGELOG) | Analytical Duct / Pipe Segments and Area Based Loads no longer tagged; `Wash` removed; `MEP Ancillary` renamed to Revit's `MEP Ancillary Framing`; Temporary Structures and MEP Ancillary Framing declared. Curtain Systems: Revit cannot make its tag family from the installed templates, so it stays tagged with nothing to display it. |
+| TAGFAM-5 | **OPEN — suspected, unverified** | `MigrateTagFamilies` and `Propagate Universal` build the arrowhead lookup from the PROJECT document (`BuildArrowheadLookup(doc)`) and set those ids on a FAMILY document's `LEADER_ARROWHEAD`. Element ids do not carry across documents, so the set may fail (logged, caught) or pick a different arrowhead. The declared-family step builds its lookup from the family document — and there, measured, the tag templates carry no "Arrow Open 30", so its types keep the template's arrowhead. |
+| TAGFAM-6 | **OPEN — performance** | `AddSharedParameters` took about 5 minutes per family in the 2026-09-30 run (199 parameters). Every creator path uses it, so a full 211-family build would take hours. Worth profiling before the next full rebuild. |
 
 ## Tagging accuracy — deep review (2026-09-29)
 
@@ -178,6 +190,23 @@ box moved 2 m reports Moved and Create puts it back; the 200-box cap asks before
 Seeds from an open template leaves that document open; and Produce refuses a view whose crop did
 not take.
 
+## DWG modelling and MEP drawing coverage (2026-09-30)
+
+Found while rewriting [`GUIDES/MEP_DRAWING_PRODUCTION_GUIDE.md`](../GUIDES/MEP_DRAWING_PRODUCTION_GUIDE.md).
+Read from the code; none of it run in Revit.
+
+| Id | Gap | Evidence | Fix |
+|---|---|---|---|
+| CAD-1 | CAD Wizard **Convert** runs the legacy 9-argument `RunFullPipeline`, so Top Level, repeat levels, foundations, the Wall / structural-wall switches, numbering, the size-detection options and the **Dry-run tick box** are ignored (Convert always creates). Its own "Re-analyse (dry-run)" uses the complete `RunFullPipelineWithConfig`. | `StructuralModelingCommands.cs` `StrCADWizardCommand`; `StructuralCADWizard.cs` dry-run handler | **Closed 2026-09-30.** Convert runs `RunFullPipelineWithConfig` on the picked DWG inside one TransactionGroup; a ticked Dry-run creates nothing; tagging runs once, only when asked. Four pipeline bugs found on the way (type duplication never ran inside the conversion transaction, post-steps ran with no transaction open, dry-run wrote to the model, connection synthesis not wired) were fixed. Needs a Revit run on a real DWG. |
+| CAD-2 | "Pick Wall" measures wall thickness and ignores it; "Pick Column" / "Pick Beam" place the first available type with no measuring. | `StructuralDWGEnhancements.cs` (`CreateWallFromCurve`, "future work") | **Closed 2026-09-30.** Pick Wall matches or duplicates a wall type within ±5 mm of the measured thickness, on the active plan level; Pick Column sizes from a picked circle / rectangle / edge pair; Pick Beam measures width from two edge lines (point mode says no size was measured). `DwgPickGeometry` is unit-tested. Needs a Revit run. |
+| MDP-1 | The medical-gas, routing, commissioning, conduiting-phase and in-wall-chase placement packs are not in `PlacementRuleLoader.DisciplinePacks`, so "Run All Rules" never loads them; `Placement_MedGasOutlets` has no button. | `Core/Placement/PlacementRuleLoader.cs` | **Closed 2026-09-30.** Medical-gas pack registered (its room filters tightened with `ExcludeRoomFilter`; the healthcare bedhead-trunking rule too). routing / commissioning / conduiting-phase are not placement packs and are listed with reasons in `PlacementPackRegistry.NotAutoMerged`; in-wall-chase is loaded by name by its real consumer, "Run Wall Chase", which it never reached before. A test fails on any pack in neither list. Med-gas outlets have buttons in the dock and the Placement Centre. |
+| MDP-2 | No drawing type for: data / comms, security, containment, CHW / LTHW pipework, HVAC schematics, cold / hot water plans, fire alarm schematic, fire riser, general services sections and details, emergency lighting. | `Data/STING_DRAWING_TYPES.json` (96 types) | **Closed 2026-09-30.** 11 types added (data / comms, security, containment, emergency lighting, fire alarm schematic, CHW / LTHW pipework, HVAC schematic, water supply, fire riser, services section, services detail) with routing; catalogue 107 types / 134 rules, checksums stamped. The templates step now creates every `viewTemplateName` the drawing types name. |
+| MDP-3 | Routing rule `E / PLAN` resolves to `elec-riser-A3-1to200`, a section. | `STING_DRAWING_TYPES.json` routing | **Closed 2026-09-30.** `E / PLAN` routes to `elec-power-A1-1to100` in the JSON and in the built-in fallback catalogue; the riser stays reachable through `E / RISER`. |
+| SEED-1 | Some seed parameters are named with `ParamRegistry` **keys**, not parameter names — `ELC_MAIN_BRK`, `ELC_WAYS`, `ELC_PHOTO_*` (the registry resolves them to `ELC_PNL_MAIN_BRK_A`, `ELC_PHOTO_FILE_PATH_TXT`, …) — so nothing ever reads or writes them on a seed-built family. Found while fixing the seed `isInstance` binding (2026-09-30). | `Data/Seeds/STING_SEED_ElectricalEquipment.json`, `STING_SEED_LightingFixture.json`; `ParamRegistry.Ext` | **Closed 2026-09-30** (authorised by the user). Ten names corrected to registered ones — `ASS_TAG_1` → `ASS_TAG_1_TXT` in all 33 seeds, `ELC_MAIN_BRK` → `ELC_PNL_MAIN_BRK_A`, `ELC_WAYS` → `ELC_PNL_NUM_OF_WAYS_NR`, the `ELC_PNL_*` / `ELC_PHOTO_*` keys, `PLM_EQP_CAPACITY_L`, `LTG_DIMMABLE_TXT` — with declared types fixed to match. `SeedParameterRegistryTests` fails on any shared seed parameter that is neither registered nor in its commented allow-list. Open: `ELC_PHOTO_*` are type parameters in the family but bound Instance in the project — which wins in a loaded family needs a Revit check. |
+| MDP-4 | HVAC air / water / controls, hot water, LTHW, vent riser, fire riser and ESS power riser schematics have a drawing type (sheet, title block, number) but nothing draws the diagram; production skips them with a message. | `STING_DRAWING_TYPES.json` (`mep-hvac-schematic-A1`, `plumb-dhw-schematic-A1-NTS`, `plumb-lthw-schematic-A1-NTS`, `plumb-vent-riser-A3-NTS`, `fire-riser-schematic-A1`); `DrawingRouteRequests` has no generator for them | Open. Each needs a generator that reads the modelled system, the way `PlumbSupplySchematicCommand` / `FireAlarmSchematicCommand` do. Draw them by hand until then (guide Part D 📐). |
+| MDP-5 | No lightning-protection / earthing **layout plan** drawing type; only the schematics exist. | `STING_DRAWING_TYPES.json` | Open. Add an `elec-lps-pln-A1-1to200` type with a roof-plan purpose and routing `E / LPS_PLAN`. |
+| MDP-6 | `ELC_PHOTO_*` are type parameters in the seed lighting families but bound Instance in the project; which one a loaded family reports is not known. | `STING_SEED_LightingFixture.json`; `RESOLVED_BINDINGS.csv` | Open — needs a Revit run: load a seed luminaire into a project with the bindings, read the parameter from an instance. |
+
 ## Material callouts (2026-09-24)
 
 Reviewed end to end; the design and the build steps are in
@@ -280,6 +309,7 @@ instance it places. A type parameter would follow a swap, but the project bindin
 both. Options if swaps prove common: an updater that restamps the gas on a type change, or a
 separate type-level `MGS_TU_GAS_TXT` the TU tag reads. Neither is built. The per-type default
 behaviour itself has not been checked in Revit.
+*Closed 2026-09-30: `MedGasTypeSwapUpdater` sets the gas from the seed spec whenever a STING seed outlet changes type (manufacturer families untouched), and placement finds seed types by their declared gas.* 
 
 **MG-2 · Projects that already built the outlet seed keep the old theatre panel.** The type
 `MAP_THEATRE_PANEL` (product code `MAP`) was renamed `THEATRE_GAS_PANEL` / `TGP` on 2026-09-25,
@@ -291,6 +321,7 @@ DT-4. Nothing migrates this: in such a project, run *Build Seeds → Rebuild All
 theatre-panel instances to `THEATRE_GAS_PANEL`, then purge `MAP_THEATRE_PANEL`. A migration
 step (or a `Symbols_DriftDetect` finding for a seed type the spec no longer declares) would make
 it automatic.
+*Closed 2026-09-30: seed type variants accept `renamedFrom`; Build Seeds (every mode) renames or merges the old type and restamps the product code, reporting the counts.* 
 
 **DT-6 · Needs a Revit run (2026-09-24 setup / view-type / material-tag work).** Run SETUP →
 DRAWING PRODUCTION → *Set up drawing production* on a fresh project and check each step

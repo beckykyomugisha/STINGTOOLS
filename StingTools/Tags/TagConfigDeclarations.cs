@@ -39,6 +39,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace StingTools.Tags
@@ -52,6 +53,23 @@ namespace StingTools.Tags
         public string HostCategory { get; set; }
         /// <summary>"prose" or "row" - which dialect declared it.</summary>
         public string Dialect { get; set; }
+
+        /// <summary>
+        /// Discipline code from a row declaration (field 2, e.g. "A"). Null for the
+        /// prose dialect, which carries none. Picks the tag style defaults
+        /// (tag_style_catalogue.json) for a family Create Tag Families builds from
+        /// its declaration.
+        /// </summary>
+        public string Discipline { get; set; }
+
+        /// <summary>
+        /// Parameters the family's label reads, declared as
+        /// "Params: PER_SMOKE_STOP_BOOL BLE_DOOR_CLOSER_TXT". Empty when none are
+        /// declared. Used for the families whose label is built by hand: Create Tag
+        /// Families writes a shared-parameter file holding only these, so the
+        /// person building the label picks from a short list instead of 3,000.
+        /// </summary>
+        public List<string> Params { get; set; } = new List<string>();
 
         /// <summary>
         /// Which master this family takes its label from. Default
@@ -135,6 +153,25 @@ namespace StingTools.Tags
             new Regex(@"Universal\s*:\s*(?<val>[A-Za-z]+)",
                       RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
+        // "Params: A_TXT B_BOOL" - space-separated parameter names, upper case.
+        // Stops at anything that is not a name or a space (";", ",", end of line).
+        private static readonly Regex ParamsLine =
+            new Regex(@"Params\s*:\s*(?<val>[A-Z0-9_]+(?:[ \t]+[A-Z0-9_]+)*)",
+                      RegexOptions.Compiled);
+
+        /// <summary>The parameter names declared on this line with "Params:". Empty if none.</summary>
+        internal static List<string> DeclaredParams(string line)
+        {
+            var list = new List<string>();
+            if (string.IsNullOrEmpty(line)) return list;
+            var m = ParamsLine.Match(line);
+            if (!m.Success) return list;
+            foreach (string p in m.Groups["val"].Value.Split(new[] { ' ', '\t' },
+                         StringSplitOptions.RemoveEmptyEntries))
+                if (!list.Contains(p)) list.Add(p);
+            return list;
+        }
+
         private static readonly Regex LabelMasterLine =
             new Regex(@"LabelMaster\s*:\s*(?<val>[A-Za-z0-9_-]+)",
                       RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -213,6 +250,8 @@ namespace StingTools.Tags
                                 FamilyName = name,
                                 HostCategory = cat,
                                 Dialect = "row",
+                                Discipline = fields[2].Trim().Trim('"'),
+                                Params = DeclaredParams(line),
                                 // A row has no free-text line to carry it, so scan
                                 // the whole row. Both dialects must be able to say
                                 // this: a family declared in only one of them would
@@ -248,6 +287,7 @@ namespace StingTools.Tags
                     FamilyName = current,
                     HostCategory = pcat,
                     Dialect = "prose",
+                    Params = DeclaredParams(line),
                     // Read off the SAME line as the category, which is where the
                     // TAG7 line already carries the family's own declarations.
                     LabelMaster = DeclaredLabelMaster(line)
@@ -291,6 +331,118 @@ namespace StingTools.Tags
             }
             fields.Add(sb.ToString());
             return fields;
+        }
+    }
+
+    /// <summary>
+    /// The tag families the config declares that Create Tag Families does not
+    /// otherwise build.
+    ///
+    /// <para>Until 2026-09-30 the creator built only the families written into its
+    /// own C# tables. The four specialist families (Fire Door, Accessible Door,
+    /// Room Finish, Fire Compartment) were declared in the ARCH config, bound,
+    /// preset and referenced by drawing types, and the button still reported
+    /// "all families already loaded" - because nothing told it they existed. A
+    /// declaration now IS the request to build: a new family is one config line,
+    /// not a code change.</para>
+    /// </summary>
+    public static class DeclaredTagFamilies
+    {
+        /// <summary>
+        /// True for a name in the library's family form, "STING - … ". Masters
+        /// ("STING_Tag_Universal", "STING_LPS_Tag_Universal") are declared too, so
+        /// propagation knows their category, but they are hand-built sources, not
+        /// families to mint.
+        /// </summary>
+        public static bool IsLibraryFamilyName(string name)
+            => !string.IsNullOrWhiteSpace(name)
+               && name.Trim().StartsWith("STING - ", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// One declaration per family, merged across every config file (each family
+        /// also has a _DesignConstruction twin). Keyed by
+        /// <see cref="TagCategoryNameForms.NormaliseKey"/>, the same key the category
+        /// resolver uses. The first spelling, category and discipline win; a
+        /// non-universal label master wins over the default, as in the resolver; the
+        /// declared parameters are the union.
+        /// </summary>
+        public static List<TagDeclaration> Merge(IEnumerable<TagDeclaration> all)
+        {
+            var byKey = new Dictionary<string, TagDeclaration>(StringComparer.OrdinalIgnoreCase);
+            var order = new List<string>();
+            if (all == null) return new List<TagDeclaration>();
+
+            foreach (var d in all)
+            {
+                if (d == null) continue;
+                string key = TagCategoryNameForms.NormaliseKey(d.FamilyName);
+                if (key.Length == 0) continue;
+
+                if (!byKey.TryGetValue(key, out var m))
+                {
+                    byKey[key] = new TagDeclaration
+                    {
+                        FamilyName = d.FamilyName.Trim(),
+                        HostCategory = d.HostCategory,
+                        Dialect = d.Dialect,
+                        Discipline = d.Discipline,
+                        LabelMaster = d.LabelMaster,
+                        Params = new List<string>(d.Params ?? new List<string>())
+                    };
+                    order.Add(key);
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(m.Discipline)) m.Discipline = d.Discipline;
+                if (m.Universal && !d.Universal) m.LabelMaster = d.LabelMaster;
+                foreach (string p in d.Params ?? new List<string>())
+                    if (!m.Params.Contains(p)) m.Params.Add(p);
+            }
+
+            return order.Select(k => byKey[k]).ToList();
+        }
+
+        /// <summary>
+        /// The merged declarations for library families whose name is not in
+        /// <paramref name="builtNames"/> (the creator's own tables). Compared by
+        /// normalised key, so "Tie-In Point Tag (Duct — HVAC)" declared without the
+        /// trailing "Tag" still matches the family the creator already builds.
+        /// </summary>
+        public static List<TagDeclaration> NotBuiltBy(IEnumerable<TagDeclaration> all,
+                                                      IEnumerable<string> builtNames)
+        {
+            var built = new HashSet<string>(
+                (builtNames ?? Enumerable.Empty<string>()).Select(TagCategoryNameForms.NormaliseKey),
+                StringComparer.OrdinalIgnoreCase);
+
+            return Merge(all)
+                .Where(d => IsLibraryFamilyName(d.FamilyName))
+                .Where(d => !string.IsNullOrWhiteSpace(d.HostCategory))
+                .Where(d => !built.Contains(TagCategoryNameForms.NormaliseKey(d.FamilyName)))
+                .ToList();
+        }
+
+        /// <summary>
+        /// The .rfa file name for a declared family. A name may contain "/", which a
+        /// file cannot; the creator's convention replaces it with "-".
+        /// </summary>
+        public static string FileName(string familyName)
+            => (familyName ?? "").Trim().Replace('/', '-') + ".rfa";
+
+        /// <summary>
+        /// The family Yes/No that shows the label copy at one text size, as the
+        /// specialist build sheet names them: "2.5" -> "TXT_2_5", "3.5" -> "TXT_3_5",
+        /// "2" -> "TXT_2_0". Each type ticks exactly one. Null for a size that is not
+        /// a number.
+        /// </summary>
+        public static string LabelSizeSwitchName(string size)
+        {
+            string s = (size ?? "").Trim();
+            if (s.EndsWith("mm", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 2).Trim();
+            if (!double.TryParse(s, System.Globalization.NumberStyles.Float,
+                                 System.Globalization.CultureInfo.InvariantCulture, out double mm) || mm <= 0)
+                return null;
+            return "TXT_" + mm.ToString("0.0##", System.Globalization.CultureInfo.InvariantCulture).Replace('.', '_');
         }
     }
 }

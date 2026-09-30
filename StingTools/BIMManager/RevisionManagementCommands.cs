@@ -812,14 +812,14 @@ namespace StingTools.BIMManager
 
                     tx.Commit();
 
-                    TaskDialog.Show("StingTools Revision",
+                    PresetDialog.Show("StingTools Revision",
                         $"Revision created successfully.\n\n" +
                         $"Number: {prefix}" + (seqAssigned ? "  (native ISO numbering)" : "") + "\n" +
                         $"Description: {rev.Description}\n" +
                         $"Date: {rev.RevisionDate}\n" +
                         $"Issued by: {issuedBy}\n\n" +
                         $"Tag snapshot saved ({snapshot.Count} elements tracked).\n" +
-                        "Use 'Revision Compare' after changes to see what was modified.");
+                        "Use 'Revision Compare' after changes to see what was modified.", ref message);
                 }
 
                 RevisionEngine.SaveSnapshot(doc, snapshot, $"pre_rev_{prefix}");
@@ -1150,9 +1150,9 @@ namespace StingTools.BIMManager
                 var prevSnapshot = RevisionEngine.LoadLatestSnapshot(doc);
                 if (prevSnapshot == null)
                 {
-                    TaskDialog.Show("StingTools Auto Revision Cloud",
+                    PresetDialog.Show("StingTools Auto Revision Cloud",
                         "No previous tag snapshot found.\n\n" +
-                        "Use 'Create Revision' first to take a baseline snapshot.");
+                        "Use 'Create Revision' first to take a baseline snapshot.", ref message);
                     return Result.Succeeded;
                 }
 
@@ -1162,8 +1162,8 @@ namespace StingTools.BIMManager
 
                 if (changes.Count == 0)
                 {
-                    TaskDialog.Show("StingTools Auto Revision Cloud",
-                        "No tag changes detected since last snapshot.");
+                    PresetDialog.Show("StingTools Auto Revision Cloud",
+                        "No tag changes detected since last snapshot.", ref message);
                     return Result.Succeeded;
                 }
 
@@ -1176,8 +1176,8 @@ namespace StingTools.BIMManager
 
                 if (latestRevision == null)
                 {
-                    TaskDialog.Show("StingTools Auto Revision Cloud",
-                        "No revisions exist. Create a revision first.");
+                    PresetDialog.Show("StingTools Auto Revision Cloud",
+                        "No revisions exist. Create a revision first.", ref message);
                     return Result.Succeeded;
                 }
 
@@ -1251,11 +1251,11 @@ namespace StingTools.BIMManager
                 }
 
                 string narrative = RevisionEngine.BuildChangeNarrative(changes);
-                TaskDialog.Show("StingTools Auto Revision Cloud",
+                PresetDialog.Show("StingTools Auto Revision Cloud",
                     $"Revision clouds created for changed elements.\n\n" +
                     $"Clouds created: {cloudsCreated}\n" +
                     $"Skipped (not visible): {cloudsSkipped}\n\n" +
-                    narrative);
+                    narrative, ref message);
 
                 StingLog.Info($"Auto revision clouds: {cloudsCreated} created, {cloudsSkipped} skipped");
                 return Result.Succeeded;
@@ -1317,10 +1317,10 @@ namespace StingTools.BIMManager
                 string path = OutputLocationHelper.GetRoutedTimestampedPath(doc, "Revision", "STING_Revision_Schedule", ".csv");
                 File.WriteAllText(path, sb.ToString());
 
-                TaskDialog.Show("StingTools Revision Schedule",
+                PresetDialog.Show("StingTools Revision Schedule",
                     $"Revision schedule exported.\n\n" +
                     $"Revisions: {revisions.Count}\n" +
-                    $"File: {path}");
+                    $"File: {path}", ref message);
                 StingLog.Info($"Revision schedule exported: {revisions.Count} revisions → {path}");
                 return Result.Succeeded;
             }
@@ -1537,8 +1537,11 @@ namespace StingTools.BIMManager
                 bool unattended = WorkflowEngine.IsUnattended;
                 if (revisions.Count == 0)
                 {
+                    // In a preset this is a failure with a reason: the chain asked to
+                    // issue a revision and there is none to issue.
                     StingLog.Info("IssueSheets: no un-issued revision — nothing to issue.");
-                    if (!unattended) TaskDialog.Show("StingTools Issue Sheets", "No un-issued revisions found.");
+                    if (PresetDialog.Quiet) { message = "No un-issued revision to issue."; return Result.Failed; }
+                    TaskDialog.Show("StingTools Issue Sheets", "No un-issued revisions found.");
                     return Result.Succeeded;
                 }
 
@@ -1607,10 +1610,53 @@ namespace StingTools.BIMManager
                 }
                 catch (Exception pEx) { StingLog.Warn($"IssueSheets param parse: {pEx.Message}"); }
 
-                var targetSheetIds = new HashSet<ElementId>(sheetsWithClouds);
-                foreach (var sheet in sheets)
-                    if (pickedNumbers.Contains(sheet.SheetNumber ?? ""))
-                        targetSheetIds.Add(sheet.Id);
+                // Decide the sheets once (RevisionIssueTargets). A first issue of
+                // freshly produced STING sheets has no clouds; it used to add the
+                // revision to nothing and still mark it Issued, which locks it.
+                var plan = RevisionIssueTargets.Plan(
+                    sheets.Where(s => sheetsWithClouds.Contains(s.Id)).Select(s => s.SheetNumber),
+                    sheets.Where(s => pickedNumbers.Contains(s.SheetNumber ?? "")).Select(s => s.SheetNumber),
+                    WorkflowEngine.StepParam("sheets"),
+                    sheets.Where(s => !string.IsNullOrEmpty(Core.Drawing.DrawingTypeStamper.Read(s))).Select(s => s.SheetNumber),
+                    sheets.Select(s => s.SheetNumber),
+                    PresetDialog.Quiet);
+
+                if (plan.Unknown.Count > 0)
+                    StingLog.Warn($"IssueSheets: step names sheet(s) not in the model: {string.Join(", ", plan.Unknown)}");
+
+                if (plan.NeedsConfirmation)
+                {
+                    var ask = new TaskDialog("StingTools Issue Sheets")
+                    {
+                        MainInstruction = $"Issue revision {revNum} to the STING-produced sheets?",
+                        MainContent = $"No sheet carries a revision cloud for {revNum} and none was picked.\n\n" +
+                            $"{plan.SheetNumbers.Count} sheet(s) carry a STING drawing-type stamp:\n" +
+                            string.Join(", ", plan.SheetNumbers.Take(30)) +
+                            (plan.SheetNumbers.Count > 30 ? $" … (+{plan.SheetNumbers.Count - 30})" : "") +
+                            "\n\nYes adds the revision to them and marks it Issued. No leaves the revision un-issued.",
+                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                        DefaultButton = TaskDialogResult.No
+                    };
+                    if (ask.Show() != TaskDialogResult.Yes)
+                    {
+                        StingLog.Info($"IssueSheets: user declined issuing {revNum} to {plan.SheetNumbers.Count} stamped sheet(s); revision left un-issued");
+                        return Result.Cancelled;
+                    }
+                }
+
+                if (plan.IsEmpty)
+                {
+                    message = $"Revision {revNum} not issued: {plan.Reason}.";
+                    StingLog.Warn($"IssueSheets: {message}");
+                    if (!PresetDialog.Quiet)
+                        TaskDialog.Show("StingTools Issue Sheets", message +
+                            "\n\nCloud the changes, tick sheets in the BCC Issue Sheets form, or produce the sheets with STING first.");
+                    return Result.Failed;
+                }
+
+                var planNumbers = new HashSet<string>(plan.SheetNumbers, StringComparer.OrdinalIgnoreCase);
+                var targetSheetIds = new HashSet<ElementId>(
+                    sheets.Where(s => planNumbers.Contains(s.SheetNumber ?? "")).Select(s => s.Id));
 
                 // ISO 19650 pairing of the revision and the suitability it is issued at:
                 // the BCC form's code, else the revision's own "Issued to", else the one
@@ -1785,10 +1831,11 @@ namespace StingTools.BIMManager
                     $"Revision {revNum} issued.\n\n" +
                     $"Sheets picked in BCC form: {pickedNumbers.Count}\n" +
                     $"Sheets with revision clouds: {sheetsWithClouds.Count}\n" +
-                    $"Sheets updated: {sheetsIssued}\n" +
+                    (plan.Source == RevisionIssueSource.CloudsOrPicks ? "" : $"Sheets chosen: {plan.Reason}\n") +
+                    $"Sheets carrying the revision: {targetSheetIds.Count} ({sheetsIssued} newly added)\n" +
                     $"Revision marked as Issued: Yes\n" +
                     syncLine + nextRevLine + "\n\n" + completionLine;
-                if (!unattended) TaskDialog.Show("StingTools Issue Sheets", report);
+                PresetDialog.Show("StingTools Issue Sheets", report, ref message);
 
                 StingLog.Info($"Revision {revNum} issued to {targetSheetIds.Count} sheet(s) ({sheetsIssued} newly added). {completionLine.Replace("\n", " | ")}");
                 return Result.Succeeded;

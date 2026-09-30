@@ -1819,12 +1819,12 @@ namespace StingTools.Docs
                   string.Join("\n  ", result.Warnings.Take(10))
                 : "";
 
-            TaskDialog.Show("STING Revision Sync",
+            PresetDialog.Show("STING Revision Sync",
                 $"Synced {result.SheetsProcessed} sheet(s), {result.ParamsWritten} parameter(s) written.\n" +
                 $"Skipped: {result.SheetsSkipped}.\n\n" +
                 "Wrote SHT_REV_TXT / SHT_REV_DATE_TXT on sheets and\n" +
                 "PRJ_TB_REVISION_NR_TXT / _DATE_TXT / _DESCRIPTION_TXT\n" +
-                "on title blocks." + warn);
+                "on title blocks." + warn, ref message);
             return Result.Succeeded;
         }
     }

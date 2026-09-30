@@ -398,9 +398,44 @@ namespace StingTools.Core
         /// and return Failed with the reason in its message) instead of blocking the run.</summary>
         public static bool IsUnattended => _unattendedDepth > 0;
 
-        /// <summary>True while any preset is executing on this thread (attended or not): a
-        /// gate command returns Failed so the run records the step as failed.</summary>
+        /// <summary>
+        /// True while a workflow preset is executing on this thread (attended or not). A gate
+        /// command returns Failed so the run records the step as failed. A command that asks
+        /// questions in dialogs checks this and, inside a preset, takes its inputs from the
+        /// step's "params" (<see cref="StepParam"/>) and its defaults instead — and fails the
+        /// step with a message when an input it cannot default is missing, rather than
+        /// producing nothing in silence.
+        /// </summary>
         public static bool IsRunningPreset => _presetDepth > 0;
+
+        // Step params travel through StingCommandHandler's extra-param store — the
+        // mechanism panels already use to hand named values to a command — under a
+        // prefix, so a step can never overwrite a panel's own key.
+        private const string StepParamPrefix = "wf.";
+
+        /// <summary>A "params" value of the step now running; "" when absent or when no step is running.</summary>
+        internal static string StepParam(string key)
+            => string.IsNullOrEmpty(key) ? "" : (UI.StingCommandHandler.GetExtraParam(StepParamPrefix + key) ?? "");
+
+        private static void PushStepParams(WorkflowStep step)
+        {
+            if (step?.Params == null) return;
+            foreach (var kv in step.Params)
+                if (!string.IsNullOrEmpty(kv.Key))
+                    UI.StingCommandHandler.SetExtraParam(StepParamPrefix + kv.Key, kv.Value ?? "");
+        }
+
+        private static void PopStepParams(WorkflowStep step)
+        {
+            if (step?.Params == null) return;
+            foreach (var kv in step.Params)
+                if (!string.IsNullOrEmpty(kv.Key))
+                    UI.StingCommandHandler.ClearExtraParam(StepParamPrefix + kv.Key);
+        }
+
+        // The message the last step's command returned. RunCommandByTag used to
+        // discard it, so a step that failed with a reason reported only "FAIL".
+        [ThreadStatic] private static string _lastStepMessage;
 
         /// <summary>
         /// Execute a workflow preset with progress reporting and cancellation, and show
@@ -676,6 +711,15 @@ namespace StingTools.Core
                         {
                             if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
+                        // Drawing production routes: a project drawn by the Scope Box Planner's
+                        // area boxes, by STING:: boxes, or per level. Lets one preset carry every
+                        // route and run only the one the project uses.
+                        if (cond == "has_area_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.Area) == 0)
+                        { RecordSkip("no STING-AREA:: scope boxes"); continue; }
+                        if (cond == "no_area_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.Area) > 0)
+                        { RecordSkip("the project is drawn by area boxes"); continue; }
+                        if (cond == "has_sting_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.DrawingType) == 0)
+                        { RecordSkip("no STING:: scope boxes"); continue; }
                         // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
@@ -994,7 +1038,10 @@ namespace StingTools.Core
                             }
                             try
                             {
-                                stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
+                                _lastStepMessage = null;
+                                PushStepParams(step);
+                                try { stepResult = RunCommandByTag(step.CommandTag, commandData, elements); }
+                                finally { PopStepParams(step); }
                                 if (stepResult == Result.Succeeded || stepResult == Result.Cancelled) break;
                             }
                             catch (Exception retryEx)
@@ -1025,6 +1072,11 @@ namespace StingTools.Core
                                          stepResult == Result.Cancelled ? "SKIP" :
                                          stepResult == Result.Failed ? "FAIL" : "WARN";
                         report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+                        // A failed step's reason, and a passed step's result: inside a preset
+                        // commands return their result here instead of a modal dialog
+                        // (PresetDialog), so this line is where the person reads it.
+                        if (!string.IsNullOrWhiteSpace(_lastStepMessage))
+                            report.AppendLine($"       {_lastStepMessage.Trim()}");
 
                         // Phase 39: Record per-step result for audit trail
                         stepResults.Add(new WorkflowStepResult
@@ -1460,7 +1512,11 @@ namespace StingTools.Core
             }
 
             string msg = "";
-            return cmd.Execute(data, ref msg, elems);
+            var res = cmd.Execute(data, ref msg, elems);
+            _lastStepMessage = msg;
+            if (res == Result.Failed && !string.IsNullOrWhiteSpace(msg))
+                StingLog.Warn($"WorkflowEngine: '{tag}' failed — {msg}");
+            return res;
         }
 
         /// <summary>
@@ -1673,6 +1729,19 @@ namespace StingTools.Core
                 case "DrawingTypes_RegenerateTemplates": return new Commands.Drawing.RegeneratePackTemplatesCommand();
                 case "DrawingTypes_Doctor":            return new Commands.Drawing.DrawingDoctorCommand();
                 case "DrawingTypes_SetupProduction":   return new Commands.Drawing.DrawingProductionSetupCommand();
+                // Headless production. Each of these asked its inputs in a dialog and so
+                // could only be clicked. Inside a preset they read the step's "params"
+                // (drawingTypes, levels, output, duplicateOption, packageId, mode) and
+                // default the rest — MEP plan types × every level, views and sheets —
+                // and fail the step, with a message, when an input is missing.
+                case "DrawingTypes_ProducePerLevel":       return new Commands.Drawing.ProduceViewsPerLevelCommand();
+                case "DrawingTypes_ProduceFromScopeBoxes": return new Commands.Drawing.ProduceViewsFromScopeBoxesCommand();
+                case "DrawingTypes_ProduceAndExport":      return new Commands.Drawing.DrawingProduceAndExportCommand();
+                case "DrawingTypes_Renumber":              return new Commands.Drawing.DrawingRenumberCommand();
+                case "DrawingTypes_HealTitleBlocks":       return new Commands.Drawing.DrawingHealTitleBlocksCommand();
+                // Panel schedules onto sheets. Its default mode lists the schedules still
+                // to place (PanelScheduleSheetInstance.Create is broken in Revit 2024+).
+                case "Panel_PlaceOnSheets":                return new Commands.Electrical.PanelViewScheduleCommand();
                 case "MatchLine_ValidateBundle":       return new Commands.Drawing.MatchLineValidateBundleCommand();
                 case "MatchLine_Inspect":              return new Commands.Drawing.MatchLineInspectCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
@@ -1855,6 +1924,7 @@ namespace StingTools.Core
                 case "Plumb_TMVEngine": return new Commands.Plumbing.PlumbTMVEngineCommand();
                 case "Plumb_LegionellaReport": return new Commands.Plumbing.PlumbLegionellaReportCommand();
                 case "Plumb_DrainageSchematic": return new Commands.Plumbing.PlumbDrainageSchematicCommand();
+                case "Plumb_SupplySchematic": return new Commands.Plumbing.PlumbSupplySchematicCommand();
                 // WORKFLOW_TierConversionHandover.json
                 case "ApplyParagraphPreset": return new Tags.ApplyParagraphPresetCommand();
                 case "SetParagraphDepth": return new Tags.SetParagraphDepthCommand();
@@ -2562,8 +2632,20 @@ namespace StingTools.Core
             "has_container_gaps", "has_critical_warnings", "has_links", "has_open_issues",
             "has_overdue_issues", "has_placeholders", "has_stale",
             "has_unclassed_materials", "has_uncoded_materials", "has_untagged",
-            "has_warnings",
+            "has_warnings", "has_area_boxes", "no_area_boxes", "has_sting_boxes",
         };
+
+        /// <summary>Scope boxes of one STING kind in the document (0 on any read failure, logged).</summary>
+        private static int CountScopeBoxes(Document doc, Drawing.ScopeBoxKind kind)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest).WhereElementIsNotElementType()
+                    .Count(e => Drawing.ScopeBoxNames.Classify(e.Name) == kind);
+            }
+            catch (Exception ex) { StingLog.Warn($"Workflow condition scope-box count: {ex.Message}"); return 0; }
+        }
 
         /// <summary>Evaluate a single named condition against the current document state.</summary>
         private static bool EvaluateSingleCondition(Document doc, string condition,
@@ -3008,7 +3090,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "EvaluateFormulas", Label = "Evaluate Formulas (199)" },
                             new WorkflowStep { CommandTag = "CreateFilters", Label = "Create View Filters (28+)" },
                             new WorkflowStep { CommandTag = "CreateWorksets", Label = "Create Worksets (35)", Condition = "workshared", Optional = true },
-                            new WorkflowStep { CommandTag = "ViewTemplates", Label = "Create View Templates (23)" },
+                            new WorkflowStep { CommandTag = "ViewTemplates", Label = "Create View Templates" },
                             new WorkflowStep { CommandTag = "CreateFillPatterns", Label = "Create Fill Patterns" },
                             new WorkflowStep { CommandTag = "CreateLineStyles", Label = "Create Line Styles" },
                             new WorkflowStep { CommandTag = "CreateObjectStyles", Label = "Create Object Styles" },

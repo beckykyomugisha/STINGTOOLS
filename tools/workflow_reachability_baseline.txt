@@ -305,17 +305,12 @@ DrawingTypes_ExportExcel
 DrawingTypes_ExportPackage
 DrawingTypes_ForceResync
 DrawingTypes_GroupBrowser
-DrawingTypes_HealTitleBlocks
 DrawingTypes_ImportExcel
 DrawingTypes_MigrateCsv
 DrawingTypes_MigrateParams
-DrawingTypes_ProduceAndExport
 DrawingTypes_ProduceExteriorElevations
-DrawingTypes_ProduceFromScopeBoxes
 DrawingTypes_ProduceInteriorElevations
-DrawingTypes_ProducePerLevel
 DrawingTypes_ProduceSections
-DrawingTypes_Renumber
 DrawingTypes_SequencePackage
 DrawingTypes_SuggestFromScopeBoxes
 DrawingTypes_SyncRevisions
@@ -666,7 +661,6 @@ P6_LinkConfig
 P6_SyncNow
 P6_Writeback
 Panel_EditTemplateRules
-Panel_PlaceOnSheets
 ParagraphBuilder
 ParamLookupRefresh
 PatternApplyLearned

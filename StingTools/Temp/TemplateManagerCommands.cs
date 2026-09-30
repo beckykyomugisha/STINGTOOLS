@@ -2129,14 +2129,14 @@ namespace StingTools.Temp
             ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref message); return Result.Failed; }
             Document doc = ctx.Doc;
 
             TextNoteType baseType = new FilteredElementCollector(doc)
                 .OfClass(typeof(TextNoteType)).Cast<TextNoteType>().FirstOrDefault();
             if (baseType == null)
             {
-                TaskDialog.Show("Text Styles", "No existing text note type found.");
+                PresetDialog.Show("Text Styles", "No existing text note type found.", ref message);
                 return Result.Failed;
             }
 
@@ -2197,14 +2197,14 @@ namespace StingTools.Temp
             ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref message); return Result.Failed; }
             Document doc = ctx.Doc;
 
             var allTypes = new FilteredElementCollector(doc)
                 .OfClass(typeof(DimensionType)).Cast<DimensionType>().ToList();
             if (allTypes.Count == 0)
             {
-                TaskDialog.Show("Dimension Styles", "No existing dimension type found.");
+                PresetDialog.Show("Dimension Styles", "No existing dimension type found.", ref message);
                 return Result.Failed;
             }
 

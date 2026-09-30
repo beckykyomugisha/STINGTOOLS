@@ -61,11 +61,12 @@ namespace StingTools.Commands.Placement
 
         /// <summary>
         /// The symbol for one gas: first a type that carries the gas as a TYPE parameter (some
-        /// manufacturer families do); then a keyword match. STING's own seed never matches the
-        /// first step — its MGS_GAS_TYPE_TXT is an instance parameter a FamilySymbol cannot
-        /// read (ROADMAP MG-1) — so it is found by its TERMINAL_UNIT_* type names, exact only.
-        /// Keywords are matched in order and whole-name-first, so "TERMINAL_UNIT_N2" does
-        /// not pick up TERMINAL_UNIT_N2O.
+        /// manufacturer families do); then a STING seed type whose spec declares the gas
+        /// (MedGasSeedTypeMap — the seed's MGS_GAS_TYPE_TXT is an instance parameter a
+        /// FamilySymbol cannot read, ROADMAP MG-1); then a keyword match, which keeps the
+        /// TERMINAL_UNIT_* names as a fallback when the seed spec cannot be read. Keywords are
+        /// matched in order and whole-name-first, so "TERMINAL_UNIT_N2" does not pick up
+        /// TERMINAL_UNIT_N2O.
         /// </summary>
         private static FamilySymbol FindSymbol(IList<FamilySymbol> symbols, string gas)
         {
@@ -81,6 +82,14 @@ namespace StingTools.Commands.Placement
                 catch (Exception ex) { StingLog.Warn($"MedGasOutlet type gas read: {ex.Message}"); return false; }
             });
             if (stamped != null) return stamped;
+
+            foreach (var typeName in MedicalGasFixtures.SeedTypes.TypesForGas(gas))
+            {
+                var seed = symbols.FirstOrDefault(s => IsOutletCategory(s)
+                    && MedicalGasFixtures.IsSeedFamily(s)
+                    && string.Equals(s.Name, typeName, StringComparison.Ordinal));
+                if (seed != null) return seed;
+            }
 
             foreach (var kw in GasFamilyKeywords[gas])
             {

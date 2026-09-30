@@ -22,6 +22,12 @@ namespace StingTools.Core.Plumbing
     {
         /// <summary>Filter to a single named system (e.g. "DCW"). Empty = all supply systems.</summary>
         public string SystemNameFilter { get; set; } = "";
+        /// <summary>
+        /// Pipe-system classifications drawn (null or empty = every pipe). Default
+        /// Domestic Cold Water: this is the DCW schematic. Unfiltered, the walk from the
+        /// lowest equipment node drew whatever network it touched — drainage included.
+        /// </summary>
+        public PipeSystemType[] Classifications { get; set; } = { PipeSystemType.DomesticColdWater };
         /// <summary>Horizontal spacing between adjacent branches (mm).</summary>
         public double BranchSpacingMm  { get; set; } = 1000.0;
         /// <summary>Vertical spacing per level (mm).</summary>
@@ -69,11 +75,20 @@ namespace StingTools.Core.Plumbing
             try
             {
                 net = PipeNetworkBuilder.Build(doc,
-                    string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? null : opts.SystemNameFilter);
+                    string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? null : opts.SystemNameFilter,
+                    opts.Classifications);
             }
             catch (Exception ex)
             {
                 result.Warnings.Add($"PipeNetworkBuilder.Build: {ex.Message}");
+                return result;
+            }
+            if (net.Edges.Count == 0)
+            {
+                result.Warnings.Add("No supply pipework found"
+                    + (opts.Classifications != null && opts.Classifications.Length > 0
+                        ? " (no pipe on a system classified " + string.Join(" / ", opts.Classifications) + ")" : "")
+                    + " — nothing to draw.");
                 return result;
             }
 
@@ -109,8 +124,10 @@ namespace StingTools.Core.Plumbing
             try
             {
                 view = ViewDrafting.Create(doc, vft.Id);
+                bool dcwOnly = opts.Classifications != null && opts.Classifications.Length == 1
+                            && opts.Classifications[0] == PipeSystemType.DomesticColdWater;
                 view.Name = UniqueViewName(doc,
-                    $"STING - Supply Schematic{(string.IsNullOrEmpty(opts.SystemNameFilter) ? "" : " " + opts.SystemNameFilter)}");
+                    $"STING - Supply Schematic{(dcwOnly ? " DCW" : "")}{(string.IsNullOrEmpty(opts.SystemNameFilter) ? "" : " " + opts.SystemNameFilter)}");
                 view.Scale = 50;
             }
             catch (Exception ex)

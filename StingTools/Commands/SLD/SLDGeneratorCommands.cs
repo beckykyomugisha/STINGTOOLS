@@ -41,14 +41,26 @@ namespace StingTools.Commands.SLD
 
             if (!result.Success)
             {
-                TaskDialog.Show("STING", $"SLD generation failed: {result.Warning}");
+                msg = $"SLD generation failed: {result.Warning}";
+                if (!PresetDialog.Quiet) TaskDialog.Show("STING", msg);
                 return Result.Failed;
             }
-            try { ctx.UIDoc.ActiveView = result.SLDView; }
-            catch (Exception ex) { StingLog.Warn($"Activate SLD view: {ex.Message}"); }
+            // Onto the sheet of the drawing type routing gives E / SLD (found by stamp on
+            // a re-run, where the previous run's SLD makes way for this one).
+            string sheetLine = SldSheetPlacement.Place(ctx.Doc, Core.Drawing.DrawingRouteRequests.Sld, result.SLDView);
 
-            TaskDialog.Show("STING - SLD", SLDGenerator.DescribeResult(result));
+            // Inside a preset the next step runs against the active view; leave it alone.
+            if (!PresetDialog.Quiet) ShowView(ctx.UIDoc, result.SLDView);
+
+            PresetDialog.Show("STING - SLD", SLDGenerator.DescribeResult(result) + "\n\n" + sheetLine, ref msg);
             return Result.Succeeded;
+        }
+
+        /// <summary>Make the new SLD the active view — a convenience; the SLD exists either way.</summary>
+        private static void ShowView(Autodesk.Revit.UI.UIDocument uidoc, View view)
+        {
+            try { uidoc.ActiveView = view; }
+            catch (Exception ex) { StingLog.Warn($"Activate SLD view: {ex.Message}"); }
         }
     }
 

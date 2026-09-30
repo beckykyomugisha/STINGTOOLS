@@ -23,15 +23,26 @@ namespace StingTools.Commands.Electrical
     [Regeneration(RegenerationOption.Manual)]
     public class PanelViewScheduleCommand : IExternalCommand
     {
-        private const string DrawingTypeId = "elec-panel-schedule-A3";
+        // The id routing gives E / ELEC_PANEL_SCHEDULE, resolved once per run (Execute).
+        private string _drawingTypeId;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
+            _drawingTypeId = StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, StingTools.Core.Drawing.DrawingRouteRequests.PanelSchedule);
 
-            string mode = StingElectricalCommandHandler.CurrentSheetPlacementMode ?? "GuidedManual";
+            // Inside a workflow preset the unattended AutoSheets mode is the default
+            // (PanelSheetPlacementMode): GuidedManual would only list schedules to drag.
+            bool inPreset = WorkflowEngine.IsRunningPreset;
+            string mode = StingTools.Core.Panels.PanelSheetPlacementMode.Resolve(inPreset,
+                inPreset ? WorkflowEngine.StepParam("mode") : null,
+                StingElectricalCommandHandler.CurrentSheetPlacementMode, out var modeError);
+            if (mode == null) { message = "Panel schedules on sheets: " + modeError; return Result.Failed; }
+
+            if (mode == StingTools.Core.Panels.PanelSheetPlacementMode.AutoSheets)
+                return PlaceOnDrawingTypeSheets(doc, _drawingTypeId, ref message);
 
             if (mode == "GuidedManual")
             {
@@ -40,9 +51,12 @@ namespace StingTools.Commands.Electrical
             }
             if (mode == "PDF")
             {
-                TaskDialog.Show("STING Sheet Placement",
-                    "PDF embed mode is queued for Phase 179. Use Guided Manual or ViewSchedule for now.");
-                return Result.Succeeded;
+                // Not built: it places nothing, so it must not report success. Cancelled
+                // tells the panel (and a workflow report, as SKIP) that nothing was done.
+                message = "Panel schedules on sheets: PDF embed mode is not implemented — nothing was placed. "
+                        + "Use AutoSheets, ViewSchedule or Guided Manual.";
+                TaskDialog.Show("STING Sheet Placement", message);
+                return Result.Cancelled;
             }
 
             // ViewSchedule mode.
@@ -84,7 +98,7 @@ namespace StingTools.Commands.Electrical
                         try { schedule.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                         AddCircuitFields(schedule);
                         AddPanelFilter(schedule, panel.Name);
-                        StampDrawingType(schedule);
+                        StampDrawingType(schedule, _drawingTypeId);
                         created++;
 
                         if (sheet != null)
@@ -101,13 +115,126 @@ namespace StingTools.Commands.Electrical
                     }
                     catch (Exception ex2) { StingLog.Warn($"PanelViewSchedule {panel.Name}: {ex2.Message}"); skipped++; }
                 }
-                tx.Commit();
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    message = $"STING Sheet Placement: the transaction did not commit ({status}); nothing was created or placed.";
+                    StingLog.Warn(message);
+                    TaskDialog.Show("STING Sheet Placement", message);
+                    return Result.Failed;
+                }
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             TaskDialog.Show("STING Sheet Placement",
                 $"Created {created} ViewSchedule(s). Placed on sheet: {placed}. Skipped: {skipped}.\n\n" +
                 "Note: ViewSchedule does not show Revit-computed totals. For live computed-cell data, use the native panel schedule and drag manually.");
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// AutoSheets: one circuit ViewSchedule per board — reused by name on a re-run,
+        /// not deleted and remade — each placed on its own panel-schedule drawing-type sheet
+        /// through DrawingProducer.PlaceExistingView, so the sheet is stamped, numbered
+        /// by the drawing type, and found again (by the board's context tag) next time.
+        /// The result goes to a dialog, or inside a preset to the log and the step message.
+        /// </summary>
+        private static Result PlaceOnDrawingTypeSheets(Document doc, string DrawingTypeId, ref string message)
+        {
+            const string title = "STING Panel Schedules on Sheets";
+            var dt = StingTools.Core.Drawing.DrawingTypeRegistry.Get(doc, DrawingTypeId);
+            if (dt == null)
+            {
+                message = $"{title}: drawing type '{DrawingTypeId}' is not in the catalogue.";
+                return Result.Failed;
+            }
+            var panels = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                .WhereElementIsNotElementType()
+                .OfType<FamilyInstance>()
+                .ToList();
+            if (panels.Count == 0)
+            {
+                PresetDialog.Show(title, "No electrical equipment found — nothing to place.", ref message);
+                return Result.Succeeded;
+            }
+
+            // Sheets stamped with the shipped id before a project re-routed the key are
+            // the same boards' sheets: found under either id, never duplicated.
+            var stampIds = StingTools.Core.Drawing.DrawingRouteRequests.StampIds(DrawingTypeId, StingTools.Core.Drawing.DrawingRouteRequests.PanelSchedule);
+            int made = 0, reusedSchedules = 0, placed = 0, alreadyPlaced = 0, newSheets = 0, failed = 0;
+            var warnings = new List<string>();
+            using (StingTools.Core.Drawing.DrawingProducer.PrimeBatchScope(doc))
+            using (var tx = new Transaction(doc, "STING Panel Schedules on Sheets"))
+            {
+                tx.Start();
+                var byName = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                    .Where(v => !v.IsTemplate)
+                    .GroupBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+                foreach (var panel in panels)
+                {
+                    string panelName = BoardName(panel);
+                    try
+                    {
+                        string viewName = $"STING - Panel - {panelName}";
+                        if (!byName.TryGetValue(viewName, out var schedule))
+                        {
+                            schedule = ViewSchedule.CreateSchedule(doc, new ElementId(BuiltInCategory.OST_ElectricalCircuit));
+                            try { schedule.Name = viewName; } catch (Exception ex) { StingLog.Warn($"Panel schedule name '{viewName}': {ex.Message}"); }
+                            AddCircuitFields(schedule);
+                            AddPanelFilter(schedule, panelName);
+                            byName[viewName] = schedule;
+                            made++;
+                        }
+                        else reusedSchedules++;
+
+                        var pr = StingTools.Core.Drawing.DrawingProducer.PlaceExistingView(doc, dt,
+                            new StingTools.Core.Drawing.DrawingContext { Tag = "PANEL-" + panel.Id.Value, FormerDrawingTypeIds = stampIds }, schedule);
+                        warnings.AddRange(pr.Warnings.Select(w => $"{panelName}: {w}"));
+                        if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) newSheets++;
+                        if (pr.ViewportIds.Count == 0) { failed++; continue; }
+                        if (pr.ViewportsReused > 0) alreadyPlaced++; else placed++;
+                    }
+                    catch (Exception ex)
+                    {
+                        failed++;
+                        warnings.Add($"{panelName}: {ex.Message}");
+                        StingLog.Warn($"PanelViewSchedule AutoSheets {panelName}: {ex.Message}");
+                    }
+                }
+                // Counted only once Revit has committed: a commit a failure handler rolls
+                // back placed nothing, however many schedules the loop created.
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    message = $"{title}: the transaction did not commit ({status}); {made} schedule(s), {placed} placement(s) "
+                            + $"and {newSheets} sheet(s) were not kept.";
+                    StingLog.Warn(message);
+                    if (!PresetDialog.Quiet) TaskDialog.Show(title, message);
+                    return Result.Failed;
+                }
+            }
+            try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+
+            foreach (var w in warnings.Distinct()) StingLog.Warn($"{title}: {w}");
+            string body = $"{panels.Count} board(s): {placed} schedule(s) placed, {alreadyPlaced} already on their sheet, "
+                        + $"{failed} not placed. Schedules: {made} new, {reusedSchedules} reused. Sheets: {newSheets} new ({DrawingTypeId})."
+                        + (warnings.Count > 0 ? $"\n{warnings.Distinct().Count()} warning(s) in the STING log." : "")
+                        + "\n\nThese are circuit ViewSchedules (no Revit-computed totals). The native panel schedules still have to be dragged by hand — Revit 2024+ cannot place them by API.";
+            PresetDialog.Show(title, body, ref message);
+            return placed + alreadyPlaced > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>The board's Panel Name — what a circuit's "Panel" field reads — else its element name.</summary>
+        private static string BoardName(FamilyInstance panel)
+        {
+            try
+            {
+                var n = panel.get_Parameter(BuiltInParameter.RBS_ELEC_PANEL_NAME)?.AsString();
+                if (!string.IsNullOrWhiteSpace(n)) return n.Trim();
+            }
+            catch (Exception ex) { StingLog.Warn($"Panel name {panel?.Id}: {ex.Message}"); }
+            return panel?.Name ?? panel?.Id.ToString() ?? "(unnamed)";
         }
 
         private static void ShowGuidedManual(Document doc)
@@ -180,11 +307,11 @@ namespace StingTools.Commands.Electrical
             catch (Exception ex) { StingLog.Warn($"AddPanelFilter: {ex.Message}"); }
         }
 
-        private static void StampDrawingType(View v)
+        private static void StampDrawingType(View v, string drawingTypeId)
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, drawingTypeId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

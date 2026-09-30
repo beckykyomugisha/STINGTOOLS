@@ -344,6 +344,82 @@ namespace StingTools.Core.Symbols
         /// </summary>
         [JsonProperty("connectors", NullValueHandling = NullValueHandling.Ignore)]
         public List<ConnectorDefinition> Connectors { get; set; }
+
+        /// <summary>
+        /// MG-2 — earlier names of this type. Build Seeds never deletes a type a project
+        /// already holds, so without this a renamed variant leaves the old type (and its
+        /// instances) behind in every built project. SeedTypeMigrator renames the old
+        /// type, or moves its instances onto this one and deletes it. An old name must
+        /// not be a type the spec still declares (<see cref="SeedTypeRenames.Validate"/>,
+        /// enforced by a data test).
+        ///
+        /// <para>Accepted shapes: <c>"OLD"</c>, <c>["OLD1", "OLD2"]</c>, or entries that
+        /// also carry the OLD type's declared values of its followsType parameters —
+        /// <c>[{ "name": "OLD", "params": { "ASS_PRODCT_COD_TXT": "MAP" } }]</c>. With
+        /// those values a migrated instance is restamped only when it still holds the old
+        /// type's value (or nothing): a value a user typed survives.</para>
+        /// </summary>
+        [JsonProperty("renamedFrom", NullValueHandling = NullValueHandling.Ignore)]
+        [JsonConverter(typeof(RenamedFromConverter))]
+        public List<RenamedFromEntry> RenamedFrom { get; set; }
+    }
+
+    /// <summary>One earlier name of a seed type, with the values that old type declared.</summary>
+    public sealed class RenamedFromEntry
+    {
+        [JsonProperty("name")] public string Name { get; set; }
+
+        /// <summary>The old type's declared values (followsType parameters). Optional.</summary>
+        [JsonProperty("params", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> Parameters { get; set; }
+
+        public static implicit operator RenamedFromEntry(string name) => new RenamedFromEntry { Name = name };
+        public override string ToString() => Name;
+    }
+
+    /// <summary>
+    /// Reads <c>renamedFrom</c> as a string, an object, or an array mixing strings and
+    /// objects; writes an array of objects. Objects go through the serializer, so a
+    /// strict (MissingMemberHandling.Error) read still rejects a misspelt key.
+    /// </summary>
+    public sealed class RenamedFromConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType) => objectType == typeof(List<RenamedFromEntry>);
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonToken.Null: return null;
+                case JsonToken.String:
+                case JsonToken.StartObject:
+                    return new List<RenamedFromEntry> { ReadOne(reader, serializer) };
+                case JsonToken.StartArray:
+                    var list = new List<RenamedFromEntry>();
+                    while (reader.Read() && reader.TokenType != JsonToken.EndArray)
+                        list.Add(ReadOne(reader, serializer));
+                    return list;
+                default:
+                    throw new JsonSerializationException(
+                        $"renamedFrom: expected a string, an object or an array, got {reader.TokenType} at {reader.Path}.");
+            }
+        }
+
+        private static RenamedFromEntry ReadOne(JsonReader reader, JsonSerializer serializer)
+        {
+            if (reader.TokenType == JsonToken.String) return new RenamedFromEntry { Name = (string)reader.Value };
+            if (reader.TokenType == JsonToken.StartObject) return serializer.Deserialize<RenamedFromEntry>(reader);
+            throw new JsonSerializationException(
+                $"renamedFrom: expected a type name or {{\"name\", \"params\"}}, got {reader.TokenType} at {reader.Path}.");
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        {
+            writer.WriteStartArray();
+            foreach (var e in value as List<RenamedFromEntry> ?? new List<RenamedFromEntry>())
+                serializer.Serialize(writer, e);
+            writer.WriteEndArray();
+        }
     }
 
     public sealed class ParameterDefinition
@@ -352,9 +428,35 @@ namespace StingTools.Core.Symbols
         /// <summary>Text | Integer | Number | Length | YesNo | Material</summary>
         [JsonProperty("type")]   public string Type { get; set; } = "Text";
         [JsonProperty("shared")] public bool IsShared { get; set; }
-        [JsonProperty("instance")] public bool IsInstance { get; set; } = true;
+        /// <summary>
+        /// Instance (true) or type (false) parameter. The seed specs
+        /// (Data/Seeds/STING_SEED_*.json) spell this <c>isInstance</c>; this
+        /// property used to bind only <c>instance</c>, so Newtonsoft dropped
+        /// every seed's key and all 348 seed parameters were built as instance
+        /// parameters, including the ones declared type. Both spellings bind.
+        /// </summary>
+        [JsonProperty("isInstance")] public bool IsInstance { get; set; } = true;
+
+        /// <summary>Legacy spelling, still used by the Data/Symbols/*.json libraries. Read-only alias.</summary>
+        [JsonProperty("instance")] private bool LegacyInstance { set => IsInstance = value; }
+
         [JsonProperty("default", NullValueHandling = NullValueHandling.Ignore)]
         public string Default { get; set; }
+
+        /// <summary>
+        /// An INSTANCE parameter whose value is really a per-type default (a variant sets
+        /// it): the product code, a gas, a fire rating. In Revit a type's value of an
+        /// instance parameter is only the default a new instance receives, so without this
+        /// a placed element keeps the old type's value when it changes type.
+        /// <c>true</c>: SeedTypeSwapUpdater and SeedTypeMigrator restamp the new type's
+        /// value — but only onto a value nobody edited (blank, or a value the seed itself
+        /// declares); <see cref="SeedFollowTypeRule"/> is the one rule. <c>false</c>: a
+        /// deliberate "stays with the instance" (a design flow, a mounting height). Unset
+        /// is treated as false; the seed data test requires every instance parameter a
+        /// variant sets to say which.
+        /// </summary>
+        [JsonProperty("followsType", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? FollowsType { get; set; }
     }
 
     public sealed class SymbolGeometry

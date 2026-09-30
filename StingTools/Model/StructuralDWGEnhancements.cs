@@ -500,31 +500,20 @@ namespace StingTools.Model
         //    can't classify cleanly.
         // ════════════════════════════════════════════════════════════════
 
-        internal static Wall CreateWallFromCurve(
-            Document doc, Curve centerline, double heightMm, double thicknessMm)
+        /// <summary>Creates one structural wall on <paramref name="centerline"/> using the
+        /// given wall type and level. Callers resolve the type (sized to what they
+        /// measured) and the level; this only builds the element.</summary>
+        internal static Wall CreateWallFromCurve(Document doc, Curve centerline,
+            double heightMm, ElementId wallTypeId, Level level)
         {
-            // Resolve the first valid wall type, preferring one whose name
-            // already contains "STING" (matches the TypeFactory convention).
-            var wallType = new FilteredElementCollector(doc)
-                .OfClass(typeof(WallType)).Cast<WallType>()
-                .Where(t => t.Kind == WallKind.Basic)
-                .OrderByDescending(t => (t.Name ?? "").Contains("STING"))
-                .FirstOrDefault();
-            if (wallType == null)
+            if (doc == null || centerline == null || level == null
+                || wallTypeId == null || wallTypeId == ElementId.InvalidElementId)
             {
-                StingLog.Warn("Interactive wall: no Basic WallType found");
-                return null;
-            }
-            var level = new FilteredElementCollector(doc)
-                .OfClass(typeof(Level)).Cast<Level>()
-                .OrderBy(l => l.Elevation).FirstOrDefault();
-            if (level == null)
-            {
-                StingLog.Warn("Interactive wall: no Level in project");
+                StingLog.Warn("Interactive wall: missing curve, wall type or level");
                 return null;
             }
             double heightFt = heightMm * MmToFeet;
-            return Wall.Create(doc, centerline, wallType.Id, level.Id, heightFt, 0, false, true);
+            return Wall.Create(doc, centerline, wallTypeId, level.Id, heightFt, 0, false, true);
         }
     }
 
@@ -733,14 +722,145 @@ namespace StingTools.Model
     }
 
     /// <summary>
-    /// Interactive: pick two parallel DWG lines → one structural wall
-    /// whose thickness equals the perpendicular distance between them.
-    /// Prompts the user twice via the Revit selection filter.
+    /// Shared plumbing for the three interactive DWG pickers: which level to build
+    /// on, how to read a picked DWG sub-object in model coordinates, and the
+    /// selection filter.
+    /// </summary>
+    internal static class DwgPickSupport
+    {
+        /// <summary>The active view's level when it is a plan view; otherwise the lowest level.</summary>
+        internal static Level ResolvePickLevel(Document doc, out string how)
+        {
+            how = null;
+            if (doc.ActiveView is ViewPlan plan && plan.GenLevel != null)
+            {
+                how = "active plan view";
+                return plan.GenLevel;
+            }
+            var lowest = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.Elevation).FirstOrDefault();
+            if (lowest != null) how = "lowest level — the active view is not a plan";
+            return lowest;
+        }
+
+        /// <summary>
+        /// The picked DWG sub-object, in model coordinates. Whether
+        /// GetGeometryObjectFromReference returns import-local or model coordinates
+        /// is not something we rely on: when the import carries a non-identity
+        /// transform, both readings are tried and the one that passes closest to the
+        /// point the user actually clicked (Reference.GlobalPoint) wins.
+        /// </summary>
+        internal static GeometryObject GetPickedGeometry(Document doc, Reference r)
+        {
+            if (doc == null || r == null) return null;
+            try
+            {
+                var host = doc.GetElement(r);
+                var go = host?.GetGeometryObjectFromReference(r);
+                if (go == null) return null;
+
+                var t = (host as Instance)?.GetTotalTransform();
+                var gp = r.GlobalPoint;
+                if (t == null || t.IsIdentity || gp == null) return go;
+
+                switch (go)
+                {
+                    case Curve c:
+                    {
+                        var ct = c.CreateTransformed(t);
+                        return PlanDistance(ct, gp) < PlanDistance(c, gp) ? ct : c;
+                    }
+                    case PolyLine pl:
+                    {
+                        var pt = pl.GetTransformed(t);
+                        return PlanDistance(pt, gp) < PlanDistance(pl, gp) ? pt : pl;
+                    }
+                    default:
+                        return go;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DWG pick geometry: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static double PlanDistance(Curve c, XYZ p)
+        {
+            if (c is Arc a)
+            {
+                double dx = p.X - a.Center.X, dy = p.Y - a.Center.Y;
+                return Math.Abs(Math.Sqrt(dx * dx + dy * dy) - a.Radius);
+            }
+            if (c is Line l)
+            {
+                var s = l.GetEndPoint(0); var e = l.GetEndPoint(1);
+                return DwgPickGeometry.DistanceToSegment2D(s.X, s.Y, e.X, e.Y, p.X, p.Y);
+            }
+            try
+            {
+                var z = c.IsBound ? c.GetEndPoint(0).Z : p.Z;
+                return c.Distance(new XYZ(p.X, p.Y, z));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DWG pick distance: {ex.Message}");
+                return double.MaxValue;
+            }
+        }
+
+        private static double PlanDistance(PolyLine pl, XYZ p)
+        {
+            var pts = pl.GetCoordinates();
+            return DwgPickGeometry.DistanceToPolyline2D(
+                pts.Select(q => q.X).ToList(), pts.Select(q => q.Y).ToList(), p.X, p.Y);
+        }
+
+        internal static DwgPickGeometry.ParallelPair Measure(Line a, Line b)
+        {
+            var a0 = a.GetEndPoint(0); var a1 = a.GetEndPoint(1);
+            var b0 = b.GetEndPoint(0); var b1 = b.GetEndPoint(1);
+            return DwgPickGeometry.MeasureParallelPair(
+                a0.X, a0.Y, a1.X, a1.Y, b0.X, b0.Y, b1.X, b1.Y, 0.95);
+        }
+
+        internal static string DescribeMatch(TypeMatchResult tm, string what, double measuredMm)
+        {
+            switch (tm.MatchMethod)
+            {
+                case TypeMatchMethod.ExactMatch:
+                    return $"Type '{tm.TypeName}' — existing {what} type matching {measuredMm:F0} mm.";
+                case TypeMatchMethod.DuplicatedAndSized:
+                    return $"Type '{tm.TypeName}' — new type duplicated from the nearest existing one and sized to {measuredMm:F0} mm.";
+                default:
+                    return $"Type '{tm.TypeName}' — NOT sized to {measuredMm:F0} mm: no matching type and a new one " +
+                        "could not be created, so the nearest existing type was used." +
+                        (string.IsNullOrEmpty(tm.Message) ? "" : $" ({tm.Message})");
+            }
+        }
+
+        internal sealed class DwgGeometryFilter : ISelectionFilter
+        {
+            public bool AllowElement(Element elem) => elem is ImportInstance;
+            public bool AllowReference(Reference reference, XYZ position) => true;
+        }
+    }
+
+    /// <summary>
+    /// Interactive: pick two parallel DWG lines → one structural wall whose type
+    /// width matches the perpendicular distance between them (±5 mm). If no Basic
+    /// wall type is that wide, the nearest one is duplicated at the measured width.
+    /// Built on the active plan view's level (lowest level otherwise), 3000 mm high.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class DWGInteractivePickWallCommand : IExternalCommand
     {
+        private const double WallHeightMm = 3000;
+        private const double WidthToleranceMm = 5;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
@@ -754,10 +874,7 @@ namespace StingTools.Model
                     return Result.Cancelled;
                 }
 
-                // Let the user pick two DWG sub-objects (lines inside the
-                // ImportInstance). We accept PickObject calls with our own
-                // ISelectionFilter that restricts the selection to lines.
-                var filter = new DwgLineFilter();
+                var filter = new DwgPickSupport.DwgGeometryFilter();
                 Reference r1, r2;
                 try
                 {
@@ -771,8 +888,8 @@ namespace StingTools.Model
                     return Result.Cancelled;
                 }
 
-                var line1 = GetGeometryAsLine(doc, r1);
-                var line2 = GetGeometryAsLine(doc, r2);
+                var line1 = DwgPickSupport.GetPickedGeometry(doc, r1) as Line;
+                var line2 = DwgPickSupport.GetPickedGeometry(doc, r2) as Line;
                 if (line1 == null || line2 == null)
                 {
                     TaskDialog.Show("STING Pick Wall",
@@ -780,66 +897,69 @@ namespace StingTools.Model
                     return Result.Cancelled;
                 }
 
-                // Verify parallelism + measure perpendicular distance.
-                var dir1 = (line1.GetEndPoint(1) - line1.GetEndPoint(0)).Normalize();
-                var dir2 = (line2.GetEndPoint(1) - line2.GetEndPoint(0)).Normalize();
-                double dot = Math.Abs(dir1.DotProduct(dir2));
-                if (dot < 0.95)
+                var pair = DwgPickSupport.Measure(line1, line2);
+                if (!pair.IsParallel)
                 {
                     TaskDialog.Show("STING Pick Wall",
-                        $"The two lines are not parallel enough (dot={dot:F3}, need ≥ 0.95).");
+                        $"The two lines are not parallel enough (dot={pair.Dot:F3}, need ≥ 0.95).");
                     return Result.Cancelled;
                 }
 
-                var pA = line1.GetEndPoint(0);
-                var pB = line2.GetEndPoint(0);
-                var rel = pB - pA;
-                var perp = rel - dir1 * rel.DotProduct(dir1);
-                double thicknessFt = perp.GetLength();
-                double thicknessMm = thicknessFt * Units.FeetToMm;
+                double thicknessMm = pair.Gap * Units.FeetToMm;
                 if (thicknessMm < 50 || thicknessMm > 1000)
                 {
                     TaskDialog.Show("STING Pick Wall",
                         $"Measured wall thickness {thicknessMm:F0}mm is outside the sensible range (50-1000mm).");
                     return Result.Cancelled;
                 }
-
-                // Build the centerline from midpoints of matching endpoints.
-                var l2a = line2.GetEndPoint(0);
-                var l2b = line2.GetEndPoint(1);
-                if (line1.GetEndPoint(0).DistanceTo(l2b) < line1.GetEndPoint(0).DistanceTo(l2a))
-                {
-                    // Anti-parallel — swap
-                    var tmp = l2a; l2a = l2b; l2b = tmp;
-                }
-                var start = (line1.GetEndPoint(0) + l2a) * 0.5;
-                var end = (line1.GetEndPoint(1) + l2b) * 0.5;
-                start = new XYZ(start.X, start.Y, 0);
-                end = new XYZ(end.X, end.Y, 0);
-                if (start.DistanceTo(end) < (300 * Units.MmToFeet))
+                if (pair.Length < 300 * Units.MmToFeet)
                 {
                     TaskDialog.Show("STING Pick Wall", "Picked lines are too short for a wall.");
                     return Result.Cancelled;
                 }
 
-                Wall created;
+                var level = DwgPickSupport.ResolvePickLevel(doc, out string levelHow);
+                if (level == null)
+                {
+                    TaskDialog.Show("STING Pick Wall", "No level in the project.");
+                    return Result.Cancelled;
+                }
+
+                var factory = new StructuralTypeFactory(doc);
+                Wall created = null;
+                TypeMatchResult tm;
                 using (var tx = new Transaction(doc, "STING: Pick Wall from DWG"))
                 {
                     tx.Start();
-                    var curve = Line.CreateBound(start, end);
-                    created = StructuralDWGEnhancements.CreateWallFromCurve(doc, curve, 3000, thicknessMm);
-                    tx.Commit();
+                    tm = factory.FindOrCreateWallType(thicknessMm, isStructural: true,
+                        allowDuplicate: true, exactToleranceMm: WidthToleranceMm);
+                    if (!tm.Success)
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("STING Pick Wall", tm.Message ?? "No Basic wall type in the project.");
+                        return Result.Cancelled;
+                    }
+                    var curve = Line.CreateBound(
+                        new XYZ(pair.StartX, pair.StartY, level.Elevation),
+                        new XYZ(pair.EndX, pair.EndY, level.Elevation));
+                    created = StructuralDWGEnhancements.CreateWallFromCurve(
+                        doc, curve, WallHeightMm, tm.TypeId, level);
+                    if (created == null) { tx.RollBack(); }
+                    else tx.Commit();
                 }
 
-                if (created != null)
+                if (created == null)
                 {
-                    uidoc.Selection.SetElementIds(new List<ElementId> { created.Id });
-                    TaskDialog.Show("STING Pick Wall",
-                        $"Created wall with measured thickness {thicknessMm:F0}mm.");
-                    return Result.Succeeded;
+                    TaskDialog.Show("STING Pick Wall", "Wall creation failed — check the log.");
+                    return Result.Failed;
                 }
-                TaskDialog.Show("STING Pick Wall", "Wall creation failed — check the log.");
-                return Result.Failed;
+
+                uidoc.Selection.SetElementIds(new List<ElementId> { created.Id });
+                TaskDialog.Show("STING Pick Wall",
+                    $"Created a structural wall {thicknessMm:F0} mm thick (measured), " +
+                    $"{WallHeightMm:F0} mm high, on level '{level.Name}' ({levelHow}).\n\n" +
+                    DwgPickSupport.DescribeMatch(tm, "wall", thicknessMm));
+                return Result.Succeeded;
             }
             catch (Exception ex)
             {
@@ -848,35 +968,14 @@ namespace StingTools.Model
                 return Result.Failed;
             }
         }
-
-        private static Line GetGeometryAsLine(Document doc, Reference r)
-        {
-            if (doc == null || r == null) return null;
-            try
-            {
-                var host = doc.GetElement(r);
-                if (host == null) return null;
-                var go = host.GetGeometryObjectFromReference(r);
-                return go as Line;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"Pick wall geom: {ex.Message}");
-                return null;
-            }
-        }
-
-        private sealed class DwgLineFilter : ISelectionFilter
-        {
-            public bool AllowElement(Element elem) => elem is ImportInstance;
-            public bool AllowReference(Reference reference, XYZ position) => true;
-        }
     }
 
     /// <summary>
-    /// Interactive: pick a closed rectangle / circle in the DWG → one
-    /// structural column at the geometric centre. Size inferred from
-    /// picked geometry bounding box.
+    /// Interactive: pick a column outline in the DWG → one structural column sized
+    /// from it. Accepts a circle (round column, diameter), a closed rectangular
+    /// polyline, or one edge line followed by the opposite edge line. The column
+    /// type is found or duplicated at the measured size via StructuralTypeFactory,
+    /// placed at the outline's centre and rotated to the outline.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -895,55 +994,142 @@ namespace StingTools.Model
                     return Result.Cancelled;
                 }
 
-                XYZ centre;
+                var filter = new DwgPickSupport.DwgGeometryFilter();
+                Reference r1;
                 try
                 {
-                    var pt = uidoc.Selection.PickPoint(
-                        "Click the centre of the column on the DWG");
-                    centre = new XYZ(pt.X, pt.Y, 0);
+                    r1 = uidoc.Selection.PickObject(ObjectType.PointOnElement, filter,
+                        "Pick the column outline in the DWG — a circle, a closed rectangle, or one edge line");
                 }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                 {
                     return Result.Cancelled;
                 }
 
-                // Fixed default size (300×300mm) — the user can edit the
-                // created column's type afterwards. A richer implementation
-                // would measure the picked rectangle; that's future work.
-                var symbol = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_StructuralColumns)
-                    .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                    .FirstOrDefault();
-                if (symbol == null)
+                var go = DwgPickSupport.GetPickedGeometry(doc, r1);
+                bool round = false;
+                string shapeNote;
+                DwgPickGeometry.RectDims dims;
+
+                if (go is Arc arc)
+                {
+                    round = true;
+                    double dFt = arc.Radius * 2;
+                    dims = new DwgPickGeometry.RectDims(dFt, dFt, arc.Center.X, arc.Center.Y, 0);
+                    shapeNote = arc.IsBound
+                        ? "round (from an arc — only part of a circle was picked)"
+                        : "round (from a circle)";
+                }
+                else if (go is PolyLine pl)
+                {
+                    var pts = pl.GetCoordinates();
+                    if (!DwgPickGeometry.TryParseRectangle(
+                            pts.Select(p => p.X).ToList(), pts.Select(p => p.Y).ToList(), out dims))
+                    {
+                        TaskDialog.Show("STING Pick Column",
+                            "The picked polyline is not a closed rectangle (four right-angled corners). " +
+                            "Pick a circle or a rectangular outline.");
+                        return Result.Cancelled;
+                    }
+                    shapeNote = "rectangular (from a closed polyline)";
+                }
+                else if (go is Line edge1)
+                {
+                    Reference r2;
+                    try
+                    {
+                        r2 = uidoc.Selection.PickObject(ObjectType.PointOnElement, filter,
+                            "Now pick the OPPOSITE edge line of the same column");
+                    }
+                    catch (Autodesk.Revit.Exceptions.OperationCanceledException)
+                    {
+                        return Result.Cancelled;
+                    }
+                    var edge2 = DwgPickSupport.GetPickedGeometry(doc, r2) as Line;
+                    if (edge2 == null)
+                    {
+                        TaskDialog.Show("STING Pick Column", "The second pick must be a straight DWG line.");
+                        return Result.Cancelled;
+                    }
+                    var pair = DwgPickSupport.Measure(edge1, edge2);
+                    if (!pair.IsParallel)
+                    {
+                        TaskDialog.Show("STING Pick Column",
+                            $"The two edges are not parallel enough (dot={pair.Dot:F3}, need ≥ 0.95).");
+                        return Result.Cancelled;
+                    }
+                    dims = DwgPickGeometry.RectFromParallelEdges(pair);
+                    shapeNote = "rectangular (from two opposite edges)";
+                }
+                else
                 {
                     TaskDialog.Show("STING Pick Column",
-                        "No structural column family loaded in the project.");
+                        "Pick a circle, a closed rectangular polyline, or a straight edge line inside the DWG import.");
                     return Result.Cancelled;
                 }
 
-                var level = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Level)).Cast<Level>()
-                    .OrderBy(l => l.Elevation).FirstOrDefault();
+                double wMm = dims.Width * Units.FeetToMm, dMm = dims.Depth * Units.FeetToMm;
+                if (wMm < 100 || dMm < 100 || wMm > 3000 || dMm > 3000)
+                {
+                    TaskDialog.Show("STING Pick Column",
+                        $"Measured column {wMm:F0} × {dMm:F0} mm is outside the sensible range (100-3000 mm).");
+                    return Result.Cancelled;
+                }
+
+                var level = DwgPickSupport.ResolvePickLevel(doc, out string levelHow);
                 if (level == null)
                 {
                     TaskDialog.Show("STING Pick Column", "No level in the project.");
                     return Result.Cancelled;
                 }
 
-                FamilyInstance col;
+                var factory = new StructuralTypeFactory(doc);
+                FamilyInstance col = null;
+                TypeMatchResult tm;
                 using (var tx = new Transaction(doc, "STING: Pick Column from DWG"))
                 {
                     tx.Start();
-                    if (!symbol.IsActive) symbol.Activate();
+                    tm = factory.FindOrCreateColumnType(wMm, dMm,
+                        preferredFamily: round ? "Round" : "Rectangular", allowDuplicate: true);
+                    if (!tm.Success)
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("STING Pick Column", tm.Message ?? "No structural column family loaded in the project.");
+                        return Result.Cancelled;
+                    }
+                    var symbol = doc.GetElement(tm.TypeId) as FamilySymbol;
+                    if (symbol == null)
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("STING Pick Column", "The resolved column type could not be read.");
+                        return Result.Failed;
+                    }
+                    if (!symbol.IsActive) { symbol.Activate(); doc.Regenerate(); }
+                    var centre = new XYZ(dims.CenterX, dims.CenterY, level.Elevation);
                     col = doc.Create.NewFamilyInstance(centre, symbol, level, StructuralType.Column);
-                    tx.Commit();
+                    if (col != null && Math.Abs(dims.AngleRad) > 1e-6)
+                    {
+                        var axis = Line.CreateBound(centre, centre + XYZ.BasisZ);
+                        ElementTransformUtils.RotateElement(doc, col.Id, axis, dims.AngleRad);
+                    }
+                    if (col == null) tx.RollBack(); else tx.Commit();
                 }
-                if (col != null)
+
+                if (col == null)
                 {
-                    uidoc.Selection.SetElementIds(new List<ElementId> { col.Id });
-                    return Result.Succeeded;
+                    TaskDialog.Show("STING Pick Column", "Column creation failed — check the log.");
+                    return Result.Failed;
                 }
-                return Result.Failed;
+
+                uidoc.Selection.SetElementIds(new List<ElementId> { col.Id });
+                string size = round ? $"Ø{wMm:F0} mm" : $"{wMm:F0} × {dMm:F0} mm";
+                string rot = Math.Abs(dims.AngleRad) > 1e-6
+                    ? $", rotated {dims.AngleRad * 180.0 / Math.PI:F1}°" : "";
+                TaskDialog.Show("STING Pick Column",
+                    $"Created a {shapeNote} column, measured {size}{rot}, on level " +
+                    $"'{level.Name}' ({levelHow}).\n\n" +
+                    DwgPickSupport.DescribeMatch(tm, "column", Math.Max(wMm, dMm)));
+                return Result.Succeeded;
             }
             catch (Exception ex)
             {
@@ -955,13 +1141,19 @@ namespace StingTools.Model
     }
 
     /// <summary>
-    /// Interactive: pick two parallel DWG lines → one structural beam
-    /// whose width equals the perpendicular distance between them.
+    /// Interactive beam. Two modes, chosen up front:
+    ///   • Edge lines — pick the beam's two parallel edge lines; the gap is its
+    ///     width and a framing type of that width (±5 mm) is found or duplicated.
+    ///     Plan geometry cannot show depth, so the type's depth is kept and reported.
+    ///   • Points — pick start and end; the first framing type is used and the
+    ///     result says that no size was measured.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class DWGInteractivePickBeamCommand : IExternalCommand
     {
+        private const double WidthToleranceMm = 5;
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
@@ -975,62 +1167,142 @@ namespace StingTools.Model
                     return Result.Cancelled;
                 }
 
-                XYZ p1, p2;
+                var mode = new TaskDialog("STING Pick Beam")
+                {
+                    MainInstruction = "How should the beam be picked?",
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                };
+                mode.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                    "Pick the two parallel edge lines",
+                    "Measures the beam width and matches or creates a framing type of that width.");
+                mode.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                    "Pick start and end points",
+                    "No size is measured — the first framing type in the project is used.");
+                var choice = mode.Show();
+                if (choice != TaskDialogResult.CommandLink1 && choice != TaskDialogResult.CommandLink2)
+                    return Result.Cancelled;
+                bool byEdges = choice == TaskDialogResult.CommandLink1;
+
+                double bx0, by0, bx1, by1;
+                double widthMm = 0;
                 try
                 {
-                    p1 = uidoc.Selection.PickPoint("Pick beam START on the DWG");
-                    p2 = uidoc.Selection.PickPoint("Pick beam END on the DWG");
+                    if (byEdges)
+                    {
+                        var filter = new DwgPickSupport.DwgGeometryFilter();
+                        var r1 = uidoc.Selection.PickObject(ObjectType.PointOnElement, filter,
+                            "Pick the FIRST beam edge line in the DWG");
+                        var r2 = uidoc.Selection.PickObject(ObjectType.PointOnElement, filter,
+                            "Pick the SECOND (opposite) beam edge line");
+                        var l1 = DwgPickSupport.GetPickedGeometry(doc, r1) as Line;
+                        var l2 = DwgPickSupport.GetPickedGeometry(doc, r2) as Line;
+                        if (l1 == null || l2 == null)
+                        {
+                            TaskDialog.Show("STING Pick Beam",
+                                "Both picks must be straight lines inside the DWG import.");
+                            return Result.Cancelled;
+                        }
+                        var pair = DwgPickSupport.Measure(l1, l2);
+                        if (!pair.IsParallel)
+                        {
+                            TaskDialog.Show("STING Pick Beam",
+                                $"The two lines are not parallel enough (dot={pair.Dot:F3}, need ≥ 0.95).");
+                            return Result.Cancelled;
+                        }
+                        widthMm = pair.Gap * Units.FeetToMm;
+                        if (widthMm < 50 || widthMm > 2000)
+                        {
+                            TaskDialog.Show("STING Pick Beam",
+                                $"Measured beam width {widthMm:F0} mm is outside the sensible range (50-2000 mm).");
+                            return Result.Cancelled;
+                        }
+                        bx0 = pair.StartX; by0 = pair.StartY; bx1 = pair.EndX; by1 = pair.EndY;
+                    }
+                    else
+                    {
+                        var p1 = uidoc.Selection.PickPoint("Pick beam START on the DWG");
+                        var p2 = uidoc.Selection.PickPoint("Pick beam END on the DWG");
+                        bx0 = p1.X; by0 = p1.Y; bx1 = p2.X; by1 = p2.Y;
+                    }
                 }
                 catch (Autodesk.Revit.Exceptions.OperationCanceledException)
                 {
                     return Result.Cancelled;
                 }
 
-                p1 = new XYZ(p1.X, p1.Y, 0);
-                p2 = new XYZ(p2.X, p2.Y, 0);
-                if (p1.DistanceTo(p2) < (500 * Units.MmToFeet))
+                double lenFt = Math.Sqrt((bx1 - bx0) * (bx1 - bx0) + (by1 - by0) * (by1 - by0));
+                if (lenFt < 500 * Units.MmToFeet)
                 {
                     TaskDialog.Show("STING Pick Beam",
-                        "Picked endpoints are closer than 500mm — too short for a beam.");
+                        "The beam would be shorter than 500mm — too short.");
                     return Result.Cancelled;
                 }
 
-                var symbol = new FilteredElementCollector(doc)
-                    .OfCategory(BuiltInCategory.OST_StructuralFraming)
-                    .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                    .FirstOrDefault();
-                if (symbol == null)
-                {
-                    TaskDialog.Show("STING Pick Beam",
-                        "No structural framing family loaded in the project.");
-                    return Result.Cancelled;
-                }
-
-                var level = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Level)).Cast<Level>()
-                    .OrderBy(l => l.Elevation).FirstOrDefault();
+                var level = DwgPickSupport.ResolvePickLevel(doc, out string levelHow);
                 if (level == null)
                 {
                     TaskDialog.Show("STING Pick Beam", "No level in the project.");
                     return Result.Cancelled;
                 }
 
-                FamilyInstance beam;
+                FamilyInstance beam = null;
+                string typeNote;
                 using (var tx = new Transaction(doc, "STING: Pick Beam from DWG"))
                 {
                     tx.Start();
-                    if (!symbol.IsActive) symbol.Activate();
-                    var curve = Line.CreateBound(p1, p2);
+                    FamilySymbol symbol;
+                    if (byEdges)
+                    {
+                        var tm = new StructuralTypeFactory(doc)
+                            .FindOrCreateBeamTypeByWidth(widthMm, WidthToleranceMm, allowDuplicate: true);
+                        if (!tm.Success)
+                        {
+                            tx.RollBack();
+                            TaskDialog.Show("STING Pick Beam", tm.Message);
+                            return Result.Cancelled;
+                        }
+                        symbol = doc.GetElement(tm.TypeId) as FamilySymbol;
+                        typeNote = DwgPickSupport.DescribeMatch(tm, "framing", widthMm) +
+                            (tm.DepthMm > 0
+                                ? $"\nDepth {tm.DepthMm:F0} mm comes from that type — plan lines cannot show depth; check it."
+                                : "\nDepth was not measured — plan lines cannot show it; check the type.");
+                    }
+                    else
+                    {
+                        symbol = new FilteredElementCollector(doc)
+                            .OfCategory(BuiltInCategory.OST_StructuralFraming)
+                            .OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
+                            .FirstOrDefault();
+                        typeNote = symbol == null ? "" :
+                            $"No size was measured — used the first framing type, '{symbol.FamilyName}: {symbol.Name}'. " +
+                            "Use the edge-line mode to size the beam by width.";
+                    }
+                    if (symbol == null)
+                    {
+                        tx.RollBack();
+                        TaskDialog.Show("STING Pick Beam",
+                            "No structural framing family loaded in the project.");
+                        return Result.Cancelled;
+                    }
+                    if (!symbol.IsActive) { symbol.Activate(); doc.Regenerate(); }
+                    var curve = Line.CreateBound(
+                        new XYZ(bx0, by0, level.Elevation), new XYZ(bx1, by1, level.Elevation));
                     beam = doc.Create.NewFamilyInstance(curve, symbol, level, StructuralType.Beam);
-                    tx.Commit();
+                    if (beam == null) tx.RollBack(); else tx.Commit();
                 }
 
-                if (beam != null)
+                if (beam == null)
                 {
-                    uidoc.Selection.SetElementIds(new List<ElementId> { beam.Id });
-                    return Result.Succeeded;
+                    TaskDialog.Show("STING Pick Beam", "Beam creation failed — check the log.");
+                    return Result.Failed;
                 }
-                return Result.Failed;
+
+                uidoc.Selection.SetElementIds(new List<ElementId> { beam.Id });
+                TaskDialog.Show("STING Pick Beam",
+                    (byEdges ? $"Created a beam {widthMm:F0} mm wide (measured)" : "Created a beam") +
+                    $", {lenFt * Units.FeetToMm:F0} mm long, on level '{level.Name}' ({levelHow}).\n\n" +
+                    typeNote);
+                return Result.Succeeded;
             }
             catch (Exception ex)
             {

@@ -209,6 +209,10 @@ namespace StingTools.UI
                     case "Placement_Learn":         RunCommand<Commands.Placement.LearnPlacementV4Command>(app); break;
                     // Phase 177 — toilet-room specific placement + BS 6465 provision check.
                     case "Placement_ToiletRoom":    RunCommand<Commands.Placement.PlaceToiletRoomCommand>(app); break;
+                    // HTM 02-01 medical gas outlets, driven by each room's MGS_GAS_REQUIREMENT_TXT.
+                    // The electrical handler also routes this tag; the main dock + Placement
+                    // Centre buttons dispatch through this handler, so it needs its own case.
+                    case "Placement_MedGasOutlets": RunCommand<Commands.Placement.MedGasOutletPlacementCommand>(app); break;
 
                     // ── Phase 139.2 — placement centre additions ──
                     case "Placement_AutoPopulateCatalogue":

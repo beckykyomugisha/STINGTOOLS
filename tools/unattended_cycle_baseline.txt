@@ -77,6 +77,8 @@ StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|new TaskDialog|
 
 # IssueSheetsForRevisionCommand — step IssueSheetsForRevision in FortnightlyIssue
 StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialog.Show|4	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|new TaskDialog|1	GATED - the 'issue to the STING-produced sheets?' confirm; RevisionIssueTargets.Plan sets NeedsConfirmation only when !PresetDialog.Quiet, so a preset never reaches it.
+StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialogResult|2	GATED - reading that confirm; same branch.
 
 # RevisionLeakCheckCommand — step Revision_LeakCheck in FortnightlyIssue
 StingTools/BIMManager/RevisionNumberingCommands.cs::RevisionLeakCheckCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
@@ -178,12 +180,11 @@ StingTools/Docs/SheetTemplateCommands.cs::ExportSheetRegisterCommand|TaskDialog.
 
 # SheetComplianceCheckCommand — step SheetComplianceCheck in DeliverableC, FortnightlyIssue, MonthlyReport
 StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|AddCommandLink|1	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|TaskDialogResult|1	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
 StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # RevisionSyncCommand — step RevisionSync in FortnightlyIssue
-StingTools/Docs/TitleBlockCommands.cs::RevisionSyncCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/Docs/TitleBlockCommands.cs::RevisionSyncCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # FohlioAuditCommand — step Fohlio_Audit in DeliverableB, DeliverableC, DeliverableD, FFESync
 StingTools/ExLink/FohlioCommands.cs::FohlioAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
@@ -220,7 +221,6 @@ StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|TaskDialog.Show|5
 StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # LoadSharedParamsCommand — step LoadSharedParams in Mobilisation
-StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|TaskDialog.Show|6	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|TaskDialogResult|1	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
 StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 

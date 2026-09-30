@@ -152,9 +152,36 @@ namespace StingTools.Commands.Drawing
                         sb.AppendLine($"  …(+{infoOnlyReports.Count - 20} more)");
                 }
 
-                TaskDialog.Show("STING — Drawing Types", sb.ToString().Length > 10000
-                    ? sb.ToString().Substring(0, 10000) + "\n…(truncated)"
-                    : sb.ToString());
+                // The pre-flight's verdict: Error-severity findings fail the step (a
+                // pre-flight that passes whatever it finds is not a gate).
+                // Only errors in types this project uses fail it (PreflightScope): an error in
+                // a type it never produces is reported, not blocking.
+                var failingAll = reports.Where(r => r.HasErrors).Select(r => r.DrawingTypeId).ToList();
+                var scope = PreflightScope.Split(failingAll, TypesInUse(doc));
+                var failing = scope.Blocking;
+                string verdict = $"Drawing-type pre-flight: {errors} error(s) in {failingAll.Count} drawing type(s), "
+                               + $"{warnings} warning(s), {infos} info"
+                               + (failing.Count > 0
+                                   ? $" — {failing.Count} used by this project: {string.Join(", ", failing.Take(6))}{(failing.Count > 6 ? $" +{failing.Count - 6} more" : "")} (details in the STING log)"
+                                   : "")
+                               + (scope.Unused.Count > 0 ? $"; {scope.Unused.Count} in types this project does not produce (not blocking)" : "")
+                               + ".";
+                if (PresetDialog.Quiet)
+                {
+                    StingLog.Info("DrawingTypesInspect:\n" + sb);
+                    msg = verdict;
+                }
+                else
+                    TaskDialog.Show("STING — Drawing Types", sb.ToString().Length > 10000
+                        ? sb.ToString().Substring(0, 10000) + "\n…(truncated)"
+                        : sb.ToString());
+                if (scope.Fails)
+                {
+                    msg = verdict;
+                    StingLog.Warn(verdict);
+                    return Result.Failed;
+                }
+                if (errors > 0) { msg = verdict; StingLog.Info(verdict); }
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -163,6 +190,31 @@ namespace StingTools.Commands.Drawing
                 msg = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// Drawing types this project uses: stamped on any view or sheet, plus what its
+        /// routing produces per level for the disciplines it models.
+        /// </summary>
+        private static IEnumerable<string> TypesInUse(Document doc)
+        {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var v in new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>())
+                {
+                    var id = ParameterHelpers.GetString(v, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
+                    if (!string.IsNullOrWhiteSpace(id)) ids.Add(id);
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect stamped types: {ex.Message}"); }
+            try
+            {
+                foreach (var t in BatchProduceCommons.RoutePerLevel(doc, DrawingProduceAndExportCommand.DisciplinesModelled(doc)).Types)
+                    ids.Add(t.Id);
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect routed types: {ex.Message}"); }
+            return ids;
         }
 
         private static string Truncate(string s, int len)

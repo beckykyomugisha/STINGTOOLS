@@ -31,14 +31,14 @@ namespace StingTools.Commands.Drawing
         public Result Execute(ExternalCommandData data, ref string msg, ElementSet els)
         {
             var ctx = ParameterHelpers.GetContext(data);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref msg); return Result.Failed; }
             var doc = ctx.Doc;
 
             var lib = AecFilterRegistry.GetLibrary(doc);
             if (lib?.Filters == null || lib.Filters.Count == 0)
             {
-                TaskDialog.Show("STING - AEC Filters",
-                    "No filter definitions found.\n\nExpected STING_AEC_FILTERS.json under the data/ directory.");
+                PresetDialog.Show("STING - AEC Filters",
+                    "No filter definitions found.\n\nExpected STING_AEC_FILTERS.json under the data/ directory.", ref msg);
                 return Result.Failed;
             }
 
@@ -57,7 +57,14 @@ namespace StingTools.Commands.Drawing
                     if (r.Created) created++; else existing++;
                     foreach (var w in r.Warnings) warnings.Add($"{def.Id}: {w}");
                 }
-                tx.Commit();
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    msg = $"AEC filters: the transaction did not commit ({status}); no filter was created.";
+                    StingLog.Warn(msg);
+                    if (!PresetDialog.Quiet) TaskDialog.Show("STING - AEC Filters", msg);
+                    return Result.Failed;
+                }
             }
 
             // Caches must be invalidated so subsequent ViewStylePack applies
@@ -87,7 +94,10 @@ namespace StingTools.Commands.Drawing
             foreach (var w in warnings) StingLog.Warn($"AecFiltersCreate: {w}");
             foreach (var e in errors)   StingLog.Error($"AecFiltersCreate: {e}");
 
-            TaskDialog.Show("STING - AEC Filters", sb.ToString());
+            PresetDialog.Show("STING - AEC Filters", sb.ToString(), ref msg);
+            if (PresetDialog.Quiet)
+                msg = $"AEC filters: {created} created, {existing} existed, {failed} failed of {lib.Filters.Count}, "
+                    + $"{warnings.Count} warning(s) (details in the STING log).";
             return Result.Succeeded;
         }
     }

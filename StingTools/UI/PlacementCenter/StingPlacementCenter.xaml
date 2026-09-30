@@ -1077,6 +1077,9 @@
                                     Content="Toilet Rooms" Click="OnRunToiletRooms_Click"
                                     ToolTip="BS 6465-1: occupant-based provision + WC at window + all toilet accessories."/>
                             <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
+                                    Content="Med Gas Outlets" Click="OnRunMedGasOutlets_Click"
+                                    ToolTip="HTM 02-01: one medical gas outlet per gas listed in each room's MGS_GAS_REQUIREMENT_TXT (e.g. O2,VAC,MA4)."/>
+                            <Button Style="{StaticResource ToolBtn}" Width="118" Height="30" Margin="4,3"
                                     Content="Lighting Grid" Click="OnRunLightingGrid_Click"
                                     ToolTip="IES RP-1 luminaire grid layout (LightingGridCommand)."/>
                             <Button Style="{StaticResource ToolBtnSecondary}" Width="118" Height="30" Margin="4,3"

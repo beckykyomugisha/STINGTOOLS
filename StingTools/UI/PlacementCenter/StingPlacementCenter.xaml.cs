@@ -2367,6 +2367,9 @@ namespace StingTools.UI.PlacementCenter
         private void OnRunLightingGrid_Click(object sender, RoutedEventArgs e)
             => StingDockPanel.DispatchCommand("Placement_LightingGrid");
 
+        private void OnRunMedGasOutlets_Click(object sender, RoutedEventArgs e)
+            => StingDockPanel.DispatchCommand("Placement_MedGasOutlets");
+
         private void OnLearnPlacement_Click(object sender, RoutedEventArgs e)
             => StingDockPanel.DispatchCommand("Placement_Learn");
 

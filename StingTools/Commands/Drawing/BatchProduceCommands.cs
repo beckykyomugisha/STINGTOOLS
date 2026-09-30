@@ -71,6 +71,154 @@ namespace StingTools.Commands.Drawing
                 .ToList();
         }
 
+        /// <summary>
+        /// The per-level drawing types each discipline's PLAN (and RCP) routes to in this
+        /// project's routing table — the same answer DrawingDispatcher gives every other
+        /// caller. Phase is left blank so only phase-wildcard rules match: the
+        /// PRESENTATION / TECHNICAL / FABRICATION variants are chosen deliberately, not
+        /// by a per-level default.
+        /// </summary>
+        internal static DisciplineRouting RoutePerLevel(Document doc, IEnumerable<string> disciplines)
+            => DisciplinePlanRouting.Select(disciplines,
+                (disc, docType) => DrawingDispatcher.Resolve(doc, disc, null, docType));
+
+        /// <summary>What a per-level step produces when params.drawingTypes names nothing.</summary>
+        internal sealed class PerLevelSelection
+        {
+            public List<DrawingType> Types = new List<DrawingType>();
+            /// <summary>Skips a (type, level) pair whose discipline has nothing modelled on that level; null = produce every pair.</summary>
+            public Func<DrawingType, Level, bool> Include;
+            /// <summary>One line per routing decision, for the log / report.</summary>
+            public List<string> Notes = new List<string>();
+        }
+
+        /// <summary>
+        /// The per-level default for an MEP set: for each of M / E / P / FP / MG that has
+        /// anything modelled, the plan type its PLAN routes to (RoutePerLevel — the set
+        /// the dialogs pre-tick), and only on the levels that discipline occupies. It used
+        /// to be every MEP Plan type in the catalogue — ~24 including the presentation,
+        /// technical, fabrication, SUDS 1:500 and healthcare variants — on every level.
+        /// Shared by Produce Per Level, Produce &amp; Export and MEP Plans Per Level.
+        /// </summary>
+        internal static PerLevelSelection RoutedMepPerLevel(Document doc)
+        {
+            var sel = new PerLevelSelection();
+            var presence = StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
+            var present = StingTools.Core.Mep.MepLevelViewProducer.Disciplines.Where(presence.ContainsKey).ToList();
+            var routing = RoutePerLevel(doc, present);
+            sel.Types = routing.Types;
+            foreach (var p in routing.Picks) sel.Notes.Add($"{p.Discipline} / {p.DocType} → {p.Type.Id}");
+            foreach (var d in routing.Unrouted) sel.Notes.Add($"{d}: no drawing type routes from {d} / PLAN — not produced.");
+            foreach (var n in routing.NotPerLevel) sel.Notes.Add($"{n} is not a per-level plan — not produced.");
+            foreach (var d in StingTools.Core.Mep.MepLevelViewProducer.Disciplines.Where(d => !presence.ContainsKey(d)))
+                sel.Notes.Add($"{d}: nothing modelled — skipped.");
+            sel.Include = (dt, lvl) =>
+            {
+                foreach (var d in routing.DisciplinesFor(dt.Id))
+                    if (!presence.TryGetValue(d, out var set) || set.Contains(lvl.Id)) return true;
+                return false;
+            };
+            return sel;
+        }
+
+        /// <summary>
+        /// A per-level step's types: params.drawingTypes when it names some (produced on
+        /// every picked level, as asked), else <see cref="RoutedMepPerLevel"/>. False with
+        /// <paramref name="error"/> for an unknown id or nothing to produce.
+        /// </summary>
+        internal static bool TryStepPerLevelTypes(Document doc, out PerLevelSelection sel, out string error)
+        {
+            error = null;
+            var requested = HeadlessProductionInputs.ParseList(WorkflowEngine.StepParam("drawingTypes"));
+            if (requested.Count > 0)
+            {
+                sel = new PerLevelSelection
+                {
+                    Types = HeadlessProductionInputs.SelectTypes(DrawingTypeRegistry.ListAll(doc), requested, new string[0], out var unknown)
+                };
+                if (unknown.Count > 0)
+                { error = "params.drawingTypes names drawing type(s) not in the catalogue: " + string.Join(", ", unknown) + "."; return false; }
+                if (sel.Types.Count == 0) { error = "params.drawingTypes resolved to no drawing types."; return false; }
+                return true;
+            }
+            sel = RoutedMepPerLevel(doc);
+            foreach (var n in sel.Notes) StingLog.Info("Per-level default: " + n);
+            if (sel.Types.Count == 0)
+            {
+                error = "no M/E/P/FP/MG discipline has anything modelled that routes to a per-level plan"
+                      + (sel.Notes.Count > 0 ? " (" + string.Join(" ", sel.Notes) + ")" : "")
+                      + "; name the types in params.drawingTypes.";
+                return false;
+            }
+            return true;
+        }
+
+        // ── Workflow (headless) inputs ─────────────────────────────────────────
+        // Inside a preset these commands take their inputs from the step's "params"
+        // (see HeadlessProductionInputs for the keys and defaults) instead of a dialog.
+
+        internal static bool Headless => WorkflowEngine.IsRunningPreset;
+
+        internal static ViewDuplicateOption ToRevitDuplicate(string word)
+        {
+            switch (word)
+            {
+                case HeadlessProductionInputs.DuplicateWithDetailing: return ViewDuplicateOption.WithDetailing;
+                case HeadlessProductionInputs.DuplicateAsDependent:   return ViewDuplicateOption.AsDependent;
+                default:                                              return ViewDuplicateOption.Duplicate;
+            }
+        }
+
+        /// <summary>
+        /// ProduceOptions from the running step's params: output (views and sheets by
+        /// default), duplicateOption, packageId. False with <paramref name="error"/> when
+        /// a value cannot be read — the step fails rather than guessing.
+        /// </summary>
+        internal static bool TryStepOptions(out ProduceOptions opts, out string packageId, out string error)
+        {
+            opts = null; error = null;
+            packageId = WorkflowEngine.StepParam("packageId");
+            if (string.IsNullOrWhiteSpace(packageId)) packageId = null;
+            var outputRaw = WorkflowEngine.StepParam("output");
+            var sheets = HeadlessProductionInputs.ParseSheets(outputRaw);
+            if (sheets == null)
+            { error = $"params.output '{outputRaw}' is not 'Views and sheets' or 'Views only'."; return false; }
+            var dupRaw = WorkflowEngine.StepParam("duplicateOption");
+            var dup = HeadlessProductionInputs.ParseDuplicateOption(dupRaw);
+            if (dup == null)
+            { error = $"params.duplicateOption '{dupRaw}' is not Duplicate, DuplicateAsDependent or DuplicateWithDetailing."; return false; }
+            opts = new ProduceOptions
+            {
+                CreateSheet = sheets.Value,
+                PlaceOnSheet = sheets.Value,
+                RunAnnotation = true,
+                Idempotent = true,
+                DuplicateOption = ToRevitDuplicate(dup),
+            };
+            return true;
+        }
+
+        /// <summary>A step's outcome as one line for the workflow report; warnings go to the log.</summary>
+        internal static string StepSummary(string title, int views, int sheets, IList<string> warnings)
+        {
+            foreach (var w in (warnings ?? new List<string>()).Distinct()) StingLog.Warn($"{title}: {w}");
+            var s = $"{title}: {views} view(s), {sheets} new sheet(s)";
+            if (warnings != null && warnings.Count > 0) s += $", {warnings.Distinct().Count()} warning(s) (see the STING log)";
+            StingLog.Info(s);
+            return s + ".";
+        }
+
+        /// <summary>A dialog outside a workflow; the log inside one.</summary>
+        internal static void Show(string title, string body)
+        {
+            if (Headless) StingLog.Info($"{title}: {body}");
+            else TaskDialog.Show(title, body);
+        }
+
+        /// <summary>A confirmation outside a workflow; inside one, running the step IS the confirmation.</summary>
+        internal static bool Confirm(TaskDialog td)
+            => Headless || td.Show() == TaskDialogResult.Ok;
+
         internal static void ShowResult(string title, int views, int sheets, IList<string> warnings)
         {
             var msg = new System.Text.StringBuilder();
@@ -97,6 +245,9 @@ namespace StingTools.Commands.Drawing
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                if (BatchProduceCommons.Headless) return ExecuteInWorkflow(doc, levels, ref message);
+
                 // PERF-01: warm the per-document caches so every per-level
                 // / per-DrawingType Apply call hits the (template name →
                 // ElementId) and (pack id → pack) memos.
@@ -104,7 +255,6 @@ namespace StingTools.Commands.Drawing
                 DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Plan", "RCP");
-                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
                 var contextLabels = levels.Select(l => l.Name).ToList();
 
                 var dlg = new DrawingProductionConfigDialog(types, contextLabels, "PerLevel", doc);
@@ -113,43 +263,102 @@ namespace StingTools.Commands.Drawing
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
+                var pickedLevels = res.SelectedContexts
+                    .Select(n => levels.FirstOrDefault(l => l.Name == n)).Where(l => l != null).ToList();
                 int views = 0, sheets = 0; var warnings = new List<string>();
-
-                using (var tg = new TransactionGroup(doc, "STING Produce Per Level"))
-                {
-                    tg.Start();
-                    foreach (var levelName in res.SelectedContexts)
-                    {
-                        var level = levels.FirstOrDefault(l => l.Name == levelName);
-                        if (level == null) continue;
-                        using (var t = new Transaction(doc, $"STING Produce Per Level - {level.Name}"))
-                        {
-                            t.Start();
-                            try
-                            {
-                                foreach (var dt in pickedTypes)
-                                {
-                                    var dctx = new DrawingContext { Level = level, PackageId = res.Preset?.PackageId };
-                                    var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                    views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
-                                    warnings.AddRange(pr.Warnings);
-                                }
-                                t.Commit();
-                            }
-                            catch (Exception innerEx)
-                            {
-                                StingLog.Warn($"ProduceViewsPerLevel level={level.Name}: {innerEx.Message}");
-                                t.RollBack();
-                            }
-                        }
-                    }
-                    tg.Assimilate();
-                }
+                Produce(doc, pickedTypes, pickedLevels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
                 BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceViewsPerLevel", ex); return Result.Failed; }
+        }
+
+        /// <summary>
+        /// Inside a workflow: params.drawingTypes (default: the plan type each modelled
+        /// M/E/P/FP/MG discipline routes to, on the levels it occupies —
+        /// BatchProduceCommons.RoutedMepPerLevel), params.levels (default every level),
+        /// params.output, params.duplicateOption, params.packageId. Fails the step, with
+        /// the reason, when an input is wrong or nothing was produced.
+        /// </summary>
+        private static Result ExecuteInWorkflow(Document doc, List<Level> levels, ref string message)
+        {
+            if (!BatchProduceCommons.TryStepPerLevelTypes(doc, out var sel, out var err)
+                || !BatchProduceCommons.TryStepOptions(out var opts, out var packageId, out err))
+            { message = "Produce Per Level: " + err; return Result.Failed; }
+            var types = sel.Types;
+
+            if (levels.Count == 0) { message = "Produce Per Level: the model has no levels."; return Result.Failed; }
+            var names = HeadlessProductionInputs.SelectNames(levels.Select(l => l.Name).ToList(),
+                HeadlessProductionInputs.ParseList(WorkflowEngine.StepParam("levels")), out var unknownLevels);
+            if (unknownLevels.Count > 0)
+            { message = "Produce Per Level: params.levels names level(s) not in the model: " + string.Join(", ", unknownLevels) + "."; return Result.Failed; }
+            var picked = levels.Where(l => names.Contains(l.Name)).ToList();
+
+            int views = 0, sheets = 0; var warnings = new List<string>();
+            DrawingTypePresentation.Prewarm(doc);
+            using (DrawingProducer.PrimeBatchScope(doc))
+                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, sel.Include);
+            message = BatchProduceCommons.StepSummary("Produce Per Level", views, sheets, warnings);
+            if (views == 0) { message += " Nothing was produced."; return Result.Failed; }
+            return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// One transaction per level, every picked type on it — shared by the dialog, the
+        /// workflow, the Project Setup Wizard and the HVAC panel's per-level button.
+        /// <paramref name="include"/> (optional) skips a (type, level) pair, e.g. a
+        /// discipline with nothing modelled on that level. Must be called with no
+        /// transaction open.
+        /// </summary>
+        internal static void Produce(Document doc, List<DrawingType> types, List<Level> levels, ProduceOptions opts,
+            string packageId, ref int views, ref int sheets, List<string> warnings,
+            Func<DrawingType, Level, bool> include = null)
+        {
+            using (var tg = new TransactionGroup(doc, "STING Produce Per Level"))
+            {
+                tg.Start();
+                foreach (var level in levels)
+                {
+                    using (var t = new Transaction(doc, $"STING Produce Per Level - {level.Name}"))
+                    {
+                        t.Start();
+                        try
+                        {
+                            // Counted per transaction and added to the totals only once
+                            // Revit has committed it: a commit a failure handler rolls
+                            // back produced nothing, and must not read as production.
+                            int levelViews = 0, levelSheets = 0;
+                            var levelTypes = new List<string>();
+                            foreach (var dt in types)
+                            {
+                                if (include != null && !include(dt, level)) continue;
+                                var dctx = new DrawingContext { Level = level, PackageId = packageId };
+                                var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                                levelViews += pr.ViewIds.Count;
+                                if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) levelSheets++;   // P-9: reuse is not production
+                                warnings.AddRange(pr.Warnings);
+                                levelTypes.Add(dt.Id);
+                            }
+                            var status = t.Commit();
+                            if (status == TransactionStatus.Committed) { views += levelViews; sheets += levelSheets; }
+                            else if (levelTypes.Count > 0)
+                            {
+                                var w = $"{level.Name}: the transaction did not commit ({status}); {levelViews} view(s) of "
+                                      + $"{string.Join(", ", levelTypes)} were not kept.";
+                                StingLog.Warn("ProduceViewsPerLevel " + w);
+                                warnings.Add(w);
+                            }
+                        }
+                        catch (Exception innerEx)
+                        {
+                            StingLog.Warn($"ProduceViewsPerLevel level={level.Name}: {innerEx.Message}");
+                            warnings.Add($"{level.Name}: {innerEx.Message} — rolled back.");
+                            t.RollBack();
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
         }
     }
 
@@ -190,13 +399,17 @@ namespace StingTools.Commands.Drawing
                 }
                 if (scopes.Count == 0)
                 {
-                    TaskDialog.Show("STING",
-                        malformed.Count == 0
-                            ? "No STING::… scope boxes found in this project."
-                            : $"No usable STING::… scope boxes.\n\n{malformed.Count} box(es) carry the "
-                              + $"STING:: prefix but fail the naming grammar:\n  • "
-                              + string.Join("\n  • ", malformed.Take(10))
-                              + "\n\nUse the Scope Box Manager to fix them.");
+                    var why = malformed.Count == 0
+                        ? "No STING::… scope boxes found in this project."
+                        : $"No usable STING::… scope boxes.\n\n{malformed.Count} box(es) carry the "
+                          + $"STING:: prefix but fail the naming grammar:\n  • "
+                          + string.Join("\n  • ", malformed.Take(10))
+                          + "\n\nUse the Scope Box Manager to fix them.";
+                    // In a workflow the boxes ARE the required input: no boxes, no drawings,
+                    // and a step that "succeeded" at producing nothing would hide that.
+                    if (BatchProduceCommons.Headless)
+                    { message = "Produce From Scope Boxes: " + why.Replace("\n\n", " ").Replace("\n  • ", "; "); return Result.Failed; }
+                    TaskDialog.Show("STING", why);
                     return Result.Succeeded;
                 }
                 var dtIds = bindingByName.Values.Select(b => b.DrawingTypeId)
@@ -205,6 +418,10 @@ namespace StingTools.Commands.Drawing
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
                 var types = (lib?.DrawingTypes ?? new List<DrawingType>())
                     .Where(t => dtIds.Contains(t.Id, StringComparer.OrdinalIgnoreCase)).ToList();
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
+
+                if (BatchProduceCommons.Headless)
+                    return ExecuteInWorkflow(doc, scopes, bindingByName, types, levels, ref message);
 
                 var dlg = new DrawingProductionConfigDialog(types, scopes.Select(s => s.Name).ToList(), "ScopeBoxes", doc);
                 var res = dlg.ShowAndWait();
@@ -212,40 +429,122 @@ namespace StingTools.Commands.Drawing
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
-                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
-
-                using (var tg = new TransactionGroup(doc, "STING Produce From Scope Boxes"))
-                {
-                    tg.Start();
-                    foreach (var scopeName in res.SelectedContexts)
-                    {
-                        var scope = scopes.FirstOrDefault(s => s.Name == scopeName);
-                        if (scope == null) continue;
-                        if (!bindingByName.TryGetValue(scope.Name ?? "", out var bnd)) continue;
-                        var dtId = bnd.DrawingTypeId;
-                        var levelName = bnd.LevelCode;
-                        var tag = bnd.Tag;
-                        var dt = types.FirstOrDefault(t => string.Equals(t.Id, dtId, StringComparison.OrdinalIgnoreCase));
-                        if (dt == null) continue;
-                        var lvl = levels.FirstOrDefault(l => string.Equals(l.Name, levelName, StringComparison.OrdinalIgnoreCase));
-
-                        using (var t = new Transaction(doc, $"STING Scope {scope.Name}"))
-                        {
-                            t.Start();
-                            var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = tag, PackageId = res.Preset?.PackageId };
-                            var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                            views += pr.ViewIds.Count;
-                            if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
-                            warnings.AddRange(pr.Warnings);
-                            t.Commit();
-                        }
-                    }
-                    tg.Assimilate();
-                }
+                var picked = res.SelectedContexts.Select(n => scopes.FirstOrDefault(s => s.Name == n)).Where(s => s != null).ToList();
+                Produce(doc, picked, bindingByName, types, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
                 BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceFromScopeBoxes", ex); return Result.Failed; }
+        }
+
+        /// <summary>
+        /// Inside a workflow: every well-formed STING:: box bound to an M/E/P/FP/MG
+        /// drawing type, or the types params.drawingTypes names (any discipline);
+        /// params.output / duplicateOption / packageId as for Produce Per Level.
+        /// </summary>
+        private static Result ExecuteInWorkflow(Document doc, List<Element> scopes,
+            Dictionary<string, ScopeBoxBinding> bindingByName, List<DrawingType> types, List<Level> levels,
+            ref string message)
+        {
+            if (!BatchProduceCommons.TryStepOptions(out var opts, out var packageId, out var err))
+            { message = "Produce From Scope Boxes: " + err; return Result.Failed; }
+            var requested = HeadlessProductionInputs.ParseList(WorkflowEngine.StepParam("drawingTypes"));
+            if (requested.Count > 0)
+            {
+                types = HeadlessProductionInputs.SelectTypes(types, requested, new string[0], out var unknown);
+                if (unknown.Count > 0)
+                { message = "Produce From Scope Boxes: params.drawingTypes names type(s) no STING:: box is bound to: " + string.Join(", ", unknown) + "."; return Result.Failed; }
+            }
+            else
+            {
+                // No types named: an MEP preset produces the MEP boxes only. The A / S
+                // STING:: boxes in the same model are another team's drawings.
+                var mep = new HashSet<string>(HeadlessProductionInputs.MepDisciplines, StringComparer.OrdinalIgnoreCase);
+                var other = types.Where(t => !mep.Contains((t.Discipline ?? "").Trim())).Select(t => t.Id).ToList();
+                types = types.Where(t => mep.Contains((t.Discipline ?? "").Trim())).ToList();
+                if (other.Count > 0)
+                    StingLog.Info("Produce From Scope Boxes: not an M/E/P/FP/MG type, not produced (name it in params.drawingTypes to include it): "
+                                  + string.Join(", ", other));
+                if (types.Count == 0 && other.Count > 0)
+                {
+                    message = $"Produce From Scope Boxes: the STING:: boxes are bound only to non-MEP drawing types ({string.Join(", ", other)}); "
+                            + "nothing to produce for an MEP set. Name them in params.drawingTypes to produce them.";
+                    return Result.Cancelled;
+                }
+            }
+            if (types.Count == 0)
+            { message = "Produce From Scope Boxes: the STING:: boxes name no drawing type that is in the catalogue."; return Result.Failed; }
+
+            int views = 0, sheets = 0; var warnings = new List<string>();
+            DrawingTypePresentation.Prewarm(doc);
+            using (DrawingProducer.PrimeBatchScope(doc))
+                Produce(doc, scopes, bindingByName, types, levels, opts, packageId, ref views, ref sheets, warnings);
+            message = BatchProduceCommons.StepSummary("Produce From Scope Boxes", views, sheets, warnings);
+            if (views == 0) { message += " Nothing was produced."; return Result.Failed; }
+            return Result.Succeeded;
+        }
+
+        /// <summary>One transaction per box — shared by the dialog and the workflow.</summary>
+        private static void Produce(Document doc, List<Element> scopes, Dictionary<string, ScopeBoxBinding> bindingByName,
+            List<DrawingType> types, List<Level> levels, ProduceOptions opts, string packageId,
+            ref int views, ref int sheets, List<string> warnings)
+        {
+            using (var tg = new TransactionGroup(doc, "STING Produce From Scope Boxes"))
+            {
+                tg.Start();
+                foreach (var scope in scopes)
+                {
+                    if (!bindingByName.TryGetValue(scope.Name ?? "", out var bnd)) continue;
+                    var dt = types.FirstOrDefault(t => string.Equals(t.Id, bnd.DrawingTypeId, StringComparison.OrdinalIgnoreCase));
+                    if (dt == null) continue;
+                    var lvl = levels.FirstOrDefault(l => string.Equals(l.Name, bnd.LevelCode, StringComparison.OrdinalIgnoreCase));
+
+                    // Dependent views need the level's primary plan to hang from. A box
+                    // whose level code names no level is produced as an independent view
+                    // (DependentViewPlanner.UsesDependents) — say so rather than let the
+                    // option be ignored silently.
+                    if (lvl == null && opts?.DuplicateOption == ViewDuplicateOption.AsDependent
+                        && (string.Equals(dt.Purpose, "Plan", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(dt.Purpose, "RCP", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var w = $"{scope.Name}: level '{bnd.LevelCode}' matches no level in the model, so its view "
+                              + "is produced as an independent view, not as a dependent of a level plan.";
+                        StingLog.Warn("ProduceFromScopeBoxes " + w);
+                        warnings.Add(w);
+                    }
+
+                    using (var t = new Transaction(doc, $"STING Scope {scope.Name}"))
+                    {
+                        t.Start();
+                        try
+                        {
+                            var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = bnd.Tag, PackageId = packageId };
+                            var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                            warnings.AddRange(pr.Warnings);
+                            var status = t.Commit();
+                            if (status == TransactionStatus.Committed)
+                            {
+                                views += pr.ViewIds.Count;
+                                if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
+                            }
+                            else
+                            {
+                                var w = $"{scope.Name} ({dt.Id}): the transaction did not commit ({status}); "
+                                      + $"{pr.ViewIds.Count} view(s) were not kept.";
+                                StingLog.Warn("ProduceFromScopeBoxes " + w);
+                                warnings.Add(w);
+                            }
+                        }
+                        catch (Exception innerEx)
+                        {
+                            StingLog.Warn($"ProduceFromScopeBoxes box={scope.Name}: {innerEx.Message}");
+                            warnings.Add($"{scope.Name}: {innerEx.Message} — rolled back.");
+                            t.RollBack();
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
         }
     }
 
@@ -300,19 +599,23 @@ namespace StingTools.Commands.Drawing
                             t.Start();
                             try
                             {
+                                int tv = 0, ts = 0;
                                 foreach (var dt in pickedTypes)
                                 {
                                     var dctx = new DrawingContext { Room = room, Tag = roomLabel, PackageId = res.Preset?.PackageId };
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                    views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
+                                    tv += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) ts++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
-                                t.Commit();
+                                var status = t.Commit();
+                                if (status == TransactionStatus.Committed) { views += tv; sheets += ts; }
+                                else warnings.Add($"{roomLabel}: the transaction did not commit ({status}); {tv} view(s) were not kept.");
                             }
                             catch (Exception innerEx)
                             {
                                 StingLog.Warn($"ProduceInteriorElevations room={roomLabel}: {innerEx.Message}");
+                                warnings.Add($"{roomLabel}: {innerEx.Message} — rolled back.");
                                 t.RollBack();
                             }
                         }
@@ -412,18 +715,22 @@ namespace StingTools.Commands.Drawing
                             t.Start();
                             try
                             {
+                                int tv = 0, ts = 0;
                                 foreach (var dt in pickedTypes)
                                 {
                                     var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                    views += pr.ViewIds.Count;
-                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
+                                    tv += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) ts++;   // P-9: reuse is not production
                                     warnings.AddRange(pr.Warnings);
                                 }
-                                t.Commit();
+                                var status = t.Commit();
+                                if (status == TransactionStatus.Committed) { views += tv; sheets += ts; }
+                                else warnings.Add($"{dctx.Tag}: the transaction did not commit ({status}); {tv} view(s) were not kept.");
                             }
                             catch (Exception innerEx)
                             {
                                 StingLog.Warn($"ProduceSections context={dctx.Tag}: {innerEx.Message}");
+                                warnings.Add($"{dctx.Tag}: {innerEx.Message} — rolled back.");
                                 t.RollBack();
                             }
                         }
@@ -501,6 +808,7 @@ namespace StingTools.Commands.Drawing
                             t.Start();
                             try
                             {
+                                int tv = 0;
                                 foreach (var dt in pickedTypes)
                                 {
                                     try
@@ -529,15 +837,18 @@ namespace StingTools.Commands.Drawing
                                         DrawingTypeStamper.Stamp(view, dt.Id);
                                         DrawingTypeStamper.StampPackage(view, res.Preset?.PackageId ?? dt.PackageId ?? "");
                                         ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, $"exterior::face::{face}", overwrite: true);
-                                        views++;
+                                        tv++;
                                     }
                                     catch (Exception ex) { warnings.Add($"Exterior {face}/{dt.Name}: {ex.Message}"); }
                                 }
-                                t.Commit();
+                                var status = t.Commit();
+                                if (status == TransactionStatus.Committed) views += tv;
+                                else warnings.Add($"Exterior {face}: the transaction did not commit ({status}); {tv} view(s) were not kept.");
                             }
                             catch (Exception innerEx)
                             {
                                 StingLog.Warn($"ProduceExteriorElevations face={face}: {innerEx.Message}");
+                                warnings.Add($"Exterior {face}: {innerEx.Message} — rolled back.");
                                 t.RollBack();
                             }
                         }
@@ -564,14 +875,23 @@ namespace StingTools.Commands.Drawing
                 var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => p.IsManaged).ToList();
                 if (packs.Count == 0)
                 {
-                    TaskDialog.Show("STING", "No managed view-style packs found. Switch a pack to managed mode in the Drawing Type Editor first.");
-                    return Result.Succeeded;
+                    // Nothing was regenerated: Cancelled (a SKIP in a workflow report), not
+                    // a success that did nothing.
+                    PresetDialog.Show("STING", "No managed view-style packs found. Switch a pack to managed mode in the Drawing Type Editor first.", ref message);
+                    if (PresetDialog.Quiet) message = "Regenerate Pack Templates: no managed view-style packs in this project; nothing to regenerate.";
+                    return Result.Cancelled;
                 }
 
-                var pickItems = packs.Select(p => new StingListPicker.ListItem { Label = p.Name ?? p.Id, Tag = p }).ToList();
-                var pickResult = StingListPicker.Show("Regenerate Pack Templates", "Pick managed packs to regenerate", pickItems, allowMultiSelect: true);
-                if (pickResult == null || pickResult.Count == 0) return Result.Succeeded;
-                var chosen = pickResult.Select(r => r.Tag as ViewStylePack).Where(p => p != null).ToList();
+                // Inside a preset every managed pack is regenerated — there is nobody to pick.
+                List<ViewStylePack> chosen;
+                if (PresetDialog.Quiet) chosen = packs;
+                else
+                {
+                    var pickItems = packs.Select(p => new StingListPicker.ListItem { Label = p.Name ?? p.Id, Tag = p }).ToList();
+                    var pickResult = StingListPicker.Show("Regenerate Pack Templates", "Pick managed packs to regenerate", pickItems, allowMultiSelect: true);
+                    if (pickResult == null || pickResult.Count == 0) return Result.Cancelled;
+                    chosen = pickResult.Select(r => r.Tag as ViewStylePack).Where(p => p != null).ToList();
+                }
 
                 int updated = 0; var warnings = new List<string>();
                 ManagedTemplateSyncer.InvalidateCache();
@@ -585,23 +905,35 @@ namespace StingTools.Commands.Drawing
                             t.Start();
                             try
                             {
+                                int packUpdated = 0;
                                 foreach (var vt in new[] { ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.Section, ViewType.Elevation, ViewType.Detail, ViewType.ThreeD })
                                 {
                                     var pr = new PackApplyResult();
                                     var id = ManagedTemplateSyncer.EnsureTemplate(doc, pack, vt, pr);
-                                    if (id != ElementId.InvalidElementId) updated++;
+                                    if (id != ElementId.InvalidElementId) packUpdated++;
                                     warnings.AddRange(pr.Warnings);
                                 }
-                                t.Commit();
+                                var status = t.Commit();
+                                if (status == TransactionStatus.Committed) updated += packUpdated;
+                                else warnings.Add($"{pack.Name}: the transaction did not commit ({status}); its templates were not regenerated.");
                             }
                             catch (Exception innerEx)
                             {
                                 StingLog.Warn($"RegeneratePackTemplates pack={pack.Name}: {innerEx.Message}");
+                                warnings.Add($"{pack.Name}: {innerEx.Message} — rolled back.");
                                 t.RollBack();
                             }
                         }
                     }
                     tg.Assimilate();
+                }
+                if (PresetDialog.Quiet)
+                {
+                    foreach (var w in warnings.Distinct()) StingLog.Warn($"Regenerate Pack Templates: {w}");
+                    message = $"Regenerate Pack Templates: {updated} template(s) across {chosen.Count} managed pack(s)"
+                            + (warnings.Count > 0 ? $", {warnings.Distinct().Count()} warning(s) (see the STING log)." : ".");
+                    if (updated == 0) { message += " No template was regenerated."; return Result.Failed; }
+                    return Result.Succeeded;
                 }
                 BatchProduceCommons.ShowResult("Regenerate Pack Templates", updated, 0, warnings);
                 return Result.Succeeded;

@@ -1,0 +1,118 @@
+{
+  "name": "MEPDrawingProduction",
+  "description": "Produce the MEP drawing set: tag first (the annotation pass and the rich tags read the tokens), then produce cropped plans from the Scope Box Planner's area boxes and from STING:: scope boxes, and whole-floor plans per level; then match lines (they quote sheet numbers, so they follow the sheets), then panel schedules. Production takes its inputs from each step's params instead of a dialog: with none given, each M, E, P, FP and MG discipline that has anything modelled gets the one plan type its PLAN routes to (the set the dialogs pre-tick), on the levels it occupies, as views and sheets; STING:: boxes are produced only when bound to an MEP drawing type. Re-runs reuse views and sheets matched by stamp, so it is safe to run again after model changes.",
+  "rollback_on_failure": false,
+  "steps": [
+    {
+      "commandTag": "TagAndCombine",
+      "label": "Tag and combine the whole project (ISO 19650 tokens and tags the drawings annotate with)",
+      "params": {
+        "scope": "project"
+      }
+    },
+    {
+      "commandTag": "TokenConfidenceAudit",
+      "label": "Token confidence audit (elements that fell back to a default ZONE or LOC)",
+      "optional": true
+    },
+    {
+      "commandTag": "ScopeBox_ProduceAreas",
+      "label": "Produce MEP plans from the STING-AREA:: area boxes (runs only when the project has some; boxes the saved Scope Box Planner plan does not list, or all of them when no plan is saved, are produced from their name with the routed MEP plan types)",
+      "optional": true,
+      "params": {
+        "output": "Views and sheets",
+        "duplicateOption": "Duplicate"
+      },
+      "condition": "has_area_boxes"
+    },
+    {
+      "commandTag": "DrawingTypes_ProduceFromScopeBoxes",
+      "label": "Produce from STING::<type>::<level>::<zone> scope boxes bound to an M/E/P/FP/MG drawing type (runs only when there are some)",
+      "optional": true,
+      "params": {
+        "output": "Views and sheets"
+      },
+      "condition": "has_sting_boxes"
+    },
+    {
+      "commandTag": "DrawingTypes_ProducePerLevel",
+      "label": "Produce whole-floor MEP plans per level (runs only when the project has no area boxes; the routed plan type of each modelled M/E/P/FP/MG discipline, on the levels it occupies, unless params.drawingTypes names them)",
+      "optional": true,
+      "params": {
+        "output": "Views and sheets"
+      },
+      "condition": "no_area_boxes"
+    },
+    {
+      "commandTag": "MatchLine_Generate",
+      "label": "Match lines between adjacent and overlapping scope boxes (same drawing type, same level)",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_TemplatesCreate",
+      "label": "Build / refresh the STING panel schedule templates",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_BatchSchedules",
+      "label": "Create the panel schedules (rule-based template pick, drawing-type stamp, ELC_PNL_* fill)",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_PlaceOnSheets",
+      "label": "Panel circuit schedules on sheets: one per board, each on its own sheet of the type routing gives E / ELEC_PANEL_SCHEDULE (re-runs reuse them; the native panel schedules still need dragging — Revit 2024+ cannot place them by API)",
+      "params": {
+        "mode": "AutoSheets"
+      },
+      "optional": true
+    },
+    {
+      "commandTag": "SLD_Generate",
+      "label": "Single line diagram onto its sheet (routing E / SLD; a re-run replaces the earlier SLD there)",
+      "optional": true
+    },
+    {
+      "commandTag": "SLD_RiserDiagram",
+      "label": "Electrical riser diagram onto its sheet (routing E / RISER; skipped when the model has no distribution hierarchy)",
+      "optional": true
+    },
+    {
+      "commandTag": "FireAlarm_Schematic",
+      "label": "Fire alarm loop schematic onto its sheet (routing E / FIRE_ALARM_SCHEMATIC; skipped when there are no fire alarm devices)",
+      "optional": true
+    },
+    {
+      "commandTag": "MGPS_Schematic",
+      "label": "Medical gas pipeline schematic onto its sheet (routing MG / SCHEMATIC; skipped when nothing carries MGS_GAS_TYPE_TXT)",
+      "optional": true
+    },
+    {
+      "commandTag": "LPS_Schematic",
+      "label": "Lightning protection schematic onto its sheet (routing E / LPS_SCHEMATIC; skipped when no LPS components are marked)",
+      "optional": true
+    },
+    {
+      "commandTag": "Earthing_Diagram",
+      "label": "Earthing arrangement onto its sheet (routing E / EARTHING_SCHEMATIC; skipped when ELC_EARTHING_SYSTEM_TXT is not set)",
+      "optional": true
+    },
+    {
+      "commandTag": "Plumb_SupplySchematic",
+      "label": "Domestic cold water schematic onto its sheet (routing P / DCW_SCHEMATIC; draws pipes on systems classified Domestic Cold Water; skipped when there are none)",
+      "optional": true
+    },
+    {
+      "commandTag": "Plumb_DrainageSchematic",
+      "label": "Drainage riser schematic onto its sheet (routing P / DRAINAGE_SCHEMATIC; draws Sanitary and Vent systems; skipped when there are none)",
+      "optional": true
+    }
+  ],
+  "_notes": [
+    "Step params: drawingTypes (comma list of ids; default: for each M, E, P, FP, MG discipline with anything modelled, the plan type its PLAN routes to — not every MEP Plan type, which would add the presentation, technical, fabrication, 1:500 and healthcare variants — produced only on the levels that discipline occupies; for STING:: boxes, the boxes bound to an MEP type; for area boxes, the saved plan's types, and the routed default for a box the plan does not list), levels (comma list of level names; default all), output ('Views and sheets' | 'Views only'), duplicateOption ('Duplicate' | 'DuplicateAsDependent' | 'DuplicateWithDetailing'), packageId.",
+    "An unknown drawing type or level, or an unreadable output / duplicateOption, fails the step with the reason in the workflow report.",
+    "The production route is chosen by condition: area boxes when the project has STING-AREA:: boxes (a saved Scope Box Planner plan is not required — a hand-made STING-AREA::<area>[::<level>] box is produced on its ::level, or on every level it reaches), whole-floor per level otherwise, and STING:: boxes whenever any exist.",
+    "Step params: drawingTypes (comma list of ids; default every M, E, P, FP, MG Plan type), levels (comma list of level names; default all), output ('Views and sheets' | 'Views only'), duplicateOption ('Duplicate' | 'DuplicateAsDependent' | 'DuplicateWithDetailing'), packageId.",
+    "The diagram steps (SLD, riser, fire alarm, MGPS, LPS, earthing, DCW supply, drainage) draw from the model and place each diagram on the sheet routing gives its (discipline, docType); each skips with its reason when the model has nothing to draw. Panel_DoorDiagram is per board and is not a default step — add it with params.panel naming the board. Schematic drawing types no generator draws (HVAC, plumbing DHW/LTHW/vent riser, fire riser, ESS riser, nuclear medicine) are skipped by production with a message, never produced as an empty sheet.",
+    "The production route is chosen by condition:area boxes when the project has STING-AREA:: boxes, whole-floor per level otherwise, and STING:: boxes whenever any exist."
+  ]
+}

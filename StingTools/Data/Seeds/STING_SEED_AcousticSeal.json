@@ -44,7 +44,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -65,7 +65,7 @@
         },
         {
           "name": "PEN_OD_MM",
-          "type": "Text",
+          "type": "Number",
           "shared": true,
           "isInstance": true,
           "default": "0"

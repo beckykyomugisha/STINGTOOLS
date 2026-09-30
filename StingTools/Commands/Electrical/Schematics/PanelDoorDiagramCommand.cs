@@ -45,9 +45,9 @@ namespace StingTools.Commands.Electrical.Schematics
 
             if (panels.Count == 0)
             {
-                TaskDialog.Show("STING Panel Door Diagram",
-                    "No Electrical Equipment elements found in the project.");
-                return Result.Succeeded;
+                PresetDialog.Show("STING Panel Door Diagram",
+                    "No Electrical Equipment elements found in the project.", ref message);
+                return Result.Cancelled;
             }
 
             // Prefer active selection if it contains electrical equipment.
@@ -62,6 +62,27 @@ namespace StingTools.Commands.Electrical.Schematics
                            (long)BuiltInCategory.OST_ElectricalEquipment);
             }
             catch { /* no active selection — fall through to picker */ }
+
+            // Inside a preset nobody can pick: the step names the board in params.panel
+            // (its Panel Name or element name). No name is a skip with the reason.
+            if (chosenPanel == null && PresetDialog.Quiet)
+            {
+                string want = WorkflowEngine.StepParam("panel").Trim();
+                if (want.Length == 0)
+                {
+                    message = "Panel_DoorDiagram names no board — set the step's params.panel to a Panel Name.";
+                    StingLog.Info(message);
+                    return Result.Cancelled;
+                }
+                chosenPanel = panels.FirstOrDefault(p =>
+                    string.Equals(p.LookupParameter("Panel Name")?.AsString(), want, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(p.Name, want, StringComparison.OrdinalIgnoreCase));
+                if (chosenPanel == null)
+                {
+                    message = $"Panel_DoorDiagram: no electrical equipment is named '{want}'.";
+                    return Result.Failed;
+                }
+            }
 
             // If no selection, let user pick via TaskDialog (up to 4 options).
             if (chosenPanel == null)
@@ -189,10 +210,10 @@ namespace StingTools.Commands.Electrical.Schematics
             }
             else
             {
-                TaskDialog.Show("STING Panel Door Diagram",
+                PresetDialog.Show("STING Panel Door Diagram",
                     $"'{panelName}' reports no slot count (Max Number of Single Pole Breakers / Max Number of "
                     + "Circuits) and has no circuits, so there is nothing to lay out. Set the slot count on the "
-                    + "panel type and run again.");
+                    + "panel type and run again.", ref message);
                 return Result.Cancelled;
             }
             if (!stepKnown)
@@ -208,8 +229,8 @@ namespace StingTools.Commands.Electrical.Schematics
                 if (view == null)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("STING Panel Door Diagram",
-                        "Could not create a drafting view — no Drafting ViewFamilyType found.");
+                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    if (!PresetDialog.Quiet) TaskDialog.Show("STING Panel Door Diagram", message);
                     return Result.Failed;
                 }
 
@@ -217,11 +238,16 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 tx.Commit();
 
-                TaskDialog.Show("STING Panel Door Diagram",
+                // Onto a sheet of the drawing type routing gives E / PANEL_DOOR_DIAGRAM —
+                // one sheet per board (the context tag), so boards do not replace each other.
+                string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.PanelDoorDiagram, view, "PANEL-DOOR:" + panelName);
+
+                PresetDialog.Show("STING Panel Door Diagram",
                     $"Panel door diagram generated.\n\n" +
                     $"View:     {view.Name}\n" +
                     $"Slots:    {slotCount}\n" +
-                    $"Circuits: {circuits.Count}" + slotNote);
+                    $"Circuits: {circuits.Count}" + slotNote + "\n\n" + sheetLine, ref message);
             }
 
             return Result.Succeeded;
@@ -346,7 +372,10 @@ namespace StingTools.Commands.Electrical.Schematics
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
             if (vft == null) return null;
             var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch { }
+            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram view name '{name}': {ex.Message}"); }
+            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
+            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
+            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"PanelDoorDiagram scale: {ex.Message}"); }
             return v;
         }
 

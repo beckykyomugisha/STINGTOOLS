@@ -602,14 +602,90 @@ namespace StingTools.Tags
             { BuiltInCategory.OST_Sheets, "Sheet Document" },
         };
 
-        /// <summary>Total tag family count including standard categories + all variant arrays.</summary>
-        public static int TotalFamilyCount =>
+        /// <summary>Families written into this class's own tables: standard categories + all variant arrays.</summary>
+        public static int BuiltInFamilyCount =>
             CategoryTemplateMap.Count +
             TieInPointFamilies.Length +
             DisciplineSheetFamilies.Length +
             StructuralVariantFamilies.Length +
             MepVariantFamilies.Length +
             HealthcareVariantFamilies.Length;
+
+        /// <summary>Every family Create Tag Families builds: the built-in tables plus the
+        /// families declared only in the tag config (<see cref="DeclaredOnlyFamilies"/>).</summary>
+        public static int TotalFamilyCount => BuiltInFamilyCount + DeclaredOnlyFamilies().Count;
+
+        private static List<TagDeclaration> _declaredOnly;
+        private static readonly object _declaredLock = new object();
+
+        /// <summary>
+        /// Families declared in STING_TAG_CONFIG_v5_0_*.csv ("TAG_FAMILY,…" rows or
+        /// "Tag Family #N:" blocks) that the built-in tables do not produce. Create Tag
+        /// Families builds these too, so adding a family is one config line.
+        ///
+        /// <para>Each carries its host category (the family is created in that tag
+        /// category), its label master (a non-universal one means the label is built by
+        /// hand and Propagate Universal leaves it alone), its discipline (for the tag
+        /// style defaults) and the parameters its label reads.</para>
+        /// </summary>
+        public static IReadOnlyList<TagDeclaration> DeclaredOnlyFamilies()
+        {
+            lock (_declaredLock)
+            {
+                if (_declaredOnly != null) return _declaredOnly;
+
+                var all = new List<TagDeclaration>();
+                string dataDir = StingToolsApp.DataPath;
+                if (string.IsNullOrEmpty(dataDir) || !Directory.Exists(dataDir))
+                {
+                    StingLog.Warn("TagFamilyConfig: data directory not found; no config-declared tag families");
+                }
+                else
+                {
+                    foreach (string path in Directory.GetFiles(dataDir, "STING_TAG_CONFIG_v5_0_*.csv"))
+                    {
+                        try { all.AddRange(TagConfigDeclarations.Parse(File.ReadLines(path))); }
+                        catch (Exception ex)
+                        {
+                            StingLog.Warn($"TagFamilyConfig: could not read {Path.GetFileName(path)}: {ex.Message}");
+                        }
+                    }
+                }
+
+                _declaredOnly = DeclaredTagFamilies.NotBuiltBy(all, BuiltInFamilyNames());
+                if (_declaredOnly.Count > 0)
+                    StingLog.Info($"TagFamilyConfig: {_declaredOnly.Count} tag family/families declared only in the " +
+                                  "tag config: " + string.Join(", ", _declaredOnly.Select(d => d.FamilyName)));
+                return _declaredOnly;
+            }
+        }
+
+        /// <summary>Re-read the tag config on next use, so an edited declaration is picked up without restarting Revit.</summary>
+        public static void ReloadDeclaredFamilies()
+        {
+            lock (_declaredLock) { _declaredOnly = null; }
+        }
+
+        /// <summary>
+        /// The built-in category a declared host category names ("Doors", or the
+        /// singular "Door"), for choosing its template. INVALID when this class does
+        /// not know the category; the template search then falls back to Generic Tag
+        /// and the family is moved to the declared category after creation.
+        /// </summary>
+        public static BuiltInCategory BuiltInCategoryForHost(string hostCategory)
+        {
+            string host = (hostCategory ?? "").Trim();
+            if (host.Length == 0) return BuiltInCategory.INVALID;
+            foreach (var kv in CategoryDisplayName)
+                if (string.Equals(kv.Value, host, StringComparison.OrdinalIgnoreCase)
+                    && CategoryTemplateMap.ContainsKey(kv.Key))
+                    return kv.Key;
+            foreach (var kv in CategoryCsvFamilyKey)
+                if (string.Equals(kv.Value, host, StringComparison.OrdinalIgnoreCase)
+                    && CategoryTemplateMap.ContainsKey(kv.Key))
+                    return kv.Key;
+            return BuiltInCategory.INVALID;
+        }
 
         /// <summary>
         /// Asserts that every key in <c>LABEL_DEFINITIONS.json</c> <c>category_labels</c>
@@ -834,6 +910,14 @@ namespace StingTools.Tags
         /// all variant arrays — sorted. The Drawing Type editor offers these, so a name
         /// picked there is one Create Tag Families actually produces.</summary>
         public static IReadOnlyList<string> AllFamilyNames()
+        {
+            var names = new SortedSet<string>(BuiltInFamilyNames(), StringComparer.OrdinalIgnoreCase);
+            foreach (var d in DeclaredOnlyFamilies()) names.Add(d.FamilyName);
+            return names.ToList();
+        }
+
+        /// <summary>The names in this class's own tables only - no config lookups.</summary>
+        public static IReadOnlyList<string> BuiltInFamilyNames()
         {
             var names = new SortedSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var bic in CategoryTemplateMap.Keys) names.Add(GetFamilyName(bic));
@@ -1459,6 +1543,10 @@ namespace StingTools.Tags
                 return Result.Failed;
             }
 
+            // Re-read the tag config so a family declared since the last run is built.
+            TagFamilyConfig.ReloadDeclaredFamilies();
+            var declaredOnly = TagFamilyConfig.DeclaredOnlyFamilies();
+
             // ── Step 3: Check which STING tag families are already loaded ──
             var loadedFamilies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (Family fam in new FilteredElementCollector(doc)
@@ -1521,6 +1609,12 @@ namespace StingTools.Tags
                 if (loadedFamilies.Contains(famName))
                     alreadyLoaded++;
             }
+            // Also count families declared only in the tag config
+            foreach (var decl in declaredOnly)
+            {
+                if (loadedFamilies.Contains(decl.FamilyName))
+                    alreadyLoaded++;
+            }
 
             // Confirmation dialog
             int toCreate = total - alreadyLoaded;
@@ -1568,6 +1662,11 @@ namespace StingTools.Tags
                 if (File.Exists(Path.Combine(outputDirEarly, TagFamilyConfig.GetTieInFamilyFileName(hv.suffix))))
                     onDisk++;
             }
+            foreach (var decl in declaredOnly)
+            {
+                if (File.Exists(Path.Combine(outputDirEarly, DeclaredTagFamilies.FileName(decl.FamilyName))))
+                    onDisk++;
+            }
 
             TaskDialog confirm = new TaskDialog("Create Tag Families");
             confirm.MainInstruction = $"Create {toCreate} STING tag families?";
@@ -1585,11 +1684,18 @@ namespace StingTools.Tags
                       "  the .rfa, and label rows cannot be re-authored by this plugin. Any label\n" +
                       "  work done by hand in the Family Editor is lost and must be redone by hand.\n\n"
                     : "") +
-                "Each family is created from a Revit annotation template, loaded with STING\n" +
-                "shared parameters, and given the standard depth/style type variants.\n\n" +
-                "NEXT: run 'Propagate Universal' to clone the universal label onto every\n" +
-                "family, then 'Set depth' to choose the visible tier count. Label rows are\n" +
-                "NOT authored here — the Revit API cannot author label rows.";
+                "Each family is created from a Revit annotation template and loaded with\n" +
+                "STING shared parameters.\n\n" +
+                (declaredOnly.Count > 0
+                    ? $"{declaredOnly.Count} of them are declared in the tag config rather than built\n" +
+                      "in: " + string.Join(", ", declaredOnly.Select(d => d.FamilyName)) + ".\n" +
+                      "Each is created in its declared category. One with its own label also\n" +
+                      "gets its size types and a short parameter file for building the label.\n\n"
+                    : "") +
+                "NEXT: run 'Propagate Universal' to clone the universal label (and its type\n" +
+                "variants) onto every family, then 'Set depth' to choose the visible tier\n" +
+                "count. Label rows are NOT authored here — the Revit API cannot author\n" +
+                "label rows.";
             confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
 
             // P0 — re-creation is now OPT-IN.
@@ -2415,6 +2521,89 @@ namespace StingTools.Tags
                 }
             }
 
+            // ── Step 5g: Families declared only in the tag config ──
+            // A TAG_FAMILY row (or "Tag Family #N:" block) is the whole request: name,
+            // host category, label master, discipline and label parameters. Nothing
+            // here is specific to one family.
+            var handBuilt = new List<(string family, string paramFile)>();
+            if (declaredOnly.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("── Declared in the tag config ──");
+            }
+            foreach (var decl in declaredOnly)
+            {
+                string famName = decl.FamilyName;
+                string fileName = DeclaredTagFamilies.FileName(famName);
+                string loadName = Path.GetFileNameWithoutExtension(fileName);
+                string rfaPath = Path.Combine(outputDir, fileName);
+
+                if (loadedFamilies.Contains(famName))
+                {
+                    report.AppendLine($"  [SKIP] {famName} — already loaded");
+                    continue;
+                }
+
+                if (File.Exists(rfaPath) && skipExistingOnDisk)
+                {
+                    // Built before, and very possibly given its label by hand since.
+                    // Load it; never rebuild it unasked.
+                    if (LoadFamilyIntoProject(doc, rfaPath, loadName))
+                    {
+                        report.AppendLine($"  [LOAD] {famName} — existing .rfa loaded, not rebuilt");
+                        loaded++;
+                    }
+                    else
+                    {
+                        report.AppendLine($"  [SKIP] {famName} — .rfa on disk could not be loaded");
+                        skippedOnDisk++;
+                    }
+                    continue;
+                }
+
+                string tpl = TagFamilyConfig.FindTemplate(templateDir,
+                    TagFamilyConfig.BuiltInCategoryForHost(decl.HostCategory));
+                if (string.IsNullOrEmpty(tpl))
+                {
+                    templateMissing++;
+                    failures.Add($"{famName}: template not found");
+                    report.AppendLine($"  [MISS] {famName} — no template found");
+                    continue;
+                }
+
+                try
+                {
+                    if (!BuildDeclaredFamily(app, decl, tpl, sharedParamFile, rfaPath, out string note))
+                    {
+                        failed++;
+                        failures.Add($"{famName}: {note}");
+                        report.AppendLine($"  [FAIL] {famName} — {note}");
+                        continue;
+                    }
+                    created++;
+
+                    if (!decl.Universal)
+                        handBuilt.Add((famName, WriteLabelParamFile(outputDir, decl, sharedParamFile)));
+
+                    if (LoadFamilyIntoProject(doc, rfaPath, loadName))
+                    {
+                        report.AppendLine($"  [OK]   {famName} — created and loaded ({note})");
+                        loaded++;
+                    }
+                    else
+                    {
+                        report.AppendLine($"  [PART] {famName} — created but load failed ({note})");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failed++;
+                    failures.Add($"{famName}: {ex.Message}");
+                    report.AppendLine($"  [FAIL] {famName} — {ex.Message}");
+                    StingLog.Error($"Declared tag family creation failed for {famName}", ex);
+                }
+            }
+
             // ── Step 6: Report ──
             report.AppendLine();
             report.AppendLine(new string('-', 50));
@@ -2440,6 +2629,22 @@ namespace StingTools.Tags
                 report.AppendLine("Data/TagFamilies/ to skip creation next time.");
             }
 
+            if (handBuilt.Count > 0)
+            {
+                report.AppendLine();
+                report.AppendLine("WAITING FOR THEIR LABEL (built by hand, not by Propagate Universal):");
+                foreach (var hb in handBuilt)
+                {
+                    report.AppendLine($"  • {hb.family}");
+                    if (!string.IsNullOrEmpty(hb.paramFile))
+                        report.AppendLine($"      parameter file: {hb.paramFile}");
+                }
+                report.AppendLine("Open each in the Family Editor and build its label rows from");
+                report.AppendLine("docs/SPECIALIST_TAG_BUILD_SHEET.md. Set the parameter file above as");
+                report.AppendLine("the shared parameter file first: Edit Label then lists only the");
+                report.AppendLine("parameters that family needs. Category and size types are done.");
+            }
+
             TaskDialog td = new TaskDialog("Create Tag Families");
             td.MainInstruction = $"Created {created}, loaded {loaded} tag families";
             td.MainContent = report.ToString();
@@ -2453,6 +2658,165 @@ namespace StingTools.Tags
                 $"skipped={alreadyLoaded}, missing={templateMissing}, failed={failed}");
 
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// Build one family declared in the tag config and save it to
+        /// <paramref name="rfaPath"/>. Returns false, with the reason in
+        /// <paramref name="note"/>, when it cannot be built correctly - in which case
+        /// nothing is saved.
+        ///
+        /// <para>The family is put in its DECLARED category, not the template's. Most
+        /// tag templates are not installed (a stock Revit 2025 ships ten), so a
+        /// template search usually ends on Generic Tag, and a family left there
+        /// would never be offered for the category it was made for. Propagate
+        /// Universal corrects that for universal families, but it never touches a
+        /// family with its own label - so for those, birth is the only time the
+        /// category is set. A host category with no tag category in Revit fails the
+        /// family rather than saving it in the wrong one.</para>
+        ///
+        /// <para>A family with its own label also gets its size types, from the tag
+        /// style catalogue: the discipline's default style at each ISO 3098 size
+        /// (2.5 and 3.5 mm), with a family Yes/No per size (TXT_2_5, TXT_3_5) ticked
+        /// on the matching type for the person building the label to wire each label
+        /// copy's visibility to. A universal family gets its types from Propagate
+        /// Universal instead, with the label.</para>
+        /// </summary>
+        private bool BuildDeclaredFamily(Autodesk.Revit.ApplicationServices.Application app,
+            TagDeclaration decl, string templatePath, string sharedParamFile, string rfaPath,
+            out string note)
+        {
+            note = null;
+            Document famDoc = app.NewFamilyDocument(templatePath);
+            if (famDoc == null) { note = "NewFamilyDocument returned null"; return false; }
+
+            bool saved = false;
+            try
+            {
+                Category tagCat = TagCategoryResolver.FindTagCategory(famDoc, decl.HostCategory);
+                if (tagCat == null)
+                {
+                    note = $"Revit has no tag category for the declared host category '{decl.HostCategory}'. " +
+                           "Correct the category in the tag config, or remove the declaration.";
+                    return false;
+                }
+
+                using (var tx = new Transaction(famDoc, "STING Set Tag Family Category"))
+                {
+                    tx.Start();
+                    if (famDoc.OwnerFamily.FamilyCategory == null ||
+                        famDoc.OwnerFamily.FamilyCategory.Id != tagCat.Id)
+                        famDoc.OwnerFamily.FamilyCategory = tagCat;
+                    tx.Commit();
+                }
+
+                var familyParams = TagFamilyConfig.GetAllFamilyParams(decl.HostCategory, decl.FamilyName);
+                bool paramsAdded = AddSharedParameters(famDoc, sharedParamFile, app, familyParams);
+
+                int types = decl.Universal ? 0 : CreateHandBuiltLabelTypes(famDoc, decl);
+
+                famDoc.SaveAs(rfaPath, new SaveAsOptions { OverwriteExistingFile = true });
+                saved = true;
+
+                note = $"{tagCat.Name}"
+                     + (paramsAdded ? ", with params" : ", no params (manual add needed)")
+                     + (decl.Universal ? "" : $", {types} size type(s), label to build by hand");
+                return true;
+            }
+            finally
+            {
+                famDoc.Close(false);
+                if (saved) Commands.TagStudio.RevitBackupSweeper.Sweep(rfaPath, "CreateTagFamilies");
+            }
+        }
+
+        /// <summary>
+        /// The size types for a family whose label is built by hand. Returns the
+        /// number of types created. See <see cref="BuildDeclaredFamily"/>.
+        /// </summary>
+        private static int CreateHandBuiltLabelTypes(Document famDoc, TagDeclaration decl)
+        {
+            var fm = famDoc.FamilyManager;
+            var style = TagStyleCatalogue.GetDisciplineDefault(decl.Discipline ?? "");
+            var variants = Core.Drawing.IsoTagText.IsoMatrixSizes
+                .Select(size => { var v = style.ToVariantSpec(); v.Size = size; return v; })
+                .ToList();
+
+            int created = 0;
+            using (var tx = new Transaction(famDoc, "STING Hand-built Label Types"))
+            {
+                tx.Start();
+
+                var switches = new Dictionary<string, FamilyParameter>(StringComparer.OrdinalIgnoreCase);
+                foreach (var v in variants)
+                {
+                    string name = DeclaredTagFamilies.LabelSizeSwitchName(v.Size);
+                    if (name == null || switches.ContainsKey(name)) continue;
+                    FamilyParameter fp = fm.get_Parameter(name);
+                    if (fp == null)
+                    {
+                        try { fp = fm.AddParameter(name, GroupTypeId.Graphics, SpecTypeId.Boolean.YesNo, false); }
+                        catch (Exception ex) { StingLog.Warn($"{decl.FamilyName}: add {name}: {ex.Message}"); }
+                    }
+                    if (fp != null) switches[name] = fp;
+                }
+
+                created = TagTypeVariantWriter.CreateStandardVariants(
+                    fm, variants, TagTypeVariantWriter.BuildArrowheadLookup(famDoc));
+
+                foreach (var v in variants)
+                {
+                    FamilyType type = null;
+                    foreach (FamilyType ft in fm.Types)
+                        if (string.Equals(ft.Name, v.CanonicalTypeName, StringComparison.OrdinalIgnoreCase))
+                        { type = ft; break; }
+                    if (type == null) continue;
+
+                    fm.CurrentType = type;
+                    string on = DeclaredTagFamilies.LabelSizeSwitchName(v.Size);
+                    foreach (var sw in switches)
+                    {
+                        try { fm.Set(sw.Value, string.Equals(sw.Key, on, StringComparison.OrdinalIgnoreCase) ? 1 : 0); }
+                        catch (Exception ex) { StingLog.Warn($"{decl.FamilyName}: set {sw.Key} on {type.Name}: {ex.Message}"); }
+                    }
+                }
+
+                tx.Commit();
+            }
+            return created;
+        }
+
+        /// <summary>
+        /// Write a shared-parameter file holding only the parameters a hand-built
+        /// label reads, to &lt;output&gt;\_build\&lt;family&gt;.params.txt (outside the
+        /// flat folder the loaders read). Returns the path, or null when the family
+        /// declares none or the file cannot be written - the family itself is fine
+        /// either way; this only shortens the Edit Label parameter list.
+        /// </summary>
+        private static string WriteLabelParamFile(string outputDir, TagDeclaration decl, string sharedParamFile)
+        {
+            if (decl.Params == null || decl.Params.Count == 0) return null;
+            try
+            {
+                var subset = SharedParamSubset.Build(File.ReadLines(sharedParamFile), decl.Params);
+                if (subset.Missing.Count > 0)
+                    StingLog.Warn($"{decl.FamilyName}: declared label parameter(s) not in " +
+                                  $"{Path.GetFileName(sharedParamFile)}: {string.Join(", ", subset.Missing)}");
+
+                string dir = Path.Combine(outputDir, "_build");
+                Directory.CreateDirectory(dir);
+                string path = Path.Combine(dir, Path.GetFileNameWithoutExtension(
+                    DeclaredTagFamilies.FileName(decl.FamilyName)) + ".params.txt");
+                // Revit rejects a UTF-16 or CRLF shared-parameter file: UTF-8, no BOM, LF.
+                File.WriteAllText(path, string.Join("\n", subset.Lines) + "\n",
+                                  new UTF8Encoding(false));
+                return path;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"{decl.FamilyName}: could not write its label parameter file: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
@@ -2931,13 +3295,13 @@ namespace StingTools.Tags
                 // is precisely the instruction that trains a user to re-author the
                 // library per project, and on a machine whose families live in the
                 // shared root it was simply wrong. Say where we looked instead.
-                TaskDialog.Show("Load Tag Families",
+                PresetDialog.Show("Load Tag Families",
                     "No STING tag family .rfa files were found.\n\n"
                   + "Roots searched, in order:\n" + string.Join("\n", perRoot) + "\n\n"
                   + "If the firm library is elsewhere, point STING_CONTENT_LIB at it, or set\n"
                   + "\"content_root\" in %APPDATA%\\STING\\sting_content.json.\n\n"
                   + "Only run 'Create Tag Families' if this machine genuinely has no library —\n"
-                  + "it mints families that still need their label rows authored by hand.");
+                  + "it mints families that still need their label rows authored by hand.", ref message);
                 return Result.Failed;
             }
 
@@ -2968,8 +3332,12 @@ namespace StingTools.Tags
             // A family already in the project was skipped outright, so a corrected
             // library never reached a project that had loaded the old one. Offer to
             // update them; project tag styles are kept (TagFamilyUpdateOptions).
+            // Inside a workflow preset there is nobody to ask: load the missing families
+            // and keep the ones already in the project (the dialog's safe default, "No").
             bool update = false;
-            if (inProject.Count > 0)
+            if (inProject.Count > 0 && PresetDialog.Quiet)
+                StingLog.Info($"LoadTagFamilies (preset): {inProject.Count} already in the project kept, not updated.");
+            else if (inProject.Count > 0)
             {
                 var ask = new TaskDialog("Load Tag Families")
                 {
@@ -3135,7 +3503,12 @@ namespace StingTools.Tags
                     "the Text display mirror; where only a label read it, that field was removed from " +
                     "the label. 'Show details' lists each one. The files in the tag library are unchanged." : "");
             if (report.Length > 0) td.ExpandedContent = report.ToString();
-            td.Show();
+            if (PresetDialog.Quiet)
+            {
+                StingLog.Info($"LoadTagFamilies: {td.MainInstruction}\n{td.MainContent}\n{report}");
+                message = $"{td.MainInstruction}; {skipped} already loaded and kept (details in the STING log).";
+            }
+            else td.Show();
 
             StingLog.Info($"LoadTagFamilies: loaded={loaded}, updated={updated}/{toUpdate.Count}, repaired={repaired}, " +
                           $"skipped={skipped}, failed={failed}");

@@ -73,6 +73,7 @@
     <Compile Include="..\StingTools\Core\SharedParamTypeConflict.cs" Link="Core\SharedParamTypeConflict.cs" />
     <Compile Include="..\StingTools\Tags\TagCategoryNameForms.cs" Link="Tags\TagCategoryNameForms.cs" />
     <Compile Include="..\StingTools\Tags\TagConfigDeclarations.cs" Link="Tags\TagConfigDeclarations.cs" />
+    <Compile Include="..\StingTools\Tags\SharedParamSubset.cs" Link="Tags\SharedParamSubset.cs" />
     <Compile Include="..\StingTools\Tags\TagParamBindingAudit.cs" Link="Tags\TagParamBindingAudit.cs" />
     <Compile Include="..\StingTools\Core\BindingProfiles.cs" Link="Core\BindingProfiles.cs" />
     <Compile Include="..\StingTools\Core\Bs8666Label.cs" Link="Core\Bs8666Label.cs" />
@@ -169,6 +170,10 @@
     <Compile Include="..\StingTools\Commands\Electrical\Coordination\IecMcbBands.cs" Link="Commands\Electrical\Coordination\IecMcbBands.cs" />
     <Compile Include="..\StingTools\Core\Hvac\LifeCycleCostEngine.cs" Link="Core\Hvac\LifeCycleCostEngine.cs" />
     <Compile Include="..\StingTools\Core\ScopeBoxLoc.cs" Link="Core\ScopeBoxLoc.cs" />
+    <!-- MDP-1: which placement packs load, and the wizard's level-name advice.
+         PlacementRuleLoader and ProjectSetupWizard read these same files. -->
+    <Compile Include="..\StingTools\Core\Placement\PlacementPackRegistry.cs" Link="Core\Placement\PlacementPackRegistry.cs" />
+    <Compile Include="..\StingTools\Core\LevelNameAdvice.cs" Link="Core\LevelNameAdvice.cs" />
     <Compile Include="..\StingTools\Core\ProdPatternMatcher.cs" Link="Core\ProdPatternMatcher.cs" />
     <Compile Include="..\StingTools\Core\ProdResolver.cs" Link="Core\ProdResolver.cs" />
     <Compile Include="..\StingTools\Core\TagTokenIntegrity.cs" Link="Core\TagTokenIntegrity.cs" />
@@ -248,10 +253,15 @@
          GenerateFromScopeBoxesCommand call this same file, so
          DrawingPurposeViewKindTests exercises the code that runs in Revit. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingPurposeViewKind.cs" Link="Core\Drawing\DrawingPurposeViewKind.cs" />
+    <!-- Which view templates the drawing types name and how each is made.
+         ViewTemplatesCommand phase 3 walks this same plan, so
+         DrawingTemplateCatalogueTests proves every shipped viewTemplateName is created. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingTemplateCatalogue.cs" Link="Core\Drawing\DrawingTemplateCatalogue.cs" />
     <!-- D-4 / D-5: routing matcher + audit, and slot geometry. DrawingDispatcher
          and DrawingTypeValidator call these same files, so
          DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\DrawingRouteRequests.cs" Link="Core\Drawing\DrawingRouteRequests.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingSlotGeometry.cs" Link="Core\Drawing\DrawingSlotGeometry.cs" />
     <!-- Scope-box planner: grammar, sizing, seed choice, tiling, saved plan and colours.
          ScopeBoxPlannerDialog and the ScopeBox_* commands call these same files. -->
@@ -259,7 +269,30 @@
     <Compile Include="..\StingTools\Core\Drawing\ScopeBoxSizing.cs" Link="Core\Drawing\ScopeBoxSizing.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ScopeBoxPlanner.cs" Link="Core\Drawing\ScopeBoxPlanner.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ScopeBoxStyle.cs" Link="Core\Drawing\ScopeBoxStyle.cs" />
+    <!-- Match lines between (possibly overlapping, turned) scope boxes, and which
+         views pair. MatchLineEngine calls this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\MatchLineGeometry.cs" Link="Core\Drawing\MatchLineGeometry.cs" />
+    <!-- "Duplicate as Dependent" decisions. DrawingProducer calls this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\DependentViewPlanner.cs" Link="Core\Drawing\DependentViewPlanner.cs" />
+    <!-- Production commands' inputs inside a workflow preset. The Produce commands call this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\HeadlessProductionInputs.cs" Link="Core\Drawing\HeadlessProductionInputs.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingTypeActions.cs" Link="Core\Drawing\DrawingTypeActions.cs" />
+    <!-- Production gaps: the per-discipline plan routing (wizard / HVAC per-level / Produce & Export),
+         wizard scope-box renames, temporary template bases, placing an engine-made view on its
+         type's sheet, crop recovery from the context tag, panel sheet-placement mode, and the
+         one-line step message a preset shows instead of a dialog. The plugin calls these same files. -->
+    <Compile Include="..\StingTools\Core\Drawing\DisciplinePlanRouting.cs" Link="Core\Drawing\DisciplinePlanRouting.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\PreflightScope.cs" Link="Core\Drawing\PreflightScope.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxRenamePattern.cs" Link="Core\Drawing\ScopeBoxRenamePattern.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TemporaryBaseViews.cs" Link="Core\Drawing\TemporaryBaseViews.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ExistingViewPlacement.cs" Link="Core\Drawing\ExistingViewPlacement.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewContextTag.cs" Link="Core\Drawing\ViewContextTag.cs" />
+    <Compile Include="..\StingTools\Core\Panels\PanelSheetPlacementMode.cs" Link="Core\Panels\PanelSheetPlacementMode.cs" />
+    <!-- Revit-free halves of fix/review-six: Seeds_Build's preset mode, and which stamped
+         sheets Produce & Export covers. -->
+    <Compile Include="..\StingTools\Core\Symbols\SeedBuildPresetMode.cs" Link="Core\Symbols\SeedBuildPresetMode.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ExportSheetScope.cs" Link="Core\Drawing\ExportSheetScope.cs" />
+    <Compile Include="..\StingTools\Core\StepMessage.cs" Link="Core\StepMessage.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -360,8 +393,18 @@
     <Compile Include="..\StingTools\Photometrics\LdtParser.cs" Link="Photometrics\LdtParser.cs" />
     <Compile Include="..\StingTools\IfcResults\IfcSpaceMatcher.cs" Link="IfcResults\IfcSpaceMatcher.cs" />
     <Compile Include="..\StingTools\Core\Plumbing\MedicalGasFixtures.Rule.cs" Link="Core\Plumbing\MedicalGasFixtures.Rule.cs" />
+    <!-- MG-1 / MG-2: the seed POCO (so renamedFrom binds through the real model), the
+         rename planner, and the medical-gas type -> gas map. All Revit-free. -->
+    <Compile Include="..\StingTools\Core\Symbols\SymbolDefinition.cs" Link="Core\Symbols\SymbolDefinition.cs" />
+    <Compile Include="..\StingTools\Core\Symbols\SeedTypeRenames.cs" Link="Core\Symbols\SeedTypeRenames.cs" />
+    <Compile Include="..\StingTools\Core\Symbols\SeedFollowTypeRule.cs" Link="Core\Symbols\SeedFollowTypeRule.cs" />
+    <Compile Include="..\StingTools\Core\Symbols\SeedFollowTypeCatalog.cs" Link="Core\Symbols\SeedFollowTypeCatalog.cs" />
+    <Compile Include="..\StingTools\BIMManager\RevisionIssueTargets.cs" Link="BIMManager\RevisionIssueTargets.cs" />
+    <Compile Include="..\StingTools\Core\Plumbing\MedGasSeedTypeMap.cs" Link="Core\Plumbing\MedGasSeedTypeMap.cs" />
     <!-- ELEC-8: rdf:ID allocation for the ETAP hand-off (circuit numbers repeat per panel). -->
     <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
+    <!-- CAD-2: interactive DWG pickers + type factory width matching (Revit-free half). -->
+    <Compile Include="..\StingTools\Model\DwgPickGeometry.cs" Link="Model\DwgPickGeometry.cs" />
   </ItemGroup>
 
 </Project>

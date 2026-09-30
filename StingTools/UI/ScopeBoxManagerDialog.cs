@@ -178,6 +178,7 @@ namespace StingTools.UI
         private const string BadgeArea     = "🔷 area box";
         private const string BadgeSeed     = "🌱 seed";
         private const string BadgeBuilding = "🏢 building";
+        private const string BadgeZone     = "🧭 zone";
 
         private readonly UIApplication _uiApp;
         private readonly UIDocument _uiDoc;
@@ -601,14 +602,26 @@ namespace StingTools.UI
                 if (reason == null && kind != ScopeBoxKind.Plain)
                 {
                     bool areaOk = kind != ScopeBoxKind.Area || ScopeBoxNames.TryParseArea(name, out _, out _, out _);
-                    r.Status = !areaOk ? BadgeBad
-                             : kind == ScopeBoxKind.Area ? BadgeArea
-                             : kind == ScopeBoxKind.Seed ? BadgeSeed : BadgeBuilding;
+                    bool zoneOk = kind != ScopeBoxKind.Zone || ScopeBoxNames.TryParseZone(name, out _, out _);
+                    bool nameOk = areaOk && zoneOk;
+                    // Every ScopeBoxKind is named explicitly: an unhandled kind must not
+                    // fall through to another kind's badge and tooltip.
+                    switch (kind)
+                    {
+                        case ScopeBoxKind.Area:     r.Status = BadgeArea;     break;
+                        case ScopeBoxKind.Seed:     r.Status = BadgeSeed;     break;
+                        case ScopeBoxKind.Building: r.Status = BadgeBuilding; break;
+                        case ScopeBoxKind.Zone:     r.Status = BadgeZone;     break;
+                        default:                    r.Status = BadgeNotSting; break;
+                    }
+                    if (!nameOk) r.Status = BadgeBad;
                     r.StatusTip = !areaOk ? ScopeBoxNames.AreaPatternReason
+                                : !zoneOk ? ScopeBoxNames.ZonePatternReason
                                 : kind == ScopeBoxKind.Area ? "Area box — shared by every drawing type in its size class. Managed in the Scope Box Planner."
                                 : kind == ScopeBoxKind.Seed ? "Seed box — a hand-drawn size the Scope Box Planner copies. Keep it; do not use it for views."
+                                : kind == ScopeBoxKind.Zone ? "Zone footprint (STING-ZONE) — sets ZONE for elements inside it when no room, department or workset names one. Draw it unrotated."
                                 : "Building footprint (STING-LOC) — sets LOC for elements inside it and gives the planner a building to tile.";
-                    r.IsBlocked = !areaOk;
+                    r.IsBlocked = !nameOk;
                     return;
                 }
                 if (reason == null)

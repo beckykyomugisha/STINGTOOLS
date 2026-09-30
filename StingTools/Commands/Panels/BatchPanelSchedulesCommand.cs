@@ -18,7 +18,7 @@ namespace StingTools.Commands.Panels
     /// configured skip patterns. After successful creation, populates the
     /// panel-side STING tag containers (ELC_PNL_NAME / VOLTAGE / LOAD /
     /// FED_FROM / MAIN_BRK / WAYS), stamps the schedule view with the
-    /// elec-panel-schedule-A3 Drawing Type id, and writes
+    /// drawing type routing gives E / ELEC_PANEL_SCHEDULE, and writes
     /// ELC_PANEL_SCHEDULE_REF_TXT on every circuit feeding the panel so
     /// circuit tags can render the back-reference.
     /// </summary>
@@ -26,8 +26,6 @@ namespace StingTools.Commands.Panels
     [Regeneration(RegenerationOption.Manual)]
     public class BatchPanelSchedulesCommand : IExternalCommand
     {
-        private const string DrawingTypeId = "elec-panel-schedule-A3";
-
         // Phase (dialog→engine) — thin UI wrapper over PanelScheduleApplyEngine (the
         // single source of panel-schedule truth, dialog-free). Button behaviour is
         // unchanged: project-scope batch create, then render the SAME StingResultPanel
@@ -51,7 +49,9 @@ namespace StingTools.Commands.Panels
                 var missing = specNames.Where(n => StingTools.Core.Panels.PanelTemplateBuilder.FindTemplate(doc, n) == null).ToList();
                 if (specNames.Count > 0 && missing.Count == specNames.Count)
                 {
-                    var ask = TaskDialog.Show("STING Panel Schedules",
+                    // Inside a preset nobody can answer: build them (the preset's own
+                    // Panel_TemplatesCreate step normally has already).
+                    var ask = PresetDialog.Quiet ? TaskDialogResult.Yes : TaskDialog.Show("STING Panel Schedules",
                         "This project has none of the STING standard panel schedule templates " +
                         "(ISO 19650 header + BS 7671 circuit table).\n\nCreate them now, then build the schedules?\n\n" +
                         "Choose No to use the project's existing templates.",
@@ -81,7 +81,7 @@ namespace StingTools.Commands.Panels
 
             if (applied.Inspected == 0)
             {
-                TaskDialog.Show("STING Panel Schedules", "No electrical equipment found.");
+                PresetDialog.Show("STING Panel Schedules", "No electrical equipment found.", ref message);
                 return Result.Succeeded;
             }
 
@@ -96,7 +96,7 @@ namespace StingTools.Commands.Panels
                   .MetricError("Failed", applied.Failed.ToString());
 
             result.AddSection("INTEGRATION")
-                  .Metric("Drawing-type stamps", applied.DrawingTypeStamped.ToString(), $"id={DrawingTypeId}")
+                  .Metric("Drawing-type stamps", applied.DrawingTypeStamped.ToString(), $"id={applied.DrawingTypeId}")
                   .Metric("Panel-param fills", applied.ParamsStamped.ToString(), "ELC_PNL_NAME / VOLTAGE / LOAD / FED_FROM / MAIN_BRK / WAYS")
                   .Metric("Circuit back-refs", applied.CircuitRefsStamped.ToString(), "ELC_PANEL_SCHEDULE_REF_TXT");
 
@@ -147,7 +147,7 @@ namespace StingTools.Commands.Panels
                   .Text("Drag schedules onto sheets manually — Revit's PanelScheduleSheetInstance.Create API has been broken since Revit 2024.")
                   .Text("Use 'Panel Schedules → Export to Excel' for bulk circuit-data round-trip.")
                   .Text("Run 'Panel Schedule Audit' to surface drift between rules and reality.");
-            result.Show();
+            PresetDialog.Show(result, ref message);
 
             return Result.Succeeded;
         }

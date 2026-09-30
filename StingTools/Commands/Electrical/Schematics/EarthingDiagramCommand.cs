@@ -37,7 +37,16 @@ namespace StingTools.Commands.Electrical.Schematics
             // Read project-level earthing parameters.
             var projInfo = doc.ProjectInformation;
             string system = projInfo?.LookupParameter("ELC_EARTHING_SYSTEM_TXT")?.AsString()?.Trim();
-            if (string.IsNullOrEmpty(system)) system = "TN-S";
+            // The arrangement drawn IS the earthing system. Drawing TN-S for a project
+            // that never said which system it has put a TN-S diagram on a numbered,
+            // stamped sheet of a TT or TN-C-S job. No system, no diagram.
+            if (string.IsNullOrEmpty(system))
+            {
+                PresetDialog.Show("STING Earthing Diagram",
+                    "ELC_EARTHING_SYSTEM_TXT is not set on Project Information (TN-S / TN-C-S / TT / IT), " +
+                    "so there is no earthing arrangement to draw. Set it and run again.", ref message);
+                return Result.Cancelled;
+            }
 
             string metLocation = projInfo?.LookupParameter("ELC_MET_LOCATION_TXT")?.AsString()?.Trim();
             if (string.IsNullOrEmpty(metLocation)) metLocation = "Main Switchroom";
@@ -50,8 +59,8 @@ namespace StingTools.Commands.Electrical.Schematics
                 if (view == null)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("STING Earthing Diagram",
-                        "Could not create a drafting view — no Drafting ViewFamilyType found.");
+                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    if (!PresetDialog.Quiet) TaskDialog.Show("STING Earthing Diagram", message);
                     return Result.Failed;
                 }
 
@@ -59,11 +68,15 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 tx.Commit();
 
-                TaskDialog.Show("STING Earthing Diagram",
+                // Onto the sheet of the drawing type routing gives E / EARTHING_SCHEMATIC.
+                string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.EarthingSchematic, view);
+
+                PresetDialog.Show("STING Earthing Diagram",
                     $"Earthing arrangement diagram generated.\n\n" +
                     $"View:   {view.Name}\n" +
                     $"System: {system}\n" +
-                    $"MET:    {metLocation}");
+                    $"MET:    {metLocation}\n\n{sheetLine}", ref message);
             }
 
             return Result.Succeeded;
@@ -217,7 +230,10 @@ namespace StingTools.Commands.Electrical.Schematics
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
             if (vft == null) return null;
             var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch { }
+            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"EarthingDiagram view name '{name}': {ex.Message}"); }
+            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
+            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
+            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"EarthingDiagram scale: {ex.Message}"); }
             return v;
         }
 

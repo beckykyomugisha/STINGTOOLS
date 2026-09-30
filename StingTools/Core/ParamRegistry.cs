@@ -395,6 +395,8 @@ namespace StingTools.Core
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
         public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";
+        /// <summary>The &lt;tag&gt; segment of the STING:: scope box a view was generated from.</summary>
+        public const string STING_SCOPE_BOX_TAG        = "STING_SCOPE_BOX_TAG_TXT";
 
         // ── Annotation marker constants (Phase 179) ──────────────────────
         public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";
@@ -2922,14 +2924,11 @@ namespace StingTools.Core
             CategoryEnumMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "Air Terminals", "OST_DuctTerminal" },
-                { "Analytical Duct Segments", "OST_AnalyticalDuctSegments" },
                 { "Analytical Links", "OST_AnalyticalLinks" },
                 { "Analytical Members", "OST_AnalyticalMember" },
                 { "Analytical Nodes", "OST_AnalyticalNodes" },
                 { "Analytical Openings", "OST_AnalyticalOpenings" },
                 { "Analytical Panels", "OST_AnalyticalPanels" },
-                { "Analytical Pipe Segments", "OST_AnalyticalPipeSegments" },
-                { "Area Based Loads", "OST_AreaLoads" },
                 { "Area Loads", "OST_AreaLoads" },
                 { "Areas", "OST_Areas" },
                 { "Assemblies", "OST_Assemblies" },
@@ -2984,7 +2983,7 @@ namespace StingTools.Core
                 { "Lighting Devices", "OST_LightingDevices" },
                 { "Lighting Fixtures", "OST_LightingFixtures" },
                 { "Line Loads", "OST_LineLoads" },
-                { "MEP Ancillary", "OST_MechanicalEquipment" },
+                { "MEP Ancillary Framing", "OST_MEPAncillaryFraming" },
                 { "MEP Fabrication Containment", "OST_FabricationContainment" },
                 { "MEP Fabrication Ductwork", "OST_FabricationDuctwork" },
                 { "MEP Fabrication Ductwork Stiffeners", "OST_FabricationDuctworkStiffeners" },
@@ -3062,7 +3061,6 @@ namespace StingTools.Core
                 { "Vibration Management", "OST_VibrationManagement" },
                 { "Wall Sweeps", "OST_WallSweeps" },
                 { "Walls", "OST_Walls" },
-                { "Wash", "OST_Planting" },
                 { "Windows", "OST_Windows" },
                 { "Wire", "OST_Wire" },
                 { "Zones", "OST_Zones" },

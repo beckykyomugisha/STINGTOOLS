@@ -26,22 +26,36 @@ follows different rules and has its own section (§5): read it before building i
   are one family each on purpose: a shared group would let one of the four, run as a
   master, overwrite the other three.
 - `TAG_PLACEMENT_PRESETS_DEFAULT.json` has a placement preset for each.
+- **Create Tag Fams makes the empty family for you** (2026-09-30). The declaration row
+  is the request: *CREATE TAGS › ⚙ SETUP › Create Tag Fams* builds each of the four in
+  its declared category (Door Tags / Room Tags), adds the STING parameters, creates the
+  two size types with their `TXT_*` switches (see *Types* below), loads it, and writes
+  `_build\<family>.params.txt` next to the library — a shared-parameter file holding
+  only the parameters that family's label reads (the `Params:` list on its row). What
+  is left is the label itself, below. A family already on disk is loaded, never
+  rebuilt, unless the re-create box is ticked.
 
 **Family names must match exactly** — including the spaces around the hyphen. The
 declaration, the preset and the drawing type all look the family up by name.
+
+**Adding a fifth specialist family** is one `TAG_FAMILY` row in the ARCH config and its
+`_DesignConstruction` twin — name, discipline, host category, `LabelMaster: <Group>;
+Params: <names…>` — plus its section in this sheet. No code change.
 
 ---
 
 ## Mechanics that apply to all four
 
-- **Template.** Doors: `Metric Door Tag.rft`. Rooms: `Metric Room Tag.rft`. Category
-  is set by the template — check *Family Category and Parameters* reads *Door Tags* /
-  *Room Tags* before saving.
-- **Adding a shared parameter to the label.** *Edit Label → Add Parameter → Select… →*
-  pick it from `MR_PARAMETERS.txt` (set it as the shared parameter file first). A
-  calculated value can only name parameters that are already in the label's category
-  parameter list, so add every parameter a formula names — even one that is not
-  itself a visible row.
+- **Start from the family Create Tag Fams made** (`Data/TagFamilies/<name>.rfa`, or
+  *Edit Family* on it in the project). Its category is already *Door Tags* / *Room Tags*
+  — check *Family Category and Parameters* if in doubt. Only start from
+  `Metric Door Tag.rft` / `Metric Room Tag.rft` by hand if the command could not run.
+- **Adding a shared parameter to the label.** *Manage › Shared Parameters › Browse* →
+  the family's `_build\<family>.params.txt`, then *Edit Label → Add Parameter →
+  Select…* and pick from that short list (fall back to `MR_PARAMETERS.txt` if the file
+  is missing — same GUIDs). A calculated value can only name parameters that are
+  already in the label's category parameter list, so add every parameter a formula
+  names — even one that is not itself a visible row.
 - **Calculated value rows.** *Edit Label → Add Calculated Value*: Name, **Type = Text**,
   paste the Formula. Then Prefix / Suffix, **Spaces = 0**, then Break. Set Spaces
   before ticking Break — Spaces is only editable while the row above has no Break.
@@ -64,31 +78,37 @@ declaration, the preset and the drawing type all look the family up by name.
   label or a Text formula. A label cannot therefore do the compliance comparison
   (e.g. force ≤ 30 N) itself; it prints the value and the unit.
 
-### Types to create (all four families)
+### Types (all four families) — created by Create Tag Fams
 
-Three family types, named by the tag style catalogue's convention
-(`Core/TagStyleCatalogue.cs`: `{size}_{style}_{colour}_{arrowhead}_T{depth}`,
-architectural default NOM / BLACK / Arrow Open 30 / T2):
+Two family types, named by the tag style catalogue's convention
+(`Core/TagStyleCatalogue.cs`: `{size}_{style}_{colour}_{arrowhead}_T{depth}`). The
+command takes the style from the declared discipline's default in
+`tag_style_catalogue.json` (architectural: NOM / BLACK / Arrow Open 30 / T2) and the
+sizes from `IsoTagText.IsoMatrixSizes`:
 
-| Type name | Label text size | Use |
-|---|---|---|
-| `2_NOM_BLACK_Open30_T2` | 2.0 mm | 1:50 and denser plans |
-| `2.5_NOM_BLACK_Open30_T2` | 2.5 mm | **default** — the 1:100 drawing types above |
-| `3.5_NOM_BLACK_Open30_T2` | 3.5 mm | presentation / 1:200 |
+| Type name | Label text size | Switch ticked | Use |
+|---|---|---|---|
+| `2.5_NOM_BLACK_Open30_T2` | 2.5 mm | `TXT_2_5` | **default** — every A1–A3 drawing type |
+| `3.5_NOM_BLACK_Open30_T2` | 3.5 mm | `TXT_3_5` | A0 sheets and emphasis |
+
+**No 2 mm type** (changed 2026-09-30). This sheet asked for `2_NOM_BLACK_Open30_T2`
+before the ISO 3098 alignment of 2026-09-27; since then no drawing type asks for 2 mm
+(`DrawingType.EffectiveTagTextSizeMm` gives 2.5, or 3.5 on A0), so a 2 mm type would
+never be used. A project that has agreed 2 mm can add the type and a `TXT_2_0` switch
+by hand.
 
 The drawing engine picks the size type for each drawing's scale (`TagSizeVariant`) and
 reads **this** naming — the size is everything before the first `_`, and it only
 switches between types whose remainder matches, so a bold red 2.5 mm tag becomes a
-bold red 2 mm tag, never a black one. (Until 2026-09-24 it only recognised types named
-`2.5mm`, so families built to this sheet would have kept their default size.) Keep the
-remainder identical across the three types.
+bold red 3.5 mm tag, never a black one. Keep the remainder identical across the types.
 
 Label text size is a property of the **label's** type, not the family type, so make
-three copies of the label (one per text size: *Edit Type → Duplicate → Text Size*) at
-the same point, and drive each copy's *Visible* from a family Yes/No that the type sets
-(`TXT_2_0`, `TXT_2_5`, `TXT_3_5`; exactly one ticked per type). Text font Arial,
-width factor 1.0, background Transparent. Build and check the 2.5 mm label first,
-then copy it — the copies carry the rows with them.
+two copies of the label (one per text size: *Edit Type → Duplicate → Text Size*) at
+the same point, and drive each copy's *Visible* from the family Yes/No that the type
+sets (*Visible → Associate Family Parameter* → `TXT_2_5` / `TXT_3_5`; the command has
+already ticked exactly one per type). Text font Arial, width factor 1.0, background
+Transparent. Build and check the 2.5 mm label first, then copy it — the copies carry
+the rows with them.
 
 ### Box and leader
 
@@ -97,7 +117,7 @@ then copy it — the copies carry the rows with them.
   tags sit inside the room.
 - **Box:** Doors — a rectangle of Lines (subcategory *Tag Box*, pen 1 / 0.18 mm)
   drawn round the 2.5 mm label with 1 mm clearance, **made visible by the same
-  `TXT_*` switch** as the label it surrounds (so three boxes). Rooms — no box; the room
+  `TXT_*` switch** as the label it surrounds (so two boxes). Rooms — no box; the room
   tag reads as a block of text inside the room.
 - Keep the family origin at the label's centre so the placement offsets in the preset
   mean what they say.

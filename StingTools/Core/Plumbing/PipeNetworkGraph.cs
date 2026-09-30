@@ -82,6 +82,13 @@ namespace StingTools.Core.Plumbing
         /// Build a directed PipeNetwork for all (or one named) plumbing systems.
         /// </summary>
         public static PipeNetwork Build(Document doc, string systemNameFilter = null)
+            => Build(doc, systemNameFilter, null);
+
+        /// <summary>
+        /// As <see cref="Build(Document, string)"/>, keeping only pipes whose system is
+        /// classified as one of <paramref name="classifications"/> (null or empty = any).
+        /// </summary>
+        public static PipeNetwork Build(Document doc, string systemNameFilter, ICollection<PipeSystemType> classifications)
         {
             var net = new PipeNetwork { SystemFilter = systemNameFilter ?? "" };
             if (doc == null) return net;
@@ -93,7 +100,7 @@ namespace StingTools.Core.Plumbing
                     .OfClass(typeof(Pipe))
                     .WhereElementIsNotElementType()
                     .Cast<Pipe>()
-                    .Where(p => SystemMatches(p, systemNameFilter))
+                    .Where(p => SystemMatches(p, systemNameFilter) && ClassifiedAs(p, classifications))
                     .ToList();
 
                 var fittings = new FilteredElementCollector(doc)
@@ -719,6 +726,24 @@ namespace StingTools.Core.Plumbing
                 return sysName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
             }
             catch { return true; }
+        }
+
+        /// <summary>
+        /// True when <paramref name="p"/>'s piping system is classified as one of
+        /// <paramref name="classifications"/>; a pipe on no system is not.
+        /// </summary>
+        public static bool ClassifiedAs(Pipe p, ICollection<PipeSystemType> classifications)
+        {
+            if (classifications == null || classifications.Count == 0) return true;
+            try
+            {
+                return p?.MEPSystem is PipingSystem ps && classifications.Contains(ps.SystemType);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PipeNetworkBuilder: system classification of pipe {p?.Id}: {ex.Message}");
+                return false;
+            }
         }
 
         private static string GetSystemName(Element el)

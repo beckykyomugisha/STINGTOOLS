@@ -1230,44 +1230,103 @@ namespace StingTools.Docs
             if (result == null || result.Cancelled) return;
             // Collected, then recorded with one register load and one save (DOCX-13):
             // per-file calls re-read and re-wrote the whole register for every file.
+            var files = result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? ""))
+                .Select(r => new ExportedFile
+                {
+                    Sheet = ResolveSheet(doc, r.SheetId),
+                    Path = r.OutputPath,
+                    Format = r.Format,
+                    Title = r.SheetTitle,
+                    SheetNumber = r.SheetNumber,
+                    Suitability = r.Suitability,
+                    Revision = r.Revision,
+                    DocumentNumber = r.DocumentNumber,
+                    IsoFieldsUnset = r.IsoFieldsUnset,
+                });
+            int n = RegisterExportedFiles(doc, files);
+            if (n > 0) StingLog.Info($"Export Centre: {n} file(s) recorded in the document register.");
+        }
+
+        /// <summary>One exported file, for <see cref="RegisterExportedFiles"/>.</summary>
+        internal sealed class ExportedFile
+        {
+            public ViewSheet Sheet;
+            public string Path;
+            public string Format;
+            public string Title;
+            public string SheetNumber;
+            // The ISO fields the file name printed, when the caller has them (Export Centre
+            // rows). Unset = resolved from the sheet through ResolveIsoFields.
+            public string Suitability;
+            public string Revision;
+            public string DocumentNumber;
+            public System.Collections.Generic.IReadOnlyList<string> IsoFieldsUnset;
+        }
+
+        /// <summary>
+        /// Record exported files in the project's document register, the way the Export
+        /// Centre does: suitability, revision and CDE state from the sheet, a sheet's PDF
+        /// under its ISO document number. Shared by the Export Centre and Produce &amp;
+        /// Export so every exported drawing reaches the Document Manager the same way.
+        /// Returns the number of rows recorded.
+        /// </summary>
+        internal static int RegisterExportedFiles(Document doc, IEnumerable<ExportedFile> files)
+        {
+            if (doc == null || files == null) return 0;
+            // Collected, then recorded with one register load and one save (DOCX-13):
+            // per-file calls re-read and re-wrote the whole register for every file.
             var batch = new List<BIMManager.ExportRegistration>();
-            foreach (var r in result.Rows.Where(x => x.Success && File.Exists(x.OutputPath ?? "")))
+            foreach (var r in files)
             {
                 try
                 {
-                    var sheet = ResolveSheet(doc, r.SheetId);
-                    string docNumber = null, title = r.SheetTitle;
-                    // The row's Suitability / Revision are the values the FILE NAME printed
-                    // (AnnotateIsoFields) — a real code, or the XX / NOREV not-set marker. The
-                    // register used to re-derive them with a different fallback (S0), so one
-                    // file said S2 in its name and S0 in the register.
-                    bool isSheetRow = sheet != null && !string.IsNullOrEmpty(r.Suitability);
+                    var sheet = r.Sheet;
+                    string docNumber = null, title = r.Title;
+                    // Suitability / revision are the values the FILE NAME printed — a real code,
+                    // or the XX / NOREV not-set marker. The Export Centre passes the row's own
+                    // (AnnotateIsoFields); Produce & Export resolves them through the same chain
+                    // (ResolveIsoFields). The register used to re-derive them with a different
+                    // fallback (S0), so one file said S2 in its name and S0 in the register.
+                    string suit = r.Suitability, revLabel = r.Revision;
+                    System.Collections.Generic.IReadOnlyList<string> isoUnset = r.IsoFieldsUnset;
+                    if (sheet != null && string.IsNullOrEmpty(suit))
+                    {
+                        var iso = ResolveIsoFields(doc, sheet);
+                        suit = iso.Suitability; revLabel = iso.Revision; isoUnset = iso.Unset;
+                    }
+                    bool isSheetRow = sheet != null && !string.IsNullOrEmpty(suit);
                     if (sheet != null)
                     {
                         if (string.Equals(r.Format, "PDF", StringComparison.OrdinalIgnoreCase))
+                        {
                             docNumber = r.DocumentNumber;
+                            if (string.IsNullOrEmpty(docNumber))
+                            {
+                                DecomposeSheetIdentifier(sheet, out string id);
+                                docNumber = id ?? sheet.SheetNumber;
+                            }
+                        }
                         title = $"{sheet.SheetNumber} - {sheet.Name}";
                     }
-                    string state = isSheetRow ? Core.Drawing.Iso19650Suitability.CdeStateFor(r.Suitability) : null;
+                    string state = isSheetRow ? Core.Drawing.Iso19650Suitability.CdeStateFor(suit) : null;
                     string type = r.Format is "IFC" or "NWC" ? "M3" : "DR";
                     batch.Add(new BIMManager.ExportRegistration
                     {
-                        FilePath = r.OutputPath,
+                        FilePath = r.Path,
                         DocType = type,
                         Description = $"{title} ({r.Format})",
                         // A non-sheet row (model export, combined PDF) keeps the register's
                         // documented WIP/S0 convention; it carries no ISO fields to flag.
-                        Suitability = isSheetRow ? r.Suitability : null,
-                        Revision = isSheetRow ? r.Revision : null,
+                        Suitability = isSheetRow ? suit : null,
+                        Revision = isSheetRow ? revLabel : null,
                         CdeStatus = state ?? "WIP",
                         DocNumber = docNumber,
-                        IsoUnset = isSheetRow ? r.IsoFieldsUnset : null,
+                        IsoUnset = isSheetRow ? isoUnset : null,
                     });
                 }
-                catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber}/{r.Format}: {ex.Message}"); }
+                catch (Exception ex) { StingLog.Warn($"Export register {r.SheetNumber ?? r.Sheet?.SheetNumber}/{r.Format}: {ex.Message}"); }
             }
-            int n = BIMManager.BIMManagerEngine.AutoRegisterExports(doc, batch);
-            if (n > 0) StingLog.Info($"Export Centre: {n} file(s) recorded in the document register.");
+            return batch.Count == 0 ? 0 : BIMManager.BIMManagerEngine.AutoRegisterExports(doc, batch);
         }
 
         /// <summary>Resolve a ViewSheet from an ExportResultRow.SheetId string
