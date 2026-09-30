@@ -182,6 +182,12 @@ namespace StingTools.Core
         public const string TAG_POS_GUID = "E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
         public const string VIEW_TAG_STYLE = "STING_VIEW_TAG_STYLE";
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
+        // DTW-59: a view style pack's default tag style preset ("{size}{style}_{color}"),
+        // written onto the managed view template by ManagedTemplateSyncer (INT-02). It was
+        // written as a bare literal and defined in no shared-parameter file, so the write
+        // never landed. Bound to Views. UUIDv5 of the name in 7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00.
+        public const string DEFAULT_TAG_STYLE = "STING_DEFAULT_TAG_STYLE_TXT";
+        public const string DEFAULT_TAG_STYLE_GUID = "4e90ed9d-5b3a-5791-ab43-c90a1f440310";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
         public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
         // ── Tag audit trail ─────────────────────────────────────────────

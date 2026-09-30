@@ -2467,6 +2467,7 @@ STING_CONDUIT_FILL_SUMMARY_TXT,Sting Conduit Fill Summary,TEXT,Instance,<ALL>,EL
 STING_CROP_KIND_TXT,Crop Kind,TEXT,Instance,Views,STING_DRAWING,b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01,Crop kind stamped onto views for drift detection [Phase 183]
 STING_CROP_MARGIN_MM_TXT,Crop Margin Mm,TEXT,Instance,Views,STING_DRAWING,c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
 STING_DATA_HASH,Data Hash,TEXT,Instance,<ALL>,ASS_MNG,c9e60453-1ba4-5f3c-d6c2-508a3af4be27,Hash of data directory for workflow skip-if-unchanged detection
+STING_DEFAULT_TAG_STYLE_TXT,Default Tag Style,TEXT,Instance,Views,STING_DRAWING,4e90ed9d-5b3a-5791-ab43-c90a1f440310,"Default tag style preset ({size}{style}_{color}) of the view style pack, stamped on managed view templates by ManagedTemplateSyncer [DTW-59]"
 STING_DESIGN_REF_TXT,Design Ref,TEXT,Instance,<ALL>,Identity,bcd5e6f7-8a9b-0c1d-2e3f-4a5b6c7d8e9f,Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.
 STING_DISPLAY_MODE,Display Mode,INTEGER,Instance,<ALL>,STINGTags_ISO19650,d0e1f2a3-b4c5-4d6e-8f7a-8b9c0d1e2f3a,"Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)"
 STING_DRAWING_PACKAGE_ID_TXT,Drawing Package Id,TEXT,Instance,"Sheets, Views",STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000002,Drawing package this view or sheet belongs to [STING DT v137]

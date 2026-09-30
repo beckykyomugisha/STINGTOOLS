@@ -3429,6 +3429,7 @@ PARAM	a2b3c4d5-2222-4f06-9602-600000000002	WARN_STING_CROP_DRIFT	TEXT		17	1	View
 PARAM	a2b3c4d5-2222-4f06-9603-600000000003	WARN_STING_PACK_DRIFT	TEXT		17	1	View warning: STING_PACK_CHECKSUM_TXT differs from current pack - managed template needs re-sync (Phase 137)	1
 PARAM	a2b3c4d5-2222-4f06-9604-600000000004	WARN_STING_STYLE_LOCKED_NOTICE	TEXT		17	1	View notice: STING_STYLE_LOCKED_BOOL = 1 - SyncStyles will skip this view (user-frozen)	1
 PARAM	f4a5b6c7-d8e9-4f0a-b1c2-d3e4f5a6b7c8	STING_PACK_CHECKSUM_TXT	TEXT		27	1	SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]	1
+PARAM	4e90ed9d-5b3a-5791-ab43-c90a1f440310	STING_DEFAULT_TAG_STYLE_TXT	TEXT		27	1	Default tag style preset ({size}{style}_{color}) of the view style pack, stamped on managed view templates by ManagedTemplateSyncer [DTW-59]	1
 PARAM	b6c7d8e9-f0a1-4b2c-3d4e-5f6a7b8c9d01	STING_CROP_KIND_TXT	TEXT		27	1	Crop kind stamped onto views for drift detection [Phase 183]	1
 PARAM	c7d8e9f0-a1b2-4c3d-4e5f-6a7b8c9d0e12	STING_CROP_MARGIN_MM_TXT	TEXT		27	1	Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]	1
 PARAM	a5b6c7d8-e9f0-4a1b-c2d3-e4f5a6b7c8d9	STING_CDE_STATE_TXT	TEXT		27	1	CDE state stamp for ISO 19650-2 document lifecycle [Phase 141]	1

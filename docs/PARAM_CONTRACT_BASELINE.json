@@ -1617,6 +1617,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
+    "STING_DEFAULT_TAG_STYLE_TXT": {
+      "state": "write_only",
+      "role": "reference",
+      "reason": "ManagedTemplateSyncer writes the pack's defaultTagStyle onto the managed view template so the template carries it visibly (and a view list schedule can show it). No C# reader: TokenProfileApplier takes the style from the resolved ViewStylePack object, not from this parameter. If the template stamp is ever meant to drive tag styles on its own, that reader does not exist yet."
+    },
     "STING_DRAWING_PACKAGE_ID_TXT": {
       "state": "write_only",
       "role": "pipeline",

@@ -2541,6 +2541,7 @@ STING_CONDUIT_FILL_SUMMARY_TXT,4,universal-meta,<ALL>,Conduit fill summary strin
 STING_CROP_KIND_TXT,27,explicit,Views,Crop kind stamped onto views for drift detection [Phase 183]
 STING_CROP_MARGIN_MM_TXT,27,explicit,Views,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
 STING_DATA_HASH,1,universal-meta,<ALL>,Hash of data directory for workflow skip-if-unchanged detection
+STING_DEFAULT_TAG_STYLE_TXT,27,explicit,Views,"Default tag style preset ({size}{style}_{color}) of the view style pack, stamped on managed view templates by ManagedTemplateSyncer [DTW-59]"
 STING_DESIGN_REF_TXT,33,universal-meta,<ALL>,Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.
 STING_DISPLAY_MODE,17,universal-meta,<ALL>,"Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)"
 STING_DRAWING_PACKAGE_ID_TXT,27,explicit,Sheets|Views,Drawing package this view or sheet belongs to [STING DT v137]

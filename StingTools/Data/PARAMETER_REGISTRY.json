@@ -22179,6 +22179,18 @@
       "curated": true
     },
     {
+      "param_name": "STING_DEFAULT_TAG_STYLE_TXT",
+      "guid": "4e90ed9d-5b3a-5791-ab43-c90a1f440310",
+      "description": "Default tag style preset ({size}{style}_{color}) of the view style pack, stamped on managed view templates by ManagedTemplateSyncer (INT-02). Bound to Views.",
+      "datatype": "TEXT",
+      "group_id": 27,
+      "group_name": "STING_DRAWING",
+      "binding": "universal",
+      "required": false,
+      "discipline": "General",
+      "curated": true
+    },
+    {
       "param_name": "ELC_PNL_ENCLOSURE_TXT",
       "guid": "67cd15ac-ff99-5877-9273-a549fbbf6a68",
       "description": "Board enclosure / mounting type (Floor Standing / Wall Mounted / Din Rail); written by the PNLS panel card save (Panel_WriteParams), shown beside the IP rating in the STING panel schedule header. Not an IP code.",
