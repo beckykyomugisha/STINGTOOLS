@@ -1910,10 +1910,12 @@ namespace StingTools.Temp
         /// <summary>
         /// "Create 4 exterior elevations", as drawing-type views: the elevation type the
         /// architectural discipline routes to, one view per face (N / E / S / W) around
-        /// the walls' extent, presented and stamped with the type and the context tag
-        /// "exterior::face::&lt;face&gt;" that DOCS → Exterior Elevations stamps. A face
-        /// that already has such a view is reused, not duplicated. Views only: sheets
-        /// for elevations are laid out by DOCS → Exterior Elevations.
+        /// the walls' extent. DTW-80: produced by the same routine DOCS → Exterior
+        /// Elevations runs (ProduceExteriorElevationsCommand.Produce), views only, so each
+        /// face carries the producer's own context tag "Exterior-&lt;Face&gt;" and either
+        /// path reuses the other's views. A view stamped with the raw tag the wizard used
+        /// to write ("exterior::face::&lt;Face&gt;") is adopted, not duplicated. Sheets for
+        /// elevations are laid out by DOCS → Exterior Elevations.
         /// </summary>
         private static Result ProduceExteriorElevations(Document doc, StringBuilder detail)
         {
@@ -1923,103 +1925,47 @@ namespace StingTools.Temp
                 detail.AppendLine("      No exterior elevation drawing type routes from A / ELEVATION — nothing produced (add a routing rule).");
                 return Result.Failed;
             }
-            var walls = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls)
-                .WhereElementIsNotElementType().ToList();
-            double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
-            foreach (var w in walls)
+            // The markers' host: a level with a floor plan, the one nearest ground — the
+            // rule DOCS → Exterior Elevations applies to the levels ticked there.
+            var host = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
+                .Where(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan && v.GenLevel != null)
+                .Select(v => v.GenLevel)
+                .OrderBy(l => Math.Abs(l.Elevation)).ThenBy(l => l.Elevation)
+                .FirstOrDefault();
+            if (host == null)
             {
-                var wbb = w.get_BoundingBox(null);
-                if (wbb == null) continue;
-                minX = Math.Min(minX, wbb.Min.X); minY = Math.Min(minY, wbb.Min.Y);
-                maxX = Math.Max(maxX, wbb.Max.X); maxY = Math.Max(maxY, wbb.Max.Y);
+                detail.AppendLine("      No floor plan to host the elevation markers — produce the plans first.");
+                return Result.Failed;
             }
-            if (minX > maxX)
+
+            var opts = new Core.Drawing.ProduceOptions
             {
-                detail.AppendLine("      No walls in the model — the building's extent cannot be found, nothing produced.");
+                CreateSheet = false,
+                PlaceOnSheet = false,
+                RunAnnotation = true,
+                Idempotent = true,
+            };
+            int views = 0, sheets = 0;
+            var warnings = new List<string>();
+            detail.AppendLine($"      A / ELEVATION → {dt.Id} (markers on {host.Name})");
+            Core.Drawing.DrawingTypePresentation.Prewarm(doc);
+            string blocker;
+            using (Core.Drawing.DrawingProducer.PrimeBatchScope(doc))
+                blocker = Commands.Drawing.ProduceExteriorElevationsCommand.Produce(
+                    doc, new List<Core.Drawing.DrawingType> { dt }, host,
+                    new Core.Drawing.ElevationProductionConfig(), opts, dt.PackageId,
+                    ref views, ref sheets, warnings);
+            if (blocker != null)
+            {
+                detail.AppendLine($"      {blocker}");
+                AppendWarnings(detail, warnings, "elevations");
                 return Result.Cancelled;
             }
-            var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
-                .Where(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan && v.GenLevel != null)
-                .OrderBy(v => v.GenLevel.Elevation).FirstOrDefault();
-            if (ownerPlan == null)
-            {
-                detail.AppendLine("      No floor plan to host the elevation marker — produce the plans first.");
-                return Result.Failed;
-            }
-            var vft = Core.Drawing.DrawingProducer.ResolveNamedViewFamilyType(
-                doc, ViewFamily.Elevation, dt.ViewFamilyTypeName, out var vftWhy);
-            if (vft == null)
-            {
-                detail.AppendLine("      No elevation view type in the project — nothing produced.");
-                return Result.Failed;
-            }
 
-            var cfg = new Core.Drawing.ElevationProductionConfig();
-            double off = cfg.OffsetMm / 304.8;
-            var faces = new (string Face, int Index, XYZ Origin)[]
-            {
-                ("North", 0, new XYZ((minX + maxX) / 2, maxY + off, 0)),
-                ("East",  1, new XYZ(maxX + off, (minY + maxY) / 2, 0)),
-                ("South", 2, new XYZ((minX + maxX) / 2, minY - off, 0)),
-                ("West",  3, new XYZ(minX - off, (minY + maxY) / 2, 0)),
-            };
-
-            var existing = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
-                .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation
-                    && string.Equals(ParameterHelpers.GetString(v, Core.Drawing.DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), dt.Id, StringComparison.OrdinalIgnoreCase))
-                .Select(v => ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? "")
-                .ToHashSet(StringComparer.Ordinal);
-
-            int made = 0, reused = 0;
-            var warnings = new List<string>();
-            if (vftWhy != null) warnings.Add($"{dt.Id}: {vftWhy}");
-            detail.AppendLine($"      A / ELEVATION → {dt.Id}");
-            Core.Drawing.DrawingTypePresentation.Prewarm(doc);
-            using (var tg = new TransactionGroup(doc, "STING Project Setup — Exterior Elevations"))
-            {
-                tg.Start();
-                foreach (var f in faces)
-                {
-                    string ctxTag = $"exterior::face::{f.Face}";
-                    if (existing.Contains(ctxTag)) { reused++; continue; }
-                    using (var t = new Transaction(doc, $"STING Exterior Elevation {f.Face}"))
-                    {
-                        t.Start();
-                        try
-                        {
-                            var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, f.Origin, dt.Scale > 0 ? dt.Scale : 100);
-                            var view = marker.CreateElevation(doc, ownerPlan.Id, f.Index);
-                            try { view.Name = $"Exterior Elevation - {f.Face} - {dt.Name}"; }
-                            catch (Exception ex) { StingLog.Warn($"Project Setup elevation name: {ex.Message}"); }
-                            var far = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
-                            if (far != null && !far.IsReadOnly) far.Set(cfg.FarClipMm / 304.8);
-                            var ar = Core.Drawing.DrawingTypePresentation.Apply(doc, view, dt,
-                                new Core.Drawing.DrawingTypePresentation.ApplyOptions
-                                {
-                                    AnnotationOptions = new Core.Drawing.AnnotationRunOptions { ViewScale = view.Scale },
-                                    SkipSymbolDriftCheck = true
-                                });
-                            warnings.AddRange(ar.Warnings);
-                            Core.Drawing.DrawingTypeStamper.Stamp(view, dt.Id);
-                            Core.Drawing.DrawingTypeStamper.StampPackage(view, dt.PackageId ?? "");
-                            ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, ctxTag, overwrite: true);
-                            if (t.Commit() == TransactionStatus.Committed) made++;
-                            else warnings.Add($"{f.Face}: the transaction did not commit.");
-                        }
-                        catch (Exception ex)
-                        {
-                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();
-                            warnings.Add($"{f.Face}: {ex.Message} — rolled back.");
-                        }
-                    }
-                }
-                tg.Assimilate();
-            }
-
-            detail.AppendLine($"      {made} elevation(s) made, {reused} already there and reused. " +
+            detail.AppendLine($"      {views} elevation view(s) (existing stamped views reused, not duplicated). " +
                               "Views only — lay out elevation sheets with DOCS → Exterior Elevations.");
             AppendWarnings(detail, warnings, "elevations");
-            return made + reused > 0 ? Result.Succeeded : Result.Failed;
+            return views > 0 ? Result.Succeeded : Result.Failed;
         }
 
         /// <summary>The first drawing type (of <paramref name="purpose"/>) that one of the disciplines routes <paramref name="docType"/> to.</summary>
