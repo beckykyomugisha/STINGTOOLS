@@ -16,7 +16,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
    DTW-63. Then update guide §C7 with the preset params from `fix/review-headless`
    (params table in its commit 20f2782c6) once `fix/dt-ui` has merged, since it edits the
    guide.
-3. Open the PR, merge it, and redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by
+3. PR #1021 is open (draft). When all branches are merged and CI is green: mark it ready, merge it, and redeploy. The live plugin is `C:\Dev\STING_KUT_LIVE`, owned by
    the ACC session: merge `main` into `claude/kut-combined-acc-tags`, or ask that session to.
 
 ## State (2026-10-01)
@@ -48,14 +48,14 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | 6 | Match lines pair across disciplines; area boxes get none | Closed: `MatchLineGeometry` pairs by type and level, area boxes included |
 | 7 | Producers not headless; three MEP presets | Closed: `RunInWorkflow` paths; the three presets exist |
 | 8 | Setup Wizard: level names, unstamped duplicates, rename pattern | Closed: `LevelNameAdvice`, `ScopeBoxRenamePattern`, wizard goes through `DrawingProducer` |
-| 9 | Planner offers only Plan/RCP; coordination types need a route | **Open**: see Findings |
+| 9 | Planner offers only Plan/RCP; coordination types need a route | Closed: coordination is an area candidate; section types cut along the box, 3D types are boxed (DTW-52) |
 | 10 | ZONE from STING-ZONE:: boxes | Closed: `ScopeBoxNames`, `ParameterHelpers` |
 
 ## Findings
 
 | Id | Where | Sev | Finding | Plan | Status |
 |---|---|---|---|---|---|
-| DTW-1 | Scope-box planner | Medium | Offers Plan/RCP types only; coordination and section types have no route through area boxes | Coordination is already an area candidate (D-7). Section types follow the box as DTW-52 | In progress |
+| DTW-1 | Scope-box planner | Medium | Offers Plan/RCP types only; coordination and section types have no route through area boxes | Coordination types are area candidates (D-7); section/3D types follow the box (DTW-52, merged) | Done |
 | DTW-2 | ManagedTemplateSyncer.cs:319 | High | Cached managed template returned without a checksum compare; Reloads never invalidate, so pack edits never reach STING:* templates | Merged 2a8a1845b | Done |
 | DTW-3 | BatchProduceCommands.cs:901 | High | Regenerate templates uses raw packs (no extends merge), losing inherited overrides/filters | Merged 2a8a1845b | Done |
 | DTW-4 | DrawingSyncStylesCommand.cs:94 | High | Sheet drift reported but never healed (no ViewSheet branch) | Merged 2a8a1845b | Done |
