@@ -61,6 +61,36 @@ namespace StingTools.Tags.Tests
             Assert.Empty(offenders);
         }
 
+        // ── DTW-15: title-block numbers are compared culture-free, in the named unit ──
+
+        [Theory]
+        [InlineData("2.5", "2.500")]
+        [InlineData("3000", "3000.0000001")]
+        [InlineData("", "0")]
+        public void NumericText_SameValue_IsEqual(string a, string b)
+            => Assert.True(DrawingQaRules.NumericTextEquals(a, b));
+
+        [Theory]
+        [InlineData("2.5", "25")]      // a comma-decimal culture used to read "2.5" as 25
+        [InlineData("3000", "9.84252")] // mm vs feet
+        [InlineData("2,5", "2.5")]     // not an invariant number
+        [InlineData("abc", "abc")]
+        public void NumericText_DifferentOrUnparsable_IsNotEqual(string a, string b)
+            => Assert.False(DrawingQaRules.NumericTextEquals(a, b));
+
+        [Fact]
+        public void NumericText_IgnoresThreadCulture()
+        {
+            var prior = System.Globalization.CultureInfo.CurrentCulture;
+            try
+            {
+                System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+                Assert.True(DrawingQaRules.TryParseInvariant("2.5", out var v));
+                Assert.Equal(2.5, v);
+            }
+            finally { System.Globalization.CultureInfo.CurrentCulture = prior; }
+        }
+
         private static string RepoRoot()
         {
             var dir = new System.IO.DirectoryInfo(System.AppContext.BaseDirectory);

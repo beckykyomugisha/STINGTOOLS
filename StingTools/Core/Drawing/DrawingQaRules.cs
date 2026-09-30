@@ -40,5 +40,24 @@ namespace StingTools.Core.Drawing
             return string.Equals(k, "Sheet Number", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(k, "Sheet Name", StringComparison.OrdinalIgnoreCase);
         }
+
+        /// <summary>
+        /// DTW-15: do two invariant number texts ("2.5", "2.500") name the same
+        /// value? Culture-free, so a comma-decimal machine does not read "2.5" as
+        /// 25. Empty text equals zero — the applier writes 0 for an empty cell.
+        /// False when either side is not a number.
+        /// </summary>
+        internal static bool NumericTextEquals(string a, string b)
+        {
+            if (!TryParseInvariant(a, out var x) || !TryParseInvariant(b, out var y)) return false;
+            return Math.Abs(x - y) <= 1e-6 * Math.Max(1.0, Math.Max(Math.Abs(x), Math.Abs(y)));
+        }
+
+        internal static bool TryParseInvariant(string text, out double value)
+        {
+            if (string.IsNullOrWhiteSpace(text)) { value = 0; return true; }
+            return double.TryParse(text.Trim(), System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out value);
+        }
     }
 }

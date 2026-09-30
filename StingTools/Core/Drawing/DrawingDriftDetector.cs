@@ -679,7 +679,11 @@ namespace StingTools.Core.Drawing
                                     actual = p.AsInteger() != 0 ? "Yes" : "No";
                                 break;
                             case StorageType.Double:
-                                actual = p.AsDouble().ToString("0.###", CultureInfo.InvariantCulture);
+                                // DTW-15: the applier writes in the unit the name
+                                // states, so compare in that unit — raw AsDouble()
+                                // is feet for a LENGTH and would drift forever.
+                                actual = ParameterHelpers.GetValueText(tb, paramName);
+                                if (DrawingQaRules.NumericTextEquals(actual, expectedVal)) actual = expectedVal;
                                 break;
                             case StorageType.ElementId:
                                 var eid = p.AsElementId();

@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
@@ -166,26 +167,38 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"Parameter '{paramName}' is read-only.");
                         continue;
                     }
+                    bool written;
                     switch (p.StorageType)
                     {
                         case StorageType.String:
                             // ACC-07: always set, even for empty string,
                             // so cloned/template sheets reset stale text.
-                            p.Set(resolved ?? string.Empty);
+                            written = p.Set(resolved ?? string.Empty);
                             break;
                         case StorageType.Integer:
-                            if (string.IsNullOrEmpty(resolved)) p.Set(0);
-                            else if (int.TryParse(resolved, out var iv)) p.Set(iv);
-                            else r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable.");
+                            if (string.IsNullOrEmpty(resolved)) written = p.Set(0);
+                            else if (int.TryParse(resolved, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv)) written = p.Set(iv);
+                            else { r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable."); continue; }
                             break;
                         case StorageType.Double:
-                            if (string.IsNullOrEmpty(resolved)) p.Set(0.0);
-                            else if (double.TryParse(resolved, out var dv)) p.Set(dv);
-                            else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
+                            // DTW-15: parse invariant (a comma-decimal culture read
+                            // "2.5" as 25), and write in the unit the parameter's name
+                            // states — a LENGTH set raw stored feet (3000 → 3000 ft).
+                            if (string.IsNullOrEmpty(resolved))
+                                written = ParameterHelpers.SetDoubleInNamedUnit(tb, paramName, 0.0);
+                            else if (double.TryParse(resolved, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv))
+                                written = ParameterHelpers.SetDoubleInNamedUnit(tb, paramName, dv);
+                            else { r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable."); continue; }
                             break;
                         default:
                             r.Warnings.Add($"'{paramName}' has unsupported storage type {p.StorageType}.");
                             continue;
+                    }
+                    if (!written)
+                    {
+                        // A refused write used to be counted as written.
+                        r.Warnings.Add($"'{paramName}': Revit did not accept '{resolved}'.");
+                        continue;
                     }
                     r.ParamsWritten++;
                 }
@@ -373,12 +386,18 @@ namespace StingTools.Core.Drawing
                 switch (p.StorageType)
                 {
                     case StorageType.String:  return p.AsString();
-                    case StorageType.Integer: return p.AsInteger().ToString();
-                    case StorageType.Double:  return p.AsDouble().ToString("0.###");
+                    case StorageType.Integer: return p.AsInteger().ToString(CultureInfo.InvariantCulture);
+                    // DTW-15: raw AsDouble() is internal units (a LENGTH in feet);
+                    // GetValueText gives the value in the unit the name states.
+                    case StorageType.Double:  return ParameterHelpers.GetValueText(pi, name);
                     default: return p.AsValueString();
                 }
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: Project Information '{name}' unreadable — cell left alone: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
