@@ -17,28 +17,31 @@
     },
     {
       "commandTag": "ScopeBox_ProduceAreas",
-      "label": "Produce MEP plans from the area boxes in the saved Scope Box Planner plan (fails if there is no plan)",
+      "label": "Produce MEP plans from the Scope Box Planner area boxes (runs only when the project has STING-AREA:: boxes)",
       "optional": true,
       "params": {
         "output": "Views and sheets",
         "duplicateOption": "Duplicate"
-      }
+      },
+      "condition": "has_area_boxes"
     },
     {
       "commandTag": "DrawingTypes_ProduceFromScopeBoxes",
-      "label": "Produce from STING::<type>::<level>::<zone> scope boxes (fails if there are none)",
+      "label": "Produce from STING::<type>::<level>::<zone> scope boxes (runs only when there are some)",
       "optional": true,
       "params": {
         "output": "Views and sheets"
-      }
+      },
+      "condition": "has_sting_boxes"
     },
     {
       "commandTag": "DrawingTypes_ProducePerLevel",
-      "label": "Produce whole-floor MEP plans per level (every M/E/P/FP/MG Plan type unless params.drawingTypes names them) — delete this step if the project is drawn by area boxes",
+      "label": "Produce whole-floor MEP plans per level (runs only when the project has no area boxes; every M/E/P/FP/MG Plan type unless params.drawingTypes names them)",
       "optional": true,
       "params": {
         "output": "Views and sheets"
-      }
+      },
+      "condition": "no_area_boxes"
     },
     {
       "commandTag": "MatchLine_Generate",
@@ -67,6 +70,6 @@
   "_notes": [
     "Step params: drawingTypes (comma list of ids; default every M, E, P, FP, MG Plan type), levels (comma list of level names; default all), output ('Views and sheets' | 'Views only'), duplicateOption ('Duplicate' | 'DuplicateAsDependent' | 'DuplicateWithDetailing'), packageId.",
     "An unknown drawing type or level, or an unreadable output / duplicateOption, fails the step with the reason in the workflow report.",
-    "Area boxes and per-level production both make sheets. Keep the route the project uses and delete the other step."
+    "The production route is chosen by condition: area boxes when the project has STING-AREA:: boxes, whole-floor per level otherwise, and STING:: boxes whenever any exist."
   ]
 }

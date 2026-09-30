@@ -686,6 +686,15 @@ namespace StingTools.Core
                         {
                             if (!cachedHasStale()) { RecordSkip("no stale elements"); continue; }
                         }
+                        // Drawing production routes: a project drawn by the Scope Box Planner's
+                        // area boxes, by STING:: boxes, or per level. Lets one preset carry every
+                        // route and run only the one the project uses.
+                        if (cond == "has_area_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.Area) == 0)
+                        { RecordSkip("no STING-AREA:: scope boxes"); continue; }
+                        if (cond == "no_area_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.Area) > 0)
+                        { RecordSkip("the project is drawn by area boxes"); continue; }
+                        if (cond == "has_sting_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.DrawingType) == 0)
+                        { RecordSkip("no STING:: scope boxes"); continue; }
                         // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
@@ -2565,8 +2574,20 @@ namespace StingTools.Core
             "has_container_gaps", "has_critical_warnings", "has_links", "has_open_issues",
             "has_overdue_issues", "has_placeholders", "has_stale",
             "has_unclassed_materials", "has_uncoded_materials", "has_untagged",
-            "has_warnings",
+            "has_warnings", "has_area_boxes", "no_area_boxes", "has_sting_boxes",
         };
+
+        /// <summary>Scope boxes of one STING kind in the document (0 on any read failure, logged).</summary>
+        private static int CountScopeBoxes(Document doc, Drawing.ScopeBoxKind kind)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .OfCategory(BuiltInCategory.OST_VolumeOfInterest).WhereElementIsNotElementType()
+                    .Count(e => Drawing.ScopeBoxNames.Classify(e.Name) == kind);
+            }
+            catch (Exception ex) { StingLog.Warn($"Workflow condition scope-box count: {ex.Message}"); return 0; }
+        }
 
         /// <summary>Evaluate a single named condition against the current document state.</summary>
         private static bool EvaluateSingleCondition(Document doc, string condition,
