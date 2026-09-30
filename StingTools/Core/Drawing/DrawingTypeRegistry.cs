@@ -264,6 +264,14 @@ namespace StingTools.Core.Drawing
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
                 if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
             }
+            // DTW-2 / DTW-8: the presentation caches (view-template ids,
+            // including negative "no such template" entries, and resolved packs)
+            // and the managed-template cache were documented as cleared here but
+            // never were — InvalidateResolvedCache had no callers. Reload also
+            // runs on document close, so this covers that trigger too.
+            InvalidateResolvedCache(doc);
+            try { ManagedTemplateSyncer.InvalidateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"DrawingTypeRegistry.Reload: managed-template cache not cleared -- pack edits may not reach STING:* templates: {ex.Message}"); }
             // Phase 183 — snapshot + diff the new library against the
             // previous load so Inspect / SyncStyles can surface "X
             // profiles changed since last reload" without the user

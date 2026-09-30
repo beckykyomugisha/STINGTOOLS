@@ -786,10 +786,11 @@ namespace StingTools.Core.Drawing
 
         // ── Additional API surface used by drawing-type machinery ─────────
 
-        /// <summary>Invalidate any internal caches (currently a no-op — state is
-        /// held per-call, not statically). Provided for callers that follow the
-        /// invalidate-then-apply pattern.</summary>
-        public static void InvalidateCache() { }
+        /// <summary>DTW-10: drop the filter / fill-pattern resolver indexes for every
+        /// document. This was an empty stub claiming no static state existed, so
+        /// AecFilters_Create and AecFilters_Reload — its only callers — left the
+        /// per-document index serving ids from before their run.</summary>
+        public static void InvalidateCache() => InvalidateAllResolverCaches();
 
         /// <summary>Read the category VG override map from the pack into a plain
         /// dictionary (key = category key, value = the raw override object).

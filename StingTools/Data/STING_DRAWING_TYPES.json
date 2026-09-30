@@ -61,7 +61,7 @@
       "id": "arch-plan-A1-1to100",
       "name": "Architectural Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "4631f17fff518d44324faa8e1daf0422cda826c9fc40da42fc04bb0ece2a9cbe",
+      "checksum": "35fad391a076d2c513f2151b8b1a6203484083a8e5fb5c41e45de4969e418d66",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -216,10 +216,8 @@
         "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "A-{lvl}-{seq:D3}"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -239,7 +237,7 @@
       "id": "arch-rcp-A1-1to100",
       "name": "Architectural RCP — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "9df9dccf821377944215aab4c49f4315487fd05eb072ea9ab07735a1bebd1b69",
+      "checksum": "045128aff5c1b8ff2112883ecfb290c8f1beff127b4c5d65e7eb469a844b24e1",
       "purpose": "RCP",
       "discipline": "A",
       "paperSize": "A1",
@@ -355,9 +353,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural rcp on A1 at 1:100.",
       "orientation": "Landscape",
@@ -380,7 +377,7 @@
       "id": "arch-section-A1-1to50",
       "name": "Architectural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "23d3bbdddd3e775d3f0c195ccd6448be58d7e02ff3b8adac4f02feffb12e0153",
+      "checksum": "bdf7ffd44c292a3e050b9df11998d6c3312a3610e013c5ac89917b0a5bafd429",
       "purpose": "Section",
       "discipline": "A",
       "paperSize": "A1",
@@ -509,9 +506,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural section on A1 at 1:50.",
       "orientation": "Landscape",
@@ -528,7 +524,7 @@
       "id": "arch-elev-A1-1to100",
       "name": "Architectural Elevation — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "7700bd5dcf01a7527e5df8d35deb8916161c9aa16cca748920b4eb075874768d",
+      "checksum": "aa6ed6f19298124180a765578225a809dcd2db140ecf999e09464a624c7d4b43",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -657,9 +653,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural elevation on A1 at 1:100.",
       "orientation": "Landscape",
@@ -683,7 +678,7 @@
       "id": "arch-detail-A3-1to20",
       "name": "Architectural Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "fe8973138cb482d54ffce3a3d1ce457a5dcb82108ea3a38f7556950e658626ae",
+      "checksum": "ab4d4f9ddcb19f172c785c2ecb4ec53d9172a01c74b184a722929799280db499",
       "purpose": "Detail",
       "discipline": "A",
       "paperSize": "A3",
@@ -820,9 +815,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -834,7 +828,7 @@
       "id": "struct-plan-A1-1to100",
       "name": "Structural Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "0b1df41d1d46b460eb6b3d22911ef74d75d64dcba3a4771d99e3db898a17ad3a",
+      "checksum": "be53187604c75a8d2cef6c44f4606d8f9a18cf986f1dab93e553a2ae7258d59b",
       "purpose": "Plan",
       "discipline": "S",
       "paperSize": "A1",
@@ -935,9 +929,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Structural plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -954,7 +947,7 @@
       "id": "struct-section-A1-1to50",
       "name": "Structural Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "ced768a4f58494588ad84bbc16a064c45de9b7e82cab267527e3fc5dd5cc706e",
+      "checksum": "20fdcf69535b3d191581b443e2ae86f36ad18d1fd067fd6e8684e0d75d4ec854",
       "purpose": "Section",
       "discipline": "S",
       "paperSize": "A1",
@@ -1056,9 +1049,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Structural section on A1 at 1:50.",
       "orientation": "Landscape",
@@ -1083,7 +1075,7 @@
       "id": "mep-plan-A1-1to100",
       "name": "MEP Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "a87d7b97682e87915c204daf90cf1cadec03005153380c9ec25961efa06766e3",
+      "checksum": "549cb363c784ee6189965b06dfb14ac54b330db4666d6e9ca37a73adb8d8860d",
       "purpose": "Plan",
       "discipline": "M",
       "paperSize": "A1",
@@ -1224,9 +1216,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Mechanical plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -1242,7 +1233,7 @@
       "id": "mep-coord-A1-1to50",
       "name": "MEP Coordination — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "5295294d4dfc273bb1f8f2b56b069fbe76573a7cd940ca4ba57f1ee829f14b9f",
+      "checksum": "5f5e2953f5ec73a53382afd8a746ef4b98d4ae0c9e275bea3225b36ca1630d45",
       "purpose": "Coordination",
       "discipline": "M",
       "paperSize": "A1",
@@ -1402,9 +1393,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Mechanical coordination on A1 at 1:50.",
       "orientation": "Landscape",
@@ -1422,7 +1412,7 @@
       "id": "pipe-spool-A1-1to50",
       "name": "Pipe Spool — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "6f4b6b8220762d10f15752f0f83211cf039c3f1866d19896b2245dae6066cd34",
+      "checksum": "184b42631263a75b1228820962a3e9e219495ae5eb2e0c909412e3e4cd11c244",
       "purpose": "Spool",
       "discipline": "P",
       "paperSize": "A1",
@@ -1579,8 +1569,7 @@
         "Sheet Status": "FOR FABRICATION",
         "Spool Number": "{spool}",
         "System Code": "{sys}",
-        "Level Code": "{lvl}",
-        "Sheet Number": "SP-{disc}-{sys}-{lvl}-{seq:D4}"
+        "Level Code": "{lvl}"
       },
       "isoNaming": {
         "volume": "02",
@@ -1603,7 +1592,7 @@
       "id": "duct-spool-A1-1to50",
       "name": "Duct Spool — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "b174a82be30cabe6155513fe7a692e5b894258a2df1f593f3fade72a3532e8e2",
+      "checksum": "789b8186a478a67d0aa7b75d7d15c0f1ed14ae4146adf936328b12771ff2c9f7",
       "purpose": "Spool",
       "discipline": "M",
       "paperSize": "A1",
@@ -1751,9 +1740,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -1781,7 +1769,7 @@
       "id": "elec-riser-A3-1to200",
       "name": "Electrical Riser — A3 @ 1:200",
       "origin": "corporate",
-      "checksum": "fe8689af4f95031290f713c6d157dd8e70d2ac0c63b27fd76cceac41ccd4ef4c",
+      "checksum": "53b65794ff66e6e0be7646d2257b1c1284cf00d4a7573e02fe33c6efe2a05c63",
       "purpose": "Section",
       "discipline": "E",
       "paperSize": "A3",
@@ -1891,9 +1879,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Electrical section on A3 at 1:200.",
       "orientation": "Landscape",
@@ -1923,7 +1910,7 @@
       "id": "door-schedule-A3",
       "name": "Door Schedule — A3",
       "origin": "corporate",
-      "checksum": "d3998086aefb3dca6e251c9865a264f1293ce8f12e491578b6019005a6761a62",
+      "checksum": "27b4a58dcf17db175f5da0cad32fdf87eecf79f8370201e990bb2cb1e75e8874",
       "purpose": "Schedule",
       "discipline": "A",
       "paperSize": "A3",
@@ -1993,9 +1980,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -2007,7 +1993,7 @@
       "id": "handover-A1",
       "name": "Handover Sheet — A1",
       "origin": "corporate",
-      "checksum": "4f5108065a7a5b0af16d7b4425b1f7434b2171e9a3cc328fd119da7c17b27164",
+      "checksum": "1d5cf728afdb4c70cb0300274701d6acc298ca206432bcdb558236bee7569ff3",
       "purpose": "Plan",
       "discipline": "*",
       "paperSize": "A1",
@@ -2090,9 +2076,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Multi-Discipline plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -2115,7 +2100,7 @@
       "id": "legend-A3",
       "name": "Legend Sheet — A3",
       "origin": "corporate",
-      "checksum": "c3bd4c2b6f031c43b88f723dabdee061c3025c37b3f5bb2a90b25b2b20a6af25",
+      "checksum": "28afc943f7fb8d3d9832bcc1154ec9919d2284417b70d6c86e7c892b2255dc3e",
       "purpose": "Legend",
       "discipline": "*",
       "paperSize": "A3",
@@ -2185,9 +2170,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -2199,7 +2183,7 @@
       "id": "arch-site-A1-1to500",
       "name": "Site / Location Plan — A1 @ 1:500",
       "origin": "corporate",
-      "checksum": "d3abc927754a571d06be4a6ceaa1a5fac359ffd452d9ec970a6da3c68b832a33",
+      "checksum": "6dfa4b065f4caeaa2b04d3a91eb0a376181a3a3c61a09d0de70c15894bff314c",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2284,9 +2268,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural plan on A1 at 1:500.",
       "orientation": "Landscape",
@@ -2309,7 +2292,7 @@
       "id": "arch-roof-A1-1to100",
       "name": "Architectural Roof Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "e283cfe788dfc34203661a64c30bfdb337c50d4db3fe624a7698a8e2d203773b",
+      "checksum": "352538d7a3767142ac18468d77701f09e6d5cf9fe1ef08b83e8bb9bc41ece666",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2408,9 +2391,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -2433,7 +2415,7 @@
       "id": "arch-floor-finishes-A1-1to100",
       "name": "Floor Finishes Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "bf09b70b38a662525a5f7073e632f18b3b733721a4f5c3023a977287e306a3de",
+      "checksum": "db3b7f1ad71c36691fad9e865a2ac1d1a63c2e652e64b4db0bc6cbcf334315b9",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2530,9 +2512,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -2555,7 +2536,7 @@
       "id": "arch-fire-strategy-A1-1to100",
       "name": "Fire Strategy Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "aa20925f1abd418f5aa4526beb6bf76373979e3d68cf60cc00979e911fbaaabd",
+      "checksum": "a904781c6eb29a67ebfaad7629149dafbe1c1e6e9d213d942f10f1ba18212936",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2648,9 +2629,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -2673,7 +2653,7 @@
       "id": "arch-accessibility-A1-1to100",
       "name": "Accessibility Plan (Part M) — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "6c7fdc71f7578077d02cd1c528979bf5e88a99146beab272d803092302b634d6",
+      "checksum": "af471fc037624316725b442181e15b1089efb915a035178c73d541a5018842c7",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2776,9 +2756,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -2801,7 +2780,7 @@
       "id": "arch-interior-elev-A1-1to50",
       "name": "Interior Elevation — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "e31dc6e3933c7377002ca6ec6ab1d8156019999dd85e4520b287131b9805a1e4",
+      "checksum": "9e207fcd0e91ad23bf3f922e4be4aa636fb174452a0b20de0dbfde2798fc686f",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -2925,9 +2904,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural elevation on A1 at 1:50.",
       "orientation": "Landscape",
@@ -2951,7 +2929,7 @@
       "id": "arch-window-schedule-A3",
       "name": "Window Schedule — A3",
       "origin": "corporate",
-      "checksum": "6a1fd4e377fd6b5ffd2c0558d313171804eddb50c8c5b4f34f56b0137bf89422",
+      "checksum": "7e445bb0d10630b290c80c362786309bdd7c8d76d3c8eba4c230ec375644fa87",
       "purpose": "Schedule",
       "discipline": "A",
       "paperSize": "A3",
@@ -3021,9 +2999,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -3035,7 +3012,7 @@
       "id": "struct-foundation-A1-1to100",
       "name": "Foundation Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "6637959d792f04056270abd9bcf6c94a74b5f311fb0ada2a89b4e86dcbf3fa3c",
+      "checksum": "6ea5925a9672704499d44915c2e6e2a57247cc39c42be406b16be5ff8445b054",
       "purpose": "Plan",
       "discipline": "S",
       "paperSize": "A1",
@@ -3135,9 +3112,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Structural plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -3161,7 +3137,7 @@
       "id": "struct-rebar-detail-A3-1to20",
       "name": "Rebar Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "cca6f87f486e5540000dfca8e791bc8e784cf8e903c6062ad89b2823e5ef4012",
+      "checksum": "bfb789dbe19f04011c51950f1c66a62efc59d8476a1435a4da85f158fdc1f9aa",
       "purpose": "Detail",
       "discipline": "S",
       "paperSize": "A3",
@@ -3254,9 +3230,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Structural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -3270,7 +3245,7 @@
       "system": "HVAC",
       "name": "HVAC Duct Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "85f4f9a80f9a960b9821c547a385ec6de4b697e8f9947b2fce3ed596d927e090",
+      "checksum": "74b0de2ac7934cba7a59eaca6659642061523fdee31d5c2f8736db5a7d23bc58",
       "purpose": "Plan",
       "discipline": "M",
       "paperSize": "A1",
@@ -3404,9 +3379,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Mechanical plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -3429,7 +3403,7 @@
       "id": "mep-plantroom-A1-1to50",
       "name": "Plant Room Plan — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "00c4e4446762acb93b7a06dc7245345e898102233524ba3882d8939b08e1fdaf",
+      "checksum": "e027b4ec4a753da200b609cbf1fb7e1c389e707db6e8c4a00c4a6c0aa83dca12",
       "purpose": "Plan",
       "discipline": "M",
       "paperSize": "A1",
@@ -3575,9 +3549,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Mechanical plan on A1 at 1:50.",
       "orientation": "Landscape",
@@ -3601,7 +3574,7 @@
       "system": "LV",
       "name": "Electrical Power Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "3686fb68d1c4990c20123665574f3c8b2377987ddbd85addd7bf255965aca13e",
+      "checksum": "9d3cdde6ba70dff2c9f498638e36587d54fe37bc2d2dc2c08f51115c03149f93",
       "purpose": "Plan",
       "discipline": "E",
       "paperSize": "A1",
@@ -3719,9 +3692,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Electrical plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -3738,7 +3710,7 @@
       "system": "LTG",
       "name": "Lighting Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "3f930364ad26ad21c9ae380e8e8d314bf37a80469cc6ed53c5ff05ec623f22c3",
+      "checksum": "a68e61785a1971b6d7cbb6dcae89faf167742edce3fe73ff0d10751f6be52f52",
       "purpose": "Plan",
       "discipline": "E",
       "paperSize": "A1",
@@ -3849,9 +3821,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Electrical plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -3874,7 +3845,7 @@
       "id": "elec-fire-alarm-A1-1to100",
       "name": "Fire Alarm Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "0b008c0f484d611216add42765fce85fb41a906807bc9a9c514fa2a300e7788c",
+      "checksum": "00333cd6621e50ca622d9689820f4f32037eda943b8177c8fc2dbe07b3c53cae",
       "purpose": "Plan",
       "discipline": "E",
       "paperSize": "A1",
@@ -3991,9 +3962,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Electrical plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -4016,7 +3986,7 @@
       "id": "fire-sprinkler-layout-A1-1to100",
       "name": "Sprinkler Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "4cb37a61019dc2f57713347fe04f5b8a77950074b765ac3eadbf1206bf38f2ae",
+      "checksum": "a275e72c4cd70e00f54789fa974647a0c25247622825566c5f70ef02c3ab3737",
       "purpose": "Plan",
       "discipline": "FP",
       "paperSize": "A1",
@@ -4121,9 +4091,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Fire Protection",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Fire suppression (sprinkler) plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -4146,7 +4115,7 @@
       "id": "fire-section-A1-1to50",
       "name": "Fire Suppression Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "abc2458796d3ce3aa82beeb3dd00c2667188d910865343a4311f026fe74950ac",
+      "checksum": "541a595159c3e9381a2b53a8bb148d0b1d8fa1e8bf7a7f73da1c36e70e726f2b",
       "purpose": "Section",
       "discipline": "FP",
       "paperSize": "A1",
@@ -4252,9 +4221,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Fire Protection",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Fire suppression section on A1 at 1:50: sprinkler drops, deflector heights, riser.",
       "orientation": "Landscape",
@@ -4271,7 +4239,7 @@
       "id": "fire-detail-A3-1to20",
       "name": "Fire Suppression Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "b421398fa8afaa4b28203fe49c62054d2add677c4a0512bedae27ce717bc951a",
+      "checksum": "9699f3fb26220f44d520aaff3d3eebf8329acbbc6e19abd39ed60fc545f9c641",
       "purpose": "Detail",
       "discipline": "FP",
       "paperSize": "A3",
@@ -4406,9 +4374,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Fire Protection",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -4420,7 +4387,7 @@
       "id": "plumb-drainage-A1-1to100",
       "name": "Drainage Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "5cf03b0421d9da4c884527fed4760f9c2006596f3e79bec7cbf143c297138312",
+      "checksum": "6506e130845aa80c3732ba0a8ba264066ec4c42d0005b2e5229489b142cdd104",
       "purpose": "Plan",
       "discipline": "P",
       "paperSize": "A1",
@@ -4518,9 +4485,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -4543,7 +4509,7 @@
       "id": "fm-asset-location-A1-1to100",
       "name": "FM Asset Location Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "d4891c627f9c38d98e9433f8959cbd4058d8808661f9bdeb10d8e35624402414",
+      "checksum": "541c4eae8835fa1bcbd2be2ff1d4702671f20f2afc9ad46c31c660cb84dfdf5d",
       "purpose": "Plan",
       "discipline": "*",
       "paperSize": "A1",
@@ -4644,9 +4610,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Multi-Discipline plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -4664,7 +4629,7 @@
       "id": "coord-clash-A1-1to50",
       "name": "Coordination Clash Plan — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "9f44696be3e8847bce24aef85355e27881e2e80d268031ad447c32fe8e15bb51",
+      "checksum": "e8d27d38655783443c9c328b5214ec4a536b8f6bd6fea02c72931293441078f0",
       "purpose": "Coordination",
       "discipline": "*",
       "paperSize": "A1",
@@ -4816,9 +4781,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Multi-Discipline coordination on A1 at 1:50.",
       "orientation": "Landscape",
@@ -4960,7 +4924,7 @@
       "id": "pres-perspective-A1",
       "name": "Presentation Perspective — A1",
       "origin": "corporate",
-      "checksum": "7224c32c807dfc8012b2f930e1a60a88049698b265496c657f07de45484125d8",
+      "checksum": "b86c7aa40e7cbb1588754405abdf050adb8560bac03373bf17f08005f027fe76",
       "purpose": "3D",
       "discipline": "A",
       "paperSize": "A1",
@@ -5040,9 +5004,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural 3d on A1 at 1:100.",
       "orientation": "Landscape",
@@ -5060,7 +5023,7 @@
       "id": "pres-exterior-elev-A1",
       "name": "Presentation Exterior Elevation — A1",
       "origin": "corporate",
-      "checksum": "a552e4549d0b71125ad441695bb044692f795adc522fb6ecca52f05205f3ed58",
+      "checksum": "42bd6a25510089119980f27746701798bc615536718ad3448094e634f38e43db",
       "purpose": "Elevation",
       "discipline": "A",
       "paperSize": "A1",
@@ -5154,9 +5117,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural elevation on A1 at 1:100.",
       "orientation": "Landscape",
@@ -5175,7 +5137,7 @@
       "id": "pres-render-board-A1",
       "name": "Presentation Render Board — A1 (4-up)",
       "origin": "corporate",
-      "checksum": "7d77e5ead392e05cd723107ea649661cab00ca5842966d774b6c9d673b62f7ca",
+      "checksum": "f71e11bd79f5b622dc9b7a41b7884aed9eaeaaeb228cf87169c5ebc892012817",
       "purpose": "3D",
       "discipline": "A",
       "paperSize": "A1",
@@ -5262,9 +5224,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural 3d on A1 at 1:100.",
       "orientation": "Landscape",
@@ -5282,7 +5243,7 @@
       "id": "pres-context-site-A1",
       "name": "Presentation Context / Site — A1 @ 1:500",
       "origin": "corporate",
-      "checksum": "ae93129fd2d707ce6a5e367db81d1d37c1e5a9125ea24e8c7899f48007bd5c5d",
+      "checksum": "58dd51553b85533711f7bcbf1f3d43606768e4c6cd621016fda8e13fd2c8a084",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -5380,9 +5341,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural plan on A1 at 1:500.",
       "orientation": "Landscape",
@@ -5400,7 +5360,7 @@
       "id": "clar-markup-A1",
       "name": "Clarification / Markup Plan — A1",
       "origin": "corporate",
-      "checksum": "cee81b724df2ce37d27b89a8af5c1e6d1eaec80182e31fb2fd51298a07b37cfa",
+      "checksum": "095a747dce1c6c886c83ccb8f2880e9190ca1de56006c9ab322317fb4e9e0760",
       "purpose": "Clarification",
       "discipline": "A",
       "paperSize": "A1",
@@ -5482,9 +5442,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural clarification on A1 at 1:100.",
       "orientation": "Landscape",
@@ -5511,7 +5470,7 @@
       "id": "clar-rfi-A3",
       "name": "RFI Sketch — A3",
       "origin": "corporate",
-      "checksum": "ba76d4189e6c169ed30ef96822af7e96aae5878caf4f44649727d9a316e5571c",
+      "checksum": "5b308b235ffa1c155b85aac812e248b0d446ecd4b640ca7f7d7d09cbfd08092a",
       "purpose": "Clarification",
       "discipline": "*",
       "paperSize": "A3",
@@ -5600,9 +5559,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Multi-Discipline clarification on A3 at 1:50.",
       "orientation": "Landscape",
@@ -5620,7 +5578,7 @@
       "id": "clar-design-intent-A1",
       "name": "Design Intent Presentation — A1",
       "origin": "corporate",
-      "checksum": "595d2297b2404c4f933398fa16c5ddde11211a3b8dde014d1ccc32dc145ae36d",
+      "checksum": "693c9891c829393487c26ac0e0d521a69a10a6595e84f5b4c56767fa1bb1aed5",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -5716,9 +5674,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Architectural plan on A1 at 1:100.",
       "orientation": "Landscape",
@@ -5737,7 +5694,7 @@
       "name": "Setting Out / Dimensioned Plan — A1 @ 1:50",
       "description": "Construction setting-out plan. Ordinate dimensions from origin grid; gridlines and level annotations enabled; mono print.",
       "origin": "corporate",
-      "checksum": "0a49f6041e0184cde43dda87e951c16abfd94b32f2cdb4a9a1f1d0d5cbf1202d",
+      "checksum": "2ababff3f4611280a12ce421d58143ae29ae10246dfebf8a80917c57508ac076",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -5817,9 +5774,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
@@ -5835,7 +5791,7 @@
       "name": "Internal Partition Layout — A1 @ 1:50",
       "description": "Partition / wall layout with door + window tags. Linear dims; mono print.",
       "origin": "corporate",
-      "checksum": "8fa490832d5b258eea9395558cb9db6be9c49b67c891956f756535aa9e2de2ee",
+      "checksum": "f4e96c44898e2d70a4bd470d58b1d258b513e9e647a5c1566074a6b9ea7074d2",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -5913,9 +5869,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
@@ -5931,7 +5886,7 @@
       "name": "Demolition Plan — A1 @ 1:100",
       "description": "Demolition phase plan. Existing-to-remain halftoned; demolished elements red dashed; new work bold.",
       "origin": "corporate",
-      "checksum": "624ee1cd7974f34ac3a4f5c134663c2208dd462460469d4fa58ad311d2b7286c",
+      "checksum": "bdabdaf555474d15ff1eeec99da6c0ff3e2f877f8c2ada429d81c14cadb8fdfb",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "Demolition",
@@ -5999,9 +5954,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
@@ -6017,7 +5971,7 @@
       "name": "Sanitary / Wet Room Layout — A1 @ 1:50",
       "description": "Sanitary fixture layout cropped to room boundary. Auto-tags fixtures and rooms; linear dims; mono print.",
       "origin": "corporate",
-      "checksum": "b0e8c852e0fc471b4dba8af9a0b8ef1bd6160aaa4247b1ea4f8283c93e05f53e",
+      "checksum": "2c5d7c335e3161733851b76ae01a5dd1ca0f964ecf5ec45049d2b72b6c526d21",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -6090,9 +6044,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
@@ -6108,7 +6061,7 @@
       "name": "Raised Access Floor Plan — A1 @ 1:50",
       "description": "Raised access floor (RAF) panel grid layout. Ordinate dimensions from origin; mono print.",
       "origin": "corporate",
-      "checksum": "1a9b74a1662d17c8e90ba511d434c8d8c3452d5688d2c459e25a615f2b894249",
+      "checksum": "d750cb088ff0d1ad1ba40ef9d186f0ae929ce2d52e30af6f2e8e8a3649047b2a",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -6176,9 +6129,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
@@ -6194,7 +6146,7 @@
       "name": "Floor Build-Up Detail — A3 @ 1:10",
       "description": "Layered floor build-up detail (screed, separation, insulation, slab). Tight crop; material tags.",
       "origin": "corporate",
-      "checksum": "f6090a49a28c84a1890aeffbe613151ce5ea1916dba312fc0bf229546a23e2a4",
+      "checksum": "837c644077317c4040131721051e0207ba1f5b0884276628a63ad520c0c8f3c5",
       "purpose": "Detail",
       "discipline": "A",
       "phase": "*",
@@ -6280,9 +6232,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       }
     },
     {
@@ -6290,7 +6241,7 @@
       "name": "GIA / NIA Area Plan — A1 @ 1:200",
       "description": "Gross / net internal area plan with area + room tags. Coarse detail level; presentation print.",
       "origin": "corporate",
-      "checksum": "b434299b83d8f1ab9c94039b143c8e9439bea868ce49d2a1bd3111253980a025",
+      "checksum": "ccabda60c1248f813f75cb2cc501cc6fb07b9c6b14594dc3b2099360c57f0996",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -6370,9 +6321,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
@@ -6388,7 +6338,7 @@
       "name": "Presentation Floor Plan — A1",
       "description": "Client presentation floor plan. Rich material colours, room tags only, no dimensions.",
       "origin": "corporate",
-      "checksum": "5acc5f00f800e26431abca17c0965d8317d752132d0a39a7d28faa402fe43169",
+      "checksum": "00f488a94b4f5971144b602f15fb977cdc85230bf11351b47f051a5c910b7e08",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "PRESENTATION",
@@ -6463,9 +6413,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Architectural",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "isoNaming": {
@@ -6480,7 +6429,7 @@
       "id": "pres-narrative-A1",
       "name": "Client Narrative — A1 (TAG7 prose)",
       "origin": "corporate",
-      "checksum": "479a5f9931b5b884f0ffce0ababf7caa976d91059fe96d0bb43af7c892250723",
+      "checksum": "15dee783489d3bdb66625d53285f80125ca13306450fbc7881148f2ae60d09c6",
       "purpose": "Plan",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -6587,9 +6536,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Multi-Discipline plan on A1 at 1:100.",
       "isoNaming": {
@@ -6606,7 +6554,7 @@
       "name": "MEP Plan — Presentation (Phase 135)",
       "description": "Client-facing MEP plan. Shallow paragraph depth, only TAG7 sections A+B visible, soft Discipline colour scheme, segment mask hides LVL/ZONE for visual cleanliness.",
       "origin": "corporate",
-      "checksum": "c958f1d70c9c808c802c4ac580df1018524b8528311f5a5c884343aaf9d8e280",
+      "checksum": "8fb46ca7d01adec64082395498098ed1686db1e2208819294c88b9847772e0ad",
       "purpose": "Plan",
       "discipline": "M",
       "phase": "PRESENTATION",
@@ -6689,9 +6637,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
@@ -6708,7 +6655,7 @@
       "name": "MEP Plan — Technical (Phase 135)",
       "description": "Engineering-issue MEP plan. Full paragraph tier 5, all TAG7 sections visible, System variable colour scheme, BOLD tags, full 8-segment tag mask.",
       "origin": "corporate",
-      "checksum": "4a0e98ee0e788c8c05598e08056e53f784c55d4507199da4012874fde71c6ade",
+      "checksum": "b157ce1901606a90fb61fed957736debfc5a1849c803af136ccd7ce864b2aaa2",
       "purpose": "Plan",
       "discipline": "M",
       "phase": "TECHNICAL",
@@ -6814,9 +6761,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
@@ -6833,7 +6779,7 @@
       "name": "MEP Plan — Fabrication (Phase 135)",
       "description": "Workshop-floor MEP plan. Tier 10 audit-trail TAG7, all sections, System variable colours, BOLD-RED tags, mask shows DISC-SYS-PROD-SEQ for spool-pack readability.",
       "origin": "corporate",
-      "checksum": "7949db82119b1506c7c9f15b9a3ce08e12ee2973aa9c54d8e9e10f4db0810a0a",
+      "checksum": "96c56a4fbb1b6480aed41ba931ff379e2d7c7c2e494bd7288f48953e78b32f1d",
       "purpose": "Plan",
       "discipline": "M",
       "phase": "FABRICATION",
@@ -6936,9 +6882,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "orientation": "Landscape",
       "viewportTypeName": "STING - Standard Viewport",
@@ -6954,7 +6899,7 @@
       "id": "pres-3d-exterior-A1",
       "name": "Presentation 3D Exterior",
       "origin": "corporate",
-      "checksum": "99c621ae7e11d6be3883897bdc06ee95d053d33cbc8067597c1deb58486a1818",
+      "checksum": "4093973b0a6be0ef3e6e6558383b6130609146b9d2326a4b8a507200f23acd03",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -7030,9 +6975,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Multi-Discipline 3d on A1 at NA.",
       "isoNaming": {
@@ -7049,7 +6993,7 @@
       "name": "Presentation 3D Interior Cut-Away",
       "description": "Apply a Section Box manually before generating with this profile. The section box should cut at ceiling height to expose the interior. Pairs naturally with pres-interior-terracotta or pres-interior-sage.",
       "origin": "corporate",
-      "checksum": "93f67b92ef4314aeb13fa0e78e0565814b71ae671ad68df697bd24e6599c408e",
+      "checksum": "9344719e8d4b98f25530eb31fd5f0b1ea06ac03b0bc18b05f6fdbcee87f710a3",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -7125,9 +7069,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -7143,7 +7086,7 @@
       "name": "Presentation Composite Sheet",
       "description": "4-slot composite presentation sheet — main 3D axonometric (60% width) plus stacked floor plan, section, and section/elevation strip down the right. The plan and section slots use 1:200 medium detail; the 3D slot is NTS coarse. Pack defaults to pres-burgund-green.",
       "origin": "corporate",
-      "checksum": "2005653f384765b0e743e58c356c57407159e8beb4be84747fe120e089132739",
+      "checksum": "9c08b88f0693c8e3d2d5cd81f0b64c637714d7470b9c2cef21c81e9f8c34b584",
       "purpose": "3D",
       "discipline": "*",
       "phase": "PRESENTATION",
@@ -7247,9 +7190,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "viewportTypeName": "STING - Standard Viewport",
       "viewTemplateName": "STING - Multi-Discipline 3D View",
@@ -7266,7 +7208,7 @@
       "id": "elec-spool-A1-1to50",
       "name": "Electrical Spool — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "7aa5d26bedf60c49dcc01320231e21f862c0d533c475287b5b953323786c086d",
+      "checksum": "c22edecb14c96de7d1fdf4412b68304976d73845ce84abeb4f1e793d2f39c137",
       "purpose": "Spool",
       "discipline": "E",
       "paperSize": "A1",
@@ -7403,16 +7345,15 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       }
     },
     {
       "id": "elec-coord-A1-1to50",
       "name": "Electrical Coordination — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "2a5ec19dccca73634dc6c586a3c2f0f8968bd5f0d72e073152fff4e311e86308",
+      "checksum": "f54fe2d9692070f59de514545f4ad3c9f96f241d4f653b4965d6efa37c50b9d2",
       "purpose": "Coordination",
       "discipline": "E",
       "paperSize": "A1",
@@ -7554,9 +7495,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Electrical coordination on A1 at 1:50.",
       "orientation": "Landscape",
@@ -7567,7 +7507,7 @@
       "id": "health-rds-A3",
       "name": "Healthcare — Room Data Sheet (A3)",
       "origin": "corporate",
-      "checksum": "06627ac653b767af347b7f1a6dbe266e917273ac90e8cf6a6f3d133f3bbf7524",
+      "checksum": "8ac93551cd645d6bf53715aa62c8d5ff79ac4b1dfb9c5be1bfe1d4af7d7533ec",
       "purpose": "Schedule",
       "discipline": "H",
       "phase": "*",
@@ -7612,9 +7552,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -7635,7 +7574,7 @@
       "id": "health-eqp-pln-A1-1to50",
       "name": "Healthcare — Clinical Equipment Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "122559cf4c8eeece98186ae54d34c3220c6312e74a50b05662896c09965ec41c",
+      "checksum": "197337dc66506065a4ebbfb607369e30f316c6d55d1d5f9dfaa209df27fffef9",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -7706,9 +7645,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -7729,7 +7667,7 @@
       "id": "health-mep-coord-A1-1to50",
       "name": "Healthcare — MEP Coordination + Shielding (A1 1:50)",
       "origin": "corporate",
-      "checksum": "c87e437458acb1edfe2eab259820c1adf653e685cc447d63426157c6c2f28abc",
+      "checksum": "e32ef175e72bbc157cdf0d3c9cd240117e3f2960082ca89b2db4286bc6c24c40",
       "purpose": "Coordination",
       "discipline": "M",
       "phase": "*",
@@ -7794,9 +7732,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -7818,7 +7755,7 @@
       "system": "MGPS",
       "name": "Healthcare — Medical Gas Layout (A1 1:100)",
       "origin": "corporate",
-      "checksum": "86b7ac5954b0c3875e39fa5f0ecd3a715e25065df1e0435090ed3df5aa24d010",
+      "checksum": "d06f2fb1edec301f871de8e1a216936c9fae871bd84d3460fe766e1587ceead1",
       "purpose": "Plan",
       "discipline": "MG",
       "phase": "*",
@@ -7914,9 +7851,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -7937,7 +7873,7 @@
       "id": "health-medgas-schem-A1",
       "name": "Healthcare — Medical Gas Schematic (A1)",
       "origin": "corporate",
-      "checksum": "73b8e3308e2aff79248ec2ad59192f2448d3afff1817b57efebb49c802c2b8f1",
+      "checksum": "829743209c7b8b2738b8b5231d31da5a0bcf16d32597e64945f0552cbd7eec4a",
       "purpose": "Schematic",
       "discipline": "MG",
       "phase": "*",
@@ -8038,9 +7974,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8061,7 +7996,7 @@
       "id": "health-pressure-pln-A1-1to100",
       "name": "Healthcare — Pressure Regime Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "2ddce5a493a891be22faf8cbb68f899bb8ccaec8cdd831978a19e39adefe7364",
+      "checksum": "b6fdd2e70c4c3425870d51711c52125ed4e8b4a8359f5d83e83a420cbb0d45fd",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8120,9 +8055,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8143,7 +8077,7 @@
       "id": "health-ess-power-riser-A1",
       "name": "Healthcare — Essential Power Single-Line (A1)",
       "origin": "corporate",
-      "checksum": "04d2c7c7095e3cf0c8b3ce0bcf5ec9e71b8c22f408ad2a1aa4c358eb0c0dda29",
+      "checksum": "85a7766ea03591c958138a821ad17618ed335561b9c7e1d5d670270e493d3318",
       "purpose": "Schematic",
       "discipline": "E",
       "phase": "*",
@@ -8196,9 +8130,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8219,7 +8152,7 @@
       "id": "health-ips-pln-A1-1to50",
       "name": "Healthcare — Isolated Power Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "fd7c9cf3c883371caee2ce08c15dbe19f276644e6f66051e37d7e8fca48c1d70",
+      "checksum": "618f9e697e1eed745b31c6beda107265c7e41e4affb78b7a93fb1d7efd97470f",
       "purpose": "Plan",
       "discipline": "E",
       "phase": "*",
@@ -8284,9 +8217,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8307,7 +8239,7 @@
       "id": "health-decon-flow-A1-1to50",
       "name": "Healthcare — Decontamination Flow Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "0fce0d57a0abd13b9534f1e8325cebff7de7619ccbb4ec7435d9be49f7eb2655",
+      "checksum": "e9c70626908b25818146ec16f6cd40e0b816aa978c126ede5f81d0a4ea40e4d8",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8394,9 +8326,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8417,7 +8348,7 @@
       "id": "health-mortuary-pln-A3-1to100",
       "name": "Healthcare — Mortuary Plan (A3 1:100)",
       "origin": "corporate",
-      "checksum": "9f1429580ea1908568c943c09ad810ea90377e51623af82608deb39516e02178",
+      "checksum": "23353c14684bd563b7412d77eedd4296c64ecccb81ed496674e4f838eefa5cff",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8477,9 +8408,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8500,7 +8430,7 @@
       "id": "health-fire-comp-A1-1to100",
       "name": "Healthcare — Fire Compartment + PHE Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "c088e7711a771bc0cec1adceacfe8ad5e1e323e6f6215dd4d8081e5c6337d342",
+      "checksum": "bb7a3d7e57a4cbabbb71e8ef9fbe510ecd0cd5b5312c7636272d58d7c3741ccf",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -8559,9 +8489,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8582,7 +8511,7 @@
       "id": "health-rad-shield-A1-1to50",
       "name": "Healthcare — Radiation Shielding Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "e22fc9bbb12135aaafaf7ad0e0a2e4acb7bf1e908969526cde91a4167a680813",
+      "checksum": "30b6863529ed24ed654df235a3ec01dd10fd1f45d8f39fbac3178fd56a2744f2",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8677,9 +8606,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8700,7 +8628,7 @@
       "id": "health-mri-zoning-A1-1to50",
       "name": "Healthcare — MRI Suite Zoning (A1 1:50)",
       "origin": "corporate",
-      "checksum": "5b162db43591a1d11452fe227c56ad2af768ae16bcc5c9ba6e6ca127e2561f07",
+      "checksum": "fa0f1163f156163e7870e53b95edfeeb0110460886e50270819bf273d330c50a",
       "purpose": "Plan",
       "discipline": "RP",
       "phase": "*",
@@ -8774,9 +8702,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8797,7 +8724,7 @@
       "id": "health-ligature-pln-A1-1to50",
       "name": "Healthcare — Anti-Ligature Plan (A1 1:50)",
       "origin": "corporate",
-      "checksum": "488ecce48b95a9304cf9c5250f9a86ccf3ca2ff23f1cbcacee41b91762d09677",
+      "checksum": "1cd651fd100b26963b375b4874d9748df84b90378268564dcd030141039649a2",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -8868,9 +8795,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -8891,7 +8817,7 @@
       "id": "health-bedhead-elev-A3-1to50",
       "name": "Healthcare — Bedhead Elevations (A3 1:50)",
       "origin": "corporate",
-      "checksum": "53aba26996cf1c3c40993ee273a199d6b0077ba8adb95cb886befa36b466ca80",
+      "checksum": "b8aa2ed9532d8901aaf1663dc3be7298a0afc8ad18a4c363fed01ba142a0cddc",
       "purpose": "Elevation",
       "discipline": "H",
       "phase": "*",
@@ -8972,9 +8898,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9001,7 +8926,7 @@
       "id": "health-or-ceiling-A3-1to50",
       "name": "Healthcare — OR Ceiling RCP (A3 1:50)",
       "origin": "corporate",
-      "checksum": "871f598403307a26b60e0ea709e4e8394a8625ef15fde565caaeaecf9e8f4bd3",
+      "checksum": "8cfc6d1b2017aa5ddf5f62fab9693fed4ec2cf29b0c8100300332e5c27fe5a16",
       "purpose": "RCP",
       "discipline": "H",
       "phase": "*",
@@ -9068,9 +8993,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9091,7 +9015,7 @@
       "id": "health-water-safety-A1-1to100",
       "name": "Healthcare — Water Safety Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "91abbe20f5da41a4f40103cda0a546e8efcfaa789705e3c36f312669c58962ef",
+      "checksum": "c68ba68627122e7ebea54373754990a4dca7d8edde91f6aad8ece4ef1967d908",
       "purpose": "Plan",
       "discipline": "P",
       "phase": "*",
@@ -9150,9 +9074,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9173,7 +9096,7 @@
       "id": "health-acoustic-A1-1to100",
       "name": "Healthcare — Acoustic Strategy Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "70e6c3398c2c4752af1d33b9cf1c2c0d4b416d96bd4099c68e5bc167b6687f0a",
+      "checksum": "7317e62a6f40b1f3fc6c6996c6ac6845cc8b7e7c229763de36043b30f65741f7",
       "purpose": "Plan",
       "discipline": "A",
       "phase": "*",
@@ -9238,9 +9161,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9261,7 +9183,7 @@
       "id": "health-struct-loads-A1-1to100",
       "name": "Healthcare — Imaging Equipment Structural Loads (A1 1:100)",
       "origin": "corporate",
-      "checksum": "c4299b1c5930d87b0de2ca61264aed1d2412d4f6a749fce8445f53f7e74cc99a",
+      "checksum": "a3e3c5c2c334f3d63af16898a4f0f67b05bcc68fd909b99c6730290c3a2f9373",
       "purpose": "Plan",
       "discipline": "S",
       "phase": "*",
@@ -9321,9 +9243,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9344,7 +9265,7 @@
       "id": "health-rtls-coverage-A1-1to100",
       "name": "Healthcare — RTLS Coverage Plan (A1 1:100)",
       "origin": "corporate",
-      "checksum": "4743e30c5a2532e71f988f0303e53f0cf8f9ba3c69625a2df5cb094f3a3cf97e",
+      "checksum": "b542c292e98232faf21071a92906b1bbb6f1bdc9f4b6d4ae7e8bd17736d9502f",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -9404,9 +9325,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9427,7 +9347,7 @@
       "id": "health-waste-flow-A1-1to100",
       "name": "Healthcare — Clinical Waste Flow (A1 1:100)",
       "origin": "corporate",
-      "checksum": "b79041fcf934505e0cd9e40a35b83e2726f202f6b8bd852d7cea428ec74d9a90",
+      "checksum": "c8aba52df70ac16e0ae3f6e7b8f3382b3481490359da1b08411d94f15f6b99f3",
       "purpose": "Plan",
       "discipline": "H",
       "phase": "*",
@@ -9494,9 +9414,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9517,7 +9436,7 @@
       "id": "health-nuclear-medicine-A1",
       "name": "Healthcare — Nuclear Medicine Schematic (A1)",
       "origin": "corporate",
-      "checksum": "8b7f1ff7c760c8babc76cdb509310929e20a0fb106adeff787de19a066c82f35",
+      "checksum": "1d3247a054513fecbb1e39e0f9f1849a2ce3dc9c1af9d35df2b6cdae36511c3f",
       "purpose": "Schematic",
       "discipline": "RP",
       "phase": "*",
@@ -9598,9 +9517,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Healthcare",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "isoNaming": {
         "volume": "01",
@@ -9622,7 +9540,7 @@
       "system": "DCW",
       "name": "Cold Water Schematic (DCW) — A1 NTS",
       "origin": "corporate",
-      "checksum": "9311e078addaf10465a7dce8fed95f1b40cec5587cb476dc1b37e7dbdf96c285",
+      "checksum": "a9ee33ad7a57a56372cb37b60d4d243152dbdc6678bdb0c076c003b04bc66ad9",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
@@ -9666,9 +9584,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing schematic on A1 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -9686,7 +9603,7 @@
       "system": "DHW",
       "name": "Hot Water Schematic (DHW/HWS) — A1 NTS",
       "origin": "corporate",
-      "checksum": "350796a079fb68e9957585678756957a6c3b622c60842c3d9dbeaacca918203c",
+      "checksum": "f6f83cc1e48910a025dbb4b9e5b4770d013f1ec3fd9ebbffbb73e8aef5b9ff84",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
@@ -9730,9 +9647,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing schematic on A1 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -9750,7 +9666,7 @@
       "system": "LTHW",
       "name": "LTHW Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "f26347e20544578b8fff7d4f3f1b97fd2df9624ef3e510fe4b33a2ef0882a458",
+      "checksum": "1989b8f9b1a734639eb124a1d50b18cec5cd215db07ef17b2b93cb45c81bec51",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A1",
@@ -9794,9 +9710,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing schematic on A1 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -9813,7 +9728,7 @@
       "id": "plumb-ag-drainage-A1-1to100",
       "name": "Above-Ground Drainage Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "225523871b529822d9fad33d1c59f71f1529a12f55121153511727c49753d195",
+      "checksum": "3b1dde286b29aedab465e4af9241cc4a6f3726f2c039f68b8096b150e630a427",
       "purpose": "Plan",
       "discipline": "P",
       "paperSize": "A1",
@@ -9857,9 +9772,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing plan on A1 at 1:100.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -9876,7 +9790,7 @@
       "id": "plumb-rwd-layout-A1-1to100",
       "name": "Rainwater Drainage Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "eb695accf79ac8a302b5c161de0ade184307279bf15fcde6bae460dbe5b35a78",
+      "checksum": "f84a07bcc05141a95c43cf66b75b8f58f03acc1711452493b4a5600a988fcf01",
       "purpose": "Plan",
       "discipline": "P",
       "paperSize": "A1",
@@ -9920,9 +9834,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing plan on A1 at 1:100.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -9939,7 +9852,7 @@
       "id": "plumb-suds-A1-1to500",
       "name": "SuDS / Surface Water Management Plan — A1 @ 1:500",
       "origin": "corporate",
-      "checksum": "b2f8810b8dffde68611ca426677599b5672d071a8be3f5d86e6b35094ad499d8",
+      "checksum": "0d8382fef33f2a40ab6a12082e49bb05ae576c9b42a906e378a90a84c19752fa",
       "purpose": "Plan",
       "discipline": "P",
       "paperSize": "A1",
@@ -9983,9 +9896,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing plan on A1 at 1:500.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -10002,7 +9914,7 @@
       "id": "plumb-vent-riser-A3-NTS",
       "name": "Drainage Vent Riser — A3 NTS",
       "origin": "corporate",
-      "checksum": "bcf3f074ba032ac29da0839e9322d2158c67e086d9a42ac243abee694918a211",
+      "checksum": "f3bf9664704620c421361f09788575f4f1e4354a20b2966dac1087ebd9e1ff54",
       "purpose": "Schematic",
       "discipline": "P",
       "paperSize": "A3",
@@ -10045,9 +9957,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing schematic on A3 at 1:1.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -10064,7 +9975,7 @@
       "id": "plumb-pressure-schedule-A3",
       "name": "Pressure Zone / PRV Schedule — A3",
       "origin": "corporate",
-      "checksum": "bd95be44e571a93ddc7d52d046928f5441b1408017717b2cacdb5f8dd5f12260",
+      "checksum": "a3d4ee1a69d1a4d6bbf3f53e38cba5832ac43b88cb05e7d2231d5183838dcb45",
       "purpose": "Schedule",
       "discipline": "P",
       "paperSize": "A3",
@@ -10117,16 +10028,15 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       }
     },
     {
       "id": "plumb-water-treatment-A1-1to50",
       "name": "Water Treatment / Plantroom — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "ca1ae12cbb7a50ed29e5e5126ada580f5798d0b0572b80562fa682a319ce2d49",
+      "checksum": "1fb796bb189417f05e8144916a8784fbd4d42f3dc79b68aed4f1ca5222e22d12",
       "purpose": "Plan",
       "discipline": "P",
       "paperSize": "A1",
@@ -10170,9 +10080,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Plumbing plan on A1 at 1:50.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -10205,7 +10114,7 @@
         "kind": "None"
       },
       "origin": "corporate",
-      "checksum": "901d007d4c7783bf328c51e63756e28214e90d0e8a92285a8298cac6773cd07a",
+      "checksum": "808708260b35825623c5098bd248dbb3a604d869721279b574d334b310497668",
       "slots": [
         {
           "label": "Schematic",
@@ -10240,9 +10149,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -10254,7 +10162,7 @@
       "id": "penetration-register-A1",
       "name": "Penetration Register — A1",
       "origin": "corporate",
-      "checksum": "7657c2536af793a428715ff9788cbe3813b18594ff3f7cced3c666a107c067c2",
+      "checksum": "b44e3852ac8354a2785de67d92b0302acc969a5bcd9d126fa1b75d159ff5b90c",
       "purpose": "Schedule",
       "discipline": "*",
       "phase": "*",
@@ -10307,16 +10215,15 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Multi-Discipline",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       }
     },
     {
       "id": "mech-equip-schedule-A3",
       "name": "Mechanical Equipment Schedule - A3",
       "origin": "corporate",
-      "checksum": "adbdcf0ccfbe3750e86b81434804011adf09d5456d7190166cb3e358dac768eb",
+      "checksum": "9b6d01265f876bae98c9899e7b391e0deac98c2197064c2109de5efb923ef8de",
       "purpose": "Schedule",
       "discipline": "M",
       "system": "HVAC",
@@ -10335,9 +10242,7 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Discipline": "Mechanical",
         "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "M-SCH-EQ-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "M-SCH-EQ-{seq:D2}",
       "sheetNamePattern": "MECHANICAL EQUIPMENT SCHEDULE",
@@ -10376,7 +10281,7 @@
       "id": "elec-panel-schedule-A3",
       "name": "Electrical Panel / Equipment Schedule - A3",
       "origin": "corporate",
-      "checksum": "c987755f048a6884465a1ae0e86626ec6f901755d5564d1daf27997579c2eb6e",
+      "checksum": "042cd081ebfad91227cdaddcdf52e07c29f41038c32627138be0555772477347",
       "purpose": "Schedule",
       "discipline": "E",
       "system": "LV",
@@ -10395,9 +10300,7 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "E-SCH-PNL-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "E-SCH-PNL-{seq:D2}",
       "sheetNamePattern": "ELECTRICAL PANEL SCHEDULE",
@@ -10436,7 +10339,7 @@
       "id": "valve-schedule-A3",
       "name": "Valve Schedule - A3",
       "origin": "corporate",
-      "checksum": "3734ab369fb060c3847ecfc50b967d19d744e451b03ae96976473b78a63a80b0",
+      "checksum": "3c874285e464414bdc5cb192c47620e9793c6622a7ec978348b15070f03dd19c",
       "purpose": "Schedule",
       "discipline": "P",
       "paperSize": "A3",
@@ -10454,9 +10357,7 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Discipline": "Plumbing",
         "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "P-SCH-VLV-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "P-SCH-VLV-{seq:D2}",
       "sheetNamePattern": "VALVE SCHEDULE",
@@ -10495,7 +10396,7 @@
       "id": "elec-data-comms-A1-1to100",
       "name": "Data & Communications Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "4736200b2a17f9c58b0ed927ab16953bb00b2859d7f055121e3d357f0754c017",
+      "checksum": "b76fa38ce7268f0f181d669f84b36bfae2593094cff8c455d88ad3801ce03ca3",
       "purpose": "Plan",
       "discipline": "E",
       "paperSize": "A1",
@@ -10613,9 +10514,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Structured cabling / ICT plan on A1 at 1:100: data, communication, telephone and nurse call outlets, comms cabinets and the tray that feeds them.",
       "orientation": "Landscape",
@@ -10631,7 +10531,7 @@
       "id": "elec-security-A1-1to100",
       "name": "Security Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "8125b8a4f24955d80e09b624b9545d8156326441df4029497c5b11d26c9975c7",
+      "checksum": "22b1e6446dde8f87771a835c76d691eb85a2e6a6f8bdbdf24091cecac6fa6618",
       "purpose": "Plan",
       "discipline": "E",
       "paperSize": "A1",
@@ -10731,9 +10631,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Security plan on A1 at 1:100: access control, CCTV and intruder devices with their panels and containment.",
       "orientation": "Landscape",
@@ -10749,7 +10648,7 @@
       "id": "elec-containment-A1-1to100",
       "name": "Electrical Containment Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "bf20c8e766d5176bc3b03e1a4f1d5dfe545791678777f2e2aad995d6ff78effc",
+      "checksum": "73bc86a179815be4fff8d0e4544d48774604d2ccbaa0cc99f266a88687bd29b9",
       "purpose": "Plan",
       "discipline": "E",
       "paperSize": "A1",
@@ -10861,9 +10760,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Cable tray, trunking and conduit containment plan on A1 at 1:100, with the boards it serves.",
       "orientation": "Landscape",
@@ -10879,7 +10777,7 @@
       "id": "elec-emergency-lighting-A1-1to100",
       "name": "Emergency Lighting Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "d1b6ee26e83d81359f6000bcad628de89aa85c03c28231f66509716e8bcfe622",
+      "checksum": "ed89186073474c6118787ec33e81a384bae7b19c3df4d476c273efc2b65c5d4b",
       "purpose": "Plan",
       "discipline": "E",
       "paperSize": "A1",
@@ -10979,9 +10877,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Emergency and escape lighting plan on A1 at 1:100 (BS 5266-1): luminaires, test switches and central battery equipment.",
       "orientation": "Landscape",
@@ -10997,7 +10894,7 @@
       "id": "elec-fire-alarm-schematic-A1",
       "name": "Fire Alarm Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "bdfbb1b88fcef9c763e0004889cab6bb45f048526dec1ac3e5a63fda86e70dc1",
+      "checksum": "2d93358560705e6eabd526351669faa3a3ba568edb735e6aa7ce4c9ee5709ef7",
       "purpose": "Schematic",
       "discipline": "E",
       "paperSize": "A1",
@@ -11041,9 +10938,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Fire alarm loop / zone schematic (BS 5839-1) on A1, not to scale.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -11060,7 +10956,7 @@
       "id": "elec-sld-A1-NTS",
       "name": "Electrical Single Line Diagram — A1 NTS",
       "origin": "corporate",
-      "checksum": "f98c7f5d70fceb5fab3a0678273166471d4104c9c4a617b4b4a1dc0fc52495d0",
+      "checksum": "ac09dde847c2ef43563ef1bc897d4051857c361da887270635a52669e84dfeb2",
       "purpose": "Schematic",
       "discipline": "E",
       "system": "LV",
@@ -11105,9 +11001,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Electrical single line diagram (distribution hierarchy from the circuit model) on A1, not to scale. The view is the drafting view SLD_Generate draws at 1:1; SLD_Generate puts it on this type's sheet and replaces an earlier run's SLD there. Not produced per level.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -11124,7 +11019,7 @@
       "id": "elec-lps-schematic-A1-NTS",
       "name": "Lightning Protection Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "91f506a0d670299bcf094868dfc4c7468e8aeb33919fd9a30297b6b00d14700d",
+      "checksum": "a9cd9187176d4667a5faf1980c21d1177fe234ee12fc9e878c2192e92747ddb2",
       "purpose": "Schematic",
       "discipline": "E",
       "paperSize": "A1",
@@ -11168,9 +11063,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Lightning protection system schematic (BS EN 62305-3: air terminals, down conductors, earth electrodes, bonding) on A1, not to scale. The view is the drafting view LPS_Schematic draws at 1:1 from the ELC_LPS_* marked components; LPS_Schematic puts it on this type's sheet and replaces an earlier run's schematic there.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -11187,7 +11081,7 @@
       "id": "elec-earthing-schematic-A1-NTS",
       "name": "Earthing Arrangement Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "f8f59ba01d61aeb98e60d26774adf2bff0fce58452733041ac005a7f049883f9",
+      "checksum": "c718505abb749146941432686ea677af296217aba1881370b674371168eb8773",
       "purpose": "Schematic",
       "discipline": "E",
       "paperSize": "A1",
@@ -11231,9 +11125,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Earthing arrangement (BS 7671 Part 5-54: earthing system, MET, protective and bonding conductors) on A1, not to scale. The view is the drafting view Earthing_Diagram draws at 1:1 for the system in ELC_EARTHING_SYSTEM_TXT; Earthing_Diagram puts it on this type's sheet.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -11250,7 +11143,7 @@
       "id": "elec-panel-door-diagram-A3-NTS",
       "name": "Panel Door / Busbar Layout — A3 NTS",
       "origin": "corporate",
-      "checksum": "675db8c0efaa593b6bf35f156735df1b4b913323eaadca09dd62e5a3e3a4c1a8",
+      "checksum": "b25932d83a3163dd683ce6414670c9a5fba6f6e2e6db8d86ad4251ba388dd730",
       "purpose": "Schematic",
       "discipline": "E",
       "paperSize": "A3",
@@ -11294,9 +11187,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Distribution board door / busbar interior layout (way positions, circuits, spares, earth bar) on A3, not to scale, one sheet per board. The view is the drafting view Panel_DoorDiagram draws at 1:1; Panel_DoorDiagram puts each board on its own sheet of this type.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -11313,7 +11205,7 @@
       "id": "mep-hvac-pipe-A1-1to100",
       "name": "HVAC Pipework Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "1d939a2612cba28eae6ea06cbbf5fadc9a70e8c653a01ef12f8daa8e91d4cea2",
+      "checksum": "bfffabf36ceabc7615d30ca21684146198ef56e719f7a428be68406c183b7c76",
       "purpose": "Plan",
       "discipline": "M",
       "paperSize": "A1",
@@ -11419,9 +11311,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Chilled water / LTHW pipework plan on A1 at 1:100: pipes, fittings, valves and the plant they serve.",
       "orientation": "Landscape",
@@ -11444,7 +11335,7 @@
       "id": "mep-hvac-schematic-A1",
       "name": "HVAC Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "8091b171873d252aa914cdcf7f6cf095065501a3a0650e2952ca3501fd4d38b2",
+      "checksum": "5782b2c9d275a7d7659e052f442a3af4734a22957547ad24b66573198fe1fecf",
       "purpose": "Schematic",
       "discipline": "M",
       "paperSize": "A1",
@@ -11488,9 +11379,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "HVAC schematic (air-handling, CHW / LTHW principle) on A1, not to scale.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -11507,7 +11397,7 @@
       "id": "plumb-water-supply-A1-1to100",
       "name": "Water Supply Layout — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "7e09e3fe7a3867242a43e4b8883106d5c49b8c5780514504464654ad88aacb32",
+      "checksum": "ed6edd1f09c26792e861645f4fb529ef79c11e8e91b4a436ca2c5fafd60f67f8",
       "purpose": "Plan",
       "discipline": "P",
       "paperSize": "A1",
@@ -11612,9 +11502,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Plumbing",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Domestic cold and hot water (DCW / DHW) layout on A1 at 1:100: pipes, fittings, valves, fixtures and plant.",
       "orientation": "Landscape",
@@ -11637,7 +11526,7 @@
       "id": "fire-riser-schematic-A1",
       "name": "Fire Protection Riser Schematic — A1 NTS",
       "origin": "corporate",
-      "checksum": "7db4b52fcd64779bf3d37f7e56f1b2218403faaee1b2c52a3c79fb875d53300e",
+      "checksum": "19d9d7ec28f5a811816980cb00bcd2515403d6a06be6b3830293fc9e9629f015",
       "purpose": "Schematic",
       "discipline": "FP",
       "paperSize": "A1",
@@ -11681,9 +11570,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Fire Protection",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Sprinkler / wet and dry riser schematic on A1, not to scale.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -11700,7 +11588,7 @@
       "id": "mep-section-A1-1to50",
       "name": "MEP Section — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "6b803f28ea9b9ed83ed115520ae6b7b33ac31703a88a23c1886b53e6bb9d03da",
+      "checksum": "85dd92c106ad6dc5c93fe6ee60ebfe3f519302b841d23fc324a6f48b5281ce3e",
       "purpose": "Section",
       "discipline": "M",
       "paperSize": "A1",
@@ -11818,9 +11706,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Building services section on A1 at 1:50: duct, pipe and tray levels through a corridor or riser.",
       "orientation": "Landscape",
@@ -11837,7 +11724,7 @@
       "id": "mep-detail-A3-1to20",
       "name": "MEP Detail — A3 @ 1:20",
       "origin": "corporate",
-      "checksum": "c81562423731bda040ababf85d583f80ecab104a8b1388291667fefffb501e51",
+      "checksum": "81e8e5b68d540bee7af9edc4e7bd10db1ee29998c816207a02fe5472b45b52e7",
       "purpose": "Detail",
       "discipline": "M",
       "paperSize": "A3",
@@ -11984,9 +11871,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Mechanical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "print": {
         "colourScheme": "Monochrome",
@@ -11998,7 +11884,7 @@
       "id": "elec-lps-coverage-A3",
       "name": "Lightning Protection Zones (rolling sphere) — A3",
       "origin": "corporate",
-      "checksum": "8138b090796274d4a1bf5f603f64dd05025af5521208086eaf6305b723627f96",
+      "checksum": "4281e0658d1f00d47ea3f211d8a96a14ce86306d2299603ab2488886a9ba55b0",
       "purpose": "Schematic",
       "discipline": "E",
       "paperSize": "A3",
@@ -12042,9 +11928,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "Lightning protection zone diagram (BS EN 62305-3 rolling-sphere protection radius of each air terminal, drawn at its plan position) in the drafting view 'STING - LPS Protection Zones'. LPS_PlanVisualise draws and stamps the view; it is drawn in model coordinates, so a person sets its scale and places it on a sheet of this type.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -12061,7 +11946,7 @@
       "id": "elec-arc-flash-labels",
       "name": "Arc Flash Labels (IEEE 1584-2018, indicative) — A1 NTS",
       "origin": "corporate",
-      "checksum": "6a3e872a2bf65b2ec9edf593ed52fc6d7f1ab11f48c105ba13b16081396a85cd",
+      "checksum": "4627ce3fa091cf0128ff933ea46bbb3a4148cb818517b109a010b17405d50c6e",
       "purpose": "Schematic",
       "discipline": "E",
       "system": "LV",
@@ -12106,9 +11991,8 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
         "Discipline": "Electrical",
-        "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01"
+        "Suitability": "{suit}",
+        "Revision": "{rev}"
       },
       "description": "One indicative arc-flash label per calculated board (IEEE 1584-2018 incident energy, boundary, working distance, basis) on A1, not to scale. The view is the drafting view Elec_ArcFlashLabels draws at 1:1 from the last Arc Flash Calc; it puts the view on this type's sheet and replaces an earlier run's labels there. Not for specifying PPE without a licensed study.",
       "viewportTypeName": "STING - Standard Viewport",
@@ -12125,7 +12009,7 @@
       "id": "elec-arc-flash-schedule",
       "name": "Arc Flash Schedule - A3",
       "origin": "corporate",
-      "checksum": "cc056b5be9c88eecf2c8b5b47ced95050a492ee405557ff0a4d822acff0f2fa3",
+      "checksum": "fe414e63f999386af41c45e9b9b4043c247e59b973dbc07346d5530914fdcce1",
       "purpose": "Schedule",
       "discipline": "E",
       "system": "LV",
@@ -12144,9 +12028,7 @@
         "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
         "Discipline": "Electrical",
         "Suitability": "S2",
-        "Sheet Status": "WIP",
-        "Revision": "P01",
-        "Sheet Number": "E-SCH-AF-{seq:D2}"
+        "Revision": "P01"
       },
       "sheetNumberPattern": "E-SCH-AF-{seq:D2}",
       "sheetNamePattern": "ARC FLASH SCHEDULE (INDICATIVE)",

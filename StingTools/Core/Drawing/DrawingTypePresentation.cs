@@ -143,6 +143,22 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-8: forget cached "no such template" answers for a document,
+        /// keeping the positive ids (each is re-validated when hit).
+        /// </summary>
+        private static void DropNegativeViewTemplateEntries(Document doc)
+        {
+            string docKey = DocKey(doc);
+            lock (_viewTemplateCacheLock)
+            {
+                if (!_viewTemplateCache.TryGetValue(docKey, out var docMap)) return;
+                foreach (var name in docMap.Where(kv => kv.Value == ElementId.InvalidElementId)
+                                           .Select(kv => kv.Key).ToList())
+                    docMap.Remove(name);
+            }
+        }
+
+        /// <summary>
         /// C-2 / D-3: clear the cached <see cref="ViewStylePack"/> entries for a
         /// given document. Same triggers as
         /// <see cref="InvalidateViewTemplateCache"/>.
@@ -185,6 +201,11 @@ namespace StingTools.Core.Drawing
         public static void Prewarm(Document doc)
         {
             if (doc == null) return;
+            // DTW-8: a negative entry ("no template of that name") persisted for
+            // the life of the document, so a template created or loaded after
+            // the first miss was never found. A batch starts from the truth:
+            // drop the negatives (positives are re-validated on every hit).
+            DropNegativeViewTemplateEntries(doc);
             try
             {
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
@@ -245,6 +266,9 @@ namespace StingTools.Core.Drawing
             public bool PackApplied        { get; set; }
             public bool CropApplied        { get; set; }
             public bool TokenProfileApplied { get; set; }   // Phase 135 — Step 7.5
+            /// <summary>Title-block cells actually changed by <see cref="ApplyToSheet"/>
+            /// (DTW-4) — lets a heal pass report sheets it really re-synced.</summary>
+            public int TitleBlockParamsWritten { get; set; }
             public AnnotationRunStats Annotation { get; set; }
 
             // Phase 137 — managed-template routing
@@ -307,6 +331,7 @@ namespace StingTools.Core.Drawing
             {
                 var effectiveTokens = tokens ?? DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
                 var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, effectiveTokens);
+                r.TitleBlockParamsWritten = tbResult.ParamsWritten;
                 r.Warnings.AddRange(tbResult.Warnings);
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyToSheet TitleBlockParams: {ex.Message}"); }

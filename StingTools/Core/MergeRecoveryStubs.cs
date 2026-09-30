@@ -489,25 +489,57 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>DTW-10: drop the resolver indexes for every document — what the
+        /// no-argument <c>InvalidateCache()</c> promises (it was an empty stub, so
+        /// AecFilters_Create / _Reload left a stale index behind).</summary>
+        internal static void InvalidateAllResolverCaches()
+        {
+            lock (_resolveLock)
+            {
+                _filterIdByDoc.Clear();
+                _fillPatternByDoc.Clear();
+            }
+        }
+
         private static ElementId LookupCached(
             Dictionary<string, Dictionary<string, ElementId>> store,
-            Document doc, string name, Func<Document, Dictionary<string, ElementId>> build)
+            Document doc, string name, Func<Document, Dictionary<string, ElementId>> build,
+            Func<Element, bool> isExpected)
         {
             if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
             var key = ResolveDocKey(doc);
             lock (_resolveLock)
             {
-                if (!store.TryGetValue(key, out var index))
+                // At most one rebuild: a hit that no longer names a live element of
+                // the expected kind (deleted, or minted inside a transaction that
+                // then rolled back) drops the index and looks again.
+                for (int attempt = 0; attempt < 2; attempt++)
                 {
-                    try { index = build(doc); }
-                    catch (Exception ex)
+                    if (!store.TryGetValue(key, out var index))
                     {
-                        StingTools.Core.StingLog.Warn($"Resolver index build: {ex.Message}");
-                        index = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                        try { index = build(doc); }
+                        catch (Exception ex)
+                        {
+                            StingTools.Core.StingLog.Warn($"Resolver index build: {ex.Message}");
+                            index = new Dictionary<string, ElementId>(StringComparer.OrdinalIgnoreCase);
+                        }
+                        store[key] = index;
                     }
-                    store[key] = index;
+                    if (!index.TryGetValue(name, out var id)) return ElementId.InvalidElementId;
+
+                    // DTW-10: validate the hit. A stale id used to be returned as-is
+                    // and AddFilter threw once per view for the rest of the session.
+                    Element el = null;
+                    try { el = doc?.GetElement(id); }
+                    catch (Exception ex) { StingTools.Core.StingLog.Warn($"Resolver hit '{name}' unreadable: {ex.Message}"); }
+                    if (el != null && el.IsValidObject && isExpected(el)
+                        && string.Equals(el.Name, name, StringComparison.OrdinalIgnoreCase))
+                        return id;
+
+                    StingTools.Core.StingLog.Info($"Resolver: cached id for '{name}' is stale — rebuilding the index.");
+                    store.Remove(key);
                 }
-                return index.TryGetValue(name, out var id) ? id : ElementId.InvalidElementId;
+                return ElementId.InvalidElementId;
             }
         }
 
@@ -519,7 +551,7 @@ namespace StingTools.Core.Drawing
                     if (el is ParameterFilterElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
                         m[f.Name] = f.Id;
                 return m;
-            });
+            }, el => el is ParameterFilterElement);
 
         internal static ElementId ResolveFillPattern(Document doc, string name)
             => LookupCached(_fillPatternByDoc, doc, name, d =>
@@ -529,7 +561,7 @@ namespace StingTools.Core.Drawing
                     if (el is FillPatternElement f && !string.IsNullOrEmpty(f.Name) && !m.ContainsKey(f.Name))
                         m[f.Name] = f.Id;
                 return m;
-            });
+            }, el => el is FillPatternElement);
     }
 }
 

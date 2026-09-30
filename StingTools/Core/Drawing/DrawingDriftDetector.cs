@@ -647,7 +647,10 @@ namespace StingTools.Core.Drawing
                 // T-5: same token source as Heal, and only compare cells Heal
                 // would actually write — an unresolved template has no
                 // "expected" value, so reporting "{lvl}" as drift is noise.
-                var tokens = DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
+                // DTW-18: the same sheet facts Apply lays over the profile defaults,
+                // so a sheet at C03 is not reported as drifted from "P01".
+                var tokens = TitleBlockParamApplier.WithSheetFacts(sheet,
+                    DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt));
                 var expected = TitleBlockParamApplier.PeekResolved(doc, dt, tokens)
                     .Where(kv => kv.Value.IsResolved)
                     .ToDictionary(kv => kv.Key, kv => kv.Value.Text);
@@ -662,6 +665,9 @@ namespace StingTools.Core.Drawing
                         Parameter p;
                         try { p = tb.LookupParameter(paramName); } catch { continue; }
                         if (p == null || p.IsReadOnly) continue;
+                        // DTW-5: the applier refuses the sheet's own number/name,
+                        // so a mismatch there is not drift Heal could repair.
+                        if (TitleBlockParamApplier.IsSheetIdentityParameter(paramName, p)) break;
                         string actual;
                         switch (p.StorageType)
                         {
@@ -676,7 +682,11 @@ namespace StingTools.Core.Drawing
                                     actual = p.AsInteger() != 0 ? "Yes" : "No";
                                 break;
                             case StorageType.Double:
-                                actual = p.AsDouble().ToString("0.###", CultureInfo.InvariantCulture);
+                                // DTW-15: the applier writes in the unit the name
+                                // states, so compare in that unit — raw AsDouble()
+                                // is feet for a LENGTH and would drift forever.
+                                actual = ParameterHelpers.GetValueText(tb, paramName);
+                                if (DrawingQaRules.NumericTextEquals(actual, expectedVal)) actual = expectedVal;
                                 break;
                             case StorageType.ElementId:
                                 var eid = p.AsElementId();
