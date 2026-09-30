@@ -236,7 +236,7 @@ namespace StingTools.UI
                 string defaultPath = "";
                 try
                 {
-                    string dir = Path.GetDirectoryName(_doc.PathName) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                    string dir = global::StingTools.Core.StingPaths.ModelDir(_doc) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
                     defaultPath = Path.Combine(dir, $"STING_Excel_{DateTime.Now:yyyyMMdd}.xlsx");
                 }
                 catch (Exception ex) { StingLog.Warn($"Excel path: {ex.Message}"); }

@@ -129,7 +129,7 @@ namespace StingTools.Core.Drawing
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-                var dir = Path.GetDirectoryName(doc.PathName);
+                var dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 var path = StingPaths.MetaFile(doc, "_BIM_COORD", "aec_filters.json");
                 if (!File.Exists(path)) return null;

@@ -281,7 +281,7 @@ namespace StingTools.Core
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
-            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "DocRegister_Unified", "Register_Consolidate", "Folders_ConsolidateAll", "StageComplianceGate",
+            "ListWorkflowPresets", "AddDocument", "DocumentRegister", "DocRegister_Unified", "Register_Consolidate", "Folders_ConsolidateAll", "Cloud_SetProjectRoot", "StageComplianceGate",
             "WarningsSelectElements", "WarningsSuppress",
             "AutoSchedule4D", "AutoCost5D", "ViewTimeline4D", "CostReport5D", "CashFlow5D",
             "ExportSchedule4D", "ImportMSProject", "MilestoneRegister", "PhaseSummary",
@@ -403,8 +403,11 @@ namespace StingTools.Core
         {
             bool attended = showReport && _presetDepth == 0;
             _presetDepth++;
+            // Unattended: nobody is there to answer a cloud project-root prompt (ACC-HARD-3),
+            // so a cloud model without one refuses rather than blocks on a dialog.
+            IDisposable noPrompt = attended ? null : CloudProjectRootResolver.SuppressPrompts();
             try { return ExecutePresetCore(preset, commandData, elements, attended, out outcome); }
-            finally { _presetDepth--; }
+            finally { _presetDepth--; noPrompt?.Dispose(); }
         }
 
         private static Result ExecutePresetCore(WorkflowPreset preset,
@@ -1262,7 +1265,7 @@ namespace StingTools.Core
                 try
                 {
                     string cfgPath = System.IO.Path.Combine(
-                        System.IO.Path.GetDirectoryName(doc.PathName) ?? "",
+                        global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                         "_BIM_COORD", "planscape_link.json");
                     Guid serverProjectId = StingTools.BIMManager.PlatformSyncCommand.LoadPlanscapeProjectId(cfgPath);
                     if (serverProjectId != Guid.Empty)
@@ -2078,6 +2081,7 @@ namespace StingTools.Core
                 case "DocRegister_Unified":     return new UnifiedRegisterExportCommand();
                 case "Register_Consolidate":    return new RegisterConsolidateCommand();
                 case "Folders_ConsolidateAll":  return new Commands.Folders.FolderConsolidateCommand();
+                case "Cloud_SetProjectRoot":    return new Commands.Cloud.CloudSetProjectRootCommand();
                 case "StageComplianceGate":     return new BIMManager.StageComplianceGateCommand();
                 case "WarningsSelectElements":  return new WarningsSelectElementsCommand();
                 case "WarningsSuppress":        return new WarningsSuppressCommand();
@@ -3637,7 +3641,7 @@ namespace StingTools.Core
             try
             {
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-                    dir = Path.GetDirectoryName(doc.PathName);
+                    dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             }
             catch (Exception ex) { StingLog.Warn($"Workflow log path resolution failed: {ex.Message}"); }
             if (string.IsNullOrEmpty(dir))

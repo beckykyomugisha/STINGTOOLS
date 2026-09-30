@@ -96,7 +96,7 @@ namespace StingTools.BOQ
                 // unified project root's 16_COMPLIANCE_<code>/RateHeatMap/ folder.
                 string compRoot = StingTools.Core.ProjectFolderEngine.GetFolderPath(doc, "COMPLIANCE");
                 string outDir = string.IsNullOrEmpty(compRoot)
-                    ? Path.Combine(Path.GetDirectoryName(doc.PathName ?? "") ?? "", "STING_BOQ_RateHeatMap")
+                    ? Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc) ?? "", "STING_BOQ_RateHeatMap")
                     : Path.Combine(compRoot, "RateHeatMap");
                 Directory.CreateDirectory(outDir);
                 string ts = DateTime.Now.ToString("yyyyMMdd_HHmm");

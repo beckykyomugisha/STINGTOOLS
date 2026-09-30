@@ -96,7 +96,7 @@ namespace StingTools.Tags
 
         public static string GetRulesPath(Document doc)
         {
-            string dir = Path.GetDirectoryName(doc.PathName);
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(dir)) dir = StingToolsApp.DataPath ?? Path.GetTempPath();
             return Path.Combine(dir, "project_config.json");
         }
@@ -182,7 +182,7 @@ namespace StingTools.Tags
 
         public static string GetSnapshotPath(Document doc)
         {
-            string dir = Path.GetDirectoryName(doc.PathName);
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
             return Path.Combine(dir, "STING_Tag_Snapshots.json");
         }

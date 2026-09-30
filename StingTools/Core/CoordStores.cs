@@ -322,7 +322,7 @@ namespace StingTools.Core
                 // No resolvable project root (unsaved doc): fall back to the legacy
                 // sibling so behaviour is unchanged rather than silently lost.
                 string docDir = null;
-                try { docDir = Path.GetDirectoryName(doc?.PathName ?? ""); } catch { /* unsaved */ }
+                try { docDir = global::StingTools.Core.StingPaths.ModelDir(doc); } catch { /* unsaved */ }
                 if (string.IsNullOrEmpty(docDir)) return null;
                 dir = Path.Combine(docDir, bucket);
                 try { Directory.CreateDirectory(dir); } catch (Exception ex) { StingLog.Warn($"CoordStores fallback dir: {ex.Message}"); }
@@ -483,7 +483,7 @@ namespace StingTools.Core
 
             try
             {
-                string docDir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string docDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(docDir)) roots.Add(docDir);
             }
             catch (Exception ex) { StingLog.Warn($"CoordStores.LegacyCandidates docDir: {ex.Message}"); }

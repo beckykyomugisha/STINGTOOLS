@@ -148,7 +148,7 @@ namespace StingTools.BIMManager
             {
                 string dir = null;
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-                    dir = Path.GetDirectoryName(doc.PathName);
+                    dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir))
                     dir = StingToolsApp.DataPath ?? Path.GetTempPath();
                 string path = Path.Combine(dir, "STING_WORKFLOW_LOG.jsonl");
@@ -958,7 +958,7 @@ namespace StingTools.BIMManager
         {
             string trendPath = StingTools.Core.ProjectFolderEngine.GetDataPath(doc, "compliance_trend.json");
             if (string.IsNullOrEmpty(trendPath) || !File.Exists(trendPath))
-                trendPath = Path.ChangeExtension(doc.PathName, ".sting_compliance_trend.json");
+                trendPath = global::StingTools.Core.StingPaths.ModelSidecar(doc, ".sting_compliance_trend.json");
             if (!File.Exists(trendPath)) return "No compliance trend data. Run tagging workflows to build history.";
 
             var data = LoadJsonArray(trendPath);

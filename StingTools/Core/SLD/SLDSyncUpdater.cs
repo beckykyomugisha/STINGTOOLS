@@ -192,7 +192,7 @@ namespace StingTools.Core.SLD
             try
             {
                 if (string.IsNullOrEmpty(doc?.PathName)) return false;
-                string p = Path.Combine(Path.GetDirectoryName(doc.PathName), "project_config.json");
+                string p = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc), "project_config.json");
                 if (!File.Exists(p)) return false;
                 var root = JObject.Parse(File.ReadAllText(p));
                 return (bool)(root["sld_sync_enabled"] ?? false);

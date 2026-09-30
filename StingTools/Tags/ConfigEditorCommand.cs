@@ -35,7 +35,7 @@ namespace StingTools.Tags
             Document doc = ctx.Doc;
 
             // Find existing config
-            string projectDir = Path.GetDirectoryName(doc.PathName);
+            string projectDir = global::StingTools.Core.StingPaths.ModelDir(doc);
             string configPath = null;
             if (!string.IsNullOrEmpty(projectDir))
                 configPath = Path.Combine(projectDir, "project_config.json");
@@ -498,7 +498,7 @@ namespace StingTools.Tags
             string path = StingToolsApp.FindDataFile(def.file);
             if (string.IsNullOrEmpty(path))
             {
-                string pd = Path.GetDirectoryName(doc.PathName ?? "");
+                string pd = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(pd)) path = Path.Combine(pd, def.file);
             }
             if (string.IsNullOrEmpty(path) || !File.Exists(path))

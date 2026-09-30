@@ -519,7 +519,7 @@ namespace StingTools.Temp
 
             // Write CSV
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                ? global::StingTools.Core.StingPaths.ModelDir(doc) ?? Path.GetTempPath()
                 : Path.GetTempPath();
             string csvPath = Path.Combine(outputDir,
                 $"STING_RoomData_{DateTime.Now:yyyyMMdd_HHmm}.csv");

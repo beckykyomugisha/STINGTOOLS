@@ -1145,7 +1145,7 @@ namespace StingTools.Docs
             // 1. STING_BIM_MANAGER dir alongside project
             try
             {
-                string projDir = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+                string projDir = string.IsNullOrEmpty(doc.PathName) ? null : global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(projDir))
                 {
                     string p = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), name);

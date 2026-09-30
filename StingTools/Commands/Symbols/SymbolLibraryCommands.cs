@@ -89,7 +89,7 @@ namespace StingTools.Commands.Symbols
             try
             {
                 if (!string.IsNullOrEmpty(doc.PathName))
-                    baseDir = Path.GetDirectoryName(doc.PathName);
+                    baseDir = global::StingTools.Core.StingPaths.ModelDir(doc);
             }
             catch (Exception ex) { StingLog.Warn($"ResolveOutputRoot: {ex.Message}"); }
 
@@ -155,7 +155,7 @@ namespace StingTools.Commands.Symbols
             try
             {
                 if (!string.IsNullOrEmpty(doc.PathName))
-                    baseDir = Path.GetDirectoryName(doc.PathName);
+                    baseDir = global::StingTools.Core.StingPaths.ModelDir(doc);
             }
             catch { }
             if (string.IsNullOrEmpty(baseDir)) return null;

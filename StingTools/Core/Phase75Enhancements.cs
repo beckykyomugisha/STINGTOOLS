@@ -1195,7 +1195,7 @@ namespace StingTools.Core
         {
             try
             {
-                string projectDir = doc != null ? Path.GetDirectoryName(doc.PathName) : null;
+                string projectDir = doc != null ? global::StingTools.Core.StingPaths.ModelDir(doc) : null;
                 if (string.IsNullOrEmpty(projectDir)) return;
                 string issuesPath = CoordStores.Issues(doc);
                 if (!File.Exists(issuesPath)) return;
@@ -1714,7 +1714,7 @@ namespace StingTools.Core
             var violations = new List<string>();
             try
             {
-                string projectDir = Path.GetDirectoryName(doc.PathName);
+                string projectDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(projectDir)) return (0, violations);
                 string issuesPath = CoordStores.Issues(doc);
                 if (!File.Exists(issuesPath)) return (0, violations);

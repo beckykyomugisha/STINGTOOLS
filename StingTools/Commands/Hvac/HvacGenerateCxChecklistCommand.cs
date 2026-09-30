@@ -63,7 +63,7 @@ namespace StingTools.Commands.Hvac
                 }
 
                 // Output directory
-                string projDir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 if (string.IsNullOrEmpty(projDir))
                 {
                     TaskDialog.Show("STING HVAC", "Save the project before generating the Cx checklist.");

@@ -113,14 +113,45 @@ $allowMarker = 'path-discipline:\s*legacy-fallback'
 # does NOT constrain how the base argument is spelled: that was hole #3.
 $siblingPattern = 'Path\.Combine\(.*"_BIM_COORD"'
 
+# TIER 3 -- a folder derived from the model FILE's own path (ACC-HARD-3c).
+# Path.GetDirectoryName(doc.PathName) is "Autodesk Docs:\<project>" for a cloud model and
+# the user's own Documents for a workshared local copy, so anything built on it either
+# fails or splits per user. Use StingPaths.ModelDir(doc) / ModelSidecar(doc, ...) (which
+# are exactly the old answer for a local model) or a StingPaths / OutputLocationHelper
+# resolver. Only the resolvers are exempt; a genuine exception is marked in the source:
+#     ... // path-discipline: model-dir -- <why>
+# Baseline: tools/path_discipline_modeldir_baseline.txt (may fall, never rise).
+$modelDirPattern = '(GetDirectoryName|ChangeExtension)\([^)]*\.PathName'
+$modelDirMarker = 'path-discipline:\s*model-dir'
+$modelDirExempt = @(
+    'Core/ProjectFolderEngine.cs',
+    'Core/StingPaths.cs',
+    'Core/CloudProjectRootResolver.cs',
+    'Core/Storage/StingProjectRootSchema.cs'
+)
+
 $legacyHits = @{}
 $siblingHits = @{}
 $resolvedHits = @{}
+$modelDirHits = @{}
 
 Get-ChildItem -Path $srcRoot -Recurse -Filter *.cs |
     Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' } |
     ForEach-Object {
         $rel = $_.FullName.Substring($srcRoot.Length).TrimStart('\', '/').Replace('\', '/')
+
+        # Tier 3 has its own exemption list (a different set of resolvers).
+        if ($modelDirExempt -notcontains $rel) {
+            $mdN = 0
+            Select-String -Path $_.FullName -Pattern $modelDirPattern -AllMatches -Context 3,0 |
+                Where-Object {
+                    $ctx = ($_.Context.PreContext -join "`n") + "`n" + $_.Line
+                    $_.Line.TrimStart() -notmatch '^//' -and $ctx -notmatch $modelDirMarker
+                } |
+                ForEach-Object { $mdN += $_.Matches.Count }
+            if ($mdN -gt 0) { $modelDirHits[$rel] = [int]$mdN }
+        }
+
         if ($exemptFiles -contains $rel) { return }
 
         # A legacy bucket name combined onto a RESOLVER result is correct usage --
@@ -213,7 +244,39 @@ if ($violations.Count -gt 0) {
     Write-Host ""
 }
 
+# -- Tier 3 -------------------------------------------------------------------
+$mdBaselinePath = Join-Path $PSScriptRoot 'path_discipline_modeldir_baseline.txt'
+$mdBaseline = @{}
+if (Test-Path $mdBaselinePath) {
+    Get-Content $mdBaselinePath | Where-Object { $_ -and -not $_.StartsWith('#') } | ForEach-Object {
+        $parts = $_ -split "`t"
+        if ($parts.Count -ge 2) { $mdBaseline[$parts[0].Trim()] = [int]$parts[1].Trim() }
+    }
+}
+$mdViolations = @()
+foreach ($file in $modelDirHits.Keys) {
+    $liveN = $modelDirHits[$file]
+    $baseN = if ($mdBaseline.ContainsKey($file)) { $mdBaseline[$file] } else { 0 }
+    if ($liveN -gt $baseN) {
+        $mdViolations += ("  {0} : {1} folder(s) derived from doc.PathName, baseline {2}" -f $file, $liveN, $baseN)
+    }
+}
+if ($mdViolations.Count -gt 0) {
+    $failed = $true
+    Write-Host "Path-discipline FAILED -- new folder(s) derived from the model file's path:" -ForegroundColor Red
+    $mdViolations | Sort-Object | ForEach-Object { Write-Host $_ -ForegroundColor Red }
+    Write-Host ""
+    Write-Host 'For a cloud model that is "Autodesk Docs:\..." and for a workshared local copy it is'
+    Write-Host 'per user. Use StingPaths.ModelDir(doc) / StingPaths.ModelSidecar(doc, suffix), or a'
+    Write-Host 'StingPaths / OutputLocationHelper resolver. Mark a genuine exception with'
+    Write-Host '"// path-discipline: model-dir -- <why>".'
+    Write-Host ""
+}
+
 if ($failed) { exit 1 }
+
+$mdTotal = ($modelDirHits.Values | Measure-Object -Sum).Sum
+if ($null -eq $mdTotal) { $mdTotal = 0 }
 
 $sibTotal = ($siblingHits.Values | Measure-Object -Sum).Sum
 if ($null -eq $sibTotal) { $sibTotal = 0 }
@@ -223,6 +286,7 @@ Write-Host "Path-discipline OK."
 Write-Host "  Tier 1 legacy bucket names outside resolvers   : 0"
 Write-Host "  Tier 2 raw-dir _BIM_COORD sites (must reach 0) : $sibTotal across $($siblingHits.Count) file(s), all within baseline"
 Write-Host "  _BIM_COORD sites resolving correctly           : $okTotal"
+Write-Host "  Tier 3 folders from doc.PathName (baselined)   : $mdTotal across $($modelDirHits.Count) file(s), all within baseline"
 if ($sibTotal -gt 0) {
     Write-Host ""
     Write-Host "Note: the $sibTotal raw-dir site(s) write <rvtDir>/_BIM_COORD -- the PRE-consolidation"

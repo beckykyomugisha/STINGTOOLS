@@ -71,7 +71,7 @@ namespace StingTools.Docs
                     string onSheet = placedViewIds.Contains(v.Id) ? "Yes" : "No";
                     csv.AppendLine($"\"{v.Name}\",{v.ViewType},{onSheet}");
                 }
-                string dir = Path.GetDirectoryName(doc.PathName);
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) dir = Path.GetTempPath();
                 string csvPath = Path.Combine(dir, "STING_View_Organizer.csv");
                 File.WriteAllText(csvPath, csv.ToString());

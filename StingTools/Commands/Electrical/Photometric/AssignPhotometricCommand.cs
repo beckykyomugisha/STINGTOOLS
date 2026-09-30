@@ -57,7 +57,7 @@ namespace StingTools.Commands.Electrical.Photometric
                 if (targetTypeIds.Count > 0)
                 {
                     string projFolder = !string.IsNullOrEmpty(doc.PathName)
-                        ? System.IO.Path.GetDirectoryName(doc.PathName) : null;
+                        ? global::StingTools.Core.StingPaths.ModelDir(doc) : null;
                     if (!string.IsNullOrEmpty(projFolder))
                     {
                         var registry = StingTools.Photometrics.LuminaireRegistry.LoadFor(projFolder);

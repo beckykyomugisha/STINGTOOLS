@@ -372,7 +372,7 @@ namespace StingTools.BOQ
 
         private static string LinkSelectionPath(Document doc)
         {
-            string parent = System.IO.Path.GetDirectoryName(doc?.PathName ?? "");
+            string parent = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — memory only
             return StingPaths.MetaFile(doc, "_BIM_COORD", "boq_links.json");
         }

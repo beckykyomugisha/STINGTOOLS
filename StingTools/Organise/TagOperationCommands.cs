@@ -5520,7 +5520,7 @@ namespace StingTools.Organise
                 try
                 {
                     string dir = !string.IsNullOrEmpty(doc.PathName)
-                        ? System.IO.Path.GetDirectoryName(doc.PathName)
+                        ? global::StingTools.Core.StingPaths.ModelDir(doc)
                         : StingToolsApp.DataPath ?? "";
                     string csvPath = System.IO.Path.Combine(dir ?? "",
                         $"STING_Discipline_Compliance_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
@@ -5746,7 +5746,7 @@ namespace StingTools.Organise
 
             // Persist to project_config.json next to the .rvt.
             bool saved = false;
-            string projectDir = Path.GetDirectoryName(doc.PathName);
+            string projectDir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (!string.IsNullOrEmpty(projectDir))
             {
                 try { saved = TagConfig.SaveToFile(Path.Combine(projectDir, "project_config.json")); }

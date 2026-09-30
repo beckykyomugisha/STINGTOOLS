@@ -2989,7 +2989,7 @@ namespace StingTools.Temp
 
             // Find Excel files in the project directory
             string projectDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName)
+                ? global::StingTools.Core.StingPaths.ModelDir(doc)
                 : null;
 
             string xlsxPath = null;
@@ -4494,7 +4494,7 @@ namespace StingTools.Temp
             _materialLinks = new Dictionary<string, ParagraphTemplate>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                string projDir = Path.GetDirectoryName(doc.PathName) ?? "";
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 if (string.IsNullOrEmpty(projDir)) return;
                 string p = Path.Combine(ProjectFolderEngine.GetMetaPath(doc, "STING_BIM_MANAGER"), "material_boq_links.json");
                 if (!File.Exists(p)) return;

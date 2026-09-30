@@ -142,7 +142,7 @@ namespace StingTools.Core.Branding
         {
             try
             {
-                var projDir = Path.GetDirectoryName(doc?.PathName ?? "");
+                var projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(projDir))
                 {
                     var over = Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "brand.json");

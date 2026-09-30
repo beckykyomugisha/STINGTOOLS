@@ -189,7 +189,7 @@ namespace StingTools.Core.Cad.Mep
         {
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 string path = StingPaths.MetaFile(doc, "_BIM_COORD", ProjectFile);
                 if (!File.Exists(path)) return null;

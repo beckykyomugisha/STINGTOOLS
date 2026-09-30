@@ -659,7 +659,7 @@ namespace StingTools.Commands.Plumbing
 
             // Phase 179f ships a folder-listing of the planned commissioning artefacts.
             // Real DOCX/XLSX templates land in the template engine v1.1 _template_sources tree.
-            var dir = Path.GetDirectoryName(ctx.Doc.PathName ?? "");
+            var dir = global::StingTools.Core.StingPaths.ModelDir(ctx.Doc);
             string pack = "";
             if (!string.IsNullOrEmpty(dir))
             {

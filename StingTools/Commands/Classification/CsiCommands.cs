@@ -32,7 +32,7 @@ namespace StingTools.Commands.Classification
             // Project overlay first so it wins ties (Resolve takes the earliest on a tie).
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(dir))
                 {
                     string p = StingPaths.MetaFile(doc, "_BIM_COORD", "csi_map.csv");

@@ -72,7 +72,7 @@ namespace StingTools.Model
             try
             {
                 var configPath = System.IO.Path.Combine(
-                    System.IO.Path.GetDirectoryName(doc.PathName) ?? "",
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                     "project_config.json");
 
                 if (!System.IO.File.Exists(configPath)) return;

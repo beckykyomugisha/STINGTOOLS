@@ -236,7 +236,7 @@ namespace StingTools.Commands.Drawing
             {
                 if (!string.IsNullOrEmpty(doc.PathName))
                 {
-                    var dir = Path.GetDirectoryName(doc.PathName);
+                    var dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                     if (!string.IsNullOrEmpty(dir))
                         candidates.Add(Path.Combine(dir, "Families", "TitleBlocks", name + ".rfa"));
                 }

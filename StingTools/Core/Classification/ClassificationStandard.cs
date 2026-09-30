@@ -72,7 +72,7 @@ namespace StingTools.Core.Classification
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return ClassStandard.Uniclass;
-                string path = Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", FileRel);
+                string path = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc) ?? "", FileRel);
                 if (!File.Exists(path)) return ClassStandard.Uniclass;
                 string raw = (string)JObject.Parse(File.ReadAllText(path))["standard"] ?? "";
                 if (Enum.TryParse<ClassStandard>(raw, true, out var s)) return s;

@@ -125,7 +125,7 @@ namespace StingTools.Core.Plumbing
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
-                var dir = Path.GetDirectoryName(doc.PathName);
+                var dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(dir)) return null;
                 var coord = StingPaths.Meta(doc, "_BIM_COORD");
                 return Path.Combine(coord, "plumbing_system_config.json");

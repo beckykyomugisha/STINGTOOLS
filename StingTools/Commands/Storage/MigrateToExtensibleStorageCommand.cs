@@ -56,7 +56,7 @@ namespace StingTools.Commands.Storage
                         // write the most recent record onto ProjectInformation.
                         try
                         {
-                            string projDir = System.IO.Path.GetDirectoryName(doc.PathName ?? "");
+                            string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                             string log = string.IsNullOrEmpty(projDir) ? null
                                 : System.IO.Path.Combine(projDir, "STING_WORKFLOW_LOG.jsonl");
                             var existingState = StingWorkflowStateSchema.Read(doc);
@@ -93,7 +93,7 @@ namespace StingTools.Commands.Storage
                         // Pack 122 / Gap C — drawing-types JSON import.
                         try
                         {
-                            string projDir = System.IO.Path.GetDirectoryName(doc.PathName ?? "");
+                            string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                             string dtPath = string.IsNullOrEmpty(projDir) ? null
                                 : System.IO.Path.Combine(StingPaths.Meta(doc, "_BIM_COORD"), "drawing_types.json");
                             var existingDt = StingDrawingTypesSchema.Read(doc);

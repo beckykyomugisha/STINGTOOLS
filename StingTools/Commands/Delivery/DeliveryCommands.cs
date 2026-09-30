@@ -358,7 +358,7 @@ namespace StingTools.Commands.Delivery
 
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(dir))
                 {
                     string legacy = StingPaths.MetaFile(doc, "_BIM_COORD", "deliverables.json");

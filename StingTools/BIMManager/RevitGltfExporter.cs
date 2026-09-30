@@ -550,7 +550,7 @@ namespace StingTools.BIMManager
         private IEnumerable<string> TextureLibraryDirs()
         {
             var dirs = new List<string>();
-            try { var d = Path.GetDirectoryName(_doc.PathName); if (!string.IsNullOrEmpty(d)) dirs.Add(d!); } catch { }
+            try { var d = global::StingTools.Core.StingPaths.ModelDir(_doc); if (!string.IsNullOrEmpty(d)) dirs.Add(d!); } catch { }
             var cf86 = Environment.GetEnvironmentVariable("CommonProgramFiles(x86)") ?? @"C:\Program Files (x86)\Common Files";
             var cf   = Environment.GetEnvironmentVariable("CommonProgramFiles") ?? @"C:\Program Files\Common Files";
             dirs.Add(Path.Combine(cf86, "Autodesk Shared", "Materials", "Textures"));

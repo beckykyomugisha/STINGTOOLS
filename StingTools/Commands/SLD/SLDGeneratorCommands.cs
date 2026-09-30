@@ -130,7 +130,7 @@ namespace StingTools.Commands.SLD
                 return Result.Failed;
             }
 
-            string p = Path.Combine(Path.GetDirectoryName(ctx.Doc.PathName), "project_config.json");
+            string p = Path.Combine(global::StingTools.Core.StingPaths.ModelDir(ctx.Doc), "project_config.json");
             try
             {
                 JObject root = File.Exists(p)

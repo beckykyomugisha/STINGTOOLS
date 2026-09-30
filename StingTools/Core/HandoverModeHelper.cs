@@ -202,7 +202,7 @@ namespace StingTools.Core
         {
             try
             {
-                string dir = Path.GetDirectoryName(doc.PathName ?? "") ?? "";
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? "";
                 return string.IsNullOrEmpty(dir) ? null : Path.Combine(dir, "project_config.json");
             }
             catch { return null; }

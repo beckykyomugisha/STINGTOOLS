@@ -352,7 +352,7 @@ namespace StingTools.Docs
                 if (!string.IsNullOrEmpty(p)) return p;
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            string dir = Path.GetDirectoryName(doc.PathName);
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(dir))
                 dir = StingToolsApp.DataPath ?? Path.GetTempPath();
             return Path.Combine(dir, ".sting_layout_presets.json");

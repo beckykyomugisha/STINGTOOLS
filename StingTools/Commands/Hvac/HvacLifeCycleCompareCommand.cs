@@ -128,7 +128,7 @@ namespace StingTools.Commands.Hvac
             // Overlay replaces wholesale when present, else corporate baseline.
             try
             {
-                string dir = Path.GetDirectoryName(doc?.PathName ?? "");
+                string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (!string.IsNullOrEmpty(dir))
                 {
                     string p = StingPaths.MetaFile(doc, "_BIM_COORD", "hvac_lcc.json");

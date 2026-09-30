@@ -28,7 +28,7 @@ namespace StingTools.Core.Content
             try
             {
                 var docDir = (doc != null && !string.IsNullOrEmpty(doc.PathName))
-                    ? Path.GetDirectoryName(doc.PathName) : null;
+                    ? global::StingTools.Core.StingPaths.ModelDir(doc) : null;
                 if (!string.IsNullOrEmpty(docDir))
                 {
                     // Consolidated <root>/_data/_BIM_COORD/… (post ISO 19650 consolidation)…

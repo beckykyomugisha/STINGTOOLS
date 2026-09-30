@@ -177,6 +177,67 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// The folder that plays the part of "the model's folder" — for code that still builds
+        /// <c>&lt;modelDir&gt;/…</c> paths (legacy siblings, project_config.json, override files)
+        /// instead of going through <see cref="Meta"/> / <see cref="MetaFile"/>.
+        /// <list type="bullet">
+        ///   <item>Local model (incl. an existing per-user workshared project): exactly
+        ///         <c>Path.GetDirectoryName(doc.PathName)</c>, as before.</item>
+        ///   <item>Cloud model, or a workshared local copy rooted beside its central
+        ///         (ACC-HARD-3/3b): the PARENT of the project root, so
+        ///         <c>&lt;modelDir&gt;/&lt;CODE&gt;</c> is still the root and siblings are shared,
+        ///         not per user. Never "Autodesk Docs:\…".</item>
+        ///   <item>Unsaved, or a governed model with no root yet: null — the same answer an
+        ///         unsaved model has always produced, which every caller already handles.</item>
+        /// </list>
+        /// Never prompts.
+        /// </summary>
+        public static string ModelDir(Document doc)
+        {
+            if (doc == null) return null;
+            string pn;
+            try { pn = doc.PathName; } catch { return null; }
+            if (string.IsNullOrEmpty(pn)) return null;
+            try
+            {
+                string ext = CloudProjectRootResolver.ExternalRoot(doc, out bool governed, allowPrompt: false);
+                if (governed)
+                    return string.IsNullOrEmpty(ext)
+                        ? null
+                        : Path.GetDirectoryName(ext.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            }
+            catch (Exception ex) { StingLog.Warn($"StingPaths.ModelDir: {ex.Message}"); return null; }
+            return Path.GetDirectoryName(pn);
+        }
+
+        /// <summary>
+        /// A sidecar file beside the model: <c>&lt;ModelDir&gt;/&lt;model name&gt;&lt;suffix&gt;</c>
+        /// (what <c>Path.ChangeExtension(doc.PathName, suffix)</c> gave for a local model). For a
+        /// workshared local copy rooted beside its central, the CENTRAL model's name is used so
+        /// every user's copy shares one sidecar. Null when <see cref="ModelDir"/> is null.
+        /// </summary>
+        public static string ModelSidecar(Document doc, string suffix)
+        {
+            string dir = ModelDir(doc);
+            if (string.IsNullOrEmpty(dir)) return null;
+            string name = Path.GetFileNameWithoutExtension(doc.PathName);
+            try
+            {
+                if (!CloudProjectRootResolver.IsCloud(doc))
+                {
+                    CloudProjectRootResolver.TryResolveWorkshared(doc, out var wd, allowPrompt: false);
+                    if (wd.Kind != WorksharedRootKind.NotApplicable)
+                    {
+                        string central = CloudProjectRootResolver.CentralPathOf(doc);
+                        if (!string.IsNullOrEmpty(central)) name = Path.GetFileNameWithoutExtension(central);
+                    }
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"StingPaths.ModelSidecar: {ex.Message}"); }
+            return Path.Combine(dir, name + suffix);
+        }
+
         /// <summary>The consolidated &lt;root&gt;/_data root, or a named file inside it.</summary>
         public static string Data(Document doc, string fileName = null)
             => ProjectFolderEngine.GetDataPath(doc, fileName);

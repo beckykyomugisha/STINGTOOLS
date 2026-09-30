@@ -2169,6 +2169,7 @@ namespace StingTools.UI
                     case "DocRegister_Unified": RunCommand<Core.UnifiedRegisterExportCommand>(app); break;
                     case "Register_Consolidate": RunCommand<Core.RegisterConsolidateCommand>(app); break;
                     case "Folders_ConsolidateAll": RunCommand<Commands.Folders.FolderConsolidateCommand>(app); break;
+                    case "Cloud_SetProjectRoot": RunCommand<Commands.Cloud.CloudSetProjectRootCommand>(app); break;
                     case "AddDocument": RunCommand<BIMManager.AddDocumentCommand>(app); break;
                     case "CreateTransmittal": RunCommand<BIMManager.CreateTransmittalCommand>(app); break;
                     case "ReviewTracker": RunCommand<BIMManager.ReviewTrackerCommand>(app); break;
@@ -2617,7 +2618,7 @@ namespace StingTools.UI
                                 var td = new Autodesk.Revit.UI.TaskDialog("STING Folder Setup")
                                 {
                                     MainInstruction = "Project folders are already configured.",
-                                    MainContent = $"Root: {existing.ResolveRootPath(cfDoc.PathName)}\n" +
+                                    MainContent = $"Root: {Core.ProjectFolderEngine.ResolveSetupRoot(cfDoc, existing)}\n" +
                                                   $"Mode: {existing.Mode}, {existing.CustomFolders?.Count ?? 0} folders",
                                 };
                                 td.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink1, "Run setup again", "Reconfigure folder structure");
@@ -2626,7 +2627,7 @@ namespace StingTools.UI
                                 var res = td.Show();
                                 if (res == Autodesk.Revit.UI.TaskDialogResult.CommandLink2)
                                 {
-                                    string root = existing.ResolveRootPath(cfDoc.PathName);
+                                    string root = Core.ProjectFolderEngine.ResolveSetupRoot(cfDoc, existing);
                                     if (!string.IsNullOrEmpty(root) && System.IO.Directory.Exists(root))
                                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
                                     break;
@@ -2639,7 +2640,7 @@ namespace StingTools.UI
                                 var dlg = new UI.ProjectFolderSetupDialog(app);
                                 if (dlg.ShowDialog() == true && dlg.Result != null)
                                 {
-                                    string root = dlg.Result.ResolveRootPath(cfDoc.PathName);
+                                    string root = Core.ProjectFolderEngine.ResolveSetupRoot(cfDoc, dlg.Result);
                                     if (!string.IsNullOrEmpty(root) && System.IO.Directory.Exists(root))
                                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", root) { UseShellExecute = true })?.Dispose();
                                 }

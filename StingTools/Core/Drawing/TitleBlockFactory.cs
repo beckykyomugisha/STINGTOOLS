@@ -466,7 +466,7 @@ namespace StingTools.Core.Drawing
                     {
                         if (!d.IsFamilyDocument && !string.IsNullOrEmpty(d.PathName))
                         {
-                            var dir = Path.GetDirectoryName(d.PathName);
+                            var dir = global::StingTools.Core.StingPaths.ModelDir(d);
                             if (!string.IsNullOrEmpty(dir))
                                 return Path.Combine(dir, specPath);
                         }
@@ -533,7 +533,7 @@ namespace StingTools.Core.Drawing
                     try
                     {
                         if (!d.IsFamilyDocument && !string.IsNullOrEmpty(d.PathName))
-                            dir = Path.GetDirectoryName(d.PathName);
+                            dir = global::StingTools.Core.StingPaths.ModelDir(d);
                     }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                     if (!string.IsNullOrEmpty(dir)) yield return dir;

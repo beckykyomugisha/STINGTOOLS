@@ -63,6 +63,8 @@
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
+    <Compile Include="..\StingTools\Core\CloudProjectRoot.cs" Link="Core\CloudProjectRoot.cs" />
+    <Compile Include="..\StingTools\Core\WorksharedProjectRoot.cs" Link="Core\WorksharedProjectRoot.cs" />
     <!-- Why a family refuses to load into a project. Revit-free half only: the
          collectors that read a FamilyManager and a Document live in
          Tags/SharedParamPreflight.cs. The comparison is here because every

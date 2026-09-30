@@ -150,7 +150,7 @@ namespace StingTools.Core
 
         private static string DocKey(Document doc)
         {
-            try { return Path.GetDirectoryName(doc?.PathName ?? "") ?? ""; }
+            try { return global::StingTools.Core.StingPaths.ModelDir(doc) ?? ""; }
             catch { return ""; }
         }
 

@@ -36,7 +36,7 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"CoordLog.ResolvePath: {ex.Message}"); }
 
-            return Path.Combine(Path.GetDirectoryName(doc.PathName) ?? "", CoordLogFormat.SidecarFileName);
+            return Path.Combine(global::StingTools.Core.StingPaths.ModelDir(doc) ?? "", CoordLogFormat.SidecarFileName);
         }
 
         /// <summary>
@@ -60,7 +60,7 @@ namespace StingTools.Core
         private static IEnumerable<string> LegacyReadCandidates(Document doc)
         {
             string modelDir = "";
-            try { modelDir = Path.GetDirectoryName(doc.PathName ?? "") ?? ""; } catch { }
+            try { modelDir = global::StingTools.Core.StingPaths.ModelDir(doc) ?? ""; } catch { }
 
             string dataJson = "";
             try { dataJson = ProjectFolderEngine.GetDataPath(doc, "coord_log.json"); } catch { }

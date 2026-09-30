@@ -52,7 +52,7 @@ namespace StingTools.Docs
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                ? global::StingTools.Core.StingPaths.ModelDir(doc) ?? Path.GetTempPath()
                 : Path.GetTempPath();
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string prefix = $"STING_COBie_{timestamp}";
@@ -522,7 +522,7 @@ namespace StingTools.Docs
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                ? global::StingTools.Core.StingPaths.ModelDir(doc) ?? Path.GetTempPath()
                 : Path.GetTempPath();
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string path = Path.Combine(outputDir, $"STING_MaintenanceSchedule_{timestamp}.csv");
@@ -657,7 +657,7 @@ namespace StingTools.Docs
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                ? global::StingTools.Core.StingPaths.ModelDir(doc) ?? Path.GetTempPath()
                 : Path.GetTempPath();
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string path = Path.Combine(outputDir, $"STING_OM_Manual_{timestamp}.txt");
@@ -901,7 +901,7 @@ namespace StingTools.Docs
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                ? global::StingTools.Core.StingPaths.ModelDir(doc) ?? Path.GetTempPath()
                 : Path.GetTempPath();
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string path = Path.Combine(outputDir, $"STING_AssetHealth_{timestamp}.csv");
@@ -1077,7 +1077,7 @@ namespace StingTools.Docs
             var known = new HashSet<string>(TagConfig.DiscMap.Keys);
 
             string outputDir = !string.IsNullOrEmpty(doc.PathName)
-                ? Path.GetDirectoryName(doc.PathName) ?? Path.GetTempPath()
+                ? global::StingTools.Core.StingPaths.ModelDir(doc) ?? Path.GetTempPath()
                 : Path.GetTempPath();
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             string path = Path.Combine(outputDir, $"STING_SpaceHandover_{timestamp}.csv");

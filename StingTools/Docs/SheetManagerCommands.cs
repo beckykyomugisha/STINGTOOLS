@@ -928,7 +928,7 @@ namespace StingTools.Docs
         private static string GetIsoBackupPath(Document doc)
         {
             if (string.IsNullOrEmpty(doc.PathName)) return null;
-            return System.IO.Path.ChangeExtension(doc.PathName, ".sting_sheet_backup.json");
+            return global::StingTools.Core.StingPaths.ModelSidecar(doc, ".sting_sheet_backup.json");
         }
 
         /// <summary>

@@ -80,7 +80,7 @@ namespace StingTools.Core
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx?.Doc == null) return Result.Failed;
                 var doc = ctx.Doc;
-                string projDir = Path.GetDirectoryName(doc.PathName ?? "");
+                string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                 if (string.IsNullOrEmpty(projDir) || !Directory.Exists(projDir))
                 {
                     TaskDialog.Show("CDE Folders", "Save the project before generating CDE folders.");

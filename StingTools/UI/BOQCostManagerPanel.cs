@@ -128,7 +128,7 @@ namespace StingTools.UI
         {
             try
             {
-                string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
+                string parent = global::StingTools.Core.StingPaths.ModelDir(Doc);
                 if (string.IsNullOrEmpty(parent)) return null;   // unsaved doc — no persistence
                 return StingPaths.MetaFile(Doc, "_BIM_COORD", "boq_ui_state.json");
             }
@@ -2475,7 +2475,7 @@ namespace StingTools.UI
         {
             try
             {
-                string parent = System.IO.Path.GetDirectoryName(Doc?.PathName ?? "");
+                string parent = global::StingTools.Core.StingPaths.ModelDir(Doc);
                 if (!string.IsNullOrEmpty(parent))
                     return StingPaths.MetaFile(Doc, "_BIM_COORD", "exports");
             }

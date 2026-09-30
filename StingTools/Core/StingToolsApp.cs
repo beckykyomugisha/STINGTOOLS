@@ -48,6 +48,11 @@ namespace StingTools.Core
         {
             try
             {
+                // ACC-HARD-3: a cloud model's project root is asked for only on Revit's main
+                // thread; anything else (idling workers, unattended workflows) refuses instead.
+                CloudProjectRootResolver.UiThreadId = System.Threading.Thread.CurrentThread.ManagedThreadId;
+                CloudProjectRootResolver.PromptHandler = Commands.Cloud.CloudProjectRootPrompt.Ask;
+
                 AssemblyPath = Assembly.GetExecutingAssembly().Location;
                 DataPath = Path.Combine(
                     Path.GetDirectoryName(AssemblyPath) ?? string.Empty,
@@ -1272,7 +1277,7 @@ namespace StingTools.Core
                     try
                     {
                         string cfg = System.IO.Path.Combine(
-                            System.IO.Path.GetDirectoryName(e.Document.PathName) ?? "", "project_config.json");
+                            global::StingTools.Core.StingPaths.ModelDir(e.Document) ?? "", "project_config.json");
                         WorkflowScheduler.LoadFromConfig(cfg);
                     }
                     catch (Exception tEx) { StingLog.Warn($"WorkflowScheduler.LoadFromConfig: {tEx.Message}"); }
@@ -1420,7 +1425,7 @@ namespace StingTools.Core
                         var setup = ProjectFolderEngine.LoadOrBootstrapSetup(e.Document);
                         if (setup != null)
                         {
-                            string root = setup.ResolveRootPath(e.Document.PathName);
+                            string root = ProjectFolderEngine.ResolveSetupRoot(e.Document, setup);
                             StingLog.Info($"DocumentOpened: project setup ready — root={root}, mode={setup.Mode}");
 
                             // DETECT ONLY — never move a user's files on document open.

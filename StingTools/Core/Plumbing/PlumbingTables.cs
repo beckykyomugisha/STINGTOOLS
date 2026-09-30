@@ -252,7 +252,7 @@ namespace StingTools.Core.Plumbing
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
                 string overlayPath = Path.Combine(
-                    Path.GetDirectoryName(doc.PathName) ?? "",
+                    global::StingTools.Core.StingPaths.ModelDir(doc) ?? "",
                     "_BIM_COORD",
                     "STING_PLUMB_FITTINGS_EQ_LENGTH.csv");
 

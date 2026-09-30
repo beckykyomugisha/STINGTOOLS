@@ -80,6 +80,18 @@ namespace StingTools.Core
             }
             catch (Exception ex) { StingLog.Warn($"GetOutputDirectory setup lookup: {ex.Message}"); }
 
+            // A cloud model with no recorded project root lands below in a per-user folder.
+            // That is tolerable for a report the user is shown the path of, never for state
+            // (GetStorePath refuses). Say which case this is, rather than "unsaved".
+            try
+            {
+                if (doc != null && CloudProjectRootResolver.IsCloud(doc))
+                    StingLog.Warn("GetOutputDirectory: cloud model has no recorded project root (ACC-HARD-3) — " +
+                                  "this export goes to a per-user folder, not the shared project root. " +
+                                  "Run 'Cloud project root' to set one.");
+            }
+            catch (Exception ex) { StingLog.Warn($"GetOutputDirectory cloud check: {ex.Message}"); }
+
             // 2. User-preferred directory (explicit override only)
             string dir = PreferredDirectory;
             if (!string.IsNullOrEmpty(dir) && TryEnsureDirectory(dir))
@@ -227,7 +239,18 @@ namespace StingTools.Core
                 ? StingPaths.MetaFile(doc, "_BIM_COORD", fileName)
                 : StingPaths.MetaFile(doc, "_BIM_COORD", area, fileName);
             if (string.IsNullOrEmpty(target))
+            {
+                // A cloud model with no recorded root (ACC-HARD-3): GetOutputDirectory would hand
+                // back a per-user folder, and a DATA STORE there silently forks project state per
+                // user. Refuse instead — callers already treat null as "no store".
+                if (CloudProjectRootResolver.IsCloud(doc))
+                {
+                    StingLog.Warn($"GetStorePath({fileName}): cloud model has no project root — refusing to " +
+                                  "place a data store in a per-user folder. Run 'Cloud project root'.");
+                    return null;
+                }
                 return string.IsNullOrEmpty(legacyDir) ? null : Path.Combine(legacyDir, fileName);
+            }
 
             try
             {
@@ -439,7 +462,7 @@ namespace StingTools.Core
                     "Use last folder", lastFolder);
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink2,
                     "Navigate to folder", "Open file browser");
-                string pd = routed ?? Path.GetDirectoryName(doc?.PathName ?? "");
+                string pd = routed ?? global::StingTools.Core.StingPaths.ModelDir(doc);
                 qd.AddCommandLink(Autodesk.Revit.UI.TaskDialogCommandLinkId.CommandLink3,
                     routed != null ? "Project folder for this export" : "Project folder",
                     string.IsNullOrEmpty(pd) ? "Save project first" : pd);

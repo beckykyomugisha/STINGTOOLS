@@ -660,7 +660,7 @@ namespace StingTools.Tags
                 var doc = ParameterHelpers.GetDoc(cd);
                 if (doc != null && !string.IsNullOrEmpty(doc.PathName))
                 {
-                    string projDir = Path.GetDirectoryName(doc.PathName);
+                    string projDir = global::StingTools.Core.StingPaths.ModelDir(doc);
                     if (!string.IsNullOrEmpty(projDir))
                     {
                         string bim = StingPaths.Meta(doc, "_BIM_COORD");

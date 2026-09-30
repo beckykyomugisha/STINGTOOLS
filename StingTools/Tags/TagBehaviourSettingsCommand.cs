@@ -28,7 +28,7 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string projectDir = string.IsNullOrEmpty(doc.PathName) ? null : Path.GetDirectoryName(doc.PathName);
+            string projectDir = string.IsNullOrEmpty(doc.PathName) ? null : global::StingTools.Core.StingPaths.ModelDir(doc);
             string configPath = string.IsNullOrEmpty(projectDir) ? null : Path.Combine(projectDir, "project_config.json");
 
             for (int guard = 0; guard < 20; guard++)

@@ -3214,7 +3214,7 @@ namespace StingTools.Tags
             }
 
             string dir = !string.IsNullOrEmpty(doc.PathName)
-                ? System.IO.Path.GetDirectoryName(doc.PathName)
+                ? global::StingTools.Core.StingPaths.ModelDir(doc)
                 : StingToolsApp.DataPath ?? "";
             string csvPath = System.IO.Path.Combine(dir ?? "",
                 $"STING_TagPositions_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
@@ -3300,7 +3300,7 @@ namespace StingTools.Tags
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string hostDir = Path.GetDirectoryName(doc.PathName);
+            string hostDir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(hostDir))
             {
                 TaskDialog.Show("STING", "Save the host document first to establish a file path.");

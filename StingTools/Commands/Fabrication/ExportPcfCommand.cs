@@ -57,9 +57,11 @@ namespace StingTools.Commands.Fabrication
                 list.Add(el.Id);
             }
 
-            string outDir = Path.Combine(
-                Path.GetDirectoryName(doc.PathName ?? Path.GetTempPath()) ?? Path.GetTempPath(),
-                "_BIM_COORD", "pcf");
+            // Through StingPaths (ACC-HARD-3c): the project's coord bucket, not a sibling of
+            // the model file — which for a cloud model is "Autodesk Docs:\…" and for a
+            // workshared local copy is per user. Unsaved / no root: temp, as before.
+            string outDir = global::StingTools.Core.StingPaths.Meta(doc, "_BIM_COORD", "pcf")
+                ?? Path.Combine(Path.GetTempPath(), "STING_pcf");
 
             var results = new List<PcfExportResult>();
             foreach (var kv in bySystem)

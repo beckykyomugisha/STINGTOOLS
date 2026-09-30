@@ -107,7 +107,7 @@ namespace StingTools.Commands.Mep
         {
             path = null;
             if (doc == null || string.IsNullOrEmpty(doc.PathName)) return 0; // unsaved — can't persist
-            string dir = Path.GetDirectoryName(doc.PathName);
+            string dir = global::StingTools.Core.StingPaths.ModelDir(doc);
             if (string.IsNullOrEmpty(dir)) return 0;
             string coord = StingPaths.Meta(doc, "_BIM_COORD");
             Directory.CreateDirectory(coord);
