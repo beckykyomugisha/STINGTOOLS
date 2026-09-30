@@ -1233,7 +1233,7 @@
       "id": "mep-coord-A1-1to50",
       "name": "MEP Coordination — A1 @ 1:50",
       "origin": "corporate",
-      "checksum": "b997c0a7a7197fc87d7e9c252c82f060e5ca37780366ffc1c0b65a05ed42c900",
+      "checksum": "fb6ac2a2f30cdc772dbefb613c27b1e33ee7f2ce456d43e3be88d0861304dfed",
       "purpose": "Coordination",
       "discipline": "M",
       "paperSize": "A1",
@@ -1295,14 +1295,30 @@
       },
       "slots": [
         {
-          "label": "Plan 3D Overlay",
+          "label": "Coordination Plan",
           "viewType": "Plan",
           "purposeTag": "main-plan",
           "normX": 0.03,
           "normY": 0.05,
-          "normW": 0.94,
+          "normW": 0.62,
           "normH": 0.9,
           "required": true
+        },
+        {
+          "label": "ISO",
+          "viewType": "ISO",
+          "normX": 0.68,
+          "normY": 0.52,
+          "normW": 0.29,
+          "normH": 0.43
+        },
+        {
+          "label": "Section",
+          "viewType": "Section",
+          "normX": 0.68,
+          "normY": 0.05,
+          "normW": 0.29,
+          "normH": 0.43
         }
       ],
       "annotation": {
