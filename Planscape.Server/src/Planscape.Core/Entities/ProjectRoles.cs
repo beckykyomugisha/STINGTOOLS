@@ -188,6 +188,29 @@ public static class ProjectRoles
           || m.Iso19650Role == IsoAppointingParty
           || m.Iso19650Role == IsoBimCoordinator;
 
+    // ── Capability: WriteProject ────────────────────────────────────────────
+    // Author-level: the caller may change project content. Used where a
+    // credential that CAN write (e.g. the team-shared ACC access token handed to
+    // the Revit plugin by GET acc/token) is released. The two read-only
+    // ProjectRoles — Viewer and ClientGuest — are excluded; every other canonical
+    // role, plus the legacy "PM" ProjectRole CanCurate tolerates, is included.
+    // The ISO role is NOT consulted: this is "may author", not "is accountable".
+
+    public static bool CanWrite(string? projectRole, bool isTenantAdmin = false)
+        => isTenantAdmin
+        || Eq(projectRole, Contributor) || Eq(projectRole, Coordinator)
+        || Eq(projectRole, Manager) || Eq(projectRole, Owner) || Eq(projectRole, Admin)
+        || Eq(projectRole, LegacyProjectRolePm);
+
+    /// <summary>EF-translatable form of <see cref="CanWrite"/>.</summary>
+    public static Expression<Func<ProjectMember, bool>> CanWriteProjectPredicate =>
+        m => m.ProjectRole == Contributor
+          || m.ProjectRole == Coordinator
+          || m.ProjectRole == Manager
+          || m.ProjectRole == Owner
+          || m.ProjectRole == Admin
+          || m.ProjectRole == LegacyProjectRolePm;
+
     private static bool Eq(string? a, string b)
         => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 }

@@ -77,6 +77,14 @@ public static class ControllerProjectMembershipExtensions
         => HasCapabilityAsync(controller, db, projectId, ProjectRoles.CanAdministerProjectPredicate, ct);
 
     /// <summary>
+    /// True when the caller may AUTHOR project content (every ProjectRole except
+    /// Viewer / ClientGuest). See <see cref="ProjectRoles.CanWrite"/>.
+    /// </summary>
+    public static Task<bool> CanWriteProjectAsync(
+        this ControllerBase controller, PlanscapeDbContext db, Guid projectId, CancellationToken ct = default)
+        => HasCapabilityAsync(controller, db, projectId, ProjectRoles.CanWriteProjectPredicate, ct);
+
+    /// <summary>
     /// Shared body. The tenant `role` claim (Admin / Owner) grants without any
     /// ProjectMember row — that is pre-existing behaviour at every site this
     /// replaces, kept deliberately.

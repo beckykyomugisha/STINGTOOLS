@@ -67,6 +67,27 @@ run against a live tenant yet (ROADMAP ACC-HARD-1).
     key that survives the next model upload.
   - Escalated issues name both models and objects, the penetration depth and the score.
     Optional due date and assignee come from settings.
+- **Server (`Planscape.Server`).** The server's own ACC path had no tests and several
+  security gaps.
+  - The OAuth `state` is now sealed, expires after 10 minutes and works once. Start and
+    Disconnect need project access plus `CanAdministerProject`.
+  - A reconnect updates the existing row (it used to fail with a unique-index 500).
+  - `/acc/token` and `/acc/sync` need the new `ProjectRoles.CanWrite` (not Viewer or
+    ClientGuest); each token issuance is logged.
+  - Tokens are encrypted at rest (`enc:v1:`); legacy plaintext rows still read.
+  - A rotated refresh token is saved at once, under a Postgres advisory lock, and a token
+    another process rotated is adopted.
+  - Sync reports OK / PARTIAL / FAILED / BUSY. A failed count is unknown, not 0. The issue map
+    is saved after each push, and PlatformController PUT keeps server-owned config keys.
+  - Shared retry helper with Retry-After. ACC statuses are read back and reported, but
+    Planscape issue status is not changed from ACC.
+  - Discovery and issue-type endpoints. The webhook checks the `sha1hash=` signature, drops
+    duplicate deliveries and broadcasts to one project's group.
+  - The APS Model Derivative converter now refuses clearly: it cannot produce GLB.
+  - `AccServerIntegrationTests` has 25 tests; the full suite passes 1,049, 0 failed.
+  - Open: PlatformController's generic `/test` and `/sync` still call `AccConnector` without the
+    refresh lock. Set `DataProtection:KeysPath` in production, or stored tokens become
+    unreadable after a restart.
 - **Docs:**
   - `ACC_INTEGRATION_STRATEGY.md` (capability matrix and roadmap).
   - `KUT_ACC_DAY1_PLAYBOOK.md` (setup and live checks).

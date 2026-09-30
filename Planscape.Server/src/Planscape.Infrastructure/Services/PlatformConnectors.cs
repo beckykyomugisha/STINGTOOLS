@@ -16,32 +16,24 @@ namespace Planscape.Infrastructure.Services;
 /// 3-legged flow in AccOAuthController), so the whole team shares one ACC grant.
 ///
 /// Reads the APS app credentials from config: <c>Acc:ClientId</c> /
-/// <c>Acc:ClientSecret</c> (env <c>Acc__ClientId</c> / <c>Acc__ClientSecret</c>).
-/// Returns a configuration error when those are absent so the dashboard can show
-/// a setup CTA.
+/// <c>Acc:ClientSecret</c> (env <c>Acc__ClientId</c> / <c>Acc__ClientSecret</c>),
+/// and the APS host from <c>Aps:BaseUrl</c> (see <see cref="Aps.ApsEndpoints"/>).
 ///
-/// Implemented: OAuth refresh (rotates tokens onto the connection so the caller's
-/// SaveChanges persists them), connectivity test (lists hubs), and a pull-sync
-/// that reports the ACC Issues count for the connected container. Pushing STING
-/// elements as ACC issues is a documented TODO.
+/// Token refresh ROTATES the pair onto the entity (APS invalidates the old refresh
+/// token). It does not persist — callers that own a DbContext go through
+/// <see cref="AccTokenRefresher.EnsureFreshAsync"/>, which saves the rotation
+/// immediately and serialises refreshes across processes. The in-process lock
+/// below is the fallback for providers without advisory locks.
 ///
 /// CAVEAT: built to documented APS signatures but NOT yet exercised against a
 /// live ACC project or a deployed server.
 /// </summary>
 public class AccConnector : IPlatformConnector
 {
-    private const string TokenUrl  = "https://developer.api.autodesk.com/authentication/v2/token";
-    private const string HubsUrl   = "https://developer.api.autodesk.com/project/v1/hubs";
-    private const string IssuesUrl = "https://developer.api.autodesk.com/construction/issues/v1";
-
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpFactory;
     private readonly ILogger<AccConnector> _logger;
 
-    // Serialize refreshes per connection id so parallel operations in THIS
-    // server instance don't race the rotating refresh token. (Single-instance
-    // guard only — full cross-instance safety would need a DB re-read under a
-    // distributed lock; tracked as a follow-up.)
     private static readonly ConcurrentDictionary<Guid, SemaphoreSlim> _refreshLocks = new();
 
     public AccConnector(IConfiguration config, IHttpClientFactory httpFactory, ILogger<AccConnector> logger)
@@ -53,8 +45,6 @@ public class AccConnector : IPlatformConnector
 
     public PlatformType Platform => PlatformType.ACC;
 
-    // IConfiguration already layers in environment variables (Acc__ClientId →
-    // Acc:ClientId), so a single indexer lookup covers both file and env config.
     private (string id, string secret) AppCreds() =>
         (_config["Acc:ClientId"] ?? "", _config["Acc:ClientSecret"] ?? "");
 
@@ -64,52 +54,58 @@ public class AccConnector : IPlatformConnector
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret))
             return new PlatformTokenResult(false, Error: "Acc:ClientId / Acc:ClientSecret not configured on the server.");
         if (string.IsNullOrWhiteSpace(connection.RefreshToken))
-            return new PlatformTokenResult(false, Error: "No refresh token — connect ACC via /api/acc/oauth/start first.");
+            return new PlatformTokenResult(false, Error:
+                "No usable refresh token — connect ACC via /api/acc/oauth/start (or the stored token could not be decrypted after a DataProtection key-ring change).");
 
         var gate = _refreshLocks.GetOrAdd(connection.Id, _ => new SemaphoreSlim(1, 1));
         await gate.WaitAsync(ct);
         try
         {
-            // Another op on this instance may have just refreshed this same
-            // tracked entity — reuse it rather than burning the refresh token again.
-            if (!string.IsNullOrEmpty(connection.AccessToken)
-                && connection.TokenExpiresAt.HasValue
-                && connection.TokenExpiresAt.Value > DateTime.UtcNow.AddMinutes(5))
+            if (AccTokenRefresher.IsFresh(connection, AccTokenRefresher.DefaultBuffer))
                 return new PlatformTokenResult(true, connection.AccessToken, connection.RefreshToken, connection.TokenExpiresAt);
 
             var http = _httpFactory.CreateClient();
-            using var req = new HttpRequestMessage(HttpMethod.Post, TokenUrl)
+            string refreshToken = connection.RefreshToken!;
+            // Refresh is NOT idempotent (it rotates) — ApsRetry retries only 429 / 503+Retry-After.
+            using var resp = await Aps.ApsRetry.SendAsync(http, () =>
             {
-                Content = new FormUrlEncodedContent(new[]
+                var req = new HttpRequestMessage(HttpMethod.Post, Aps.ApsEndpoints.TokenUrl(_config))
                 {
-                    new KeyValuePair<string, string>("grant_type", "refresh_token"),
-                    new KeyValuePair<string, string>("refresh_token", connection.RefreshToken!),
-                })
-            };
-            req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
-                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{id}:{secret}")));
+                    Content = new FormUrlEncodedContent(new[]
+                    {
+                        new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                        new KeyValuePair<string, string>("refresh_token", refreshToken),
+                    })
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                    Convert.ToBase64String(Encoding.UTF8.GetBytes($"{id}:{secret}")));
+                return req;
+            }, idempotent: false, _logger, ct);
 
-            var resp = await http.SendAsync(req, ct);
             string body = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
             {
                 _logger.LogWarning("ACC token refresh HTTP {Status}: {Body}", (int)resp.StatusCode, body);
-                return new PlatformTokenResult(false, Error: $"ACC token refresh failed (HTTP {(int)resp.StatusCode}).");
+                bool invalidGrant = body.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase);
+                return new PlatformTokenResult(false, Error: invalidGrant
+                    ? "ACC rejected the refresh token (invalid_grant) — reconnect ACC."
+                    : $"ACC token refresh failed (HTTP {(int)resp.StatusCode}).");
             }
 
             var j = JObject.Parse(body);
-            string access  = (string?)j["access_token"]  ?? "";
-            string refresh = (string?)j["refresh_token"] ?? connection.RefreshToken!;
+            string? access = (string?)j["access_token"];
+            if (string.IsNullOrEmpty(access))
+                return new PlatformTokenResult(false, Error: "ACC token refresh response had no access_token.");
+            string refresh = (string?)j["refresh_token"] ?? refreshToken;
             int expiresIn  = (int?)j["expires_in"] ?? 3600;
-            var expiry = DateTime.UtcNow.AddSeconds(expiresIn);
+            var expiry = DateTime.UtcNow.AddSeconds(expiresIn - 60);
 
-            // Rotate onto the connection so the scoped caller's SaveChanges persists it.
             connection.AccessToken    = access;
             connection.RefreshToken   = refresh;
             connection.TokenExpiresAt = expiry;
             return new PlatformTokenResult(true, access, refresh, expiry);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "ACC token refresh failed");
             return new PlatformTokenResult(false, Error: ex.Message);
@@ -117,13 +113,9 @@ public class AccConnector : IPlatformConnector
         finally { gate.Release(); }
     }
 
-    /// <summary>Refresh the access token when missing or within 5 min of expiry.</summary>
     private async Task<bool> EnsureTokenAsync(PlatformConnection c, CancellationToken ct)
     {
-        if (!string.IsNullOrEmpty(c.AccessToken)
-            && c.TokenExpiresAt.HasValue
-            && c.TokenExpiresAt.Value > DateTime.UtcNow.AddMinutes(5))
-            return true;
+        if (AccTokenRefresher.IsFresh(c, AccTokenRefresher.DefaultBuffer)) return true;
         return (await RefreshTokenAsync(c, ct)).Success;
     }
 
@@ -138,42 +130,49 @@ public class AccConnector : IPlatformConnector
         try
         {
             var http = _httpFactory.CreateClient();
-            using var req = new HttpRequestMessage(HttpMethod.Get, HubsUrl);
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.AccessToken);
-            var resp = await http.SendAsync(req, ct);
+            using var resp = await Aps.ApsRetry.SendAsync(http, () =>
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get, Aps.ApsEndpoints.HubsUrl(_config));
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.AccessToken);
+                return req;
+            }, idempotent: true, _logger, ct);
             return resp.IsSuccessStatusCode
                 ? new PlatformTestResult(true, "ACC reachable.")
                 : new PlatformTestResult(false, $"ACC hubs query returned HTTP {(int)resp.StatusCode}.");
         }
-        catch (Exception ex) { return new PlatformTestResult(false, ex.Message); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return new PlatformTestResult(false, ex.Message); }
     }
 
     public async Task<PlatformSyncResult> SyncAsync(PlatformConnection connection, IReadOnlyList<TaggedElement> elements, CancellationToken ct = default)
     {
         if (!await EnsureTokenAsync(connection, ct))
             return new PlatformSyncResult(false, Error: "No valid ACC token — (re)connect ACC first.");
-        string container = connection.ExternalProjectId;
-        if (string.IsNullOrWhiteSpace(container))
-            return new PlatformSyncResult(false, Error: "PlatformConnection.ExternalProjectId (ACC Issues container) is empty.");
+        string project = connection.ExternalProjectId;
+        if (string.IsNullOrWhiteSpace(project))
+            return new PlatformSyncResult(false, Error: "PlatformConnection.ExternalProjectId (ACC project id) is empty.");
 
         try
         {
             var http = _httpFactory.CreateClient();
-            using var req = new HttpRequestMessage(HttpMethod.Get, $"{IssuesUrl}/containers/{container}/issues?limit=1");
-            req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.AccessToken);
-            var resp = await http.SendAsync(req, ct);
+            using var resp = await Aps.ApsRetry.SendAsync(http, () =>
+            {
+                var req = new HttpRequestMessage(HttpMethod.Get, $"{Aps.ApsEndpoints.IssuesProjectUrl(_config, project)}/issues?limit=1");
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", connection.AccessToken);
+                return req;
+            }, idempotent: true, _logger, ct);
             string body = await resp.Content.ReadAsStringAsync(ct);
             if (!resp.IsSuccessStatusCode)
                 return new PlatformSyncResult(false, Error: $"ACC issues query HTTP {(int)resp.StatusCode}.");
 
-            var j = JObject.Parse(body);
-            int total = (int?)j["pagination"]?["totalResults"] ?? ((j["results"] as JArray)?.Count ?? 0);
-            // Element-centric pull-only path. The issue-centric PUSH (open Planscape
-            // BimIssues → ACC issues) lives in AccSyncService — it needs DB + BimIssue
-            // access the connector interface deliberately doesn't expose.
-            return new PlatformSyncResult(true, PushedCount: 0, PulledCount: total);
+            // With limit=1, results.Count is at most 1 — it is not a total. Only
+            // pagination.totalResults is; its absence is an error, not zero.
+            var total = (int?)JObject.Parse(body)["pagination"]?["totalResults"];
+            if (total == null)
+                return new PlatformSyncResult(false, Error: "ACC issues response had no pagination.totalResults.");
+            // Element-centric pull-only path. The issue-centric PUSH lives in AccSyncService.
+            return new PlatformSyncResult(true, PushedCount: 0, PulledCount: total.Value);
         }
-        catch (Exception ex) { return new PlatformSyncResult(false, Error: ex.Message); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return new PlatformSyncResult(false, Error: ex.Message); }
     }
 
     public Task<PlatformWebhookResult> HandleWebhookAsync(PlatformConnection connection, string payload, string? signature, CancellationToken ct = default)

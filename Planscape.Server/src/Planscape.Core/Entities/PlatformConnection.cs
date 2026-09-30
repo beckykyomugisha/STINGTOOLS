@@ -17,10 +17,14 @@ public class PlatformConnection : ITenantScoped
     /// <summary>Platform-specific project/hub identifier.</summary>
     public string ExternalProjectId { get; set; } = "";
 
-    /// <summary>OAuth2 access token (encrypted at rest in production).</summary>
+    /// <summary>OAuth2 access token. Plaintext in memory; encrypted at rest by the
+    /// EF value converter in PlanscapeDbContext (Infrastructure/Security/
+    /// PlatformTokenProtection). Rows written before that converter existed are
+    /// read as legacy plaintext and re-encrypted on their next write.</summary>
     public string? AccessToken { get; set; }
 
-    /// <summary>OAuth2 refresh token for token renewal.</summary>
+    /// <summary>OAuth2 refresh token for token renewal. Encrypted at rest — see
+    /// <see cref="AccessToken"/>.</summary>
     public string? RefreshToken { get; set; }
 
     /// <summary>When the current access token expires.</summary>

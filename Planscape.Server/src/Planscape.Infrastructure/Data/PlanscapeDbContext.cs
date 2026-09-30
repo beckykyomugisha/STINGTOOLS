@@ -1156,8 +1156,18 @@ public class PlanscapeDbContext : DbContext
             e.HasOne(c => c.Project).WithMany().HasForeignKey(c => c.ProjectId).OnDelete(DeleteBehavior.Cascade);
             e.Property(c => c.Name).HasMaxLength(200);
             e.Property(c => c.ExternalProjectId).HasMaxLength(500);
-            e.Property(c => c.AccessToken).HasMaxLength(4000);
-            e.Property(c => c.RefreshToken).HasMaxLength(4000);
+            // OAuth tokens are encrypted at rest (enc:v1: + DataProtection payload);
+            // legacy plaintext rows stay readable and are re-encrypted on their next
+            // write. See Security/PlatformTokenProtection for the failure modes.
+            // The converter is a column-format change only — no schema change.
+            e.Property(c => c.AccessToken).HasMaxLength(4000)
+                .HasConversion(
+                    v => Planscape.Infrastructure.Security.PlatformTokenProtection.Protect(v!),
+                    v => Planscape.Infrastructure.Security.PlatformTokenProtection.Unprotect(v));
+            e.Property(c => c.RefreshToken).HasMaxLength(4000)
+                .HasConversion(
+                    v => Planscape.Infrastructure.Security.PlatformTokenProtection.Protect(v!),
+                    v => Planscape.Infrastructure.Security.PlatformTokenProtection.Unprotect(v));
             e.Property(c => c.WebhookSecret).HasMaxLength(500);
         });
 

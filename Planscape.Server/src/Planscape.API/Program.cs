@@ -674,6 +674,8 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.MappingReconciliati
 builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 // #3 — server-side ACC issue sync (push Planscape issues → ACC + token-unification seam).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.AccSyncService>();
+// ACC OAuth state: sealed (DataProtection, time-limited) + single-use (IReplayGuard).
+builder.Services.AddScoped<Planscape.API.Services.AccOAuthState>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.ProjectPurgeJob>();
 // ClashesController takes IClashDetectionJob in its constructor. It was never
@@ -1203,6 +1205,22 @@ builder.Services.AddSingleton<Planscape.Core.Interfaces.IReplayGuard,
                               Planscape.Infrastructure.Services.RedisReplayGuard>();
 
 var app = builder.Build();
+
+// Platform OAuth tokens (PlatformConnection.AccessToken / RefreshToken) are
+// encrypted at rest by an EF value converter. It refuses to write plaintext, so
+// it must be configured before the first DbContext write. Same DataProtection
+// key ring as the MFA / SSO *Encrypted columns — without DataProtection:KeysPath
+// the ring is ephemeral and stored tokens become unreadable after a restart
+// (the connection then reports "reconnect ACC"; nothing is fabricated).
+Planscape.Infrastructure.Security.PlatformTokenProtection.Configure(
+    new Planscape.API.Services.DataProtectionSecretCipher(
+        app.Services.GetRequiredService<Microsoft.AspNetCore.DataProtection.IDataProtectionProvider>()
+            .CreateProtector("platform-connection-tokens.v1")),
+    app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("PlatformTokenProtection"));
+
+if (string.Equals(app.Configuration["ModelConverter:Provider"], "aps", StringComparison.OrdinalIgnoreCase))
+    app.Logger.LogError("ModelConverter:Provider=aps is selected but refuses every conversion: {Reason}",
+        Planscape.Infrastructure.Services.ApsModelDerivativeConverter.RefusalMessage);
 
 // ── Pipeline ──
 // S10 — Swagger is on in Development by default; in Production the

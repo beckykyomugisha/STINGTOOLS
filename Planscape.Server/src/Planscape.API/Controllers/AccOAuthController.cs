@@ -3,73 +3,94 @@ using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json.Linq;
+using Planscape.API.Services;
 using Planscape.Core.Entities;
 using Planscape.Infrastructure.Data;
+using Planscape.Infrastructure.Services;
+using Planscape.Infrastructure.Services.Aps;
 
 namespace Planscape.API.Controllers;
 
 /// <summary>
-/// T3 — ACC (Autodesk Construction Cloud) OAuth2 scaffold.
+/// ACC (Autodesk Construction Cloud) 3-legged OAuth for the team-shared grant.
 ///
-/// Three-legged OAuth flow for per-user delegated access to a tenant's ACC
-/// account:
+///   GET  /api/acc/oauth/start?projectId=…       → Autodesk authorize URL with a
+///          sealed, single-use, time-limited state (<see cref="AccOAuthState"/>).
+///   GET  /api/acc/oauth/callback?code=…&amp;state=… → exchanges the code and stores
+///          the tokens on the project's PlatformConnection (encrypted at rest).
+///   POST /api/acc/oauth/disconnect?projectId=… → clears the tokens locally.
 ///
-///   GET  /api/acc/oauth/start?projectId=…     → returns the Autodesk
-///          auth URL the user should open in a browser. Includes a state
-///          token so the callback can tie back to the correct project.
-///   GET  /api/acc/oauth/callback?code=…&amp;state=…  → exchanges the code for
-///          access + refresh tokens and stores them in PlatformConnection.
-///   POST /api/acc/oauth/disconnect?projectId=… → revokes locally
-///          (Autodesk handles server-side revocation on token expiry).
+/// WHO MAY CONNECT: one grant is shared by the whole project team, so binding it
+/// (or removing it) is a project-administration act — Start and Disconnect both
+/// require project visibility (404 otherwise, no existence leak) AND
+/// <see cref="ProjectRoles.CanAdministerProject"/> (403).
 ///
-/// Real credentials (Client ID / Secret / Callback URL) come from config:
-///   Acc:ClientId
-///   Acc:ClientSecret
-///   Acc:CallbackUrl   = https://planscape.yourco.com/api/acc/oauth/callback
-///   Acc:Scopes        = data:read data:write bucket:read bucket:create
+/// The callback is anonymous (Autodesk redirects the browser to it). It trusts
+/// nothing but the sealed state, and reads/writes the connection row with
+/// IgnoreQueryFilters + an explicit TenantId/ProjectId/Platform predicate
+/// because there is no tenant context on that request.
 ///
-/// When creds are absent the endpoints return 503 with a helpful message so
-/// the mobile / dashboard "Connect ACC" button can show a setup CTA.
+/// Config: Acc:ClientId, Acc:ClientSecret, Acc:CallbackUrl, Acc:Scopes;
+/// APS host from Aps:BaseUrl (<see cref="ApsEndpoints"/>).
 /// </summary>
 [ApiController]
 [Route("api/acc/oauth")]
 [Authorize]
 public class AccOAuthController : ControllerBase
 {
-    private const string AuthBase  = "https://developer.api.autodesk.com/authentication/v2/authorize";
-    private const string TokenBase = "https://developer.api.autodesk.com/authentication/v2/token";
-
     private readonly PlanscapeDbContext _db;
     private readonly IHttpClientFactory _http;
     private readonly IConfiguration _config;
+    private readonly AccOAuthState _state;
+    private readonly ILogger<AccOAuthController> _log;
 
-    public AccOAuthController(PlanscapeDbContext db, IHttpClientFactory http, IConfiguration config)
+    public AccOAuthController(PlanscapeDbContext db, IHttpClientFactory http, IConfiguration config,
+        AccOAuthState state, ILogger<AccOAuthController> log)
     {
         _db = db;
         _http = http;
         _config = config;
+        _state = state;
+        _log = log;
+    }
+
+    /// <summary>Shared gate for Start and Disconnect: null when allowed.</summary>
+    internal async Task<ActionResult?> RequireAdministerAsync(Guid projectId, CancellationToken ct)
+    {
+        if (projectId == Guid.Empty) return BadRequest(new { error = "projectId is required" });
+        if (!await ProjectVisibility.CanSeeProjectAsync(_db, projectId, User, ct)) return NotFound();
+        if (!await this.CanAdministerProjectAsync(_db, projectId, ct))
+            return StatusCode(403, new { error = "Only a project manager or administrator can connect or disconnect ACC for this project." });
+        return null;
     }
 
     [HttpGet("start")]
-    public ActionResult Start([FromQuery] Guid projectId)
+    public async Task<ActionResult> Start([FromQuery] Guid projectId, CancellationToken ct)
     {
-        var clientId   = _config["Acc:ClientId"];
-        var callback   = _config["Acc:CallbackUrl"];
-        var scopes     = _config["Acc:Scopes"] ?? "data:read data:write bucket:read bucket:create";
+        var clientId = _config["Acc:ClientId"];
+        var callback = _config["Acc:CallbackUrl"];
+        var scopes   = _config["Acc:Scopes"] ?? "data:read data:write";
         if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(callback))
             return StatusCode(503, new { error = "acc_not_configured", message = "Acc:ClientId and Acc:CallbackUrl must be set." });
 
-        var tenantId = Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var t) ? t : Guid.Empty;
-        var userId   = Guid.TryParse(User.FindFirst("sub")?.Value,       out var u) ? u : Guid.Empty;
-        var state = $"{tenantId:N}.{userId:N}.{projectId:N}.{Guid.NewGuid():N}";
+        var gate = await RequireAdministerAsync(projectId, ct);
+        if (gate != null) return gate;
+
+        var tenantId = ProjectVisibility.GetTenantId(User);
+        var userId   = ProjectVisibility.GetUserId(User);
+        if (tenantId == Guid.Empty || userId == Guid.Empty)
+            return StatusCode(403, new { error = "Token carries no tenant/user identity." });
+
+        string state = _state.Issue(tenantId, projectId, userId);
 
         var url =
-            $"{AuthBase}?response_type=code" +
+            $"{ApsEndpoints.AuthorizeUrl(_config)}?response_type=code" +
             $"&client_id={Uri.EscapeDataString(clientId)}" +
             $"&redirect_uri={Uri.EscapeDataString(callback)}" +
             $"&scope={Uri.EscapeDataString(scopes)}" +
             $"&state={Uri.EscapeDataString(state)}";
-        return Ok(new { authorizeUrl = url, state });
+        return Ok(new { authorizeUrl = url });
     }
 
     [HttpGet("callback")]
@@ -79,66 +100,113 @@ public class AccOAuthController : ControllerBase
         if (string.IsNullOrEmpty(code) || string.IsNullOrEmpty(state))
             return BadRequest(new { error = "missing_code_or_state" });
 
-        // state = tenant.user.project.nonce
-        var parts = state.Split('.');
-        if (parts.Length < 4
-            || !Guid.TryParseExact(parts[0], "N", out var tenantId)
-            || !Guid.TryParseExact(parts[1], "N", out var userId)
-            || !Guid.TryParseExact(parts[2], "N", out var projectId))
+        AccOAuthState.Payload? p;
+        AccOAuthState.RedeemError err;
+        try
+        {
+            (p, err) = await _state.RedeemAsync(state, ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _log.LogError(ex, "ACC OAuth callback: state store unavailable");
+            return StatusCode(503, new { error = "state_store_unavailable" });
+        }
+        if (err == AccOAuthState.RedeemError.Invalid || p == null)
+        {
+            _log.LogWarning("ACC OAuth callback: invalid or expired state rejected.");
             return BadRequest(new { error = "invalid_state" });
+        }
+        if (err == AccOAuthState.RedeemError.Replayed)
+        {
+            _log.LogWarning("ACC OAuth callback: state for project {Project} was already used (or never issued) — rejected.", p?.ProjectId);
+            return BadRequest(new { error = "state_already_used" });
+        }
 
         var clientId     = _config["Acc:ClientId"];
         var clientSecret = _config["Acc:ClientSecret"];
         var callback     = _config["Acc:CallbackUrl"];
-        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret))
+        if (string.IsNullOrWhiteSpace(clientId) || string.IsNullOrWhiteSpace(clientSecret) || string.IsNullOrWhiteSpace(callback))
             return StatusCode(503, new { error = "acc_not_configured" });
 
-        // Exchange code for tokens.
-        using var client = _http.CreateClient("webhook");
-        var form = new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["grant_type"]    = "authorization_code",
-            ["code"]          = code,
-            ["redirect_uri"]  = callback!,
-        });
-        var basic = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}"));
-        form.Headers.Remove("Authorization");
-        using var req = new HttpRequestMessage(HttpMethod.Post, TokenBase) { Content = form };
-        req.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
+        // The project must still exist in the state's tenant (no tenant context here).
+        bool projectOk = await _db.Projects.IgnoreQueryFilters()
+            .AnyAsync(x => x.Id == p.ProjectId && x.TenantId == p.TenantId, ct);
+        if (!projectOk) return NotFound(new { error = "project_not_found" });
 
-        using var resp = await client.SendAsync(req, ct);
+        var http = _http.CreateClient();
+        // The authorisation code is single-use: ApsRetry retries only 429 / 503+Retry-After.
+        using var resp = await ApsRetry.SendAsync(http, () =>
+        {
+            var req = new HttpRequestMessage(HttpMethod.Post, ApsEndpoints.TokenUrl(_config))
+            {
+                Content = new FormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    ["grant_type"]   = "authorization_code",
+                    ["code"]         = code,
+                    ["redirect_uri"] = callback,
+                })
+            };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{clientSecret}")));
+            return req;
+        }, idempotent: false, _log, ct);
         var body = await resp.Content.ReadAsStringAsync(ct);
         if (!resp.IsSuccessStatusCode)
-            return StatusCode((int)resp.StatusCode, new { error = "token_exchange_failed", body });
+        {
+            // The APS body is logged, never echoed to the browser.
+            _log.LogWarning("ACC OAuth token exchange HTTP {Status}: {Body}", (int)resp.StatusCode, body.Length > 1000 ? body[..1000] : body);
+            return StatusCode(502, new { error = "token_exchange_failed", status = (int)resp.StatusCode });
+        }
 
-        var json = System.Text.Json.JsonDocument.Parse(body);
-        var accessToken  = json.RootElement.GetProperty("access_token").GetString();
-        var refreshToken = json.RootElement.TryGetProperty("refresh_token", out var rt) ? rt.GetString() : null;
-        var expiresIn    = json.RootElement.TryGetProperty("expires_in", out var ex) ? ex.GetInt32() : 3600;
+        string? accessToken, refreshToken;
+        int expiresIn;
+        try
+        {
+            var j = JObject.Parse(body);
+            accessToken  = (string?)j["access_token"];
+            refreshToken = (string?)j["refresh_token"];
+            expiresIn    = (int?)j["expires_in"] ?? 3600;
+        }
+        catch (Newtonsoft.Json.JsonException ex)
+        {
+            _log.LogWarning(ex, "ACC OAuth token exchange returned unparseable JSON");
+            return StatusCode(502, new { error = "token_exchange_unparseable" });
+        }
+        if (string.IsNullOrEmpty(accessToken))
+        {
+            _log.LogWarning("ACC OAuth token exchange response had no access_token");
+            return StatusCode(502, new { error = "token_exchange_no_access_token" });
+        }
+        if (string.IsNullOrEmpty(refreshToken))
+            _log.LogWarning("ACC OAuth token exchange returned no refresh_token — the connection will need reconnecting in ~60 min.");
 
-        // Store on a PlatformConnection row (one per project / platform).
-        var row = await _db.PlatformConnections
-            .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.Platform == PlatformType.ACC, ct);
+        // One row per (tenant, project, platform) — a unique index. Reconnect
+        // UPDATES it (keeping the chosen ACC project / subtype / issue map);
+        // inserting a second row would violate the index and 500.
+        var row = await _db.PlatformConnections.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.TenantId == p.TenantId
+                                   && c.ProjectId == p.ProjectId
+                                   && c.Platform == PlatformType.ACC, ct);
         if (row == null)
         {
             row = new PlatformConnection
             {
-                ProjectId = projectId,
-                TenantId  = tenantId,
+                ProjectId = p.ProjectId,
+                TenantId  = p.TenantId,
                 Platform  = PlatformType.ACC,
                 Name      = "ACC",
             };
             _db.PlatformConnections.Add(row);
         }
-        row.AccessToken       = accessToken ?? "";
-        row.RefreshToken      = refreshToken;
-        row.TokenExpiresAt    = DateTime.UtcNow.AddSeconds(expiresIn - 60);
-        row.IsActive          = true;
-        row.LastSyncAt        = DateTime.UtcNow;
-        row.LastSyncStatus    = "connected";
+        row.AccessToken    = accessToken;
+        row.RefreshToken   = refreshToken;
+        row.TokenExpiresAt = DateTime.UtcNow.AddSeconds(expiresIn - 60);
+        row.IsActive       = true;
+        row.LastSyncStatus = "CONNECTED";
+        row.LastSyncError  = null;
         await _db.SaveChangesAsync(ct);
+        _log.LogInformation("ACC connected for project {Project} (tenant {Tenant}) by user {User}.", p.ProjectId, p.TenantId, p.UserId);
 
-        // Send the user back to the dashboard with a simple HTML page.
         return Content("<html><body><p>ACC connected. You can close this tab and return to Planscape.</p></body></html>",
             "text/html");
     }
@@ -146,6 +214,9 @@ public class AccOAuthController : ControllerBase
     [HttpPost("disconnect")]
     public async Task<IActionResult> Disconnect([FromQuery] Guid projectId, CancellationToken ct)
     {
+        var gate = await RequireAdministerAsync(projectId, ct);
+        if (gate != null) return gate;
+
         var row = await _db.PlatformConnections
             .FirstOrDefaultAsync(p => p.ProjectId == projectId && p.Platform == PlatformType.ACC, ct);
         if (row == null) return NotFound();
@@ -153,8 +224,9 @@ public class AccOAuthController : ControllerBase
         row.AccessToken = string.Empty;
         row.RefreshToken = null;
         row.TokenExpiresAt = null;
-        row.LastSyncStatus = "disconnected";
+        row.LastSyncStatus = "DISCONNECTED";
         await _db.SaveChangesAsync(ct);
+        _log.LogInformation("ACC disconnected for project {Project} by user {User}.", projectId, ProjectVisibility.GetUserId(User));
         return NoContent();
     }
 }

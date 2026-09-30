@@ -5,6 +5,8 @@ using Planscape.Core.Entities;
 using Planscape.Core.Interfaces;
 using Planscape.Infrastructure.Data;
 using Planscape.API.Authorization;
+using Planscape.API.Services;
+using Planscape.Infrastructure.Services;
 
 namespace Planscape.API.Controllers;
 
@@ -56,7 +58,17 @@ public class PlatformController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<PlatformConnectionDto>> Create(Guid projectId, [FromBody] CreatePlatformConnectionRequest request)
     {
+        if (!await this.CanAdministerProjectAsync(_db, projectId)) return AdministerForbidden();
         var tenantId = GetTenantId();
+
+        // Server-owned keys (the ACC issue map) are never accepted from a client.
+        string? config = null;
+        if (request.ConfigJson != null)
+        {
+            var (merged, cfgError) = AccSyncService.MergeClientConfig(null, request.ConfigJson);
+            if (merged == null) return BadRequest(new { error = cfgError });
+            config = merged;
+        }
 
         var project = await _db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.TenantId == tenantId);
         if (project == null) return NotFound("Project not found");
@@ -78,7 +90,7 @@ public class PlatformController : ControllerBase
             RefreshToken = request.RefreshToken,
             TokenExpiresAt = request.TokenExpiresAt,
             WebhookSecret = request.WebhookSecret,
-            ConfigJson = request.ConfigJson,
+            ConfigJson = config,
             IsActive = true
         };
 
@@ -92,8 +104,20 @@ public class PlatformController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<PlatformConnectionDto>> Update(Guid projectId, Guid id, [FromBody] UpdatePlatformConnectionRequest request)
     {
+        if (!await this.CanAdministerProjectAsync(_db, projectId)) return AdministerForbidden();
         var conn = await FindConnection(projectId, id);
         if (conn == null) return NotFound();
+
+        // ConfigJson is MERGED: the server-owned keys (accIssueMap, accIssueStatus…)
+        // are kept from the stored copy whatever the client sends. A client that
+        // round-tripped a stale copy — or dropped the map — would otherwise make
+        // the next ACC sync re-push every issue as a duplicate.
+        if (request.ConfigJson != null)
+        {
+            var (merged, cfgError) = AccSyncService.MergeClientConfig(conn.ConfigJson, request.ConfigJson);
+            if (merged == null) return BadRequest(new { error = cfgError });
+            conn.ConfigJson = merged;
+        }
 
         if (request.Name != null) conn.Name = request.Name;
         if (request.ExternalProjectId != null) conn.ExternalProjectId = request.ExternalProjectId;
@@ -101,7 +125,6 @@ public class PlatformController : ControllerBase
         if (request.RefreshToken != null) conn.RefreshToken = request.RefreshToken;
         if (request.TokenExpiresAt.HasValue) conn.TokenExpiresAt = request.TokenExpiresAt;
         if (request.WebhookSecret != null) conn.WebhookSecret = request.WebhookSecret;
-        if (request.ConfigJson != null) conn.ConfigJson = request.ConfigJson;
         if (request.IsActive.HasValue) conn.IsActive = request.IsActive.Value;
 
         await _db.SaveChangesAsync();
@@ -112,6 +135,7 @@ public class PlatformController : ControllerBase
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid projectId, Guid id)
     {
+        if (!await this.CanAdministerProjectAsync(_db, projectId)) return AdministerForbidden();
         var conn = await FindConnection(projectId, id);
         if (conn == null) return NotFound();
 
@@ -188,6 +212,11 @@ public class PlatformController : ControllerBase
     }
 
     // ── Helpers ──
+
+    // Create / Update / Delete can replace the team-shared OAuth tokens, so they
+    // take the same gate as connecting ACC (AccOAuthController.Start).
+    private ObjectResult AdministerForbidden()
+        => StatusCode(403, new { error = "Only a project manager or administrator can change platform connections." });
 
     private Guid GetTenantId()
     {

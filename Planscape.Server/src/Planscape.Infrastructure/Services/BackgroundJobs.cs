@@ -639,9 +639,14 @@ public class PlatformSyncJob
         db.BypassTenantFilter = true;
         var factory = scope.ServiceProvider.GetRequiredService<IPlatformConnectorFactory>();
 
+        // ACC is excluded: AccSyncService owns ACC (its own recurring job), refreshes
+        // the rotating token through AccTokenRefresher (saved immediately, under an
+        // advisory lock) and writes LastSyncStatus OK/PARTIAL/FAILED. Refreshing it
+        // here as well raced that job for the single-use refresh token, and this
+        // job's count-only "OK" overwrote AccSyncService's real status.
         var connections = await db.PlatformConnections
             .Include(c => c.Project)
-            .Where(c => c.IsActive)
+            .Where(c => c.IsActive && c.Platform != PlatformType.ACC)
             .ToListAsync(ct);
 
         int synced = 0, failed = 0;
@@ -713,10 +718,15 @@ public class PlatformSyncJob
                 conn.LastSyncError = ex.Message;
                 _logger.LogError(ex, "PlatformSyncJob error for connection {Id}", conn.Id);
             }
-        }
 
-        if (connections.Count > 0)
-            await db.SaveChangesAsync(ct);
+            // Save per connection: a refreshed (possibly rotated) token must not
+            // wait on — or be lost with — another connection's failure.
+            try { await db.SaveChangesAsync(ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                _logger.LogError(ex, "PlatformSyncJob: could not save connection {Id}", conn.Id);
+            }
+        }
 
         _logger.LogInformation(
             "PlatformSyncJob completed — {Total} connections, {Synced} synced, {Failed} failed",
