@@ -296,11 +296,11 @@ namespace StingTools.UI
             "Out of Scope", "NTS - Not To Scale",
         };
 
-        private static readonly string[] CommonStingTextStyles = new[]
-        {
-            "STING - 2.0mm", "STING - 2.5mm", "STING - 3.0mm Presentation",
-            "STING - 2.0mm Shop", "STING - 3.5mm Large Format",
-        };
+        // DTW-64: the text types Create Text Styles makes, not a hand list. Three of
+        // the five names offered here ("2.0mm", "2.0mm Shop", "3.5mm Large Format")
+        // were created by nothing.
+        private static readonly string[] CommonStingTextStyles =
+            StingTools.Temp.TemplateManager.TextStyleDefs.Select(d => d.name).ToArray();
 
         private static readonly string[] CommonStingDimensionStyles = new[]
         {

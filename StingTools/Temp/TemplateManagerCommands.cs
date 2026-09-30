@@ -1014,6 +1014,9 @@ namespace StingTools.Temp
             ("STING - Boundary", 200, 0, 0, 2, "STING - Phase Boundary"),
             ("STING - Fire Boundary", 255, 50, 0, 3, "STING - Fire Compartment"),
             ("STING - Setout", 0, 0, 255, 1, "STING - Setout"),
+            // DTW-64: the match-line style (STING_MATCH_LINES.json geometry.lineStyleName),
+            // as MR_SCHEDULES.csv defines it, so the fallback list agrees with the CSV.
+            ("STING - Match Line", 255, 0, 255, 3, "Dash-Dot Thick"),
         };
 
         /// <summary>Text note type definitions: ISO 3098 / BS 8541 compliant.</summary>
@@ -1032,6 +1035,13 @@ namespace StingTools.Temp
             ("STING - Sheet Title", "Arial", 5.0, true, false),
             ("STING - Sheet Number", "Arial", 3.5, true, false),
             ("STING - Key Note", "Arial", 1.5, false, false),
+            // DTW-64: text types other data names. "STING - 2.5mm" is the match-line
+            // caption fallback (STING_MATCH_LINES.json) and three packs'
+            // textStyleName; the two Presentation types are the presentation packs'.
+            // ISO 3098 2.5 mm; the 3.0 mm presentation height is what the pack asks for.
+            ("STING - 2.5mm", "Arial", 2.5, false, false),
+            ("STING - 2.5mm Presentation", "Arial", 2.5, false, false),
+            ("STING - 3.0mm Presentation", "Arial", 3.0, false, false),
         };
 
         /// <summary>
