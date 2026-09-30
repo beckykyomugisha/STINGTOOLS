@@ -15,7 +15,8 @@
 // (EnsureDefinitionsAsync is called with allowCreate: false), and never writes the project
 // settings file. The issue type is resolved with the same chooser the push uses
 // (IssueTypeChooser) over a list this file fetches itself - NOT through
-// AccIssueSync.ResolveIssueTypeAsync, which saves the choice to the credentials file.
+// AccIssueSync.ResolveIssueTypeAsync, which rewrites the credentials file (it does not persist
+// the choice for a project-scoped run - see its comment - but it is still a write).
 // The one local write it can cause is the token refresh's own save of a ROTATED refresh
 // token: APS invalidates the old one on use, so not saving it would sign the machine out.
 //

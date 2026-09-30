@@ -402,9 +402,15 @@ namespace StingTools.V6
             if (!choice.Ok)
                 return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", resp.Status, choice.Reason);
 
+            // Remembered on these credentials for the rest of THIS run only. It is NOT persisted:
+            // on project-scoped credentials ToMachineFile writes back the machine file's own
+            // type ids, and the project's settings file needs a Document (the Revit side)
+            // to be written. So an unconfigured project re-resolves by name on every run -
+            // correct (inactive types skipped, never by position), just one extra read. To pin
+            // it, set issueTypeId / issueSubtypeId in the project's ACC settings (the BCC card).
             creds.IssueTypeId = choice.TypeId;
             creds.IssueSubtypeId = choice.SubtypeId;
-            SaveCredentials(creds, out _);   // cached per container by AccProjectScope's rules
+            SaveCredentials(creds, out _);   // persists the refreshed token (project-scoped: not the type ids)
             StingLog.Info($"AccIssueSync: filing issues as '{choice.TypeTitle} / {choice.SubtypeTitle}' ({choice.SubtypeId}).");
             return AccFetchResult<string>.Success(choice.SubtypeId, empty: false);
         }
