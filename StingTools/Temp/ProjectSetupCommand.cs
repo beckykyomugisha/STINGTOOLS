@@ -534,11 +534,20 @@ namespace StingTools.Temp
                     skipped++;
                 }
 
-                // Step: Create Dependent Views
+                // Dependents, sections and elevations go through the drawing-type
+                // producer like the plans above (DTW-34). They used to run the legacy
+                // CreateDependentViews / BatchCreateSections / BatchCreateElevations
+                // commands, whose unstamped views Doctor, Renumber and Produce never
+                // saw, and which a later drawing-type production duplicated. These
+                // call the producer directly, not the production commands' dialogs.
+
+                // Step: Dependent views, one per scope box, of each produced plan type
                 if (data.CreateDependents)
                 {
-                    passed += RunStep(ref stepNum, report, "Create Dependent Views",
-                        () => RunCommand(new Docs.CreateDependentViewsCommand(), commandData, elements));
+                    var depDetail = new StringBuilder();
+                    passed += RunStep(ref stepNum, report, "Produce Dependent Views From Scope Boxes (drawing types)",
+                        () => ProduceScopeBoxDependents(doc, data, depDetail));
+                    report.Append(depDetail);
                 }
                 else
                 {
@@ -547,11 +556,13 @@ namespace StingTools.Temp
                     skipped++;
                 }
 
-                // Step: Create Sections from Grids
+                // Step: Building sections along grid lines
                 if (data.CreateSections)
                 {
-                    passed += RunStep(ref stepNum, report, "Create Building Sections",
-                        () => RunCommand(new Docs.BatchCreateSectionsCommand(), commandData, elements));
+                    var secDetail = new StringBuilder();
+                    passed += RunStep(ref stepNum, report, "Produce Building Sections Along Grids (drawing types)",
+                        () => ProduceGridSections(doc, data, secDetail));
+                    report.Append(secDetail);
                 }
                 else
                 {
@@ -560,11 +571,13 @@ namespace StingTools.Temp
                     skipped++;
                 }
 
-                // Step: Create Elevations
+                // Step: Exterior elevations
                 if (data.CreateElevations)
                 {
-                    passed += RunStep(ref stepNum, report, "Create 4 Exterior Elevations",
-                        () => RunCommand(new Docs.BatchCreateElevationsCommand(), commandData, elements));
+                    var elevDetail = new StringBuilder();
+                    passed += RunStep(ref stepNum, report, "Produce Exterior Elevations (drawing types)",
+                        () => ProduceExteriorElevations(doc, elevDetail));
+                    report.Append(elevDetail);
                 }
                 else
                 {
@@ -590,19 +603,14 @@ namespace StingTools.Temp
                 // ════════════════════════════════════════════════════
                 report.AppendLine("\n── Phase 5: Intelligence ──");
 
-                // Second-pass template assignment — catches views that were created later in Phase 4
-                // (sections, elevations, dependents). Auto-fix is always run for template health.
+                // Template assignment. Every view Phase 4 produces — plans, dependents,
+                // sections, elevations — takes its drawing type's template, so a pass
+                // is only needed when Phase 4 produced nothing. Auto-fix is always run
+                // for template health.
                 bool doTemplatePost = data.UseLatestTemplateSetup || data.CreateTemplates;
-                // Only run the second pass when Phase 4 actually produced secondary views that
-                // wouldn't have been covered by the first-pass AutoAssign.
-                bool needsSecondPass = data.CreateSections || data.CreateElevations || data.CreateDependents;
-                if (doTemplatePost && needsSecondPass)
-                {
-                    passed += RunStep(ref stepNum, report,
-                        "Second-Pass Template Assignment (sections, elevations, dependents)",
-                        () => RunCommand(new AutoAssignTemplatesCommand(), commandData, elements));
-                }
-                else if (doTemplatePost && !(data.CreateViews || data.CreateSheets))
+                bool phase4Produced = data.CreateViews || data.CreateSheets
+                    || data.CreateSections || data.CreateElevations || data.CreateDependents;
+                if (doTemplatePost && !phase4Produced)
                 {
                     // Phase 4 didn't create views, so no first pass ran — do it now.
                     passed += RunStep(ref stepNum, report,
@@ -1665,6 +1673,376 @@ namespace StingTools.Temp
                 if (distinct.Count > 8) detail.AppendLine($"        • … {distinct.Count - 8} more in the STING log");
             }
             return views > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>
+        /// "Create dependent views from scope boxes", through the drawing-type producer:
+        /// for each plan drawing type the ticked disciplines route to, each scope box
+        /// gets a view that is a dependent of that type's parent plan on the level,
+        /// cropped to the box, stamped with the type and the box (so Doctor, Renumber and
+        /// a later Produce From Scope Boxes find it and reuse it). Which boxes:
+        ///   plain boxes            every plan type, every level;
+        ///   STING-AREA::a[::lvl]   every plan type, the named level (else every level);
+        ///   STING::type[::lvl]     its own type only, on its level (else every level);
+        ///   seed / building / zone boxes are footprints and templates, not drawing areas.
+        /// </summary>
+        private static Result ProduceScopeBoxDependents(Document doc, ProjectSetupData data, StringBuilder detail)
+        {
+            var levels = new FilteredElementCollector(doc)
+                .OfClass(typeof(Level)).Cast<Level>()
+                .OrderBy(l => l.Elevation).ToList();
+            var boxes = new FilteredElementCollector(doc)
+                .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                .WhereElementIsNotElementType()
+                .OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (boxes.Count == 0)
+            {
+                detail.AppendLine("      No scope boxes in the model — nothing to produce.");
+                return Result.Cancelled;
+            }
+            if (levels.Count == 0)
+            {
+                detail.AppendLine("      The model has no levels — nothing to produce.");
+                return Result.Failed;
+            }
+
+            var planTypes = Commands.Drawing.BatchProduceCommons
+                .RoutePerLevel(doc, data.Disciplines ?? new List<string>()).Types;
+
+            // (drawing type, level, box, tag) in the order they will be produced.
+            var jobs = new List<(Core.Drawing.DrawingType Type, Level Level, Element Box, string Tag)>();
+            var notes = new List<string>();
+            foreach (var box in boxes)
+            {
+                string name = box.Name ?? "";
+                switch (Core.Drawing.ScopeBoxNames.Classify(name))
+                {
+                    case Core.Drawing.ScopeBoxKind.Plain:
+                        foreach (var dt in planTypes)
+                            foreach (var lvl in levels) jobs.Add((dt, lvl, box, null));
+                        break;
+
+                    case Core.Drawing.ScopeBoxKind.Area:
+                    {
+                        if (!Core.Drawing.ScopeBoxNames.TryParseArea(name, out _, out var lvlSeg, out var why))
+                        { notes.Add($"{name}: {why} — skipped."); break; }
+                        var onLevels = MatchLevels(levels, lvlSeg);
+                        if (onLevels.Count == 0) { notes.Add($"{name}: level '{lvlSeg}' is not in the model — skipped."); break; }
+                        foreach (var dt in planTypes)
+                            foreach (var lvl in onLevels) jobs.Add((dt, lvl, box, null));
+                        break;
+                    }
+
+                    case Core.Drawing.ScopeBoxKind.DrawingType:
+                    {
+                        if (!Core.Drawing.ScopeBoxBinder.TryParseName(name, out var bnd, out var why))
+                        { notes.Add($"{name}: {why ?? "not a valid STING:: name"} — skipped."); break; }
+                        var dt = Core.Drawing.DrawingTypeRegistry.Get(doc, bnd.DrawingTypeId);
+                        if (dt == null) { notes.Add($"{name}: drawing type '{bnd.DrawingTypeId}' is not in the catalogue — skipped."); break; }
+                        var onLevels = MatchLevels(levels, bnd.LevelCode);
+                        if (onLevels.Count == 0) { notes.Add($"{name}: level '{bnd.LevelCode}' is not in the model — skipped."); break; }
+                        foreach (var lvl in onLevels) jobs.Add((dt, lvl, box, bnd.Tag));
+                        break;
+                    }
+
+                    default:
+                        break;   // seed, building and zone boxes are not drawing areas
+                }
+            }
+
+            if (jobs.Count == 0)
+            {
+                detail.AppendLine(planTypes.Count == 0
+                    ? "      No ticked discipline routes to a plan drawing type, and no STING:: box names one."
+                    : "      No scope box is a drawing area (seed, building and zone boxes are not).");
+                foreach (var n in notes.Take(8)) detail.AppendLine($"        • {n}");
+                return Result.Failed;
+            }
+
+            var opts = new Core.Drawing.ProduceOptions
+            {
+                CreateSheet = data.CreateSheets,
+                PlaceOnSheet = data.CreateSheets,
+                RunAnnotation = true,
+                Idempotent = true,
+                DuplicateOption = ViewDuplicateOption.AsDependent,
+            };
+            int views = 0, sheets = 0;
+            var warnings = new List<string>(notes);
+            Core.Drawing.DrawingTypePresentation.Prewarm(doc);
+            using (Core.Drawing.DrawingProducer.PrimeBatchScope(doc))
+            using (var tg = new TransactionGroup(doc, "STING Project Setup — Dependent Views"))
+            {
+                tg.Start();
+                foreach (var job in jobs)
+                {
+                    using (var t = new Transaction(doc, $"STING Dependent {job.Box.Name} {job.Level.Name}"))
+                    {
+                        t.Start();
+                        try
+                        {
+                            var dctx = new Core.Drawing.DrawingContext { Level = job.Level, ScopeBox = job.Box, Tag = job.Tag };
+                            var pr = Core.Drawing.DrawingProducer.ProduceAllViews(doc, job.Type, dctx, opts);
+                            warnings.AddRange(pr.Warnings);
+                            if (t.Commit() == TransactionStatus.Committed)
+                            {
+                                views += pr.ViewIds.Count;
+                                if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
+                            }
+                            else warnings.Add($"{job.Box.Name} / {job.Level.Name} ({job.Type.Id}): the transaction did not commit.");
+                        }
+                        catch (Exception ex)
+                        {
+                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();
+                            warnings.Add($"{job.Box.Name} / {job.Level.Name} ({job.Type.Id}): {ex.Message} — rolled back.");
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
+
+            detail.AppendLine($"      {views} view(s) from {boxes.Count} scope box(es) (existing stamped views reused), " +
+                              $"{sheets} new sheet(s){(data.CreateSheets ? "" : " — sheets not requested")}.");
+            AppendWarnings(detail, warnings, "dependents");
+            return views > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>Levels a box's level segment names; every level when it names none.</summary>
+        private static List<Level> MatchLevels(List<Level> levels, string segment)
+        {
+            if (string.IsNullOrWhiteSpace(segment)) return levels;
+            string Squash(string s) => new string((s ?? "").Where(char.IsLetterOrDigit).ToArray());
+            return levels.Where(l =>
+                    string.Equals(l.Name, segment, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Squash(l.Name), Squash(segment), StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        /// <summary>
+        /// "Create building sections from grids", through the drawing-type producer: one
+        /// section along each straight grid line, of the section drawing type the
+        /// architectural discipline routes to (structural if none). The context tag is
+        /// "Grid-&lt;name&gt;", the one DOCS → Produce Sections uses, so either reuses
+        /// the other's views rather than making a second set.
+        /// </summary>
+        private static Result ProduceGridSections(Document doc, ProjectSetupData data, StringBuilder detail)
+        {
+            var dt = RouteFirst(doc, "SECTION", "Section", "A", "S");
+            if (dt == null)
+            {
+                detail.AppendLine("      No drawing type routes from A / SECTION or S / SECTION — nothing produced (add a routing rule).");
+                return Result.Failed;
+            }
+            var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>()
+                .Where(g => g.Curve is Line)
+                .OrderBy(g => g.Name, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (grids.Count == 0)
+            {
+                detail.AppendLine("      No straight grid lines in the model — nothing to produce.");
+                return Result.Cancelled;
+            }
+            var levelElevs = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                .Select(l => l.Elevation).ToList();
+            const double mToFt = 1.0 / 0.3048;
+            double depthFt = new Core.Drawing.SectionProductionConfig().DepthMm / 304.8;
+
+            var opts = new Core.Drawing.ProduceOptions
+            {
+                CreateSheet = data.CreateSheets,
+                PlaceOnSheet = data.CreateSheets,
+                RunAnnotation = true,
+                Idempotent = true,
+            };
+            int views = 0, sheets = 0;
+            var warnings = new List<string>();
+            detail.AppendLine($"      A / SECTION → {dt.Id}");
+            Core.Drawing.DrawingTypePresentation.Prewarm(doc);
+            using (Core.Drawing.DrawingProducer.PrimeBatchScope(doc))
+            using (var tg = new TransactionGroup(doc, "STING Project Setup — Sections"))
+            {
+                tg.Start();
+                foreach (var g in grids)
+                {
+                    var c = (Line)g.Curve;
+                    var a = c.GetEndPoint(0); var b = c.GetEndPoint(1);
+                    var origin = (a + b) * 0.5;
+                    double bottom = (levelElevs.Count > 0 ? levelElevs.Min() : origin.Z) - 3.0 * mToFt;
+                    double top = Math.Max(origin.Z + 30.0 * mToFt,
+                        (levelElevs.Count > 0 ? levelElevs.Max() : origin.Z) + 5.0 * mToFt);
+                    var bb = Core.Drawing.DrawingProducer.BuildSectionBox(
+                        origin: origin, cutDirection: c.Direction,
+                        halfWidthFt: (b - a).GetLength() * 0.5 + 5.0 * mToFt,
+                        bottomZ: bottom, topZ: top, depthFt: depthFt);
+
+                    using (var t = new Transaction(doc, $"STING Section Grid-{g.Name}"))
+                    {
+                        t.Start();
+                        try
+                        {
+                            var dctx = new Core.Drawing.DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name };
+                            var pr = Core.Drawing.DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
+                            warnings.AddRange(pr.Warnings);
+                            if (t.Commit() == TransactionStatus.Committed)
+                            {
+                                views += pr.ViewIds.Count;
+                                if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
+                            }
+                            else warnings.Add($"Grid {g.Name}: the transaction did not commit.");
+                        }
+                        catch (Exception ex)
+                        {
+                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();
+                            warnings.Add($"Grid {g.Name}: {ex.Message} — rolled back.");
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
+
+            detail.AppendLine($"      {views} section(s) along {grids.Count} grid line(s) (existing stamped views reused), " +
+                              $"{sheets} new sheet(s){(data.CreateSheets ? "" : " — sheets not requested")}.");
+            AppendWarnings(detail, warnings, "sections");
+            return views > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>
+        /// "Create 4 exterior elevations", as drawing-type views: the elevation type the
+        /// architectural discipline routes to, one view per face (N / E / S / W) around
+        /// the walls' extent, presented and stamped with the type and the context tag
+        /// "exterior::face::&lt;face&gt;" that DOCS → Exterior Elevations stamps. A face
+        /// that already has such a view is reused, not duplicated. Views only: sheets
+        /// for elevations are laid out by DOCS → Exterior Elevations.
+        /// </summary>
+        private static Result ProduceExteriorElevations(Document doc, StringBuilder detail)
+        {
+            var dt = RouteFirst(doc, "ELEVATION", "Elevation", "A");
+            if (dt == null || (dt.Name ?? dt.Id ?? "").IndexOf("interior", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                detail.AppendLine("      No exterior elevation drawing type routes from A / ELEVATION — nothing produced (add a routing rule).");
+                return Result.Failed;
+            }
+            var walls = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls)
+                .WhereElementIsNotElementType().ToList();
+            double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+            foreach (var w in walls)
+            {
+                var wbb = w.get_BoundingBox(null);
+                if (wbb == null) continue;
+                minX = Math.Min(minX, wbb.Min.X); minY = Math.Min(minY, wbb.Min.Y);
+                maxX = Math.Max(maxX, wbb.Max.X); maxY = Math.Max(maxY, wbb.Max.Y);
+            }
+            if (minX > maxX)
+            {
+                detail.AppendLine("      No walls in the model — the building's extent cannot be found, nothing produced.");
+                return Result.Cancelled;
+            }
+            var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
+                .Where(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan && v.GenLevel != null)
+                .OrderBy(v => v.GenLevel.Elevation).FirstOrDefault();
+            if (ownerPlan == null)
+            {
+                detail.AppendLine("      No floor plan to host the elevation marker — produce the plans first.");
+                return Result.Failed;
+            }
+            var vft = Core.Drawing.DrawingProducer.ResolveNamedViewFamilyType(
+                doc, ViewFamily.Elevation, dt.ViewFamilyTypeName, out var vftWhy);
+            if (vft == null)
+            {
+                detail.AppendLine("      No elevation view type in the project — nothing produced.");
+                return Result.Failed;
+            }
+
+            var cfg = new Core.Drawing.ElevationProductionConfig();
+            double off = cfg.OffsetMm / 304.8;
+            var faces = new (string Face, int Index, XYZ Origin)[]
+            {
+                ("North", 0, new XYZ((minX + maxX) / 2, maxY + off, 0)),
+                ("East",  1, new XYZ(maxX + off, (minY + maxY) / 2, 0)),
+                ("South", 2, new XYZ((minX + maxX) / 2, minY - off, 0)),
+                ("West",  3, new XYZ(minX - off, (minY + maxY) / 2, 0)),
+            };
+
+            var existing = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation
+                    && string.Equals(ParameterHelpers.GetString(v, Core.Drawing.DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), dt.Id, StringComparison.OrdinalIgnoreCase))
+                .Select(v => ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? "")
+                .ToHashSet(StringComparer.Ordinal);
+
+            int made = 0, reused = 0;
+            var warnings = new List<string>();
+            if (vftWhy != null) warnings.Add($"{dt.Id}: {vftWhy}");
+            detail.AppendLine($"      A / ELEVATION → {dt.Id}");
+            Core.Drawing.DrawingTypePresentation.Prewarm(doc);
+            using (var tg = new TransactionGroup(doc, "STING Project Setup — Exterior Elevations"))
+            {
+                tg.Start();
+                foreach (var f in faces)
+                {
+                    string ctxTag = $"exterior::face::{f.Face}";
+                    if (existing.Contains(ctxTag)) { reused++; continue; }
+                    using (var t = new Transaction(doc, $"STING Exterior Elevation {f.Face}"))
+                    {
+                        t.Start();
+                        try
+                        {
+                            var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, f.Origin, dt.Scale > 0 ? dt.Scale : 100);
+                            var view = marker.CreateElevation(doc, ownerPlan.Id, f.Index);
+                            try { view.Name = $"Exterior Elevation - {f.Face} - {dt.Name}"; }
+                            catch (Exception ex) { StingLog.Warn($"Project Setup elevation name: {ex.Message}"); }
+                            var far = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
+                            if (far != null && !far.IsReadOnly) far.Set(cfg.FarClipMm / 304.8);
+                            var ar = Core.Drawing.DrawingTypePresentation.Apply(doc, view, dt,
+                                new Core.Drawing.DrawingTypePresentation.ApplyOptions
+                                {
+                                    AnnotationOptions = new Core.Drawing.AnnotationRunOptions { ViewScale = view.Scale },
+                                    SkipSymbolDriftCheck = true
+                                });
+                            warnings.AddRange(ar.Warnings);
+                            Core.Drawing.DrawingTypeStamper.Stamp(view, dt.Id);
+                            Core.Drawing.DrawingTypeStamper.StampPackage(view, dt.PackageId ?? "");
+                            ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, ctxTag, overwrite: true);
+                            if (t.Commit() == TransactionStatus.Committed) made++;
+                            else warnings.Add($"{f.Face}: the transaction did not commit.");
+                        }
+                        catch (Exception ex)
+                        {
+                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();
+                            warnings.Add($"{f.Face}: {ex.Message} — rolled back.");
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
+
+            detail.AppendLine($"      {made} elevation(s) made, {reused} already there and reused. " +
+                              "Views only — lay out elevation sheets with DOCS → Exterior Elevations.");
+            AppendWarnings(detail, warnings, "elevations");
+            return made + reused > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>The first drawing type (of <paramref name="purpose"/>) that one of the disciplines routes <paramref name="docType"/> to.</summary>
+        private static Core.Drawing.DrawingType RouteFirst(Document doc, string docType, string purpose, params string[] disciplines)
+        {
+            foreach (var disc in disciplines)
+            {
+                Core.Drawing.DrawingType dt = null;
+                try { dt = Core.Drawing.DrawingDispatcher.Resolve(doc, disc, null, docType); }
+                catch (Exception ex) { StingLog.Warn($"Project Setup route {disc}/{docType}: {ex.Message}"); }
+                if (dt != null && string.Equals(dt.Purpose, purpose, StringComparison.OrdinalIgnoreCase)) return dt;
+            }
+            return null;
+        }
+
+        private static void AppendWarnings(StringBuilder detail, List<string> warnings, string what)
+        {
+            var distinct = warnings.Distinct().ToList();
+            foreach (var w in distinct) StingLog.Warn($"Project Setup {what}: {w}");
+            if (distinct.Count == 0) return;
+            detail.AppendLine($"      {distinct.Count} warning(s):");
+            foreach (var w in distinct.Take(8)) detail.AppendLine($"        • {w}");
+            if (distinct.Count > 8) detail.AppendLine($"        • … {distinct.Count - 8} more in the STING log");
         }
 
         // ══════════════════════════════════════════════════════════════

@@ -464,7 +464,7 @@ namespace StingTools.UI
                 ("Reload JSON",     "DrawingTypes_Reload"),
                 ("Group Browser",   "DrawingTypes_GroupBrowser"),
                 ("Sync Styles",     "DrawingTypes_SyncStyles"),
-                ("From Scope Boxes","DrawingTypes_FromScopeBoxes"),
+                ("Produce From Scope Boxes","DrawingTypes_ProduceFromScopeBoxes"),
                 // Phase 137 — STING-Managed View Templates
                 ("Convert to Managed",  "DrawingTypes_ConvertToManaged"),
                 ("Detach Managed",      "DrawingTypes_DetachManaged"),
@@ -1884,8 +1884,8 @@ namespace StingTools.UI
                 ("Count Sheets",   "SheetCountAutoUpdate"),
                 ("Stamp TX",       "TransmittalAutoIssue"),
                 ("Transmittal",    "Transmittal"),
-                ("Swap Title Block","SwapTitleBlock"),
-                ("Set Variant",    "TitleBlockSetVariant"),
+                // Swap and Set Variant live in the Authoring card above (TitleBlock_Swap
+                // replaces the older SwapTitleBlock); they are not repeated here (DTW-36).
                 ("Auto-Number Sheets", "Sheet_AutoNumber"),
                 ("Reorder Sheets…", "Sheet_Reorder"),
                 ("Disciplines…", "Sheet_DisciplinesReload"),

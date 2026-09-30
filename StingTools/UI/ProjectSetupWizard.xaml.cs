@@ -1596,9 +1596,9 @@ namespace StingTools.UI
             AddStep(data.CreateViews || data.CreateSheets,
                 $"Produce each discipline's plan drawing types per level ({data.Disciplines.Count} disc, "
                 + (data.CreateSheets ? "views + stamped sheets" : "views only") + "; re-runs reuse them)");
-            AddStep(data.CreateDependents, "Create dependent views from scope boxes");
-            AddStep(data.CreateSections, "Create building sections from grids");
-            AddStep(data.CreateElevations, "Create 4 exterior elevations");
+            AddStep(data.CreateDependents, "Produce dependent plans per scope box (drawing types; re-runs reuse them)");
+            AddStep(data.CreateSections, "Produce building sections along grid lines (drawing types; re-runs reuse them)");
+            AddStep(data.CreateElevations, "Produce 4 exterior elevations (drawing types, views only; re-runs reuse them)");
             AddStep(data.CreateViews || data.CreateSheets, "Organize project browser");
             AddStep(data.CreateSheets, "Create sheet index schedule");
 

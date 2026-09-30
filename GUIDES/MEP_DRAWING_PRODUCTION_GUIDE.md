@@ -61,9 +61,16 @@ On the Automation page:
   level, stamped. So they are the same views and sheets A7 makes, and a later production run
   reuses them instead of duplicating them. Leave them on for a whole-floor set; untick them
   if you will produce from area boxes (A6).
-- **"Rename scope boxes"** now writes names STING reads: `STING-ZONE::{ZONE}` by default (sets
-  the ZONE token), or `STING-LOC::{LOC}`. It refuses AREA, SEED and `STING::` names, which
-  belong to the Scope Box Planner, and lists any refused rename in the report.
+- **"Produce a dependent plan per scope box"**, **"Produce building sections along grid
+  lines"** and **"Produce 4 exterior elevations"** go through drawing-type production too, so
+  their views are stamped and a later run reuses them. Elevations are views only; lay out
+  their sheets with DOCS → Exterior Elevations.
+
+On the Grids page (page 3), under Scope Box Integration:
+- **"Rename ticked scope boxes on Run"** renames **only the rows ticked in the Use column**,
+  to names STING reads: `STING-ZONE::{ZONE}` by default (sets the ZONE token), or
+  `STING-LOC::{LOC}`. It refuses AREA, SEED and `STING::` names, which belong to the Scope
+  Box Planner, and lists any refused rename in the report.
 
 ## A2. SETUP → DRAWING PRODUCTION → ★ Set up drawing production
 
@@ -152,24 +159,25 @@ every level it spans. So you draw one box per area of the building, not one per 
 5. **"Colour Boxes"** tints boxes by size class, discipline, building, level or kind, so you
    can check the layout. **"Clear Box Colours"** removes the tint.
 
-Limits:
-- The planner offers **Plan and RCP types only**. `mep-coord-A1-1to50` (Coordination) is not
-  offered; produce it per level or from a `STING::` box.
+What the planner offers:
+- **Plan, RCP and coordination types** (so `mep-coord-A1-1to50` is an area candidate). Section
+  types get a section cut along the box's long axis.
 
 **Match lines** work for area boxes too. Two boxes that overlap get a match line down the
 middle of the overlap, and each box is measured in its own frame, so boxes turned to the grid
 match. Lines join only views of the **same drawing type on the same level**, and seed and
 building boxes are ignored.
 
-**Duplicate as Dependent** (in the production dialog, or `duplicateOption` in a preset) makes
-one parent plan per drawing type and level, off every sheet, and each box's view a dependent
-of it cropped to the box.
+**Dependent views.** "Produce From Areas" offers **Views + sheets**, **Views only** or
+**Dependent** (for `STING::` boxes, Duplicate as Dependent is in the production dialog, or
+`duplicateOption` in a preset). Dependent makes one parent plan per drawing type and level,
+off every sheet, and each box's view a dependent of it cropped to the box.
 
 **Named boxes (the older way)** are still supported:
 
 | Name | Read by | Effect |
 |---|---|---|
-| `STING::<drawing-type-id>::<level>::<zone>` | "From Scope Boxes (Produce)" | One cropped view and sheet per box. Draw them **unrotated and edge to edge** so match lines generate. The Scope Box Manager validates names. |
+| `STING::<drawing-type-id>::<level>::<zone>` | "Produce From Scope Boxes" | One cropped view and sheet per box. Draw them **unrotated and edge to edge** so match lines generate. The Scope Box Manager validates names. |
 | `STING-AREA::<code>[::<level>]` | "Produce From Areas" | See above |
 | `STING-SEED::<w>x<d>` | The planner | A seed; never produced from |
 | `STING-LOC::<code>` | Tagging | Sets the LOC (building) token when room and workset detection fall back to the default. Smallest containing box wins; must be unrotated. |
@@ -181,10 +189,10 @@ usual reason to draw zone boxes.
 
 ## A7. Produce
 
-**DOCS → 📐 DRAWING TYPES → Production**:
-- **"Produce From Areas"**: area boxes (A6).
-- **"From Scope Boxes (Produce)"**: `STING::` boxes.
-- **"Produce Per Level"**: whole floors, no scope box.
+Under **DOCS → 📐 DRAWING TYPES**:
+- **Scope boxes → "Produce From Areas"**: area boxes (A6).
+- **Production → "Produce From Scope Boxes"**: `STING::` boxes.
+- **Production → "Produce Per Level"**: whole floors, no scope box.
 
 Tick **only** the MEP types you need (Part D lists them).
 
@@ -550,6 +558,8 @@ STING log). Step params in brackets, default after the `=`:
   `DrawingTypes_ProduceFromScopeBoxes` (`drawingTypes`, `levels`, `output` = Views and sheets,
   `duplicateOption` = Duplicate, `packageId`), `MEP_ApplyMepCoordination` (`scope` = view;
   `produced` colours every STING-produced MEP plan), `MatchLine_Generate`
+- Electrical checks: `Panel_ComplianceCheck`, `Panel_BalanceApply` (`apply` = false: reports
+  the plan and moves nothing; `true` moves the circuits)
 - Electrical documents: `Panel_TemplatesCreate`, `Panel_BatchSchedules`, `Panel_PlaceOnSheets`
   (`mode` = AutoSheets), `SLD_Generate`, `SLD_RiserDiagram` (both take their options from the
   Electrical panel's last settings), `FireAlarm_Schematic`, `MGPS_Schematic`, `LPS_Schematic`,
@@ -575,8 +585,6 @@ These resolve in a preset but still open a dialog there, so run them from their 
   panel, not from step params
 - `Fire_SprinklerHydraulics` (needs a selection; asks for hazard, area and supply pressure)
 - `BOQExport` (coverage gate and result panel), `COBieExport` (opens the export wizard)
-- `Panel_ComplianceCheck` and `Panel_BalanceApply` until their preset-safe versions
-  (`params.apply`) are merged
 
 Not checked for unattended use yet: the other `Plumb_*` commands, `DrawingTypes_ProduceAndExport`,
 `DrawingTypes_Renumber`, `DrawingTypes_HealTitleBlocks`.
@@ -688,15 +696,14 @@ riser schematics) are the drawings to plan hand time for.
 - **No earthing / lightning-protection layout plan type** (the schematics exist).
 - **Photometric parameters** (`ELC_PHOTO_*`) are type parameters in the seed families but bound
   as instance parameters in the project; which wins in a loaded family needs a Revit check.
-- The planner offers plan and RCP types only; coordination plans come per level or from
-  `STING::` boxes.
 
 ## Needs a Revit run before it is trusted
 
 The code for all of this is written and unit-tested where it can be; none of it has run in
 Revit yet:
 - the CAD Wizard's full conversion on a real DWG, and the Pick tools
-- the wizard's stamped views / sheets, level rename and scope-box rename
+- the wizard's stamped views / sheets (plans, scope-box dependents, grid sections, exterior
+  elevations), level rename and scope-box rename
 - area-box match lines, dependent views, crop recovery on Sync Styles
 - the three MEP presets end to end with no dialogs
 - SLD / riser / schematic / panel schedule sheets (and whether a large plumbing schematic fits
