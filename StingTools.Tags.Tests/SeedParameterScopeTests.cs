@@ -188,8 +188,11 @@ namespace StingTools.Tags.Tests
             ["ELC_PNL_CIRCUIT_GROUP_TXT"] = "BatchAssignCircuitsCommand",
             // SeedTypeMigrator restamps the product code per instance after a type rename.
             ["ASS_PRODCT_COD_TXT"] = "SeedTypeMigrator",
-            // MedGasTypeSwapUpdater restamps the gas per instance after a type swap (MG-1).
-            ["MGS_GAS_TYPE_TXT"] = "MedGasTypeSwapUpdater",
+            // SeedTypeSwapUpdater restamps the gas per instance after a type swap (MG-1).
+            ["MGS_GAS_TYPE_TXT"] = "SeedTypeSwapUpdater",
+            // BatchPanelSchedules / PanelScheduleApplyEngine write the panel's ratings on the instance.
+            ["ELC_PNL_MAIN_BRK_A"] = "PanelScheduleApplyEngine",
+            ["ELC_PNL_NUM_OF_WAYS_NR"] = "PanelScheduleApplyEngine",
             // The tagging pipeline writes the ISO 19650 tokens and tag per element.
             ["ASS_DISCIPLINE_COD_TXT"] = "TokenAutoPopulator",
             ["ASS_LOC_TXT"] = "TokenAutoPopulator",
@@ -215,6 +218,21 @@ namespace StingTools.Tags.Tests
             Assert.True(bad.Count == 0, string.Join(Environment.NewLine, bad));
         }
 
+        /// <summary>
+        /// Seed TYPE parameters the project binds Instance, on purpose — every entry is a
+        /// known disagreement, and a new one fails. The photometric set (SEED-1): every
+        /// reader and writer works on the FamilySymbol (AssignPhotometric, LightingGrid,
+        /// LuminaireRegistry, PhotometricPreflight, DIALuxExport), because photometry is a
+        /// property of the luminaire type; CATEGORY_BINDINGS.csv binds them Instance on
+        /// Lighting Fixtures. The binding is the outlier, and rebinding ELC_ parameters is
+        /// a held decision. In the family the shared parameter is a type parameter, which
+        /// is what the readers see — to be confirmed in Revit.
+        /// </summary>
+        private static readonly HashSet<string> TypeInFamilyInstanceInProject = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "ELC_PHOTO_LUMENS_NR", "ELC_PHOTO_WATTS_NR", "ELC_PHOTO_FILE_PATH_TXT", "ELC_PHOTO_CCT_K", "ELC_PHOTO_CRI_NR",
+        };
+
         [Fact]
         public void NoSeedTypeParameterIsInstanceBoundInTheProject()
         {
@@ -231,12 +249,18 @@ namespace StingTools.Tags.Tests
             Assert.NotEmpty(instanceBound);
 
             var bad = new List<string>();
+            var excepted = new HashSet<string>(StringComparer.Ordinal);
             foreach (var file in SeedFiles())
                 foreach (var s in Load(file).Symbols)
                     foreach (var p in s.Parameters ?? new List<ParameterDefinition>())
                         if (!p.IsInstance && p.Name != null && instanceBound.Contains(p.Name))
-                            bad.Add($"{s.Id}.{p.Name} is declared type but bound Instance in CATEGORY_BINDINGS.csv");
+                        {
+                            if (TypeInFamilyInstanceInProject.Contains(p.Name)) excepted.Add(p.Name);
+                            else bad.Add($"{s.Id}.{p.Name} is declared type but bound Instance in CATEGORY_BINDINGS.csv");
+                        }
             Assert.True(bad.Count == 0, string.Join(Environment.NewLine, bad));
+            // No stale exception: each one must still be a real disagreement.
+            Assert.Equal(TypeInFamilyInstanceInProject.OrderBy(x => x), excepted.OrderBy(x => x));
         }
     }
 }

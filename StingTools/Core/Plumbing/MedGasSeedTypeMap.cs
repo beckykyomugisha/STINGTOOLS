@@ -5,6 +5,9 @@
 // swapping a placed outlet from TERMINAL_UNIT_O2 to TERMINAL_UNIT_VAC keeps "O2", and a
 // FamilySymbol cannot read the value at all. The seed spec is the one place the
 // type -> gas pairing is written down; this reads it from there rather than restating it.
+// MedGasOutletPlacementCommand uses it to find the seed type for a gas. Keeping the gas
+// with the type after a swap is SeedTypeSwapUpdater's job (MGS_GAS_TYPE_TXT is a
+// "followsType" parameter), under the same rule as every other seed value.
 
 using System;
 using System.Collections.Generic;
@@ -34,7 +37,7 @@ namespace StingTools.Core.Plumbing
         {
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
-                StingLog.Warn($"MedGasSeedTypeMap: seed spec not found ({path ?? "no path"}) — medical-gas type swaps will not restamp the gas.");
+                StingLog.Warn($"MedGasSeedTypeMap: seed spec not found ({path ?? "no path"}) — gas outlet placement will not find seed types by gas.");
                 return new MedGasSeedTypeMap();
             }
             try { return Parse(File.ReadAllText(path)); }
@@ -81,21 +84,6 @@ namespace StingTools.Core.Plumbing
             string canon = MedicalGasFixtures.CanonicalGasCode(gas);
             if (canon == null) return Array.Empty<string>();
             return _order.Where(n => _gasByType[n] == canon).ToList();
-        }
-
-        /// <summary>
-        /// After an instance moves to <paramref name="newTypeName"/>: true when its gas must
-        /// change, with the value to write ("" clears it). A type the seed does not declare
-        /// (a user-duplicated type) is left alone — its gas is the user's.
-        /// </summary>
-        public bool GasAfterTypeChange(string newTypeName, string currentGas, out string newGas)
-        {
-            newGas = null;
-            if (!IsDeclaredType(newTypeName)) return false;
-            string target = GasForType(newTypeName) ?? "";
-            if (string.Equals((currentGas ?? "").Trim(), target, StringComparison.Ordinal)) return false;
-            newGas = target;
-            return true;
         }
     }
 }

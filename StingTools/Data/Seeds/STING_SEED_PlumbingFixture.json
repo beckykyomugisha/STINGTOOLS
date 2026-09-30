@@ -47,7 +47,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -64,6 +64,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "WC"
         },
         {
@@ -71,6 +72,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "WC"
         },
         {
@@ -92,6 +94,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "COLD"
         },
         {
@@ -532,7 +535,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -549,6 +552,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "FONT"
         },
         {
@@ -556,6 +560,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "BAPTISMAL_FONT"
         },
         {
@@ -563,6 +568,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "HOT_COLD"
         },
         {

@@ -183,15 +183,15 @@ All parameters listed below are injected automatically by `BuildSeedFamiliesComm
 | `STING_SEED_FAMILY_TXT` | Text | Yes | Seed ID string | Read-only stamp — do not edit |
 | `STING_DESIGN_REF_TXT` | Text | Yes | *(empty)* | Populated by SwapToManufacturer |
 | `STING_SWAP_HISTORY_TXT` | Text | Yes | *(empty)* | Populated by SwapToManufacturer |
-| `ASS_TAG_1` | Text | Yes | *(empty)* | Full 8-segment ISO 19650 tag |
+| `ASS_TAG_1_TXT` | Text | Yes | *(empty)* | Full 8-segment ISO 19650 tag |
 | `ASS_DISCIPLINE_COD_TXT` | Text | Yes | Seed-specific | DISC token |
-| `ASS_PRODCT_COD_TXT` | Text | Yes | Seed-specific | PROD token — varies per type variant |
+| `ASS_PRODCT_COD_TXT` | Text | Yes | Seed-specific | PROD token — varies per type variant; `followsType` (restamped on a type change unless edited) |
 
 ### Penetration seeds only (`SpecialityEquipment`, `FireDamper`, `AcousticSeal`)
 
 | Parameter | Storage | Instance? | Default |
 |---|---|---|---|
-| `PEN_OD_MM` | Text | Yes | `0` or `32` |
+| `PEN_OD_MM` | Number | Yes | `0` or `32` |
 | `PEN_HOST_REF_TXT` | Text | Yes | *(empty)* |
 | `PEN_HOST_TYPE_TXT` | Text | Yes | *(empty)* |
 | `PEN_MEMBER_ID_TXT` | Text | Yes | *(empty)* |
@@ -207,7 +207,7 @@ All parameters listed below are injected automatically by `BuildSeedFamiliesComm
 
 | Seed | Parameter | Storage | Instance? |
 |---|---|---|---|
-| LightingFixture | `LTG_DIMMABLE_BOOL` | Text | No (type) |
+| LightingFixture | `LTG_DIMMABLE_TXT` | Text (`Yes`/`No`) | No (type) |
 | LightingFixture | `LTG_IP_RATING_TXT` | Text | No (type) |
 | ElectricalFixture | `ELE_FIX_GANG_COUNT_INT` | Integer | No (type) |
 | ElectricalFixture | `ELE_FIX_WAY_CONFIG_TXT` | Text | No (type) |
@@ -219,7 +219,7 @@ All parameters listed below are injected automatically by `BuildSeedFamiliesComm
 | PlumbingFixture | `PLM_FIX_ACCESSIBLE_BOOL` | Text | No (type) |
 | PlumbingFixture | `PLM_FIX_TYPE_TXT` | Text | Yes |
 | PlumbingEquipment | `PLM_EQP_TYPE_TXT` | Text | Yes |
-| PlumbingEquipment | `PLM_EQP_CAPACITY_LITRES` | Text | No (type) |
+| PlumbingEquipment | `PLM_EQP_CAPACITY_L` | Text | Yes (`followsType`) |
 | PlumbingEquipment | `PLM_EQP_HEAT_OUTPUT_KW` | Text | No (type) |
 | PlumbingEquipment | `PLM_EQP_PRESSURE_BAR` | Text | No (type) |
 | PlumbingEquipment | `PLM_EQP_INLET_DN_MM` | Text | No (type) |
@@ -244,7 +244,7 @@ All parameters listed below are injected automatically by `BuildSeedFamiliesComm
 | JunctionBox | `ELC_JB_IP_RATING_TXT` | Text | No (type) |
 | JunctionBox | `ELC_JB_FIRE_RATING_TXT` | Text | Yes |
 | JunctionBox | `ELC_JB_ATEX_ZONE_TXT` | Text | No (type) |
-| JunctionBox | `ELC_JB_AUTO_PLACED_BOOL` | Text | Yes |
+| JunctionBox | `ELC_JB_AUTO_PLACED_BOOL` | YesNo | Yes |
 | MedGasOutlet | `MGS_TU_TYPE_TXT` | Text | Yes |
 | MedGasOutlet | `MGS_GASES_TXT` | Text | Yes |
 | MedGasOutlet | `MGS_SOCKET_STD_TXT` | Text | No (type) |
@@ -289,23 +289,23 @@ All parameters listed below are injected automatically by `BuildSeedFamiliesComm
 
 ### Type variants — set these parameters in *Family Types*
 
-| Type name | `ASS_PRODCT_COD_TXT` | `LTG_DIMMABLE_BOOL` | `LTG_IP_RATING_TXT` | Notes |
+| Type name | `ASS_PRODCT_COD_TXT` | `LTG_DIMMABLE_TXT` | `LTG_IP_RATING_TXT` | Notes |
 |---|---|---|---|---|
-| `RECESSED_LED_600x600` | `LTG-R` | `1` | `IP20` | Default |
-| `RECESSED_LED_600x600_DIMMABLE` | `LTG-RD` | `1` | `IP20` | Add DALI symbol |
-| `DOWNLIGHT_75MM` | `LTG-DL` | `0` | `IP20` | Change 2D to Ø75 circle |
-| `DOWNLIGHT_100MM` | `LTG-DL` | `0` | `IP44` | |
-| `DOWNLIGHT_DIMMABLE_75MM` | `LTG-DLD` | `1` | `IP44` | |
-| `LINEAR_LED_1200` | `LTG-L` | `0` | `IP20` | Change 2D rect to 1200×100 mm |
-| `LINEAR_LED_1500` | `LTG-L` | `0` | `IP20` | 1500×100 mm |
-| `LINEAR_LED_DIMMABLE_1200` | `LTG-LD` | `1` | `IP20` | |
-| `PENDANT_ROUND` | `LTG-P` | `0` | `IP20` | Change 2D to Ø300 circle; raise 3D 200 mm |
-| `WALL_BULKHEAD` | `LTG-W` | `0` | `IP44` | Face-based — add to wall |
-| `WALL_EXTERIOR` | `LTG-WX` | `0` | `IP65` | |
-| `FLOOD_LIGHT` | `LTG-FL` | `0` | `IP65` | Ø200 circle + 4 radial lines |
-| `TRACK_SPOTLIGHT` | `LTG-T` | `1` | `IP20` | 1200×50 mm track rect |
-| `EMERGENCY_MAINTAINED` | `LTG-EM` | `0` | `IP20` | Fill centre circle solid red |
-| `EMERGENCY_NON_MAINTAINED` | `LTG-ENM` | `0` | `IP20` | Centre circle hatched |
+| `RECESSED_LED_600x600` | `LTG-R` | `Yes` | `IP20` | Default |
+| `RECESSED_LED_600x600_DIMMABLE` | `LTG-RD` | `Yes` | `IP20` | Add DALI symbol |
+| `DOWNLIGHT_75MM` | `LTG-DL` | `No` | `IP20` | Change 2D to Ø75 circle |
+| `DOWNLIGHT_100MM` | `LTG-DL` | `No` | `IP44` | |
+| `DOWNLIGHT_DIMMABLE_75MM` | `LTG-DLD` | `Yes` | `IP44` | |
+| `LINEAR_LED_1200` | `LTG-L` | `No` | `IP20` | Change 2D rect to 1200×100 mm |
+| `LINEAR_LED_1500` | `LTG-L` | `No` | `IP20` | 1500×100 mm |
+| `LINEAR_LED_DIMMABLE_1200` | `LTG-LD` | `Yes` | `IP20` | |
+| `PENDANT_ROUND` | `LTG-P` | `No` | `IP20` | Change 2D to Ø300 circle; raise 3D 200 mm |
+| `WALL_BULKHEAD` | `LTG-W` | `No` | `IP44` | Face-based — add to wall |
+| `WALL_EXTERIOR` | `LTG-WX` | `No` | `IP65` | |
+| `FLOOD_LIGHT` | `LTG-FL` | `No` | `IP65` | Ø200 circle + 4 radial lines |
+| `TRACK_SPOTLIGHT` | `LTG-T` | `Yes` | `IP20` | 1200×50 mm track rect |
+| `EMERGENCY_MAINTAINED` | `LTG-EM` | `No` | `IP20` | Fill centre circle solid red |
+| `EMERGENCY_NON_MAINTAINED` | `LTG-ENM` | `No` | `IP20` | Centre circle hatched |
 
 ### Connector note
 Lighting fixtures do not require MEP connectors in the STING scheme — electrical circuit topology is managed via `ELC_CIRCUIT_GROUP_TXT` parameter, not connector topology. Leave connectors as-is (none declared in the JSON).
@@ -561,7 +561,7 @@ Pumps and manifolds only need 2 connectors — remove the unused ones by selecti
 
 ### Type variants
 
-| Type name | `ASS_PRODCT_COD_TXT` | `PLM_EQP_TYPE_TXT` | `PLM_EQP_CAPACITY_LITRES` | `PLM_EQP_HEAT_OUTPUT_KW` | `PLM_EQP_PRESSURE_BAR` |
+| Type name | `ASS_PRODCT_COD_TXT` | `PLM_EQP_TYPE_TXT` | `PLM_EQP_CAPACITY_L` | `PLM_EQP_HEAT_OUTPUT_KW` | `PLM_EQP_PRESSURE_BAR` |
 |---|---|---|---|---|---|
 | `CALORIFIER` | `CAL` | `CALORIFIER` | `300` | `9` | `6` |
 | `CALORIFIER_DIRECT` | `CAL-D` | `CALORIFIER_DIRECT` | `200` | `9` | `6` |

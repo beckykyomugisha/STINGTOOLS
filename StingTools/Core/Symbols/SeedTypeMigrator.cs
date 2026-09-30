@@ -9,9 +9,12 @@
 //   old only      -> rename the old type, re-apply the variant's type parameters
 //   old and new   -> move every old instance to the new type, delete the old type
 //
-// Migrated instances also take the new type's product code, because the seed
-// declares ASS_PRODCT_COD_TXT as an INSTANCE parameter: the old type's default stays
-// on each instance after a rename or a type change, and MgasNetwork reads it.
+// Migrated instances also take the new type's values of the seed's "followsType"
+// instance parameters (the product code above all — MgasNetwork reads it): the old
+// type's default stays on each instance after a rename or a type change. The value is
+// written only over the OLD type's declared value (from the renamedFrom entry's
+// "params") or a blank — SeedFollowTypeRule, the same rule a type swap uses — so a
+// code a user typed survives the migration.
 // It runs in every Build Seeds mode, including Missing Only, since that is the default.
 
 using System;
@@ -33,8 +36,6 @@ namespace StingTools.Core.Symbols
 
     public static class SeedTypeMigrator
     {
-        private const string ProductCodeParam = "ASS_PRODCT_COD_TXT";
-
         /// <summary>Migrates every renamed variant in the seed spec at <paramref name="jsonPath"/>.</summary>
         public static SeedTypeMigrationReport MigrateFromFile(Document doc, string jsonPath, SeedTypeMigrationReport report = null)
         {
@@ -49,11 +50,12 @@ namespace StingTools.Core.Symbols
                 return report;
             }
 
+            var catalog = SeedFollowTypeCatalog.FromLibraries(new[] { lib });
             foreach (var def in lib?.Symbols ?? new List<SymbolDefinition>())
             {
                 if (def?.TypeVariants == null || string.IsNullOrWhiteSpace(def.Id)) continue;
                 if (!def.TypeVariants.Any(v => v?.RenamedFrom != null && v.RenamedFrom.Count > 0)) continue;
-                try { MigrateFamily(doc, def, report); }
+                try { MigrateFamily(doc, def, catalog, report); }
                 catch (Exception ex)
                 {
                     report.Warnings.Add($"Type migration: {def.Id} failed — {ex.Message}");
@@ -63,7 +65,8 @@ namespace StingTools.Core.Symbols
             return report;
         }
 
-        private static void MigrateFamily(Document doc, SymbolDefinition def, SeedTypeMigrationReport report)
+        private static void MigrateFamily(Document doc, SymbolDefinition def, SeedFollowTypeCatalog catalog,
+            SeedTypeMigrationReport report)
         {
             var fam = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
                 .FirstOrDefault(f => string.Equals(f.Name, def.Id, StringComparison.OrdinalIgnoreCase));
@@ -81,7 +84,7 @@ namespace StingTools.Core.Symbols
             int messagesBefore = report.Messages.Count;
             try
             {
-                MigrateSteps(doc, def, steps, byName, report);
+                MigrateSteps(doc, def, catalog, steps, byName, report);
             }
             catch
             {
@@ -92,7 +95,8 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void MigrateSteps(Document doc, SymbolDefinition def, List<SeedTypeMigrationStep> steps,
+        private static void MigrateSteps(Document doc, SymbolDefinition def, SeedFollowTypeCatalog catalog,
+            List<SeedTypeMigrationStep> steps,
             Dictionary<string, FamilySymbol> byName, SeedTypeMigrationReport report)
         {
             using (var tx = new Transaction(doc, "STING Migrate Renamed Seed Types"))
@@ -101,8 +105,6 @@ namespace StingTools.Core.Symbols
                 foreach (var step in steps)
                 {
                     var oldSym = byName[step.OldName];
-                    string newCode = step.Variant?.Parameters != null
-                        && step.Variant.Parameters.TryGetValue(ProductCodeParam, out var c) ? c : null;
 
                     if (step.Action == SeedTypeMigrationAction.Rename)
                     {
@@ -111,7 +113,7 @@ namespace StingTools.Core.Symbols
                         byName.Remove(step.OldName);
                         byName[step.NewName] = oldSym;
                         int n = 0;
-                        foreach (var inst in InstancesOf(doc, oldSym)) { Restamp(inst, newCode, report); n++; }
+                        foreach (var inst in InstancesOf(doc, oldSym)) { Restamp(inst, def, catalog, step, report); n++; }
                         report.Types++;
                         report.Instances += n;
                         report.Messages.Add($"{def.Id}: renamed type {step.OldName} -> {step.NewName} ({n} instance(s)).");
@@ -126,7 +128,7 @@ namespace StingTools.Core.Symbols
                             try
                             {
                                 inst.ChangeTypeId(newSym.Id);
-                                Restamp(inst, newCode, report);
+                                Restamp(inst, def, catalog, step, report);
                                 moved++;
                             }
                             catch (Exception ex)
@@ -149,7 +151,10 @@ namespace StingTools.Core.Symbols
                         }
                     }
                 }
-                var status = tx.Commit();
+                // The merge's ChangeTypeId would also wake SeedTypeSwapUpdater at commit; this
+                // pass already applied the rule with the old type known, which is the finer answer.
+                TransactionStatus status;
+                using (SeedTypeSwapUpdater.Suspend()) status = tx.Commit();
                 if (status != TransactionStatus.Committed)
                     throw new InvalidOperationException($"transaction ended {status}; nothing was migrated");
             }
@@ -183,18 +188,21 @@ namespace StingTools.Core.Symbols
             }
         }
 
-        private static void Restamp(FamilyInstance inst, string newCode, SeedTypeMigrationReport report)
+        /// <summary>
+        /// The seed's followsType values follow the migrated type — over the OLD type's
+        /// declared value or a blank only (SeedFollowTypeRule): a value a user typed survives.
+        /// </summary>
+        private static void Restamp(FamilyInstance inst, SymbolDefinition def, SeedFollowTypeCatalog catalog,
+            SeedTypeMigrationStep step, SeedTypeMigrationReport report)
         {
-            if (string.IsNullOrEmpty(newCode)) return;
             try
             {
-                var p = inst.LookupParameter(ProductCodeParam);
-                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String) return;
-                if (SeedTypeRenames.ShouldRestamp(p.AsString(), newCode)) p.Set(newCode);
+                SeedFollowTypeApplier.Apply(inst, def.Id, step.NewName, catalog, step.OldName,
+                    w => report.Warnings.Add($"{def.Id}: {w}"));
             }
             catch (Exception ex)
             {
-                report.Warnings.Add($"instance {inst.Id}: {ProductCodeParam} not restamped — {ex.Message}");
+                report.Warnings.Add($"{def.Id}: instance {inst.Id} values not restamped — {ex.Message}");
             }
         }
     }

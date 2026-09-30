@@ -45,7 +45,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -62,6 +62,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "FD"
         },
         {
@@ -69,11 +70,12 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "FR60"
         },
         {
           "name": "PEN_OD_MM",
-          "type": "Text",
+          "type": "Number",
           "shared": true,
           "isInstance": true,
           "default": "0"

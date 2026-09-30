@@ -50,7 +50,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -74,14 +74,15 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "RECESSED"
         },
         {
-          "name": "LTG_DIMMABLE_BOOL",
+          "name": "LTG_DIMMABLE_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": false,
-          "default": "0"
+          "default": "No"
         },
         {
           "name": "LTG_IP_RATING_TXT",
@@ -91,35 +92,35 @@
           "default": "IP20"
         },
         {
-          "name": "ELC_PHOTO_LUMENS",
+          "name": "ELC_PHOTO_LUMENS_NR",
           "type": "Text",
           "shared": true,
           "isInstance": false,
           "default": "4000"
         },
         {
-          "name": "ELC_PHOTO_WATTS",
+          "name": "ELC_PHOTO_WATTS_NR",
           "type": "Text",
           "shared": true,
           "isInstance": false,
           "default": "32"
         },
         {
-          "name": "ELC_PHOTO_FILE_PATH",
+          "name": "ELC_PHOTO_FILE_PATH_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": false,
           "default": ""
         },
         {
-          "name": "ELC_PHOTO_CCT",
+          "name": "ELC_PHOTO_CCT_K",
           "type": "Text",
           "shared": true,
           "isInstance": false,
           "default": "4000"
         },
         {
-          "name": "ELC_PHOTO_CRI",
+          "name": "ELC_PHOTO_CRI_NR",
           "type": "Text",
           "shared": true,
           "isInstance": false,
@@ -240,20 +241,20 @@
           "name": "RECESSED_LED_600x600",
           "params": {
             "LTG_TYPE_TXT": "RECESSED_PANEL",
-            "ELC_PHOTO_LUMENS": "4000",
-            "ELC_PHOTO_WATTS": "32",
+            "ELC_PHOTO_LUMENS_NR": "4000",
+            "ELC_PHOTO_WATTS_NR": "32",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
           "name": "RECESSED_LED_1200x300",
           "params": {
             "LTG_TYPE_TXT": "RECESSED_PANEL",
-            "ELC_PHOTO_LUMENS": "3600",
-            "ELC_PHOTO_WATTS": "30",
+            "ELC_PHOTO_LUMENS_NR": "3600",
+            "ELC_PHOTO_WATTS_NR": "30",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
@@ -263,30 +264,30 @@
           "name": "DOWNLIGHT",
           "params": {
             "LTG_TYPE_TXT": "DOWNLIGHT",
-            "ELC_PHOTO_LUMENS": "1200",
-            "ELC_PHOTO_WATTS": "12",
+            "ELC_PHOTO_LUMENS_NR": "1200",
+            "ELC_PHOTO_WATTS_NR": "12",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
           "name": "DOWNLIGHT_DIMMABLE",
           "params": {
             "LTG_TYPE_TXT": "DOWNLIGHT",
-            "ELC_PHOTO_LUMENS": "1200",
-            "ELC_PHOTO_WATTS": "12",
+            "ELC_PHOTO_LUMENS_NR": "1200",
+            "ELC_PHOTO_WATTS_NR": "12",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "1"
+            "LTG_DIMMABLE_TXT": "Yes"
           }
         },
         {
           "name": "DOWNLIGHT_IP65",
           "params": {
             "LTG_TYPE_TXT": "DOWNLIGHT",
-            "ELC_PHOTO_LUMENS": "1000",
-            "ELC_PHOTO_WATTS": "10",
+            "ELC_PHOTO_LUMENS_NR": "1000",
+            "ELC_PHOTO_WATTS_NR": "10",
             "LTG_IP_RATING_TXT": "IP65",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
@@ -296,30 +297,30 @@
           "name": "LINEAR_LED",
           "params": {
             "LTG_TYPE_TXT": "LINEAR_LED",
-            "ELC_PHOTO_LUMENS": "6000",
-            "ELC_PHOTO_WATTS": "50",
+            "ELC_PHOTO_LUMENS_NR": "6000",
+            "ELC_PHOTO_WATTS_NR": "50",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
           "name": "BATTEN_LED",
           "params": {
             "LTG_TYPE_TXT": "BATTEN",
-            "ELC_PHOTO_LUMENS": "4500",
-            "ELC_PHOTO_WATTS": "36",
+            "ELC_PHOTO_LUMENS_NR": "4500",
+            "ELC_PHOTO_WATTS_NR": "36",
             "LTG_IP_RATING_TXT": "IP65",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
           "name": "TASK_LIGHT",
           "params": {
             "LTG_TYPE_TXT": "TASK_LIGHT",
-            "ELC_PHOTO_LUMENS": "800",
-            "ELC_PHOTO_WATTS": "8",
+            "ELC_PHOTO_LUMENS_NR": "800",
+            "ELC_PHOTO_WATTS_NR": "8",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "1"
+            "LTG_DIMMABLE_TXT": "Yes"
           }
         },
         {
@@ -329,10 +330,10 @@
           "name": "PENDANT",
           "params": {
             "LTG_TYPE_TXT": "PENDANT",
-            "ELC_PHOTO_LUMENS": "3000",
-            "ELC_PHOTO_WATTS": "24",
+            "ELC_PHOTO_LUMENS_NR": "3000",
+            "ELC_PHOTO_WATTS_NR": "24",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
@@ -342,30 +343,30 @@
           "name": "WALL_BRACKET",
           "params": {
             "LTG_TYPE_TXT": "WALL_BRACKET",
-            "ELC_PHOTO_LUMENS": "1500",
-            "ELC_PHOTO_WATTS": "14",
+            "ELC_PHOTO_LUMENS_NR": "1500",
+            "ELC_PHOTO_WATTS_NR": "14",
             "LTG_IP_RATING_TXT": "IP44",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
           "name": "EXTERIOR_BULKHEAD",
           "params": {
             "LTG_TYPE_TXT": "EXTERIOR_BULKHEAD",
-            "ELC_PHOTO_LUMENS": "1200",
-            "ELC_PHOTO_WATTS": "12",
+            "ELC_PHOTO_LUMENS_NR": "1200",
+            "ELC_PHOTO_WATTS_NR": "12",
             "LTG_IP_RATING_TXT": "IP65",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
           "name": "FLOOD_LIGHT",
           "params": {
             "LTG_TYPE_TXT": "FLOOD_LIGHT",
-            "ELC_PHOTO_LUMENS": "10000",
-            "ELC_PHOTO_WATTS": "80",
+            "ELC_PHOTO_LUMENS_NR": "10000",
+            "ELC_PHOTO_WATTS_NR": "80",
             "LTG_IP_RATING_TXT": "IP66",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
@@ -375,10 +376,10 @@
           "name": "TRACK_SPOTLIGHT",
           "params": {
             "LTG_TYPE_TXT": "TRACK_SPOTLIGHT",
-            "ELC_PHOTO_LUMENS": "1800",
-            "ELC_PHOTO_WATTS": "15",
+            "ELC_PHOTO_LUMENS_NR": "1800",
+            "ELC_PHOTO_WATTS_NR": "15",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "1"
+            "LTG_DIMMABLE_TXT": "Yes"
           }
         },
         {
@@ -388,10 +389,10 @@
           "name": "STAIR_TREAD_LIGHT",
           "params": {
             "LTG_TYPE_TXT": "STAIR_TREAD",
-            "ELC_PHOTO_LUMENS": "200",
-            "ELC_PHOTO_WATTS": "2",
+            "ELC_PHOTO_LUMENS_NR": "200",
+            "ELC_PHOTO_WATTS_NR": "2",
             "LTG_IP_RATING_TXT": "IP54",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
@@ -401,20 +402,20 @@
           "name": "EMERGENCY",
           "params": {
             "LTG_TYPE_TXT": "EMERGENCY_MAINTAINED",
-            "ELC_PHOTO_LUMENS": "200",
-            "ELC_PHOTO_WATTS": "4",
+            "ELC_PHOTO_LUMENS_NR": "200",
+            "ELC_PHOTO_WATTS_NR": "4",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {
           "name": "EMERGENCY_EXIT_SIGN",
           "params": {
             "LTG_TYPE_TXT": "EMERGENCY_EXIT_SIGN",
-            "ELC_PHOTO_LUMENS": "150",
-            "ELC_PHOTO_WATTS": "3",
+            "ELC_PHOTO_LUMENS_NR": "150",
+            "ELC_PHOTO_WATTS_NR": "3",
             "LTG_IP_RATING_TXT": "IP20",
-            "LTG_DIMMABLE_BOOL": "0"
+            "LTG_DIMMABLE_TXT": "No"
           }
         },
         {

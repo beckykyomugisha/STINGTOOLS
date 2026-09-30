@@ -46,7 +46,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -63,6 +63,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "TU"
         },
         {
@@ -70,6 +71,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "TERMINAL_UNIT"
         },
         {
@@ -77,6 +79,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": ""
         },
         {
@@ -84,6 +87,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "O2,MEDAIR,VAC"
         },
         {
@@ -112,6 +116,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": false,
           "default": "WARD"
         },
         {
@@ -379,7 +384,17 @@
         },
         {
           "name": "THEATRE_GAS_PANEL",
-          "renamedFrom": "MAP_THEATRE_PANEL",
+          "renamedFrom": [
+            {
+              "name": "MAP_THEATRE_PANEL",
+              "params": {
+                "MGS_TU_TYPE_TXT": "THEATRE_PANEL",
+                "MGS_GAS_TYPE_TXT": "",
+                "MGS_GASES_TXT": "O2,N2O,MEDAIR,SURGAIR,VAC,CO2",
+                "ASS_PRODCT_COD_TXT": "MAP"
+              }
+            }
+          ],
           "params": {
             "MGS_TU_TYPE_TXT": "THEATRE_PANEL",
             "MGS_GASES_TXT": "O2,N2O,MEDAIR,SURGAIR,VAC,CO2",
