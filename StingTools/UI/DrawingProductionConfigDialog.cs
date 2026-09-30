@@ -363,11 +363,22 @@ namespace StingTools.UI
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
 
             sp.Children.Add(MakeCardHeader("Run Annotation"));
+            // DTW-28: each box maps to one AnnotationRunOptions skip flag. Ticked means
+            // "run what the drawing type's annotation pack asks for" — the pack decides what
+            // is tagged or dimensioned, the box only allows or skips that part. Spots were
+            // unticked by default, which would now switch off spot rules packs already run.
             _runAnno  = new CheckBox { Content = "Run annotation after view creation", IsChecked = true };
-            _runTags  = new CheckBox { Content = "Auto-tag elements",                 IsChecked = true };
-            _runDims  = new CheckBox { Content = "Auto-dimension (grids, levels)",    IsChecked = true };
-            _runDec   = new CheckBox { Content = "Decorative (north arrow, scale bar)", IsChecked = true };
-            _runSpots = new CheckBox { Content = "Spot elevations / coordinates",     IsChecked = false };
+            _runTags  = new CheckBox { Content = "Auto-tag elements",                 IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            _runDims  = new CheckBox { Content = "Auto-dimension (grids, levels)",    IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            _runDec   = new CheckBox { Content = "Decorative (north arrow, scale bar)", IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            _runSpots = new CheckBox { Content = "Spot elevations / coordinates",     IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            RoutedEventHandler syncAnno = (s, e) =>
+            {
+                bool on = _runAnno.IsChecked == true;
+                _runTags.IsEnabled = _runDims.IsEnabled = _runDec.IsEnabled = _runSpots.IsEnabled = on;
+            };
+            _runAnno.Checked += syncAnno;
+            _runAnno.Unchecked += syncAnno;
             sp.Children.Add(_runAnno);
             sp.Children.Add(_runTags);
             sp.Children.Add(_runDims);
@@ -596,6 +607,10 @@ namespace StingTools.UI
                         : _dupDependent?.IsChecked == true ? "DuplicateAsDependent" : "Duplicate",
                     Idempotent = _idempotent?.IsChecked == true,
                     RunAnnotation = _runAnno?.IsChecked == true,
+                    RunAutoTag    = _runTags?.IsChecked != false,
+                    RunAutoDim    = _runDims?.IsChecked != false,
+                    RunDecorative = _runDec?.IsChecked != false,
+                    RunSpots      = _runSpots?.IsChecked != false,
                     HideUnwantedCats = _hideUnused?.IsChecked == true,
                     GenerateOnlyDefault = _onlyDefault?.IsChecked == true,
                     HideUnwantedSections = _hideUnwantedSections?.IsChecked == true,

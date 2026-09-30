@@ -622,8 +622,18 @@ namespace StingTools.Core.Drawing
 
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
                 {
+                    // DTW-28: the dialog's per-part annotation boxes (tags / dims /
+                    // decorative / spots) reach the runner; only the master switch did.
                     AnnotationOptions = opts.RunAnnotation
-                        ? new AnnotationRunOptions { ViewScale = view.Scale, PackOverride = ComposeAnnotation(dt, rule, opts) }
+                        ? new AnnotationRunOptions
+                        {
+                            ViewScale = view.Scale,
+                            PackOverride = ComposeAnnotation(dt, rule, opts),
+                            SkipAutoTag    = opts.Preset?.General?.RunAutoTag == false,
+                            SkipAutoDim    = opts.Preset?.General?.RunAutoDim == false,
+                            SkipDecorative = opts.Preset?.General?.RunDecorative == false,
+                            SkipSpots      = opts.Preset?.General?.RunSpots == false,
+                        }
                         : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true },
                     SkipSymbolDriftCheck = true, // batch producer — drift via standalone command
                     ContextScopeBox = ctx?.ScopeBox

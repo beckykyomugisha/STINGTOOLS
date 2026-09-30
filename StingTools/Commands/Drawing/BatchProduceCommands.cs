@@ -237,6 +237,16 @@ namespace StingTools.Commands.Drawing
             var parts = new List<string>();
             if (g.ScaleOverride is int s && s > 0) parts.Add($"scale 1:{s}");
             if (!string.IsNullOrWhiteSpace(g.DetailLevelOverride)) parts.Add($"detail level {g.DetailLevelOverride}");
+            if (!g.RunAnnotation) parts.Add("no annotation");
+            else
+            {
+                var off = new List<string>();
+                if (!g.RunAutoTag) off.Add("auto-tag");
+                if (!g.RunAutoDim) off.Add("auto-dimension");
+                if (!g.RunDecorative) off.Add("decorative");
+                if (!g.RunSpots) off.Add("spots");
+                if (off.Count > 0) parts.Add("annotation without " + string.Join(", ", off));
+            }
             return parts.Count == 0 ? null : "Preset overrides applied to every produced view: " + string.Join(", ", parts) + ".";
         }
 
