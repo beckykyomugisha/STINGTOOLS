@@ -3711,6 +3711,10 @@
                                                     ToolTip="Bulk-issue sheets and create transmittal record"/>
                                             <Button Style="{StaticResource ActionBtn}" Content="Naming" Tag="RevisionNamingEnforce" Click="Cmd_Click"
                                                     ToolTip="Validate revision naming against ISO 19650"/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Per-Sheet #" Tag="Revision_SetPerSheetNumbering" Click="Cmd_Click"
+                                                    ToolTip="Number revisions per sheet (ISO 19650: a drawing's first issue is P01 whatever cycle it joins). Issued revisions whose printed number would change are listed first and change only with your consent."/>
+                                            <Button Style="{StaticResource ActionBtn}" Content="Leak Chk" Tag="Revision_LeakCheck" Click="Cmd_Click"
+                                                    ToolTip="Report sheets whose STING revision stamp disagrees with the revision they are actually issued at (a draft or stale value on the title block, file name or ACC). Locked title blocks are listed separately."/>
                                         </WrapPanel>
                                         <WrapPanel Margin="0,4,0,0">
                                             <Button Style="{StaticResource BlueBtn}" Content="Tag Integ" Tag="RevisionTagIntegration" Click="Cmd_Click"

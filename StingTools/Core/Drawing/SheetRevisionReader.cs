@@ -162,7 +162,7 @@ namespace StingTools.Core.Drawing
                     tx.RollBack();
                     o.NeedsConsent = true;
                     o.Message = $"Per-sheet numbering NOT applied: {o.IssuedChanges.Count} issued revision(s) " +
-                                "would print a different number. Run 'Revision Numbering Per Sheet' to review and confirm.";
+                                "would print a different number. Run 'Per-Sheet #' (BIM tab > Revision Management) to review and confirm.";
                     StingLog.Info("RevisionNumberingSetup: " + o.Message);
                     return o;
                 }
