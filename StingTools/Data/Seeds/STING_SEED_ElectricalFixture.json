@@ -45,7 +45,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -62,6 +62,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "SOC"
         },
         {
@@ -69,6 +70,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "SOCKET_2G"
         },
         {
@@ -104,6 +106,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": false,
           "default": "1100"
         },
         {

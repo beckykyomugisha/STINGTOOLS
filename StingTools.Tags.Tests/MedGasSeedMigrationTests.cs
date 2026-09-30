@@ -7,8 +7,9 @@
 // here; the Revit half (SeedTypeMigrator) only executes it.
 //
 // MG-1 — MGS_GAS_TYPE_TXT is an instance parameter, so a type swap keeps the old
-// gas. MedGasTypeSwapUpdater restamps it from the gas the NEW type declares in the
-// seed spec. The type -> gas map is pinned here against the shipped seed.
+// gas. SeedTypeSwapUpdater restamps it (it is a "followsType" parameter) from the gas
+// the NEW type declares in the seed spec; the general rule is pinned in
+// SeedFollowTypeTests. The type -> gas map placement uses is pinned here.
 
 using System;
 using System.Collections.Generic;
@@ -38,7 +39,10 @@ namespace StingTools.Tags.Tests
             JsonConvert.DeserializeObject<SymbolLibrary>(File.ReadAllText(path));
 
         private static TypeVariantDefinition V(string name, params string[] renamedFrom) =>
-            new TypeVariantDefinition { Name = name, RenamedFrom = renamedFrom.ToList() };
+            new TypeVariantDefinition { Name = name, RenamedFrom = renamedFrom.Select(n => (RenamedFromEntry)n).ToList() };
+
+        private static string[] Names(List<RenamedFromEntry> entries) =>
+            (entries ?? new List<RenamedFromEntry>()).Select(e => e.Name).ToArray();
 
         // ── MG-2: the decision ───────────────────────────────────────────
 
@@ -96,25 +100,15 @@ namespace StingTools.Tags.Tests
             Assert.Empty(steps);
         }
 
-        [Theory]
-        [InlineData("MAP", "TGP", true)]
-        [InlineData("",    "TGP", true)]
-        [InlineData(null,  "TGP", true)]
-        [InlineData("TGP", "TGP", false)]
-        [InlineData("MAP", "",    false)]
-        [InlineData("MAP", null,  false)]
-        public void AMigratedInstanceFollowsTheNewProductCode(string current, string target, bool expected)
-            => Assert.Equal(expected, SeedTypeRenames.ShouldRestamp(current, target));
-
         // ── MG-2: the data ───────────────────────────────────────────────
 
         [Fact]
         public void RenamedFromReadsAStringOrAnArray()
         {
             var one = JsonConvert.DeserializeObject<TypeVariantDefinition>("{\"name\":\"N\",\"renamedFrom\":\"O\"}");
-            Assert.Equal(new[] { "O" }, one.RenamedFrom);
+            Assert.Equal(new[] { "O" }, Names(one.RenamedFrom));
             var many = JsonConvert.DeserializeObject<TypeVariantDefinition>("{\"name\":\"N\",\"renamedFrom\":[\"O1\",\"O2\"]}");
-            Assert.Equal(new[] { "O1", "O2" }, many.RenamedFrom);
+            Assert.Equal(new[] { "O1", "O2" }, Names(many.RenamedFrom));
             var none = JsonConvert.DeserializeObject<TypeVariantDefinition>("{\"name\":\"N\"}");
             Assert.True(none.RenamedFrom == null || none.RenamedFrom.Count == 0);
         }
@@ -123,7 +117,9 @@ namespace StingTools.Tags.Tests
         public void TheTheatrePanelDeclaresItsOldName()
         {
             var tgp = LoadSeed(MedGasSeedPath).Symbols[0].TypeVariants.Single(v => v.Name == "THEATRE_GAS_PANEL");
-            Assert.Contains("MAP_THEATRE_PANEL", tgp.RenamedFrom ?? new List<string>());
+            var old = Assert.Single(tgp.RenamedFrom ?? new List<RenamedFromEntry>(), e => e.Name == "MAP_THEATRE_PANEL");
+            // The old type's declared code, so a migration only replaces an untouched "MAP".
+            Assert.Equal("MAP", old.Parameters?["ASS_PRODCT_COD_TXT"]);
         }
 
         [Fact]
@@ -137,7 +133,8 @@ namespace StingTools.Tags.Tests
                 foreach (var sym in lib?.Symbols ?? new List<SymbolDefinition>())
                 {
                     problems.AddRange(SeedTypeRenames.Validate(
-                        Path.GetFileName(path) + ":" + sym.Id, sym.TypeVariants ?? new List<TypeVariantDefinition>()));
+                        Path.GetFileName(path) + ":" + sym.Id, sym.TypeVariants ?? new List<TypeVariantDefinition>(),
+                        sym.Parameters));
                 }
                 checkedSeeds++;
             }
@@ -222,14 +219,17 @@ namespace StingTools.Tags.Tests
         // swapped to a type with no gas: clear it
         [InlineData("AVSU_BOX_5GAS", "O2", true, "")]
         [InlineData("AVSU_BOX_5GAS", "", false, null)]
-        [InlineData("AVSU_BOX_5GAS", null, false, null)]
         // a type the seed does not declare is left alone
         [InlineData("MY_DUPLICATED_TYPE", "O2", false, null)]
+        // a gas nobody's seed type declares was typed by someone: it stays
+        [InlineData("TERMINAL_UNIT_VAC", "O2 (temporary)", false, null)]
         public void TheGasFollowsATypeSwap(string newType, string current, bool change, string expected)
         {
-            bool changed = Map().GasAfterTypeChange(newType, current, out string newGas);
-            Assert.Equal(change, changed);
-            if (change) Assert.Equal(expected, newGas);
+            var cat = SeedFollowTypeCatalog.FromLibraries(new[] { LoadSeed(MedGasSeedPath) });
+            var writes = cat.AfterTypeChange("STING_SEED_MedGasOutlet", newType,
+                p => p == "MGS_GAS_TYPE_TXT" ? current ?? "" : null);
+            Assert.Equal(change, writes.Count == 1);
+            if (change) Assert.Equal(("MGS_GAS_TYPE_TXT", expected), (writes[0].Key, writes[0].Value));
         }
 
         [Theory]
@@ -247,7 +247,7 @@ namespace StingTools.Tags.Tests
         {
             var map = MedGasSeedTypeMap.Load(Path.Combine(Path.GetTempPath(), "no-such-seed-" + Guid.NewGuid() + ".json"));
             Assert.True(map.IsEmpty);
-            Assert.False(map.GasAfterTypeChange("TERMINAL_UNIT_VAC", "O2", out _));
+            Assert.Empty(map.TypesForGas("VAC"));
         }
     }
 }

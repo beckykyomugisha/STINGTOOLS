@@ -48,9 +48,9 @@ namespace StingTools.Core.Symbols
             foreach (var v in list)
             {
                 if (string.IsNullOrWhiteSpace(v.Name) || v.RenamedFrom == null) continue;
-                foreach (var raw in v.RenamedFrom)
+                foreach (var entry in v.RenamedFrom)
                 {
-                    string old = (raw ?? "").Trim();
+                    string old = (entry?.Name ?? "").Trim();
                     if (old.Length == 0 || old == v.Name || declared.Contains(old)) continue;
                     var action = Decide(present.Contains(old), present.Contains(v.Name));
                     if (action == SeedTypeMigrationAction.None) continue;
@@ -62,28 +62,37 @@ namespace StingTools.Core.Symbols
             return steps;
         }
 
-        /// <summary>
-        /// A migrated instance takes the new type's value of an instance parameter (the
-        /// product code): the old value was the old type's default, not a user choice.
-        /// </summary>
-        public static bool ShouldRestamp(string current, string target)
-            => !string.IsNullOrEmpty(target) && !string.Equals(current ?? "", target, StringComparison.Ordinal);
+        // A migrated instance's followsType values are decided by SeedFollowTypeRule (via
+        // SeedFollowTypeCatalog.AfterTypeChange), the same rule a type swap uses: the new
+        // type's value is written only over the old type's value or nothing.
 
-        /// <summary>Problems with the renamedFrom declarations of one seed; empty when sound.</summary>
-        public static List<string> Validate(string seedLabel, IEnumerable<TypeVariantDefinition> variants)
+        /// <summary>
+        /// Problems with the renamedFrom declarations of one seed; empty when sound. With
+        /// <paramref name="parameters"/>, an old type's "params" may only name the seed's
+        /// followsType parameters — nothing else reads them.
+        /// </summary>
+        public static List<string> Validate(string seedLabel, IEnumerable<TypeVariantDefinition> variants,
+            IEnumerable<ParameterDefinition> parameters = null)
         {
             var problems = new List<string>();
             var list = (variants ?? Enumerable.Empty<TypeVariantDefinition>()).Where(v => v != null).ToList();
             var declared = new HashSet<string>(
                 list.Select(v => v.Name).Where(n => !string.IsNullOrWhiteSpace(n)), StringComparer.Ordinal);
             var owner = new Dictionary<string, string>(StringComparer.Ordinal);
+            var follows = parameters == null ? null : new HashSet<string>(
+                parameters.Where(p => p != null && p.IsInstance && p.FollowsType == true).Select(p => p.Name),
+                StringComparer.Ordinal);
 
             foreach (var v in list)
             {
                 if (v.RenamedFrom == null) continue;
-                foreach (var raw in v.RenamedFrom)
+                foreach (var entry in v.RenamedFrom)
                 {
-                    string old = (raw ?? "").Trim();
+                    string old = (entry?.Name ?? "").Trim();
+                    if (follows != null && entry?.Parameters != null)
+                        foreach (var k in entry.Parameters.Keys)
+                            if (!follows.Contains(k))
+                                problems.Add($"{seedLabel}: {v.Name} renamedFrom '{old}' gives a value for {k}, which is not a followsType parameter of the seed — it would never be read.");
                     if (old.Length == 0)
                     { problems.Add($"{seedLabel}: {v.Name} has a blank renamedFrom."); continue; }
                     if (old == v.Name)

@@ -42,7 +42,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -59,6 +59,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "CAL"
         },
         {
@@ -66,13 +67,15 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "CALORIFIER"
         },
         {
-          "name": "PLM_EQP_CAPACITY_LITRES",
+          "name": "PLM_EQP_CAPACITY_L",
           "type": "Text",
           "shared": true,
-          "isInstance": false,
+          "isInstance": true,
+          "followsType": true,
           "default": "300"
         },
         {
@@ -229,7 +232,7 @@
           "params": {
             "PLM_EQP_TYPE_TXT": "CALORIFIER",
             "ASS_PRODCT_COD_TXT": "CAL",
-            "PLM_EQP_CAPACITY_LITRES": "300",
+            "PLM_EQP_CAPACITY_L": "300",
             "PLM_EQP_HEAT_OUTPUT_KW": "9"
           }
         },
@@ -238,7 +241,7 @@
           "params": {
             "PLM_EQP_TYPE_TXT": "CALORIFIER_DIRECT",
             "ASS_PRODCT_COD_TXT": "CALD",
-            "PLM_EQP_CAPACITY_LITRES": "200",
+            "PLM_EQP_CAPACITY_L": "200",
             "PLM_EQP_HEAT_OUTPUT_KW": "9"
           }
         },
@@ -250,7 +253,7 @@
           "params": {
             "PLM_EQP_TYPE_TXT": "DHW_CYLINDER_UNVENTED",
             "ASS_PRODCT_COD_TXT": "CYL",
-            "PLM_EQP_CAPACITY_LITRES": "200",
+            "PLM_EQP_CAPACITY_L": "200",
             "PLM_EQP_HEAT_OUTPUT_KW": "3"
           }
         },
@@ -259,7 +262,7 @@
           "params": {
             "PLM_EQP_TYPE_TXT": "DHW_CYLINDER_VENTED",
             "ASS_PRODCT_COD_TXT": "CYLV",
-            "PLM_EQP_CAPACITY_LITRES": "140",
+            "PLM_EQP_CAPACITY_L": "140",
             "PLM_EQP_HEAT_OUTPUT_KW": "3"
           }
         },
@@ -268,7 +271,7 @@
           "params": {
             "PLM_EQP_TYPE_TXT": "WATER_HEATER_ELECTRIC",
             "ASS_PRODCT_COD_TXT": "WHE",
-            "PLM_EQP_CAPACITY_LITRES": "100",
+            "PLM_EQP_CAPACITY_L": "100",
             "PLM_EQP_HEAT_OUTPUT_KW": "3"
           }
         },
@@ -313,7 +316,7 @@
           "params": {
             "PLM_EQP_TYPE_TXT": "EXPANSION_VESSEL",
             "ASS_PRODCT_COD_TXT": "EXV",
-            "PLM_EQP_CAPACITY_LITRES": "24",
+            "PLM_EQP_CAPACITY_L": "24",
             "PLM_EQP_PRESSURE_BAR": "3"
           }
         },
@@ -348,7 +351,7 @@
           "params": {
             "PLM_EQP_TYPE_TXT": "GREASE_TRAP",
             "ASS_PRODCT_COD_TXT": "GRT",
-            "PLM_EQP_CAPACITY_LITRES": "100"
+            "PLM_EQP_CAPACITY_L": "100"
           }
         },
         {

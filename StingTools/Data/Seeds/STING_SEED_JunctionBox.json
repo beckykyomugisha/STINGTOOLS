@@ -44,7 +44,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -68,6 +68,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "PULL_BOX"
         },
         {
@@ -75,6 +76,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "100x100x60"
         },
         {
@@ -89,6 +91,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": ""
         },
         {
@@ -100,7 +103,7 @@
         },
         {
           "name": "ELC_JB_AUTO_PLACED_BOOL",
-          "type": "Text",
+          "type": "YesNo",
           "shared": true,
           "isInstance": true,
           "default": "0"

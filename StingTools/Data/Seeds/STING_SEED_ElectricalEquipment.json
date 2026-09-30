@@ -47,7 +47,7 @@
           "default": ""
         },
         {
-          "name": "ASS_TAG_1",
+          "name": "ASS_TAG_1_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
@@ -64,6 +64,7 @@
           "type": "Text",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "DB"
         },
         {
@@ -74,43 +75,46 @@
           "default": "DISTRIBUTION_BOARD"
         },
         {
-          "name": "ELC_PNL_NAME",
+          "name": "ELC_PNL_DESIGNATION_NAME_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
         },
         {
-          "name": "ELC_PNL_VOLTAGE",
-          "type": "Text",
+          "name": "ELC_VLT_PRIMARY_RATING_V",
+          "type": "Number",
           "shared": true,
           "isInstance": true,
+          "followsType": true,
           "default": "230"
         },
         {
-          "name": "ELC_PNL_LOAD",
-          "type": "Text",
+          "name": "ELC_PNL_CONNECTED_LOAD_KW",
+          "type": "Number",
           "shared": true,
           "isInstance": true,
           "default": "0"
         },
         {
-          "name": "ELC_PNL_FED_FROM",
+          "name": "ELC_PNL_FED_FROM_PNL_TXT",
           "type": "Text",
           "shared": true,
           "isInstance": true
         },
         {
-          "name": "ELC_MAIN_BRK",
-          "type": "Text",
+          "name": "ELC_PNL_MAIN_BRK_A",
+          "type": "Number",
           "shared": true,
-          "isInstance": false,
+          "isInstance": true,
+          "followsType": true,
           "default": "63"
         },
         {
-          "name": "ELC_WAYS",
-          "type": "Text",
+          "name": "ELC_PNL_NUM_OF_WAYS_NR",
+          "type": "Number",
           "shared": true,
-          "isInstance": false,
+          "isInstance": true,
+          "followsType": true,
           "default": "12"
         },
         {
@@ -266,9 +270,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "CU",
             "ELC_EQP_TYPE_TXT": "CONSUMER_UNIT",
-            "ELC_WAYS": "6",
-            "ELC_MAIN_BRK": "63",
-            "ELC_PNL_VOLTAGE": "230"
+            "ELC_PNL_NUM_OF_WAYS_NR": "6",
+            "ELC_PNL_MAIN_BRK_A": "63",
+            "ELC_VLT_PRIMARY_RATING_V": "230"
           }
         },
         {
@@ -276,9 +280,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "CU",
             "ELC_EQP_TYPE_TXT": "CONSUMER_UNIT",
-            "ELC_WAYS": "12",
-            "ELC_MAIN_BRK": "100",
-            "ELC_PNL_VOLTAGE": "230"
+            "ELC_PNL_NUM_OF_WAYS_NR": "12",
+            "ELC_PNL_MAIN_BRK_A": "100",
+            "ELC_VLT_PRIMARY_RATING_V": "230"
           }
         },
         {
@@ -289,9 +293,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "DB",
             "ELC_EQP_TYPE_TXT": "DISTRIBUTION_BOARD",
-            "ELC_WAYS": "12",
-            "ELC_MAIN_BRK": "63",
-            "ELC_PNL_VOLTAGE": "230"
+            "ELC_PNL_NUM_OF_WAYS_NR": "12",
+            "ELC_PNL_MAIN_BRK_A": "63",
+            "ELC_VLT_PRIMARY_RATING_V": "230"
           }
         },
         {
@@ -299,9 +303,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "DB",
             "ELC_EQP_TYPE_TXT": "DISTRIBUTION_BOARD",
-            "ELC_WAYS": "18",
-            "ELC_MAIN_BRK": "100",
-            "ELC_PNL_VOLTAGE": "230"
+            "ELC_PNL_NUM_OF_WAYS_NR": "18",
+            "ELC_PNL_MAIN_BRK_A": "100",
+            "ELC_VLT_PRIMARY_RATING_V": "230"
           }
         },
         {
@@ -309,9 +313,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "DB",
             "ELC_EQP_TYPE_TXT": "DISTRIBUTION_BOARD_3PHASE",
-            "ELC_WAYS": "24",
-            "ELC_MAIN_BRK": "125",
-            "ELC_PNL_VOLTAGE": "400"
+            "ELC_PNL_NUM_OF_WAYS_NR": "24",
+            "ELC_PNL_MAIN_BRK_A": "125",
+            "ELC_VLT_PRIMARY_RATING_V": "400"
           }
         },
         {
@@ -322,9 +326,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "MSB",
             "ELC_EQP_TYPE_TXT": "MAIN_SWITCHBOARD",
-            "ELC_WAYS": "24",
-            "ELC_MAIN_BRK": "400",
-            "ELC_PNL_VOLTAGE": "400"
+            "ELC_PNL_NUM_OF_WAYS_NR": "24",
+            "ELC_PNL_MAIN_BRK_A": "400",
+            "ELC_VLT_PRIMARY_RATING_V": "400"
           }
         },
         {
@@ -335,8 +339,8 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "MCC",
             "ELC_EQP_TYPE_TXT": "MOTOR_CONTROL_CENTRE",
-            "ELC_MAIN_BRK": "630",
-            "ELC_PNL_VOLTAGE": "400"
+            "ELC_PNL_MAIN_BRK_A": "630",
+            "ELC_VLT_PRIMARY_RATING_V": "400"
           }
         },
         {
@@ -344,8 +348,8 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "SST",
             "ELC_EQP_TYPE_TXT": "SOFT_STARTER",
-            "ELC_WAYS": "0",
-            "ELC_PNL_VOLTAGE": "400"
+            "ELC_PNL_NUM_OF_WAYS_NR": "0",
+            "ELC_VLT_PRIMARY_RATING_V": "400"
           }
         },
         {
@@ -353,8 +357,8 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "VFD",
             "ELC_EQP_TYPE_TXT": "VFD",
-            "ELC_WAYS": "0",
-            "ELC_PNL_VOLTAGE": "400"
+            "ELC_PNL_NUM_OF_WAYS_NR": "0",
+            "ELC_VLT_PRIMARY_RATING_V": "400"
           }
         },
         {
@@ -365,9 +369,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "UPS",
             "ELC_EQP_TYPE_TXT": "UPS",
-            "ELC_WAYS": "0",
+            "ELC_PNL_NUM_OF_WAYS_NR": "0",
             "ELC_KVA_RATING": "10",
-            "ELC_PNL_VOLTAGE": "230"
+            "ELC_VLT_PRIMARY_RATING_V": "230"
           }
         },
         {
@@ -375,8 +379,8 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "ATS",
             "ELC_EQP_TYPE_TXT": "AUTO_TRANSFER_SWITCH",
-            "ELC_MAIN_BRK": "400",
-            "ELC_PNL_VOLTAGE": "400"
+            "ELC_PNL_MAIN_BRK_A": "400",
+            "ELC_VLT_PRIMARY_RATING_V": "400"
           }
         },
         {
@@ -387,9 +391,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "ISO",
             "ELC_EQP_TYPE_TXT": "ISOLATOR",
-            "ELC_WAYS": "0",
-            "ELC_MAIN_BRK": "63",
-            "ELC_PNL_VOLTAGE": "230"
+            "ELC_PNL_NUM_OF_WAYS_NR": "0",
+            "ELC_PNL_MAIN_BRK_A": "63",
+            "ELC_VLT_PRIMARY_RATING_V": "230"
           }
         },
         {
@@ -397,9 +401,9 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "RCD",
             "ELC_EQP_TYPE_TXT": "RCD",
-            "ELC_WAYS": "2",
-            "ELC_MAIN_BRK": "63",
-            "ELC_PNL_VOLTAGE": "230"
+            "ELC_PNL_NUM_OF_WAYS_NR": "2",
+            "ELC_PNL_MAIN_BRK_A": "63",
+            "ELC_VLT_PRIMARY_RATING_V": "230"
           }
         },
         {
@@ -407,8 +411,8 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "BBT",
             "ELC_EQP_TYPE_TXT": "BUSBAR_TRUNKING",
-            "ELC_MAIN_BRK": "800",
-            "ELC_PNL_VOLTAGE": "400"
+            "ELC_PNL_MAIN_BRK_A": "800",
+            "ELC_VLT_PRIMARY_RATING_V": "400"
           }
         },
         {
@@ -419,7 +423,7 @@
           "params": {
             "ASS_PRODCT_COD_TXT": "JB",
             "ELC_EQP_TYPE_TXT": "JUNCTION_BOX",
-            "ELC_WAYS": "0"
+            "ELC_PNL_NUM_OF_WAYS_NR": "0"
           }
         },
         {
@@ -428,7 +432,7 @@
             "ASS_PRODCT_COD_TXT": "TX",
             "ELC_EQP_TYPE_TXT": "TRANSFORMER",
             "ELC_KVA_RATING": "1000",
-            "ELC_PNL_VOLTAGE": "11000"
+            "ELC_VLT_PRIMARY_RATING_V": "11000"
           }
         },
         {
