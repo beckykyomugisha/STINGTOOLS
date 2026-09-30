@@ -101,6 +101,7 @@ namespace StingTools.Core
         /// by running every registered migrator in version order, write back
         /// atomically. Returns the upgraded JObject so callers don't re-read.
         /// Idempotent — if the file is already current, returns it untouched.
+        /// Returns null, touching nothing, for a file whose root is a JSON array (C1).
         /// </summary>
         public static JObject EnsureCurrent(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators = null)
         {
@@ -118,9 +119,16 @@ namespace StingTools.Core
                 return CreateGenesis(filePath, schemaName, targetVersion);
 
             JObject obj;
+            string text = File.ReadAllText(filePath);
+            // C1: several stores are JSON ARRAYS (transmittals.json, deliverables.json). They
+            // carry no $schemaVersion and are never versioned here. JObject.Parse threw on
+            // them, and the catch below then QUARANTINED the live store and replaced it with a
+            // version object: every earlier transmittal / deliverable left the live file, and
+            // the array readers then failed on the object. An array root — valid or
+            // truncated — is left exactly as it is; its own reader decides.
+            if (LooksLikeArray(text)) return null;
             try
             {
-                var text = File.ReadAllText(filePath);
                 obj = string.IsNullOrWhiteSpace(text)
                     ? CreateGenesis(filePath, schemaName, targetVersion)
                     : JObject.Parse(text);
@@ -152,6 +160,18 @@ namespace StingTools.Core
             WriteAtomic(filePath, obj);
             StingLog.Info($"Schema file {Path.GetFileName(filePath)} upgraded {currentVersion} → {targetVersion}.");
             return obj;
+        }
+
+        /// <summary>True when the file's first non-whitespace character opens a JSON array.</summary>
+        internal static bool LooksLikeArray(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            foreach (char c in text)
+            {
+                if (char.IsWhiteSpace(c) || c == '\uFEFF') continue;
+                return c == '[';
+            }
+            return false;
         }
 
         private static JObject CreateGenesis(string filePath, string schemaName, int version)

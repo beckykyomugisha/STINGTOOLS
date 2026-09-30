@@ -160,7 +160,14 @@ namespace Planscape.Docs.Templates
                         if (m.Success && int.TryParse(m.Groups[1].Value, out int n) && n > max) max = n;
                     }
                 }
-                catch (Exception ex) { StingLog.Warn($"NextTransmittalId: {ex.Message}"); }
+                catch (Exception ex)
+                {
+                    // C1: an unreadable store is not an empty one — minting TX-0001 here would
+                    // duplicate an existing id. Refuse; Create reports it.
+                    throw new InvalidOperationException(
+                        $"transmittals.json could not be read ({ex.Message}), so no transmittal id was minted. " +
+                        "Repair the file (a .bak or .corrupt.* copy may sit beside it) and try again.", ex);
+                }
             }
             return $"TX-{(max + 1):D4}";
         }
@@ -183,8 +190,10 @@ namespace Planscape.Docs.Templates
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"transmittals.json parse failed — starting fresh: {ex.Message}");
-                arr = new JArray();
+                // C1: "starting fresh" wrote this one row over every earlier transmittal.
+                throw new InvalidOperationException(
+                    $"transmittals.json could not be read ({ex.Message}), so the transmittal was NOT recorded " +
+                    "(writing it would have replaced every earlier transmittal). Repair the file and try again.", ex);
             }
             arr.Add(record);
             string tmp = path + ".tmp";
