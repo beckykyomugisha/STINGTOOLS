@@ -25801,3 +25801,19 @@ every `GetString` read against the parameter's data type.
 - Promote Library's header comment still said families only in the target are always kept;
   it now describes the optional move to `_retired`.
 - Plugin builds; Tags tests and gates pass. Not run in Revit.
+
+#### Repo cleanup: Kibale project files removed (2026-09-30)
+
+The Kibale NP lodge project (KNP26) has ended, so its project-specific material is gone from
+`main`: `GUIDES/KIBALE_NP_BIM_MODELLING_PLAYBOOK.md`, `GUIDES/STINGTOOLS_GAPS_KIBALE_REVIEW.md`,
+`GUIDES/kibale-project-config/` (9 files), `GUIDES/KNP26_RFI_001.md`, `PR_BODY_kibale_part1.md`,
+`docs/KIBALE_REVIT_VERIFICATION.md`, `docs/OPERATOR_SESSION_KIBALE.md`, `docs/KNP26_READINESS.md`,
+`docs/VERIFY_PHASE1.md` (a one-off Kibale deploy check) and `tools/register_count.py`, which only
+counted rows in the retired gap register. Two unreferenced root-level leftovers went too:
+`safe_to_delete.txt` (a pasted branch list) and `Planscape.Server/backup_planscape_20260528_155044.sql`
+(a May dev-database dump holding demo users' password hashes).
+
+Generic docs that mention a measurement taken on `claude/kibale-integration` keep that
+context; the code and fixes that came out of the project stay. `docs/INDEX.md` entries removed
+(docs index gate passes); a code comment and a tool docstring that pointed at the deleted
+playbook and register now stand alone.

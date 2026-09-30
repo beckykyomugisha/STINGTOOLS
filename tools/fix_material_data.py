@@ -2,8 +2,8 @@
 """
 fix_material_data.py — align the STINGTOOLS material library data.
 
-Addresses gaps E-11, E-13, E-15 and the two class errors in E-3 from
-GUIDES/STINGTOOLS_GAPS_KIBALE_REVIEW.md. Pure data: no code change.
+Addresses material-library gaps E-11, E-13, E-15 and the two class errors in
+E-3 (from a project gap review since retired). Pure data: no code change.
 
 WHAT IT FIXES
   1. BLE_APP-IDENTITY-CLASS  — 9 invalid values (Generic, Ceiling, Paint,

@@ -8,7 +8,7 @@
 // project whose floor finishes are the product being sold, those floors were
 // drawn entirely by hand.
 //
-// Method follows KIBALE_NP_BIM_MODELLING_PLAYBOOK Part 3A — "layer by trade,
+// Method: "layer by trade,
 // not by room, and align by top face, never by centre":
 //   * one finish floor per room, sketched on the room boundary
 //   * Level = the room's level, Height Offset From Level = 0, so the top of
