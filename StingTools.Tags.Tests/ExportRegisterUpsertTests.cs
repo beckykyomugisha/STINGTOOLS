@@ -84,8 +84,45 @@ namespace StingTools.Tags.Tests
             var reg = new JArray();
             ExportRegisterUpsert.Apply(reg, new ExportRegistration { FilePath = "x.ifc", DocType = "M3" }, Now, "u", out _, out _);
             Assert.Equal("S0", (string)reg[0]["suitability"]);
-            Assert.Equal("P01", (string)reg[0]["revision"]);
+            // No revision is recorded as none — it used to be an invented "P01".
+            Assert.Equal("", (string)reg[0]["revision"]);
             Assert.Equal("WIP", (string)reg[0]["cde_status"]);
+            Assert.Null(reg[0]["iso_unset"]);
+        }
+
+        [Fact]
+        public void IsoUnset_is_written_then_cleared_when_the_file_is_reexported_complete()
+        {
+            var reg = new JArray();
+            ExportRegisterUpsert.Apply(reg, new ExportRegistration
+            {
+                FilePath = "A-101.pdf", DocNumber = "KUT-PLN-ZZ-01-DR-A-0101",
+                Suitability = "XX", Revision = "NOREV", IsoUnset = new[] { "suitability", "revision" },
+            }, Now, "u", out _, out _);
+            Assert.Equal(new[] { "suitability", "revision" }, reg[0]["iso_unset"].ToObject<string[]>());
+            Assert.Equal("XX", (string)reg[0]["suitability"]);     // the same value the file name printed
+            Assert.Equal("NOREV", (string)reg[0]["revision"]);
+
+            ExportRegisterUpsert.Apply(reg, new ExportRegistration
+            {
+                FilePath = "A-101.pdf", DocNumber = "KUT-PLN-ZZ-01-DR-A-0101",
+                Suitability = "S3", Revision = "P02", IsoUnset = new string[0],
+            }, Now, "u", out _, out _);
+            Assert.Single(reg);
+            Assert.Null(reg[0]["iso_unset"]);
+            Assert.Equal("P02", (string)reg[0]["revision"]);
+        }
+
+        [Fact]
+        public void A_caller_that_says_nothing_about_IsoUnset_leaves_the_flag_alone()
+        {
+            var reg = new JArray();
+            ExportRegisterUpsert.Apply(reg, new ExportRegistration
+            {
+                FilePath = "A-101.pdf", Suitability = "XX", Revision = "NOREV", IsoUnset = new[] { "revision" },
+            }, Now, "u", out _, out _);
+            ExportRegisterUpsert.Apply(reg, new ExportRegistration { FilePath = "A-101.pdf" }, Now, "u", out _, out _);
+            Assert.Equal(new[] { "revision" }, reg[0]["iso_unset"].ToObject<string[]>());
         }
     }
 }

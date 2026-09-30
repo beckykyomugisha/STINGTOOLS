@@ -110,6 +110,17 @@
     <Compile Include="..\StingTools\V6\AccReviews.cs" Link="V6\AccReviews.cs" />
     <Compile Include="..\StingTools\V6\AccReviewProposals.cs" Link="V6\AccReviewProposals.cs" />
     <Compile Include="..\StingTools\BIMManager\TransmittalRecord.cs" Link="BIMManager\TransmittalRecord.cs" />
+    <!-- Export -> register -> ACC: the one suitability/revision resolver (with its XX / NOREV
+         not-set markers), the per-file upload facts (bundle record / register row, refusal of
+         a not-set file) and the upload ledger (identical skip, re-issue-without-revision
+         refusal). The register row mapper is the plugin's own. -->
+    <Compile Include="..\StingTools\Core\Drawing\ExportIsoFields.cs" Link="Core\Drawing\ExportIsoFields.cs" />
+    <Compile Include="..\StingTools\V6\AccFileIsoFacts.cs" Link="V6\AccFileIsoFacts.cs" />
+    <Compile Include="..\StingTools\V6\AccUploadLedger.cs" Link="V6\AccUploadLedger.cs" />
+    <!-- 7-field naming + the folder naming-standard pre-check the uploader runs. -->
+    <Compile Include="..\StingTools\V6\AccNamingStandard.cs" Link="V6\AccNamingStandard.cs" />
+    <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />
+    <Compile Include="..\StingTools\Core\DocumentIdentity.cs" Link="Core\DocumentIdentity.cs" />
     <!-- TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob;
          StingTools/Core/StingLog.cs cannot be linked (it drags in StingTools.Core.Drawing). -->
   </ItemGroup>

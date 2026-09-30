@@ -163,6 +163,46 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
   workflow wiring, path discipline, export routing. **Needs a live tenant:** the encoding of
   the version URN in the approval-statuses path; whether an approval is final while its
   review is OPEN; the transmittal `status` values; and POST reviews' exact validator.
+#### Completed (Export → register → ACC: real suitability/revision, 7-field names, one attribute set, 2026-10-01)
+
+- **No invented export codes.** A sheet with no suitability was exported as `…-S2-…` and one with
+  no revision as `…-P01`; the register then recorded the same file as S0. One Revit-free resolver
+  (`Core/Drawing/ExportIsoFields.cs`) now feeds the file name, the export row, the register row
+  and the ACC upload: the sheet's own code and revision, else the explicit markers **`XX`**
+  (the positional ISO placeholder the Drawing Types engine already uses) and **`NOREV`** (chosen
+  because it cannot be read as a revision). Drawing-type `isoNaming` suitability/revision
+  defaults (S2/P01 on 91 of 93 types) are no longer used for export names. Flagged rows carry
+  `iso_unset` in the register, one summary warning names the sheets, and the report gains
+  Suitability / Revision / IsoFieldsNotSet / AccUpload columns.
+- **Register no longer invents P01.** `ExportRegisterUpsert` records a blank revision as none
+  (every model, report and bundle row used to claim P01). Rows written before this still carry it.
+- **Revision reaches ACC.** `ACC_UploadModel` / `ACC_UploadLastBundle` take document number,
+  suitability and revision from the bundle record or the file's register row
+  (`V6/AccFileIsoFacts.cs`), and refuse a file whose name carries a marker or whose row is
+  flagged. `AccBundleRecord.Revision` is the one revision every deliverable carries, else none
+  with the reason (ACC Publish sets it).
+- **Optional upload after export** (`Output.UploadToAcc`, off by default; dialog checkbox).
+  `V6/AccUploadLedger.cs` (`_data/coord/acc/acc_upload_ledger.json`, keyed by document number +
+  revision + format + SHA-256): identical file → skipped and said; same number + revision with
+  different content → refused as a re-issue without a revision change unless
+  `AccAllowReissueWithoutRevisionChange`. Failures are per file; the export is never undone. An
+  unreadable ledger stops the upload rather than reading as empty.
+- **7-field names for ACC (KUT BEP §4.2).** ACC matches items by file name, so a
+  `-{Suitability}-{Revision}` name made every revision a new ACC item. New preset
+  `ISO 19650 (7-field — ACC / KUT)` (`{IsoName}`), used in place of the 9-field default when the
+  project's `acc_settings.json` configures ACC (`"fileNamingFields": 7|9` overrides). Uploads refuse
+  a revision-bearing name when the 7-field rule applies, and read the folder's naming standard
+  (`V6/AccNamingStandard.cs`: DM folder `namingStandardIds` → `/bim360/docs/v1/…/naming-standards/{id}`)
+  before sending bytes — wrong field count is refused; an uninterpretable standard is reported
+  "NOT validated". **Unverified:** the naming-standard response shape against a live tenant.
+- **One set of ACC attribute names.** `acc_settings.json` `"docsAttributeNames"` (keys
+  documentNumber / suitability / revision / cdeState / originator / transmittalId); defaults are
+  the playbook names (`Document Number`, `Suitability`, `Revision`, `CDE State`, `Originator`,
+  `STING Transmittal Id` — previously `ISO …` / `STING Originator`). Suitability and CDE State
+  may be admin-created drop-downs; a value not on the list writes nothing and says why.
+  `docs/KUT_ACC_DAY1_PLAYBOOK.md` §3.3/§3.4 rewritten to match; a test holds the two together.
+- Plugin build 0/0; `StingTools.Acc.Tests` 378/378; `StingTools.Tags.Tests` 4215/4215; path,
+  export-routing and workflow-wiring gates pass. Not exercised in Revit or against live ACC.
 
 #### Completed (ACC workarounds where Autodesk has no API: transmittals, model sets, project folder check, 2026-09-30)
 

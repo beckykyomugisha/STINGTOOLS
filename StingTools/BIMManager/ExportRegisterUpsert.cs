@@ -26,6 +26,11 @@ namespace StingTools.BIMManager
         public string Revision;
         public string CdeStatus;
         public string DocNumber;
+        /// <summary>ISO fields the exporter could NOT resolve for this file ("suitability",
+        /// "revision"), written as the row's iso_unset. Null leaves an existing row's flag
+        /// untouched; an empty list clears it (the file now carries both). A flagged row is
+        /// never uploaded to ACC (AccFileIso).</summary>
+        public System.Collections.Generic.IReadOnlyList<string> IsoUnset;
     }
 
     internal static class ExportRegisterUpsert
@@ -50,7 +55,10 @@ namespace StingTools.BIMManager
             string fileName = Path.GetFileName(e.FilePath);
             string fileFormat = Path.GetExtension(e.FilePath).ToUpperInvariant().TrimStart('.');
             string suit = string.IsNullOrWhiteSpace(e.Suitability) ? "S0" : e.Suitability;
-            string rev  = string.IsNullOrWhiteSpace(e.Revision)    ? "P01" : e.Revision;
+            // No revision is recorded as none. This used to default to "P01", which put a
+            // revision nobody issued on every model, report and bundle row — and, once the
+            // ACC upload read the register, would have stamped it into ACC as ISO Revision.
+            string rev  = string.IsNullOrWhiteSpace(e.Revision)    ? ""    : e.Revision.Trim();
             string cde  = string.IsNullOrWhiteSpace(e.CdeStatus)   ? "WIP" : e.CdeStatus;
             string stamp = now.ToString("yyyy-MM-dd HH:mm");
 
@@ -73,6 +81,7 @@ namespace StingTools.BIMManager
                 existing["cde_status"]    = cde;
                 existing["date_modified"] = stamp;
                 if (!string.IsNullOrWhiteSpace(e.DocNumber)) existing["doc_number"] = e.DocNumber;
+                ApplyIsoUnset(existing, e.IsoUnset);
                 id = existing["document_id"]?.ToString() ?? existing["doc_id"]?.ToString();
                 return true;
             }
@@ -100,10 +109,20 @@ namespace StingTools.BIMManager
             // Deliverable-sourced rows carry the ISO 19650 number so the unified
             // register can match them to their deliverables.json row.
             if (!string.IsNullOrWhiteSpace(e.DocNumber)) entry["doc_number"] = e.DocNumber;
+            ApplyIsoUnset(entry, e.IsoUnset);
             register.Add(entry);
             added = true;
             id = nextId;
             return true;
+        }
+
+        /// <summary>Write (non-empty), clear (empty) or leave (null) the row's iso_unset flag.</summary>
+        private static void ApplyIsoUnset(JObject row, System.Collections.Generic.IReadOnlyList<string> unset)
+        {
+            if (unset == null) return;
+            var names = unset.Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+            if (names.Count == 0) row.Remove("iso_unset");
+            else row["iso_unset"] = new JArray(names);
         }
 
         /// <summary>Next "PREFIX-NNNN" id in an array. The document register is

@@ -1016,6 +1016,18 @@ namespace StingTools.UI
                 "A/B/CR → PUBLISHED, then A_Architectural / M_Mechanical / S_Structural … " +
                 "The folder above still receives the export report.";
             destSp.Children.Add(_routeCheck);
+            var accCheck = BindCheck("Upload each exported sheet file to ACC after export",
+                () => _profile.Output.UploadToAcc, v => _profile.Output.UploadToAcc = v);
+            accCheck.ToolTip =
+                "Uses the project's ACC settings (CDE folders by suitability, ISO 19650 attributes). " +
+                "A sheet with no suitability or revision is never sent; an identical file already sent is skipped; " +
+                "a changed file under a revision already sent is refused as a re-issue without a revision change. " +
+                "Failures are reported per file — the export is not undone.";
+            destSp.Children.Add(accCheck);
+            var reissueCheck = BindCheck("   …allow a changed file under an unchanged revision (new ACC version)",
+                () => _profile.Output.AccAllowReissueWithoutRevisionChange, v => _profile.Output.AccAllowReissueWithoutRevisionChange = v);
+            reissueCheck.ToolTip = "Off by default: ISO 19650 does not allow a re-issue without a revision change.";
+            destSp.Children.Add(reissueCheck);
 
             sp.Children.Add(dest);
 

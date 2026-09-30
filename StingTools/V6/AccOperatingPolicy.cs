@@ -180,6 +180,10 @@ namespace StingTools.V6
             // ACC Reviews as the approval authority: how an ACC approval maps to an ISO 19650
             // code, and whether publishing a deliverable starts an ACC review.
             "reviewApprovalMap", "startAccReviewOnPublish",
+            // ACC Docs naming and metadata: the attribute names the project's ACC admin
+            // created (one set, not a STING set beside the admin's), and whether file names
+            // are the 7-field ISO 19650 name or carry suitability + revision (9 fields).
+            "docsAttributeNames", "fileNamingFields",
         };
 
         /// <summary>The STING values an escalated clash issue can carry as ACC custom
@@ -274,6 +278,25 @@ namespace StingTools.V6
         /// <summary>Let STING create missing custom-attribute definitions on a folder. Off by
         /// default: definitions are project-wide admin configuration.</summary>
         public bool DocsAttributesCreateMissing { get; private set; }
+
+        /// <summary>The ACC custom-attribute names STING writes to ("docsAttributeNames").
+        /// Defaults are the names docs/KUT_ACC_DAY1_PLAYBOOK.md §3.4 tells the admin to create.</summary>
+        public AccAttributeNames DocsAttributeNames { get; private set; } = AccAttributeNames.Default;
+
+        /// <summary>"fileNamingFields": 7 = the ISO 19650 name WITHOUT suitability and revision
+        /// (they travel as ACC attributes, and the ACC item keeps one name across revisions);
+        /// 9 = the name carries "-{Suitability}-{Revision}". Null when the file does not say.</summary>
+        public int? FileNamingFields { get; private set; }
+
+        /// <summary>True when exports for this project should use the 7-field name and an ACC
+        /// upload must refuse a name that embeds suitability/revision: said explicitly
+        /// (fileNamingFields 7), or — with the setting absent — whenever the project's ACC
+        /// settings are configured (a project, a folder or CDE folders), because an ACC item is
+        /// matched by file name and a revision-bearing name makes every revision a new item.</summary>
+        public bool SevenFieldNaming =>
+            FileNamingFields == 7 ||
+            (FileNamingFields == null && Source == AccPolicySource.Loaded &&
+             (ProjectId.Length > 0 || FolderUrn.Length > 0 || CdeFolders.Count > 0));
 
         /// <summary>Due date for an escalated clash issue, in days from today; null = none.</summary>
         public int? EscalateDueDays { get; private set; }
@@ -410,9 +433,19 @@ namespace StingTools.V6
             var approvalMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             string reviewWorkflowId = string.Empty;
             bool reviewUnattended = false;
+            AccAttributeNames attrNames = AccAttributeNames.Default;
+            int? namingFields = null;
 
             try
             {
+                if (TryGet(o, "docsAttributeNames", out var anTok))
+                    attrNames = AccAttributeNames.FromSettings(RequireStringMap(anTok, "docsAttributeNames"));
+                if (TryGet(o, "fileNamingFields", out var nfTok))
+                {
+                    namingFields = RequireInt(nfTok, "fileNamingFields");
+                    if (namingFields != 7 && namingFields != 9)
+                        throw new FormatException($"'fileNamingFields' must be 7 (ISO 19650 name only) or 9 (name + suitability + revision), found {namingFields}");
+                }
                 if (TryGet(o, "unattended", out var uTok)) unattended = RequireBool(uTok, "unattended");
                 if (TryGet(o, "coordModelSetId", out var idTok)) modelSetId = RequireString(idTok, "coordModelSetId");
                 if (TryGet(o, "coordModelSetName", out var nmTok)) modelSetName = RequireString(nmTok, "coordModelSetName");
@@ -564,6 +597,8 @@ namespace StingTools.V6
             policy.ReviewApprovalMap = approvalMap;
             policy.ReviewWorkflowId = reviewWorkflowId;
             policy.ReviewStartUnattended = reviewUnattended;
+            policy.DocsAttributeNames = attrNames;
+            policy.FileNamingFields = namingFields;
             return policy;
         }
 
