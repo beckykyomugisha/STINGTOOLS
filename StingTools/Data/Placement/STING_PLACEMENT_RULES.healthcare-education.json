@@ -5,7 +5,8 @@
     {
       "RuleId": "hc-bedhead-trunking",
       "CategoryFilter": "Specialty Equipment",
-      "RoomFilter": "(?i)ward|bedroom|patient",
+      "RoomFilter": "(?i)\\bward\\b|patient|\\bbed.?(bay|space|area|head)|\\b(single|multi|two|four|six|[246]).?bed",
+      "ExcludeRoomFilter": "(?i)bedroom|bedsit|dormitor|hotel|guest|staff|on.?call|\\bwc\\b|toilet|shower|bath|store|lounge|waiting|reception|kitchen|pantry",
       "AnchorType": "WALL_MIDPOINT",
       "MountingHeightMm": 1400.0,
       "OffsetXMm": 0.0,

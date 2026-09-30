@@ -75,7 +75,12 @@ namespace StingTools.Tags.Tests
         {
             var doc = JObject.Parse(File.ReadAllText(Path.Combine(PlacementDir(), "STING_PLACEMENT_RULES.medical-gases.json")));
             var list = new List<(string, Regex, Regex)>();
-            foreach (var r in (JArray)doc["Rules"])
+            // The healthcare pack's bedhead trunking carries 4-gas medical services too, and
+            // matched "bedroom" until 2026-09-30 — hold it to the same clinical-only scoping.
+            var hc = JObject.Parse(File.ReadAllText(Path.Combine(PlacementDir(), "STING_PLACEMENT_RULES.healthcare-education.json")));
+            var rules = ((JArray)doc["Rules"]).Concat(((JArray)hc["Rules"]).Where(r => (string)r["RuleId"] == "hc-bedhead-trunking")).ToList();
+            Assert.Contains(rules, r => (string)r["RuleId"] == "hc-bedhead-trunking");
+            foreach (var r in rules)
             {
                 string inc = (string)r["RoomFilter"];
                 string exc = (string)r["ExcludeRoomFilter"];
@@ -131,6 +136,8 @@ namespace StingTools.Tags.Tests
         [InlineData("Ward Corridor", "htmgas-emergency-oxygen-corridor")]
         [InlineData("Recovery", "htmgas-recovery-pendant")]
         [InlineData("Endoscopy Suite", "htmgas-co2-endoscopy")]
+        [InlineData("Ward 3 Bay 2", "hc-bedhead-trunking")]
+        [InlineData("Patient Room 12", "hc-bedhead-trunking")]
         public void MedGasRules_StillFireInClinicalRooms(string room, string ruleId)
         {
             var rule = MedGasRules().Single(r => r.Id == ruleId);
