@@ -103,7 +103,7 @@ namespace StingTools.Core
         /// Idempotent — if the file is already current, returns it untouched.
         /// Returns null, touching nothing, for a file whose root is a JSON array (C1).
         /// </summary>
-        public static JObject EnsureCurrent(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators = null)
+        public static JObject? EnsureCurrent(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators = null)
         {
             // S8.2.2 — span the migration so a slow / large schema upgrade
             // surfaces as a duration outlier in telemetry rather than as
@@ -113,7 +113,7 @@ namespace StingTools.Core
                 () => EnsureCurrentImpl(filePath, schemaName, targetVersion, migrators));
         }
 
-        private static JObject EnsureCurrentImpl(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators)
+        private static JObject? EnsureCurrentImpl(string filePath, string schemaName, int targetVersion, IReadOnlyList<Migrator>? migrators)
         {
             if (!File.Exists(filePath))
                 return CreateGenesis(filePath, schemaName, targetVersion);
