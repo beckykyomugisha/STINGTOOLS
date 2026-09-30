@@ -2592,10 +2592,24 @@ Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1
 - **ACC-HARD-2 — resumable upload across sessions.** A failed part is retried and expired URLs
   are renewed, but a cancelled or crashed upload restarts from the first byte. Persisting the
   `uploadKey` and the parts sent would let a multi-GB model resume on a site connection.
-- **ACC-HARD-3 — cloud-workshared models.** With a Revit cloud model `doc.PathName` is not a
-  local path; `StingPaths` may resolve each user's own Documents folder, which would split
-  `_BIM_COORD` (escalation record, ACC settings, counters) per user. Until checked, run STING on
-  a local host model that links the cloud models (playbook §9).
+- ~~**ACC-HARD-3 — cloud-workshared models.**~~ **Closed in code 2026-09-30** (CHANGELOG
+  "Cloud model project root"). Confirmed: a cloud model resolved to `%USERPROFILE%\Documents\<CODE>`,
+  per user. A cloud model's root now comes only from `%APPDATA%\Planscape\cloud_project_roots.json`
+  (keyed by ACC project GUID), asked for once on the UI thread, refused otherwise. Left open:
+  - **ACC-HARD-3a — run it in Revit on a real cloud model.** `IsModelInCloud`,
+    `GetCloudModelPath().GetProjectGUID()/GetModelGUID()` and the prompt at document open have
+    not been exercised in Revit. Check the log for the `CLOUD ROOT [...]` line, confirm two users
+    mapped to one share see the same `_data/coord`, and that "Not now" leaves no folder under
+    Documents.
+  - **ACC-HARD-3b — file-based worksharing splits too.** A *local copy* of a file-based central
+    model usually sits in each user's Documents, and `doc.PathName` is that local copy — so
+    `<localDir>/<CODE>` is per user as well. Unchanged by the fix (local behaviour is untouched
+    by design). Resolving through `GetWorksharingCentralModelPath()` would fix it, but moves
+    existing projects' roots; needs a consented migration like `Folders_ConsolidateAll`.
+  - **ACC-HARD-3c — callers that bypass `StingPaths`.** Code that still does
+    `Path.GetDirectoryName(doc.PathName)` itself (outside `ProjectFolderEngine`) gets
+    `Autodesk Docs:\<project>` for a cloud model and fails on write rather than splitting —
+    loud, but a failure. Worth a sweep.
 - **ACC-HARD-4 — retire the machine-file fallback.** `projectId`, `hubId` and `folderUrn` are
   still read from `%APPDATA%\Planscape\acc_credentials.json` when a project has none (logged as
   DEPRECATED). Remove it after one live KUT cycle on project settings (as IM-18 planned).

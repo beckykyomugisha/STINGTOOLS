@@ -118,6 +118,7 @@ namespace StingTools.Core.Storage
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
+                if (CloudProjectRootResolver.IsCloud(doc)) return null; // see EnsureStamped
                 var stamp = Read(doc);
                 if (stamp == null || string.IsNullOrEmpty(stamp.RootRelativePath)) return null;
                 string rvtDir = Path.GetDirectoryName(doc.PathName);
@@ -140,6 +141,17 @@ namespace StingTools.Core.Storage
                 if (doc?.ProjectInformation == null) return false;
                 if (doc.IsFamilyDocument || doc.IsReadOnly) return false;
                 if (string.IsNullOrEmpty(doc.PathName)) return false;
+                // Cloud model (ACC-HARD-3): the stamp is a path RELATIVE TO THE .rvt FOLDER, and a
+                // cloud model has none — "relative to Autodesk Docs:\<project>" resolves against
+                // Revit's working directory, differently on every machine, and a stamp once
+                // written is never replaced. The cloud mapping (CloudProjectRootResolver) is the
+                // stable root identity for these models, so nothing is stamped.
+                if (CloudProjectRootResolver.IsCloud(doc))
+                {
+                    StingLog.Info("StingProjectRootSchema.EnsureStamped: cloud model — root identity is the cloud " +
+                                  "project mapping, not an ES stamp; skipped.");
+                    return false;
+                }
                 if (Read(doc) != null) return false; // already stamped
 
                 string root = ProjectFolderEngine.GetRootPath(doc);

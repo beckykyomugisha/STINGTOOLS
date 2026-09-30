@@ -222,6 +222,19 @@ namespace StingTools.Core
         /// </summary>
         public static string GetRootPath(Document doc)
         {
+            // C. Cloud model (ACC-HARD-3): the root is the one recorded for its ACC project in
+            //    %APPDATA%\Planscape\cloud_project_roots.json, or nothing. A cloud PathName
+            //    ("Autodesk Docs://…") has no directory, so steps 0-5 below could only ever
+            //    land in the per-user Documents fallback — splitting _data/coord per user.
+            //    Null here is deliberate and logged; callers already treat null as "no root".
+            //    Local models skip this block entirely (IsCloud is false) — unchanged.
+            if (CloudProjectRootResolver.IsCloud(doc))
+            {
+                string cloudRoot = CloudProjectRootResolver.TryResolve(doc, out _);
+                if (!string.IsNullOrEmpty(cloudRoot)) { RememberRoot(doc, cloudRoot); return cloudRoot; }
+                return null;
+            }
+
             // 0. ES root-identity stamp — a STABLE stored root that survives a project-number
             //    rename (which would otherwise fork a new <CODE> tree). Only used when it
             //    resolves to an existing directory; absent/stale ⇒ fall through unchanged.
@@ -303,6 +316,20 @@ namespace StingTools.Core
             string docKey = doc.PathName;
             if (_setupCache.TryGetValue(docKey, out var cached) && cached != null) return cached;
 
+            // Cloud model: the setup lives in the mapped root, never next to a cloud URL.
+            if (CloudProjectRootResolver.IsCloud(doc))
+            {
+                try
+                {
+                    string cloudRoot = CloudProjectRootResolver.TryResolve(doc, out _);
+                    if (string.IsNullOrEmpty(cloudRoot)) return null;
+                    var cloudSetup = ProjectSetup.Load(Path.Combine(cloudRoot, "_data"));
+                    if (cloudSetup != null) _setupCache[docKey] = cloudSetup;
+                    return cloudSetup;
+                }
+                catch (Exception ex) { StingLog.Warn($"LoadOrDetectSetup (cloud): {ex.Message}"); return null; }
+            }
+
             try
             {
                 string projDir = Path.GetDirectoryName(doc.PathName);
@@ -383,6 +410,9 @@ namespace StingTools.Core
             var existing = LoadOrDetectSetup(doc);
             if (existing != null) return existing;
             if (doc == null || string.IsNullOrEmpty(doc.PathName) || doc.IsFamilyDocument) return null;
+            // A cloud model with no recorded root gets no setup: minting one would have nowhere
+            // to live but a per-user fallback. GetRootPath has already logged why.
+            if (CloudProjectRootResolver.IsCloud(doc) && string.IsNullOrEmpty(GetRootPath(doc))) return null;
             try
             {
                 string code = DetectProjectCode(doc);
@@ -510,6 +540,13 @@ namespace StingTools.Core
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return false;
+                if (CloudProjectRootResolver.IsCloud(doc))
+                {
+                    // Never prompts from here (this runs at the top of DocumentOpened). An
+                    // unresolved root, or a mapped root with no _data yet, is a new tree.
+                    string cloudRoot = CloudProjectRootResolver.TryResolve(doc, out _, allowPrompt: false);
+                    return string.IsNullOrEmpty(cloudRoot) || !Directory.Exists(Path.Combine(cloudRoot, "_data"));
+                }
                 if (Storage.StingProjectRootSchema.Read(doc) != null) return false;
                 string projDir = Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(projDir)) return false;
@@ -655,6 +692,8 @@ namespace StingTools.Core
             if (doc == null || string.IsNullOrEmpty(bucket)) return null;
             try
             {
+                // A cloud model has no directory, so it has no legacy sibling either.
+                if (CloudProjectRootResolver.IsCloud(doc)) return null;
                 string projDir = string.IsNullOrEmpty(doc.PathName)
                     ? null : Path.GetDirectoryName(doc.PathName);
                 if (string.IsNullOrEmpty(projDir)) return null;
@@ -743,6 +782,11 @@ namespace StingTools.Core
                               "— a family has no project root. Returning null (absence, not a default).");
                 return null;
             }
+            // A cloud model path has no directory to scan. The only valid answer is the root
+            // already resolved for that model through its Document (cloud mapping), if any.
+            if (CloudProjectRoot.LooksLikeCloudPath(rvtPath))
+                return _rootByDoc.TryGetValue(rvtPath, out string cloudCached) && Directory.Exists(cloudCached)
+                    ? cloudCached : null;
             try
             {
                 string projDir = Path.GetDirectoryName(rvtPath);
@@ -785,6 +829,13 @@ namespace StingTools.Core
             try
             {
                 string root = GetRootPathForModelPath(rvtPath);
+                if (string.IsNullOrEmpty(root) && CloudProjectRoot.LooksLikeCloudPath(rvtPath))
+                {
+                    // No legacy sibling exists next to a cloud URL; building one would be garbage.
+                    StingLog.Warn($"GetMetaPathForModelPath({bucket}): cloud model '{rvtPath}' has no resolved " +
+                                  "project root yet — returning null.");
+                    return null;
+                }
                 string p = string.IsNullOrEmpty(root)
                     // path-discipline: legacy-fallback -- no set-up root exists for this model yet
                     ? Path.Combine(Path.GetDirectoryName(rvtPath) ?? "", bucket)
@@ -820,7 +871,7 @@ namespace StingTools.Core
             if (doc == null || setup == null) return;
             try
             {
-                string root = setup.ResolveRootPath(doc.PathName);
+                string root = ResolveSetupRoot(doc, setup);
                 if (string.IsNullOrEmpty(root)) return;
                 Directory.CreateDirectory(root);
 
@@ -861,6 +912,21 @@ namespace StingTools.Core
                 StingLog.Info($"ProjectFolderEngine: Setup initialised at {root}");
             }
             catch (Exception ex) { StingLog.Warn($"InitializeSetup: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// The root a persisted <see cref="ProjectSetup"/> describes for this document. For a
+        /// local model this is exactly <c>setup.ResolveRootPath(doc.PathName)</c>, as before.
+        /// For a cloud model a relative root would resolve against a cloud URL, and an absolute
+        /// one could disagree with the mapping, so the cloud mapping (via <see cref="GetRootPath"/>)
+        /// is the answer — null when unmapped.
+        /// </summary>
+        public static string ResolveSetupRoot(Document doc, ProjectSetup setup)
+        {
+            if (setup == null) return null;
+            if (CloudProjectRootResolver.IsCloud(doc))
+                return GetRootPath(doc); // the mapping is the one root; see GetRootPath step C
+            return setup.ResolveRootPath(doc?.PathName);
         }
 
         /// <summary>Resolve the _data folder path; create it if missing. Optionally append a filename.</summary>
@@ -969,7 +1035,7 @@ namespace StingTools.Core
                     return list;
                 }
 
-                string root2 = setup.ResolveRootPath(doc?.PathName);
+                string root2 = ResolveSetupRoot(doc, setup);
                 if (string.IsNullOrEmpty(root2)) return list;
                 foreach (var f in setup.CustomFolders)
                 {
@@ -1800,6 +1866,13 @@ namespace StingTools.Core
         public static string GetFolderPath(Document doc, string folderId)
         {
             string root = GetRootPath(doc);
+            if (string.IsNullOrEmpty(root))
+            {
+                // Only reachable for a cloud model with no recorded root (ACC-HARD-3). Null,
+                // not a guess: every Path.Combine below would otherwise build on nothing.
+                StingLog.Warn($"GetFolderPath({folderId}): no project root for this model — returning null.");
+                return null;
+            }
 
             // Phase 167: prefer ProjectSetup folder def (uses user-edited display name)
             try

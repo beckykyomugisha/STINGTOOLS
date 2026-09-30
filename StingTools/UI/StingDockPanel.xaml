@@ -3461,6 +3461,8 @@
                                                 ToolTip="Dry-run preview, then write the canonical _data/register.json (source stores kept intact — reversible)"/>
                                         <Button Style="{StaticResource ActionBtn}" Content="Consolidate Folders" Tag="Folders_ConsolidateAll" Click="Cmd_Click"
                                                 ToolTip="Dry-run preview, then move legacy STING folders next to the model into the one unified project root"/>
+                                        <Button Style="{StaticResource ActionBtn}" Content="Cloud Project Root" Tag="Cloud_SetProjectRoot" Click="Cmd_Click"
+                                                ToolTip="Cloud (ACC / BIM 360) models: view or change the shared folder that holds this project's STING files"/>
                                         <Button Style="{StaticResource GreenBtn}" Content="Add Doc" Tag="AddDocument" Click="Cmd_Click"
                                                 ToolTip="Register incoming or outgoing document with ISO 19650 naming"/>
                                         <Button Style="{StaticResource PurpleBtn}" Content="Transmittal" Tag="CreateTransmittal" Click="Cmd_Click"

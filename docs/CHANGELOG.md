@@ -2,6 +2,40 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Cloud model project root — ACC-HARD-3, 2026-09-30)
+
+A Revit cloud model (Autodesk Docs / BIM 360, incl. Cloud Worksharing) has
+`doc.PathName = "Autodesk Docs://<project>/<model>.rvt"`. Measured on .NET 8: `GetDirectoryName`
+gives `Autodesk Docs:\<project>`, `CreateDirectory` under it throws "syntax is incorrect", and
+`ProjectFolderEngine.GetRootPath` fell through to `%USERPROFILE%\Documents\<CODE>` — a private
+root per user and per machine for `_data/coord` (issue register, escalation record,
+`acc_settings.json`, SEQ sidecars, audit log). The ES root stamp could also be written as a
+path relative to Revit's working directory, and a stamp is never replaced.
+
+- **`Core/CloudProjectRoot.cs`** (Revit-free): the decision — NotCloud / Mapped / PromptUser /
+  Refuse — from {isCloud, path, ACC project GUID, model GUID, mapping text, interactive}. Keyed
+  by the project GUID so every model in the ACC project shares one root (`model:<guid>` only when
+  the project GUID is missing). A malformed mapping file refuses and is never overwritten; a
+  relative, cloud-URL or unreachable mapped folder is not a hit.
+- **`Core/CloudProjectRootResolver.cs`**: reads `IsModelInCloud` / `GetCloudModelPath()`, the
+  machine mapping `%APPDATA%\Planscape\cloud_project_roots.json`, and prompts once per session
+  per project — only on Revit's main thread and never inside an unattended workflow
+  (`WorkflowEngine` suppresses it). Every decision is logged as `CLOUD ROOT [...]`.
+- **`ProjectFolderEngine`**: `GetRootPath` resolves a cloud model through the mapping first and
+  returns **null** when there is none — never the Documents/Temp fallback. `LoadOrDetectSetup`,
+  `LoadOrBootstrapSetup`, the greenfield probe, `GetLegacyMetaDir`, the path-only resolvers and
+  the new `ResolveSetupRoot` follow; `GetFolderPath` returns null on no root.
+  `OutputLocationHelper.GetStorePath` refuses a per-user store for an unmapped cloud model.
+  `StingProjectRootSchema` does not stamp or read the ES stamp for cloud models (the mapping is
+  their root identity). **Local models are unchanged**: every new branch is behind `IsCloud`.
+- **Command `Cloud_SetProjectRoot`** (BIM tab, "Cloud Project Root"): shows GUIDs, key, mapping
+  file and root in use; choose / change / forget the folder. A picked folder becomes
+  `<folder>\<CODE>` unless it already is the root. Wired in `StingCommandHandler` and
+  `WorkflowEngine.ResolveCommand`.
+- Tests: `StingTools.Tags.Tests/CloudProjectRootTests.cs` (22 cases). Plugin build 0/0; Tags tests
+  4196/4196; path-discipline and workflow-wiring gates pass. **Not run in Revit on a cloud model**
+  (ROADMAP ACC-HARD-3a). File-based worksharing local copies still split per user (ACC-HARD-3b).
+
 #### Completed (ACC hardening — review findings, APS-verified, 2026-09-30)
 
 A review of the whole ACC integration, then fixes checked against the APS reference and
