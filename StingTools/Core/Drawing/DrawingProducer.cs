@@ -1236,7 +1236,21 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { result.Warnings.Add($"SheetNumber: {ex.Message}"); }
             try
             {
-                sheet.Name = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, seq, tokens);
+                var sheetName = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, seq, tokens);
+                // DTW-51: every area box on a level produced a sheet with the same name
+                // ("Power Layout - Level 1") unless the pattern names {mark}. Say which
+                // area the sheet is when the pattern does not.
+                if (opts.OverrideSheetName == null && ctx.ScopeBox != null)
+                {
+                    var p = dt.SheetNamePattern ?? "";
+                    bool namesArea = p.IndexOf("{mark}", StringComparison.OrdinalIgnoreCase) >= 0
+                                  || p.IndexOf("{spool}", StringComparison.OrdinalIgnoreCase) >= 0;
+                    string area = !string.IsNullOrWhiteSpace(ctx.Tag) ? ctx.Tag : ctx.ScopeBox.Name;
+                    if (!namesArea && !string.IsNullOrWhiteSpace(area)
+                        && (sheetName ?? "").IndexOf(area, StringComparison.OrdinalIgnoreCase) < 0)
+                        sheetName = $"{sheetName} - {area}";
+                }
+                sheet.Name = sheetName;
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 
