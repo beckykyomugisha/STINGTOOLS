@@ -557,7 +557,7 @@ namespace StingTools.Core.Drawing
                                     $"'{box}' was produced as an independent view instead.");
                 return ElementId.InvalidElementId;
             }
-            try { dep.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx), dep.Id); }
+            try { dep.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx), dep.Id, result); }
             catch (Exception ex) { StingLog.Warn($"Dependent view name: {ex.Message}"); }
             // Duplicate copies the parent's stamps; the caller restamps context and rule,
             // and the drawing type is stamped here so the view is found by type even if
@@ -611,7 +611,8 @@ namespace StingTools.Core.Drawing
                 var view = doc.GetElement(viewId) as View;
                 if (view == null) return ElementId.InvalidElementId;
 
-                try { view.Name = MakeUniqueViewName(doc, viewName, view.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { view.Name = MakeUniqueViewName(doc, viewName, view.Id, result); }
+                catch (Exception ex) { result.Warnings.Add($"Naming view '{viewName}': {ex.Message} — it keeps Revit's default name."); }
                 if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
@@ -1237,15 +1238,8 @@ namespace StingTools.Core.Drawing
             // substitution. All twelve PRJ_SHEET_* are bound; eleven had zero writers.
             StampSheetSegments(sheet, tokens, result);
 
-            // FIX-6: lock check + stale-key clear + stamp + sequence + title-block
-            // params all go through the canonical ApplyToSheet plus the
-            // producer-specific sequence stamp. Avoids re-implementing the
-            // stamper / applier sequence in two places.
-            if (DrawingTypeStamper.IsLocked(sheet))
-            {
-                result.Warnings.Add($"Sheet {sheet.Id} style-locked; producer kept sheet but skipped stamp/apply.");
-                return sheet.Id;
-            }
+            // DTW-53: there was a style-lock check here, on a sheet created a few lines
+            // above — a new sheet carries no lock, so it could never fire. Removed.
             DrawingTypeStamper.Stamp(sheet, dt.Id);
             DrawingTypeStamper.StampPackage(sheet, effectivePackage);
             // Completes the sheet's production identity so the next run
@@ -1632,11 +1626,32 @@ namespace StingTools.Core.Drawing
                 "DrawingProducer.SheetSegments", result?.Warnings);
         }
 
-        private static string MakeUniqueViewName(Document doc, string baseName, ElementId forView = null)
+        /// <summary>
+        /// DTW-53: the first free name of "baseName", "baseName_(2)" … It stopped at _(99)
+        /// and returned that name even when taken, so the rename threw and the view kept
+        /// Revit's default name while production reported it made. Now uncapped short of
+        /// ViewNameUniquifier.Limit, and running out is reported, never a taken name.
+        /// </summary>
+        private static string MakeUniqueViewName(Document doc, string baseName, ElementId forView = null, ProduceResult result = null)
         {
-            string name = baseName;
-            int n = 2;
-            while (NameExists(doc, name) && n < 100) name = $"{baseName}_({n++})";
+            // Outside a primed batch, collect the names once rather than once per probe.
+            HashSet<string> local = null;
+            if (_existingViewNames == null || !CacheMatchesDoc(doc))
+            {
+                local = new HashSet<string>(StringComparer.Ordinal);
+                try
+                {
+                    foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
+                        if (el is View v && !v.IsTemplate && !string.IsNullOrEmpty(v.Name)) local.Add(v.Name);
+                }
+                catch (Exception ex) { StingLog.Warn($"MakeUniqueViewName names: {ex.Message}"); local = null; }
+            }
+            string name = ViewNameUniquifier.Next(baseName, n => local != null ? local.Contains(n) : NameExists(doc, n));
+            if (name == null)
+            {
+                result?.Warnings.Add($"No free view name found for '{baseName}' (tried up to _({ViewNameUniquifier.Limit})); the view keeps Revit's default name.");
+                return baseName;
+            }
             // P-12: keep the batch name set current so the next probe in this
             // run sees this name without another collector pass. DTW-45: recorded
             // against the view, so a rollback that removes the view frees the name.
