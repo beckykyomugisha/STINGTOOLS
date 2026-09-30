@@ -31,6 +31,20 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 | DTW-79 | Title-block heal fills `{lvl}` with the level name under the ISO policy | `DrawingTokenContext.BuildForExistingSheet` | In progress (`fix/dt-followups`) |
 | DTW-80 | The wizard's elevation reuse looks for a tag the producer now re-stamps | `ProjectSetupCommand` | In progress (`fix/dt-followups`) |
 | DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
+| DTW-83 | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | `AnnotationRunner.cs:356 / TagCategory` | In progress (`fix/dt-annotation`) |
+| DTW-84 | Chains never cross fittings; witness lines parallel to their references; no idempotency | `MEPDimensioner.cs:152` | In progress (`fix/dt-annotation`) |
+| DTW-85 | Host-only: linked MEP and linked grids get no annotation, silently | `AnnotationRunner / MEPDimensioner collectors` | In progress (`fix/dt-annotation`) |
+| DTW-86 | Grid chains assume world-axis grids | `AnnotationRunner.cs:686` | In progress (`fix/dt-annotation`) |
+| DTW-87 | PDFExportOptions.FileName without Combine: files reported missing, nothing registered | `DrawingProduceAndExportCommand.cs:572 / DrawingPackageManager.cs:122` | In progress (`fix/dt-export-planner`) |
+| DTW-88 | PDF named number_name with no revision; P02 overwrites P01; differs from the Export Centre | `DrawingProduceAndExportCommand.cs:570` | In progress (`fix/dt-export-planner`) |
+| DTW-89 | Own ISO patterns still freeze -{suit}-{rev} | `STING_DRAWING_TYPES.json (9 patterns)` | In progress (`fix/dt-data`) |
+| DTW-90 | Area-box levels keyed by name-derived code; a rename orphans boxes and plans | `ScopeBoxPlannerService.cs:279 / ScopeBoxPlanner.cs:343` | In progress (`fix/dt-export-planner`) |
+| DTW-91 | Re-plan after growth renumbers and moves existing boxes | `ScopeBoxPlanner.cs:239` | In progress (`fix/dt-export-planner`) |
+| DTW-92 | Rotated LOC box uses its bounding box | `ScopeBoxRevit.cs:143` | In progress (`fix/dt-export-planner`) |
+| DTW-93 | Name grammar rules differ by prefix (case, trim, spaces) | `ScopeBoxBinder / ScopeBoxNames / ParameterHelpers LOC` | In progress (`fix/dt-export-planner`) |
+| DTW-94 | Spool sheets ignore the sheet-number policy | `ShopDrawingComposer.cs:474` | In progress (`fix/dt-export-planner`) |
+| DTW-95 | STING:: projects run both scope-box and per-level production: duplicate drawings | `WORKFLOW_MEPDrawingProduction.json` | In progress (`fix/dt-export-planner`) |
+| DTW-96 | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | `DocAutomationExtCommands.cs:478` | Queued after fix/dt-data (same file) |
 
 ## Tag family library — missing families (2026-09-30)
 

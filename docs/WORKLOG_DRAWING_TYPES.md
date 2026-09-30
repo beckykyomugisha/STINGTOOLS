@@ -136,6 +136,20 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | fix/dt-followups | In progress |
 | DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | fix/dt-followups | In progress |
 | DTW-81 | DrawingProducer.AdoptView | Med | Reported adoption even when the stamp failed; cache failure left a stale index | 08fe22fc9 | Done |
+| DTW-83 | AnnotationRunner.cs:356 / TagCategory | High | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | fix/dt-annotation | In progress |
+| DTW-84 | MEPDimensioner.cs:152 | Med | Chains never cross fittings; witness lines parallel to their references; no idempotency | fix/dt-annotation | In progress |
+| DTW-85 | AnnotationRunner / MEPDimensioner collectors | Med | Host-only: linked MEP and linked grids get no annotation, silently | fix/dt-annotation | In progress |
+| DTW-86 | AnnotationRunner.cs:686 | Low-Med | Grid chains assume world-axis grids | fix/dt-annotation | In progress |
+| DTW-87 | DrawingProduceAndExportCommand.cs:572 / DrawingPackageManager.cs:122 | High | PDFExportOptions.FileName without Combine: files reported missing, nothing registered | fix/dt-export-planner | In progress |
+| DTW-88 | DrawingProduceAndExportCommand.cs:570 | Med | PDF named number_name with no revision; P02 overwrites P01; differs from the Export Centre | fix/dt-export-planner | In progress |
+| DTW-89 | STING_DRAWING_TYPES.json (9 patterns) | Med | Own ISO patterns still freeze -{suit}-{rev} | fix/dt-data | In progress |
+| DTW-90 | ScopeBoxPlannerService.cs:279 / ScopeBoxPlanner.cs:343 | Med-High | Area-box levels keyed by name-derived code; a rename orphans boxes and plans | fix/dt-export-planner | In progress |
+| DTW-91 | ScopeBoxPlanner.cs:239 | Med | Re-plan after growth renumbers and moves existing boxes | fix/dt-export-planner | In progress |
+| DTW-92 | ScopeBoxRevit.cs:143 | Low-Med | Rotated LOC box uses its bounding box | fix/dt-export-planner | In progress |
+| DTW-93 | ScopeBoxBinder / ScopeBoxNames / ParameterHelpers LOC | Low | Name grammar rules differ by prefix (case, trim, spaces) | fix/dt-export-planner | In progress |
+| DTW-94 | ShopDrawingComposer.cs:474 | Med | Spool sheets ignore the sheet-number policy | fix/dt-export-planner | In progress |
+| DTW-95 | WORKFLOW_MEPDrawingProduction.json | Med | STING:: projects run both scope-box and per-level production: duplicate drawings | fix/dt-export-planner | In progress |
+| DTW-96 | DocAutomationExtCommands.cs:478 | Low | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | Queued after fix/dt-data (same file) | Queued |
 
 ## Decisions
 
@@ -165,6 +179,11 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
 ## NEEDS REVIT CHECK
+
+- **Title-block master path (research, unverified).** Build one master-path title-block family
+  from a master that already has a revision table. Expect one revision schedule, not two.
+- **PDF Combine default (DTW-87).** Export one sheet with Produce & Export and confirm the file
+  name Revit wrote.
 
 Producer checks (DTW-20..54):
 - Rename "Level 1" to "Ground Floor" and re-run per-level production: expect no new views,
