@@ -296,6 +296,7 @@
     <Compile Include="..\StingTools\Core\Drawing\BatchNameLedger.cs" Link="Core\Drawing\BatchNameLedger.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewNameUniquifier.cs" Link="Core\Drawing\ViewNameUniquifier.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SectionFromBox.cs" Link="Core\Drawing\SectionFromBox.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ElevationFaces.cs" Link="Core\Drawing\ElevationFaces.cs" />
     <Compile Include="..\StingTools\Core\Panels\PanelSheetPlacementMode.cs" Link="Core\Panels\PanelSheetPlacementMode.cs" />
     <!-- Revit-free halves of fix/review-six: Seeds_Build's preset mode, and which stamped
          sheets Produce & Export covers. -->

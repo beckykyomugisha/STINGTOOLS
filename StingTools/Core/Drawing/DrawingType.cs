@@ -754,6 +754,13 @@ namespace StingTools.Core.Drawing
         /// include as schedule columns, in order. Leave null to use profile defaults.</summary>
         [JsonProperty("scheduleFields", NullValueHandling = NullValueHandling.Ignore)]
         public List<string> ScheduleFields { get; set; }
+
+        /// <summary>For Elevation rules produced for a room: which face of the room's
+        /// elevation marker (0-3) this rule makes. Null: the rule's order among the type's
+        /// Elevation rules (ElevationFaces.Plan). Null is not serialised, so types that do
+        /// not set it keep their checksum.</summary>
+        [JsonProperty("elevationFace", NullValueHandling = NullValueHandling.Ignore)]
+        public int? ElevationFace { get; set; }
     }
 
     // ─────────────────────────────────────────────────────────────────────

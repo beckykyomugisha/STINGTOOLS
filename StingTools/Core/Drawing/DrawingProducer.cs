@@ -33,6 +33,27 @@ namespace StingTools.Core.Drawing
         /// A sheet found under one of them is re-stamped and reused, never duplicated.
         /// </summary>
         public IReadOnlyCollection<string> FormerDrawingTypeIds { get; set; }
+
+        // ── Elevations (DTW-54 / DTW-27) ─────────────────────────────────────
+        /// <summary>Production rules to use instead of the drawing type's (a command that
+        /// lays out its own faces, e.g. four exterior elevations on one 1+4 sheet).</summary>
+        internal List<ProductionRule> RulesOverride { get; set; }
+        /// <summary>Exterior elevations: per rule Idx, where the marker stands and which
+        /// way the view must look. Each gets its own marker.</summary>
+        internal Dictionary<int, ElevationStation> ElevationStations { get; set; }
+        /// <summary>The level whose plan hosts elevation markers when the context itself
+        /// carries no level (an exterior elevation is not "on" a level).</summary>
+        internal Level OwnerLevel { get; set; }
+        /// <summary>Room elevations: marker face (0-3) per rule Idx (ElevationFaces.Plan).</summary>
+        internal Dictionary<int, int> ElevationFaceByRule { get; set; }
+        /// <summary>The marker this context's faces share (made with the first face).</summary>
+        internal ElementId SharedElevationMarkerId { get; set; }
+    }
+
+    /// <summary>Where an exterior elevation's marker stands (feet) and the way it must look.</summary>
+    internal sealed class ElevationStation
+    {
+        public double X, Y, LookX, LookY;
     }
 
     public sealed class ProduceOptions
@@ -255,9 +276,16 @@ namespace StingTools.Core.Drawing
             if (doc == null || dt == null || ctx == null) return result;
             opts = opts ?? new ProduceOptions();
 
-            var rules = (dt.ProductionRules != null && dt.ProductionRules.Count > 0)
-                ? dt.ProductionRules.OrderBy(r => r.Idx).ToList()
-                : new List<ProductionRule> { SynthesizeSingleRule(dt, result) };
+            var rules = (ctx.RulesOverride != null && ctx.RulesOverride.Count > 0)
+                ? ctx.RulesOverride.OrderBy(r => r.Idx).ToList()
+                : (dt.ProductionRules != null && dt.ProductionRules.Count > 0)
+                    ? dt.ProductionRules.OrderBy(r => r.Idx).ToList()
+                    : new List<ProductionRule> { SynthesizeSingleRule(dt, result) };
+
+            // DTW-54: a room's elevations are the faces the drawing type asks for —
+            // the faces its rules name, else one per Elevation slot — not face 0 alone.
+            if (ctx.Room != null && ctx.ElevationStations == null)
+                rules = PlanRoomElevationFaces(dt, ctx, rules);
 
             // D-7 follow-up: a purpose with no producible view (Legend — the API
             // cannot create one — or an unknown purpose) synthesises no rule.
@@ -616,6 +644,19 @@ namespace StingTools.Core.Drawing
                 var view = doc.GetElement(viewId) as View;
                 if (view == null) return ElementId.InvalidElementId;
 
+                // DTW-54: a room's faces are told apart by the way each looks, read from
+                // the view itself ("Kitchen - North"), unless the rule names its own suffix.
+                if (view.ViewType == ViewType.Elevation && ctx?.Room != null && string.IsNullOrEmpty(rule.NameSuffix))
+                {
+                    try
+                    {
+                        var look = view.ViewDirection.Negate();
+                        var compass = ElevationFaces.Compass(look.X, look.Y);
+                        if (!string.IsNullOrEmpty(compass)) viewName = $"{viewName} - {compass}";
+                    }
+                    catch (Exception ex) { StingLog.Warn($"Elevation direction of {view.Id}: {ex.Message}"); }
+                }
+
                 try { view.Name = MakeUniqueViewName(doc, viewName, view.Id, result); }
                 catch (Exception ex) { result.Warnings.Add($"Naming view '{viewName}': {ex.Message} — it keeps Revit's default name."); }
                 if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -814,19 +855,7 @@ namespace StingTools.Core.Drawing
                         return ViewSection.CreateDetail(doc, vft.Id, detailBox).Id;
 
                     case "Elevation":
-                        if (ctx.Level == null && ctx.Room == null)
-                        {
-                            result.Warnings.Add("Elevation requires Level or Room context.");
-                            return ElementId.InvalidElementId;
-                        }
-                        var origin = ResolveElevationOrigin(ctx);
-                        var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);
-                        var ownerPlan = new FilteredElementCollector(doc)
-                            .OfClass(typeof(ViewPlan))
-                            .Cast<ViewPlan>()
-                            .FirstOrDefault(v => !v.IsTemplate);
-                        if (ownerPlan == null) { result.Warnings.Add("Elevation requires an owner FloorPlan view."); return ElementId.InvalidElementId; }
-                        return marker.CreateElevation(doc, ownerPlan.Id, 0).Id;
+                        return CreateElevation(doc, rule, ctx, dt, vft, result);
 
                     case "ThreeD":
                     {
@@ -1069,6 +1098,127 @@ namespace StingTools.Core.Drawing
                 Min = new XYZ(-1.0 * 3.281, elevFt - 0.5 * 3.281, -1.0 * 3.281),
                 Max = new XYZ( 1.0 * 3.281, elevFt + 1.5 * 3.281,  1.0 * 3.281)
             };
+        }
+
+        // ── Elevations ─────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// DTW-54: the rules for a room's elevations. With the type's own Elevation rules,
+        /// each keeps its Idx and gets the face it names (or its order); with none, one rule
+        /// per face ElevationFaces.Plan gives, each into its own slot. The faces share one
+        /// marker at the room.
+        /// </summary>
+        private static List<ProductionRule> PlanRoomElevationFaces(DrawingType dt, DrawingContext ctx, List<ProductionRule> rules)
+        {
+            bool allElevation = rules.Count > 0 && rules.All(r => r != null
+                && string.Equals((r.ViewType ?? "").Trim(), "Elevation", StringComparison.OrdinalIgnoreCase));
+            bool hasOwnRules = dt.ProductionRules != null && dt.ProductionRules.Count > 0;
+            if (!hasOwnRules && !allElevation) return rules;
+            var plan = ElevationFaces.Plan(hasOwnRules ? dt.ProductionRules : null,
+                (dt.Slots ?? new List<DrawingSlot>()).Select(s => s?.ViewType).ToList());
+            ctx.ElevationFaceByRule = plan.ToDictionary(p => p.RuleIdx, p => p.Face);
+            if (hasOwnRules) return rules;
+            return plan.Select(p => new ProductionRule
+            {
+                Idx = p.RuleIdx, ViewType = "Elevation", SlotIndex = p.SlotIndex,
+                Required = p.RuleIdx == 0, ElevationFace = p.Face,
+            }).ToList();
+        }
+
+        /// <summary>
+        /// One elevation for <paramref name="rule"/>. An exterior station gets its own marker
+        /// and the face that actually looks at the building (read back from the view, not
+        /// assumed — the API does not promise which index faces which way); a room or level
+        /// context shares one marker across its faces. The marker is hosted on a plan of the
+        /// context's own level — the room's level, or the owner level — not the first plan
+        /// in the model.
+        /// </summary>
+        private static ElementId CreateElevation(Document doc, ProductionRule rule, DrawingContext ctx, DrawingType dt,
+            ViewFamilyType vft, ProduceResult result)
+        {
+            var hostLevel = ctx.Level ?? ctx.OwnerLevel ?? RoomLevel(doc, ctx.Room);
+            if (hostLevel == null && ctx.Room == null)
+            {
+                result.Warnings.Add("Elevation requires a level or a room — none in context.");
+                return ElementId.InvalidElementId;
+            }
+            var ownerPlan = ResolveOwnerPlan(doc, hostLevel, result);
+            if (ownerPlan == null) return ElementId.InvalidElementId;
+            int scale = dt.Scale > 0 ? dt.Scale : 100;
+
+            if (ctx.ElevationStations != null && ctx.ElevationStations.TryGetValue(rule.Idx, out var st))
+            {
+                var at = new XYZ(st.X, st.Y, hostLevel?.Elevation ?? 0);
+                var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, at, scale);
+                for (int i = 0; i < ElevationFaces.MaxFaces; i++)
+                {
+                    if (!marker.IsAvailableIndex(i)) continue;
+                    var v = marker.CreateElevation(doc, ownerPlan.Id, i);
+                    if (v == null) continue;
+                    var look = v.ViewDirection.Negate();   // ViewDirection points at the viewer
+                    if (ElevationFaces.LooksToward(look.X, look.Y, st.LookX, st.LookY)) return v.Id;
+                    doc.Delete(v.Id);
+                }
+                doc.Delete(marker.Id);
+                result.Warnings.Add($"'{ctx.Tag}': no face of the elevation marker looks at the building — nothing made.");
+                return ElementId.InvalidElementId;
+            }
+
+            int face = 0;
+            if (rule.ElevationFace.HasValue) face = rule.ElevationFace.Value;
+            else if (ctx.ElevationFaceByRule != null && ctx.ElevationFaceByRule.TryGetValue(rule.Idx, out var f)) face = f;
+            if (face < 0 || face >= ElevationFaces.MaxFaces)
+            {
+                result.Warnings.Add($"Rule {rule.Idx} of '{dt.Id}' asks for elevation face {face}; a marker has faces 0-3.");
+                return ElementId.InvalidElementId;
+            }
+            ElevationMarker shared = null;
+            if (ctx.SharedElevationMarkerId != null)
+                shared = doc.GetElement(ctx.SharedElevationMarkerId) as ElevationMarker;   // null after a rollback
+            if (shared == null || !shared.IsAvailableIndex(face))
+            {
+                shared = ElevationMarker.CreateElevationMarker(doc, vft.Id, ResolveElevationOrigin(ctx), scale);
+                ctx.SharedElevationMarkerId = shared.Id;
+            }
+            return shared.CreateElevation(doc, ownerPlan.Id, face)?.Id ?? ElementId.InvalidElementId;
+        }
+
+        private static Level RoomLevel(Document doc, Element room)
+        {
+            try
+            {
+                if (room is SpatialElement se && se.Level != null) return se.Level;
+                if (room?.LevelId != null && room.LevelId != ElementId.InvalidElementId) return doc.GetElement(room.LevelId) as Level;
+            }
+            catch (Exception ex) { StingLog.Warn($"RoomLevel({room?.Id}): {ex.Message}"); }
+            return null;
+        }
+
+        /// <summary>
+        /// The floor plan an elevation marker is placed in: an independent floor plan of
+        /// <paramref name="level"/>. Any floor plan only when that level has none — said so,
+        /// because a marker hosted on another storey's plan is not visible where the room is.
+        /// </summary>
+        private static ViewPlan ResolveOwnerPlan(Document doc, Level level, ProduceResult result)
+        {
+            var plans = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>()
+                .Where(v => !v.IsTemplate && v.ViewType == ViewType.FloorPlan).ToList();
+            if (level != null)
+            {
+                var onLevel = plans.Where(v => v.GenLevel != null && v.GenLevel.Id == level.Id).ToList();
+                var own = onLevel.FirstOrDefault(v => PrimaryViewIdValue(v) < 0) ?? onLevel.FirstOrDefault();
+                if (own != null) return own;
+            }
+            var any = plans.FirstOrDefault(v => PrimaryViewIdValue(v) < 0) ?? plans.FirstOrDefault();
+            if (any == null)
+            {
+                result.Warnings.Add("An elevation needs a floor plan to host its marker — the model has none. Produce the plans first.");
+                return null;
+            }
+            result.Warnings.Add(level != null
+                ? $"{level.Name} has no floor plan; the elevation marker was placed in '{any.Name}'. Produce that level's plan and re-run to host it there."
+                : $"No level in context; the elevation marker was placed in '{any.Name}'.");
+            return any;
         }
 
         private static XYZ ResolveElevationOrigin(DrawingContext ctx)
