@@ -5,7 +5,10 @@
   "steps": [
     {
       "commandTag": "TagAndCombine",
-      "label": "Tag and combine (ISO 19650 tokens and tags the drawings annotate with)"
+      "label": "Tag and combine the whole project (ISO 19650 tokens and tags the drawings annotate with)",
+      "params": {
+        "scope": "project"
+      }
     },
     {
       "commandTag": "TokenConfidenceAudit",
@@ -54,7 +57,10 @@
     },
     {
       "commandTag": "Panel_PlaceOnSheets",
-      "label": "Panel schedules on sheets (lists the schedules still to drag onto sheets — Revit 2024+ cannot place them by API)",
+      "label": "Panel circuit schedules on sheets: one per board, each on its own elec-panel-schedule-A3 sheet (re-runs reuse them; the native panel schedules still need dragging — Revit 2024+ cannot place them by API)",
+      "params": {
+        "mode": "AutoSheets"
+      },
       "optional": true
     }
   ],

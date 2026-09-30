@@ -51,7 +51,9 @@ namespace StingTools.Commands.Panels
                 var missing = specNames.Where(n => StingTools.Core.Panels.PanelTemplateBuilder.FindTemplate(doc, n) == null).ToList();
                 if (specNames.Count > 0 && missing.Count == specNames.Count)
                 {
-                    var ask = TaskDialog.Show("STING Panel Schedules",
+                    // Inside a preset nobody can answer: build them (the preset's own
+                    // Panel_TemplatesCreate step normally has already).
+                    var ask = PresetDialog.Quiet ? TaskDialogResult.Yes : TaskDialog.Show("STING Panel Schedules",
                         "This project has none of the STING standard panel schedule templates " +
                         "(ISO 19650 header + BS 7671 circuit table).\n\nCreate them now, then build the schedules?\n\n" +
                         "Choose No to use the project's existing templates.",
@@ -81,7 +83,7 @@ namespace StingTools.Commands.Panels
 
             if (applied.Inspected == 0)
             {
-                TaskDialog.Show("STING Panel Schedules", "No electrical equipment found.");
+                PresetDialog.Show("STING Panel Schedules", "No electrical equipment found.", ref message);
                 return Result.Succeeded;
             }
 
@@ -147,7 +149,7 @@ namespace StingTools.Commands.Panels
                   .Text("Drag schedules onto sheets manually — Revit's PanelScheduleSheetInstance.Create API has been broken since Revit 2024.")
                   .Text("Use 'Panel Schedules → Export to Excel' for bulk circuit-data round-trip.")
                   .Text("Run 'Panel Schedule Audit' to surface drift between rules and reality.");
-            result.Show();
+            PresetDialog.Show(result, ref message);
 
             return Result.Succeeded;
         }

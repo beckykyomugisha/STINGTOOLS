@@ -74,7 +74,8 @@ namespace StingTools.Commands.Drawing
             foreach (var w in r.Warnings) StingLog.Warn($"MatchLineGenerate: {w}");
             foreach (var e in r.Errors)   StingLog.Error($"MatchLineGenerate: {e}");
 
-            TaskDialog.Show("STING — Match Lines", sb.ToString());
+            // Inside a preset: the log and the step message, not a modal dialog.
+            PresetDialog.Show("STING — Match Lines", sb.ToString(), ref msg);
             return r.Errors.Count == 0 ? Result.Succeeded : Result.Failed;
         }
     }
@@ -156,7 +157,7 @@ namespace StingTools.Commands.Drawing
             }
 
             foreach (var w in rep.Warnings) StingLog.Warn($"MatchLineValidate: {w}");
-            TaskDialog.Show("STING — Match Line Validate", sb.ToString());
+            PresetDialog.Show("STING — Match Line Validate", sb.ToString(), ref msg);
             return Result.Succeeded;
         }
     }

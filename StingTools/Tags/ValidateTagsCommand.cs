@@ -684,7 +684,11 @@ namespace StingTools.Tags
                 });
             }
 
-            int clickedAction = panel.Show();
+            // Inside a workflow preset: no modal panel (and so no action click); the
+            // figures go to the step message, the full panel text to the log.
+            int clickedAction = PresetDialog.Show(panel, ref message);
+            if (PresetDialog.Quiet)
+                message = $"Tags: {compliancePct:F1}% compliant — {bucketFully} full, {bucketPartial} partial, {bucketUntagged} untagged, {isoViolations} ISO violation(s).";
 
             if (clickedAction == 0) // Create Validation Legend
             {

@@ -873,6 +873,9 @@ namespace StingTools.UI
             };
         }
 
+        /// <summary>The panel as plain text (what "Copy" puts on the clipboard).</summary>
+        public static string PlainText(Builder b) => b == null ? "" : (b.RawText ?? BuildPlainText(b));
+
         private static string BuildPlainText(Builder b)
         {
             var sb = new StringBuilder();
