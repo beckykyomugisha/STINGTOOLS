@@ -10,9 +10,12 @@
 //   STING-LOC::<loc>    the tagger sets LOC for every element inside the box
 //   STING-ZONE::<zone>  the tagger sets ZONE for every element inside the box
 //
-// The other three cannot be produced by a rename:
-//   STING-AREA::…  is only produced from when the Scope Box Planner's saved plan
-//                  lists it — renaming a box to it makes a name no plan knows.
+// The other three are not offered here:
+//   STING-AREA::…  is a drawing area the planner sizes from a seed. It is produced as
+//                  the saved plan lists it, or — when the plan does not list it, or no
+//                  plan is saved — from its own name with the routed per-level default
+//                  types (AreaBoxResolution). A wizard rename sets where elements are,
+//                  not what is drawn, so it does not make area boxes.
 //   STING-SEED::…  is a size the planner copies; the planner registers seeds.
 //   STING::…       binds one box to one drawing type; the Scope Box Manager
 //                  validates that grammar against the catalogue.
