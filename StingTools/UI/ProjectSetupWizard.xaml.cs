@@ -340,18 +340,9 @@ namespace StingTools.UI
 
         // ── ISO 19650 level naming ──────────────────────────────────
 
-        /// <summary>Valid ISO 19650 level code pattern: B##, GF, L##, MZ##, RF, UR, XX.</summary>
-        private static readonly System.Text.RegularExpressions.Regex IsoLevelRegex =
-            new System.Text.RegularExpressions.Regex(
-                @"^(B\d{1,2}|GF|L\d{2,3}|MZ\d{1,2}|RF\d?|UR|XX)(\s*[-–_]\s*.+)?$",
-                System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
-
-        /// <summary>True when the level name starts with an ISO 19650 code (B01, GF, L02, MZ01, RF, etc.).</summary>
-        internal static bool IsIsoLevelName(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name)) return false;
-            return IsoLevelRegex.IsMatch(name.Trim());
-        }
+        /// <summary>True when the level name starts with an ISO 19650 code (B01, GF, L02, MZ01, RF, etc.).
+        /// The rule lives in the Revit-free <see cref="LevelNameAdvice"/>, which is unit-tested.</summary>
+        internal static bool IsIsoLevelName(string name) => LevelNameAdvice.IsIsoLevelName(name);
 
         /// <summary>Propose an ISO 19650 code from a level's current name + elevation.
         /// Basements elevate below zero, ground floor ≈ 0, mezzanine hints via name.</summary>
@@ -795,6 +786,56 @@ namespace StingTools.UI
                             }
                             if (res == TaskDialogResult.Cancel)
                                 return false;
+                            // CommandLink2 → continue
+                        }
+
+                        // Whitespace audit — non-blocking. The level NAME is used raw as {lvl}
+                        // in sheet numbers and as the level segment of scope-box names, which
+                        // forbid spaces; an ISO-prefixed name like "L02 - Office Level" passes
+                        // the check above and still breaks both.
+                        var spaced = LevelNameAdvice.WhitespaceFindings(
+                            LevelRows.Select(r => r.Name));
+                        if (spaced.Count > 0)
+                        {
+                            var wdlg = new TaskDialog("Level Names Contain Spaces")
+                            {
+                                MainInstruction = $"{spaced.Count} level name(s) contain spaces",
+                                MainContent =
+                                    "The level name is used as-is for {lvl} in sheet numbers, and scope-box names " +
+                                    "(STING::<type>::<level>) cannot contain spaces. A short code avoids both.\n\n" +
+                                    string.Join("\n", spaced.Take(5).Select(f => $"'{f.Name}'  →  suggested '{f.Suggestion}'")) +
+                                    (spaced.Count > 5 ? $"\n(+{spaced.Count - 5} more)" : ""),
+                                CommonButtons = TaskDialogCommonButtons.Cancel
+                            };
+                            wdlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1,
+                                "Use the suggested short codes",
+                                "Renames each spaced level to its short code, unless that code is already taken.");
+                            wdlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
+                                "Continue with these names",
+                                "Names are left as-is; sheet numbers built from {lvl} will contain spaces.");
+
+                            var wres = wdlg.Show();
+                            if (wres == TaskDialogResult.Cancel) return false;
+                            if (wres == TaskDialogResult.CommandLink1)
+                            {
+                                var taken = new HashSet<string>(
+                                    LevelRows.Where(r => !string.IsNullOrWhiteSpace(r.Name)).Select(r => r.Name.Trim()),
+                                    StringComparer.OrdinalIgnoreCase);
+                                int renamed = 0, skipped = 0;
+                                foreach (var row in LevelRows)
+                                {
+                                    if (!LevelNameAdvice.HasWhitespace(row.Name) || string.IsNullOrWhiteSpace(row.Name)) continue;
+                                    string code = LevelNameAdvice.SuggestShortCode(row.Name);
+                                    if (string.IsNullOrEmpty(code) || taken.Contains(code)) { skipped++; continue; }
+                                    taken.Remove(row.Name.Trim());
+                                    taken.Add(code);
+                                    row.Name = code;
+                                    renamed++;
+                                }
+                                if (skipped > 0)
+                                    StingLog.Info($"ProjectSetup: renamed {renamed} spaced level name(s); {skipped} kept because the short code was taken.");
+                                return false; // stay on page so the user sees the new names
+                            }
                             // CommandLink2 → continue
                         }
                         return true;

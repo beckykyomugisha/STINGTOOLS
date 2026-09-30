@@ -57,9 +57,16 @@ namespace StingTools.Commands.Placement
             XYZ p1 = uidoc.Selection.PickPoint("Pick the chase start point on the wall");
             XYZ p2 = uidoc.Selection.PickPoint("Pick the chase end point on the wall");
 
+            // A project override may define its own WALL_CHASE rule and wins; the
+            // shipped chase rules live in their own pack, which is NOT merged into
+            // the fixture-placement run (PlacementPackRegistry.NotAutoMerged), so
+            // Load() alone never saw them and this command always reported
+            // "No WALL_CHASE rule loaded".
             var rules = PlacementRuleLoader.Load(doc.PathName);
             var rule = rules.FirstOrDefault(r =>
-                string.Equals(r.RoutingMode, "WALL_CHASE", StringComparison.OrdinalIgnoreCase));
+                string.Equals(r.RoutingMode, "WALL_CHASE", StringComparison.OrdinalIgnoreCase))
+                ?? PlacementRuleLoader.LoadPack("STING_PLACEMENT_RULES.in-wall-chase.json", "In-Wall-Chase")
+                    .FirstOrDefault(r => string.Equals(r.RoutingMode, "WALL_CHASE", StringComparison.OrdinalIgnoreCase));
             if (rule == null)
                 return StingResultPanel.Create("STING — Wall Chase").AddSection("RESULT")
                     .Text("No WALL_CHASE rule loaded. Ship STING_PLACEMENT_RULES.in-wall-chase.json or define one.");

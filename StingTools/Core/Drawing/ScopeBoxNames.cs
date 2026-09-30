@@ -1,9 +1,10 @@
 // StingTools — Scope-box planner · the name grammar for area and seed boxes
 //
-// Four kinds of scope box carry meaning in STING, told apart by prefix:
+// Five kinds of scope box carry meaning in STING, told apart by prefix:
 //
 //   STING::<drawing-type>[::<level>[::<tag>]]   one box, one drawing type   (ScopeBoxBinder)
 //   STING-LOC::<loc>                            a building's footprint      (ScopeBoxLoc)
+//   STING-ZONE::<zone>                          a zone's footprint          (ScopeBoxLoc, ZONE token)
 //   STING-AREA::<area>[::<level>]               an area every plan type shares
 //   STING-SEED::<w>x<d>                         a hand-drawn size to copy from
 //
@@ -41,6 +42,8 @@ namespace StingTools.Core.Drawing
         Area,
         /// <summary>STING-SEED::&lt;w&gt;x&lt;d&gt;.</summary>
         Seed,
+        /// <summary>STING-ZONE::&lt;zone&gt; — a zone footprint; sets ZONE for elements inside it.</summary>
+        Zone,
     }
 
     public static class ScopeBoxNames
@@ -48,6 +51,7 @@ namespace StingTools.Core.Drawing
         public const string AreaPrefix = "STING-AREA::";
         public const string SeedPrefix = "STING-SEED::";
         public const string LocPrefix  = "STING-LOC::";
+        public const string ZonePrefix = "STING-ZONE::";
         /// <summary>ScopeBoxBinder's prefix, restated because that file needs the Revit API.</summary>
         public const string DrawingTypePrefix = "STING::";
 
@@ -67,6 +71,7 @@ namespace StingTools.Core.Drawing
             if (name.StartsWith(AreaPrefix, StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.Area;
             if (name.StartsWith(SeedPrefix, StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.Seed;
             if (name.StartsWith(LocPrefix,  StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.Building;
+            if (name.StartsWith(ZonePrefix, StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.Zone;
             if (name.StartsWith(DrawingTypePrefix, StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.DrawingType;
             return ScopeBoxKind.Plain;
         }
@@ -88,6 +93,32 @@ namespace StingTools.Core.Drawing
             level = m.Groups[2].Success ? m.Groups[2].Value : null;
             return true;
         }
+
+        public const string ZonePatternReason =
+            "name has the STING-ZONE:: prefix but does not match STING-ZONE::<zone> "
+          + "(one code; allowed chars: A-Z 0-9 . _ -)";
+
+        /// <summary>
+        /// Parse a zone name, STING-ZONE::&lt;zone&gt;. The code is one segment — the same
+        /// A-Z 0-9 . _ - rule as an area or level code — because it is written straight
+        /// into the ZONE token and so into the tag, where a space or a second "::" would
+        /// break the tag format. Surrounding whitespace is trimmed, as the LOC index trims.
+        /// Returns false with <paramref name="reason"/> null when the name is not a zone
+        /// box at all, and non-null when it claims to be one and is malformed.
+        /// </summary>
+        public static bool TryParseZone(string name, out string zone, out string reason)
+        {
+            zone = reason = null;
+            if (Classify(name) != ScopeBoxKind.Zone) return false;
+            var code = name.Substring(ZonePrefix.Length).Trim();
+            if (!IsValidSegment(code)) { reason = ZonePatternReason; return false; }
+            zone = code;
+            return true;
+        }
+
+        /// <summary>Compose a zone name; empty when <paramref name="zone"/> is not a legal segment.</summary>
+        public static string ComposeZone(string zone)
+            => IsValidSegment(zone) ? ZonePrefix + zone : string.Empty;
 
         /// <summary>Compose an area name; empty when <paramref name="area"/> is not a legal segment.</summary>
         public static string ComposeArea(string area, string level = null)

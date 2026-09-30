@@ -29,28 +29,12 @@ namespace StingTools.Core.Placement
         private const string LearnedOverrideFileName = "STING_PLACEMENT_RULES.learned.json";
 
         // PC-20 + Phase 139 — per-discipline packs that ship alongside the
-        // baseline.  The Centre's first-run flow can offer them as a sector
-        // picker; for now they're auto-merged.  Each pack tags its rules with
-        // SourcePack so the rules viewmodel can filter by pack chip.
-        private static readonly (string FileName, string PackTag)[] DisciplinePacks = new (string, string)[]
-        {
-            ("STING_PLACEMENT_RULES.architecture.json", "Architecture"),
-            ("STING_PLACEMENT_RULES.mechanical.json", "Mechanical"),
-            ("STING_PLACEMENT_RULES.electrical.json", "Electrical"),
-            ("STING_PLACEMENT_RULES.healthcare-education.json", "Healthcare-Education"),
-            ("STING_PLACEMENT_RULES.toilet-fixtures.json", "Toilet-Fixtures"),  // Phase 177 — full toilet-room fixture coverage
-            // These general packs were authored but never registered, so
-            // residential lighting (ceiling-pendants → living/dining/bedroom),
-            // residential MK sockets/switches, the extended baselines and the
-            // accessibility + glazing rules never loaded. Registered so dwelling
-            // projects place lights/sockets, not just commercial ones.
-            ("STING_PLACEMENT_RULES.ceiling-pendants.json", "Lighting-Pendants"),
-            ("STING_PLACEMENT_RULES.mk-electrical.json", "MK-Electrical"),
-            ("STING_PLACEMENT_RULES.baseline-extensions.json", "Baseline-Ext"),
-            ("STING_PLACEMENT_RULES.baseline-extensions2.json", "Baseline-Ext2"),
-            ("STING_PLACEMENT_RULES.accessibility.json", "Accessibility"),
-            ("STING_PLACEMENT_RULES.windows-glazing.json", "Windows-Glazing"),
-        };
+        // baseline. Each pack tags its rules with SourcePack so the rules
+        // viewmodel can filter by pack chip. The list lives in the Revit-free
+        // PlacementPackRegistry so a test can prove every shipped pack is
+        // either registered there or deliberately listed as not auto-merged.
+        private static IReadOnlyList<(string FileName, string PackTag)> DisciplinePacks
+            => PlacementPackRegistry.DisciplinePacks;
 
         /// <summary>
         /// Load the default rule set + every discipline pack (PC-20).
@@ -404,6 +388,27 @@ namespace StingTools.Core.Placement
             foreach (var r in list)
                 if ((color.TryGetValue(r.MergeKey, out var c) ? c : 0) == 0)
                     Dfs(r.MergeKey);
+        }
+
+        /// <summary>
+        /// Load one named rules file from the plugin data folder, on its own —
+        /// for packs that are deliberately NOT merged into the placement run
+        /// (see <see cref="PlacementPackRegistry.NotAutoMerged"/>), such as the
+        /// WALL_CHASE rules RunWallChaseCommand reads. Rules are stamped with
+        /// <paramref name="packTag"/>. Empty list when the file is missing or bad.
+        /// </summary>
+        public static List<PlacementRule> LoadPack(string fileName, string packTag)
+        {
+            string p = StingToolsApp.FindDataFile(fileName);
+            if (string.IsNullOrEmpty(p))
+            {
+                StingLog.Warn($"PlacementRuleLoader.LoadPack: '{fileName}' not found in the data folder.");
+                return new List<PlacementRule>();
+            }
+            var rules = LoadFromFileSafe(p);
+            foreach (var r in rules)
+                if (r != null && string.IsNullOrEmpty(r.SourcePack)) r.SourcePack = packTag;
+            return rules;
         }
 
         /// <summary>
