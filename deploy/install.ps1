@@ -45,7 +45,9 @@ $template = @"
   </AddIn>
 </RevitAddIns>
 "@
-$addin = $template.Replace('__DLL__', $dll)
+# Escape the path for XML: a folder such as "M&E Projects" would otherwise write a
+# manifest Revit refuses to parse.
+$addin = $template.Replace('__DLL__', [System.Security.SecurityElement]::Escape($dll))
 
 # Revit holds the old DLL and re-reads manifests only at startup.
 if (Get-Process -Name 'Revit' -ErrorAction SilentlyContinue) {
