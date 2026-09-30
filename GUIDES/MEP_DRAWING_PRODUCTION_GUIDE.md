@@ -1,6 +1,7 @@
 # MEP Modelling and Drawing Production with StingTools: the Fastest Order
 
-**Updated:** 2026-09-30, re-checked line by line against `main` (first written 2026-09-24).
+**Updated:** 2026-09-30, after the gap-closing work in PR #1018, re-checked against the code
+(first written 2026-09-24).
 **Nothing here has been run end-to-end in Revit.** It is a reading of the code. Where a step
 depends on code nobody has run, or where the code does less than its dialog suggests, it says
 so. Button names are quoted exactly as the panels show them.
@@ -36,7 +37,7 @@ backgrounds (link, or model from DWG) → seeds → place → route → systems 
 
 | Do | Why |
 |---|---|
-| Name levels as short ISO codes with **no spaces**: `B1`, `GF`, `L01` … | `{lvl}` in sheet numbers is the raw level name, and scope-box names forbid spaces. The wizard's level audit accepts `L02 - Office`, so it will not warn you. |
+| Name levels as short ISO codes with **no spaces**: `B1`, `GF`, `L01` … | `{lvl}` in sheet numbers is the raw level name, and scope-box names forbid spaces. The wizard now warns about a level name with spaces and offers to rename it to its short code (`L02 - Office` → `L02`). |
 | Fill in **Project Information → Number**, plus `PRJ_PROJECT_COD_TXT` and `PRJ_ORG_ORIGINATOR_CODE_TXT` | Otherwise `{project}` / `{originator}` stay as literal braces. Revit rejects that number and the sheet keeps its default. This hits `mep-plan`, `elec-power` and the spool types. |
 | Decide on sheet numbering: per drawing type (default) or ISO 19650-2 | One project setting, `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` (`profile` or `iso`), which the wizard now sets. A typo reads as `profile`; production warns about it. |
 | Get the consultant DWGs **imported**, not only linked, if you will model from them | The MEP converter and Explode work only on imports (Part B). |
@@ -55,11 +56,14 @@ On the Automation page:
   been checked in Revit yet (ROADMAP DT-6). The alternative is to run it yourself in A2.
 - **Set the sheet-number policy** in the picker. If you leave the picker as it opened, nothing
   is written and the report says SKIPPED.
-- **Untick "Create views" and "Create sheets"**. Both are on by default. That is the older
-  production path: its sheets carry no drawing-type stamp, so Doctor, Renumber, Heal TBs and
-  Produce & Export ignore them, and A7 then makes a second, duplicate set.
-- **Leave "Rename scope boxes" off.** Its pattern `{BLD}-{ZONE}-{INDEX}` is read by nothing
-  else in STING.
+- **"Produce plan views per level"** and **"…and put each on a drawing-type sheet"** now go
+  through drawing-type production: each ticked discipline's PLAN / RCP drawing types, per
+  level, stamped. So they are the same views and sheets A7 makes, and a later production run
+  reuses them instead of duplicating them. Leave them on for a whole-floor set; untick them
+  if you will produce from area boxes (A6).
+- **"Rename scope boxes"** now writes names STING reads: `STING-ZONE::{ZONE}` by default (sets
+  the ZONE token), or `STING-LOC::{LOC}`. It refuses AREA, SEED and `STING::` names, which
+  belong to the Scope Box Planner, and lists any refused rename in the report.
 
 ## A2. SETUP → DRAWING PRODUCTION → ★ Set up drawing production
 
@@ -87,11 +91,16 @@ silent no-op.**
 
 Then, once, for MEP colours: **HVAC panel → SYS → "Build types"**, then **"Gen filters"**.
 
-> **Known gap:** the MEP view templates the drawing types name (`STING - HVAC Duct`, `STING -
-> Power Layout`, `STING - Lighting Layout`, `STING - Fire Alarm`, `STING - Drainage`, `STING -
-> MEP Plan`, `STING - Fire Protection Plan`) are created by nothing. Production warns once per
-> view and falls back to the style pack. The drawings still come out, and the warnings are
-> noise. Step 11 (managed templates) is the way to get real templates.
+Step 6 (view templates) creates **every** view template a drawing type names (`STING - HVAC
+Duct`, `STING - Power Layout`, `STING - Lighting Layout`, `STING - Fire Alarm`, `STING -
+Drainage`, `STING - MEP Plan`, `STING - Fire Protection Plan`, and the rest). The list is read
+from the drawing types, so a new type's template is created without a code change. When the
+model has no view of the kind a template needs (a section, an elevation, a 3D view), a
+temporary one is made and deleted. Only legend templates cannot be made this way; the report
+says so.
+
+Or run **SETUP → WORKFLOW AUTOMATION → "Run preset" → `MEPDrawingSetup`**: drawing-production
+setup, MEP system types, MEP systems, system filters and seeds, in one run.
 
 ## A3. Backgrounds
 
@@ -142,11 +151,17 @@ every level it spans. So you draw one box per area of the building, not one per 
 Limits:
 - The planner offers **Plan and RCP types only**. `mep-coord-A1-1to50` (Coordination) is not
   offered; produce it per level or from a `STING::` box.
-- **Match lines probably will not generate between area boxes.** Match Lines pairs boxes whose
-  faces touch within 1 mm, and area boxes overlap by 2 m and are turned to the grid. This is
-  inferred from the code, not tested.
 
-**Named boxes (the older way)** are still supported, and still the way to get match lines:
+**Match lines** work for area boxes too. Two boxes that overlap get a match line down the
+middle of the overlap, and each box is measured in its own frame, so boxes turned to the grid
+match. Lines join only views of the **same drawing type on the same level**, and seed and
+building boxes are ignored.
+
+**Duplicate as Dependent** (in the production dialog, or `duplicateOption` in a preset) makes
+one parent plan per drawing type and level, off every sheet, and each box's view a dependent
+of it cropped to the box.
+
+**Named boxes (the older way)** are still supported:
 
 | Name | Read by | Effect |
 |---|---|---|
@@ -154,9 +169,11 @@ Limits:
 | `STING-AREA::<code>[::<level>]` | "Produce From Areas" | See above |
 | `STING-SEED::<w>x<d>` | The planner | A seed; never produced from |
 | `STING-LOC::<code>` | Tagging | Sets the LOC (building) token when room and workset detection fall back to the default. Smallest containing box wins; must be unrotated. |
+| `STING-ZONE::<code>` | Tagging | Sets the ZONE token the same way. Codes use A–Z, 0–9, `.`, `_`, `-` only, because the code goes straight into the tag; an invalid one is ignored and flagged in the Scope Box Manager. |
 
-ZONE is **never** read from scope boxes. It comes from room Department/Name/Number or the
-workset name, otherwise `Z01`.
+ZONE comes from room Department / Name / Number or the workset name first, then the smallest
+`STING-ZONE::` box containing the element, otherwise `Z01`. Risers and ceiling voids are the
+usual reason to draw zone boxes.
 
 ## A7. Produce
 
@@ -175,11 +192,26 @@ model changes.
 Then, in this order:
 1. **DOCS → "Match Lines: Generate"**. It needs the sheets first, because the captions quote
    sheet numbers.
-2. **Electrical panel → PNLS → "▶ Place Schedules on Sheets".**
+2. **Electrical panel → PNLS → "▶ Place Schedules on Sheets"**, mode **"Auto — one circuit
+   schedule per board, each on its own stamped sheet"** (`elec-panel-schedule-A3`; re-runs
+   reuse the sheets). Revit cannot place a native panel schedule by API, so those still need
+   dragging.
 3. **Electrical panel → SLD → "▶ Generate SLD Drafting View"**, and **"▶ Generate Riser
-   Diagram"**. Build the SLD symbols first.
+   Diagram"**. Build the SLD symbols first. Each view is now put on its own stamped sheet
+   (`elec-sld-A1-NTS`; the riser on an `elec-riser-A3-1to200` sheet), and a re-run replaces
+   the old view on that sheet.
 4. The schedule drawing types: `mech-equip-schedule-A3`, `elec-panel-schedule-A3`,
    `valve-schedule-A3`, `plumb-pressure-schedule-A3`, `penetration-register-A1`.
+
+**One click for the whole set:** **"Run preset" → `MEPDrawingProduction`** tags the project,
+then produces from area boxes when the project has them, per level when it doesn't, and from
+`STING::` boxes when there are any; then match lines, panel templates, schedules and schedule
+sheets. It shows no dialogs: each step's result goes into the workflow report and the full text
+into the STING log. Re-runs reuse everything by stamp.
+
+Style sync ("Sync Styles") and production re-runs keep each view's scope-box crop: the box is
+recovered from the view's own context stamp, so re-applying a drawing type no longer replaces
+a box crop with the type's default crop.
 
 ## A8. QA
 
@@ -191,14 +223,16 @@ Then, in this order:
 5. **DOCS → "Match Lines: Validate"**.
 
 Run **"Heal TBs"** and **"Renumber"** (same expander as Doctor) only if something was
-reported.
+reported. **"Run preset" → `MEPPreIssue`** runs steps 1–5 in one go, without dialogs.
 
 ## A9. Issue
 
 1. Run `WORKFLOW_RevisionIssue` (Create Revision → Auto Revision Cloud → Issue Sheets →
    Revision Sync → Revision Schedule).
 2. **"⚡ Produce & Export" → option 2, "Finalize + Export (existing sheets only)"**. This
-   writes PDFs plus a register CSV of the stamped sheets.
+   writes PDFs plus a register CSV of the stamped sheets. (Option 1, "Produce + Finalize +
+   Export", now asks which plan drawing types to produce, with those of the disciplines in the
+   model pre-ticked.)
 3. **BIM → Issue Deliverable / Create Transmittal**.
 
 ---
@@ -251,34 +285,22 @@ through it:
    beam 450 × 250, wall 3000 × 200, slab 200, foundation depth 600).
 5. **"Re-analyse (dry-run)"**: counts what would be created, and creates nothing. **Always do
    this first.**
-6. **"Convert to BIM"**: creates grids, columns (circles become round columns), beams, walls
-   and slabs on the base level, then tags them.
-   - Each element type is a separate undo step.
-   - The report lists warnings and a load-path audit.
-   - The created elements are left selected.
-
-**What Convert does not do yet (ROADMAP CAD-1).** The dry-run uses the complete pipeline,
-with every option in the dialog. Convert still runs an older pipeline that reads only:
-- the selected layers
-- Base Level
-- the column, beam, slab and grid switches
-- beam depth, slab thickness and column height
-
-So these are **ignored on Convert**:
-- Top Level and "Repeat to other levels" (model **one level at a time**)
-- foundations (use **"★ Auto Footings"** afterwards)
-- the Wall and structural-wall switches (walls are always created, structural, at column height)
-- the Dry-run tick box (**Convert always creates**)
-- numbering
-- the size-detection options
-
-*Fixed 2026-09-30:* Convert now converts the DWG picked in the dropdown. It used to take the
-first import in the project.
+6. **"Convert to BIM"**: runs the same complete pipeline as the dry-run, with **every option
+   in the dialog**, on the DWG picked in the dropdown:
+   - Base and Top Level, "Repeat to other levels", foundations, the wall and structural-wall
+     switches, numbering and the size-detection options all apply.
+   - Ticking **Dry-run** creates nothing.
+   - Size detection now really creates matching types (it could not before: its type
+     duplication failed inside the conversion transaction).
+   - The whole conversion is **one undo step**, rolled back if it fails.
+   - Elements are tagged once, and only if Auto-tag is ticked.
+   - The report lists what was created and tagged, warnings and a load-path audit; the created
+     elements are left selected.
 
 Size detection:
 - Pad sizes are read from **block names** such as `PAD 1500x1500`.
-- DWG text is not read, so section sizes come from your types, or from the dialog's "Create
-  new Revit types" option (a dry-run feature today; see above).
+- DWG text is not read, so section sizes come from your types, or from "Create new Revit types
+  to match".
 
 Other buttons in the same group:
 
@@ -287,7 +309,9 @@ Other buttons in the same group:
 | **Dry-Run** | Counts only, using the first import |
 | **Preview** | Layer list with classification and confidence (read-only) |
 | **Prereqs** / **Catalog** | What's missing / the available types (read-only) |
-| **Pick Wall** / **Pick Column** / **Pick Beam** | Click one element in the view. Each uses the first available type on the lowest level. Pick Wall measures thickness but does not apply it yet. |
+| **Pick Wall** | Pick a wall's two lines: uses (or creates) a wall type within ±5 mm of the measured thickness, on the active plan's level |
+| **Pick Column** | Pick a circle, a closed rectangle, or two opposite edges: finds or creates a column type of that size, placed and turned to match |
+| **Pick Beam** | Pick the two edge lines to size it from its width, or two points (then no size is measured, and the report says so) |
 | **Openings** | Cuts openings in **every** basic wall in the project, not only selected ones |
 | **Legacy** | The old one-click conversion with default settings |
 
@@ -371,10 +395,15 @@ Where things are:
      medical gas, junction box, and more).
    - These are the placeholders placement uses until manufacturer families arrive (**Swap to
      Manufacturer**).
+   - Changing a placed seed element's type updates the values that belong to the type — gas
+     type, product code, fire rating, ratings — unless you have typed your own value.
+   - A seed type that was renamed is migrated on the next Build Seeds, in any mode.
 2. **MODEL → "★ Placement Centre" → Run & Routing → "Run All Rules"** places fixtures by room
    type from the rule packs:
    - baseline, architecture, mechanical, electrical, healthcare-education, toilet fixtures,
-     ceiling pendants, MK electrical, accessibility, glazing, extensions
+     ceiling pendants, MK electrical, accessibility, glazing, extensions, **medical gases**
+     (clinical rooms only: wards, bays, theatres, ICU, recovery — never bedrooms, lecture
+     theatres or corridors in general)
    - "Preview" shows first what would be placed
    - "Learn from Model" records your own placements as project rules
 3. **"All Validators"**, "BS 6465 Audit", "Clearance Scan" and "Penetration Coverage" (same
@@ -462,8 +491,9 @@ Presets: `WORKFLOW_PlumbingDesign` (20 steps), `WORKFLOW_PlumbingRoughIn`,
 
 - **Outlets:** `Placement_MedGasOutlets` places one outlet per gas listed in each room's
   `MGS_GAS_REQUIREMENT_TXT`, using the STING outlet seed or a manufacturer family.
-  - **It has no button**; run it from a workflow.
-  - The Placement Centre does **not** load the medical-gas rule pack (ROADMAP MDP-1).
+  - Buttons: TAG STUDIO → Fixtures → **"Med gas outlets"**, and Placement Centre → Run &
+    Routing → **"Med Gas Outlets"**.
+  - The medical-gas rule pack is also loaded by "Run All Rules" (C0).
 - **Audit:** HEALTHCARE → MGPS → **"Run audit"**, **"Full verify"** (`WORKFLOW_MgasVerification`).
 - **Drawings:** `health-medgas-pln-A1-1to100`, `health-medgas-schem-A1`.
 
@@ -486,11 +516,17 @@ These run headless:
 - `Panel_BatchSchedules`, `Panel_ComplianceCheck`, `Panel_BalanceApply`
 - `SLD_Generate`, `Fire_SprinklerHydraulics`, `BOQExport`, `COBieExport`
 - `DrawingTypes_SetupProduction`, the `ScopeBox_*` commands, `MatchLine_*`, `DrawingTypes_Doctor`
+- the producers `DrawingTypes_ProducePerLevel`, `DrawingTypes_ProduceFromScopeBoxes`,
+  `DrawingTypes_ProduceAndExport`, plus `DrawingTypes_Renumber`, `DrawingTypes_HealTitleBlocks`,
+  `Panel_PlaceOnSheets`
 
-These are panel-only:
+A step passes inputs through `params`: `drawingTypes`, `levels`, `output`, `duplicateOption`,
+`packageId`, `mode`. With none, production makes every M / E / P / FP / MG plan type on every
+level, as views and sheets. An unknown type or level fails the step with the reason.
+
+These are still panel-only:
 - `Placement_LightingGrid`, `Placement_ToiletRoom`
 - `Hvac_AutoSizeDuct`, `Elec_AutoRoute`, `BatchMEPSchedules`
-- the producers "Produce Per Level", "From Scope Boxes (Produce)" and "⚡ Produce & Export"
 
 ---
 
@@ -529,27 +565,28 @@ each item.
 | **HVAC** | | |
 | Ductwork layouts | ✅ | `mep-hvac-duct-A1-1to100` |
 | Plant rooms | ✅ | `mep-plantroom-A1-1to50` |
-| Chilled / LTHW pipework layouts | ❌ | No type. Produce `mep-plan` and filter by system. |
-| HVAC schematics (air, water, controls) | ❌ | No type |
+| Chilled / LTHW pipework layouts | ✅ | `mep-hvac-pipe-A1-1to100` |
+| HVAC schematics (air, water, controls) | ✅ | `mep-hvac-schematic-A1` (drafting, NTS) |
 | Equipment schedules | ✅ | `mech-equip-schedule-A3` |
 | Duct spools / isometrics | ✅ | `duct-spool-A1-1to50`; HVAC FAB "Isometrics" |
 | **Electrical** | | |
 | Lighting layouts (incl. RCP-style) | ✅ | `elec-lighting-A1-1to100` |
-| Emergency lighting layouts | 🟡 | LITE "▶ Emergency Circuit Audit"; no separate type |
+| Emergency lighting layouts | ✅ | `elec-emergency-lighting-A1-1to100`; LITE "▶ Emergency Circuit Audit" |
 | Power / small power layouts | ✅ | `elec-power-A1-1to100` (one type for both) |
 | Fire alarm layouts | ✅ | `elec-fire-alarm-A1-1to100` |
-| Fire alarm schematic | ❌ | No type |
-| Data / comms / telecoms, security / access control | ❌ | Devices exist as seeds; no drawing type |
-| Containment / cable tray layouts | ❌ | No type. `mep-plan` + filters. |
-| Single line diagram | 🟡 | "▶ Generate SLD Drafting View": a drafting view, placed by hand |
-| Riser diagrams | ✅ / 🟡 | `elec-riser-A3-1to200`, `health-ess-power-riser-A1`; "▶ Generate Riser Diagram" |
-| Panel / distribution board schedules | ✅ | `elec-panel-schedule-A3`; PNLS "▶ Place Schedules on Sheets" |
+| Fire alarm schematic | ✅ | `elec-fire-alarm-schematic-A1` (drafting, NTS) |
+| Data / comms / telecoms | ✅ | `elec-data-comms-A1-1to100` |
+| Security / access control | ✅ | `elec-security-A1-1to100` |
+| Containment / cable tray layouts | ✅ | `elec-containment-A1-1to100` |
+| Single line diagram | ✅ | "▶ Generate SLD Drafting View", placed on an `elec-sld-A1-NTS` sheet |
+| Riser diagrams | ✅ | `elec-riser-A3-1to200` ("▶ Generate Riser Diagram" places it), `health-ess-power-riser-A1` |
+| Panel / distribution board schedules | ✅ | `elec-panel-schedule-A3`; PNLS "▶ Place Schedules on Sheets" (Auto mode) |
 | Earthing and lightning protection | ❌ | LPS commands calculate and report; no drawing type |
 | **Plumbing and drainage** | | |
 | Above-ground drainage layouts | ✅ | `plumb-ag-drainage-A1-1to100` |
 | Below-ground drainage layouts | ✅ | `plumb-drainage-A1-1to100` |
 | Rainwater | ✅ | `plumb-rwd-layout-A1-1to100`; SuDS `plumb-suds-A1-1to500` |
-| Cold / hot water layouts | ❌ | Plan type missing; only schematics |
+| Cold / hot water layouts | ✅ | `plumb-water-supply-A1-1to100` |
 | Cold / hot / LTHW schematics | ✅ | `plumb-dcw-schematic-A1-NTS`, `plumb-dhw-schematic-A1-NTS`, `plumb-lthw-schematic-A1-NTS` |
 | Drainage schematic, vent riser | ✅ | `plumb-drainage-schematic-A1`, `plumb-vent-riser-A3-NTS` |
 | Water treatment plant | ✅ | `plumb-water-treatment-A1-1to50` |
@@ -557,58 +594,47 @@ each item.
 | Pipe spools / isometrics | ✅ | `pipe-spool-A1-1to50`; Plumbing DOCS "Plumbing Isometric" |
 | **Fire protection** | | |
 | Sprinkler layouts, sections, details | ✅ | `fire-sprinkler-layout-A1-1to100`, `fire-section-A1-1to50`, `fire-detail-A3-1to20` |
-| Fire riser / wet-dry riser schematic | ❌ | No type |
+| Fire riser / wet-dry riser schematic | ✅ | `fire-riser-schematic-A1` (drafting, NTS) |
 | **Medical gas (healthcare)** | | |
 | MGPS layouts and schematic | ✅ | `health-medgas-pln-A1-1to100`, `health-medgas-schem-A1` |
 | **Sections and details (all services)** | | |
-| Services sections, typical details | ❌ | Only the fire-protection section and detail types exist |
+| Services sections, typical details | ✅ | `mep-section-A1-1to50`, `mep-detail-A3-1to20` (and the fire-protection pair) |
 
-Set it up once and the ✅ rows cost one click each on every re-issue. The ❌ rows are the
-drawings to plan hand time for. They are also the next drawing types worth adding
-(ROADMAP MDP-2).
+Set it up once and the ✅ rows cost one click each on every re-issue. What is left is the
+earthing and lightning protection layout, which still has no drawing type.
 
 ---
 
-# Part E: Do-not list, gaps, next automations
+# Part E: Do-not list, what is left, and what still needs Revit
 
 ## Do-not list
 
 | Don't | Because |
 |---|---|
-| Choose **option 1** of "⚡ Produce & Export" | It produces **every** Plan drawing type (50) × every level: architectural, structural, presentation, healthcare. |
-| Use **HVAC panel → SYS → "Per-level + sheets"** for issue sheets | Unstamped sheets that Export and Renumber skip. Use it for coordination views only. |
-| Leave the wizard's "Create views" / "Create sheets" ticked **and** produce drawing types | You get two sets of views and sheets. |
-| Tick "Dry-run" in the CAD Wizard and click Convert | Convert ignores it and creates (CAD-1). Use "Re-analyse (dry-run)". |
+| Tick every type in "⚡ Produce & Export" option 1 | It offers all plan types, architectural and structural included. Keep the pre-ticked MEP ones. |
 | Convert a DWG with nested blocks or xrefs | Their geometry is not read. Explode first. |
 | Generate match lines before sheets exist | The captions are left empty. |
 | Tag after producing | The annotations are blank. |
+| Rebuild seeds in a live project without warning the team | 58 catalogue parameters (IP rating, ports, flow rate …) are now type parameters: a value typed on one placed element is replaced by its type's value. Give such an element its own type. |
 
-## Gaps (open)
+## What is left
 
-- **Drawing types missing:** data / comms, security, containment, CHW / LTHW pipework, HVAC
-  schematics, cold / hot water plans, fire alarm schematic, fire riser, general services
-  sections and details (MDP-2).
-- **`E / PLAN` routes to `elec-riser-A3-1to200`**, a section (MDP-3).
-- **No command creates the MEP view templates** the types name (A2).
-- **"Duplicate as Dependent"** in the production dialog is still ignored.
-- **`STING_SCOPE_BOX_TAG_TXT` is not a registered parameter**, so the `::<zone>` stamp is a
-  no-op.
-- **Match lines pair every view on one box with every view on the next**, across
-  disciplines. Area boxes probably get none (A6).
-- **The producers can't be chained in a workflow preset**, and `ScopeBox_ProduceAreas` still
-  asks a question, so there is no one-click "produce the MEP set" preset.
-- **CAD Wizard Convert ignores most of its dialog** (CAD-1). "Pick Wall" ignores the thickness
-  it measures (CAD-2).
-- **The medical-gas, routing, commissioning, conduiting and in-wall-chase placement packs are
-  not loaded** by the Placement Centre (MDP-1).
+- **No earthing / lightning-protection drawing type.** The LPS commands calculate and report.
+- **Photometric parameters** (`ELC_PHOTO_*`) are type parameters in the seed families but bound
+  as instance parameters in the project; which wins in a loaded family needs a Revit check.
+- The planner offers plan and RCP types only; coordination plans come per level or from
+  `STING::` boxes.
 
-## Next automations (highest payoff first)
+## Needs a Revit run before it is trusted
 
-1. **CAD Wizard Convert on the complete pipeline** (CAD-1): multi-level, foundations, a real
-   dry-run and numbering in one pass.
-2. **Workflow presets once the producers run headless:** `WORKFLOW_MEPDrawingSetup`,
-   `WORKFLOW_MEPDrawingProduction`, `WORKFLOW_MEPPreIssue`.
-3. **The missing MEP drawing types** (Part D ❌ rows), and the `E / PLAN` routing fix.
-4. **Match lines for area boxes**, and discipline-aware pairing.
-5. **ZONE from `STING-ZONE::` boxes**, mirroring LOC.
-6. **The wizard warns on level names with spaces.**
+The code for all of this is written and unit-tested where it can be; none of it has run in
+Revit yet:
+- the CAD Wizard's full conversion on a real DWG, and the Pick tools
+- the wizard's stamped views / sheets, level rename and scope-box rename
+- area-box match lines, dependent views, crop recovery on Sync Styles
+- the three MEP presets end to end with no dialogs
+- SLD / riser / panel schedule sheets
+- temporary base views for templates
+- medical-gas placement in a hospital model (and none in a residential one)
+- the seed type-swap updater and the renamed-type migration
+- the rebuilt seed families with their corrected parameter names and scopes
