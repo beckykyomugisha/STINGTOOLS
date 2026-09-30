@@ -251,6 +251,7 @@ namespace StingTools.Core
             "Niagara_ExportPoints", "Niagara_Reconcile", "Owner_KpiDashboard", "KUT_KpiDashboard",
             "KUT_ValuationFromBms", "KUT_LifecycleReconcile", "KUT_PushLifecycleGapsToAcc",
             "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
+            "ACC_ImportIssues", "AccImportIssues",
             "ACC_UploadModel", "ACC_UploadLastBundle",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
@@ -1012,7 +1013,7 @@ namespace StingTools.Core
                             passed++;
                             succeededGroups?.Add(currentGroup);
                         }
-                        else if (step.Optional)
+                        else if (step.Optional && (stepResult != Result.Failed || step.ToleratesFailure))
                             skipped++;
                         else
                         {
@@ -1047,7 +1048,7 @@ namespace StingTools.Core
                         }
 
                         // LOG-06: If rollback enabled and a non-optional step failed, stop
-                        if (preset.RollbackOnFailure && stepResult == Result.Failed && !step.Optional)
+                        if (preset.RollbackOnFailure && stepResult == Result.Failed && !step.ToleratesFailure)
                         {
                             report.AppendLine($"\n  *** Non-optional step failed — rolling back all changes ***");
                             break;
@@ -1057,7 +1058,7 @@ namespace StingTools.Core
                         if (preset.RollbackOnOptionalFailure && stepResult == Result.Failed)
                         {
                             // Reclassify: optional failure was counted as 'skipped' above, move to 'failed'
-                            if (step.Optional) { skipped = Math.Max(0, skipped - 1); failed++; }
+                            if (step.ToleratesFailure) { skipped = Math.Max(0, skipped - 1); failed++; }
                             report.AppendLine($"\n  *** Step failed (rollback_on_optional_failure) — rolling back all changes ***");
                             break;
                         }
@@ -1115,7 +1116,7 @@ namespace StingTools.Core
                                 ErrorMessage = ex2.Message
                             });
 
-                            if (step.Optional)
+                            if (step.ToleratesFailure)
                                 skipped++;
                             else
                             {
@@ -2122,6 +2123,8 @@ namespace StingTools.Core
                 case "AccPullClashes":          return new Core.Clash.AccPullClashesCommand();
                 case "ACC_SyncIssueStatus":
                 case "AccSyncIssueStatus":      return new Core.Clash.AccSyncIssueStatusCommand();
+                case "ACC_ImportIssues":
+                case "AccImportIssues":         return new Core.Clash.AccImportIssuesCommand();
                 // Resolvable so a PROJECT-authored workflow can use it; deliberately not
                 // in any shipped KUT workflow, because a step cannot answer "which file?".
                 case "ACC_UploadModel":         return new Core.Clash.AccUploadModelCommand();

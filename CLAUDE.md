@@ -137,7 +137,7 @@ dated, reproducible source) instead of carrying exact numbers that re-rot within
   | Licensing | 14 | ✅ 14 cases, 0 failing |
   | SitePhotos | 8 | ⚠ needs a built plugin DLL first (fails loudly if absent, not silently); with it: 14 cases, **11 failing** — these assert the site-photo behaviour PR #550 delivers and #550 is not merged |
   | Connectivity | 0 | empty project |
-  | **Acc** (new 2026-09-10) | **60** | ✅ **67 cases, 0 failing** — the ACC surface had zero coverage until then |
+  | **Acc** (new 2026-09-10) | **212** | ✅ **279 cases, 0 failing** (re-measured 2026-09-30, after the ACC hardening pass; was 60 / 67) |
   | **Mep** (new 2026-09-26) | **81** | ✅ **87 cases, 0 failing** — psychrometrics, sprinkler, gas, pressurisation, duct friction, Hardy Cross, NC, refrigerant, isometric, shipped design data |
 
   Only the **Boq** and **Acc** rows were re-measured on 2026-09-10 (declared via the same

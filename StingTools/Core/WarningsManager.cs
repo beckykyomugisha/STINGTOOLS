@@ -5614,6 +5614,8 @@ namespace StingTools.Core
                 { "ACCPublish", "ACCPublish" },
                 { "AccPullClashes", "AccPullClashes" },
                 { "AccSyncIssueStatus", "AccSyncIssueStatus" },
+                { "AccImportIssues", "AccImportIssues" },
+                { "ACC_UploadModel", "ACC_UploadModel" },
                 { "SharePointExport", "SharePointExport" },
 
                 // Phase 167 — Planscape BCC dispatch entries. Disconnect /

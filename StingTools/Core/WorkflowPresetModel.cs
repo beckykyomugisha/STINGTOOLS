@@ -60,6 +60,19 @@ namespace StingTools.Core
         [JsonProperty("optional")]
         public bool Optional { get; set; }
 
+        /// <summary>An optional step that RAN and returned Failed counts as a failure of the
+        /// run, not as a skip. "Optional" then means only "may be skipped when it does not
+        /// apply": a command that is not configured returns Cancelled, which still counts as
+        /// skipped. Without this, a failed ACC clash pull (an expired token, a wrong
+        /// container) reached the run summary as "skipped" and the coordination cycle read
+        /// as clean although nothing had been checked.</summary>
+        [JsonProperty("failOnError")]
+        public bool FailOnError { get; set; }
+
+        /// <summary>True when a Failed result from this step may be counted as a skip.</summary>
+        [JsonIgnore]
+        public bool ToleratesFailure => Optional && !FailOnError;
+
         [JsonProperty("condition")]
         public string Condition { get; set; }
 

@@ -948,6 +948,11 @@ namespace StingTools.Core
                 try { PreWarnSustainabilityReadiness(e.Document); }
                 catch (Exception sx) { StingLog.Warn($"Sustain readiness pre-warn: {sx.Message}"); }
 
+                // Keep the Autodesk (ACC) sign-in from lapsing between fortnightly cycles.
+                // Background network call only; does nothing when ACC is not set up.
+                try { V6.AccTokenKeepAlive.MaybeRefreshInBackground(); }
+                catch (Exception kx) { StingLog.Warn($"ACC keep-alive: {kx.Message}"); }
+
                 // Force-show every STING dock panel on first document open per
                 // Revit session. RegisterDockablePane + VisibleByDefault is meant
                 // to handle this, but Revit silently honours the cached

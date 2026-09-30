@@ -93,6 +93,50 @@ namespace StingTools.Core
             }
         }
 
+        /// <summary>
+        /// Map an Autodesk Construction Cloud (ACC Issues v1) status to a canonical kind.
+        ///
+        /// <para><b>Separate from <see cref="Normalize"/> on purpose.</b> ACC gives two of its
+        /// words a meaning the generic vocabulary gives the opposite way:</para>
+        /// <list type="bullet">
+        /// <item><c>completed</c> — in ACC the assignee has done the work and the issue is
+        /// waiting for the creator to accept it. That is <see cref="IssueStatusKind.Responded"/>,
+        /// which is STILL OPEN. <see cref="Normalize"/> reads "completed" as Closed, which is
+        /// right for the other writers that use it, and would hide every ACC issue awaiting
+        /// acceptance from the <c>has_open_issues</c> gate.</item>
+        /// <item><c>not_approved</c> — the creator rejected the completion; the issue is back
+        /// with the assignee. That is <see cref="IssueStatusKind.Open"/>. The generic word
+        /// "rejected" means Void, and reading a rejected fix as a voided issue would close it.</item>
+        /// </list>
+        /// <para>Changing <see cref="Normalize"/> instead would silently re-classify every
+        /// existing non-ACC row that says "completed", so ACC gets its own table and anything
+        /// it does not list falls back to the generic one.</para>
+        /// </summary>
+        public static IssueStatusKind NormalizeAcc(string raw)
+        {
+            string s = (raw ?? "").Trim().ToLowerInvariant().Replace("-", "_").Replace(" ", "_");
+            switch (s)
+            {
+                case "draft":           // not yet published to the assignee — still needs doing
+                case "open":
+                case "not_approved":    return IssueStatusKind.Open;
+                case "pending":
+                case "in_progress":
+                case "in_review":
+                case "in_dispute":      return IssueStatusKind.InProgress;
+                case "completed":
+                case "work_completed":  // BIM 360 legacy spelling of the same state
+                case "ready_to_inspect":return IssueStatusKind.Responded;
+                case "closed":          return IssueStatusKind.Closed;
+                case "void":
+                case "not_an_issue":    return IssueStatusKind.Void;
+                default:                return Normalize(raw);
+            }
+        }
+
+        /// <summary>Canonical UPPER_SNAKE spelling of an ACC status.</summary>
+        public static string CanonicalAcc(string raw) => Canonical(NormalizeAcc(raw));
+
         /// <summary>True when the issue still needs attention.
         ///
         /// <para>Open, In-progress and <b>Responded</b>. Responded is open because a reply

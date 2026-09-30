@@ -5436,7 +5436,7 @@ namespace StingTools.UI
             catch (Exception ex) { StingLog.Warn($"ACC panel: load creds failed — {ex.Message}"); creds = new V6.AccCredentials(); }
 
             detailStack.Children.Add(new TextBlock { Text = "Autodesk Construction Cloud — Coordination", FontSize = 13, FontWeight = FontWeights.Bold, Foreground = navyBrush, Margin = new Thickness(0, 0, 0, 6) });
-            detailStack.Children.Add(new TextBlock { Text = "Pull Model Coordination clashes into Revit, triage them, and escalate to ACC Issues — and reconcile their status. Credentials stay on this machine (never in the model). Supply your APS app's Client ID/Secret and a delegated refresh token.", FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x44, 0x44, 0x44)), Margin = new Thickness(0, 0, 0, 10) });
+            detailStack.Children.Add(new TextBlock { Text = "Pull Model Coordination clashes into Revit, triage them, and escalate to ACC Issues — and reconcile their status. The sign-in stays on this machine, encrypted for your Windows user (never in the model); project ids and folders are saved with the project. Register an APS app of type 'Desktop, Mobile, Single-Page App' (no secret needed) or 'Traditional Web App' (enter its secret).", FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0x44, 0x44, 0x44)), Margin = new Thickness(0, 0, 0, 10) });
 
             // Connection status
             bool tokenValid = !string.IsNullOrWhiteSpace(creds.AccessToken) && creds.AccessTokenExpiry > DateTime.UtcNow.AddMinutes(1);
@@ -5452,6 +5452,13 @@ namespace StingTools.UI
                 Margin = new Thickness(0, 0, 0, 8)
             };
             detailStack.Children.Add(accStatus);
+            detailStack.Children.Add(new TextBlock
+            {
+                Text = V6.AccSignInLifetime.Describe(creds, DateTime.UtcNow),
+                FontSize = 10, TextWrapping = TextWrapping.Wrap,
+                Foreground = (V6.AccSignInLifetime.DaysRemaining(creds, DateTime.UtcNow) ?? 99) < 3 ? Br(CRed) : Br(Color.FromRgb(0x55, 0x55, 0x55)),
+                Margin = new Thickness(0, -4, 0, 8)
+            });
 
             // Credential fields (mapped to AccCredentials)
             detailStack.Children.Add(new TextBlock { Text = "APS / ACC CREDENTIALS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
@@ -5477,12 +5484,12 @@ namespace StingTools.UI
             }
 
             var clientIdBox  = (System.Windows.Controls.TextBox)     AddField("Client ID:",         creds.ClientId,         false, "APS (Forge) application Client ID");
-            var clientSecBox = (System.Windows.Controls.PasswordBox) AddField("Client Secret:",     creds.ClientSecret,     true,  "APS application Client Secret — held only on this machine");
+            var clientSecBox = (System.Windows.Controls.PasswordBox) AddField("Client Secret:",     creds.ClientSecret,     true,  "Only for a 'Traditional Web App' APS registration. Leave EMPTY for a 'Desktop, Mobile, Single-Page App' registration (recommended: sign-in uses PKCE and no secret is stored).");
             var refreshBox   = (System.Windows.Controls.PasswordBox) AddField("Refresh Token:",     creds.RefreshToken,     true,  "Auto-filled by “Sign in with Autodesk”. Only paste one manually if you obtained it via your own APS 3-legged flow.");
-            var projectIdBox = (System.Windows.Controls.TextBox)     AddField("Issues Project ID:", creds.ProjectId,        false, "ACC project / Issues container id (the 'b.<guid>' container)");
+            var projectIdBox = (System.Windows.Controls.TextBox)     AddField("ACC Project ID:",    creds.ProjectId,        false, "Filled by 'Find my ACC project'. Either the 'b.<guid>' or the bare GUID form works; each API is given the form it needs. Saved with this project.");
             var coordIdBox   = (System.Windows.Controls.TextBox)     AddField("Coord Container ID:",creds.CoordContainerId, false, "Model Coordination container id (optional — defaults to the Issues Project ID)");
-            var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     creds.IssueTypeId,      false, "ACC issue type id used when escalating clashes (optional — ACC may reject without it)");
-            var folderUrnBox = (System.Windows.Controls.TextBox)     AddField("Upload Folder URN:", creds.FolderUrn,        false, "ACC Docs folder to upload models into (urn:adsk.wipprod:fs.folder:...). Leave blank to auto-use the project's “Project Files” folder.");
+            var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     creds.IssueTypeId,      false, "Optional. Left empty, STING files issues under the ACC issue type named Clash or Coordination and refuses to guess if none exists. Saved with this project.");
+            var folderUrnBox = (System.Windows.Controls.TextBox)     AddField("Upload Folder URN:", creds.FolderUrn,        false, "ACC Docs folder for uploads (urn:adsk.wipprod:fs.folder:...). Saved with this project. Blank = the project's 'Project Files' folder. Per-CDE-state folders (cdeFolders) in the project's ACC settings take precedence.");
 
             // One-time APS setup hint for the in-plugin sign-in flow.
             detailStack.Children.Add(new TextBlock
@@ -5507,6 +5514,12 @@ namespace StingTools.UI
                         // machine file is written back with the ids it already held —
                         // including when the project's ids were just cleared.
                         c.ProjectScope = V6.AccProjectScopeSource.ProjectSettings;
+                        // The folder and the issue type belong to this project too.
+                        if (!Core.Clash.AccProjectSettingsFile.SaveFolderUrn(scopeDoc, c.FolderUrn, out string e2))
+                            StingLog.Warn($"ACC panel: folder not saved — {e2}");
+                        if (!Core.Clash.AccProjectSettingsFile.SaveIssueType(scopeDoc, c.IssueTypeId,
+                                string.IsNullOrEmpty(c.IssueTypeId) ? "" : c.IssueSubtypeId, out string e3))
+                            StingLog.Warn($"ACC panel: issue type not saved — {e3}");
                     }
                     else StingLog.Warn($"ACC panel: project settings not saved — {err}");
                 }
@@ -5527,18 +5540,18 @@ namespace StingTools.UI
             }
 
             // Sign in with Autodesk — 3-legged OAuth in the plugin (no manual refresh token).
-            var signInBtn = new Button { Content = "🔓 Sign in with Autodesk", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Open the Autodesk sign-in page in your browser and capture the tokens automatically. Requires Client ID + Client Secret above and the callback URL registered in your APS app." };
+            var signInBtn = new Button { Content = "🔓 Sign in with Autodesk", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x15, 0x65, 0xC0)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Open the Autodesk sign-in page in your browser and capture the tokens automatically. Requires the Client ID (and the secret only for a Traditional Web App) and the callback URL registered in your APS app." };
             signInBtn.Click += async (s, e) =>
             {
                 var c = Gather();
-                if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret))
-                { ShowStatus("Enter Client ID and Client Secret first."); return; }
+                if (string.IsNullOrWhiteSpace(c.ClientId))
+                { ShowStatus("Enter the APS Client ID first."); return; }
                 try
                 {
                     SaveAcc(c);
                     ShowStatus("Opening Autodesk sign-in in your browser…");
                     var r = await V6.AccOAuthFlow.SignInAsync(c).ConfigureAwait(true);
-                    ShowStatus(r.Ok ? "Signed in to Autodesk — tokens stored." : $"Autodesk sign-in failed: {r.Message}");
+                    ShowStatus(r.Ok ? r.Message : $"Autodesk sign-in failed: {r.Message}");
                     ShowPlatformDetail("ACC");
                 }
                 catch (Exception ex) { StingLog.Warn($"ACC sign-in: {ex.Message}"); ShowStatus($"Autodesk sign-in error: {ex.Message}"); }
@@ -5559,12 +5572,14 @@ namespace StingTools.UI
                 try
                 {
                     var c = Gather();
-                    if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret) || string.IsNullOrWhiteSpace(c.RefreshToken))
-                    { ShowStatus("Enter Client ID, Client Secret and Refresh Token first."); return; }
+                    if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.RefreshToken))
+                    { ShowStatus("Enter the Client ID and 'Sign in with Autodesk' first."); return; }
                     SaveAcc(c);
                     ShowStatus("Refreshing ACC token…");
-                    bool ok = await V6.AccIssueSync.EnsureAuthAsync(c).ConfigureAwait(true);
-                    ShowStatus(ok ? "ACC token refreshed — connected." : "ACC token refresh failed — check credentials (see log).");
+                    var outcome = await V6.AccIssueSync.EnsureAuthDetailedAsync(c, force: true).ConfigureAwait(true);
+                    ShowStatus(outcome.Ok
+                        ? "ACC token refreshed — connected." + (string.IsNullOrEmpty(outcome.Warning) ? "" : " WARNING: " + outcome.Warning)
+                        : $"ACC token refresh failed ({outcome.Status}): {outcome.Detail}");
                     ShowPlatformDetail("ACC");
                 }
                 catch (Exception ex) { StingLog.Warn($"ACC test: {ex.Message}"); ShowStatus($"ACC test failed: {ex.Message}"); }
@@ -5576,12 +5591,12 @@ namespace StingTools.UI
             // behind someone else's calendar. A 3-legged token already acts as its user, so
             // this shows the projects that user can ALREADY reach and writes the chosen id
             // back verbatim — it grants nothing and normalises nothing.
-            var discoverBtn = new Button { Content = "🔎 Find my ACC project", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x00, 0x69, 0x5C)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "List the ACC hubs and projects this Autodesk sign-in can already see, and fill in the Issues Project ID from the one you pick. Needs Client ID + Secret and a completed sign-in." };
+            var discoverBtn = new Button { Content = "🔎 Find my ACC project", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x00, 0x69, 0x5C)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "List the ACC hubs and projects this Autodesk sign-in can already see, and save the one you pick (with its hub and region) to this project. Needs a completed sign-in." };
             discoverBtn.Click += async (s2, e2) =>
             {
                 var c = Gather();
-                if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.ClientSecret))
-                { ShowStatus("Enter Client ID and Client Secret, then sign in, before discovering projects."); return; }
+                if (string.IsNullOrWhiteSpace(c.ClientId) || string.IsNullOrWhiteSpace(c.RefreshToken))
+                { ShowStatus("Enter the Client ID and 'Sign in with Autodesk' before discovering projects."); return; }
                 try
                 {
                     SaveAcc(c);
@@ -5604,10 +5619,8 @@ namespace StingTools.UI
 
                     string pick = Select.StingListPicker.Show(
                         "ACC — pick the project",
-                        "These are the projects this Autodesk sign-in can already reach. The id is written " +
-                        "back exactly as Autodesk reports it; nothing is reformatted. If a later pull returns " +
-                        "404 on the container, the Issues container id may differ from the Data Management " +
-                        "project id — confirm it rather than editing it by hand.",
+                        "These are the projects this Autodesk sign-in can already reach. The project, its hub " +
+                        "and its hosting region are saved with this Revit project.",
                         found.Value.Select(p => p.ToString()).ToList());
                     if (string.IsNullOrEmpty(pick)) return;
 
@@ -5617,8 +5630,12 @@ namespace StingTools.UI
                     projectIdBox.Text = chosen.Id;
                     var save = Gather();
                     SaveAcc(save);
-                    ShowStatus($"Issues Project ID set to {chosen.Id} ({chosen.Name}). " +
-                               "Set Coord Container ID only if Model Coordination uses a different container.");
+                    string hubNote = "";
+                    if (scopeDoc != null && !Core.Clash.AccProjectSettingsFile.SaveDiscoveredProject(scopeDoc, chosen.Id, chosen.HubId, chosen.Region, out string hubErr))
+                        hubNote = $" (hub/region NOT saved: {hubErr})";
+                    ShowStatus($"ACC project set to {chosen.Name} [{chosen.Id}], hub {chosen.HubName}" +
+                               (string.IsNullOrEmpty(chosen.Region) ? "" : $", region {chosen.Region}") + hubNote +
+                               ". Set Coord Container ID only if Model Coordination uses a different container.");
                     ShowPlatformDetail("ACC");
                 }
                 catch (Exception ex) { StingLog.Warn($"ACC discover: {ex.Message}"); ShowStatus($"ACC discovery error: {ex.Message}"); }
@@ -5638,6 +5655,7 @@ namespace StingTools.UI
             }
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
+            AddAct("📥 Import Issues",    "AccImportIssues",    Color.FromRgb(0x2E, 0x7D, 0x32), "Import every ACC issue into the STING issue register (new rows, title/status/assignee updates). Never deletes STING issues; an issue edited in both places is reported as a conflict, not overwritten.");
             AddAct("📦 ACC Publish",       "ACCPublish",         Color.FromRgb(0x6A, 0x1B, 0x9A), "Package the project deliverables (BEP, issues, COBie, transmittal) into a local ACC-ready bundle (manual upload).");
 
             // ── Project operating settings (PROJECT-scoped, not machine-scoped) ──
@@ -5783,27 +5801,15 @@ namespace StingTools.UI
             detailStack.Children.Add(escRow);
 
 
-            // Live upload to ACC Docs via the APS Data Management API (pure HTTP —
-            // runs inline like Sign-in; no Revit transaction needed).
-            var uploadBtn = new Button { Content = "⬆ Upload Model to ACC", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(Color.FromRgb(0xE6, 0x5F, 0x00)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Upload a model/deliverable file straight into the ACC Docs folder (storage → signed-S3 upload → create item). Requires data:create scope on your APS app." };
-            uploadBtn.Click += async (s, e) =>
+            // Upload runs the ACC_UploadModel command, so a file uploaded from this card goes
+            // through the SAME folder decision (per CDE state when the project maps them), the
+            // same ISO 19650 metadata and the same transmittal bookkeeping as every other
+            // upload. It used to call the uploader directly and skip all three.
+            var uploadBtn = new Button { Content = "⬆ Upload to ACC", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(Color.FromRgb(0xE6, 0x5F, 0x00)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Upload a model/deliverable into ACC Docs — into its CDE-state folder when the project maps them. Requires data:create scope on your APS app." };
+            uploadBtn.Click += (s, e) =>
             {
-                var c = Gather();
-                if (string.IsNullOrWhiteSpace(c.ProjectId)) { ShowStatus("Set the Issues Project ID (the ACC project) first."); return; }
-                var dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Pick a model / deliverable to upload to ACC",
-                    Filter = "Model & doc files (*.glb;*.ifc;*.nwc;*.nwd;*.rvt;*.pdf;*.dwg)|*.glb;*.ifc;*.nwc;*.nwd;*.rvt;*.pdf;*.dwg|All files (*.*)|*.*"
-                };
-                if (dlg.ShowDialog() != true) return;
-                try
-                {
-                    SaveAcc(c);
-                    ShowStatus($"Uploading {System.IO.Path.GetFileName(dlg.FileName)} to ACC…");
-                    var r = await V6.AccModelUpload.UploadAsync(c, dlg.FileName).ConfigureAwait(true);
-                    ShowStatus(r.Ok ? r.Message : $"ACC upload failed: {r.Message}");
-                }
-                catch (Exception ex) { StingLog.Warn($"ACC upload: {ex.Message}"); ShowStatus($"ACC upload error: {ex.Message}"); }
+                try { SaveAcc(Gather()); } catch (Exception ex) { StingLog.Warn($"ACC upload save: {ex.Message}"); }
+                DispatchAction("ACC_UploadModel");
             };
             actRow.Children.Add(uploadBtn);
 

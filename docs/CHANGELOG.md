@@ -2,6 +2,106 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC hardening — review findings, APS-verified, 2026-09-30)
+
+A review of the whole ACC integration, then fixes checked against the APS reference and
+OpenAPI specs rather than assumptions. Several paths could not have worked against a live
+tenant: the Issues client called `…/issues/v1/containers/{id}` (the documented path is
+`…/projects/{id}`) with the `b.`-prefixed id and a snake_case body (v1 is camelCase and needs
+`issueSubtypeId`). Plugin build 0/0; `StingTools.Acc.Tests` 279/279 (was 140); none of it has
+run against a live tenant yet (ROADMAP ACC-HARD-1).
+
+- **Failures that read as success.**
+  - The KUT cycle counted a failed optional ACC step as "skipped". New step flag
+    `failOnError` (`WorkflowStep.ToleratesFailure`) is set on `ACC_PullClashes` and
+    `ACC_SyncIssueStatus`. "Not configured" still returns Cancelled (a skip); an attempt that
+    failed returns Failed.
+  - Clash pulls were capped at 1,000 and reported Ok. They are now uncapped; a caller cap
+    sets `Truncated` / `TotalAvailable` and the report says so.
+  - A model set whose tests had not finished fell back to `tests.First()`. It is now
+    `NotReady`, reported as "nothing has been checked".
+  - A failed issue push was counted neither pushed nor skipped. It is now counted and named,
+    and the step returns Failed. The escalation record is saved after each push.
+  - Sync Issue Status showed modal dialogs in unattended runs. They now go through `Report`.
+- **One transport (`V6/AccHttp.cs`).** Builds each request per attempt; honours `Retry-After`
+  (waits over 60 s are reported, not waited); retries 502/503/504 and network errors only for
+  idempotent calls, so an issue create is never retried on an ambiguous gateway error;
+  refreshes once on a 401; sets a timeout per attempt instead of the whole-exchange 100 s.
+- **Sign-in (`V6/AccCredentialStore.cs`, `AccOAuthFlow`).**
+  - Secrets in `acc_credentials.json` are DPAPI-protected (legacy plaintext still reads).
+    Saves are atomic, and a failed save after a refresh is reported.
+  - Refresh runs under a cross-process lock file and adopts a token another Revit session
+    already rotated (APS refresh tokens are single-use).
+  - Auth failures are split into rejected (sign in again) and unreachable (try later).
+  - PKCE (S256) for a "Desktop app" APS registration: no secret on the workstation. The card
+    no longer requires one.
+  - Background keep-alive on document open (`AccTokenKeepAlive`): the 15-day refresh token
+    cannot lapse between fortnightly cycles. The card shows how long the sign-in has left.
+- **Ids and region (`V6/AccIds.cs`).** Bare GUID for `construction/*` and Model
+  Coordination, `b.` for Data Management. `x-ads-region` comes from the hub region that
+  discovery records.
+- **Issues v1 shape.** `issueSubtypeId`, `assignedTo` / `assignedToType`, `dueDate`,
+  `locationDetails`, with the documented length caps. Pull reads v1 fields and
+  `pagination.totalResults`. Closed status goes through `IssueStatusNormalizer.NormalizeAcc`,
+  where `completed` is still open. Issue type is chosen by name (Clash / Coordination) or by
+  project setting, never the first one offered (`IssueTypeChooser`).
+- **Upload (`AccModelUpload`).**
+  - 16 MB parts, at most 25 signed URLs per request (`firstPart`); each part retried, and
+    expired URLs renewed on a 403.
+  - Folder order: the CDE-state folder (`cdeFolders`, refused if the state has none), then the
+    project's folder, then "Project Files" by name. The old "first top folder" guess is gone.
+  - Folder lookup follows pagination. ISO 19650 custom attributes are stamped when
+    `docsAttributes` is on.
+  - The card's upload button now runs `ACC_UploadModel`.
+- **Project-scoped settings.** New `acc_settings.json` keys: `hubId`, `folderUrn`,
+  `distToMm`, `issueTypeId` / `issueSubtypeId`, `region`, `cdeFolders`, `disciplineMap`,
+  `docsAttributes`, `docsAttributesCreateMissing`, `escalateDueDays`, `escalateAssignedTo` /
+  `escalateAssignedToType`, `escalateExcludeStatuses`.
+  - The machine file's copies are a logged, deprecated fallback. A different project no longer
+    inherits another project's folder or hub.
+  - Discovery follows `links.next` and saves the hub and region.
+- **Clash triage.**
+  - Discipline comes from whole name tokens (`AccDisciplineResolver`): a project map, then the
+    ISO 19650 role field, then keywords. "KUT-ELEC-DISTRIBUTION" was read as structural.
+  - Clashes whose documents are known only by per-version ids are not escalated: there is no
+    key that survives the next model upload.
+  - Escalated issues name both models and objects, the penetration depth and the score.
+    Optional due date and assignee come from settings.
+- **Docs:**
+  - `ACC_INTEGRATION_STRATEGY.md` (capability matrix and roadmap).
+  - `KUT_ACC_DAY1_PLAYBOOK.md` (setup and live checks).
+  - `KUT_OPERATING_MODEL.md` (repo vs project data vs ACC, config repo, defect loop, Cowork).
+
+#### Completed (ACC Issues import — BIM-BCF-SYNC-01, ACC half, 2026-09-30)
+
+- **`ACC_ImportIssues`** (`Clash/AccImportIssuesCommand.cs`, button "📥 Import Issues" on the BIM
+  Coordination Center ACC card; also `AccImportIssues`). Pulls every issue in the project's ACC
+  Issues container and merges it into the STING register through `IssueBatch`, so the BCC issue
+  list, its KPIs and `has_open_issues` see issues raised in ACC. ReadOnly (JSON only). Refuses a
+  failed or partial pull (`AccCommandOutcome.FailureMessage`, `Result.Failed`, register untouched);
+  refuses an unreadable `issues.json`. Unattended projects log instead of showing dialogs. A CSV
+  report is routed to the Issue folder.
+- **Merge rules** in Revit-free `V6/AccIssueImport.cs`: keyed by `acc_issue_id` (any status, so a
+  closed row is updated, not duplicated); ACC owns title / description / status / assigned_to;
+  `acc_last_import` holds the last imported values and each field is merged three-way — a field
+  changed on both sides since the last import is a CONFLICT: the STING value is kept, the
+  conflict is reported and recorded on the row as `acc_conflicts`, and it is reported again until
+  the two agree. STING rows are never deleted; ACC issues no longer in the container are reported.
+  ACC issues STING itself pushed (`pushed_clashes.json`, `pushed_lifecycle_gaps.json`) are marked
+  `acc_origin` / `acc_origin_key`, and an existing STING row with that key is linked instead of
+  duplicated. New rows are type `ACC` (or `CLASH` for escalations) with no invented SLA due date.
+- **`IssueStatusNormalizer.NormalizeAcc` / `CanonicalAcc`**: ACC `completed` → RESPONDED (still
+  open, awaiting acceptance), `not_approved` → OPEN, `pending` / `in_review` / `in_dispute` →
+  IN_PROGRESS, `draft` → OPEN, `closed` → CLOSED. The generic `Normalize` is unchanged (its
+  `completed` = CLOSED still serves the other writers).
+- `IssueBatch.MarkModified()` so a batch whose only change is a field update is saved.
+- 18 test methods (26 cases) in `StingTools.Acc.Tests/AccIssueImportTests.cs` (create, update, status mapping,
+  conflict, no-delete, idempotency, round trip); the conflict tests were shown to fail when the
+  merge overwrites. Acc.Tests 166/166; plugin build 0 errors / 0 warnings.
+- **Not verified**: not run against a live ACC container or in Revit. `AccIssue` carries no due
+  date, display id or updated-at yet (TODO in `AccIssueImportRecord`); ACC assignees are stored
+  as ACC ids, not names. Nothing is pushed back to ACC.
+
 #### Completed (TAGACC-16 / 17, 2026-09-29)
 
 - **TAGACC-16** the 28 remaining `Category.Name` LOOKUPS (DiscMap, known-category lists,

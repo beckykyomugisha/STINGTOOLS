@@ -38,26 +38,30 @@ namespace StingTools.Core.Clash
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
+            // Step 4 of the unattended KUT cycle: every message goes through Report, which
+            // logs instead of opening a modal window when nobody is there to click OK.
+            var policy = AccProjectSettingsFile.LoadFor(doc, "ACC_SyncIssueStatus");
             var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC sync issue status");   // IM-18: project container ids first
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                TaskDialog.Show("ACC — Sync Issue Status", "ACC credentials are not configured (acc_credentials.json).");
-                return Result.Cancelled;
+                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
+                    "ACC is not set up for this project on this machine (BIM Coordination Center > ACC).");
+                return policy.IsUnattended ? Result.Failed : Result.Cancelled;
             }
 
             string sidecar = AccPullClashesCommand.SidecarPath(doc);
             var pushedMap = AccPullClashesCommand.LoadPushed(sidecar);
             if (pushedMap.Count == 0)
             {
-                TaskDialog.Show("ACC — Sync Issue Status",
+                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
                     "No escalated clashes are tracked yet.\n\nRun ACC Pull Clashes and push some to ACC Issues first.");
                 return Result.Succeeded;
             }
 
             AccFetchResult<List<AccIssue>> pull;
             try { pull = AccIssueSync.PullIssuesAsync(creds).GetAwaiter().GetResult(); }
-            catch (Exception ex) { StingLog.Error("ACC SyncIssueStatus pull", ex); TaskDialog.Show("ACC", "Issue pull failed: " + ex.Message); return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("ACC SyncIssueStatus pull", ex); AccPullClashesCommand.Report(policy, "ACC", "Issue pull failed: " + ex.Message); return Result.Failed; }
 
             // The load-bearing branch. Reconciling against a failed or PARTIAL read marks
             // every unseen escalation NOT_FOUND, which reads as "ACC deleted our issues",
@@ -66,7 +70,7 @@ namespace StingTools.Core.Clash
             // Nothing below this point may run unless the whole list was read.
             if (!pull.Succeeded)
             {
-                TaskDialog.Show("ACC — Sync Issue Status",
+                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
                     AccCommandOutcome.FailureMessage("the ACC issue list", pull.Status, pull.HttpStatus,
                         pull.Detail, creds.ProjectId) +
                     "\nThe escalation record was left untouched — nothing was un-tracked.");
@@ -119,11 +123,8 @@ namespace StingTools.Core.Clash
             sb.AppendLine($"Still tracked after sync:  {pushedMap.Count}");
             if (csvPath != null) { sb.AppendLine(); sb.AppendLine("CSV: " + csvPath); }
 
-            new TaskDialog("ACC — Sync Issue Status")
-            {
-                MainInstruction = $"{closed} escalated clash(es) resolved in ACC",
-                MainContent = sb.ToString()
-            }.Show();
+            AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
+                $"{closed} escalated clash(es) resolved in ACC\n\n" + sb.ToString());
             StingLog.Info($"ACC_SyncIssueStatus: closed={closed} open={open} missing={missing} tracked={pushedMap.Count}");
             return Result.Succeeded;
         }

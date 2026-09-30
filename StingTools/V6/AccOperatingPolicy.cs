@@ -162,6 +162,13 @@ namespace StingTools.V6
             "unattended", "coordModelSetId", "coordModelSetName",
             "escalateMaxCount", "escalateMinScore", "publishSuitability",
             "projectId", "coordContainerId",
+            // Project-scoped values that used to live in the machine credentials file (IM-18
+            // moved the container ids; these are the rest of the same defect).
+            "hubId", "folderUrn", "distToMm", "issueTypeId", "issueSubtypeId", "region",
+            // Flexibility: where each CDE state lives, how a model name maps to a discipline,
+            // and what an escalated issue carries.
+            "cdeFolders", "disciplineMap", "docsAttributes", "docsAttributesCreateMissing",
+            "escalateDueDays", "escalateAssignedTo", "escalateAssignedToType", "escalateExcludeStatuses",
         };
 
         public AccPolicySource Source { get; private set; } = AccPolicySource.Absent;
@@ -211,6 +218,62 @@ namespace StingTools.V6
         /// <summary>The Model Coordination container for this project, or empty (then the
         /// Issues container is used).</summary>
         public string CoordContainerId { get; private set; } = string.Empty;
+
+        /// <summary>The ACC hub (account) the project lives in. Needed to resolve the
+        /// project's top folders; discovery records it.</summary>
+        public string HubId { get; private set; } = string.Empty;
+
+        /// <summary>Default upload folder for this project. A folder URN belongs to ONE ACC
+        /// project; in the machine file it pointed a coordinator's uploads for job B at job
+        /// A's folder.</summary>
+        public string FolderUrn { get; private set; } = string.Empty;
+
+        /// <summary>Multiply ACC clash 'dist' by this to get millimetres; null = not set.</summary>
+        public double? DistToMm { get; private set; }
+
+        /// <summary>The ACC issue type / subtype to raise STING issues as, for THIS project's
+        /// container. Empty = resolve from the container by name, never by position.</summary>
+        public string IssueTypeId { get; private set; } = string.Empty;
+        public string IssueSubtypeId { get; private set; } = string.Empty;
+
+        /// <summary>Where the ACC project is hosted: US (default), EMEA or AUS. Sent as the
+        /// region header on the ACC APIs that take one.</summary>
+        public string Region { get; private set; } = string.Empty;
+
+        /// <summary>CDE state (WIP / SHARED / PUBLISHED / ARCHIVE) → ACC folder URN. A state
+        /// with no entry is NOT CONFIGURED - an upload for it is refused with that reason, it
+        /// is never sent to some other folder.</summary>
+        public IReadOnlyDictionary<string, string> CdeFolders { get; private set; } =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Model-name token → discipline code (S, M, P, E, FP, A …). Consulted before
+        /// the ISO 19650 role field and the built-in words.</summary>
+        public IReadOnlyDictionary<string, string> DisciplineMap { get; private set; } =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Stamp ISO 19650 metadata onto uploaded ACC documents as custom attributes.</summary>
+        public bool DocsAttributes { get; private set; }
+
+        /// <summary>Let STING create missing custom-attribute definitions on a folder. Off by
+        /// default: definitions are project-wide admin configuration.</summary>
+        public bool DocsAttributesCreateMissing { get; private set; }
+
+        /// <summary>Due date for an escalated clash issue, in days from today; null = none.</summary>
+        public int? EscalateDueDays { get; private set; }
+
+        /// <summary>Who an escalated clash issue is assigned to (an ACC user, company or role
+        /// id), and which of those it is. Both or neither.</summary>
+        public string EscalateAssignedTo { get; private set; } = string.Empty;
+        public string EscalateAssignedToType { get; private set; } = string.Empty;
+
+        /// <summary>ACC clash statuses that are never escalated.</summary>
+        public IReadOnlyCollection<string> EscalateExcludeStatuses { get; private set; } = DefaultExcludedClashStatuses;
+
+        public static readonly IReadOnlyCollection<string> DefaultExcludedClashStatuses =
+            new[] { "closed", "resolved", "approved", "not_an_issue" };
+
+        /// <summary>The four ISO 19650 CDE states, the only keys cdeFolders accepts.</summary>
+        public static readonly IReadOnlyCollection<string> CdeStates = new[] { "WIP", "SHARED", "PUBLISHED", "ARCHIVE" };
 
         // ── Loading ─────────────────────────────────────────────────────────
 
@@ -264,6 +327,15 @@ namespace StingTools.V6
             string projectId = string.Empty, coordContainerId = string.Empty;
             int? maxCount = null;
             double? minScore = null;
+            string hubId = string.Empty, folderUrn = string.Empty, issueTypeId = string.Empty,
+                   issueSubtypeId = string.Empty, region = string.Empty, assignedTo = string.Empty,
+                   assignedToType = string.Empty;
+            double? distToMm = null;
+            int? dueDays = null;
+            bool docsAttributes = false, docsCreate = false;
+            var cdeFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var disciplineMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            List<string> excludeStatuses = null;
 
             try
             {
@@ -275,6 +347,58 @@ namespace StingTools.V6
                 if (TryGet(o, "escalateMinScore", out var msTok)) minScore = RequireDouble(msTok, "escalateMinScore");
                 if (TryGet(o, "projectId", out var pjTok)) projectId = RequireString(pjTok, "projectId");
                 if (TryGet(o, "coordContainerId", out var ccTok)) coordContainerId = RequireString(ccTok, "coordContainerId");
+                if (TryGet(o, "hubId", out var hTok)) hubId = RequireString(hTok, "hubId");
+                if (TryGet(o, "folderUrn", out var fTok)) folderUrn = RequireString(fTok, "folderUrn");
+                if (TryGet(o, "distToMm", out var dTok))
+                {
+                    distToMm = RequireDouble(dTok, "distToMm");
+                    if (distToMm <= 0) throw new FormatException($"'distToMm' must be greater than 0, found {distToMm}");
+                }
+                if (TryGet(o, "issueTypeId", out var itTok)) issueTypeId = RequireString(itTok, "issueTypeId");
+                if (TryGet(o, "issueSubtypeId", out var isTok)) issueSubtypeId = RequireString(isTok, "issueSubtypeId");
+                if (TryGet(o, "region", out var rTok))
+                {
+                    region = RequireString(rTok, "region").Trim().ToUpperInvariant();
+                    if (region.Length > 0 && !AccIds.KnownRegions.Contains(region))
+                        throw new FormatException($"'region' must be one of {string.Join(", ", AccIds.KnownRegions)}, found '{region}'");
+                }
+                if (TryGet(o, "cdeFolders", out var cfTok))
+                {
+                    cdeFolders = RequireStringMap(cfTok, "cdeFolders");
+                    var badState = cdeFolders.Keys.FirstOrDefault(k => !CdeStates.Contains(k, StringComparer.OrdinalIgnoreCase));
+                    if (badState != null)
+                        throw new FormatException($"'cdeFolders' key '{badState}' is not a CDE state ({string.Join(", ", CdeStates)})");
+                }
+                if (TryGet(o, "disciplineMap", out var dmTok)) disciplineMap = RequireStringMap(dmTok, "disciplineMap");
+                if (TryGet(o, "docsAttributes", out var daTok)) docsAttributes = RequireBool(daTok, "docsAttributes");
+                if (TryGet(o, "docsAttributesCreateMissing", out var dcTok)) docsCreate = RequireBool(dcTok, "docsAttributesCreateMissing");
+                if (TryGet(o, "escalateDueDays", out var ddTok))
+                {
+                    dueDays = RequireInt(ddTok, "escalateDueDays");
+                    if (dueDays < 0) throw new FormatException($"'escalateDueDays' must not be negative, found {dueDays}");
+                }
+                if (TryGet(o, "escalateAssignedTo", out var atTok)) assignedTo = RequireString(atTok, "escalateAssignedTo").Trim();
+                if (TryGet(o, "escalateAssignedToType", out var attTok))
+                {
+                    assignedToType = RequireString(attTok, "escalateAssignedToType").Trim().ToLowerInvariant();
+                    if (assignedToType.Length > 0 && assignedToType != "user" && assignedToType != "company" && assignedToType != "role")
+                        throw new FormatException($"'escalateAssignedToType' must be user, company or role, found '{assignedToType}'");
+                }
+                if ((assignedTo.Length > 0) != (assignedToType.Length > 0))
+                    throw new FormatException("'escalateAssignedTo' and 'escalateAssignedToType' must be set together - " +
+                                              "an assignee id means nothing without saying whether it is a user, company or role");
+                if (TryGet(o, "escalateExcludeStatuses", out var exTok))
+                {
+                    if (exTok.Type != JTokenType.Array)
+                        throw new FormatException($"'escalateExcludeStatuses' must be a list of strings, found {exTok.Type}");
+                    excludeStatuses = new List<string>();
+                    foreach (var t in exTok)
+                    {
+                        if (t.Type != JTokenType.String)
+                            throw new FormatException("'escalateExcludeStatuses' must contain only strings");
+                        excludeStatuses.Add(((string)t ?? string.Empty).Trim().ToLowerInvariant());
+                    }
+                }
             }
             catch (FormatException ex) { return Malformed(policy, ex.Message); }
 
@@ -286,6 +410,20 @@ namespace StingTools.V6
             policy.ProjectId = projectId.Trim();
             policy.CoordContainerId = coordContainerId.Trim();
             policy.Escalation = BuildEscalation(maxCount, minScore);
+            policy.HubId = hubId.Trim();
+            policy.FolderUrn = folderUrn.Trim();
+            policy.DistToMm = distToMm;
+            policy.IssueTypeId = issueTypeId.Trim();
+            policy.IssueSubtypeId = issueSubtypeId.Trim();
+            policy.Region = region;
+            policy.CdeFolders = cdeFolders;
+            policy.DisciplineMap = disciplineMap;
+            policy.DocsAttributes = docsAttributes;
+            policy.DocsAttributesCreateMissing = docsCreate;
+            policy.EscalateDueDays = dueDays;
+            policy.EscalateAssignedTo = assignedTo;
+            policy.EscalateAssignedToType = assignedToType;
+            if (excludeStatuses != null) policy.EscalateExcludeStatuses = excludeStatuses;
             return policy;
         }
 
@@ -315,6 +453,21 @@ namespace StingTools.V6
             policy.Source = AccPolicySource.Malformed;
             policy.LoadError = why ?? string.Empty;
             return policy;
+        }
+
+        private static Dictionary<string, string> RequireStringMap(JToken t, string key)
+        {
+            if (!(t is JObject obj)) throw new FormatException($"'{key}' must be an object of strings, found {t.Type}");
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in obj.Properties())
+            {
+                if (p.Value.Type != JTokenType.String)
+                    throw new FormatException($"'{key}.{p.Name}' must be a string, found {p.Value.Type}");
+                string v = ((string)p.Value ?? string.Empty).Trim();
+                if (v.Length == 0) throw new FormatException($"'{key}.{p.Name}' is empty");
+                map[p.Name.Trim()] = v;
+            }
+            return map;
         }
 
         private static bool TryGet(JObject o, string key, out JToken tok)

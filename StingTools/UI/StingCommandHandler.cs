@@ -2938,6 +2938,9 @@ namespace StingTools.UI
                     case "ACC_PullClashes":     RunCommand<Core.Clash.AccPullClashesCommand>(app); break;
                     case "AccSyncIssueStatus":
                     case "ACC_SyncIssueStatus": RunCommand<Core.Clash.AccSyncIssueStatusCommand>(app); break;
+                    // ACC Issues -> STING issue register (BIM-BCF-SYNC-01, ACC half).
+                    case "AccImportIssues":
+                    case "ACC_ImportIssues":    RunCommand<Core.Clash.AccImportIssuesCommand>(app); break;
                     // The REAL upload (APS Data Management), as distinct from ACCPublish,
                     // which only builds a local ACC-ready bundle for manual upload.
                     case "ACC_UploadModel":     RunCommand<Core.Clash.AccUploadModelCommand>(app); break;

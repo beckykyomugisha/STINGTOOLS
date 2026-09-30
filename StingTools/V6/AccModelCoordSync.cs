@@ -78,6 +78,10 @@ namespace StingTools.V6
         public long RightObjectId { get; set; }        // rvid (dbId)
         public string LeftDocument { get; set; } = string.Empty;
         public string RightDocument { get; set; } = string.Empty;
+        /// <summary>True when both sides' document NAMES were resolved. Without the document
+        /// scope file the sides carry raw document ids, which change with every model
+        /// version, so they cannot key an escalation that must survive the next upload.</summary>
+        public bool DocumentsNamed { get; set; }
         /// <summary>Factor converting DistanceM → mm (from AccCredentials.DistToMm; default 1000 = metres).</summary>
         public double DistToMm { get; set; } = 1000.0;
         public double PenetrationMm => Math.Abs(DistanceM) * DistToMm;
@@ -85,8 +89,6 @@ namespace StingTools.V6
 
     public static class AccModelCoordSync
     {
-        private static readonly HttpClient _http = new HttpClient();
-
         internal const string DefaultHost = "https://developer.api.autodesk.com";
         private static string _host = DefaultHost;
 
@@ -94,11 +96,20 @@ namespace StingTools.V6
         /// calls this; StingTools.Acc.Tests does, to prove end-to-end that a 404 does not
         /// become EmptyOk. Pass null to restore the real APS host.</summary>
         internal static void OverrideHostForTests(string host)
-            => _host = string.IsNullOrEmpty(host) ? DefaultHost : host.TrimEnd('/');
+        {
+            _host = string.IsNullOrEmpty(host) ? DefaultHost : host.TrimEnd('/');
+            // The token endpoint too: a 401 now triggers one forced refresh, and a test must
+            // never reach the real Autodesk sign-in service.
+            AccIssueSync.OverrideHostForTests(host);
+        }
 
         /// <summary>Test seam: the 429 back-off. Production waits; tests replace it with a
         /// no-op so the suite does not sleep. Production timings are never altered.</summary>
-        internal static Func<TimeSpan, Task> DelayHook = t => Task.Delay(t);
+        internal static Func<TimeSpan, Task> DelayHook
+        {
+            get => AccHttp.DelayHook;
+            set => AccHttp.DelayHook = value;
+        }
 
         private static string Host => _host;
         private static string ModelSetBase => Host + "/bim360/modelset/v3";
@@ -116,10 +127,11 @@ namespace StingTools.V6
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             const int pageSize = 100;
             int offset = 0;
+            string cid = AccIds.ForAcc(containerId);
             for (int page = 0; page < 50; page++)
             {
                 var got = await GetJsonAsync(creds,
-                    $"{ModelSetBase}/containers/{containerId}/modelsets?limit={pageSize}&offset={offset}").ConfigureAwait(false);
+                    $"{ModelSetBase}/containers/{cid}/modelsets?limit={pageSize}&offset={offset}").ConfigureAwait(false);
                 if (!got.Succeeded)
                     return AccFetchResult<List<AccModelSet>>.Failure(got.Status, list, got.HttpStatus, got.Detail);
 
@@ -129,7 +141,7 @@ namespace StingTools.V6
                     // never "no model sets". Reporting it as empty is the bug this closes.
                     return AccFetchResult<List<AccModelSet>>.Failure(AccFetchStatus.TransportFailed, list, got.HttpStatus,
                         "the model-set response carried no 'modelSets' array — the APS sub-path or payload shape has changed");
-                if (arr.Count == 0) break;
+                if (arr.Count == 0) return AccFetchResult<List<AccModelSet>>.Success(list, list.Count == 0);
 
                 int added = 0;
                 foreach (var m in arr)
@@ -139,20 +151,27 @@ namespace StingTools.V6
                     list.Add(new AccModelSet { Id = id, Name = (string)(m["name"] ?? m["title"]) ?? "(unnamed model set)" });
                     added++;
                 }
-                if (arr.Count < pageSize || added == 0) break;  // last page, or endpoint ignored offset
+                if (arr.Count < pageSize || added == 0)  // last page, or endpoint ignored offset
+                    return AccFetchResult<List<AccModelSet>>.Success(list, list.Count == 0);
                 offset += pageSize;
             }
-            return AccFetchResult<List<AccModelSet>>.Success(list, list.Count == 0);
+            // Fifty full pages and never a short one: there are more sets than were read.
+            return AccFetchResult<List<AccModelSet>>.Failure(AccFetchStatus.TransportFailed, list, 200,
+                $"stopped after 50 pages ({list.Count} model sets) without reaching the last page - the list is INCOMPLETE");
         }
 
         // ── Clashes (tests -> resources -> scope files -> join) ──
         public static async Task<AccFetchResult<List<AccClashRecord>>> GetClashesAsync(
-            AccCredentials creds, string containerId, string modelSetId, int max = 1000)
+            AccCredentials creds, string containerId, string modelSetId, int max = 0)
         {
+            // max <= 0 means every clash. A cap is the caller's explicit choice and is reported
+            // (Truncated / TotalAvailable), never silent: a 1,000 cap used to hand back the first
+            // 1,000 of a 3,000-clash federation as "Ok", and the report said the CSV held all.
             var result = new List<AccClashRecord>();
             if (string.IsNullOrEmpty(containerId) || string.IsNullOrEmpty(modelSetId))
                 return Fail(AccFetchStatus.NotFound, 0,
                     "no ACC container id or model-set id was supplied");
+            containerId = AccIds.ForAcc(containerId);
 
             // 1. latest completed clash test
             var testsGot = await GetJsonAsync(creds,
@@ -170,10 +189,24 @@ namespace StingTools.V6
                 return AccFetchResult<List<AccClashRecord>>.Success(result, empty: true);
             }
 
-            var latest = tests
-                .Where(t => ((string)(t["status"]) ?? "").IndexOf("complet", StringComparison.OrdinalIgnoreCase) >= 0)
+            var completed = tests
+                .Where(t => IsCompletedTest((string)t["status"]))
                 .OrderByDescending(t => (string)(t["completedAt"] ?? t["completedDate"] ?? t["updatedAt"]) ?? "")
-                .FirstOrDefault() ?? tests.First();
+                .ToList();
+            if (completed.Count == 0)
+            {
+                // Tests exist but none has finished. This used to fall back to tests.First()
+                // - a running or failed test - and read whatever it had. Nothing has been
+                // checked yet, and that is what the result now says.
+                string states = string.Join(", ", tests.Select(t => (string)t["status"] ?? "?").Distinct());
+                StingLog.Info("ACC MC: no completed clash test yet (" + states + ").");
+                var pending = AccFetchResult<List<AccClashRecord>>.Success(result, empty: true);
+                pending.Detail = $"no clash test on this model set has completed yet (test status: {states}) - " +
+                                 "nothing has been checked; run again when ACC finishes the test";
+                pending.NotReady = true;
+                return pending;
+            }
+            var latest = completed.First();
             string testId = (string)(latest["clashTestId"] ?? latest["id"] ?? latest["testId"]) ?? "";
             if (string.IsNullOrEmpty(testId))
             {
@@ -238,9 +271,11 @@ namespace StingTools.V6
                 return Fail(AccFetchStatus.TransportFailed, clashScope.HttpStatus,
                     "the clash scope file carried no 'clashes' array — the scope-file schema has changed");
 
+            int available = 0;
             foreach (var c in clashArr)
             {
-                if (result.Count >= max) break;
+                available++;
+                if (max > 0 && result.Count >= max) continue;
                 string id = (string)(c["id"] ?? c["cid"]) ?? "";
                 if (id.Length == 0) continue;
                 instByCid.TryGetValue(id, out var ins);
@@ -255,10 +290,14 @@ namespace StingTools.V6
                     RightObjectId = ParseLong(ins?["rvid"]),
                     LeftDocument  = ldid != null && docNameById.TryGetValue(ldid, out var ln) ? ln : (ldid ?? ""),
                     RightDocument = rdid != null && docNameById.TryGetValue(rdid, out var rn) ? rn : (rdid ?? ""),
+                    DocumentsNamed = ldid != null && rdid != null && docNameById.ContainsKey(ldid) && docNameById.ContainsKey(rdid),
                     DistToMm      = creds.DistToMm,
                 });
             }
-            return AccFetchResult<List<AccClashRecord>>.Success(result, result.Count == 0);
+            var ok = AccFetchResult<List<AccClashRecord>>.Success(result, result.Count == 0);
+            ok.TotalAvailable = available;
+            ok.Truncated = result.Count < available;
+            return ok;
         }
 
         private static AccFetchResult<List<AccClashRecord>> Fail(AccFetchStatus status, int httpStatus, string detail)
@@ -268,72 +307,38 @@ namespace StingTools.V6
         /// ClashTriageEngine severity rule understands. ACC clash data has no
         /// Revit category, so this is a document-name heuristic — override by
         /// renaming source models to carry a discipline token.</summary>
-        public static string DisciplineOst(string documentName)
+        public static string DisciplineOst(string documentName, IReadOnlyDictionary<string, string> projectMap = null)
+            => AccDisciplineResolver.Ost(documentName, projectMap);
+
+        /// <summary>A clash test that has finished and produced results. The API reports
+        /// Pending / Processing / Success / Failed; "Completed" is accepted as well. Anything
+        /// else is not a result to read.</summary>
+        internal static bool IsCompletedTest(string status)
         {
-            string n = (documentName ?? "").ToUpperInvariant();
-            if (n.Contains("STRUCT") || n.Contains("-S-") || n.Contains("_S_") || n.Contains("STR"))
-                return "OST_StructuralFraming";
-            if (n.Contains("DUCT") || n.Contains("HVAC") || n.Contains("MECH") || n.Contains("-M-"))
-                return "OST_DuctCurves";
-            if (n.Contains("PIPE") || n.Contains("PLUMB") || n.Contains("-P-"))
-                return "OST_PipeCurves";
-            if (n.Contains("ELEC") || n.Contains("-E-") || n.Contains("CABLE") || n.Contains("TRAY"))
-                return "OST_ElectricalEquipment";
-            if (n.Contains("FIRE") || n.Contains("SPRINK") || n.Contains("-FP-"))
-                return "OST_Sprinklers";
-            return ""; // architectural / unknown -> triage treats as non-structural, non-services
+            string s = (status ?? string.Empty).Trim();
+            return s.IndexOf("complet", StringComparison.OrdinalIgnoreCase) >= 0
+                || s.Equals("success", StringComparison.OrdinalIgnoreCase)
+                || s.Equals("successful", StringComparison.OrdinalIgnoreCase)
+                || s.Equals("succeeded", StringComparison.OrdinalIgnoreCase);
         }
 
         // ── HTTP helpers ──
         private static async Task<AccFetchResult<JToken>> GetJsonAsync(AccCredentials creds, string url)
         {
-            if (!await AccIssueSync.EnsureAuthAsync(creds).ConfigureAwait(false))
+            var resp = await AccHttp.SendAsync(() => AccIssueSync.WithRegion(new HttpRequestMessage(HttpMethod.Get, url), creds),
+                creds, idempotent: true).ConfigureAwait(false);
+            if (!resp.IsSuccess)
             {
-                StingLog.Warn("AccModelCoordSync: auth failed (check acc_credentials.json refresh token).");
-                return AccFetchResult<JToken>.Failure(AccFetchStatus.AuthFailed, null, 0,
-                    "no ACC access token could be obtained — the refresh token in acc_credentials.json was rejected or is absent");
+                StingLog.Warn($"AccModelCoordSync GET {resp.Status}: {url} - {resp.Describe()}");
+                return AccFetchResult<JToken>.Failure(resp.Classify(), null, resp.Status, resp.Describe());
             }
-            int lastStatus = 0;
-            for (int attempt = 0; attempt < 4; attempt++)
+            try { return AccFetchResult<JToken>.Success(JToken.Parse(resp.Body), empty: false); }
+            catch (Exception ex)
             {
-                try
-                {
-                    using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                    req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-                    using var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                    lastStatus = (int)resp.StatusCode;
-                    if (lastStatus == 429)
-                    {
-                        await DelayHook(TimeSpan.FromSeconds(1 << attempt)).ConfigureAwait(false);
-                        continue;
-                    }
-                    if (!resp.IsSuccessStatusCode)
-                    {
-                        StingLog.Warn($"AccModelCoordSync GET {lastStatus}: {url}");
-                        var status = AccFetchOutcome.Classify(lastStatus, -1);
-                        return AccFetchResult<JToken>.Failure(status, null, lastStatus,
-                            AccFetchOutcome.Describe(status, lastStatus));
-                    }
-                    string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-                    try { return AccFetchResult<JToken>.Success(JToken.Parse(body), empty: false); }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn("AccModelCoordSync parse: " + ex.Message);
-                        return AccFetchResult<JToken>.Failure(AccFetchStatus.TransportFailed, null, lastStatus,
-                            "the response body was not valid JSON: " + ex.Message);
-                    }
-                }
-                catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is IOException)
-                {
-                    // A network failure is a failure. It must never reach the caller as an
-                    // empty result — that is the shape that made a broken pull look clean.
-                    StingLog.Warn("AccModelCoordSync GET transport: " + ex.Message);
-                    return AccFetchResult<JToken>.Failure(AccFetchStatus.TransportFailed, null, 0,
-                        "the request did not complete: " + ex.Message);
-                }
+                StingLog.Warn("AccModelCoordSync parse: " + ex.Message);
+                return AccFetchResult<JToken>.Failure(AccFetchStatus.TransportFailed, null, resp.Status,
+                    "the response body was not valid JSON: " + ex.Message);
             }
-            return AccFetchResult<JToken>.Failure(AccFetchStatus.TransportFailed, null, lastStatus,
-                $"Autodesk rate-limited the request (HTTP {lastStatus}) after 4 attempts");
         }
 
         /// <summary>Download a scope resource and gunzip it to JSON. Pre-signed S3/
@@ -341,30 +346,27 @@ namespace StingTools.V6
         /// autodesk.com) need the bearer, so we attach it when the host matches.</summary>
         private static async Task<AccFetchResult<JObject>> DownloadScopeAsync(string url, AccCredentials creds)
         {
-            int code = 0;
+            // Pre-signed S3/CloudFront URLs carry their own auth; API-hosted resources need the bearer.
+            bool apiHosted = url.StartsWith(Host, StringComparison.OrdinalIgnoreCase);
+            var resp = await AccHttp.SendAsync(() => new HttpRequestMessage(HttpMethod.Get, url),
+                apiHosted ? creds : null, idempotent: true, timeout: TimeSpan.FromMinutes(5), readBytes: true).ConfigureAwait(false);
+            if (!resp.IsSuccess)
+            {
+                StingLog.Warn($"ACC scope download {resp.Status}");
+                return AccFetchResult<JObject>.Failure(resp.Classify(), null, resp.Status,
+                    "clash scope-file download: " + resp.Describe());
+            }
             try
             {
-                using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                if (url.StartsWith(Host, StringComparison.OrdinalIgnoreCase) && creds != null && !string.IsNullOrEmpty(creds.AccessToken))
-                    req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-                using var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                code = (int)resp.StatusCode;
-                if (!resp.IsSuccessStatusCode)
-                {
-                    StingLog.Warn($"ACC scope download {code}");
-                    var status = AccFetchOutcome.Classify(code, -1);
-                    return AccFetchResult<JObject>.Failure(status, null, code,
-                        "clash scope-file download: " + AccFetchOutcome.Describe(status, code));
-                }
-                var bytes = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                var bytes = resp.Bytes ?? Array.Empty<byte>();
                 string text = TryGunzip(bytes) ?? Encoding.UTF8.GetString(bytes);
                 return AccFetchResult<JObject>.Success(JObject.Parse(text), empty: false);
             }
             catch (Exception ex)
             {
-                StingLog.Warn("ACC scope download/parse: " + ex.Message);
-                return AccFetchResult<JObject>.Failure(AccFetchStatus.TransportFailed, null, code,
-                    "clash scope file could not be downloaded or parsed: " + ex.Message);
+                StingLog.Warn("ACC scope parse: " + ex.Message);
+                return AccFetchResult<JObject>.Failure(AccFetchStatus.TransportFailed, null, resp.Status,
+                    "clash scope file could not be parsed: " + ex.Message);
             }
         }
 

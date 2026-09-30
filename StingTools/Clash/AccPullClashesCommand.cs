@@ -45,24 +45,24 @@ namespace StingTools.Core.Clash
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC pull clashes");   // IM-18: project container ids first
-            if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
-                string.IsNullOrEmpty(creds.ProjectId))
-            {
-                TaskDialog.Show("ACC — Pull Clashes",
-                    "ACC credentials are not configured.\n\n" +
-                    "Create %APPDATA%\\Planscape\\acc_credentials.json with at least:\n" +
-                    "  ClientId, ClientSecret, RefreshToken, ProjectId\n\n" +
-                    "ProjectId is the Issues container; set CoordContainerId if the Model " +
-                    "Coordination container differs.");
-                return Result.Cancelled;
-            }
-            string containerId = creds.CoordContainer;   // falls back to ProjectId
-
             // The project's operating settings decide whether this run may prompt, and what
             // it does instead. Absent or unreadable settings mean "prompt for everything",
             // which is every project that exists today.
             var policy = AccProjectSettingsFile.LoadFor(doc, "ACC_PullClashes");
+
+            var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC pull clashes");   // IM-18: project container ids first
+            if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
+                string.IsNullOrEmpty(creds.ProjectId))
+            {
+                Report(policy, "ACC — Pull Clashes",
+                    "ACC is not set up for this project on this machine.\n\n" +
+                    "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', " +
+                    "then 'Discover' to choose the ACC project.");
+                // Not configured is a skip for an interactive project. A project that opted into
+                // unattended ACC operation expected this step to run, so there it is a failure.
+                return policy.IsUnattended ? Result.Failed : Result.Cancelled;
+            }
+            string containerId = creds.CoordContainer;   // falls back to ProjectId
 
             // 1. List model sets, then resolve which one WITHOUT a picker if the project
             //    remembers one.
@@ -154,11 +154,18 @@ namespace StingTools.Core.Clash
                 return Result.Failed;
             }
             var clashes = clashResult.Value;
+            if (clashResult.NotReady)
+            {
+                // Tests exist but none has finished: NOTHING was checked. Not "clean".
+                Report(policy, "ACC — Pull Clashes",
+                    $"Model set '{chosen.Name}': {clashResult.Detail}.\n\nThis is not a clash-clean result.");
+                StingLog.Warn($"ACC_PullClashes: set '{chosen.Name}' not ready — {clashResult.Detail}");
+                return policy.IsUnattended ? Result.Failed : Result.Cancelled;
+            }
             if (clashes.Count == 0)
             {
                 Report(policy, "ACC — Pull Clashes",
-                    $"Model set '{chosen.Name}' returned no clashes.\n\n" +
-                    "Either the model set is clash-clean, or a clash test has not completed in ACC yet.");
+                    $"Model set '{chosen.Name}': the latest COMPLETED clash test reports no clashes.");
                 return Result.Succeeded;
             }
 
@@ -169,8 +176,8 @@ namespace StingTools.Core.Clash
                 ClashId       = c.Id,
                 ElementAId    = c.LeftObjectId,
                 ElementBId    = c.RightObjectId,
-                CategoryA     = AccModelCoordSync.DisciplineOst(c.LeftDocument),
-                CategoryB     = AccModelCoordSync.DisciplineOst(c.RightDocument),
+                CategoryA     = AccModelCoordSync.DisciplineOst(c.LeftDocument, policy.DisciplineMap),
+                CategoryB     = AccModelCoordSync.DisciplineOst(c.RightDocument, policy.DisciplineMap),
                 PenetrationMm = c.PenetrationMm,
             }).ToList();
 
@@ -182,6 +189,8 @@ namespace StingTools.Core.Clash
             var report = new StringBuilder();
             report.AppendLine($"Model set: {chosen.Name}");
             report.AppendLine($"Clashes pulled: {clashes.Count}   (top {scored.Count} shown; CSV has all {scoredAll.Count})");
+            if (clashResult.Truncated)
+                report.AppendLine($"WARNING: only {clashes.Count} of {clashResult.TotalAvailable} clashes were read.");
             report.AppendLine();
             foreach (var s in scored.Take(10))
             {
@@ -201,19 +210,35 @@ namespace StingTools.Core.Clash
             string sidecar = SidecarPath(doc);
             var pushedMap = LoadPushed(sidecar);
             var tracked = new HashSet<string>(pushedMap.Keys, StringComparer.Ordinal);
-            var plan = policy.PlanEscalation(scoredAll, sc => SignatureFor(sc, byId), tracked);
+            // Only live, stably-keyed clashes may be escalated: a clash ACC already marks closed
+            // must not become somebody's issue, and a clash whose models are known only by
+            // per-version document ids would be raised again after the next model upload.
+            var excluded = new HashSet<string>(policy.EscalateExcludeStatuses ?? AccOperatingPolicy.DefaultExcludedClashStatuses,
+                StringComparer.OrdinalIgnoreCase);
+            var candidates = scoredAll.Where(sc =>
+                byId.TryGetValue(sc.ClashId, out var rec) && rec != null &&
+                !excluded.Contains((rec.Status ?? "").Trim()) &&
+                !string.IsNullOrEmpty(SignatureFor(sc, byId))).ToList();
+            int unkeyable = scoredAll.Count(sc => string.IsNullOrEmpty(SignatureFor(sc, byId)));
+            if (unkeyable > 0)
+                report.AppendLine($"{unkeyable} clash(es) cannot be escalated: ACC gave no document names for them " +
+                                  "(the document scope file was missing), so there is no key that survives the next model version.");
+            var plan = policy.PlanEscalation(candidates, sc => SignatureFor(sc, byId), tracked);
             StingLog.Info("ACC_PullClashes escalation — " + plan.Reason);
 
             if (!policy.MayPrompt)
             {
                 if (plan.ToPush.Count > 0)
                 {
-                    var (pushed, skipped) = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap);
-                    SavePushed(sidecar, pushedMap);
-                    StingLog.Info($"ACC_PullClashes: escalated {pushed} clash(es) to ACC Issues " +
-                                  $"({skipped} already tracked).");
+                    var outcome = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
+                    StingLog.Info("ACC_PullClashes: " + outcome.Describe());
                     report.AppendLine();
-                    report.AppendLine($"Escalated {pushed} clash(es) to ACC Issues by policy ({skipped} already tracked).");
+                    report.AppendLine("By policy: " + outcome.Describe());
+                    if (outcome.Failed > 0)
+                    {
+                        Report(policy, "ACC — Pull Clashes", report.ToString());
+                        return Result.Failed;   // a partial escalation must not read as a clean cycle
+                    }
                 }
                 else
                 {
@@ -241,10 +266,9 @@ namespace StingTools.Core.Clash
 
                 if (res == TaskDialogResult.CommandLink1 && plan.OfferInteractively)
                 {
-                    var (pushed, skipped) = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap);
-                    SavePushed(sidecar, pushedMap);
-                    TaskDialog.Show("ACC — Pull Clashes",
-                        $"Pushed {pushed} new clash(es) to ACC Issues; {skipped} already pushed (skipped).");
+                    var outcome = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
+                    TaskDialog.Show("ACC — Pull Clashes", outcome.Describe());
+                    if (outcome.Failed > 0) return Result.Failed;
                 }
             }
 
@@ -309,41 +333,111 @@ namespace StingTools.Core.Clash
             string detail, string containerId)
             => AccCommandOutcome.FailureMessage(what, status, httpStatus, detail, containerId);
 
-        // Idempotent push: skip clashes already issued (by stable signature), record the
-        // returned ACC issue id in the sidecar so re-runs don't create duplicate issues.
-        private static (int pushed, int skipped) PushTopIssues(AccCredentials creds, IReadOnlyList<ScoredClash> top,
-            Dictionary<string, AccClashRecord> byId, AccModelSet set, Dictionary<string, string> pushedMap)
+        internal sealed class PushOutcome
         {
-            int pushed = 0, skipped = 0;
+            public int Pushed, Skipped, Failed;
+            public List<string> Failures = new List<string>();
+            public string Describe()
+            {
+                string text = $"escalated {Pushed} clash(es) to ACC Issues; {Skipped} already tracked";
+                if (Failed > 0)
+                    text += $"; {Failed} FAILED (not recorded, so the next run retries them): " +
+                            string.Join(" | ", Failures.Take(3)) + (Failures.Count > 3 ? " …" : "");
+                return text + ".";
+            }
+        }
+
+        // Idempotent push: skip clashes already issued (by stable signature), and record each
+        // returned ACC issue id in the sidecar AS SOON AS it exists - a crash half-way through
+        // used to lose the ids of every issue already created, and the next run raised them
+        // all again, assigned to real people.
+        private static PushOutcome PushTopIssues(AccCredentials creds, IReadOnlyList<ScoredClash> top,
+            Dictionary<string, AccClashRecord> byId, AccModelSet set, Dictionary<string, string> pushedMap,
+            AccOperatingPolicy policy, string sidecar)
+        {
+            var outcome = new PushOutcome();
             foreach (var s in top)
             {
                 byId.TryGetValue(s.ClashId, out var c);
-                string sig = c != null ? Signature(c) : s.ClashId;
-                if (pushedMap.ContainsKey(sig)) { skipped++; continue; }
+                string sig = SignatureFor(s, byId);
+                if (string.IsNullOrEmpty(sig)) continue;               // unkeyable: reported by the caller
+                if (pushedMap.ContainsKey(sig)) { outcome.Skipped++; continue; }
 
-                var issue = new AccIssue
-                {
-                    Title = $"Clash [{s.Category}] (STING score {s.Score:F2})",
-                    Description = $"Triaged from ACC Model Coordination set '{set.Name}'.\n" +
-                                  $"Score {s.Score:F2} — {s.Rationale}\n" +
-                                  (c != null ? $"Penetration {c.PenetrationMm:F0} mm; {c.LeftDocument} ↔ {c.RightDocument}" : ""),
-                    Status = "open",
-                    LocationDescription = set.Name,
-                };
+                var issue = BuildClashIssue(s, c, set, policy);
                 try
                 {
-                    var id = AccIssueSync.PushIssueAsync(creds, issue).GetAwaiter().GetResult();
-                    if (!string.IsNullOrEmpty(id)) { pushed++; pushedMap[sig] = id; }
+                    var r = AccIssueSync.PushIssueDetailedAsync(creds, issue).GetAwaiter().GetResult();
+                    if (r.Ok)
+                    {
+                        outcome.Pushed++;
+                        pushedMap[sig] = r.Id;
+                        SavePushed(sidecar, pushedMap);
+                    }
+                    else
+                    {
+                        outcome.Failed++;
+                        outcome.Failures.Add($"clash {s.ClashId}: {r.Detail}");
+                        // An auth failure will fail every remaining push the same way.
+                        if (r.Status == AccFetchStatus.AuthFailed) break;
+                    }
                 }
-                catch (Exception ex) { StingLog.Warn("ACC push issue: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    outcome.Failed++;
+                    outcome.Failures.Add($"clash {s.ClashId}: {ex.Message}");
+                    StingLog.Warn("ACC push issue: " + ex.Message);
+                }
             }
-            return (pushed, skipped);
+            return outcome;
+        }
+
+        /// <summary>An ACC issue a coordinator can act on without opening STING: which two
+        /// models, which objects, how deep, and why it scored as it did. ACC does not allow
+        /// an issue to be pinned to a model location through the API (placement is read-only),
+        /// so the object ids are written into the description for the assignee to find.</summary>
+        internal static AccIssue BuildClashIssue(ScoredClash s, AccClashRecord c, AccModelSet set, AccOperatingPolicy policy)
+        {
+            var d = new StringBuilder();
+            d.AppendLine($"STING clash triage — score {s.Score:F2} ({s.Category}). {s.Rationale}");
+            if (c != null)
+            {
+                d.AppendLine($"Penetration {c.PenetrationMm:F0} mm.");
+                d.AppendLine($"{c.LeftDocument} object {c.LeftObjectId}  ↔  {c.RightDocument} object {c.RightObjectId}");
+            }
+            d.Append($"Model set '{set?.Name}'. ACC clash {s.ClashId}.");
+            string left = c != null ? ShortDoc(c.LeftDocument) : "?";
+            string right = c != null ? ShortDoc(c.RightDocument) : "?";
+            var issue = new AccIssue
+            {
+                Title = $"Clash {left} ↔ {right} — {(c != null ? c.PenetrationMm.ToString("F0") + " mm" : s.Category)} (STING {s.Score:F2})",
+                Description = d.ToString(),
+                Status = "open",
+                LocationDescription = set?.Name ?? string.Empty,
+            };
+            if (policy != null)
+            {
+                if (policy.EscalateDueDays.HasValue) issue.DueDate = DateTime.UtcNow.Date.AddDays(policy.EscalateDueDays.Value);
+                if (!string.IsNullOrEmpty(policy.EscalateAssignedTo))
+                {
+                    issue.AssignedToUserId = policy.EscalateAssignedTo;
+                    issue.AssignedToType = policy.EscalateAssignedToType;
+                }
+            }
+            return issue;
+        }
+
+        private static string ShortDoc(string name)
+        {
+            string n = System.IO.Path.GetFileNameWithoutExtension(name ?? string.Empty);
+            return n.Length > 28 ? n.Substring(0, 28) : n;
         }
 
         /// <summary>Order-invariant clash signature (object dbid @ document for each side,
         /// sorted) so an A/B swap between ACC runs maps to the same key — true idempotency.</summary>
         internal static string Signature(AccClashRecord c)
         {
+            // Raw document ids change with every model version; only names survive an upload.
+            if (!c.DocumentsNamed) return string.Empty;
             string a = $"{c.LeftObjectId}@{c.LeftDocument}";
             string b = $"{c.RightObjectId}@{c.RightDocument}";
             return string.CompareOrdinal(a, b) <= 0 ? $"{a}|{b}" : $"{b}|{a}";

@@ -1834,7 +1834,7 @@ Critical review of the tagging workflow identified the following logic, automati
 | BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | High | **DONE** Phase 148: `FuncSysValidator.Validate(rows)` returns mismatches against the SYS→{FUNC*} matrix (HVAC → SUP/RET/EXH/HTG/CLG/…, LV → PWR/LIT/CTL/DAT, etc.). |
 | BIM-FORECAST-01 | Compliance trend forecasting to target date | High | **DONE** Phase 148: `ComplianceForecast.Build(doc, target)` reads `_BIM_COORD/compliance_trend.json`, runs `WarningsEngine.ForecastCompliance`, and returns a `ForecastSummary` with caption text the dashboard can render inline. |
 | BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | High | **DONE** Phase 148: `OnDocumentOpened` now calls `ProjectFolderEngine.CreateFolderStructure(doc)` on every doc open (idempotent). Toggle via `AUTO_CREATE_CDE_FOLDERS` config key (default true). |
-| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | High | BCF export works but no import mechanism for changes from ACC/Procore — **deferred** (needs ACC/Procore OAuth). |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | High | **ACC half DONE 2026-09-30**: `ACC_ImportIssues` (`Clash/AccImportIssuesCommand.cs` + Revit-free `V6/AccIssueImport.cs`) merges ACC Issues into the STING register — create, update title/description/status/assignee, three-way conflict report, never deletes. Open: STING → ACC push of status/edits for ACC-sourced rows (conflicts are reported, not resolved); due date / display id need `AccIssue` fields; Procore not started. |
 | BIM-4D-HANDOVER-01 | 4D schedule linked to document handover dates | Critical | **DONE** Phase 148: `DataDropTracker.GetDD4HandoverDate(doc)` exposes the DD4 actual / planned date so `Scheduling4DEngine` can extend the timeline beyond construction-finish into handover. |
 | BIM-SIDECAR-VER-01 | Sidecar file versioning for forward compatibility | Medium | **DONE** Phase 148: `SidecarVersioning.EnsureArrayMeta(arr, schema)` stamps a `_meta` sentinel record (`version=1.1`, `schema`, `written_at`, `written_by`); readers iterate via `Records()` to skip the sentinel and tolerate missing-meta legacy files. |
 | BIM-TRANSMIT-GATE-01 | Transmittal CDE state validation | Medium | **DONE** Phase 148: `TransmittalGate.Validate(doc, transmittal, requiredRank=1)` blocks transmittals whose referenced documents are below SHARED, returning a structured `(pass, blockers, summary)` result. |
@@ -1889,7 +1889,7 @@ After verification, 15 of 44 gaps were confirmed as already implemented or false
 | BIM-EXCEL-CROSS-01 | Excel import FUNC↔SYS cross-validation | DONE Phase 148 |
 | BIM-FORECAST-01 | Compliance trend forecasting to target date | DONE Phase 148 |
 | BIM-CDE-FOLDER-01 | Auto-initialize CDE folder structure | DONE Phase 148 |
-| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | Deferred — needs ACC/Procore OAuth |
+| BIM-BCF-SYNC-01 | BCF bidirectional sync from external tools | ACC import DONE 2026-09-30 (`ACC_ImportIssues`); ACC push-back + Procore open |
 | TAG-SORT-LEVEL-01 | SmartSort level elevation cached per document | DONE (verified Phase 147) |
 | TAG-PREFLIGHT-DUP-01 | Reuse PopulationContext from pre-flight in main loop | DONE Phase 147 |
 
@@ -2538,3 +2538,70 @@ changed.
   `BLE_SIGN_ILLUMINATED_BOOL`, `RGL_NEMA_APPROVAL_REQ_BOOL`, `RGL_NWSC_APPROVAL_BOOL`,
   `RGL_OCCUPANCY_CERT_REQ_BOOL`, `RGL_UMEME_APPROVAL_BOOL`, `RGL_UMEME_APPROVAL_REQ_BOOL`).
   A tag family carrying one of them as Text loads with that label field empty.
+
+## ACC Docs — ISO 19650 CDE folders and document metadata (2026-09-30)
+
+- ~~**ACC-DOCS-1 — wire CDE routing and custom attributes into the ACC upload.**~~
+  **Done 2026-09-30:** `ACC_UploadModel` / `ACC_UploadLastBundle` (and the BCC card's upload
+  button, which now runs that command) pass `AccUploadOptions`; the keys below are read by
+  `AccOperatingPolicy`. The original note follows.
+  The building blocks exist and are tested; the upload does not call them yet.
+  `V6/AccCdeRouting.cs` maps a suitability code to its CDE state through
+  `Iso19650Suitability.CdeStateFor` (the rule the title block and Export Centre use), then
+  to an ACC folder URN. It returns no folder when the suitability is unknown or the state has
+  no folder configured. `V6/AccDocsMetadata.cs` lists, creates (only when allowed) and stamps
+  ACC Docs custom attributes. `AccDocsAttributeSet` holds the six STING attributes:
+  ISO Document Number, ISO Suitability, ISO Revision, ISO CDE State, STING Originator and
+  STING Transmittal Id. All are text. The CDE State value is derived from the suitability.
+  Proposed `acc_settings.json` keys (to be added in `AccOperatingPolicy`):
+
+  ```json
+  "cdeFolders": {
+    "WIP":       "urn:adsk.wipprod:fs.folder:co.…",
+    "SHARED":    "urn:adsk.wipprod:fs.folder:co.…",
+    "PUBLISHED": "urn:adsk.wipprod:fs.folder:co.…",
+    "ARCHIVE":   "urn:adsk.wipprod:fs.folder:co.…"
+  },
+  "docsAttributes": true,
+  "docsAttributesCreateMissing": false
+  ```
+
+  `cdeFolders` replaces a single upload folder. If a state is missing, the upload is refused
+  and the message names the state. `docsAttributes` turns stamping on. With
+  `docsAttributesCreateMissing` false, missing definitions are reported, not created. Creating
+  them needs `data:write` and folder permission, and the definitions then appear in the ACC
+  UI for everyone, so a project admin should enable it knowingly.
+- **ACC-DOCS-2 — confirm against a live tenant (KUT).** These points come from the APS
+  reference and blog but have not been run: (a) definitions created on a parent folder are
+  inherited by subfolders (the blog says so; the reference does not); (b) the status a
+  duplicate-name create returns; (c) whether batch-update accepts a numeric `id` (every
+  example sends one, but the schema says string); (d) whether the project's ACC file naming
+  standard (UI-configured, read-only API `GET /bim360/docs/v1/projects/{id}/naming-standards/{id}`)
+  rejects STING file names that do not conform; (e) 429 / Retry-After on these endpoints.
+
+## ACC hardening — what the 2026-09-30 pass left open
+
+The review of the ACC integration and its fixes are logged in CHANGELOG ("ACC hardening").
+Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1_PLAYBOOK.md`,
+`KUT_OPERATING_MODEL.md`.
+
+- **ACC-HARD-1 — run it live (KUT).** Everything in the pass is proved against loopback
+  listeners only: sign-in with a Desktop (PKCE) app, discovery, Issues v1 push/pull,
+  the clash pull (`bim360/clash/v3` sub-paths are still the residual from Phase 274), the
+  batched upload and the custom attributes. Follow `KUT_ACC_DAY1_PLAYBOOK.md` §7 V1–V8.
+- **ACC-HARD-2 — resumable upload across sessions.** A failed part is retried and expired URLs
+  are renewed, but a cancelled or crashed upload restarts from the first byte. Persisting the
+  `uploadKey` and the parts sent would let a multi-GB model resume on a site connection.
+- **ACC-HARD-3 — cloud-workshared models.** With a Revit cloud model `doc.PathName` is not a
+  local path; `StingPaths` may resolve each user's own Documents folder, which would split
+  `_BIM_COORD` (escalation record, ACC settings, counters) per user. Until checked, run STING on
+  a local host model that links the cloud models (playbook §9).
+- **ACC-HARD-4 — retire the machine-file fallback.** `projectId`, `hubId` and `folderUrn` are
+  still read from `%APPDATA%\Planscape\acc_credentials.json` when a project has none (logged as
+  DEPRECATED). Remove it after one live KUT cycle on project settings (as IM-18 planned).
+- **ACC-HARD-5 — escalated issues cannot be pinned.** The ACC Issues API does not create
+  pushpins (placement is read-only), so an escalated clash names its two objects in the
+  description instead. Revisit if Autodesk opens placement writes.
+- **ACC-HARD-6 — clash status vocabulary.** Escalation skips clashes whose scope-file status is
+  closed / resolved / approved / not_an_issue (`escalateExcludeStatuses`). The statuses the
+  scope files actually use are unconfirmed; check on the first live pull.

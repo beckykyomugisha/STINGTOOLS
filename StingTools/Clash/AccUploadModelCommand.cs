@@ -26,6 +26,8 @@
 
 using System;
 using System.IO;
+using System.Linq;
+using StingTools.Core.Drawing;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
@@ -50,17 +52,16 @@ namespace StingTools.Core.Clash
             var ctx = ParameterHelpers.GetContext(cmd);
             Document doc = ctx?.Doc;
 
+            var policy = AccProjectSettingsFile.LoadFor(doc, "ACC upload");
             var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC upload");   // IM-18: project container ids first
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
                 TaskDialog.Show(DialogTitle,
-                    "ACC credentials are not configured.\n\n" +
-                    "Create %APPDATA%\\Planscape\\acc_credentials.json with at least:\n" +
-                    "  ClientId, ClientSecret, RefreshToken\n" +
-                    "and set this project's ACC Project ID in BIM Coordination Center > ACC.\n\n" +
-                    "The APS app also needs data:read, data:write and data:create scopes, " +
-                    "or the upload is rejected after the file has already been staged.");
+                    "ACC is not set up for this project on this machine.\n\n" +
+                    "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', " +
+                    "then 'Discover' to choose the ACC project. The APS app needs the data:read, " +
+                    "data:write and data:create scopes.");
                 return Result.Cancelled;
             }
 
@@ -74,7 +75,13 @@ namespace StingTools.Core.Clash
             AccModelUpload.UploadResult result;
             try
             {
-                result = AccModelUpload.UploadAsync(creds, file).GetAwaiter().GetResult();
+                var options = BuildOptions(doc, file, policy, out string optionsRefusal);
+                if (options == null)
+                {
+                    if (!string.IsNullOrEmpty(optionsRefusal)) TaskDialog.Show(DialogTitle, optionsRefusal);
+                    return Result.Cancelled;
+                }
+                result = AccModelUpload.UploadAsync(creds, file, options).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -97,7 +104,7 @@ namespace StingTools.Core.Clash
                     $"Failure: {status}\n" +
                     $"Reason:  {why}\n" +
                     $"Project (container) used: {creds.ProjectId}\n" +
-                    $"Folder URN: {(string.IsNullOrWhiteSpace(creds.FolderUrn) ? "(auto-resolved 'Project Files')" : creds.FolderUrn)}\n\n" +
+                    $"Folder: {(policy.CdeFolders.Count > 0 ? "by CDE state (project cdeFolders)" : string.IsNullOrWhiteSpace(creds.FolderUrn) ? "the project's 'Project Files' folder" : creds.FolderUrn)}\n\n" +
                     AccCommandOutcome.Remedy(status));
                 StingLog.Warn($"ACC upload FAILED ({status}, HTTP {result?.HttpStatus ?? 0}) for '{file}': {why}");
                 return Result.Failed;
@@ -105,10 +112,70 @@ namespace StingTools.Core.Clash
 
             string txNote = MarkBundleTransmittalSent(doc, file, result.ItemUrn);
             TaskDialog.Show(DialogTitle,
-                result.Message + (string.IsNullOrWhiteSpace(result.ItemUrn) ? "" : "\n\nItem: " + result.ItemUrn) +
+                result.Message +
+                (string.IsNullOrWhiteSpace(result.FolderReason) ? "" : "\n\nFolder: " + result.FolderReason) +
+                (string.IsNullOrWhiteSpace(result.ItemUrn) ? "" : "\nItem: " + result.ItemUrn) +
+                (string.IsNullOrWhiteSpace(result.MetadataNote) ? "" : "\n\n" + result.MetadataNote) +
                 (txNote == null ? "" : "\n\n" + txNote));
+            if (!result.MetadataComplete) StingLog.Warn("ACC upload: " + result.MetadataNote);
             StingLog.Info($"ACC upload: uploaded '{file}' -> {result.ItemUrn}");
             return Result.Succeeded;
+        }
+
+        /// <summary>
+        /// The upload's folder and metadata decisions. The suitability comes from the ACC
+        /// Publish bundle record when this is that bundle; otherwise, when the project maps
+        /// CDE states to folders, the person is asked which state the file is in — the
+        /// suitability decides where a deliverable may go, so it is never inferred from a
+        /// file name. Returns null (with a reason, or none if the person cancelled) to stop.
+        /// </summary>
+        private static AccUploadOptions BuildOptions(Document doc, string file, AccOperatingPolicy policy, out string refusal)
+        {
+            refusal = null;
+            var rec = AccBundleRecord.ReadExisting(BundleRecordPath(doc));
+            bool isBundle = rec != null && string.Equals(Path.GetFullPath(rec.Path), Path.GetFullPath(file), StringComparison.OrdinalIgnoreCase);
+            string suitability = isBundle ? rec.Suitability : string.Empty;
+
+            if (policy.CdeFolders.Count > 0 && string.IsNullOrWhiteSpace(suitability))
+            {
+                if (!policy.MayPrompt)
+                {
+                    refusal = "This project files uploads by CDE state, and this file carries no suitability code. " +
+                              "Nothing was uploaded (unattended runs do not guess where a deliverable belongs).";
+                    return null;
+                }
+                var choices = AccOperatingPolicy.CdeStates
+                    .Where(st => policy.CdeFolders.ContainsKey(st))
+                    .Select(st => $"{st} — suitability {Iso19650Suitability.DefaultFor(st)}")
+                    .ToList();
+                string pick = StingTools.Select.StingListPicker.Show("ACC — which CDE state is this file in?",
+                    $"{Path.GetFileName(file)}\n\nThe project maps each ISO 19650 CDE state to an ACC folder. " +
+                    "Choose the state this file is issued in.", choices);
+                if (string.IsNullOrEmpty(pick)) return null;
+                suitability = Iso19650Suitability.DefaultFor(pick.Split(' ')[0]);
+            }
+
+            var options = new AccUploadOptions
+            {
+                Suitability = suitability ?? string.Empty,
+                CdeFolders = policy.CdeFolders,
+                CreateMissingAttributes = policy.DocsAttributesCreateMissing,
+            };
+            if (policy.DocsAttributes)
+            {
+                string originator = string.Empty;
+                try { originator = ParameterHelpers.GetString(doc?.ProjectInformation, ParamRegistry.ORG_ORIGINATOR_CODE); }
+                catch (Exception ex) { StingLog.Warn("ACC upload: originator code: " + ex.Message); }
+                options.Metadata = new AccDocMetadataInput
+                {
+                    DocumentNumber = Path.GetFileNameWithoutExtension(file),
+                    Suitability = suitability,
+                    Revision = string.Empty,
+                    TransmittalId = isBundle ? rec.TransmittalId : string.Empty,
+                    Originator = originator,
+                };
+            }
+            return options;
         }
 
         /// <summary>IM-17: ACCPublish records its bundle's transmittal as PREPARED. When

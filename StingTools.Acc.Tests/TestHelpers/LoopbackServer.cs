@@ -27,6 +27,9 @@ namespace StingTools.Acc.Tests.TestHelpers
         public string Body { get; }
         public string ContentType { get; }
 
+        /// <summary>Extra response headers (e.g. Retry-After). Optional.</summary>
+        public Dictionary<string, string> Headers { get; } = new Dictionary<string, string>();
+
         /// <summary>True for the sentinel below: close the connection without answering.</summary>
         public bool IsAbort { get; private set; }
 
@@ -118,6 +121,7 @@ namespace StingTools.Acc.Tests.TestHelpers
 
                     var bytes = Encoding.UTF8.GetBytes(canned.Body);
                     ctx.Response.StatusCode = canned.Status;
+                    foreach (var h in canned.Headers) ctx.Response.AddHeader(h.Key, h.Value);
                     ctx.Response.ContentType = canned.ContentType;
                     ctx.Response.ContentLength64 = bytes.Length;
                     await ctx.Response.OutputStream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);

@@ -2,23 +2,17 @@
 //
 // StingTools/V6/AccIssueSync.cs — S6.4 (N-G8).
 //
-// Autodesk Construction Cloud (ACC) Issues round-trip.
+// Autodesk Construction Cloud (ACC) Issues round-trip, and the token handling every
+// other ACC client reuses.
 //
-// Push BCF issues from STING to ACC and pull ACC Issues back.
-// Requires OAuth 2.0 three-legged flow; access token refresh is
-// handled automatically. Rate-limit 429 responses are retried with
-// exponential back-off.
-//
-// MVP scope: raw HttpClient + Newtonsoft.Json. A future phase may
-// swap in the Autodesk Platform Services (APS) SDK once it ships a
-// stable .NET 8 package.
-//
-// Credentials live in %APPDATA%\Planscape\acc_credentials.json so
-// they never touch project files or source control.
+// Transport: AccHttp (one set of retry rules for every ACC call). Credentials:
+// AccCredentialStore (DPAPI-protected machine file, atomic save, cross-process refresh
+// lock). The project's container ids come from the project's acc_settings.json
+// (AccProjectScope), never from the machine file alone.
 
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -32,384 +26,524 @@ namespace StingTools.V6
     public sealed class AccCredentials
     {
         public string ClientId { get; set; } = string.Empty;
+        /// <summary>Empty for a PKCE (public, "Desktop app") APS client: no secret is ever
+        /// stored on the workstation. Set for a "Traditional Web App" (confidential) client.</summary>
         public string ClientSecret { get; set; } = string.Empty;
         public string AccessToken { get; set; } = string.Empty;
         public string RefreshToken { get; set; } = string.Empty;
         public DateTime AccessTokenExpiry { get; set; }
+        /// <summary>When the current refresh token was issued. Drives the "sign-in lapses in N
+        /// days" warning and the background keep-alive (see AccSignInLifetime).</summary>
+        public DateTime RefreshTokenIssuedAt { get; set; }
         public string HubId { get; set; } = string.Empty;
         public string ProjectId { get; set; } = string.Empty;
-        /// <summary>ACC Model-Coordination container id. Often differs from the Issues/ProjectId container. Falls back to ProjectId when empty.</summary>
+        /// <summary>ACC Model-Coordination container id. Falls back to ProjectId when empty.</summary>
         public string CoordContainerId { get; set; } = string.Empty;
-        /// <summary>Default ACC issue type id used when an issue carries none — required by the ACC Issues API.
-        /// Left empty, <see cref="AccIssueSync.EnsureIssueTypeAsync"/> resolves one from the container and caches it here.</summary>
+        /// <summary>ACC issue type id for this container, resolved by name (see
+        /// <see cref="AccIssueSync.EnsureIssueTypeAsync"/>) or set in acc_settings.json.</summary>
         public string IssueTypeId { get; set; } = string.Empty;
-        /// <summary>Subtype of <see cref="IssueTypeId"/>, cached alongside it. Only ever sent with that type —
-        /// a subtype id belongs to one type, so pairing it with a different type is rejected.</summary>
+        /// <summary>Subtype of <see cref="IssueTypeId"/>. Only ever sent with that type.</summary>
         public string IssueSubtypeId { get; set; } = string.Empty;
-        /// <summary>Multiply ACC clash 'dist' by this to get millimetres (default 1000 = metres). Set per the model's clash-result units.</summary>
+        /// <summary>Multiply ACC clash 'dist' by this to get millimetres (default 1000 = metres).</summary>
         public double DistToMm { get; set; } = 1000.0;
-
-        /// <summary>ACC Docs folder URN to upload models into (urn:adsk.wipprod:fs.folder:...). When empty, AccModelUpload auto-resolves the project's "Project Files" top folder.</summary>
+        /// <summary>ACC Docs folder URN to upload into. Project-scoped: set it in acc_settings.json.</summary>
         public string FolderUrn { get; set; } = string.Empty;
+        /// <summary>US (default), EMEA or AUS.</summary>
+        public string Region { get; set; } = string.Empty;
+
+        /// <summary>A PKCE client carries no secret; token requests send client_id in the body.</summary>
+        [Newtonsoft.Json.JsonIgnore]
+        public bool IsPublicClient => string.IsNullOrWhiteSpace(ClientSecret);
 
         /// <summary>Coordination container, falling back to the Issues/ProjectId container when unset.</summary>
         [Newtonsoft.Json.JsonIgnore]
         public string CoordContainer => string.IsNullOrEmpty(CoordContainerId) ? ProjectId : CoordContainerId;
 
         // JsonIgnore: a computed value is not a credential. Serialising it also threw on a
-        // never-set expiry (DateTime.MinValue.AddMinutes(-5) is out of range), which made
-        // SaveCredentials fail — inside its catch, so a first save silently wrote nothing.
+        // never-set expiry (DateTime.MinValue.AddMinutes(-5) is out of range).
         [Newtonsoft.Json.JsonIgnore]
         public bool IsStale => string.IsNullOrEmpty(AccessToken)
             || AccessTokenExpiry <= DateTime.MinValue.AddMinutes(5)
             || DateTime.UtcNow >= AccessTokenExpiry.AddMinutes(-5);
 
-        // IM-18 bookkeeping, never serialised: where ProjectId came from, and what the
-        // machine file held, so a save restores the file's values instead of copying a
+        // IM-18 bookkeeping, never serialised: where the project values came from, and what
+        // the machine file held, so a save restores the file's values instead of copying a
         // project's ids into it. See AccProjectScope.
         [Newtonsoft.Json.JsonIgnore] public AccProjectScopeSource ProjectScope { get; set; } = AccProjectScopeSource.None;
         [Newtonsoft.Json.JsonIgnore] public string FileProjectId { get; set; }
         [Newtonsoft.Json.JsonIgnore] public string FileCoordContainerId { get; set; }
         [Newtonsoft.Json.JsonIgnore] public string FileIssueTypeId { get; set; }
         [Newtonsoft.Json.JsonIgnore] public string FileIssueSubtypeId { get; set; }
+        [Newtonsoft.Json.JsonIgnore] public string FileHubId { get; set; }
+        [Newtonsoft.Json.JsonIgnore] public string FileFolderUrn { get; set; }
+        [Newtonsoft.Json.JsonIgnore] public double? FileDistToMm { get; set; }
+        [Newtonsoft.Json.JsonIgnore] public string FileRegion { get; set; }
+        /// <summary>True once the project scope has been applied, so ToMachineFile knows the
+        /// File* values are meaningful.</summary>
+        [Newtonsoft.Json.JsonIgnore] public bool ScopeApplied { get; set; }
     }
 
     public sealed class AccIssue
     {
         public string Id { get; set; } = string.Empty;
+        /// <summary>The human number ACC shows (#123).</summary>
+        public string DisplayId { get; set; } = string.Empty;
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Status { get; set; } = "open";
+        /// <summary>ACC issue subtype id (Issues v1 files an issue under a subtype).</summary>
         public string IssueType { get; set; } = string.Empty;
         public string AssignedToUserId { get; set; } = string.Empty;
+        /// <summary>user, company or role — required by ACC whenever an assignee is set.</summary>
+        public string AssignedToType { get; set; } = string.Empty;
+        public DateTime? DueDate { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
         public string LocationDescription { get; set; } = string.Empty;
+    }
+
+    /// <summary>How pushing one issue ended. <see cref="Id"/> is set only on success.</summary>
+    public sealed class AccPushResult
+    {
+        public string Id { get; set; }
+        public AccFetchStatus Status { get; set; } = AccFetchStatus.TransportFailed;
+        public int HttpStatus { get; set; }
+        public string Detail { get; set; } = string.Empty;
+        public bool Ok => !string.IsNullOrEmpty(Id);
     }
 
     public static class AccIssueSync
     {
-        private static readonly HttpClient _http = new HttpClient();
-
         internal const string DefaultHost = "https://developer.api.autodesk.com";
         private static string _host = DefaultHost;
 
-        /// <summary>Test seam: point the client at a loopback listener. Production never
-        /// calls this. Pass null to restore the real APS host.</summary>
+        /// <summary>Test seam: point every ACC client at a loopback listener. Pass null to
+        /// restore the real APS host.</summary>
         internal static void OverrideHostForTests(string host)
             => _host = string.IsNullOrEmpty(host) ? DefaultHost : host.TrimEnd('/');
 
-        /// <summary>Test seam: the 429 back-off wait. Production waits the real interval;
-        /// tests replace it with a no-op so the suite does not sleep 7 seconds proving the
-        /// retry runs. Production timings are never altered to suit a test.</summary>
-        internal static Func<TimeSpan, Task> DelayHook = t => Task.Delay(t);
+        internal static string Host => _host;
 
-        private static string AuthUrl   => _host + "/authentication/v2/token";
-        private static string IssuesUrl => _host + "/construction/issues/v1";
+        /// <summary>Test seam for the back-off wait (forwards to the shared transport).</summary>
+        internal static Func<TimeSpan, Task> DelayHook
+        {
+            get => AccHttp.DelayHook;
+            set => AccHttp.DelayHook = value;
+        }
+
+        internal static string AuthUrl   => _host + "/authentication/v2/token";
+        private static string IssuesBase => _host + "/construction/issues/v1/projects";
+
+        /// <summary>…/construction/issues/v1/projects/{bare GUID}.</summary>
+        private static string ProjectUrl(AccCredentials c) => $"{IssuesBase}/{AccIds.ForAcc(c.ProjectId)}";
+
+        // ── Authentication ───────────────────────────────────────────────────
+
+        private static readonly SemaphoreSlim _tokenLock = new SemaphoreSlim(1, 1);
+
+        /// <summary>True when a usable access token is available. Kept for callers that only
+        /// need yes/no; use <see cref="EnsureAuthDetailedAsync"/> to say WHY not.</summary>
+        public static async Task<bool> EnsureAuthAsync(AccCredentials creds)
+            => (await EnsureAuthDetailedAsync(creds).ConfigureAwait(false)).Ok;
 
         /// <summary>
-        /// Ensure the access token is fresh; refresh via
-        /// refresh_token grant if expired. Thread-safe via semaphore.
+        /// Make sure <paramref name="creds"/> carries a usable access token, refreshing it when
+        /// stale (or always, with <paramref name="force"/> — used after a 401).
+        ///
+        /// Two Revit processes share one refresh token, and APS invalidates a refresh token
+        /// once it has been used. So the refresh runs under a cross-process lock file, and
+        /// inside it the machine file is re-read: if another process has already rotated the
+        /// token, its result is adopted instead of spending a dead refresh token.
         /// </summary>
-        private static readonly SemaphoreSlim _tokenLock = new SemaphoreSlim(1, 1);
-        public static async Task<bool> EnsureAuthAsync(AccCredentials creds)
+        public static async Task<AccAuthOutcome> EnsureAuthDetailedAsync(AccCredentials creds, bool force = false)
         {
-            if (!creds.IsStale) return true;
+            if (creds == null) return AccAuthOutcome.Rejected("no ACC credentials were supplied");
+            if (!force && !creds.IsStale) return AccAuthOutcome.Success();
+
             await _tokenLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (!creds.IsStale) return true;
-                var form = new FormUrlEncodedContent(new[]
+                if (!force && !creds.IsStale) return AccAuthOutcome.Success();
+
+                using (var fileLock = await AccCredentialStore.AcquireRefreshLockAsync(TimeSpan.FromSeconds(20)).ConfigureAwait(false))
                 {
-                    new KeyValuePair<string, string>("grant_type", "refresh_token"),
-                    new KeyValuePair<string, string>("refresh_token", creds.RefreshToken ?? string.Empty),
-                });
-                var basic = Convert.ToBase64String(
-                    Encoding.UTF8.GetBytes($"{creds.ClientId}:{creds.ClientSecret}"));
-                var req = new HttpRequestMessage(HttpMethod.Post, AuthUrl) { Content = form };
-                req.Headers.Authorization = new AuthenticationHeaderValue("Basic", basic);
-                var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                if (!resp.IsSuccessStatusCode)
-                {
-                    StingLog.Warn($"AccIssueSync: token refresh returned {(int)resp.StatusCode}");
-                    return false;
+                    if (fileLock == null)
+                        StingLog.Warn("AccIssueSync: could not take the credentials refresh lock in 20 s — refreshing without it");
+
+                    string rejectedAccessToken = force ? creds.AccessToken : null;
+                    if (TryAdoptFromMachineFile(creds, rejectedAccessToken)) return AccAuthOutcome.Success();
+
+                    if (string.IsNullOrEmpty(creds.RefreshToken))
+                        return AccAuthOutcome.Rejected(
+                            "this machine is not signed in to Autodesk (no refresh token) — use 'Sign in with Autodesk' on the ACC card");
+                    if (string.IsNullOrEmpty(creds.ClientId))
+                        return AccAuthOutcome.Rejected("no APS Client ID is configured — enter it on the ACC card");
+
+                    var form = new List<KeyValuePair<string, string>>
+                    {
+                        new KeyValuePair<string, string>("grant_type", "refresh_token"),
+                        new KeyValuePair<string, string>("refresh_token", creds.RefreshToken),
+                    };
+                    var tok = await TokenRequestAsync(creds, form, CancellationToken.None).ConfigureAwait(false);
+                    if (!tok.Ok) return tok.Outcome;
+
+                    ApplyTokenResponse(creds, tok.Json);
+                    string warn = PersistAfterRefresh(creds);
+                    return AccAuthOutcome.Success(warn);
                 }
-                var json = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
-                creds.AccessToken        = (string)json["access_token"] ?? creds.AccessToken;
-                creds.RefreshToken       = (string)json["refresh_token"] ?? creds.RefreshToken;
-                int expiresIn            = (int?)json["expires_in"] ?? 3600;
-                creds.AccessTokenExpiry  = DateTime.UtcNow.AddSeconds(expiresIn);
-                SaveCredentials(creds);
-                return true;
             }
             catch (Exception ex)
             {
                 StingLog.Error("AccIssueSync.EnsureAuth failed", ex);
-                return false;
+                return AccAuthOutcome.Unreachable("the token refresh did not complete: " + ex.Message);
             }
             finally { _tokenLock.Release(); }
         }
 
-        /// <summary>
-        /// Resolve a usable issue_type_id for the container, so a push does not
-        /// depend on someone having hand-entered a GUID in acc_credentials.json.
-        ///
-        /// Order: an already-cached <see cref="AccCredentials.IssueTypeId"/> wins and
-        /// costs nothing; otherwise the container's issue types are fetched once and a
-        /// Clash/Coordination type is preferred, falling back to the first offered.
-        /// The chosen id (and its first subtype) is cached on the credentials and
-        /// persisted, so the fetch happens once per machine rather than per issue.
-        ///
-        /// Returns false — and logs why — rather than throwing: a push with no type
-        /// still runs and ACC reports the rejection, which is more informative than a
-        /// pre-emptive exception here.
-        /// </summary>
-        public static async Task<bool> EnsureIssueTypeAsync(AccCredentials creds)
+        /// <summary>If another process rotated the token since <paramref name="creds"/> was
+        /// loaded, take its result. Returns true when an adopted access token is usable now.</summary>
+        private static bool TryAdoptFromMachineFile(AccCredentials creds, string rejectedAccessToken)
         {
-            if (creds == null) return false;
-            if (!string.IsNullOrEmpty(creds.IssueTypeId)) return true;
-            if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return false;
+            AccCredentials file;
+            try { file = AccCredentialStore.Load(out _); }
+            catch (Exception ex) { StingLog.Warn("AccIssueSync: machine credentials unreadable during refresh: " + ex.Message); return false; }
+            if (file == null || string.IsNullOrEmpty(file.RefreshToken)) return false;
+            if (!string.Equals(file.ClientId, creds.ClientId, StringComparison.Ordinal)) return false;
+
+            bool rotatedElsewhere = !string.Equals(file.RefreshToken, creds.RefreshToken, StringComparison.Ordinal);
+            if (!rotatedElsewhere) return false;
+
+            creds.RefreshToken = file.RefreshToken;
+            creds.RefreshTokenIssuedAt = file.RefreshTokenIssuedAt;
+            bool freshAccess = !file.IsStale && !string.Equals(file.AccessToken, rejectedAccessToken, StringComparison.Ordinal);
+            if (freshAccess)
+            {
+                creds.AccessToken = file.AccessToken;
+                creds.AccessTokenExpiry = file.AccessTokenExpiry;
+                StingLog.Info("AccIssueSync: adopted a token another STING session had already refreshed");
+                return true;
+            }
+            StingLog.Info("AccIssueSync: another STING session rotated the refresh token — refreshing with the current one");
+            return false;
+        }
+
+        internal sealed class TokenResult
+        {
+            public bool Ok;
+            public JObject Json;
+            public AccAuthOutcome Outcome;
+        }
+
+        /// <summary>POST to the APS token endpoint. Confidential clients authenticate with
+        /// HTTP Basic; a PKCE (public) client sends client_id in the body and no secret.
+        /// A 400/401 is Autodesk refusing the grant (sign in again); anything else is
+        /// "could not reach Autodesk" (try again) — the two were one bool before.</summary>
+        internal static async Task<TokenResult> TokenRequestAsync(
+            AccCredentials creds, List<KeyValuePair<string, string>> form, CancellationToken ct)
+        {
+            var fields = new List<KeyValuePair<string, string>>(form);
+            if (creds.IsPublicClient) fields.Add(new KeyValuePair<string, string>("client_id", creds.ClientId));
+
+            var resp = await AccHttp.SendAsync(() =>
+            {
+                var req = new HttpRequestMessage(HttpMethod.Post, AuthUrl) { Content = new FormUrlEncodedContent(fields) };
+                if (!creds.IsPublicClient)
+                    req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                        Convert.ToBase64String(Encoding.UTF8.GetBytes($"{creds.ClientId}:{creds.ClientSecret}")));
+                return req;
+            }, creds: null, idempotent: false, ct: ct, timeout: TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+
+            if (resp.Status == 0)
+                return new TokenResult { Outcome = AccAuthOutcome.Unreachable("could not reach the Autodesk sign-in service: " + resp.Error) };
+            if (!resp.IsSuccess)
+            {
+                string code = TryReadError(resp.Body);
+                StingLog.Warn($"AccIssueSync: token endpoint returned {resp.Status} {code}");
+                if (resp.Status == 400 || resp.Status == 401)
+                    return new TokenResult
+                    {
+                        Outcome = AccAuthOutcome.Rejected(
+                            $"Autodesk refused the sign-in (HTTP {resp.Status}{(code.Length > 0 ? ", " + code : "")}). " +
+                            "The refresh token has expired or was already used — sign in again on the ACC card. " +
+                            "An unused sign-in lapses after about " + AccSignInLifetime.RefreshTokenLifetime.TotalDays + " days.")
+                    };
+                return new TokenResult { Outcome = AccAuthOutcome.Unreachable($"the Autodesk sign-in service answered HTTP {resp.Status}") };
+            }
+            JObject json;
+            try { json = JObject.Parse(resp.Body); }
+            catch (Exception ex) { return new TokenResult { Outcome = AccAuthOutcome.Unreachable("the token response was not JSON: " + ex.Message) }; }
+            if (string.IsNullOrEmpty((string)json["access_token"]))
+                return new TokenResult { Outcome = AccAuthOutcome.Unreachable("the token response carried no access_token") };
+            return new TokenResult { Ok = true, Json = json, Outcome = AccAuthOutcome.Success() };
+        }
+
+        internal static void ApplyTokenResponse(AccCredentials creds, JObject json)
+        {
+            creds.AccessToken = (string)json["access_token"] ?? creds.AccessToken;
+            string newRefresh = (string)json["refresh_token"];
+            if (!string.IsNullOrEmpty(newRefresh))
+            {
+                creds.RefreshToken = newRefresh;
+                creds.RefreshTokenIssuedAt = DateTime.UtcNow;
+            }
+            int expiresIn = (int?)json["expires_in"] ?? 3600;
+            creds.AccessTokenExpiry = DateTime.UtcNow.AddSeconds(expiresIn);
+        }
+
+        /// <summary>Save after a refresh. A failure here is serious: the rotated refresh token
+        /// now exists only in memory. Returned as a warning the caller must show.</summary>
+        private static string PersistAfterRefresh(AccCredentials creds)
+        {
+            if (SaveCredentials(creds, out string err)) return string.Empty;
+            string msg = "The Autodesk token was refreshed but could not be saved (" + err + "). It works for this " +
+                         "Revit session only — the next session will need 'Sign in with Autodesk' again.";
+            StingLog.Error("AccIssueSync: " + msg);
+            return msg;
+        }
+
+        private static string TryReadError(string body)
+        {
             try
             {
-                var req = new HttpRequestMessage(HttpMethod.Get,
-                    $"{IssuesUrl}/containers/{creds.ProjectId}/issue-types?include=subtypes&limit=200");
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-                var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                if (!resp.IsSuccessStatusCode)
-                {
-                    StingLog.Warn($"AccIssueSync.EnsureIssueType: issue-types returned {(int)resp.StatusCode}");
-                    return false;
-                }
-                var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
-                var results = j["results"] as JArray;
-                if (results == null || results.Count == 0)
-                {
-                    StingLog.Warn("AccIssueSync.EnsureIssueType: container exposes no issue types.");
-                    return false;
-                }
+                var j = JObject.Parse(body ?? "");
+                return ((string)(j["error"] ?? j["errorCode"] ?? j["code"]) ?? string.Empty).Trim();
+            }
+            catch (Exception) { return string.Empty; }
+        }
 
-                JToken chosen = null;
-                foreach (var t in results)
-                {
-                    string title = ((string)t["title"] ?? string.Empty).ToLowerInvariant();
-                    if (title.Contains("clash") || title.Contains("coordination")) { chosen = t; break; }
-                }
-                if (chosen == null) chosen = results[0];
+        // ── Issue type ───────────────────────────────────────────────────────
 
-                string id = (string)chosen["id"] ?? string.Empty;
-                if (string.IsNullOrEmpty(id))
+        /// <summary>
+        /// Resolve the issue type + subtype STING files its issues under, for THIS container.
+        ///
+        /// A project setting (issueTypeId / issueSubtypeId in acc_settings.json) or an
+        /// already-resolved value wins. Otherwise the container's ACTIVE types are fetched and
+        /// matched BY NAME ("clash", then "coordination"). If nothing matches by name, nothing
+        /// is chosen: the old "first type offered" fallback filed clash issues under whatever
+        /// the project admin happened to create first (often "Design" or "Safety"), which is
+        /// the wrong person's queue. The failure names every type so the fix is one setting.
+        /// </summary>
+        public static async Task<AccFetchResult<string>> ResolveIssueTypeAsync(AccCredentials creds)
+        {
+            if (creds == null) return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", 0, "no credentials");
+            if (!string.IsNullOrEmpty(creds.IssueTypeId) && !string.IsNullOrEmpty(creds.IssueSubtypeId))
+                return AccFetchResult<string>.Success(creds.IssueSubtypeId, empty: false);
+
+            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
+                    $"{ProjectUrl(creds)}/issue-types?include=subtypes&limit=100"), creds),
+                creds, idempotent: true).ConfigureAwait(false);
+            if (!resp.IsSuccess)
+            {
+                var st = resp.Classify();
+                return AccFetchResult<string>.Failure(st, "", resp.Status, "listing ACC issue types: " + resp.Describe());
+            }
+
+            JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
+            if (results == null)
+                return AccFetchResult<string>.Failure(AccFetchStatus.TransportFailed, "", resp.Status,
+                    "the issue-types response carried no 'results' array");
+
+            var active = results.Where(t => t["isActive"] == null || (bool?)t["isActive"] != false).ToList();
+            var choice = IssueTypeChooser.Choose(active, creds.IssueTypeId);
+            if (!choice.Ok)
+                return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", resp.Status, choice.Reason);
+
+            creds.IssueTypeId = choice.TypeId;
+            creds.IssueSubtypeId = choice.SubtypeId;
+            SaveCredentials(creds, out _);   // cached per container by AccProjectScope's rules
+            StingLog.Info($"AccIssueSync: filing issues as '{choice.TypeTitle} / {choice.SubtypeTitle}' ({choice.SubtypeId}).");
+            return AccFetchResult<string>.Success(choice.SubtypeId, empty: false);
+        }
+
+        /// <summary>Back-compat wrapper.</summary>
+        public static async Task<bool> EnsureIssueTypeAsync(AccCredentials creds)
+            => (await ResolveIssueTypeAsync(creds).ConfigureAwait(false)).Succeeded;
+
+        // ── Push ─────────────────────────────────────────────────────────────
+
+        /// <summary>Push a STING-originated issue to ACC. Returns the new issue id, or null.
+        /// Use <see cref="PushIssueDetailedAsync"/> to report why a push failed.</summary>
+        public static async Task<string> PushIssueAsync(AccCredentials creds, AccIssue issue)
+            => (await PushIssueDetailedAsync(creds, issue).ConfigureAwait(false)).Id;
+
+        public static async Task<AccPushResult> PushIssueDetailedAsync(AccCredentials creds, AccIssue issue)
+        {
+            var result = new AccPushResult();
+            string subtype = !string.IsNullOrEmpty(issue.IssueType) ? issue.IssueType : creds.IssueSubtypeId;
+            if (string.IsNullOrEmpty(subtype))
+            {
+                var t = await ResolveIssueTypeAsync(creds).ConfigureAwait(false);
+                if (!t.Succeeded)
                 {
-                    StingLog.Warn("AccIssueSync.EnsureIssueType: chosen issue type carries no id.");
-                    return false;
+                    result.Status = t.Status;
+                    result.HttpStatus = t.HttpStatus;
+                    result.Detail = "no ACC issue type to file under: " + t.Detail;
+                    return result;
                 }
-                creds.IssueTypeId = id;
-                var subs = chosen["subtypes"] as JArray;
-                creds.IssueSubtypeId = (subs != null && subs.Count > 0)
-                    ? ((string)subs[0]["id"] ?? string.Empty) : string.Empty;
-                SaveCredentials(creds);
-                StingLog.Info($"AccIssueSync: resolved issue type '{(string)chosen["title"]}' ({id}).");
-                return true;
+                subtype = t.Value;
+            }
+
+            string payload = BuildIssueBody(issue, subtype).ToString();
+
+            // Not idempotent: a create that timed out may have happened. AccHttp retries it
+            // only on 429 (never processed) and 503-with-Retry-After, never on a bare 5xx.
+            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Post, $"{ProjectUrl(creds)}/issues")
+            { Content = new StringContent(payload, Encoding.UTF8, "application/json") }, creds),
+                creds, idempotent: false).ConfigureAwait(false);
+
+            result.HttpStatus = resp.Status;
+            if (!resp.IsSuccess)
+            {
+                result.Status = resp.Classify();
+                result.Detail = resp.Describe() + (resp.Status == 429 ? " — Autodesk rate-limited every attempt" : "") +
+                                (resp.Status == 400 ? " — ACC rejected the issue: " + Trim(resp.Body) : "");
+                StingLog.Warn($"AccIssueSync.PushIssue failed: {result.Detail}");
+                return result;
+            }
+            try
+            {
+                result.Id = (string)JObject.Parse(resp.Body)["id"];
+                result.Status = string.IsNullOrEmpty(result.Id) ? AccFetchStatus.TransportFailed : AccFetchStatus.Ok;
+                if (string.IsNullOrEmpty(result.Id)) result.Detail = "ACC accepted the issue but returned no id";
             }
             catch (Exception ex)
             {
-                StingLog.Error("AccIssueSync.EnsureIssueType failed", ex);
-                return false;
+                result.Status = AccFetchStatus.TransportFailed;
+                result.Detail = "the create-issue response was not JSON: " + ex.Message;
             }
+            return result;
         }
 
-        /// <summary>Push a STING-originated issue to ACC.</summary>
-        public static async Task<string> PushIssueAsync(AccCredentials creds, AccIssue issue)
+        /// <summary>The Issues v1 create body (POST …/projects/{id}/issues; required: title,
+        /// issueSubtypeId, status — the type follows from the subtype, so issueTypeId is not
+        /// sent). Only fields with a value are sent: an empty string where ACC expects an id is
+        /// a rejection. Lengths are capped to the documented limits (title 100, description
+        /// 1000, locationDetails 250) so a long triage rationale cannot fail the whole push.</summary>
+        internal static JObject BuildIssueBody(AccIssue issue, string subtypeId)
         {
-            if (!await EnsureAuthAsync(creds).ConfigureAwait(false)) return null;
-            string issueType = !string.IsNullOrEmpty(issue.IssueType) ? issue.IssueType : creds.IssueTypeId;
-            if (string.IsNullOrEmpty(issueType))
-            {
-                await EnsureIssueTypeAsync(creds).ConfigureAwait(false);
-                issueType = creds.IssueTypeId;
-            }
             var body = new JObject
             {
-                ["title"]               = issue.Title,
-                ["description"]         = issue.Description,
-                ["status"]              = issue.Status,
-                ["location_description"]= issue.LocationDescription,
+                ["title"] = Cap(issue.Title, 100),
+                ["status"] = string.IsNullOrEmpty(issue.Status) ? "open" : issue.Status,
+                ["issueSubtypeId"] = subtypeId,
             };
-            // ACC requires a valid issue_type_id. Only send it when we have one;
-            // omitting an empty value is safer than posting "" (which ACC rejects).
-            if (!string.IsNullOrEmpty(issueType)) body["issue_type_id"] = issueType;
-            else StingLog.Warn("AccIssueSync.PushIssue: no issue_type_id — none configured and none resolvable " +
-                               "from the container; set IssueTypeId in acc_credentials.json. ACC may reject.");
-            // The cached subtype belongs to the cached type. Sending it beside an
-            // issue's own, different type is an ACC rejection, so pair them or omit.
-            if (!string.IsNullOrEmpty(creds.IssueSubtypeId) && issueType == creds.IssueTypeId)
-                body["issue_subtype_id"] = creds.IssueSubtypeId;
-            string url = $"{IssuesUrl}/containers/{creds.ProjectId}/issues";
-            string payload = body.ToString();
-
-            // The request MUST be built inside the loop. An HttpRequestMessage is
-            // single-use: re-sending one throws InvalidOperationException("The request
-            // message was already sent"), so the old shape logged "ACC 429 — retrying"
-            // and then dropped the issue at the call site's catch. PullIssuesAsync below
-            // already builds per attempt; this now matches it.
-            for (int attempt = 0; attempt < 4; attempt++)
+            if (!string.IsNullOrEmpty(issue.Description)) body["description"] = Cap(issue.Description, 1000);
+            if (!string.IsNullOrEmpty(issue.LocationDescription)) body["locationDetails"] = Cap(issue.LocationDescription, 250);
+            if (!string.IsNullOrEmpty(issue.AssignedToUserId) && !string.IsNullOrEmpty(issue.AssignedToType))
             {
-                using var req = new HttpRequestMessage(HttpMethod.Post, url)
-                { Content = new StringContent(payload, Encoding.UTF8, "application/json") };
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-
-                using var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                if ((int)resp.StatusCode == 429)
-                {
-                    int wait = 1 << attempt;
-                    StingLog.Warn($"ACC 429 — retrying in {wait}s");
-                    await DelayHook(TimeSpan.FromSeconds(wait)).ConfigureAwait(false);
-                    continue;
-                }
-                if (!resp.IsSuccessStatusCode)
-                {
-                    StingLog.Warn($"AccIssueSync.PushIssue returned {(int)resp.StatusCode}");
-                    return null;
-                }
-                var j = JObject.Parse(await resp.Content.ReadAsStringAsync().ConfigureAwait(false));
-                return (string)j["id"];
+                body["assignedTo"] = issue.AssignedToUserId;
+                body["assignedToType"] = issue.AssignedToType;
             }
-            StingLog.Warn("AccIssueSync.PushIssue: ACC rate-limited all 4 attempts; issue not created.");
-            return null;
+            if (issue.DueDate.HasValue) body["dueDate"] = issue.DueDate.Value.ToString("yyyy-MM-dd");
+            return body;
         }
 
-        /// <summary>Pull the full issue set from ACC, following pagination (offset
-        /// loop) so large projects aren't truncated at the first page. 429s retried
-        /// per page with back-off; stops at the first short page or maxPages cap.
-        ///
-        /// Returns an <see cref="AccFetchResult{T}"/>, not a bare list, because the three
-        /// old exits — auth failure, a mid-pagination HTTP error, and success — all
-        /// returned a <c>List&lt;AccIssue&gt;</c> that the caller could not tell apart.
-        /// AccSyncIssueStatusCommand then read "issue absent from the list" as
-        /// "ACC deleted our issue", so an expired token made every escalated clash look
-        /// deleted, and a page-2 failure produced a PARTIAL reconciliation presented as a
-        /// complete one — after which the escalation sidecar was written.
-        ///
-        /// A PARTIAL read is a FAILURE. Only a run that read every page it needed is
-        /// Ok/EmptyOk; the rows gathered before the break are still returned in Value for
-        /// diagnostics, and Detail names how many pages succeeded.</summary>
+        /// <summary>Read an issue from Issues v1 (camelCase). The pre-v1 snake_case names are
+        /// read as a fallback so a payload from either shape maps.</summary>
+        internal static AccIssue ParseIssue(JToken t) => new AccIssue
+        {
+            Id = (string)t["id"] ?? string.Empty,
+            DisplayId = (string)t["displayId"] ?? string.Empty,
+            Title = (string)t["title"] ?? string.Empty,
+            Description = (string)t["description"] ?? string.Empty,
+            Status = (string)t["status"] ?? "open",
+            IssueType = (string)(t["issueSubtypeId"] ?? t["issueTypeId"] ?? t["issue_type_id"]) ?? string.Empty,
+            AssignedToUserId = (string)(t["assignedTo"] ?? t["assigned_to"]) ?? string.Empty,
+            AssignedToType = (string)t["assignedToType"] ?? string.Empty,
+            DueDate = ReadDate(t["dueDate"]),
+            CreatedAt = ReadDate(t["createdAt"]) ?? DateTime.UtcNow,
+            UpdatedAt = ReadDate(t["updatedAt"]),
+            LocationDescription = (string)(t["locationDetails"] ?? t["location_description"]) ?? string.Empty,
+        };
+
+        private static DateTime? ReadDate(JToken t)
+        {
+            if (t == null || t.Type == JTokenType.Null) return null;
+            if (t.Type == JTokenType.Date) return ((DateTime)t).ToUniversalTime();
+            return DateTime.TryParse((string)t, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AdjustToUniversal | System.Globalization.DateTimeStyles.AssumeUniversal, out var d)
+                ? d : (DateTime?)null;
+        }
+
+        // ── Pull ─────────────────────────────────────────────────────────────
+
+        /// <summary>Pull the full issue set, following pagination. A PARTIAL read is a
+        /// FAILURE: only a run that saw the last page is Ok/EmptyOk; rows read before a break
+        /// are still in Value for diagnostics, and Detail names how many pages succeeded.</summary>
         public static async Task<AccFetchResult<List<AccIssue>>> PullIssuesAsync(
             AccCredentials creds, int pageSize = 100, int maxPages = 200)
         {
             var list = new List<AccIssue>();
-            if (!await EnsureAuthAsync(creds).ConfigureAwait(false))
-            {
-                StingLog.Warn("AccIssueSync.PullIssues: no access token (refresh rejected or absent).");
-                return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.AuthFailed, list, 0,
-                    "no ACC access token could be obtained — the refresh token in acc_credentials.json " +
-                    "was rejected or is absent, so no issue was read at all");
-            }
+            var auth = await EnsureAuthDetailedAsync(creds).ConfigureAwait(false);
+            if (!auth.Ok)
+                return AccFetchResult<List<AccIssue>>.Failure(auth.Status, list, 0,
+                    auth.Detail + " — so no issue was read at all");
 
-            int offset = 0;
-            int pagesRead = 0;
+            int offset = 0, pagesRead = 0;
+            int? total = null;
             for (int page = 0; page < maxPages; page++)
             {
-                JObject j = null;
-                int lastStatus = 0;
-                for (int attempt = 0; attempt < 4 && j == null; attempt++)
+                int off = offset;
+                var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
+                        $"{ProjectUrl(creds)}/issues?limit={pageSize}&offset={off}"), creds),
+                    creds, idempotent: true).ConfigureAwait(false);
+
+                if (!resp.IsSuccess)
                 {
-                    try
-                    {
-                        using var req = new HttpRequestMessage(HttpMethod.Get,
-                            $"{IssuesUrl}/containers/{creds.ProjectId}/issues?limit={pageSize}&offset={offset}");
-                        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", creds.AccessToken);
-                        using var resp = await _http.SendAsync(req).ConfigureAwait(false);
-                        lastStatus = (int)resp.StatusCode;
-                        if (lastStatus == 429) { await DelayHook(TimeSpan.FromSeconds(1 << attempt)).ConfigureAwait(false); continue; }
-                        if (!resp.IsSuccessStatusCode)
-                        {
-                            StingLog.Warn($"AccIssueSync.PullIssues {lastStatus} at offset {offset}");
-                            var st = AccFetchOutcome.Classify(lastStatus, -1);
-                            return AccFetchResult<List<AccIssue>>.Failure(st, list, lastStatus,
-                                $"the issue list failed at page {pagesRead + 1} (offset {offset}) after " +
-                                $"{pagesRead} page(s) succeeded — {AccFetchOutcome.Describe(st, lastStatus)}. " +
-                                $"The {list.Count} issue(s) already read are an INCOMPLETE set and must not be " +
-                                "reconciled against.");
-                        }
-                        string body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
-                        try { j = JObject.Parse(body); }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn("AccIssueSync.PullIssues parse: " + ex.Message);
-                            return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
-                                $"page {pagesRead + 1} of the issue list was not valid JSON ({ex.Message}) after " +
-                                $"{pagesRead} page(s) succeeded");
-                        }
-                    }
-                    catch (Exception ex) when (ex is HttpRequestException || ex is TaskCanceledException || ex is IOException)
-                    {
-                        // A network failure part-way through pagination is the shape that
-                        // produced a partial reconciliation. It is a failure, not a short read.
-                        StingLog.Warn("AccIssueSync.PullIssues transport: " + ex.Message);
-                        return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, 0,
-                            $"the issue list request did not complete at page {pagesRead + 1} after " +
-                            $"{pagesRead} page(s) succeeded: {ex.Message}");
-                    }
+                    var st = resp.Classify();
+                    StingLog.Warn($"AccIssueSync.PullIssues {resp.Status} at offset {offset}");
+                    return AccFetchResult<List<AccIssue>>.Failure(st, list, resp.Status,
+                        $"the issue list failed at page {pagesRead + 1} (offset {offset}) after " +
+                        $"{pagesRead} page(s) succeeded — {resp.Describe()}" +
+                        (resp.Status == 429 ? $" (Autodesk rate-limited the request on all {resp.Attempts} attempts)" : "") + ". " +
+                        $"The {list.Count} issue(s) already read are an INCOMPLETE set and must not be reconciled against.");
                 }
-                if (j == null)
+
+                JObject j;
+                try { j = JObject.Parse(resp.Body); }
+                catch (Exception ex)
                 {
-                    // Four consecutive 429s. Whatever we have is a partial set.
-                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
-                        $"Autodesk rate-limited page {pagesRead + 1} of the issue list on all 4 attempts " +
-                        $"(HTTP {lastStatus}) after {pagesRead} page(s) succeeded");
+                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, resp.Status,
+                        $"page {pagesRead + 1} of the issue list was not valid JSON ({ex.Message}) after {pagesRead} page(s) succeeded");
                 }
 
                 var results = j["results"] as JArray;
                 if (results == null)
-                {
-                    // 200 with an unrecognised payload — a schema/sub-path change, never
-                    // "this container has no issues".
-                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, lastStatus,
+                    return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, resp.Status,
                         $"page {pagesRead + 1} of the issue list carried no 'results' array — the " +
                         "construction/issues/v1 payload shape has changed");
-                }
-                foreach (var t in results)
-                {
-                    list.Add(new AccIssue
-                    {
-                        Id                  = (string)t["id"] ?? string.Empty,
-                        Title               = (string)t["title"] ?? string.Empty,
-                        Description         = (string)t["description"] ?? string.Empty,
-                        Status              = (string)t["status"] ?? "open",
-                        IssueType           = (string)t["issue_type_id"] ?? string.Empty,
-                        AssignedToUserId    = (string)t["assigned_to"] ?? string.Empty,
-                        LocationDescription = (string)t["location_description"] ?? string.Empty,
-                    });
-                }
+
+                foreach (var t in results) list.Add(ParseIssue(t));
                 pagesRead++;
-                if (results.Count < pageSize) return AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
-                offset += pageSize;
+                total = (int?)j["pagination"]?["totalResults"] ?? total;
+
+                bool lastPage = total.HasValue ? list.Count >= total.Value || results.Count == 0 : results.Count < pageSize;
+                if (lastPage) return AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
+                offset += results.Count;
             }
 
-            // Ran out of maxPages without ever seeing a short page: there is more than we
-            // read, so this is also an incomplete set.
             return AccFetchResult<List<AccIssue>>.Failure(AccFetchStatus.TransportFailed, list, 200,
-                $"stopped at the {maxPages}-page cap with {pagesRead} page(s) read and no final short " +
-                "page — the container holds more issues than this read covered, so the set is INCOMPLETE");
+                $"stopped at the {maxPages}-page cap with {pagesRead} page(s) read and no final page — the " +
+                "container holds more issues than this read covered, so the set is INCOMPLETE");
         }
 
-        /// <summary>True when an ACC issue status represents a closed/resolved state.</summary>
+        /// <summary>True when an ACC issue status is finished work. Routed through the one
+        /// status vocabulary the rest of STING uses, so "closed in ACC" and "closed in STING"
+        /// cannot disagree.</summary>
         public static bool IsClosedStatus(string status)
-        {
-            if (string.IsNullOrEmpty(status)) return false;
-            string s = status.ToLowerInvariant();
-            return s.Contains("closed") || s.Contains("resolved") || s.Contains("not_an_issue") || s.Contains("void");
-        }
+            => !string.IsNullOrEmpty(status) && IssueStatusNormalizer.IsTerminal(IssueStatusNormalizer.NormalizeAcc(status));
 
-        public static string CredentialsPath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "Planscape", "acc_credentials.json");
+        // ── Credentials file ─────────────────────────────────────────────────
+
+        public static string CredentialsPath => AccCredentialStore.CredentialsPath;
 
         public static AccCredentials LoadCredentials()
         {
             try
             {
-                if (!File.Exists(CredentialsPath)) return new AccCredentials();
-                var j = JObject.Parse(File.ReadAllText(CredentialsPath));
-                return j.ToObject<AccCredentials>() ?? new AccCredentials();
+                var c = AccCredentialStore.Load(out string warning);
+                if (!string.IsNullOrEmpty(warning)) StingLog.Warn("AccIssueSync.LoadCredentials: " + warning);
+                return c;
             }
             catch (Exception ex)
             {
@@ -418,10 +552,9 @@ namespace StingTools.V6
             }
         }
 
-        /// <summary>The JSON the machine credentials file receives. When the container ids
-        /// came from the project's settings (IM-18), the file keeps the values it already
-        /// had for them and for the per-container issue type - a project's ids never leak
-        /// into the machine-wide file. Revit-free, so it is unit-tested.</summary>
+        /// <summary>The JSON the machine credentials file receives. Project-scoped values that
+        /// came from the project's settings are replaced by what the file already held - a
+        /// project's ids never leak into the machine-wide file. Revit-free, so it is unit-tested.</summary>
         public static JObject ToMachineFile(AccCredentials c)
         {
             var j = JObject.FromObject(c);
@@ -432,17 +565,146 @@ namespace StingTools.V6
                 j["IssueTypeId"] = c.FileIssueTypeId ?? string.Empty;
                 j["IssueSubtypeId"] = c.FileIssueSubtypeId ?? string.Empty;
             }
+            if (c.ScopeApplied)
+            {
+                j["HubId"] = c.FileHubId ?? string.Empty;
+                j["FolderUrn"] = c.FileFolderUrn ?? string.Empty;
+                j["DistToMm"] = c.FileDistToMm ?? 1000.0;
+                j["Region"] = c.FileRegion ?? string.Empty;
+            }
             return j;
         }
 
-        public static void SaveCredentials(AccCredentials c)
+        public static void SaveCredentials(AccCredentials c) => SaveCredentials(c, out _);
+
+        public static bool SaveCredentials(AccCredentials c, out string error)
         {
-            try
-            {
-                Directory.CreateDirectory(Path.GetDirectoryName(CredentialsPath)!);
-                File.WriteAllText(CredentialsPath, ToMachineFile(c).ToString());
-            }
-            catch (Exception ex) { StingLog.Warn("AccIssueSync.SaveCredentials: " + ex.Message); }
+            bool ok = AccCredentialStore.Save(ToMachineFile(c), out error);
+            if (!ok) StingLog.Warn("AccIssueSync.SaveCredentials: " + error);
+            return ok;
         }
+
+        // ── helpers ──────────────────────────────────────────────────────────
+
+        internal static HttpRequestMessage WithRegion(HttpRequestMessage req, AccCredentials c)
+        {
+            AccIds.ApplyRegion(req, c?.Region);
+            return req;
+        }
+
+        private static string Cap(string s, int max) => string.IsNullOrEmpty(s) || s.Length <= max ? s ?? string.Empty : s.Substring(0, max - 1) + "…";
+        private static string Trim(string s) => string.IsNullOrEmpty(s) ? "" : (s.Length > 300 ? s.Substring(0, 300) : s);
+    }
+
+    /// <summary>
+    /// Keeps the Autodesk sign-in alive. A refresh token lapses after 15 days unused and the
+    /// KUT coordination cycle runs every 14, so one late cycle would otherwise mean a failed
+    /// run and an interactive sign-in. When a model opens and the refresh token is older than
+    /// <see cref="AccSignInLifetime.KeepAliveAfter"/>, it is refreshed in the background (the
+    /// refresh issues a new token and restarts the 15-day clock). Network only — no Revit
+    /// API — so it never touches the UI thread; at most one attempt per 6 hours per session.
+    /// </summary>
+    public static class AccTokenKeepAlive
+    {
+        private static long _lastAttemptTicks;
+
+        public static void MaybeRefreshInBackground()
+        {
+            long now = DateTime.UtcNow.Ticks;
+            long last = Interlocked.Read(ref _lastAttemptTicks);
+            if (now - last < TimeSpan.FromHours(6).Ticks) return;
+            if (Interlocked.CompareExchange(ref _lastAttemptTicks, now, last) != last) return;
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    var c = AccIssueSync.LoadCredentials();
+                    if (!AccSignInLifetime.ShouldKeepAlive(c, DateTime.UtcNow)) return;
+                    var r = await AccIssueSync.EnsureAuthDetailedAsync(c, force: true).ConfigureAwait(false);
+                    if (r.Ok) StingLog.Info("ACC keep-alive: sign-in renewed. " + AccSignInLifetime.Describe(c, DateTime.UtcNow));
+                    else StingLog.Warn($"ACC keep-alive: could not renew the Autodesk sign-in ({r.Status}): {r.Detail}");
+                }
+                catch (Exception ex) { StingLog.Warn("ACC keep-alive: " + ex.Message); }
+            });
+        }
+    }
+
+    /// <summary>Pick an issue type/subtype by NAME. Pure, so the rule is tested.</summary>
+    public static class IssueTypeChooser
+    {
+        public sealed class Choice
+        {
+            public bool Ok;
+            public string TypeId = "", TypeTitle = "", SubtypeId = "", SubtypeTitle = "", Reason = "";
+        }
+
+        private static readonly string[] Preferred = { "clash", "coordination" };
+
+        /// <param name="types">Active issue types, each with a 'subtypes' array.</param>
+        /// <param name="configuredTypeId">A type id the project configured without a subtype, or empty.</param>
+        public static Choice Choose(IList<JToken> types, string configuredTypeId)
+        {
+            types = types ?? new List<JToken>();
+            if (types.Count == 0)
+                return new Choice { Reason = "the ACC project has no active issue types — ask the project admin to enable one" };
+
+            JToken type = null;
+            if (!string.IsNullOrEmpty(configuredTypeId))
+            {
+                type = types.FirstOrDefault(t => string.Equals((string)t["id"], configuredTypeId, StringComparison.OrdinalIgnoreCase));
+                if (type == null)
+                    return new Choice { Reason = $"the configured issueTypeId '{configuredTypeId}' is not an active type here. " + Offered(types) };
+            }
+            else
+            {
+                foreach (var word in Preferred)
+                {
+                    type = types.FirstOrDefault(t => Title(t).IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (type != null) break;
+                }
+                // Also accept a type whose SUBTYPE is called clash (e.g. "Coordination > Clash"
+                // is caught above; "Quality > Clash" is caught here).
+                if (type == null)
+                    type = types.FirstOrDefault(t => Subtypes(t).Any(s => Title(s).IndexOf("clash", StringComparison.OrdinalIgnoreCase) >= 0));
+                if (type == null)
+                    return new Choice
+                    {
+                        Reason = "no ACC issue type is named Clash or Coordination, and STING will not file clash issues " +
+                                 "under an unrelated type. Set issueTypeId / issueSubtypeId in the project's ACC settings " +
+                                 "(BIM Coordination Center > ACC). " + Offered(types)
+                    };
+            }
+
+            var subs = Subtypes(type).Where(s => s["isActive"] == null || (bool?)s["isActive"] != false).ToList();
+            JToken sub = null;
+            foreach (var word in Preferred)
+            {
+                sub = subs.FirstOrDefault(s => Title(s).IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0);
+                if (sub != null) break;
+            }
+            if (sub == null && subs.Count == 1) sub = subs[0];   // the type's only subtype is not a guess
+            if (sub == null)
+                return new Choice
+                {
+                    Reason = $"issue type '{Title(type)}' has {subs.Count} subtypes and none is named Clash or Coordination — " +
+                             "set issueSubtypeId in the project's ACC settings. Subtypes: " +
+                             string.Join(", ", subs.Select(s => $"'{Title(s)}' [{(string)s["id"]}]"))
+                };
+
+            return new Choice
+            {
+                Ok = true,
+                TypeId = (string)type["id"] ?? "",
+                TypeTitle = Title(type),
+                SubtypeId = (string)sub["id"] ?? "",
+                SubtypeTitle = Title(sub),
+            };
+        }
+
+        private static string Title(JToken t) => (string)t?["title"] ?? string.Empty;
+        private static IEnumerable<JToken> Subtypes(JToken t) => (t?["subtypes"] as JArray) ?? new JArray();
+        private static string Offered(IList<JToken> types) =>
+            "Types offered: " + string.Join(", ", types.Select(t => $"'{Title(t)}' [{(string)t["id"]}]"));
     }
 }

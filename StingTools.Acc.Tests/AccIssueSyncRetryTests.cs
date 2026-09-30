@@ -46,6 +46,9 @@ namespace StingTools.Acc.Tests
             AccessToken = "test-access-token",
             AccessTokenExpiry = DateTime.UtcNow.AddHours(1),
             IssueTypeId = "issue-type-clash",
+            // Issues v1 files an issue under a SUBTYPE (issueSubtypeId is the required field);
+            // with both cached, PushIssueAsync makes only the POST under test.
+            IssueSubtypeId = "issue-subtype-clash",
         };
 
         private static AccIssue SampleIssue() => new AccIssue
@@ -137,7 +140,8 @@ namespace StingTools.Acc.Tests
             Assert.Equal(3, seen);
             Assert.Contains("STING score 0.91", firstBody);
             Assert.Contains("STING score 0.91", lastBody);
-            Assert.Contains("issue-type-clash", lastBody);
+            // Issues v1 contract: the issue is filed under its SUBTYPE (issueSubtypeId, camelCase).
+            Assert.Contains("\"issueSubtypeId\": \"issue-subtype-clash\"", lastBody);
         }
     }
 }

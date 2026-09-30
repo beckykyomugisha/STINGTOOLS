@@ -55,6 +55,17 @@ namespace StingTools.V6
         /// Everything else is a failure and must not be reported as "nothing found".</summary>
         public bool Succeeded => Status == AccFetchStatus.Ok || Status == AccFetchStatus.EmptyOk;
 
+        /// <summary>The caller capped the read and there was more: <see cref="Value"/> is the
+        /// first part of <see cref="TotalAvailable"/>. A report must say so.</summary>
+        public bool Truncated { get; set; }
+
+        /// <summary>How many items the source held, when known (0 = not counted).</summary>
+        public int TotalAvailable { get; set; }
+
+        /// <summary>The read succeeded but the source has nothing checkable YET (e.g. no
+        /// clash test has finished). Empty, and must not be reported as "clean".</summary>
+        public bool NotReady { get; set; }
+
         public static AccFetchResult<T> Success(T value, bool empty) => new AccFetchResult<T>
         {
             Status = empty ? AccFetchStatus.EmptyOk : AccFetchStatus.Ok,

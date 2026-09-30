@@ -563,6 +563,7 @@ namespace StingTools.Core
         private readonly DateTime _now = DateTime.Now;
         private readonly string _user = Environment.UserName ?? "unknown";
         private bool _committed;
+        private bool _dirty;
 
         /// <summary>False when the store exists but is unreadable — do not write.</summary>
         public bool Ok { get; }
@@ -649,6 +650,15 @@ namespace StingTools.Core
             return row;
         }
 
+        /// <summary>
+        /// Record that a caller changed a NON-status field on a row of <see cref="Rows"/> in
+        /// place, so <see cref="Commit"/> persists it. Without this a batch whose only change
+        /// is a field update (an importer refreshing a title or an assignee) writes nothing —
+        /// Commit saves only when something was created or transitioned. Status must still go
+        /// through <see cref="SetStatus"/>, which audits it.
+        /// </summary>
+        public void MarkModified() { if (Ok) _dirty = true; }
+
         /// <summary>Next free identifier of a type, reserved against this batch.</summary>
         public string MintId(string type) => Ok ? _minter.Next(type) : null;
 
@@ -676,7 +686,7 @@ namespace StingTools.Core
             if (!Ok || _committed) return 0;
             _committed = true;
 
-            if (_created.Count == 0 && _transitions.Count == 0) return 0;
+            if (_created.Count == 0 && _transitions.Count == 0 && !_dirty) return 0;
 
             lock (IssueStore.LockFor(_path))
             {

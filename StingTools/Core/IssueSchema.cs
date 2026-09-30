@@ -361,6 +361,7 @@ namespace StingTools.Core
                 ["SI"]    = "Site Instruction",
                 ["BCF"]   = "BCF Imported Issue",
                 ["LPS"]   = "Lightning Protection",
+                ["ACC"]   = "ACC Imported Issue",
             };
 
         /// <summary>SLA due-date offset in days, by priority.</summary>

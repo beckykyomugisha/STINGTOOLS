@@ -65,10 +65,15 @@ namespace StingTools.Core.Clash
             AccOperatingPolicy policy = null;
             try { policy = AccOperatingPolicy.Load(PathFor(doc)); }
             catch (Exception ex) { StingLog.Warn($"{commandName}: ACC settings: {ex.Message}"); }
+            var fallbacks = AccProjectScope.MachineFileFallbacks(creds, policy);
             AccProjectScope.Apply(creds, policy);
             string line = $"{commandName}: {AccProjectScope.Describe(creds)}";
             if (creds.ProjectScope == AccProjectScopeSource.CredentialsFile) StingLog.Warn(line);
             else StingLog.Info(line);
+            foreach (var key in fallbacks)
+                if (key != "projectId")
+                    StingLog.Warn($"{commandName}: '{key}' comes from the machine credentials file - DEPRECATED, " +
+                                  "it belongs to one ACC project; set it in this project's ACC settings");
             return creds;
         }
 
@@ -78,6 +83,22 @@ namespace StingTools.Core.Clash
             => SaveKeys(doc, out error,
                 ("projectId", projectId ?? string.Empty),
                 ("coordContainerId", coordContainerId ?? string.Empty));
+
+        /// <summary>Record the project's ACC location as discovery found it: the project id AND
+        /// its hub (needed to resolve top folders) and, when known, the hosting region.</summary>
+        internal static bool SaveDiscoveredProject(Document doc, string projectId, string hubId, string region, out string error)
+            => SaveKeys(doc, out error,
+                ("projectId", projectId ?? string.Empty),
+                ("hubId", hubId ?? string.Empty),
+                ("region", AccIds.NormaliseRegion(region)));
+
+        /// <summary>Record the project's default upload folder (empty clears it).</summary>
+        internal static bool SaveFolderUrn(Document doc, string folderUrn, out string error)
+            => SaveKeys(doc, out error, ("folderUrn", folderUrn ?? string.Empty));
+
+        /// <summary>Record the issue type/subtype STING files issues under (empty clears both).</summary>
+        internal static bool SaveIssueType(Document doc, string typeId, string subtypeId, out string error)
+            => SaveKeys(doc, out error, ("issueTypeId", typeId ?? string.Empty), ("issueSubtypeId", subtypeId ?? string.Empty));
 
         /// <summary>Remember a coordination model set for this project. Merges into whatever
         /// else the file holds.</summary>
