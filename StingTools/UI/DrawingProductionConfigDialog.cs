@@ -60,7 +60,6 @@ namespace StingTools.UI
         private ComboBox _presetCombo;
 
         // Tab 1 — general
-        private RadioButton _allLevels, _selectedLevels;
         private RadioButton _dupNormal, _dupDetailing, _dupDependent;
         private CheckBox _idempotent, _createSheets, _createPackage, _onlyDefault, _hideUnused;
         // Phase 137 — GRAITEC PowerPack parity toggles
@@ -276,11 +275,9 @@ namespace StingTools.UI
             var sp = new StackPanel { Margin = new Thickness(12) };
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
 
-            sp.Children.Add(MakeCardHeader("Scope"));
-            _allLevels = new RadioButton { Content = "All levels", IsChecked = true, GroupName = "lvlScope", Margin = new Thickness(0,2,0,2) };
-            _selectedLevels = new RadioButton { Content = "Selected levels (use left context list)", GroupName = "lvlScope", Margin = new Thickness(0,2,0,2) };
-            sp.Children.Add(_allLevels);
-            sp.Children.Add(_selectedLevels);
+            // DTW-30: the "All levels / Selected levels" radios were never read — the
+            // ticked contexts in the left-hand list are what gets produced, whatever the
+            // radio said. Removed; "Select all" under that list does what "All" promised.
 
             sp.Children.Add(MakeCardHeader("View Creation"));
             _dupNormal     = new RadioButton { Content = "Duplicate",                IsChecked = true, GroupName = "dup", Margin = new Thickness(0,2,0,2) };
