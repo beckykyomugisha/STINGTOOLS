@@ -219,7 +219,7 @@ namespace StingTools.V6
                 if (matches.Count == 1)
                 {
                     var m = matches[0];
-                    if (string.Equals(m.Type, spec.Type, StringComparison.OrdinalIgnoreCase)) report.Existing.Add(m);
+                    if (spec.Accepts(m.Type)) report.Existing.Add(m);
                     else report.TypeMismatch.Add($"{spec.Name} (exists as '{m.Type}', STING needs '{spec.Type}')");
                     continue;
                 }

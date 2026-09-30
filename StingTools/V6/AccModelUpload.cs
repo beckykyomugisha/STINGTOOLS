@@ -25,6 +25,16 @@ namespace StingTools.V6
         /// <summary>Create missing attribute definitions on the folder (off by default: they
         /// are project-wide admin configuration).</summary>
         public bool CreateMissingAttributes { get; set; }
+        /// <summary>The project's attribute names (acc_settings.json "docsAttributeNames");
+        /// null = the defaults.</summary>
+        public AccAttributeNames AttributeNames { get; set; }
+        /// <summary>The project uses the 7-field ISO 19650 name: a file whose name ends in
+        /// "-{Suitability}-{Revision}" is REFUSED (every revision would become a new ACC item).</summary>
+        public bool SevenFieldNaming { get; set; }
+        /// <summary>Read the target folder's ACC naming standard and validate the name before
+        /// sending bytes. A name that does not fit is refused; a standard that cannot be read or
+        /// interpreted is reported in <see cref="AccModelUpload.UploadResult.NamingNote"/>.</summary>
+        public bool CheckNamingStandard { get; set; }
     }
 
     /// <summary>
@@ -91,6 +101,8 @@ namespace StingTools.V6
             /// A metadata failure does not undo an upload that happened — it is reported here.</summary>
             public string MetadataNote { get; set; } = "";
             public bool MetadataComplete { get; set; } = true;
+            /// <summary>What the naming-standard check found; empty when it was not run.</summary>
+            public string NamingNote { get; set; } = "";
             public AccFetchStatus Status { get; set; } = AccFetchStatus.Ok;
             public int HttpStatus { get; set; }
             public string Remedy => Ok ? "" : AccCommandOutcome.Remedy(Status);
@@ -129,6 +141,25 @@ namespace StingTools.V6
                 if (!folder.ok) return folder.fail;
                 string folderUrn = folder.urn;
 
+                // 1b. The name, before any bytes: a revision-bearing name in a 7-field project,
+                // or a name the folder's naming standard would reject, is refused here.
+                string namingNote = "";
+                if (options != null)
+                {
+                    bool embeds = AccNamingStandard.NameEmbedsStatus(fileName, options.Suitability, options.Metadata?.Revision);
+                    if (embeds && options.SevenFieldNaming)
+                        return Fail($"Not uploaded: '{fileName}' ends in suitability and revision, but this project names files " +
+                                    "with the 7-field ISO 19650 name (acc_settings.json \"fileNamingFields\"). ACC matches items by " +
+                                    "name, so every revision would become a NEW item instead of a new version. Export with the " +
+                                    "7-field name — suitability and revision travel as ACC attributes.");
+                    if (options.CheckNamingStandard)
+                    {
+                        var naming = await CheckNamingStandardAsync(creds, projectId, folderUrn, fileName, embeds, ct).ConfigureAwait(false);
+                        if (naming.refusal != null) return naming.refusal;
+                        namingNote = naming.note;
+                    }
+                }
+
                 // 2 + 3. Storage object and bytes — resumed when an earlier attempt at this exact
                 // upload (same file, size, time stamp, project and folder) got part of the way.
                 var fi = new FileInfo(filePath);
@@ -162,6 +193,7 @@ namespace StingTools.V6
                 if (resumed) result.Message += " (resumed an earlier, interrupted upload)";
                 result.FolderUrn = folderUrn;
                 result.FolderReason = folder.reason;
+                result.NamingNote = namingNote;
 
                 // 5. ISO 19650 attributes.
                 if (options?.Metadata != null)
@@ -221,6 +253,56 @@ namespace StingTools.V6
             return (false, "", "", Fail("The ACC project has no 'Project Files' top folder and no upload folder is configured; " +
                 "nothing was uploaded rather than guessing. Top folders: " + string.Join(", ", names.Select(n => $"'{n}'")) +
                 ". Set the upload folder or the CDE folders in the project's ACC settings."));
+        }
+
+        // ── 1b. naming standard ───────────────────────────────────────────────
+
+        /// <summary>
+        /// Read the folder's naming standard(s) and validate the name. Refuses (returns a failed
+        /// UploadResult) only on what is known: a name with the wrong number of fields, or a
+        /// suitability/revision-bearing name going into a folder that enforces any standard.
+        /// A folder or standard that cannot be read, or a standard that cannot be interpreted,
+        /// is reported in the note and the upload proceeds — ACC itself remains the judge.
+        /// </summary>
+        private static async Task<(UploadResult refusal, string note)> CheckNamingStandardAsync(
+            AccCredentials creds, string projectId, string folderUrn, string fileName, bool embedsStatus, CancellationToken ct)
+        {
+            var folderResp = await SendJsonAsync(HttpMethod.Get,
+                $"{DataBase}/projects/{projectId}/folders/{Uri.EscapeDataString(folderUrn)}",
+                creds, null, null, idempotent: true, ct).ConfigureAwait(false);
+            if (!folderResp.IsSuccess)
+                return (null, $"Naming standard NOT checked: reading the folder failed (HTTP {folderResp.Status}).");
+            var ids = AccNamingStandard.ParseFolderNamingStandardIds(folderResp.Body);
+            if (ids == null)
+                return (null, "Naming standard NOT checked: the folder record was not in the expected shape.");
+            if (ids.Count == 0)
+                return (null, "The target folder enforces no ACC naming standard.");
+
+            if (embedsStatus)
+                return (Fail($"Not uploaded: the target folder enforces an ACC naming standard, and '{fileName}' ends in " +
+                             "suitability and revision. Those are metadata in ISO 19650 (sent as ACC attributes); a name that " +
+                             "carries them makes every revision a new ACC item. Export with the 7-field name."), null);
+
+            var notes = new List<string>();
+            string docsProject = AccDocsMetadata.DocsProjectId(projectId);
+            foreach (string id in ids)
+            {
+                var sresp = await SendJsonAsync(HttpMethod.Get,
+                    $"{_host}/bim360/docs/v1/projects/{Uri.EscapeDataString(docsProject)}/naming-standards/{Uri.EscapeDataString(id)}",
+                    creds, null, null, idempotent: true, ct).ConfigureAwait(false);
+                if (!sresp.IsSuccess)
+                {
+                    notes.Add($"naming standard {id} could not be read (HTTP {sresp.Status}), so the name was NOT validated against it");
+                    continue;
+                }
+                var spec = AccNamingStandard.ParseStandard(sresp.Body, id);
+                var check = AccNamingStandard.Validate(spec, fileName);
+                if (check.Conforms == false)
+                    return (Fail("Not uploaded: " + check.Detail + ". ACC would reject it, or file it outside the standard."), null);
+                notes.Add(check.Detail);
+                notes.AddRange(check.Warnings);
+            }
+            return (null, "Naming standard: " + string.Join("; ", notes) + ".");
         }
 
         // ── 2 + 3. storage object and bytes (resumable) ───────────────────────
@@ -497,7 +579,7 @@ namespace StingTools.V6
                 result.MetadataNote = "ISO 19650 attributes NOT written: ACC returned no version id.";
                 return;
             }
-            var values = AccDocsAttributeSet.Build(options.Metadata);
+            var values = AccDocsAttributeSet.Build(options.Metadata, options.AttributeNames);
             if (!values.IsClean)
             {
                 result.MetadataComplete = false;
@@ -505,7 +587,7 @@ namespace StingTools.V6
                 return;
             }
             var defs = await AccDocsMetadata.EnsureDefinitionsAsync(creds.AccessToken, projectId, folderUrn,
-                options.CreateMissingAttributes).ConfigureAwait(false);
+                options.CreateMissingAttributes, (options.AttributeNames ?? AccAttributeNames.Default).Specs()).ConfigureAwait(false);
             if (!defs.Succeeded)
             {
                 result.MetadataComplete = false;

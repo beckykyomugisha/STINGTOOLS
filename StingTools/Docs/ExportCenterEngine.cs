@@ -428,6 +428,7 @@ namespace StingTools.Docs
         public static string ResolveNaming(Document doc, View view, string template, OutputSettings outSettings)
         {
             if (string.IsNullOrEmpty(template)) template = "{SheetNumber} - {SheetTitle}";
+            template = EffectiveNamingTemplate(doc, template);
 
             var tokens = BuildTokenContext(doc, view);
             return Regex.Replace(template, @"\{(?<key>[A-Za-z0-9_]+)(?::(?<fmt>[^}]+))?\}", m =>
@@ -446,6 +447,35 @@ namespace StingTools.Docs
                 return ""; // unknown tokens vanish — keeps filenames tidy
             });
         }
+
+        private static readonly object _sevenGate = new object();
+        private static readonly Dictionary<string, (DateTime at, bool seven)> _sevenCache =
+            new Dictionary<string, (DateTime, bool)>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Does this project's ACC settings file apply the 7-field ISO 19650 name
+        /// (AccOperatingPolicy.SevenFieldNaming)? Cached per document for 30 s — ResolveNaming
+        /// runs once per sheet per format.</summary>
+        internal static bool SevenFieldNamingApplies(Document doc)
+        {
+            if (doc == null) return false;
+            string key = doc.PathName ?? doc.Title ?? "";
+            lock (_sevenGate)
+                if (_sevenCache.TryGetValue(key, out var c) && (DateTime.UtcNow - c.at).TotalSeconds < 30) return c.seven;
+            bool seven = false;
+            try { seven = V6.AccOperatingPolicy.Load(Core.Clash.AccProjectSettingsFile.PathFor(doc)).SevenFieldNaming; }
+            catch (Exception ex) { StingLog.Warn("Export naming: ACC settings: " + ex.Message); }
+            lock (_sevenGate) _sevenCache[key] = (DateTime.UtcNow, seven);
+            return seven;
+        }
+
+        /// <summary>The naming template actually used: the built-in 9-field ISO default becomes
+        /// the 7-field ISO name when the project's ACC settings apply it — suitability and
+        /// revision then travel as ACC attributes, and an ACC item keeps one name across
+        /// revisions (ACC matches items by name). A template the user wrote is never changed.</summary>
+        internal static string EffectiveNamingTemplate(Document doc, string template)
+            => string.Equals(template, ExportNamingPresets.Iso19650Full, StringComparison.Ordinal) && SevenFieldNamingApplies(doc)
+                ? ExportNamingPresets.Iso19650SevenField
+                : template;
 
         /// <summary>Build the per-view token map used by ResolveNaming + bookmark templates.</summary>
         public static Dictionary<string, string> BuildTokenContext(Document doc, View view)
@@ -528,6 +558,11 @@ namespace StingTools.Docs
                 // ("S2"/"P01" on 91 of 93 corporate types) and never an invented code. The
                 // same resolver feeds the export row, the register row and the ACC upload,
                 // so the file name and the register cannot disagree (ExportIsoFields).
+                // {IsoName}: the 7-field ISO 19650 name — the sheet's own assembled identifier
+                // when it has one (so the file name cannot contradict the DRG NO.), else the
+                // fields composed. No suitability, no revision: those are metadata.
+                t["IsoName"] = !string.IsNullOrEmpty(docId) ? docId
+                    : string.Join("-", t["ProjectCode"], t["Originator"], t["Volume"], t["Level"], t["Type"], t["Role"], t["SheetNumber"]);
                 var iso = ResolveIsoFields(doc, sheet);
                 t["Suitability"] = iso.Suitability;
                 t["CdeState"]    = iso.CdeState ?? "";
@@ -925,6 +960,11 @@ namespace StingTools.Docs
                 StingLog.Error("ExportCenterEngine.Run failed", ex);
                 result.Warnings.Add("Run failed: " + ex.Message);
             }
+            if (profile?.Output != null && !result.Cancelled &&
+                !string.Equals(EffectiveNamingTemplate(doc, profile.Output.NamingTemplate), profile.Output.NamingTemplate, StringComparison.Ordinal))
+                result.Warnings.Add("File names use the 7-field ISO 19650 name (no suitability or revision) because this " +
+                                    "project's ACC settings apply it (acc_settings.json \"fileNamingFields\"; absent = 7 when ACC " +
+                                    "is configured). Suitability and revision are recorded in the register and sent to ACC as attributes.");
             AnnotateIsoFields(doc, result);
             StampLastExports(doc, profile, result);
             RegisterExports(doc, profile, result);
@@ -1013,7 +1053,9 @@ namespace StingTools.Docs
             V6.AccUploadLedger ledger;
             try
             {
-                ledgerPath = Path.Combine(StingPaths.MetaFile(doc, "_BIM_COORD", "acc"), V6.AccUploadLedger.FileName);
+                // Beside last_bundle.json and acc_settings.json (the same resolution those use).
+                string accDir = StingPaths.MetaFile(doc, "_BIM_COORD", "acc");
+                ledgerPath = Path.Combine(accDir, V6.AccUploadLedger.FileName);
                 ledger = V6.AccUploadLedger.Load(ledgerPath, out string ledgerErr);
                 if (ledger == null)
                 {
@@ -1073,6 +1115,9 @@ namespace StingTools.Docs
                         Suitability = r.Suitability,
                         CdeFolders = policy.CdeFolders,
                         CreateMissingAttributes = policy.DocsAttributesCreateMissing,
+                        AttributeNames = policy.DocsAttributeNames,
+                        SevenFieldNaming = policy.SevenFieldNaming,
+                        CheckNamingStandard = true,
                     };
                     if (policy.DocsAttributes)
                         options.Metadata = new V6.AccDocMetadataInput

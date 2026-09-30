@@ -713,7 +713,8 @@ namespace StingTools.V6
                     i++;
                     string id = folders.Count == 1 ? "6.2" : $"6.2.{i}";
                     // allowCreate: false — read-only. Nothing is created, whatever the settings say.
-                    var defs = await AccDocsMetadata.EnsureDefinitionsAsync(_c.AccessToken, _c.ProjectId, urn, allowCreate: false).ConfigureAwait(false);
+                    var defs = await AccDocsMetadata.EnsureDefinitionsAsync(_c.AccessToken, _c.ProjectId, urn, allowCreate: false,
+                        _p.DocsAttributeNames.Specs()).ConfigureAwait(false);
                     if (!defs.Succeeded)
                     {
                         Note(defs.Status, defs.HttpStatus, $"listing custom attributes on {label}");
@@ -725,7 +726,7 @@ namespace StingTools.V6
                     var r = defs.Value;
                     if (r.IsComplete)
                     {
-                        Add(id, $"{title}: {label}", AccCheckStatus.Pass, $"all {AccDocsAttributeSet.All.Count} STING attributes are defined.");
+                        Add(id, $"{title}: {label}", AccCheckStatus.Pass, $"all {_p.DocsAttributeNames.Specs().Count} STING attributes are defined ({string.Join(", ", _p.DocsAttributeNames.All())}).");
                         continue;
                     }
                     var parts = new List<string>();

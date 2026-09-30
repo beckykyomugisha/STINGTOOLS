@@ -442,6 +442,13 @@ namespace StingTools.Docs
         // Tokens are resolved per-sheet by ExportCenterEngine.BuildTokenContext.
         public const string Iso19650Full    = "{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}-{Suitability}-{Revision}";
         public const string Iso19650Compact = "{Originator}-{SheetNumber}-{Suitability}{Revision}";
+        /// <summary>The 7-field ISO 19650 name (Project-Originator-Volume-Level-Type-Role-Number),
+        /// no suitability or revision — the KUT BEP name, and the one ACC needs for revisions to
+        /// stack as versions of ONE item. {IsoName} is the sheet's assembled identifier when it
+        /// has one, else the seven fields. Used automatically in place of <see cref="Iso19650Full"/>
+        /// when the project's ACC settings apply the 7-field standard.</summary>
+        public const string Iso19650SevenField = "{IsoName}";
+        public const string SevenFieldKey = "ISO 19650 (7-field — ACC / KUT)";
 
         // Default preset name used when no profile-specific preset is saved.
         public const string DefaultKey = "ISO 19650 (full)";
@@ -450,6 +457,7 @@ namespace StingTools.Docs
         {
             { "ISO 19650 (full)",       Iso19650Full },
             { "ISO 19650 (compact)",    Iso19650Compact },
+            { SevenFieldKey,            Iso19650SevenField },
             { "US Standard",            "{SheetNumber} - {SheetTitle}" },
             { "UK Basic",               "{SheetNumber}_{SheetTitle}_Rev{Revision}" },
             { "Australia",              "{ProjectCode}-{SheetNumber}-{SheetTitle}" },
@@ -460,6 +468,7 @@ namespace StingTools.Docs
         {
             { "ISO 19650 (full)",       Iso19650Full },
             { "ISO 19650 (compact)",    Iso19650Compact },
+            { SevenFieldKey,            Iso19650SevenField },
             { "Issue + Date",           "{ProjectCode}-{SheetNumber}-{SheetTitle}-{Suitability}{Revision}_{Date:yyyyMMdd}" },
             { "Drawing No. only",       "{SheetNumber}" },
         };

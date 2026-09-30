@@ -120,6 +120,7 @@ namespace StingTools.Core.Clash
                 result.Message +
                 (string.IsNullOrWhiteSpace(result.FolderReason) ? "" : "\n\nFolder: " + result.FolderReason) +
                 (string.IsNullOrWhiteSpace(result.ItemUrn) ? "" : "\nItem: " + result.ItemUrn) +
+                (string.IsNullOrWhiteSpace(result.NamingNote) ? "" : "\n\n" + result.NamingNote) +
                 (string.IsNullOrWhiteSpace(result.MetadataNote) ? "" : "\n\n" + result.MetadataNote) +
                 (options?.Metadata == null || factNotes == null || factNotes.Count == 0 ? "" : "\n\n" + string.Join("\n", factNotes)) +
                 (txNote == null ? "" : "\n\n" + txNote));
@@ -183,6 +184,12 @@ namespace StingTools.Core.Clash
                 Suitability = suitability ?? string.Empty,
                 CdeFolders = policy.CdeFolders,
                 CreateMissingAttributes = policy.DocsAttributesCreateMissing,
+                AttributeNames = policy.DocsAttributeNames,
+                // The ACC Publish bundle is a ZIP named by timestamp, not an ISO deliverable
+                // name; the 7-field rule applies to deliverables. The folder's naming standard
+                // is checked for every file: ACC would reject a non-conforming name anyway.
+                SevenFieldNaming = !isBundle && policy.SevenFieldNaming,
+                CheckNamingStandard = true,
             };
             if (policy.DocsAttributes)
             {
@@ -237,6 +244,7 @@ namespace StingTools.Core.Clash
                     Suitability = options?.Suitability ?? rec.Suitability,
                     CdeFolders = options?.CdeFolders,
                     CreateMissingAttributes = options?.CreateMissingAttributes ?? false,
+                    AttributeNames = options?.AttributeNames,
                 };
                 if (options?.Metadata != null)
                     coverOptions.Metadata = new AccDocMetadataInput

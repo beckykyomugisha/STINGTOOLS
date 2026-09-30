@@ -145,13 +145,94 @@ namespace StingTools.V6
         public string Type { get; }
         /// <summary>Drop-list values; only for Type "array".</summary>
         public IReadOnlyList<string> ArrayValues { get; }
+        /// <summary>Other ACC types an EXISTING definition may have and still be used — e.g.
+        /// Suitability as a drop-down ("array") the admin created. STING creates <see cref="Type"/>.</summary>
+        public IReadOnlyList<string> AlsoAccepts { get; }
 
-        public AccAttributeSpec(string name, string type, IReadOnlyList<string> arrayValues = null)
+        public AccAttributeSpec(string name, string type, IReadOnlyList<string> arrayValues = null,
+                                IReadOnlyList<string> alsoAccepts = null)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             Type = type ?? "string";
             ArrayValues = arrayValues ?? Array.Empty<string>();
+            AlsoAccepts = alsoAccepts ?? Array.Empty<string>();
         }
+
+        /// <summary>Can an existing definition of type <paramref name="type"/> hold this attribute?</summary>
+        public bool Accepts(string type) =>
+            string.Equals(type, Type, StringComparison.OrdinalIgnoreCase) ||
+            AlsoAccepts.Any(t => string.Equals(type, t, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// The ACC custom-attribute NAMES STING writes to. One set per project, from
+    /// acc_settings.json "docsAttributeNames" — so STING writes to the columns the ACC admin
+    /// created instead of adding a second "suitability" column beside them that drifts.
+    /// Defaults are exactly the names docs/KUT_ACC_DAY1_PLAYBOOK.md §3.4 tells the admin to create.
+    /// </summary>
+    public sealed class AccAttributeNames
+    {
+        public string DocumentNumber { get; private set; } = "Document Number";
+        public string Suitability    { get; private set; } = "Suitability";
+        public string Revision       { get; private set; } = "Revision";
+        public string CdeState       { get; private set; } = "CDE State";
+        public string Originator     { get; private set; } = "Originator";
+        public string TransmittalId  { get; private set; } = "STING Transmittal Id";
+
+        public static readonly AccAttributeNames Default = new AccAttributeNames();
+
+        /// <summary>The settings keys, in the order the attributes are listed.</summary>
+        public static readonly IReadOnlyList<string> Keys =
+            new[] { "documentNumber", "suitability", "revision", "cdeState", "originator", "transmittalId" };
+
+        /// <summary>Build from the "docsAttributeNames" object. Keys not given keep their default;
+        /// an unknown key, or two roles sharing one attribute name, is a FormatException — a
+        /// typo would otherwise silently write to the default column.</summary>
+        public static AccAttributeNames FromSettings(IReadOnlyDictionary<string, string> map)
+        {
+            var n = new AccAttributeNames();
+            if (map == null) return n;
+            foreach (var kv in map)
+            {
+                string k = (kv.Key ?? string.Empty).Trim();
+                string v = (kv.Value ?? string.Empty).Trim();
+                if (v.Length == 0) throw new FormatException($"'docsAttributeNames.{k}' is empty");
+                switch (k.ToLowerInvariant())
+                {
+                    case "documentnumber": n.DocumentNumber = v; break;
+                    case "suitability":    n.Suitability = v; break;
+                    case "revision":       n.Revision = v; break;
+                    case "cdestate":       n.CdeState = v; break;
+                    case "originator":     n.Originator = v; break;
+                    case "transmittalid":  n.TransmittalId = v; break;
+                    default:
+                        throw new FormatException($"'docsAttributeNames' key '{k}' is not one of {string.Join(", ", Keys)}");
+                }
+            }
+            var dup = n.All().GroupBy(x => x, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
+            if (dup != null) throw new FormatException($"'docsAttributeNames' uses '{dup.Key}' for more than one attribute");
+            return n;
+        }
+
+        public IEnumerable<string> All()
+        {
+            yield return DocumentNumber; yield return Suitability; yield return Revision;
+            yield return CdeState; yield return Originator; yield return TransmittalId;
+        }
+
+        /// <summary>The definitions STING needs on a folder. Text ("string"), because a drop-list
+        /// STING created would reject any code the admin had not pre-listed; Suitability and CDE
+        /// State may ALSO be drop-downs the admin created — a value is then checked against the
+        /// drop-list before anything is sent (AccDocsMetadata.BuildBatchBody).</summary>
+        public IReadOnlyList<AccAttributeSpec> Specs() => new[]
+        {
+            new AccAttributeSpec(DocumentNumber, "string"),
+            new AccAttributeSpec(Suitability,    "string", null, new[] { "array" }),
+            new AccAttributeSpec(Revision,       "string"),
+            new AccAttributeSpec(CdeState,       "string", null, new[] { "array" }),
+            new AccAttributeSpec(Originator,     "string"),
+            new AccAttributeSpec(TransmittalId,  "string"),
+        };
     }
 
     /// <summary>What STING knows about one deliverable when it uploads it.</summary>
@@ -185,36 +266,33 @@ namespace StingTools.V6
     /// <summary>The STING attribute set and its value builder.</summary>
     public static class AccDocsAttributeSet
     {
-        public const string DocumentNumber = "ISO Document Number";
-        public const string Suitability    = "ISO Suitability";
-        public const string Revision       = "ISO Revision";
-        public const string CdeState       = "ISO CDE State";
-        public const string Originator     = "STING Originator";
+        // The DEFAULT names (AccAttributeNames.Default). A project may rename every one in
+        // acc_settings.json "docsAttributeNames"; code that writes must use the policy's names.
+        public const string DocumentNumber = "Document Number";
+        public const string Suitability    = "Suitability";
+        public const string Revision       = "Revision";
+        public const string CdeState       = "CDE State";
+        public const string Originator     = "Originator";
         public const string TransmittalId  = "STING Transmittal Id";
 
         /// <summary>ACC's documented max length for a text ("string") attribute value.</summary>
         public const int MaxStringLength = 255;
 
-        /// <summary>The definitions STING needs on a folder. All text ("string"): a
-        /// drop-list would reject any code a project admin did not pre-list, and a
-        /// definition an admin already created as text would then mismatch. Filtering by
-        /// value still works on text attributes in the ACC Docs UI.</summary>
-        public static readonly IReadOnlyList<AccAttributeSpec> All = new[]
-        {
-            new AccAttributeSpec(DocumentNumber, "string"),
-            new AccAttributeSpec(Suitability,    "string"),
-            new AccAttributeSpec(Revision,       "string"),
-            new AccAttributeSpec(CdeState,       "string"),
-            new AccAttributeSpec(Originator,     "string"),
-            new AccAttributeSpec(TransmittalId,  "string"),
-        };
+        /// <summary>The definitions STING needs on a folder under the DEFAULT names.</summary>
+        public static readonly IReadOnlyList<AccAttributeSpec> All = AccAttributeNames.Default.Specs();
 
-        /// <summary>Build attribute values for one deliverable. The suitability is
-        /// normalised to its code and the CDE state derived from it; an unrecognised
-        /// suitability writes NEITHER and is reported as a problem. Blank inputs are
-        /// omitted (left unset on ACC), never written as empty strings.</summary>
-        public static AccDocMetadataValues Build(AccDocMetadataInput input)
+        /// <summary>Build attribute values under the default names.</summary>
+        public static AccDocMetadataValues Build(AccDocMetadataInput input) => Build(input, AccAttributeNames.Default);
+
+        /// <summary>Build attribute values for one deliverable, keyed by the project's attribute
+        /// names. The suitability is normalised to its code and the CDE state derived from it;
+        /// an unrecognised suitability writes NEITHER and is reported as a problem. Blank inputs
+        /// are omitted (left unset on ACC), never written as empty strings.</summary>
+        public static AccDocMetadataValues Build(AccDocMetadataInput input, AccAttributeNames names)
         {
+            names ??= AccAttributeNames.Default;
+            string DocumentNumber = names.DocumentNumber, Suitability = names.Suitability, Revision = names.Revision,
+                   CdeState = names.CdeState, Originator = names.Originator, TransmittalId = names.TransmittalId;
             var r = new AccDocMetadataValues();
             if (input == null) { r.Problems.Add("no metadata input was supplied"); return r; }
 

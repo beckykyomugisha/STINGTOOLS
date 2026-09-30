@@ -149,31 +149,56 @@ The KUT BEP §4.2 fixes a **7-field** name:
 
 Apply it to `01_SHARED`, `02_PUBLISHED` and `03_ARCHIVE` (optionally WIP).
 
-**Conflict to settle on Day 1:** the StingTools Export Centre's built-in ISO profile
-(`ExportCenterModels.Iso19650Full`) produces **9 fields**:
-`…-{Role}-{SheetNumber}-{Suitability}-{Revision}`. ACC will **reject** those names in a folder that
-enforces the 7-field standard. Recommendation, which is ISO 19650-consistent because suitability
-and revision are metadata, not part of the name:
+**File names are 7 fields; suitability and revision are ACC attributes.** The Export Centre's
+older ISO preset (`ExportNamingPresets.Iso19650Full`) produced **9 fields**
+(`…-{Role}-{SheetNumber}-{Suitability}-{Revision}`). ACC rejects those in a folder that enforces
+the 7-field standard, and — because ACC matches an existing item by file name — a name that
+changes at every revision makes each revision a **new item** instead of version 2 of the same one,
+splitting its history, markups and reviews. So:
 
-- In the Export Centre, make a KUT profile with the pattern
-  `{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}`.
-- Export one sheet and check whether `{SheetNumber}` is already a full ISO identifier. If it is,
-  use `{SheetNumber}` alone. Check before you upload anything. [U: depends on how KUT sheets are numbered]
-- Carry suitability and revision as **ACC custom attributes** (§3.4).
+- The Export Centre has a **`ISO 19650 (7-field — ACC / KUT)`** preset (`{IsoName}`: the sheet's
+  assembled ISO identifier when it has one, else
+  `{ProjectCode}-{Originator}-{Volume}-{Level}-{Type}-{Role}-{SheetNumber}`).
+- It is used **automatically** in place of the 9-field preset whenever the project's
+  `acc_settings.json` configures ACC (a `projectId`, `folderUrn` or `cdeFolders`). Set
+  `"fileNamingFields": 9` to opt out, or `7` to force it without ACC settings.
+- An ACC upload **refuses** a file whose name ends in `-{Suitability}-{Revision}` when the
+  7-field rule applies, and reads the target folder's naming standard first: a name with the
+  wrong number of fields is refused before any bytes are sent. A standard STING cannot interpret
+  is reported ("NOT validated"), never guessed. [U: the naming-standard response shape is not
+  confirmed against a live tenant — only the delimiter and field count are enforced.]
+- Suitability and revision travel as **ACC custom attributes** (§3.4).
 
 ### 3.4 Document custom attributes (Docs → folder → Settings → Attributes)
 
-Create these on `01_SHARED` and `02_PUBLISHED`. Use the names **exactly**; later uploads will write
-to them by name:
+Create these on `01_SHARED` and `02_PUBLISHED` (and `00_WIP` / `03_ARCHIVE` if files are
+uploaded there). STING writes to them **by name**, so use the names **exactly** — or put your own
+names in `acc_settings.json` `"docsAttributeNames"` (below). There is ONE set: STING does not
+create a second "suitability" column beside yours.
 
-| Attribute | Type | Values |
-|---|---|---|
-| `Suitability` | Drop-down | `S0 S1 S2 S3 S4 S5 S6 S7 A1 A2 A3 A4 A5 B1 B2 B3 B4 B5 CR AB AR` (trim to what the BEP uses) |
-| `Revision` | Text | `P01`… / `C01`… |
-| `STING Doc ID` | Text | STING register `doc_id` |
+| Attribute (default name) | Settings key | Type | Value STING writes |
+|---|---|---|---|
+| `Document Number` | `documentNumber` | Text | the ISO 19650 identifier (register `doc_number`, else the file name) |
+| `Suitability` | `suitability` | Drop-down **or** Text | `S0 S1 S2 S3 S4 S5 S6 S7 A1 A2 A3 A4 A5 B1 B2 B3 B4 B5 CR AB AR` (trim to what the BEP uses) |
+| `Revision` | `revision` | Text | `P01`… / `C01`… — the sheet's own revision; left **unset** when it has none, never defaulted |
+| `CDE State` | `cdeState` | Drop-down **or** Text | `WIP SHARED PUBLISHED ARCHIVE` — derived from the suitability |
+| `Originator` | `originator` | Text | `PRJ_ORG_ORIGINATOR_CODE_TXT` |
+| `STING Transmittal Id` | `transmittalId` | Text | the STING transmittal, for an ACC Publish bundle |
 
-On day 1 you **fill these by hand in ACC**. Automatic filling from STING is on the two-week
-roadmap.
+To use other names, e.g. an existing `Status Code` column:
+
+```json
+"docsAttributes": true,
+"docsAttributeNames": { "suitability": "Status Code", "revision": "Rev" }
+```
+
+A key not given keeps its default; an unknown key or two roles sharing one name makes the whole
+settings file invalid (reported by `ACC_SelfCheck`), rather than silently writing elsewhere.
+
+With a **drop-down**, STING checks the value against the drop-down's list **before** writing: a
+suitability that is not on the list writes nothing (no partial stamp) and the upload result says
+which value was refused. Uploads with `"docsAttributes": true` fill these automatically; without
+it, fill them by hand in ACC.
 
 ### 3.5 Issues settings (Issues → Settings)
 
