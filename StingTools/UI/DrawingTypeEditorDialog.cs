@@ -1308,6 +1308,23 @@ namespace StingTools.UI
                     "STING — push template", MessageBoxButton.OK);
                 return;
             }
+            // DTW-68: only push a name that will exist. Eleven shipped packs named
+            // templates nothing creates, and pushing one gave every bound type a
+            // "template not found" warning on every sheet.
+            string pushName = _currentPack.ViewTemplate.Trim();
+            bool inProject = _doc != null && ProjectAssetPicker.ViewTemplateNames(_doc)
+                .Any(n => string.Equals(n, pushName, StringComparison.OrdinalIgnoreCase));
+            bool inCatalogue = DrawingTemplateCatalogue.IsManagedName(pushName)
+                || DrawingTemplateCatalogue.Plan(_types).Creatable
+                    .Any(sp => string.Equals(sp.Name, pushName, StringComparison.Ordinal));
+            if (!inProject && !inCatalogue)
+            {
+                System.Windows.MessageBox.Show(
+                    $"'{pushName}' is not a view template in this project, and View Templates does not create it " +
+                    "(no drawing type names it). Pick a template that exists, or create it first.",
+                    "STING — push template", MessageBoxButton.OK);
+                return;
+            }
             var bound = _types.Where(t => string.Equals(t.ViewStylePackId, _currentPack.Id,
                                                          StringComparison.OrdinalIgnoreCase)).ToList();
             if (bound.Count == 0)

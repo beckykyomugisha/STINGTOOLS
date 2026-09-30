@@ -614,7 +614,6 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { r.Warnings.Add($"ViewStylePack resolve: {ex.Message}"); }
             int effectiveScale = dt.Scale;
             string effectiveDetailLevel = dt.DetailLevel;
-            string effectiveTemplateName = dt.ViewTemplateName;
             bool scaleFromPack = false, detailFromPack = false;
             if (fallbackPack != null && !fallbackPack.IsManaged)
             {
@@ -623,8 +622,6 @@ namespace StingTools.Core.Drawing
                 { effectiveScale = packScale; scaleFromPack = true; }
                 if (string.IsNullOrWhiteSpace(effectiveDetailLevel) && !string.IsNullOrWhiteSpace(fallbackPack.DetailLevel))
                 { effectiveDetailLevel = fallbackPack.DetailLevel; detailFromPack = true; }
-                if (string.IsNullOrWhiteSpace(effectiveTemplateName) && !string.IsNullOrWhiteSpace(fallbackPack.ViewTemplate))
-                { effectiveTemplateName = fallbackPack.ViewTemplate; }
             }
 
             // Scale -------------------------------------------------------
