@@ -217,6 +217,8 @@ namespace StingTools.Core.Drawing
             _packageSheetCount  = null;
             _sheetNumberCache   = null;
             _cacheDocKey        = null;
+            _isoLevelMap        = null;   // DTW-43: levels may be renamed between batches
+            _isoLevelMapDocKey  = null;
             // SLOT-5: the title-block slot map memo lives with the slot utils,
             // not here, but it has the same lifetime as a production batch —
             // drop it on the same boundary so an operator who nudged slot
@@ -1199,6 +1201,12 @@ namespace StingTools.Core.Drawing
             // {originator} resolve from ProjectInformation instead of coming
             // back blank.
             var tokens = BuildTokenDict(doc, dt, ctx, seq);
+            // DTW-43: an ISO-shaped number carries the ISO level code, so the {lvl} the
+            // title block and the K-12 segment stamps show must be the same code, not the
+            // level's name.
+            if (SheetNumberPolicy.IsAlreadyIso(numberPattern)
+                && tokens.TryGetValue(IsoLevelKey, out var isoLvl) && !string.IsNullOrEmpty(isoLvl))
+                tokens["lvl"] = isoLvl;
 
             // K-7: an empty {lvl} (or any other unresolved token) used to reach
             // the sheet number as a dropped segment with no warning. Audit
@@ -1784,7 +1792,7 @@ namespace StingTools.Core.Drawing
             IDictionary<string, string> extras)
             => SheetNumberEngine.Template(pattern,
                 disc:    dt?.Discipline ?? "",
-                lvl:     levelName ?? dt?.IsoNaming?.Level ?? "",
+                lvl:     LevelForPattern(pattern, dt, levelName, extras),
                 sys:     dt?.System ?? "",
                 mark:    tag ?? "",
                 spool:   tag ?? "",
@@ -1888,7 +1896,8 @@ namespace StingTools.Core.Drawing
                 // cells and left the sheet number still empty, with the two
                 // disagreeing about the same drawing. Apply the same fallback
                 // at both ends.
-                lvl:     levelName ?? dt?.IsoNaming?.Level ?? "",
+                // DTW-43: an ISO-shaped pattern takes the ISO level code (see LevelForPattern).
+                lvl:     LevelForPattern(pattern, dt, levelName, extras),
                 sys:     dt?.System ?? "",   // P4 — system code into {sys} for number/name patterns
                 mark:    tag ?? "",
                 spool:   tag ?? "",
@@ -1932,7 +1941,63 @@ namespace StingTools.Core.Drawing
                 spool:      tag,
                 mark:       tag);
             d["package"] = packageId ?? dt?.PackageId ?? string.Empty;
+            // DTW-43: the ISO 19650 code of this level, for an ISO-shaped pattern's {lvl}.
+            // Carried in the dict (a key no pattern names) so every caller that numbers
+            // through BuildTokenDict + SubstituteTokens — production and Renumber — gets
+            // the same code without having to look the level up itself.
+            if (!string.IsNullOrEmpty(levelName))
+            {
+                var iso = SheetNumberPolicy.LevelToken(SheetNumberPolicy.IsoPattern, levelName, IsoLevelMap(doc));
+                if (!string.IsNullOrEmpty(iso)) d[IsoLevelKey] = iso;
+            }
             return d;
+        }
+
+        /// <summary>DTW-43: the token-dict key carrying the level's ISO code. Contains a '.'
+        /// so no sheet-number pattern token can name it.</summary>
+        internal const string IsoLevelKey = "lvl.iso";
+
+        /// <summary>
+        /// DTW-43: {lvl} for <paramref name="pattern"/>. An ISO-shaped pattern
+        /// (SheetNumberPolicy.IsAlreadyIso) takes the ISO 19650 level code — the one
+        /// ParameterHelpers' sheet level stamp derives (IsoLevelCode over every level) —
+        /// instead of the level name cut to eight characters ("Level1", "Mezzanin", and
+        /// "Level 1" / "Level 1A" colliding). Every other pattern keeps the name.
+        /// </summary>
+        private static string LevelForPattern(string pattern, DrawingType dt, string levelName, IDictionary<string, string> extras)
+        {
+            if (levelName != null && SheetNumberPolicy.IsAlreadyIso(pattern)
+                && extras != null && extras.TryGetValue(IsoLevelKey, out var iso) && !string.IsNullOrEmpty(iso))
+                return iso;
+            return levelName ?? dt?.IsoNaming?.Level ?? "";
+        }
+
+        [ThreadStatic] private static Dictionary<string, string> _isoLevelMap;
+        [ThreadStatic] private static string _isoLevelMapDocKey;
+
+        /// <summary>ISO 19650 level codes for every level, by name — built as
+        /// ParameterHelpers.DeriveSheetLevel builds them, so a sheet's number and its level
+        /// stamp agree. Cached per document for the batch.</summary>
+        private static Dictionary<string, string> IsoLevelMap(Document doc)
+        {
+            if (doc == null) return null;
+            var key = CacheDocKey(doc);
+            if (_isoLevelMap != null && string.Equals(_isoLevelMapDocKey, key, StringComparison.OrdinalIgnoreCase)) return _isoLevelMap;
+            try
+            {
+                var storeys = new List<StoreyDatum>();
+                foreach (var l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
+                    if (!string.IsNullOrWhiteSpace(l?.Name))
+                        storeys.Add(new StoreyDatum
+                        {
+                            Name = l.Name,
+                            ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
+                        });
+                _isoLevelMap = IsoLevelCode.BuildMap(storeys);
+                _isoLevelMapDocKey = key;
+                return _isoLevelMap;
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingProducer.IsoLevelMap: {ex.Message}"); return null; }
         }
         /// <summary>
         /// Read the project's sheet-number policy from ProjectInformation.
