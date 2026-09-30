@@ -23,6 +23,7 @@ namespace StingTools.Acc.Tests.TestHelpers
         {
             Directory.CreateDirectory(Dir);
             AccCredentialStore.CredentialsPathOverride = Path.Combine(Dir, "acc_credentials.json");
+            AccUploadResume.DirOverride = Path.Combine(Dir, "upload_resume");
         }
 
         /// <summary>Start a test with no saved sign-in, so a token an earlier test saved
@@ -31,5 +32,14 @@ namespace StingTools.Acc.Tests.TestHelpers
         {
             try { File.Delete(AccCredentialStore.CredentialsPath); } catch (IOException) { }
         }
+    }
+
+    /// <summary>Reset the isolated sign-in before EVERY test in the assembly, so a token one
+    /// test saved can never be adopted by the next (the refresh path deliberately adopts a
+    /// token another session rotated). Applied at assembly level in AssemblyInfo.cs.</summary>
+    [AttributeUsage(AttributeTargets.Assembly | AttributeTargets.Class | AttributeTargets.Method, AllowMultiple = false)]
+    internal sealed class FreshSignInAttribute : Xunit.Sdk.BeforeAfterTestAttribute
+    {
+        public override void Before(System.Reflection.MethodInfo methodUnderTest) => CredentialIsolation.Reset();
     }
 }

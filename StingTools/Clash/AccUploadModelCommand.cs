@@ -61,7 +61,7 @@ namespace StingTools.Core.Clash
                     "ACC is not set up for this project on this machine.\n\n" +
                     "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', " +
                     "then 'Discover' to choose the ACC project. The APS app needs the data:read, " +
-                    "data:write and data:create scopes.");
+                    "data:write and data:create scopes.\n\n" + AccProjectScope.Describe(creds) + ".");
                 return Result.Cancelled;
             }
 

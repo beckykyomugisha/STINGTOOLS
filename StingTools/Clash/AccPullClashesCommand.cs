@@ -57,7 +57,7 @@ namespace StingTools.Core.Clash
                 Report(policy, "ACC — Pull Clashes",
                     "ACC is not set up for this project on this machine.\n\n" +
                     "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', " +
-                    "then 'Discover' to choose the ACC project.");
+                    "then 'Discover' to choose the ACC project.\n\n" + AccProjectScope.Describe(creds) + ".");
                 // Not configured is a skip for an interactive project. A project that opted into
                 // unattended ACC operation expected this step to run, so there it is a failure.
                 return policy.IsUnattended ? Result.Failed : Result.Cancelled;
@@ -219,6 +219,17 @@ namespace StingTools.Core.Clash
                 byId.TryGetValue(sc.ClashId, out var rec) && rec != null &&
                 !excluded.Contains((rec.Status ?? "").Trim()) &&
                 !string.IsNullOrEmpty(SignatureFor(sc, byId))).ToList();
+            // ACC-HARD-6: which clash statuses ACC actually uses is unconfirmed, so every run
+            // states what it saw and what the exclusion list removed. The first live pull
+            // answers the question; the log keeps the answer.
+            var statusCounts = clashes.GroupBy(c => string.IsNullOrWhiteSpace(c.Status) ? "(none)" : c.Status.Trim().ToLowerInvariant())
+                                      .OrderByDescending(g => g.Count())
+                                      .Select(g => $"{g.Key} {g.Count()}").ToList();
+            int excludedByStatus = clashes.Count(c => excluded.Contains((c.Status ?? "").Trim()));
+            string statusLine = "ACC clash statuses: " + string.Join(", ", statusCounts) +
+                                $" — {excludedByStatus} excluded from escalation by status ({string.Join("/", excluded)})";
+            report.AppendLine(statusLine);
+            StingLog.Info("ACC_PullClashes " + statusLine);
             int unkeyable = scoredAll.Count(sc => string.IsNullOrEmpty(SignatureFor(sc, byId)));
             if (unkeyable > 0)
                 report.AppendLine($"{unkeyable} clash(es) cannot be escalated: ACC gave no document names for them " +

@@ -81,6 +81,9 @@ namespace StingTools.V6
         /// <summary>True once the project scope has been applied, so ToMachineFile knows the
         /// File* values are meaningful.</summary>
         [Newtonsoft.Json.JsonIgnore] public bool ScopeApplied { get; set; }
+        /// <summary>The ACC project id this machine's file still holds from before settings were
+        /// per project. Shown (never used) so a person can adopt it explicitly.</summary>
+        [Newtonsoft.Json.JsonIgnore] public string LegacyProjectId { get; set; } = string.Empty;
     }
 
     public sealed class AccIssue
@@ -558,15 +561,14 @@ namespace StingTools.V6
         public static JObject ToMachineFile(AccCredentials c)
         {
             var j = JObject.FromObject(c);
-            if (c.ProjectScope == AccProjectScopeSource.ProjectSettings)
+            if (c.ScopeApplied)
             {
+                // Project values came from the project (or are blank because the project has
+                // none); either way the machine file keeps exactly what it had.
                 j["ProjectId"] = c.FileProjectId ?? string.Empty;
                 j["CoordContainerId"] = c.FileCoordContainerId ?? string.Empty;
                 j["IssueTypeId"] = c.FileIssueTypeId ?? string.Empty;
                 j["IssueSubtypeId"] = c.FileIssueSubtypeId ?? string.Empty;
-            }
-            if (c.ScopeApplied)
-            {
                 j["HubId"] = c.FileHubId ?? string.Empty;
                 j["FolderUrn"] = c.FileFolderUrn ?? string.Empty;
                 j["DistToMm"] = c.FileDistToMm ?? 1000.0;

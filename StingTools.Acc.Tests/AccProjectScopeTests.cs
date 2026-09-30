@@ -73,15 +73,21 @@ namespace StingTools.Acc.Tests
         }
 
         [Fact]
-        public void With_no_project_ids_the_machine_file_is_used_and_says_so()
+        public void With_no_project_ids_the_machine_file_is_NOT_used_but_is_shown()
         {
+            // ACC-HARD-4: the one-release fallback is retired. The machine file's old ids are
+            // reported (so a person can adopt them with an explicit Save), never acted on.
             var c = AccProjectScope.Apply(Machine(), Settings(@"{ ""unattended"": false }"));
-            Assert.Equal(AccProjectScopeSource.CredentialsFile, c.ProjectScope);
-            Assert.Equal("b.machine", c.ProjectId);
-            Assert.Contains("DEPRECATED", AccProjectScope.Describe(c));
+            Assert.Equal(AccProjectScopeSource.None, c.ProjectScope);
+            Assert.Equal("", c.ProjectId);
+            Assert.Equal("", c.CoordContainer);
+            Assert.Equal("", c.IssueTypeId);
+            Assert.Equal("b.machine", c.LegacyProjectId);
+            Assert.Contains("NOT used", AccProjectScope.Describe(c));
 
             var none = AccProjectScope.Apply(new AccCredentials(), null);
             Assert.Equal(AccProjectScopeSource.None, none.ProjectScope);
+            Assert.DoesNotContain("remembers", AccProjectScope.Describe(none));
         }
 
         [Fact]
@@ -111,11 +117,22 @@ namespace StingTools.Acc.Tests
         }
 
         [Fact]
-        public void Without_a_project_scope_saving_writes_what_is_there()
+        public void Without_a_project_scope_saving_still_leaves_the_machine_ids_alone()
         {
             var c = AccProjectScope.Apply(Machine(), null);
             c.ProjectId = "b.edited";
-            Assert.Equal("b.edited", (string)AccIssueSync.ToMachineFile(c)["ProjectId"]);
+            Assert.Equal("b.machine", (string)AccIssueSync.ToMachineFile(c)["ProjectId"]);
+        }
+
+        [Fact]
+        public void Credentials_read_without_a_project_are_saved_as_they_are()
+        {
+            // The keep-alive reads the machine file with no project; its save must round-trip.
+            var c = Machine();
+            c.AccessToken = "fresh";
+            var j = AccIssueSync.ToMachineFile(c);
+            Assert.Equal("b.machine", (string)j["ProjectId"]);
+            Assert.Equal("fresh", (string)j["AccessToken"]);
         }
     }
 }

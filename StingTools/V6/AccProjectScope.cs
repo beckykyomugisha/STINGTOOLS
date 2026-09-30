@@ -1,45 +1,39 @@
 // StingTools/V6/AccProjectScope.cs
 //
-// IM-18. Values that identify a PROJECT - the ACC Issues container (ProjectId), the
-// Model Coordination container (CoordContainerId), the hub, the upload folder, the clash
-// distance unit, the issue type and the hosting region - lived in the machine-wide
-// %APPDATA%\Planscape\acc_credentials.json beside the OAuth secrets. A coordinator on two
-// jobs had one value for both, and the second job silently overwrote the first. The
-// folder URN was the dangerous one: switching jobs pointed uploads at the previous
+// IM-18 / ACC-HARD-4. Values that identify a PROJECT - the ACC Issues container
+// (ProjectId), the Model Coordination container (CoordContainerId), the hub, the upload
+// folder, the clash distance unit, the issue type and the hosting region - used to live in
+// the machine-wide %APPDATA%\Planscape\acc_credentials.json beside the OAuth secrets. A
+// coordinator on two jobs had one value for both, and the second job silently overwrote the
+// first. The folder URN was the dangerous one: switching jobs pointed uploads at the previous
 // project's folder.
 //
-// They now belong in <project>/_BIM_COORD/acc/acc_settings.json. The credentials file's
-// copies are still read when the project file has none, and every such read says so in
-// the log - a fallback nobody can see is how a field ends up with two homes forever.
+// They belong ONLY in <project>/_BIM_COORD/acc/acc_settings.json. The machine file's old
+// copies are no longer used at all (the one-release fallback is retired): a project with no
+// ACC settings is "not configured", whatever this machine remembers from another job. The
+// old values are kept in LegacyProjectId so the ACC card can SHOW them and a person can adopt
+// them with one explicit Save - adopting is a decision, never a side effect of reading.
 //
-// Two rules make the move safe:
-//   * Saving credentials never writes a project's values into the machine file. The
-//     values the file held are restored on save.
-//   * IssueTypeId / IssueSubtypeId are resolved PER CONTAINER. When the project's
-//     container differs from the one the machine file cached them for, they are cleared
-//     in memory so the type is resolved for the right one.
+// Saving credentials never writes a project's values into the machine file: whatever the file
+// held is written back unchanged.
 //
 // Revit-free and log-free (links into StingTools.Acc.Tests); callers log Describe().
-
-using System.Collections.Generic;
 
 namespace StingTools.V6
 {
     public enum AccProjectScopeSource
     {
-        /// <summary>No container id anywhere.</summary>
+        /// <summary>This project has no ACC settings: not configured.</summary>
         None,
-        /// <summary>From the project's acc_settings.json - the intended home.</summary>
+        /// <summary>From the project's acc_settings.json - the only source.</summary>
         ProjectSettings,
-        /// <summary>From the machine credentials file - deprecated fallback.</summary>
-        CredentialsFile,
     }
 
     public static class AccProjectScope
     {
-        /// <summary>Overlay the project's values onto <paramref name="c"/>, remembering what
-        /// the credentials file held so <see cref="AccIssueSync.SaveCredentials(AccCredentials)"/>
-        /// can put it back. <paramref name="projectSettings"/> may be null (no saved project).</summary>
+        /// <summary>Lay the project's values over the machine credentials (which then carry only
+        /// the sign-in), remembering what the machine file held so a save writes it back
+        /// unchanged. <paramref name="projectSettings"/> may be null (no saved project).</summary>
         public static AccCredentials Apply(AccCredentials c, AccOperatingPolicy projectSettings)
         {
             if (c == null) return null;
@@ -53,32 +47,41 @@ namespace StingTools.V6
             c.FileRegion = c.Region;
             c.ScopeApplied = true;
 
+            // Start from nothing: the machine file identifies no project.
+            string legacy = c.ProjectId ?? string.Empty;
+            bool sameContainerAsLegacy = false;
+            c.ProjectId = string.Empty;
+            c.CoordContainerId = string.Empty;
+            c.HubId = string.Empty;
+            c.FolderUrn = string.Empty;
+            c.DistToMm = 1000.0;
+            c.Region = string.Empty;
+
             string pid = projectSettings?.ProjectId ?? string.Empty;
             if (!string.IsNullOrWhiteSpace(pid))
             {
-                bool otherContainer = !string.Equals(AccIds.ForAcc(pid), AccIds.ForAcc(c.ProjectId),
+                sameContainerAsLegacy = string.Equals(AccIds.ForAcc(pid), AccIds.ForAcc(legacy),
                     System.StringComparison.OrdinalIgnoreCase);
                 c.ProjectId = pid;
                 c.CoordContainerId = projectSettings.CoordContainerId ?? string.Empty;
-                if (otherContainer)
-                {
-                    // Cached for the machine file's container, not this one.
-                    c.IssueTypeId = string.Empty;
-                    c.IssueSubtypeId = string.Empty;
-                    // A folder and a hub belong to one project too.
-                    c.FolderUrn = string.Empty;
-                    c.HubId = string.Empty;
-                }
                 c.ProjectScope = AccProjectScopeSource.ProjectSettings;
+                c.LegacyProjectId = string.Empty;
             }
             else
             {
-                c.ProjectScope = string.IsNullOrWhiteSpace(c.ProjectId)
-                    ? AccProjectScopeSource.None
-                    : AccProjectScopeSource.CredentialsFile;
+                c.ProjectScope = AccProjectScopeSource.None;
+                c.LegacyProjectId = legacy;
             }
 
-            if (projectSettings != null)
+            // An issue type cached in the machine file is per CONTAINER; it may be reused only
+            // for the very container it was resolved for.
+            if (!sameContainerAsLegacy)
+            {
+                c.IssueTypeId = string.Empty;
+                c.IssueSubtypeId = string.Empty;
+            }
+
+            if (projectSettings != null && c.ProjectScope == AccProjectScopeSource.ProjectSettings)
             {
                 if (!string.IsNullOrWhiteSpace(projectSettings.HubId)) c.HubId = projectSettings.HubId;
                 if (!string.IsNullOrWhiteSpace(projectSettings.FolderUrn)) c.FolderUrn = projectSettings.FolderUrn;
@@ -93,32 +96,17 @@ namespace StingTools.V6
             return c;
         }
 
-        /// <summary>Project values still being taken from the machine file - each one a
-        /// deprecation warning the caller should log.</summary>
-        public static IReadOnlyList<string> MachineFileFallbacks(AccCredentials c, AccOperatingPolicy projectSettings)
-        {
-            var list = new List<string>();
-            if (c == null) return list;
-            if (c.ProjectScope == AccProjectScopeSource.CredentialsFile) list.Add("projectId");
-            if (!string.IsNullOrWhiteSpace(c.FolderUrn) && string.IsNullOrWhiteSpace(projectSettings?.FolderUrn)) list.Add("folderUrn");
-            if (!string.IsNullOrWhiteSpace(c.HubId) && string.IsNullOrWhiteSpace(projectSettings?.HubId)) list.Add("hubId");
-            return list;
-        }
-
         /// <summary>One line for the log / a dialog.</summary>
         public static string Describe(AccCredentials c)
         {
-            switch (c?.ProjectScope)
-            {
-                case AccProjectScopeSource.ProjectSettings:
-                    return $"ACC container {c.ProjectId} from this project's acc_settings.json";
-                case AccProjectScopeSource.CredentialsFile:
-                    return $"ACC container {c.ProjectId} from the machine credentials file - DEPRECATED: " +
-                           "set it per project (BIM Coordination Center > ACC > Save) so another job " +
-                           "cannot overwrite it";
-                default:
-                    return "no ACC container id is configured";
-            }
+            if (c?.ProjectScope == AccProjectScopeSource.ProjectSettings)
+                return $"ACC project {c.ProjectId} from this project's acc_settings.json";
+            if (!string.IsNullOrWhiteSpace(c?.LegacyProjectId))
+                return "this project has no ACC settings. This machine remembers ACC project " +
+                       $"{c.LegacyProjectId} from before settings were per project — it is NOT used " +
+                       "automatically. Open BIM Coordination Center > ACC: the old values are shown there; " +
+                       "Save adopts them for this project, or use Find my ACC project";
+            return "this project has no ACC settings — BIM Coordination Center > ACC > Find my ACC project";
         }
     }
 }
