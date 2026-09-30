@@ -160,7 +160,7 @@ namespace StingTools.V6
         /// for unattended runs - those escalate nothing without an explicit policy.</summary>
         public const int InteractiveFallbackCount = 10;
 
-        private static readonly HashSet<string> KnownKeys = new HashSet<string>(StringComparer.Ordinal)
+        internal static readonly HashSet<string> KnownKeys = new HashSet<string>(StringComparer.Ordinal)
         {
             "unattended", "coordModelSetId", "coordModelSetName",
             "escalateMaxCount", "escalateMinScore", "publishSuitability",
@@ -187,6 +187,10 @@ namespace StingTools.V6
             // Revision workflow: what Supersede / Replace does to the deliverable's ACC
             // document ("ask" | "always" | "never"). Read by AccRetireDeliverable.
             "retireSupersededInAcc",
+            // One upload discipline: may ACC_UploadModel / ACC_UploadLastBundle send CHANGED
+            // content under a document number + revision already sent (a re-issue without a
+            // revision change)? The Export Centre asks its profile instead.
+            "uploadAllowReissue",
         };
 
         /// <summary>The STING values an escalated clash issue can carry as ACC custom
@@ -286,6 +290,13 @@ namespace StingTools.V6
         /// project? Off by default: an upload writes into the real CDE, so it is opt-in twice
         /// (unattended AND this), like escalation.</summary>
         public bool UploadUnattended { get; private set; }
+
+        /// <summary>May ACC_UploadModel / ACC_UploadLastBundle send a CHANGED file under a document
+        /// number + revision already sent ("uploadAllowReissue")? Off by default: ISO 19650 does
+        /// not allow a changed deliverable under an unchanged revision, and ACC would silently
+        /// stack it as another version of the same revision. The Export Centre's equivalent is
+        /// its profile's "allow re-issue without a revision change".</summary>
+        public bool UploadAllowReissue { get; private set; }
 
         /// <summary>The ACC custom-attribute names STING writes to ("docsAttributeNames").
         /// Defaults are the names docs/KUT_ACC_DAY1_PLAYBOOK.md §3.4 tells the admin to create.</summary>
@@ -430,7 +441,7 @@ namespace StingTools.V6
                    assignedToType = string.Empty;
             double? distToMm = null;
             int? dueDays = null;
-            bool docsAttributes = false, docsCreate = false, uploadUnattended = false;
+            bool docsAttributes = false, docsCreate = false, uploadUnattended = false, uploadReissue = false;
             bool deepLinks = true, viewerLinks = true, bcfAttachment = true;
             var cdeFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var disciplineMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -488,6 +499,7 @@ namespace StingTools.V6
                 if (TryGet(o, "docsAttributes", out var daTok)) docsAttributes = RequireBool(daTok, "docsAttributes");
                 if (TryGet(o, "docsAttributesCreateMissing", out var dcTok)) docsCreate = RequireBool(dcTok, "docsAttributesCreateMissing");
                 if (TryGet(o, "uploadUnattended", out var uuTok)) uploadUnattended = RequireBool(uuTok, "uploadUnattended");
+                if (TryGet(o, "uploadAllowReissue", out var urTok)) uploadReissue = RequireBool(urTok, "uploadAllowReissue");
                 if (TryGet(o, "issueDeepLinks", out var dlTok)) deepLinks = RequireBool(dlTok, "issueDeepLinks");
                 if (TryGet(o, "issueViewerLinks", out var vlTok)) viewerLinks = RequireBool(vlTok, "issueViewerLinks");
                 if (TryGet(o, "issueBcfAttachment", out var baTok)) bcfAttachment = RequireBool(baTok, "issueBcfAttachment");
@@ -593,6 +605,7 @@ namespace StingTools.V6
             policy.DocsAttributes = docsAttributes;
             policy.DocsAttributesCreateMissing = docsCreate;
             policy.UploadUnattended = uploadUnattended;
+            policy.UploadAllowReissue = uploadReissue;
             policy.IssueDeepLinks = deepLinks;
             policy.IssueViewerLinks = viewerLinks;
             policy.IssueBcfAttachment = bcfAttachment;

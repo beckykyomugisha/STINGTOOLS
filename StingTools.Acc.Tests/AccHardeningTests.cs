@@ -419,6 +419,14 @@ namespace StingTools.Acc.Tests
         }
 
         [Fact]
+        public void UploadAllowReissue_IsOffUnlessSet_AndMustBeABoolean()
+        {
+            Assert.False(Load("{\"unattended\":true}").UploadAllowReissue);
+            Assert.True(Load("{\"uploadAllowReissue\":true}").UploadAllowReissue);
+            Assert.Equal(AccPolicySource.Malformed, Load("{\"uploadAllowReissue\":1}").Source);
+        }
+
+        [Fact]
         public void AllNewKeysParse()
         {
             var p = Load("{\"hubId\":\"b.h\",\"folderUrn\":\"urn:f\",\"distToMm\":1,\"issueTypeId\":\"t\",\"issueSubtypeId\":\"s\"," +

@@ -1,0 +1,108 @@
+// AccUploadGate - the ONE pre-upload discipline ACC_UploadModel / ACC_UploadLastBundle and
+// the Export Centre auto-upload share (WORKLOG A12). What these guard:
+//   * a revision that contradicts its suitability (recorded, or carried in the file name) is
+//     refused before the ledger is even consulted;
+//   * an identical file already sent is skipped (not a failure), with or without a revision;
+//   * a changed file under a revision already sent is refused unless allowed;
+//   * an unreadable file / missing ledger is refused, never sent blind;
+//   * Record after a confirmed upload makes the next identical send a skip.
+// Each "refused"/"skipped" case is paired with an "uploads" case so a gate that refused
+// everything could not pass.
+
+using System;
+using System.IO;
+using StingTools.V6;
+using Xunit;
+
+namespace StingTools.Acc.Tests
+{
+    public class AccUploadGateTests : IDisposable
+    {
+        private readonly string _dir = Path.Combine(Path.GetTempPath(), "sting-gate-" + Guid.NewGuid().ToString("N"));
+        public AccUploadGateTests() => Directory.CreateDirectory(_dir);
+        public void Dispose() { try { Directory.Delete(_dir, true); } catch (Exception) { } }
+
+        private string File(string name, string content)
+        {
+            string p = Path.Combine(_dir, name);
+            System.IO.File.WriteAllText(p, content);
+            return p;
+        }
+
+        [Fact]
+        public void FirstSend_WithAConsistentPair_Uploads()
+        {
+            var g = AccUploadGate.Check(new AccUploadLedger(), File("KUT-PCE-ZZ-01-DR-A-0101.pdf", "v1"), "KUT-PCE-ZZ-01-DR-A-0101", "P02", "S2", false);
+            Assert.Equal(AccUploadGateDecision.Upload, g.Decision);
+            Assert.False(string.IsNullOrEmpty(g.Sha256));
+            Assert.Equal("PDF", g.Format);
+        }
+
+        [Theory]
+        [InlineData("P03", "A1")]   // preliminary revision filed as authorised
+        [InlineData("C01", "S2")]   // contractual revision shared for coordination
+        public void RecordedRevision_ContradictingSuitability_IsRefused(string rev, string suit)
+        {
+            var g = AccUploadGate.Check(new AccUploadLedger(), File("D-0101.pdf", "x"), "D-0101", rev, suit, allowReissue: true);
+            Assert.Equal(AccUploadGateDecision.Refuse, g.Decision);
+            Assert.Contains(rev, g.Reason);
+        }
+
+        [Fact]
+        public void RevisionInTheName_ContradictingSuitability_IsRefused_EvenWithNoRecordedRevision()
+        {
+            var ok = AccUploadGate.Check(new AccUploadLedger(), File("KUT-PCE-ZZ-01-DR-A-0101-P03.pdf", "x"), "", "", "S2", false);
+            Assert.Equal(AccUploadGateDecision.Upload, ok.Decision);
+            var bad = AccUploadGate.Check(new AccUploadLedger(), File("KUT-PCE-ZZ-01-DR-A-0102-P03.pdf", "x"), "", "", "A1", false);
+            Assert.Equal(AccUploadGateDecision.Refuse, bad.Decision);
+        }
+
+        [Fact]
+        public void AfterRecord_TheIdenticalFileIsSkipped_AndAChangedOneUnderTheSameRevisionIsRefused()
+        {
+            var ledger = new AccUploadLedger();
+            string path = File("D-0101.pdf", "v1");
+            var first = AccUploadGate.Check(ledger, path, "D-0101", "P02", "S2", false);
+            Assert.True(first.ShouldUpload);
+            AccUploadGate.Record(ledger, first, path, "D-0101", "P02", "S2", "urn:item", "urn:v?version=1", new DateTime(2026, 10, 1));
+
+            var again = AccUploadGate.Check(ledger, path, "D-0101", "P02", "S2", false);
+            Assert.Equal(AccUploadGateDecision.SkipIdentical, again.Decision);
+
+            System.IO.File.WriteAllText(path, "v2 - changed content");
+            var changed = AccUploadGate.Check(ledger, path, "D-0101", "P02", "S2", false);
+            Assert.Equal(AccUploadGateDecision.Refuse, changed.Decision);
+            Assert.Contains("without a revision change", changed.Reason);
+
+            var allowed = AccUploadGate.Check(ledger, path, "D-0101", "P02", "S2", true);
+            Assert.Equal(AccUploadGateDecision.Upload, allowed.Decision);
+            Assert.True(allowed.ReissueAllowed);
+
+            var revised = AccUploadGate.Check(ledger, path, "D-0101", "P03", "S2", false);
+            Assert.Equal(AccUploadGateDecision.Upload, revised.Decision);
+        }
+
+        [Fact]
+        public void NoRevision_IdenticalResendSkipped_ChangedContentStillUploads()
+        {
+            var ledger = new AccUploadLedger();
+            string bundle = File("ACC_PUBLISH_20261001.zip", "zip-1");
+            var first = AccUploadGate.Check(ledger, bundle, "", "", "", false);
+            Assert.Equal(AccUploadGateDecision.Upload, first.Decision);
+            AccUploadGate.Record(ledger, first, bundle, "", "", "", "i", "v", DateTime.UtcNow);
+
+            Assert.Equal(AccUploadGateDecision.SkipIdentical, AccUploadGate.Check(ledger, bundle, "", "", "", false).Decision);
+            System.IO.File.WriteAllText(bundle, "zip-2");
+            Assert.Equal(AccUploadGateDecision.Upload, AccUploadGate.Check(ledger, bundle, "", "", "", false).Decision);
+        }
+
+        [Fact]
+        public void NoLedger_OrUnreadableFile_IsRefused()
+        {
+            Assert.Equal(AccUploadGateDecision.Refuse,
+                AccUploadGate.Check(null, File("a.pdf", "x"), "a", "P01", "S2", false).Decision);
+            Assert.Equal(AccUploadGateDecision.Refuse,
+                AccUploadGate.Check(new AccUploadLedger(), Path.Combine(_dir, "missing.pdf"), "a", "P01", "S2", false).Decision);
+        }
+    }
+}
