@@ -53,9 +53,12 @@ namespace StingTools.Model
 
                 string dispatch = null;
                 string dominant;
-                if (struc >= arch && struc >= mep) { dispatch = "StructuralDWGWizard"; dominant = $"Structural ({struc} layers)"; }
-                else if (arch >= mep)              { dispatch = "DWGToModel";          dominant = $"Architectural ({arch} layers)"; }
-                else                                { dispatch = "DWGToModel";          dominant = $"MEP ({mep} layers)"; }
+                // Dock-handler tags. "StructuralDWGWizard" (a ribbon hub id) and "DWGToModel"
+                // (a ModelCreationDialog id) resolve in no dock handler, so every run ended in
+                // "Unknown Command" — and MEP drawings were routed to the walls/rooms converter.
+                if (struc >= arch && struc >= mep) { dispatch = "StrCADWizard";    dominant = $"Structural ({struc} layers)"; }
+                else if (arch >= mep)              { dispatch = "ModelDWGToModel"; dominant = $"Architectural ({arch} layers)"; }
+                else                                { dispatch = "Mep_CadWizard";   dominant = $"MEP ({mep} layers)"; }
 
                 var td = new TaskDialog("Unified DWG Wizard")
                 {

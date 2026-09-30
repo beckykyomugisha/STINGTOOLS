@@ -25801,3 +25801,33 @@ every `GetString` read against the parameter's data type.
 - Promote Library's header comment still said families only in the target are always kept;
   it now describes the optional move to `_retired`.
 - Plugin builds; Tags tests and gates pass. Not run in Revit.
+
+#### Completed (MEP modelling and drawing production guide, branch `claude/mep-production-guide`)
+
+- **`GUIDES/MEP_DRAWING_PRODUCTION_GUIDE.md` rewritten** against `main` (it was a week old and
+  several of its facts had moved).
+  - **Part A, the fastest route:** the one-click "★ Set up drawing production", the wizard's
+    Drawing Production group and sheet-number policy, and area boxes / seeds.
+  - **Part B, modelling from DWG:** structural CAD Wizard, DWG → Model and the MEP Wizard, with
+    what each actually does and the fastest order from CAD.
+  - **Part C:** MEP modelling → data, by discipline, with exact button names, the workflow
+    presets and which commands run headless.
+  - **Part D:** a typical comprehensive MEP set, marked produced-by-type / tool-only / manual.
+  - Corrected on the way:
+    - wrong drawing-type ids (`plumb-drainage` → `plumb-drainage-A1-1to100`, …)
+    - "49" plan types is now 50
+    - three fire-protection types now exist
+    - scope-box fan-out is now the Scope Box Planner
+    - several button labels (`Tag+Combine`, `Token Conf`, `ISO Check`, `Valid`, `Heal TBs`)
+- **MODEL → "DWG Wizard" never worked.** It dispatched `StructuralDWGWizard` and `DWGToModel`,
+  tags no dock handler knows, so every run ended in "Unknown Command", and MEP drawings were
+  aimed at the walls-and-rooms converter. It now routes to `StrCADWizard`, `ModelDWGToModel`
+  and `Mep_CadWizard`.
+- **CAD Wizard Convert converted the wrong DWG** whenever a project held more than one. It
+  took `imports.First()`; it now uses the import picked in the dialog.
+- **ROADMAP:** CAD-1 (Convert still runs the legacy pipeline, so most dialog options, including
+  its dry-run tick box, are ignored), CAD-2, MDP-1 (medical-gas and four other placement packs
+  never load), MDP-2 (missing MEP drawing types), MDP-3 (`E / PLAN` routes to a section).
+
+Built 0/0. The two code fixes are Revit-bound and not run in Revit; the guide is read from the
+code and says so.

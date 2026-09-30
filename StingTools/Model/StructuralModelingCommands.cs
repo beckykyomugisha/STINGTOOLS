@@ -1048,7 +1048,11 @@ namespace StingTools.Model
                     TaskDialog.Show("STRUCT — DWG-to-BIM", "No DWG import found in the project.");
                     return Result.Cancelled;
                 }
-                var selectedImport = imports.First();
+                // The import picked in the wizard's "DWG Import:" dropdown. Taking imports.First()
+                // converted a different drawing whenever the project held more than one.
+                var selectedImport = wizard.SelectedImport != null && wizard.SelectedImport.IsValidObject
+                    ? wizard.SelectedImport
+                    : imports.First();
 
                 var result = pipeline.RunFullPipeline(
                     selectedImport,

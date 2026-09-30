@@ -156,6 +156,19 @@ box moved 2 m reports Moved and Create puts it back; the 200-box cap asks before
 Seeds from an open template leaves that document open; and Produce refuses a view whose crop did
 not take.
 
+## DWG modelling and MEP drawing coverage (2026-09-30)
+
+Found while rewriting [`GUIDES/MEP_DRAWING_PRODUCTION_GUIDE.md`](../GUIDES/MEP_DRAWING_PRODUCTION_GUIDE.md).
+Read from the code; none of it run in Revit.
+
+| Id | Gap | Evidence | Fix |
+|---|---|---|---|
+| CAD-1 | CAD Wizard **Convert** runs the legacy 9-argument `RunFullPipeline`, so Top Level, repeat levels, foundations, the Wall / structural-wall switches, numbering, the size-detection options and the **Dry-run tick box** are ignored (Convert always creates). Its own "Re-analyse (dry-run)" uses the complete `RunFullPipelineWithConfig`. | `StructuralModelingCommands.cs` `StrCADWizardCommand`; `StructuralCADWizard.cs` dry-run handler | Call `RunFullPipelineWithConfig(wizard.SelectedImport, cfg)`; needs a Revit run on a real DWG first, because that path has only ever run as a dry-run. |
+| CAD-2 | "Pick Wall" measures wall thickness and ignores it; "Pick Column" / "Pick Beam" place the first available type with no measuring. | `StructuralDWGEnhancements.cs` (`CreateWallFromCurve`, "future work") | Match or create a type from the measured size. |
+| MDP-1 | The medical-gas, routing, commissioning, conduiting-phase and in-wall-chase placement packs are not in `PlacementRuleLoader.DisciplinePacks`, so "Run All Rules" never loads them; `Placement_MedGasOutlets` has no button. | `Core/Placement/PlacementRuleLoader.cs` | Register the packs (after checking their room scoping) and add a Placement Centre button. |
+| MDP-2 | No drawing type for: data / comms, security, containment, CHW / LTHW pipework, HVAC schematics, cold / hot water plans, fire alarm schematic, fire riser, general services sections and details, emergency lighting. | `Data/STING_DRAWING_TYPES.json` (96 types) | Add the types (with routing rules and checksums). |
+| MDP-3 | Routing rule `E / PLAN` resolves to `elec-riser-A3-1to200`, a section. | `STING_DRAWING_TYPES.json` routing | Point it at `elec-power-A1-1to100`. |
+
 ## Material callouts (2026-09-24)
 
 Reviewed end to end; the design and the build steps are in
