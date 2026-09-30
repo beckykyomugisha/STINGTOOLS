@@ -471,7 +471,14 @@ namespace StingTools.Commands.Drawing
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var picked = res.SelectedContexts.Select(n => scopes.FirstOrDefault(s => s.Name == n)).Where(s => s != null).ToList();
-                Produce(doc, picked, bindingByName, types, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
+                // DTW-26: only the ticked drawing types. Every type a box was bound to was
+                // produced, ticked or not, so unticking a type in the dialog did nothing.
+                var tickedTypes = types.Where(t => res.SelectedDrawingTypeIds.Contains(t.Id, StringComparer.OrdinalIgnoreCase)).ToList();
+                int boxesLeftOut = picked.Count(s => bindingByName.TryGetValue(s.Name ?? "", out var b)
+                    && !tickedTypes.Any(t => string.Equals(t.Id, b.DrawingTypeId, StringComparison.OrdinalIgnoreCase)));
+                if (boxesLeftOut > 0)
+                    warnings.Add($"{boxesLeftOut} ticked box(es) are bound to a drawing type that is not ticked — not produced.");
+                Produce(doc, picked, bindingByName, tickedTypes, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
                 BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
