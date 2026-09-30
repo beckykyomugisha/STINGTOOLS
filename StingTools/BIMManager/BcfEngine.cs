@@ -213,8 +213,9 @@ namespace Planscape.Shared.BCF
                         ? System.Guid.NewGuid().ToString()
                         : issue.Guid;
 
-                    WriteXmlEntry(zip, $"{guid}/markup.bcf",     BuildMarkupXml(issue, guid));
-                    WriteViewpointEntry(zip, guid, issue);
+                    var vp = ResolveViewpoint(issue, guid, out string vpGuid);
+                    WriteXmlEntry(zip, $"{guid}/markup.bcf",     BuildMarkupXml(issue, guid, vpGuid));
+                    WriteXmlEntry(zip, $"{guid}/viewpoint.bcfv", vp);
                     topicCount++;
                 }
             }
@@ -243,37 +244,48 @@ namespace Planscape.Shared.BCF
                 {
                     if (issue == null) continue;
                     string guid = string.IsNullOrWhiteSpace(issue.Guid) ? System.Guid.NewGuid().ToString() : issue.Guid;
-                    WriteXmlEntry(zip, $"{guid}/markup.bcf",     BuildMarkupXml(issue, guid));
-                    WriteViewpointEntry(zip, guid, issue);
+                    var vp = ResolveViewpoint(issue, guid, out string vpGuid);
+                    WriteXmlEntry(zip, $"{guid}/markup.bcf",     BuildMarkupXml(issue, guid, vpGuid));
+                    WriteXmlEntry(zip, $"{guid}/viewpoint.bcfv", vp);
                 }
             }
             return ms.ToArray();
         }
 
         /// <summary>
-        /// Writes the viewpoint.bcfv entry for a topic. Uses
+        /// The viewpoint.bcfv document for a topic, and its GUID. Uses
         /// <see cref="CoordIssue.ViewpointBcfvXml"/> when supplied (caller
         /// built a real spatial viewpoint) and falls back to the stub
-        /// camera otherwise.
+        /// camera otherwise. The GUID is returned so markup.bcf can reference
+        /// the viewpoint (BCF 2.1 Markup/Viewpoints) — without that reference a
+        /// strict reader does not know the viewpoint belongs to the topic.
         /// </summary>
-        private static void WriteViewpointEntry(ZipArchive zip, string guid, CoordIssue issue)
+        private static XDocument ResolveViewpoint(CoordIssue issue, string guid, out string vpGuid)
         {
-            string entry = $"{guid}/viewpoint.bcfv";
             if (!string.IsNullOrWhiteSpace(issue.ViewpointBcfvXml))
             {
                 try
                 {
                     var doc = XDocument.Parse(issue.ViewpointBcfvXml);
-                    WriteXmlEntry(zip, entry, doc);
-                    return;
+                    if (doc.Root != null)
+                    {
+                        vpGuid = doc.Root.Attribute("Guid")?.Value ?? "";
+                        if (string.IsNullOrWhiteSpace(vpGuid))
+                        {
+                            vpGuid = System.Guid.NewGuid().ToString();
+                            doc.Root.SetAttributeValue("Guid", vpGuid);
+                        }
+                        return doc;
+                    }
                 }
                 catch
                 {
                     // Caller-supplied XML was malformed; fall through to stub.
-                    Warn?.Invoke($"BcfEngine: invalid ViewpointBcfvXml on topic {guid}; using stub.");
                 }
+                Warn?.Invoke($"BcfEngine: invalid ViewpointBcfvXml on topic {guid}; using stub.");
             }
-            WriteXmlEntry(zip, entry, BuildViewpointStubXml(System.Guid.NewGuid().ToString()));
+            vpGuid = System.Guid.NewGuid().ToString();
+            return BuildViewpointStubXml(vpGuid);
         }
 
         // ── Import ─────────────────────────────────────────────────────────
@@ -345,7 +357,7 @@ namespace Planscape.Shared.BCF
                     new XAttribute("VersionId", "2.1"),
                     new XElement("DetailedVersion", "2.1")));
 
-        private static XDocument BuildMarkupXml(CoordIssue issue, string guid)
+        private static XDocument BuildMarkupXml(CoordIssue issue, string guid, string? viewpointGuid = null)
         {
             string bcfType     = MapOr(StingToBcfType, issue.Type,     "Issue");
             string bcfPriority = MapOr(StingToBcfPriority, issue.Priority, "Normal");
@@ -394,6 +406,12 @@ namespace Planscape.Shared.BCF
                     new XElement("Comment", c.Text ?? ""),
                     new XElement("Topic", new XAttribute("Guid", guid))));
             }
+
+            // BCF 2.1: Markup lists its viewpoints after the comments.
+            if (!string.IsNullOrWhiteSpace(viewpointGuid))
+                markup.Add(new XElement("Viewpoints",
+                    new XAttribute("Guid", viewpointGuid),
+                    new XElement("Viewpoint", "viewpoint.bcfv")));
 
             return new XDocument(new XDeclaration("1.0", "UTF-8", null), markup);
         }

@@ -69,6 +69,14 @@ namespace StingTools.Core
         {
             StingLog.Info($"PlanscapeLink received: {link.Raw}");
 
+            // planscape://revit/select?… — minted into ACC clash issues. Selects and zooms to
+            // elements by UniqueId instead of opening the Coordination Center.
+            if (link.Kind == PlanscapeProtocol.RevitKind)
+            {
+                PlanscapeRevitSelect.Handle(uiApp, link);
+                return;
+            }
+
             Document doc = uiApp?.ActiveUIDocument?.Document;
             if (doc == null)
             {

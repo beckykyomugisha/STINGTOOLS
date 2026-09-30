@@ -241,7 +241,7 @@ namespace StingTools.Core.Clash
             {
                 if (plan.ToPush.Count > 0)
                 {
-                    var outcome = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
+                    var outcome = PushTopIssues(creds, containerId, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
                     StingLog.Info("ACC_PullClashes: " + outcome.Describe());
                     report.AppendLine();
                     report.AppendLine("By policy: " + outcome.Describe());
@@ -277,7 +277,7 @@ namespace StingTools.Core.Clash
 
                 if (res == TaskDialogResult.CommandLink1 && plan.OfferInteractively)
                 {
-                    var outcome = PushTopIssues(creds, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
+                    var outcome = PushTopIssues(creds, containerId, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
                     TaskDialog.Show("ACC — Pull Clashes", outcome.Describe());
                     if (outcome.Failed > 0) return Result.Failed;
                 }
@@ -348,12 +348,21 @@ namespace StingTools.Core.Clash
         {
             public int Pushed, Skipped, Failed;
             public List<string> Failures = new List<string>();
+            /// <summary>ACC-HARD-5: how many escalated issues can be LOCATED, and why not.</summary>
+            public AccLocateSummary Locate;
+            public int Attached, AttachFailed;
+            public List<string> AttachFailures = new List<string>();
             public string Describe()
             {
                 string text = $"escalated {Pushed} clash(es) to ACC Issues; {Skipped} already tracked";
                 if (Failed > 0)
                     text += $"; {Failed} FAILED (not recorded, so the next run retries them): " +
                             string.Join(" | ", Failures.Take(3)) + (Failures.Count > 3 ? " …" : "");
+                if (Locate != null && Locate.Sides > 0) text += "; " + Locate.Describe();
+                if (Attached > 0 || AttachFailed > 0)
+                    text += $"; BCF attached to {Attached} issue(s)" +
+                            (AttachFailed > 0 ? $", {AttachFailed} attachment(s) FAILED (the issues exist): " +
+                                                string.Join(" | ", AttachFailures.Take(2)) : "");
                 return text + ".";
             }
         }
@@ -362,11 +371,39 @@ namespace StingTools.Core.Clash
         // returned ACC issue id in the sidecar AS SOON AS it exists - a crash half-way through
         // used to lose the ids of every issue already created, and the next run raised them
         // all again, assigned to real people.
-        private static PushOutcome PushTopIssues(AccCredentials creds, IReadOnlyList<ScoredClash> top,
+        private static PushOutcome PushTopIssues(AccCredentials creds, string containerId, IReadOnlyList<ScoredClash> top,
             Dictionary<string, AccClashRecord> byId, AccModelSet set, Dictionary<string, string> pushedMap,
             AccOperatingPolicy policy, string sidecar)
         {
             var outcome = new PushOutcome();
+
+            // ACC-HARD-5: ACC cannot pin an issue to objects through the API, so resolve each
+            // clash's objects to Revit UniqueIds (Model Derivative) and ACC viewer URLs (Data
+            // Management) BEFORE creating the issues, in one batched pass. A failure here costs
+            // the links, never the issue: the issue is created either way and the shortfall is
+            // counted in the outcome.
+            bool deep = policy?.IssueDeepLinks ?? true, viewer = policy?.IssueViewerLinks ?? true,
+                 bcf = policy?.IssueBcfAttachment ?? true;
+            var locations = new Dictionary<string, AccClashLocation>(StringComparer.OrdinalIgnoreCase);
+            var toLocate = top.Where(s => !pushedMap.ContainsKey(SignatureFor(s, byId)))
+                              .Select(s => byId.TryGetValue(s.ClashId, out var rec) ? rec : null)
+                              .Where(rec => rec != null).ToList();
+            if (toLocate.Count > 0 && (deep || viewer || bcf))
+            {
+                outcome.Locate = new AccLocateSummary();
+                try
+                {
+                    locations = AccIssueLocator.LocateAsync(creds, containerId, set?.Id, toLocate,
+                        resolveIds: deep || bcf, viewerLinks: viewer, summary: outcome.Locate).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn("ACC_PullClashes: locating clash objects failed — issues will carry no links: " + ex.Message);
+                    outcome.Locate.Reasons.Add("locator failed: " + ex.Message);
+                }
+                StingLog.Info("ACC_PullClashes: " + outcome.Locate.Describe());
+            }
+
             foreach (var s in top)
             {
                 byId.TryGetValue(s.ClashId, out var c);
@@ -374,7 +411,8 @@ namespace StingTools.Core.Clash
                 if (string.IsNullOrEmpty(sig)) continue;               // unkeyable: reported by the caller
                 if (pushedMap.ContainsKey(sig)) { outcome.Skipped++; continue; }
 
-                var issue = BuildClashIssue(s, c, set, policy);
+                locations.TryGetValue(s.ClashId, out var loc);
+                var issue = BuildClashIssue(s, c, set, policy, loc);
                 try
                 {
                     var r = AccIssueSync.PushIssueDetailedAsync(creds, issue).GetAwaiter().GetResult();
@@ -383,6 +421,7 @@ namespace StingTools.Core.Clash
                         outcome.Pushed++;
                         pushedMap[sig] = r.Id;
                         SavePushed(sidecar, pushedMap);
+                        if (bcf) AttachBcf(creds, r.Id, sig, issue, loc, outcome);
                     }
                     else
                     {
@@ -402,11 +441,43 @@ namespace StingTools.Core.Clash
             return outcome;
         }
 
+        /// <summary>Attach a one-topic BCF to a just-created issue. A failure is counted and
+        /// reported; the issue already exists and is recorded, so it is never retried as a new
+        /// issue because its attachment failed.</summary>
+        private static void AttachBcf(AccCredentials creds, string issueId, string sig, AccIssue issue,
+            AccClashLocation loc, PushOutcome outcome)
+        {
+            if (loc == null || !loc.Sides.Any(x => x.Resolved)) return;   // nothing a BCF could select
+            try
+            {
+                string selectLink = PlanscapeProtocol.BuildRevitSelectLink(
+                    loc.Left.Resolved ? loc.Left.DocumentName : loc.Right.DocumentName,
+                    loc.Sides.Where(x => x.Resolved).Select(x => x.UniqueId).ToList(), out _);
+                byte[] bytes = AccClashBcf.Build(sig, issue.Title, issue.Description, selectLink ?? "",
+                    loc.Sides.Where(x => x.Resolved).Select(x => new AccClashBcf.Element { UniqueId = x.UniqueId, DocumentName = x.DocumentName }));
+                if (bytes == null) return;
+                string display = "STING clash " + new string((issue.Title ?? "clash").Where(ch => char.IsLetterOrDigit(ch) || ch == ' ' || ch == '-').ToArray()).Trim();
+                if (display.Length > 80) display = display.Substring(0, 80).TrimEnd();
+                var a = AccIssueAttachment.AttachAsync(creds, issueId, bytes, display + ".bcfzip", "bcfzip").GetAwaiter().GetResult();
+                if (a.Ok) outcome.Attached++;
+                else { outcome.AttachFailed++; outcome.AttachFailures.Add(a.Detail); }
+            }
+            catch (Exception ex)
+            {
+                outcome.AttachFailed++;
+                outcome.AttachFailures.Add(ex.Message);
+                StingLog.Warn("ACC_PullClashes BCF attachment: " + ex.Message);
+            }
+        }
+
         /// <summary>An ACC issue a coordinator can act on without opening STING: which two
         /// models, which objects, how deep, and why it scored as it did. ACC does not allow
         /// an issue to be pinned to a model location through the API (placement is read-only),
-        /// so the object ids are written into the description for the assignee to find.</summary>
-        internal static AccIssue BuildClashIssue(ScoredClash s, AccClashRecord c, AccModelSet set, AccOperatingPolicy policy)
+        /// so the description also carries a planscape://revit/select link per model (selects
+        /// and zooms to the objects in Revit) and ACC's own viewer link, when they resolved -
+        /// see AccClashLocate.cs. Links are kept whole inside ACC's 1000-character limit.</summary>
+        internal static AccIssue BuildClashIssue(ScoredClash s, AccClashRecord c, AccModelSet set, AccOperatingPolicy policy,
+            AccClashLocation location = null)
         {
             var d = new StringBuilder();
             d.AppendLine($"STING clash triage — score {s.Score:F2} ({s.Category}). {s.Rationale}");
@@ -416,12 +487,14 @@ namespace StingTools.Core.Clash
                 d.AppendLine($"{c.LeftDocument} object {c.LeftObjectId}  ↔  {c.RightDocument} object {c.RightObjectId}");
             }
             d.Append($"Model set '{set?.Name}'. ACC clash {s.ClashId}.");
+            var linkLines = AccIssueLinks.BuildLinkLines(location,
+                deepLinks: policy?.IssueDeepLinks ?? true, viewerLinks: policy?.IssueViewerLinks ?? true);
             string left = c != null ? ShortDoc(c.LeftDocument) : "?";
             string right = c != null ? ShortDoc(c.RightDocument) : "?";
             var issue = new AccIssue
             {
                 Title = $"Clash {left} ↔ {right} — {(c != null ? c.PenetrationMm.ToString("F0") + " mm" : s.Category)} (STING {s.Score:F2})",
-                Description = d.ToString(),
+                Description = AccIssueLinks.ComposeDescription(d.ToString(), linkLines),
                 Status = "open",
                 LocationDescription = set?.Name ?? string.Empty,
             };
