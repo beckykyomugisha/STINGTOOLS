@@ -628,14 +628,7 @@ namespace StingTools.Core.Drawing
                 var presResult = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
                 result.Warnings.AddRange(presResult.Warnings);
 
-                if (opts.Preset?.VgOverrides != null &&
-                    opts.Preset.VgOverrides.TryGetValue(dt.Id, out var presetVg) &&
-                    presetVg != null && presetVg.Count > 0)
-                {
-                    var packResult = new PackApplyResult();
-                    ViewStylePackApplier.ApplyPresetOverrides(doc, view, presetVg, packResult);
-                    result.Warnings.AddRange(packResult.Warnings);
-                }
+                ApplyPresetVg(doc, view, dt, opts, result);
 
                 return viewId;
             }
@@ -643,6 +636,27 @@ namespace StingTools.Core.Drawing
             {
                 result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
                 return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>
+        /// DTW-20: the preset's VG overrides, layered like <see cref="ComposeAnnotation"/>:
+        /// the "*" entry (what the Production Config dialog saves — it applies to every
+        /// drawing type) first, then the drawing type's own entry, which wins where both
+        /// set a category. Only the drawing-type entry used to be read, so every VG edit
+        /// made in the dialog was saved and never applied.
+        /// </summary>
+        private static void ApplyPresetVg(Document doc, View view, DrawingType dt, ProduceOptions opts, ProduceResult result)
+        {
+            var vg = opts?.Preset?.VgOverrides;
+            if (vg == null || view == null) return;
+            foreach (var key in new[] { "*", dt?.Id })
+            {
+                if (string.IsNullOrEmpty(key) || !vg.TryGetValue(key, out var list) || list == null || list.Count == 0) continue;
+                var packResult = new PackApplyResult();
+                try { ViewStylePackApplier.ApplyPresetOverrides(doc, view, list, packResult); }
+                catch (Exception ex) { result.Warnings.Add($"Preset VG overrides ('{key}') on '{view.Name}': {ex.Message}"); }
+                result.Warnings.AddRange(packResult.Warnings);
             }
         }
 
