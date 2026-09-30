@@ -151,7 +151,8 @@ namespace StingTools.Core.Drawing
                     if (string.IsNullOrEmpty(dtId)) continue;
                     var ctxTag = StingTools.Core.ParameterHelpers.GetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? string.Empty;
                     var ruleIdx = StingTools.Core.ParameterHelpers.GetInt(view, ParamRegistry.STING_PRODUCTION_RULE_IDX, -1);
-                    v[ViewKey(dtId, ctxTag, ruleIdx)] = view.Id;
+                    // DTW-42: indexed by identity (the ids), which for a pre-id stamp is the stamp itself.
+                    v[ViewKey(dtId, ProductionContextKey.Identity(ctxTag), ruleIdx)] = view.Id;
                 }
                 _existingViewCache = v;
                 _existingViewNames = names;
@@ -167,7 +168,7 @@ namespace StingTools.Core.Drawing
                     // path in CreateOrFindSheet then distinguishes
                     // not-bound from bound-but-blank.
                     var shtCtx = DrawingTypeStamper.ReadSheetContext(sheet) ?? string.Empty;
-                    if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, shtCtx)] = sheet.Id;
+                    if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, ProductionContextKey.Identity(shtCtx))] = sheet.Id;
                     if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
                     else pkg[pkgId] = 1;
                     // Same pass feeds the sheet-number cache — no extra collector.
@@ -517,7 +518,7 @@ namespace StingTools.Core.Drawing
             try
             {
                 if (_existingViewCache != null && CacheMatchesDoc(doc))
-                    _existingViewCache[ViewKey(dt.Id, BuildContextTag(pctx), rule.Idx)] = id;
+                    _existingViewCache[ViewKey(dt.Id, ProductionContextKey.Identity(BuildContextTag(pctx)), rule.Idx)] = id;
             }
             catch (Exception ex) { StingLog.Warn($"Parent view cache: {ex.Message}"); }
             return doc.GetElement(id) as View;
@@ -934,8 +935,9 @@ namespace StingTools.Core.Drawing
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             string sheetCtx = BuildContextTag(ctx);
+            string legacyCtx = BuildLegacyContextTag(ctx);
 
-            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, result);
+            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, legacyCtx, result);
             if (existing != null) return existing;
 
             // A sheet stamped with an id this request used to route to (the shipped id,
@@ -944,13 +946,13 @@ namespace StingTools.Core.Drawing
             foreach (var former in (ctx.FormerDrawingTypeIds ?? Array.Empty<string>())
                          .Where(f => !string.IsNullOrWhiteSpace(f) && !string.Equals(f, dt.Id, StringComparison.OrdinalIgnoreCase)))
             {
-                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, result);
+                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, legacyCtx, result);
                 if (existing == null) continue;
                 try
                 {
                     if (doc.GetElement(existing) is ViewSheet adopted && DrawingTypeStamper.Stamp(adopted, dt.Id))
                     {
-                        if (_existingSheetCache != null) _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = existing;
+                        if (_existingSheetCache != null) _existingSheetCache[SheetKey(dt.Id, effectivePackage, ProductionContextKey.Identity(sheetCtx))] = existing;
                         result.Warnings.Add($"Sheet {adopted.SheetNumber} was stamped '{former}'; routing now gives '{dt.Id}', so it was re-stamped and reused.");
                     }
                     else
@@ -967,21 +969,26 @@ namespace StingTools.Core.Drawing
         /// The existing sheet stamped <paramref name="typeId"/> for this package and
         /// production context, or null. Sets <see cref="ProduceResult.SheetReused"/> on a hit.
         /// </summary>
-        private static ElementId FindExistingSheet(Document doc, string typeId, string effectivePackage, string sheetCtx, ProduceResult result)
+        private static ElementId FindExistingSheet(Document doc, string typeId, string effectivePackage, string sheetCtx,
+            string legacyCtx, ProduceResult result)
         {
             try
             {
-                // GAP-L: per-batch cache hit, fall back to fresh collector.
-                if (_existingSheetCache != null
-                    && CacheMatchesDoc(doc)
-                    && _existingSheetCache.TryGetValue(SheetKey(typeId, effectivePackage, sheetCtx), out var cachedSheetId))
+                // GAP-L: per-batch cache hit — by identity (DTW-42), then by the pre-id
+                // stamp — falling back to a fresh collector.
+                if (_existingSheetCache != null && CacheMatchesDoc(doc))
                 {
-                    if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
+                    foreach (var key in new[] { ProductionContextKey.Identity(sheetCtx), legacyCtx })
                     {
-                        result.SheetReused = true;   // P-9: reuse is not production
-                        return vsCached.Id;
+                        if (key == null || !_existingSheetCache.TryGetValue(SheetKey(typeId, effectivePackage, key), out var cachedSheetId)) continue;
+                        if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
+                        {
+                            result.SheetReused = true;   // P-9: reuse is not production
+                            RestampSheetContext(vsCached, sheetCtx, typeId, effectivePackage, result);
+                            return vsCached.Id;
+                        }
+                        _existingSheetCache.Remove(SheetKey(typeId, effectivePackage, key));
                     }
-                    _existingSheetCache.Remove(SheetKey(typeId, effectivePackage, sheetCtx));
                 }
 
                 var candidates = new FilteredElementCollector(doc)
@@ -992,10 +999,19 @@ namespace StingTools.Core.Drawing
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal))
                     .ToList();
 
-                // Same drawing type, same package, same production context.
+                // Same drawing type, same package, same production context — by id, then
+                // by the stamp an earlier build wrote (names only). Either is re-stamped
+                // in the current form so the next run matches it by id.
                 var exact = candidates.FirstOrDefault(s =>
-                    string.Equals(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, StringComparison.Ordinal));
-                if (exact != null) { result.SheetReused = true; return exact.Id; }
+                                ProductionContextKey.Matches(DrawingTypeStamper.ReadSheetContext(s), sheetCtx, null))
+                         ?? (legacyCtx == null ? null : candidates.FirstOrDefault(s =>
+                                string.Equals(DrawingTypeStamper.ReadSheetContext(s), legacyCtx, StringComparison.Ordinal)));
+                if (exact != null)
+                {
+                    result.SheetReused = true;
+                    RestampSheetContext(exact, sheetCtx, typeId, effectivePackage, result);
+                    return exact.Id;
+                }
 
                 // A sheet produced before the context stamp existed carries
                 // no context. Claim it only for an empty-context request —
@@ -1034,6 +1050,29 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>
+        /// DTW-42: a sheet found by id or by its pre-id stamp is re-stamped with this run's
+        /// context, so its stamp names the level / box as they are called now and carries
+        /// the ids the next run matches on.
+        /// </summary>
+        private static void RestampSheetContext(ViewSheet sheet, string sheetCtx, string typeId, string effectivePackage, ProduceResult result)
+        {
+            if (sheet == null || string.IsNullOrEmpty(sheetCtx)) return;
+            try
+            {
+                var stamped = DrawingTypeStamper.ReadSheetContext(sheet);
+                if (stamped == null || string.Equals(stamped, sheetCtx, StringComparison.Ordinal)) return;
+                if (DrawingTypeStamper.StampSheetContext(sheet, sheetCtx))
+                {
+                    if (_existingSheetCache != null)
+                        _existingSheetCache[SheetKey(typeId, effectivePackage, ProductionContextKey.Identity(sheetCtx))] = sheet.Id;
+                }
+                else
+                    result?.Warnings.Add($"Sheet {sheet.SheetNumber}: its production context could not be re-stamped to '{sheetCtx}'.");
+            }
+            catch (Exception ex) { result?.Warnings.Add($"Re-stamping the context of sheet {sheet.Id}: {ex.Message}"); }
         }
 
         private static ElementId CreateSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts,
@@ -1220,7 +1259,7 @@ namespace StingTools.Core.Drawing
                 DrawingTypeStamper.StampSheetSequence(sheet, seq);
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
-                    _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = sheet.Id;
+                    _existingSheetCache[SheetKey(dt.Id, effectivePackage, ProductionContextKey.Identity(sheetCtx))] = sheet.Id;
                 ClaimSheetForContext(sheet.Id, sheetCtx);   // STACK-1
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
@@ -1417,24 +1456,48 @@ namespace StingTools.Core.Drawing
             try { StingTools.Core.ParameterHelpers.SetInt(el, ParamRegistry.STING_AUTO_PLACED_BOOL, 1, overwrite: true); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// The context stamp: level / room / tag / scope-box names for display and for the
+        /// readers that parse them (Renumber, crop recovery), plus — DTW-42 — the level id,
+        /// room id and box UniqueId that identify it. See ProductionContextKey.
+        /// </summary>
         private static string BuildContextTag(DrawingContext ctx)
         {
-            string lvl = ctx?.Level?.Name ?? "";
-            string room = "";
-            try { room = ctx?.Room?.Id?.ToString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            ReadContextParts(ctx, out var lvl, out var levelId, out var room, out var sbox, out var sboxUid);
+            // P-6: the scope box is part of the context's identity, appended last so a
+            // per-level stamp keeps its shape. One format, parsed back by
+            // ViewContextTag.ScopeBoxName when a re-sync has to recover the box.
+            return ProductionContextKey.Compose(lvl, levelId, room, ctx?.Tag, sbox, sboxUid);
+        }
 
-            // P-6: the scope box is part of the context's identity. Without it,
-            // two scope boxes on the same level with no ctx.Tag produced the
-            // same key, so the second box matched the first box's view and
-            // silently produced nothing. Appended rather than inserted so
-            // existing per-level stamps (no scope box) keep their current key
-            // and stay idempotent across this change.
-            string sbox = "";
-            try { sbox = ctx?.ScopeBox?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"BuildContextTag scope box: {ex.Message}"); }
+        /// <summary>
+        /// The stamp the producer wrote before DTW-42 (names only). An element stamped that
+        /// way is still found — and re-stamped in the new form — so a model produced by an
+        /// earlier build does not get a second set of views and sheets.
+        /// </summary>
+        private static string BuildLegacyContextTag(DrawingContext ctx)
+        {
+            ReadContextParts(ctx, out var lvl, out _, out var room, out var sbox, out _);
+            return ProductionContextKey.Legacy(lvl, room, ctx?.Tag, sbox);
+        }
 
-            // One format, parsed back by ViewContextTag.ScopeBoxName when a re-sync has
-            // to recover the box (DrawingTypePresentation.Apply).
-            return ViewContextTag.Compose(lvl, room, ctx?.Tag, sbox);
+        private static void ReadContextParts(DrawingContext ctx, out string levelName, out long? levelId,
+            out string roomId, out string boxName, out string boxUid)
+        {
+            levelName = ""; levelId = null; roomId = ""; boxName = ""; boxUid = null;
+            try
+            {
+                levelName = ctx?.Level?.Name ?? "";
+                if (ctx?.Level != null) levelId = ctx.Level.Id.Value;
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildContextTag level: {ex.Message}"); }
+            try { roomId = ctx?.Room?.Id?.ToString() ?? ""; } catch (Exception ex) { StingLog.Warn($"BuildContextTag room: {ex.Message}"); }
+            try
+            {
+                boxName = ctx?.ScopeBox?.Name ?? "";
+                boxUid = ctx?.ScopeBox?.UniqueId;
+            }
+            catch (Exception ex) { StingLog.Warn($"BuildContextTag scope box: {ex.Message}"); }
         }
 
         private static View FindExistingView(Document doc, string dtId, DrawingContext ctx, int ruleIdx)
@@ -1442,26 +1505,48 @@ namespace StingTools.Core.Drawing
             try
             {
                 var ctxTag = BuildContextTag(ctx);
-                // GAP-L: O(1) hit when the per-batch index is primed for
-                // this document. Cross-doc consultation falls through.
-                if (_existingViewCache != null
-                    && CacheMatchesDoc(doc)
-                    && _existingViewCache.TryGetValue(ViewKey(dtId, ctxTag, ruleIdx), out var cachedId))
+                var legacyTag = BuildLegacyContextTag(ctx);
+                // GAP-L: O(1) hit when the per-batch index is primed for this document —
+                // by identity first (DTW-42), then by the pre-id stamp. Cross-doc
+                // consultation falls through to the collector.
+                if (_existingViewCache != null && CacheMatchesDoc(doc))
                 {
-                    if (doc.GetElement(cachedId) is View vCached
-                        && vCached.IsValidObject && !vCached.IsTemplate)
-                        return vCached;
-                    _existingViewCache.Remove(ViewKey(dtId, ctxTag, ruleIdx));
+                    var keys = new[] { ProductionContextKey.Identity(ctxTag), legacyTag };
+                    for (int k = 0; k < keys.Length; k++)
+                    {
+                        if (!_existingViewCache.TryGetValue(ViewKey(dtId, keys[k], ruleIdx), out var cachedId)) continue;
+                        if (doc.GetElement(cachedId) is View vCached
+                            && vCached.IsValidObject && !vCached.IsTemplate)
+                        {
+                            if (k == 0 || SameLevel(vCached)) return vCached;
+                            continue;
+                        }
+                        _existingViewCache.Remove(ViewKey(dtId, keys[k], ruleIdx));
+                    }
                 }
-                return new FilteredElementCollector(doc)
+                var candidates = new FilteredElementCollector(doc)
                     .OfClass(typeof(View))
                     .Cast<View>()
-                    .FirstOrDefault(v => !v.IsTemplate &&
+                    .Where(v => !v.IsTemplate &&
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(v, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), dtId, StringComparison.OrdinalIgnoreCase) &&
-                        StingTools.Core.ParameterHelpers.GetInt(v, ParamRegistry.STING_PRODUCTION_RULE_IDX, -1) == ruleIdx &&
-                        string.Equals(StingTools.Core.ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG), ctxTag, StringComparison.Ordinal));
+                        StingTools.Core.ParameterHelpers.GetInt(v, ParamRegistry.STING_PRODUCTION_RULE_IDX, -1) == ruleIdx)
+                    .ToList();
+                // An id match beats a stale-name match: after a rename the legacy string may
+                // now describe a DIFFERENT level that took the old name.
+                string Stamp(View v) => StingTools.Core.ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG);
+                return candidates.FirstOrDefault(v => ProductionContextKey.Matches(Stamp(v), ctxTag, null))
+                    ?? candidates.FirstOrDefault(v => string.Equals(Stamp(v), legacyTag, StringComparison.Ordinal) && SameLevel(v));
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+
+            // A pre-id stamp names its level by name only: accept it only when the view is
+            // on this context's level, so a level that has since taken a renamed level's old
+            // name does not adopt that level's views.
+            bool SameLevel(View v)
+            {
+                try { return ctx?.Level == null || v.GenLevel == null || v.GenLevel.Id == ctx.Level.Id; }
+                catch (Exception ex) { StingLog.Warn($"FindExistingView level of {v?.Id}: {ex.Message}"); return true; }
+            }
         }
 
         private static string BuildViewName(DrawingType dt, ProductionRule rule, DrawingContext ctx)
