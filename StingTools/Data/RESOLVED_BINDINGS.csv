@@ -702,7 +702,7 @@ CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT,<ALL>
 CBN_RUNTIME_HRS_YR_NR,<ALL>
 CBN_RUNTIME_HRS_YR_NR_DISP_TXT,<ALL>
 CEQ_CATEGORY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CEQ_CLINICAL_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_CLINICAL_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Nurse Call Devices
 CEQ_DECON_METHOD_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CEQ_ENDO_AER_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CEQ_ENDO_CYCLE_COUNT_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
@@ -710,7 +710,7 @@ CEQ_ENDO_LAST_REPRO_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixture
 CEQ_ENDO_SCOPE_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CEQ_EQP_TAG,<ALL>
 CEQ_GMDN_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CEQ_INFECT_TIER_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CEQ_INFECT_TIER_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Nurse Call Devices
 CEQ_SFG20_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CEQ_TAG_7_PARA_TXT,<ALL>
 CEQ_UMDNS_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
@@ -725,8 +725,8 @@ CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,<ALL>
 CLASH_TRIAGE_SEVERITY_TXT,<ALL>
 CLN_ADB_CODE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_ANTERM_LINKED_ID_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_BARI_DESIGN_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_BARI_DESIGN_KG_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_BARI_DESIGN_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Nurse Call Devices|Rooms
+CLN_BARI_DESIGN_KG_TXT,Generic Models|Mechanical Equipment|Medical Equipment|Nurse Call Devices|Plumbing Fixtures|Rooms|Specialty Equipment
 CLN_DEFLECTION_LIMIT_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_DESIGN_ACH_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_DESIGN_ACH_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
@@ -741,24 +741,24 @@ CLN_EQUIP_WEIGHT_KG_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixture
 CLN_FGI_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_FLOOR_LOAD_KN_M2_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_HBN_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_HOIST_TRACK_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_HOIST_TRACK_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_HOIST_TRACK_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms
+CLN_HOIST_TRACK_TXT,Mechanical Equipment|Medical Equipment|Plumbing Fixtures|Rooms|Specialty Equipment
 CLN_HTM_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_INFECT_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_INFECT_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms
 CLN_LIGATURE_RES_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_LIG_RISK_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_MRI_ZONE_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_MRI_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_LIG_RISK_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Lighting Fixtures|Rooms
+CLN_MRI_ZONE_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Rooms
+CLN_MRI_ZONE_TXT,Generic Models|Mechanical Equipment|Medical Equipment|Plumbing Fixtures|Rooms|Specialty Equipment
 CLN_NOISE_NR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_NOISE_NR_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_NURSECALL_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_OCC_VISITOR_INT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_PRESS_DELTA_DESIGN_PA_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_PRESS_REGIME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_PRESS_REGIME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms
 CLN_PRIVACY_LVL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_RAD_CONTROLLED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_RAD_CONTROLLED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Rooms|Walls|Windows
 CLN_RF_SHIELD_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-CLN_ROOM_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+CLN_ROOM_CLASS_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Rooms
 CLN_ROOM_TAG,<ALL>
 CLN_RT60_TARGET_S_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 CLN_STRUCT_SIGN_OFF_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
@@ -1141,7 +1141,7 @@ ELC_CTR_WIDTH_MM,Cable Trays|Cable Tray Fittings
 ELC_CTR_WIDTH_TXT,Cable Trays|Cable Tray Fittings
 ELC_DIV_FCT_NR,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
 ELC_EARTHING_SYSTEM_TXT,Project Information
-ELC_EES_BRANCH_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_EES_BRANCH_TXT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Communication Devices|Data Devices|Lighting Devices|Lighting Fixtures
 ELC_EMERG_COVERED_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Rooms
 ELC_ENERGY_COST_UGX_PA,Electrical Equipment|Electrical Circuits
 ELC_ENERGY_KWH_PA,Electrical Equipment|Electrical Circuits|Mechanical Equipment|Lighting Fixtures
@@ -1158,7 +1158,7 @@ ELC_FIX_TAG_1_TXT,<ALL>
 ELC_FIX_TAG_2_TXT,Electrical Fixtures
 ELC_GEN_RUN_HRS_TGT_NR,Electrical Equipment|Electrical Circuits
 ELC_GEN_TEST_LOG_REF_TXT,Electrical Equipment|Electrical Circuits
-ELC_IPS_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
+ELC_IPS_BOOL,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Communication Devices|Data Devices|Lighting Devices|Lighting Fixtures
 ELC_IPS_LIM_BOOL,Electrical Equipment|Electrical Circuits
 ELC_IP_RATING_TXT,Cable Tray Fittings|Cable Trays|Conduit Fittings|Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Fixtures
 ELC_IT_CARDIAC_BOOL,Electrical Fixtures
@@ -1193,7 +1193,7 @@ ELC_LPS_EARTH_RESISTANCE_OHM,Electrical Equipment|Generic Models
 ELC_LPS_EARTH_RESISTANCE_TXT,Electrical Equipment|Generic Models
 ELC_LPS_EARTH_TAG_TXT,Electrical Equipment|Generic Models
 ELC_LPS_EARTH_TYPE_TXT,Electrical Equipment|Generic Models
-ELC_LPS_ELEMENT_TYPE_TXT,Electrical Equipment|Generic Models
+ELC_LPS_ELEMENT_TYPE_TXT,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Foundations
 ELC_LPS_FROM_LPZ_TXT,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing
 ELC_LPS_INSPECTION_INTERVAL_MONTHS,Electrical Equipment|Generic Models|Project Information
 ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT,Electrical Equipment|Generic Models|Project Information
@@ -1594,7 +1594,7 @@ IFC_GLOBAL_ID_TXT,<ALL>
 IFC_PSET_OVERRIDE_TXT,<ALL>
 INS_MATERIAL_TXT,<ALL>
 IPS_BRANCH_COMPLIANT,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits
-LIG_AREA_OBS_LOS_TXT,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
+LIG_AREA_OBS_LOS_TXT,Casework|Doors|Generic Models|Lighting Fixtures|Plumbing Fixtures|Rooms|Specialty Equipment|Windows
 LIG_FIT_TAG,<ALL>
 LIG_FORCE_LIMIT_KG_NR,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
 LIG_PRESSURE_REL_BOOL,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows
@@ -1726,7 +1726,7 @@ MEP_TIE_POINT_ID_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct
 MEP_TYPE_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_UPSTREAM_ELEMENT_TXT,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
 MEP_WORKING_PRESSURE_PA,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits
-MGS_AAP_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_AAP_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models
 MGS_DESIGN_FLOW_LPM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_DIVERSITY_PCT_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_EQP_TAG,<ALL>
@@ -1737,14 +1737,14 @@ MGS_OUTLET_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|M
 MGS_PIPE_BRAZED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
 MGS_SUPPLY_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_TAG_7_PARA_TXT,<ALL>
-MGS_TU_BS5682_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_TU_BS5682_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models
 MGS_TU_INDEXED_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_VERIFY_BY_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_VERIFY_CERT_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 MGS_VERIFY_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-MGS_VERIFY_PASS_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+MGS_VERIFY_PASS_BOOL,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories|Pipe Fittings|Pipes
 MGS_WORKING_PRESSURE_KPA,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-MGS_ZVB_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories
+MGS_ZVB_REF_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories|Generic Models
 MGS_ZV_ZONE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories
 MNT_ACCESS_DIR_TXT,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment
 MNT_ACCESS_REQUIREMENTS_TXT,<ALL>
@@ -2312,11 +2312,11 @@ Pset_StingCost.ProvisionalSum,<ALL>
 Pset_StingCost.RateSource,<ALL>
 Pset_StingCost.TotalCost,<ALL>
 Pset_StingCost.UnitRate,<ALL>
-RAD_BARRIER_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_BARRIER_TYPE_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Ceilings|Doors|Floors|Generic Models|Walls|Windows
+RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Rooms|Walls|Windows
 RAD_EQP_TAG,<ALL>
-RAD_LEAD_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-RAD_LEAD_MM_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+RAD_LEAD_MM_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Ceilings|Doors|Floors|Walls
+RAD_LEAD_MM_TXT,Ceilings|Doors|Floors|Mechanical Equipment|Medical Equipment|Plumbing Fixtures|Specialty Equipment|Walls
 RAD_OCC_FACTOR_NR,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 RAD_QE_DT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 RAD_QE_NAME_TXT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
@@ -2457,19 +2457,20 @@ STING_BOX_LOCATION_ID,<ALL>
 STING_BRIEFCASE_EXPORT_TXT,<ALL>
 STING_BUS_VOLTAGE_TIER,Views
 STING_CDE_STATE_TXT,<ALL>
-STING_CIRCUIT_FILTER_TXT,<ALL>
+STING_CIRCUIT_FILTER_TXT,Views
 STING_CLUSTER_COUNT,<ALL>
 STING_CLUSTER_LABEL,<ALL>
 STING_CLUSTER_MEMBER_POS_TXT,<ALL>
 STING_COMPOUND_PARENT_ID,<ALL>
 STING_CONDUIT_FILL_SUMMARY_TXT,<ALL>
-STING_CROP_KIND_TXT,<ALL>
-STING_CROP_MARGIN_MM_TXT,<ALL>
+STING_CROP_KIND_TXT,Views
+STING_CROP_MARGIN_MM_TXT,Views
 STING_DATA_HASH,<ALL>
+STING_DEFAULT_TAG_STYLE_TXT,Views
 STING_DESIGN_REF_TXT,<ALL>
 STING_DISPLAY_MODE,<ALL>
-STING_DRAWING_PACKAGE_ID_TXT,<ALL>
-STING_DRAWING_TYPE_ID_TXT,<ALL>
+STING_DRAWING_PACKAGE_ID_TXT,Sheets|Views
+STING_DRAWING_TYPE_ID_TXT,Sheets|Views
 STING_EMB_CARBON_NR,<ALL>
 STING_FINISH_CODE_TXT,<ALL>
 STING_FINISH_SRC_ROOM_ID_TXT,<ALL>
@@ -2480,9 +2481,9 @@ STING_GATE_QA_MSG_TXT,<ALL>
 STING_GATE_QA_STATUS_INT,<ALL>
 STING_HOST_ELEMENT_ID,<ALL>
 STING_MASTER_SETUP_TS,<ALL>
-STING_MATCH_DIR_TXT,<ALL>
-STING_MATCH_LINE_GUID_TXT,<ALL>
-STING_MATCH_REF_TXT,<ALL>
+STING_MATCH_DIR_TXT,Lines
+STING_MATCH_LINE_GUID_TXT,Lines
+STING_MATCH_REF_TXT,Lines
 STING_MAT_EPD_DATE_TXT,<ALL>
 STING_MAT_EPD_SRC_TXT,<ALL>
 STING_MAT_LIFECYCLE_TXT,<ALL>
@@ -2490,8 +2491,8 @@ STING_NOGGIN_REQUIRED,<ALL>
 STING_NOTE_AUTHOR_TXT,<ALL>
 STING_NOTE_DATE_TXT,<ALL>
 STING_P6_PCT_TXT,<ALL>
-STING_PACK_CHECKSUM_TXT,<ALL>
-STING_PACK_ID_TXT,<ALL>
+STING_PACK_CHECKSUM_TXT,Views
+STING_PACK_ID_TXT,Views
 STING_PENETRATION_FIRE_RATING_TXT,<ALL>
 STING_PENETRATION_REF_TXT,<ALL>
 STING_PLACED_BY_SYMBOL_PLACER_BOOL,<ALL>
@@ -2500,9 +2501,9 @@ STING_PLACER_MEMBER_ID_TXT,<ALL>
 STING_PLACER_SYMBOL_CODE_TXT,<ALL>
 STING_PLACER_VIEW_ID_TXT,<ALL>
 STING_PREDECESSOR_TAGS_TXT,<ALL>
-STING_PRODUCTION_RULE_IDX_INT,<ALL>
+STING_PRODUCTION_RULE_IDX_INT,Views
 STING_RETROFIT_TS,<ALL>
-STING_SCOPE_BOX_TAG_TXT,<ALL>
+STING_SCOPE_BOX_TAG_TXT,Views
 STING_SEED_FAMILY_TXT,<ALL>
 STING_SETUP_COMPLETE,<ALL>
 STING_SHEET_CONTEXT_TXT,<ALL>
@@ -2521,7 +2522,7 @@ STING_SLEEVE_UL_SYS,<ALL>
 STING_SLEEVE_WIDTH_MM,<ALL>
 STING_STALE_BOOL,<ALL>
 STING_STICKY_NOTE_TXT,<ALL>
-STING_STYLE_LOCKED_BOOL,<ALL>
+STING_STYLE_LOCKED_BOOL,Sheets|Views
 STING_SWAP_HISTORY_TXT,<ALL>
 STING_SYMBOL_ID,<ALL>
 STING_SYMBOL_LABEL_ID,<ALL>
@@ -2530,12 +2531,12 @@ STING_SYMBOL_OVERRIDE,<ALL>
 STING_SYMBOL_STANDARD,<ALL>
 STING_TAG3D_HOST_ID_TXT,<ALL>
 STING_TAG_POS,<ALL>
-STING_TEMPLATE_CHECKSUM_TXT,<ALL>
-STING_TEMPLATE_LOCKED_BOOL,<ALL>
-STING_VIEW_CONTEXT_TAG_TXT,<ALL>
-STING_VIEW_SYMBOL_STANDARD,<ALL>
-STING_VIEW_TAG_STYLE,<ALL>
-STING_VIEW_TOKEN_MASK_TXT,<ALL>
+STING_TEMPLATE_CHECKSUM_TXT,Views
+STING_TEMPLATE_LOCKED_BOOL,Views
+STING_VIEW_CONTEXT_TAG_TXT,Views
+STING_VIEW_SYMBOL_STANDARD,Views
+STING_VIEW_TAG_STYLE,Views
+STING_VIEW_TOKEN_MASK_TXT,Views
 STING_WALL_ROUTING_FLAG,<ALL>
 STRUCT_COL_AXIAL_LOAD_KN,Columns|Structural Columns
 STRUCT_COL_BUCKLING_CHECK_BOOL,Columns|Structural Columns
@@ -2738,6 +2739,7 @@ SYS_MEDIUM_TXT,<ALL>
 SYS_NAME_TXT,<ALL>
 SYS_PRESSURE_NR,<ALL>
 SYS_TEMPERATURE_NR,<ALL>
+TAG_SEG_MASK_TXT,<ALL>
 TPL_TRACKING_SPARE_01_TXT,Generic Models
 TPL_TRACKING_SPARE_02_TXT,Generic Models
 TS_BOLD_BOOL,Generic Models
@@ -2930,7 +2932,7 @@ WARN_CEQ_GMDN_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures
 WARN_CEQ_IMAGING_STRUCT_LOAD,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 WARN_CEQ_SFG20_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 WARN_CLN_ACOUSTIC_STC_LOW,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
-WARN_CLN_AIIR_NOT_NEGATIVE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
+WARN_CLN_AIIR_NOT_NEGATIVE,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms
 WARN_CLN_ANTERM_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 WARN_CLN_FLOOR_LOAD_INSUFFICIENT,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
 WARN_CLN_HBN_REF_MISSING,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment
