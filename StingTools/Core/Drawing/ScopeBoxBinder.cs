@@ -15,13 +15,18 @@ using StingTools.Core;
 // scope box in the project, parses the name, creates a view for
 // each match using the bound DrawingType + the scope box as the
 // view's crop region, and places it on a sheet. The level-code
-// optional; when present it filters which Level the plan uses as
-// its associated level. The tag optional — free-form, stored on
-// the view so downstream automation can group / filter.
+// optional; when present it names the Level the plan uses as its
+// associated level. DTW-40: a segment cannot hold a space, so it is
+// read as the unique level code first (ScopeBoxRevit.LevelCodes —
+// "L01"), then the level name, then the name without spaces or
+// punctuation (LevelSegmentResolver) — "Level 1" is written L01 or
+// Level1. The tag optional — free-form, stored on the view so
+// downstream automation can group / filter.
 //
-// Idempotent: re-running does not create duplicates — it looks up
-// existing views stamped with the same (dt.Id, scopeBox.Name) pair
-// and re-applies the profile instead.
+// Idempotent: re-running does not create duplicates — production
+// (ProduceViewsFromScopeBoxesCommand, which DrawingTypes_FromScopeBoxes
+// now runs too) finds the view stamped for the same drawing type and
+// box (by the box's UniqueId — DTW-42) and re-applies the profile.
 
 using System;
 using System.Collections.Generic;

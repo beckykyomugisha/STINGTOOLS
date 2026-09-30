@@ -538,6 +538,16 @@ namespace StingTools.Commands.Drawing
             List<DrawingType> types, List<Level> levels, ProduceOptions opts, string packageId,
             ref int views, ref int sheets, List<string> warnings)
         {
+            // DTW-40: a box's level segment is read as the planner names levels — the unique
+            // level code first (ScopeBoxRevit.LevelCodes, "L01"), then the name, then the
+            // name without spaces — so "Level 1", which the box grammar cannot spell, is
+            // addressable. It was matched against Level.Name only.
+            var codes = ScopeBoxRevit.LevelCodes(doc);
+            var levelRefs = levels.Select(l => new LevelRef
+            {
+                Id = l.Id.Value, Name = l.Name,
+                Code = codes.TryGetValue(l.Id.Value, out var c) ? c : null,
+            }).ToList();
             using (var tg = new TransactionGroup(doc, "STING Produce From Scope Boxes"))
             {
                 tg.Start();
@@ -546,7 +556,14 @@ namespace StingTools.Commands.Drawing
                     if (!bindingByName.TryGetValue(scope.Name ?? "", out var bnd)) continue;
                     var dt = types.FirstOrDefault(t => string.Equals(t.Id, bnd.DrawingTypeId, StringComparison.OrdinalIgnoreCase));
                     if (dt == null) continue;
-                    var lvl = levels.FirstOrDefault(l => string.Equals(l.Name, bnd.LevelCode, StringComparison.OrdinalIgnoreCase));
+                    Level lvl = null;
+                    if (!string.IsNullOrWhiteSpace(bnd.LevelCode))
+                    {
+                        var lid = LevelSegmentResolver.Resolve(bnd.LevelCode, levelRefs, out var how);
+                        lvl = lid.HasValue ? levels.FirstOrDefault(l => l.Id.Value == lid.Value) : null;
+                        if (lvl == null)
+                            warnings.Add($"{scope.Name}: level '{bnd.LevelCode}' — {how}; produced without a level.");
+                    }
 
                     // Dependent views need the level's primary plan to hang from. A box
                     // whose level code names no level is produced as an independent view
