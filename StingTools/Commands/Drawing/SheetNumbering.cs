@@ -136,7 +136,19 @@ namespace StingTools.Commands.Drawing
                     }
                 }
 
-                tx.Commit();
+                // DTW-50: the renames count only once Revit has kept them. A commit a
+                // failure handler rolls back put every sheet back on its old number, and
+                // re-tagging then recording history for it would write a rename that
+                // never happened — and Restore would "undo" it onto the wrong numbers.
+                var status = tx.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    outcome.Failures.Insert(0, $"  The renumber did not commit ({status}); every sheet keeps its old number.");
+                    StingLog.Warn($"SheetNumbering '{transactionName}': commit returned {status}; {outcome.Done} rename(s) discarded.");
+                    outcome.Failed += outcome.Done;
+                    outcome.Done = 0;
+                    return outcome;
+                }
             }
 
             Retag(doc, plan, outcome, transactionName);
