@@ -143,6 +143,22 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-8: forget cached "no such template" answers for a document,
+        /// keeping the positive ids (each is re-validated when hit).
+        /// </summary>
+        private static void DropNegativeViewTemplateEntries(Document doc)
+        {
+            string docKey = DocKey(doc);
+            lock (_viewTemplateCacheLock)
+            {
+                if (!_viewTemplateCache.TryGetValue(docKey, out var docMap)) return;
+                foreach (var name in docMap.Where(kv => kv.Value == ElementId.InvalidElementId)
+                                           .Select(kv => kv.Key).ToList())
+                    docMap.Remove(name);
+            }
+        }
+
+        /// <summary>
         /// C-2 / D-3: clear the cached <see cref="ViewStylePack"/> entries for a
         /// given document. Same triggers as
         /// <see cref="InvalidateViewTemplateCache"/>.
@@ -185,6 +201,11 @@ namespace StingTools.Core.Drawing
         public static void Prewarm(Document doc)
         {
             if (doc == null) return;
+            // DTW-8: a negative entry ("no template of that name") persisted for
+            // the life of the document, so a template created or loaded after
+            // the first miss was never found. A batch starts from the truth:
+            // drop the negatives (positives are re-validated on every hit).
+            DropNegativeViewTemplateEntries(doc);
             try
             {
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
