@@ -10199,13 +10199,13 @@
       "viewTemplateName": "STING - Schematic",
       "viewportTypeName": "STING - Standard Viewport",
       "viewStylePackId": "corp-standard-plumb",
-      "sheetNumberPattern": "PH-SCHEM-{seq:D2}",
+      "sheetNumberPattern": "P-DRN-SCH-{seq:D3}",
       "sheetNamePattern": "Drainage Schematic Riser — {lvl}",
       "crop": {
         "kind": "None"
       },
       "origin": "corporate",
-      "checksum": "cfc453c1c65818a4db92f416b727e45dd32b3171f062a584946fc74a40844afa",
+      "checksum": "901d007d4c7783bf328c51e63756e28214e90d0e8a92285a8298cac6773cd07a",
       "slots": [
         {
           "label": "Schematic",
@@ -11993,6 +11993,197 @@
         "lineWeightScale": 1.0,
         "halftoneLinks": true
       }
+    },
+    {
+      "id": "elec-lps-coverage-A3",
+      "name": "Lightning Protection Zones (rolling sphere) — A3",
+      "origin": "corporate",
+      "checksum": "8138b090796274d4a1bf5f603f64dd05025af5521208086eaf6305b723627f96",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "paperSize": "A3",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical Schematic",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-LPS-COV-{seq:D3}",
+      "sheetNamePattern": "LIGHTNING PROTECTION ZONES",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Lightning protection zone diagram (BS EN 62305-3 rolling-sphere protection radius of each air terminal, drawn at its plan position) in the drafting view 'STING - LPS Protection Zones'. LPS_PlanVisualise draws and stamps the view; it is drawn in model coordinates, so a person sets its scale and places it on a sheet of this type.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
+      "id": "elec-arc-flash-labels",
+      "name": "Arc Flash Labels (IEEE 1584-2018, indicative) — A1 NTS",
+      "origin": "corporate",
+      "checksum": "6a3e872a2bf65b2ec9edf593ed52fc6d7f1ab11f48c105ba13b16081396a85cd",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "system": "LV",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical Schematic",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-AF-LBL-{seq:D3}",
+      "sheetNamePattern": "ARC FLASH LABELS (INDICATIVE)",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "One indicative arc-flash label per calculated board (IEEE 1584-2018 incident energy, boundary, working distance, basis) on A1, not to scale. The view is the drafting view Elec_ArcFlashLabels draws at 1:1 from the last Arc Flash Calc; it puts the view on this type's sheet and replaces an earlier run's labels there. Not for specifying PPE without a licensed study.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
+      "id": "elec-arc-flash-schedule",
+      "name": "Arc Flash Schedule - A3",
+      "origin": "corporate",
+      "checksum": "cc056b5be9c88eecf2c8b5b47ced95050a492ee405557ff0a4d822acff0f2fa3",
+      "purpose": "Schedule",
+      "discipline": "E",
+      "system": "LV",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "orientation": "Landscape",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewportTypeName": "STING - Standard Viewport",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01",
+        "Sheet Number": "E-SCH-AF-{seq:D2}"
+      },
+      "sheetNumberPattern": "E-SCH-AF-{seq:D2}",
+      "sheetNamePattern": "ARC FLASH SCHEDULE (INDICATIVE)",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Schedule",
+          "viewType": "Schedule",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.9,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "productionRules": [
+        {
+          "idx": 0,
+          "viewType": "Schedule",
+          "slotIndex": 0,
+          "scheduleCategory": "Electrical Equipment",
+          "scheduleFields": [
+            "Mark",
+            "ELC_PNL_DESIGNATION_NAME_TXT",
+            "ELC_PNL_SHORT_CIRCUIT_RATING_KA",
+            "ELC_ARC_FLASH_IE_CAL_CM2",
+            "ELC_ARC_FLASH_BOUNDARY_MM",
+            "ELC_ARC_FLASH_PPE_CAT",
+            "ELC_ARC_FLASH_WORK_DIST_MM",
+            "ELC_ARC_FLASH_LABEL_TXT"
+          ]
+        }
+      ],
+      "description": "Arc-flash schedule of electrical equipment (IEEE 1584-2018 incident energy, boundary, PPE category by energy, working distance, basis), indicative only. Elec_ArcFlashSched makes the ViewSchedule after Arc Flash Calc and puts it on this type's sheet; production emits the same schedule of category Electrical Equipment (unknown fields are skipped).",
+      "viewStylePackId": "corp-standard-detail"
     }
   ],
   "routing": [
@@ -12801,6 +12992,24 @@
       "phase": "*",
       "docType": "PANEL_DOOR_DIAGRAM",
       "drawingTypeId": "elec-panel-door-diagram-A3-NTS"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_COVERAGE",
+      "drawingTypeId": "elec-lps-coverage-A3"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "ARC_FLASH_LABELS",
+      "drawingTypeId": "elec-arc-flash-labels"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "ARC_FLASH_SCHEDULE",
+      "drawingTypeId": "elec-arc-flash-schedule"
     }
   ]
 }

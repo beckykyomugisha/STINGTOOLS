@@ -386,6 +386,17 @@ namespace StingTools.Core
         public const string CIRCUIT_POLES_GUID        = "C2A7E5B1-3003-5333-9333-300000000003";
         public const string CIRCUIT_LABEL             = "ELC_CIRCUIT_LABEL_TXT";
         public const string CIRCUIT_LABEL_GUID        = "C2A7E5B1-3004-5333-9333-300000000004";
+        public const string CIRCUIT_DESC              = "ELC_CIRCUIT_DESC_TXT";
+
+        // Schematic generators (fire alarm, earthing, MGPS) — names as bound in
+        // MR_PARAMETERS.txt / RESOLVED_BINDINGS.csv.
+        public const string FLS_DEV_LOOP              = "FLS_SFTY_DEV_LOOP_TXT";
+        public const string FLS_LOOP_NR               = "FLS_SFTY_LOOP_NR_TXT";
+        public const string ELC_EARTHING_SYSTEM       = "ELC_EARTHING_SYSTEM_TXT";
+        public const string ELC_MET_LOCATION          = "ELC_MET_LOCATION_TXT";
+        public const string MGS_GAS_TYPE              = "MGS_GAS_TYPE_TXT";
+        public const string MGS_SUPPLY_TYPE           = "MGS_SUPPLY_TYPE_TXT";
+        public const string MGS_ZV_ZONE               = "MGS_ZV_ZONE_TXT";
 
         // ── Phase 137 — Drawing production stamps ────────────────────────
         // Written onto views/sheets by the production engine so audits and

@@ -18,7 +18,8 @@ namespace StingTools.Commands.Electrical.ArcFlash
     [Regeneration(RegenerationOption.Manual)]
     public class ArcFlashScheduleCommand : IExternalCommand
     {
-        private const string DrawingTypeId = "elec-arc-flash-schedule";
+        // One schedule, remade on every run (a timestamped name left one per run).
+        private const string ViewName = "STING - Arc Flash Schedule (" + ArcFlashEngine.BasisShort + ")";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -26,12 +27,32 @@ namespace StingTools.Commands.Electrical.ArcFlash
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
+            // The drawing type routing gives E / ARC_FLASH_SCHEDULE. The id this stamped,
+            // "elec-arc-flash-schedule", used to be in no drawing type.
+            var req = StingTools.Core.Drawing.DrawingRouteRequests.ArcFlashSchedule;
+            string drawingTypeId = StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, req);
+
             ViewSchedule view = null;
             using (var tx = new Transaction(doc, "STING Arc Flash Schedule"))
             {
                 tx.Start();
+                var previous = new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>()
+                    .FirstOrDefault(v => !v.IsTemplate && string.Equals(v.Name, ViewName, StringComparison.OrdinalIgnoreCase));
+                if (previous != null)
+                {
+                    try { doc.Delete(previous.Id); }
+                    catch (Exception ex)
+                    {
+                        tx.RollBack();
+                        message = $"The previous '{ViewName}' could not be replaced: {ex.Message}";
+                        StingLog.Warn(message);
+                        if (!PresetDialog.Quiet) TaskDialog.Show("STING Arc Flash Schedule", message);
+                        return Result.Failed;
+                    }
+                }
                 view = ViewSchedule.CreateSchedule(doc, new ElementId(BuiltInCategory.OST_ElectricalEquipment));
-                try { view.Name = $"STING - Arc Flash Schedule ({ArcFlashEngine.BasisShort}) - {DateTime.Now:yyyyMMdd-HHmm}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { view.Name = ViewName; }
+                catch (Exception ex) { StingLog.Warn($"Arc flash schedule name '{ViewName}': {ex.Message}"); }
                 var def = view.Definition;
 
                 AddByName(def, doc, "Mark");
@@ -43,14 +64,20 @@ namespace StingTools.Commands.Electrical.ArcFlash
                 AddByName(def, doc, "ELC_ARC_FLASH_WORK_DIST_MM", "Working Distance (mm)");
                 AddByName(def, doc, "ELC_ARC_FLASH_LABEL_TXT", "Label / Basis");
 
-                StampDrawingType(view);
+                StampDrawingType(view, drawingTypeId);
                 tx.Commit();
             }
-            try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Arc Flash Schedule",
+
+            // Onto its drawing type's sheet (found again by stamp; a re-run's schedule replaces it).
+            string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc, req, view);
+
+            if (!PresetDialog.Quiet)
+            {
+                try { ctx.UIDoc.ActiveView = view; } catch (Exception ex) { StingLog.Warn($"Arc flash schedule: activate view: {ex.Message}"); }
+            }
+            PresetDialog.Show("STING Arc Flash Schedule",
                 $"Schedule created: {view?.Name}\n" +
-                $"Basis: {ArcFlashEngine.Basis}.\n" +
-                "Place on a sheet manually — PanelScheduleSheetInstance.Create is broken in Revit 2024+.");
+                $"Basis: {ArcFlashEngine.Basis}.\n\n" + sheetLine, ref message);
             return Result.Succeeded;
         }
 
@@ -71,11 +98,11 @@ namespace StingTools.Commands.Electrical.ArcFlash
             catch (Exception ex) { StingLog.Info($"AddByName {paramName}: {ex.Message}"); }
         }
 
-        private static void StampDrawingType(View v)
+        private static void StampDrawingType(View v, string drawingTypeId)
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, DrawingTypeId);
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(v, drawingTypeId);
             }
             catch (Exception ex) { StingLog.Warn($"StampDrawingType: {ex.Message}"); }
         }

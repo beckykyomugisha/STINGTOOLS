@@ -59,7 +59,7 @@ namespace StingTools.Commands.Panels
                 .ToList();
             if (circuits.Count == 0)
             {
-                TaskDialog.Show("STING Circuit Check", "No power circuits connected to a board were found.");
+                PresetDialog.Show("STING Circuit Check", "No power circuits connected to a board were found.", ref message);
                 return Result.Cancelled;
             }
 
@@ -153,7 +153,8 @@ namespace StingTools.Commands.Panels
                  .Text("Iz: " + IzSummary + ". VD from CALCS → Recalculate All. PSC from CALCS → Calculate Fault Levels.")
                  .Text("Device Icn: from the family's Short Circuit Rating. Where a family has none, a typical 6 kA (MCB ≤ 63 A) / 16 kA (MCCB) is shown for guidance only — never as a pass or a fail.")
                  .Text(string.IsNullOrEmpty(xlsx) ? "Workbook not written — see the STING log." : "Workbook: " + xlsx);
-            panel.Show();
+            // Modal outside a preset; inside one the report goes to the log and the step message.
+            PresetDialog.Show(panel, ref message);
             return Result.Succeeded;
         }
 
@@ -340,7 +341,7 @@ namespace StingTools.Commands.Panels
                     .Where(v => !v.IsPanelScheduleTemplate()).ToList();
             if (views.Count == 0)
             {
-                TaskDialog.Show("STING Phase Balance", "No panel schedules found. Run PNLS → ⚡ Batch Create Schedules first.");
+                PresetDialog.Show("STING Phase Balance", "No panel schedules found. Run PNLS → ⚡ Batch Create Schedules first.", ref message);
                 return Result.Cancelled;
             }
 
@@ -354,18 +355,38 @@ namespace StingTools.Commands.Panels
                     : $"• {p.Name}: {p.Plan.BeforeImbalancePct:0.#} % → {p.Plan.AfterImbalancePct:0.#} % with {p.Plan.Moves.Count} move(s)"));
             if (todo.Count == 0)
             {
-                TaskDialog.Show("STING Phase Balance", "Nothing to move.\n\n" + preview);
+                PresetDialog.Show("STING Phase Balance", "Nothing to move.\n\n" + preview, ref message);
                 return Result.Succeeded;
             }
-            var ask = new TaskDialog("STING Phase Balance")
+            string question = $"Move {todo.Sum(p => p.Plan.Moves.Count)} circuit(s) to balance {todo.Count} board(s)?";
+            const string rules = "Only single-pole, unlocked circuits move, into empty slots. " +
+                                 "Circuit numbers follow the slot. Lock a slot in the panel schedule to keep a way fixed.";
+            if (PresetDialog.Quiet)
             {
-                MainInstruction = $"Move {todo.Sum(p => p.Plan.Moves.Count)} circuit(s) to balance {todo.Count} board(s)?",
-                MainContent = preview + "\n\nOnly single-pole, unlocked circuits move, into empty slots. " +
-                              "Circuit numbers follow the slot. Lock a slot in the panel schedule to keep a way fixed.",
-                CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
-                DefaultButton = TaskDialogResult.No,
-            };
-            if (ask.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+                // Nobody can answer the Yes/No inside a preset (it defaulted to No, so the step
+                // always came back Cancelled). Moving circuits renumbers them, so a preset moves
+                // only when its step says so (params.apply = "true"); otherwise the plan is the
+                // step's result.
+                if (!IsTrue(WorkflowEngine.StepParam("apply")))
+                {
+                    PresetDialog.Show("STING Phase Balance",
+                        "Plan only — nothing moved (set the step's params.apply to \"true\" to apply it).\n\n"
+                        + question + "\n\n" + preview, ref message);
+                    return Result.Succeeded;
+                }
+                StingLog.Info($"STING Phase Balance: preset step applies the plan (params.apply). {question}\n{preview}");
+            }
+            else
+            {
+                var ask = new TaskDialog("STING Phase Balance")
+                {
+                    MainInstruction = question,
+                    MainContent = preview + "\n\n" + rules,
+                    CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
+                    DefaultButton = TaskDialogResult.No,
+                };
+                if (ask.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+            }
 
             var panel = StingResultPanel.Create("STING Phase Balance (applied)");
             int applied = 0, refused = 0;
@@ -394,8 +415,15 @@ namespace StingTools.Commands.Panels
             foreach (var p in plans.Where(x => x.Skip != null))
                 panel.AddSection(p.Name.ToUpperInvariant()).Text("Skipped — " + p.Skip);
             panel.SetSubtitle($"{applied} move(s) applied · {refused} refused");
-            panel.Show();
+            PresetDialog.Show(panel, ref message);
             return Result.Succeeded;
+        }
+
+        private static bool IsTrue(string v)
+        {
+            v = (v ?? "").Trim();
+            return v.Equals("true", StringComparison.OrdinalIgnoreCase) || v.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                || v == "1";
         }
 
         private static BoardPlan PlanBoard(Document doc, PanelScheduleView psv)

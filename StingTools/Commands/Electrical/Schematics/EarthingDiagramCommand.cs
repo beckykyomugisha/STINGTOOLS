@@ -36,7 +36,7 @@ namespace StingTools.Commands.Electrical.Schematics
 
             // Read project-level earthing parameters.
             var projInfo = doc.ProjectInformation;
-            string system = projInfo?.LookupParameter("ELC_EARTHING_SYSTEM_TXT")?.AsString()?.Trim();
+            string system = projInfo?.LookupParameter(ParamRegistry.ELC_EARTHING_SYSTEM)?.AsString()?.Trim();
             // The arrangement drawn IS the earthing system. Drawing TN-S for a project
             // that never said which system it has put a TN-S diagram on a numbered,
             // stamped sheet of a TT or TN-C-S job. No system, no diagram.
@@ -48,18 +48,18 @@ namespace StingTools.Commands.Electrical.Schematics
                 return Result.Cancelled;
             }
 
-            string metLocation = projInfo?.LookupParameter("ELC_MET_LOCATION_TXT")?.AsString()?.Trim();
+            string metLocation = projInfo?.LookupParameter(ParamRegistry.ELC_MET_LOCATION)?.AsString()?.Trim();
             if (string.IsNullOrEmpty(metLocation)) metLocation = "Main Switchroom";
 
             using (var tx = new Transaction(doc, "STING Earthing Arrangement Diagram"))
             {
                 tx.Start();
 
-                var view = CreateDraftingView(doc, "STING - Earthing Arrangement");
+                var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, "STING - Earthing Arrangement", out string viewError);
                 if (view == null)
                 {
                     tx.RollBack();
-                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING Earthing Diagram", message);
                     return Result.Failed;
                 }
@@ -222,20 +222,6 @@ namespace StingTools.Commands.Electrical.Schematics
 
         // ---------------------------------------------------------------- helpers
 
-        private static ViewDrafting CreateDraftingView(Document doc, string name)
-        {
-            var vft = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
-            if (vft == null) return null;
-            var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"EarthingDiagram view name '{name}': {ex.Message}"); }
-            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
-            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
-            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"EarthingDiagram scale: {ex.Message}"); }
-            return v;
-        }
 
         private static double Mm(double mm) => mm / 304.8;
 
