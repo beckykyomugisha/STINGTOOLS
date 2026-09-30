@@ -338,16 +338,22 @@ namespace StingTools.Commands.Drawing
 
                 var allMissing = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
                 int totalDeclared = 0;
+                int typesInUse = 0;
 
-                // Collect unique DrawingType ids so we only call FindMissingProjectInfoParams once per type.
-                var seenDtIds = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+                // DTW-13: count per drawing type in use, not per sheet (the total
+                // grew with the number of sheets), and say what is actually
+                // checked — ${Param} references with no bound parameter on
+                // Project Information. The old label claimed "not found on
+                // family", which this never inspected.
+                var seenDtIds = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var sheet in sheets)
                 {
                     var dtId = StingTools.Core.Drawing.DrawingTypeStamper.Read(sheet);
+                    if (!seenDtIds.Add(dtId ?? "")) continue;
                     var dt = DrawingTypeRegistry.Get(doc, dtId);
                     if (dt?.TitleBlockParams == null) continue;
-                    totalDeclared += dt.TitleBlockParams.Count;
-                    if (!seenDtIds.Add(dtId)) continue;
+                    typesInUse++;
+                    totalDeclared += dt.TitleBlockParams.Keys.Count(k => !string.IsNullOrWhiteSpace(k));
                     try
                     {
                         var missing = StingTools.Core.Drawing.TitleBlockParamApplier
@@ -355,17 +361,25 @@ namespace StingTools.Commands.Drawing
                         foreach (var m in missing)
                             allMissing.Add(m);
                     }
-                    catch { /* per-type failure — continue */ }
+                    catch (Exception ex) { StingLog.Warn($"DrawingTypesInspect Project Information audit '{dtId}': {ex.Message}"); }
                 }
 
-                if (allMissing.Count > 0)
+                if (typesInUse > 0)
                 {
-                    var sample = string.Join(", ", allMissing.OrderBy(k => k).Take(5));
-                    sb.AppendLine($"  TB params: {totalDeclared} declared, {allMissing.Count} not found on family: {sample}"
-                        + (allMissing.Count > 5 ? " …" : ""));
+                    sb.AppendLine($"  TB params: {totalDeclared} cell(s) declared across {typesInUse} drawing type(s) in use on sheets.");
+                    if (allMissing.Count > 0)
+                    {
+                        var sample = string.Join(", ", allMissing.OrderBy(k => k).Take(5));
+                        sb.AppendLine($"  ⚠ {allMissing.Count} ${{Param}} reference(s) not bound on Project Information " +
+                                      $"(those cells are left unwritten): {sample}" + (allMissing.Count > 5 ? " …" : ""));
+                    }
                 }
             }
-            catch { /* cardinality audit must never surface an error in a read-only diagnostic */ }
+            catch (Exception ex)
+            {
+                // A read-only diagnostic must not fail the dialog, but must be heard.
+                StingLog.Warn($"DrawingTypesInspect title-block parameter audit: {ex.Message}");
+            }
         }
     }
 
