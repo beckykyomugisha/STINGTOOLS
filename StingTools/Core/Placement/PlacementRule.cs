@@ -382,6 +382,17 @@ namespace StingTools.Core.Placement
         /// </summary>
         public string TypeCatalogKey { get; set; } = "";
 
+        /// <summary>
+        /// Optional STING seed id (e.g. "STING_SEED_MedGasOutlet") that this rule
+        /// places, overriding the category → seed map. When set, symbol resolution
+        /// is confined to that family and <see cref="VariantHint"/> names the seed
+        /// type; there is no fall-back to another family of the category or to the
+        /// family's first type, because a wrong type (a WC for an oxygen outlet, an
+        /// oxygen outlet for vacuum) is worse than none. The seed pre-pass builds
+        /// and loads it. Empty (default) ⇒ the category map decides.
+        /// </summary>
+        public string SeedId { get; set; } = "";
+
         /// <summary>Nominal back-box or enclosure depth in millimetres.</summary>
         public double BoxDepthMm { get; set; } = 0.0;
 
@@ -727,6 +738,7 @@ namespace StingTools.Core.Placement
                 MaxFootprintScale    = this.MaxFootprintScale,
                 // Type catalog
                 TypeCatalogKey       = this.TypeCatalogKey,
+                SeedId               = this.SeedId,
             };
         }
 

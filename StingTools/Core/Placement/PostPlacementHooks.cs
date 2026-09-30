@@ -84,9 +84,44 @@ namespace StingTools.Core.Placement
         public static void RunFor(FamilyInstance fi, PlacementRule rule)
         {
             if (fi == null || rule == null) return;
+            // Always, not behind a toggle: a rule that names its seed places a type
+            // whose identity lives in followsType values (MGS_GAS_TYPE_TXT on a
+            // medical-gas outlet is what the TU tag prints and MgasNetwork keys on).
+            // Run before the tag pipeline so tokens derive from the stamped values.
+            if (!string.IsNullOrWhiteSpace(rule.SeedId)) StampSeedTypeValuesSafe(fi, rule);
             if (RunDataTagPipeline) RunTagPipelineSafe(fi);
             if (SeedCobieComponent) SeedCobieSafe(fi, rule);
             if (AssignMepSystem)    AssignMepSafe(fi);
+        }
+
+        /// <summary>
+        /// Writes the seed type's declared followsType values (MGS_GAS_TYPE_TXT,
+        /// MGS_TU_TYPE_TXT, ASS_PRODCT_COD_TXT …) onto a freshly placed seed instance,
+        /// through the same catalog the type-swap updater uses. Logs, never throws.
+        /// </summary>
+        private static void StampSeedTypeValuesSafe(FamilyInstance fi, PlacementRule rule)
+        {
+            try
+            {
+                var sym = fi.Symbol;
+                string family = sym?.Family?.Name;
+                var catalog = StingTools.Core.Symbols.SeedTypeSwapUpdater.Catalog;
+                if (catalog == null || catalog.IsEmpty || catalog.SeedIdForFamily(family) == null) return;
+                int n = StingTools.Core.Symbols.SeedFollowTypeApplier.Apply(fi, family, sym.Name, catalog, null,
+                    w => StingLog.Warn($"PostPlacementHooks seed stamp ({rule.RuleId}): {w}"));
+                string seedId = catalog.SeedIdForFamily(family);
+                string gas = catalog.DeclaredValue(seedId, sym.Name, "MGS_GAS_TYPE_TXT");
+                if (!string.IsNullOrEmpty(gas))
+                {
+                    var p = fi.LookupParameter("MGS_GAS_TYPE_TXT");
+                    string now = p?.AsString() ?? "";
+                    if (p == null)
+                        StingLog.Warn($"PostPlacementHooks: {fi.Id} ({family} : {sym.Name}) has no MGS_GAS_TYPE_TXT — bind shared parameters; gas '{gas}' not stamped.");
+                    else if (!string.Equals(now, gas, StringComparison.Ordinal) && !p.IsReadOnly && p.Set(gas)) n++;
+                }
+                if (n > 0) StingLog.Info($"PostPlacementHooks: {fi.Id} {family} : {sym.Name} — {n} seed value(s) stamped (rule {rule.RuleId}).");
+            }
+            catch (Exception ex) { StingLog.Warn($"PostPlacementHooks.StampSeedTypeValues {fi.Id}: {ex.Message}"); }
         }
 
         private static void RunTagPipelineSafe(FamilyInstance fi)

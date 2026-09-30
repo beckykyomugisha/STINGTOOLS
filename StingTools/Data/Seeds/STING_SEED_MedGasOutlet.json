@@ -2,8 +2,8 @@
   "version": "1.0",
   "standard": "STING SEED FAMILY \u2014 Medical Gas Terminal Units (HTM 02-01, BS 5682, EN ISO 7396-1)",
   "_notes": [
-    "13 type variants: HTM 02-01 terminal units (O2, N2O, Med Air,",
-    "Surg Air, Vacuum, CO2, N2, Heliox), 5-gas AVSU, area alarm panel,",
+    "14 type variants: HTM 02-01 terminal units (O2, N2O, Med Air,",
+    "Surg Air, Vacuum, CO2, N2, Heliox, AGSS scavenging — an extract, so no supply pressure), 5-gas AVSU, area alarm panel,",
     "theatre gas panel (TGP — not a Master Alarm Panel), ward bedhead unit, VIE manifold.",
     "",
     "MGS_* parameters track HTM 02-01 metadata: gas type, operational",
@@ -358,6 +358,16 @@
             "MGS_GASES_TXT": "HELIOX",
             "ASS_PRODCT_COD_TXT": "TU-HX",
             "MGS_OPERATING_KPA": "414"
+          }
+        },
+        {
+          "name": "TERMINAL_UNIT_AGS",
+          "params": {
+            "MGS_TU_TYPE_TXT": "TERMINAL_UNIT",
+            "MGS_GAS_TYPE_TXT": "AGS",
+            "MGS_GASES_TXT": "AGS",
+            "ASS_PRODCT_COD_TXT": "TU-AGS",
+            "MGS_OPERATING_KPA": ""
           }
         },
         {

@@ -1601,9 +1601,13 @@ namespace StingTools.Core.Placement
             string hint  = rule?.VariantHint ?? "";
             string ftrx  = rule?.FamilyTypeRegex ?? "";
             string bicHint = rule?.CategoryBic ?? "";
-            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx) && string.IsNullOrEmpty(bicHint)
+            // A rule that names its seed (PlacementRule.SeedId) resolves inside
+            // that family only, and only to the type its VariantHint names.
+            string seedOverride = rule?.SeedId?.Trim() ?? "";
+            bool seedMode = seedOverride.Length > 0;
+            string cacheKey = string.IsNullOrEmpty(hint) && string.IsNullOrEmpty(ftrx) && string.IsNullOrEmpty(bicHint) && !seedMode
                 ? categoryName
-                : $"{categoryName}|{hint}|{ftrx}|{bicHint}";
+                : $"{categoryName}|{hint}|{ftrx}|{bicHint}|{seedOverride}";
             if (cache.TryGetValue(cacheKey, out var cached)) return cached;
 
             // Build matcher and ordered fallback chain.
@@ -1623,6 +1627,7 @@ namespace StingTools.Core.Placement
 
             FamilySymbol picked = null;
             FamilySymbol firstForCategory = null;
+            bool hintMatched = false;
             // For chain-mode resolution, remember the best match per chain index so
             // an earlier chain entry always beats a later one.
             int bestChainIndex = int.MaxValue;
@@ -1663,6 +1668,7 @@ namespace StingTools.Core.Placement
 
                     // FamilyTypeRegex is an additional gate, applied to symbol name.
                     if (typeRx != null && !typeRx.IsMatch(fs.Name ?? "")) continue;
+                    if (seedMode && !string.Equals(fs.Family?.Name, seedOverride, StringComparison.OrdinalIgnoreCase)) continue;
 
                     if (firstForCategory == null) firstForCategory = fs;
                     // VariantHint resolves against the STING_FIXTURE_VARIANT_TXT
@@ -1683,6 +1689,7 @@ namespace StingTools.Core.Placement
                                 || string.Equals(variantName, chain[i], StringComparison.OrdinalIgnoreCase))
                             {
                                 picked = fs;
+                                hintMatched = true;
                                 bestChainIndex = i;
                                 if (i == 0) goto done;
                                 break;
@@ -1694,6 +1701,7 @@ namespace StingTools.Core.Placement
                         if (variantRx.IsMatch(variant) || variantRx.IsMatch(variantName))
                         {
                             picked = fs;
+                            hintMatched = true;
                             goto done;
                         }
                     }
@@ -1703,12 +1711,16 @@ namespace StingTools.Core.Placement
                             || string.Equals(variantName, hint, StringComparison.OrdinalIgnoreCase))
                         {
                             picked = fs;
+                            hintMatched = true;
                             goto done;
                         }
                     }
                 }
             done:
                 if (picked == null) picked = firstForCategory;
+                // Seed mode never falls back to "the first type": an oxygen
+                // outlet placed for a vacuum rule is worse than no outlet.
+                if (seedMode && !string.IsNullOrEmpty(hint) && !hintMatched) picked = null;
             }
             catch (Exception ex)
             {
@@ -1720,6 +1732,14 @@ namespace StingTools.Core.Placement
             // can still be served by the engine. Phase 185: when the rule
             // sets TypeCatalogKey, the loader only mints the matching type
             // (avoids loading 200-type fitting libraries).
+            if (seedMode)
+            {
+                if (picked == null)
+                    picked = ResolveSeedTypeForRule(doc, categoryName, seedOverride, chain, variantRx, hint, typeRx, result);
+                cache[cacheKey] = picked;
+                return picked;
+            }
+
             if (picked == null && firstForCategory == null)
             {
                 picked = TryAutoLoadFromLibrary(doc, categoryName, hint, result, rule?.TypeCatalogKey ?? "");
@@ -1844,6 +1864,61 @@ namespace StingTools.Core.Placement
         /// built — the caller then surfaces the normal SkippedNoSymbol path.
         /// Never builds a seed from JSON here (that is the pre-pass's job).
         /// </summary>
+        /// <summary>
+        /// Seed-mode resolution for a rule with <see cref="PlacementRule.SeedId"/>:
+        /// load the seed .rfa when its family is not in the project, then pick the
+        /// seed type the VariantHint names. Null (with a warning naming the rule's
+        /// seed and hint) when the seed is not built or declares no such type.
+        /// </summary>
+        private static FamilySymbol ResolveSeedTypeForRule(
+            Document doc, string categoryName, string seedId,
+            List<string> chain, System.Text.RegularExpressions.Regex variantRx, string hint,
+            System.Text.RegularExpressions.Regex typeRx, PlacementResult result)
+        {
+            Family fam = null;
+            try
+            {
+                fam = new FilteredElementCollector(doc).OfClass(typeof(Family)).Cast<Family>()
+                    .FirstOrDefault(f => string.Equals(f.Name, seedId, StringComparison.OrdinalIgnoreCase));
+                if (fam == null)
+                {
+                    string seedPath = System.IO.Path.Combine(SeedEnsurer.ResolveSeedOutputFolder(doc), seedId + ".rfa");
+                    if (System.IO.File.Exists(seedPath) && doc.LoadFamily(seedPath, out var loaded) && loaded != null)
+                        fam = loaded;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"ResolveSeedTypeForRule '{seedId}': {ex.Message}"); }
+
+            if (fam == null)
+            {
+                string key = $"SeedNotBuilt:{seedId}";
+                if (!result.Warnings.Any(w => w.StartsWith(key, StringComparison.Ordinal)))
+                    result.Warnings.Add($"{key} — rule(s) name seed '{seedId}' but it isn't built or loaded. Run Placement › Ensure Seeds (or Build Seed Families); nothing of it was placed.");
+                return null;
+            }
+
+            var symbols = fam.GetFamilySymbolIds().Select(id => doc.GetElement(id) as FamilySymbol)
+                .Where(s => s != null && (typeRx == null || typeRx.IsMatch(s.Name ?? ""))).ToList();
+            FamilySymbol pick = null;
+            if (chain.Count > 0)
+            {
+                foreach (var c in chain)
+                {
+                    pick = symbols.FirstOrDefault(s => string.Equals(s.Name, c, StringComparison.OrdinalIgnoreCase));
+                    if (pick != null) break;
+                }
+            }
+            else if (variantRx != null) pick = symbols.FirstOrDefault(s => variantRx.IsMatch(s.Name ?? ""));
+            else if (!string.IsNullOrEmpty(hint)) pick = symbols.FirstOrDefault(s => string.Equals(s.Name, hint, StringComparison.OrdinalIgnoreCase));
+            else pick = symbols.FirstOrDefault();
+
+            if (pick == null)
+                result.Warnings.Add($"Seed '{seedId}' has no type matching VariantHint='{hint}' — nothing placed for it (category '{categoryName}').");
+            else
+                result.Warnings.Add($"Used STING seed '{seedId}' type '{pick.Name}' — swap to a manufacturer family later (Placement › Swap to Manufacturer).");
+            return pick;
+        }
+
         private static FamilySymbol TryResolveSeedSymbol(
             Document doc, string categoryName, string seedId, PlacementResult result)
         {

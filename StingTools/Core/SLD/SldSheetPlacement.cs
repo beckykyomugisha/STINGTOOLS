@@ -17,6 +17,19 @@ namespace StingTools.Core.SLD
     internal static class SldSheetPlacement
     {
         /// <summary>
+        /// Place <paramref name="view"/> on the sheet of the drawing type the routing
+        /// table gives <paramref name="req"/>'s (discipline, docType) — a project override
+        /// can re-point it — falling back to the request's shipped id.
+        /// <paramref name="contextTag"/> (else the request's own) keeps the sheet apart.
+        /// </summary>
+        internal static string Place(Document doc, DrawingRouteRequest req, View view, string contextTag = null)
+        {
+            if (req == null) return "No drawing type requested — the view is not on a sheet.";
+            string id = DrawingRouteResolver.IdFor(doc, req);
+            return Place(doc, id, view, contextTag ?? req.ContextTag);
+        }
+
+        /// <summary>
         /// Place <paramref name="view"/> on the sheet of drawing type
         /// <paramref name="drawingTypeId"/>, in its own transaction. Returns one line for
         /// the command's report — the sheet, or why the view is not on one. Never throws.

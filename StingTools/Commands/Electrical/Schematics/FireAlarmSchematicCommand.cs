@@ -43,10 +43,10 @@ namespace StingTools.Commands.Electrical.Schematics
 
             if (devices.Count == 0)
             {
-                TaskDialog.Show("STING Fire Alarm Schematic",
+                PresetDialog.Show("STING Fire Alarm Schematic",
                     "No Fire Alarm Device elements found in the project.\n\n" +
-                    "Populate FLS_SFTY_DEV_LOOP_TXT on fire alarm devices and re-run.");
-                return Result.Succeeded;
+                    "Populate FLS_SFTY_DEV_LOOP_TXT on fire alarm devices and re-run.", ref message);
+                return Result.Cancelled;
             }
 
             // Group devices by loop reference.
@@ -71,8 +71,8 @@ namespace StingTools.Commands.Electrical.Schematics
                 if (view == null)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("STING Fire Alarm Schematic",
-                        "Could not create a drafting view — no Drafting ViewFamilyType found.");
+                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    if (!PresetDialog.Quiet) TaskDialog.Show("STING Fire Alarm Schematic", message);
                     return Result.Failed;
                 }
 
@@ -165,6 +165,11 @@ namespace StingTools.Commands.Electrical.Schematics
 
                 tx.Commit();
 
+                // Onto the sheet of the drawing type routing gives E / FIRE_ALARM_SCHEMATIC
+                // (stamped; a re-run's diagram replaces this one there).
+                string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.FireAlarmSchematic, view);
+
                 int realLoops = loopGroups.Count(g => g.Key != NoLoop);
                 string result =
                     $"Schematic generated.\n\n" +
@@ -175,7 +180,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     result += $"\n\n{noLoopCount} device(s) have no loop set " +
                               $"({string.Join(" / ", LoopParams)} empty) and are drawn under " +
                               $"'{NoLoop}', not on a loop. Populate the loop and re-run.";
-                TaskDialog.Show("STING Fire Alarm Schematic", result);
+                PresetDialog.Show("STING Fire Alarm Schematic", result + "\n\n" + sheetLine, ref message);
             }
 
             return Result.Succeeded;
@@ -211,7 +216,10 @@ namespace StingTools.Commands.Electrical.Schematics
                 .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
             if (vft == null) return null;
             var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch { }
+            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"FireAlarmSchematic view name '{name}': {ex.Message}"); }
+            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
+            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
+            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"FireAlarmSchematic scale: {ex.Message}"); }
             return v;
         }
 

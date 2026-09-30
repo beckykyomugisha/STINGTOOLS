@@ -11121,6 +11121,195 @@
       "phase": "*"
     },
     {
+      "id": "elec-lps-schematic-A1-NTS",
+      "name": "Lightning Protection Schematic — A1 NTS",
+      "origin": "corporate",
+      "checksum": "91f506a0d670299bcf094868dfc4c7468e8aeb33919fd9a30297b6b00d14700d",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical Schematic",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-LPS-SCH-{seq:D3}",
+      "sheetNamePattern": "LIGHTNING PROTECTION SCHEMATIC",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Lightning protection system schematic (BS EN 62305-3: air terminals, down conductors, earth electrodes, bonding) on A1, not to scale. The view is the drafting view LPS_Schematic draws at 1:1 from the ELC_LPS_* marked components; LPS_Schematic puts it on this type's sheet and replaces an earlier run's schematic there.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
+      "id": "elec-earthing-schematic-A1-NTS",
+      "name": "Earthing Arrangement Schematic — A1 NTS",
+      "origin": "corporate",
+      "checksum": "f8f59ba01d61aeb98e60d26774adf2bff0fce58452733041ac005a7f049883f9",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical Schematic",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-EARTH-SCH-{seq:D3}",
+      "sheetNamePattern": "EARTHING ARRANGEMENT",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Earthing arrangement (BS 7671 Part 5-54: earthing system, MET, protective and bonding conductors) on A1, not to scale. The view is the drafting view Earthing_Diagram draws at 1:1 for the system in ELC_EARTHING_SYSTEM_TXT; Earthing_Diagram puts it on this type's sheet.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
+      "id": "elec-panel-door-diagram-A3-NTS",
+      "name": "Panel Door / Busbar Layout — A3 NTS",
+      "origin": "corporate",
+      "checksum": "675db8c0efaa593b6bf35f156735df1b4b913323eaadca09dd62e5a3e3a4c1a8",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "paperSize": "A3",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical Schematic",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-PDD-{seq:D3}",
+      "sheetNamePattern": "PANEL DOOR LAYOUT",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Distribution board door / busbar interior layout (way positions, circuits, spares, earth bar) on A3, not to scale, one sheet per board. The view is the drafting view Panel_DoorDiagram draws at 1:1; Panel_DoorDiagram puts each board on its own sheet of this type.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
       "id": "mep-hvac-pipe-A1-1to100",
       "name": "HVAC Pipework Layout — A1 @ 1:100",
       "origin": "corporate",
@@ -12594,6 +12783,24 @@
       "phase": "*",
       "docType": "SLD",
       "drawingTypeId": "elec-sld-A1-NTS"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "LPS_SCHEMATIC",
+      "drawingTypeId": "elec-lps-schematic-A1-NTS"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "EARTHING_SCHEMATIC",
+      "drawingTypeId": "elec-earthing-schematic-A1-NTS"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "PANEL_DOOR_DIAGRAM",
+      "drawingTypeId": "elec-panel-door-diagram-A3-NTS"
     }
   ]
 }

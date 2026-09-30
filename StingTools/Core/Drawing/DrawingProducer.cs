@@ -372,7 +372,18 @@ namespace StingTools.Core.Drawing
         // Unknown or unproducible purposes now yield no rule and a warning.
         private static ProductionRule SynthesizeSingleRule(DrawingType dt, ProduceResult result)
         {
-            var vt = DrawingPurposeViewKind.ResolveForProduction(dt.Id, dt.Purpose, out var problem);
+            // A Schematic type with no productionRules used to produce an empty drafting
+            // view on a numbered sheet, reported as produced. A schematic is drawn by its
+            // generator (SLD_Generate, FireAlarm_Schematic …) or by a person; production
+            // makes neither an empty view nor a sheet for it, and says which.
+            if (string.Equals(dt.Purpose, DrawingPurpose.Schematic, StringComparison.OrdinalIgnoreCase))
+            {
+                string why = DrawingRouteRequests.SchematicNotProducedReason(dt.Id);
+                StingLog.Warn($"DrawingProducer: {why}");
+                result.Warnings.Add(why);
+                return null;
+            }
+            var vt =DrawingPurposeViewKind.ResolveForProduction(dt.Id, dt.Purpose, out var problem);
             if (vt == null)
             {
                 StingLog.Warn($"DrawingProducer: {problem}");
