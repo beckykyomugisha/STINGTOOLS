@@ -170,7 +170,7 @@ namespace StingTools.V6
             "hubId", "folderUrn", "distToMm", "issueTypeId", "issueSubtypeId", "region",
             // Flexibility: where each CDE state lives, how a model name maps to a discipline,
             // and what an escalated issue carries.
-            "cdeFolders", "disciplineMap", "docsAttributes", "docsAttributesCreateMissing",
+            "cdeFolders", "disciplineMap", "docsAttributes", "docsAttributesCreateMissing", "uploadUnattended",
             "escalateDueDays", "escalateAssignedTo", "escalateAssignedToType", "escalateExcludeStatuses",
             // ACC-HARD-5: how an escalated clash issue lets its assignee FIND the objects.
             "issueDeepLinks", "issueViewerLinks", "issueBcfAttachment",
@@ -278,6 +278,11 @@ namespace StingTools.V6
         /// <summary>Let STING create missing custom-attribute definitions on a folder. Off by
         /// default: definitions are project-wide admin configuration.</summary>
         public bool DocsAttributesCreateMissing { get; private set; }
+
+        /// <summary>May ACC_UploadLastBundle upload WITHOUT a person confirming, on an unattended
+        /// project? Off by default: an upload writes into the real CDE, so it is opt-in twice
+        /// (unattended AND this), like escalation.</summary>
+        public bool UploadUnattended { get; private set; }
 
         /// <summary>The ACC custom-attribute names STING writes to ("docsAttributeNames").
         /// Defaults are the names docs/KUT_ACC_DAY1_PLAYBOOK.md §3.4 tells the admin to create.</summary>
@@ -422,7 +427,7 @@ namespace StingTools.V6
                    assignedToType = string.Empty;
             double? distToMm = null;
             int? dueDays = null;
-            bool docsAttributes = false, docsCreate = false;
+            bool docsAttributes = false, docsCreate = false, uploadUnattended = false;
             bool deepLinks = true, viewerLinks = true, bcfAttachment = true;
             var cdeFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var disciplineMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -479,6 +484,7 @@ namespace StingTools.V6
                 if (TryGet(o, "disciplineMap", out var dmTok)) disciplineMap = RequireStringMap(dmTok, "disciplineMap");
                 if (TryGet(o, "docsAttributes", out var daTok)) docsAttributes = RequireBool(daTok, "docsAttributes");
                 if (TryGet(o, "docsAttributesCreateMissing", out var dcTok)) docsCreate = RequireBool(dcTok, "docsAttributesCreateMissing");
+                if (TryGet(o, "uploadUnattended", out var uuTok)) uploadUnattended = RequireBool(uuTok, "uploadUnattended");
                 if (TryGet(o, "issueDeepLinks", out var dlTok)) deepLinks = RequireBool(dlTok, "issueDeepLinks");
                 if (TryGet(o, "issueViewerLinks", out var vlTok)) viewerLinks = RequireBool(vlTok, "issueViewerLinks");
                 if (TryGet(o, "issueBcfAttachment", out var baTok)) bcfAttachment = RequireBool(baTok, "issueBcfAttachment");
@@ -583,6 +589,7 @@ namespace StingTools.V6
             policy.DisciplineMap = disciplineMap;
             policy.DocsAttributes = docsAttributes;
             policy.DocsAttributesCreateMissing = docsCreate;
+            policy.UploadUnattended = uploadUnattended;
             policy.IssueDeepLinks = deepLinks;
             policy.IssueViewerLinks = viewerLinks;
             policy.IssueBcfAttachment = bcfAttachment;

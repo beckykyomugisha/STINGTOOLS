@@ -44,7 +44,16 @@ namespace StingTools.Core.Clash
     {
         /// <summary>The file to upload, or null to cancel. Implementations report their own
         /// reason for cancelling.</summary>
-        protected abstract string ResolveFile(Document doc, out string cancelReason);
+        protected abstract string ResolveFile(Document doc, AccOperatingPolicy policy, out string cancelReason);
+
+        /// <summary>Set by ResolveFile when it declined only because the project is not
+        /// configured for this (e.g. unattended upload not opted in) — a SKIP. Every other
+        /// refusal on an unattended run is a FAILURE (ROADMAP REV-2): the workflow step was
+        /// meant to upload, and "Cancelled" would let a failOnError step read it as skipped.</summary>
+        protected bool DeclinedByConfiguration { get; set; }
+
+        private static Result Refused(AccOperatingPolicy policy) =>
+            policy != null && policy.IsUnattended ? Result.Failed : Result.Cancelled;
 
         protected abstract string DialogTitle { get; }
 
@@ -58,7 +67,7 @@ namespace StingTools.Core.Clash
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                TaskDialog.Show(DialogTitle,
+                AccPullClashesCommand.Report(policy, DialogTitle,
                     "ACC is not set up for this project on this machine.\n\n" +
                     "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', " +
                     "then 'Discover' to choose the ACC project. The APS app needs the data:read, " +
@@ -66,11 +75,14 @@ namespace StingTools.Core.Clash
                 return Result.Cancelled;
             }
 
-            string file = ResolveFile(doc, out string cancelReason);
+            DeclinedByConfiguration = false;
+            string file = ResolveFile(doc, policy, out string cancelReason);
             if (string.IsNullOrEmpty(file))
             {
-                if (!string.IsNullOrEmpty(cancelReason)) TaskDialog.Show(DialogTitle, cancelReason);
-                return Result.Cancelled;
+                if (!string.IsNullOrEmpty(cancelReason)) AccPullClashesCommand.Report(policy, DialogTitle, cancelReason);
+                // A person cancelling, or a configuration skip, is Cancelled; anything else a
+                // workflow run hits is a failure.
+                return string.IsNullOrEmpty(cancelReason) || DeclinedByConfiguration ? Result.Cancelled : Refused(policy);
             }
 
             AccModelUpload.UploadResult result;
@@ -81,15 +93,15 @@ namespace StingTools.Core.Clash
                 options = BuildOptions(doc, file, policy, out string optionsRefusal, out factNotes);
                 if (options == null)
                 {
-                    if (!string.IsNullOrEmpty(optionsRefusal)) TaskDialog.Show(DialogTitle, optionsRefusal);
-                    return Result.Cancelled;
+                    if (!string.IsNullOrEmpty(optionsRefusal)) AccPullClashesCommand.Report(policy, DialogTitle, optionsRefusal);
+                    return string.IsNullOrEmpty(optionsRefusal) ? Result.Cancelled : Refused(policy);
                 }
                 result = AccModelUpload.UploadAsync(creds, file, options).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
                 StingLog.Error("ACC upload", ex);
-                TaskDialog.Show(DialogTitle, "Upload failed: " + ex.Message);
+                AccPullClashesCommand.Report(policy, DialogTitle, "Upload failed: " + ex.Message);
                 return Result.Failed;
             }
 
@@ -101,7 +113,7 @@ namespace StingTools.Core.Clash
                 // an auth problem reads as an auth problem rather than as "it didn't work".
                 var status = result?.Status ?? AccFetchStatus.TransportFailed;
                 string why = result?.Message ?? "the upload returned no result";
-                TaskDialog.Show(DialogTitle,
+                AccPullClashesCommand.Report(policy, DialogTitle,
                     $"The file was NOT uploaded to ACC.\n\n" +
                     $"File:    {Path.GetFileName(file)}\n" +
                     $"Failure: {status}\n" +
@@ -116,7 +128,7 @@ namespace StingTools.Core.Clash
             var cover = UploadTransmittalCover(doc, creds, file, options);
             string txNote = MarkBundleTransmittalSent(doc, file, result, cover.versionUrn);
             if (!string.IsNullOrEmpty(cover.note)) txNote = (txNote == null ? "" : txNote + "\n") + cover.note;
-            TaskDialog.Show(DialogTitle,
+            AccPullClashesCommand.Report(policy, DialogTitle,
                 result.Message +
                 (string.IsNullOrWhiteSpace(result.FolderReason) ? "" : "\n\nFolder: " + result.FolderReason) +
                 (string.IsNullOrWhiteSpace(result.ItemUrn) ? "" : "\nItem: " + result.ItemUrn) +
@@ -328,9 +340,16 @@ namespace StingTools.Core.Clash
     {
         protected override string DialogTitle => "ACC — Upload Model";
 
-        protected override string ResolveFile(Document doc, out string cancelReason)
+        protected override string ResolveFile(Document doc, AccOperatingPolicy policy, out string cancelReason)
         {
             cancelReason = null;
+            if (policy != null && !policy.MayPrompt)
+            {
+                // There is nobody to pick a file. ACC_UploadLastBundle is the unattended form.
+                cancelReason = "ACC Upload Model needs someone to pick the file, and this project runs unattended. " +
+                               "Use ACC Upload Last Bundle in an unattended workflow.";
+                return null;
+            }
             var dlg = new Microsoft.Win32.OpenFileDialog
             {
                 Title = "Pick a model / deliverable to upload to ACC",
@@ -356,7 +375,7 @@ namespace StingTools.Core.Clash
     {
         protected override string DialogTitle => "ACC — Upload Last Bundle";
 
-        protected override string ResolveFile(Document doc, out string cancelReason)
+        protected override string ResolveFile(Document doc, AccOperatingPolicy policy, out string cancelReason)
         {
             string recordPath = BundleRecordPath(doc);
             // ReadExisting, not Read: a record naming a ZIP that has since been deleted or
@@ -379,6 +398,22 @@ namespace StingTools.Core.Clash
             }
 
             cancelReason = null;
+            if (policy != null && !policy.MayPrompt)
+            {
+                // Writing into the real CDE without a person is opt-in twice: the project must be
+                // unattended AND say uploads may run unattended. Otherwise decline and say why —
+                // never sit on a modal confirmation nobody will answer.
+                if (!policy.UploadUnattended)
+                {
+                    DeclinedByConfiguration = true;
+                    cancelReason = "The last ACC bundle was NOT uploaded: this project runs unattended and " +
+                                   "\"uploadUnattended\" is not set in its ACC settings, so an upload needs a person " +
+                                   $"to confirm it. Bundle: {rec.Describe()}";
+                    return null;
+                }
+                StingLog.Info("ACC_UploadLastBundle: unattended upload allowed by project settings — " + rec.Describe());
+                return rec.Path;
+            }
             var confirm = new TaskDialog(DialogTitle)
             {
                 MainInstruction = "Upload the last ACC bundle?",

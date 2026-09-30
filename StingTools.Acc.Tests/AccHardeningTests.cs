@@ -411,6 +411,14 @@ namespace StingTools.Acc.Tests
         private AccOperatingPolicy Load(string json) { File.WriteAllText(_path, json); return AccOperatingPolicy.Load(_path); }
 
         [Fact]
+        public void UploadUnattended_IsOffUnlessSet_AndMustBeABoolean()
+        {
+            Assert.False(Load("{\"unattended\":true}").UploadUnattended);
+            Assert.True(Load("{\"unattended\":true,\"uploadUnattended\":true}").UploadUnattended);
+            Assert.Equal(AccPolicySource.Malformed, Load("{\"uploadUnattended\":\"yes\"}").Source);
+        }
+
+        [Fact]
         public void AllNewKeysParse()
         {
             var p = Load("{\"hubId\":\"b.h\",\"folderUrn\":\"urn:f\",\"distToMm\":1,\"issueTypeId\":\"t\",\"issueSubtypeId\":\"s\"," +
