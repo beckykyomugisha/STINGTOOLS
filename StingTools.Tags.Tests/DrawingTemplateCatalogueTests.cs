@@ -151,10 +151,16 @@ namespace StingTools.Tags.Tests
             Assert.Contains("CreateDrawingTypeTemplates(doc, baseViews, filterLookup, solidFill)", src);
             foreach (var kind in DrawingTemplateCatalogue.CreatableKinds)
             {
+                // Every creatable kind gets a base — the model's or a temporary one
+                // (TemporaryBaseViews) — and the kind that base is made as has a case
+                // in CreateTemporaryBase. A detail's base is a section.
+                Assert.True(TemporaryBaseViews.Plan(kind, new List<string>(), out var why) != null,
+                    $"No base can be made for creatable kind '{kind}': {why}");
+                string baseKind = TemporaryBaseViews.BaseKindFor(kind);
                 string member = typeof(DrawingViewKind).GetFields()
-                    .First(f => (string)f.GetRawConstantValue() == kind).Name;
+                    .First(f => (string)f.GetRawConstantValue() == baseKind).Name;
                 Assert.True(src.Contains("case StingTools.Core.Drawing.DrawingViewKind." + member + ":"),
-                    $"BaseViewFor has no case for creatable kind '{kind}' — it would report every such template as uncreatable.");
+                    $"CreateTemporaryBase has no case for '{baseKind}' (base of creatable kind '{kind}') — every such template would be reported uncreatable on a model without one.");
             }
         }
 
