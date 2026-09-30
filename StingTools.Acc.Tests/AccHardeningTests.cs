@@ -411,6 +411,18 @@ namespace StingTools.Acc.Tests
         private AccOperatingPolicy Load(string json) { File.WriteAllText(_path, json); return AccOperatingPolicy.Load(_path); }
 
         [Fact]
+        public void AMalformedFile_ThatSaysUnattended_StaysNonInteractive_ButDiscardsEverythingElse()
+        {
+            // A typo must not turn a scheduled run back into one that waits on dialogs.
+            var p = Load("{\"unattended\":true,\"coordModelSetId\":\"ms-1\",\"typoKey\":1}");
+            Assert.Equal(AccPolicySource.Malformed, p.Source);
+            Assert.False(p.MayPrompt);
+            Assert.Equal("", p.CoordModelSetId);                     // still discarded
+            var q = Load("{\"coordModelSetId\":\"ms-1\",\"typoKey\":1}");
+            Assert.True(q.MayPrompt);                                  // no unattended claim: prompt as before
+        }
+
+        [Fact]
         public void UploadUnattended_IsOffUnlessSet_AndMustBeABoolean()
         {
             Assert.False(Load("{\"unattended\":true}").UploadUnattended);

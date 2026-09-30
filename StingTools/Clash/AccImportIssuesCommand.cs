@@ -84,10 +84,7 @@ namespace StingTools.Core.Clash
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                Say(interactive,
-                    "ACC credentials are not configured (acc_credentials.json). Nothing was imported.");
-                StingLog.Warn("ACC_ImportIssues: credentials not configured — nothing imported.");
-                return Result.Cancelled;
+                return AccProjectSettingsFile.NotConfigured(policy, creds, "ACC — Import Issues", "Nothing was imported.", interactive);
             }
 
             DateTime pullStartedUtc = DateTime.UtcNow;

@@ -60,9 +60,7 @@ namespace StingTools.Core.Clash
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                Say(interactive, "ACC credentials or the ACC project are not configured. Nothing was sent.");
-                StingLog.Warn("ACC_PushIssueChanges: credentials not configured — nothing sent.");
-                return Result.Cancelled;
+                return AccProjectSettingsFile.NotConfigured(policy, creds, "ACC — Push Issue Changes", "Nothing was sent.", interactive);
             }
 
             string user = Environment.UserName;

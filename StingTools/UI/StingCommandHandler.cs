@@ -2964,8 +2964,9 @@ namespace StingTools.UI
                     // which only builds a local ACC-ready bundle for manual upload.
                     case "ACC_UploadModel":     RunCommand<Core.Clash.AccUploadModelCommand>(app); break;
                     // Non-interactive twin: uploads the bundle ACCPublish recorded, so no
-                    // file picker is needed. Deliberately in no KUT workflow (see the
-                    // command's header) - the capability is wired, the decision is not made.
+                    // file picker is needed. Step 7 of WORKFLOW_KUT_FortnightlyIssue; it runs
+                    // unattended only when the project sets "uploadUnattended": true, and
+                    // otherwise FAILS the step with the reason (see the command's header).
                     case "ACC_UploadLastBundle": RunCommand<Core.Clash.AccUploadLastBundleCommand>(app); break;
                     // ACC Reviews → STING as proposals a person accepts (never a silent change).
                     case "AccReadReviews":

@@ -44,11 +44,7 @@ namespace StingTools.Core.Clash
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                AccPullClashesCommand.Report(policy, Title,
-                    "ACC is not set up for this project on this machine.\n\n" +
-                    "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', " +
-                    "then 'Discover' to choose the ACC project.\n\n" + AccProjectScope.Describe(creds) + ".");
-                return policy.IsUnattended ? Result.Failed : Result.Cancelled;
+                return AccProjectSettingsFile.NotConfigured(policy, creds, Title, "Nothing was checked.");
             }
             string containerId = creds.CoordContainer;
 

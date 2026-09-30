@@ -44,8 +44,7 @@ namespace StingTools.Core.Clash
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                AccPullClashesCommand.Report(policy, Title, "ACC is not configured for this model (sign-in or ACC project missing). Nothing was checked.");
-                return Result.Cancelled;
+                return AccProjectSettingsFile.NotConfigured(policy, creds, Title, "Nothing was checked.");
             }
 
             AccFetchResult<List<AccLocationNode>> tree;

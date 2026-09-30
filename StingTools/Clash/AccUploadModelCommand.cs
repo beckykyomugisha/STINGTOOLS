@@ -16,10 +16,12 @@
 // automatic upload precisely because "which file?" had no answer, and inventing one would
 // put an unintended file into an issued CDE container.
 //
-// NEITHER TAG IS IN ANY KUT WORKFLOW, and that is deliberate. Wiring the capability is
-// offline work; deciding that a fortnightly cycle should push into an issued container is
-// the Information Manager's call, and it should not be made before one live round-trip has
-// been proved (docs/KUT_LIVE_VERIFICATION_RUNBOOK.md, B1).
+// ACC_UploadLastBundle is step 7 of WORKFLOW_KUT_FortnightlyIssue (optional, failOnError).
+// Pushing into an issued container unattended is the Information Manager's decision, so the
+// step uploads only when the project's ACC settings say "uploadUnattended": true. Without it
+// an unattended run FAILS the step with that reason (A5) - never a silent skip, never a
+// prompt nobody answers. Prove one live round-trip first
+// (docs/KUT_LIVE_VERIFICATION_RUNBOOK.md, B1).
 //
 // Read-only with respect to the Revit model (no Transaction). Network I/O only.
 // Credentials come from %APPDATA%\Planscape\acc_credentials.json (AccIssueSync).
@@ -46,12 +48,9 @@ namespace StingTools.Core.Clash
         /// reason for cancelling.</summary>
         protected abstract string ResolveFile(Document doc, AccOperatingPolicy policy, out string cancelReason);
 
-        /// <summary>Set by ResolveFile when it declined only because the project is not
-        /// configured for this (e.g. unattended upload not opted in) — a SKIP. Every other
-        /// refusal on an unattended run is a FAILURE (ROADMAP REV-2): the workflow step was
-        /// meant to upload, and "Cancelled" would let a failOnError step read it as skipped.</summary>
-        protected bool DeclinedByConfiguration { get; set; }
-
+        /// <summary>Every refusal on an unattended run is a FAILURE (ROADMAP REV-2, A5) -
+        /// including "uploadUnattended is not set": the workflow step was meant to upload, and
+        /// "Cancelled" would let a failOnError step read it as skipped.</summary>
         private static Result Refused(AccOperatingPolicy policy) =>
             policy != null && policy.IsUnattended ? Result.Failed : Result.Cancelled;
 
@@ -67,22 +66,15 @@ namespace StingTools.Core.Clash
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                AccPullClashesCommand.Report(policy, DialogTitle,
-                    "ACC is not set up for this project on this machine.\n\n" +
-                    "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', " +
-                    "then 'Discover' to choose the ACC project. The APS app needs the data:read, " +
-                    "data:write and data:create scopes.\n\n" + AccProjectScope.Describe(creds) + ".");
-                return Result.Cancelled;
+                return AccProjectSettingsFile.NotConfigured(policy, creds, DialogTitle, "Nothing was uploaded.");
             }
 
-            DeclinedByConfiguration = false;
             string file = ResolveFile(doc, policy, out string cancelReason);
             if (string.IsNullOrEmpty(file))
             {
                 if (!string.IsNullOrEmpty(cancelReason)) AccPullClashesCommand.Report(policy, DialogTitle, cancelReason);
-                // A person cancelling, or a configuration skip, is Cancelled; anything else a
-                // workflow run hits is a failure.
-                return string.IsNullOrEmpty(cancelReason) || DeclinedByConfiguration ? Result.Cancelled : Refused(policy);
+                // A person cancelling is Cancelled; any refusal an unattended run hits is a failure.
+                return string.IsNullOrEmpty(cancelReason) ? Result.Cancelled : Refused(policy);
             }
 
             AccModelUpload.UploadResult result;
@@ -414,7 +406,6 @@ namespace StingTools.Core.Clash
                 // never sit on a modal confirmation nobody will answer.
                 if (!policy.UploadUnattended)
                 {
-                    DeclinedByConfiguration = true;
                     cancelReason = "The last ACC bundle was NOT uploaded: this project runs unattended and " +
                                    "\"uploadUnattended\" is not set in its ACC settings, so an upload needs a person " +
                                    $"to confirm it. Bundle: {rec.Describe()}";

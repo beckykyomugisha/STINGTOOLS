@@ -22,6 +22,7 @@
 using System;
 using System.IO;
 using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StingTools.Core;
@@ -70,6 +71,35 @@ namespace StingTools.Core.Clash
             if (creds.ProjectScope == AccProjectScopeSource.ProjectSettings) StingLog.Info(line);
             else StingLog.Warn(line);
             return creds;
+        }
+
+        /// <summary>
+        /// The one outcome for "ACC is not usable for this model" (A4). A MALFORMED settings file
+        /// is named as the cause, with its load error, instead of "credentials not configured" -
+        /// which pointed at the wrong file. Returns Failed when the file is malformed or the
+        /// project runs unattended (a workflow step must not read a broken configuration as a
+        /// skip); Cancelled only for an interactive project that simply has not been set up.
+        /// </summary>
+        internal static Result NotConfigured(AccOperatingPolicy policy, AccCredentials creds, string title, string nothingDone,
+            bool allowPrompt = true)
+        {
+            string msg;
+            if (policy != null && policy.Source == AccPolicySource.Malformed)
+                msg = $"This project's ACC settings file could not be read, so ACC was not used. {nothingDone}\n\n" +
+                      $"File: {policy.SettingsPath}\nProblem: {policy.LoadError}\n\n" +
+                      "Every setting in it was discarded (never half-applied). Fix the file, or re-save it from " +
+                      "BIM Coordination Center > ACC.";
+            else
+                msg = $"ACC is not set up for this project on this machine. {nothingDone}\n\n" +
+                      "BIM Coordination Center > ACC: enter the APS Client ID, 'Sign in with Autodesk', then " +
+                      "'Find my ACC project'.\n\n" + AccProjectScope.Describe(creds) + ".";
+            // allowPrompt=false: a run with nobody watching (e.g. the webhook auto-import) logs,
+            // whatever the project's prompt setting.
+            if (allowPrompt) AccPullClashesCommand.Report(policy, title, msg);
+            else StingLog.Info($"{title}: {msg}");
+            StingLog.Warn($"{title}: not configured - " + (policy?.Source == AccPolicySource.Malformed ? policy.LoadError : AccProjectScope.Describe(creds)));
+            return policy != null && (policy.Source == AccPolicySource.Malformed || policy.IsUnattended || !allowPrompt)
+                ? Result.Failed : Result.Cancelled;
         }
 
         /// <summary>IM-18: record this project's ACC container ids in its own settings file.

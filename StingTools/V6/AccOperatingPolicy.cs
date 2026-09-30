@@ -216,6 +216,10 @@ namespace StingTools.V6
         /// operator then sees exactly what the scheduled run would produce.</summary>
         public bool MayPrompt { get; private set; } = true;
 
+        /// <summary>The file is malformed but plainly sets "unattended": true, so this run stays
+        /// non-interactive (every other setting is still discarded).</summary>
+        public bool MalformedButUnattended { get; private set; }
+
         /// <summary>Convenience inverse; reads better at call sites that branch on it.</summary>
         public bool IsUnattended => !MayPrompt;
 
@@ -409,6 +413,13 @@ namespace StingTools.V6
             JObject o;
             try { o = JObject.Parse(text); }
             catch (Exception ex) { return Malformed(policy, "the settings file is not valid JSON: " + ex.Message); }
+
+            // A file that parses but fails validation still says whether the project runs
+            // unattended. Everything else is discarded, but a scheduled run must not fall back to
+            // modal prompts because of a typo elsewhere in the file: it would sit on a dialog
+            // nobody answers. (Every ACC command also FAILS on a malformed file - see
+            // AccProjectSettingsFile.NotConfigured.)
+            policy.MalformedButUnattended = o["unattended"]?.Type == JTokenType.Boolean && (bool)o["unattended"];
 
             // Unknown keys are an error, not noise. See the Load doc-comment.
             var unknown = o.Properties()
@@ -637,6 +648,7 @@ namespace StingTools.V6
             // defaults; only Source and LoadError change.
             policy.Source = AccPolicySource.Malformed;
             policy.LoadError = why ?? string.Empty;
+            if (policy.MalformedButUnattended) policy.MayPrompt = false;
             return policy;
         }
 

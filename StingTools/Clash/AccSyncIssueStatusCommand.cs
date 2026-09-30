@@ -45,9 +45,7 @@ namespace StingTools.Core.Clash
             if (string.IsNullOrEmpty(creds.ClientId) || string.IsNullOrEmpty(creds.RefreshToken) ||
                 string.IsNullOrEmpty(creds.ProjectId))
             {
-                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
-                    "ACC is not set up for this project on this machine: " + AccProjectScope.Describe(creds) + ".");
-                return policy.IsUnattended ? Result.Failed : Result.Cancelled;
+                return AccProjectSettingsFile.NotConfigured(policy, creds, "ACC — Sync Issue Status", "Nothing was reconciled.");
             }
 
             string sidecar = AccPullClashesCommand.SidecarPath(doc);
