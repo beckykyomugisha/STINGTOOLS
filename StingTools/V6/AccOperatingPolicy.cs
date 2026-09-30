@@ -169,6 +169,8 @@ namespace StingTools.V6
             // and what an escalated issue carries.
             "cdeFolders", "disciplineMap", "docsAttributes", "docsAttributesCreateMissing",
             "escalateDueDays", "escalateAssignedTo", "escalateAssignedToType", "escalateExcludeStatuses",
+            // ACC-HARD-5: how an escalated clash issue lets its assignee FIND the objects.
+            "issueDeepLinks", "issueViewerLinks", "issueBcfAttachment",
         };
 
         public AccPolicySource Source { get; private set; } = AccPolicySource.Absent;
@@ -266,6 +268,16 @@ namespace StingTools.V6
         public string EscalateAssignedTo { get; private set; } = string.Empty;
         public string EscalateAssignedToType { get; private set; } = string.Empty;
 
+        /// <summary>Put a planscape://revit/select link in each escalated clash issue (the
+        /// objects' Revit UniqueIds, resolved through Model Derivative). Default on.</summary>
+        public bool IssueDeepLinks { get; private set; } = true;
+
+        /// <summary>Put ACC's own viewer link for each model version in the issue. Default on.</summary>
+        public bool IssueViewerLinks { get; private set; } = true;
+
+        /// <summary>Attach a one-topic BCF 2.1 file naming the two elements. Default on.</summary>
+        public bool IssueBcfAttachment { get; private set; } = true;
+
         /// <summary>ACC clash statuses that are never escalated.</summary>
         public IReadOnlyCollection<string> EscalateExcludeStatuses { get; private set; } = DefaultExcludedClashStatuses;
 
@@ -333,6 +345,7 @@ namespace StingTools.V6
             double? distToMm = null;
             int? dueDays = null;
             bool docsAttributes = false, docsCreate = false;
+            bool deepLinks = true, viewerLinks = true, bcfAttachment = true;
             var cdeFolders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var disciplineMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             List<string> excludeStatuses = null;
@@ -372,6 +385,9 @@ namespace StingTools.V6
                 if (TryGet(o, "disciplineMap", out var dmTok)) disciplineMap = RequireStringMap(dmTok, "disciplineMap");
                 if (TryGet(o, "docsAttributes", out var daTok)) docsAttributes = RequireBool(daTok, "docsAttributes");
                 if (TryGet(o, "docsAttributesCreateMissing", out var dcTok)) docsCreate = RequireBool(dcTok, "docsAttributesCreateMissing");
+                if (TryGet(o, "issueDeepLinks", out var dlTok)) deepLinks = RequireBool(dlTok, "issueDeepLinks");
+                if (TryGet(o, "issueViewerLinks", out var vlTok)) viewerLinks = RequireBool(vlTok, "issueViewerLinks");
+                if (TryGet(o, "issueBcfAttachment", out var baTok)) bcfAttachment = RequireBool(baTok, "issueBcfAttachment");
                 if (TryGet(o, "escalateDueDays", out var ddTok))
                 {
                     dueDays = RequireInt(ddTok, "escalateDueDays");
@@ -420,6 +436,9 @@ namespace StingTools.V6
             policy.DisciplineMap = disciplineMap;
             policy.DocsAttributes = docsAttributes;
             policy.DocsAttributesCreateMissing = docsCreate;
+            policy.IssueDeepLinks = deepLinks;
+            policy.IssueViewerLinks = viewerLinks;
+            policy.IssueBcfAttachment = bcfAttachment;
             policy.EscalateDueDays = dueDays;
             policy.EscalateAssignedTo = assignedTo;
             policy.EscalateAssignedToType = assignedToType;

@@ -2,6 +2,40 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC-HARD-5 — escalated clash issues can be located, 2026-09-30)
+
+- **The constraint.** ACC's Issues API cannot pin an issue to objects (`linkedDocuments` is
+  read-only; `linkedDocument` is not a permitted create attribute). An issue escalated by
+  `ACC_PullClashes` now carries three workarounds instead, each an `acc_settings.json` toggle
+  (`issueDeepLinks`, `issueViewerLinks`, `issueBcfAttachment`; strict booleans, default on).
+- **Open in Revit.** `V6/AccClashLocate.cs` maps each clash object's viewer dbId to its Revit
+  UniqueId: document scope `urn` → model set version `documentVersions[]` (`bubbleUrn`,
+  `viewableGuid`) → Model Derivative `metadata` → `properties:query` (`$in objectid`,
+  `externalId`). Batched and cached per document version, bounded, retried through
+  `AccHttp`, MD `region` header. The description gets one
+  `planscape://revit/select?doc=…&uid=…` link per model; `PlanscapeProtocol` gains query
+  parsing, `BuildRevitSelectLink` (≤ 400 chars, whole ids, `more=N`), `TryParseRevitSelect`,
+  `ModelNameMatches`. `Core/PlanscapeRevitSelect.cs` (Idling watcher) resolves the ids in the
+  active model and its links, selects (`SetReferences`) and zooms, and names what it could
+  not find. Anything unresolved gives no link, a reason line and a count; the issue is
+  pushed regardless.
+- **ACC viewer link** from Data Management's own `data.links.webView.href` — no URL is
+  assembled (there is no documented shape).
+- **BCF attachment** (`V6/AccIssueAttachment.cs`): the documented six-step upload
+  (topFolders root → storage → `signeds3upload` → PUT → finalise → `POST …/attachments`) of a
+  one-topic `.bcfzip` whose components carry the Revit-default IFC GUID and the UniqueId
+  (`AuthoringToolId`), no invented camera. `BcfEngine` now references its viewpoint from
+  `markup.bcf` (`Viewpoints`), which it never did.
+- **Also fixed:** the latest clash test is ordered by `completedOn` (the documented field;
+  `completedAt` was never sent, so the order was arbitrary) and date tokens sort as ISO.
+  Clash records carry `LeftDocumentUrn` / `RightDocumentUrn` / `ModelSetVersion`.
+- **Tests:** `StingTools.Acc.Tests/AccIssueLocateTests.cs`, 19 tests / 24 cases over loopback (318/318
+  in the project). RED proven for the BCF viewpoint reference. `PlanscapeRevitSelect` is
+  build-verified only. Plugin build 0/0; path-discipline and workflow-wiring gates pass.
+- **Unconfirmed against live APS:** the scope-file `urn` field name, `viewableGuid` ==
+  metadata guid, ACC accepting `.bcfzip`, ACC rendering `planscape://` clickable. See
+  `docs/PLANSCAPE_PROTOCOL.md` §5.
+
 #### Completed (ACC self-check — one-click, read-only go-live verification, 2026-09-30)
 
 - **`ACC_SelfCheck` / `AccSelfCheck`** (`Clash/AccSelfCheckCommand.cs`, ReadOnly; BIM

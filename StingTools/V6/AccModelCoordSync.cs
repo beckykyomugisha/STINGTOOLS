@@ -85,6 +85,34 @@ namespace StingTools.V6
         /// <summary>Factor converting DistanceM → mm (from AccCredentials.DistToMm; default 1000 = metres).</summary>
         public double DistToMm { get; set; } = 1000.0;
         public double PenetrationMm => Math.Abs(DistanceM) * DistToMm;
+
+        // ACC-HARD-5: what is needed to LOCATE the objects, not just name them. The clash
+        // test tutorial (bim360/v1/tutorials/mc-tutorial-clash) says lvid/rvid are viewer ids
+        // into "the document version URNs" the document scope file lists for ldid/rdid, and
+        // that those ids are NOT stable across versions - so they are only meaningful paired
+        // with the exact version URN. Empty when the scope file carried no URN.
+
+        /// <summary>Document version URN of the left side (document scope <c>urn</c>).</summary>
+        public string LeftDocumentUrn { get; set; } = string.Empty;
+        /// <summary>Document version URN of the right side.</summary>
+        public string RightDocumentUrn { get; set; } = string.Empty;
+        /// <summary>The model set version the clash test ran against (tests[].modelSetVersion);
+        /// 0 when the test did not report one.</summary>
+        public int ModelSetVersion { get; set; }
+    }
+
+    /// <summary>One document in a model set version (GET modelsets/{id}/versions/{v} →
+    /// documentVersions[]). Only the fields the issue locator needs.</summary>
+    public sealed class AccModelSetDocument
+    {
+        public string VersionUrn { get; set; } = string.Empty;
+        /// <summary>"The URN of the Model Derivative bubble for the document version" - the URN
+        /// the viewer loads, so the one whose object ids the clash test's lvid/rvid index.</summary>
+        public string BubbleUrn { get; set; } = string.Empty;
+        /// <summary>"The ID of the geometry node in the derivative manifest to which this
+        /// document version refers."</summary>
+        public string ViewableGuid { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
     }
 
     /// <summary>What the clash-tests endpoint says about a model set, without its results.</summary>
@@ -202,7 +230,7 @@ namespace StingTools.V6
 
             var completed = tests
                 .Where(t => IsCompletedTest((string)t["status"]))
-                .OrderByDescending(t => (string)(t["completedAt"] ?? t["completedDate"] ?? t["updatedAt"]) ?? "")
+                .OrderByDescending(t => CompletedStamp(t))
                 .ToList();
             if (completed.Count == 0)
             {
@@ -271,11 +299,18 @@ namespace StingTools.V6
                 if (cid.Length > 0 && !instByCid.ContainsKey(cid)) instByCid[cid] = ins;
             }
             var docNameById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var docUrnById = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var d in documentScope?["documents"] as JArray ?? new JArray())
             {
                 string id = (string)(d["id"] ?? d["clashDocId"]) ?? "";
-                if (id.Length > 0) docNameById[id] = (string)(d["name"] ?? d["displayName"]) ?? id;
+                if (id.Length == 0) continue;
+                docNameById[id] = (string)(d["name"] ?? d["displayName"]) ?? id;
+                // The aps-clash-data-view sample joins documents[].urn to the model set
+                // version's documentVersions[].versionUrn; versionUrn is accepted as well.
+                string urn = (string)(d["urn"] ?? d["versionUrn"]);
+                if (!string.IsNullOrEmpty(urn)) docUrnById[id] = urn;
             }
+            int modelSetVersion = (int)ParseLong(latest["modelSetVersion"]);
 
             var clashArr = clashScope.Value["clashes"] as JArray;
             if (clashArr == null)
@@ -303,6 +338,9 @@ namespace StingTools.V6
                     RightDocument = rdid != null && docNameById.TryGetValue(rdid, out var rn) ? rn : (rdid ?? ""),
                     DocumentsNamed = ldid != null && rdid != null && docNameById.ContainsKey(ldid) && docNameById.ContainsKey(rdid),
                     DistToMm      = creds.DistToMm,
+                    LeftDocumentUrn  = ldid != null && docUrnById.TryGetValue(ldid, out var lu) ? lu : "",
+                    RightDocumentUrn = rdid != null && docUrnById.TryGetValue(rdid, out var ru) ? ru : "",
+                    ModelSetVersion  = modelSetVersion,
                 });
             }
             var ok = AccFetchResult<List<AccClashRecord>>.Success(result, result.Count == 0);
@@ -340,7 +378,7 @@ namespace StingTools.V6
             summary.States = tests.Select(t => (string)t["status"] ?? "?").Distinct().ToList();
             var latest = tests
                 .Where(t => IsCompletedTest((string)t["status"]))
-                .OrderByDescending(t => (string)(t["completedAt"] ?? t["completedDate"] ?? t["updatedAt"]) ?? "")
+                .OrderByDescending(t => CompletedStamp(t))
                 .FirstOrDefault();
             if (latest != null)
             {
@@ -349,6 +387,59 @@ namespace StingTools.V6
                 summary.LatestCompletedAt = (string)(latest["completedAt"] ?? latest["completedDate"] ?? latest["updatedAt"]) ?? "";
             }
             return AccFetchResult<AccClashTestSummary>.Success(summary, tests.Count == 0);
+        }
+
+        /// <summary>
+        /// When a test completed, as a sortable ISO string. The reference names the field
+        /// <c>completedOn</c> (get-model-set-clash-tests-GET); <c>completedAt</c> is what the
+        /// earlier sample read, so both are accepted. Newtonsoft parses an ISO date into a
+        /// Date token, whose (string) cast is culture-formatted and does NOT sort - so a date
+        /// token is re-serialised round-trip.
+        /// </summary>
+        internal static string CompletedStamp(JToken test)
+        {
+            var t = test?["completedOn"] ?? test?["completedAt"] ?? test?["completedDate"] ?? test?["updatedAt"];
+            if (t == null) return string.Empty;
+            if (t.Type == JTokenType.Date)
+            {
+                var v = ((JValue)t).Value;
+                if (v is DateTime dt) return dt.ToUniversalTime().ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+                if (v is DateTimeOffset dto) return dto.UtcDateTime.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+            }
+            return (string)t ?? string.Empty;
+        }
+
+        /// <summary>
+        /// The documents of one model set version (bim360/modelset/v3 …/modelsets/{id}/versions/{v}),
+        /// keyed for the issue locator. Documented fields: documentVersions[].versionUrn,
+        /// bubbleUrn, viewableGuid, displayName. A 200 without the array is TransportFailed.
+        /// </summary>
+        public static async Task<AccFetchResult<List<AccModelSetDocument>>> GetModelSetVersionDocumentsAsync(
+            AccCredentials creds, string containerId, string modelSetId, int version)
+        {
+            var list = new List<AccModelSetDocument>();
+            if (string.IsNullOrEmpty(containerId) || string.IsNullOrEmpty(modelSetId) || version <= 0)
+                return AccFetchResult<List<AccModelSetDocument>>.Failure(AccFetchStatus.NotFound, list, 0,
+                    "no container, model set or model set version to read");
+
+            var got = await GetJsonAsync(creds,
+                $"{ModelSetBase}/containers/{AccIds.ForAcc(containerId)}/modelsets/{modelSetId}/versions/{version}").ConfigureAwait(false);
+            if (!got.Succeeded)
+                return AccFetchResult<List<AccModelSetDocument>>.Failure(got.Status, list, got.HttpStatus, got.Detail);
+
+            var arr = AccFetchOutcome.FindArray(got.Value, new[] { "documentVersions" });
+            if (arr == null)
+                return AccFetchResult<List<AccModelSetDocument>>.Failure(AccFetchStatus.TransportFailed, list, got.HttpStatus,
+                    "the model set version carried no 'documentVersions' array");
+            foreach (var d in arr)
+                list.Add(new AccModelSetDocument
+                {
+                    VersionUrn = (string)d["versionUrn"] ?? string.Empty,
+                    BubbleUrn = (string)d["bubbleUrn"] ?? string.Empty,
+                    ViewableGuid = (string)d["viewableGuid"] ?? string.Empty,
+                    DisplayName = (string)d["displayName"] ?? string.Empty,
+                });
+            return AccFetchResult<List<AccModelSetDocument>>.Success(list, list.Count == 0);
         }
 
         private static AccFetchResult<List<AccClashRecord>> Fail(AccFetchStatus status, int httpStatus, string detail)

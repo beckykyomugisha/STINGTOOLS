@@ -33,6 +33,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using Microsoft.Win32;
 
@@ -52,6 +53,12 @@ namespace StingTools.Core
 
         /// <summary>The URI exactly as received, for logging.</summary>
         public string Raw { get; set; } = "";
+
+        /// <summary>The <c>?key=value&amp;…</c> part, URL-decoded. Empty for the path-only
+        /// links (dashboard / issue / deliverable). Keys are case-insensitive; a repeated key
+        /// keeps its last value.</summary>
+        public Dictionary<string, string> Query { get; set; } =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public override string ToString() =>
             string.IsNullOrEmpty(Stamp) ? $"{Kind}/{Target}" : $"{Kind}/{Target}/{Stamp}";
@@ -109,7 +116,11 @@ namespace StingTools.Core
             var s = raw.Trim().Trim('"');
             if (!s.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase)) return null;
 
-            var rest = s.Substring(Prefix.Length).TrimEnd('/');
+            var rest = s.Substring(Prefix.Length);
+            string query = string.Empty;
+            int q = rest.IndexOf('?');
+            if (q >= 0) { query = rest.Substring(q + 1); rest = rest.Substring(0, q); }
+            rest = rest.TrimEnd('/');
             if (rest.Length == 0) return null;
 
             var parts = rest.Split('/');
@@ -120,7 +131,107 @@ namespace StingTools.Core
                 Target = parts.Length > 1 ? Unescape(parts[1]) : string.Empty,
                 Stamp = parts.Length > 2 ? Unescape(parts[2]) : string.Empty,
             };
+            foreach (var pair in query.Split('&'))
+            {
+                if (pair.Length == 0) continue;
+                int eq = pair.IndexOf('=');
+                string key = Unescape(eq < 0 ? pair : pair.Substring(0, eq)).Trim();
+                string val = eq < 0 ? string.Empty : Unescape(pair.Substring(eq + 1));
+                if (key.Length > 0) link.Query[key] = val;
+            }
             return string.IsNullOrEmpty(link.Kind) ? null : link;
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        //  planscape://revit/select — locate elements in the open model
+        // ────────────────────────────────────────────────────────────────
+        //
+        // Minted into ACC issues escalated from a clash (AccPullClashesCommand), because
+        // ACC's Issues API cannot pin an issue to model objects. The link carries Revit
+        // UniqueIds, which are stable across saves and syncs of the same model and do not
+        // collide across models - so resolving one in whatever model is open either finds
+        // THE element or finds nothing. It can never select a different element.
+        //
+        //   planscape://revit/select?doc=<model name>&uid=<UniqueId>,<UniqueId>[&more=N]
+
+        public const string RevitKind = "revit";
+        public const string SelectTarget = "select";
+
+        /// <summary>A link longer than this is not minted as-is: the ids are trimmed and the
+        /// omission is stated (<c>more=N</c>), rather than a link that ACC's description cap
+        /// or a chat client cuts mid-id.</summary>
+        public const int DefaultMaxLinkLength = 400;
+
+        /// <summary>Build a select link, or null when there is nothing to select or not even
+        /// one id fits. When the full id list would exceed <paramref name="maxLength"/>, the
+        /// first ids that fit are kept, <paramref name="included"/> says how many, and
+        /// <c>more=N</c> tells the handler the rest were left out so it can say so.</summary>
+        public static string BuildRevitSelectLink(string modelName, IList<string> uniqueIds,
+            out int included, int maxLength = DefaultMaxLinkLength)
+        {
+            included = 0;
+            var ids = new List<string>();
+            if (uniqueIds != null)
+                foreach (var u in uniqueIds)
+                {
+                    string t = (u ?? string.Empty).Trim();
+                    if (t.Length > 0 && !ids.Contains(t, StringComparer.OrdinalIgnoreCase)) ids.Add(t);
+                }
+            if (ids.Count == 0) return null;
+
+            string head = Prefix + RevitKind + "/" + SelectTarget + "?";
+            string docPart = string.IsNullOrWhiteSpace(modelName) ? "" : "doc=" + EscapeSegment(modelName.Trim()) + "&";
+            for (int n = ids.Count; n >= 1; n--)
+            {
+                string link = head + docPart + "uid=" + string.Join(",", ids.Take(n).Select(EscapeSegment));
+                if (n < ids.Count) link += "&more=" + (ids.Count - n).ToString(CultureInfo.InvariantCulture);
+                if (link.Length <= maxLength) { included = n; return link; }
+            }
+            return null;
+        }
+
+        /// <summary>The parts of a <c>revit/select</c> link, or false for any other link or one
+        /// with no ids. <paramref name="omitted"/> is the <c>more=N</c> count.</summary>
+        public static bool TryParseRevitSelect(PlanscapeLink link, out string modelName,
+            out List<string> uniqueIds, out int omitted)
+        {
+            modelName = string.Empty;
+            uniqueIds = new List<string>();
+            omitted = 0;
+            if (link == null || link.Kind != RevitKind ||
+                !string.Equals(link.Target, SelectTarget, StringComparison.OrdinalIgnoreCase)) return false;
+
+            if (link.Query.TryGetValue("doc", out var d)) modelName = (d ?? string.Empty).Trim();
+            if (link.Query.TryGetValue("uid", out var u) && !string.IsNullOrEmpty(u))
+                foreach (var part in u.Split(','))
+                {
+                    string t = part.Trim();
+                    if (t.Length > 0 && !uniqueIds.Contains(t, StringComparer.OrdinalIgnoreCase)) uniqueIds.Add(t);
+                }
+            if (link.Query.TryGetValue("more", out var m))
+                int.TryParse(m, NumberStyles.Integer, CultureInfo.InvariantCulture, out omitted);
+            return uniqueIds.Count > 0;
+        }
+
+        /// <summary>
+        /// Does an open model answer to the name a link carries? ACC names a model by its
+        /// file ("KUT_ARCH.rvt"); Revit titles it without the extension, and a workshared
+        /// local copy carries the user suffix ("KUT_ARCH_jdoe"). Used only to WORD a message -
+        /// selection is decided by the UniqueId, never by the name.
+        /// </summary>
+        public static bool ModelNameMatches(string linkModelName, string docTitle)
+        {
+            string want = StripRvt(linkModelName);
+            string have = StripRvt(docTitle);
+            if (want.Length == 0 || have.Length == 0) return false;
+            return have.Equals(want, StringComparison.OrdinalIgnoreCase)
+                || have.StartsWith(want + "_", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string StripRvt(string s)
+        {
+            s = (s ?? string.Empty).Trim();
+            return s.EndsWith(".rvt", StringComparison.OrdinalIgnoreCase) ? s.Substring(0, s.Length - 4) : s;
         }
 
         private static string Unescape(string s)

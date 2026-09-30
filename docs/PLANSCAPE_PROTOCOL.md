@@ -205,3 +205,100 @@ Needs a machine with Revit and the plugin deployed. Nothing below has been done.
 19. **Two Revits open**, click one link → exactly one of them navigates.
 20. `StingLink.exe --unregister` then click a link → Windows offers to search for
     an app, i.e. the handler is genuinely gone. Re-register with `--register`.
+
+---
+
+## 5. `planscape://revit/select` — locating an ACC clash issue's objects (ACC-HARD-5, 2026-09-30)
+
+### Why
+
+ACC's Issues API cannot pin an issue to model objects: `linkedDocuments` (the pushpin
+block) is read-only, and the issue-create "permitted attributes" list says `linkedDocument`
+is not applicable ([Issues.yaml](https://github.com/autodesk-platform-services/aps-sdk-openapi/blob/main/construction/issues/Issues.yaml)).
+So an issue `ACC_PullClashes` escalates from a clash cannot carry a pushpin, and the
+assignee had to search the model for "object 17299 in KUT_MEP.rvt". The issue now carries
+three things instead, each independently switchable in `acc_settings.json`
+(`issueDeepLinks`, `issueViewerLinks`, `issueBcfAttachment` — booleans, default `true`,
+strictly typed like every other key):
+
+1. **A `planscape://revit/select` link per model** — selects and zooms to the objects in
+   the open Revit model.
+2. **ACC's own viewer link** for each model version — the `data.links.webView.href` Data
+   Management returns for the version (`GET data/v1/projects/{p}/versions/{v}`). STING does
+   not assemble ACC URLs: there is no documented URL shape, only the link the API gives.
+3. **A one-topic BCF 2.1 attachment** (`.bcfzip`) naming the two elements, for BCF managers
+   in Revit / Navisworks — uploaded exactly as the
+   [Upload Issue Attachments tutorial](https://aps.autodesk.com/en/docs/acc/v1/tutorials/issues/upload-issue-attachment/)
+   describes (topFolders → storage in the root folder → `signeds3upload` → PUT → finalise →
+   `POST construction/issues/v1/projects/{p}/attachments`).
+
+### The link
+
+```
+planscape://revit/select?doc=<model name>&uid=<UniqueId>[,<UniqueId>…][&more=N]
+```
+
+| Part | Meaning |
+|---|---|
+| `doc` | The ACC document name (`KUT_ARCH.rvt`). Used only to word messages; `ModelNameMatches` accepts the title without `.rvt` and a workshared local copy's `_user` suffix. |
+| `uid` | Revit UniqueIds, comma-separated, URL-escaped. **Selection is decided by these alone.** |
+| `more` | How many ids the minter left out to keep the link ≤ 400 characters (`PlanscapeProtocol.DefaultMaxLinkLength`). Ids are never cut mid-way; a link that cannot hold one whole id is not minted. |
+
+A clash's two sides are usually in two models, so each model gets its own link. The issue
+description stays within ACC's 1000-character limit (`AccIssueLinks.ComposeDescription`):
+the triage text is shortened first, and a link that still does not fit is left out whole —
+a truncated URL is a broken link.
+
+### How the UniqueId is found (dbId → externalId)
+
+ACC clash data carries viewer object ids (`lvid`/`rvid`), which the clash tutorial
+(`bim360/v1/tutorials/mc-tutorial-clash`) says are **not stable across document versions** —
+they only mean something paired with the exact version. So:
+
+1. document scope file `documents[].urn` (the version URN) for the clash's `ldid`/`rdid`;
+2. `GET bim360/modelset/v3/containers/{c}/modelsets/{m}/versions/{v}` (`v` = the test's
+   `modelSetVersion`) → `documentVersions[]`: `bubbleUrn` ("the URN of the Model Derivative
+   bubble") and `viewableGuid` ("the geometry node in the derivative manifest");
+3. `GET modelderivative/v2/designdata/{urlsafe-b64 bubbleUrn}/metadata` → the 3D view whose
+   guid is `viewableGuid` (else the master 3D view, else the first 3D view);
+4. `POST …/metadata/{guid}/properties:query` with `{"$in":["objectid", …]}` and
+   `fields: ["objectid","externalId"]` → `externalId`, which for a Revit object is its
+   UniqueId. Model Derivative's region header is `region` (not `x-ads-region`).
+
+Lookups are batched per document version, cached for the session, bounded (≤ 20 versions a
+run, 3 attempts through `AccHttp`). **Anything that does not resolve gives no link for that
+side**, a one-line reason in the description ("No Revit link for KUT_MEP object 3403: …"),
+and a count in the command's report. The issue is created either way. An `externalId` that
+is not shaped like a Revit UniqueId gives no link. The plugin half resolves with
+`Document.GetElement(uniqueId)`, which returns nothing — never another element — for an id
+the model does not hold.
+
+### What the Revit half does (`Core/PlanscapeRevitSelect.cs`)
+
+On the Idling tick (`PlanscapeLinkWatcher`, kind `revit`): resolves each UniqueId in the
+**active** model, then in the models **linked** into it; selects everything found with
+`Selection.SetReferences` (link references for linked elements); zooms with
+`UIDocument.ShowElements` (host elements) or `UIView.ZoomAndCenterRectangle` over the
+transformed bounding box (linked-only). Silent when everything was found; otherwise one
+dialog saying which ids were not found and why that is likely. If nothing is found it says
+whether the named model is the active one (elements deleted since that ACC version), open
+but not active (switch and click again — `OpenAndActivateDocument` is not permitted from an
+Idling handler), or not open.
+
+### BCF attachment contents
+
+`bcf.version`, `{topic}/markup.bcf` (TopicType `Clash`, a `Viewpoints` reference — added to
+the shared `BcfEngine` in this pass, which previously wrote the viewpoint file without
+referencing it), `{topic}/viewpoint.bcfv` with the elements as `Selection/Component`s:
+`IfcGuid` derived from the UniqueId the way Revit's IFC export does by default (episode GUID
+XOR element id, then IFC base-64) and the UniqueId itself as `AuthoringToolId`. **No camera**:
+ACC gives no coordinates, and an invented camera would be a fabricated viewpoint. The topic
+GUID is derived from the clash signature, so a re-send is the same topic.
+
+### Status
+
+| | |
+|---|---|
+| ✅ Tested (`StingTools.Acc.Tests/AccIssueLocateTests.cs`, loopback) | dbId→externalId through bubble URN + view guid; missing object; MD 404 / 202 → no link, issue still pushed; non-Revit externalId; cache; link format, length cap and round trip; description limit; the six attachment calls in order with the documented body; BCF structure; strict settings parsing; clash read carries document URNs + `modelSetVersion` (`completedOn`) |
+| ⚠️ Build only | `PlanscapeRevitSelect` (selection / zoom / messages in Revit) |
+| ❓ Unconfirmed against live APS | the document scope field name `urn` (from the `aps-clash-data-view` sample, not the reference); that `viewableGuid` equals a Model Derivative metadata guid (fallback covers it); that Revit `externalId` is always the UniqueId (true of every observed example; validated by shape); that ACC accepts `.bcfzip` as an issue attachment; whether ACC renders `planscape://` as a clickable link (if not, copy it into Win+R); MD `region` values for ACC-hosted derivatives |

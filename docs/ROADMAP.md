@@ -2612,9 +2612,15 @@ Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1
 - ~~**ACC-HARD-4 — retire the machine-file fallback.**~~ **Done 2026-09-30**: project values come only from the project; the machine file's old ids are shown on the ACC card and adopted only by an explicit Save. `projectId`, `hubId` and `folderUrn` are
   still read from `%APPDATA%\Planscape\acc_credentials.json` when a project has none (logged as
   DEPRECATED). Remove it after one live KUT cycle on project settings (as IM-18 planned).
-- **ACC-HARD-5 — escalated issues cannot be pinned.** The ACC Issues API does not create
-  pushpins (placement is read-only), so an escalated clash names its two objects in the
-  description instead. Revisit if Autodesk opens placement writes.
+- **ACC-HARD-5 — escalated issues cannot be pinned.** *(Workarounds built 2026-09-30 — see
+  CHANGELOG and `docs/PLANSCAPE_PROTOCOL.md` §5: a `planscape://revit/select` link per model
+  from dbId → UniqueId via Model Derivative, ACC's own viewer link, and a BCF attachment.)*
+  The pushpin itself is still impossible (placement is read-only); revisit if Autodesk opens
+  placement writes. Open: (a) confirm on the first live escalation that the document scope
+  file carries `urn`, that `viewableGuid` is a metadata guid, and that ACC accepts `.bcfzip`
+  attachments — the command's report states each shortfall; (b) click a link in a real Revit
+  session (`PlanscapeRevitSelect` is build-verified only), including a linked-model element;
+  (c) check whether ACC's web UI renders `planscape://` as a link.
 - **ACC-HARD-6 — clash status vocabulary.** *(2026-09-30: every pull now logs and reports the statuses it saw and how many the exclusion list removed; confirm the list against that line after the first live pull.)* Escalation skips clashes whose scope-file status is
   closed / resolved / approved / not_an_issue (`escalateExcludeStatuses`). The statuses the
   scope files actually use are unconfirmed; check on the first live pull.
