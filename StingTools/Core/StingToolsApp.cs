@@ -243,6 +243,12 @@ namespace StingTools.Core
                 // Enabled via Plumbing tab toggle; sizes newly placed pipes on-the-fly.
                 StingTools.Core.Plumbing.RealTimePipeSizer.Register(application);
 
+                // MG-1: restamp MGS_GAS_TYPE_TXT when a STING medical-gas seed outlet
+                // changes type (the gas is an instance parameter, so it did not follow).
+                // Registered enabled — it reacts only to a type change on a Plumbing
+                // Fixture and returns at once unless the family is the seed.
+                StingTools.Core.Plumbing.MedGasTypeSwapUpdater.Register(application);
+
                 // WS I13: register the sustainability stale marker (IUpdater) — starts
                 // disabled; the dashboard enables it after the first run so later
                 // envelope/fixture edits flag the result as out of date.
@@ -2047,6 +2053,7 @@ namespace StingTools.Core
             StingTag7NarrativeUpdater.Unregister();
             try { Core.Sync.LiveSyncUpdater.Unregister(); } catch { }
             StingTools.Core.Plumbing.RealTimePipeSizer.Unregister();
+            StingTools.Core.Plumbing.MedGasTypeSwapUpdater.Unregister();
             try { StingTools.Core.Routing.CableManifestUpdater.Unregister(); } catch { }
 
             // Phase 175 — unregister the SLD sync updater.

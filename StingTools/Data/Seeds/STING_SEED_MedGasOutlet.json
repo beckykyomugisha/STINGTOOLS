@@ -379,6 +379,7 @@
         },
         {
           "name": "THEATRE_GAS_PANEL",
+          "renamedFrom": "MAP_THEATRE_PANEL",
           "params": {
             "MGS_TU_TYPE_TXT": "THEATRE_PANEL",
             "MGS_GASES_TXT": "O2,N2O,MEDAIR,SURGAIR,VAC,CO2",
