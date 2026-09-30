@@ -7,6 +7,7 @@
     { "commandTag": "RetagStale", "label": "1. Re-tag stale elements before federation", "optional": true, "requiresStaleElements": true },
     { "commandTag": "ValidateTags", "label": "2. ISO 19650 tag validation before publish" },
     { "commandTag": "ACC_PullClashes", "label": "3. Pull + triage ACC Model Coordination clashes", "optional": true, "failOnError": true },
+    { "commandTag": "ACC_FederatedCompliance", "label": "3a. ISO 19650 tag compliance of every model in the ACC federation (read from ACC, no models opened); fails when any model could not be read", "optional": true, "failOnError": true },
     { "commandTag": "ACC_SyncIssueStatus", "label": "4. Reconcile ACC issue status: un-track clashes whose ACC issue is now closed, so a recurrence is raised again", "optional": true, "failOnError": true },
     { "commandTag": "ClashRun", "label": "5. Run STING rule-based clash (hard + discipline tolerance matrix)" },
     { "commandTag": "ClashBcfExport", "label": "6. Export grouped clashes to BCF 2.1 (import as ACC Issues)" },

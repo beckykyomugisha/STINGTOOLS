@@ -30,6 +30,10 @@ namespace StingTools.Acc.Tests.TestHelpers
         /// <summary>Extra response headers (e.g. Retry-After). Optional.</summary>
         public Dictionary<string, string> Headers { get; } = new Dictionary<string, string>();
 
+        /// <summary>Raw response bytes (e.g. a gzipped NDJSON resource). When set, sent instead
+        /// of <see cref="Body"/>.</summary>
+        public byte[] BodyBytes { get; set; }
+
         /// <summary>True for the sentinel below: close the connection without answering.</summary>
         public bool IsAbort { get; private set; }
 
@@ -119,7 +123,7 @@ namespace StingTools.Acc.Tests.TestHelpers
                         using (var sr = new StreamReader(ctx.Request.InputStream, Encoding.UTF8))
                             await sr.ReadToEndAsync().ConfigureAwait(false);
 
-                    var bytes = Encoding.UTF8.GetBytes(canned.Body);
+                    var bytes = canned.BodyBytes ?? Encoding.UTF8.GetBytes(canned.Body);
                     ctx.Response.StatusCode = canned.Status;
                     foreach (var h in canned.Headers) ctx.Response.AddHeader(h.Key, h.Value);
                     ctx.Response.ContentType = canned.ContentType;

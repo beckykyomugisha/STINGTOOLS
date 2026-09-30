@@ -25,6 +25,9 @@ StingTools/Clash/AccPullClashesCommand.cs::AccPullClashesCommand|StingListPicker
 StingTools/Clash/AccPullClashesCommand.cs::AccPullClashesCommand|AddCommandLink|1	GATED - the escalate-to-ACC-Issues offer, inside the policy.MayPrompt branch. Unattended escalates exactly what the policy names, and nothing without one.
 StingTools/Clash/AccPullClashesCommand.cs::AccPullClashesCommand|TaskDialogResult|3	GATED - reading the escalation offer (1) and the "remember this model set?" confirm (2). Both live inside policy.MayPrompt branches; OfferToRemember additionally returns early when !MayPrompt.
 
+# ── ACC_FederatedCompliance (step 3a) — gated ───────────────────────────────
+StingTools/Clash/AccFederatedComplianceCommand.cs::AccFederatedComplianceCommand|StingListPicker.Show|1	GATED - the model-set picker; reached only when policy.MayPrompt AND the project remembers no usable set. Unattended returns Result.Failed naming the reason, and never picks one.
+
 # ── ACCPublish (step 7) — gated ─────────────────────────────────────────────
 StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|AddCommandLink|4	GATED - the S1/S2/S3/S4 suitability picker, built only when the policy names no suitability. Unattended with none configured returns Result.Failed rather than stamping a code nobody chose.
 StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|TaskDialogResult|4	GATED - reading that same suitability picker. Same branch, same gate.

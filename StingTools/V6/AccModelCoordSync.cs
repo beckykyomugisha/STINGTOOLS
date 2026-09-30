@@ -116,6 +116,14 @@ namespace StingTools.V6
     }
 
     /// <summary>What the clash-tests endpoint says about a model set, without its results.</summary>
+    /// <summary>One model set version: its number, status and documents.</summary>
+    public sealed class AccModelSetVersion
+    {
+        public int Version { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public List<AccModelSetDocument> Documents { get; set; } = new List<AccModelSetDocument>();
+    }
+
     public sealed class AccClashTestSummary
     {
         public int TestCount { get; set; }
@@ -427,9 +435,52 @@ namespace StingTools.V6
             if (!got.Succeeded)
                 return AccFetchResult<List<AccModelSetDocument>>.Failure(got.Status, list, got.HttpStatus, got.Detail);
 
-            var arr = AccFetchOutcome.FindArray(got.Value, new[] { "documentVersions" });
+            return ParseModelSetVersionDocuments(got.Value, got.HttpStatus);
+        }
+
+        /// <summary>
+        /// The LATEST version of a model set with its documents (GET
+        /// bim360/modelset/v3/containers/{c}/modelsets/{id}/versions/latest — Model Coordination
+        /// v3 reference, "get-model-set-version-latest"). The federated compliance read needs the
+        /// documents as ACC federates them now, not as they were when a clash test last ran.
+        /// A 200 without a documentVersions array is TransportFailed, never "no documents".
+        /// </summary>
+        public static async Task<AccFetchResult<AccModelSetVersion>> GetLatestModelSetVersionAsync(
+            AccCredentials creds, string containerId, string modelSetId)
+        {
+            var empty = new AccModelSetVersion();
+            if (string.IsNullOrEmpty(containerId) || string.IsNullOrEmpty(modelSetId))
+                return AccFetchResult<AccModelSetVersion>.Failure(AccFetchStatus.NotFound, empty, 0,
+                    "no container or model set to read");
+
+            var got = await GetJsonAsync(creds,
+                $"{ModelSetBase}/containers/{AccIds.ForAcc(containerId)}/modelsets/{modelSetId}/versions/latest").ConfigureAwait(false);
+            if (!got.Succeeded)
+                return AccFetchResult<AccModelSetVersion>.Failure(got.Status, empty, got.HttpStatus, got.Detail);
+
+            var docs = ParseModelSetVersionDocuments(got.Value, got.HttpStatus);
+            if (!docs.Succeeded)
+                return AccFetchResult<AccModelSetVersion>.Failure(docs.Status, empty, docs.HttpStatus, docs.Detail);
+
+            var obj = got.Value as JObject;
+            int version = 0;
+            var v = obj?["version"];
+            if (v != null && v.Type == JTokenType.Integer) version = (int)v;
+            else if (v != null) int.TryParse((string)v, out version);
+            return AccFetchResult<AccModelSetVersion>.Success(new AccModelSetVersion
+            {
+                Version = version,
+                Status = (string)obj?["status"] ?? string.Empty,
+                Documents = docs.Value,
+            }, docs.Value.Count == 0);
+        }
+
+        private static AccFetchResult<List<AccModelSetDocument>> ParseModelSetVersionDocuments(JToken body, int httpStatus)
+        {
+            var list = new List<AccModelSetDocument>();
+            var arr = AccFetchOutcome.FindArray(body, new[] { "documentVersions" });
             if (arr == null)
-                return AccFetchResult<List<AccModelSetDocument>>.Failure(AccFetchStatus.TransportFailed, list, got.HttpStatus,
+                return AccFetchResult<List<AccModelSetDocument>>.Failure(AccFetchStatus.TransportFailed, list, httpStatus,
                     "the model set version carried no 'documentVersions' array");
             foreach (var d in arr)
                 list.Add(new AccModelSetDocument
