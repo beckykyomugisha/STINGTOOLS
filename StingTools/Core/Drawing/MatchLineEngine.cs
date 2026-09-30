@@ -47,6 +47,8 @@ namespace StingTools.Core.Drawing
         public int  TipCaptionsPlaced   { get; set; }
         public List<string> Warnings    { get; set; } = new List<string>();
         public List<string> Errors      { get; set; } = new List<string>();
+        /// <summary>DTW-48: parameters already reported unwritable in this run (said once).</summary>
+        internal HashSet<string> UnwritableParams { get; } = new HashSet<string>(StringComparer.Ordinal);
     }
 
     public sealed class MatchLineRunOptions
@@ -565,6 +567,7 @@ namespace StingTools.Core.Drawing
                 // curve in viewB referencing refA.
                 PlaceCurve(doc, viewA, edge, cfg, viewPairGuid, refB, r, cache);
                 PlaceCurve(doc, viewB, edge, cfg, viewPairGuid, refA, r, cache);
+                if (cache.GuidUnstampable) return;   // DTW-48: nothing was placed; the error says why
 
                 if (existed) r.PairsUpdated++;
                 else         r.PairsCreated++;
@@ -661,8 +664,34 @@ namespace StingTools.Core.Drawing
                     b = b + dir * extFt;
                 }
 
+                // DTW-48: once a curve has refused the pair stamp, place no more.
+                if (cache.GuidUnstampable) return;
+
                 var line = Line.CreateBound(a, b);
                 var dc = doc.Create.NewDetailCurve(view, line);
+
+                // DTW-48: the pair GUID is what lets the next run find this curve. A curve
+                // that cannot carry it would be re-added on every run, so it is removed and
+                // the sweep stops placing, with one error that says why.
+                if (cfg.Stamping.WritePairGuid)
+                {
+                    if (!TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid, r))
+                    {
+                        try { doc.Delete(dc.Id); }
+                        catch (Exception ex) { StingLog.Warn($"MatchLine: removing unstampable curve: {ex.Message}"); }
+                        cache.GuidUnstampable = true;
+                        r.Errors.Add($"{ParamRegistry.MATCH_LINE_GUID} could not be written on a detail line, so match lines were not placed "
+                                   + "(an unstamped line is invisible to the next run, which would add another). "
+                                   + "Run Load Shared Params to bind it to Lines, then run match lines again.");
+                        return;
+                    }
+                }
+                else if (!cache.GuidOffWarned)
+                {
+                    cache.GuidOffWarned = true;
+                    r.Warnings.Add("Match-line config has stamping.writePairGuid off: the lines placed now cannot be found by the next run, "
+                                 + "so every re-run adds another set. Turn it on to make match lines idempotent.");
+                }
 
                 // Apply line style.
                 var styleId = cache.LineStyleId;
@@ -675,11 +704,9 @@ namespace StingTools.Core.Drawing
                 // Stamp parameters (skip silently when binding missing —
                 // pre-flight check should have warned).
                 if (cfg.Stamping.WritePairedRef)
-                    TrySet(dc, ParamRegistry.MATCH_REF, pairedRef);
-                if (cfg.Stamping.WritePairGuid)
-                    TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid);
+                    TrySet(dc, ParamRegistry.MATCH_REF, pairedRef, r);
                 if (cfg.Stamping.WriteDirection)
-                    TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction);
+                    TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction, r);
 
                 // Phase 169 — discipline tint via per-element
                 // OverrideGraphicSettings. The view-style-pack default
@@ -747,14 +774,34 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static void TrySet(Element el, string paramName, string value)
+        /// <summary>
+        /// DTW-48: write a text stamp and say whether it took. It swallowed every failure in
+        /// an empty catch and did nothing when the parameter was unbound, so a missing
+        /// binding looked like success. An unbound or read-only parameter is reported once.
+        /// </summary>
+        private static bool TrySet(Element el, string paramName, string value, MatchLineRunResult r = null)
         {
             try
             {
                 var p = el.LookupParameter(paramName);
-                if (p != null && !p.IsReadOnly) p.Set(value ?? "");
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+                {
+                    if (r == null || r.UnwritableParams.Add(paramName))
+                    {
+                        var why = p == null ? "not bound to Lines" : p.IsReadOnly ? "read-only" : $"a {p.StorageType} parameter, not text";
+                        StingLog.Warn($"MatchLineEngine: {paramName} is {why}; match lines cannot carry it.");
+                        r?.Warnings.Add($"{paramName} is {why} — match lines cannot carry it. Run Load Shared Params.");
+                    }
+                    return false;
+                }
+                return p.Set(value ?? "");
             }
-            catch { /* binding missing — pre-flight warns */ }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MatchLineEngine: writing {paramName}: {ex.Message}");
+                r?.Warnings.Add($"Writing {paramName} on a match line failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Phase 169 — sets a per-element OverrideGraphicSettings
@@ -941,6 +988,13 @@ namespace StingTools.Core.Drawing
             private readonly Dictionary<long, ViewCaptions> _captions = new Dictionary<long, ViewCaptions>();
 
             public SweepCache(Document doc, MatchLineConfig cfg) { _doc = doc; _cfg = cfg; }
+
+            /// <summary>DTW-48: set once a placed curve refused the pair-GUID stamp. The
+            /// rest of the sweep places nothing — an unstamped curve is invisible to the
+            /// next run, which would add another beside it.</summary>
+            public bool GuidUnstampable { get; set; }
+            /// <summary>DTW-48: "stamping switched off in the config" said once per sweep.</summary>
+            public bool GuidOffWarned { get; set; }
 
             public string SheetRef(View view)
             {
