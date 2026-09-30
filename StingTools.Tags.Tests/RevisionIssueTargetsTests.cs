@@ -17,9 +17,19 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Clouds_and_picks_win_and_are_merged()
         {
-            var p = RevisionIssueTargets.Plan(new[] { "A-101" }, new[] { "X-1", "a-101" }, "M-200", Stamped, All, quiet: true);
+            var p = RevisionIssueTargets.Plan(new[] { "A-101" }, new[] { "X-1", "a-101" }, "", Stamped, All, quiet: true);
             Assert.Equal(RevisionIssueSource.CloudsOrPicks, p.Source);
             Assert.Equal(new[] { "A-101", "X-1" }, p.SheetNumbers);
+        }
+
+        [Fact]
+        public void A_step_param_wins_over_clouds_because_the_step_named_the_sheets()
+        {
+            // A preset step that says "sheets": "M-200" issues M-200 even when a
+            // cloud for the revision sits on A-101 — the step is the instruction.
+            var p = RevisionIssueTargets.Plan(new[] { "A-101" }, null, "M-200", Stamped, All, quiet: true);
+            Assert.Equal(RevisionIssueSource.StepParam, p.Source);
+            Assert.Equal(new[] { "M-200" }, p.SheetNumbers);
         }
 
         [Fact]
@@ -60,6 +70,63 @@ namespace StingTools.Tags.Tests
             Assert.True(p.IsEmpty);
             Assert.Equal(RevisionIssueSource.None, p.Source);
             Assert.Contains("un-issued", p.Reason);
+        }
+    }
+
+    // The RevisionIssue preset runs Create Revision and then Auto Revision Cloud;
+    // the cloud step compared against the snapshot Create Revision had just taken,
+    // so it always found "no changes". baseline = "previous" skips that snapshot.
+    public class RevisionSnapshotBaselineTests
+    {
+        private static readonly string[] Files =
+        {
+            @"C:\p\_data\coord\revisions\snapshot_pre_rev_P02_20261001_101500.json",
+            @"C:\p\_data\coord\revisions\snapshot_pre_rev_P01_20260901_090000.json",
+        };
+
+        [Fact]
+        public void Label_is_parsed_from_the_file_name()
+        {
+            Assert.Equal("pre_rev_P02", RevisionSnapshotBaseline.LabelOf(Files[0]));
+            Assert.Equal("odd", RevisionSnapshotBaseline.LabelOf("odd.json"));
+        }
+
+        [Fact]
+        public void Standalone_uses_the_latest_snapshot()
+        {
+            Assert.Equal(0, RevisionSnapshotBaseline.Pick(Files, "", "P02", out _));
+            Assert.Equal(0, RevisionSnapshotBaseline.Pick(Files, "latest", "P02", out _));
+        }
+
+        [Fact]
+        public void Previous_skips_the_new_revisions_own_snapshot()
+        {
+            Assert.Equal(1, RevisionSnapshotBaseline.Pick(Files, "previous", "P02", out var why));
+            Assert.Contains("pre_rev_P01", why);
+        }
+
+        [Fact]
+        public void Previous_does_not_skip_a_snapshot_that_is_not_the_latest_revisions_own()
+        {
+            // The newest revision is P03 but no pre_rev_P03 exists (e.g. it was
+            // auto-opened on issue): the newest snapshot is still the baseline.
+            Assert.Equal(0, RevisionSnapshotBaseline.Pick(Files, "previous", "P03", out _));
+        }
+
+        [Fact]
+        public void Previous_on_the_first_revision_has_no_baseline()
+        {
+            Assert.Equal(-1, RevisionSnapshotBaseline.Pick(new[] { Files[1] }, "previous", "P01", out var why));
+            Assert.Contains("no earlier baseline", why);
+        }
+
+        [Fact]
+        public void No_snapshots_and_unknown_modes_are_reported()
+        {
+            Assert.Equal(-1, RevisionSnapshotBaseline.Pick(new string[0], "", "P01", out var none));
+            Assert.Contains("Create Revision", none);
+            Assert.Equal(-1, RevisionSnapshotBaseline.Pick(Files, "prevous", "P02", out var bad));
+            Assert.StartsWith("unknown baseline", bad);
         }
     }
 }

@@ -2369,6 +2369,10 @@
                                         <ComboBoxItem Content="End-of-day sync (8 steps)"              Tag="RunWorkflow_EndOfDaySync"/>
                                         <ComboBoxItem Content="Federated model audit (7 steps)"        Tag="RunWorkflow_FederatedModelAudit"/>
                                         <ComboBoxItem Content="Pre-meeting prep (7 steps)"             Tag="RunWorkflow_PreMeetingPrep"/>
+                                        <ComboBoxItem Content="MEP drawing setup (5 steps)"            Tag="RunWorkflow_MEPDrawingSetup"/>
+                                        <ComboBoxItem Content="MEP drawing production (18 steps)"      Tag="RunWorkflow_MEPDrawingProduction"/>
+                                        <ComboBoxItem Content="MEP pre-issue checks (5 steps)"         Tag="RunWorkflow_MEPPreIssue"/>
+                                        <ComboBoxItem Content="Revision issue (4 steps)"               Tag="RunWorkflow_RevisionIssue"/>
                                     </ComboBox>
                                 </DockPanel>
                                 <WrapPanel Margin="0,4,0,0">
