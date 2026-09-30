@@ -65,6 +65,7 @@
     <Compile Include="..\StingTools\V6\AccIds.cs" Link="V6\AccIds.cs" />
     <Compile Include="..\StingTools\V6\AccDisciplineResolver.cs" Link="V6\AccDisciplineResolver.cs" />
     <Compile Include="..\StingTools\V6\AccOAuthFlow.cs" Link="V6\AccOAuthFlow.cs" />
+    <Compile Include="..\StingTools\V6\AccUploadResume.cs" Link="V6\AccUploadResume.cs" />
     <!-- The failOnError step flag and the KUT cycle that relies on it. -->
     <Compile Include="..\StingTools\Core\WorkflowPresetModel.cs" Link="Core\WorkflowPresetModel.cs" />
     <!-- ACC-DOCS: CDE-folder routing by suitability + ACC Docs custom attributes. Routing

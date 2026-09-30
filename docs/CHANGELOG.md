@@ -2,6 +2,61 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC self-check — one-click, read-only go-live verification, 2026-09-30)
+
+- **`ACC_SelfCheck` / `AccSelfCheck`** (`Clash/AccSelfCheckCommand.cs`, ReadOnly; BIM
+  Coordination Center ACC card "🩺 Self-check"; `StingCommandHandler`, `WorkflowEngine`,
+  the BCC action map). Runs, in order: configuration (Client ID and app type, settings file
+  Loaded / Absent / Malformed with the load error, project scope, old machine ids), sign-in
+  (a *forced* refresh, so the refresh token and app credentials are actually proved;
+  rejected vs unreachable are different rows; days left), project visibility (the configured
+  id among the projects this sign-in can see, compared in either id form; the visible
+  projects are named when it is missing; hub and region against what is saved), Issues
+  (issue type resolved by name with the push's own chooser — or the configured ids checked
+  to still be active — and a 1-row read reporting `totalResults`), Model Coordination (model
+  sets, the remembered set, and the latest clash test via a new tests-only read
+  `AccModelCoordSync.GetClashTestSummaryAsync` — no resources, no scope download), Docs (each
+  CDE folder URN, else the upload folder, else 'Project Files' exactly as the upload finds
+  it; ISO 19650 attribute definitions listed with `allowCreate: false`), and scopes (403s
+  seen on reads are reported with the permission they imply; write scopes are always
+  SKIPPED — they cannot be proved without writing).
+- **Honest by construction.** Each row is PASS / WARN / FAIL / SKIPPED with the reason and
+  the remedy; a step that cannot run because an earlier one failed is SKIPPED naming that
+  step, and a step that throws is a FAIL for that step only. Nothing is created, uploaded or
+  changed in ACC (every request is a GET; the tests assert it server-side). The report is
+  written through `OutputLocationHelper.GetRoutedTimestampedPath(doc, "Issue", …)`; the
+  command returns Failed when any row FAILs, and logs instead of showing a dialog when the
+  project is unattended.
+- **Decision logic is Revit-free** (`V6/AccSelfCheck.cs`), linked into `StingTools.Acc.Tests`:
+  11 loopback tests (all-green happy path with no writes, auth rejected → later steps
+  SKIPPED, unreachable sign-in reported as network, project not visible → FAIL naming the
+  visible projects, bare/`b.` id forms, malformed settings → FAIL + old-id WARN, missing
+  custom attributes → WARN naming them, clash test not completed → WARN, one unreachable CDE
+  folder, no Client ID). `StingTools.Acc.Tests` 294/294; plugin build 0/0; path, export-
+  routing and workflow-wiring gates pass. **Not yet run against a live ACC tenant.**
+- Playbook: `docs/KUT_ACC_DAY1_PLAYBOOK.md` §7 now starts with V0 (run the self-check).
+
+#### Completed (ACC follow-ups: resumable upload, no machine-file fallback, clash statuses, 2026-09-30)
+
+- **Resumable upload (ACC-HARD-2).** `V6/AccUploadResume.cs` stores the storage object, the
+  uploadKey and the last confirmed part per upload, keyed on the file path, size and time
+  stamp plus the target project and folder. Re-running the upload of the same unchanged file
+  continues after the last confirmed part (no new storage object). An upload session Autodesk
+  has forgotten (a 4xx on the resumed uploadKey) restarts once from the first byte. A changed
+  file never resumes into the old object. The resume state is removed once the item or
+  version exists. A failure message says how many parts are up and that a re-run resumes.
+- **Machine-file fallback retired (ACC-HARD-4).** A project with no `acc_settings.json` is
+  "not configured", whatever this machine remembers from another job
+  (`AccProjectScopeSource.CredentialsFile` is deleted, so a stale reference is a compile
+  error). The ACC card shows the old ids pre-filled, with a warning, and one Save adopts
+  them for the project. The commands' "not set up" messages say the same. Saving never
+  changes the machine file's project values.
+- **Clash statuses (ACC-HARD-6).** Every pull reports and logs the ACC clash statuses it saw
+  and how many the exclusion list removed.
+- **Tests.** An assembly-level `FreshSignIn` hook resets the isolated sign-in before every
+  test (an earlier test's saved token was being adopted by the next, making results
+  order-dependent). `StingTools.Acc.Tests` 283/283; plugin build 0/0.
+
 #### Completed (ACC hardening — review findings, APS-verified, 2026-09-30)
 
 A review of the whole ACC integration, then fixes checked against the APS reference and

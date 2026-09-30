@@ -5460,6 +5460,25 @@ namespace StingTools.UI
                 Margin = new Thickness(0, -4, 0, 8)
             });
 
+            // ACC-HARD-4: a project with no ACC settings no longer borrows this machine's old
+            // ids. They are SHOWN pre-filled (labelled) so one Save adopts them for this
+            // project — an explicit decision instead of a silent fallback.
+            bool showingLegacy = creds.ProjectScope == V6.AccProjectScopeSource.None
+                                 && !string.IsNullOrWhiteSpace(creds.LegacyProjectId);
+            string initProject = showingLegacy ? creds.FileProjectId : creds.ProjectId;
+            string initCoord   = showingLegacy ? creds.FileCoordContainerId : creds.CoordContainerId;
+            string initType    = showingLegacy ? creds.FileIssueTypeId : creds.IssueTypeId;
+            string initFolder  = showingLegacy ? creds.FileFolderUrn : creds.FolderUrn;
+            if (showingLegacy)
+                detailStack.Children.Add(new TextBlock
+                {
+                    Text = "⚠ This project has no ACC settings yet. The project fields below show what this machine " +
+                           "remembers from before settings were per project — they are NOT used until you click " +
+                           "Save Credentials (or use Find my ACC project). Check they belong to THIS job first.",
+                    FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Br(Color.FromRgb(0xE6, 0x5F, 0x00)),
+                    Margin = new Thickness(0, 0, 0, 8)
+                });
+
             // Credential fields (mapped to AccCredentials)
             detailStack.Children.Add(new TextBlock { Text = "APS / ACC CREDENTIALS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 0, 0, 4) });
 
@@ -5486,10 +5505,10 @@ namespace StingTools.UI
             var clientIdBox  = (System.Windows.Controls.TextBox)     AddField("Client ID:",         creds.ClientId,         false, "APS (Forge) application Client ID");
             var clientSecBox = (System.Windows.Controls.PasswordBox) AddField("Client Secret:",     creds.ClientSecret,     true,  "Only for a 'Traditional Web App' APS registration. Leave EMPTY for a 'Desktop, Mobile, Single-Page App' registration (recommended: sign-in uses PKCE and no secret is stored).");
             var refreshBox   = (System.Windows.Controls.PasswordBox) AddField("Refresh Token:",     creds.RefreshToken,     true,  "Auto-filled by “Sign in with Autodesk”. Only paste one manually if you obtained it via your own APS 3-legged flow.");
-            var projectIdBox = (System.Windows.Controls.TextBox)     AddField("ACC Project ID:",    creds.ProjectId,        false, "Filled by 'Find my ACC project'. Either the 'b.<guid>' or the bare GUID form works; each API is given the form it needs. Saved with this project.");
-            var coordIdBox   = (System.Windows.Controls.TextBox)     AddField("Coord Container ID:",creds.CoordContainerId, false, "Model Coordination container id (optional — defaults to the Issues Project ID)");
-            var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     creds.IssueTypeId,      false, "Optional. Left empty, STING files issues under the ACC issue type named Clash or Coordination and refuses to guess if none exists. Saved with this project.");
-            var folderUrnBox = (System.Windows.Controls.TextBox)     AddField("Upload Folder URN:", creds.FolderUrn,        false, "ACC Docs folder for uploads (urn:adsk.wipprod:fs.folder:...). Saved with this project. Blank = the project's 'Project Files' folder. Per-CDE-state folders (cdeFolders) in the project's ACC settings take precedence.");
+            var projectIdBox = (System.Windows.Controls.TextBox)     AddField("ACC Project ID:",    initProject,            false, "Filled by 'Find my ACC project'. Either the 'b.<guid>' or the bare GUID form works; each API is given the form it needs. Saved with this project.");
+            var coordIdBox   = (System.Windows.Controls.TextBox)     AddField("Coord Container ID:",initCoord,              false, "Model Coordination container id (optional — defaults to the Issues Project ID)");
+            var issueTypeBox = (System.Windows.Controls.TextBox)     AddField("Issue Type ID:",     initType,               false, "Optional. Left empty, STING files issues under the ACC issue type named Clash or Coordination and refuses to guess if none exists. Saved with this project.");
+            var folderUrnBox = (System.Windows.Controls.TextBox)     AddField("Upload Folder URN:", initFolder,             false, "ACC Docs folder for uploads (urn:adsk.wipprod:fs.folder:...). Saved with this project. Blank = the project's 'Project Files' folder. Per-CDE-state folders (cdeFolders) in the project's ACC settings take precedence.");
 
             // One-time APS setup hint for the in-plugin sign-in flow.
             detailStack.Children.Add(new TextBlock

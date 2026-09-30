@@ -34,13 +34,13 @@ namespace StingTools.Core.Clash
             Document doc = ctx.Doc;
 
             var policy = AccProjectSettingsFile.LoadFor(doc, "ACC_SelfCheck");
-            var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC_SelfCheck", out var fallbacks);
+            var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC_SelfCheck");
 
             System.Collections.Generic.List<AccCheckResult> results;
             try
             {
                 // Network only, no Revit API inside: safe to block on from the API thread.
-                results = AccSelfCheck.RunAsync(creds, policy, fallbacks, DateTime.UtcNow).GetAwaiter().GetResult();
+                results = AccSelfCheck.RunAsync(creds, policy, DateTime.UtcNow).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {

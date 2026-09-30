@@ -69,13 +69,9 @@ namespace StingTools.V6
         /// <param name="creds">Machine credentials with the project scope already applied
         /// (AccProjectScope.Apply).</param>
         /// <param name="policy">The project's settings (AccOperatingPolicy.Load).</param>
-        /// <param name="machineFileFallbacks">AccProjectScope.MachineFileFallbacks, computed
-        /// BEFORE Apply (Apply overwrites the values it inspects).</param>
-        public static async Task<List<AccCheckResult>> RunAsync(AccCredentials creds, AccOperatingPolicy policy,
-            IReadOnlyList<string> machineFileFallbacks, DateTime utcNow)
+        public static async Task<List<AccCheckResult>> RunAsync(AccCredentials creds, AccOperatingPolicy policy, DateTime utcNow)
         {
-            var run = new Run(creds ?? new AccCredentials(), policy ?? AccOperatingPolicy.Interactive(),
-                machineFileFallbacks ?? Array.Empty<string>(), utcNow);
+            var run = new Run(creds ?? new AccCredentials(), policy ?? AccOperatingPolicy.Interactive(), utcNow);
             await run.ExecuteAsync().ConfigureAwait(false);
             return run.Results;
         }
@@ -117,15 +113,14 @@ namespace StingTools.V6
         {
             private readonly AccCredentials _c;
             private readonly AccOperatingPolicy _p;
-            private readonly IReadOnlyList<string> _fallbacks;
             private readonly DateTime _now;
             public readonly List<AccCheckResult> Results = new List<AccCheckResult>();
             /// <summary>Every 403 a read got: (what, detail). Feeds the scope inference.</summary>
             private readonly List<string> _forbidden = new List<string>();
             private int _readsOk;
 
-            public Run(AccCredentials c, AccOperatingPolicy p, IReadOnlyList<string> fallbacks, DateTime now)
-            { _c = c; _p = p; _fallbacks = fallbacks; _now = now; }
+            public Run(AccCredentials c, AccOperatingPolicy p, DateTime now)
+            { _c = c; _p = p; _now = now; }
 
             private AccCheckResult Add(string id, string title, AccCheckStatus st, string detail, string remedy = "")
             {
@@ -282,25 +277,24 @@ namespace StingTools.V6
                         break;
                 }
 
-                // MachineFileFallbacks is computed before AccProjectScope.Apply, when ProjectScope is
-                // not yet known, so the project id's own source is read from the applied scope here.
-                var fromMachine = new List<string>();
-                if (_c.ProjectScope == AccProjectScopeSource.CredentialsFile) fromMachine.Add("projectId");
-                fromMachine.AddRange(_fallbacks.Where(f => !fromMachine.Contains(f)));
-
-                haveProject = !string.IsNullOrWhiteSpace(_c.ProjectId);
-                if (!haveProject)
-                    Add("1.3", "Where the project values come from", AccCheckStatus.Fail,
-                        "no ACC project id is configured — neither the project settings nor the machine file has one.",
-                        "ACC card > Find my ACC project, pick the KUT project, Save.");
-                else if (fromMachine.Count > 0)
-                    Add("1.3", "Where the project values come from", AccCheckStatus.Warn,
-                        $"from the DEPRECATED machine credentials file: {string.Join(", ", fromMachine)}. " +
-                        AccProjectScope.Describe(_c) + ".",
-                        "Save them into this project's ACC settings (ACC card > Save) — another job on this machine can overwrite the machine file.");
-                else
-                    Add("1.3", "Where the project values come from", AccCheckStatus.Pass,
+                // The project's ACC values come ONLY from its settings file (the machine-file
+                // fallback is retired). An old id the machine file still holds is reported, never used.
+                haveProject = _c.ProjectScope == AccProjectScopeSource.ProjectSettings
+                              && !string.IsNullOrWhiteSpace(_c.ProjectId);
+                if (haveProject)
+                    Add("1.3", "ACC project for this model", AccCheckStatus.Pass,
                         AccProjectScope.Describe(_c) + (_c.CoordContainer != _c.ProjectId ? $"; coordination container {_c.CoordContainer}" : "") + ".");
+                else
+                    Add("1.3", "ACC project for this model", AccCheckStatus.Fail,
+                        "this project has no ACC project configured" +
+                        (_p.Source == AccPolicySource.Malformed ? " (its settings file was discarded — see 1.2)" : "") + ".",
+                        "BIM Coordination Center > ACC > Find my ACC project, pick the KUT project, Save.");
+
+                if (!string.IsNullOrWhiteSpace(_c.LegacyProjectId))
+                    Add("1.4", "Old machine-wide ACC ids", AccCheckStatus.Warn,
+                        $"old machine ids present: this machine remembers ACC project {_c.LegacyProjectId} from before " +
+                        "settings were per project. It is NOT used.",
+                        "Adopt it via the ACC card Save (the old values are shown there), or use Find my ACC project.");
                 return haveClient;
             }
 

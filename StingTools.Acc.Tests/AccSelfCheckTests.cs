@@ -154,9 +154,8 @@ namespace StingTools.Acc.Tests
 
         private static async Task<List<AccCheckResult>> Run(AccCredentials creds, AccOperatingPolicy policy)
         {
-            var fallbacks = AccProjectScope.MachineFileFallbacks(creds, policy);
             AccProjectScope.Apply(creds, policy);
-            return await AccSelfCheck.RunAsync(creds, policy, fallbacks, DateTime.UtcNow);
+            return await AccSelfCheck.RunAsync(creds, policy, DateTime.UtcNow);
         }
 
         private static AccCheckResult Row(List<AccCheckResult> r, string id) => r.Single(x => x.Id == id);
@@ -270,15 +269,23 @@ namespace StingTools.Acc.Tests
             s["coordModelSet"] = "typo";           // unknown key: the whole file is discarded
             using var server = Serve();
             var creds = MachineCreds();
-            creds.ProjectId = Project;             // machine-file fallback keeps the rest checkable
+            creds.ProjectId = Project;             // an OLD machine-file id: reported, never used
             var results = await Run(creds, Settings(s));
 
             var r = Row(results, "1.2");
             Assert.Equal(AccCheckStatus.Fail, r.Status);
             Assert.Contains("coordModelSet", r.Detail);
             Assert.Contains("discarded", r.Detail);
-            Assert.Equal(AccCheckStatus.Warn, Row(results, "1.3").Status);   // values from the machine file
-            Assert.Contains("projectId", Row(results, "1.3").Detail);
+            // The discarded file configured the project, so there is none now.
+            Assert.Equal(AccCheckStatus.Fail, Row(results, "1.3").Status);
+            var legacy = Row(results, "1.4");
+            Assert.Equal(AccCheckStatus.Warn, legacy.Status);
+            Assert.Contains("old machine ids present", legacy.Detail);
+            Assert.Contains(Project, legacy.Detail);
+            Assert.Contains("Save", legacy.Remedy);
+            // Nothing project-specific ran on the legacy id.
+            Assert.Equal(AccCheckStatus.Skipped, Row(results, "3.1").Status);
+            Assert.DoesNotContain(_requests, q => q.Contains(Bare));
             Assert.True(AccSelfCheck.AnyFail(results));
         }
 
