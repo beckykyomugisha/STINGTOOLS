@@ -56,24 +56,24 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | Id | Where | Sev | Finding | Plan | Status |
 |---|---|---|---|---|---|
 | DTW-1 | Scope-box planner | Medium | Offers Plan/RCP types only; coordination and section types have no route through area boxes | Coordination is already an area candidate (D-7). Section types follow the box as DTW-52 | In progress |
-| DTW-2 | ManagedTemplateSyncer.cs:319 | High | Cached managed template returned without a checksum compare; Reloads never invalidate, so pack edits never reach STING:* templates | Agent `fix/dt-qa` | In progress |
-| DTW-3 | BatchProduceCommands.cs:901 | High | Regenerate templates uses raw packs (no extends merge), losing inherited overrides/filters | Agent `fix/dt-qa` | In progress |
-| DTW-4 | DrawingSyncStylesCommand.cs:94 | High | Sheet drift reported but never healed (no ViewSheet branch) | Agent `fix/dt-qa` | In progress |
-| DTW-5 | STING_DRAWING_TYPES.json titleBlockParams + TitleBlockParamApplier.cs:139 | High | "Sheet Number" in six types rewrites the Revit sheet number, bypassing SheetNumbering / ISO / locks | Agent `fix/dt-qa` | In progress |
-| DTW-6 | TitleBlockParamApplier.cs:113 | High | Lock check ignores a type-level title-block lock | Agent `fix/dt-qa` | In progress |
-| DTW-7 | DrawingRenumberCommand.cs:63 | High | Profile-policy renumber destroys ISO identifiers | Agent `fix/dt-qa` | In progress |
-| DTW-8 | DrawingTypePresentation.cs:74 / DrawingTypeRegistry.cs:233 | Med-High | Negative template and pack caches never cleared (InvalidateResolvedCache has no callers) | Agent `fix/dt-qa` | In progress |
-| DTW-9 | ManagedTemplateCommands.cs:95 | Med | ConvertToManaged renames before a save that can silently fail; duplicate filters | Agent `fix/dt-qa` | In progress |
-| DTW-10 | MergeRecoveryStubs.cs:492 | Med | Filter-id cache never validated; InvalidateCache is an empty stub | Agent `fix/dt-qa` | In progress |
-| DTW-11 | SheetNumberFromIsoCommand.cs:187 | Med | Own two-pass rename can leave ~STINGTMP~ numbers; ignores locks; blocks presets | Agent `fix/dt-qa` | In progress |
-| DTW-12 | DrawingTypesInspectCommand.cs:239 | Med | Title-block readiness compares logical names against loaded families, so always shows ✗ | Agent `fix/dt-qa` | In progress |
-| DTW-13 | DrawingTypesInspectCommand.cs:303 | Low | TB params line mislabelled and counted per sheet | Agent `fix/dt-qa` | In progress |
-| DTW-14 | DrawingSyncStylesCommand.cs:44 | Med | Re-applies suppressed-only reports; raw dialogs block presets | Agent `fix/dt-qa` | In progress |
-| DTW-15 | TitleBlockParamApplier.cs:163 | Low-Med | Culture-sensitive parse and raw Set on Double; project-info doubles printed in feet | Agent `fix/dt-qa` | In progress |
-| DTW-16 | DrawingHealTitleBlocksCommand.cs:88 | Low | Counts unchanged writes; unknown-type sheets dropped silently | Agent `fix/dt-qa` | In progress |
-| DTW-17 | DrawingHealTitleBlocksCommand.cs:110 | Low | Wrong-family check ignores variant rules | Agent `fix/dt-qa` | In progress |
-| DTW-18 | STING_DRAWING_TYPES.json titleBlockParams | Low | Hard-coded P01 / S2 / WIP reset real revision/suitability where a family carries them | Agent `fix/dt-qa` | In progress |
-| DTW-19 | SheetNumberEngine.cs:311 | Low | O(n³) move lookup | Agent `fix/dt-qa` | In progress |
+| DTW-2 | ManagedTemplateSyncer.cs:319 | High | Cached managed template returned without a checksum compare; Reloads never invalidate, so pack edits never reach STING:* templates | Merged 2a8a1845b | Done |
+| DTW-3 | BatchProduceCommands.cs:901 | High | Regenerate templates uses raw packs (no extends merge), losing inherited overrides/filters | Merged 2a8a1845b | Done |
+| DTW-4 | DrawingSyncStylesCommand.cs:94 | High | Sheet drift reported but never healed (no ViewSheet branch) | Merged 2a8a1845b | Done |
+| DTW-5 | STING_DRAWING_TYPES.json titleBlockParams + TitleBlockParamApplier.cs:139 | High | "Sheet Number" in six types rewrites the Revit sheet number, bypassing SheetNumbering / ISO / locks | Merged 2a8a1845b | Done |
+| DTW-6 | TitleBlockParamApplier.cs:113 | High | Lock check ignores a type-level title-block lock | Merged 2a8a1845b | Done |
+| DTW-7 | DrawingRenumberCommand.cs:63 | High | Profile-policy renumber destroys ISO identifiers | Merged 2a8a1845b | Done |
+| DTW-8 | DrawingTypePresentation.cs:74 / DrawingTypeRegistry.cs:233 | Med-High | Negative template and pack caches never cleared (InvalidateResolvedCache has no callers) | Merged 2a8a1845b | Done |
+| DTW-9 | ManagedTemplateCommands.cs:95 | Med | ConvertToManaged renames before a save that can silently fail; duplicate filters | Merged 2a8a1845b | Done |
+| DTW-10 | MergeRecoveryStubs.cs:492 | Med | Filter-id cache never validated; InvalidateCache is an empty stub | Merged 2a8a1845b | Done |
+| DTW-11 | SheetNumberFromIsoCommand.cs:187 | Med | Own two-pass rename can leave ~STINGTMP~ numbers; ignores locks; blocks presets | Merged 2a8a1845b | Done |
+| DTW-12 | DrawingTypesInspectCommand.cs:239 | Med | Title-block readiness compares logical names against loaded families, so always shows ✗ | Merged 2a8a1845b | Done |
+| DTW-13 | DrawingTypesInspectCommand.cs:303 | Low | TB params line mislabelled and counted per sheet | Merged 2a8a1845b | Done |
+| DTW-14 | DrawingSyncStylesCommand.cs:44 | Med | Re-applies suppressed-only reports; raw dialogs block presets | Merged 2a8a1845b | Done |
+| DTW-15 | TitleBlockParamApplier.cs:163 | Low-Med | Culture-sensitive parse and raw Set on Double; project-info doubles printed in feet | Merged 2a8a1845b | Done |
+| DTW-16 | DrawingHealTitleBlocksCommand.cs:88 | Low | Counts unchanged writes; unknown-type sheets dropped silently | Merged 2a8a1845b | Done |
+| DTW-17 | DrawingHealTitleBlocksCommand.cs:110 | Low | Wrong-family check ignores variant rules | Merged 2a8a1845b | Done |
+| DTW-18 | STING_DRAWING_TYPES.json titleBlockParams | Low | Hard-coded P01 / S2 / WIP reset real revision/suitability where a family carries them | Merged 2a8a1845b | Done |
+| DTW-19 | SheetNumberEngine.cs:311 | Low | O(n³) move lookup | Merged 2a8a1845b | Done |
 | DTW-20 | DrawingProductionConfigDialog.cs:616 / DrawingProducer.cs:624 | High | VG edits saved under "*" but the producer reads only dt.Id | Agent `fix/dt-producers` | In progress |
 | DTW-21 | DrawingProductionConfigDialog.cs:308,311 | High | Scale / detail-level override combos read by nothing | Agent `fix/dt-producers` | In progress |
 | DTW-22 | DrawingProductionConfigDialog.cs:184 | High | Preset combo has no handler; Save Preset always appends a new unnamed preset | Agent `fix/dt-producers` | In progress |
@@ -109,26 +109,30 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-52 | DrawingProducer.cs:725/891 | Low | Section in box context is a fixed 10 m cut at the origin; planner gap 9 | fix/dt-producers | In progress |
 | DTW-53 | DrawingProducer.cs:1547 | Low | Unique-name cap at 99; dead lock check | fix/dt-producers | In progress |
 | DTW-54 | DrawingProducer.cs:743 | Low-Med | Interior elevations: one face, owner plan from any level | fix/dt-producers | In progress |
-| DTW-55 | RESOLVED_BINDINGS (STING_DRAWING_TYPE_ID_TXT + 11 view stamps) | High | <ALL> binds to the core set (no Views): every stamp on a view is a no-op, so re-runs cannot find their views | fix/dt-bindings | In progress |
-| DTW-56 | STING_MATCH_* params | High | Not bound to Lines: match-line pair keys never stored, re-runs duplicate curves | fix/dt-bindings | In progress |
-| DTW-57 | TAG_SEG_MASK_TXT | High | No binding row: token-profile segment masks of 18 types do nothing | fix/dt-bindings | In progress |
-| DTW-58 | STING_AEC_FILTERS.json healthcare (46) | High | Rule params not bound to the filters' categories, so filter creation fails | fix/dt-bindings | In progress |
-| DTW-59 | STING_DEFAULT_TAG_STYLE_TXT | Med | Written to templates but unregistered | fix/dt-bindings | In progress |
-| DTW-60 | titleBlockParams keys (114 types) | High | Keys are display labels no title-block family has; ~10-13 warnings per sheet, nothing written | After fix/dt-qa merges (same JSON) | Queued |
-| DTW-61 | mep-coord-A1-1to50 | Med-High | 3 production rules, 1 slot: ISO and section stacked on the plan | After fix/dt-qa | Queued |
-| DTW-62 | spool / mep-coord / pres-3d / clar-markup | Med | One view template for mixed view kinds, so it throws and falls back | After fix/dt-qa | Queued |
+| DTW-55 | RESOLVED_BINDINGS (STING_DRAWING_TYPE_ID_TXT + 11 view stamps) | High | <ALL> binds to the core set (no Views): every stamp on a view is a no-op, so re-runs cannot find their views | Merged ea43a06ab | Done |
+| DTW-56 | STING_MATCH_* params | High | Not bound to Lines: match-line pair keys never stored, re-runs duplicate curves | Merged ea43a06ab | Done |
+| DTW-57 | TAG_SEG_MASK_TXT | High | No binding row: token-profile segment masks of 18 types do nothing | Merged ea43a06ab | Done |
+| DTW-58 | STING_AEC_FILTERS.json healthcare (46) | High | Rule params not bound to the filters' categories, so filter creation fails | Merged ea43a06ab | Done |
+| DTW-59 | STING_DEFAULT_TAG_STYLE_TXT | Med | Written to templates but unregistered | Merged ea43a06ab | Done |
+| DTW-60 | titleBlockParams keys (114 types) | High | Keys are display labels no title-block family has; ~10-13 warnings per sheet, nothing written | fix/dt-data | In progress |
+| DTW-61 | mep-coord-A1-1to50 | Med-High | 3 production rules, 1 slot: ISO and section stacked on the plan | fix/dt-data | In progress |
+| DTW-62 | spool / mep-coord / pres-3d / clar-markup | Med | One view template for mixed view kinds, so it throws and falls back | fix/dt-data | In progress |
 | DTW-63 | DrawingProducer.cs:1277 SLOT-3 | Med | Raw string view-type compare: spurious mismatch warning on most sheets | After fix/dt-producers (same file) | Queued |
-| DTW-64 | STING_MATCH_LINES.json caption text type / line style | Med | Created by nothing: captions silently skipped | TemplateManager style defs | Queued |
-| DTW-65 | sectionMarker on 14 types | Med | Families created by nothing; markPrefix/bubble/farClip read by nothing | Decide: ship/author, or drop the dead fields | Queued |
-| DTW-66 | legend-A3 | Low-Med | Routed type can never be produced | Document place-existing, or add rules | Queued |
-| DTW-67 | DocAutomationExtCommands.cs:1763,1882 | Low-Med | Resolve("*",…,Section/Elevation) matches no rule | Add * * SECTION / ELEVATION rules or pass a discipline | Queued |
-| DTW-68 | Pack viewTemplate / textStyleName | Low | Names created and read by nothing; dead effectiveTemplateName | Align or delete | Queued |
-| DTW-69 | Routing semantics | Low | S DETAIL → rebar detail; P PLAN → drainage; E/P SECTION → M types | Review, dedicated types | Queued |
-| DTW-70 | Sheet-number codes | Low | SCH / PR / EL mean two things; possible profile collisions | Normalise | Queued |
-| DTW-71 | Id convention | Low | Ids missing paper/scale suffix; inconsistent prefixes | Aliases if renamed | Queued |
-| DTW-72 | {mark} in per-level type names | Low | Prints XX | Use {lvl} | Queued |
-| DTW-73 | CLAUDE.md catalogue counts | Low | Says 93 types / 113 rules; data has 114 / 141 | Update | Queued |
+| DTW-64 | STING_MATCH_LINES.json caption text type / line style | Med | Created by nothing: captions silently skipped | fix/dt-data | In progress |
+| DTW-65 | sectionMarker on 14 types | Med | Families created by nothing; markPrefix/bubble/farClip read by nothing | fix/dt-data | In progress |
+| DTW-66 | legend-A3 | Low-Med | Routed type can never be produced | fix/dt-data | In progress |
+| DTW-67 | DocAutomationExtCommands.cs:1763,1882 | Low-Med | Resolve("*",…,Section/Elevation) matches no rule | fix/dt-data | In progress |
+| DTW-68 | Pack viewTemplate / textStyleName | Low | Names created and read by nothing; dead effectiveTemplateName | fix/dt-data | In progress |
+| DTW-69 | Routing semantics | Low | S DETAIL → rebar detail; P PLAN → drainage; E/P SECTION → M types | fix/dt-data | In progress |
+| DTW-70 | Sheet-number codes | Low | SCH / PR / EL mean two things; possible profile collisions | fix/dt-data | In progress |
+| DTW-71 | Id convention | Low | Ids missing paper/scale suffix; inconsistent prefixes | fix/dt-data | In progress |
+| DTW-72 | {mark} in per-level type names | Low | Prints XX | fix/dt-data | In progress |
+| DTW-73 | CLAUDE.md catalogue counts | Low | Says 93 types / 113 rules; data has 114 / 141 | fix/dt-data | In progress |
 | DTW-74 | ProjectSetupCommand.CreateTwoSectionsPerScopeBox | Med | Wizard "two building sections per scope box" still makes unstamped sections | After fix/dt-producers (section-from-box helper, DTW-52) | Queued |
+| DTW-75 | STING_AUTO_PLACED_BOOL | Med | Written to viewports and schedule instances, not bound there | fix/dt-data | In progress |
+| DTW-76 | STING_PLACER_* | Med | <ALL> but written to detail lines and annotations; the group override is unreachable when spec-driven | fix/dt-data | In progress |
+| DTW-77 | WARN_STING_PACK_DRIFT | Low | View warning bound to elements | fix/dt-data | In progress |
+| DTW-78 | ManagedTemplateSyncer.cs:576 | Low | Literal parameter name instead of the ParamRegistry constant | 5da278b68 | Done |
 
 ## Decisions
 
@@ -148,6 +152,12 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 - **View/sheet identity (DTW-42).** Key it on Level.Id and scope-box UniqueId, falling back to
   the old name-keyed tag and re-stamping it. A rename then stops minting duplicates, and existing
   projects migrate on their next run.
+- **Binding scope (DTW-55, bindings agent).** View-stamp parameters are scoped to Views
+  (and Sheets where written there), not left on every element too. Nothing writes them to
+  elements, and existing projects keep what is already bound; Load Shared Parameters only adds.
+  A hand-authored Yes row now replaces an `<ALL>` binding in the resolver.
+- **Lying-catch gate.** `PresetDialog.Show` counts as reporting the outcome (it shows the dialog
+  or fills `message`). Baseline ratcheted 151 → 145.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
