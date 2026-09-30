@@ -329,9 +329,13 @@ namespace StingTools.Core.Drawing
                 // plan ends up on the same number.
                 var clash = new List<RenumberMove>();
                 var finalCount = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                // DTW-19: index the moves once per pass — a FirstOrDefault per item
+                // made each pass O(n^2) and the pinning loop O(n^3).
+                var moveById = new Dictionary<string, RenumberMove>(StringComparer.Ordinal);
+                foreach (var m in plan.Moves) moveById[m.Id] = m;
                 foreach (var i in items)
                 {
-                    var mv = plan.Moves.FirstOrDefault(m => m.Id == i.Id);
+                    moveById.TryGetValue(i.Id, out var mv);
                     var final = mv?.To ?? i.CurrentNumber;
                     if (string.IsNullOrEmpty(final)) continue;
                     finalCount[final] = finalCount.TryGetValue(final, out var c) ? c + 1 : 1;
