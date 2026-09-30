@@ -198,6 +198,13 @@ public class PlanscapeWebApplicationFactory : WebApplicationFactory<Program>
         // in parallel. See HandoffSecret.
         builder.UseSetting("PLANSCAPE_HANDOFF_SECRET", HandoffSecret);
 
+        // DataProtection key ring: in-memory, as before the database store became
+        // the default. PlatformTokenProtection's cipher is process-global (first
+        // host wins), so binding it to one factory's InMemory database would make
+        // later factories depend on a disposed service provider. The database
+        // store itself is covered by AccFollowupTests.
+        builder.UseSetting("DataProtection:KeyStore", "ephemeral");
+
 
         builder.ConfigureServices(services =>
         {

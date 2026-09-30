@@ -13,6 +13,14 @@ namespace Planscape.API.Controllers;
 /// <summary>
 /// Manages external BIM platform connections (ACC, Procore, Aconex, Trimble Connect).
 /// Provides CRUD, connection testing, manual sync trigger, and webhook receiver.
+///
+/// ACC connections are NOT handled by the generic connector path here: /test and
+/// /sync delegate to <see cref="AccSyncService"/>, the single ACC code path. It
+/// refreshes through AccTokenRefresher (advisory lock, rotated refresh token
+/// persisted at once, a token rotated by another process adopted) and records the
+/// honest OK / PARTIAL / FAILED / BUSY / RECONNECT_REQUIRED status. Calling
+/// AccConnector directly used to bypass the lock and overwrite that status with
+/// a count-only "OK".
 /// </summary>
 [ApiController]
 [Route("api/projects/{projectId:guid}/platform")]
@@ -22,11 +30,13 @@ public class PlatformController : ControllerBase
 {
     private readonly PlanscapeDbContext _db;
     private readonly IPlatformConnectorFactory _connectorFactory;
+    private readonly AccSyncService _acc;
 
-    public PlatformController(PlanscapeDbContext db, IPlatformConnectorFactory connectorFactory)
+    public PlatformController(PlanscapeDbContext db, IPlatformConnectorFactory connectorFactory, AccSyncService acc)
     {
         _db = db;
         _connectorFactory = connectorFactory;
+        _acc = acc;
     }
 
     // ── CRUD ──
@@ -59,6 +69,7 @@ public class PlatformController : ControllerBase
     public async Task<ActionResult<PlatformConnectionDto>> Create(Guid projectId, [FromBody] CreatePlatformConnectionRequest request)
     {
         if (!await this.CanAdministerProjectAsync(_db, projectId)) return AdministerForbidden();
+        if (RejectCiphertextTokens(request.AccessToken, request.RefreshToken) is { } bad) return bad;
         var tenantId = GetTenantId();
 
         // Server-owned keys (the ACC issue map) are never accepted from a client.
@@ -105,6 +116,7 @@ public class PlatformController : ControllerBase
     public async Task<ActionResult<PlatformConnectionDto>> Update(Guid projectId, Guid id, [FromBody] UpdatePlatformConnectionRequest request)
     {
         if (!await this.CanAdministerProjectAsync(_db, projectId)) return AdministerForbidden();
+        if (RejectCiphertextTokens(request.AccessToken, request.RefreshToken) is { } bad) return bad;
         var conn = await FindConnection(projectId, id);
         if (conn == null) return NotFound();
 
@@ -153,6 +165,10 @@ public class PlatformController : ControllerBase
         var conn = await FindConnection(projectId, id);
         if (conn == null) return NotFound();
 
+        // ACC: one code path — the locked, persisting refresher in AccSyncService.
+        if (conn.Platform == PlatformType.ACC)
+            return Ok(await _acc.TestConnectionAsync(conn, ct));
+
         var connector = _connectorFactory.GetConnector(conn.Platform);
         var result = await connector.TestConnectionAsync(conn, ct);
         // TestConnection may have refreshed the OAuth token. Providers like ACC
@@ -162,15 +178,34 @@ public class PlatformController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Trigger a manual sync for a platform connection.</summary>
+    /// <summary>
+    /// Trigger a manual sync for a platform connection. For ACC this is exactly
+    /// POST acc/sync (same role gate, same service, same status codes) and the
+    /// body is the <see cref="AccSyncService.AccSyncReport"/>.
+    /// </summary>
     [HttpPost("{id:guid}/sync")]
-    public async Task<ActionResult<PlatformSyncResult>> Sync(Guid projectId, Guid id, CancellationToken ct)
+    public async Task<IActionResult> Sync(Guid projectId, Guid id, CancellationToken ct)
     {
         var conn = await FindConnection(projectId, id);
         if (conn == null) return NotFound();
 
         if (!conn.IsActive)
             return BadRequest(new { message = "Connection is not active" });
+
+        if (conn.Platform == PlatformType.ACC)
+        {
+            if (!await this.CanWriteProjectAsync(_db, projectId, ct))
+                return StatusCode(403, new { error = "A read-only project role cannot push issues to ACC." });
+            // One active ACC connection per project (unique TenantId+ProjectId+Platform),
+            // so the project-scoped sync acts on exactly this row.
+            var report = await _acc.SyncProjectAsync(projectId, ct);
+            return report.Status switch
+            {
+                AccSyncService.StatusOk or AccSyncService.StatusPartial => Ok(report),
+                AccSyncService.StatusBusy or AccSyncService.StatusReconnect => Conflict(report),
+                _ => StatusCode(502, report),
+            };
+        }
 
         var connector = _connectorFactory.GetConnector(conn.Platform);
 
@@ -215,6 +250,15 @@ public class PlatformController : ControllerBase
 
     // Create / Update / Delete can replace the team-shared OAuth tokens, so they
     // take the same gate as connecting ACC (AccOAuthController.Start).
+    /// <summary>
+    /// A client may not store a value that looks like our own ciphertext: it would
+    /// be written through unchanged and then read back as an undecryptable token.
+    /// </summary>
+    private ObjectResult? RejectCiphertextTokens(params string?[] tokens)
+        => tokens.Any(Planscape.Infrastructure.Security.PlatformTokenProtection.IsEncrypted)
+            ? BadRequest(new { error = $"Token values may not start with '{Planscape.Infrastructure.Security.PlatformTokenProtection.Prefix}'." })
+            : null;
+
     private ObjectResult AdministerForbidden()
         => StatusCode(403, new { error = "Only a project manager or administrator can change platform connections." });
 
@@ -244,6 +288,7 @@ public class PlatformController : ControllerBase
         LastSyncError = c.LastSyncError,
         HasAccessToken = !string.IsNullOrEmpty(c.AccessToken),
         HasRefreshToken = !string.IsNullOrEmpty(c.RefreshToken),
+        TokensUnreadable = AccTokenRefresher.TokensUnreadable(c),
         TokenExpiresAt = c.TokenExpiresAt,
         ConfigJson = c.ConfigJson
     };
@@ -264,6 +309,8 @@ public class PlatformConnectionDto
     public string? LastSyncError { get; set; }
     public bool HasAccessToken { get; set; }
     public bool HasRefreshToken { get; set; }
+    /// <summary>The stored tokens exist but cannot be decrypted (key ring changed) — reconnect.</summary>
+    public bool TokensUnreadable { get; set; }
     public DateTime? TokenExpiresAt { get; set; }
     public string? ConfigJson { get; set; }
 }

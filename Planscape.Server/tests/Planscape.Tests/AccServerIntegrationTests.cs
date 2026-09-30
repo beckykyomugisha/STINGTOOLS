@@ -30,7 +30,7 @@ namespace Planscape.Tests;
 /// filter falls back to Guid.Empty and would otherwise match nothing), and each
 /// assertion is on data read back through a FRESH context, not the tracked copy.
 /// </summary>
-public class AccServerIntegrationTests
+public partial class AccServerIntegrationTests
 {
     static AccServerIntegrationTests()
     {
@@ -452,8 +452,11 @@ public class AccServerIntegrationTests
         }
         Assert.StartsWith(PlatformTokenProtection.Prefix, RawRefresh(newId));
 
-        // Undecryptable ciphertext reads as null ("reconnect"), never as a token.
-        Assert.Null(PlatformTokenProtection.Unprotect(PlatformTokenProtection.Prefix + "garbage"));
+        // Undecryptable ciphertext reads back as itself — detectably unreadable
+        // ("reconnect"), never as a token and never as a silent empty string.
+        var unreadable = PlatformTokenProtection.Unprotect(PlatformTokenProtection.Prefix + "garbage");
+        Assert.True(PlatformTokenProtection.IsUnreadable(unreadable));
+        Assert.False(string.IsNullOrEmpty(unreadable));
     }
 
     // ── 5 / 6: OAuth state + reconnect ──────────────────────────────────────

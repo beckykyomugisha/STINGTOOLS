@@ -2618,3 +2618,28 @@ Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1
 - **ACC-HARD-6 — clash status vocabulary.** *(2026-09-30: every pull now logs and reports the statuses it saw and how many the exclusion list removed; confirm the list against that line after the first live pull.)* Escalation skips clashes whose scope-file status is
   closed / resolved / approved / not_an_issue (`escalateExcludeStatuses`). The statuses the
   scope files actually use are unconfirmed; check on the first live pull.
+
+### Server-side ACC (`Planscape.Server`)
+
+- ~~**ACC-SRV-1 — PlatformController bypasses the ACC refresh lock.**~~ **Done 2026-09-30.**
+  `/test` and `/sync` delegate to `AccSyncService` for ACC connections.
+- ~~**ACC-SRV-2 — ephemeral DataProtection key ring.**~~ **Done 2026-09-30.** Keys are stored in
+  the database by default; an undecryptable token reports `RECONNECT_REQUIRED`.
+- ~~**ACC-SRV-3 — webhook tests (dedupe, tenancy, signature).**~~ **Done 2026-09-30.**
+- ~~**ACC-SRV-4 — unverified `payload.projectId` resolution.**~~ **Done 2026-09-30.**
+  `POST acc/webhooks/subscribe` registers hooks with `?connectionId=`; payload lookup is a fallback.
+- **ACC-SRV-5 — run the server path live.** Not confirmed against APS: the secret-token
+  endpoints (`PUT /webhooks/v1/tokens/@me`, `POST /webhooks/v1/tokens`), the
+  `dm.version.modified` event name, and `x-ads-region` on webhook calls. Also check that the
+  first deploy logs `key ring store: database table "DataProtectionKeys"` on both the API and
+  the worker. Tokens stored before that deploy were encrypted under an ephemeral key; those
+  connections will show `RECONNECT_REQUIRED` and need one reconnect.
+- **ACC-SRV-6 — Data Management hooks need folder URNs.** APS scopes DM hooks to a folder, so
+  `subscribe` creates them only for the `folderUrns` it is given. There is no UI to pick them;
+  the ACC Docs CDE folder mapping (ACC-DOCS-1) is the likely source.
+- **ACC-SRV-7 — webhook dedupe is check-then-set.** Two concurrent deliveries with one
+  `x-adsk-delivery-id` can both be processed. The handlers are idempotent in effect (a second
+  `UpdatedAt` stamp, a second broadcast); make it an atomic set-if-absent if that matters.
+- **ACC-SRV-8 — DataProtection keys are not encrypted at rest.** The database store holds the
+  key XML unencrypted (the ASP.NET default without an XML encryptor). Anyone with database read
+  access can decrypt the stored ACC tokens. Add `ProtectKeysWith…` if the threat model needs it.

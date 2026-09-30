@@ -30,13 +30,16 @@ public interface ISecretCipher
 ///   * Writing a token with no cipher configured THROWS. Silently storing
 ///     plaintext is exactly the bug this class exists to remove.
 ///   * An <c>enc:v1:</c> value that cannot be decrypted (the DataProtection key
-///     ring changed — e.g. an ephemeral ring on a host with no
-///     <c>DataProtection:KeysPath</c>) reads back as NULL and logs an error. The
-///     ciphertext is left untouched in the database (EF only writes modified
-///     properties), the connection reports "no refresh token — reconnect", and
-///     restoring the key ring restores the connection. Throwing instead would
-///     fail the whole materialisation — one bad row would stop the scheduled
-///     sweep for every tenant.
+///     ring changed — e.g. an ephemeral ring; see DataProtectionKeyStore) reads
+///     back as the CIPHERTEXT ITSELF and logs an error. Not null, not "": an
+///     empty token is indistinguishable from "never connected". Consumers test
+///     it with <see cref="IsUnreadable"/> — AccTokenRefresher treats it as not
+///     fresh, refuses to refresh with it, and the connection reports
+///     RECONNECT_REQUIRED. Writing it back is a no-op (<see cref="Protect"/>
+///     passes an <c>enc:v1:</c> value through unchanged), so restoring the key
+///     ring restores the connection. Throwing instead would fail the whole
+///     materialisation — one bad row would stop the scheduled sweep for every
+///     tenant.
 /// </summary>
 public static class PlatformTokenProtection
 {
@@ -64,6 +67,14 @@ public static class PlatformTokenProtection
     public static bool IsEncrypted(string? stored)
         => stored != null && stored.StartsWith(Prefix, StringComparison.Ordinal);
 
+    /// <summary>
+    /// True when a MODEL value (an entity property after materialisation) is
+    /// still ciphertext — the stored token could not be decrypted. Such a value
+    /// must never be sent to a provider as a token; the connection needs a
+    /// reconnect (or the key ring restored).
+    /// </summary>
+    public static bool IsUnreadable(string? modelValue) => IsEncrypted(modelValue);
+
     /// <summary>Model value → column value.</summary>
     public static string Protect(string value)
     {
@@ -82,7 +93,7 @@ public static class PlatformTokenProtection
         if (cipher == null)
         {
             _logger?.LogError("PlatformTokenProtection: encrypted token read but no cipher configured.");
-            return null;
+            return stored;   // stays ciphertext: IsUnreadable -> reconnect
         }
         try
         {
@@ -93,7 +104,7 @@ public static class PlatformTokenProtection
             _logger?.LogError(ex,
                 "PlatformTokenProtection: a stored platform token could not be decrypted (DataProtection key ring changed?). " +
                 "The connection must be reconnected, or the key ring restored.");
-            return null;
+            return stored;   // stays ciphertext: IsUnreadable -> reconnect
         }
     }
 }
