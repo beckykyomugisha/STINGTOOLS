@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Deploy `claude/kut-combined-acc-tags` @ `2f4e5ada0` to `C:\Dev\STING_KUT_LIVE` when Revit is closed (`tasklist | grep Revit` empty). It is verified: build 0/0, Acc 604, Tags 4704, Cost 147, Mep 87, all gates green. Detach STING_KUT_LIVE at that commit, run deploy.bat, and verify (see "Deploy"). Deferred all session because Revit was open.
-2. Next audit pass: area 2, everything ACC touches. That covers Export Centre auto-upload end to end, Document Manager ↔ register ↔ ACC metadata, transmittals (bundle SENT marking), and the server AccSyncService ↔ plugin issue round trip.
-3. Area 3 backlog: the UNGATED non-ACC dialogs in `tools/unattended_cycle_baseline.txt` (40 lines) block unattended KUT workflows. Route them through PresetDialog, like main does.
+1. Fix the area-2 findings C1–C10 below, highest first. C1 (P0) is store quarantine: PluginSchemaVersion turns JSON-array stores into objects.
+2. Deploy the INTEGRATION branch (it now contains origin/main incl. #1019) to `C:\Dev\STING_KUT_LIVE` once `tasklist | grep Revit` is empty: `git -C C:/Dev/STING_KUT_LIVE checkout --detach <integration head>`, then deploy.bat, then the verification in "Deploy".
+3. After C1–C10, area 3: route the UNGATED dialogs in `tools/unattended_cycle_baseline.txt` through PresetDialog (now on this branch).
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -47,6 +47,20 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 | R12 | Reachability | UI/StingCommandHandler.cs:3026 | P2 | Revision_SetPerSheetNumbering has no button; CreateRevision tells users to run it | **Done** 4bf7eced5: BIM > Revision Management gets "Per-Sheet #" and "Leak Chk" |
 | R13 | Revision label | Core/Drawing/SheetRevisionReader.cs:77-83 | P2 | Invents "R{seq}" when numbering is None; reaches title block, file names, ACC | **Done** 06b37ea0e: no invented R{seq}; empty + log |
 | R14 | Register default | BIMManager/ExportRegisterUpsert.cs:57,63 | P2 | Non-sheet rows default S0/WIP, later read as a real suitability for ACC | **Done** 8ca3727ec: suitability_defaulted flag; AccFileIso does not send a defaulted S0 |
+
+## Findings — area 2, ACC-adjacent (audit 2026-10-01)
+| Id | Area | Where | Sev | Defect | Plan |
+|---|---|---|---|---|---|
+| C1 | Stores | Core/PluginSchemaVersion.cs:120-131 via TransmittalOrchestrator.cs:151, DeliverableLifecycle.cs:584 | P0 | JSON-ARRAY stores (transmittals.json, deliverables.json) fail JObject.Parse → quarantined to .corrupt.* and replaced by a version object; AppendTransmittalsJson "starts fresh" → every earlier transmittal lost | Array root = never touched; no quarantine on type mismatch; Append refuses instead of starting fresh; tests |
+| C2 | Export→ACC | ScheduledExportRunner.cs:105-113; ScheduledExportSummary Verdict; ExportCenterEngine.cs:1165; StingExportCenterDialog.cs:1794 | P0 | ACC upload failures only Warnings: step 5 green while nothing reached ACC; dialog Take(8) can hide the ACC line | ACC counts on ExportRunResult/ScheduledJobOutcome; Verdict fails on ACC failures (refusals in a preset); ACC line first |
+| C3 | Issues→server | PlanscapeServerClient.cs:624-646; IssueStore.cs:452-517 | P1 | No Idempotency-Key on create (timeout during cold start → duplicate BimIssue → both pushed to ACC); reconcile writes stale snapshot over concurrent server_code | Idempotency-Key = project+issue_id; reconcile re-reads under lock per row |
+| C4 | JSON stores | BIMManagerCommands.cs:775-838 | P1 | LoadJsonArray: unreadable → empty (then overwritten); SaveJsonFile swallows → "SENT" claimed after failed save | TryLoad refuses on unreadable; SaveJsonFile reports failure; callers report |
+| C5 | Ledger key | V6/AccUploadLedger.cs:103-137 | P1 | Key ignores suitability/folder: S2→S3 or WIP→SHARED under same revision skipped/refused | Suitability in the key; status change = upload to new folder |
+| C6 | Hash stability | AccUploadGate.cs:83-112 | P2 | Revit PDFs likely not byte-stable → re-exports refused not skipped | NEEDS MANUAL CHECK (hash twice); then decide |
+| C7 | Unified register | Core/DocumentRegisterMerge.cs:44-146 | P2 | Ignores suitability_defaulted/iso_unset/IsoConflict; backfills cleared suitability | Carry flags; no backfill over IsoConflict |
+| C8 | Register pairing | RevisionIssueCompletion.cs:177-179 | P2 | ApplyToRegister keeps a contradicted stale suitability (R5 guard missing there) | Same guard as ApplyToDeliverables |
+| C9 | CDE routing | AccModelUpload.cs:263-290; ExportCenterEngine.cs:1148 | P2 | No cdeFolders → every state to one folder; row drops FolderReason | Append folder reason; refuse WIP without cdeFolders unless opted in |
+| C10 | Server push | Planscape.Server AccSyncService.cs:398-485 | P2 | Planscape edits (status/title) never reach ACC after first push | PATCH mapped issues updated since last push, or report divergence |
 
 ## Findings (done)
 - 2026-10-01 audit fixes on `claude/acc-audit-fixes-y` (not pushed): **A7** `eec4bf778` (review on the live tip version) ·
@@ -108,4 +122,5 @@ Seam audit (2026-10-01):
 - **R8:** not re-ordered. Revit locks an issued revision, so "issued" cannot be undone after a failed export. Transmission gets its own state later (ROADMAP REVWF-1).
 - **R10:** a locked title block is the user's explicit freeze (T-3). It is reported, not failed, because the advised fix (RevisionSync) cannot touch it.
 - **R14:** the register's S0 convention is kept for display and back-compat and flagged `suitability_defaulted`, rather than blanked. Blanking would change every Document Manager reader.
+- **Deploy source (2026-10-01):** origin/main now carries the tag-families work (#1019), so the integration branch (main + ACC) is the deploy branch. `claude/kut-combined-acc-tags` is kept but retired: it only differs by an older uncommitted tag-families snapshot, superseded by the reviewed PR.
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).
