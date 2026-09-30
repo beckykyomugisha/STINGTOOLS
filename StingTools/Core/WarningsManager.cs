@@ -3263,8 +3263,18 @@ namespace StingTools.Core
         private volatile string _pendingAction = null;
         internal void Post(string action) => _pendingAction = action;
 
+        // Work a modeless BCC panel must do in the Revit API context (resolve a project path,
+        // write project settings). Queued, not a single slot: two quick clicks both run.
+        private readonly ConcurrentQueue<Action<UIApplication>> _work = new ConcurrentQueue<Action<UIApplication>>();
+        internal void PostWork(Action<UIApplication> work) { if (work != null) _work.Enqueue(work); }
+
         public void Execute(UIApplication app)
         {
+            while (_work.TryDequeue(out var work))
+            {
+                try { work(app); }
+                catch (Exception ex) { StingLog.Error("BCC API-thread work", ex); }
+            }
             string action = System.Threading.Interlocked.Exchange(ref _pendingAction, null);
             if (!string.IsNullOrEmpty(action))
             {
@@ -3335,6 +3345,11 @@ namespace StingTools.Core
                 UI.BIMCoordinationCenter.ActionDispatcher = action =>
                 {
                     _bccHandler.Post(action);
+                    _bccEvent.Raise();
+                };
+                UI.BIMCoordinationCenter.ApiDispatcher = work =>
+                {
+                    _bccHandler.PostWork(work);
                     _bccEvent.Raise();
                 };
 
@@ -4264,6 +4279,9 @@ namespace StingTools.Core
                 // Current user info
                 coordData.CurrentUserName = Environment.UserName;
                 coordData.FilePath = doc.PathName ?? "";
+                // Resolved HERE, on the Revit API thread: the modeless BCC must not call
+                // StingPaths itself (off the API thread, and after awaits).
+                coordData.AccSettingsPath = Core.Clash.AccProjectSettingsFile.PathFor(doc) ?? "";
 
                 // Phase 76: Restore permissions from project_config.json "permissions" key
                 try

@@ -128,8 +128,10 @@ Project Files/
 Only the IM and approvers can upload to PUBLISHED; everything else reaches it through Reviews.
 Folder-level permissions are set in the UI; the API does not expose them [U].
 
-Once the folders exist, write their paths into your local notes. Automatic state-to-folder
-routing (`cdeFolders`) is **not** in the deployed build yet (see §6).
+Once the folders exist, put their URNs in `acc_settings.json` `"cdeFolders"` (§6): every STING
+upload (`ACC_UploadModel`, `ACC_UploadLastBundle`, the Export Centre auto-upload) files a document
+into the folder of its suitability's CDE state, and **refuses** a state with no folder rather than
+sending it somewhere else. On the 2026-09-29 DLL this key does not exist (situation C, §6).
 
 ### 3.3 Naming standard (Docs → Settings → Naming standard)
 
@@ -202,15 +204,18 @@ it, fill them by hand in ACC.
 
 ### 3.5 Issues settings (Issues → Settings)
 
-- **Issue type `Coordination`** with subtypes in this order: **`Clash`** first, then
-  `Design coordination`, `Missing information`.
-  StingTools picks the first type whose title contains "clash" or "coordination", and then
-  **the first subtype of that type** (`AccIssueSync.EnsureIssueTypeAsync`). Put `Clash` first, and
-  do not leave an older, **inactive** type called "Coordination" in the list, because the code
-  does not skip inactive types.
+- **Issue type `Coordination`** with subtypes **`Clash`**, `Design coordination`, `Missing information`.
+  With no `issueTypeId` configured, StingTools looks only at **active** types and subtypes
+  (inactive ones are skipped), picks the first type whose **title** contains "clash", else
+  "coordination", else a type that has a subtype called "Clash", and then the subtype whose title
+  contains "clash" / "coordination" (or the type's only subtype). It **never picks by position**:
+  if nothing matches by name, the push is **refused** with a message listing every type and
+  subtype, and the fix is one setting — `issueTypeId` / `issueSubtypeId` (§6, or the card's Issue
+  Type ID field). The choice is made per run; it is not written back anywhere.
 - Additional types: `Lifecycle gap` (for `KutPushLifecycleGapsToAcc`), `Design`, `Quality`.
 - **Root causes:** Design coordination · Clash · Missing information · Standards non-compliance ·
-  Client change. (StingTools does not set root causes yet. This is for the people triaging.)
+  Client change. An escalated clash issue carries the root cause named by `"issueRootCause"` (§6),
+  matched by title; an unknown title is reported, not guessed.
 - Issue custom attribute `STING signature` (text). It is used in two weeks; creating it now avoids
   a re-configuration.
 
@@ -245,7 +250,7 @@ Revit → STING dock → **BIM Coordination Center → Platforms → ACC** card.
    both ID boxes to the bare GUID now, then Save.
 6. **Coord Container ID:** leave it empty (it falls back to the project id) on A/B. On C, enter
    the bare GUID.
-7. **Issue Type ID:** leave it empty. It is resolved on the first push, or pinned via
+7. **Issue Type ID:** leave it empty. It is resolved by name on every push (§3.5), or pinned via
    `issueTypeId` (§6).
 
 **Credentials** live in `%APPDATA%\Planscape\acc_credentials.json`: machine- and user-scoped,
@@ -272,26 +277,45 @@ prompting, and the card shows *"could NOT be read (…carries key(s) this build 
 
 | Key | Type | In the 2026-09-29 DLL? | Meaning |
 |---|---|---|---|
+| `unattended` | bool | yes | `true` = ACC commands never prompt: they use these settings and FAIL with a named reason instead of asking. `false` (default) on day 1 |
 | `projectId` | string | yes | ACC project id (`b.` accepted on the new build) |
 | `coordContainerId` | string | yes | Model Coordination container; empty = `projectId` |
-| `coordModelSetId` / `coordModelSetName` | string | yes | Remembered model set (the name is for messages only) |
-| `publishSuitability` | string | yes | Suitability for an unattended publish. Leave unset on day 1 |
-| `escalateMaxCount` + `escalateMinScore` | int + number, **both or neither** | yes | Unattended escalation policy. Leave unset on day 1 |
-| `unattended` | bool | yes | `false` on day 1 |
-| `hubId`, `folderUrn` | string | **no** | Hub; the single upload folder (`urn:adsk.wipprod:fs.folder:co.…`) |
+| `coordModelSetId` | string | yes | Remembered coordination model set (matched by id; a missing id is reported, never "the first set") |
+| `coordModelSetName` | string | yes | The set's name, for messages only |
+| `publishSuitability` | string | yes | Suitability an unattended ACC Publish uses (validated against the ISO 19650 list). Leave unset on day 1 |
+| `escalateMaxCount` | int | yes | Most clashes one run escalates. Needs `escalateMinScore` too: **one without the other turns escalation OFF** (reported). Leave unset on day 1 |
+| `escalateMinScore` | number | yes | Triage score threshold (0–1), with `escalateMaxCount` |
+| `hubId` | string | **no** | ACC hub (account) of the project; written by *Find my ACC project* |
+| `folderUrn` | string | **no** | Default upload folder (`urn:adsk.wipprod:fs.folder:co.…`); `cdeFolders` takes precedence |
 | `region` | string | **no** | `US` (default, header not sent), `CAN`, `EMEA`, `GBR`, `DEU`, `IND`, `JPN`, `AUS` → `x-ads-region` |
-| `issueTypeId`, `issueSubtypeId` | string | **no** | Pin the escalation type or subtype instead of name-matching (fixes R2) |
 | `distToMm` | number > 0 | **no** | ACC clash distance → mm (default 1000 = metres) |
-| `cdeFolders` | object `{WIP,SHARED,PUBLISHED,ARCHIVE → folder URN}` | **no** | CDE-state routing map. **No fallback:** an unmapped state is refused |
+| `issueTypeId` | string | **no** | Pin the issue type instead of name-matching (§3.5). Changing it on the card clears `issueSubtypeId` |
+| `issueSubtypeId` | string | **no** | Pin the subtype (with or without `issueTypeId`) |
+| `cdeFolders` | object `{WIP,SHARED,PUBLISHED,ARCHIVE → folder URN}` | **no** | Every upload is filed by its suitability's CDE state. **No fallback:** an unmapped state is refused. `ARCHIVE` is also where Supersede/Replace retires a document (`retireSupersededInAcc`) |
 | `disciplineMap` | object `{name token → discipline}` | **no** | Model-name token → S/M/P/E/FP/A…, consulted before the ISO role field |
-| `docsAttributes`, `docsAttributesCreateMissing` | bool | **no** | Stamp ISO 19650 metadata as ACC custom attributes on uploads |
-| `escalateDueDays` | int ≥ 0 | **no** | Due date on escalated issues |
-| `escalateAssignedTo` + `escalateAssignedToType` | string + `user`/`company`/`role`, **both or neither** | **no** | Assignee on escalated issues |
-| `escalateExcludeStatuses` | string[] | **no** | ACC statuses that are not re-escalated |
+| `docsAttributes` | bool | **no** | Uploads stamp ISO 19650 metadata (document number, suitability, revision, CDE state, originator, transmittal) as ACC custom attributes (§3.4). Missing attributes are reported on the upload result |
+| `docsAttributesCreateMissing` | bool | **no** | Let STING create a missing attribute definition on the folder. Off: definitions are the ACC admin's |
+| `docsAttributeNames` | object `{documentNumber, suitability, revision, cdeState, originator, transmittalId → name}` | **no** | The ACC attribute names STING writes to (§3.4); a role not given keeps its default |
+| `fileNamingFields` | int `7` or `9` | **no** | 7 = ISO 19650 name only (suitability/revision travel as attributes); 9 = name carries them. Unset = 7 whenever ACC is configured (§3.3) |
+| `uploadUnattended` | bool | **no** | May `ACC_UploadLastBundle` upload without a person confirming, on an unattended project? Off: opt-in twice (unattended AND this) |
+| `uploadAllowReissue` | bool | **no** | May `ACC_UploadModel` / `ACC_UploadLastBundle` send CHANGED content under a document number + revision already sent? Off (default): refused — revise the sheet. The Export Centre's equivalent is its profile option. An identical file is always skipped, never re-sent |
+| `escalateDueDays` | int ≥ 0 | **no** | Due date on escalated issues, in days from today |
+| `escalateAssignedTo` | string | **no** | Assignee of escalated issues: an ACC id, a member's **email**, or a user/company/role **name**, resolved against the project's members at run time; unresolvable = escalation refused. **An email alone is enough** (it names a user) |
+| `escalateAssignedToType` | `user` / `company` / `role` | **no** | Required with an id or a name; optional with an email (must be `user` if given) |
+| `escalateExcludeStatuses` | string[] | **no** | ACC clash statuses never escalated. **The list REPLACES the default** `closed, resolved, approved, not_an_issue` — include those if you still want them excluded |
+| `issueDeepLinks` | bool | **no** | Put a `planscape://revit/select` link in each escalated issue. Default on |
+| `issueViewerLinks` | bool | **no** | Put ACC's own viewer link for each model version in the issue. Default on |
+| `issueBcfAttachment` | bool | **no** | Attach a one-topic BCF 2.1 file naming the two elements. Default on |
+| `issueCustomAttributes` | object `{clashSignature, clashId, triageScore, modelSet → ACC attribute title}` | **no** | STING values an escalated issue carries in ACC custom attributes; resolved to ids per container |
+| `issueRootCause` | string | **no** | ACC root-cause **title** for escalated clash issues |
+| `pushIssueChanges` | bool | **no** | May `ACC_PushIssueChanges` write status/assignee changes to ACC unattended? Off: an unattended run only reports what it WOULD push. Interactive runs always preview and ask |
+| `autoImportIssues` | bool | **no** | Import ACC issues when the Planscape server relays an ACC issue webhook. Off by default |
+| `reviewApprovalMap` | object `{ACC approval label or APPROVED/REJECTED → suitability}` | **no** | The ISO 19650 code an ACC review approval proposes (S1–S7, A1–A5, B1–B5, CR); unmapped = "code to be chosen" |
+| `startAccReviewOnPublish` | object `{"workflowId": "…", "unattended": bool}` | **no** | Publishing a deliverable whose file is in ACC offers (or, unattended + `"unattended": true`, starts) an ACC review on that workflow — on the file's **current** version, re-read from ACC |
+| `retireSupersededInAcc` | `"ask"` / `"always"` / `"never"` | **no** | What Supersede / Replace does to the deliverable's ACC document (copy to the `ARCHIVE` folder with AB). Default `ask`; unattended runs never prompt |
 
-As of tonight the routing and attribute libraries (`AccCdeRouting`, `AccDocsMetadata`) exist but
-are **not yet called by the upload command** [Code]. `cdeFolders` and `docsAttributes` are
-parsed and stored, but they do not change an upload yet.
+These are the keys `AccOperatingPolicy.KnownKeys` accepts, all of them. `ACC_SelfCheck` and the
+card name the file and the offending key when one is wrong.
 
 ### Example for tomorrow: situation A/B (new build)
 
@@ -307,7 +331,7 @@ parsed and stored, but they do not change an upload yet.
   "issueTypeId": "",
   "issueSubtypeId": "",
   "escalateDueDays": 14,
-  "escalateExcludeStatuses": ["closed", "void"],
+  "escalateExcludeStatuses": ["closed", "resolved", "approved", "not_an_issue"],
   "disciplineMap": { "ARC": "A", "STR": "S", "MEP": "M", "ELE": "E", "PLU": "P", "FPR": "FP" },
   "folderUrn": "urn:adsk.wipprod:fs.folder:co.SHARED_DOCUMENTS_FOLDER",
   "cdeFolders": {
@@ -323,8 +347,10 @@ parsed and stored, but they do not change an upload yet.
 - Set `region` **only** after V3 confirms the hub's region. If the hub is US, omit the key.
 - `coordModelSetId` is filled by answering *remember?* **Yes** after the first successful pull.
 - Leave `issueTypeId` empty unless V5 picks the wrong type.
-- Keep `docsAttributes` false until the upload command uses it and the attributes exist in ACC
-  (§3.4).
+- Keep `docsAttributes` false until the attributes exist in ACC (§3.4); the uploads use it as
+  soon as it is true.
+- `escalateExcludeStatuses` above is the built-in default spelled out: the list **replaces** the
+  default, so a shorter list would start escalating resolved and approved clashes again.
 - The `disciplineMap` tokens are examples. Use the tokens that actually appear in KUT model file
   names.
 
@@ -364,16 +390,23 @@ A verification with no written result did not happen.
 
 - **`ACCPublish` does not publish.** It builds a local zip. Upload is separate (`ACC_UploadModel`,
   `ACC_UploadLastBundle`), and the upload is not in any KUT workflow on purpose.
-- **Uploads do not route by CDE state yet** and set **no document attributes yet**. The libraries
-  exist (`AccCdeRouting`, `AccDocsMetadata`) but the upload command does not call them. You choose
-  the folder and fill Suitability/Revision in ACC.
-- **Escalated issues carry no assignee, due date, root cause, linked document or pushpin** on the
+- **Uploads route by CDE state and stamp document attributes on the new build** (`cdeFolders`,
+  `docsAttributes`, §6). Every upload path runs the same pre-upload checks: the revision/suitability
+  pairing (P with S0–S7, C with A/B/CR), and the upload ledger — an identical file already sent is
+  skipped, a changed file under an unchanged revision is refused unless allowed. On the 2026-09-29
+  DLL none of this exists: choose the folder and fill Suitability/Revision in ACC by hand.
+- **Escalated issues carry no assignee, due date, root cause, links or pushpin** on the
   2026-09-29 DLL. The new build adds assignee and due date (`escalateAssignedTo*`,
-  `escalateDueDays`). Root cause, linked document and pushpin stay manual in ACC: **pushpins
-  cannot be created through the API at all**.
+  `escalateDueDays`), root cause and custom attributes (`issueRootCause`, `issueCustomAttributes`),
+  and a Revit deep link, ACC viewer links and a BCF attachment (`issueDeepLinks`,
+  `issueViewerLinks`, `issueBcfAttachment`). **Pushpins cannot be created through the API at all.**
 - **No transmittal is created in ACC by StingTools.** The API is read-only. Issue transmittals in
-  ACC; STING's B06 docx is the supporting record.
-- **No Reviews, Sheets, RFIs, Submittals, Forms, Assets, Cost, Photos or webhooks integration.**
+  ACC; STING's B06 docx is the supporting record. `ACC_ReadTransmittals` copies ACC's transmittals
+  into STING as read-only rows.
+- **Reviews:** `ACC_ReadReviews` reads ACC review decisions back as proposals a person accepts
+  (`ACC_ReviewProposals`); `ACC_StartReview` / `startAccReviewOnPublish` start one. **Webhooks:**
+  the Planscape server relays ACC issue webhooks, and `autoImportIssues` imports on that signal.
+- **No Sheets, RFIs, Submittals, Forms, Assets, Cost or Photos integration.**
 - **Model sets, clash tests, folders, permissions, attributes and the naming standard are set up
   in the ACC UI.**
 - **The Model Coordination `tests`/`resources` sub-paths and the upload path have never run

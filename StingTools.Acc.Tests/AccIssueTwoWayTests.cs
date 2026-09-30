@@ -257,19 +257,91 @@ namespace StingTools.Acc.Tests
             Assert.Contains(p.NotPushed, n => n.Contains("no ACC status maps back"));
         }
 
+        private static AccProjectDirectory Members() => AccProjectDirectory.From(new List<AccProjectUser>
+        {
+            new AccProjectUser { Id = "f-1", AutodeskId = "user-1", Email = "one@kut.test", Name = "One", Status = "active",
+                                 CompanyId = "co-1", CompanyName = "Planscape" },
+            new AccProjectUser { Id = "f-2", AutodeskId = "user-2", Email = "two@kut.test", Name = "Two Person", Status = "active",
+                                 CompanyId = "co-2", CompanyName = "Symbion" },
+        });
+
         [Fact]
         public void Push_Plan_Assignee_UsesAccType_TitleNotPushed()
         {
             var (rows, row) = Imported();
             row["assigned_to"] = "user-2";
             row["title"] = "Local title";
-            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"));
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"), Members());
 
             Assert.Equal("user-2", (string)p.Patch["assignedTo"]);
             Assert.Equal("user", (string)p.Patch["assignedToType"]);
             Assert.Null(p.Patch["title"]);
             Assert.Contains(p.NotPushed, n => n.StartsWith("title"));
             Assert.Null(p.CommentText);   // no note, no comments
+        }
+
+        [Fact]
+        public void Push_Plan_AssigneeEmail_ResolvedToTheMembersAutodeskId_AndRecordedAfterPush()
+        {
+            var (rows, row) = Imported();
+            row["assigned_to"] = "TWO@kut.test";
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"), Members());
+
+            Assert.True(p.HasWrite);
+            Assert.Equal("user-2", (string)p.Patch["assignedTo"]);
+            Assert.Equal("user", (string)p.Patch["assignedToType"]);
+
+            AccIssuePush.ApplyPushed(p, T1);
+            Assert.Equal("user-2", (string)row["assigned_to"]);
+            Assert.Equal("Two Person", (string)row[AccIssueImport.AssignedNameField]);
+            // The next import (ACC now holds user-2) sees agreement, not an ACC change.
+            var r = Merge(rows, T2, pulled: Acc("a-1", assignee: "user-2"));
+            Assert.Empty(r.LocalAhead);
+            Assert.Empty(r.Conflicts);
+        }
+
+        [Fact]
+        public void Push_Plan_AssigneeName_ResolvedLikeEscalation()
+        {
+            var (rows, row) = Imported();
+            row["assigned_to"] = "Two Person";
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"), Members());
+            Assert.Equal("user-2", (string)p.Patch["assignedTo"]);
+        }
+
+        [Fact]
+        public void Push_Plan_UnresolvableAssignee_RefusedWithReason_StatusStillPushed()
+        {
+            var (rows, row) = Imported();
+            row["assigned_to"] = "nobody@kut.test";
+            IssueSchema.ApplyStatus(row, "CLOSED", "coord", T1, "fixed");
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"), Members());
+
+            Assert.True(p.HasWrite);
+            Assert.Equal("closed", (string)p.Patch["status"]);
+            Assert.Null(p.Patch["assignedTo"]);
+            Assert.DoesNotContain("assigned_to", p.PushFields);
+            Assert.Contains(p.NotPushed, n => n.StartsWith("assignee 'nobody@kut.test'") && n.Contains("no project member"));
+        }
+
+        [Fact]
+        public void Push_Plan_AssigneeEmail_MembersUnreadable_Refused_NotSentRaw()
+        {
+            var (rows, row) = Imported();
+            row["assigned_to"] = "two@kut.test";
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1"), null, "HTTP 403");
+            Assert.False(p.HasWrite);
+            Assert.Contains(p.NotPushed, n => n.Contains("member list could not be read") && n.Contains("HTTP 403"));
+        }
+
+        [Fact]
+        public void Push_Plan_AssigneeEmail_WhenPreviousAssigneeWasACompany_IsAUser()
+        {
+            var (rows, row) = Imported();
+            row["assigned_to"] = "two@kut.test";
+            var p = AccIssuePush.Plan(AccIssuePush.FindCandidates(rows).Single(), Current("a-1", assigneeType: "company"), Members());
+            Assert.Equal("user", (string)p.Patch["assignedToType"]);
+            Assert.Equal("user-2", (string)p.Patch["assignedTo"]);
         }
 
         [Fact]

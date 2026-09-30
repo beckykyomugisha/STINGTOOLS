@@ -80,13 +80,22 @@ namespace StingTools.Core.Clash
             AccModelUpload.UploadResult result;
             AccUploadOptions options;
             System.Collections.Generic.List<string> factNotes = null;
+            PreUpload pre;
             try
             {
-                options = BuildOptions(doc, file, policy, out string optionsRefusal, out factNotes);
+                options = BuildOptions(doc, file, policy, out string optionsRefusal, out factNotes, out pre);
                 if (options == null)
                 {
                     if (!string.IsNullOrEmpty(optionsRefusal)) AccPullClashesCommand.Report(policy, DialogTitle, optionsRefusal);
                     return string.IsNullOrEmpty(optionsRefusal) ? Result.Cancelled : Refused(policy);
+                }
+                if (pre.Gate.Decision == AccUploadGateDecision.SkipIdentical)
+                {
+                    // Not a failure: the deliverable is already in ACC, byte for byte.
+                    AccPullClashesCommand.Report(policy, DialogTitle,
+                        $"{Path.GetFileName(file)} was not uploaded again: {pre.Gate.Reason}.");
+                    StingLog.Info($"ACC upload: '{file}' skipped - {pre.Gate.Reason}");
+                    return Result.Succeeded;
                 }
                 result = AccModelUpload.UploadAsync(creds, file, options).GetAwaiter().GetResult();
             }
@@ -117,8 +126,10 @@ namespace StingTools.Core.Clash
                 return Result.Failed;
             }
 
+            string ledgerNote = RecordInLedger(file, pre, result);
             var cover = UploadTransmittalCover(doc, creds, file, options);
             string txNote = MarkBundleTransmittalSent(doc, file, result, cover.versionUrn);
+            if (!string.IsNullOrEmpty(ledgerNote)) txNote = (txNote == null ? "" : txNote + "\n") + ledgerNote;
             if (!string.IsNullOrEmpty(cover.note)) txNote = (txNote == null ? "" : txNote + "\n") + cover.note;
             AccPullClashesCommand.Report(policy, DialogTitle,
                 result.Message +
@@ -141,9 +152,10 @@ namespace StingTools.Core.Clash
         /// file name. Returns null (with a reason, or none if the person cancelled) to stop.
         /// </summary>
         private static AccUploadOptions BuildOptions(Document doc, string file, AccOperatingPolicy policy, out string refusal,
-            out System.Collections.Generic.List<string> notes)
+            out System.Collections.Generic.List<string> notes, out PreUpload pre)
         {
             refusal = null;
+            pre = null;
             notes = new System.Collections.Generic.List<string>();
             var rec = AccBundleRecord.ReadExisting(BundleRecordPath(doc));
             bool isBundle = rec != null && string.Equals(Path.GetFullPath(rec.Path), Path.GetFullPath(file), StringComparison.OrdinalIgnoreCase);
@@ -183,14 +195,35 @@ namespace StingTools.Core.Clash
                 suitability = Iso19650Suitability.DefaultFor(pick.Split(' ')[0]);
             }
 
-            // ISO 19650 revision/suitability pairing (Iso19650RevisionRules): refuse a file
-            // whose name says P03 being filed as A1, or C01 as S2.
-            var pairing = Iso19650RevisionRules.CheckFileName(file, suitability);
-            if (pairing.IsInconsistent)
+            // The one pre-upload discipline the Export Centre also runs (AccUploadGate): the
+            // ISO 19650 revision/suitability pairing (the recorded revision AND the one a file
+            // name carries), then the upload ledger - an identical file already in ACC is
+            // skipped, a changed file under a revision already sent is refused unless the
+            // project allows re-issues ("uploadAllowReissue").
+            string ledgerPath = LedgerPath(doc);
+            var ledger = AccUploadLedger.Load(ledgerPath, out string ledgerErr);
+            if (ledger == null)
             {
-                refusal = $"{Path.GetFileName(file)} was NOT uploaded: {pairing.Reason}.";
+                // An unreadable ledger is not an empty one: every file would look "never sent".
+                refusal = $"{Path.GetFileName(file)} was NOT uploaded: the upload ledger could not be read " +
+                          $"({ledgerErr}): {ledgerPath}";
                 return null;
             }
+            var gate = AccUploadGate.Check(ledger, file, facts.DocumentNumber, facts.Revision, suitability,
+                policy.UploadAllowReissue);
+            if (gate.Decision == AccUploadGateDecision.Refuse)
+            {
+                refusal = $"{Path.GetFileName(file)} was NOT uploaded: {gate.Reason}.";
+                StingLog.Warn("ACC upload refused: " + gate.Reason);
+                return null;
+            }
+            pre = new PreUpload
+            {
+                Gate = gate, Ledger = ledger, LedgerPath = ledgerPath,
+                DocumentNumber = facts.DocumentNumber, Revision = facts.Revision, Suitability = suitability ?? "",
+            };
+            if (gate.ReissueAllowed)
+                notes.Add("Re-issue under an unchanged revision, allowed by \"uploadAllowReissue\": " + gate.Reason + ".");
 
             var options = new AccUploadOptions
             {
@@ -221,6 +254,45 @@ namespace StingTools.Core.Clash
                 };
             }
             return options;
+        }
+
+        /// <summary>What the pre-upload gate decided, carried to the post-upload bookkeeping.</summary>
+        private sealed class PreUpload
+        {
+            public AccUploadGateResult Gate;
+            public AccUploadLedger Ledger;
+            public string LedgerPath;
+            public string DocumentNumber;
+            public string Revision;
+            public string Suitability;
+        }
+
+        /// <summary>Where the upload ledger lives - beside last_bundle.json. One place, shared
+        /// with the Export Centre auto-upload, so both paths read and write one ledger.</summary>
+        internal static string LedgerPath(Document doc)
+        {
+            string dir = StingPaths.MetaFile(doc, "_BIM_COORD", "acc");
+            return Path.Combine(dir, AccUploadLedger.FileName);
+        }
+
+        /// <summary>Record a confirmed upload in the ledger. Returns a line for the report
+        /// when the record could not be saved (a re-run may then send it again), else null.</summary>
+        private static string RecordInLedger(string file, PreUpload pre, AccModelUpload.UploadResult result)
+        {
+            if (pre?.Ledger == null) return null;
+            try
+            {
+                AccUploadGate.Record(pre.Ledger, pre.Gate, file, pre.DocumentNumber, pre.Revision, pre.Suitability,
+                    result?.ItemUrn, result?.VersionUrn, DateTime.UtcNow);
+                if (pre.Ledger.TrySave(pre.LedgerPath, out string err)) return null;
+                StingLog.Warn("ACC upload: ledger not saved: " + err);
+                return $"The upload is in ACC, but the upload ledger could not be saved ({err}) - a re-run may send it again.";
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ACC upload: ledger: " + ex.Message);
+                return "The upload is in ACC, but it could not be recorded in the upload ledger: " + ex.Message;
+            }
         }
 
         /// <summary>IM-17: ACCPublish records its bundle's transmittal as PREPARED. When

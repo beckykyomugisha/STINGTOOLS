@@ -20,6 +20,9 @@
 //    person reconciles it; this code does not pick a winner.
 //  * Only status and assignee are pushed. Title, description and due date changes are
 //    reported as "not pushed": they are ACC's wording and ACC's programme.
+//  * An assignee is resolved through AccProjectMembers (the same rule clash escalation
+//    uses): an email or name becomes the member's Autodesk id; a value that cannot be
+//    resolved is not pushed, with the reason, and the issue's other changes still go.
 //  * A status is pushed only when it ROUND-TRIPS: CanonicalAcc(ToAccStatus(s)) == s. A
 //    STING status ACC cannot represent (ACCEPTED, RESOLVED, VOID) would come back on the
 //    next import as a different value and re-trigger the push forever.
@@ -74,6 +77,9 @@ namespace StingTools.V6
         public List<string> NotPushed { get; } = new List<string>();
         /// <summary>The comment posted after a successful PATCH, or null.</summary>
         public string CommentText { get; set; }
+        /// <summary>The resolved assignee the PATCH sends (null when the assignee is not being
+        /// set, or is being cleared).</summary>
+        public AccAssigneeResolution Assignee { get; set; }
         public bool HasWrite => Patch.HasValues;
     }
 
@@ -124,8 +130,15 @@ namespace StingTools.V6
             return list;
         }
 
-        /// <summary>Decide what to send for one candidate, given the issue ACC returned just now.</summary>
-        public static AccPushPlanItem Plan(AccPushCandidate c, AccIssue current)
+        /// <summary>Decide what to send for one candidate, given the issue ACC returned just now.
+        /// <paramref name="members"/> is the project's member read (null = it could not be read,
+        /// <paramref name="membersFailure"/> says why): a changed assignee is resolved through
+        /// <see cref="AccProjectMembers.Resolve"/> exactly as clash escalation resolves its
+        /// configured assignee - an email or name becomes the member's Autodesk id, an id is
+        /// checked, and anything unresolvable is refused for that field with the reason while
+        /// the issue's other changes are still pushed.</summary>
+        public static AccPushPlanItem Plan(AccPushCandidate c, AccIssue current,
+            AccProjectDirectory members = null, string membersFailure = "")
         {
             if (c == null) throw new ArgumentNullException(nameof(c));
             var item = new AccPushPlanItem { Candidate = c };
@@ -192,15 +205,25 @@ namespace StingTools.V6
                             item.PushFields.Add("assigned_to");
                             break;
                         }
-                        string type = FirstNonEmpty(current.AssignedToType, (string)c.Row["acc_assigned_to_type"]);
+                        string value = ch.LocalValue.Trim();
+                        // An email always names a user, whatever the previous assignee was.
+                        string type = value.Contains("@") ? "user"
+                            : FirstNonEmpty(current.AssignedToType, (string)c.Row[AccIssueImport.AssignedTypeField]);
                         if (string.IsNullOrEmpty(type))
                         {
-                            item.NotPushed.Add($"assignee '{ch.LocalValue}': ACC needs to know whether it is a user, " +
+                            item.NotPushed.Add($"assignee '{value}': ACC needs to know whether it is a user, " +
                                                "company or role, and neither the issue nor the register says — assign it in ACC");
                             break;
                         }
-                        item.Patch["assignedTo"] = ch.LocalValue.Trim();
-                        item.Patch["assignedToType"] = type;
+                        var who = AccProjectMembers.Resolve(value, type, members, membersFailure);
+                        if (!who.Ok)
+                        {
+                            item.NotPushed.Add($"assignee '{value}': {who.Reason}");
+                            break;
+                        }
+                        item.Patch["assignedTo"] = who.Id;
+                        item.Patch["assignedToType"] = who.Type;
+                        item.Assignee = who;
                         item.PushFields.Add("assigned_to");
                         break;
                     }
@@ -265,6 +288,17 @@ namespace StingTools.V6
             var row = item?.Candidate?.Row;
             if (row == null) return;
             if (!(row[AccIssueImport.BaseField] is JObject baseObj)) { baseObj = new JObject(); row[AccIssueImport.BaseField] = baseObj; }
+            if (item.Assignee != null && item.PushFields.Contains("assigned_to"))
+            {
+                // ACC now holds the resolved id, not the email/name typed in STING. Record the id
+                // as the value (and so the base), so the next import sees agreement instead of
+                // "ACC changed the assignee", and keep the readable name beside it.
+                row["assigned_to"] = item.Assignee.Id;
+                row[AccIssueImport.AssignedIdField] = item.Assignee.Id;
+                row[AccIssueImport.AssignedTypeField] = item.Assignee.Type;
+                if (!string.IsNullOrWhiteSpace(item.Assignee.DisplayName))
+                    row[AccIssueImport.AssignedNameField] = item.Assignee.DisplayName;
+            }
             foreach (string f in item.PushFields.Concat(item.AgreeFields).Distinct())
                 baseObj[f] = AccIssueImport.LocalValue(row, f);
             if (item.AccStatus != null) row["acc_status"] = item.AccStatus;

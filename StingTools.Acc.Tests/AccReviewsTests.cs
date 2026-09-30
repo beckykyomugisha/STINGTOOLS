@@ -222,6 +222,53 @@ namespace StingTools.Acc.Tests
         }
 
         [Fact]
+        public void ItemUrnForVersion_FollowsTheLineageConvention()
+        {
+            Assert.Equal("urn:adsk.wipprod:dm.lineage:AS3XD9MzQvu4MakMF-w7vQ", AccReviews.ItemUrnForVersion(Version));
+            Assert.Equal("", AccReviews.ItemUrnForVersion("urn:adsk.wipprod:dm.lineage:X"));
+            Assert.Equal("", AccReviews.ItemUrnForVersion(""));
+        }
+
+        [Fact]
+        public async Task CurrentVersion_ReadsTheItemTip_NotTheRememberedVersion()
+        {
+            // A.pdf was seen at version 3; a new revision (version 4) was uploaded since.
+            using var s = Serve((i, r) => new CannedResponse(200, new JObject
+            {
+                ["data"] = new JObject
+                {
+                    ["type"] = "items", ["id"] = "urn:adsk.wipprod:dm.lineage:AS3XD9MzQvu4MakMF-w7vQ",
+                    ["relationships"] = new JObject { ["tip"] = new JObject { ["data"] = new JObject
+                        { ["type"] = "versions", ["id"] = "urn:adsk.wipprod:fs.file:vf.AS3XD9MzQvu4MakMF-w7vQ?version=4" } } },
+                },
+            }.ToString()));
+            var res = await AccReviews.CurrentVersionAsync(Creds(), Creds().ProjectId, "", Version);
+            Assert.True(res.Succeeded);
+            Assert.Equal("urn:adsk.wipprod:fs.file:vf.AS3XD9MzQvu4MakMF-w7vQ?version=4", res.Value);
+            Assert.Contains("/data/v1/projects/b." + ProjectGuid + "/items/", s.Paths[0]);
+            Assert.Contains("dm.lineage", Uri.UnescapeDataString(s.Paths[0]));
+        }
+
+        [Theory]
+        [InlineData(500, "{}")]
+        [InlineData(200, "{\"data\":{\"id\":\"x\"}}")]
+        [InlineData(200, "not json")]
+        public async Task CurrentVersion_AFailedOrTiplessRead_IsAFailure_NeverTheRememberedVersion(int status, string body)
+        {
+            using var s = Serve((i, r) => new CannedResponse(status, body));
+            var res = await AccReviews.CurrentVersionAsync(Creds(), Creds().ProjectId, "urn:adsk.wipprod:dm.lineage:X", Version);
+            Assert.False(res.Succeeded);
+            Assert.NotEqual(Version, res.Value);
+        }
+
+        [Fact]
+        public async Task CurrentVersion_WithNoKnowableItem_Refuses()
+        {
+            var res = await AccReviews.CurrentVersionAsync(Creds(), Creds().ProjectId, "", "urn:odd");
+            Assert.False(res.Succeeded);
+        }
+
+        [Fact]
         public async Task Transmittals_AFailedDocumentList_FailsTheWholeRead()
         {
             using var s = Serve((i, r) => r.Url.AbsolutePath.EndsWith("/documents")

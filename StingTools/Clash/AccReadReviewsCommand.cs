@@ -606,8 +606,37 @@ namespace StingTools.Core.Clash
             var creds = AccProjectSettingsFile.LoadCredentials(doc, "ACC start review");
             if (!AccReviewFiles.Configured(creds)) { Say(interactive, "ACC is not set up: " + AccProjectScope.Describe(creds)); return false; }
 
+            // The queue remembers the version STING last SAW, which may be the previous revision
+            // when a new one was uploaded since (ACC_UploadModel, the Export Centre, or a person
+            // in ACC). ACC is the one source of truth for "current": re-read the item's tip and
+            // start the review on that. If the tip cannot be read, refuse rather than start a
+            // review - which notifies real reviewers - on a possibly superseded version.
+            var tip = AccReviews.CurrentVersionAsync(creds, creds.ProjectId, file.ItemUrn, file.VersionUrn)
+                                .GetAwaiter().GetResult();
+            if (!tip.Succeeded)
+            {
+                Say(interactive, "The ACC review was NOT started: STING could not confirm which version of " +
+                                 file.FileName + " is current in ACC (" + tip.Detail + ")." +
+                                 (tip.Status == AccFetchStatus.AuthFailed || tip.Status == AccFetchStatus.NotFound
+                                     ? "\n" + AccCommandOutcome.Remedy(tip.Status) : ""));
+                return false;
+            }
+            string version = tip.Value;
+            if (!string.Equals(version, file.VersionUrn, StringComparison.Ordinal))
+            {
+                StingLog.Info($"ACC start review: {file.FileName} moved on in ACC since STING saw it " +
+                              $"({file.VersionUrn} → {version}); the review is started on the current version.");
+                if (queue.StartedReviews.Any(s => string.Equals(s.VersionUrn, version, StringComparison.Ordinal)))
+                {
+                    Say(interactive, $"A review was already started on the current version of {file.FileName} ({version}).");
+                    return false;
+                }
+                file.VersionUrn = version;
+                if (string.IsNullOrEmpty(file.ItemUrn)) file.ItemUrn = AccReviews.ItemUrnForVersion(version);
+            }
+
             string name = $"STING — {file.FileName}";
-            var r = AccReviews.StartReviewAsync(creds, creds.ProjectId, policy.ReviewWorkflowId, name, new[] { file.VersionUrn })
+            var r = AccReviews.StartReviewAsync(creds, creds.ProjectId, policy.ReviewWorkflowId, name, new[] { version })
                               .GetAwaiter().GetResult();
             if (!r.Ok)
             {

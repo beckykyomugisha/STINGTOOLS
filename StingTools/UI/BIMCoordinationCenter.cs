@@ -179,6 +179,10 @@ namespace StingTools.UI
         // Phase 76: Delegate set by BIMCoordinationCenterCommand to dispatch actions via ExternalEvent
         internal static Action<string> ActionDispatcher { get; set; }
 
+        /// <summary>Runs work in the Revit API context (ExternalEvent), for panel code that must
+        /// touch a Document or StingPaths. Set beside <see cref="ActionDispatcher"/>.</summary>
+        internal static Action<Action<Autodesk.Revit.UI.UIApplication>> ApiDispatcher { get; set; }
+
         private void DispatchAction(string action)
         {
             ActionDispatcher?.Invoke(action);
@@ -551,6 +555,10 @@ namespace StingTools.UI
         {
             public string ProjectName = "";
             public string FilePath = "";
+            /// <summary>This project's acc_settings.json, resolved through StingPaths on the Revit
+            /// API thread when the data was built (empty = the model has no project folder). The
+            /// ACC card reads it instead of calling Revit/StingPaths from the WPF thread.</summary>
+            public string AccSettingsPath = "";
 
             // Planscape server project link (per-document, persisted in
             // STING_BIM_MANAGER/planscape_connection.json). Populated by
@@ -5434,13 +5442,69 @@ namespace StingTools.UI
         // existing IExternalCommands (AccPullClashes / AccSyncIssueStatus /
         // ACCPublish) through the BCC dispatch. No Autodesk secrets are baked
         // into the assembly; the user supplies their APS app credentials here.
+        /// <summary>Two resolved paths name the same file (case-insensitive, normalised).
+        /// Null/empty never matches.</summary>
+        private static bool SamePath(string a, string b)
+        {
+            if (string.IsNullOrWhiteSpace(a) || string.IsNullOrWhiteSpace(b)) return false;
+            try { return string.Equals(System.IO.Path.GetFullPath(a), System.IO.Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase); }
+            catch (Exception) { return string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase); }
+        }
+
         private void BuildAccDetail(StackPanel detailStack, System.Windows.Media.Brush navyBrush)
         {
             // IM-18: the container ids are this project's, read from its acc_settings.json
             // (the machine credentials file's copies are a deprecated fallback).
-            var scopeDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
+            //
+            // THREADING (WORKLOG A9). This card lives in a modeless WPF window: its handlers run
+            // on the WPF thread, outside the Revit API context, and several resume after an
+            // await. It therefore never touches a Document or StingPaths itself. It reads the
+            // settings path resolved on the API thread when the BCC data was built
+            // (CoordData.AccSettingsPath), and every WRITE goes through OnApi, which re-resolves
+            // the active document's path in the API context and refuses when it is not the
+            // project this card was built for - so a document switch cannot write another
+            // project's settings.
+            string cardSettingsPath = _data?.AccSettingsPath ?? "";
             V6.AccCredentials LoadScoped()
-                => Core.Clash.AccProjectSettingsFile.LoadCredentials(scopeDoc, "ACC panel");
+            {
+                var c = V6.AccIssueSync.LoadCredentials();
+                V6.AccOperatingPolicy p = null;
+                try { p = V6.AccOperatingPolicy.Load(cardSettingsPath); }
+                catch (Exception ex) { StingLog.Warn($"ACC panel: ACC settings: {ex.Message}"); }
+                V6.AccProjectScope.Apply(c, p);
+                return c;
+            }
+
+            // Run a project-settings write in the Revit API context, then report back on the
+            // WPF thread. Refuses (never writes) when the active model is not this card's project.
+            void OnApi(Func<Autodesk.Revit.DB.Document, (bool ok, string err)> write, Action<bool, string> after)
+            {
+                var dispatch = ApiDispatcher;
+                if (dispatch == null) { after?.Invoke(false, "the BIM Coordination Center is not connected to Revit — close and reopen it"); return; }
+                if (string.IsNullOrEmpty(cardSettingsPath))
+                { after?.Invoke(false, "this model had no project folder when the BIM Coordination Center opened — save the model, then Refresh"); return; }
+                string expected = cardSettingsPath;
+                dispatch(app =>
+                {
+                    bool ok; string err;
+                    try
+                    {
+                        var d = app?.ActiveUIDocument?.Document;
+                        string now = d == null ? null : Core.Clash.AccProjectSettingsFile.PathFor(d);
+                        if (d == null) { ok = false; err = "no project is open"; }
+                        else if (!SamePath(now, expected))
+                        {
+                            ok = false;
+                            err = $"the active model is not the project this card was opened for (its ACC settings are {now ?? "unresolved"}, " +
+                                  $"the card's are {expected}) — nothing was written. Click Refresh and try again.";
+                        }
+                        else (ok, err) = write(d);
+                    }
+                    catch (Exception ex) { ok = false; err = ex.Message; StingLog.Warn("ACC panel: settings write: " + ex.Message); }
+                    try { Dispatcher.BeginInvoke(new Action(() => after?.Invoke(ok, err))); }
+                    catch (Exception ex) { StingLog.Warn("ACC panel: report back: " + ex.Message); }
+                });
+            }
             V6.AccCredentials creds;
             try { creds = LoadScoped(); }
             catch (Exception ex) { StingLog.Warn($"ACC panel: load creds failed — {ex.Message}"); creds = new V6.AccCredentials(); }
@@ -5533,28 +5597,32 @@ namespace StingTools.UI
             // Saves the machine credentials and, when the model has a project folder, the
             // container ids into this project's settings. The machine file then keeps its own
             // ids (AccIssueSync.ToMachineFile), so this job cannot overwrite another's.
-            void SaveAcc(V6.AccCredentials c)
+            // The machine file (sign-in) is written here - it is Revit-free. The project's ids
+            // go to its settings file in the API context (OnApi); ToMachineFile keeps the
+            // machine file's own ids either way, so the order of the two writes does not matter.
+            void SaveAcc(V6.AccCredentials c, Action<bool, string> afterProject = null)
             {
-                if (scopeDoc != null && !string.IsNullOrEmpty(Core.Clash.AccProjectSettingsFile.PathFor(scopeDoc)))
-                {
-                    if (Core.Clash.AccProjectSettingsFile.SaveProjectScope(scopeDoc, c.ProjectId, c.CoordContainerId, out string err))
-                    {
-                        // File* were captured when the credentials were loaded, so the
-                        // machine file is written back with the ids it already held —
-                        // including when the project's ids were just cleared.
-                        c.ProjectScope = V6.AccProjectScopeSource.ProjectSettings;
-                        // The folder and the issue type belong to this project too.
-                        if (!Core.Clash.AccProjectSettingsFile.SaveFolderUrn(scopeDoc, c.FolderUrn, out string e2))
-                            StingLog.Warn($"ACC panel: folder not saved — {e2}");
-                        if (!Core.Clash.AccProjectSettingsFile.SaveIssueType(scopeDoc, c.IssueTypeId,
-                                string.IsNullOrEmpty(c.IssueTypeId) ? "" : c.IssueSubtypeId, out string e3))
-                            StingLog.Warn($"ACC panel: issue type not saved — {e3}");
-                    }
-                    else StingLog.Warn($"ACC panel: project settings not saved — {err}");
-                }
                 V6.AccIssueSync.SaveCredentials(c);
+                string projectId = c.ProjectId, coordId = c.CoordContainerId, folder = c.FolderUrn;
+                string typeId = c.IssueTypeId, subtypeId = string.IsNullOrEmpty(c.IssueTypeId) ? "" : c.IssueSubtypeId;
+                if (string.IsNullOrEmpty(cardSettingsPath)) { afterProject?.Invoke(false, "the model has no project folder"); return; }
+                OnApi(d =>
+                {
+                    if (!Core.Clash.AccProjectSettingsFile.SaveProjectScope(d, projectId, coordId, out string err))
+                        return (false, "project ids not saved: " + err);
+                    // The folder and the issue type belong to this project too.
+                    var notes = new List<string>();
+                    if (!Core.Clash.AccProjectSettingsFile.SaveFolderUrn(d, folder, out string e2)) notes.Add("folder not saved: " + e2);
+                    if (!Core.Clash.AccProjectSettingsFile.SaveIssueType(d, typeId, subtypeId, out string e3)) notes.Add("issue type not saved: " + e3);
+                    return (notes.Count == 0, string.Join("; ", notes));
+                }, (ok, err) =>
+                {
+                    if (!ok) { StingLog.Warn("ACC panel: project settings not saved — " + err); ShowStatus("ACC project settings NOT saved: " + err); }
+                    afterProject?.Invoke(ok, err);
+                });
             }
 
+            string loadedTypeId = initType ?? "";
             V6.AccCredentials Gather()
             {
                 var c = LoadScoped();
@@ -5563,8 +5631,13 @@ namespace StingTools.UI
                 c.RefreshToken     = refreshBox.Password;
                 c.ProjectId        = projectIdBox.Text.Trim();
                 c.CoordContainerId = coordIdBox.Text.Trim();
-                c.IssueTypeId      = issueTypeBox.Text.Trim();
                 c.FolderUrn        = folderUrnBox.Text.Trim();
+                string typeId      = issueTypeBox.Text.Trim();
+                // A13: a subtype belongs to ONE issue type. Changing the type keeps nothing of
+                // the old one - the subtype is cleared and resolved again (by name, within the
+                // new type) the next time an issue is filed.
+                if (!string.Equals(typeId, loadedTypeId, StringComparison.Ordinal)) c.IssueSubtypeId = "";
+                c.IssueTypeId      = typeId;
                 return c;
             }
 
@@ -5587,10 +5660,18 @@ namespace StingTools.UI
             };
             credBtnRow.Children.Add(signInBtn);
 
-            var saveAccBtn = new Button { Content = "💾 Save Credentials", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Save these credentials to %APPDATA%\\Planscape\\acc_credentials.json (this machine only)." };
+            var saveAccBtn = new Button { Content = "💾 Save Credentials", Height = 28, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(CAccent), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Save the sign-in (Client ID / secret / refresh token) on this machine, encrypted for your Windows user, and the project ids, issue type and upload folder with THIS project (its ACC settings file)." };
             saveAccBtn.Click += (s, e) =>
             {
-                try { SaveAcc(Gather()); ShowStatus("ACC credentials saved."); ShowPlatformDetail("ACC"); }
+                try
+                {
+                    SaveAcc(Gather(), (ok, err) =>
+                    {
+                        if (ok) ShowStatus("ACC sign-in saved on this machine; project ids saved with this project.");
+                        ShowPlatformDetail("ACC");
+                    });
+                    ShowStatus("ACC sign-in saved on this machine; saving the project ids…");
+                }
                 catch (Exception ex) { StingLog.Warn($"ACC save: {ex.Message}"); ShowStatus($"ACC save failed: {ex.Message}"); }
             };
             credBtnRow.Children.Add(saveAccBtn);
@@ -5658,14 +5739,24 @@ namespace StingTools.UI
 
                     projectIdBox.Text = chosen.Id;
                     var save = Gather();
-                    SaveAcc(save);
-                    string hubNote = "";
-                    if (scopeDoc != null && !Core.Clash.AccProjectSettingsFile.SaveDiscoveredProject(scopeDoc, chosen.Id, chosen.HubId, chosen.Region, out string hubErr))
-                        hubNote = $" (hub/region NOT saved: {hubErr})";
-                    ShowStatus($"ACC project set to {chosen.Name} [{chosen.Id}], hub {chosen.HubName}" +
-                               (string.IsNullOrEmpty(chosen.Region) ? "" : $", region {chosen.Region}") + hubNote +
-                               ". Set Coord Container ID only if Model Coordination uses a different container.");
-                    ShowPlatformDetail("ACC");
+                    // After an await: the project write goes through the API context (OnApi),
+                    // never straight from here.
+                    SaveAcc(save, (okScope, scopeErr) =>
+                    {
+                        if (!okScope) return;   // SaveAcc already reported it
+                        OnApi(d =>
+                        {
+                            bool ok = Core.Clash.AccProjectSettingsFile.SaveDiscoveredProject(d, chosen.Id, chosen.HubId, chosen.Region, out string hubErr);
+                            return (ok, hubErr);
+                        }, (ok, hubErr) =>
+                        {
+                            ShowStatus($"ACC project set to {chosen.Name} [{chosen.Id}], hub {chosen.HubName}" +
+                                       (string.IsNullOrEmpty(chosen.Region) ? "" : $", region {chosen.Region}") +
+                                       (ok ? "" : $" (hub/region NOT saved: {hubErr})") +
+                                       ". Set Coord Container ID only if Model Coordination uses a different container.");
+                            ShowPlatformDetail("ACC");
+                        });
+                    });
                 }
                 catch (Exception ex) { StingLog.Warn($"ACC discover: {ex.Message}"); ShowStatus($"ACC discovery error: {ex.Message}"); }
             };
@@ -5710,8 +5801,7 @@ namespace StingTools.UI
             // the state of every project until somebody uses these buttons.
             detailStack.Children.Add(new TextBlock { Text = "PROJECT ACC SETTINGS", FontWeight = FontWeights.Bold, FontSize = 11, Foreground = Br(CAccent), Margin = new Thickness(0, 8, 0, 4) });
 
-            var accDoc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-            var policyNow = V6.AccOperatingPolicy.Load(Core.Clash.AccProjectSettingsFile.PathFor(accDoc));
+            var policyNow = V6.AccOperatingPolicy.Load(cardSettingsPath);
             var policyLbl = new TextBlock
             {
                 Text = policyNow.DescribeSource(),
@@ -5744,13 +5834,14 @@ namespace StingTools.UI
 
             void SaveSettings(Func<Autodesk.Revit.DB.Document, (bool ok, string err)> write, string okMsg)
             {
-                var d = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                if (d == null) { ShowStatus("Open a project first."); return; }
-                var (ok, err) = write(d);
-                if (!ok) { ShowStatus("ACC settings NOT saved: " + err); return; }
-                var refreshed = V6.AccOperatingPolicy.Load(Core.Clash.AccProjectSettingsFile.PathFor(d));
-                policyLbl.Text = refreshed.DescribeSource();
-                ShowStatus(okMsg);
+                ShowStatus("Saving ACC settings…");
+                OnApi(write, (ok, err) =>
+                {
+                    if (!ok) { ShowStatus("ACC settings NOT saved: " + err); return; }
+                    var refreshed = V6.AccOperatingPolicy.Load(cardSettingsPath);
+                    policyLbl.Text = refreshed.DescribeSource();
+                    ShowStatus(okMsg);
+                });
             }
 
             var saveSetBtn = new Button { Content = "💾 Remember model set", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store this coordination model set with the PROJECT, so Pull Clashes stops asking. Merges into the existing settings; nothing else is changed." };
@@ -5813,10 +5904,10 @@ namespace StingTools.UI
 
             var escRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             escRow.Children.Add(new TextBlock { Text = "Escalate at most", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6) });
-            var escCountBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MaxCount.ToString() : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6), ToolTip = "Maximum ACC Issues one unattended run may create. Empty (with the score empty too) means escalate nothing." };
+            var escCountBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MaxCount.ToString(System.Globalization.CultureInfo.InvariantCulture) : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6), ToolTip = "Maximum ACC Issues one unattended run may create. Empty (with the score empty too) means escalate nothing." };
             escRow.Children.Add(escCountBox);
             escRow.Children.Add(new TextBlock { Text = "clash(es) scoring at least", FontSize = 11, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 6) });
-            var escScoreBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MinScore.ToString("0.##") : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6), ToolTip = "Triage score threshold (0\u20131). Both fields are needed, or neither: a count alone escalates trivia, a score alone escalates hundreds." };
+            var escScoreBox = new TextBox { Text = policyNow.Escalation.Enabled ? policyNow.Escalation.MinScore.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) : "", Width = 50, Height = 24, FontSize = 11, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 6), ToolTip = "Triage score threshold (0\u20131). Both fields are needed, or neither: a count alone escalates trivia, a score alone escalates hundreds." };
             escRow.Children.Add(escScoreBox);
             var saveEscBtn = new Button { Content = "💾 Save", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 6), Background = Br(CHeaderBg), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 11, Cursor = Cursors.Hand, ToolTip = "Store the escalation policy with this project. Clearing both fields turns escalation off." };
             saveEscBtn.Click += (s, e) =>
@@ -5828,13 +5919,17 @@ namespace StingTools.UI
                         "Escalation is off \u2014 unattended runs will pull and triage but create no ACC Issues.");
                     return;
                 }
-                if (!int.TryParse(ct, out int cnt) || !double.TryParse(st2, out double scr))
+                // A14: invariant culture - the settings file stores 0.75, and a comma-decimal
+                // locale must neither misread "0.75" nor write "0,75" back as the display.
+                if (!int.TryParse(ct, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out int cnt) ||
+                    !double.TryParse(st2, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double scr))
                 {
-                    ShowStatus("Escalation needs BOTH a whole-number count and a score, or both empty.");
+                    ShowStatus("Escalation needs BOTH a whole-number count and a score (use a point: 0.75), or both empty.");
                     return;
                 }
                 SaveSettings(d => { bool ok = Core.Clash.AccProjectSettingsFile.SaveEscalation(d, cnt, scr, out string err); return (ok, err); },
-                    "Unattended runs will escalate at most " + cnt + " clash(es) scoring " + scr.ToString("0.##") + " or higher.");
+                    "Unattended runs will escalate at most " + cnt + " clash(es) scoring " +
+                    scr.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + " or higher.");
             };
             escRow.Children.Add(saveEscBtn);
             detailStack.Children.Add(escRow);
@@ -5856,7 +5951,7 @@ namespace StingTools.UI
 
             // View logs / open credentials folder
             var logsRow = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
-            var viewLogsBtn = new Button { Content = "📄 Open ACC Folder", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand, ToolTip = "Open the %APPDATA%\\Planscape folder holding ACC credentials + escalation history." };
+            var viewLogsBtn = new Button { Content = "📄 Open ACC Folder", Height = 26, Padding = new Thickness(10, 0, 10, 0), Margin = new Thickness(0, 0, 6, 0), Background = Br(Color.FromRgb(0x45, 0x50, 0x6E)), Foreground = Brushes.White, BorderThickness = new Thickness(0), FontSize = 10, Cursor = Cursors.Hand, ToolTip = "Open the %APPDATA%\\Planscape folder holding this machine's ACC sign-in. The escalation history is per PROJECT, not here: <project>\\_data\\coord\\acc\\pushed_clashes.json (beside acc_settings.json)." };
             viewLogsBtn.Click += (s, e) =>
             {
                 try
@@ -8610,6 +8705,7 @@ namespace StingTools.UI
             // would stack handlers.
             try { ThemeManager.ThemeChanged -= OnThemeChanged; } catch { /* best effort */ }
             ActionDispatcher = null;
+            ApiDispatcher = null;
             CurrentInstance = null;
             _tabCache.Clear();
             ThemeManager.ThemeChanged -= OnThemeChanged;

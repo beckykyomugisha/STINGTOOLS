@@ -1014,7 +1014,8 @@ namespace StingTools.Docs
 
         /// <summary>
         /// Optional (Output.UploadToAcc): send each exported sheet file to ACC after the register
-        /// is written. Per file: a file whose suitability or revision is not set is refused; the
+        /// is written. Per file: a file whose suitability or revision is not set is refused; a revision that
+        /// contradicts its suitability (Iso19650RevisionRules, via AccUploadGate) is refused; the
         /// ledger skips an identical file already sent and refuses a CHANGED file under a document
         /// number + revision already sent (a re-issue without a revision change) unless the
         /// profile allows it; everything else goes through AccModelUpload with the project's CDE
@@ -1056,9 +1057,8 @@ namespace StingTools.Docs
             V6.AccUploadLedger ledger;
             try
             {
-                // Beside last_bundle.json and acc_settings.json (the same resolution those use).
-                string accDir = StingPaths.MetaFile(doc, "_BIM_COORD", "acc");
-                ledgerPath = Path.Combine(accDir, V6.AccUploadLedger.FileName);
+                // The same ledger ACC_UploadModel / ACC_UploadLastBundle read and write.
+                ledgerPath = Core.Clash.AccUploadCommandBase.LedgerPath(doc);
                 ledger = V6.AccUploadLedger.Load(ledgerPath, out string ledgerErr);
                 if (ledger == null)
                 {
@@ -1098,19 +1098,20 @@ namespace StingTools.Docs
                         r.AccUpload = "not uploaded: " + Core.Drawing.ExportIsoFields.DescribeUnset(r.IsoFieldsUnset);
                         refused++; problems.Add($"{name}: {Core.Drawing.ExportIsoFields.DescribeUnset(r.IsoFieldsUnset)}"); continue;
                     }
-                    string sha = V6.AccUploadLedger.Sha256OfFile(r.OutputPath);
-                    string fmt = V6.AccUploadLedger.FormatOf(r.OutputPath);
-                    var verdict = ledger.Check(r.DocumentNumber, r.Revision, fmt, sha,
+                    // The one pre-upload discipline ACC_UploadModel also runs: ISO 19650
+                    // revision/suitability pairing, then the ledger (identical -> skip; changed
+                    // under a revision already sent -> refused unless the profile allows it).
+                    var gate = V6.AccUploadGate.Check(ledger, r.OutputPath, r.DocumentNumber, r.Revision, r.Suitability,
                         profile.Output.AccAllowReissueWithoutRevisionChange);
-                    if (verdict.Decision == V6.AccLedgerDecision.SkipIdentical)
+                    if (gate.Decision == V6.AccUploadGateDecision.SkipIdentical)
                     {
-                        r.AccUpload = "skipped: " + verdict.Reason;
+                        r.AccUpload = "skipped: " + gate.Reason;
                         identical++; continue;
                     }
-                    if (!verdict.ShouldUpload)
+                    if (!gate.ShouldUpload)
                     {
-                        r.AccUpload = "not uploaded: " + verdict.Reason;
-                        refused++; problems.Add($"{name}: {verdict.Reason}"); continue;
+                        r.AccUpload = "not uploaded: " + gate.Reason;
+                        refused++; problems.Add($"{name}: {gate.Reason}"); continue;
                     }
 
                     var options = new V6.AccUploadOptions
@@ -1139,23 +1140,13 @@ namespace StingTools.Docs
                         StingLog.Warn($"Export Centre ACC upload FAILED for '{r.OutputPath}': {why}");
                         continue;
                     }
-                    ledger.Record(new V6.AccLedgerEntry
-                    {
-                        DocumentNumber = r.DocumentNumber,
-                        Revision = r.Revision,
-                        Format = fmt,
-                        Sha256 = sha,
-                        FileName = name,
-                        Suitability = r.Suitability,
-                        UploadedUtc = DateTime.UtcNow,
-                        ItemUrn = up.ItemUrn ?? "",
-                        VersionUrn = up.VersionUrn ?? "",
-                    });
+                    V6.AccUploadGate.Record(ledger, gate, r.OutputPath, r.DocumentNumber, r.Revision, r.Suitability,
+                        up.ItemUrn, up.VersionUrn, DateTime.UtcNow);
                     // Save after every upload: a crash half-way must not forget what already went.
                     if (!ledger.TrySave(ledgerPath, out string saveErr))
                         problems.Add($"{name}: uploaded, but the ledger could not be saved ({saveErr}) — a re-run may send it again");
                     r.AccUpload = "uploaded" +
-                                  (verdict.Decision == V6.AccLedgerDecision.UploadReissueAllowed ? " (re-issue allowed by the profile)" : "") +
+                                  (gate.ReissueAllowed ? " (re-issue allowed by the profile)" : "") +
                                   (up.MetadataComplete ? "" : " — " + up.MetadataNote);
                     sent++;
                 }

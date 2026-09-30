@@ -39,7 +39,7 @@ Companion docs: [`KUT_ACC_DAY1_PLAYBOOK.md`](KUT_ACC_DAY1_PLAYBOOK.md) (what to 
 | Project discovery | `V6/AccProjectDiscovery.cs`, BCC card "Find my ACC project" | `GET project/v1/hubs` → `hubs/{id}/projects`. Writes the **`b.`-prefixed** id verbatim | Built. See §4 **R1** |
 | Project-scoped settings | `V6/AccOperatingPolicy.cs`, `Clash/AccProjectSettingsFile.cs`, `V6/AccProjectScope.cs` | `acc_settings.json` per project. Strict parse: an unknown key makes the **whole file** Malformed | Built (IM-18). The working tree adds 14 keys (strategy R3, playbook §6) |
 | Issues push/pull | `V6/AccIssueSync.cs` | Push: title, description, status, location, type/subtype. Pull: paginated, fails loudly | HEAD path is `construction/issues/v1/containers/{id}` with the id as given. **Working tree:** `…/projects/{AccIds.ForAcc(id)}` (strips `b.`), `x-ads-region`, assignee, due date, excluded statuses |
-| Issue-type resolution | `AccIssueSync.EnsureIssueTypeAsync` | Picks the first type whose title contains "clash" or "coordination", else the first type. Subtype = first subtype | Does not filter out inactive types or subtypes **[Code]** |
+| Issue-type resolution | `AccIssueSync.ResolveIssueTypeAsync` + `IssueTypeChooser` | **Active** types and subtypes only. Type whose title contains "clash", else "coordination", else one with a "Clash" subtype; subtype by the same words, or the type's only subtype. **Never by position**: no name match = refused, listing every type. `issueTypeId` / `issueSubtypeId` pin it. Resolved per run, not persisted | Built (2026-10-01) **[Code]** |
 | Model Coordination read | `V6/AccModelCoordSync.cs` | `bim360/modelset/v3` model sets → `bim360/clash/v3` tests → resources → gzipped scope JSON (clash, instance, document) | Built. HEAD uses the container id verbatim (R1). **Working tree applies `AccIds.ForAcc`** and resolves discipline from model names (`AccDisciplineResolver`, `disciplineMap`). Sub-paths come from the APS sample, not yet proved live |
 | Clash triage + escalation | `Clash/AccPullClashesCommand.cs`, `V6/ClashTriageEngine.cs`, `pushed_clashes.json` | Scores clashes, writes CSV, escalates top N to Issues under a policy | Built |
 | Issue-status reconcile | `Clash/AccSyncIssueStatusCommand.cs` | Un-tracks clashes whose ACC issue closed | Built |
@@ -49,14 +49,19 @@ Companion docs: [`KUT_ACC_DAY1_PLAYBOOK.md`](KUT_ACC_DAY1_PLAYBOOK.md) (what to 
 | CDE mirror stub | `Core/ProjectFolderEngine.cs` `MirrorToACC` | Writes a **manifest JSON only**. Uploads nothing | Stub. Do not rely on it |
 | Server connector | `Planscape.Server/.../PlatformConnectors.cs` `AccConnector` (+ working-tree `AccTokenRefresher`, `Services/Aps/`) | Server-side hubs + issues | Separate from the plugin, and not on the KUT day-1 path |
 | Issues import (working tree) | `V6/AccIssueImport.cs`, `Clash/AccImportIssuesCommand.cs` (`ACC_ImportIssues`, dispatched in `StingCommandHandler` + `WorkflowEngine`) | Pulls ACC issues into the STING issue register (`issues.json`), links escalated clashes and lifecycle gaps by origin sidecar, writes a CSV, refuses when the register is unreadable | Built + unit tests (`AccIssueImportTests`). Not proved live |
-| CDE routing + Docs metadata (working tree) | `V6/AccCdeRouting.cs`, `V6/AccDocsMetadata.cs` | Suitability → CDE state (`Iso19650Suitability.CdeStateFor`) → folder URN from `cdeFolders`, no fallback. ISO 19650 attribute set for ACC custom attributes | **Library + tests only: not yet called by `AccModelUpload` / `ACC_UploadModel`** |
+| CDE routing + Docs metadata | `V6/AccCdeRouting.cs`, `V6/AccDocsMetadata.cs` | Suitability → CDE state (`Iso19650Suitability.CdeStateFor`) → folder URN from `cdeFolders`, no fallback. ISO 19650 attribute set for ACC custom attributes | **Used by every upload** (`AccModelUpload` via `ACC_UploadModel`, `ACC_UploadLastBundle` and the Export Centre auto-upload), which also share one pre-upload gate (`V6/AccUploadGate.cs`: revision/suitability pairing + upload ledger). Not proved live |
 | Federated tag compliance (2026-10-01) | `V6/AccModelProperties.cs`, `V6/AccFederatedCompliance.cs`, `Clash/AccFederatedComplianceCommand.cs` (`ACC_FederatedCompliance`, BCC ACC card "🏷 Federation Tags", KUT cycle step 3a) | Reads the 8 tag tokens + `ASS_TAG_1_TXT` from **every model in the latest version of the remembered coordination model set** through the ACC **Model Properties (Index) API** (`construction/index/v2`: `indexes:batch-status` → poll → `fields` → `queries` → gzipped NDJSON results), without opening the models. Tally per model / DISC / federation, most-missing tokens, invalid DISC/SYS/FUNC codes, and tags **duplicated across models**. Chosen over Model Derivative (per-object, paginated) and AEC Data Model (Revit 2024+ only, admin activation, AMER/EMEA/AUS). Scope `data:read`, 3-legged, View+Download on each model's folder. A model whose index fails or times out is a failed read and the command returns Failed — never "0 elements" | Built, loopback-tested. **Not proved live**: the `columns` projection shape, `_RC` category names in a non-English Revit, and index time on a large federation are [U] |
 | Workflows | `Data/WORKFLOW_KUT_CoordinationCycle.json` | Steps 3 and 4 are `ACC_PullClashes` and `ACC_SyncIssueStatus`. Step 7 `ACCPublish` is local only | Built |
 
-**Not integrated at all today:** Docs folder discovery by path and permissions, naming standards,
-Reviews (approvals), Transmittals, Sheets, RFIs, Submittals, Forms, Assets, Cost, Photos, Account
-Admin, Webhooks, Data Connector, AEC Data Model, Parameters service. (Custom attributes and CDE
-routing exist only as untested-live libraries; see above.)
+**Integrated since this inventory was first written (2026-10-01), none proved live:** Reviews
+(`ACC_ReadReviews` → proposals, `ACC_StartReview` / `startAccReviewOnPublish` on the file's current
+version), Transmittals (read-only copy, `ACC_ReadTransmittals`), issue root causes and custom
+attributes (`issueRootCause`, `issueCustomAttributes`), the folder naming standard (read and
+checked before an upload), project members (assignee resolution) and ACC issue webhooks (relayed
+by the Planscape server; `autoImportIssues`).
+
+**Not integrated at all today:** folder permissions, Sheets, RFIs, Submittals, Forms, Assets,
+Cost, Photos, Data Connector, AEC Data Model, Parameters service.
 
 ---
 
@@ -175,7 +180,7 @@ That is a per-project mapping, not a machine-global one, so it is safe with two 
 | R9 | Refresh-token lifetime (15 d [C]) is close to the fortnightly cadence | Low–Medium | Working-tree `RefreshTokenIssuedAt`. Operationally, run `Test / Refresh` **daily** (operating model §8) |
 | **R10** | ~~PKCE unreachable from the UI~~ **Closed 2026-09-30**: the card now requires only the Client ID (plus a completed sign-in for Test / Discover) | Was a blocker for the Desktop-app registration | Deploy the branch build |
 | **R11** | **Deployed DLL is 2026-09-29, pre-fix.** None of the working-tree ACC fixes reach Revit until someone builds and runs `deploy.bat` | **Blocker** for Issues push and for PKCE | Build 0/0 → tests (`StingTools.Acc.Tests`) → `deploy.bat` from the checkout to go live → grep `<Assembly>` → restart Revit. Tonight, or early tomorrow before sign-in |
-| R12 | `cdeFolders` and `docsAttributes` are **parsed but not used** by the upload command. A user who sets them could believe uploads are routed | Low | Say so on the card, or wire them in (B1/B2) |
+| R12 | ~~`cdeFolders` and `docsAttributes` are parsed but not used by the upload command~~ **Closed**: every upload path routes by `cdeFolders` and stamps `docsAttributes`, and runs one shared pre-upload gate (pairing + ledger, `AccUploadGate`) | — | Prove on a live tenant (playbook §7 V7) |
 
 ---
 
