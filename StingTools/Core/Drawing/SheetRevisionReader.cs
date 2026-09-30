@@ -61,8 +61,11 @@ namespace StingTools.Core.Drawing
             return facts;
         }
 
-        /// <summary>The number <paramref name="r"/> prints on <paramref name="sheet"/>.
-        /// Falls back to the project number, then "R{sequence}", only when Revit cannot say.</summary>
+        /// <summary>The number <paramref name="r"/> prints on <paramref name="sheet"/>, else
+        /// the project number. Empty when the revision has no number at all (numbering "None"):
+        /// that is the truth, and an empty revision is reported downstream as not set (NOREV in
+        /// the file name). It used to invent "R{sequence}", which then reached the title block,
+        /// the export file name and the ACC metadata as if it were a real revision (R13).</summary>
         public static string NumberOnSheet(ViewSheet sheet, Revision r)
         {
             try
@@ -79,8 +82,13 @@ namespace StingTools.Core.Drawing
                 string n = r.RevisionNumber;
                 if (!string.IsNullOrWhiteSpace(n)) return n.Trim();
             }
-            catch { /* fall through */ }
-            return "R" + r.SequenceNumber.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SheetRevisionReader: project number of revision {r.Id} — {ex.Message}");
+            }
+            StingLog.Warn($"SheetRevisionReader: revision seq {r.SequenceNumber} has no number on '{sheet?.SheetNumber}' " +
+                          "(its numbering is 'None') — reported as no revision, not given an invented one.");
+            return "";
         }
     }
 
