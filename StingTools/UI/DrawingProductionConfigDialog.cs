@@ -80,11 +80,7 @@ namespace StingTools.UI
         private ComboBox _northArrowPos, _scaleBarPos, _keyPlanPos;
 
         // Tab 4 — section
-        private RadioButton _sectPerp, _sectNS, _sectEW, _sectCustom;
-        private TextBox _sectAngle, _sectSpacing, _sectDepth, _sectFar;
-        private CheckBox _sectShowLevels, _sectShowGrids, _sectSegmented;
-        private RadioButton _sectAutoManual, _sectAutoGrid, _sectAutoRoom;
-        private RadioButton _sectOutSection, _sectOutCallout, _sectOutBoth;
+        private TextBox _sectDepth;
 
         // Tab 4 — elevation
         private CheckBox _elevN, _elevS, _elevE, _elevW;
@@ -446,45 +442,21 @@ namespace StingTools.UI
 
             if (isSection)
             {
-                sp.Children.Add(MakeCardHeader("Cutting Direction"));
-                _sectPerp   = new RadioButton { Content = "Perpendicular to walls",  IsChecked = true,  GroupName = "cut" };
-                _sectNS     = new RadioButton { Content = "North-South + East-West",                    GroupName = "cut" };
-                _sectEW     = new RadioButton { Content = "East-West only",                              GroupName = "cut" };
-                _sectCustom = new RadioButton { Content = "Custom angle",                                GroupName = "cut" };
-                sp.Children.Add(_sectPerp);
-                sp.Children.Add(_sectNS);
-                sp.Children.Add(_sectEW);
-                sp.Children.Add(_sectCustom);
-                _sectAngle = AddTextRow(sp, "Custom angle (°):");
-
+                // DTW-23/24/25: sections are cut along the grid lines ticked on the left —
+                // the one placement Produce Sections carries out. The cutting-direction,
+                // custom-angle, spacing, far-clip, segmented, per-room / manual placement,
+                // show levels / grids and callout-output options were drawn and never read
+                // (manual placement returned "requires picking"; per room produced nothing);
+                // they are removed rather than left looking like choices.
+                sp.Children.Add(MakeCardHeader("Placement"));
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "One section along each grid line ticked in the left-hand list, cut along the grid and "
+                         + "looking across it, from 3 m below to 30 m above the grid's level.",
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
+                });
                 sp.Children.Add(MakeCardHeader("Section Geometry"));
-                _sectSpacing = AddTextRow(sp, "Spacing (mm):");      _sectSpacing.Text = "5000";
-                _sectDepth   = AddTextRow(sp, "Section depth (mm):"); _sectDepth.Text   = "10000";
-                _sectFar     = AddTextRow(sp, "Far clip (mm):");      _sectFar.Text     = "10000";
-                _sectSegmented = new CheckBox { Content = "Segmented / jogged section" };
-                sp.Children.Add(_sectSegmented);
-
-                sp.Children.Add(MakeCardHeader("Auto-Placement"));
-                _sectAutoManual = new RadioButton { Content = "Manual selection (pick in model)", IsChecked = true, GroupName = "auto" };
-                _sectAutoGrid   = new RadioButton { Content = "Along grid lines",                                GroupName = "auto" };
-                _sectAutoRoom   = new RadioButton { Content = "Per room",                                        GroupName = "auto" };
-                sp.Children.Add(_sectAutoManual);
-                sp.Children.Add(_sectAutoGrid);
-                sp.Children.Add(_sectAutoRoom);
-
-                sp.Children.Add(MakeCardHeader("Annotation"));
-                _sectShowLevels = new CheckBox { Content = "Show & annotate Levels", IsChecked = true };
-                _sectShowGrids  = new CheckBox { Content = "Show & annotate Grids",  IsChecked = true };
-                sp.Children.Add(_sectShowLevels);
-                sp.Children.Add(_sectShowGrids);
-
-                sp.Children.Add(MakeCardHeader("Output"));
-                _sectOutSection = new RadioButton { Content = "Sections only",     IsChecked = true, GroupName = "out" };
-                _sectOutCallout = new RadioButton { Content = "Callouts only",                       GroupName = "out" };
-                _sectOutBoth    = new RadioButton { Content = "Sections + callout references",       GroupName = "out" };
-                sp.Children.Add(_sectOutSection);
-                sp.Children.Add(_sectOutCallout);
-                sp.Children.Add(_sectOutBoth);
+                _sectDepth = AddTextRow(sp, "Section depth — how far it looks (mm):"); _sectDepth.Text = "10000";
             }
             else if (isElev)
             {
@@ -665,27 +637,14 @@ namespace StingTools.UI
             preset.AnnotationOverrides["*"] = pack;
 
             // Section / Elevation config
-            if (_commandType == "Sections" && _sectPerp != null)
+            if (_commandType == "Sections" && _sectDepth != null)
             {
+                // DTW-23: along the ticked grid lines is the only placement; the depth is the
+                // only geometry the command reads.
                 preset.SectionConfig = new SectionProductionConfig
                 {
-                    CuttingDirection = _sectNS?.IsChecked == true ? "NorthSouth"
-                                     : _sectEW?.IsChecked == true ? "EastWest"
-                                     : _sectCustom?.IsChecked == true ? "CustomAngle"
-                                     : "Perpendicular",
-                    CustomAngleDeg = double.TryParse(_sectAngle?.Text, out var a) ? (double?)a : null,
-                    SpacingMm = double.TryParse(_sectSpacing?.Text, out var sp1) ? sp1 : 5000,
-                    DepthMm   = double.TryParse(_sectDepth?.Text,   out var dp) ? dp : 10000,
-                    FarClipMm = double.TryParse(_sectFar?.Text,     out var fc) ? fc : 10000,
-                    ShowLevels = _sectShowLevels?.IsChecked == true,
-                    ShowGrids  = _sectShowGrids?.IsChecked == true,
-                    SegmentedView = _sectSegmented?.IsChecked == true,
-                    AutoPlace = _sectAutoGrid?.IsChecked == true ? "AlongGridLines"
-                              : _sectAutoRoom?.IsChecked == true ? "PerRoom"
-                              : "ManualSelection",
-                    CalloutMode = _sectOutCallout?.IsChecked == true ? "Callout"
-                                : _sectOutBoth?.IsChecked    == true ? "Both"
-                                : "Section"
+                    AutoPlace = "AlongGridLines",
+                    DepthMm   = double.TryParse(_sectDepth.Text, out var dp) && dp > 0 ? dp : 10000,
                 };
             }
             if (_commandType == "ExteriorElevations" && _elevN != null)

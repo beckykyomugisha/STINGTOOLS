@@ -689,9 +689,17 @@ namespace StingTools.Commands.Drawing
                 DrawingTypePresentation.Prewarm(doc);
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Section");
-                var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>().ToList();
-                var labels = new List<string> { "Manual selection (pick in model)" };
-                labels.AddRange(grids.Select(g => "Grid " + g.Name));
+                // DTW-23/24: sections are cut along grid lines — the contexts are the grids,
+                // and the ticked ones are the ones produced. "Manual selection" (which
+                // returned "requires picking") and "Per room" (which produced nothing) are gone.
+                var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>()
+                    .Where(g => g.Curve is Line).OrderBy(g => g.Name).ToList();
+                if (grids.Count == 0)
+                {
+                    TaskDialog.Show("STING", "Produce Sections cuts one section along each straight grid line, and the model has none.");
+                    return Result.Succeeded;
+                }
+                var labels = grids.Select(g => "Grid " + g.Name).ToList();
 
                 var dlg = new DrawingProductionConfigDialog(types, labels, "Sections", doc);
                 var res = dlg.ShowAndWait();
@@ -707,17 +715,23 @@ namespace StingTools.Commands.Drawing
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
 
-                if (string.Equals(sec.AutoPlace, "ManualSelection", StringComparison.OrdinalIgnoreCase))
+                var ticked = new HashSet<string>(res.SelectedContexts ?? new List<string>(), StringComparer.Ordinal);
+                var pickedGrids = grids.Where(g => ticked.Contains("Grid " + g.Name)).ToList();
+                if (pickedGrids.Count == 0)
                 {
-                    TaskDialog.Show("STING", "Manual section selection requires picking section box regions in the model. " +
-                        "Use 'Along grid lines' or scope boxes for full automation.");
+                    TaskDialog.Show("STING", "No grid line is ticked — nothing to cut. Tick the grids to section along.");
                     return Result.Succeeded;
                 }
+                if (pickedTypes.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No section drawing type is ticked — nothing to produce.");
+                    return Result.Succeeded;
+                }
+                double depthMm = sec.DepthMm > 0 ? sec.DepthMm : 10000;
 
                 IEnumerable<DrawingContext> contextsToProduce;
-                if (string.Equals(sec.AutoPlace, "AlongGridLines", StringComparison.OrdinalIgnoreCase))
                 {
-                    contextsToProduce = grids.Select(g =>
+                    contextsToProduce = pickedGrids.Select(g =>
                     {
                         try
                         {
@@ -742,16 +756,14 @@ namespace StingTools.Commands.Drawing
                                 halfWidthFt:  len * 0.5 + 5.0 / 0.3048,
                                 bottomZ:      origin.Z - 3.0 / 0.3048,
                                 topZ:         origin.Z + 30.0 / 0.3048,
-                                depthFt:      sec.DepthMm / 304.8);
+                                depthFt:      depthMm / 304.8);
 
-                            return new DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name, PackageId = preset.PackageId };
+                            // Context tag "Grid-<name>" — the one the Setup Wizard uses too, so
+                            // either reuses the other's section.
+                            return new DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name, PackageId = preset?.PackageId };
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
-                    }).Where(x => x != null);
-                }
-                else
-                {
-                    contextsToProduce = Enumerable.Empty<DrawingContext>();
+                        catch (Exception ex) { warnings.Add($"Grid {g.Name}: no section frame — {ex.Message}"); return null; }
+                    }).Where(x => x != null).ToList();
                 }
 
                 using (var tg = new TransactionGroup(doc, "STING Produce Sections"))
