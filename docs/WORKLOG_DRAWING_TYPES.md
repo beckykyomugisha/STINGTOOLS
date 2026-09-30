@@ -72,6 +72,25 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-17 | DrawingHealTitleBlocksCommand.cs:110 | Low | Wrong-family check ignores variant rules | Agent `fix/dt-qa` | In progress |
 | DTW-18 | STING_DRAWING_TYPES.json titleBlockParams | Low | Hard-coded P01 / S2 / WIP reset real revision/suitability where a family carries them | Agent `fix/dt-qa` | In progress |
 | DTW-19 | SheetNumberEngine.cs:311 | Low | O(n³) move lookup | Agent `fix/dt-qa` | In progress |
+| DTW-20 | DrawingProductionConfigDialog.cs:616 / DrawingProducer.cs:624 | High | VG edits saved under "*" but the producer reads only dt.Id | Combined UI + producers agent | Planned |
+| DTW-21 | DrawingProductionConfigDialog.cs:308,311 | High | Scale / detail-level override combos read by nothing | Combined UI + producers agent | Planned |
+| DTW-22 | DrawingProductionConfigDialog.cs:184 | High | Preset combo has no handler; Save Preset always appends a new unnamed preset | Combined UI + producers agent | Planned |
+| DTW-23 | BatchProduceCommands.cs:682 | High | Produce Sections default (Manual) and Per room produce nothing, silently | Combined UI + producers agent | Planned |
+| DTW-24 | BatchProduceCommands.cs:692 | High | Produce Sections ignores ticked grids | Combined UI + producers agent | Planned |
+| DTW-25 | DrawingProductionConfigDialog.cs:438 | Med | Section direction/angle/spacing/segmented/show/output options unread | Combined UI + producers agent | Planned |
+| DTW-26 | BatchProduceCommands.cs:446 | High | From Scope Boxes produces unticked drawing types | Combined UI + producers agent | Planned |
+| DTW-27 | BatchProduceCommands.cs:815 | High | Exterior Elevations: no sheets, 1+4 option ignored, not idempotent (4 new markers each run) | Combined UI + producers agent | Planned |
+| DTW-28 | DrawingProductionConfigDialog.cs:366 | Med | Annotation sub-checkboxes unread | Combined UI + producers agent | Planned |
+| DTW-29 | DrawingProductionConfigDialog.cs:298,315 | Med | Hide-unwanted / skip-empty-levels / create-package options unread | Combined UI + producers agent | Planned |
+| DTW-30 | DrawingProductionConfigDialog.cs:284 | Med | All/Selected levels radios unread | Combined UI + producers agent | Planned |
+| DTW-31 | ScopeBoxCommands.cs:220 | Med | Area-box production has no interactive Dependent option | Combined UI + producers agent | Planned |
+| DTW-32 | StingDockPanel.xaml tooltips 1446/1455/1477/1490/1491/2209 | Med | Tooltips promise behaviour the code lacks (planner, Sync Styles, pre-flight, counts) | Combined UI + producers agent | Planned |
+| DTW-33 | StingDockPanel.xaml:1483/1493, DrawingTypeEditorDialog.cs:467 | Med | Three confusable scope-box producers | Combined UI + producers agent | Planned |
+| DTW-34 | ProjectSetupCommand.cs:538 | Med | Wizard dependents/sections/elevations use legacy unstamped commands | Combined UI + producers agent | Planned |
+| DTW-35 | StingHvacPanel.xaml:503 | Low | HVAC Produce views makes unstamped views | Combined UI + producers agent | Planned |
+| DTW-36 | DrawingTypeEditorDialog.cs:1875,1887 | Low | Duplicate swap / variant buttons | Combined UI + producers agent | Planned |
+| DTW-37 | StingCommandHandler.cs:6587, StingDockPanel.xaml:1452/2206 | Low | Mislabelled result title; one command under two labels | Combined UI + producers agent | Planned |
+| DTW-38 | MEP_DRAWING_PRODUCTION_GUIDE.md A1/A6/A7 | Low-Med | Guide places Produce From Areas, Dependent and Rename scope boxes wrongly | Combined UI + producers agent | Planned |
 
 ## Decisions
 
