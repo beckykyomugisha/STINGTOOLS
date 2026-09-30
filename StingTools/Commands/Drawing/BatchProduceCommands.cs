@@ -898,7 +898,26 @@ namespace StingTools.Commands.Drawing
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
-                var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => p.IsManaged).ToList();
+                // DTW-3: resolve each pack through the registry so its Extends chain
+                // is folded in. The raw library entry of a child pack carries only
+                // its own overrides — regenerating from it minted templates without
+                // the parent's VG / filters and stamped them with the raw checksum,
+                // which the next sync then flipped back.
+                var unresolved = new List<string>();
+                var packs = new List<ViewStylePack>();
+                foreach (var raw in ViewStylePackRegistry.GetLibrary(doc).Packs)
+                {
+                    if (raw == null || string.IsNullOrWhiteSpace(raw.Id)) continue;
+                    var resolvedPack = ViewStylePackRegistry.Get(doc, raw.Id);
+                    if (resolvedPack == null)
+                    {
+                        if (raw.IsManaged) unresolved.Add(raw.Id);
+                        continue;
+                    }
+                    if (resolvedPack.IsManaged) packs.Add(resolvedPack);
+                }
+                foreach (var id in unresolved)
+                    StingLog.Warn($"Regenerate Pack Templates: managed pack '{id}' did not resolve (check its extends chain) — skipped.");
                 if (packs.Count == 0)
                 {
                     // Nothing was regenerated: Cancelled (a SKIP in a workflow report), not
@@ -920,7 +939,9 @@ namespace StingTools.Commands.Drawing
                 }
 
                 int updated = 0; var warnings = new List<string>();
-                ManagedTemplateSyncer.InvalidateCache();
+                foreach (var id in unresolved)
+                    warnings.Add($"Managed pack '{id}' did not resolve (check its extends chain) — its templates were not regenerated.");
+                ManagedTemplateSyncer.InvalidateCache(doc);
                 using (var tg = new TransactionGroup(doc, "STING Regenerate Pack Templates"))
                 {
                     tg.Start();
