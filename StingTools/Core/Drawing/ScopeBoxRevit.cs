@@ -145,8 +145,8 @@ namespace StingTools.Core.Drawing
             var list = new List<ScopeBoxFootprint>();
             foreach (var el in AllBoxes(doc).Where(e => ScopeBoxNames.Classify(e.Name) == ScopeBoxKind.Building))
             {
-                var code = el.Name.Substring(ScopeBoxNames.LocPrefix.Length);
-                if (!ScopeBoxNames.IsValidSegment(code)) { warnings?.Add($"'{el.Name}': building code '{code}' cannot appear in a box name — skipped."); continue; }
+                // DTW-93: parsed by the same rule tagging's LOC index uses.
+                if (!ScopeBoxNames.TryParseLoc(el.Name, out var code, out var bad)) { warnings?.Add($"'{el.Name}': {bad ?? "not a building box"} — skipped."); continue; }
                 var bb = el.get_BoundingBox(null);
                 if (bb == null) continue;
                 list.Add(new ScopeBoxFootprint

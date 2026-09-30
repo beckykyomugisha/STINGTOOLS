@@ -55,19 +55,25 @@ namespace StingTools.Core.Drawing
         /// <summary>ScopeBoxBinder's prefix, restated because that file needs the Revit API.</summary>
         public const string DrawingTypePrefix = "STING::";
 
+        // ── The one segment rule (DTW-93) ───────────────────────────────────
+        // Every prefix — STING::, STING-AREA::, STING-SEED::, STING-LOC::, STING-ZONE:: —
+        // is read the same way: the prefix ignores case, the name and each "::"-delimited
+        // segment are trimmed, and a segment is A-Z 0-9 . _ - only. ScopeBoxBinder, the
+        // planner, the LOC / ZONE indexes and tagging all parse through here, so one box
+        // name cannot mean one thing to tagging and another (or nothing) to the planner.
+
         private static readonly Regex _segment = new Regex(@"^[A-Za-z0-9_\-\.]+$", RegexOptions.Compiled);
-        private static readonly Regex _area =
-            new Regex(@"^STING-AREA::([A-Za-z0-9_\-\.]+)(?:::([A-Za-z0-9_\-\.]+))?$",
-                      RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
         public const string AreaPatternReason =
             "name has the STING-AREA:: prefix but does not match STING-AREA::<area>[::<level>] "
           + "(allowed chars: A-Z 0-9 . _ -)";
 
-        /// <summary>Which kind of box a name declares. A malformed name still reports its kind.</summary>
+        /// <summary>Which kind of box a name declares. A malformed name still reports its kind.
+        /// Leading and trailing whitespace is ignored; the prefix ignores case.</summary>
         public static ScopeBoxKind Classify(string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return ScopeBoxKind.Plain;
+            name = name.Trim();
             if (name.StartsWith(AreaPrefix, StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.Area;
             if (name.StartsWith(SeedPrefix, StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.Seed;
             if (name.StartsWith(LocPrefix,  StringComparison.OrdinalIgnoreCase)) return ScopeBoxKind.Building;
@@ -78,21 +84,116 @@ namespace StingTools.Core.Drawing
 
         public static bool IsValidSegment(string s) => !string.IsNullOrEmpty(s) && _segment.IsMatch(s);
 
+        /// <summary>The prefix of a kind; null for <see cref="ScopeBoxKind.Plain"/>.</summary>
+        public static string PrefixOf(ScopeBoxKind kind)
+        {
+            switch (kind)
+            {
+                case ScopeBoxKind.Area:        return AreaPrefix;
+                case ScopeBoxKind.Seed:        return SeedPrefix;
+                case ScopeBoxKind.Building:    return LocPrefix;
+                case ScopeBoxKind.Zone:        return ZonePrefix;
+                case ScopeBoxKind.DrawingType: return DrawingTypePrefix;
+                default:                       return null;
+            }
+        }
+
+        /// <summary>
+        /// Split a STING box name into its trimmed segments after the prefix. False with
+        /// <paramref name="reason"/> null for a plain name; false with a reason when a
+        /// segment is empty or holds a character outside A-Z 0-9 . _ -. The per-kind parsers
+        /// below add only how many segments their kind takes.
+        /// </summary>
+        public static bool TryParseSegments(string name, out ScopeBoxKind kind, out string[] segments, out string reason)
+        {
+            segments = null; reason = null;
+            kind = Classify(name);
+            if (kind == ScopeBoxKind.Plain) return false;
+            var body = name.Trim().Substring(PrefixOf(kind).Length);
+            var parts = body.Split(new[] { "::" }, StringSplitOptions.None);
+            for (int i = 0; i < parts.Length; i++)
+            {
+                parts[i] = parts[i].Trim();
+                if (!IsValidSegment(parts[i])) { reason = ReasonFor(kind); return false; }
+            }
+            segments = parts;
+            return true;
+        }
+
+        private static string ReasonFor(ScopeBoxKind kind)
+        {
+            switch (kind)
+            {
+                case ScopeBoxKind.Area:        return AreaPatternReason;
+                case ScopeBoxKind.Building:    return LocPatternReason;
+                case ScopeBoxKind.Zone:        return ZonePatternReason;
+                case ScopeBoxKind.DrawingType: return DrawingTypePatternReason;
+                default:                       return SeedPatternReason;
+            }
+        }
+
+        private static bool TryParseKind(string name, ScopeBoxKind want, int min, int max, out string[] segments, out string reason)
+        {
+            segments = null; reason = null;
+            if (Classify(name) != want) return false;
+            if (!TryParseSegments(name, out _, out var segs, out reason)) return false;
+            if (segs.Length < min || segs.Length > max) { reason = ReasonFor(want); return false; }
+            segments = segs;
+            return true;
+        }
+
         /// <summary>
         /// Parse an area name. Returns false with <paramref name="reason"/> null when the
         /// name is not an area box at all, and non-null when it claims to be one and is
-        /// malformed — the same contract as <see cref="ScopeBoxBinder.TryParseName"/>.
+        /// malformed — the same contract as <see cref="TryParseDrawingType"/>.
         /// </summary>
         public static bool TryParseArea(string name, out string area, out string level, out string reason)
         {
-            area = level = reason = null;
-            if (Classify(name) != ScopeBoxKind.Area) return false;
-            var m = _area.Match(name);
-            if (!m.Success) { reason = AreaPatternReason; return false; }
-            area  = m.Groups[1].Value;
-            level = m.Groups[2].Success ? m.Groups[2].Value : null;
+            area = level = null;
+            if (!TryParseKind(name, ScopeBoxKind.Area, 1, 2, out var s, out reason)) return false;
+            area = s[0];
+            level = s.Length > 1 ? s[1] : null;
             return true;
         }
+
+        public const string DrawingTypePatternReason =
+            "name has STING:: prefix but does not match "
+          + "STING::<id>[::<level>][::<tag>] (allowed chars: A-Z 0-9 . _ -)";
+
+        /// <summary>
+        /// Parse STING::&lt;drawing-type&gt;[::&lt;level&gt;[::&lt;tag&gt;]] — the grammar
+        /// <see cref="ScopeBoxBinder.TryParseName"/> binds by. Same contract as the others.
+        /// </summary>
+        public static bool TryParseDrawingType(string name, out string drawingTypeId, out string level, out string tag, out string reason)
+        {
+            drawingTypeId = level = tag = null;
+            if (!TryParseKind(name, ScopeBoxKind.DrawingType, 1, 3, out var s, out reason)) return false;
+            drawingTypeId = s[0];
+            level = s.Length > 1 ? s[1] : null;
+            tag = s.Length > 2 ? s[2] : null;
+            return true;
+        }
+
+        public const string LocPatternReason =
+            "name has the STING-LOC:: prefix but does not match STING-LOC::<loc> "
+          + "(one code; allowed chars: A-Z 0-9 . _ -)";
+
+        /// <summary>
+        /// Parse a building name, STING-LOC::&lt;loc&gt;. The code goes into the LOC token and
+        /// into area-box names, so it is one segment under the common rule. Tagging's LOC
+        /// index and the planner's footprints both read it here.
+        /// </summary>
+        public static bool TryParseLoc(string name, out string loc, out string reason)
+        {
+            loc = null;
+            if (!TryParseKind(name, ScopeBoxKind.Building, 1, 1, out var s, out reason)) return false;
+            loc = s[0];
+            return true;
+        }
+
+        public const string SeedPatternReason =
+            "name has the STING-SEED:: prefix but does not match STING-SEED::<label> "
+          + "(one label; allowed chars: A-Z 0-9 . _ -)";
 
         public const string ZonePatternReason =
             "name has the STING-ZONE:: prefix but does not match STING-ZONE::<zone> "
@@ -102,17 +203,15 @@ namespace StingTools.Core.Drawing
         /// Parse a zone name, STING-ZONE::&lt;zone&gt;. The code is one segment — the same
         /// A-Z 0-9 . _ - rule as an area or level code — because it is written straight
         /// into the ZONE token and so into the tag, where a space or a second "::" would
-        /// break the tag format. Surrounding whitespace is trimmed, as the LOC index trims.
+        /// break the tag format. Surrounding whitespace is trimmed.
         /// Returns false with <paramref name="reason"/> null when the name is not a zone
         /// box at all, and non-null when it claims to be one and is malformed.
         /// </summary>
         public static bool TryParseZone(string name, out string zone, out string reason)
         {
-            zone = reason = null;
-            if (Classify(name) != ScopeBoxKind.Zone) return false;
-            var code = name.Substring(ZonePrefix.Length).Trim();
-            if (!IsValidSegment(code)) { reason = ZonePatternReason; return false; }
-            zone = code;
+            zone = null;
+            if (!TryParseKind(name, ScopeBoxKind.Zone, 1, 1, out var s, out reason)) return false;
+            zone = s[0];
             return true;
         }
 

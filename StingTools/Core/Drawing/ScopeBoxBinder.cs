@@ -51,11 +51,11 @@ namespace StingTools.Core.Drawing
         private const string NamePrefix = "STING::";
 
         // ACC-02: the only legal characters inside a token segment are
-        // alphanumerics + dot + hyphen + underscore. Anything else is a
-        // typo or a manual rename that doesn't survive the parser.
-        private static readonly Regex _pattern =
-            new Regex(@"^STING::([A-Za-z0-9_\-\.]+)(?:::([A-Za-z0-9_\-\.]+))?(?:::([A-Za-z0-9_\-\.]+))?$",
-                      RegexOptions.Compiled);
+        // alphanumerics + dot + hyphen + underscore. DTW-93: the grammar lives in
+        // ScopeBoxNames (Revit-free, tested) — one segment rule for every STING
+        // prefix, prefix case ignored, name and segments trimmed. The old regex
+        // here matched with case after a case-blind prefix test, so
+        // "sting::arch-plan" was reported as malformed.
 
         /// <summary>
         /// ACC-02: a scope-box name beginning with STING:: that fails the
@@ -75,9 +75,7 @@ namespace StingTools.Core.Drawing
         /// STING:: prefix but fails the strict pattern. Exposed so the
         /// Scope Box Manager renders the same wording the scan warnings do.
         /// </summary>
-        public const string PatternReason =
-            "name has STING:: prefix but does not match "
-          + "STING::<id>[::<level>][::<tag>] (allowed chars: A-Z 0-9 . _ -)";
+        public const string PatternReason = ScopeBoxNames.DrawingTypePatternReason;
 
         /// <summary>The literal prefix every bindable scope-box name starts with.</summary>
         public static string Prefix => NamePrefix;
@@ -88,10 +86,7 @@ namespace StingTools.Core.Drawing
         /// or tag as it is typed, without assembling a whole candidate name.
         /// </summary>
         public static bool IsValidSegment(string segment)
-            => !string.IsNullOrEmpty(segment) && _segment.IsMatch(segment);
-
-        private static readonly Regex _segment =
-            new Regex(@"^[A-Za-z0-9_\-\.]+$", RegexOptions.Compiled);
+            => ScopeBoxNames.IsValidSegment(segment);
 
         /// <summary>
         /// The single public entry point for "is this scope-box name legal?".
@@ -115,23 +110,16 @@ namespace StingTools.Core.Drawing
             reason  = null;
             if (string.IsNullOrWhiteSpace(name)) return false;
 
-            // PERF-07: cheap startswith filter before the regex.
-            if (!name.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase)) return false;
-
-            var m = _pattern.Match(name);
-            if (!m.Success)
-            {
-                // ACC-02: surface the rejection so the operator can
-                // fix typos like "STING::arch plan" → "STING::arch-plan".
-                reason = PatternReason;
+            // ACC-02: a non-null reason is surfaced so the operator can fix
+            // typos like "STING::arch plan" → "STING::arch-plan".
+            if (!ScopeBoxNames.TryParseDrawingType(name, out var id, out var level, out var tag, out reason))
                 return false;
-            }
 
             binding = new ScopeBoxBinding
             {
-                DrawingTypeId = m.Groups[1].Value,
-                LevelCode     = m.Groups[2].Success ? m.Groups[2].Value : null,
-                Tag           = m.Groups[3].Success ? m.Groups[3].Value : null,
+                DrawingTypeId = id,
+                LevelCode     = level,
+                Tag           = tag,
             };
             return true;
         }
