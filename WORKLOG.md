@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Merge `claude/revision-core` into the integration branch when its agent reports (build + Acc/Tags/Cost/Mep tests + gates), then merge the integration branch into `claude/kut-combined-acc-tags` and redeploy `C:\Dev\STING_KUT_LIVE` (only when `tasklist` shows no Revit.exe; see "Deploy" below).
-2. Work the open ACC findings in the table below, highest severity first.
-3. Start the next ACC audit pass (integration seams between the branches merged on 2026-09-30/10-01).
+1. Merge `claude/acc-audit-fixes-x` and `claude/acc-audit-fixes-y` when their agents report (build + Acc/Tags/Cost/Mep tests + gates). Agent X was told to use `AccProjectSettingsFile.NotConfigured` in KutPushLifecycleGapsToAccCommand. Check that at merge.
+2. Merge the integration branch into `claude/kut-combined-acc-tags` and redeploy `C:\Dev\STING_KUT_LIVE`, only when `tasklist` shows no Revit.exe (see "Deploy" below).
+3. Start the next ACC audit pass (the fixes from A1–A16 plus the revision-core seams), then move to area 2 (everything ACC touches).
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -30,11 +30,8 @@ Last full green (2026-10-01, `23354ba63`): build 0/0; Acc 526, Tags 4215, Cost 1
 ## Findings (open)
 | # | Area | File | Sev | Finding | Plan / owner |
 |---|---|---|---|---|---|
-| A1 | ACC realtime | Core/AccIssueRealtimeBridge.cs:78-84 → StingDockPanel.DispatchCommand → StingCommandHandler.SetCommand | P0 | Auto-import overwrites the single shared command slot from a background thread: can drop a user's queued command or run the import interactively on a project that never enabled it | Own ExternalEvent + handler for auto-import (me) |
 | A2 | ACC lifecycle gaps | Commands/Twin/KutPushLifecycleGapsToAccCommand.cs:50-169 | P0 | Ignores AccOperatingPolicy: modal dialogs, no cap/opt-in, Succeeded after failed pushes, sidecar saved after loop, files under Clash subtype | Agent X |
 | A3 | ACCPublish | BIMManager/PlatformLinkCommands.cs:1138,1158 | P1 | Modal dialog in unattended branch; cancelling the suitability picker silently picks S3 (invented code reaches bundle record + upload) | Agent X |
-| A4 | Settings | Clash/AccProjectSettingsFile.cs:66-68 | P1 | Malformed acc_settings.json reads as "not configured" (wrong file named), returns Cancelled, and an unattended project falls back to prompting | Report LoadError, return Failed (me) |
-| A5 | Upload | Clash/AccUploadModelCommand.cs:75,415-421 | P1 | "Not set up" and "uploadUnattended not set" return Cancelled → failOnError step reads as skip; header/playbook say no KUT workflow uploads | Fail when unattended; fix comments/docs (me) |
 | A6 | Escalation record | Clash/AccPullClashesCommand.cs LoadPushed/SavePushed; AccSyncIssueStatusCommand | P1 | Unreadable pushed_clashes.json → empty map → re-escalates everything and overwrites history; failed save still counted as pushed | Tri-state load like AccUploadLedger; save result counts (Agent X) |
 | A7 | Reviews | Clash/AccReadReviewsCommand.cs AccReviewStarter ~545-591 | P1 | Review may start on the previous revision's version (queue not refreshed on upload) | Refresh on upload / re-read latest version (Agent Y) |
 | A8 | Gate | tools/check_unattended_cycle.py | P1 | Only scans CoordinationCycle and ignores TaskDialog.Show; A2/A3 pass it | Scan all WORKFLOW_KUT_*.json, count ungated TaskDialog.Show (Agent X) |
@@ -50,6 +47,11 @@ Last full green (2026-10-01, `23354ba63`): build 0/0; Acc 526, Tags 4215, Cost 1
 ## Findings (done)
 See docs/CHANGELOG.md entries dated 2026-09-30 / 2026-10-01 (ACC hardening, follow-ups, workarounds, account data, federated compliance, two-way issues, reviews read-back, revision export, MIDP, duplicate-issue loop, webhook lineage).
 
+Seam audit (2026-10-01):
+- **A1** (13dafb71c) — Auto-import overwrites the single shared command slot from a background thread: can drop a user's queued command or run the import interactively on a project that never enabled it
+- **A4** (686930e8a) — Malformed acc_settings.json reads as "not configured" (wrong file named), returns Cancelled, and an unattended project falls back to prompting
+- **A5** (686930e8a) — "Not set up" and "uploadUnattended not set" return Cancelled → failOnError step reads as skip; header/playbook say no KUT workflow uploads
+
 ## NEEDS MANUAL CHECK
 - **Live ACC (KUT):** run `ACC_SelfCheck` first; then playbook §7 V1–V8 (docs/KUT_ACC_DAY1_PLAYBOOK.md). Confirm: Admin API/member list permission (needs Project/Account Admin or Custom Integration), Locations tree readable by members, Model Properties `indexes:batch-status` spelling, Reviews approval-status path encoding, issue `filter[updatedAt]` open range, comment `body` field, `customAttributes`/`rootCauseId` on create, BCF `.bcfzip` as issue attachment, `planscape://` links clickable in ACC web.
 - **Revit:** cloud model root mapping prompt + `Cloud_SetProjectRoot`; workshared central-root + Move; `planscape://revit/select` handler; ACC card buttons; `ACC_SyncProjectInfo` write path.
@@ -59,4 +61,7 @@ See docs/CHANGELOG.md entries dated 2026-09-30 / 2026-10-01 (ACC hardening, foll
 - **Duplicate-issue loop:** plugin skips pushing ACC-owned rows to the server (not "push with origin") because the live Render server may be older than the plugin; server also links ACC-origin issues. Both ends guard.
 - **Machine-file ACC settings fallback:** retired; old ids shown on the card and adopted only by explicit Save (explicit over silent).
 - **Deploy location:** permanent detached worktree `C:\Dev\STING_KUT_LIVE` (deploy.bat refuses temporary worktrees; the shared checkout must not be switched under other agents).
+- **A4 — malformed settings file:** named with its load error. It fails; it is not read as "not configured". A file that parses but is invalid and still says `"unattended": true` keeps the run non-interactive: a typo must not make a scheduled run sit on a dialog nobody answers. Every other setting is still discarded.
+- **A5 — unattended upload without `uploadUnattended`:** fails the step with the reason. It is not skipped. The workflow step exists to upload, and a silent skip would read as "issued" to the IM. The test is covered by build only: the command needs a Revit document, so no unit test is possible without extraction (logged as a gap).
+- **AccDocsMetadata onto AccHttp:** deferred. It already has Retry-After, and the tested wait-cap semantics would be at risk for no user-visible gain.
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).
