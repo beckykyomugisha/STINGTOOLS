@@ -163,11 +163,11 @@ Read from the code; none of it run in Revit.
 
 | Id | Gap | Evidence | Fix |
 |---|---|---|---|
-| CAD-1 | CAD Wizard **Convert** runs the legacy 9-argument `RunFullPipeline`, so Top Level, repeat levels, foundations, the Wall / structural-wall switches, numbering, the size-detection options and the **Dry-run tick box** are ignored (Convert always creates). Its own "Re-analyse (dry-run)" uses the complete `RunFullPipelineWithConfig`. | `StructuralModelingCommands.cs` `StrCADWizardCommand`; `StructuralCADWizard.cs` dry-run handler | Call `RunFullPipelineWithConfig(wizard.SelectedImport, cfg)`; needs a Revit run on a real DWG first, because that path has only ever run as a dry-run. |
-| CAD-2 | "Pick Wall" measures wall thickness and ignores it; "Pick Column" / "Pick Beam" place the first available type with no measuring. | `StructuralDWGEnhancements.cs` (`CreateWallFromCurve`, "future work") | Match or create a type from the measured size. |
-| MDP-1 | The medical-gas, routing, commissioning, conduiting-phase and in-wall-chase placement packs are not in `PlacementRuleLoader.DisciplinePacks`, so "Run All Rules" never loads them; `Placement_MedGasOutlets` has no button. | `Core/Placement/PlacementRuleLoader.cs` | Register the packs (after checking their room scoping) and add a Placement Centre button. |
-| MDP-2 | No drawing type for: data / comms, security, containment, CHW / LTHW pipework, HVAC schematics, cold / hot water plans, fire alarm schematic, fire riser, general services sections and details, emergency lighting. | `Data/STING_DRAWING_TYPES.json` (96 types) | Add the types (with routing rules and checksums). |
-| MDP-3 | Routing rule `E / PLAN` resolves to `elec-riser-A3-1to200`, a section. | `STING_DRAWING_TYPES.json` routing | Point it at `elec-power-A1-1to100`. |
+| CAD-1 | CAD Wizard **Convert** runs the legacy 9-argument `RunFullPipeline`, so Top Level, repeat levels, foundations, the Wall / structural-wall switches, numbering, the size-detection options and the **Dry-run tick box** are ignored (Convert always creates). Its own "Re-analyse (dry-run)" uses the complete `RunFullPipelineWithConfig`. | `StructuralModelingCommands.cs` `StrCADWizardCommand`; `StructuralCADWizard.cs` dry-run handler | **Closed 2026-09-30.** Convert runs `RunFullPipelineWithConfig` on the picked DWG inside one TransactionGroup; a ticked Dry-run creates nothing; tagging runs once, only when asked. Four pipeline bugs found on the way (type duplication never ran inside the conversion transaction, post-steps ran with no transaction open, dry-run wrote to the model, connection synthesis not wired) were fixed. Needs a Revit run on a real DWG. |
+| CAD-2 | "Pick Wall" measures wall thickness and ignores it; "Pick Column" / "Pick Beam" place the first available type with no measuring. | `StructuralDWGEnhancements.cs` (`CreateWallFromCurve`, "future work") | **Closed 2026-09-30.** Pick Wall matches or duplicates a wall type within ±5 mm of the measured thickness, on the active plan level; Pick Column sizes from a picked circle / rectangle / edge pair; Pick Beam measures width from two edge lines (point mode says no size was measured). `DwgPickGeometry` is unit-tested. Needs a Revit run. |
+| MDP-1 | The medical-gas, routing, commissioning, conduiting-phase and in-wall-chase placement packs are not in `PlacementRuleLoader.DisciplinePacks`, so "Run All Rules" never loads them; `Placement_MedGasOutlets` has no button. | `Core/Placement/PlacementRuleLoader.cs` | **Closed 2026-09-30.** Medical-gas pack registered (its room filters tightened with `ExcludeRoomFilter`; the healthcare bedhead-trunking rule too). routing / commissioning / conduiting-phase are not placement packs and are listed with reasons in `PlacementPackRegistry.NotAutoMerged`; in-wall-chase is loaded by name by its real consumer, "Run Wall Chase", which it never reached before. A test fails on any pack in neither list. Med-gas outlets have buttons in the dock and the Placement Centre. |
+| MDP-2 | No drawing type for: data / comms, security, containment, CHW / LTHW pipework, HVAC schematics, cold / hot water plans, fire alarm schematic, fire riser, general services sections and details, emergency lighting. | `Data/STING_DRAWING_TYPES.json` (96 types) | **Closed 2026-09-30.** 11 types added (data / comms, security, containment, emergency lighting, fire alarm schematic, CHW / LTHW pipework, HVAC schematic, water supply, fire riser, services section, services detail) with routing; catalogue 107 types / 134 rules, checksums stamped. The templates step now creates every `viewTemplateName` the drawing types name. |
+| MDP-3 | Routing rule `E / PLAN` resolves to `elec-riser-A3-1to200`, a section. | `STING_DRAWING_TYPES.json` routing | **Closed 2026-09-30.** `E / PLAN` routes to `elec-power-A1-1to100` in the JSON and in the built-in fallback catalogue; the riser stays reachable through `E / RISER`. |
 
 ## Material callouts (2026-09-24)
 
@@ -271,6 +271,7 @@ instance it places. A type parameter would follow a swap, but the project bindin
 both. Options if swaps prove common: an updater that restamps the gas on a type change, or a
 separate type-level `MGS_TU_GAS_TXT` the TU tag reads. Neither is built. The per-type default
 behaviour itself has not been checked in Revit.
+*Closed 2026-09-30: `MedGasTypeSwapUpdater` sets the gas from the seed spec whenever a STING seed outlet changes type (manufacturer families untouched), and placement finds seed types by their declared gas.* 
 
 **MG-2 · Projects that already built the outlet seed keep the old theatre panel.** The type
 `MAP_THEATRE_PANEL` (product code `MAP`) was renamed `THEATRE_GAS_PANEL` / `TGP` on 2026-09-25,
@@ -282,6 +283,7 @@ DT-4. Nothing migrates this: in such a project, run *Build Seeds → Rebuild All
 theatre-panel instances to `THEATRE_GAS_PANEL`, then purge `MAP_THEATRE_PANEL`. A migration
 step (or a `Symbols_DriftDetect` finding for a seed type the spec no longer declares) would make
 it automatic.
+*Closed 2026-09-30: seed type variants accept `renamedFrom`; Build Seeds (every mode) renames or merges the old type and restamps the product code, reporting the counts.* 
 
 **DT-6 · Needs a Revit run (2026-09-24 setup / view-type / material-tag work).** Run SETUP →
 DRAWING PRODUCTION → *Set up drawing production* on a fresh project and check each step
