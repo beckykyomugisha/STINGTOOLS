@@ -409,6 +409,38 @@ namespace StingTools.V6
             return AccFetchResult<string>.Success(choice.SubtypeId, empty: false);
         }
 
+        /// <summary>Resolve an issue subtype for a purpose OTHER than clash escalation (e.g. the
+        /// lifecycle-gap push, A2), by the purpose's own configured ids or by NAME.
+        ///
+        /// Unlike <see cref="ResolveIssueTypeAsync"/> this never falls back to the clash type and
+        /// never writes the credentials file: the clash subtype cached there is the clash
+        /// escalation's, and filing a lifecycle gap under it would put it in the clash queue.</summary>
+        public static async Task<AccFetchResult<string>> ResolveNamedIssueTypeAsync(AccCredentials creds,
+            string configuredTypeId, string configuredSubtypeId, string typeName, string settingHint)
+        {
+            if (creds == null) return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", 0, "no credentials");
+            if (!string.IsNullOrEmpty(configuredTypeId) && !string.IsNullOrEmpty(configuredSubtypeId))
+                return AccFetchResult<string>.Success(configuredSubtypeId, empty: false);
+
+            var resp = await AccHttp.SendAsync(() => WithRegion(new HttpRequestMessage(HttpMethod.Get,
+                    $"{ProjectUrl(creds)}/issue-types?include=subtypes&limit=100"), creds),
+                creds, idempotent: true).ConfigureAwait(false);
+            if (!resp.IsSuccess)
+                return AccFetchResult<string>.Failure(resp.Classify(), "", resp.Status, "listing ACC issue types: " + resp.Describe());
+
+            JArray results = AccFetchOutcome.FindArray(resp.Body, "results");
+            if (results == null)
+                return AccFetchResult<string>.Failure(AccFetchStatus.TransportFailed, "", resp.Status,
+                    "the issue-types response carried no 'results' array");
+
+            var active = results.Where(t => t["isActive"] == null || (bool?)t["isActive"] != false).ToList();
+            var choice = IssueTypeChooser.ChooseByName(active, configuredTypeId, new[] { typeName }, typeName, typeName, settingHint);
+            if (!choice.Ok)
+                return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, "", resp.Status, choice.Reason);
+            StingLog.Info($"AccIssueSync: filing {typeName} issues as '{choice.TypeTitle} / {choice.SubtypeTitle}' ({choice.SubtypeId}).");
+            return AccFetchResult<string>.Success(choice.SubtypeId, empty: false);
+        }
+
         /// <summary>Back-compat wrapper.</summary>
         public static async Task<bool> EnsureIssueTypeAsync(AccCredentials creds)
             => (await ResolveIssueTypeAsync(creds).ConfigureAwait(false)).Succeeded;
@@ -890,8 +922,21 @@ namespace StingTools.V6
         /// <param name="types">Active issue types, each with a 'subtypes' array.</param>
         /// <param name="configuredTypeId">A type id the project configured without a subtype, or empty.</param>
         public static Choice Choose(IList<JToken> types, string configuredTypeId)
+            => ChooseByName(types, configuredTypeId, Preferred, "clash",
+                "Clash or Coordination", "issueTypeId / issueSubtypeId in the project's ACC settings (BIM Coordination Center > ACC)");
+
+        /// <summary>The same rule for any purpose: a type whose title contains one of
+        /// <paramref name="words"/> (in order), else a type with a subtype titled
+        /// <paramref name="subtypeWord"/>; then a subtype matching the words, else the type's
+        /// only subtype. Nothing matching by name means NOTHING is chosen - never the first
+        /// type offered, and never another purpose's type.</summary>
+        /// <param name="named">How the refusal names the wanted type, e.g. "Lifecycle".</param>
+        /// <param name="settingHint">Which setting fixes a refusal.</param>
+        public static Choice ChooseByName(IList<JToken> types, string configuredTypeId, IReadOnlyList<string> words,
+            string subtypeWord, string named, string settingHint)
         {
             types = types ?? new List<JToken>();
+            words = words ?? Array.Empty<string>();
             if (types.Count == 0)
                 return new Choice { Reason = "the ACC project has no active issue types — ask the project admin to enable one" };
 
@@ -900,31 +945,30 @@ namespace StingTools.V6
             {
                 type = types.FirstOrDefault(t => string.Equals((string)t["id"], configuredTypeId, StringComparison.OrdinalIgnoreCase));
                 if (type == null)
-                    return new Choice { Reason = $"the configured issueTypeId '{configuredTypeId}' is not an active type here. " + Offered(types) };
+                    return new Choice { Reason = $"the configured issue type id '{configuredTypeId}' is not an active type here. " + Offered(types) };
             }
             else
             {
-                foreach (var word in Preferred)
+                foreach (var word in words)
                 {
                     type = types.FirstOrDefault(t => Title(t).IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0);
                     if (type != null) break;
                 }
-                // Also accept a type whose SUBTYPE is called clash (e.g. "Coordination > Clash"
+                // Also accept a type whose SUBTYPE carries the word (e.g. "Coordination > Clash"
                 // is caught above; "Quality > Clash" is caught here).
-                if (type == null)
-                    type = types.FirstOrDefault(t => Subtypes(t).Any(s => Title(s).IndexOf("clash", StringComparison.OrdinalIgnoreCase) >= 0));
+                if (type == null && !string.IsNullOrEmpty(subtypeWord))
+                    type = types.FirstOrDefault(t => Subtypes(t).Any(s => Title(s).IndexOf(subtypeWord, StringComparison.OrdinalIgnoreCase) >= 0));
                 if (type == null)
                     return new Choice
                     {
-                        Reason = "no ACC issue type is named Clash or Coordination, and STING will not file clash issues " +
-                                 "under an unrelated type. Set issueTypeId / issueSubtypeId in the project's ACC settings " +
-                                 "(BIM Coordination Center > ACC). " + Offered(types)
+                        Reason = $"no ACC issue type is named {named}, and STING will not file these issues " +
+                                 $"under an unrelated type. Set {settingHint}. " + Offered(types)
                     };
             }
 
             var subs = Subtypes(type).Where(s => s["isActive"] == null || (bool?)s["isActive"] != false).ToList();
             JToken sub = null;
-            foreach (var word in Preferred)
+            foreach (var word in words)
             {
                 sub = subs.FirstOrDefault(s => Title(s).IndexOf(word, StringComparison.OrdinalIgnoreCase) >= 0);
                 if (sub != null) break;
@@ -933,8 +977,8 @@ namespace StingTools.V6
             if (sub == null)
                 return new Choice
                 {
-                    Reason = $"issue type '{Title(type)}' has {subs.Count} subtypes and none is named Clash or Coordination — " +
-                             "set issueSubtypeId in the project's ACC settings. Subtypes: " +
+                    Reason = $"issue type '{Title(type)}' has {subs.Count} subtypes and none is named {named} — " +
+                             $"set the subtype ({settingHint}). Subtypes: " +
                              string.Join(", ", subs.Select(s => $"'{Title(s)}' [{(string)s["id"]}]"))
                 };
 
