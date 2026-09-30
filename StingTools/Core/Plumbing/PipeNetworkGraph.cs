@@ -49,6 +49,14 @@ namespace StingTools.Core.Plumbing
         public XYZ              Position        { get; set; }   // Revit internal feet
         public PipeNodeType     Type            { get; set; }
         public string           SystemName      { get; set; } = "";
+        /// <summary>
+        /// Piping-system classification of a pipe node (Sanitary, Vent, DCW …); null for
+        /// fittings, fixtures and equipment, and for a pipe on no system. The drainage
+        /// schematic tells a vent from a drain by this, never by a name guess.
+        /// </summary>
+        public PipeSystemType?  Classification  { get; set; }
+        /// <summary>True when the node is a Pipe element (not a fitting / accessory / fixture).</summary>
+        public bool             IsPipeElement   { get; set; }
         public double           DnMm            { get; set; }
         public double           DfuAccumulated  { get; set; }
         public double           PressureKpa     { get; set; }
@@ -238,7 +246,18 @@ namespace StingTools.Core.Plumbing
             if (inletNode == null && net.Nodes.Count > 0)
                 inletNode = net.Nodes.First();
 
-            if (inletNode == null) return;
+            AccumulatePressureFrom(net, inletNode, inletKpa, doc);
+        }
+
+        /// <summary>
+        /// As <see cref="AccumulatePressure(PipeNetwork, double, double, Document)"/>, from
+        /// a caller-chosen inlet node (e.g. the modelled water meter) instead of the
+        /// lowest termination / equipment node.
+        /// </summary>
+        public static void AccumulatePressureFrom(PipeNetwork net, PipeNode inletNode,
+            double inletKpa, Document doc)
+        {
+            if (net == null || inletNode == null) return;
             inletNode.PressureKpa = inletKpa;
 
             // BFS from inlet toward fixtures. We walk in topological-ish order
@@ -464,7 +483,15 @@ namespace StingTools.Core.Plumbing
 
             // DN from pipe diameter
             if (el is Pipe pipe)
+            {
                 node.DnMm = pipe.Diameter * FtToMm;
+                node.IsPipeElement = true;
+                try
+                {
+                    if (pipe.MEPSystem is PipingSystem ps) node.Classification = ps.SystemType;
+                }
+                catch (Exception ex) { StingLog.Warn($"PipeNetworkBuilder: classification of pipe {pipe.Id}: {ex.Message}"); }
+            }
 
             net.Nodes.Add(node);
             net.ById[id] = node;
@@ -722,10 +749,14 @@ namespace StingTools.Core.Plumbing
             if (string.IsNullOrWhiteSpace(filter)) return true;
             try
             {
-                string sysName = p.MEPSystem?.Name ?? "";
-                return sysName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+                // Exact: the schematic pickers list whole PipingSystem names.
+                return SchematicLayoutMath.SystemNameMatches(p.MEPSystem?.Name, filter);
             }
-            catch { return true; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PipeNetworkBuilder: system name of pipe {p?.Id}: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>

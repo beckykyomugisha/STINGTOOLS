@@ -4,8 +4,17 @@
 // Walks the PipeNetwork, lays out stacks vertically and branches horizontally,
 // then draws DetailLine + TextNote annotations in a new ViewDrafting at 1:50.
 //
-// All drafting-view coordinates are in feet (Revit internal units).
-// 1 mm = 1/304.8 ft  →  constant MmToFt used throughout.
+// Draws only what is modelled: a stack is a Sanitary pipe run that is more than
+// 80 % vertical (one physical stack = its per-storey segments grouped by plan
+// position), a branch is a drain pipe leaving a fitting on that stack, a vent
+// is a Vent-classified pipe connected to the stack, and floors are the
+// document's Levels. Anything the model does not supply is left out and named
+// in the warnings — never drawn from a default. No stack means no view: the
+// command rolls the transaction back and reports why.
+//
+// All drafting-view coordinates are in feet (Revit internal units). The vertical
+// axis is real elevation (above the lowest Level shown); glyph sizes and text
+// offsets are paper millimetres × view scale.
 
 using System;
 using System.Collections.Generic;
@@ -59,7 +68,11 @@ namespace StingTools.Core.Plumbing
     public class SchematicResult
     {
         public ElementId    ViewId               = ElementId.InvalidElementId;
+        /// <summary>Stacks actually drawn (the stack line was created).</summary>
         public int          NodesDrawn           = 0;
+        public int          BranchesDrawn        = 0;
+        public int          VentsDrawn           = 0;
+        public int          LevelsLabelled       = 0;
         public int          LinesDrawn           = 0;
         public int          AnnotationsPlaced    = 0;
         public List<string> Warnings             = new List<string>();
@@ -71,16 +84,19 @@ namespace StingTools.Core.Plumbing
 
     public class DrainageSchematicOptions
     {
-        /// <summary>Filter to a single named system; empty = all drainage systems.</summary>
+        /// <summary>
+        /// Draw only stacks on this PipingSystem (exact name); empty = all drainage
+        /// systems. Vents on other systems connected to those stacks are still drawn.
+        /// </summary>
         public string SystemNameFilter    = "";
         /// <summary>
         /// Pipe-system classifications drawn. Default sanitary + vent: without it every
         /// pipe in the model (cold water, heating …) was drawn as drainage stacks.
         /// </summary>
         public PipeSystemType[] Classifications = { PipeSystemType.Sanitary, PipeSystemType.Vent };
-        /// <summary>Horizontal spacing between adjacent stacks in the schematic (mm).</summary>
-        public double StackSpacingMm     = 800.0;
-        /// <summary>Vertical height representing one floor in the schematic (mm).</summary>
+        /// <summary>Horizontal spacing between adjacent stacks in the schematic (model mm).</summary>
+        public double StackSpacingMm     = 2000.0;
+        /// <summary>Unused since floors come from the document's Levels; kept for callers.</summary>
         public double LevelHeightMm      = 3000.0;
         public bool   ShowVents          = true;
         public bool   ShowFixtureSymbols = true;
@@ -94,23 +110,31 @@ namespace StingTools.Core.Plumbing
 
     internal class StackLayout
     {
-        public PipeNode    Node;
-        public int         ColumnIndex;   // 0-based left-to-right
-        public int         FloorCount;    // number of levels served
+        public List<PipeNode> Segments = new List<PipeNode>();
+        public double      ZMin;          // real elevation, ft
+        public double      ZMax;
+        public int         DnMm;
         public string      SystemName;
         public List<BranchLayout> Branches = new List<BranchLayout>();
-        public bool        HasVent;
-        public int         VentDnMm;
+        /// <summary>Null when no Vent-classified pipe connects to this stack.</summary>
+        public VentLayout  Vent;
+    }
+
+    internal class VentLayout
+    {
+        public int    DnMm;
+        public double ZMin;
+        public double ZMax;
     }
 
     internal class BranchLayout
     {
-        public int      FloorIndex;     // 0 = ground
+        public double   Z;              // real elevation of the junction, ft
         public int      FixtureCount;
         public int      BranchDnMm;
-        public double   SlopePct;
-        public string   FixtureLabel;   // e.g. "WC × 4"
-        public bool     IsLeft;         // branch goes left (alternate sides per floor)
+        public double?  SlopePct;       // null = not known
+        public string   FixtureLabel;
+        public bool     IsLeft;
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -120,8 +144,12 @@ namespace StingTools.Core.Plumbing
     public static class DrainageSchematicGenerator
     {
         private const double MmToFt  = 1.0 / 304.8;
-        private const double TextSizeSmall  = 2.5;   // mm — passed to FindOrCreateTextType
-        private const double TextSizeNormal = 3.0;
+        // ISO 3098 text heights (paper mm).
+        private const double TextSizeSmall  = 2.5;
+        private const double TextSizeNormal = 3.5;
+        // Segments within this plan distance are one stack.
+        private const double StackPlanToleranceFt = 150 * MmToFt;
+        private const double LevelToleranceFt     = 50 * MmToFt;
 
         // ── Main entry ────────────────────────────────────────────────────────
 
@@ -144,42 +172,52 @@ namespace StingTools.Core.Plumbing
             try
             {
                 // 1. Build pipe network ─────────────────────────────────────────
+                // Not filtered by name here: a vent on another system connected to a
+                // picked stack must still be found. The name filter picks stacks below.
                 PipeNetwork network;
                 try
                 {
-                    network = PipeNetworkBuilder.Build(doc,
-                        string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? null : opts.SystemNameFilter,
-                        opts.Classifications);
+                    network = PipeNetworkBuilder.Build(doc, null, opts.Classifications);
                 }
                 catch (Exception ex)
                 {
                     result.Warnings.Add($"PipeNetworkBuilder.Build failed: {ex.Message}");
+                    StingLog.Error("DrainageSchematicGenerator: PipeNetworkBuilder.Build", ex);
                     network = new PipeNetwork();
                 }
+
+                string classText = string.Join(" / ", opts.Classifications ?? new PipeSystemType[0]);
+                string filterText = string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? "" : $" named '{opts.SystemNameFilter}'";
 
                 // Nothing to draw: no view, and the reason (never an empty drafting view).
                 if (network.Nodes.Count == 0)
                 {
-                    result.Warnings.Add("No drainage pipework found (no pipe on a system classified "
-                        + string.Join(" / ", opts.Classifications ?? new PipeSystemType[0])
-                        + (string.IsNullOrWhiteSpace(opts.SystemNameFilter) ? "" : $" named '{opts.SystemNameFilter}'")
-                        + ") — nothing to draw.");
+                    result.Warnings.Add($"No drainage pipework found (no pipe on a system classified {classText}{filterText}) — nothing to draw.");
                     return result;
                 }
 
-                // 2. Identify stacks (nodes typed Stack or with many downstream edges) ──
-                var stackNodes = network.Nodes
-                    .Where(n => n.Type == PipeNodeType.Stack ||
-                                (n.Downstream.Count >= 2 && n.DnMm >= 75))
+                // 2. Real stacks only ───────────────────────────────────────────
+                var stackSegments = network.Nodes
+                    .Where(n => n.Type == PipeNodeType.Stack
+                             && KindOf(n) == SchematicPipeKind.DrainPipe
+                             && SchematicLayoutMath.SystemNameMatches(n.SystemName, opts.SystemNameFilter))
                     .ToList();
 
-                if (!stackNodes.Any())
+                if (stackSegments.Count == 0)
                 {
-                    // Fallback: treat nodes with highest accumulated DFU as stacks
-                    stackNodes = network.Nodes
-                        .OrderByDescending(n => n.DfuAccumulated)
-                        .Take(Math.Max(1, network.Nodes.Count / 4))
-                        .ToList();
+                    result.Warnings.Add($"No drainage stack is modelled (no non-vent pipe on a system classified {classText}{filterText} "
+                        + "is more than 80 % vertical). The schematic draws only modelled stacks — nothing was drawn.");
+                    return result;
+                }
+
+                var levels = CollectLevels(doc);
+                var levelElevs = levels.Select(l => l.Elevation).ToList();
+
+                var layouts = BuildStackLayouts(doc, stackSegments, network, opts, result);
+                if (layouts.Count == 0)
+                {
+                    result.Warnings.Add("Stack pipes were found but none has a readable centreline — nothing was drawn.");
+                    return result;
                 }
 
                 // 3. Create Drafting View ───────────────────────────────────────
@@ -204,175 +242,145 @@ namespace StingTools.Core.Plumbing
                 }
 
                 result.ViewId = view.Id;
+                int scale = view.Scale;
+                double P(double paperMm) => SchematicLayoutMath.PaperMmToModelFt(paperMm, scale);
 
-                // 4. Build layout ───────────────────────────────────────────────
-                var layouts = BuildStackLayouts(stackNodes, network, opts);
+                double stackSpacingFt = Math.Max(opts.StackSpacingMm * MmToFt, P(30));
 
-                double stackSpacingFt = opts.StackSpacingMm * MmToFt;
-                double levelHeightFt  = opts.LevelHeightMm  * MmToFt;
+                var textTypeNormal = FindClosestTextType(doc, TextSizeNormal);
+                var textTypeSmall  = FindClosestTextType(doc, TextSizeSmall);
+                ElementId normalId = textTypeNormal?.Id ?? ElementId.InvalidElementId;
+                ElementId smallId  = textTypeSmall?.Id  ?? ElementId.InvalidElementId;
 
-                var textTypeNormal = FindOrCreateTextType(doc, TextSizeNormal);
-                var textTypeSmall  = FindOrCreateTextType(doc, TextSizeSmall);
-
-                // GraphicsStyle for lines ── use default thin line
                 var lineStyles = GetLineStyleIds(doc);
 
-                // Solid fill for future use (symbols)
-                ElementId solidFillId = GetSolidFillPatternId(doc);
+                // Vertical datum: the lowest Level any stack passes, else the lowest stack foot.
+                double globalZMin = layouts.Min(l => l.ZMin);
+                double globalZMax = layouts.Max(l => Math.Max(l.ZMax, l.Vent?.ZMax ?? l.ZMax));
+                var spannedLevels = SchematicLayoutMath.LevelsSpanning(levelElevs, globalZMin, globalZMax, LevelToleranceFt);
+                double baseZ = spannedLevels.Count > 0 ? Math.Min(levelElevs[spannedLevels[0]], globalZMin) : globalZMin;
+                double Y(double z) => z - baseZ;
+
+                if (levels.Count == 0)
+                    result.Warnings.Add("The document has no Levels — floor lines were not drawn.");
+                else if (spannedLevels.Count == 0)
+                    result.Warnings.Add("No Level lies within the height of the stacks — floor lines were not drawn.");
+
+                double tickHalf = P(3);
+
+                // 4. Floor labels (left of the first stack, from real Levels) ─────
+                foreach (int li in spannedLevels)
+                {
+                    if (TryPlaceTextNote(doc, view,
+                            new XYZ(-tickHalf - P(22), Y(levels[li].Elevation) + P(1.5), 0),
+                            levels[li].Name, smallId, result))
+                        result.LevelsLabelled++;
+                }
 
                 // 5. Draw each stack ────────────────────────────────────────────
                 for (int si = 0; si < layouts.Count; si++)
                 {
                     var sl = layouts[si];
                     double cx = si * stackSpacingFt;
-                    double yBottom = 0.0;
-                    double yTop    = sl.FloorCount * levelHeightFt;
+                    double yBottom = Y(sl.ZMin);
+                    double yTop    = Y(sl.ZMax);
 
                     // Stack vertical line ──────────────────────────────────────
-                    TryDrawDetailLine(doc, view,
-                        new XYZ(cx, yBottom, 0),
-                        new XYZ(cx, yTop,    0),
-                        lineStyles.Solid, result);
+                    if (!TryDrawDetailLine(doc, view,
+                            new XYZ(cx, yBottom, 0), new XYZ(cx, yTop, 0),
+                            lineStyles.Solid, result))
+                        continue;   // the stack itself failed — draw nothing that hangs off it
+                    result.NodesDrawn++;
 
-                    // Stack termination (open top — short horizontal tick) ─────
+                    // Head of the stack — short horizontal tick (paper size).
                     TryDrawDetailLine(doc, view,
-                        new XYZ(cx - 0.2 * MmToFt * 100, yTop, 0),
-                        new XYZ(cx + 0.2 * MmToFt * 100, yTop, 0),
+                        new XYZ(cx - P(2), yTop, 0), new XYZ(cx + P(2), yTop, 0),
                         lineStyles.Solid, result);
 
                     // Stack label ──────────────────────────────────────────────
                     if (opts.ShowDnLabels)
                     {
-                        string stackLabel = $"DN{sl.Node.DnMm} STACK";
+                        string stackLabel = sl.DnMm > 0 ? $"DN{sl.DnMm} STACK" : "STACK";
                         if (!string.IsNullOrEmpty(sl.SystemName))
                             stackLabel += $"\n{sl.SystemName}";
-
                         TryPlaceTextNote(doc, view,
-                            new XYZ(cx + 0.05, yTop + 0.1, 0),
-                            stackLabel,
-                            textTypeNormal?.Id ?? ElementId.InvalidElementId,
-                            result);
+                            new XYZ(cx + P(1), yTop + P(8), 0),
+                            stackLabel, normalId, result);
                     }
 
-                    // Floor level tick marks ───────────────────────────────────
-                    for (int fi = 0; fi <= sl.FloorCount; fi++)
+                    // Floor level ticks — the Levels this stack passes ─────────
+                    foreach (int li in SchematicLayoutMath.LevelsSpanning(levelElevs, sl.ZMin, sl.ZMax, LevelToleranceFt))
                     {
-                        double fy = fi * levelHeightFt;
-                        double tickLen = 150 * MmToFt;
+                        double fy = Y(levels[li].Elevation);
                         TryDrawDetailLine(doc, view,
-                            new XYZ(cx - tickLen, fy, 0),
-                            new XYZ(cx + tickLen, fy, 0),
+                            new XYZ(cx - tickHalf, fy, 0), new XYZ(cx + tickHalf, fy, 0),
                             lineStyles.Solid, result);
-
-                        // Floor level label (left of first stack only)
-                        if (si == 0)
-                        {
-                            string lvlLabel = fi == 0 ? "GL" : $"L{fi:D2}";
-                            TryPlaceTextNote(doc, view,
-                                new XYZ(cx - tickLen - 0.15, fy - 0.05, 0),
-                                lvlLabel,
-                                textTypeSmall?.Id ?? ElementId.InvalidElementId,
-                                result);
-                        }
                     }
 
-                    // Vent line ────────────────────────────────────────────────
-                    if (opts.ShowVents && sl.HasVent)
+                    // Vent — only a modelled Vent pipe connected to this stack ─
+                    if (opts.ShowVents && sl.Vent != null)
                     {
-                        double ventX = cx + 200 * MmToFt;
-                        TryDrawDetailLine(doc, view,
-                            new XYZ(ventX, yBottom, 0),
-                            new XYZ(ventX, yTop + 0.3, 0),
-                            lineStyles.Dashed, result);
-
-                        if (opts.ShowDnLabels)
+                        double ventX = cx + P(4);
+                        double vy0 = Y(sl.Vent.ZMin), vy1 = Y(sl.Vent.ZMax);
+                        bool drawn;
+                        if (vy1 - vy0 > P(1))
                         {
-                            TryPlaceTextNote(doc, view,
-                                new XYZ(ventX + 0.05, yTop * 0.5, 0),
-                                $"DN{sl.VentDnMm} VENT",
-                                textTypeSmall?.Id ?? ElementId.InvalidElementId,
-                                result);
+                            TryDrawDetailLine(doc, view,
+                                new XYZ(cx, vy0, 0), new XYZ(ventX, vy0, 0), lineStyles.Dashed, result);
+                            drawn = TryDrawDetailLine(doc, view,
+                                new XYZ(ventX, vy0, 0), new XYZ(ventX, vy1, 0), lineStyles.Dashed, result);
+                        }
+                        else
+                        {
+                            drawn = TryDrawDetailLine(doc, view,
+                                new XYZ(cx, vy0, 0), new XYZ(ventX + P(4), vy0, 0), lineStyles.Dashed, result);
+                        }
+                        if (drawn)
+                        {
+                            result.VentsDrawn++;
+                            if (opts.ShowDnLabels)
+                                TryPlaceTextNote(doc, view,
+                                    new XYZ(ventX + P(1), (vy0 + vy1) * 0.5 + P(1), 0),
+                                    sl.Vent.DnMm > 0 ? $"DN{sl.Vent.DnMm} VENT" : "VENT",
+                                    smallId, result);
                         }
                     }
 
-                    // Branches ─────────────────────────────────────────────────
+                    // Branches — drain pipes leaving fittings on the stack ─────
                     foreach (var br in sl.Branches)
                     {
-                        double by     = br.FloorIndex * levelHeightFt + 0.3 * levelHeightFt;
+                        double by     = Y(br.Z);
                         double brLen  = stackSpacingFt * 0.45;
                         double brEndX = br.IsLeft ? cx - brLen : cx + brLen;
 
-                        // Horizontal branch line
-                        TryDrawDetailLine(doc, view,
-                            new XYZ(cx, by, 0),
-                            new XYZ(brEndX, by, 0),
-                            lineStyles.Solid, result);
+                        if (!TryDrawDetailLine(doc, view,
+                                new XYZ(cx, by, 0), new XYZ(brEndX, by, 0),
+                                lineStyles.Solid, result))
+                            continue;
+                        result.BranchesDrawn++;
 
-                        // DN + slope label
                         if (opts.ShowDnLabels || opts.ShowSlopeLabels)
                         {
                             var parts = new List<string>();
-                            if (opts.ShowDnLabels)
+                            if (opts.ShowDnLabels && br.BranchDnMm > 0)
                                 parts.Add($"DN{br.BranchDnMm}");
-                            if (opts.ShowSlopeLabels && br.SlopePct > 0)
-                                parts.Add($"× {br.SlopePct:0.##}%");
+                            if (opts.ShowSlopeLabels)
+                                parts.Add(SchematicLayoutMath.SlopeLabel(br.SlopePct));
 
                             if (parts.Any())
-                            {
                                 TryPlaceTextNote(doc, view,
-                                    new XYZ((cx + brEndX) * 0.5, by + 0.05, 0),
-                                    string.Join(" ", parts),
-                                    textTypeSmall?.Id ?? ElementId.InvalidElementId,
-                                    result);
-                            }
+                                    new XYZ(Math.Min(cx, brEndX) + P(1), by + P(4), 0),
+                                    string.Join(" ", parts), smallId, result);
                         }
 
-                        // Fixture symbol / label
                         if (opts.ShowFixtureSymbols && br.FixtureCount > 0)
                         {
-                            string fixLabel = string.IsNullOrEmpty(br.FixtureLabel)
-                                ? $"× {br.FixtureCount}"
-                                : br.FixtureLabel;
-
-                            // Small arc symbol for fixture (approximated with short lines)
-                            DrawFixtureSymbol(doc, view, brEndX, by, br.IsLeft,
-                                lineStyles.Solid, result);
-
+                            DrawFixtureSymbol(doc, view, brEndX, by, br.IsLeft, P(2), lineStyles.Solid, result);
                             TryPlaceTextNote(doc, view,
-                                new XYZ(brEndX + (br.IsLeft ? -0.1 : 0.1), by + 0.07, 0),
-                                fixLabel,
-                                textTypeSmall?.Id ?? ElementId.InvalidElementId,
-                                result);
+                                new XYZ(brEndX + (br.IsLeft ? -P(20) : P(3)), by + P(4), 0),
+                                br.FixtureLabel, smallId, result);
                         }
                     }
-
-                    result.NodesDrawn++;
-                }
-
-                // 6. Ground drain (horizontal collector at base) ────────────────
-                if (layouts.Count > 1)
-                {
-                    double x0 = 0;
-                    double x1 = (layouts.Count - 1) * stackSpacingFt;
-                    TryDrawDetailLine(doc, view,
-                        new XYZ(x0, -levelHeightFt * 0.3, 0),
-                        new XYZ(x1, -levelHeightFt * 0.3, 0),
-                        lineStyles.Solid, result);
-
-                    for (int si = 0; si < layouts.Count; si++)
-                    {
-                        double cx = si * stackSpacingFt;
-                        TryDrawDetailLine(doc, view,
-                            new XYZ(cx, 0, 0),
-                            new XYZ(cx, -levelHeightFt * 0.3, 0),
-                            lineStyles.Solid, result);
-                    }
-
-                    TryPlaceTextNote(doc, view,
-                        new XYZ(x0, -levelHeightFt * 0.35, 0),
-                        "TO DRAIN",
-                        textTypeSmall?.Id ?? ElementId.InvalidElementId,
-                        result);
                 }
 
                 return result;
@@ -397,7 +405,11 @@ namespace StingTools.Core.Plumbing
 
         // ── Text note type helper ─────────────────────────────────────────────
 
-        private static TextNoteType FindOrCreateTextType(Document doc, double heightMm)
+        /// <summary>
+        /// The text type whose printed height (TEXT_SIZE is a paper size) is closest to
+        /// <paramref name="paperHeightMm"/>. Null when the document has none.
+        /// </summary>
+        internal static TextNoteType FindClosestTextType(Document doc, double paperHeightMm)
         {
             try
             {
@@ -405,111 +417,186 @@ namespace StingTools.Core.Plumbing
                     .OfClass(typeof(TextNoteType))
                     .Cast<TextNoteType>()
                     .ToList();
+                if (types.Count == 0) return null;
 
-                if (!types.Any()) return null;
-
-                // Find the closest match by text size
-                double targetFt = heightMm * MmToFt;
-                return types
-                    .OrderBy(t =>
+                var heights = types.Select(t =>
+                {
+                    try { return t.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? double.NaN; }
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            double h = t.get_Parameter(BuiltInParameter.TEXT_SIZE)?.AsDouble() ?? 0;
-                            return Math.Abs(h - targetFt);
-                        }
-                        catch { return double.MaxValue; }
-                    })
-                    .First();
+                        StingLog.Warn($"FindClosestTextType: TEXT_SIZE of '{t.Name}': {ex.Message}");
+                        return double.NaN;
+                    }
+                }).ToList();
+
+                int ix = SchematicLayoutMath.ClosestIndex(heights, paperHeightMm * MmToFt);
+                return ix >= 0 ? types[ix] : types[0];
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"FindOrCreateTextType({heightMm}mm): {ex.Message}");
+                StingLog.Warn($"FindClosestTextType({paperHeightMm}mm): {ex.Message}");
                 return null;
             }
         }
 
+        // ── Levels ────────────────────────────────────────────────────────────
+
+        private static List<(string Name, double Elevation)> CollectLevels(Document doc)
+        {
+            try
+            {
+                // ProjectElevation is relative to the internal origin — the same datum as
+                // the pipe coordinates the stacks are measured in.
+                return new FilteredElementCollector(doc)
+                    .OfClass(typeof(Level))
+                    .Cast<Level>()
+                    .Select(l => (l.Name ?? "", l.ProjectElevation))
+                    .OrderBy(l => l.Item2)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DrainageSchematicGenerator: levels: {ex.Message}");
+                return new List<(string, double)>();
+            }
+        }
+
+        // ── Graph classification ──────────────────────────────────────────────
+
+        private static SchematicPipeKind KindOf(PipeNode n)
+        {
+            if (n == null) return SchematicPipeKind.Other;
+            if (n.Type == PipeNodeType.Fixture)   return SchematicPipeKind.Fixture;
+            if (n.Type == PipeNodeType.Equipment) return SchematicPipeKind.Other;
+            if (n.IsPipeElement)
+                return n.Classification == PipeSystemType.Vent ? SchematicPipeKind.VentPipe : SchematicPipeKind.DrainPipe;
+            // Fittings and in-line accessories (cleanouts, AAVs …).
+            return SchematicPipeKind.Fitting;
+        }
+
+        private static IEnumerable<long> NeighbourIds(PipeNetwork net, long id)
+        {
+            if (!net.ById.TryGetValue(id, out var n)) yield break;
+            foreach (var e in n.Upstream)   if (e.From != null) yield return e.From.Id.Value;
+            foreach (var e in n.Downstream) if (e.To   != null) yield return e.To.Id.Value;
+        }
+
+        private static bool TryGetZExtent(Document doc, PipeNode n, out double zMin, out double zMax)
+        {
+            zMin = zMax = 0;
+            try
+            {
+                if (doc.GetElement(n.Id) is Pipe p && p.Location is LocationCurve lc && lc.Curve != null)
+                {
+                    double a = lc.Curve.GetEndPoint(0).Z, b = lc.Curve.GetEndPoint(1).Z;
+                    zMin = Math.Min(a, b); zMax = Math.Max(a, b);
+                    return true;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"DrainageSchematicGenerator: extent of {n?.Id}: {ex.Message}"); }
+            return false;
+        }
+
         // ── Layout builder ────────────────────────────────────────────────────
 
-        private static List<StackLayout> BuildStackLayouts(
-            List<PipeNode> stackNodes, PipeNetwork network, DrainageSchematicOptions opts)
+        private static List<StackLayout> BuildStackLayouts(Document doc,
+            List<PipeNode> stackSegments, PipeNetwork network, DrainageSchematicOptions opts,
+            SchematicResult result)
         {
             var layouts = new List<StackLayout>();
 
-            for (int i = 0; i < stackNodes.Count; i++)
+            var groups = SchematicLayoutMath.ClusterByPlanPosition(
+                stackSegments.Select(n => (n.Id.Value, n.Position?.X ?? 0, n.Position?.Y ?? 0)).ToList(),
+                StackPlanToleranceFt);
+
+            Func<long, IEnumerable<long>> neighbours = id => NeighbourIds(network, id);
+            Func<long, SchematicPipeKind> kind = id => network.ById.TryGetValue(id, out var n) ? KindOf(n) : SchematicPipeKind.Other;
+            Func<long, double> dn = id => network.ById.TryGetValue(id, out var n) ? n.DnMm : 0;
+            var allStackIds = new HashSet<long>(stackSegments.Select(n => n.Id.Value));
+
+            foreach (var g in groups)
             {
-                var node = stackNodes[i];
-
-                // Approximate floor count from node height above lowest node
-                double minY = network.Nodes.Any() ? network.Nodes.Min(n => n.Position.Z) : 0;
-                double heightFt = node.Position.Z - minY;
-                int floorCount = Math.Max(2, (int)Math.Ceiling(heightFt / (opts.LevelHeightMm * MmToFt)));
-
-                // Vent sizing (roughly half stack DN)
-                int ventDnMm = node.DnMm > 0 ? Math.Max(50, (int)(node.DnMm / 2)) : 50;
+                var segs = g.Select(id => network.ById[id]).ToList();
+                double zMin = double.MaxValue, zMax = double.MinValue;
+                foreach (var s in segs)
+                {
+                    if (!TryGetZExtent(doc, s, out var a, out var b)) continue;
+                    zMin = Math.Min(zMin, a); zMax = Math.Max(zMax, b);
+                }
+                if (zMin > zMax) continue;
 
                 var sl = new StackLayout
                 {
-                    Node        = node,
-                    ColumnIndex = i,
-                    FloorCount  = floorCount,
-                    SystemName  = node.SystemName,
-                    HasVent     = opts.ShowVents,
-                    VentDnMm    = ventDnMm
+                    Segments   = segs,
+                    ZMin       = zMin,
+                    ZMax       = zMax,
+                    DnMm       = (int)Math.Round(segs.Max(s => s.DnMm)),
+                    SystemName = segs.Select(s => s.SystemName).FirstOrDefault(n => !string.IsNullOrEmpty(n)) ?? ""
                 };
 
-                // Build branches from upstream fixture nodes
-                var upstreamFixtures = node.Upstream
-                    .Select(e => e.From)
-                    .Where(n => n.Type == PipeNodeType.Fixture)
-                    .ToList();
-
-                // Group by approximate Z to simulate per-floor branches
-                var byFloor = upstreamFixtures
-                    .GroupBy(n => (int)Math.Round((n.Position.Z - minY) / (opts.LevelHeightMm * MmToFt)))
-                    .OrderBy(g => g.Key)
-                    .Take(floorCount);
-
-                int branchIdx = 0;
-                foreach (var floorGroup in byFloor)
+                // Vent: a modelled Vent pipe connected to the stack, with its real DN.
+                if (opts.ShowVents)
                 {
-                    var edge = node.Upstream
-                        .FirstOrDefault(e => floorGroup.Any(f => f.Id == e.From.Id));
-
-                    int branchDn = edge != null ? (int)Math.Round(edge.DnMm) : 50;
-                    double slope = edge?.SlopePct ?? 1.25;
-
-                    int count = floorGroup.Count();
-                    string fixLabel = count > 0 ? $"FIXTURES × {count}" : "";
-
-                    sl.Branches.Add(new BranchLayout
+                    var hit = SchematicGraphRules.FindStackVent(g, neighbours, kind, dn);
+                    if (hit != null)
                     {
-                        FloorIndex    = Math.Max(0, floorGroup.Key),
-                        FixtureCount  = count,
-                        BranchDnMm    = branchDn,
-                        SlopePct      = slope,
-                        FixtureLabel  = fixLabel,
-                        IsLeft        = branchIdx % 2 != 0
-                    });
-                    branchIdx++;
-                }
-
-                // If no upstream fixtures found, add at least one indicative branch per floor
-                if (!sl.Branches.Any())
-                {
-                    for (int f = 0; f < Math.Min(floorCount, 4); f++)
-                    {
-                        sl.Branches.Add(new BranchLayout
+                        double vMin = double.MaxValue, vMax = double.MinValue;
+                        foreach (var vid in hit.VentIds)
                         {
-                            FloorIndex   = f,
-                            FixtureCount = 0,
-                            BranchDnMm   = Math.Max(50, (int)(node.DnMm / 2)),
-                            SlopePct     = 1.25,
-                            FixtureLabel = "",
-                            IsLeft       = f % 2 != 0
-                        });
+                            if (!network.ById.TryGetValue(vid, out var vn)) continue;
+                            if (!TryGetZExtent(doc, vn, out var a, out var b)) continue;
+                            vMin = Math.Min(vMin, a); vMax = Math.Max(vMax, b);
+                        }
+                        if (vMin <= vMax)
+                            sl.Vent = new VentLayout { DnMm = (int)Math.Round(hit.DnMm), ZMin = vMin, ZMax = vMax };
                     }
                 }
+
+                // Branches: drain pipes leaving a fitting on the stack.
+                var groupSet = new HashSet<long>(g);
+                var seenBranchPipes = new HashSet<long>();
+                int branchIdx = 0;
+                var junctions = g.SelectMany(id => neighbours(id))
+                                 .Distinct()
+                                 .Where(id => !groupSet.Contains(id) && kind(id) == SchematicPipeKind.Fitting)
+                                 .Select(id => network.ById[id])
+                                 .OrderBy(j => j.Position?.Z ?? 0)
+                                 .ToList();
+                foreach (var j in junctions)
+                {
+                    foreach (var bid in neighbours(j.Id.Value).Distinct())
+                    {
+                        if (groupSet.Contains(bid) || !seenBranchPipes.Add(bid)) continue;
+                        if (kind(bid) != SchematicPipeKind.DrainPipe) continue;
+                        var bn = network.ById[bid];
+                        if (bn.Type == PipeNodeType.Stack) continue;  // another stack, not a branch
+
+                        var edge = j.Upstream.Concat(j.Downstream)
+                            .FirstOrDefault(e => e.From == bn || e.To == bn);
+                        double? slope = edge != null && edge.LengthM > 0 ? edge.SlopePct : (double?)null;
+
+                        // Stop at this stack and every other one: a main joining two stacks
+                        // must not credit one stack's fixtures to the other.
+                        var blocked = new HashSet<long>(allStackIds) { j.Id.Value };
+                        int fixtures = SchematicGraphRules.CountFixtures(bid, blocked, neighbours, kind);
+
+                        sl.Branches.Add(new BranchLayout
+                        {
+                            Z            = j.Position?.Z ?? bn.Position?.Z ?? zMin,
+                            FixtureCount = fixtures,
+                            BranchDnMm   = (int)Math.Round(bn.DnMm),
+                            SlopePct     = slope,
+                            FixtureLabel = fixtures > 0 ? $"FIXTURES × {fixtures}" : "",
+                            IsLeft       = branchIdx % 2 != 0
+                        });
+                        branchIdx++;
+                    }
+                }
+
+                if (sl.Branches.Count == 0)
+                    result.Warnings.Add($"Stack {g[0]}: no drain branch is connected to a fitting on it — drawn without branches.");
+                if (opts.ShowVents && sl.Vent == null)
+                    result.Warnings.Add($"Stack {g[0]}: no Vent-classified pipe connects to it — no vent drawn.");
 
                 layouts.Add(sl);
             }
@@ -519,39 +606,53 @@ namespace StingTools.Core.Plumbing
 
         // ── Drawing helpers ───────────────────────────────────────────────────
 
-        private static void TryDrawDetailLine(Document doc, View view,
+        /// <summary>Draws one detail line; true only when it was created.</summary>
+        private static bool TryDrawDetailLine(Document doc, View view,
             XYZ start, XYZ end, ElementId lineStyleId, SchematicResult result)
         {
             try
             {
-                if (start.IsAlmostEqualTo(end)) return;
+                if (start.IsAlmostEqualTo(end)) return false;
                 var line = Line.CreateBound(start, end);
                 var dl = doc.Create.NewDetailCurve(view, line);
                 if (lineStyleId != null && lineStyleId != ElementId.InvalidElementId)
                 {
                     try { dl.LineStyle = doc.GetElement(lineStyleId) as GraphicsStyle; }
-                    catch { /* non-fatal */ }
+                    catch (Exception ex) { StingLog.Warn($"DrainageSchematic: line style: {ex.Message}"); }
                 }
                 result.LinesDrawn++;
+                return true;
             }
             catch (Exception ex)
             {
+                StingLog.Warn($"DrainageSchematic: detail line failed: {ex.Message}");
                 result.Warnings.Add($"DetailLine failed ({start.X:F2},{start.Y:F2})→({end.X:F2},{end.Y:F2}): {ex.Message}");
+                return false;
             }
         }
 
-        private static void TryPlaceTextNote(Document doc, View view,
+        private static bool TryPlaceTextNote(Document doc, View view,
             XYZ position, string text, ElementId textTypeId, SchematicResult result)
         {
-            if (string.IsNullOrWhiteSpace(text)) return;
+            if (string.IsNullOrWhiteSpace(text)) return false;
             try
             {
+                if (textTypeId == null || textTypeId == ElementId.InvalidElementId)
+                    textTypeId = doc.GetDefaultElementTypeId(ElementTypeGroup.TextNoteType);
+                if (textTypeId == null || textTypeId == ElementId.InvalidElementId)
+                {
+                    result.Warnings.Add($"TextNote '{text}': the document has no text type.");
+                    return false;
+                }
                 TextNote.Create(doc, view.Id, position, text, textTypeId);
                 result.AnnotationsPlaced++;
+                return true;
             }
             catch (Exception ex)
             {
+                StingLog.Warn($"DrainageSchematic: text note failed: {ex.Message}");
                 result.Warnings.Add($"TextNote failed '{text}': {ex.Message}");
+                return false;
             }
         }
 
@@ -559,19 +660,18 @@ namespace StingTools.Core.Plumbing
         /// Draws a simple fixture symbol: two diagonal lines forming a 'V' at the branch end.
         /// </summary>
         private static void DrawFixtureSymbol(Document doc, View view,
-            double x, double y, bool isLeft, ElementId lineStyleId, SchematicResult result)
+            double x, double y, bool isLeft, double sizeFt, ElementId lineStyleId, SchematicResult result)
         {
-            double sz = 80 * MmToFt;
             double dir = isLeft ? -1 : 1;
 
             TryDrawDetailLine(doc, view,
                 new XYZ(x, y, 0),
-                new XYZ(x + dir * sz, y + sz, 0),
+                new XYZ(x + dir * sizeFt, y + sizeFt, 0),
                 lineStyleId, result);
 
             TryDrawDetailLine(doc, view,
                 new XYZ(x, y, 0),
-                new XYZ(x + dir * sz * 0.5, y - sz, 0),
+                new XYZ(x + dir * sizeFt * 0.5, y - sizeFt, 0),
                 lineStyleId, result);
         }
 
@@ -595,13 +695,13 @@ namespace StingTools.Core.Plumbing
                             name.IndexOf("Hidden", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             if (dashed == ElementId.InvalidElementId)
-                                dashed = sub.Id;
+                                dashed = sub.GetGraphicsStyle(GraphicsStyleType.Projection)?.Id ?? ElementId.InvalidElementId;
                         }
                         else if (name.IndexOf("Thin", StringComparison.OrdinalIgnoreCase) >= 0 ||
                                  name.IndexOf("Medium", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
                             if (solid == ElementId.InvalidElementId)
-                                solid = sub.Id;
+                                solid = sub.GetGraphicsStyle(GraphicsStyleType.Projection)?.Id ?? ElementId.InvalidElementId;
                         }
                     }
                 }
@@ -612,19 +712,6 @@ namespace StingTools.Core.Plumbing
             }
 
             return (solid, dashed == ElementId.InvalidElementId ? solid : dashed);
-        }
-
-        private static ElementId GetSolidFillPatternId(Document doc)
-        {
-            try
-            {
-                var fp = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FillPatternElement))
-                    .Cast<FillPatternElement>()
-                    .FirstOrDefault(f => f.GetFillPattern().IsSolidFill);
-                return fp?.Id ?? ElementId.InvalidElementId;
-            }
-            catch { return ElementId.InvalidElementId; }
         }
 
         private static string GenerateUniqueViewName(Document doc, string baseName)
