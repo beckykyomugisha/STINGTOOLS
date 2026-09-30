@@ -289,7 +289,9 @@ namespace StingTools.Core.Drawing
 
                 if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
                 {
-                    var vpId = PlaceViewOnSheet(doc, result.SheetId, viewId, dt, rule, result, famCtx);
+                    // DTW-21: a preset scale is the scale asked for — do not fit it away.
+                    var vpId = PlaceViewOnSheet(doc, result.SheetId, viewId, dt, rule, result, famCtx,
+                        pinScale: opts.Preset?.General?.ScaleOverride > 0);
                     if (vpId != ElementId.InvalidElementId)
                     {
                         result.ViewportIds.Add(vpId);
@@ -462,6 +464,7 @@ namespace StingTools.Core.Drawing
                             };
                             var refreshed = DrawingTypePresentation.Apply(doc, existing, dt, refreshOpts);
                             result.Warnings.AddRange(refreshed.Warnings);
+                            ApplyPresetViewOverrides(existing, opts, result);   // DTW-21: a re-run honours them too
                         }
                         catch (Exception ex)
                         {
@@ -629,6 +632,7 @@ namespace StingTools.Core.Drawing
                 result.Warnings.AddRange(presResult.Warnings);
 
                 ApplyPresetVg(doc, view, dt, opts, result);
+                ApplyPresetViewOverrides(view, opts, result);
 
                 return viewId;
             }
@@ -636,6 +640,44 @@ namespace StingTools.Core.Drawing
             {
                 result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
                 return ElementId.InvalidElementId;
+            }
+        }
+
+        /// <summary>
+        /// DTW-21: the Production Config dialog's "Scale override" and "Detail level
+        /// override", applied AFTER the drawing type's presentation so they win over the
+        /// profile's scale and detail level. They were saved in the preset and never read.
+        /// A dependent's scale belongs to its parent and is left alone; a view whose
+        /// template controls scale or detail level refuses the write, and that is reported.
+        /// </summary>
+        private static void ApplyPresetViewOverrides(View view, ProduceOptions opts, ProduceResult result)
+        {
+            var g = opts?.Preset?.General;
+            if (view == null || g == null) return;
+            if (g.ScaleOverride is int scale && scale > 0 && PrimaryViewIdValue(view) < 0)
+            {
+                try
+                {
+                    if (view.Scale != scale) view.Scale = scale;
+                    if (view.Scale != scale)
+                        result.Warnings.Add($"'{view.Name}': preset scale 1:{scale} did not take (its view template controls scale).");
+                }
+                catch (Exception ex) { result.Warnings.Add($"'{view.Name}': preset scale 1:{scale} not applied — {ex.Message}"); }
+            }
+            if (!string.IsNullOrWhiteSpace(g.DetailLevelOverride))
+            {
+                if (!Enum.TryParse<ViewDetailLevel>(g.DetailLevelOverride.Trim(), true, out var level) || level == ViewDetailLevel.Undefined)
+                    result.Warnings.Add($"Preset detail level '{g.DetailLevelOverride}' is not Coarse, Medium or Fine — not applied.");
+                else
+                {
+                    try
+                    {
+                        if (view.DetailLevel != level) view.DetailLevel = level;
+                        if (view.DetailLevel != level)
+                            result.Warnings.Add($"'{view.Name}': preset detail level {level} did not take (its view template controls it).");
+                    }
+                    catch (Exception ex) { result.Warnings.Add($"'{view.Name}': preset detail level {level} not applied — {ex.Message}"); }
+                }
             }
         }
 
@@ -1311,7 +1353,8 @@ namespace StingTools.Core.Drawing
             return sheet.Id;
         }
 
-        private static ElementId PlaceViewOnSheet(Document doc, ElementId sheetId, ElementId viewId, DrawingType dt, ProductionRule rule, ProduceResult result, SheetPlacementBridge.FamilySlotContext famCtx = null)
+        private static ElementId PlaceViewOnSheet(Document doc, ElementId sheetId, ElementId viewId, DrawingType dt, ProductionRule rule, ProduceResult result, SheetPlacementBridge.FamilySlotContext famCtx = null,
+            bool pinScale = false)
         {
             try
             {
@@ -1339,7 +1382,7 @@ namespace StingTools.Core.Drawing
                 // production rule pins an explicit scale override.
                 // A dependent's scale belongs to its parent: fitting each dependent
                 // would rescale the parent, and so every sibling, once per box.
-                if (sp != null && !rule.ScaleOverride.HasValue
+                if (sp != null && !rule.ScaleOverride.HasValue && !pinScale
                     && doc.GetElement(viewId) is View vFit
                     && PrimaryViewIdValue(vFit) < 0)
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);

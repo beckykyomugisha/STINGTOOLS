@@ -225,11 +225,29 @@ namespace StingTools.Commands.Drawing
         internal static bool Confirm(TaskDialog td)
             => Headless || td.Show() == TaskDialogResult.Ok;
 
-        internal static void ShowResult(string title, int views, int sheets, IList<string> warnings)
+        /// <summary>
+        /// What the preset changed from the drawing types' own settings, for the report —
+        /// so a scale, detail level or annotation choice made in the dialog is visible in
+        /// the outcome, not only in the saved preset. Null when it changed nothing.
+        /// </summary>
+        internal static string PresetSummary(DrawingProductionPreset preset)
+        {
+            var g = preset?.General;
+            if (g == null) return null;
+            var parts = new List<string>();
+            if (g.ScaleOverride is int s && s > 0) parts.Add($"scale 1:{s}");
+            if (!string.IsNullOrWhiteSpace(g.DetailLevelOverride)) parts.Add($"detail level {g.DetailLevelOverride}");
+            return parts.Count == 0 ? null : "Preset overrides applied to every produced view: " + string.Join(", ", parts) + ".";
+        }
+
+        internal static void ShowResult(string title, int views, int sheets, IList<string> warnings,
+            DrawingProductionPreset preset = null)
         {
             var msg = new System.Text.StringBuilder();
             msg.AppendLine($"Views created: {views}");
             msg.AppendLine($"Sheets created: {sheets}");
+            var presetLine = PresetSummary(preset);
+            if (presetLine != null) msg.AppendLine(presetLine);
             if (warnings != null && warnings.Count > 0)
             {
                 msg.AppendLine();
@@ -276,7 +294,7 @@ namespace StingTools.Commands.Drawing
                     .Select(n => levels.FirstOrDefault(l => l.Name == n)).Where(l => l != null).ToList();
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 Produce(doc, pickedTypes, pickedLevels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
-                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceViewsPerLevel", ex); return Result.Failed; }
@@ -444,7 +462,7 @@ namespace StingTools.Commands.Drawing
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var picked = res.SelectedContexts.Select(n => scopes.FirstOrDefault(s => s.Name == n)).Where(s => s != null).ToList();
                 Produce(doc, picked, bindingByName, types, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
-                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceFromScopeBoxes", ex); return Result.Failed; }
@@ -639,7 +657,7 @@ namespace StingTools.Commands.Drawing
                     }
                     tg.Assimilate();
                 }
-                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceInteriorElevations", ex); return Result.Failed; }
@@ -758,7 +776,7 @@ namespace StingTools.Commands.Drawing
                     }
                     tg.Assimilate();
                 }
-                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceSections", ex); return Result.Failed; }
