@@ -84,11 +84,16 @@ namespace StingTools.Core.Placement
         public static void RunFor(FamilyInstance fi, PlacementRule rule)
         {
             if (fi == null || rule == null) return;
-            // Always, not behind a toggle: a rule that names its seed places a type
-            // whose identity lives in followsType values (MGS_GAS_TYPE_TXT on a
-            // medical-gas outlet is what the TU tag prints and MgasNetwork keys on).
-            // Run before the tag pipeline so tokens derive from the stamped values.
-            if (!string.IsNullOrWhiteSpace(rule.SeedId)) StampSeedTypeValuesSafe(fi, rule);
+            // Always, not behind a toggle: a seed type's identity lives in its
+            // followsType values (MGS_GAS_TYPE_TXT on a medical-gas outlet is what the
+            // TU tag prints and MgasNetwork keys on). Run before the tag pipeline so
+            // tokens derive from the stamped values.
+            //
+            // Not gated on rule.SeedId: a category-map rule (no SeedId) that resolves
+            // to a seed family places the same type and needs the same values. The
+            // stamp itself returns at once for a family the seed catalog does not
+            // know, so a manufacturer family is untouched.
+            StampSeedTypeValuesSafe(fi, rule);
             if (RunDataTagPipeline) RunTagPipelineSafe(fi);
             if (SeedCobieComponent) SeedCobieSafe(fi, rule);
             if (AssignMepSystem)    AssignMepSafe(fi);

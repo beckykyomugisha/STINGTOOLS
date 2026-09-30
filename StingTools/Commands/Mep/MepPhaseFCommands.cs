@@ -66,7 +66,7 @@ namespace StingTools.Commands.Mep
                 else
                 {
                     // The same routed default Produce Per Level and Produce & Export use.
-                    var sel = BatchProduceCommons.RoutedMepPerLevel(doc);
+                    var sel = BatchProduceCommons.RoutedMepPerLevel(doc, presence);
                     types = sel.Types;
                     routedInclude = sel.Include;
                     discsFor = null;

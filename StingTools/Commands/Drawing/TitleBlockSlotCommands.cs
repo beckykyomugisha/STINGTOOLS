@@ -443,6 +443,16 @@ namespace StingTools.Commands.Drawing
         [JsonProperty("purposeTagAliases")]  public Dictionary<string, List<string>> PurposeTagAliases { get; set; }
             = new Dictionary<string, List<string>>();
 
+        // P6: Load() ran File.ReadAllText + a JSON parse for every viewport placed
+        // (SheetPlacementBridge.BuildFamilySlotContext calls it per placement). The
+        // parsed rules are kept per file and re-read when the file's last-write time
+        // changes, so an edit is still picked up without a restart. Nothing mutates
+        // the returned object, so callers share it.
+        private static readonly object _cacheLock = new object();
+        private static string _cachedPath;
+        private static DateTime _cachedWriteUtc;
+        private static ViewportPlacementRules _cached;
+
         public static ViewportPlacementRules Load()
         {
             try
@@ -453,7 +463,21 @@ namespace StingTools.Commands.Drawing
                     StingLog.Warn("ViewportPlacementRules: STING_VIEWPORT_PLACEMENT_RULES.json not found");
                     return null;
                 }
-                return JsonConvert.DeserializeObject<ViewportPlacementRules>(File.ReadAllText(path));
+                var written = File.GetLastWriteTimeUtc(path);
+                lock (_cacheLock)
+                {
+                    if (_cached != null && written == _cachedWriteUtc
+                        && string.Equals(path, _cachedPath, StringComparison.OrdinalIgnoreCase))
+                        return _cached;
+                }
+                var parsed = JsonConvert.DeserializeObject<ViewportPlacementRules>(File.ReadAllText(path));
+                lock (_cacheLock)
+                {
+                    _cached = parsed;
+                    _cachedPath = path;
+                    _cachedWriteUtc = written;
+                }
+                return parsed;
             }
             catch (Exception ex)
             {
