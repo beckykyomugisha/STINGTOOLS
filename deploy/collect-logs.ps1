@@ -11,7 +11,7 @@ if (Test-Path $log) {
     Copy-Item $log $out
     Write-Host "Copied StingTools.log" -ForegroundColor Green
 } else {
-    Write-Host "No StingTools.log found yet — run a STING command in Revit first." -ForegroundColor Yellow
+    Write-Host "No StingTools.log found yet - run a STING command in Revit first." -ForegroundColor Yellow
 }
 
 foreach ($ver in '2025','2026','2027') {

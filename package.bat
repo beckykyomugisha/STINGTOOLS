@@ -46,6 +46,17 @@ if not exist "%SCRIPT_DIR%CompiledPlugin\StingTools.dll" (
     exit /b 1
 )
 
+:: ── 1b. Scripts must survive Windows PowerShell 5.1 ────────────────
+:: 5.1 reads a .ps1 without a BOM as ANSI, so one em dash inside a string
+:: becomes a curly quote that ends the string: a parser error on the tester's
+:: PC that never shows on a UTF-8 machine. Parse each script exactly that way.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bad=0; Get-ChildItem '%SCRIPT_DIR%deploy\*.ps1' | ForEach-Object { $b=[IO.File]::ReadAllBytes($_.FullName); $bom=$b.Length -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF; $t=if($bom){[Text.Encoding]::UTF8.GetString($b,3,$b.Length-3)}else{[Text.Encoding]::GetEncoding(1252).GetString($b)}; $tok=$null; $err=$null; [void][Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err); if($err.Count){ $bad++; Write-Host ('PARSE ERROR in deploy\'+$_.Name+' as Windows PowerShell 5.1 reads it: '+$err[0].Message) -ForegroundColor Red } }; exit $bad"
+if errorlevel 1 (
+    echo.
+    echo A deploy script would not run on a tester's PC. Use plain ASCII or save it with a UTF-8 BOM.
+    exit /b 1
+)
+
 :: ── 2. Date stamp (yyyymmdd) ──────────────────────────────────────
 for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "STAMP=%%d"
 

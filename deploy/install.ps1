@@ -1,4 +1,4 @@
-﻿# STING Tools installer — writes a per-user .addin manifest for every
+﻿# STING Tools installer - writes a per-user .addin manifest for every
 # installed Revit version, pointing at the CompiledPlugin folder that
 # ships next to this script. No admin rights required.
 #
