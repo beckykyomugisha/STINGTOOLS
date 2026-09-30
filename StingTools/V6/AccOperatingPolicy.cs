@@ -148,6 +148,16 @@ namespace StingTools.V6
         public int AlreadyTracked { get; set; }
     }
 
+    /// <summary>What a lifecycle-gap push will do - see <see cref="AccOperatingPolicy.PlanLifecycleGaps"/>.</summary>
+    public sealed class AccLifecycleGapPlan
+    {
+        /// <summary>How many (largest first) to create. Zero = create nothing.</summary>
+        public int Take { get; set; }
+        /// <summary>A person must see the list and confirm before anything is created.</summary>
+        public bool AskFirst { get; set; }
+        public string Reason { get; set; } = string.Empty;
+    }
+
     public sealed class AccOperatingPolicy
     {
         /// <summary>The settings file name. One constant, so the reader and every writer
@@ -191,6 +201,9 @@ namespace StingTools.V6
             // content under a document number + revision already sent (a re-issue without a
             // revision change)? The Export Centre asks its profile instead.
             "uploadAllowReissue",
+            // KUT_PushLifecycleGapsToAcc (A2): opt-in + cap for raising lifecycle-gap issues,
+            // and the ACC issue type they are filed under (never the clash one by default).
+            "lifecycleGapEscalation",
         };
 
         /// <summary>The STING values an escalated clash issue can carry as ACC custom
@@ -374,6 +387,22 @@ namespace StingTools.V6
         /// <summary>ACC root cause TITLE for escalated clash issues; empty = none.</summary>
         public string IssueRootCause { get; private set; } = string.Empty;
 
+        /// <summary>"lifecycleGapEscalation.maxCount": the most lifecycle-gap issues one run may
+        /// create. Null = not configured, which on an unattended project means create NONE.</summary>
+        public int? LifecycleGapMaxCount { get; private set; }
+
+        /// <summary>The ACC issue type / subtype lifecycle-gap issues are filed under. Empty =
+        /// resolve a type named "Lifecycle" in the container; never the clash type.</summary>
+        public string LifecycleGapIssueTypeId { get; private set; } = string.Empty;
+        public string LifecycleGapIssueSubtypeId { get; private set; } = string.Empty;
+
+        /// <summary>How many lifecycle gaps an INTERACTIVE run with no policy offers. A person
+        /// confirms the list first, so this bounds the dialog, not a consent.</summary>
+        public const int LifecycleGapInteractiveFallbackCount = 25;
+
+        /// <summary>The issue-type word a lifecycle gap is filed under when no id is set.</summary>
+        public const string LifecycleGapIssueTypeName = "Lifecycle";
+
         /// <summary>What ACC_PushIssueChanges may do on this project. Interactive: preview and
         /// ask. Unattended: write only when <see cref="PushIssueChanges"/> says so in writing,
         /// otherwise report what WOULD be pushed and write nothing.</summary>
@@ -465,6 +494,8 @@ namespace StingTools.V6
             bool reviewUnattended = false;
             AccAttributeNames attrNames = AccAttributeNames.Default;
             int? namingFields = null;
+            int? gapMax = null;
+            string gapTypeId = string.Empty, gapSubtypeId = string.Empty;
 
             try
             {
@@ -594,6 +625,27 @@ namespace StingTools.V6
                         throw new FormatException("'startAccReviewOnPublish.workflowId' is empty");
                     if (TryGet(sr, "unattended", out var suTok2)) reviewUnattended = RequireBool(suTok2, "startAccReviewOnPublish.unattended");
                 }
+                if (TryGet(o, "lifecycleGapEscalation", out var lgTok))
+                {
+                    if (!(lgTok is JObject lg))
+                        throw new FormatException($"'lifecycleGapEscalation' must be an object {{\"maxCount\": n}}, found {lgTok.Type}");
+                    var badSub = lg.Properties().Select(p => p.Name)
+                                   .FirstOrDefault(n => !n.StartsWith("_", StringComparison.Ordinal) &&
+                                                        n != "maxCount" && n != "issueTypeId" && n != "issueSubtypeId");
+                    if (badSub != null)
+                        throw new FormatException($"'lifecycleGapEscalation.{badSub}' is not read by this build (known: maxCount, issueTypeId, issueSubtypeId)");
+                    // The cap IS the opt-in: an object without one would raise an unbounded
+                    // number of issues on a badly priced model, so it is required.
+                    if (!TryGet(lg, "maxCount", out var lmTok))
+                        throw new FormatException("'lifecycleGapEscalation' needs a 'maxCount' - how many issues one run may create is the project's choice, not a default");
+                    gapMax = RequireInt(lmTok, "lifecycleGapEscalation.maxCount");
+                    if (gapMax <= 0)
+                        throw new FormatException($"'lifecycleGapEscalation.maxCount' must be greater than 0, found {gapMax} (remove the key to turn it off)");
+                    if (TryGet(lg, "issueTypeId", out var ltTok)) gapTypeId = RequireString(ltTok, "lifecycleGapEscalation.issueTypeId").Trim();
+                    if (TryGet(lg, "issueSubtypeId", out var lsTok)) gapSubtypeId = RequireString(lsTok, "lifecycleGapEscalation.issueSubtypeId").Trim();
+                    if (gapSubtypeId.Length > 0 && gapTypeId.Length == 0)
+                        throw new FormatException("'lifecycleGapEscalation.issueSubtypeId' is set without 'issueTypeId' - give the type too, so the pair can be checked");
+                }
             }
             catch (FormatException ex) { return Malformed(policy, ex.Message); }
 
@@ -633,6 +685,9 @@ namespace StingTools.V6
             policy.ReviewStartUnattended = reviewUnattended;
             policy.DocsAttributeNames = attrNames;
             policy.FileNamingFields = namingFields;
+            policy.LifecycleGapMaxCount = gapMax;
+            policy.LifecycleGapIssueTypeId = gapTypeId;
+            policy.LifecycleGapIssueSubtypeId = gapSubtypeId;
             return policy;
         }
 
@@ -809,6 +864,48 @@ namespace StingTools.V6
             plan.OfferInteractively = top.Count > 0;
             plan.Reason = $"{Escalation.Describe()}; offering the top {top.Count} for a person to confirm";
             return plan;
+        }
+
+        /// <summary>Decide how many of <paramref name="untrackedGaps"/> lifecycle gaps a run may
+        /// raise as ACC issues, and whether a person must confirm first (A2).
+        ///
+        /// Unattended: only with "lifecycleGapEscalation" configured, capped at its maxCount;
+        /// without it NOTHING is created - a report of the gaps is still a useful step.
+        /// Interactive: always shown and confirmed; capped at maxCount when configured, else at
+        /// <see cref="LifecycleGapInteractiveFallbackCount"/>.</summary>
+        public AccLifecycleGapPlan PlanLifecycleGaps(int untrackedGaps)
+        {
+            int n = Math.Max(0, untrackedGaps);
+            if (IsUnattended)
+            {
+                if (LifecycleGapMaxCount == null)
+                    return new AccLifecycleGapPlan
+                    {
+                        Take = 0,
+                        AskFirst = false,
+                        Reason = "unattended run and no lifecycleGapEscalation policy is configured - the gaps were " +
+                                 "reported and no ACC issue was created",
+                    };
+                int take = Math.Min(n, LifecycleGapMaxCount.Value);
+                return new AccLifecycleGapPlan
+                {
+                    Take = take,
+                    AskFirst = false,
+                    Reason = $"policy: create at most {LifecycleGapMaxCount.Value} lifecycle-gap issue(s) per run; " +
+                             $"{n} new gap(s), {take} to create" + (n > take ? $", {n - take} left for later runs" : ""),
+                };
+            }
+            int cap = LifecycleGapMaxCount ?? LifecycleGapInteractiveFallbackCount;
+            int t = Math.Min(n, cap);
+            return new AccLifecycleGapPlan
+            {
+                Take = t,
+                AskFirst = t > 0,
+                Reason = (LifecycleGapMaxCount != null
+                             ? $"policy: at most {cap} per run"
+                             : $"no lifecycleGapEscalation policy; offering at most {cap} for a person to confirm") +
+                         $"; {n} new gap(s), {t} offered" + (n > t ? $", {n - t} left for later runs" : ""),
+            };
         }
 
         /// <summary>The suitability an unattended publish should use, or empty to prompt.

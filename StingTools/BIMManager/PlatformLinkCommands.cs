@@ -1101,13 +1101,27 @@ namespace StingTools.BIMManager
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
         {
+            // Declared outside the try so the catch reports through the same policy.
+            V6.AccOperatingPolicy accPolicy = null;
             try
             {
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
                 Document doc = ctx.Doc;
 
-                // Pack 0 — offline gate
+                // The project's ACC policy decides whether this run may show a window at all
+                // (A3): on an unattended project every message is logged, never modal.
+                accPolicy = Core.Clash.AccProjectSettingsFile.LoadFor(doc, "ACCPublish");
+                void Say(string title, string text) => Core.Clash.AccPullClashesCommand.Report(accPolicy, title, text);
+
+                // Pack 0 — offline gate. Its refusal is a modal dialog, so an unattended run
+                // checks the flag itself and logs the same refusal.
+                if (accPolicy.IsUnattended && StingOfflineConfig.IsOffline)
+                {
+                    Say("STING ACC Publish", "ACC Publish is disabled for this project (offline mode, source: " +
+                        StingOfflineConfig.Source + "). Nothing was packaged.");
+                    return Result.Failed;
+                }
                 if (StingOfflineConfig.RefuseIfOffline("ACC Publish",
                     "CDE Package (BIM tab) creates a local ACC-ready bundle you can upload via the Autodesk web UI."))
                     return Result.Cancelled;
@@ -1117,10 +1131,9 @@ namespace StingTools.BIMManager
                 string bimDir = BIMManagerEngine.GetBIMManagerDir(doc);
 
                 // Suitability code: from the project's ACC settings when one is configured,
-                // otherwise ask exactly as before. An unconfigured project is every project
-                // that exists today, so the prompt — and its S3-on-cancel default — is
-                // deliberately unchanged.
-                var accPolicy = Core.Clash.AccProjectSettingsFile.LoadFor(doc, "ACCPublish");
+                // otherwise ask. Cancelling the picker CANCELS the publish: it used to pick S3,
+                // and that invented code then reached the bundle record, the transmittal and
+                // the ACC upload as if somebody had chosen it.
                 string suitability = accPolicy.ResolveSuitability(
                     Core.Drawing.Iso19650Vocabulary.SharedSuitabilityCodes, out string suitReason);
 
@@ -1135,7 +1148,7 @@ namespace StingTools.BIMManager
                     {
                         // Unattended with no configured suitability: stop rather than stamp a
                         // code nobody chose onto a bundle name and a register row.
-                        TaskDialog.Show("STING ACC Publish",
+                        Say("STING ACC Publish",
                             "This project is configured for unattended operation but names no publish " +
                             "suitability, so there is nothing to use and nobody to ask.\n\n" + suitReason +
                             "\n\nSet one on the BIM Coordination Center ACC card.");
@@ -1155,22 +1168,29 @@ namespace StingTools.BIMManager
                         TaskDialogResult.CommandLink2 => "S2",
                         TaskDialogResult.CommandLink3 => "S3",
                         TaskDialogResult.CommandLink4 => "S4",
-                        _ => "S3"
+                        _ => null,   // closed / cancelled: nobody chose a code
                     };
+                    if (suitability == null)
+                    {
+                        StingLog.Info("ACCPublish cancelled at the suitability picker — nothing was packaged.");
+                        return Result.Cancelled;
+                    }
                 }
 
                 // Collect deliverables
                 var deliverables = PlatformLinkEngine.CollectDeliverables(bimDir, doc);
                 if (deliverables.Count == 0)
                 {
-                    TaskDialog.Show("STING ACC Publish",
+                    Say("STING ACC Publish",
                         "No BIM deliverables found in STING_BIM_MANAGER directory.\n\n" +
                         "Run BIM Manager commands first to generate:\n" +
                         "- BEP (Create BEP)\n" +
                         "- Issues (Raise Issue)\n" +
                         "- COBie (COBie Export)\n" +
                         "- Document Register (Document Register)");
-                    return Result.Cancelled;
+                    // Nothing to publish is a skip for a person; an unattended run that was
+                    // expected to package something did not.
+                    return accPolicy.IsUnattended ? Result.Failed : Result.Cancelled;
                 }
 
                 // Update suitability on all deliverables
@@ -1287,24 +1307,22 @@ namespace StingTools.BIMManager
 
                 StingLog.Info($"PlatformLink: ACC publish complete — {copied} files, ZIP: {sizeStr}");
 
-                var result = new TaskDialog("STING ACC Publish — Complete");
-                result.MainInstruction = "ACC publish package created successfully";
-                result.MainContent =
+                Say("STING ACC Publish — Complete",
+                    "ACC publish package created successfully\n\n" +
                     $"Deliverables packaged: {deliverables.Count}\n" +
                     $"Files copied: {copied}\n" +
                     $"Suitability: {suitability} — {(BIMManagerEngine.SuitabilityCodes.TryGetValue(suitability, out string sd) ? sd : suitability)}\n" +
                     $"ZIP size: {sizeStr}\n\n" +
                     $"Package: {Path.GetFileName(zipPath)}\n" +
                     $"Location: {Path.GetDirectoryName(zipPath)}\n\n" +
-                    "Upload the ZIP file to ACC/BIM 360 document management.";
-                result.Show();
+                    "Upload the ZIP file to ACC/BIM 360 document management.");
 
                 return Result.Succeeded;
             }
             catch (Exception ex)
             {
                 StingLog.Error("ACCPublishCommand failed", ex);
-                TaskDialog.Show("STING Error", $"ACC publish failed: {ex.Message}");
+                Core.Clash.AccPullClashesCommand.Report(accPolicy, "STING Error", $"ACC publish failed: {ex.Message}");
                 return Result.Failed;
             }
         }

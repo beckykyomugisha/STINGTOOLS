@@ -62,7 +62,7 @@ namespace StingTools.Core.Clash
             //    remembers one.
             AccFetchResult<List<AccModelSet>> setsResult;
             try { setsResult = AccModelCoordSync.ListModelSetsAsync(creds, containerId).GetAwaiter().GetResult(); }
-            catch (Exception ex) { StingLog.Error("ACC ListModelSets", ex); TaskDialog.Show("ACC", "Model-set request failed: " + ex.Message); return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("ACC ListModelSets", ex); Report(policy, "ACC — Pull Clashes", "Model-set request failed: " + ex.Message); return Result.Failed; }
 
             // A failed request is NOT "no model sets". Saying so let a wrong container id
             // read as a clean federation and pass a coordination gate that checked nothing.
@@ -134,7 +134,7 @@ namespace StingTools.Core.Clash
             // 2. Pull clashes (latest test -> resources -> scope files -> join).
             AccFetchResult<List<AccClashRecord>> clashResult;
             try { clashResult = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
-            catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); TaskDialog.Show("ACC", "Clash request failed: " + ex.Message); return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); Report(policy, "ACC — Pull Clashes", "Clash request failed: " + ex.Message); return Result.Failed; }
 
             // The load-bearing branch. Only a request that ACTUALLY SUCCEEDED may be
             // reported as "clash-clean"; every failure names itself and fails the step,
@@ -202,7 +202,27 @@ namespace StingTools.Core.Clash
             // explicitly configured, and NOTHING at all without a policy: a pull + triage +
             // CSV is a useful cycle on its own and it creates no work for anyone.
             string sidecar = SidecarPath(doc);
-            var pushedMap = LoadPushed(sidecar);
+            var pushedMap = LoadPushed(sidecar, out string pushedErr);
+            var origins = AccIssueOrigins.Load(OriginsPath(doc), out string originsErr);
+
+            // A6: an escalation record that cannot be read is NOT "nothing escalated yet".
+            // Reading it as empty re-raised every clash, assigned to real people, and then
+            // overwrote the file that would have shown it. The pull, the triage and the CSV
+            // stand; escalation is refused, the files are left untouched, and the step fails.
+            if (pushedMap == null || origins == null)
+            {
+                string why = pushedMap == null ? pushedErr : originsErr;
+                report.AppendLine();
+                report.AppendLine("ESCALATION REFUSED - the record of what STING already raised in ACC could not be read, " +
+                                  "so every clash would look new and be raised again: " + why +
+                                  "\nThe file was left untouched. Repair or restore it (it is JSON: signature -> ACC issue id), then re-run.");
+                StingLog.Warn("ACC_PullClashes escalation REFUSED: " + why);
+                Report(policy, "ACC — Pull Clashes", report.ToString());
+                return Result.Failed;
+            }
+            // Escalations that predate the origin record are carried into it, so the first save
+            // keeps their origin even after ACC_SyncIssueStatus stops tracking them.
+            origins.Absorb(AccIssueImport.ClashEscalationOrigin, pushedMap, DateTime.UtcNow);
             var tracked = new HashSet<string>(pushedMap.Keys, StringComparer.Ordinal);
             // Only live, stably-keyed clashes may be escalated: a clash ACC already marks closed
             // must not become somebody's issue, and a clash whose models are known only by
@@ -235,11 +255,12 @@ namespace StingTools.Core.Clash
             {
                 if (plan.ToPush.Count > 0)
                 {
-                    var outcome = PushTopIssues(creds, containerId, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
+                    var outcome = PushTopIssues(creds, containerId, plan.ToPush, byId, chosen, pushedMap, policy, sidecar,
+                        origins, OriginsPath(doc));
                     StingLog.Info("ACC_PullClashes: " + outcome.Describe());
                     report.AppendLine();
                     report.AppendLine("By policy: " + outcome.Describe());
-                    if (outcome.Failed > 0)
+                    if (outcome.HasProblems)
                     {
                         Report(policy, "ACC — Pull Clashes", report.ToString());
                         return Result.Failed;   // a partial escalation must not read as a clean cycle
@@ -271,9 +292,10 @@ namespace StingTools.Core.Clash
 
                 if (res == TaskDialogResult.CommandLink1 && plan.OfferInteractively)
                 {
-                    var outcome = PushTopIssues(creds, containerId, plan.ToPush, byId, chosen, pushedMap, policy, sidecar);
+                    var outcome = PushTopIssues(creds, containerId, plan.ToPush, byId, chosen, pushedMap, policy, sidecar,
+                        origins, OriginsPath(doc));
                     TaskDialog.Show("ACC — Pull Clashes", outcome.Describe());
-                    if (outcome.Failed > 0) return Result.Failed;
+                    if (outcome.HasProblems) return Result.Failed;
                 }
             }
 
@@ -342,6 +364,14 @@ namespace StingTools.Core.Clash
         {
             public int Pushed, Skipped, Failed;
             public List<string> Failures = new List<string>();
+            /// <summary>A6: created in ACC but not written to the record - raised again next run.</summary>
+            public int NotRecorded;
+            public List<string> RecordFailures = new List<string>();
+            /// <summary>Stopped on an auth failure; the rest were not attempted.</summary>
+            public bool StoppedOnAuth;
+            public int NotAttempted;
+            /// <summary>Anything a report must not call clean.</summary>
+            public bool HasProblems => Failed > 0 || NotRecorded > 0 || StoppedOnAuth;
             /// <summary>ACC-HARD-5: how many escalated issues can be LOCATED, and why not.</summary>
             public AccLocateSummary Locate;
             public int Attached, AttachFailed;
@@ -355,8 +385,13 @@ namespace StingTools.Core.Clash
                 string text = $"escalated {Pushed} clash(es) to ACC Issues; {Skipped} already tracked";
                 if (Assignee != null && Assignee.Ok) text += "; assigned to " + Assignee.Describe();
                 if (Failed > 0)
-                    text += $"; {Failed} FAILED (not recorded, so the next run retries them): " +
+                    text += $"; {Failed} FAILED (not created, so the next run retries them): " +
                             string.Join(" | ", Failures.Take(3)) + (Failures.Count > 3 ? " …" : "");
+                if (StoppedOnAuth)
+                    text += $"; STOPPED - Autodesk refused the sign-in, {NotAttempted} not attempted";
+                if (NotRecorded > 0)
+                    text += $"; {NotRecorded} issue(s) CREATED IN ACC BUT NOT RECORDED - the next run will raise them " +
+                            "AGAIN unless the record is fixed: " + string.Join(" | ", RecordFailures.Take(2));
                 if (Locate != null && Locate.Sides > 0) text += "; " + Locate.Describe();
                 if (Attached > 0 || AttachFailed > 0)
                     text += $"; BCF attached to {Attached} issue(s)" +
@@ -376,7 +411,7 @@ namespace StingTools.Core.Clash
         // all again, assigned to real people.
         private static PushOutcome PushTopIssues(AccCredentials creds, string containerId, IReadOnlyList<ScoredClash> top,
             Dictionary<string, AccClashRecord> byId, AccModelSet set, Dictionary<string, string> pushedMap,
-            AccOperatingPolicy policy, string sidecar)
+            AccOperatingPolicy policy, string sidecar, AccIssueOrigins origins, string originsPath)
         {
             var outcome = new PushOutcome();
 
@@ -455,40 +490,43 @@ namespace StingTools.Core.Clash
                 foreach (var p in fields.Problems) StingLog.Warn("ACC_PullClashes issue fields: " + p);
             }
 
-            foreach (var s in top)
-            {
-                byId.TryGetValue(s.ClashId, out var c);
-                string sig = SignatureFor(s, byId);
-                if (string.IsNullOrEmpty(sig)) continue;               // unkeyable: reported by the caller
-                if (pushedMap.ContainsKey(sig)) { outcome.Skipped++; continue; }
-
-                locations.TryGetValue(s.ClashId, out var loc);
-                var issue = BuildClashIssue(s, c, set, policy, loc, assignee, fields, outcome.FieldProblems);
-                try
+            // The create-and-record loop is shared with the lifecycle-gap push (AccIssueCreateLoop):
+            // each created issue is written to pushed_clashes.json AND the origin record at once,
+            // a failed write is counted (the issue exists in ACC and would be raised again), and
+            // an auth failure stops the run.
+            var built = new Dictionary<string, (AccIssue Issue, AccClashLocation Loc)>(StringComparer.Ordinal);
+            var loop = AccIssueCreateLoop.Run(top,
+                s => SignatureFor(s, byId),
+                s => $"clash {s.ClashId}",
+                s =>
                 {
-                    var r = AccIssueSync.PushIssueDetailedAsync(creds, issue).GetAwaiter().GetResult();
-                    if (r.Ok)
-                    {
-                        outcome.Pushed++;
-                        pushedMap[sig] = r.Id;
-                        SavePushed(sidecar, pushedMap);
-                        if (bcf) AttachBcf(creds, r.Id, sig, issue, loc, outcome);
-                    }
-                    else
-                    {
-                        outcome.Failed++;
-                        outcome.Failures.Add($"clash {s.ClashId}: {r.Detail}");
-                        // An auth failure will fail every remaining push the same way.
-                        if (r.Status == AccFetchStatus.AuthFailed) break;
-                    }
-                }
-                catch (Exception ex)
+                    byId.TryGetValue(s.ClashId, out var c);
+                    locations.TryGetValue(s.ClashId, out var loc);
+                    var issue = BuildClashIssue(s, c, set, policy, loc, assignee, fields, outcome.FieldProblems);
+                    built[SignatureFor(s, byId)] = (issue, loc);
+                    return AccIssueSync.PushIssueDetailedAsync(creds, issue).GetAwaiter().GetResult();
+                },
+                pushedMap,
+                m => SavePushed(sidecar, m),
+                origins,
+                AccIssueImport.ClashEscalationOrigin,
+                o => o.TrySave(originsPath, out string oe) ? null : oe,
+                DateTime.UtcNow,
+                (s, id) =>
                 {
-                    outcome.Failed++;
-                    outcome.Failures.Add($"clash {s.ClashId}: {ex.Message}");
-                    StingLog.Warn("ACC push issue: " + ex.Message);
-                }
-            }
+                    string sig = SignatureFor(s, byId);
+                    if (bcf && built.TryGetValue(sig, out var b)) AttachBcf(creds, id, sig, b.Issue, b.Loc, outcome);
+                });
+            outcome.Pushed = loop.Created;
+            outcome.Skipped = loop.Skipped;
+            outcome.Failed += loop.Failed;
+            outcome.Failures.AddRange(loop.Failures);
+            outcome.NotRecorded = loop.NotRecorded;
+            outcome.RecordFailures.AddRange(loop.RecordFailures);
+            outcome.StoppedOnAuth = loop.StoppedOnAuth;
+            outcome.NotAttempted = loop.NotAttempted;
+            foreach (var f in loop.Failures) StingLog.Warn("ACC push issue: " + f);
+            foreach (var f in loop.RecordFailures) StingLog.Error("ACC_PullClashes: issue created but NOT recorded — " + f);
             return outcome;
         }
 
@@ -599,31 +637,24 @@ namespace StingTools.Core.Clash
                 dir = Path.GetDirectoryName(OutputLocationHelper.GetOutputPath(doc, "x.txt")) ?? Path.GetTempPath();
             string accDir = StingPaths.MetaFile(doc, "_BIM_COORD", "acc");
             try { Directory.CreateDirectory(accDir); } catch { }
-            return Path.Combine(accDir, "pushed_clashes.json");
+            return Path.Combine(accDir, AccPushedMap.ClashFileName);
         }
 
-        internal static Dictionary<string, string> LoadPushed(string path)
-        {
-            var map = new Dictionary<string, string>(StringComparer.Ordinal);
-            try
-            {
-                if (path != null && File.Exists(path))
-                    foreach (var p in JObject.Parse(File.ReadAllText(path)).Properties())
-                        map[p.Name] = (string)p.Value ?? string.Empty;
-            }
-            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes load: " + ex.Message); }
-            return map;
-        }
+        /// <summary>The append-only origin record beside pushed_clashes.json (A15).</summary>
+        internal static string OriginsPath(Document doc)
+            => Path.Combine(Path.GetDirectoryName(SidecarPath(doc)) ?? string.Empty, AccIssueOrigins.FileName);
 
-        internal static void SavePushed(string path, Dictionary<string, string> map)
+        /// <summary>Tri-state (A6): an absent file is an empty map; an unreadable one is
+        /// <c>null</c> with the reason - never an empty map, which re-escalated everything.</summary>
+        internal static Dictionary<string, string> LoadPushed(string path, out string error)
+            => AccPushedMap.Load(path, out error);
+
+        /// <summary>Returns the error, or null when the record was written.</summary>
+        internal static string SavePushed(string path, Dictionary<string, string> map)
         {
-            try
-            {
-                var o = new JObject();
-                foreach (var kv in map) o[kv.Key] = kv.Value;
-                File.WriteAllText(path, o.ToString());
-            }
-            catch (Exception ex) { StingLog.Warn("ACC pushed_clashes save: " + ex.Message); }
+            if (AccPushedMap.TrySave(path, map, out string err)) return null;
+            StingLog.Warn("ACC pushed_clashes save: " + err);
+            return err;
         }
 
         private static string WriteCsv(Document doc, AccModelSet set, List<ScoredClash> scored,
@@ -631,16 +662,8 @@ namespace StingTools.Core.Clash
         {
             try
             {
-                var rows = new List<string> { "Score,Category,ClashId,PenetrationMm,Status,LeftDocument,RightDocument,LeftObjectId,RightObjectId,Rationale" };
-                foreach (var s in scored)
-                {
-                    byId.TryGetValue(s.ClashId, out var c);
-                    rows.Add(string.Join(",",
-                        s.Score.ToString("F3"), Csv(s.Category), Csv(s.ClashId),
-                        (c?.PenetrationMm ?? 0).ToString("F0"), Csv(c?.Status),
-                        Csv(c?.LeftDocument), Csv(c?.RightDocument),
-                        c?.LeftObjectId ?? 0, c?.RightObjectId ?? 0, Csv(s.Rationale)));
-                }
+                // A14: invariant-culture numbers - see AccClashCsv.
+                var rows = AccClashCsv.Rows(scored, byId);
                 string safe = new string((set.Name ?? "set").Where(ch => char.IsLetterOrDigit(ch) || ch == '_').ToArray());
                 string path = OutputLocationHelper.GetRoutedPath(doc, "Clash", $"STING_ACC_Clashes_{safe}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
@@ -655,7 +678,5 @@ namespace StingTools.Core.Clash
             s = Path.GetFileNameWithoutExtension(s);
             return s.Length > 24 ? s.Substring(0, 24) : s;
         }
-
-        private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
     }
 }

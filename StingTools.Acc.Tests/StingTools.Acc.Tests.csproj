@@ -122,6 +122,11 @@
     <Compile Include="..\StingTools\V6\AccUploadGate.cs" Link="V6\AccUploadGate.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650RevisionRules.cs" Link="Core\Drawing\Iso19650RevisionRules.cs" />
     <Compile Include="..\StingTools\Core\RevisionSeries.cs" Link="Core\RevisionSeries.cs" />
+    <!-- A6/A15: the escalation tracking set (tri-state load, reported saves), the append-only
+         ACC issue origin record, and the create-and-record loop both escalations share. -->
+    <Compile Include="..\StingTools\V6\AccEscalationRecord.cs" Link="V6\AccEscalationRecord.cs" />
+    <!-- A14: the clash triage CSV, numbers in the invariant culture. -->
+    <Compile Include="..\StingTools\V6\AccClashCsv.cs" Link="V6\AccClashCsv.cs" />
     <!-- 7-field naming + the folder naming-standard pre-check the uploader runs. -->
     <Compile Include="..\StingTools\V6\AccNamingStandard.cs" Link="V6\AccNamingStandard.cs" />
     <Compile Include="..\StingTools\Core\DocumentRegisterMerge.cs" Link="Core\DocumentRegisterMerge.cs" />

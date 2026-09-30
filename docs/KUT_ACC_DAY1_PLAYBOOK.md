@@ -285,6 +285,7 @@ prompting, and the card shows *"could NOT be read (…carries key(s) this build 
 | `publishSuitability` | string | yes | Suitability an unattended ACC Publish uses (validated against the ISO 19650 list). Leave unset on day 1 |
 | `escalateMaxCount` | int | yes | Most clashes one run escalates. Needs `escalateMinScore` too: **one without the other turns escalation OFF** (reported). Leave unset on day 1 |
 | `escalateMinScore` | number | yes | Triage score threshold (0–1), with `escalateMaxCount` |
+| `lifecycleGapEscalation` | object | yes | `KUT_PushLifecycleGapsToAcc`: `{"maxCount": n, "issueTypeId": "…", "issueSubtypeId": "…"}`. `maxCount` is required and IS the opt-in: without it an unattended run creates nothing (an attended run offers at most 25 and asks). Largest gaps first. Issue type unset = the ACC type named "Lifecycle"; no match = nothing created and the step fails (never the clash type). Unknown sub-keys make the file malformed |
 | `hubId` | string | **no** | ACC hub (account) of the project; written by *Find my ACC project* |
 | `folderUrn` | string | **no** | Default upload folder (`urn:adsk.wipprod:fs.folder:co.…`); `cdeFolders` takes precedence |
 | `region` | string | **no** | `US` (default, header not sent), `CAN`, `EMEA`, `GBR`, `DEU`, `IND`, `JPN`, `AUS` → `x-ads-region` |
