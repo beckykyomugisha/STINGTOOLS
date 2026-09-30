@@ -20,6 +20,7 @@
 //  exists to catch — make the engine act on it, or delete the key.
 // ═════════════════════════════════════════════════════════════════════════════
 using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace StingTools.Core
@@ -49,6 +50,26 @@ namespace StingTools.Core
         public bool IsBuiltIn { get; set; }
     }
 
+    /// <summary>The one rule for "an upstream step failed - does this step still run?" (R1).
+    /// Revit-free so it is tested; WorkflowEngine calls it for every step.</summary>
+    public static class WorkflowStepGate
+    {
+        /// <summary>True when a group before <paramref name="currentGroup"/> failed, no group
+        /// from it up to this one succeeded, and the step does not run after failures.</summary>
+        public static bool IsBlocked(WorkflowStep step, int currentGroup,
+            ICollection<int> failedGroups, ICollection<int> succeededGroups, out int failedGroup)
+        {
+            failedGroup = 0;
+            if (step == null || failedGroups == null || failedGroups.Count == 0) return false;
+            var earlier = failedGroups.Where(g => g < currentGroup).ToList();
+            if (earlier.Count == 0) return false;
+            failedGroup = earlier.Max();
+            int lastFailed = failedGroup;
+            bool recovered = succeededGroups != null && succeededGroups.Any(g => g >= lastFailed && g < currentGroup);
+            return !recovered && !step.RunsAfterUpstreamFailure;
+        }
+    }
+
     public class WorkflowStep
     {
         [JsonProperty("commandTag")]
@@ -72,6 +93,17 @@ namespace StingTools.Core
         /// <summary>True when a Failed result from this step may be counted as a skip.</summary>
         [JsonIgnore]
         public bool ToleratesFailure => Optional && !FailOnError;
+
+        /// <summary>Whether this step still runs after an earlier step FAILED (and nothing since
+        /// succeeded). Unset: only a failure-tolerant optional step does (a report, a read-only
+        /// check). A failOnError step matters to the run, so it is blocked like a required step:
+        /// the KUT fortnightly issue must not package and upload to ACC after its revision gate
+        /// failed (R1). Set true only for a step that is safe after any upstream failure.</summary>
+        [JsonProperty("runAfterFailure")]
+        public bool? RunAfterFailure { get; set; }
+
+        [JsonIgnore]
+        public bool RunsAfterUpstreamFailure => RunAfterFailure ?? ToleratesFailure;
 
         [JsonProperty("condition")]
         public string Condition { get; set; }

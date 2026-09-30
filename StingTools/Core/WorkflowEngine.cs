@@ -602,21 +602,14 @@ namespace StingTools.Core
                     // mark this step as blocked rather than running it. The
                     // existing SkipIfPreviousSkipped flag handles the per-step
                     // case; this handles the cross-group case.
-                    if (failedGroups != null && failedGroups.Count > 0)
+                    // R1: optional failOnError steps (the ACC publish/upload) are blocked too -
+                    // only failure-tolerant optional steps run on (WorkflowStepGate).
+                    if (WorkflowStepGate.IsBlocked(step, currentGroup, failedGroups, succeededGroups, out int lastFailed))
                     {
-                        int? lastFailed = failedGroups.OrderBy(g => g).Cast<int?>().LastOrDefault(g => g.HasValue && g.Value < currentGroup);
-                        if (lastFailed.HasValue && currentGroup > lastFailed.Value)
-                        {
-                            bool hasRecovery = succeededGroups != null
-                                && succeededGroups.Any(g => g >= lastFailed.Value && g < currentGroup);
-                            if (!hasRecovery && !step.Optional)
-                            {
-                                report.AppendLine($"  {stepNum,2}. {step.Label} — BLOCKED (upstream group {lastFailed.Value} failed)");
-                                stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "BLOCKED" });
-                                skipped++;
-                                continue;
-                            }
-                        }
+                        report.AppendLine($"  {stepNum,2}. {step.Label} — BLOCKED (upstream group {lastFailed} failed)");
+                        stepResults.Add(new WorkflowStepResult { CommandTag = step.CommandTag, Label = step.Label, Status = "BLOCKED" });
+                        skipped++;
+                        continue;
                     }
 
                     // Phase 74: Local helper — records skip with audit trail + cascade flag

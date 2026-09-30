@@ -859,6 +859,46 @@ namespace StingTools.Acc.Tests
         }
 
         [Fact]
+        public void AnUpstreamFailure_BlocksRequiredAndFailOnErrorSteps_NotTolerantOnes()
+        {
+            var failed = new List<int> { 1 };
+            var none = new List<int>();
+            Assert.True(WorkflowStepGate.IsBlocked(new WorkflowStep(), 3, failed, none, out int g));
+            Assert.Equal(1, g);
+            Assert.True(WorkflowStepGate.IsBlocked(new WorkflowStep { Optional = true, FailOnError = true }, 3, failed, none, out _));
+            Assert.False(WorkflowStepGate.IsBlocked(new WorkflowStep { Optional = true }, 3, failed, none, out _));
+            Assert.False(WorkflowStepGate.IsBlocked(new WorkflowStep { Optional = true, FailOnError = true, RunAfterFailure = true }, 3, failed, none, out _));
+            Assert.True(WorkflowStepGate.IsBlocked(new WorkflowStep { Optional = true, RunAfterFailure = false }, 3, failed, none, out _));
+            // A group that succeeded after the failure clears the block; nothing failed = nothing blocked.
+            Assert.False(WorkflowStepGate.IsBlocked(new WorkflowStep(), 3, failed, new List<int> { 2 }, out _));
+            Assert.False(WorkflowStepGate.IsBlocked(new WorkflowStep(), 3, none, none, out _));
+            Assert.False(WorkflowStepGate.IsBlocked(new WorkflowStep(), 1, failed, none, out _));
+        }
+
+        [Fact]
+        public void TheKutFortnightlyIssue_NeverPublishesToAcc_AfterItsRevisionGateFailed()
+        {
+            string path = null;
+            for (var d = new DirectoryInfo(AppContext.BaseDirectory); d != null; d = d.Parent)
+            {
+                string cand = Path.Combine(d.FullName, "StingTools", "Data", "WORKFLOW_KUT_FortnightlyIssue.json");
+                if (System.IO.File.Exists(cand)) { path = cand; break; }
+            }
+            Assert.NotNull(path);
+            var preset = Newtonsoft.Json.JsonConvert.DeserializeObject<WorkflowPreset>(System.IO.File.ReadAllText(path));
+            // Step 1 (group 1) failed; steps 2-5 were blocked, so nothing has succeeded since.
+            var failed = new List<int> { 1 };
+            var none = new List<int>();
+            for (int i = 1; i < preset.Steps.Count; i++)
+            {
+                var step = preset.Steps[i];
+                bool blocked = WorkflowStepGate.IsBlocked(step, i + 1, failed, none, out _);
+                if (step.CommandTag.StartsWith("ACC", StringComparison.OrdinalIgnoreCase))
+                    Assert.True(blocked, step.CommandTag + " must not run after the revision gate failed");
+            }
+        }
+
+        [Fact]
         public void TheKutCycle_CountsAFailedAccPull_AsAFailure()
         {
             string dir = AppContext.BaseDirectory;
