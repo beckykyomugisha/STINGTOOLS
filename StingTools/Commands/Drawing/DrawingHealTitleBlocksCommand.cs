@@ -55,7 +55,7 @@ namespace StingTools.Commands.Drawing
 
                 if (sheets.Count == 0)
                 {
-                    TaskDialog.Show("STING — Heal Title Blocks",
+                    BatchProduceCommons.Show("STING — Heal Title Blocks",
                         "No stamped & unlocked sheets found. Stamp sheets via the Drawing Types pipeline first.");
                     return Result.Succeeded;
                 }
@@ -71,7 +71,7 @@ namespace StingTools.Commands.Drawing
                     CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                     DefaultButton = TaskDialogResult.Ok,
                 };
-                if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+                if (!BatchProduceCommons.Confirm(confirm)) return Result.Cancelled;
 
                 var auditRows = new List<HealRow>();
                 int totalParams = 0;
@@ -161,7 +161,7 @@ namespace StingTools.Commands.Drawing
                                   "production-context stamp). Existing values were kept; see the audit log.");
                 int withWarn = auditRows.Count(a => a.Warnings != null && a.Warnings.Count > 0);
                 if (withWarn > 0) sb.AppendLine($"{withWarn} sheet(s) emitted warnings — see _BIM_COORD/titleblock_heal_audit.jsonl.");
-                TaskDialog.Show("STING — Heal Title Blocks", sb.ToString());
+                BatchProduceCommons.Show("STING — Heal Title Blocks", sb.ToString());
                 return Result.Succeeded;
             }
             catch (Exception ex)

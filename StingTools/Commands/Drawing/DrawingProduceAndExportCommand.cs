@@ -57,6 +57,8 @@ namespace StingTools.Commands.Drawing
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
+                if (BatchProduceCommons.Headless) return ExecuteInWorkflow(doc, ref message);
+
                 // ── Scope dialog ────────────────────────────────────────────────
                 var scopeDlg = new TaskDialog("STING — Produce & Export")
                 {
@@ -127,18 +129,8 @@ namespace StingTools.Commands.Drawing
                     return Result.Succeeded;
                 }
 
-                // ── Phase D: PDF export ──────────────────────────────────────────
-                // Was OutputLocationHelper.GetOutputDirectory — the MISC folder — for
-                // every sheet of every discipline. Each PDF now goes to its own
-                // deliverable folder (CDE state + discipline); outDir is the fallback
-                // for an unsaved model and the home of the register CSV.
-                var outDir = OutputLocationHelper.GetOutputDirectory(doc);
-                RunPdfExportPhase(doc, stampedSheets, outDir, stats);
-
-                // ── Phase E: Sheet register CSV ──────────────────────────────────
-                string regDir = ProjectFolderEngine.GetExportFolder(doc, "DocRegister");
-                RunSheetRegisterPhase(doc, stampedSheets,
-                    string.IsNullOrEmpty(regDir) ? outDir : regDir, stats);
+                // ── Phases D + E: PDF export, sheet register ─────────────────────
+                var outDir = ExportStamped(doc, stampedSheets, stats);
 
                 // ── Summary ──────────────────────────────────────────────────────
                 ShowSummary(stats, outDir, doProduction);
@@ -152,12 +144,79 @@ namespace StingTools.Commands.Drawing
             }
         }
 
+        /// <summary>
+        /// Inside a workflow: params.mode "produce" (default — produce, finalize, export)
+        /// or "finalize" (existing sheets only); params.drawingTypes (default every MEP
+        /// Plan type), params.levels (default every level), params.output /
+        /// duplicateOption / packageId as for Produce Per Level. The summary goes to the
+        /// workflow report and the log, not a dialog. No stamped sheet to export fails
+        /// the step: an export step that exported nothing has not done its job.
+        /// </summary>
+        private static Result ExecuteInWorkflow(Document doc, ref string message)
+        {
+            const string title = "Produce & Export";
+            var modeRaw = (WorkflowEngine.StepParam("mode") ?? "").Trim();
+            bool doProduction;
+            if (modeRaw.Length == 0 || modeRaw.StartsWith("produce", StringComparison.OrdinalIgnoreCase)) doProduction = true;
+            else if (modeRaw.StartsWith("finali", StringComparison.OrdinalIgnoreCase)) doProduction = false;
+            else { message = $"{title}: params.mode '{modeRaw}' is not 'produce' or 'finalize'."; return Result.Failed; }
+
+            var stats = new RunStats();
+            if (doProduction)
+            {
+                if (!BatchProduceCommons.TryStepTypes(DrawingTypeRegistry.ListAll(doc), new[] { "Plan" }, out var types, out var err)
+                    || !BatchProduceCommons.TryStepOptions(out var opts, out var packageId, out err))
+                { message = $"{title}: {err}"; return Result.Failed; }
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                if (levels.Count == 0) { message = $"{title}: the model has no levels."; return Result.Failed; }
+                var names = HeadlessProductionInputs.SelectNames(levels.Select(l => l.Name).ToList(),
+                    HeadlessProductionInputs.ParseList(WorkflowEngine.StepParam("levels")), out var unknownLevels);
+                if (unknownLevels.Count > 0)
+                { message = $"{title}: params.levels names level(s) not in the model: {string.Join(", ", unknownLevels)}."; return Result.Failed; }
+                RunProductionPhase(doc, types, levels.Where(l => names.Contains(l.Name)).ToList(), stats, opts, packageId);
+            }
+
+            RunStyleSyncPhase(doc, stats);
+            RunRevisionSyncPhase(doc, stats);
+
+            var stampedSheets = CollectStampedSheets(doc);
+            if (stampedSheets.Count == 0)
+            { message = $"{title}: no STING-stamped sheets to export — produce sheets first."; return Result.Failed; }
+
+            ExportStamped(doc, stampedSheets, stats);
+
+            foreach (var w in stats.Warnings.Distinct()) StingLog.Warn($"{title}: {w}");
+            message = $"{title}: {stats.ViewsProduced} view(s), {stats.SheetsProduced} new sheet(s), "
+                    + $"{stats.PdfsExported} PDF(s) of {stampedSheets.Count} sheet(s)"
+                    + (stats.Warnings.Count > 0 ? $", {stats.Warnings.Distinct().Count()} warning(s) (see the STING log)." : ".");
+            StingLog.Info(message);
+            return stats.PdfsExported > 0 ? Result.Succeeded : Result.Failed;
+        }
+
+        /// <summary>
+        /// Phases D and E, shared by the dialog and the workflow. Returns the fallback
+        /// output folder.
+        /// Phase D was OutputLocationHelper.GetOutputDirectory — the MISC folder — for
+        /// every sheet of every discipline. Each PDF now goes to its own deliverable
+        /// folder (CDE state + discipline); outDir is the fallback for an unsaved model
+        /// and the home of the register CSV.
+        /// </summary>
+        private static string ExportStamped(Document doc, List<ViewSheet> stampedSheets, RunStats stats)
+        {
+            var outDir = OutputLocationHelper.GetOutputDirectory(doc);
+            RunPdfExportPhase(doc, stampedSheets, outDir, stats);
+            string regDir = ProjectFolderEngine.GetExportFolder(doc, "DocRegister");
+            RunSheetRegisterPhase(doc, stampedSheets, string.IsNullOrEmpty(regDir) ? outDir : regDir, stats);
+            return outDir;
+        }
+
         // ── Phase A ─────────────────────────────────────────────────────────────
 
         private static void RunProductionPhase(
-            Document doc, List<DrawingType> planTypes, List<Level> levels, RunStats stats)
+            Document doc, List<DrawingType> planTypes, List<Level> levels, RunStats stats,
+            ProduceOptions opts = null, string packageId = null)
         {
-            var opts = new ProduceOptions
+            opts = opts ?? new ProduceOptions
             {
                 CreateSheet    = true,
                 PlaceOnSheet   = true,
@@ -173,24 +232,32 @@ namespace StingTools.Commands.Drawing
                 {
                     foreach (var level in levels)
                     {
+                        // The producer does not open transactions (see its header), and
+                        // this loop used to run it under the group alone — so every sheet
+                        // and view creation threw "outside a transaction" and was caught
+                        // as a warning: Produce + Finalize + Export produced nothing.
+                        using (var t = new Transaction(doc, $"STING Produce & Export — {dt.Id} @ {level.Name}"))
                         try
                         {
+                            t.Start();
                             // P-9: ctx.Tag must stay null here. ProduceViewsPerLevelCommand leaves
                             // it null, and BuildContextTag folds Tag into the view
                             // idempotency key — so setting it to the level name gave the
                             // two per-level paths different keys and running both
                             // DUPLICATED every per-level view, despite both claiming
                             // idempotency. The level is already in the key via ctx.Level.
-                            var ctx = new DrawingContext { Level = level };
+                            var ctx = new DrawingContext { Level = level, PackageId = packageId };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
+                            t.Commit();
 
                             stats.ViewsProduced   += res.ViewIds.Count;
-                            stats.SheetsProduced  += res.SheetId != ElementId.InvalidElementId && !res.WasIdempotent ? 1 : 0;
+                            stats.SheetsProduced  += res.SheetId != ElementId.InvalidElementId && !res.SheetReused ? 1 : 0;
                             stats.ViewsIdempotent += res.WasIdempotent ? 1 : 0;
                             stats.Warnings.AddRange(res.Warnings);
                         }
                         catch (Exception ex)
                         {
+                            if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
                             stats.Warnings.Add($"Produce [{dt.Id}@{level.Name}]: {ex.Message}");
                             StingLog.Warn($"ProduceAndExport produce: {dt.Id}@{level.Name} — {ex.Message}");
                         }

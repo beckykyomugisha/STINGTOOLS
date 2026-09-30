@@ -130,5 +130,17 @@ namespace StingTools.Core
         /// <summary>Phase 69: Minimum data drop level required (1-4). Skip if current DD is below.</summary>
         [JsonProperty("minDataDrop")]
         public int? MinDataDrop { get; set; }
+
+        /// <summary>
+        /// Named inputs for a command that would otherwise ask for them in a dialog —
+        /// e.g. {"drawingTypes": "elec-power-A1-1to100,mep-hvac-duct-A1-1to100",
+        /// "output": "Views and sheets"}. The engine hands them to the step through
+        /// StingCommandHandler's extra-param store for the step's duration only (see
+        /// WorkflowEngine.StepParam); a command reads them only when
+        /// WorkflowEngine.IsRunningPreset. Keys a command does not read are ignored
+        /// by it, so a command that takes inputs lists them in its own header.
+        /// </summary>
+        [JsonProperty("params")]
+        public Dictionary<string, string> Params { get; set; }
     }
 }

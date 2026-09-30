@@ -139,9 +139,14 @@ namespace StingTools.Commands.Drawing
             {
                 try
                 {
-                    var p = v.LookupParameter("STING_SCOPE_BOX_TAG_TXT");
+                    var p = v.LookupParameter(ParamRegistry.STING_SCOPE_BOX_TAG);
                     if (p != null && !p.IsReadOnly && p.StorageType == StorageType.String)
                         p.Set(b.Tag);
+                    else if (p == null)
+                        // Unbound: the write is a no-op. Say so rather than let the
+                        // tag vanish — Load Shared Params binds it.
+                        warnings.Add($"{ParamRegistry.STING_SCOPE_BOX_TAG} is not bound to Views; " +
+                                     $"tag '{b.Tag}' was not stamped on '{v.Name}'. Run Load Shared Params.");
                 }
                 catch (Exception ex)
                 {

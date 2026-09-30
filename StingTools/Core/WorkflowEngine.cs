@@ -381,6 +381,44 @@ namespace StingTools.Core
         [ThreadStatic] private static int _presetDepth;
 
         /// <summary>
+        /// True while a workflow preset is executing on this thread. A command that
+        /// asks questions in dialogs checks this and, inside a preset, takes its
+        /// inputs from the step's "params" (<see cref="StepParam"/>) and its
+        /// defaults instead — and fails the step with a message when an input it
+        /// cannot default is missing, rather than producing nothing in silence.
+        /// </summary>
+        internal static bool IsRunningPreset => _presetDepth > 0;
+
+        // Step params travel through StingCommandHandler's extra-param store — the
+        // mechanism panels already use to hand named values to a command — under a
+        // prefix, so a step can never overwrite a panel's own key.
+        private const string StepParamPrefix = "wf.";
+
+        /// <summary>A "params" value of the step now running; "" when absent or when no step is running.</summary>
+        internal static string StepParam(string key)
+            => string.IsNullOrEmpty(key) ? "" : (UI.StingCommandHandler.GetExtraParam(StepParamPrefix + key) ?? "");
+
+        private static void PushStepParams(WorkflowStep step)
+        {
+            if (step?.Params == null) return;
+            foreach (var kv in step.Params)
+                if (!string.IsNullOrEmpty(kv.Key))
+                    UI.StingCommandHandler.SetExtraParam(StepParamPrefix + kv.Key, kv.Value ?? "");
+        }
+
+        private static void PopStepParams(WorkflowStep step)
+        {
+            if (step?.Params == null) return;
+            foreach (var kv in step.Params)
+                if (!string.IsNullOrEmpty(kv.Key))
+                    UI.StingCommandHandler.ClearExtraParam(StepParamPrefix + kv.Key);
+        }
+
+        // The message the last step's command returned. RunCommandByTag used to
+        // discard it, so a step that failed with a reason reported only "FAIL".
+        [ThreadStatic] private static string _lastStepMessage;
+
+        /// <summary>
         /// Execute a workflow preset with progress reporting and cancellation, and show
         /// the report. Nested inside another run it is unattended (see the overload).
         /// </summary>
@@ -966,7 +1004,10 @@ namespace StingTools.Core
                             }
                             try
                             {
-                                stepResult = RunCommandByTag(step.CommandTag, commandData, elements);
+                                _lastStepMessage = null;
+                                PushStepParams(step);
+                                try { stepResult = RunCommandByTag(step.CommandTag, commandData, elements); }
+                                finally { PopStepParams(step); }
                                 if (stepResult == Result.Succeeded || stepResult == Result.Cancelled) break;
                             }
                             catch (Exception retryEx)
@@ -997,6 +1038,8 @@ namespace StingTools.Core
                                          stepResult == Result.Cancelled ? "SKIP" :
                                          stepResult == Result.Failed ? "FAIL" : "WARN";
                         report.AppendLine($"  {stepNum,2}. {step.Label} — {status} ({sw.Elapsed.TotalSeconds:F1}s)");
+                        if (stepResult != Result.Succeeded && !string.IsNullOrWhiteSpace(_lastStepMessage))
+                            report.AppendLine($"       {_lastStepMessage.Trim()}");
 
                         // Phase 39: Record per-step result for audit trail
                         stepResults.Add(new WorkflowStepResult
@@ -1432,7 +1475,11 @@ namespace StingTools.Core
             }
 
             string msg = "";
-            return cmd.Execute(data, ref msg, elems);
+            var res = cmd.Execute(data, ref msg, elems);
+            _lastStepMessage = msg;
+            if (res == Result.Failed && !string.IsNullOrWhiteSpace(msg))
+                StingLog.Warn($"WorkflowEngine: '{tag}' failed — {msg}");
+            return res;
         }
 
         /// <summary>
@@ -1645,6 +1692,19 @@ namespace StingTools.Core
                 case "DrawingTypes_RegenerateTemplates": return new Commands.Drawing.RegeneratePackTemplatesCommand();
                 case "DrawingTypes_Doctor":            return new Commands.Drawing.DrawingDoctorCommand();
                 case "DrawingTypes_SetupProduction":   return new Commands.Drawing.DrawingProductionSetupCommand();
+                // Headless production. Each of these asked its inputs in a dialog and so
+                // could only be clicked. Inside a preset they read the step's "params"
+                // (drawingTypes, levels, output, duplicateOption, packageId, mode) and
+                // default the rest — MEP plan types × every level, views and sheets —
+                // and fail the step, with a message, when an input is missing.
+                case "DrawingTypes_ProducePerLevel":       return new Commands.Drawing.ProduceViewsPerLevelCommand();
+                case "DrawingTypes_ProduceFromScopeBoxes": return new Commands.Drawing.ProduceViewsFromScopeBoxesCommand();
+                case "DrawingTypes_ProduceAndExport":      return new Commands.Drawing.DrawingProduceAndExportCommand();
+                case "DrawingTypes_Renumber":              return new Commands.Drawing.DrawingRenumberCommand();
+                case "DrawingTypes_HealTitleBlocks":       return new Commands.Drawing.DrawingHealTitleBlocksCommand();
+                // Panel schedules onto sheets. Its default mode lists the schedules still
+                // to place (PanelScheduleSheetInstance.Create is broken in Revit 2024+).
+                case "Panel_PlaceOnSheets":                return new Commands.Electrical.PanelViewScheduleCommand();
                 case "MatchLine_ValidateBundle":       return new Commands.Drawing.MatchLineValidateBundleCommand();
                 case "MatchLine_Inspect":              return new Commands.Drawing.MatchLineInspectCommand();
                 case "Symbols_CreateCompound":      return new Commands.Symbols.CreateCompoundSymbolsCommand();
