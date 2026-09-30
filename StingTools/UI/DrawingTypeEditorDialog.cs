@@ -1884,8 +1884,8 @@ namespace StingTools.UI
                 ("Count Sheets",   "SheetCountAutoUpdate"),
                 ("Stamp TX",       "TransmittalAutoIssue"),
                 ("Transmittal",    "Transmittal"),
-                ("Swap Title Block","SwapTitleBlock"),
-                ("Set Variant",    "TitleBlockSetVariant"),
+                // Swap and Set Variant live in the Authoring card above (TitleBlock_Swap
+                // replaces the older SwapTitleBlock); they are not repeated here (DTW-36).
                 ("Auto-Number Sheets", "Sheet_AutoNumber"),
                 ("Reorder Sheets…", "Sheet_Reorder"),
                 ("Disciplines…", "Sheet_DisciplinesReload"),
