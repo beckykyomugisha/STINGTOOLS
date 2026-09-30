@@ -2,6 +2,36 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Drawing production — review-and-fix loop (2026-10-01)
+
+The running log, including every closed finding, is
+[`docs/WORKLOG_DRAWING_TYPES.md`](WORKLOG_DRAWING_TYPES.md). This table holds only what is
+still open. Rows leave this table when their fix is merged; the worklog keeps the history.
+
+| Id | Gap | Evidence | Fix |
+|---|---|---|---|
+| DTW-60 | `titleBlockParams` keys are display labels no STING title-block family carries, so nothing is written and each sheet gets ~10–13 warnings | `STING_DRAWING_TYPES.json`; `TitleBlockParamApplier.Apply` | In progress (`fix/dt-data`): real family parameter names, a legacy label alias map, and a test that every key exists on the resolved family |
+| DTW-61 | `mep-coord-A1-1to50` has three production rules and one slot, so the ISO and section views stack on the plan | `STING_DRAWING_TYPES.json` | In progress: add ISO and section slots |
+| DTW-62 | Mixed-kind types apply one view template to every view kind; the wrong kind throws and falls back | `DrawingTypePresentation.Apply` | In progress: skip a kind-mismatched template quietly; per-rule template |
+| DTW-63 | Slot view-type check compares raw strings, so most sheets get a spurious mismatch warning | `DrawingProducer` (SLOT-3) | In progress (`fix/dt-followups`) |
+| DTW-64 | Match-line caption text type and line style are created by nothing, so captions are skipped | `STING_MATCH_LINES.json`; `TemplateManagerCommands` | In progress |
+| DTW-65 | `sectionMarker` families are created by nothing; `markPrefix`, `bubbleStyle` and `farClipMm` are read by nothing | 14 types; `DrawingTypeValidator` DT-030 | In progress: apply far clip; DT-030 becomes info |
+| DTW-66 | `legend-A3` is routed but can never be produced | `DrawingPurposeViewKind` | In progress: explicit place-existing reason |
+| DTW-67 | Batch sections and elevations resolve `*`/`*`, which matches no rule | `DocAutomationExtCommands.cs` | In progress |
+| DTW-68 | Pack `viewTemplate` / `textStyleName` names are created and read by nothing | `STING_VIEW_STYLE_PACKS.json` | In progress |
+| DTW-69 | Routing semantics: `S * DETAIL` lands on a rebar detail, `P * PLAN` on drainage | Routing table | In progress; only non-breaking changes |
+| DTW-70 | Sheet-number codes SCH / PR / EL mean two things | `sheetNumberPattern` | In progress: change only codes that collide within a discipline |
+| DTW-71 | Id convention drift (missing paper or scale suffix, mixed prefixes) | Ids | Won't rename (projects stamp ids); aliases only if needed |
+| DTW-72 | `{mark}` in per-level types' sheet names prints `XX` | `mep-plantroom` and others | In progress: use `{lvl}` |
+| DTW-73 | CLAUDE.md catalogue counts are stale (93 / 113) | CLAUDE.md | In progress |
+| DTW-74 | Wizard "two sections per scope box" makes unstamped sections | `ProjectSetupCommand.CreateTwoSectionsPerScopeBox` | In progress (`fix/dt-followups`) |
+| DTW-75 | `STING_AUTO_PLACED_BOOL` is written to viewports and schedule instances, which it is not bound to | Binding spec | In progress |
+| DTW-76 | `STING_PLACER_*` are `<ALL>` but written to detail lines and annotations | Binding spec | In progress |
+| DTW-77 | `WARN_STING_PACK_DRIFT` is a view warning bound to elements | Binding spec | In progress |
+| DTW-79 | Title-block heal fills `{lvl}` with the level name under the ISO policy | `DrawingTokenContext.BuildForExistingSheet` | In progress (`fix/dt-followups`) |
+| DTW-80 | The wizard's elevation reuse looks for a tag the producer now re-stamps | `ProjectSetupCommand` | In progress (`fix/dt-followups`) |
+| DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
+
 ## Tag family library — missing families (2026-09-30)
 
 The C# tables and the library agree (206 = 206). The gaps were families declared outside the

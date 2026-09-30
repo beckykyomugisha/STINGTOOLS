@@ -25980,3 +25980,65 @@ every `GetString` read against the parameter's data type.
 
 Build 0/0; Tags.Tests all green; `run_ci_gates.py` 0 failed. Everything new is Revit-bound where
 it touches the model and has not been run in Revit; the guide's Part E lists what to check.
+
+#### Completed (Drawing production review-and-fix loop, branch `fix/drawing-review`, PR #1021)
+
+A review of #1018 in four areas (performance, accuracy, consistency, integration), then a
+research-fix loop over all of drawing production. Findings DTW-1..81 and their decisions are in
+`docs/WORKLOG_DRAWING_TYPES.md`; items still open are in ROADMAP.
+
+- **Parameter bindings (DTW-55..59).** This was the most serious finding. The spec binds `<ALL>`
+  parameters to the core category set, which has Sheets but not Views or Lines, so every
+  drawing-type and context stamp written to a view did nothing.
+  - Production found its earlier views through those stamps, so each re-run made duplicates.
+  - Fixed: view stamps now bind to Views (and Sheets where written there), match-line keys to
+    Lines, and `TAG_SEG_MASK_TXT` is bound.
+  - The 49 AEC filters whose rule parameters did not reach their categories now do.
+  - New gate `tools/check_drawing_bindings.py`.
+- **Schematics.**
+  - Drainage and supply schematics draw only what is modelled: real stacks and vents, levels
+    from the model, and a supply source that is a meter, tank or pump; lines are counted only
+    when drawn.
+  - Electrical diagrams replace their own view on a re-run (`SchematicViewFactory`).
+  - Boards are named one way (`BoardNaming`), and door-diagram sheets are keyed by element id.
+  - The MGPS and LPS schematics no longer scan every element in the model.
+  - Arc-flash and LPS-coverage views now have drawing types.
+- **Presets.**
+  - TagAndCombine, the panel checks, placement, auto-drop, the electrical calculations,
+    sprinkler hydraulics, BOQ and COBie run unattended with step params
+    (`PresetStepInputs`).
+  - A missing input fails the step with the reason instead of opening a dialog or inventing a
+    value.
+- **Revision issue.**
+  - Clouds drawn on a sheet are found, and a step's `sheets` param wins.
+  - AutoRevisionCloud takes a `baseline` param.
+  - Issued counts depend on the commit status.
+- **QA tools (DTW-2..19).**
+  - Managed templates pick up pack edits, including inherited overrides.
+  - Sync Styles heals sheets and re-applies only views that drifted.
+  - Title-block writes no longer touch sheet numbers, and honour type-level locks.
+  - Renumber keeps ISO identifiers; ISO-from-tag goes through `SheetNumbering.Apply`.
+  - Caches are invalidated on reload; title-block revision and suitability come from the
+    sheet.
+- **Producers (DTW-20..31, 40..54).**
+  - The production dialog's options now all work or are removed.
+  - View and sheet identity is keyed on level, room and box ids, so renames no longer
+    duplicate.
+  - The ISO policy uses ISO level codes and drops the frozen `-S2-P01`.
+  - Sections and 3D views follow their scope box.
+  - Exterior and interior elevations reuse their views on re-run.
+  - Match lines move and prune with their boxes.
+  - Per-level MEP production sees linked models.
+  - The legacy scope-box producer delegates to the main one.
+- **UI (DTW-32..38).** Tooltips match behaviour; there is one scope-box producer button; the
+  Setup Wizard's dependents, sections and elevations go through drawing-type production.
+- **Performance.** Match-line sweep cache, single-pass MEP presence, a tag-symbol index, cached
+  placement rules, and O(1) pipe-pressure lookup.
+- **Gates.**
+  - `binding-spec-drift` was failing on main (#1019 changed the registry without regenerating
+    the views); fixed.
+  - The lying-catch sweep counts `PresetDialog` as reporting (baseline 151 → 145).
+  - The parameter contract drops `STING_SCOPE_BOX_TAG_TXT`.
+
+Build 0/0; Tags.Tests 4,748; `run_ci_gates.py --quick` 36/36; drawing-type checksums OK.
+Nothing has been run in Revit; the worklog lists the checks.
