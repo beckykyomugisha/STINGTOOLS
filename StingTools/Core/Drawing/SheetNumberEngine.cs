@@ -250,7 +250,20 @@ namespace StingTools.Core.Drawing
             /// INCLUDING locked and pinned sheets — the value the counter must
             /// resume from, or the next production collides with a locked sheet.</summary>
             public Dictionary<string, int> HighWater { get; } = new Dictionary<string, int>(StringComparer.Ordinal);
+            /// <summary>DTW-7: sheets kept on their number because it is a full
+            /// ISO 19650 identifier and the policy is not ISO. Reported, never moved.</summary>
+            public List<string> IsoPreserved { get; } = new List<string>();
         }
+
+        /// <summary>
+        /// DTW-7: must this sheet keep its number because it already carries a full
+        /// ISO 19650 identifier? Under any policy but ISO the sheet's pattern is
+        /// not the identifier's, so "compacting" it replaces an issued identifier
+        /// with a profile short number. Under the ISO policy the identifier IS the
+        /// policy's number and may be compacted like any other.
+        /// </summary>
+        public static bool PinsIsoIdentifier(string currentNumber, SheetNumberPolicyKind policy)
+            => policy != SheetNumberPolicyKind.Iso && Iso19650DocumentCode.LooksAssembled(currentNumber);
 
         /// <summary>
         /// Compact each bucket to a gap-free run while keeping every sheet's own
@@ -260,12 +273,20 @@ namespace StingTools.Core.Drawing
         /// mover in place instead; pinning repeats until the plan is conflict-free,
         /// so what is returned can be applied without Revit rejecting any of it.
         /// </summary>
-        public static RenumberPlan PlanRenumber(IReadOnlyList<RenumberItem> items, IEnumerable<string> allNumbers)
+        public static RenumberPlan PlanRenumber(IReadOnlyList<RenumberItem> items, IEnumerable<string> allNumbers,
+            SheetNumberPolicyKind policy = SheetNumberPolicyKind.Profile)
         {
             var plan = new RenumberPlan();
             if (items == null || items.Count == 0) return plan;
 
             var pinned = new HashSet<string>(items.Where(i => i.Locked).Select(i => i.Id), StringComparer.Ordinal);
+            foreach (var i in items)
+            {
+                if (i.Locked || !PinsIsoIdentifier(i.CurrentNumber, policy)) continue;
+                pinned.Add(i.Id);
+                plan.IsoPreserved.Add($"{i.CurrentNumber}: already a full ISO 19650 identifier; kept " +
+                                      $"(the {policy} policy would replace it — renumber it with the ISO tools).");
+            }
             var ids = new HashSet<string>(items.Select(i => i.Id), StringComparer.Ordinal);
             var numberOwner = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var i in items)
