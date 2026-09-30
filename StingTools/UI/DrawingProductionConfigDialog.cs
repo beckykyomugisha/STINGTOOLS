@@ -88,8 +88,8 @@ namespace StingTools.UI
 
         // Tab 4 — elevation
         private CheckBox _elevN, _elevS, _elevE, _elevW;
-        private TextBox _elevOffset, _elevFar, _elevMarker;
-        private CheckBox _elevShowLevels, _elevShowGrids, _elev1Plus4;
+        private TextBox _elevOffset, _elevFar;
+        private CheckBox _elev1Plus4;
 
         public DrawingProductionConfigDialog(List<DrawingType> availableTypes, List<string> contextLabels, string commandType, Document doc)
         {
@@ -441,7 +441,8 @@ namespace StingTools.UI
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
 
             bool isSection = _commandType == "Sections";
-            bool isElev    = _commandType == "ExteriorElevations" || _commandType == "InteriorElevations";
+            bool isElev    = _commandType == "ExteriorElevations";
+            bool isInterior = _commandType == "InteriorElevations";
 
             if (isSection)
             {
@@ -501,18 +502,34 @@ namespace StingTools.UI
                 _elevOffset = AddTextRow(sp, "Offset from footprint (mm):"); _elevOffset.Text = "3000";
                 _elevFar    = AddTextRow(sp, "Far clip (mm):");              _elevFar.Text    = "30000";
 
-                sp.Children.Add(MakeCardHeader("Marker"));
-                _elevMarker = AddTextRow(sp, "Elevation marker family (blank = default):");
-
+                // DTW-27: the marker family and "show levels / grids" boxes were never read
+                // and are removed — the elevation view type and the drawing type's view
+                // template decide both. The markers are hosted on the plan of the ticked
+                // level nearest ground (left-hand list).
                 sp.Children.Add(MakeCardHeader("Sheet Layout"));
-                _elev1Plus4 = new CheckBox { Content = "Place all 4 elevations on one 1+4 sheet (requires 4-slot DrawingType)", IsChecked = true };
+                _elev1Plus4 = new CheckBox
+                {
+                    Content = "Put the faces on one sheet when the drawing type lays out a slot for each (needs 'Create sheets')",
+                    IsChecked = true,
+                };
                 sp.Children.Add(_elev1Plus4);
-
-                sp.Children.Add(MakeCardHeader("Annotation"));
-                _elevShowLevels = new CheckBox { Content = "Show & annotate Levels", IsChecked = true };
-                _elevShowGrids  = new CheckBox { Content = "Show & annotate Grids",  IsChecked = true };
-                sp.Children.Add(_elevShowLevels);
-                sp.Children.Add(_elevShowGrids);
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "The markers are placed on a floor plan of the ticked level nearest ground (left list). "
+                         + "Re-running reuses each face's view.",
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0), Foreground = new SolidColorBrush(Colors.Gray),
+                });
+            }
+            else if (isInterior)
+            {
+                // DTW-54: the faces come from the drawing type, so the old face checkboxes
+                // (never read for interiors) are gone.
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Each room gets the faces its drawing type asks for: the faces its elevation rules name, "
+                         + "else one per Elevation slot on its sheet. The marker is hosted on a floor plan of the room's level.",
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0),
+                });
             }
             else
             {
@@ -671,7 +688,7 @@ namespace StingTools.UI
                                 : "Section"
                 };
             }
-            if ((_commandType == "ExteriorElevations" || _commandType == "InteriorElevations") && _elevN != null)
+            if (_commandType == "ExteriorElevations" && _elevN != null)
             {
                 var faces = new List<string>();
                 if (_elevN?.IsChecked == true) faces.Add("North");
@@ -683,10 +700,7 @@ namespace StingTools.UI
                     FacesTo = faces,
                     OffsetMm = double.TryParse(_elevOffset?.Text, out var off) ? off : 3000,
                     FarClipMm = double.TryParse(_elevFar?.Text, out var ef) ? ef : 30000,
-                    ShowLevels = _elevShowLevels?.IsChecked == true,
-                    ShowGrids = _elevShowGrids?.IsChecked == true,
                     UseOneFourViewSheet = _elev1Plus4?.IsChecked == true,
-                    MarkerFamily = _elevMarker?.Text
                 };
             }
 

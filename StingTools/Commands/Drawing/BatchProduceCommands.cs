@@ -798,6 +798,21 @@ namespace StingTools.Commands.Drawing
     [Regeneration(RegenerationOption.Manual)]
     public class ProduceExteriorElevationsCommand : IExternalCommand
     {
+        /// <summary>
+        /// DTW-27: exterior elevations are produced through DrawingProducer, so they are
+        /// idempotent (a re-run reuses each face's view — no new markers, no failing
+        /// rename), get sheets when "Create sheets" is ticked, and are presented and
+        /// stamped like every other produced drawing.
+        ///
+        /// Context tags: "Exterior-&lt;Face&gt;" (one sheet per face, rule 0), or
+        /// "Exterior" with rules 0-3 when the four go on one 1+4 sheet. Stamps are
+        /// "::::Exterior-North" / "::::Exterior". A view stamped with the older raw tag
+        /// "exterior::face::&lt;Face&gt;" (an earlier build, or the Setup Wizard) is adopted
+        /// and re-stamped, not duplicated.
+        ///
+        /// The markers are hosted on a floor plan of the ticked level nearest ground, and
+        /// each face keeps the marker index that actually looks at the building.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             try
@@ -809,13 +824,13 @@ namespace StingTools.Commands.Drawing
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation")
                     .Where(t => !(t.Name ?? "").ToLowerInvariant().Contains("interior")).ToList();
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                if (levels.Count == 0) { TaskDialog.Show("STING", "The model has no levels to host elevation markers on."); return Result.Succeeded; }
 
-                var dlg = new DrawingProductionConfigDialog(types, new List<string> { "Building (auto-detect footprint)" }, "ExteriorElevations", doc);
+                var dlg = new DrawingProductionConfigDialog(types, levels.Select(l => l.Name).ToList(), "ExteriorElevations", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
-                // GAP-L: primed only once the dialog is confirmed (it was primed before the
-                // dialog and never reset, so a cancelled run left the caches, and a
-                // confirmed one kept them past the command); reset in finally.
+                // GAP-L: primed only once the dialog is confirmed; reset in finally.
                 DrawingProducer.PrimeBatchCaches(doc);
 
                 var elev = res.Preset?.ElevationConfig ?? new ElevationProductionConfig();
@@ -823,92 +838,119 @@ namespace StingTools.Commands.Drawing
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
 
-                // Footprint detection
-                var walls = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType().ToList();
-                if (walls.Count == 0)
-                {
-                    TaskDialog.Show("STING", "No walls in project — cannot derive building footprint.");
-                    return Result.Succeeded;
-                }
-                var bb = new BoundingBoxXYZ { Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue), Max = new XYZ(double.MinValue, double.MinValue, double.MinValue) };
-                foreach (var w in walls)
+                // The markers' host: the ticked level nearest ground.
+                var ticked = levels.Where(l => res.SelectedContexts.Contains(l.Name)).ToList();
+                var host = ticked.OrderBy(l => Math.Abs(l.Elevation)).ThenBy(l => l.Elevation).FirstOrDefault();
+                if (host == null) { TaskDialog.Show("STING", "Tick the level whose plan should host the elevation markers."); return Result.Succeeded; }
+                if (ticked.Count > 1)
+                    warnings.Add($"Exterior elevations are made once, not per level: the markers are hosted on {host.Name} (the ticked level nearest ground).");
+
+                // Footprint from the walls.
+                double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+                foreach (var w in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType())
                 {
                     var wbb = w.get_BoundingBox(null);
                     if (wbb == null) continue;
-                    bb.Min = new XYZ(Math.Min(bb.Min.X, wbb.Min.X), Math.Min(bb.Min.Y, wbb.Min.Y), Math.Min(bb.Min.Z, wbb.Min.Z));
-                    bb.Max = new XYZ(Math.Max(bb.Max.X, wbb.Max.X), Math.Max(bb.Max.Y, wbb.Max.Y), Math.Max(bb.Max.Z, wbb.Max.Z));
+                    minX = Math.Min(minX, wbb.Min.X); minY = Math.Min(minY, wbb.Min.Y);
+                    maxX = Math.Max(maxX, wbb.Max.X); maxY = Math.Max(maxY, wbb.Max.Y);
                 }
+                if (minX > maxX) { TaskDialog.Show("STING", "No walls in project — cannot derive building footprint."); return Result.Succeeded; }
                 double offFt = elev.OffsetMm / 304.8;
+
+                var faces = new List<(string Face, ElevationStation Station)>();
+                foreach (var face in elev.FacesTo ?? new List<string>())
+                {
+                    var st = ElevationFaces.ExteriorStation(face, minX, minY, maxX, maxY, offFt);
+                    if (st == null) { warnings.Add($"'{face}' is not North, East, South or West — skipped."); continue; }
+                    faces.Add((face, new ElevationStation { X = st.Value.X, Y = st.Value.Y, LookX = st.Value.LookX, LookY = st.Value.LookY }));
+                }
+                if (faces.Count == 0) { TaskDialog.Show("STING", "No face ticked — nothing to produce."); return Result.Succeeded; }
+
+                // Views stamped by an earlier build or by the Setup Wizard, by their raw tag.
+                var legacy = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                    .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
+                    .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
+                                  Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
+                    .Where(x => x.Tag.StartsWith("exterior::face::", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
                 using (var tg = new TransactionGroup(doc, "STING Exterior Elevations"))
                 {
                     tg.Start();
-                    foreach (var face in elev.FacesTo ?? new List<string>())
+                    foreach (var dt in pickedTypes)
                     {
-                        // Revit's elevation marker face indexes: N=0, E=1, S=2, W=3 (viewer-facing).
-                        int idx;
-                        XYZ origin;
-                        switch (face)
+                        var elevSlots = Enumerable.Range(0, dt.Slots?.Count ?? 0)
+                            .Where(i => string.Equals(dt.Slots[i]?.ViewType, "Elevation", StringComparison.OrdinalIgnoreCase)).ToList();
+                        bool onePlusFour = elev.UseOneFourViewSheet && opts.CreateSheet;
+                        if (onePlusFour && elevSlots.Count < faces.Count)
                         {
-                            case "North": idx = 0; origin = new XYZ((bb.Min.X + bb.Max.X) / 2, bb.Max.Y + offFt, 0); break;
-                            case "East":  idx = 1; origin = new XYZ(bb.Max.X + offFt, (bb.Min.Y + bb.Max.Y) / 2, 0); break;
-                            case "South": idx = 2; origin = new XYZ((bb.Min.X + bb.Max.X) / 2, bb.Min.Y - offFt, 0); break;
-                            case "West":  idx = 3; origin = new XYZ(bb.Min.X - offFt, (bb.Min.Y + bb.Max.Y) / 2, 0); break;
-                            default: continue;
+                            warnings.Add($"{dt.Id} lays out {elevSlots.Count} elevation slot(s), not {faces.Count}: each face gets its own sheet.");
+                            onePlusFour = false;
                         }
-                        using (var t = new Transaction(doc, $"STING Exterior Elev {face}"))
+
+                        // One production call per sheet: all faces on one sheet, or one per face.
+                        var jobs = new List<(string Tag, List<(string Face, ElevationStation St, int RuleIdx, int Slot)> Faces)>();
+                        if (onePlusFour)
+                            jobs.Add(("Exterior", faces.Select((f, i) => (f.Face, f.Station, i, elevSlots[i])).ToList()));
+                        else
+                            foreach (var f in faces)
+                                jobs.Add(($"Exterior-{f.Face}", new List<(string, ElevationStation, int, int)> { (f.Face, f.Station, 0, elevSlots.Count > 0 ? elevSlots[0] : 0) }));
+
+                        foreach (var job in jobs)
                         {
-                            t.Start();
-                            try
+                            var ctx = new DrawingContext
                             {
-                                int tv = 0;
-                                foreach (var dt in pickedTypes)
+                                Tag = job.Tag, PackageId = res.Preset?.PackageId, OwnerLevel = host,
+                                RulesOverride = job.Faces.Select(f => new ProductionRule
                                 {
-                                    try
+                                    Idx = f.RuleIdx, ViewType = "Elevation", SlotIndex = f.Slot, Required = true,
+                                    NameSuffix = onePlusFour ? $" - {f.Face}" : null,
+                                }).ToList(),
+                                ElevationStations = job.Faces.ToDictionary(f => f.RuleIdx, f => f.St),
+                            };
+                            using (var t = new Transaction(doc, $"STING Exterior Elev {job.Tag} {dt.Id}"))
+                            {
+                                t.Start();
+                                try
+                                {
+                                    foreach (var f in job.Faces)
                                     {
-                                        var vft = StingTools.Core.Drawing.DrawingProducer.ResolveNamedViewFamilyType(
-                                            doc, ViewFamily.Elevation, dt.ViewFamilyTypeName, out var vftWhy);
-                                        if (vft == null) { warnings.Add("No elevation ViewFamilyType."); continue; }
-                                        if (vftWhy != null) warnings.Add($"{dt.Id}: {vftWhy}");
-                                        var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().FirstOrDefault(v => !v.IsTemplate);
-                                        if (ownerPlan == null) { warnings.Add("No owner plan for elevation marker."); continue; }
-                                        var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);
-                                        var view = marker.CreateElevation(doc, ownerPlan.Id, idx);
-                                        try { view.Name = $"Exterior Elevation - {face} - {dt.Name}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                                        var old = legacy.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                            && string.Equals(x.Tag, $"exterior::face::{f.Face}", StringComparison.OrdinalIgnoreCase));
+                                        if (old.View != null && DrawingProducer.AdoptView(doc, dt, ctx, ctx.RulesOverride.First(r => r.Idx == f.RuleIdx), old.View))
+                                            warnings.Add($"'{old.View.Name}' (stamped exterior::face::{f.Face}) was adopted as {dt.Id} {job.Tag}, not duplicated.");
+                                    }
+                                    var pr = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
+                                    foreach (var vid in pr.ViewIds)
+                                    {
                                         try
                                         {
-                                            var fp = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
+                                            var fp = doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
                                             if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
                                         }
-                                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                                        var ar = DrawingTypePresentation.Apply(doc, view, dt, new DrawingTypePresentation.ApplyOptions
-                                        {
-                                            AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale },
-                                            SkipSymbolDriftCheck = true // batch produce
-                                        });
-                                        warnings.AddRange(ar.Warnings);
-                                        DrawingTypeStamper.Stamp(view, dt.Id);
-                                        DrawingTypeStamper.StampPackage(view, res.Preset?.PackageId ?? dt.PackageId ?? "");
-                                        ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, $"exterior::face::{face}", overwrite: true);
-                                        tv++;
+                                        catch (Exception ex) { warnings.Add($"{job.Tag}: far clip {elev.FarClipMm} mm not set — {ex.Message}"); }
                                     }
-                                    catch (Exception ex) { warnings.Add($"Exterior {face}/{dt.Name}: {ex.Message}"); }
+                                    warnings.AddRange(pr.Warnings);
+                                    var status = t.Commit();
+                                    if (status == TransactionStatus.Committed)
+                                    {
+                                        views += pr.ViewIds.Count;
+                                        if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
+                                    }
+                                    else warnings.Add($"{job.Tag} ({dt.Id}): the transaction did not commit ({status}); {pr.ViewIds.Count} view(s) were not kept.");
                                 }
-                                var status = t.Commit();
-                                if (status == TransactionStatus.Committed) views += tv;
-                                else warnings.Add($"Exterior {face}: the transaction did not commit ({status}); {tv} view(s) were not kept.");
-                            }
-                            catch (Exception innerEx)
-                            {
-                                StingLog.Warn($"ProduceExteriorElevations face={face}: {innerEx.Message}");
-                                warnings.Add($"Exterior {face}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                catch (Exception innerEx)
+                                {
+                                    StingLog.Warn($"ProduceExteriorElevations {job.Tag}: {innerEx.Message}");
+                                    warnings.Add($"{job.Tag} ({dt.Id}): {innerEx.Message} — rolled back.");
+                                    if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
+                                }
                             }
                         }
                     }
                     tg.Assimilate();
                 }
-                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }

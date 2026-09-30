@@ -1791,6 +1791,29 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-27: adopt a view made outside the producer for (drawing type, context, rule)
+        /// — e.g. an exterior elevation the Setup Wizard or an earlier build stamped with
+        /// the raw tag "exterior::face::North" — by stamping it the way the producer would,
+        /// so ProduceAllViews reuses it instead of making a second one. Does nothing, and
+        /// returns false, when the producer already has a view for that context and rule.
+        /// Caller owns the transaction.
+        /// </summary>
+        internal static bool AdoptView(Document doc, DrawingType dt, DrawingContext ctx, ProductionRule rule, View view)
+        {
+            if (doc == null || dt == null || ctx == null || rule == null || view == null) return false;
+            if (FindExistingView(doc, dt.Id, ctx, rule.Idx) != null) return false;
+            DrawingTypeStamper.Stamp(view, dt.Id);
+            StampViewParameters(doc, view.Id, dt, rule, ctx);
+            try
+            {
+                if (_existingViewCache != null && CacheMatchesDoc(doc))
+                    _existingViewCache[ViewKey(dt.Id, ProductionContextKey.Identity(BuildContextTag(ctx)), rule.Idx)] = view.Id;
+            }
+            catch (Exception ex) { StingLog.Warn($"AdoptView cache: {ex.Message}"); }
+            return true;
+        }
+
+        /// <summary>
         /// The stamp the producer wrote before DTW-42 (names only). An element stamped that
         /// way is still found — and re-stamped in the new form — so a model produced by an
         /// earlier build does not get a second set of views and sheets.
