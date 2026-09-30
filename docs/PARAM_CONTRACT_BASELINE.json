@@ -1662,11 +1662,6 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code and claimed by no schedule, COBie sheet or IFC pset — so the producer is a person filling it in. If that is wrong, it is a missing writer."
     },
-    "STING_SCOPE_BOX_TAG_TXT": {
-      "state": "read_only",
-      "role": "reference",
-      "reason": "GenerateFromScopeBoxesCommand writes the STING:: scope-box tag onto each view it generates (LookupParameter(...).Set, which this scan reads as a read). Carried so the author, a view list schedule or a filter can see which scope box produced the view; no C# reader yet."
-    },
     "STING_TEMPLATE_CHECKSUM_TXT": {
       "state": "read_only",
       "role": "pipeline",

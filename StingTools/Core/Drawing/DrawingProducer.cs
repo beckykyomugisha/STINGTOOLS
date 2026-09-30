@@ -1802,15 +1802,28 @@ namespace StingTools.Core.Drawing
         {
             if (doc == null || dt == null || ctx == null || rule == null || view == null) return false;
             if (FindExistingView(doc, dt.Id, ctx, rule.Idx) != null) return false;
-            DrawingTypeStamper.Stamp(view, dt.Id);
+            // Adopted only if the type stamp landed: without it the producer cannot find the
+            // view again and would make a second one on the next pass.
+            bool stamped = DrawingTypeStamper.Stamp(view, dt.Id);
+            if (!stamped)
+            {
+                StingLog.Warn($"AdoptView: could not stamp '{view.Name}' with {dt.Id} — not adopted.");
+                return false;
+            }
             StampViewParameters(doc, view.Id, dt, rule, ctx);
             try
             {
                 if (_existingViewCache != null && CacheMatchesDoc(doc))
                     _existingViewCache[ViewKey(dt.Id, ProductionContextKey.Identity(BuildContextTag(ctx)), rule.Idx)] = view.Id;
             }
-            catch (Exception ex) { StingLog.Warn($"AdoptView cache: {ex.Message}"); }
-            return true;
+            catch (Exception ex)
+            {
+                // The batch index no longer knows this view; drop it so the next lookup
+                // reads the model (where the stamp now is) instead of missing it.
+                StingLog.Warn($"AdoptView cache: {ex.Message} — batch view index dropped.");
+                _existingViewCache = null;
+            }
+            return stamped;
         }
 
         /// <summary>
