@@ -44,6 +44,24 @@ Last full green (2026-10-01, `23354ba63`): build 0/0; Acc 526, Tags 4215, Cost 1
 | A15 | Round trip | AccSyncIssueStatusCommand:107 vs AccImportIssues origin | P2 | Sync removes closed escalations Import needs to recognise STING-raised issues | Keep an origin record separate from the tracking set (Agent X) |
 | A16 | Docs | KUT_ACC_DAY1_PLAYBOOK.md §3.5/§6/§8, ACC_INTEGRATION_STRATEGY.md | P2 | 13 keys missing from §6; stale claims; escalateExcludeStatuses example drops defaults; assignee "both or neither" wrong; card tooltip wrong | Agent Y (+ doc test loading §6 examples through AccOperatingPolicy.Load) |
 
+## Findings — revision/issue workflow → ACC (audit 2026-10-01)
+| Id | Area | Where | Sev | Defect | Plan |
+|---|---|---|---|---|---|
+| R1 | Workflow gating | Core/WorkflowEngine.cs:612; WORKFLOW_KUT_FortnightlyIssue.json | P0 | Optional failOnError steps (ACCPublish, ACC_UploadLastBundle) ran after the leak check / pairing gate failed | **Done** 6d5df2dde: WorkflowStepGate; `runAfterFailure` opt-in |
+| R2 | Bundle upload | Clash/AccUploadModelCommand.cs:379-415; PlatformLinkCommands.cs:1109-1174 | P0 | Uploads whatever bundle was last recorded: a Cancelled ACCPublish (skip) lets step 7 re-upload last fortnight's ZIP and re-mark its transmittal SENT; re-running duplicates | Stamp bundle record with run id + uploaded versionUrn; refuse a stale/already-uploaded bundle in a preset (after agent X merges — A3 touches ACCPublish) |
+| R3 | Bundle content | PlatformLinkCommands.cs:116-171 | P0 | The ACC bundle carries JSON registers/COBie, not the sheet PDFs step 5 exported; the issue set never reaches ACC | Upload the run's Export Centre rows (ledgered per-sheet path) as the upload step; correct preset text |
+| R4 | Pairing on upload | AccUploadModelCommand BuildOptions; ExportCenterEngine.cs:1088-1130 | P1 | Pairing checked against the file name only (bundle names carry no P/C); Export Centre per-sheet upload unchecked | Check agent Y's AccUploadGate (A12) covers recorded revision+suitability; close or extend |
+| R5 | Deliverables | Docs/Templates/DeliverableLifecycle.cs:43-45,196-214; RevisionIssueCompletion.cs:92-94 | P1 | Publish fills A1 over a P revision; ApplyToDeliverables keeps old suitability with new revision → P03/A1 persisted | Run Iso19650RevisionRules.Check; record conflict instead of persisting |
+| R6 | IssueSheets | RevisionManagementCommands.cs:1622-1640,1719-1735 | P1 | In a workflow suitability is blank → pairing NotApplicable → revision issued with no suitability | Refuse blank suitability when running a preset; carry last issue's suitability to the next draft |
+| R7 | IssueSheets | RevisionManagementCommands.cs:1615-1620 | P1 | Zero-sheet guard only when IsUnattended (never set by the KUT preset): burns a number, proposes RESPONDED for every open issue | Refuse zero targets whenever IsRunningPreset |
+| R8 | Ordering | RevisionManagementCommands.cs:1656-1683 + CompleteIssue | P1 | Register/deliverables/issues marked issued before export/upload succeed; not reverted | Defer issue-resolution proposals to after transmit; record pending state |
+| R9 | Export step | Docs/ScheduledExportRunner.cs:35-104,167-190 | P1 | Returns Succeeded when nothing was due/blocked/failed; unconditional TaskDialog | Per-job outcomes; Failed in a preset when nothing produced; no dialog unattended |
+| R10 | Leak check | RevisionNumberingCommands.cs:145-151 vs TitleBlockRevisionSyncer.cs:246-256 | P1 | Leak check flags locked title blocks the syncer deliberately skips → step 1 fails forever | Honour the lock (informational) |
+| R11 | Retire | Clash/AccRetireDeliverable.cs:43-51 | P1 | Looks for acc_version_urn on register rows; nothing writes it → supersede/replace never archives | Resolve through AccUploadLedger by DocumentNumber (store FolderUrn) |
+| R12 | Reachability | UI/StingCommandHandler.cs:3026 | P2 | Revision_SetPerSheetNumbering has no button; CreateRevision tells users to run it | Add BIM-tab button; fix log text |
+| R13 | Revision label | Core/Drawing/SheetRevisionReader.cs:77-83 | P2 | Invents "R{seq}" when numbering is None; reaches title block, file names, ACC | Return empty + report |
+| R14 | Register default | BIMManager/ExportRegisterUpsert.cs:57,63 | P2 | Non-sheet rows default S0/WIP, later read as a real suitability for ACC | Leave blank; let upload refuse/ask |
+
 ## Findings (done)
 - 2026-10-01 audit fixes on `claude/acc-audit-fixes-y` (not pushed): **A7** `eec4bf778` (review on the live tip version) ·
   **A10** `17a5ebb59` (push assignee resolved via AccProjectMembers) · **A12** `036d9a0b1` (AccUploadGate shared by
