@@ -573,7 +573,7 @@ namespace StingTools.Core.Drawing
                             // it survives view-template re-assignment.
                             if (!string.IsNullOrEmpty(pack.DefaultTagStyle))
                                 StingTools.Core.ParameterHelpers.SetString(
-                                    template, "STING_DEFAULT_TAG_STYLE_TXT",
+                                    template, ParamRegistry.DEFAULT_TAG_STYLE,
                                     pack.DefaultTagStyle, overwrite: true);
                             break;
                     }
