@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Nothing in the KUT coordination cycle may block on a person without a reason on record.
+"""Nothing in the KUT workflows may block on a person without a reason on record.
 
 WHY
 The fortnightly cycle is meant to run without a human clicking through it. Four dialogs
@@ -32,24 +32,31 @@ somebody had to type. The baseline only shrinks -- a NEW hit fails, and so does 
 hit whose code has gone, so an entry cannot linger claiming something about code that no
 longer exists. Modelled on tools/param_name_targets_baseline.txt.
 
-A PROMPT IS NOT A MESSAGE. Only constructs that ask for a DECISION are counted:
+WHAT IS COUNTED -- every construct that makes a run WAIT on a person:
 
     StingListPicker.Show   a modal list the run waits on
     OpenFileDialog         a modal file chooser
     AddCommandLink         a TaskDialog offering choices, whose answer is then read
     .ShowDialog()          any modal WPF window
     TaskDialogResult       the answer of a dialog being compared, i.e. a branch on a click
+    TaskDialog.Show(       a modal message (A8, 2026-10-01)
+    new TaskDialog(        the same window built by hand (A8)
 
-`TaskDialog.Show(title, text)` on its own is deliberately NOT counted. It reports a result
-and its return value is discarded; nothing branches on it. Counting it would fill the
-baseline with entries that are not gates, and a baseline full of non-gates is one nobody
-reads. (In unattended mode those messages are additionally routed to the log rather than
-shown -- see AccPullClashesCommand.Report -- but that is a nicety, not what this gate is
-about.)
+Until 2026-10-01 `TaskDialog.Show(title, text)` was NOT counted, on the argument that it
+asks for nothing. That let two ACC commands (the lifecycle-gap push and ACCPublish's
+unattended branch) pass this gate while opening modal windows on an unattended project - a
+scheduled run waits on an OK button exactly as long as on a Yes/No. It is counted now, and
+the ACC commands route messages through AccPullClashesCommand.Report (logged when
+unattended). The one exception is the first-line `if (ctx == null) { TaskDialog.Show(...) }`
+guard: WorkflowEngine refuses to start a workflow without a document context, so that branch
+cannot run inside one.
+
+SCOPE (A8): every StingTools/Data/WORKFLOW_KUT_*.json, not only the coordination cycle. A
+class run by several workflows or tags is counted once.
 
 Usage:
     python tools/check_unattended_cycle.py [repo-root]      # default: cwd
-Exit 0 = every interactive construct in the cycle is either gone or baselined with a reason.
+Exit 0 = every interactive construct in the KUT workflows is gone or baselined with a reason.
 """
 from __future__ import annotations
 
@@ -59,7 +66,8 @@ import re
 import sys
 from pathlib import Path
 
-WORKFLOW = "StingTools/Data/WORKFLOW_KUT_CoordinationCycle.json"
+WORKFLOW_GLOB = "WORKFLOW_KUT_*.json"
+WORKFLOW_DIR = "StingTools/Data"
 ENGINE = "StingTools/Core/WorkflowEngine.cs"
 BASELINE = "tools/unattended_cycle_baseline.txt"
 SOURCE_ROOT = "StingTools"
@@ -72,7 +80,16 @@ INTERACTIVE = {
     "AddCommandLink": re.compile(r"\bAddCommandLink\b"),
     "ShowDialog": re.compile(r"\.\s*ShowDialog\s*\("),
     "TaskDialogResult": re.compile(r"\bTaskDialogResult\s*\."),
+    # A8 (2026-10-01): a modal message is a wait too. TaskDialog.Show(title, text) asks for
+    # nothing, but a scheduled run still sits on it until somebody clicks OK - so it is
+    # counted, and the commands route messages through AccPullClashesCommand.Report (which
+    # logs when unattended) instead. `new TaskDialog(` is the same window built by hand.
+    "TaskDialog.Show": re.compile(r"\bTaskDialog\s*\.\s*Show\s*\("),
+    "new TaskDialog": re.compile(r"\bnew\s+TaskDialog\s*\("),
 }
+
+NO_DOC_GUARD = re.compile(
+    r"\bif\s*\(\s*(?:ctx|doc|uidoc|uiDoc|uiapp|uiApp)\s*==\s*null\s*\)\s*\{?\s*TaskDialog\s*\.\s*Show\s*\(")
 
 # `case "Tag":` labels may stack before one `return new X();`.
 CASE_RE = re.compile(r'^\s*case\s+"([^"]+)"\s*:', re.MULTILINE)
@@ -189,7 +206,17 @@ def scan(root: Path, path: Path, simple_name: str, mod) -> tuple[dict[str, int],
     lo, hi = span
     where = f"{text.count(chr(10), 0, lo) + 1}-{text.count(chr(10), 0, hi) + 1}"
     code = mod.strip_strings_and_comments(text)[lo:hi]
-    return {name: len(rx.findall(code)) for name, rx in INTERACTIVE.items() if rx.search(code)}, where
+    counts = {name: len(rx.findall(code)) for name, rx in INTERACTIVE.items() if rx.search(code)}
+    # The one TaskDialog.Show that is NOT counted: the first-line "no document" guard,
+    # `if (ctx == null) { TaskDialog.Show(...); return ...; }`. WorkflowEngine.ExecutePresetCore
+    # refuses to start a workflow without a document context, so inside a workflow that branch
+    # cannot run. Matched on the blanked code, so a guard inside a comment is not subtracted.
+    guards = len(NO_DOC_GUARD.findall(code))
+    if guards and "TaskDialog.Show" in counts:
+        counts["TaskDialog.Show"] -= min(guards, counts["TaskDialog.Show"])
+        if counts["TaskDialog.Show"] == 0:
+            del counts["TaskDialog.Show"]
+    return counts, where
 
 
 def read_baseline(path: Path) -> dict[tuple[str, str], tuple[int, str]]:
@@ -217,26 +244,35 @@ def main() -> int:
     root = Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
     mod = load_tag_checker(root)
 
-    wf_path = root / WORKFLOW
-    if not wf_path.is_file():
-        return fail(f"{wf_path} not found")
-    steps = json.loads(wf_path.read_text(encoding="utf-8")).get("steps", [])
-    tags = [s.get("commandTag") for s in steps if isinstance(s, dict) and s.get("commandTag")]
-    if not tags:
-        return fail(f"{WORKFLOW} declares no commandTags -- refusing to report a clean cycle from nothing.")
+    # A8: EVERY KUT workflow, not only the coordination cycle. The lifecycle-gap push and
+    # ACCPublish's fortnightly-issue step both create or publish into ACC and lived in other
+    # workflows, so a cycle-only scan passed while they opened modal windows.
+    wf_files = sorted((root / WORKFLOW_DIR).glob(WORKFLOW_GLOB))
+    if not wf_files:
+        return fail(f"no files matched {WORKFLOW_DIR}/{WORKFLOW_GLOB} -- refusing to report a clean set from nothing.")
+    tags: list[str] = []
+    for wf_path in wf_files:
+        steps = json.loads(wf_path.read_text(encoding="utf-8")).get("steps", [])
+        wf_tags = [s.get("commandTag") for s in steps if isinstance(s, dict) and s.get("commandTag")]
+        if not wf_tags:
+            return fail(f"{wf_path.name} declares no commandTags -- refusing to report a clean workflow from nothing.")
+        for t in wf_tags:
+            if t not in tags:
+                tags.append(t)
 
     mapping = tag_to_class(root, mod)
-    # Self-test: the extraction must actually resolve the tags this cycle uses. A mapping
-    # that silently resolved nothing would report a cycle with no dialogs in it at all.
+    # Self-test: the extraction must actually resolve the tags the workflows use. A mapping
+    # that silently resolved nothing would report workflows with no dialogs in them at all.
     unresolved = [t for t in tags if t not in mapping]
     if unresolved:
-        return fail("these cycle tags do not resolve to a command class: " + ", ".join(unresolved) +
+        return fail("these KUT workflow tags do not resolve to a command class: " + ", ".join(unresolved) +
                     ". tools/check_kut_workflow_tags.py should have caught this first.")
 
-    print(f"KUT coordination cycle: {len(tags)} step(s)\n")
+    print(f"KUT workflows: {len(wf_files)} file(s), {len(tags)} distinct step tag(s)\n")
     findings: dict[tuple[str, str], int] = {}
-    print(f"{'Step tag':<22} {'Command class':<42} Source (class body)")
-    print("-" * 112)
+    scanned: set[str] = set()
+    print(f"{'Step tag':<34} {'Command class':<52} Source (class body)")
+    print("-" * 132)
     for tag in tags:
         cls = mapping[tag]
         simple = cls.rsplit(".", 1)[-1]
@@ -244,12 +280,17 @@ def main() -> int:
         if src is None:
             return fail(f"no source file declares {cls} (tag {tag}) -- cannot vouch for what it does.")
         rel = src.relative_to(root).as_posix()
+        key = f"{rel}::{simple}"
+        if key in scanned:   # two tags (or two workflows) running one class count it once
+            print(f"{tag:<34} {cls:<52} (same class as above)")
+            continue
+        scanned.add(key)
         counts, where = scan(root, src, simple, mod)
-        print(f"{tag:<22} {cls:<42} {rel}:{where}")
-        # Keyed by CLASS, not by file: three of these share a god-file with dozens of
-        # other commands, and a per-file key would blame this cycle for their dialogs.
+        print(f"{tag:<34} {cls:<52} {rel}:{where}")
+        # Keyed by CLASS, not by file: several of these share a god-file with dozens of
+        # other commands, and a per-file key would blame these workflows for their dialogs.
         for construct, n in counts.items():
-            findings[(f"{rel}::{simple}", construct)] = findings.get((f"{rel}::{simple}", construct), 0) + n
+            findings[(key, construct)] = findings.get((key, construct), 0) + n
 
     print()
     baseline = read_baseline(root / BASELINE)
@@ -290,7 +331,7 @@ def main() -> int:
         print("\nFAIL")
         return 1
 
-    print("OK: every interactive construct in the KUT coordination cycle is baselined with a reason.")
+    print("OK: every interactive construct in the KUT workflows is baselined with a reason.")
     print("    Remember what this does NOT prove — see the docstring.")
     return 0
 

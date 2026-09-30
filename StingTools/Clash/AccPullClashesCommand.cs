@@ -68,7 +68,7 @@ namespace StingTools.Core.Clash
             //    remembers one.
             AccFetchResult<List<AccModelSet>> setsResult;
             try { setsResult = AccModelCoordSync.ListModelSetsAsync(creds, containerId).GetAwaiter().GetResult(); }
-            catch (Exception ex) { StingLog.Error("ACC ListModelSets", ex); TaskDialog.Show("ACC", "Model-set request failed: " + ex.Message); return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("ACC ListModelSets", ex); Report(policy, "ACC — Pull Clashes", "Model-set request failed: " + ex.Message); return Result.Failed; }
 
             // A failed request is NOT "no model sets". Saying so let a wrong container id
             // read as a clean federation and pass a coordination gate that checked nothing.
@@ -140,7 +140,7 @@ namespace StingTools.Core.Clash
             // 2. Pull clashes (latest test -> resources -> scope files -> join).
             AccFetchResult<List<AccClashRecord>> clashResult;
             try { clashResult = AccModelCoordSync.GetClashesAsync(creds, containerId, chosen.Id).GetAwaiter().GetResult(); }
-            catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); TaskDialog.Show("ACC", "Clash request failed: " + ex.Message); return Result.Failed; }
+            catch (Exception ex) { StingLog.Error("ACC GetClashes", ex); Report(policy, "ACC — Pull Clashes", "Clash request failed: " + ex.Message); return Result.Failed; }
 
             // The load-bearing branch. Only a request that ACTUALLY SUCCEEDED may be
             // reported as "clash-clean"; every failure names itself and fails the step,
