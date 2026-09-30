@@ -352,6 +352,8 @@ namespace StingTools.Core.Clash
             public AccLocateSummary Locate;
             public int Attached, AttachFailed;
             public List<string> AttachFailures = new List<string>();
+            /// <summary>Configured custom attributes / root cause that were NOT sent, and why.</summary>
+            public List<string> FieldProblems = new List<string>();
             public string Describe()
             {
                 string text = $"escalated {Pushed} clash(es) to ACC Issues; {Skipped} already tracked";
@@ -363,6 +365,10 @@ namespace StingTools.Core.Clash
                     text += $"; BCF attached to {Attached} issue(s)" +
                             (AttachFailed > 0 ? $", {AttachFailed} attachment(s) FAILED (the issues exist): " +
                                                 string.Join(" | ", AttachFailures.Take(2)) : "");
+                var fp = FieldProblems.Distinct().ToList();
+                if (fp.Count > 0)
+                    text += $"; {fp.Count} configured issue field(s) NOT sent (issues created without them): " +
+                            string.Join(" | ", fp.Take(3)) + (fp.Count > 3 ? " …" : "");
                 return text + ".";
             }
         }
@@ -404,6 +410,25 @@ namespace StingTools.Core.Clash
                 StingLog.Info("ACC_PullClashes: " + outcome.Locate.Describe());
             }
 
+            // Custom attributes / root cause (acc_settings.json), resolved by title once per run.
+            // Any title that does not resolve is reported; the issues are created regardless.
+            AccIssueFieldResolution fields = null;
+            if (policy != null && (policy.IssueCustomAttributes.Count > 0 || !string.IsNullOrWhiteSpace(policy.IssueRootCause)))
+            {
+                try
+                {
+                    fields = AccIssueFields.ResolveAsync(creds, policy.IssueCustomAttributes, policy.IssueRootCause)
+                                           .GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    fields = new AccIssueFieldResolution();
+                    fields.Problems.Add("resolving custom attributes / root cause failed: " + ex.Message);
+                }
+                outcome.FieldProblems.AddRange(fields.Problems);
+                foreach (var p in fields.Problems) StingLog.Warn("ACC_PullClashes issue fields: " + p);
+            }
+
             foreach (var s in top)
             {
                 byId.TryGetValue(s.ClashId, out var c);
@@ -412,7 +437,7 @@ namespace StingTools.Core.Clash
                 if (pushedMap.ContainsKey(sig)) { outcome.Skipped++; continue; }
 
                 locations.TryGetValue(s.ClashId, out var loc);
-                var issue = BuildClashIssue(s, c, set, policy, loc);
+                var issue = BuildClashIssue(s, c, set, policy, loc, fields, outcome.FieldProblems);
                 try
                 {
                     var r = AccIssueSync.PushIssueDetailedAsync(creds, issue).GetAwaiter().GetResult();
@@ -477,7 +502,7 @@ namespace StingTools.Core.Clash
         /// and zooms to the objects in Revit) and ACC's own viewer link, when they resolved -
         /// see AccClashLocate.cs. Links are kept whole inside ACC's 1000-character limit.</summary>
         internal static AccIssue BuildClashIssue(ScoredClash s, AccClashRecord c, AccModelSet set, AccOperatingPolicy policy,
-            AccClashLocation location = null)
+            AccClashLocation location = null, AccIssueFieldResolution fields = null, List<string> fieldProblems = null)
         {
             var d = new StringBuilder();
             d.AppendLine($"STING clash triage — score {s.Score:F2} ({s.Category}). {s.Rationale}");
@@ -506,6 +531,18 @@ namespace StingTools.Core.Clash
                     issue.AssignedToUserId = policy.EscalateAssignedTo;
                     issue.AssignedToType = policy.EscalateAssignedToType;
                 }
+            }
+            if (fields != null && fields.Any)
+            {
+                var values = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["clashSignature"] = c != null ? Signature(c) : s.ClashId,
+                    ["clashId"] = s.ClashId ?? string.Empty,
+                    ["triageScore"] = s.Score.ToString("F2", System.Globalization.CultureInfo.InvariantCulture),
+                    ["modelSet"] = set?.Name ?? string.Empty,
+                };
+                issue.CustomAttributes = AccIssueFields.Values(fields, values, fieldProblems);
+                issue.RootCauseId = fields.RootCauseId ?? string.Empty;
             }
             return issue;
         }

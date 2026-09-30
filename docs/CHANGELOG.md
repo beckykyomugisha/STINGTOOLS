@@ -2,6 +2,62 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC issues two-way: push, incremental import, auto-import, custom attributes, 2026-10-01)
+
+- **"Changed in STING, not in ACC" is reported.** `ACC_ImportIssues` used to keep a
+  local-only edit to an ACC-owned field without saying so. Each one is now a `LocalAhead`
+  entry (row, field, STING value, ACC value). It appears in the dialog or log and in the CSV.
+  Nothing is written to ACC by an import.
+- **`ACC_PushIssueChanges`** (`Clash/AccPushIssueChangesCommand.cs`; decisions in the
+  Revit-free `V6/AccIssuePush.cs`). The candidates are register rows whose status or assignee
+  differs from the base recorded at import. Each one is re-read from ACC first. Any field ACC
+  also changed is a conflict: it is reported and skipped. A status is sent only if it maps
+  back to itself: open, in_progress, completed (RESPONDED) or closed. ACCEPTED, RESOLVED and
+  VOID are reported instead. The status must also be in ACC's `permittedStatuses`, and the
+  assignee must be in `permittedAttributes`, when ACC lists them. The command then PATCHes and
+  posts one comment. The comment carries the STING status note and any register comments not
+  yet sent. The base moves only for fields ACC confirmed. Title, description and due date are
+  reported, never pushed. Interactive runs show a preview and ask. Unattended runs write only
+  with `"pushIssueChanges": true`; otherwise they report and write nothing.
+  - `AccIssueSync`: `GetIssueAsync`, `PatchIssueAsync` and `AddCommentAsync`. The PATCH and
+    the comment are not idempotent, so they are never retried on an ambiguous 5xx or transport
+    failure. Such a failure is reported as "MAY have been applied".
+  - Wired on `StingCommandHandler` (both spellings), `WorkflowEngine.ResolveCommand` plus the
+    known tags, the BCC ACC card and the `WarningsManager` action map.
+- **Incremental import.** `filter[updatedAt]=<from>..` runs from the start of the last
+  successful pull, minus 5 minutes. The watermark is stored in
+  `_BIM_COORD/acc/acc_issue_import_state.json` (`V6/AccIssueImportState.cs`). A full read
+  happens when there is no state, the ACC project changed, or the last full read is more than
+  7 days old. You can also ask for one with `ACC_ImportIssuesFull` or the card's "Import Issues
+  (full)". An incremental merge never reports "no longer in ACC". A failed pull or a failed
+  register write leaves the watermark where it was.
+- **Mapping.** `DisplayId`, `UpdatedAt` and the assignee type are kept as bookkeeping.
+  ACC's `dueDate` is now an ACC-owned field. Rows imported before it was owned get an
+  implicit base of "" so upgrading raises no false conflicts. This resolves the TODO in
+  `AccIssueImport`.
+- **Auto-import on the webhook relay.** The server already broadcast `acc.issue.changed`
+  (`AutodeskWebhooksController`), but the plugin never listened. `PlanscapeRealtimeClient` now
+  raises `AccIssueChanged`. `Core/AccIssueRealtimeBridge.cs` queues `ACC_ImportIssues` through
+  the dock panel's ExternalEvent. It is debounced by `V6/AccAutoImportGate.cs`: at most one
+  run per 60 s, plus one trailing run. The command checks `"autoImportIssues": true` on the
+  Revit thread and runs without a dialog.
+- **Richer escalated issues.** `"issueCustomAttributes"` maps `clashSignature`, `clashId`,
+  `triageScore` or `modelSet` to an ACC attribute title. `"issueRootCause"` names a root
+  cause. Titles are resolved per container (`V6/AccIssueFields.cs`). An unknown or ambiguous
+  title, or a list-type attribute, is reported, and the issue is still created without it.
+  When `clashSignature` is mapped, the import also recognises escalated issues by that
+  attribute. The sidecar wins where both exist.
+- New `acc_settings.json` keys: `pushIssueChanges`, `autoImportIssues`,
+  `issueCustomAttributes`, `issueRootCause`. They are strictly typed, and an unknown
+  attribute field makes the file Malformed.
+- Plugin build 0/0. `StingTools.Acc.Tests` 367/367, with loopback tests for PATCH
+  200/403/409/429/502, comments, GET one issue, the `updatedAt` filter and attribute
+  resolution. The workflow-wiring, path-discipline and export-routing gates pass.
+  **Not run against a live ACC tenant:** the exact `filter[updatedAt]` range syntax, the
+  `permittedStatuses` / `permittedAttributes` shapes on GET, the comment `body` field, and
+  customAttributes on create are taken from the published Issues v1 spec. The webhook relay
+  also needs an APS webhook subscription on the server.
+
 #### Completed (ACC workarounds where Autodesk has no API: transmittals, model sets, project folder check, 2026-09-30)
 
 - **ACC transmittals (API is read-only).** STING cannot create an ACC transmittal, so after

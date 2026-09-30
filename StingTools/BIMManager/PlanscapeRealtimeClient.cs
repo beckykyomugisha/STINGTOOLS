@@ -64,6 +64,10 @@ namespace StingTools.BIMManager
         //            healthScore, reportedAt }.
         public event EventHandler<RealtimeEvent>? WarningsReported;
         public event EventHandler<RealtimeEvent>? GenericNotification;
+        // AutodeskWebhooksController relays ACC issue.created / issue.updated webhooks to the
+        // project group as "acc.issue.changed" { event, accIssueId, at }. Subscriber:
+        // Core.AccIssueRealtimeBridge (queues ACC_ImportIssues when the project opted in).
+        public event EventHandler<RealtimeEvent>? AccIssueChanged;
 
         /// <summary>Raised whenever the connection changes state. UI consumers wire this to a status chip.</summary>
         public event EventHandler<HubConnectionState>? ConnectionStateChanged;
@@ -213,6 +217,8 @@ namespace StingTools.BIMManager
             // Gap N — federated model updated (IFC ingest, GLB delta, auto-align).
             // Fired by FederatedModelHub when geometry or coordinate frame changes.
             c.On<object>("ModelUpdated",        p => Raise(ModelUpdated,        p, "model"));
+            // ACC Issues webhook relay (see the event declaration).
+            c.On<object>("acc.issue.changed",   p => Raise(AccIssueChanged,     p, "acc.issue"));
             // RevisionCreated subscription removed — the channel was orphaned;
             // see comment on the event-declaration block above.
         }

@@ -5615,6 +5615,8 @@ namespace StingTools.Core
                 { "AccPullClashes", "AccPullClashes" },
                 { "AccSyncIssueStatus", "AccSyncIssueStatus" },
                 { "AccImportIssues", "AccImportIssues" },
+                { "AccImportIssuesFull", "AccImportIssuesFull" },
+                { "AccPushIssueChanges", "AccPushIssueChanges" },
                 { "AccSelfCheck", "AccSelfCheck" },
                 { "ACC_UploadModel", "ACC_UploadModel" },
                 { "SharePointExport", "SharePointExport" },

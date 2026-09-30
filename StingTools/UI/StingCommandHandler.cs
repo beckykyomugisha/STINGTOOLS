@@ -2942,6 +2942,12 @@ namespace StingTools.UI
                     // ACC Issues -> STING issue register (BIM-BCF-SYNC-01, ACC half).
                     case "AccImportIssues":
                     case "ACC_ImportIssues":    RunCommand<Core.Clash.AccImportIssuesCommand>(app); break;
+                    // Same import, ignoring the incremental watermark (re-checks deletions).
+                    case "AccImportIssuesFull":
+                    case "ACC_ImportIssuesFull": RunCommand<Core.Clash.AccImportIssuesFullCommand>(app); break;
+                    // STING -> ACC: status / assignee changed in the register since the last import.
+                    case "AccPushIssueChanges":
+                    case "ACC_PushIssueChanges": RunCommand<Core.Clash.AccPushIssueChangesCommand>(app); break;
                     // Read-only go-live check of the whole ACC chain (playbook §7, first step).
                     case "AccSelfCheck":
                     case "ACC_SelfCheck":       RunCommand<Core.Clash.AccSelfCheckCommand>(app); break;

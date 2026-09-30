@@ -63,6 +63,12 @@
     <!-- ACC_ImportIssues: the ACC -> STING issue-register merge, and the two pure halves of
          the register it writes through (schema + status vocabulary). -->
     <Compile Include="..\StingTools\V6\AccIssueImport.cs" Link="V6\AccIssueImport.cs" />
+    <!-- Two-way issues: STING -> ACC push decisions, the incremental-import watermark,
+         custom attribute / root cause resolution, and the auto-import debounce. -->
+    <Compile Include="..\StingTools\V6\AccIssuePush.cs" Link="V6\AccIssuePush.cs" />
+    <Compile Include="..\StingTools\V6\AccIssueImportState.cs" Link="V6\AccIssueImportState.cs" />
+    <Compile Include="..\StingTools\V6\AccIssueFields.cs" Link="V6\AccIssueFields.cs" />
+    <Compile Include="..\StingTools\V6\AccAutoImportGate.cs" Link="V6\AccAutoImportGate.cs" />
     <Compile Include="..\StingTools\V6\AccHttp.cs" Link="V6\AccHttp.cs" />
     <Compile Include="..\StingTools\V6\AccCredentialStore.cs" Link="V6\AccCredentialStore.cs" />
     <Compile Include="..\StingTools\V6\AccIds.cs" Link="V6\AccIds.cs" />
