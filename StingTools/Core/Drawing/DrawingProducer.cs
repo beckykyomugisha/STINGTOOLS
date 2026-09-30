@@ -2341,6 +2341,17 @@ namespace StingTools.Core.Drawing
             if (doc == null) return null;
             var key = CacheDocKey(doc);
             if (_isoLevelMap != null && string.Equals(_isoLevelMapDocKey, key, StringComparison.OrdinalIgnoreCase)) return _isoLevelMap;
+            var map = BuildIsoLevelMap(doc);
+            if (map != null) { _isoLevelMap = map; _isoLevelMapDocKey = key; }
+            return map;
+        }
+
+        /// <summary>The same map, built fresh (no batch cache) — for callers outside a
+        /// production batch, such as title-block heal (DTW-79), where a level may have
+        /// been renamed since the last batch.</summary>
+        internal static Dictionary<string, string> BuildIsoLevelMap(Document doc)
+        {
+            if (doc == null) return null;
             try
             {
                 var storeys = new List<StoreyDatum>();
@@ -2351,9 +2362,7 @@ namespace StingTools.Core.Drawing
                             Name = l.Name,
                             ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
                         });
-                _isoLevelMap = IsoLevelCode.BuildMap(storeys);
-                _isoLevelMapDocKey = key;
-                return _isoLevelMap;
+                return IsoLevelCode.BuildMap(storeys);
             }
             catch (Exception ex) { StingLog.Warn($"DrawingProducer.IsoLevelMap: {ex.Message}"); return null; }
         }

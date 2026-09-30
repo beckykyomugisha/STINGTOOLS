@@ -196,6 +196,10 @@ namespace StingTools.Core.Drawing
     public sealed class ExistingSheetTokens
     {
         public string Level { get; private set; }
+        /// <summary>DTW-79: true when <see cref="Level"/> is a level NAME (from the
+        /// production-context stamp), false when it is the PRJ_SHEET_LEVEL_TXT
+        /// segment value, which is already the code the sheet was numbered with.</summary>
+        public bool LevelIsName { get; private set; }
         public string Mark  { get; private set; }
         public int?   Seq   { get; private set; }
         /// <summary>Where each value came from, for the operator report.</summary>
@@ -212,7 +216,7 @@ namespace StingTools.Core.Drawing
             var ctx = SheetProductionContext.Parse(contextStamp);
 
             if (ctx != null && !string.IsNullOrEmpty(ctx.Level))
-            { t.Level = ctx.Level; t.Sources.Add("lvl<-context"); }
+            { t.Level = ctx.Level; t.LevelIsName = true; t.Sources.Add("lvl<-context"); }
             else if (!string.IsNullOrWhiteSpace(levelStamp) && levelStamp.IndexOf('{') < 0)
             { t.Level = levelStamp; t.Sources.Add("lvl<-PRJ_SHEET_LEVEL_TXT"); }
 

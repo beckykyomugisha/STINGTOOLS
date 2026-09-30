@@ -233,6 +233,25 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-79: {lvl} for re-stamping the title block of a sheet that already
+        /// exists (Heal, Migrate, drift). Production puts the ISO level code in
+        /// {lvl} when its number pattern is ISO-shaped (DTW-43), so a heal that put
+        /// the level NAME there wrote a title block that disagreed with the number.
+        /// <para><paramref name="levelIsName"/> says where <paramref name="level"/>
+        /// came from: the production-context stamp holds the level's NAME, which
+        /// goes through <see cref="LevelToken"/> exactly as production does; the
+        /// PRJ_SHEET_LEVEL_TXT segment stamp already holds the value the producer
+        /// (or the sheet-level derivation) wrote, and is kept as it is — re-reading
+        /// a code such as "M1" as a name would turn it into "01".</para>
+        /// Null in, null out (the caller omits the token).
+        /// </summary>
+        public static string ExistingSheetLevelToken(string numberPattern, string level, bool levelIsName,
+            IDictionary<string, string> isoCodesByName)
+            => level == null ? null
+             : levelIsName ? LevelToken(numberPattern, level, isoCodesByName)
+             : level;
+
+        /// <summary>
         /// Convenience overload without the note.
         /// </summary>
         public static string ResolvePattern(DrawingType dt, SheetNumberPolicyKind policy)
