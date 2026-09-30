@@ -360,6 +360,67 @@ namespace StingTools.V6
             return AccFetchResult<List<AccFolderFile>>.Success(list, list.Count == 0);
         }
 
+        // ── Data Management: an item's CURRENT version ───────────────────
+
+        /// <summary>The item (lineage) URN a version URN belongs to, by the Data Management
+        /// convention <c>…:fs.file:vf.{lineage}?version=N</c> → <c>…:dm.lineage:{lineage}</c>.
+        /// Empty when the URN does not have that shape. Pure.</summary>
+        public static string ItemUrnForVersion(string versionUrn)
+        {
+            if (string.IsNullOrWhiteSpace(versionUrn)) return string.Empty;
+            string v = versionUrn.Trim();
+            int q = v.IndexOf("?version=", StringComparison.OrdinalIgnoreCase);
+            if (q <= 0) return string.Empty;
+            v = v.Substring(0, q);
+            const string marker = ":fs.file:vf.";
+            int m = v.IndexOf(marker, StringComparison.Ordinal);
+            if (m <= 0 || m + marker.Length >= v.Length) return string.Empty;
+            return v.Substring(0, m) + ":dm.lineage:" + v.Substring(m + marker.Length);
+        }
+
+        /// <summary>The CURRENT (tip) version URN of an ACC item, read live from Data
+        /// Management (GET projects/{p}/items/{item} → data.relationships.tip.data.id).
+        /// ACC is the one source of truth for "which version is current": a version STING
+        /// remembered may already be superseded by a later upload. A 200 without a tip is a
+        /// failure, never "no version".</summary>
+        public static async Task<AccFetchResult<string>> GetItemTipVersionAsync(
+            AccCredentials creds, string projectId, string itemUrn)
+        {
+            if (string.IsNullOrWhiteSpace(itemUrn))
+                return AccFetchResult<string>.Failure(AccFetchStatus.NotFound, string.Empty, 0, "no item URN");
+            string url = AccIssueSync.Host + "/data/v1/projects/" + Uri.EscapeDataString(AccIds.ForDataManagement(projectId)) +
+                         "/items/" + Uri.EscapeDataString(itemUrn.Trim());
+            var resp = await AccHttp.SendAsync(Get(url, creds), creds, idempotent: true).ConfigureAwait(false);
+            if (!resp.IsSuccess)
+                return AccFetchResult<string>.Failure(resp.Classify(), string.Empty, resp.Status, $"item {itemUrn}: " + resp.Describe());
+            string tip;
+            try { tip = Str(JObject.Parse(resp.Body)["data"]?["relationships"]?["tip"]?["data"]?["id"]); }
+            catch (Exception ex)
+            {
+                return AccFetchResult<string>.Failure(AccFetchStatus.TransportFailed, string.Empty, resp.Status,
+                    $"item {itemUrn}: the reply was not JSON ({ex.Message})");
+            }
+            if (string.IsNullOrEmpty(tip))
+                return AccFetchResult<string>.Failure(AccFetchStatus.TransportFailed, string.Empty, resp.Status,
+                    $"item {itemUrn}: the reply carried no tip version");
+            return AccFetchResult<string>.Success(tip, false);
+        }
+
+        /// <summary>The version a review must be started on: the item's live tip. The item is
+        /// the remembered <paramref name="itemUrn"/>, else derived from the remembered version.
+        /// A failed read is returned as a failure - the caller must not fall back to the
+        /// remembered version, which may be the previous revision.</summary>
+        public static Task<AccFetchResult<string>> CurrentVersionAsync(
+            AccCredentials creds, string projectId, string itemUrn, string rememberedVersionUrn)
+        {
+            string item = !string.IsNullOrWhiteSpace(itemUrn) ? itemUrn.Trim() : ItemUrnForVersion(rememberedVersionUrn);
+            if (string.IsNullOrEmpty(item))
+                return Task.FromResult(AccFetchResult<string>.Failure(AccFetchStatus.NotFound, string.Empty, 0,
+                    "STING does not know the ACC item of '" + (rememberedVersionUrn ?? "") +
+                    "', so it cannot confirm that version is still current"));
+            return GetItemTipVersionAsync(creds, projectId, item);
+        }
+
         // ── Transmittals (read-only API) ─────────────────────────────────
 
         /// <summary>Every ACC transmittal in the project, optionally with its documents.
