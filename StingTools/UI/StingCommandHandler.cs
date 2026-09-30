@@ -2945,6 +2945,12 @@ namespace StingTools.UI
                     // Read-only go-live check of the whole ACC chain (playbook §7, first step).
                     case "AccSelfCheck":
                     case "ACC_SelfCheck":       RunCommand<Core.Clash.AccSelfCheckCommand>(app); break;
+                    // ACC project record -> Project Information: a diff, and only ticked rows written.
+                    case "AccSyncProjectInfo":
+                    case "ACC_SyncProjectInfo": RunCommand<Core.Clash.AccSyncProjectInfoCommand>(app); break;
+                    // ACC locations tree vs STING LOC / ZONE / LVL codes (read-only report).
+                    case "AccCheckLocations":
+                    case "ACC_CheckLocations":  RunCommand<Core.Clash.AccCheckLocationsCommand>(app); break;
                     // The REAL upload (APS Data Management), as distinct from ACCPublish,
                     // which only builds a local ACC-ready bundle for manual upload.
                     case "ACC_UploadModel":     RunCommand<Core.Clash.AccUploadModelCommand>(app); break;

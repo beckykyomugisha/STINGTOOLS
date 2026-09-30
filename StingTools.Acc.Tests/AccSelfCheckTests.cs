@@ -58,6 +58,8 @@ namespace StingTools.Acc.Tests
 
         // ── the fake ACC ─────────────────────────────────────────────────────
 
+        private int _membersStatus = 200;
+
         private LoopbackServer Serve()
         {
             var server = new LoopbackServer((_, req) =>
@@ -89,6 +91,12 @@ namespace StingTools.Acc.Tests
                     }.ToString());
                 if (path == $"/construction/issues/v1/projects/{Bare}/issues")
                     return new CannedResponse(200, "{\"results\":[{\"id\":\"i1\",\"title\":\"x\"}],\"pagination\":{\"limit\":1,\"offset\":0,\"totalResults\":42}}");
+
+                if (path == $"/construction/admin/v1/projects/{Bare}/users")
+                    return _membersStatus == 200
+                        ? new CannedResponse(200, "{\"pagination\":{\"totalResults\":1},\"results\":[{\"id\":\"f-1\",\"autodeskId\":\"ADSK1111\"," +
+                                                  "\"email\":\"bim@planscape.build\",\"name\":\"BIM Lead\",\"status\":\"active\",\"roles\":[]}]}")
+                        : new CannedResponse(_membersStatus, "{}");
 
                 if (path == $"/bim360/modelset/v3/containers/{Bare}/modelsets")
                     return new CannedResponse(200, "{\"modelSets\":[{\"modelSetId\":\"ms-fed\",\"name\":\"KUT – Federated (SHARED)\"}]}");
@@ -140,6 +148,7 @@ namespace StingTools.Acc.Tests
             ["coordModelSetName"] = "KUT – Federated (SHARED)",
             ["cdeFolders"] = new JObject { ["WIP"] = Folders[0], ["SHARED"] = Folders[1], ["PUBLISHED"] = Folders[2], ["ARCHIVE"] = Folders[3] },
             ["docsAttributes"] = true,
+            ["escalateAssignedTo"] = "bim@planscape.build",
         };
 
         private static AccCredentials MachineCreds() => new AccCredentials
@@ -183,6 +192,7 @@ namespace StingTools.Acc.Tests
 
             Assert.Contains("Coordination / Clash", Row(results, "4.1").Detail);
             Assert.Contains("42", Row(results, "4.2").Detail);
+            Assert.Contains("BIM Lead", Row(results, "4.3").Detail);
             Assert.Contains("test-1", Row(results, "5.3").Detail);
             Assert.Equal(4, results.Count(r => r.Id.StartsWith("6.1.")));
             Assert.Equal(4, results.Count(r => r.Id.StartsWith("6.2.")));
@@ -190,6 +200,39 @@ namespace StingTools.Acc.Tests
             // No scope file or resources call: the clash check is the tests endpoint only.
             Assert.DoesNotContain(_requests, r => r.Contains("/resources"));
             Assert.StartsWith("READY", AccSelfCheck.Summary(results));
+        }
+
+        [Fact]
+        public async Task Assignee_MembersUnreadable_AnEmailFails_AnIdWarns_AndNeitherBlames7_1()
+        {
+            _membersStatus = 403;
+            using (Serve())
+            {
+                var results = await Run(MachineCreds(), Settings(GoodSettings()));
+                var row = Row(results, "4.3");
+                Assert.Equal(AccCheckStatus.Fail, row.Status);
+                Assert.Contains("REFUSED", row.Detail);
+                Assert.Contains("Admin", row.Detail);
+                Assert.Equal(AccCheckStatus.Pass, Row(results, "7.1").Status);   // an expected admin-only 403 is not a scope fault
+            }
+            using (Serve())
+            {
+                var o = GoodSettings();
+                o["escalateAssignedTo"] = "ADSK1111";
+                o["escalateAssignedToType"] = "user";
+                var results = await Run(MachineCreds(), Settings(o));
+                Assert.Equal(AccCheckStatus.Warn, Row(results, "4.3").Status);
+            }
+        }
+
+        [Fact]
+        public async Task Assignee_NotConfigured_IsSkipped_NotPassed()
+        {
+            using var server = Serve();
+            var o = GoodSettings();
+            o.Remove("escalateAssignedTo");
+            var results = await Run(MachineCreds(), Settings(o));
+            Assert.Equal(AccCheckStatus.Skipped, Row(results, "4.3").Status);
         }
 
         [Fact]

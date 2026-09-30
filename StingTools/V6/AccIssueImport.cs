@@ -69,6 +69,11 @@ namespace StingTools.V6
         /// <summary>ACC user / company / role id of the assignee. ACC returns an id, not a
         /// name; it is stored as given rather than guessed into a name.</summary>
         public string AssignedTo { get; set; } = string.Empty;
+        /// <summary>user / company / role, as ACC reports it.</summary>
+        public string AssignedToType { get; set; } = string.Empty;
+        /// <summary>The assignee's display name, looked up in the project's member list
+        /// (AccProjectMembers). Empty when it could not be looked up - never guessed.</summary>
+        public string AssignedToName { get; set; } = string.Empty;
         public string LocationDescription { get; set; } = string.Empty;
 
         // TODO(AccIssue fields): AccIssue does not yet carry these. When AccIssueSync maps the
@@ -90,6 +95,7 @@ namespace StingTools.V6
                 Status = a.Status ?? string.Empty,
                 IssueTypeId = a.IssueType ?? string.Empty,
                 AssignedTo = a.AssignedToUserId ?? string.Empty,
+                AssignedToType = a.AssignedToType ?? string.Empty,
                 LocationDescription = a.LocationDescription ?? string.Empty,
             };
         }
@@ -192,6 +198,11 @@ namespace StingTools.V6
         public const string AccIdField = "acc_issue_id";
         public const string BaseField = "acc_last_import";
         public const string ConflictsField = "acc_conflicts";
+        /// <summary>ACC's assignee id / type / display name, kept beside the STING
+        /// assigned_to field (which stays the ACC-owned, three-way-merged value).</summary>
+        public const string AssignedIdField = "acc_assigned_to_id";
+        public const string AssignedTypeField = "acc_assigned_to_type";
+        public const string AssignedNameField = "acc_assigned_to_name";
         public const string OriginField = "acc_origin";
         public const string OriginKeyField = "acc_origin_key";
         public const string ClashEscalationOrigin = "sting_clash_escalation";
@@ -317,6 +328,9 @@ namespace StingTools.V6
             row["acc_status"] = a.Status ?? "";
             row["acc_issue_type_id"] = a.IssueTypeId ?? "";
             row["acc_location"] = a.LocationDescription ?? "";
+            row[AssignedTypeField] = a.AssignedToType ?? "";
+            row[AssignedIdField] = a.AssignedTo ?? "";
+            if (!string.IsNullOrWhiteSpace(a.AssignedToName)) row[AssignedNameField] = a.AssignedToName;
             if (!string.IsNullOrWhiteSpace(a.DisplayId)) row["acc_display_id"] = a.DisplayId;
             if (origin != null)
             {
@@ -389,6 +403,16 @@ namespace StingTools.V6
             touched |= SetIfDifferent(row, "acc_status", a.Status ?? "");
             touched |= SetIfDifferent(row, "acc_issue_type_id", a.IssueTypeId ?? "");
             touched |= SetIfDifferent(row, "acc_location", a.LocationDescription ?? "");
+            touched |= SetIfChanged(row, AssignedTypeField, a.AssignedToType ?? "");
+            // The name follows the id. A name that could not be looked up this run leaves the
+            // last one only while the id is unchanged; a new id with no name clears it, so a
+            // row never shows the previous assignee's name next to a new assignee's id.
+            string prevAccAssignee = (string)row[AssignedIdField] ?? "";
+            touched |= SetIfChanged(row, AssignedIdField, a.AssignedTo ?? "");
+            if (!string.IsNullOrWhiteSpace(a.AssignedToName))
+                touched |= SetIfDifferent(row, AssignedNameField, a.AssignedToName);
+            else if (row[AssignedNameField] != null && !string.Equals(prevAccAssignee, a.AssignedTo ?? "", StringComparison.Ordinal))
+            { row.Remove(AssignedNameField); touched = true; }
             if (origin != null && string.IsNullOrWhiteSpace((string)row[OriginField]))
             {
                 row[OriginField] = origin.Origin;
@@ -427,6 +451,14 @@ namespace StingTools.V6
             }
             else result.Unchanged++;
             if (statusChanged) result.StatusChanges++;
+        }
+
+        /// <summary>As SetIfDifferent, but an empty value on a row that never had the field is
+        /// not a change - rows imported before the field existed stay "unchanged".</summary>
+        private static bool SetIfChanged(JObject row, string field, string value)
+        {
+            if (string.IsNullOrEmpty(value) && row[field] == null) return false;
+            return SetIfDifferent(row, field, value);
         }
 
         private static bool SetIfDifferent(JObject row, string field, string value)

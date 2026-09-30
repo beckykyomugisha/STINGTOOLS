@@ -183,11 +183,13 @@ namespace StingTools.V6
                 {
                     Skip("4.1", "Issue type STING files under", why);
                     Skip("4.2", "Issue list readable", why);
+                    Skip("4.3", "Escalation assignee resolves", why);
                 }
                 else
                 {
                     await Guard("4.1", "Issue type STING files under", CheckIssueTypeAsync).ConfigureAwait(false);
                     await Guard("4.2", "Issue list readable", CheckIssueReadAsync).ConfigureAwait(false);
+                    await Guard("4.3", "Escalation assignee resolves", CheckAssigneeAsync).ConfigureAwait(false);
                 }
 
                 // 5 ─ model coordination
@@ -463,6 +465,43 @@ namespace StingTools.V6
                 }
                 Add("4.1", title, AccCheckStatus.Pass,
                     $"would file under '{choice.TypeTitle} / {choice.SubtypeTitle}' [{choice.SubtypeId}] (chosen by name; not saved by this check).");
+                return true;
+            }
+
+            /// <summary>4.3: the escalateAssignedTo setting turns into a real ACC member / company /
+            /// role. A GET of the project's members (construction/admin, account:read); a 403
+            /// there is "needs Project/Account Admin", not "nobody is on the project".</summary>
+            private async Task<bool> CheckAssigneeAsync()
+            {
+                const string title = "Escalation assignee resolves";
+                if (string.IsNullOrEmpty(_p.EscalateAssignedTo))
+                {
+                    Add("4.3", title, AccCheckStatus.Skipped, "not checked: no escalateAssignedTo is configured, so escalated clash issues are left unassigned.",
+                        "Optional: set escalateAssignedTo (an email, or a role/company name with escalateAssignedToType) in the project's ACC settings.");
+                    return true;
+                }
+                AccProjectMembers.ClearCache();   // a check reads fresh, never a cached answer
+                var dir = await AccProjectMembers.GetDirectoryAsync(_c).ConfigureAwait(false);
+                if (dir.Succeeded) _readsOk++;
+                // A 403 here is NOT fed to 7.1: the Admin API is closed to plain members by design.
+                var r = dir.Succeeded
+                    ? AccProjectMembers.Resolve(_p.EscalateAssignedTo, _p.EscalateAssignedToType, dir.Value)
+                    : AccProjectMembers.Resolve(_p.EscalateAssignedTo, _p.EscalateAssignedToType, null, dir.Detail);
+                if (!r.Ok)
+                {
+                    Add("4.3", title, AccCheckStatus.Fail, $"'{_p.EscalateAssignedTo}' ({_p.EscalateAssignedToType}) — escalation would be REFUSED: {r.Reason}",
+                        dir.Succeeded
+                            ? "Correct escalateAssignedTo to a project member's email, or a role/company name exactly as ACC shows it."
+                            : "Configure the ACC id instead of a name/email, or run this as a Project Admin so the member list can be read.");
+                    return false;
+                }
+                if (r.Unverified)
+                {
+                    Add("4.3", title, AccCheckStatus.Warn, $"'{_p.EscalateAssignedTo}' ({r.Type}) is an id and will be sent as configured, but it could not be checked: {dir.Detail}",
+                        "Run the self-check once as a Project Admin to prove the id belongs to a project member.");
+                    return true;
+                }
+                Add("4.3", title, AccCheckStatus.Pass, $"escalated clashes would be assigned to {r.Describe()}.");
                 return true;
             }
 

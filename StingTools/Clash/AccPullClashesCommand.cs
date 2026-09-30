@@ -351,10 +351,13 @@ namespace StingTools.Core.Clash
             /// <summary>ACC-HARD-5: how many escalated issues can be LOCATED, and why not.</summary>
             public AccLocateSummary Locate;
             public int Attached, AttachFailed;
+            /// <summary>Who the escalated issues were assigned to, when one was configured.</summary>
+            public AccAssigneeResolution Assignee;
             public List<string> AttachFailures = new List<string>();
             public string Describe()
             {
                 string text = $"escalated {Pushed} clash(es) to ACC Issues; {Skipped} already tracked";
+                if (Assignee != null && Assignee.Ok) text += "; assigned to " + Assignee.Describe();
                 if (Failed > 0)
                     text += $"; {Failed} FAILED (not recorded, so the next run retries them): " +
                             string.Join(" | ", Failures.Take(3)) + (Failures.Count > 3 ? " …" : "");
@@ -376,6 +379,35 @@ namespace StingTools.Core.Clash
             AccOperatingPolicy policy, string sidecar)
         {
             var outcome = new PushOutcome();
+
+            // The assignee is resolved ONCE, before anything is created: an email or a
+            // role/company name becomes the ACC id through the project's member list. If it
+            // cannot be resolved - unknown, ambiguous, or the list is unreadable for a name -
+            // NO issue is created: an issue assigned to nobody, or to the wrong person, is
+            // worse than a refused run that says why. Nothing is recorded, so the next run
+            // retries every clash.
+            AccAssigneeResolution assignee = null;
+            if (policy != null && !string.IsNullOrEmpty(policy.EscalateAssignedTo))
+            {
+                try
+                {
+                    assignee = AccProjectMembers.ResolveAsync(creds, policy.EscalateAssignedTo, policy.EscalateAssignedToType)
+                        .GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    assignee = new AccAssigneeResolution { Ok = false, Reason = "resolving the assignee threw: " + ex.Message };
+                }
+                StingLog.Info($"ACC_PullClashes assignee '{policy.EscalateAssignedTo}': {assignee.Describe()}");
+                if (!assignee.Ok)
+                {
+                    outcome.Failed = top.Count;
+                    outcome.Failures.Add($"escalation REFUSED - the configured assignee '{policy.EscalateAssignedTo}' " +
+                                         $"({policy.EscalateAssignedToType}) could not be resolved: {assignee.Reason}");
+                    return outcome;
+                }
+                outcome.Assignee = assignee;
+            }
 
             // ACC-HARD-5: ACC cannot pin an issue to objects through the API, so resolve each
             // clash's objects to Revit UniqueIds (Model Derivative) and ACC viewer URLs (Data
@@ -412,7 +444,7 @@ namespace StingTools.Core.Clash
                 if (pushedMap.ContainsKey(sig)) { outcome.Skipped++; continue; }
 
                 locations.TryGetValue(s.ClashId, out var loc);
-                var issue = BuildClashIssue(s, c, set, policy, loc);
+                var issue = BuildClashIssue(s, c, set, policy, loc, assignee);
                 try
                 {
                     var r = AccIssueSync.PushIssueDetailedAsync(creds, issue).GetAwaiter().GetResult();
@@ -477,7 +509,7 @@ namespace StingTools.Core.Clash
         /// and zooms to the objects in Revit) and ACC's own viewer link, when they resolved -
         /// see AccClashLocate.cs. Links are kept whole inside ACC's 1000-character limit.</summary>
         internal static AccIssue BuildClashIssue(ScoredClash s, AccClashRecord c, AccModelSet set, AccOperatingPolicy policy,
-            AccClashLocation location = null)
+            AccClashLocation location = null, AccAssigneeResolution assignee = null)
         {
             var d = new StringBuilder();
             d.AppendLine($"STING clash triage — score {s.Score:F2} ({s.Category}). {s.Rationale}");
@@ -501,10 +533,11 @@ namespace StingTools.Core.Clash
             if (policy != null)
             {
                 if (policy.EscalateDueDays.HasValue) issue.DueDate = DateTime.UtcNow.Date.AddDays(policy.EscalateDueDays.Value);
-                if (!string.IsNullOrEmpty(policy.EscalateAssignedTo))
+                // Only a RESOLVED assignee is ever sent (PushTopIssues refuses otherwise).
+                if (!string.IsNullOrEmpty(policy.EscalateAssignedTo) && assignee != null && assignee.Ok)
                 {
-                    issue.AssignedToUserId = policy.EscalateAssignedTo;
-                    issue.AssignedToType = policy.EscalateAssignedToType;
+                    issue.AssignedToUserId = assignee.Id;
+                    issue.AssignedToType = assignee.Type;
                 }
             }
             return issue;

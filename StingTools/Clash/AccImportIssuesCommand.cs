@@ -93,6 +93,32 @@ namespace StingTools.Core.Clash
             try { user = doc.Application?.Username ?? user; }
             catch (Exception ex) { StingLog.Warn("ACC_ImportIssues user: " + ex.Message); }
 
+            // Assignee NAMES. ACC gives only ids; the project's member list turns them into
+            // names. Best effort: the list needs a Project/Account Admin sign-in, and an import
+            // must not fail because a label is unavailable - but the report says so, and the
+            // rows keep the id rather than a guessed name.
+            var records = pull.Value.Select(AccIssueImportRecord.From).Where(r => r != null).ToList();
+            string namesNote;
+            try
+            {
+                var dir = AccProjectMembers.GetDirectoryAsync(creds).GetAwaiter().GetResult();
+                if (dir.Succeeded)
+                {
+                    int named = 0, assigned = 0;
+                    foreach (var r in records)
+                    {
+                        if (string.IsNullOrEmpty(r.AssignedTo)) continue;
+                        assigned++;
+                        r.AssignedToName = dir.Value.NameFor(r.AssignedTo, r.AssignedToType);
+                        if (r.AssignedToName.Length > 0) named++;
+                    }
+                    namesNote = $"{named} of {assigned} assignee(s) named from {dir.Value.Users.Count} project member(s)";
+                }
+                else namesNote = "assignee NAMES not available (ids kept): " + dir.Detail;
+            }
+            catch (Exception ex) { namesNote = "assignee NAMES not available (ids kept): " + ex.Message; }
+            StingLog.Info("ACC_ImportIssues: " + namesNote);
+
             AccIssueImportResult result;
             using (var batch = IssueStore.Begin(doc))
             {
@@ -105,8 +131,7 @@ namespace StingTools.Core.Clash
                     return Result.Failed;
                 }
 
-                result = AccIssueImport.Merge(batch.Rows,
-                    pull.Value.Select(AccIssueImportRecord.From).Where(r => r != null),
+                result = AccIssueImport.Merge(batch.Rows, records,
                     origins, new IssueBatchAccWriter(batch), DateTime.Now, user);
                 batch.Commit();
             }
@@ -123,8 +148,9 @@ namespace StingTools.Core.Clash
             sb.AppendLine($"Unchanged:                {result.Unchanged}");
             sb.AppendLine($"CONFLICTS:                {result.Conflicts.Count}  (edited in both STING and ACC — local value kept)");
             sb.AppendLine($"No longer in ACC:         {result.MissingFromAcc.Count}  (kept in STING, not deleted)");
+            sb.AppendLine($"Assignees:                {namesNote}");
             if (result.Skipped > 0)
-                sb.AppendLine($"Skipped:                  {result.Skipped}  (no id, or repeated in the pull)");
+                sb.AppendLine($"Skipped:                 {result.Skipped}  (no id, or repeated in the pull)");
             if (result.Conflicts.Count > 0)
             {
                 sb.AppendLine();
@@ -162,14 +188,14 @@ namespace StingTools.Core.Clash
         {
             try
             {
-                var rows = new List<string> { "IssueId,AccIssueId,Action,Field,Base,Local,Acc" };
+                var rows = new List<string> { "IssueId,AccIssueId,Action,Field,Base,Local,Acc,AssigneeId,AssigneeName" };
                 foreach (var x in r.Created)  rows.Add(Line(x, "created"));
                 foreach (var x in r.Linked)   rows.Add(Line(x, "linked"));
                 foreach (var x in r.Updated)  rows.Add(Line(x, "updated"));
                 foreach (var c in r.Conflicts)
                     rows.Add(string.Join(",", Csv(c.IssueId), Csv(c.AccIssueId), "CONFLICT",
-                                         Csv(c.Field), Csv(c.BaseValue), Csv(c.LocalValue), Csv(c.AccValue)));
-                foreach (var id in r.MissingFromAcc) rows.Add($"{Csv(id)},,not_in_acc,,,,");
+                                         Csv(c.Field), Csv(c.BaseValue), Csv(c.LocalValue), Csv(c.AccValue), "", ""));
+                foreach (var id in r.MissingFromAcc) rows.Add($"{Csv(id)},,not_in_acc,,,,,,");
                 string path = OutputLocationHelper.GetRoutedPath(doc, "Issue",
                     $"STING_ACC_IssueImport_{DateTime.Now:yyyyMMdd_HHmm}.csv");
                 File.WriteAllLines(path, rows, Encoding.UTF8);
@@ -179,7 +205,8 @@ namespace StingTools.Core.Clash
         }
 
         private static string Line(JObject row, string action)
-            => $"{Csv(IssueSchema.IdOf(row))},{Csv((string)row[AccIssueImport.AccIdField])},{action},,,,";
+            => $"{Csv(IssueSchema.IdOf(row))},{Csv((string)row[AccIssueImport.AccIdField])},{action},,,,," +
+               $"{Csv((string)row[AccIssueImport.AssignedIdField])},{Csv((string)row[AccIssueImport.AssignedNameField])}";
 
         private static string Csv(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
 
