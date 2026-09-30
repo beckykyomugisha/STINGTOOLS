@@ -1814,7 +1814,11 @@ namespace StingTools.Core.Drawing
             foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
             {
                 if (!(el is ViewSheet vs) || vs.IsPlaceholder) continue;
-                var n = SheetNumberEngine.ExtractSequence(vs.SheetNumber, template);
+                // DTW-44: a sheet numbered while the ISO pattern still ended
+                // "-{suit}-{rev}" ("…-0003-S2-P01") holds the same container number as
+                // "…-0003"; read it without the tail, or the new form restarts at 0001.
+                var n = SheetNumberEngine.ExtractSequence(vs.SheetNumber, template)
+                     ?? SheetNumberEngine.ExtractSequence(SheetNumberPolicy.StripStatusSuffix(vs.SheetNumber), template);
                 if (n.HasValue && n.Value > max) max = n.Value;
             }
             return max;

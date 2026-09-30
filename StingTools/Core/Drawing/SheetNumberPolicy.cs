@@ -201,6 +201,19 @@ namespace StingTools.Core.Drawing
             return IsoPattern;
         }
 
+        private static readonly Regex _statusSuffix =
+            new Regex(@"-(S\d|A\d{1,2}|B\d{1,2}|CR|AB|AR)-[PC]\d{2,3}$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// DTW-44: a sheet number with the suitability-revision tail the old
+        /// <see cref="IsoPattern"/> appended ("…-0003-S2-P01") cut back to its container
+        /// identifier ("…-0003"); any other number unchanged. Used to seed the ISO counter
+        /// from sheets numbered before the tail was dropped, so a new sheet does not take
+        /// a sequence an existing one already carries.
+        /// </summary>
+        public static string StripStatusSuffix(string sheetNumber)
+            => string.IsNullOrEmpty(sheetNumber) ? sheetNumber : _statusSuffix.Replace(sheetNumber, "");
+
         /// <summary>
         /// DTW-43: the value {lvl} takes in <paramref name="pattern"/> for the level
         /// called <paramref name="levelName"/>. An ISO-shaped number carries the ISO

@@ -32,5 +32,13 @@ namespace StingTools.Tags.Tests
             Assert.Equal("Level 1", SheetNumberPolicy.LevelToken("A-{lvl}-{seq:D3}", "Level 1", map));
             Assert.Null(SheetNumberPolicy.LevelToken(SheetNumberPolicy.IsoPattern, null, map));
         }
+
+        [Fact]
+        public void A_number_with_the_old_status_tail_is_read_as_its_container_number()
+        {
+            Assert.Equal("P-O-V-00-DR-A-0003", SheetNumberPolicy.StripStatusSuffix("P-O-V-00-DR-A-0003-S2-P01"));
+            Assert.Equal("P-O-V-00-DR-A-0003", SheetNumberPolicy.StripStatusSuffix("P-O-V-00-DR-A-0003-A1-C02"));
+            Assert.Equal("A-101", SheetNumberPolicy.StripStatusSuffix("A-101"));
+        }
     }
 }
