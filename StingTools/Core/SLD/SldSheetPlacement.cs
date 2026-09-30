@@ -26,7 +26,7 @@ namespace StingTools.Core.SLD
         {
             if (req == null) return "No drawing type requested — the view is not on a sheet.";
             string id = DrawingRouteResolver.IdFor(doc, req);
-            return Place(doc, id, view, contextTag ?? req.ContextTag);
+            return Place(doc, id, view, contextTag ?? req.ContextTag, DrawingRouteRequests.StampIds(id, req));
         }
 
         /// <summary>
@@ -36,7 +36,8 @@ namespace StingTools.Core.SLD
         /// <paramref name="contextTag"/> keeps this sheet apart from sheets the same
         /// drawing type gets from other production paths.
         /// </summary>
-        internal static string Place(Document doc, string drawingTypeId, View view, string contextTag = null)
+        internal static string Place(Document doc, string drawingTypeId, View view, string contextTag = null,
+            System.Collections.Generic.IReadOnlyCollection<string> formerDrawingTypeIds = null)
         {
             if (doc == null || view == null) return "No view to put on a sheet.";
             try
@@ -49,7 +50,7 @@ namespace StingTools.Core.SLD
                 using (var tx = new Transaction(doc, "STING Place Diagram on Sheet"))
                 {
                     tx.Start();
-                    pr = DrawingProducer.PlaceExistingView(doc, dt, new DrawingContext { Tag = contextTag }, view);
+                    pr = DrawingProducer.PlaceExistingView(doc, dt, new DrawingContext { Tag = contextTag, FormerDrawingTypeIds = formerDrawingTypeIds }, view);
                     var status = tx.Commit();
                     if (status != TransactionStatus.Committed)
                     {

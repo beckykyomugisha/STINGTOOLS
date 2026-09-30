@@ -18,7 +18,7 @@ namespace StingTools.Commands.Panels
     /// configured skip patterns. After successful creation, populates the
     /// panel-side STING tag containers (ELC_PNL_NAME / VOLTAGE / LOAD /
     /// FED_FROM / MAIN_BRK / WAYS), stamps the schedule view with the
-    /// elec-panel-schedule-A3 Drawing Type id, and writes
+    /// drawing type routing gives E / ELEC_PANEL_SCHEDULE, and writes
     /// ELC_PANEL_SCHEDULE_REF_TXT on every circuit feeding the panel so
     /// circuit tags can render the back-reference.
     /// </summary>
@@ -26,8 +26,6 @@ namespace StingTools.Commands.Panels
     [Regeneration(RegenerationOption.Manual)]
     public class BatchPanelSchedulesCommand : IExternalCommand
     {
-        private const string DrawingTypeId = "elec-panel-schedule-A3";
-
         // Phase (dialog→engine) — thin UI wrapper over PanelScheduleApplyEngine (the
         // single source of panel-schedule truth, dialog-free). Button behaviour is
         // unchanged: project-scope batch create, then render the SAME StingResultPanel
@@ -98,7 +96,7 @@ namespace StingTools.Commands.Panels
                   .MetricError("Failed", applied.Failed.ToString());
 
             result.AddSection("INTEGRATION")
-                  .Metric("Drawing-type stamps", applied.DrawingTypeStamped.ToString(), $"id={DrawingTypeId}")
+                  .Metric("Drawing-type stamps", applied.DrawingTypeStamped.ToString(), $"id={applied.DrawingTypeId}")
                   .Metric("Panel-param fills", applied.ParamsStamped.ToString(), "ELC_PNL_NAME / VOLTAGE / LOAD / FED_FROM / MAIN_BRK / WAYS")
                   .Metric("Circuit back-refs", applied.CircuitRefsStamped.ToString(), "ELC_PANEL_SCHEDULE_REF_TXT");
 

@@ -201,7 +201,8 @@ namespace StingTools.Commands.SLD
             // Onto the riser drawing type's sheet. The context tag keeps this sheet apart
             // from any section sheets the same type gets from Produce Sections.
             string sheetLine = StingTools.Core.SLD.SldSheetPlacement.Place(doc, riserTypeId, view,
-                StingTools.Core.Drawing.DrawingRouteRequests.Riser.ContextTag);
+                StingTools.Core.Drawing.DrawingRouteRequests.Riser.ContextTag,
+                StingTools.Core.Drawing.DrawingRouteRequests.StampIds(riserTypeId, StingTools.Core.Drawing.DrawingRouteRequests.Riser));
 
             if (view != null && !PresetDialog.Quiet) ShowView(ctx.UIDoc, view);
             InvalidateComplianceCache();

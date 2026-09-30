@@ -27,6 +27,12 @@ namespace StingTools.Core.Drawing
         public BoundingBoxXYZ CustomBounds { get; set; }
         public string Tag { get; set; }
         public string PackageId { get; set; }
+        /// <summary>
+        /// Drawing-type ids an earlier run may have stamped on this request's sheet and
+        /// views — the shipped id, when a project override now routes the key elsewhere.
+        /// A sheet found under one of them is re-stamped and reused, never duplicated.
+        /// </summary>
+        public IReadOnlyCollection<string> FormerDrawingTypeIds { get; set; }
     }
 
     public sealed class ProduceOptions
@@ -340,7 +346,7 @@ namespace StingTools.Core.Drawing
                 {
                     ViewId = x.v.Id.Value,
                     DrawingTypeId = StingTools.Core.ParameterHelpers.GetString(x.v, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
-                }), view.Id.Value, dt.Id);
+                }), view.Id.Value, dt.Id, ctx.FormerDrawingTypeIds);
                 foreach (var x in onSheet.Where(x => decision.RemoveViewIds.Contains(x.v.Id.Value)))
                 {
                     result.Warnings.Add($"'{x.v.Name}' (an earlier {dt.Id} view) was taken off the sheet for '{view.Name}'.");
@@ -924,26 +930,61 @@ namespace StingTools.Core.Drawing
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             string sheetCtx = BuildContextTag(ctx);
+
+            var existing = FindExistingSheet(doc, dt.Id, effectivePackage, sheetCtx, result);
+            if (existing != null) return existing;
+
+            // A sheet stamped with an id this request used to route to (the shipped id,
+            // before a project re-routed the key) is the same sheet: adopt and re-stamp it
+            // rather than mint a duplicate beside it.
+            foreach (var former in (ctx.FormerDrawingTypeIds ?? Array.Empty<string>())
+                         .Where(f => !string.IsNullOrWhiteSpace(f) && !string.Equals(f, dt.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, result);
+                if (existing == null) continue;
+                try
+                {
+                    if (doc.GetElement(existing) is ViewSheet adopted && DrawingTypeStamper.Stamp(adopted, dt.Id))
+                    {
+                        if (_existingSheetCache != null) _existingSheetCache[SheetKey(dt.Id, effectivePackage, sheetCtx)] = existing;
+                        result.Warnings.Add($"Sheet {adopted.SheetNumber} was stamped '{former}'; routing now gives '{dt.Id}', so it was re-stamped and reused.");
+                    }
+                    else
+                        result.Warnings.Add($"Sheet {existing} (stamped '{former}') is reused but could not be re-stamped '{dt.Id}'.");
+                }
+                catch (Exception ex) { result.Warnings.Add($"Re-stamping sheet {existing} '{dt.Id}': {ex.Message}"); }
+                return existing;
+            }
+
+            return CreateSheet(doc, dt, ctx, opts, result, effectivePackage, sheetCtx);
+        }
+
+        /// <summary>
+        /// The existing sheet stamped <paramref name="typeId"/> for this package and
+        /// production context, or null. Sets <see cref="ProduceResult.SheetReused"/> on a hit.
+        /// </summary>
+        private static ElementId FindExistingSheet(Document doc, string typeId, string effectivePackage, string sheetCtx, ProduceResult result)
+        {
             try
             {
                 // GAP-L: per-batch cache hit, fall back to fresh collector.
                 if (_existingSheetCache != null
                     && CacheMatchesDoc(doc)
-                    && _existingSheetCache.TryGetValue(SheetKey(dt.Id, effectivePackage, sheetCtx), out var cachedSheetId))
+                    && _existingSheetCache.TryGetValue(SheetKey(typeId, effectivePackage, sheetCtx), out var cachedSheetId))
                 {
                     if (doc.GetElement(cachedSheetId) is ViewSheet vsCached && vsCached.IsValidObject)
                     {
                         result.SheetReused = true;   // P-9: reuse is not production
                         return vsCached.Id;
                     }
-                    _existingSheetCache.Remove(SheetKey(dt.Id, effectivePackage, sheetCtx));
+                    _existingSheetCache.Remove(SheetKey(typeId, effectivePackage, sheetCtx));
                 }
 
                 var candidates = new FilteredElementCollector(doc)
                     .OfClass(typeof(ViewSheet))
                     .Cast<ViewSheet>()
                     .Where(s =>
-                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), dt.Id, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID), typeId, StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal))
                     .ToList();
 
@@ -988,7 +1029,12 @@ namespace StingTools.Core.Drawing
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            return null;
+        }
 
+        private static ElementId CreateSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts,
+            ProduceResult result, string effectivePackage, string sheetCtx)
+        {
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {

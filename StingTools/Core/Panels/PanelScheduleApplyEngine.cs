@@ -82,6 +82,8 @@ namespace StingTools.Core.Panels
         public int Failed { get; set; }
         public int NoTemplate { get; set; }
         public int DrawingTypeStamped { get; set; }
+        /// <summary>The drawing type the schedules were stamped with (routing, else the shipped id).</summary>
+        public string DrawingTypeId { get; set; }
         public int ParamsStamped { get; set; }
         public int CircuitRefsStamped { get; set; }
         /// <summary>True on a real run when Computed &gt; 0 but Created == 0 (silent-no-op guard).</summary>
@@ -95,8 +97,6 @@ namespace StingTools.Core.Panels
 
     public static class PanelScheduleApplyEngine
     {
-        private const string DrawingTypeId = "elec-panel-schedule-A3";
-
         /// <summary>
         /// Batch-create one PanelScheduleView per in-scope panel using the rule-based
         /// registry. dryRun classifies read-only and creates nothing; a real run creates
@@ -109,6 +109,9 @@ namespace StingTools.Core.Panels
             scope = scope ?? PanelScheduleScope.Project();
 
             var result = new PanelScheduleApplyResult();
+            // The id routing gives E / ELEC_PANEL_SCHEDULE, resolved once for the run.
+            string drawingTypeId = DrawingRouteResolver.IdFor(doc, DrawingRouteRequests.PanelSchedule);
+            result.DrawingTypeId = drawingTypeId;
 
             PanelScheduleTemplateRegistry.Reload(doc);   // read-only config load
 
@@ -205,7 +208,7 @@ namespace StingTools.Core.Panels
                         string key = winningTemplate ?? "(unknown)";
                         result.PerTemplate[key] = result.PerTemplate.TryGetValue(key, out int n) ? n + 1 : 1;
 
-                        if (StampDrawingType(psv)) result.DrawingTypeStamped++;
+                        if (StampDrawingType(psv, drawingTypeId)) result.DrawingTypeStamped++;
                         if (StampPanelParams(panel, psv)) result.ParamsStamped++;
                         string psvName = null;
                         try { psvName = psv.Name; } catch (Exception ex) { StingLog.Warn($"psv.Name read on '{panelName}': {ex.Message}"); }
@@ -224,7 +227,7 @@ namespace StingTools.Core.Panels
                 {
                     try
                     {
-                        if (StampDrawingType(existing)) result.DrawingTypeStamped++;
+                        if (StampDrawingType(existing, drawingTypeId)) result.DrawingTypeStamped++;
                         if (StampPanelParams(panel, existing)) result.ParamsStamped++;
                         result.CircuitRefsStamped += StampCircuitBackrefs(doc, panel, existing.Name);
                     }
@@ -260,9 +263,9 @@ namespace StingTools.Core.Panels
 
         // ── post-create wiring (verbatim from BatchPanelSchedulesCommand) ──────────
 
-        private static bool StampDrawingType(PanelScheduleView psv)
+        private static bool StampDrawingType(PanelScheduleView psv, string drawingTypeId)
         {
-            try { return DrawingTypeStamper.Stamp(psv, DrawingTypeId); }
+            try { return DrawingTypeStamper.Stamp(psv, drawingTypeId); }
             catch (Exception ex) { StingLog.Warn($"Stamp drawing-type on '{psv.Name}': {ex.Message}"); return false; }
         }
 

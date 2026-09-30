@@ -60,15 +60,49 @@ namespace StingTools.Core.Drawing
             new DrawingRouteRequest("E", "EARTHING_SCHEMATIC", "elec-earthing-schematic-A1-NTS", "Earthing_Diagram");
         public static readonly DrawingRouteRequest PanelDoorDiagram =
             new DrawingRouteRequest("E", "PANEL_DOOR_DIAGRAM", "elec-panel-door-diagram-A3-NTS", "Panel_DoorDiagram");
+        // Plumb_SupplySchematic draws the domestic cold water network only (the pipes
+        // whose system is classified Domestic Cold Water), so it is the DCW schematic;
+        // DHW_SCHEMATIC has no generator.
+        public static readonly DrawingRouteRequest DcwSchematic =
+            new DrawingRouteRequest("P", "DCW_SCHEMATIC", "plumb-dcw-schematic-A1-NTS", "Plumb_SupplySchematic");
+        public static readonly DrawingRouteRequest DrainageSchematic =
+            new DrawingRouteRequest("P", "DRAINAGE_SCHEMATIC", "plumb-drainage-schematic-A1", "Plumb_DrainageSchematic");
 
         /// <summary>The diagram generators, in the order a production run draws them.</summary>
         public static readonly IReadOnlyList<DrawingRouteRequest> DiagramGenerators = new[]
         {
             Sld, Riser, FireAlarmSchematic, MgpsSchematic, LpsSchematic, EarthingSchematic, PanelDoorDiagram,
+            DcwSchematic, DrainageSchematic,
         };
 
+        // ── Schedules: an engine makes the schedule view; it is stamped with, and placed on, its type's sheet ──
+        // The panel-schedule sheets are found again by their stamp, so every command that
+        // stamps or places a panel schedule asks for this one key (see StampIds).
+        public static readonly DrawingRouteRequest PanelSchedule =
+            new DrawingRouteRequest("E", "ELEC_PANEL_SCHEDULE", "elec-panel-schedule-A3",
+                "Panel_PlaceOnSheets / Panel_BatchSchedules / FaultCurrentSchedule / VoltageDropSchedule");
+
+        /// <summary>The schedule requests (not diagram generators: production never skips their types).</summary>
+        public static readonly IReadOnlyList<DrawingRouteRequest> Schedules = new[] { PanelSchedule };
+
         /// <summary>Every request this file declares.</summary>
-        public static IEnumerable<DrawingRouteRequest> All => DiagramGenerators;
+        public static IEnumerable<DrawingRouteRequest> All => DiagramGenerators.Concat(Schedules);
+
+        /// <summary>
+        /// The drawing-type ids a sheet or view made for <paramref name="req"/> may carry:
+        /// the id routing gives now, then the shipped fall-back when that differs. A sheet
+        /// stamped before a project re-routed the key carries the shipped id; looking up
+        /// only the routed id would miss it and mint a duplicate.
+        /// </summary>
+        public static IReadOnlyList<string> StampIds(string routedId, DrawingRouteRequest req)
+        {
+            var ids = new List<string>();
+            if (!string.IsNullOrWhiteSpace(routedId)) ids.Add(routedId);
+            string fb = req?.FallbackDrawingTypeId;
+            if (!string.IsNullOrWhiteSpace(fb) && !ids.Any(i => string.Equals(i, fb, StringComparison.OrdinalIgnoreCase)))
+                ids.Add(fb);
+            return ids;
+        }
 
         /// <summary>
         /// docTypes other callers pass to DrawingDispatcher.Resolve (literal or a
@@ -93,10 +127,8 @@ namespace StingTools.Core.Drawing
             {
                 // No generator draws these schematic types yet (production skips them — see SchematicNotProducedReason).
                 { "HVAC_SCHEMATIC", "mep-hvac-schematic-A1 — no generator draws it yet." },
-                { "DCW_SCHEMATIC", "plumb-dcw-schematic-A1-NTS — Plumb_SupplySchematic draws a supply schematic but does not place it yet." },
-                { "DHW_SCHEMATIC", "plumb-dhw-schematic-A1-NTS — as DCW." },
+                { "DHW_SCHEMATIC", "plumb-dhw-schematic-A1-NTS — no generator draws it yet (Plumb_SupplySchematic draws cold water only)." },
                 { "LTHW_SCHEMATIC", "plumb-lthw-schematic-A1-NTS — no generator draws it yet." },
-                { "DRAINAGE_SCHEMATIC", "plumb-drainage-schematic-A1 — Plumb_DrainageSchematic draws one but does not place it yet." },
                 { "VENT_RISER", "plumb-vent-riser-A3-NTS — no generator draws it yet." },
                 { "RISER_SCHEMATIC", "fire-riser-schematic-A1 — no generator draws it yet." },
                 { "ESS_RISER", "health-ess-power-riser-A1 — no generator draws it yet." },
@@ -122,10 +154,7 @@ namespace StingTools.Core.Drawing
                 { "WATER_TREATMENT", "plumb-water-treatment-A1-1to50 — chosen by id in production." },
                 { "DETAIL", "Discipline detail types — chosen by id in production." },
                 { "LEGEND", "legend-A3 — legends are made in Revit (the API cannot create one)." },
-                // Schedules. The panel schedule's stamp and its sheets are keyed on
-                // elec-panel-schedule-A3 in five places (Panel_PlaceOnSheets finds its
-                // sheets by that stamp), so they must move to routing together, not piecemeal.
-                { "ELEC_PANEL_SCHEDULE", "elec-panel-schedule-A3 — PanelViewScheduleCommand (Panel_PlaceOnSheets), BatchPanelSchedules, PanelScheduleApplyEngine and the fault-current / voltage-drop schedules still name the id; route them together." },
+                // Schedules no command places yet.
                 { "MECH_EQUIP_SCHEDULE", "mech-equip-schedule-A3 — no command places the schedule yet." },
                 { "VALVE_SCHEDULE", "valve-schedule-A3 — no command places the schedule yet." },
                 { "PENETRATION_REGISTER", "penetration-register-A1 — no command places the register yet." },

@@ -45,14 +45,27 @@ namespace StingTools.Core.Drawing
         /// type — a key plan, a legend someone added — are never touched.
         /// </summary>
         public static PlacementDecision Decide(IEnumerable<PlacedView> onSheet, long viewId, string drawingTypeId)
+            => Decide(onSheet, viewId, drawingTypeId, null);
+
+        /// <summary>
+        /// As above; a view stamped with one of <paramref name="formerDrawingTypeIds"/>
+        /// (the id this request routed to before a project re-routed it) is an earlier
+        /// run's view too and makes way the same.
+        /// </summary>
+        public static PlacementDecision Decide(IEnumerable<PlacedView> onSheet, long viewId, string drawingTypeId,
+            IEnumerable<string> formerDrawingTypeIds)
         {
+            var ids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrEmpty(drawingTypeId)) ids.Add(drawingTypeId);
+            foreach (var f in formerDrawingTypeIds ?? Enumerable.Empty<string>())
+                if (!string.IsNullOrEmpty(f)) ids.Add(f);
+
             var d = new PlacementDecision();
             foreach (var p in onSheet ?? Enumerable.Empty<PlacedView>())
             {
                 if (p == null) continue;
                 if (p.ViewId == viewId) { d.AlreadyPlaced = true; continue; }
-                if (!string.IsNullOrEmpty(drawingTypeId)
-                    && string.Equals(p.DrawingTypeId, drawingTypeId, StringComparison.OrdinalIgnoreCase)
+                if (!string.IsNullOrEmpty(p.DrawingTypeId) && ids.Contains(p.DrawingTypeId)
                     && !d.RemoveViewIds.Contains(p.ViewId))
                     d.RemoveViewIds.Add(p.ViewId);
             }
