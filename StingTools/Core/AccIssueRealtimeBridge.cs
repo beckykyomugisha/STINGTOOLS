@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Autodesk.Revit.UI;
 using StingTools.BIMManager;
 using StingTools.V6;
 
@@ -19,9 +20,42 @@ namespace StingTools.Core
     /// not opt in logs one line and imports nothing.
     ///
     /// Wired from WarningsRealtimeBridge.Wire(), which runs on every Planscape login.
+    ///
+    /// OWN EXTERNAL EVENT. The import is queued on a dedicated ExternalEvent, never on the dock
+    /// panel's shared one: that handler holds ONE pending command tag, so a signal arriving while
+    /// Revit was busy overwrote a command the user had just clicked (which then never ran), and a
+    /// static "next run is automatic" flag could end up attached to the wrong run — making a
+    /// manual import silent, or an automatic one interactive on a project that never opted in.
+    /// The dedicated handler runs the import with automatic=true explicitly.
     /// </summary>
     internal static class AccIssueRealtimeBridge
     {
+        private static ExternalEvent _event;
+
+        /// <summary>Create the dedicated ExternalEvent. Must run in a Revit API context (startup).</summary>
+        internal static void Initialise()
+        {
+            if (_event != null) return;
+            try { _event = ExternalEvent.Create(new AccAutoImportHandler()); }
+            catch (Exception ex) { StingLog.Warn("AccIssueRealtimeBridge.Initialise: " + ex.Message); }
+        }
+
+        private sealed class AccAutoImportHandler : IExternalEventHandler
+        {
+            public void Execute(UIApplication app)
+            {
+                try
+                {
+                    UI.StingCommandHandler.SetCurrentApp(app);
+                    var r = new Clash.AccImportIssuesCommand().Run(null, forceFull: false, automatic: true);
+                    StingLog.Info("ACC_ImportIssues (auto): " + r);
+                }
+                catch (Exception ex) { StingLog.Error("ACC_ImportIssues (auto)", ex); }
+            }
+
+            public string GetName() => "STING ACC auto-import";
+        }
+
         private static bool _wired;
         private static readonly object _wireLock = new object();
         private static readonly AccAutoImportGate _gate = new AccAutoImportGate();
@@ -76,12 +110,12 @@ namespace StingTools.Core
 
         private static void Queue()
         {
-            Clash.AccImportIssuesCommand.MarkNextRunAutomatic();
-            bool ok = UI.StingDockPanel.DispatchCommand("ACC_ImportIssues");
-            if (!ok) Clash.AccImportIssuesCommand.CancelAutomatic();   // or the next MANUAL run would go silent
-            if (!ok)
-                StingLog.Warn("AccIssueRealtimeBridge: could not queue ACC_ImportIssues (the STING command " +
-                              "dispatcher is not initialised or Revit refused the request) — run Import Issues manually.");
+            ExternalEventRequest req = _event == null ? ExternalEventRequest.Denied : _event.Raise();
+            // Pending = already queued and not yet run: the queued run covers this signal too.
+            if (req != ExternalEventRequest.Accepted && req != ExternalEventRequest.Pending)
+                StingLog.Warn($"AccIssueRealtimeBridge: could not queue the ACC auto-import ({req}; " +
+                              (_event == null ? "the event was not created at startup" : "Revit refused the request") +
+                              ") — run Import Issues manually.");
         }
     }
 }

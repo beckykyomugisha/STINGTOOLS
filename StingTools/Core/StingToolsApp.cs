@@ -423,6 +423,11 @@ namespace StingTools.Core
                 try { StingTools.Mcp.McpJobBridge.Initialise(); }
                 catch (Exception mcpEx) { StingLog.Error("McpJobBridge.Initialise", mcpEx); }
 
+                // ACC auto-import runs on its OWN ExternalEvent (never the dock panel's shared
+                // one); ExternalEvent.Create needs this API context.
+                try { AccIssueRealtimeBridge.Initialise(); }
+                catch (Exception accEx) { StingLog.Error("AccIssueRealtimeBridge.Initialise", accEx); }
+
                 StingMcpServer.StartIfConfigured();
                 StingLog.Info("STING Tools dockable panel loaded successfully");
                 return Result.Succeeded;

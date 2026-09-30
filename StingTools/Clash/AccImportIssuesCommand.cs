@@ -49,16 +49,15 @@ namespace StingTools.Core.Clash
         private const string Title = "ACC — Import Issues";
 
         // Set by AccIssueRealtimeBridge immediately before it queues this command; consumed here.
-        private static int _autoRunPending;
-        internal static void MarkNextRunAutomatic() => System.Threading.Interlocked.Exchange(ref _autoRunPending, 1);
-        internal static void CancelAutomatic() => System.Threading.Interlocked.Exchange(ref _autoRunPending, 0);
 
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
             => Run(cmd, forceFull: false);
 
-        internal Result Run(ExternalCommandData cmd, bool forceFull)
+        /// <param name="automatic">True only when AccIssueRealtimeBridge's own ExternalEvent runs
+        /// it for a server signal. Passed explicitly — never a shared flag a manual run can pick up.</param>
+        internal Result Run(ExternalCommandData cmd, bool forceFull, bool automatic = false)
         {
-            bool auto = System.Threading.Interlocked.Exchange(ref _autoRunPending, 0) == 1;
+            bool auto = automatic;
             var ctx = ParameterHelpers.GetContext(cmd);
             if (ctx == null)
             {
