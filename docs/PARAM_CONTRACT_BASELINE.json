@@ -687,6 +687,11 @@
       "role": "input",
       "reason": "Read by StingTools, written by nobody in code: a person sets it per element (defined 2026-09-25, ROADMAP PARAM-7). If that is wrong, it is a missing writer."
     },
+    "ELC_IPS_BOOL": {
+      "state": "read_only",
+      "role": "input",
+      "reason": "A human sets it (\"Powered from Isolated Power System\") on a board or device; IPSValidationCommand reads it to find IPS panels, and the ees-ips AEC filter colours on it. No writer expected."
+    },
     "ELC_IP_RATING_TXT": {
       "state": "write_only",
       "role": "export",

@@ -1,4 +1,5 @@
 ﻿# BINDSCOPE-1 | 20260916 | 14 rows Type -> Instance. A parameter the tagging pipeline writes per element cannot be Type-bound: the write is unreachable through the instance and returns false in silence (this is why a new door tagged A-BLD1-Z01-L01-ARC-FIT-DR- with no SEQ), and where it does land it stamps one element value across every sibling of that type. Derived by tools/check_binding_scope.py, not hand-listed.
+# v3.20 | 20261001 | DTW-58: +61 Yes rows so every STING parameter an AEC filter's rule names is bound to every category that filter targets. Revit only offers a filter the parameters common to all its categories, so ParameterFilterElement.Create refused 49 filters in STING_AEC_FILTERS.json: 46 healthcare (clin-press-*, clin-infect-*, clin-decon-*, clin-room-dept-*, clin-accessible-routes, rad-*, lig-*, ceq-*, mgs-zone-valve-box / area-alarm / verify-fail / terminal-unit, ees-*) whose rule parameters sat on the HEALTH equipment set (Specialty / Mechanical Equipment, Plumbing Fixtures, Medical Equipment) while the filters target Rooms, Walls, Doors, Generic Models, pipes, devices; and 3 LPS (elec-lps-downcond / earth / bonding) whose ELC_LPS_ELEMENT_TYPE_TXT reached Electrical Equipment + Generic Models only. The filter's category list is taken as the statement of where the value lives. Additive. Computed, not hand-listed; checked by tools/check_drawing_bindings.py.
 # v3.19 | 20261001 | DTW-56: +3 Yes rows putting the match-line stamps (STING_MATCH_REF_TXT / _LINE_GUID_TXT / _DIR_TXT) on Lines. MatchLineEngine writes them only to the DetailCurves it creates (OST_Lines) and finds a previous run's curves by STING_MATCH_LINE_GUID_TXT; bound <ALL> (element categories + Sheets, no Lines) the stamp never landed, so every MatchLine_Generate / _Sync placed a second set. Needs "Lines": "OST_Lines" in PARAMETER_REGISTRY.json category_enum_map (added). Whether Revit accepts a binding on OST_Lines (Category.AllowsBoundParameters) is an in-Revit check: if it does not, Load Shared Parameters logs "0/1 categories resolved" for these three and the stamp needs Extensible Storage instead.
 # v3.18 | 20261001 | DTW-55: +19 Yes rows putting 16 view stamps on Views (and the three also stamped on sheets on Sheets). They were <ALL>, which is 139 ELEMENT categories plus Sheets and not Views, so every write to a view or view template was a no-op and DrawingProducer.FindExistingView (keyed on STING_DRAWING_TYPE_ID_TXT / STING_VIEW_CONTEXT_TAG_TXT / STING_PRODUCTION_RULE_IDX_INT) never found a view it had produced: every re-run duplicated its views. Receivers read from the code: DrawingTypeStamper (type id / style lock / package / crop), DrawingProducer + BatchProduceCommands (context tag / rule index), GenerateFromScopeBoxesCommand (scope-box tag), TokenProfileApplier + ManagedTemplateSyncer (view tag style), RefreshTagDisplayCommand (token mask; its row said False, now Yes), SLDGenerator (symbol standard), TemplateManager DriftDetector (template checksum / lock), CircuitViewFilterCommand (circuit filter), and the managed-template pack stamps. The resolver now lets a Yes home replace a committed <ALL> instead of restoring it; existing projects keep <ALL> (the loader unions, never narrows). Checked by tools/check_drawing_bindings.py.
 # v3.17 | 20260928 | +25 Yes rows: 21 for the thirteen parameters PARAM-10 defined (code read them; no file defined them): ELC_CBL_RATED_V_NR (circuits, conduits, trays), PROJECT_REGION, PRJ_ORG_CURRENCY_TXT, PRJ_ORG_DISCIPLINES_TXT, PRJ_ORG_MAT_SIGNOFF_SUIT_TXT, PRJ_ELC_SUPPLY_VOLTAGE_TXT, PLM_RECIRC_DELTA_T_K (Project Information), PLM_FIX_TYPE_TXT (Plumbing Fixtures), MGS_GAS_REQUIREMENT_TXT (Rooms), HVC_SYSTEM_ID_TXT (MEP Spaces + Rooms), MNT_ACCESS_DIR_TXT (the maintenance clash check categories), ELC_CDT_CABLE_MANIFEST_TXT (Conduits), BLE_PLASTER_FACES_NR (Walls). Same sets as RESOLVED_BINDINGS.csv, so Dynamic Bindings binds them too. Plus 4 for ELC_ENERGY_KWH_PA on the energy-using equipment the carbon tracker reads for B6 (it was on boards and circuits only; its legacy Type row on Generic Models is removed), and 52 _TXT mirror rows bind_txt_mirrors.py had not written.
@@ -15967,27 +15968,27 @@ CEQ_UMDNS_CODE_TXT,Specialty Equipment,Instance,True
 CEQ_UMDNS_CODE_TXT,Mechanical Equipment,Instance,True
 CLN_ADB_CODE_TXT,Rooms,Instance,True
 CLN_ANTERM_LINKED_ID_TXT,Rooms,Instance,True
-CLN_BARI_DESIGN_KG_NR,Rooms,Instance,True
+CLN_BARI_DESIGN_KG_NR,Rooms,Instance,Yes
 CLN_DEFLECTION_LIMIT_MM_NR,Rooms,Instance,True
 CLN_EQUIP_WEIGHT_KG_NR,Rooms,Instance,True
 CLN_FGI_REF_TXT,Rooms,Instance,True
 CLN_FLOOR_LOAD_KN_M2_NR,Rooms,Instance,True
 CLN_HBN_REF_TXT,Rooms,Instance,True
-CLN_HOIST_TRACK_BOOL,Rooms,Instance,True
+CLN_HOIST_TRACK_BOOL,Rooms,Instance,Yes
 CLN_HTM_REF_TXT,Rooms,Instance,True
-CLN_INFECT_CLASS_TXT,Rooms,Instance,True
+CLN_INFECT_CLASS_TXT,Rooms,Instance,Yes
 CLN_LIGATURE_RES_BOOL,Rooms,Instance,True
-CLN_LIG_RISK_LVL_TXT,Rooms,Instance,True
-CLN_MRI_ZONE_INT,Rooms,Instance,True
+CLN_LIG_RISK_LVL_TXT,Rooms,Instance,Yes
+CLN_MRI_ZONE_INT,Rooms,Instance,Yes
 CLN_NOISE_NR_NR,Rooms,Instance,True
 CLN_NURSECALL_TYPE_TXT,Rooms,Instance,True
 CLN_OCC_VISITOR_INT,Rooms,Instance,True
 CLN_PRESS_DELTA_DESIGN_PA_NR,Rooms,Instance,True
-CLN_PRESS_REGIME_TXT,Rooms,Instance,True
+CLN_PRESS_REGIME_TXT,Rooms,Instance,Yes
 CLN_PRIVACY_LVL_TXT,Rooms,Instance,True
-CLN_RAD_CONTROLLED_BOOL,Rooms,Instance,True
+CLN_RAD_CONTROLLED_BOOL,Rooms,Instance,Yes
 CLN_RF_SHIELD_BOOL,Rooms,Instance,True
-CLN_ROOM_CLASS_TXT,Rooms,Instance,True
+CLN_ROOM_CLASS_TXT,Rooms,Instance,Yes
 CLN_RT60_TARGET_S_NR,Rooms,Instance,True
 CLN_STRUCT_SIGN_OFF_DT,Rooms,Instance,True
 CLN_STRUCT_SIGN_OFF_TXT,Rooms,Instance,True
@@ -16053,7 +16054,7 @@ PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,Title Blocks,Instance,True
 PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT,Project Information,Instance,True
 RAD_BARRIER_TYPE_TXT,Rooms,Instance,True
 RAD_BARRIER_TYPE_TXT,Specialty Equipment,Instance,True
-RAD_DOSE_DESIGN_GOAL_TXT,Rooms,Instance,True
+RAD_DOSE_DESIGN_GOAL_TXT,Rooms,Instance,Yes
 RAD_DOSE_DESIGN_GOAL_TXT,Specialty Equipment,Instance,True
 RAD_LEAD_MM_NR,Rooms,Instance,True
 RAD_LEAD_MM_NR,Specialty Equipment,Instance,True
@@ -17089,9 +17090,9 @@ MGS_VERIFY_DT,Plumbing Fixtures,Instance,True
 MGS_VERIFY_PASS_BOOL,Mechanical Equipment,Instance,True
 MGS_VERIFY_PASS_BOOL,Specialty Equipment,Instance,True
 MGS_VERIFY_PASS_BOOL,Medical Equipment,Instance,True
-MGS_VERIFY_PASS_BOOL,Pipes,Instance,True
-MGS_VERIFY_PASS_BOOL,Pipe Fittings,Instance,True
-MGS_VERIFY_PASS_BOOL,Pipe Accessories,Instance,True
+MGS_VERIFY_PASS_BOOL,Pipes,Instance,Yes
+MGS_VERIFY_PASS_BOOL,Pipe Fittings,Instance,Yes
+MGS_VERIFY_PASS_BOOL,Pipe Accessories,Instance,Yes
 MGS_VERIFY_PASS_BOOL,Plumbing Fixtures,Instance,True
 MGS_WORKING_PRESSURE_KPA,Mechanical Equipment,Instance,True
 MGS_WORKING_PRESSURE_KPA,Specialty Equipment,Instance,True
@@ -17140,7 +17141,7 @@ WARN_CLN_ACOUSTIC_STC_LOW,Rooms,Instance,True
 WARN_CLN_ACOUSTIC_STC_LOW,Specialty Equipment,Instance,True
 WARN_CLN_ACOUSTIC_STC_LOW,Medical Equipment,Instance,True
 WARN_CLN_ACOUSTIC_STC_LOW,Mechanical Equipment,Instance,True
-WARN_CLN_AIIR_NOT_NEGATIVE,Rooms,Instance,True
+WARN_CLN_AIIR_NOT_NEGATIVE,Rooms,Instance,Yes
 WARN_CLN_AIIR_NOT_NEGATIVE,Specialty Equipment,Instance,True
 WARN_CLN_AIIR_NOT_NEGATIVE,Medical Equipment,Instance,True
 WARN_CLN_AIIR_NOT_NEGATIVE,Mechanical Equipment,Instance,True
@@ -19878,3 +19879,51 @@ STING_VIEW_TAG_STYLE,Views,Instance,Yes
 STING_MATCH_DIR_TXT,Lines,Instance,Yes
 STING_MATCH_LINE_GUID_TXT,Lines,Instance,Yes
 STING_MATCH_REF_TXT,Lines,Instance,Yes
+CEQ_CLINICAL_BOOL,Generic Models,Instance,Yes
+CEQ_CLINICAL_BOOL,Nurse Call Devices,Instance,Yes
+CEQ_INFECT_TIER_TXT,Generic Models,Instance,Yes
+CEQ_INFECT_TIER_TXT,Nurse Call Devices,Instance,Yes
+CLN_BARI_DESIGN_KG_NR,Generic Models,Instance,Yes
+CLN_BARI_DESIGN_KG_NR,Nurse Call Devices,Instance,Yes
+CLN_LIG_RISK_LVL_TXT,Doors,Instance,Yes
+CLN_LIG_RISK_LVL_TXT,Generic Models,Instance,Yes
+CLN_LIG_RISK_LVL_TXT,Lighting Fixtures,Instance,Yes
+CLN_MRI_ZONE_INT,Generic Models,Instance,Yes
+CLN_RAD_CONTROLLED_BOOL,Doors,Instance,Yes
+CLN_RAD_CONTROLLED_BOOL,Generic Models,Instance,Yes
+CLN_RAD_CONTROLLED_BOOL,Walls,Instance,Yes
+CLN_RAD_CONTROLLED_BOOL,Windows,Instance,Yes
+CLN_ROOM_CLASS_TXT,Doors,Instance,Yes
+CLN_ROOM_CLASS_TXT,Generic Models,Instance,Yes
+ELC_EES_BRANCH_TXT,Communication Devices,Instance,Yes
+ELC_EES_BRANCH_TXT,Data Devices,Instance,Yes
+ELC_EES_BRANCH_TXT,Lighting Devices,Instance,Yes
+ELC_EES_BRANCH_TXT,Lighting Fixtures,Instance,Yes
+ELC_IPS_BOOL,Communication Devices,Instance,Yes
+ELC_IPS_BOOL,Data Devices,Instance,Yes
+ELC_IPS_BOOL,Lighting Devices,Instance,Yes
+ELC_IPS_BOOL,Lighting Fixtures,Instance,Yes
+ELC_LPS_ELEMENT_TYPE_TXT,Cable Trays,Instance,Yes
+ELC_LPS_ELEMENT_TYPE_TXT,Conduits,Instance,Yes
+ELC_LPS_ELEMENT_TYPE_TXT,Ducts,Instance,Yes
+ELC_LPS_ELEMENT_TYPE_TXT,Pipes,Instance,Yes
+ELC_LPS_ELEMENT_TYPE_TXT,Structural Foundations,Instance,Yes
+LIG_AREA_OBS_LOS_TXT,Generic Models,Instance,Yes
+LIG_AREA_OBS_LOS_TXT,Rooms,Instance,Yes
+MGS_AAP_REF_TXT,Generic Models,Instance,Yes
+MGS_TU_BS5682_BOOL,Generic Models,Instance,Yes
+MGS_ZVB_REF_TXT,Generic Models,Instance,Yes
+RAD_BARRIER_TYPE_TXT,Ceilings,Instance,Yes
+RAD_BARRIER_TYPE_TXT,Doors,Instance,Yes
+RAD_BARRIER_TYPE_TXT,Floors,Instance,Yes
+RAD_BARRIER_TYPE_TXT,Generic Models,Instance,Yes
+RAD_BARRIER_TYPE_TXT,Walls,Instance,Yes
+RAD_BARRIER_TYPE_TXT,Windows,Instance,Yes
+RAD_DOSE_DESIGN_GOAL_TXT,Doors,Instance,Yes
+RAD_DOSE_DESIGN_GOAL_TXT,Generic Models,Instance,Yes
+RAD_DOSE_DESIGN_GOAL_TXT,Walls,Instance,Yes
+RAD_DOSE_DESIGN_GOAL_TXT,Windows,Instance,Yes
+RAD_LEAD_MM_NR,Ceilings,Instance,Yes
+RAD_LEAD_MM_NR,Doors,Instance,Yes
+RAD_LEAD_MM_NR,Floors,Instance,Yes
+RAD_LEAD_MM_NR,Walls,Instance,Yes
