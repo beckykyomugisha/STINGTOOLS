@@ -607,52 +607,20 @@ namespace StingTools.Core.Drawing
         private static ElementId FindViewportTypeId(Document doc, string typeName)
             => ViewportTypeResolver.Resolve(doc, typeName, createIfMissing: true);
 
-        // SLOT-3 helper — returns true when the view's ViewType is compatible
-        // with the slot's declared ViewType string. Unknown slot types pass
-        // through as compatible (returns true) to avoid false positives.
+        // SLOT-3 helper. The mapping from STING slot terms to Revit view types
+        // lives in the Revit-free SlotViewTypeCompatibility so the producer
+        // (DTW-63) and this bridge share one copy and it can be unit-tested.
         /// <summary>
-        /// The slot viewType terms <see cref="IsViewTypeCompatible"/> actually
-        /// discriminates on. Anything else reaches the permissive default arm
-        /// and matches every view, which is how "Drafting" and "Coordination"
-        /// went unnoticed. DrawingTypeValidator (DT-137-SLOTVT) and
-        /// DrawingSlotVocabularyTests read this list so there is one copy.
+        /// The slot viewType terms the compatibility predicate discriminates on;
+        /// see <see cref="SlotViewTypeCompatibility.KnownSlotViewTypes"/>.
         /// </summary>
-        public static readonly string[] KnownSlotViewTypes =
-        {
-            "Plan", "RCP", "Section", "Elevation", "Detail", "3D",
-            "Schedule", "Legend", "ISO", "Schematic", "Drafting", "Coordination",
-        };
+        public static readonly string[] KnownSlotViewTypes = SlotViewTypeCompatibility.KnownSlotViewTypes;
 
         /// <summary>True when the term is one the compatibility switch discriminates on.</summary>
         public static bool IsKnownSlotViewType(string slotViewType)
-            => !string.IsNullOrWhiteSpace(slotViewType)
-            && KnownSlotViewTypes.Any(k => string.Equals(k, slotViewType.Trim(), StringComparison.OrdinalIgnoreCase));
+            => SlotViewTypeCompatibility.IsKnown(slotViewType);
 
         private static bool IsViewTypeCompatible(View view, string slotViewType)
-        {
-            if (view == null || string.IsNullOrWhiteSpace(slotViewType)) return true;
-            return slotViewType.ToUpperInvariant() switch
-            {
-                "PLAN"      => view.ViewType == ViewType.FloorPlan || view.ViewType == ViewType.AreaPlan || view.ViewType == ViewType.EngineeringPlan,
-                "RCP"       => view.ViewType == ViewType.CeilingPlan,
-                "SECTION"   => view.ViewType == ViewType.Section,
-                "ELEVATION" => view.ViewType == ViewType.Elevation,
-                "DETAIL"    => view.ViewType == ViewType.Detail,
-                "3D"        => view.ViewType == ViewType.ThreeD,
-                "SCHEDULE"  => view.ViewType == ViewType.Schedule,
-                "LEGEND"    => view.ViewType == ViewType.Legend,
-                "ISO"       => view.ViewType == ViewType.ThreeD,
-                "SCHEMATIC" => view.ViewType == ViewType.DraftingView || view.ViewType == ViewType.Elevation,
-                // DRAFTING and COORDINATION were both used by shipped profiles
-                // and neither was listed, so both fell through to the
-                // permissive default and matched ANY view. Declared now, so the
-                // slot means what it says.
-                "DRAFTING"  => view.ViewType == ViewType.DraftingView,
-                "COORDINATION" => view.ViewType == ViewType.FloorPlan
-                              || view.ViewType == ViewType.EngineeringPlan
-                              || view.ViewType == ViewType.ThreeD,
-                _           => true  // unknown slot type — allow (DT-137-SLOTVT reports it)
-            };
-        }
+            => view == null || SlotViewTypeCompatibility.IsCompatible(view.ViewType.ToString(), slotViewType);
     }
 }

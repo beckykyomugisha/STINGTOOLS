@@ -1024,22 +1024,45 @@ namespace StingTools.Core.Drawing
         private static BoundingBoxXYZ BuildSectionBoxFromScopeBox(Document doc, DrawingContext ctx, ProduceResult result)
         {
             if (ctx?.ScopeBox == null) return null;
-            if (!ScopeBoxRevit.TryMeasure(ctx.ScopeBox, out var m, out var why))
+            return SectionBoxFromScopeBox(doc, ctx.ScopeBox, ctx.Level, cross: false, result?.Warnings);
+        }
+
+        /// <summary>
+        /// DTW-74: the second of a scope box's two building sections — through its centre,
+        /// perpendicular to the long-axis cut the producer takes from the box
+        /// (SectionFromBox.CrossFrame), over the box's full height. For a caller that
+        /// passes it as <see cref="DrawingContext.CustomBounds"/>. Null (reported) when the
+        /// box cannot be measured.
+        /// </summary>
+        internal static BoundingBoxXYZ BuildCrossSectionBoxFromScopeBox(Document doc, Element box, List<string> warnings)
+            => SectionBoxFromScopeBox(doc, box, null, cross: true, warnings);
+
+        /// <summary>DTW-74: the long-axis cut a scope box gives (the one a Section rule
+        /// produced for the box takes), over the box's full height, as CustomBounds.</summary>
+        internal static BoundingBoxXYZ BuildLongSectionBoxFromScopeBox(Document doc, Element box, List<string> warnings)
+            => SectionBoxFromScopeBox(doc, box, null, cross: false, warnings);
+
+        private static BoundingBoxXYZ SectionBoxFromScopeBox(Document doc, Element box, Level level, bool cross, List<string> warnings)
+        {
+            if (box == null) return null;
+            if (!ScopeBoxRevit.TryMeasure(box, out var m, out var why))
             {
-                result.Warnings.Add($"Section from scope box '{ctx.ScopeBox.Name}': the box {why}.");
+                warnings?.Add($"Section from scope box '{box.Name}': the box {why}.");
                 return null;
             }
-            var frame = SectionFromBox.Frame(m.Centre.X, m.Centre.Y,
-                m.WidthM * ScopeBoxRevit.FeetPerMetre, m.DepthM * ScopeBoxRevit.FeetPerMetre, m.AngleRad);
+            double wFt = m.WidthM * ScopeBoxRevit.FeetPerMetre, dFt = m.DepthM * ScopeBoxRevit.FeetPerMetre;
+            var frame = cross
+                ? SectionFromBox.CrossFrame(m.Centre.X, m.Centre.Y, wFt, dFt, m.AngleRad)
+                : SectionFromBox.Frame(m.Centre.X, m.Centre.Y, wFt, dFt, m.AngleRad);
             if (frame == null) return null;
             double? lvl = null, next = null;
-            if (ctx.Level != null)
+            if (level != null)
             {
-                lvl = ctx.Level.Elevation;
+                lvl = level.Elevation;
                 try
                 {
                     next = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
-                        .Where(l => l.Elevation > ctx.Level.Elevation + 1e-6)
+                        .Where(l => l.Elevation > level.Elevation + 1e-6)
                         .OrderBy(l => l.Elevation).Select(l => (double?)l.Elevation).FirstOrDefault();
                 }
                 catch (Exception ex) { StingLog.Warn($"Section band next level: {ex.Message}"); }
@@ -1632,10 +1655,13 @@ namespace StingTools.Core.Drawing
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
 
                 // SLOT-3: warn on a view/slot type mismatch rather than
-                // placing it silently into the wrong slot.
+                // placing it silently into the wrong slot. DTW-63: slot terms
+                // are STING vocabulary ("Plan", "3D", "RCP"), not Revit enum
+                // names ("FloorPlan", "ThreeD", "CeilingPlan"); compare through
+                // the predicate the placement bridge uses.
                 if (sp?.Slot != null && !string.IsNullOrWhiteSpace(sp.Slot.ViewType)
                     && doc.GetElement(viewId) is View vChk
-                    && !string.Equals(vChk.ViewType.ToString(), sp.Slot.ViewType, StringComparison.OrdinalIgnoreCase))
+                    && !SlotViewTypeCompatibility.IsCompatible(vChk.ViewType.ToString(), sp.Slot.ViewType))
                 {
                     result.Warnings.Add(
                         $"View '{vChk.Name}' ({vChk.ViewType}) placed into slot '{sp.Slot.Label}' " +
@@ -2338,6 +2364,17 @@ namespace StingTools.Core.Drawing
             if (doc == null) return null;
             var key = CacheDocKey(doc);
             if (_isoLevelMap != null && string.Equals(_isoLevelMapDocKey, key, StringComparison.OrdinalIgnoreCase)) return _isoLevelMap;
+            var map = BuildIsoLevelMap(doc);
+            if (map != null) { _isoLevelMap = map; _isoLevelMapDocKey = key; }
+            return map;
+        }
+
+        /// <summary>The same map, built fresh (no batch cache) — for callers outside a
+        /// production batch, such as title-block heal (DTW-79), where a level may have
+        /// been renamed since the last batch.</summary>
+        internal static Dictionary<string, string> BuildIsoLevelMap(Document doc)
+        {
+            if (doc == null) return null;
             try
             {
                 var storeys = new List<StoreyDatum>();
@@ -2348,9 +2385,7 @@ namespace StingTools.Core.Drawing
                             Name = l.Name,
                             ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
                         });
-                _isoLevelMap = IsoLevelCode.BuildMap(storeys);
-                _isoLevelMapDocKey = key;
-                return _isoLevelMap;
+                return IsoLevelCode.BuildMap(storeys);
             }
             catch (Exception ex) { StingLog.Warn($"DrawingProducer.IsoLevelMap: {ex.Message}"); return null; }
         }

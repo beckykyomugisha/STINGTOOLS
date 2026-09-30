@@ -53,6 +53,28 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-74: the second of a box's two building sections — through the same centre,
+        /// cut along its SHORT side (perpendicular to <see cref="Frame"/>), half as wide as
+        /// that side, looking across the long side as far as the box's face. With
+        /// <see cref="Frame"/> it gives "two sections per scope box". Null for a box with
+        /// no extent.
+        /// </summary>
+        public static SectionFrame CrossFrame(double centreX, double centreY, double width, double depth, double angleRad)
+        {
+            var f = Frame(centreX, centreY, width, depth, angleRad);
+            if (f == null) return null;
+            return new SectionFrame
+            {
+                OriginX = f.OriginX,
+                OriginY = f.OriginY,
+                DirX = -f.DirY,
+                DirY = f.DirX,
+                HalfWidth = f.Depth,
+                Depth = f.HalfWidth,
+            };
+        }
+
+        /// <summary>
         /// The vertical band a box-driven section shows: from just below the context level
         /// to the next level up (or 4 m above it), clipped to the box's own height; the
         /// box's whole height when there is no level. Returned as (bottom, top), bottom &lt; top.

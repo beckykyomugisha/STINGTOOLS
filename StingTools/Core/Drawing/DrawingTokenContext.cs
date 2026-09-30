@@ -144,16 +144,34 @@ namespace StingTools.Core.Drawing
             var known = ExistingSheetTokens.Resolve(
                 ctxStamp, lvlStamp, seqStamp, ExtractSeqFromSheetNumber(sheet?.SheetNumber));
 
+            // DTW-79: {lvl} the way production resolved it. Under an ISO-shaped
+            // number pattern (the ISO policy, or a profile already ISO) production
+            // writes the ISO level code (DTW-43); the level name here gave a title
+            // block that disagreed with its own sheet number.
+            string level = known.Level;
+            if (level != null && known.LevelIsName)
+            {
+                try
+                {
+                    var policy = SheetNumberPolicy.Parse(DrawingProducer.ReadSheetNumberPolicy(doc));
+                    var numberPattern = SheetNumberPolicy.ResolvePattern(dt, policy) ?? dt?.SheetNumberPattern;
+                    level = SheetNumberPolicy.ExistingSheetLevelToken(
+                        numberPattern, level, known.LevelIsName,
+                        SheetNumberPolicy.IsAlreadyIso(numberPattern) ? DrawingProducer.BuildIsoLevelMap(doc) : null);
+                }
+                catch (Exception ex) { StingLog.Warn($"BuildForExistingSheet level code ({sheet?.Id}): {ex.Message}"); }
+            }
+
             var d = Build(
                 doc:        doc,
                 dt:         dt,
                 discCode:   dt?.Discipline,
                 discipline: dt?.Discipline,
-                levelCode:  known.Level,
+                levelCode:  level,
                 seq:        known.Seq,
                 spool:      known.Mark,
                 mark:       known.Mark);
-            if (known.Level == null) d.Remove("lvl");
+            if (level == null) d.Remove("lvl");
             if (known.Mark == null) { d.Remove("mark"); d.Remove("spool"); }
             return d;
         }

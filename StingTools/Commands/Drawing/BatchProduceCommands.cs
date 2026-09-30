@@ -943,116 +943,170 @@ namespace StingTools.Commands.Drawing
                 if (ticked.Count > 1)
                     warnings.Add($"Exterior elevations are made once, not per level: the markers are hosted on {host.Name} (the ticked level nearest ground).");
 
-                // Footprint from the walls.
-                double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
-                foreach (var w in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType())
-                {
-                    var wbb = w.get_BoundingBox(null);
-                    if (wbb == null) continue;
-                    minX = Math.Min(minX, wbb.Min.X); minY = Math.Min(minY, wbb.Min.Y);
-                    maxX = Math.Max(maxX, wbb.Max.X); maxY = Math.Max(maxY, wbb.Max.Y);
-                }
-                if (minX > maxX) { TaskDialog.Show("STING", "No walls in project — cannot derive building footprint."); return Result.Succeeded; }
-                double offFt = elev.OffsetMm / 304.8;
-
-                var faces = new List<(string Face, ElevationStation Station)>();
-                foreach (var face in elev.FacesTo ?? new List<string>())
-                {
-                    var st = ElevationFaces.ExteriorStation(face, minX, minY, maxX, maxY, offFt);
-                    if (st == null) { warnings.Add($"'{face}' is not North, East, South or West — skipped."); continue; }
-                    faces.Add((face, new ElevationStation { X = st.Value.X, Y = st.Value.Y, LookX = st.Value.LookX, LookY = st.Value.LookY }));
-                }
-                if (faces.Count == 0) { TaskDialog.Show("STING", "No face ticked — nothing to produce."); return Result.Succeeded; }
-
-                // Views stamped by an earlier build or by the Setup Wizard, by their raw tag.
-                var legacy = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
-                    .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
-                    .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
-                                  Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
-                    .Where(x => x.Tag.StartsWith("exterior::face::", StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                using (var tg = new TransactionGroup(doc, "STING Exterior Elevations"))
-                {
-                    tg.Start();
-                    foreach (var dt in pickedTypes)
-                    {
-                        var elevSlots = Enumerable.Range(0, dt.Slots?.Count ?? 0)
-                            .Where(i => string.Equals(dt.Slots[i]?.ViewType, "Elevation", StringComparison.OrdinalIgnoreCase)).ToList();
-                        bool onePlusFour = elev.UseOneFourViewSheet && opts.CreateSheet;
-                        if (onePlusFour && elevSlots.Count < faces.Count)
-                        {
-                            warnings.Add($"{dt.Id} lays out {elevSlots.Count} elevation slot(s), not {faces.Count}: each face gets its own sheet.");
-                            onePlusFour = false;
-                        }
-
-                        // One production call per sheet: all faces on one sheet, or one per face.
-                        var jobs = new List<(string Tag, List<(string Face, ElevationStation St, int RuleIdx, int Slot)> Faces)>();
-                        if (onePlusFour)
-                            jobs.Add(("Exterior", faces.Select((f, i) => (f.Face, f.Station, i, elevSlots[i])).ToList()));
-                        else
-                            foreach (var f in faces)
-                                jobs.Add(($"Exterior-{f.Face}", new List<(string, ElevationStation, int, int)> { (f.Face, f.Station, 0, elevSlots.Count > 0 ? elevSlots[0] : 0) }));
-
-                        foreach (var job in jobs)
-                        {
-                            var ctx = new DrawingContext
-                            {
-                                Tag = job.Tag, PackageId = res.Preset?.PackageId, OwnerLevel = host,
-                                RulesOverride = job.Faces.Select(f => new ProductionRule
-                                {
-                                    Idx = f.RuleIdx, ViewType = "Elevation", SlotIndex = f.Slot, Required = true,
-                                    NameSuffix = onePlusFour ? $" - {f.Face}" : null,
-                                }).ToList(),
-                                ElevationStations = job.Faces.ToDictionary(f => f.RuleIdx, f => f.St),
-                            };
-                            using (var t = new Transaction(doc, $"STING Exterior Elev {job.Tag} {dt.Id}"))
-                            {
-                                t.Start();
-                                try
-                                {
-                                    foreach (var f in job.Faces)
-                                    {
-                                        var old = legacy.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
-                                            && string.Equals(x.Tag, $"exterior::face::{f.Face}", StringComparison.OrdinalIgnoreCase));
-                                        if (old.View != null && DrawingProducer.AdoptView(doc, dt, ctx, ctx.RulesOverride.First(r => r.Idx == f.RuleIdx), old.View))
-                                            warnings.Add($"'{old.View.Name}' (stamped exterior::face::{f.Face}) was adopted as {dt.Id} {job.Tag}, not duplicated.");
-                                    }
-                                    var pr = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
-                                    foreach (var vid in pr.ViewIds)
-                                    {
-                                        try
-                                        {
-                                            var fp = doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
-                                            if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
-                                        }
-                                        catch (Exception ex) { warnings.Add($"{job.Tag}: far clip {elev.FarClipMm} mm not set — {ex.Message}"); }
-                                    }
-                                    warnings.AddRange(pr.Warnings);
-                                    var status = t.Commit();
-                                    if (status == TransactionStatus.Committed)
-                                    {
-                                        views += pr.ViewIds.Count;
-                                        if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
-                                    }
-                                    else warnings.Add($"{job.Tag} ({dt.Id}): the transaction did not commit ({status}); {pr.ViewIds.Count} view(s) were not kept.");
-                                }
-                                catch (Exception innerEx)
-                                {
-                                    StingLog.Warn($"ProduceExteriorElevations {job.Tag}: {innerEx.Message}");
-                                    warnings.Add($"{job.Tag} ({dt.Id}): {innerEx.Message} — rolled back.");
-                                    if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
-                                }
-                            }
-                        }
-                    }
-                    tg.Assimilate();
-                }
+                string blocker = Produce(doc, pickedTypes, host, elev, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
+                if (blocker != null) { TaskDialog.Show("STING", blocker); return Result.Succeeded; }
                 BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }
             finally { DrawingProducer.ResetBatchCaches(); }
+        }
+
+        /// <summary>
+        /// DTW-80: the exterior-elevation production both DOCS → Exterior Elevations and
+        /// the Project Setup wizard run, so the two find each other's views: per-face tag
+        /// "Exterior-&lt;Face&gt;" (rule 0), or "Exterior" (rules 0-3) on a 1+4 sheet; the raw
+        /// legacy tag "exterior::face::&lt;Face&gt;" is adopted; a 1+4 run adopts per-face
+        /// views that are on no sheet, and a views-only run skips a face a 1+4 set already
+        /// draws. Markers are hosted on a plan of <paramref name="host"/>. Opens its own
+        /// transactions. Returns a message when nothing can be produced, else null.
+        /// </summary>
+        internal static string Produce(Document doc, IList<DrawingType> pickedTypes, Level host,
+            ElevationProductionConfig elev, ProduceOptions opts, string packageId,
+            ref int views, ref int sheets, List<string> warnings)
+        {
+            elev = elev ?? new ElevationProductionConfig();
+            // Footprint from the walls.
+            double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+            foreach (var w in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType())
+            {
+                var wbb = w.get_BoundingBox(null);
+                if (wbb == null) continue;
+                minX = Math.Min(minX, wbb.Min.X); minY = Math.Min(minY, wbb.Min.Y);
+                maxX = Math.Max(maxX, wbb.Max.X); maxY = Math.Max(maxY, wbb.Max.Y);
+            }
+            if (minX > maxX) return "No walls in project — cannot derive building footprint.";
+            double offFt = elev.OffsetMm / 304.8;
+
+            var faces = new List<(string Face, ElevationStation Station)>();
+            foreach (var face in elev.FacesTo ?? new List<string>())
+            {
+                var st = ElevationFaces.ExteriorStation(face, minX, minY, maxX, maxY, offFt);
+                if (st == null) { warnings.Add($"'{face}' is not North, East, South or West — skipped."); continue; }
+                faces.Add((face, new ElevationStation { X = st.Value.X, Y = st.Value.Y, LookX = st.Value.LookX, LookY = st.Value.LookY }));
+            }
+            if (faces.Count == 0) return "No face ticked — nothing to produce.";
+
+            // Views stamped by an earlier build or by the Setup Wizard, by their raw tag.
+            var legacy = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
+                .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
+                              Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
+                .Where(x => ExteriorElevationTags.IsLegacy(x.Tag))
+                .ToList();
+            // DTW-80: the producer-stamped exterior views, and which views are on a sheet.
+            var elevViews = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
+                .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
+                              Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
+                .Where(x => x.Tag.IndexOf(ExteriorElevationTags.Combined, StringComparison.Ordinal) >= 0)
+                .ToList();
+            var placed = new HashSet<long>(new FilteredElementCollector(doc).OfClass(typeof(Viewport))
+                .Cast<Viewport>().Select(vp => vp.ViewId.Value));
+
+            using (var tg = new TransactionGroup(doc, "STING Exterior Elevations"))
+            {
+                tg.Start();
+                foreach (var dt in pickedTypes)
+                {
+                    var elevSlots = Enumerable.Range(0, dt.Slots?.Count ?? 0)
+                        .Where(i => string.Equals(dt.Slots[i]?.ViewType, "Elevation", StringComparison.OrdinalIgnoreCase)).ToList();
+                    bool onePlusFour = elev.UseOneFourViewSheet && opts.CreateSheet;
+                    if (onePlusFour && elevSlots.Count < faces.Count)
+                    {
+                        warnings.Add($"{dt.Id} lays out {elevSlots.Count} elevation slot(s), not {faces.Count}: each face gets its own sheet.");
+                        onePlusFour = false;
+                    }
+
+                    // One production call per sheet: all faces on one sheet, or one per face.
+                    var jobs = new List<(string Tag, List<(string Face, ElevationStation St, int RuleIdx, int Slot)> Faces)>();
+                    if (onePlusFour)
+                        jobs.Add((ExteriorElevationTags.Combined, faces.Select((f, i) => (f.Face, f.Station, i, elevSlots[i])).ToList()));
+                    else
+                        foreach (var f in faces)
+                        {
+                            // DTW-80: a views-only run (the Setup Wizard) does not make a
+                            // second view of a face a 1+4 set of this type already draws.
+                            if (!opts.CreateSheet)
+                            {
+                                var inSet = elevViews.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                    && ExteriorElevationTags.IsCombinedStampFor(x.Tag, x.View.Name, f.Face));
+                                if (inSet.View != null)
+                                {
+                                    warnings.Add($"{f.Face}: '{inSet.View.Name}' (the {dt.Id} 1+4 set) already draws it — reused, not duplicated.");
+                                    views++;
+                                    continue;
+                                }
+                            }
+                            jobs.Add((ExteriorElevationTags.PerFace(f.Face), new List<(string, ElevationStation, int, int)> { (f.Face, f.Station, 0, elevSlots.Count > 0 ? elevSlots[0] : 0) }));
+                        }
+
+                    foreach (var job in jobs)
+                    {
+                        var ctx = new DrawingContext
+                        {
+                            Tag = job.Tag, PackageId = packageId, OwnerLevel = host,
+                            RulesOverride = job.Faces.Select(f => new ProductionRule
+                            {
+                                Idx = f.RuleIdx, ViewType = "Elevation", SlotIndex = f.Slot, Required = true,
+                                NameSuffix = onePlusFour ? $" - {f.Face}" : null,
+                            }).ToList(),
+                            ElevationStations = job.Faces.ToDictionary(f => f.RuleIdx, f => f.St),
+                        };
+                        using (var t = new Transaction(doc, $"STING Exterior Elev {job.Tag} {dt.Id}"))
+                        {
+                            t.Start();
+                            try
+                            {
+                                foreach (var f in job.Faces)
+                                {
+                                    var rule = ctx.RulesOverride.First(r => r.Idx == f.RuleIdx);
+                                    var old = legacy.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                        && ExteriorElevationTags.IsLegacyFor(x.Tag, f.Face));
+                                    if (old.View != null && DrawingProducer.AdoptView(doc, dt, ctx, rule, old.View))
+                                        warnings.Add($"'{old.View.Name}' (stamped {ExteriorElevationTags.Legacy(f.Face)}) was adopted as {dt.Id} {job.Tag}, not duplicated.");
+                                    // DTW-80: a 1+4 run adopts the per-face view a views-only run
+                                    // (the Setup Wizard, or sheets off) made for this face, while it
+                                    // is on no sheet — a view cannot be on two sheets.
+                                    if (onePlusFour)
+                                    {
+                                        var solo = elevViews.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                            && ExteriorElevationTags.IsPerFaceStamp(x.Tag, f.Face) && !placed.Contains(x.View.Id.Value));
+                                        if (solo.View != null && DrawingProducer.AdoptView(doc, dt, ctx, rule, solo.View))
+                                            warnings.Add($"'{solo.View.Name}' ({ExteriorElevationTags.PerFace(f.Face)}, on no sheet) was adopted into the 1+4 set of {dt.Id}, not duplicated.");
+                                    }
+                                }
+                                var pr = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
+                                foreach (var vid in pr.ViewIds)
+                                {
+                                    try
+                                    {
+                                        var fp = doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
+                                        if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
+                                    }
+                                    catch (Exception ex) { warnings.Add($"{job.Tag}: far clip {elev.FarClipMm} mm not set — {ex.Message}"); }
+                                }
+                                warnings.AddRange(pr.Warnings);
+                                var status = t.Commit();
+                                if (status == TransactionStatus.Committed)
+                                {
+                                    views += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
+                                }
+                                else warnings.Add($"{job.Tag} ({dt.Id}): the transaction did not commit ({status}); {pr.ViewIds.Count} view(s) were not kept.");
+                            }
+                            catch (Exception innerEx)
+                            {
+                                StingLog.Warn($"ProduceExteriorElevations {job.Tag}: {innerEx.Message}");
+                                warnings.Add($"{job.Tag} ({dt.Id}): {innerEx.Message} — rolled back.");
+                                if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
+                            }
+                        }
+                    }
+                }
+                tg.Assimilate();
+            }
+            return null;
         }
     }
 
