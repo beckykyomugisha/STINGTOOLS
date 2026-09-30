@@ -2688,4 +2688,11 @@ These are the integration seams between the ACC branches merged on 2026-09-30 an
 - ~~**ACC-SEAM-1** — auto-import shared the dock panel's command slot.~~ **Done** (13dafb71c): the import now runs on its own `ExternalEvent`.
 - ~~**ACC-SEAM-4** — a malformed `acc_settings.json` read as "not configured".~~ **Done** (686930e8a): `AccProjectSettingsFile.NotConfigured` names the file and fails.
 - ~~**ACC-SEAM-5** — an unattended upload decline read as a skip.~~ **Done** (686930e8a): it now fails the `failOnError` step with the reason.
-- **ACC-SEAM-2, 3, 6–16** — open, in progress: lifecycle-gap push policy, the ACCPublish picker, escalation-record durability, the review version, the unattended gate, BCC card threading, assignee resolution, metadata visibility, one upload discipline, issue subtype, invariant CSV, the origin record, and the playbook §6 keys.
+- ~~**ACC-SEAM-2, 3, 6–16**~~ **Done** 2026-10-01 (agents X/Y, merged 43dea394b and the Y merge; see CHANGELOG).
+
+### Revision / issue workflow → ACC (audit 2026-10-01) — REVWF
+
+The R1–R14 findings table (file, line, severity, commit) is in `WORKLOG.md`. R1–R7 and R9–R14 are fixed; see CHANGELOG, "Revision/issue workflow → ACC".
+
+- **REVWF-1 — transmission is not a state (R8).** Issue Sheets records the issue date on deliverables and the register, and proposes RESPONDED on issues, when Revit issues the revision. A later export or ACC upload that fails does not undo that. Revit locks an issued revision, so the Revit issue is the issue event. What is missing is a separate "transmitted" state (register `transmitted_utc`, set by the Export Centre upload and ACC_UploadLastBundle on success) so MIDP drift and the IM can tell "issued, not yet in the CDE" apart from "in the CDE".
+- **REVWF-2 — verify in Revit (NEEDS MANUAL CHECK).** These have not been run in Revit: the fortnightly preset stopping at step 1 or 2 without publishing, the locked-title-block LOCKED report, supersede archiving a ledgered PDF+DWG, and the Per-Sheet # / Leak Chk buttons. See WORKLOG, "NEEDS MANUAL CHECK".

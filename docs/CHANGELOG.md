@@ -2,6 +2,23 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Revision/issue workflow → ACC, R1–R14, 2026-10-01)
+
+Findings from a read-only audit of the fortnightly issue chain (`WORKFLOW_KUT_FortnightlyIssue`). Build 0/0; Acc, Tags, Cost and Mep tests green; every gate passes. None of this has been run in Revit yet (ROADMAP REVWF-2).
+
+- **R1 — a failed gate stops the ACC steps.** Before this fix, optional `failOnError` steps ran after the revision leak check or the ISO pairing gate had failed. `WorkflowStepGate` is now the single rule: only failure-tolerant optional steps run after an upstream failure, and `"runAfterFailure": true` lets a step opt in.
+- **R2 — no stale bundle.** Inside a run, `ACC_UploadLastBundle` uploads only a bundle built since the run started (`WorkflowEngine.CurrentRunStartedUtc`, `AccBundleRecord.IsFromThisRun`). Any refusal inside a preset fails the step.
+- **R3 — where the drawings go.** The ACCPublish bundle holds the information-management data. The sheets reach ACC through the Export Centre profile's *Upload to ACC* in step 5. The preset text and playbook §8 now say this.
+- **R5 — no contradictory pair on a deliverable.** Issue completion clears a stale suitability the new revision cannot carry, and flags `IsoConflict`. Publishing a sheet-linked deliverable is refused while its sheets sit at a P revision.
+- **R6 / R7 — Issue Sheets gate.** `RevisionIssueGate` is the one gate. A revision is never issued to zero sheets. In a preset, a P/C revision with no suitability is refused. A blank suitability takes the one code all target sheets agree on.
+- **R9 — the export step reports what it produced.** `ScheduledExportSummary` records per-job outcomes. A job that did not run, a failed file, or (in a preset) nothing exported now fails the step.
+- **R10 — locked title blocks** are reported as LOCKED, not as leaks.
+- **R11 — supersede/replace archive in ACC.** The document is found through the upload ledger, which now records `folderUrn` and `retiredUtc`, instead of register fields nothing wrote.
+- **R12 — the "Per-Sheet #" and "Leak Chk" buttons** are now in BIM > Revision Management.
+- **R13 — no invented `R{seq}` revision.**
+- **R14 — the register's S0 default is flagged** (`suitability_defaulted`) and is not sent to ACC.
+- **R4** was already closed by A12 (`AccUploadGate`). **R8** is deferred as REVWF-1.
+
 #### Completed (ACC audit fixes A7 / A9 / A10 / A12 / A13 / A14-card / A16, 2026-10-01)
 
 - **A7 — a review starts on the CURRENT version.** `AccReviewStarter` re-reads the item's tip

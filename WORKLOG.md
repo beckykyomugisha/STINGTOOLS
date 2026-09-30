@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Merge `claude/acc-audit-fixes-x` and `claude/acc-audit-fixes-y` when their agents report (build + Acc/Tags/Cost/Mep tests + gates). Agent X was told to use `AccProjectSettingsFile.NotConfigured` in KutPushLifecycleGapsToAccCommand. Check that at merge.
-2. Merge the integration branch into `claude/kut-combined-acc-tags` and redeploy `C:\Dev\STING_KUT_LIVE`, only when `tasklist` shows no Revit.exe (see "Deploy" below).
-3. Start the next ACC audit pass (the fixes from A1–A16 plus the revision-core seams), then move to area 2 (everything ACC touches).
+1. Deploy `claude/kut-combined-acc-tags` to `C:\Dev\STING_KUT_LIVE` when Revit is closed (`tasklist | grep Revit` empty): merge the integration branch in first (R2–R14 landed after aada7ddfb), rebuild, run the tests and gates, then deploy and verify (see "Deploy").
+2. Next audit pass: area 2, everything ACC touches. That covers Export Centre auto-upload end to end, Document Manager ↔ register ↔ ACC metadata, transmittals (bundle SENT marking), and the server AccSyncService ↔ plugin issue round trip.
+3. Area 3 backlog: the UNGATED non-ACC dialogs in `tools/unattended_cycle_baseline.txt` (40 lines) block unattended KUT workflows. Route them through PresetDialog, like main does.
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -34,19 +34,19 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 | Id | Area | Where | Sev | Defect | Plan |
 |---|---|---|---|---|---|
 | R1 | Workflow gating | Core/WorkflowEngine.cs:612; WORKFLOW_KUT_FortnightlyIssue.json | P0 | Optional failOnError steps (ACCPublish, ACC_UploadLastBundle) ran after the leak check / pairing gate failed | **Done** 6d5df2dde: WorkflowStepGate; `runAfterFailure` opt-in |
-| R2 | Bundle upload | Clash/AccUploadModelCommand.cs:379-415; PlatformLinkCommands.cs:1109-1174 | P0 | Uploads whatever bundle was last recorded: a Cancelled ACCPublish (skip) lets step 7 re-upload last fortnight's ZIP and re-mark its transmittal SENT; re-running duplicates | Stamp bundle record with run id + uploaded versionUrn; refuse a stale/already-uploaded bundle in a preset (after agent X merges — A3 touches ACCPublish) |
-| R3 | Bundle content | PlatformLinkCommands.cs:116-171 | P0 | The ACC bundle carries JSON registers/COBie, not the sheet PDFs step 5 exported; the issue set never reaches ACC | Upload the run's Export Centre rows (ledgered per-sheet path) as the upload step; correct preset text |
-| R4 | Pairing on upload | AccUploadModelCommand BuildOptions; ExportCenterEngine.cs:1088-1130 | P1 | Pairing checked against the file name only (bundle names carry no P/C); Export Centre per-sheet upload unchecked | Check agent Y's AccUploadGate (A12) covers recorded revision+suitability; close or extend |
-| R5 | Deliverables | Docs/Templates/DeliverableLifecycle.cs:43-45,196-214; RevisionIssueCompletion.cs:92-94 | P1 | Publish fills A1 over a P revision; ApplyToDeliverables keeps old suitability with new revision → P03/A1 persisted | Run Iso19650RevisionRules.Check; record conflict instead of persisting |
+| R2 | Bundle upload | Clash/AccUploadModelCommand.cs:379-415; PlatformLinkCommands.cs:1109-1174 | P0 | Uploads whatever bundle was last recorded: a Cancelled ACCPublish (skip) lets step 7 re-upload last fortnight's ZIP and re-mark its transmittal SENT; re-running duplicates | **Done** ae496b322: in a run only the bundle built since the run started goes (AccBundleRecord.IsFromThisRun); refusals in a preset fail |
+| R3 | Bundle content | PlatformLinkCommands.cs:116-171 | P0 | The ACC bundle carries JSON registers/COBie, not the sheet PDFs step 5 exported; the issue set never reaches ACC | **Done** ae496b322 (honest wiring): drawings reach ACC via the Export Centre profile "Upload to ACC" in step 5; bundle = IM data; preset text + playbook §8 corrected |
+| R4 | Pairing on upload | AccUploadModelCommand BuildOptions; ExportCenterEngine.cs:1088-1130 | P1 | Pairing checked against the file name only (bundle names carry no P/C); Export Centre per-sheet upload unchecked | **Closed by A12** (036d9a0b1): AccUploadGate checks recorded revision + suitability on every upload path, Export Centre included |
+| R5 | Deliverables | Docs/Templates/DeliverableLifecycle.cs:43-45,196-214; RevisionIssueCompletion.cs:92-94 | P1 | Publish fills A1 over a P revision; ApplyToDeliverables keeps old suitability with new revision → P03/A1 persisted | **Done** 5597e81c5: completion clears a contradicted stale code + IsoConflict + report; Publish of a sheet-linked deliverable refused when its sheets' revision cannot carry the code |
 | R6 | IssueSheets | RevisionManagementCommands.cs:1622-1640,1719-1735 | P1 | In a workflow suitability is blank → pairing NotApplicable → revision issued with no suitability | **Done** 23960084a: RevisionIssueGate refuses in a preset; blank takes the one code all target sheets agree on |
 | R7 | IssueSheets | RevisionManagementCommands.cs:1615-1620 | P1 | Zero-sheet guard only when IsUnattended (never set by the KUT preset): burns a number, proposes RESPONDED for every open issue | **Done** 23960084a: zero targets never issued (attended or not) |
-| R8 | Ordering | RevisionManagementCommands.cs:1656-1683 + CompleteIssue | P1 | Register/deliverables/issues marked issued before export/upload succeed; not reverted | Defer issue-resolution proposals to after transmit; record pending state |
+| R8 | Ordering | RevisionManagementCommands.cs:1656-1683 + CompleteIssue | P1 | Register/deliverables/issues marked issued before export/upload succeed; not reverted | **Deferred (decision)**: the Revit issue IS the issue event (locked in Revit, irreversible); proposals are RESPONDED, never CLOSED. A separate "transmitted" state is ROADMAP REVWF-1 |
 | R9 | Export step | Docs/ScheduledExportRunner.cs:35-104,167-190 | P1 | Returns Succeeded when nothing was due/blocked/failed; unconditional TaskDialog | **Done** 1343f2dda: ScheduledExportSummary verdict |
-| R10 | Leak check | RevisionNumberingCommands.cs:145-151 vs TitleBlockRevisionSyncer.cs:246-256 | P1 | Leak check flags locked title blocks the syncer deliberately skips → step 1 fails forever | Honour the lock (informational) |
-| R11 | Retire | Clash/AccRetireDeliverable.cs:43-51 | P1 | Looks for acc_version_urn on register rows; nothing writes it → supersede/replace never archives | Resolve through AccUploadLedger by DocumentNumber (store FolderUrn) |
-| R12 | Reachability | UI/StingCommandHandler.cs:3026 | P2 | Revision_SetPerSheetNumbering has no button; CreateRevision tells users to run it | Add BIM-tab button; fix log text |
-| R13 | Revision label | Core/Drawing/SheetRevisionReader.cs:77-83 | P2 | Invents "R{seq}" when numbering is None; reaches title block, file names, ACC | Return empty + report |
-| R14 | Register default | BIMManager/ExportRegisterUpsert.cs:57,63 | P2 | Non-sheet rows default S0/WIP, later read as a real suitability for ACC | Leave blank; let upload refuse/ask |
+| R10 | Leak check | RevisionNumberingCommands.cs:145-151 vs TitleBlockRevisionSyncer.cs:246-256 | P1 | Leak check flags locked title blocks the syncer deliberately skips → step 1 fails forever | **Done** 4b0bdca41: locked title blocks reported as LOCKED, not leaks |
+| R11 | Retire | Clash/AccRetireDeliverable.cs:43-51 | P1 | Looks for acc_version_urn on register rows; nothing writes it → supersede/replace never archives | **Done** 0c4f6dc9b: retire resolves live renditions from the upload ledger (folderUrn recorded), marks them retired |
+| R12 | Reachability | UI/StingCommandHandler.cs:3026 | P2 | Revision_SetPerSheetNumbering has no button; CreateRevision tells users to run it | **Done** 4bf7eced5: BIM > Revision Management gets "Per-Sheet #" and "Leak Chk" |
+| R13 | Revision label | Core/Drawing/SheetRevisionReader.cs:77-83 | P2 | Invents "R{seq}" when numbering is None; reaches title block, file names, ACC | **Done** 06b37ea0e: no invented R{seq}; empty + log |
+| R14 | Register default | BIMManager/ExportRegisterUpsert.cs:57,63 | P2 | Non-sheet rows default S0/WIP, later read as a real suitability for ACC | **Done** 8ca3727ec: suitability_defaulted flag; AccFileIso does not send a defaulted S0 |
 
 ## Findings (done)
 - 2026-10-01 audit fixes on `claude/acc-audit-fixes-y` (not pushed): **A7** `eec4bf778` (review on the live tip version) ·
@@ -73,6 +73,7 @@ Seam audit (2026-10-01):
 - **A5** (686930e8a) — "Not set up" and "uploadUnattended not set" return Cancelled → failOnError step reads as skip; header/playbook say no KUT workflow uploads
 
 ## NEEDS MANUAL CHECK
+- **Revision/issue workflow (R1-R14):** in Revit, on a copy: (1) break a sheet stamp and run the KUT fortnightly preset; step 1 fails, and steps 6/7 show BLOCKED with nothing uploaded. (2) Run with no clouds; step 2 fails with 'no sheet carries a cloud'. (3) Lock a title block (PRJ_TB_LOCK) with a stale revision; Leak Chk lists it as LOCKED, and the preset passes step 1. (4) Supersede a deliverable whose PDF+DWG went up through the Export Centre; both are archived and the ledger shows retiredUtc. (5) The BIM > Revision Management buttons 'Per-Sheet #' and 'Leak Chk' run.
 - **ACC audit fixes (Agent Y):** BCC ACC card — Save / Discover / model set / escalation writes land in the open project's
   acc_settings.json and are refused after switching to another project without Refresh; ACC_UploadModel twice on the same
   file → second is "not uploaded again"; changed file same revision → refused; ACC_StartReview after a new upload → review
@@ -101,4 +102,10 @@ Seam audit (2026-10-01):
 - **A4 — malformed settings file:** named with its load error. It fails; it is not read as "not configured". A file that parses but is invalid and still says `"unattended": true` keeps the run non-interactive: a typo must not make a scheduled run sit on a dialog nobody answers. Every other setting is still discarded.
 - **A5 — unattended upload without `uploadUnattended`:** fails the step with the reason. It is not skipped. The workflow step exists to upload, and a silent skip would read as "issued" to the IM. The test is covered by build only: the command needs a Revit document, so no unit test is possible without extraction (logged as a gap).
 - **AccDocsMetadata onto AccHttp:** deferred. It already has Retry-After, and the tested wait-cap semantics would be at risk for no user-visible gain.
+- **R2 staleness rule:** a bundle is "this run's" when built at or after the outermost preset start (WorkflowEngine.CurrentRunStartedUtc, thread-static). There is no run id in the record, because timestamps from one machine are enough and older records stay readable.
+- **R3:** STING does not add sheet PDFs to the ACCPublish bundle. Per-sheet upload through the Export Centre is ledgered, pairing-gated and CDE-routed per file; a ZIP is none of those. The fix is to wire the existing path and state it plainly.
+- **R5:** a stale suitability that contradicts a new Revit revision is cleared (and flagged), not kept. The revision is the Revit fact; the old code no longer describes the document.
+- **R8:** not re-ordered. Revit locks an issued revision, so "issued" cannot be undone after a failed export. Transmission gets its own state later (ROADMAP REVWF-1).
+- **R10:** a locked title block is the user's explicit freeze (T-3). It is reported, not failed, because the advised fix (RevisionSync) cannot touch it.
+- **R14:** the register's S0 convention is kept for display and back-compat and flagged `suitability_defaulted`, rather than blanked. Blanking would change every Document Manager reader.
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).
