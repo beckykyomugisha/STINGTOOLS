@@ -245,6 +245,10 @@
          GenerateFromScopeBoxesCommand call this same file, so
          DrawingPurposeViewKindTests exercises the code that runs in Revit. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingPurposeViewKind.cs" Link="Core\Drawing\DrawingPurposeViewKind.cs" />
+    <!-- Which view templates the drawing types name and how each is made.
+         ViewTemplatesCommand phase 3 walks this same plan, so
+         DrawingTemplateCatalogueTests proves every shipped viewTemplateName is created. -->
+    <Compile Include="..\StingTools\Core\Drawing\DrawingTemplateCatalogue.cs" Link="Core\Drawing\DrawingTemplateCatalogue.cs" />
     <!-- D-4 / D-5: routing matcher + audit, and slot geometry. DrawingDispatcher
          and DrawingTypeValidator call these same files, so
          DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->

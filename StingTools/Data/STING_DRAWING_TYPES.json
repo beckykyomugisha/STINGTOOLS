@@ -10490,6 +10490,1256 @@
       ],
       "description": "Public-health / mechanical valve schedule (isolation, PRV, check, balancing). The producer emits a ViewSchedule of category Pipe Accessories; unknown fields are skipped.",
       "viewStylePackId": "corp-standard-detail"
+    },
+    {
+      "id": "elec-data-comms-A1-1to100",
+      "name": "Data & Communications Layout — A1 @ 1:100",
+      "origin": "corporate",
+      "checksum": "4736200b2a17f9c58b0ed927ab16953bb00b2859d7f055121e3d357f0754c017",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Data & Comms Layout",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-IT-{lvl}-{seq:D3}",
+      "sheetNamePattern": "DATA & COMMUNICATIONS — {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "Data Devices": "STING - Data Device Tag",
+          "Communication Devices": "STING - Communication Device Tag",
+          "Telephone Devices": "STING - Telephone Devices Tag",
+          "Nurse Call Devices": "STING - Nurse Call Device Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Data Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Communication Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Telephone Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Nurse Call Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Cable Trays",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Structured cabling / ICT plan on A1 at 1:100: data, communication, telephone and nurse call outlets, comms cabinets and the tray that feeds them.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "elec-security-A1-1to100",
+      "name": "Security Layout — A1 @ 1:100",
+      "origin": "corporate",
+      "checksum": "8125b8a4f24955d80e09b624b9545d8156326441df4029497c5b11d26c9975c7",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Security Layout",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-SC-{lvl}-{seq:D3}",
+      "sheetNamePattern": "SECURITY — {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "Security Devices": "STING - Security Device Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag",
+          "Conduits": "STING - Conduit Tag"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Security Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Conduits",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Security plan on A1 at 1:100: access control, CCTV and intruder devices with their panels and containment.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "elec-containment-A1-1to100",
+      "name": "Electrical Containment Layout — A1 @ 1:100",
+      "origin": "corporate",
+      "checksum": "bf20c8e766d5176bc3b03e1a4f1d5dfe545791678777f2e2aad995d6ff78effc",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Containment Layout",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-CT-{lvl}-{seq:D3}",
+      "sheetNamePattern": "CONTAINMENT — {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Cable Tray Fittings": "STING - Cable Tray Fitting Tag",
+          "Conduits": "STING - Conduit Tag",
+          "Conduit Fittings": "STING - Conduit Fitting Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Cable Trays",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Cable Tray Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Conduits",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Conduit Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Cable tray, trunking and conduit containment plan on A1 at 1:100, with the boards it serves.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "elec-emergency-lighting-A1-1to100",
+      "name": "Emergency Lighting Layout — A1 @ 1:100",
+      "origin": "corporate",
+      "checksum": "d1b6ee26e83d81359f6000bcad628de89aa85c03c28231f66509716e8bcfe622",
+      "purpose": "Plan",
+      "discipline": "E",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Emergency Lighting",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-EL-{lvl}-{seq:D3}",
+      "sheetNamePattern": "EMERGENCY LIGHTING — {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Key",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "tagFamilies": {
+          "Lighting Fixtures": "STING - Lighting Fixture Tag",
+          "Lighting Devices": "STING - Lighting Device Tag",
+          "Electrical Equipment": "STING - Electrical Equipment Tag"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Lighting Devices",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Electrical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Emergency and escape lighting plan on A1 at 1:100 (BS 5266-1): luminaires, test switches and central battery equipment.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "elec-fire-alarm-schematic-A1",
+      "name": "Fire Alarm Schematic — A1 NTS",
+      "origin": "corporate",
+      "checksum": "bdfbb1b88fcef9c763e0004889cab6bb45f048526dec1ac3e5a63fda86e70dc1",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical Schematic",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-FA-SCH-{seq:D3}",
+      "sheetNamePattern": "FIRE ALARM SCHEMATIC",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Fire alarm loop / zone schematic (BS 5839-1) on A1, not to scale.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
+      "id": "mep-hvac-pipe-A1-1to100",
+      "name": "HVAC Pipework Layout — A1 @ 1:100",
+      "origin": "corporate",
+      "checksum": "1d939a2612cba28eae6ea06cbbf5fadc9a70e8c653a01ef12f8daa8e91d4cea2",
+      "purpose": "Plan",
+      "discipline": "M",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - HVAC Pipework",
+      "viewStylePackId": "corp-standard-hvac",
+      "sheetNumberPattern": "M-PW-{lvl}-{seq:D3}",
+      "sheetNamePattern": "HVAC PIPEWORK — {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Main Plan",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Pipes": "STING - Pipe Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Pipe Accessories": "STING - Pipe Accessory Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag"
+        },
+        "denseUntilScale": 100,
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Spaces",
+            "ruleType": "AutoAnnotateSpaceNumber",
+            "enabled": true
+          }
+        ]
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Chilled water / LTHW pipework plan on A1 at 1:100: pipes, fittings, valves and the plant they serve.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "mep-hvac-schematic-A1",
+      "name": "HVAC Schematic — A1 NTS",
+      "origin": "corporate",
+      "checksum": "8091b171873d252aa914cdcf7f6cf095065501a3a0650e2952ca3501fd4d38b2",
+      "purpose": "Schematic",
+      "discipline": "M",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Mechanical Schematic",
+      "viewStylePackId": "corp-standard-hvac",
+      "sheetNumberPattern": "M-SCH-{seq:D3}",
+      "sheetNamePattern": "{sys} SCHEMATIC",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "HVAC schematic (air-handling, CHW / LTHW principle) on A1, not to scale.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
+      "id": "plumb-water-supply-A1-1to100",
+      "name": "Water Supply Layout — A1 @ 1:100",
+      "origin": "corporate",
+      "checksum": "7e09e3fe7a3867242a43e4b8883106d5c49b8c5780514504464654ad88aacb32",
+      "purpose": "Plan",
+      "discipline": "P",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 100,
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Water Supply",
+      "viewStylePackId": "corp-standard-plumb",
+      "sheetNumberPattern": "P-WS-{lvl}-{seq:D3}",
+      "sheetNamePattern": "WATER SUPPLY — {lvl}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 150
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": false,
+          "F": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Plan",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.75,
+          "normH": 0.9,
+          "required": true
+        },
+        {
+          "label": "Legend",
+          "viewType": "Legend",
+          "normX": 0.8,
+          "normY": 0.05,
+          "normW": 0.18,
+          "normH": 0.9
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "tagFamilies": {
+          "Pipes": "STING - Pipe Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Pipe Accessories": "STING - Pipe Accessory Tag",
+          "Plumbing Fixtures": "STING - Plumbing Fixture Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Plumbing Fixtures",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Plumbing",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Domestic cold and hot water (DCW / DHW) layout on A1 at 1:100: pipes, fittings, valves, fixtures and plant.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "P",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      }
+    },
+    {
+      "id": "fire-riser-schematic-A1",
+      "name": "Fire Protection Riser Schematic — A1 NTS",
+      "origin": "corporate",
+      "checksum": "7db4b52fcd64779bf3d37f7e56f1b2218403faaee1b2c52a3c79fb875d53300e",
+      "purpose": "Schematic",
+      "discipline": "FP",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Fire Protection Schematic",
+      "viewStylePackId": "corp-standard-fire",
+      "sheetNumberPattern": "FP-SCH-{seq:D3}",
+      "sheetNamePattern": "FIRE PROTECTION RISER SCHEMATIC",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Fire Protection",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Sprinkler / wet and dry riser schematic on A1, not to scale.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "Y",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
+      "id": "mep-section-A1-1to50",
+      "name": "MEP Section — A1 @ 1:50",
+      "origin": "corporate",
+      "checksum": "6b803f28ea9b9ed83ed115520ae6b7b33ac31703a88a23c1886b53e6bb9d03da",
+      "purpose": "Section",
+      "discipline": "M",
+      "paperSize": "A1",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": 50,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - MEP Section",
+      "viewStylePackId": "corp-coordination",
+      "sheetNumberPattern": "M-SE-{seq:D3}",
+      "sheetNamePattern": "MEP SECTION {mark}",
+      "crop": {
+        "kind": "ScopeBoxOrBbox",
+        "marginMm": 200
+      },
+      "sectionMarker": {
+        "family": "STING_SECTION_HEAD",
+        "markPrefix": "S",
+        "bubbleStyle": "Filled",
+        "farClipMm": 5000
+      },
+      "tokenProfile": {
+        "presentationMode": "Technical",
+        "paraDepth": 3,
+        "segmentMask": "11111111",
+        "displayMode": 5,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": false,
+          "E": false,
+          "F": false,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Main Section",
+          "viewType": "Section",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Linear",
+        "denseUntilScale": 100,
+        "tagFamilies": {
+          "Ducts": "STING - Duct Tag",
+          "Pipes": "STING - Pipe Tag",
+          "Cable Trays": "STING - Cable Tray Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag",
+          "Air Terminals": "STING - Air Terminal Tag"
+        },
+        "rules": [
+          {
+            "category": "Grids",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Cable Trays",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Air Terminals",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Building services section on A1 at 1:50: duct, pipe and tray levels through a corridor or riser.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "viewFamilyTypeName": "STING - Section",
+      "phase": "*",
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
+      }
+    },
+    {
+      "id": "mep-detail-A3-1to20",
+      "name": "MEP Detail — A3 @ 1:20",
+      "origin": "corporate",
+      "checksum": "c81562423731bda040ababf85d583f80ecab104a8b1388291667fefffb501e51",
+      "purpose": "Detail",
+      "discipline": "M",
+      "paperSize": "A3",
+      "titleBlockFamily": "STING_TB_SHEET_A3",
+      "scale": 20,
+      "detailLevel": "Fine",
+      "viewTemplateName": "STING - MEP Detail",
+      "viewStylePackId": "corp-standard-detail",
+      "sheetNumberPattern": "M-DT-{seq:D3}",
+      "sheetNamePattern": "MEP DETAIL {mark}",
+      "crop": {
+        "kind": "TightBbox",
+        "marginMm": 50
+      },
+      "sectionMarker": {
+        "family": "STING_CALLOUT_HEAD",
+        "markPrefix": "D",
+        "bubbleStyle": "Filled",
+        "farClipMm": 500
+      },
+      "tokenProfile": {
+        "presentationMode": "FullSpec",
+        "paraDepth": 5,
+        "segmentMask": "11111111",
+        "displayMode": 4,
+        "patternMode": "DC",
+        "sectionVisibility": {
+          "A": true,
+          "B": true,
+          "C": true,
+          "D": true,
+          "E": true,
+          "F": true,
+          "T4": false,
+          "T5": false,
+          "T6": false,
+          "T7": false,
+          "T8": false,
+          "T9": false,
+          "T10": false
+        }
+      },
+      "slots": [
+        {
+          "label": "Detail TL",
+          "viewType": "Detail",
+          "normX": 0.05,
+          "normY": 0.52,
+          "normW": 0.42,
+          "normH": 0.45
+        },
+        {
+          "label": "Detail TR",
+          "viewType": "Detail",
+          "normX": 0.52,
+          "normY": 0.52,
+          "normW": 0.42,
+          "normH": 0.45
+        },
+        {
+          "label": "Detail BL",
+          "viewType": "Detail",
+          "normX": 0.05,
+          "normY": 0.05,
+          "normW": 0.42,
+          "normH": 0.45
+        },
+        {
+          "label": "Detail BR",
+          "viewType": "Detail",
+          "normX": 0.52,
+          "normY": 0.05,
+          "normW": 0.42,
+          "normH": 0.45
+        }
+      ],
+      "annotation": {
+        "dimensionStrategy": "Chain",
+        "denseUntilScale": 50,
+        "tagFamilies": {
+          "Pipes": "STING - Pipe Tag",
+          "Pipe Fittings": "STING - Pipe Fitting Tag",
+          "Pipe Accessories": "STING - Pipe Accessory Tag",
+          "Ducts": "STING - Duct Tag",
+          "Duct Fittings": "STING - Duct Fitting Tag",
+          "Mechanical Equipment": "STING - Mechanical Equipment Tag"
+        },
+        "rules": [
+          {
+            "category": "Levels",
+            "ruleType": "AutoDim",
+            "enabled": true
+          },
+          {
+            "category": "Pipes",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Pipe Accessories",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Ducts",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Duct Fittings",
+            "ruleType": "AutoTag",
+            "enabled": true
+          },
+          {
+            "category": "Mechanical Equipment",
+            "ruleType": "AutoTag",
+            "enabled": true
+          }
+        ]
+      },
+      "description": "Building services detail on A3 at 1:20: plant connections, valve sets, supports.",
+      "orientation": "Landscape",
+      "viewportTypeName": "STING - Standard Viewport",
+      "viewFamilyTypeName": "STING - Callout",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "M",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*",
+      "titleBlockParams": {
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Mechanical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "print": {
+        "colourScheme": "Monochrome",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": true
+      }
     }
   ],
   "routing": [
@@ -10665,7 +11915,7 @@
       "discipline": "E",
       "phase": "*",
       "docType": "PLAN",
-      "drawingTypeId": "elec-riser-A3-1to200"
+      "drawingTypeId": "elec-power-A1-1to100"
     },
     {
       "discipline": "E",
@@ -11172,6 +12422,108 @@
       "phase": "*",
       "docType": "VALVE_SCHEDULE",
       "drawingTypeId": "valve-schedule-A3"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "DATA_COMMS",
+      "drawingTypeId": "elec-data-comms-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "SECURITY",
+      "drawingTypeId": "elec-security-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "CONTAINMENT",
+      "drawingTypeId": "elec-containment-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "EMERGENCY_LIGHTING",
+      "drawingTypeId": "elec-emergency-lighting-A1-1to100"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "FIRE_ALARM_SCHEMATIC",
+      "drawingTypeId": "elec-fire-alarm-schematic-A1"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "HVAC_PIPE",
+      "drawingTypeId": "mep-hvac-pipe-A1-1to100"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "HVAC_SCHEMATIC",
+      "drawingTypeId": "mep-hvac-schematic-A1"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "SCHEMATIC",
+      "drawingTypeId": "mep-hvac-schematic-A1"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "WATER_SUPPLY",
+      "drawingTypeId": "plumb-water-supply-A1-1to100"
+    },
+    {
+      "discipline": "FP",
+      "phase": "*",
+      "docType": "RISER_SCHEMATIC",
+      "drawingTypeId": "fire-riser-schematic-A1"
+    },
+    {
+      "discipline": "FP",
+      "phase": "*",
+      "docType": "SCHEMATIC",
+      "drawingTypeId": "fire-riser-schematic-A1"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "SECTION",
+      "drawingTypeId": "mep-section-A1-1to50"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "SECTION",
+      "drawingTypeId": "mep-section-A1-1to50"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "SECTION",
+      "drawingTypeId": "mep-section-A1-1to50"
+    },
+    {
+      "discipline": "M",
+      "phase": "*",
+      "docType": "DETAIL",
+      "drawingTypeId": "mep-detail-A3-1to20"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "DETAIL",
+      "drawingTypeId": "mep-detail-A3-1to20"
+    },
+    {
+      "discipline": "P",
+      "phase": "*",
+      "docType": "DETAIL",
+      "drawingTypeId": "mep-detail-A3-1to20"
     }
   ]
 }
