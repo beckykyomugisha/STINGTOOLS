@@ -346,9 +346,24 @@ namespace StingTools.Core.Drawing
             return items;
         }
 
-        public static string Produce(Document doc, List<ProductionItem> items, bool sheets)
+        /// <summary>What an area-box production run did — the counts a workflow step judges by.</summary>
+        public sealed class AreaProduceOutcome
         {
-            var opts = new ProduceOptions { CreateSheet = sheets, PlaceOnSheet = sheets };
+            public int Made, Refreshed, Sheets, NotCropped, Failed;
+            public string Report;
+        }
+
+        public static string Produce(Document doc, List<ProductionItem> items, bool sheets)
+            => ProduceWithOutcome(doc, items, sheets, ViewDuplicateOption.Duplicate).Report;
+
+        /// <summary>
+        /// Produce every item. <paramref name="duplicateOption"/> AsDependent makes each
+        /// box's plan a dependent of one parent per (type, level) — see DependentViewPlanner.
+        /// </summary>
+        public static AreaProduceOutcome ProduceWithOutcome(Document doc, List<ProductionItem> items, bool sheets,
+            ViewDuplicateOption duplicateOption)
+        {
+            var opts = new ProduceOptions { CreateSheet = sheets, PlaceOnSheet = sheets, DuplicateOption = duplicateOption };
             int made = 0, refreshed = 0, madeSheets = 0, notCropped = 0, failed = 0;
             var warnings = new List<string>();
             DrawingTypePresentation.Prewarm(doc);
@@ -408,7 +423,11 @@ namespace StingTools.Core.Drawing
             foreach (var w in warnings.Distinct().Take(25)) sb.Append("\n• ").Append(w);
             if (warnings.Distinct().Count() > 25) sb.Append($"\n… {warnings.Distinct().Count() - 25} more in the log.");
             foreach (var w in warnings) StingLog.Warn("ScopeBox produce: " + w);
-            return sb.ToString();
+            return new AreaProduceOutcome
+            {
+                Made = made, Refreshed = refreshed, Sheets = madeSheets,
+                NotCropped = notCropped, Failed = failed, Report = sb.ToString(),
+            };
         }
     }
 }

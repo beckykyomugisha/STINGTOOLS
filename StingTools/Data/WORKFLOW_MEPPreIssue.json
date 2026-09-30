@@ -1,0 +1,27 @@
+{
+  "name": "MEPPreIssue",
+  "description": "Checks before an MEP issue, in order: the drawing-production doctor (catalogue, stamps, title blocks, numbering drift), ISO 19650 sheet compliance, every model validator (connectivity, fill, spec, termination, slope …), tag validation, and match-line validation (a renumber breaks the sheet references in match-line captions). Read-only apart from what each check records; run Heal Title Blocks and Renumber only if something here is reported.",
+  "rollback_on_failure": false,
+  "steps": [
+    {
+      "commandTag": "DrawingTypes_Doctor",
+      "label": "Drawing production doctor (catalogue, stamps, title blocks, numbering)"
+    },
+    {
+      "commandTag": "SheetComplianceCheck",
+      "label": "ISO 19650 sheet compliance"
+    },
+    {
+      "commandTag": "Validation_RunAll",
+      "label": "Run every model validator"
+    },
+    {
+      "commandTag": "ValidateTags",
+      "label": "Validate ISO 19650 tags"
+    },
+    {
+      "commandTag": "MatchLine_Validate",
+      "label": "Validate match lines (paired sheet references still current)"
+    }
+  ]
+}

@@ -306,12 +306,33 @@ namespace StingTools.Core.Drawing
         {
             try
             {
+                // "Duplicate as Dependent": one parent plan per (type, level, rule), each
+                // scope box's view a dependent of it. See DependentViewPlanner.
+                bool dependent = DependentViewPlanner.UsesDependents(
+                    opts.DuplicateOption == ViewDuplicateOption.AsDependent,
+                    ctx?.ScopeBox != null, ctx?.Level != null, rule?.ViewType);
+
                 if (opts.Idempotent)
                 {
                     var existing = FindExistingView(doc, dt.Id, ctx, rule.Idx);
                     if (existing != null)
                     {
                         result.WasIdempotent = true;
+                        if (dependent)
+                        {
+                            var parent = FindExistingView(doc, dt.Id, ParentContext(ctx), rule.Idx);
+                            var action = DependentViewPlanner.ForBoxView(true, true,
+                                PrimaryViewIdValue(existing), parent?.Id.Value ?? -1);
+                            if (action == DependentViewAction.ReuseDependent)
+                            {
+                                // A dependent takes template, scale and annotation from its
+                                // parent; only its crop is its own.
+                                CropToContextBox(doc, existing, dt, ctx, result);
+                                return existing.Id;
+                            }
+                            result.Warnings.Add(DependentViewPlanner.KeptIndependentWarning(
+                                existing.Name, ctx.ScopeBox?.Name));
+                        }
                         // GAP-H: re-apply the profile so a re-run after a
                         // profile edit refreshes scale / template / pack /
                         // stamps. SyncStyles flag (annotation off) avoids
@@ -340,6 +361,139 @@ namespace StingTools.Core.Drawing
                     }
                 }
 
+                if (dependent)
+                {
+                    var depId = ProduceDependentView(doc, dt, rule, ctx, opts, result);
+                    if (depId != ElementId.InvalidElementId) return depId;
+                    // ProduceDependentView said why; the box still gets its drawing,
+                    // as an independent view, rather than nothing.
+                }
+
+                return CreatePresentedView(doc, dt, rule, ctx, opts, result, BuildViewName(dt, rule, ctx));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
+                return ElementId.InvalidElementId;
+            }
+        }
+
+        // ── "Duplicate as Dependent" ─────────────────────────────────────────
+
+        /// <summary>The parent's context: same level and package, the parent tag, no box.</summary>
+        private static DrawingContext ParentContext(DrawingContext ctx)
+            => new DrawingContext { Level = ctx?.Level, PackageId = ctx?.PackageId, Tag = DependentViewPlanner.ParentTag };
+
+        private static long PrimaryViewIdValue(View v)
+        {
+            try
+            {
+                var id = v?.GetPrimaryViewId();
+                return id == null || id == ElementId.InvalidElementId ? -1 : id.Value;
+            }
+            catch (Exception ex) { StingLog.Warn($"GetPrimaryViewId({v?.Id}): {ex.Message}"); return -1; }
+        }
+
+        /// <summary>
+        /// The parent plan for (drawing type, level, rule): found by its stamps, or made
+        /// with the drawing type's full presentation — template, pack, annotation. It is
+        /// a working view and is never placed on a sheet.
+        /// </summary>
+        private static View EnsureParentView(Document doc, DrawingType dt, ProductionRule rule,
+            DrawingContext ctx, ProduceOptions opts, ProduceResult result)
+        {
+            var pctx = ParentContext(ctx);
+            var found = FindExistingView(doc, dt.Id, pctx, rule.Idx);
+            if (found != null) return found;
+
+            var id = CreatePresentedView(doc, dt, rule, pctx, opts, result,
+                DependentViewPlanner.ParentViewName(dt.Name ?? dt.Id, ctx.Level?.Name, rule.NameSuffix));
+            if (id == ElementId.InvalidElementId) return null;
+            StampViewParameters(doc, id, dt, rule, pctx);
+            try
+            {
+                if (_existingViewCache != null && CacheMatchesDoc(doc))
+                    _existingViewCache[ViewKey(dt.Id, BuildContextTag(pctx), rule.Idx)] = id;
+            }
+            catch (Exception ex) { StingLog.Warn($"Parent view cache: {ex.Message}"); }
+            return doc.GetElement(id) as View;
+        }
+
+        /// <summary>
+        /// The box's view as a dependent of the level's parent, cropped to the box.
+        /// Returns InvalidElementId, with the reason in the warnings, when it cannot be
+        /// made — the caller then produces an independent view instead.
+        /// </summary>
+        private static ElementId ProduceDependentView(Document doc, DrawingType dt, ProductionRule rule,
+            DrawingContext ctx, ProduceOptions opts, ProduceResult result)
+        {
+            string box = ctx.ScopeBox?.Name ?? "";
+            var parent = EnsureParentView(doc, dt, rule, ctx, opts, result);
+            if (parent == null)
+            {
+                result.Warnings.Add($"No parent view could be made for '{dt.Id}' on {ctx.Level?.Name}; " +
+                                    $"'{box}' was produced as an independent view instead.");
+                return ElementId.InvalidElementId;
+            }
+            if (!parent.CanViewBeDuplicated(ViewDuplicateOption.AsDependent))
+            {
+                result.Warnings.Add($"Revit will not make a dependent of '{parent.Name}'; " +
+                                    $"'{box}' was produced as an independent view instead.");
+                return ElementId.InvalidElementId;
+            }
+
+            var depId = parent.Duplicate(ViewDuplicateOption.AsDependent);
+            if (!(doc.GetElement(depId) is View dep))
+            {
+                result.Warnings.Add($"Duplicating '{parent.Name}' as a dependent returned no view; " +
+                                    $"'{box}' was produced as an independent view instead.");
+                return ElementId.InvalidElementId;
+            }
+            try { dep.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); }
+            catch (Exception ex) { StingLog.Warn($"Dependent view name: {ex.Message}"); }
+            // Duplicate copies the parent's stamps; the caller restamps context and rule,
+            // and the drawing type is stamped here so the view is found by type even if
+            // the copy did not carry it.
+            DrawingTypeStamper.Stamp(dep, dt.Id);
+            CropToContextBox(doc, dep, dt, ctx, result);
+            return depId;
+        }
+
+        /// <summary>
+        /// Crop a view to the context's scope box: the profile's crop strategy first
+        /// (the context box wins there), then a direct bind if the strategy did not take.
+        /// A profile with no crop block would otherwise leave a dependent uncropped —
+        /// a whole-level copy of its parent.
+        /// </summary>
+        private static void CropToContextBox(Document doc, View view, DrawingType dt, DrawingContext ctx, ProduceResult result)
+        {
+            if (view == null || ctx?.ScopeBox == null) return;
+            try { result.Warnings.AddRange(DrawingCropApplier.Apply(doc, view, dt, ctx.ScopeBox)); }
+            catch (Exception ex) { result.Warnings.Add($"Crop '{view.Name}': {ex.Message}"); }
+            try
+            {
+                var p = view.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
+                if (p != null && p.AsElementId() != ctx.ScopeBox.Id)
+                {
+                    if (!p.IsReadOnly) p.Set(ctx.ScopeBox.Id);
+                    if (p.AsElementId() != ctx.ScopeBox.Id)
+                        result.Warnings.Add($"'{view.Name}' could not be cropped to scope box '{ctx.ScopeBox.Name}'.");
+                }
+                if (!view.CropBoxActive) view.CropBoxActive = true;
+            }
+            catch (Exception ex) { result.Warnings.Add($"Crop '{view.Name}' to '{ctx.ScopeBox.Name}': {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// Create a view for the rule, name it, and apply the drawing type's presentation
+        /// (template, pack, crop to <paramref name="ctx"/>'s scope box, annotation). The one
+        /// creation path for both an ordinary view and a dependent's parent.
+        /// </summary>
+        private static ElementId CreatePresentedView(Document doc, DrawingType dt, ProductionRule rule,
+            DrawingContext ctx, ProduceOptions opts, ProduceResult result, string viewName)
+        {
+            try
+            {
                 var vft = ResolveViewFamilyType(doc, rule, result, dt?.ViewFamilyTypeName);
                 if (vft == null) return ElementId.InvalidElementId;
 
@@ -349,7 +503,7 @@ namespace StingTools.Core.Drawing
                 var view = doc.GetElement(viewId) as View;
                 if (view == null) return ElementId.InvalidElementId;
 
-                try { view.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { view.Name = MakeUniqueViewName(doc, viewName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
@@ -967,8 +1121,11 @@ namespace StingTools.Core.Drawing
                 }
                 // P12.A — fit the view to its slot before placement, unless the
                 // production rule pins an explicit scale override.
+                // A dependent's scale belongs to its parent: fitting each dependent
+                // would rescale the parent, and so every sibling, once per box.
                 if (sp != null && !rule.ScaleOverride.HasValue
-                    && doc.GetElement(viewId) is View vFit)
+                    && doc.GetElement(viewId) is View vFit
+                    && PrimaryViewIdValue(vFit) < 0)
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp);
 
                 // SLOT-3: warn on a view/slot type mismatch rather than

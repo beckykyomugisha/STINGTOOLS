@@ -20103,6 +20103,18 @@
       "curated": true
     },
     {
+      "param_name": "STING_SCOPE_BOX_TAG_TXT",
+      "guid": "a7c0b2e4-4d91-4a55-9c7e-aa0001000007",
+      "description": "Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]",
+      "datatype": "TEXT",
+      "group_id": 27,
+      "group_name": "STING_DRAWING",
+      "binding": "project",
+      "required": false,
+      "discipline": "STING",
+      "curated": true
+    },
+    {
       "param_name": "PRJ_ORG_PROJECT_NAME_TXT",
       "guid": "33188c51-0a4f-52e7-ad2a-37e68ca7ddda",
       "description": "Project name shown on the title block [STING Phase 171]",

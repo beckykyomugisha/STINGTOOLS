@@ -2503,6 +2503,7 @@ STING_PLACER_VIEW_ID_TXT,Placer View Id,TEXT,Instance,<ALL>,STING_PLACER,e2b1686
 STING_PREDECESSOR_TAGS_TXT,Predecessor Tags,TEXT,Instance,<ALL>,STINGTags_ISO19650,30aff8d6-72d0-5180-b453-856e5407da82,Predecessor element tags semicolon-delimited [ISO 19650-2:2018]
 STING_PRODUCTION_RULE_IDX_INT,Production Rule Idx,INTEGER,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000004,ProductionRule index that produced this view [STING DT v137]
 STING_RETROFIT_TS,Retrofit Ts,TEXT,Instance,<ALL>,PRJ_INFORMATION,f5f8e898-1b01-5f00-94c5-0b24dd00e1bc,Sting Retrofit Ts [STING]
+STING_SCOPE_BOX_TAG_TXT,Scope Box Tag,TEXT,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000007,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
 STING_SEED_FAMILY_TXT,Seed Family,TEXT,Instance,<ALL>,Identity,abc4d5e6-7f8a-9b0c-1d2e-3f4a5b6c7d8e,Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.
 STING_SETUP_COMPLETE,Setup Complete,TEXT,Instance,<ALL>,ASS_MNG,daf71564-2cb5-504d-e7d3-619b4b05cf38,Timestamp of last MasterSetup completion for idempotency check
 STING_SHEET_CONTEXT_TXT,Sheet Context,TEXT,Instance,<ALL>,STING_DRAWING,a7c0b2e4-4d91-4a55-9c7e-aa0001000006,Production context (level / scope box / room) this sheet was produced for [STING DT v137]

@@ -135,7 +135,50 @@ namespace StingTools.Commands.Drawing
     public class ScopeBoxProduceAreasCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData data, ref string message, ElementSet elements)
-            => ScopeBoxCommandBase.Run(data, ref message, "STING Produce From Area Boxes", (app, doc) => RunInteractive(doc));
+        {
+            if (WorkflowEngine.IsRunningPreset) return RunInWorkflow(data, ref message);
+            return ScopeBoxCommandBase.Run(data, ref message, "STING Produce From Area Boxes", (app, doc) => RunInteractive(doc));
+        }
+
+        /// <summary>
+        /// Inside a workflow there is no one to answer "Views and sheets / Views only":
+        /// params.output answers it (views and sheets by default), params.duplicateOption
+        /// chooses dependents. No saved plan, or nothing to produce, fails the step — the
+        /// plan and its boxes are this step's required input.
+        /// </summary>
+        private static Result RunInWorkflow(ExternalCommandData data, ref string message)
+        {
+            const string title = "Produce From Area Boxes";
+            try
+            {
+                var doc = ScopeBoxCommandBase.App(data)?.ActiveUIDocument?.Document;
+                if (doc == null) { message = title + ": no document open."; return Result.Failed; }
+                if (!BatchProduceCommons.TryStepOptions(out var opts, out _, out var err))
+                { message = title + ": " + err; return Result.Failed; }
+
+                var notes = new List<string>();
+                var plan = ScopeBoxPlannerService.LoadPlan(doc, out var loadErr);
+                if (loadErr != null) { message = title + ": " + loadErr; return Result.Failed; }
+                var items = ScopeBoxPlannerService.PlanProduction(doc, plan, notes);
+                foreach (var n in notes) StingLog.Warn($"{title}: {n}");
+                if (items.Count == 0)
+                {
+                    message = title + ": nothing to produce" + (notes.Count > 0 ? " — " + string.Join("; ", notes.Take(5)) : ".");
+                    return Result.Failed;
+                }
+                var outcome = ScopeBoxPlannerService.ProduceWithOutcome(doc, items, opts.CreateSheet, opts.DuplicateOption);
+                StingLog.Info($"{title}: {outcome.Report}");
+                message = $"{title}: {outcome.Made} new, {outcome.Refreshed} refreshed, {outcome.NotCropped} not cropped, "
+                        + $"{outcome.Failed} failed of {items.Count} (details in the STING log).";
+                return outcome.Made + outcome.Refreshed > 0 ? Result.Succeeded : Result.Failed;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error(title, ex);
+                message = title + ": " + ex.Message;
+                return Result.Failed;
+            }
+        }
 
         /// <summary>
         /// Count, confirm, produce. Shared with the planner dialog, which calls it from its

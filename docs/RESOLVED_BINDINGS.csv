@@ -2577,6 +2577,7 @@ STING_PLACER_VIEW_ID_TXT,37,universal-meta,<ALL>,View id where the symbol was pl
 STING_PREDECESSOR_TAGS_TXT,17,universal-meta,<ALL>,Predecessor element tags semicolon-delimited [ISO 19650-2:2018]
 STING_PRODUCTION_RULE_IDX_INT,27,universal-meta,<ALL>,ProductionRule index that produced this view [STING DT v137]
 STING_RETROFIT_TS,13,universal-meta,<ALL>,Sting Retrofit Ts [STING]
+STING_SCOPE_BOX_TAG_TXT,27,universal-meta,<ALL>,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
 STING_SEED_FAMILY_TXT,33,universal-meta,<ALL>,Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.
 STING_SETUP_COMPLETE,1,universal-meta,<ALL>,Timestamp of last MasterSetup completion for idempotency check
 STING_SHEET_CONTEXT_TXT,27,universal-meta,<ALL>,Production context (level / scope box / room) this sheet was produced for [STING DT v137]

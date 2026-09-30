@@ -113,7 +113,7 @@ namespace StingTools.Commands.Drawing
 
                 if (items.Count == 0)
                 {
-                    TaskDialog.Show("STING — Renumber",
+                    BatchProduceCommons.Show("STING — Renumber",
                         "No renumberable sheets found. Renumber operates on sheets carrying " +
                         "STING_DRAWING_TYPE_ID_TXT whose pattern has one {seq} token." +
                         (notes.Count > 0 ? "\n\n" + string.Join("\n", notes.Take(10)) : ""));
@@ -126,7 +126,7 @@ namespace StingTools.Commands.Drawing
 
                 if (plan.Moves.Count == 0 && plan.Conflicts.Count == 0)
                 {
-                    TaskDialog.Show("STING — Renumber", "Sheet numbers are already gap-free.");
+                    BatchProduceCommons.Show("STING — Renumber", "Sheet numbers are already gap-free.");
                     return Result.Succeeded;
                 }
 
@@ -152,7 +152,7 @@ namespace StingTools.Commands.Drawing
                     CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                     DefaultButton = TaskDialogResult.Ok,
                 };
-                if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+                if (!BatchProduceCommons.Confirm(confirm)) return Result.Cancelled;
 
                 var changes = plan.Moves
                     .Where(m => sheetById.ContainsKey(m.Id))
@@ -200,7 +200,7 @@ namespace StingTools.Commands.Drawing
                     report.AppendLine($"{stampFailures} renumbered sheet(s) could not have {DrawingTypeStamper.PARAM_SHEET_SEQUENCE} stamped.");
                 foreach (var n in notes.Take(8)) report.AppendLine(n);
                 if (outcome.HistoryPath == null) report.AppendLine("Rename history could NOT be recorded.");
-                TaskDialog.Show("STING — Renumber Sheets", report.ToString());
+                BatchProduceCommons.Show("STING — Renumber Sheets", report.ToString());
                 return Result.Succeeded;
             }
             catch (Exception ex)

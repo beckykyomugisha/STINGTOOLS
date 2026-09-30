@@ -395,6 +395,8 @@ namespace StingTools.Core
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
         public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";
+        /// <summary>The &lt;tag&gt; segment of the STING:: scope box a view was generated from.</summary>
+        public const string STING_SCOPE_BOX_TAG        = "STING_SCOPE_BOX_TAG_TXT";
 
         // ── Annotation marker constants (Phase 179) ──────────────────────
         public const string STING_WIRE_ANNOT_MARKER   = "STING_WIRE_ANNOT";

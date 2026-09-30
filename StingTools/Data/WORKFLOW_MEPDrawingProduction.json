@@ -1,0 +1,66 @@
+{
+  "name": "MEPDrawingProduction",
+  "description": "Produce the MEP drawing set: tag first (the annotation pass and the rich tags read the tokens), then produce cropped plans from the Scope Box Planner's area boxes and from STING:: scope boxes, and whole-floor plans per level; then match lines (they quote sheet numbers, so they follow the sheets), then panel schedules. Production takes its inputs from each step's params instead of a dialog: with none given it produces every M, E, P, FP and MG Plan drawing type, on every level, as views and sheets. Re-runs reuse views and sheets matched by stamp, so it is safe to run again after model changes.",
+  "rollback_on_failure": false,
+  "steps": [
+    {
+      "commandTag": "TagAndCombine",
+      "label": "Tag and combine (ISO 19650 tokens and tags the drawings annotate with)"
+    },
+    {
+      "commandTag": "TokenConfidenceAudit",
+      "label": "Token confidence audit (elements that fell back to a default ZONE or LOC)",
+      "optional": true
+    },
+    {
+      "commandTag": "ScopeBox_ProduceAreas",
+      "label": "Produce MEP plans from the area boxes in the saved Scope Box Planner plan (fails if there is no plan)",
+      "optional": true,
+      "params": {
+        "output": "Views and sheets",
+        "duplicateOption": "Duplicate"
+      }
+    },
+    {
+      "commandTag": "DrawingTypes_ProduceFromScopeBoxes",
+      "label": "Produce from STING::<type>::<level>::<zone> scope boxes (fails if there are none)",
+      "optional": true,
+      "params": {
+        "output": "Views and sheets"
+      }
+    },
+    {
+      "commandTag": "DrawingTypes_ProducePerLevel",
+      "label": "Produce whole-floor MEP plans per level (every M/E/P/FP/MG Plan type unless params.drawingTypes names them) — delete this step if the project is drawn by area boxes",
+      "optional": true,
+      "params": {
+        "output": "Views and sheets"
+      }
+    },
+    {
+      "commandTag": "MatchLine_Generate",
+      "label": "Match lines between adjacent and overlapping scope boxes (same drawing type, same level)",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_TemplatesCreate",
+      "label": "Build / refresh the STING panel schedule templates",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_BatchSchedules",
+      "label": "Create the panel schedules (rule-based template pick, drawing-type stamp, ELC_PNL_* fill)",
+      "optional": true
+    },
+    {
+      "commandTag": "Panel_PlaceOnSheets",
+      "label": "Panel schedules on sheets (lists the schedules still to drag onto sheets — Revit 2024+ cannot place them by API)",
+      "optional": true
+    }
+  ],
+  "_notes": [
+    "Step params: drawingTypes (comma list of ids; default every M, E, P, FP, MG Plan type), levels (comma list of level names; default all), output ('Views and sheets' | 'Views only'), duplicateOption ('Duplicate' | 'DuplicateAsDependent' | 'DuplicateWithDetailing'), packageId.",
+    "An unknown drawing type or level, or an unreadable output / duplicateOption, fails the step with the reason in the workflow report.",
+    "Area boxes and per-level production both make sheets. Keep the route the project uses and delete the other step."
+  ]
+}

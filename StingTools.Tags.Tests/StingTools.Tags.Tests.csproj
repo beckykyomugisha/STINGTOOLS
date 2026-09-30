@@ -264,6 +264,13 @@
     <Compile Include="..\StingTools\Core\Drawing\ScopeBoxSizing.cs" Link="Core\Drawing\ScopeBoxSizing.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ScopeBoxPlanner.cs" Link="Core\Drawing\ScopeBoxPlanner.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ScopeBoxStyle.cs" Link="Core\Drawing\ScopeBoxStyle.cs" />
+    <!-- Match lines between (possibly overlapping, turned) scope boxes, and which
+         views pair. MatchLineEngine calls this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\MatchLineGeometry.cs" Link="Core\Drawing\MatchLineGeometry.cs" />
+    <!-- "Duplicate as Dependent" decisions. DrawingProducer calls this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\DependentViewPlanner.cs" Link="Core\Drawing\DependentViewPlanner.cs" />
+    <!-- Production commands' inputs inside a workflow preset. The Produce commands call this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\HeadlessProductionInputs.cs" Link="Core\Drawing\HeadlessProductionInputs.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingTypeActions.cs" Link="Core\Drawing\DrawingTypeActions.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
