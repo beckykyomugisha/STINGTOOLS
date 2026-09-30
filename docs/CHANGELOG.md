@@ -2,6 +2,27 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC follow-ups: resumable upload, no machine-file fallback, clash statuses, 2026-09-30)
+
+- **Resumable upload (ACC-HARD-2).** `V6/AccUploadResume.cs` stores the storage object, the
+  uploadKey and the last confirmed part per upload, keyed on the file path, size and time
+  stamp plus the target project and folder. Re-running the upload of the same unchanged file
+  continues after the last confirmed part (no new storage object). An upload session Autodesk
+  has forgotten (a 4xx on the resumed uploadKey) restarts once from the first byte. A changed
+  file never resumes into the old object. The resume state is removed once the item or
+  version exists. A failure message says how many parts are up and that a re-run resumes.
+- **Machine-file fallback retired (ACC-HARD-4).** A project with no `acc_settings.json` is
+  "not configured", whatever this machine remembers from another job
+  (`AccProjectScopeSource.CredentialsFile` is deleted, so a stale reference is a compile
+  error). The ACC card shows the old ids pre-filled, with a warning, and one Save adopts
+  them for the project. The commands' "not set up" messages say the same. Saving never
+  changes the machine file's project values.
+- **Clash statuses (ACC-HARD-6).** Every pull reports and logs the ACC clash statuses it saw
+  and how many the exclusion list removed.
+- **Tests.** An assembly-level `FreshSignIn` hook resets the isolated sign-in before every
+  test (an earlier test's saved token was being adopted by the next, making results
+  order-dependent). `StingTools.Acc.Tests` 283/283; plugin build 0/0.
+
 #### Completed (ACC hardening — review findings, APS-verified, 2026-09-30)
 
 A review of the whole ACC integration, then fixes checked against the APS reference and

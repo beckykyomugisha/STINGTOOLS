@@ -129,41 +129,37 @@ namespace StingTools.V6
                 if (!folder.ok) return folder.fail;
                 string folderUrn = folder.urn;
 
-                // 2. Storage object.
-                var storageBody = new JObject
+                // 2 + 3. Storage object and bytes — resumed when an earlier attempt at this exact
+                // upload (same file, size, time stamp, project and folder) got part of the way.
+                var fi = new FileInfo(filePath);
+                string rkey = AccUploadResume.KeyFor(filePath, fi.Length, fi.LastWriteTimeUtc, projectId, folderUrn);
+                var state = AccUploadResume.Load(rkey, PartSizeBytes, DateTime.UtcNow);
+                bool resumed = state != null;
+                if (resumed)
+                    StingLog.Info($"AccModelUpload: resuming '{fileName}' at part {state.PartsCompleted + 1}/{state.TotalParts}" +
+                                  (state.Finalised ? " (bytes already complete)" : ""));
+
+                var bytes = await StoreBytesAsync(creds, projectId, folderUrn, fileName, filePath, rkey, state, ct).ConfigureAwait(false);
+                if (!bytes.ok && resumed && bytes.resumeRejected)
                 {
-                    ["jsonapi"] = new JObject { ["version"] = "1.0" },
-                    ["data"] = new JObject
-                    {
-                        ["type"] = "objects",
-                        ["attributes"] = new JObject { ["name"] = fileName },
-                        ["relationships"] = new JObject
-                        {
-                            ["target"] = new JObject { ["data"] = new JObject { ["type"] = "folders", ["id"] = folderUrn } }
-                        }
-                    }
-                };
-                var storageResp = await SendJsonAsync(HttpMethod.Post, $"{DataBase}/projects/{projectId}/storage",
-                    creds, storageBody, JsonApi, idempotent: false, ct).ConfigureAwait(false);
-                if (!storageResp.IsSuccess) return Fail($"Create storage failed (HTTP {storageResp.Status}). {Trim(storageResp.Body)}", storageResp);
-                string objectId = JObject.Parse(storageResp.Body)["data"]?["id"]?.Value<string>() ?? "";
-                if (string.IsNullOrEmpty(objectId)) return Fail("Storage response had no object id.");
-
-                // urn:adsk.objects:os.object:{bucketKey}/{objectKey}
-                int lastColon = objectId.LastIndexOf(':');
-                string bucketAndKey = lastColon >= 0 ? objectId.Substring(lastColon + 1) : objectId;
-                int slash = bucketAndKey.IndexOf('/');
-                if (slash < 0) return Fail($"Unexpected storage object id: {objectId}");
-                string bucketKey = bucketAndKey.Substring(0, slash);
-                string objectKey = bucketAndKey.Substring(slash + 1);
-
-                // 3. Bytes.
-                var up = await UploadFileAsync(creds, bucketKey, objectKey, filePath, ct).ConfigureAwait(false);
-                if (!up.ok) return up.fail;
+                    // Autodesk no longer knows the earlier upload session. Start again, once,
+                    // from the first byte — never leave a half-written object behind as "done".
+                    StingLog.Warn("AccModelUpload: the earlier upload session has expired — starting again from the first part");
+                    AccUploadResume.Delete(rkey);
+                    bytes = await StoreBytesAsync(creds, projectId, folderUrn, fileName, filePath, rkey, null, ct).ConfigureAwait(false);
+                }
+                if (!bytes.ok) return bytes.fail;
+                string objectId = bytes.objectId;
 
                 // 4. Item + first version, or a new version.
                 var result = await CreateItemOrVersionAsync(creds, projectId, folderUrn, fileName, objectId, ct).ConfigureAwait(false);
-                if (!result.Ok) return result;
+                if (!result.Ok)
+                {
+                    result.Message += " The file's bytes are already in ACC storage; running the upload again resumes from here.";
+                    return result;
+                }
+                AccUploadResume.Delete(rkey);
+                if (resumed) result.Message += " (resumed an earlier, interrupted upload)";
                 result.FolderUrn = folderUrn;
                 result.FolderReason = folder.reason;
 
@@ -227,30 +223,101 @@ namespace StingTools.V6
                 ". Set the upload folder or the CDE folders in the project's ACC settings."));
         }
 
-        // ── 3. bytes ──────────────────────────────────────────────────────────
+        // ── 2 + 3. storage object and bytes (resumable) ───────────────────────
 
-        private static async Task<(bool ok, UploadResult fail)> UploadFileAsync(
-            AccCredentials creds, string bucketKey, string objectKey, string filePath, CancellationToken ct)
+        private static async Task<(bool ok, string objectId, bool resumeRejected, UploadResult fail)> StoreBytesAsync(
+            AccCredentials creds, string projectId, string folderUrn, string fileName, string filePath,
+            string resumeKey, AccUploadResumeState state, CancellationToken ct)
         {
-            long size = new FileInfo(filePath).Length;
-            int numParts = (int)Math.Max(1, (size + PartSizeBytes - 1) / PartSizeBytes);
-            string signBase = $"{OssBase}/buckets/{bucketKey}/objects/{Uri.EscapeDataString(objectKey)}/signeds3upload";
-            string uploadKey = null;
+            var fi = new FileInfo(filePath);
+            if (state == null)
+            {
+                var storageBody = new JObject
+                {
+                    ["jsonapi"] = new JObject { ["version"] = "1.0" },
+                    ["data"] = new JObject
+                    {
+                        ["type"] = "objects",
+                        ["attributes"] = new JObject { ["name"] = fileName },
+                        ["relationships"] = new JObject
+                        {
+                            ["target"] = new JObject { ["data"] = new JObject { ["type"] = "folders", ["id"] = folderUrn } }
+                        }
+                    }
+                };
+                var storageResp = await SendJsonAsync(HttpMethod.Post, $"{DataBase}/projects/{projectId}/storage",
+                    creds, storageBody, JsonApi, idempotent: false, ct).ConfigureAwait(false);
+                if (!storageResp.IsSuccess)
+                    return (false, "", false, Fail($"Create storage failed (HTTP {storageResp.Status}). {Trim(storageResp.Body)}", storageResp));
+                string oid = JObject.Parse(storageResp.Body)["data"]?["id"]?.Value<string>() ?? "";
+                if (string.IsNullOrEmpty(oid)) return (false, "", false, Fail("Storage response had no object id."));
+
+                // urn:adsk.objects:os.object:{bucketKey}/{objectKey}
+                int lastColon = oid.LastIndexOf(':');
+                string bucketAndKey = lastColon >= 0 ? oid.Substring(lastColon + 1) : oid;
+                int slash = bucketAndKey.IndexOf('/');
+                if (slash < 0) return (false, "", false, Fail($"Unexpected storage object id: {oid}"));
+
+                state = new AccUploadResumeState
+                {
+                    Key = resumeKey,
+                    FilePath = Path.GetFullPath(filePath),
+                    FileSize = fi.Length,
+                    FileWriteUtc = fi.LastWriteTimeUtc,
+                    ProjectId = projectId,
+                    FolderUrn = folderUrn,
+                    ObjectId = oid,
+                    BucketKey = bucketAndKey.Substring(0, slash),
+                    ObjectKey = bucketAndKey.Substring(slash + 1),
+                    PartSize = PartSizeBytes,
+                    TotalParts = (int)Math.Max(1, (fi.Length + PartSizeBytes - 1) / PartSizeBytes),
+                    StartedUtc = DateTime.UtcNow,
+                };
+                AccUploadResume.Save(state);
+            }
+
+            if (!state.Finalised)
+            {
+                var up = await UploadPartsAsync(creds, state, filePath, ct).ConfigureAwait(false);
+                if (!up.ok) return (false, "", up.resumeRejected, up.fail);
+            }
+            return (true, state.ObjectId, false, null);
+        }
+
+        /// <summary>
+        /// Send parts PartsCompleted+1..TotalParts with signed S3 URLs (≤ 25 per request,
+        /// firstPart 1-based), recording each confirmed part so an interruption resumes after
+        /// it; then complete the upload. <c>resumeRejected</c> is true when Autodesk refused
+        /// the RESUMED uploadKey itself (the session expired), so the caller can restart.
+        /// </summary>
+        private static async Task<(bool ok, bool resumeRejected, UploadResult fail)> UploadPartsAsync(
+            AccCredentials creds, AccUploadResumeState state, string filePath, CancellationToken ct)
+        {
+            long size = state.FileSize;
+            int numParts = state.TotalParts;
+            long partSize = state.PartSize;
+            string signBase = $"{OssBase}/buckets/{state.BucketKey}/objects/{Uri.EscapeDataString(state.ObjectKey)}/signeds3upload";
+            bool resuming = !string.IsNullOrEmpty(state.UploadKey);
 
             using var fs = File.OpenRead(filePath);
-            for (int batchStart = 1; batchStart <= numParts; batchStart += MaxUrlsPerRequest)
+            for (int batchStart = state.PartsCompleted + 1; batchStart <= numParts; batchStart += MaxUrlsPerRequest)
             {
                 int count = Math.Min(MaxUrlsPerRequest, numParts - batchStart + 1);
-                var sign = await SignAsync(creds, signBase, batchStart, count, uploadKey, ct).ConfigureAwait(false);
-                if (!sign.ok) return (false, sign.fail);
-                uploadKey = sign.uploadKey;
+                var sign = await SignAsync(creds, signBase, batchStart, count, state.UploadKey, ct).ConfigureAwait(false);
+                if (!sign.ok)
+                {
+                    bool rejected = resuming && sign.fail.HttpStatus >= 400 && sign.fail.HttpStatus < 500 && sign.fail.HttpStatus != 401 && sign.fail.HttpStatus != 429;
+                    return (false, rejected, sign.fail);
+                }
+                resuming = false;
+                if (string.IsNullOrEmpty(state.UploadKey)) { state.UploadKey = sign.uploadKey; AccUploadResume.Save(state); }
                 var urls = sign.urls;
 
                 for (int i = 0; i < count; i++)
                 {
                     int partNumber = batchStart + i;   // 1-based
-                    long offset = (long)(partNumber - 1) * PartSizeBytes;
-                    int len = (int)Math.Min(PartSizeBytes, size - offset);
+                    long offset = (long)(partNumber - 1) * partSize;
+                    int len = (int)Math.Min(partSize, size - offset);
                     var buffer = new byte[len];
                     fs.Seek(offset, SeekOrigin.Begin);
                     int read = 0;
@@ -274,21 +341,27 @@ namespace StingTools.V6
                             // The signed URLs expired. Ask again for the rest of this batch with the
                             // same uploadKey; the parts already sent stay sent.
                             StingLog.Warn($"AccModelUpload: signed URLs expired at part {partNumber}/{numParts} — renewing");
-                            var again = await SignAsync(creds, signBase, partNumber, count - i, uploadKey, ct).ConfigureAwait(false);
-                            if (!again.ok) return (false, again.fail);
+                            var again = await SignAsync(creds, signBase, partNumber, count - i, state.UploadKey, ct).ConfigureAwait(false);
+                            if (!again.ok) return (false, false, again.fail);
                             for (int k = 0; k < again.urls.Count; k++) urls[i + k] = again.urls[k];
                             continue;
                         }
-                        return (false, Fail($"S3 upload of part {partNumber}/{numParts} failed after {put.Attempts} attempt(s): {put.Describe()}", put));
+                        return (false, false, Fail($"S3 upload of part {partNumber}/{numParts} failed after {put.Attempts} attempt(s): {put.Describe()}. " +
+                                                   $"{state.PartsCompleted} of {numParts} parts are uploaded — run the upload again within " +
+                                                   $"{AccUploadResume.MaxAge.TotalHours:F0} h to resume from part {state.PartsCompleted + 1}.", put));
                     }
-                    if (!done) return (false, Fail($"S3 upload of part {partNumber}/{numParts} failed: the signed URLs kept expiring."));
+                    if (!done) return (false, false, Fail($"S3 upload of part {partNumber}/{numParts} failed: the signed URLs kept expiring."));
+                    state.PartsCompleted = partNumber;
+                    AccUploadResume.Save(state);
                 }
             }
 
-            var fin = await SendJsonAsync(HttpMethod.Post, signBase, creds, new JObject { ["uploadKey"] = uploadKey },
+            var fin = await SendJsonAsync(HttpMethod.Post, signBase, creds, new JObject { ["uploadKey"] = state.UploadKey },
                 "application/json", idempotent: true, ct).ConfigureAwait(false);
-            if (!fin.IsSuccess) return (false, Fail($"Finalise upload failed (HTTP {fin.Status}). {Trim(fin.Body)}", fin));
-            return (true, null);
+            if (!fin.IsSuccess) return (false, false, Fail($"Finalise upload failed (HTTP {fin.Status}). {Trim(fin.Body)}", fin));
+            state.Finalised = true;
+            AccUploadResume.Save(state);
+            return (true, false, null);
         }
 
         private static async Task<(bool ok, string uploadKey, List<string> urls, UploadResult fail)> SignAsync(

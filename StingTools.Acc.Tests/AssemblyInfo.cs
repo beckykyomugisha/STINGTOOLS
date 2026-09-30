@@ -4,3 +4,5 @@
 using Xunit;
 
 [assembly: CollectionBehavior(DisableTestParallelization = true)]
+
+[assembly: StingTools.Acc.Tests.TestHelpers.FreshSignIn]

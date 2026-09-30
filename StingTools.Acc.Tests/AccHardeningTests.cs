@@ -629,6 +629,153 @@ namespace StingTools.Acc.Tests
         }
     }
 
+    public class AccUploadResumeTests : IDisposable
+    {
+        private readonly string _dir = Path.Combine(Path.GetTempPath(), "sting-resume-" + Guid.NewGuid().ToString("N"));
+        private readonly long _savedPart = AccModelUpload.PartSizeBytes;
+
+        public AccUploadResumeTests()
+        {
+            Directory.CreateDirectory(_dir);
+            AccHttp.DelayHook = _ => Task.CompletedTask;
+            AccModelUpload.PartSizeBytes = 10;          // 100 bytes → 10 parts
+        }
+
+        public void Dispose()
+        {
+            AccModelUpload.PartSizeBytes = _savedPart;
+            AccModelUpload.OverrideHostForTests(null);
+            AccHttp.DelayHook = t => Task.Delay(t);
+            try { Directory.Delete(_dir, true); } catch (Exception) { }
+        }
+
+        private sealed class FakeAcc
+        {
+            public int StoragePosts, Finalises;
+            public List<int> PartsPut = new List<int>();
+            public Func<int, int> PartStatus = _ => 200;      // part number → status
+            public Func<string, int> SignStatus = _ => 200;   // query → status
+            public LoopbackServer Server;
+            public FakeAcc()
+            {
+                Server = new LoopbackServer((i, req) =>
+                {
+                    string p = req.Url.PathAndQuery;
+                    if (p.Contains("/storage"))
+                    {
+                        StoragePosts++;
+                        return new CannedResponse(201, "{\"data\":{\"id\":\"urn:adsk.objects:os.object:bucket/obj" + StoragePosts + "\"}}");
+                    }
+                    if (req.HttpMethod == "GET" && p.Contains("signeds3upload"))
+                    {
+                        int st = SignStatus(req.Url.Query);
+                        if (st != 200) return new CannedResponse(st, "{\"reason\":\"upload key expired\"}");
+                        var q = System.Web.HttpUtility.ParseQueryString(req.Url.Query);
+                        int first = int.Parse(q["firstPart"]), n = int.Parse(q["parts"]);
+                        var urls = Enumerable.Range(first, n).Select(k => $"\"{Server.BaseUrl}/s3/{k}\"");
+                        return new CannedResponse(200, "{\"uploadKey\":\"UK\",\"urls\":[" + string.Join(",", urls) + "]}");
+                    }
+                    if (req.HttpMethod == "PUT")
+                    {
+                        int part = int.Parse(req.Url.AbsolutePath.Split('/').Last());
+                        int st = PartStatus(part);
+                        if (st == 200) PartsPut.Add(part);
+                        return new CannedResponse(st, "");
+                    }
+                    if (req.HttpMethod == "POST" && p.Contains("signeds3upload")) { Finalises++; return new CannedResponse(200, "{}"); }
+                    if (p.Contains("/items"))
+                        return new CannedResponse(201, "{\"data\":{\"id\":\"urn:item\"},\"included\":[{\"type\":\"versions\",\"id\":\"urn:ver\"}]}");
+                    return new CannedResponse(404, "{}");
+                });
+                AccModelUpload.OverrideHostForTests(Server.BaseUrl);
+            }
+        }
+
+        private static AccCredentials Creds()
+        {
+            var c = H.Creds();
+            c.FolderUrn = "urn:adsk.wipprod:fs.folder:co.X";
+            return c;
+        }
+
+        private string NewFile(int bytes)
+        {
+            string f = Path.Combine(_dir, "model.rvt");
+            File.WriteAllBytes(f, new byte[bytes]);
+            return f;
+        }
+
+        [Fact]
+        public async Task AnInterruptedUpload_ResumesAfterTheLastConfirmedPart_WithoutANewStorageObject()
+        {
+            var acc = new FakeAcc();
+            using var server = acc.Server;
+            bool broken = true;
+            acc.PartStatus = part => part == 7 && broken ? 500 : 200;
+            string file = NewFile(100);
+
+            var first = await AccModelUpload.UploadAsync(Creds(), file);
+            Assert.False(first.Ok);
+            Assert.Contains("resume from part 7", first.Message);
+            Assert.Equal(new[] { 1, 2, 3, 4, 5, 6 }, acc.PartsPut.ToArray());
+
+            broken = false;
+            var second = await AccModelUpload.UploadAsync(Creds(), file);
+
+            Assert.True(second.Ok, second.Message);
+            Assert.Contains("resumed", second.Message);
+            Assert.Equal(1, acc.StoragePosts);                                        // same storage object
+            Assert.Equal(Enumerable.Range(1, 10).ToArray(), acc.PartsPut.ToArray()); // 1..6 not sent again
+            Assert.Equal(1, acc.Finalises);
+
+            // Finished: the next upload of the same file is a NEW upload (a new version), not a resume.
+            var third = await AccModelUpload.UploadAsync(Creds(), file);
+            Assert.True(third.Ok, third.Message);
+            Assert.Equal(2, acc.StoragePosts);
+        }
+
+        [Fact]
+        public async Task AnExpiredSession_StartsAgainFromTheFirstByte()
+        {
+            var acc = new FakeAcc();
+            using var server = acc.Server;
+            bool broken = true;
+            acc.PartStatus = part => part == 4 && broken ? 500 : 200;
+            string file = NewFile(100);
+            Assert.False((await AccModelUpload.UploadAsync(Creds(), file)).Ok);
+
+            broken = false;
+            acc.SignStatus = q => q.Contains("uploadKey=UK") && acc.StoragePosts == 1 ? 400 : 200;   // Autodesk forgot the session
+            acc.PartsPut.Clear();
+            var again = await AccModelUpload.UploadAsync(Creds(), file);
+
+            Assert.True(again.Ok, again.Message);
+            Assert.Equal(2, acc.StoragePosts);                                        // a fresh storage object
+            Assert.Equal(Enumerable.Range(1, 10).ToArray(), acc.PartsPut.ToArray());
+        }
+
+        [Fact]
+        public async Task AChangedFile_IsNeverResumedIntoTheOldObject()
+        {
+            var acc = new FakeAcc();
+            using var server = acc.Server;
+            bool broken = true;
+            acc.PartStatus = part => part == 3 && broken ? 500 : 200;
+            string file = NewFile(100);
+            Assert.False((await AccModelUpload.UploadAsync(Creds(), file)).Ok);
+
+            broken = false;
+            File.WriteAllBytes(file, new byte[95]);                                   // edited since
+            File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddMinutes(1));
+            acc.PartsPut.Clear();
+            var r = await AccModelUpload.UploadAsync(Creds(), file);
+
+            Assert.True(r.Ok, r.Message);
+            Assert.Equal(2, acc.StoragePosts);
+            Assert.Equal(Enumerable.Range(1, 10).ToArray(), acc.PartsPut.ToArray());
+        }
+    }
+
     public class AccPkceAndDiscoveryTests : IDisposable
     {
         public void Dispose() => AccProjectDiscovery.OverrideHostForTests(null);

@@ -2589,19 +2589,19 @@ Strategy and the KUT day-one setup: `ACC_INTEGRATION_STRATEGY.md`, `KUT_ACC_DAY1
   listeners only: sign-in with a Desktop (PKCE) app, discovery, Issues v1 push/pull,
   the clash pull (`bim360/clash/v3` sub-paths are still the residual from Phase 274), the
   batched upload and the custom attributes. Follow `KUT_ACC_DAY1_PLAYBOOK.md` §7 V1–V8.
-- **ACC-HARD-2 — resumable upload across sessions.** A failed part is retried and expired URLs
+- ~~**ACC-HARD-2 — resumable upload across sessions.**~~ **Done 2026-09-30** (`V6/AccUploadResume.cs`: per-part resume state keyed on file + size + time stamp + project + folder, 20 h ceiling, an expired session restarts cleanly). A failed part is retried and expired URLs
   are renewed, but a cancelled or crashed upload restarts from the first byte. Persisting the
   `uploadKey` and the parts sent would let a multi-GB model resume on a site connection.
 - **ACC-HARD-3 — cloud-workshared models.** With a Revit cloud model `doc.PathName` is not a
   local path; `StingPaths` may resolve each user's own Documents folder, which would split
   `_BIM_COORD` (escalation record, ACC settings, counters) per user. Until checked, run STING on
   a local host model that links the cloud models (playbook §9).
-- **ACC-HARD-4 — retire the machine-file fallback.** `projectId`, `hubId` and `folderUrn` are
+- ~~**ACC-HARD-4 — retire the machine-file fallback.**~~ **Done 2026-09-30**: project values come only from the project; the machine file's old ids are shown on the ACC card and adopted only by an explicit Save. `projectId`, `hubId` and `folderUrn` are
   still read from `%APPDATA%\Planscape\acc_credentials.json` when a project has none (logged as
   DEPRECATED). Remove it after one live KUT cycle on project settings (as IM-18 planned).
 - **ACC-HARD-5 — escalated issues cannot be pinned.** The ACC Issues API does not create
   pushpins (placement is read-only), so an escalated clash names its two objects in the
   description instead. Revisit if Autodesk opens placement writes.
-- **ACC-HARD-6 — clash status vocabulary.** Escalation skips clashes whose scope-file status is
+- **ACC-HARD-6 — clash status vocabulary.** *(2026-09-30: every pull now logs and reports the statuses it saw and how many the exclusion list removed; confirm the list against that line after the first live pull.)* Escalation skips clashes whose scope-file status is
   closed / resolved / approved / not_an_issue (`escalateExcludeStatuses`). The statuses the
   scope files actually use are unconfirmed; check on the first live pull.

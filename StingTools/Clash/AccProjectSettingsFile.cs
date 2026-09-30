@@ -65,15 +65,10 @@ namespace StingTools.Core.Clash
             AccOperatingPolicy policy = null;
             try { policy = AccOperatingPolicy.Load(PathFor(doc)); }
             catch (Exception ex) { StingLog.Warn($"{commandName}: ACC settings: {ex.Message}"); }
-            var fallbacks = AccProjectScope.MachineFileFallbacks(creds, policy);
             AccProjectScope.Apply(creds, policy);
             string line = $"{commandName}: {AccProjectScope.Describe(creds)}";
-            if (creds.ProjectScope == AccProjectScopeSource.CredentialsFile) StingLog.Warn(line);
-            else StingLog.Info(line);
-            foreach (var key in fallbacks)
-                if (key != "projectId")
-                    StingLog.Warn($"{commandName}: '{key}' comes from the machine credentials file - DEPRECATED, " +
-                                  "it belongs to one ACC project; set it in this project's ACC settings");
+            if (creds.ProjectScope == AccProjectScopeSource.ProjectSettings) StingLog.Info(line);
+            else StingLog.Warn(line);
             return creds;
         }
 
