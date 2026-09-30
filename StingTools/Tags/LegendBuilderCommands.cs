@@ -908,7 +908,7 @@ namespace StingTools.Tags
                 case "Category":
                     var catGroups = elems
                         .Where(e => e.Category != null)
-                        .GroupBy(e => e.Category.Name)
+                        .GroupBy(e => global::StingTools.Core.ParameterHelpers.GetCategoryName(e))
                         .OrderByDescending(g => g.Count());
 
                     var catPalette = Select.ColorHelper.Palettes["Spectral"];

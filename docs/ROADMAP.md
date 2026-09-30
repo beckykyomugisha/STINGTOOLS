@@ -2,6 +2,28 @@
 
 Open automation gaps, future-enhancement tables, and deep-review findings for the StingTools plugin. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`CHANGELOG.md`](CHANGELOG.md) for the history of closed items.
 
+## Tagging accuracy — deep review (2026-09-29)
+
+Review of the tagging pipeline (`TagPipelineHelper.RunFullPipeline`, `TagConfig.BuildAndWriteTag`,
+`TokenAutoPopulator.PopulateAll`, `SpatialAutoDetect`, SEQ allocation, `StingAutoTagger`). All eleven
+findings were closed on 2026-09-29 (CHANGELOG "Tagging accuracy review" and "TAGACC-1..11").
+None of it is compiled or exercised in Revit yet — the .NET SDK was unavailable where it was written.
+What remains is listed under **Residual**
+
+| ID | Pri | Item |
+|---|---|---|
+| TAGACC-12 | P1 | **Run in Revit.** The tests now exist (`StingTools.Revit.SmokeTests/TaggingAccuracySmokeTests.cs`: copy, move to another level, Overwrite twice, simulated sync duplicate) and the two-user steps are in [`TAGGING_ACCURACY_TEST_PROTOCOL.md`](TAGGING_ACCURACY_TEST_PROTOCOL.md). Neither has been run: `pwsh tools/run_revit_smoke.ps1`, then Part B with two users. The plugin has not been compiled since TAGACC-1; a PR to `main` runs the Windows build. |
+| TAGACC-13 | ~~P2~~ **Done 2026-09-29** | Worksharing prevention without the server: the SEQ counters live in a model element (`Core/Storage/StingSeqLockStore`) that a user must borrow before handing out a new number. While another user holds it, or central has a newer copy, new numbers wait (`SEQ_LOCK_MODE = block`, default) — the auto-tagger defers and retries after sync; Batch Tag reports the elements. `warn` numbers anyway; `off` ignores the lock. Remaining window: two users tagging for the very first time before either syncs each create a counter element; that one-off overlap is repaired by TAGACC-2. |
+| TAGACC-14 | ~~P3~~ **Mostly done 2026-09-29** | 129 direct `Category.Name` reads converted to `GetCategoryName` where the variable is declared as an element type in the same file. See TAGACC-16. |
+| TAGACC-15 | ~~P3~~ **Done 2026-09-29** | A room Department whose whole value is a declared ZONE code is that zone at any length ("A"); free text still never matches a one-letter code. |
+| TAGACC-16 | ~~P3~~ **Mostly done 2026-09-29** | The 28 remaining `Category.Name` reads that are LOOKUPS (against `DiscMap`, known-category lists, category filters) now use `GetCategoryName`, so they match on a non-English Revit. About 60 remain that only DISPLAY the name (log lines, report columns, "Unknown" fallbacks); on a localised Revit they show the translated name, which is correct for a reader and does not affect a tag. |
+| TAGACC-17 | ~~P3~~ **Done 2026-09-29** | Deferred elements are retried after Reload Latest as well as after this user's sync (`DocumentReloadedLatest`), and duplicates are repaired at the same point. A user who neither syncs nor reloads still waits; nothing can refresh their copy of the counters. |
+
+**Settings.** RETAG_MOVED_ELEMENTS, RENUMBER_ON_OVERWRITE, AUTO_CORRECT_STATUS_FROM_PHASE and
+SEQ_LOCK_MODE are switched from the **Tag Rules** button (TAGGING tab, beside Batch Tag) and
+listed in Project Cfg → View Full Configuration. Batch Tag also offers "Overwrite all and
+renumber" for one run.
+
 ## Panel schedule enhancements — competitor review (2026-09-24)
 
 Reviewed: DiRoots (SheetLink/PanelLink, ProSheets, TableGen), Revit 2025/2026 native, Design

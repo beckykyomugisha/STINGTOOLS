@@ -5,7 +5,7 @@
   "lastUpdated": "2026-09-15",
   "_readBy": "TagTokenPolicyRegistry.Get(doc) -> TagTokenPolicy.Resolve, called from TagConfig.BuildAndWriteTag for DISC/LOC/ZONE/LVL/SYS/FUNC/PROD. From 2026-08-10 until 2026-09-15 this file was read by NOTHING: the fallbacks were hardcoded literals in TagConfig and editing this file changed no behaviour.",
   "_refusal": "A token whose fallback is null and whose level is not OPTIONAL is REFUSED: the element is skipped, counted in the tagging result as REFUSED, and no tag is written. Every one of the seven tag segments ships WITH a fallback, so the shipped baseline never refuses — only a project override can turn that on.",
-  "_notYetGoverned": "LOC and ZONE are substituted upstream of the policy (TagConfig ~line 2355 uses LocCodes/ZoneCodes from project_config.json), so for those two the policy fallback VALUE is only reached if that upstream guard does not fire. Their level is honoured; their fallback value may not be. See ROADMAP TOKPOL-1.",
+  "_notYetGoverned": "Nothing. Since 2026-09-29 (TAGACC-3) the derivation layer (PopulateAll) uses this policy too: an element nothing can locate gets this LOC / ZONE / LVL fallback, or stays blank (and the tag is refused) when a project sets the fallback to null. A LOC named in Project Information still wins over the fallback.",
   "_model": "K-13 classified the sixteen ISO sheet tokens into fallback-to-profile / omit-and-fail-loud / blank-is-safe. This applies the same grouping to the ten tag tokens, and reuses G-27's Empty vs Unmatched distinction rather than inventing a second vocabulary.",
   "levels": {
     "MANDATORY": "Never blank. A blank is an error: it is counted, surfaced in the tagging result, and the element is reported as incomplete.",

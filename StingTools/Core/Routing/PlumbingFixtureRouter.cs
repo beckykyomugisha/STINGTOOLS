@@ -238,7 +238,7 @@ namespace StingTools.Core.Routing
             FamilySymbol aavSymbol,
             PlumbingRoutingResult result)
         {
-            string catName = fi.Category?.Name ?? "";
+            string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(fi);
             string famName = fi.Symbol?.FamilyName ?? "";
 
             // Determine services required based on family category and name.

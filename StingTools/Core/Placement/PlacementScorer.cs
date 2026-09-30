@@ -747,7 +747,7 @@ namespace StingTools.Core.Placement
                 foreach (var el in col)
                 {
                     if (el.Category == null) continue;
-                    if (!string.Equals(el.Category.Name, rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
+                    if (!string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(el), rule.CategoryFilter, StringComparison.OrdinalIgnoreCase))
                         continue;
                     found = el;
                     break;

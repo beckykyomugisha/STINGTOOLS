@@ -167,7 +167,7 @@ namespace StingTools.Select
             var knownCatNames = new HashSet<string>(TagConfig.DiscMap.Keys, StringComparer.OrdinalIgnoreCase);
             List<ElementId> ids = new FilteredElementCollector(ctx.Doc, ctx.ActiveView.Id)
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && knownCatNames.Contains(e.Category.Name))
+                .Where(e => e.Category != null && knownCatNames.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                 .Select(e => e.Id)
                 .ToList();
 

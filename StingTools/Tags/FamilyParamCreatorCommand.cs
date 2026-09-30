@@ -1154,6 +1154,7 @@ namespace StingTools.Tags
                 // load a family that's still open as a separate Document in the same session.
                 try { famDoc.Close(false); famDoc = null; }
                 catch (Exception closeEx) { StingLog.Warn($"Close before LoadAfterSave: {closeEx.Message}"); }
+                if (famDoc == null) Commands.TagStudio.RevitBackupSweeper.Sweep(savedPath, "FamilyParamCreator");
 
                 // Batch-load into project (optional). No-op if TargetProjectDoc is null.
                 if (opts.LoadAfterSave && opts.TargetProjectDoc != null && File.Exists(savedPath))

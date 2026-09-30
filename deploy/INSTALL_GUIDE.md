@@ -160,14 +160,20 @@ says whether the folder's `Tags` subfolder can be reached.
   network, it uses its own copy, so tagging still works.
 - The setting lives in `%APPDATA%\STING\sting_content.json` (`"content_root"`). An
   environment variable `STING_CONTENT_LIB` overrides it.
-- Families on the share win over the shipped ones, so only **Promote Library** (TAG
-  STUDIO) should write to it. It records every family it publishes, and **Load** (Tag
+- With no setting, the shared library is `C:\ProgramData\STING\ContentLibrary\Tags` on
+  this PC only. Nothing is read from it until Promote Library has published there.
+- Families on the share win over the shipped ones, so only **Promote Library** (MODEL tab >
+  Family quick edit > Advanced family ops) writes to it. Once it has published there, the
+  commands that create or edit tag families save to the plugin's own copy, and the share
+  changes only when you promote again. It records every family it publishes, and **Load** (Tag
   families) warns when a family on the share differs from what this plugin ships or was
   changed without a promotion. Promote again after installing a newer build.
 - Promote Library offers to move families on the share that the plugin no longer ships
   into `_retired\<date>`; nothing is deleted.
 - The first load in a project reads every family over the network and takes longer on a
-  slow link. Later loads skip families the project already has.
+  slow link. When a project already has some of the families, **Load** asks whether to
+  update them too: Yes reloads them from the library and keeps the tag styles set in the
+  project; No loads only the missing ones, which is quicker.
 
 ## Updating to a newer build
 

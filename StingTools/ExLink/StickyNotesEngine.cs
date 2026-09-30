@@ -215,7 +215,7 @@ namespace StingTools.ExLink
             {
                 var el = doc.GetElement(new ElementId(elementId));
                 if (el?.Category != null)
-                    category = el.Category.Name;
+                    category = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             }
             catch (Exception ex) { StingLog.Warn($"StickyNotesEngine.AddNote category: {ex.Message}"); }
 

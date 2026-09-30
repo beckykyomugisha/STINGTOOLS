@@ -73,13 +73,13 @@ namespace StingTools.Core
                     {
                         switchAllOff++;
                         if (switchIssues.Count < 10)
-                            switchIssues.Add($"• {t.Category?.Name} type '{t.Name}' [{t.Id}] — all LOD switches OFF, type is invisible at every detail level");
+                            switchIssues.Add($"• {(global::StingTools.Core.ParameterHelpers.GetCategoryName(t))} type '{t.Name}' [{t.Id}] — all LOD switches OFF, type is invisible at every detail level");
                     }
                     else if (c == null || m == null || f == null)
                     {
                         switchMismatchTypes++;
                         if (switchIssues.Count < 10)
-                            switchIssues.Add($"• {t.Category?.Name} type '{t.Name}' [{t.Id}] — partial LOD-switch set (coarse={FmtBool(c)} medium={FmtBool(m)} fine={FmtBool(f)})");
+                            switchIssues.Add($"• {(global::StingTools.Core.ParameterHelpers.GetCategoryName(t))} type '{t.Name}' [{t.Id}] — partial LOD-switch set (coarse={FmtBool(c)} medium={FmtBool(m)} fine={FmtBool(f)})");
                     }
                 }
 

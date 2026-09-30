@@ -668,7 +668,7 @@ namespace StingTools.Commands.Lightning
                         rows.Add(new[]
                         {
                             el.Id.Value.ToString(),
-                            el.Category?.Name ?? "",
+                            global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                             (el as FamilyInstance)?.Symbol?.FamilyName ?? "",
                             doc.GetElement(el.LevelId)?.Name ?? "",
                             fromRoom?.Name ?? "", fromLpz,
@@ -2815,7 +2815,7 @@ namespace StingTools.Commands.Lightning
                     {
                         AssetTag = tag,
                         AssetName = typeName,
-                        CategoryName = fi.Category?.Name ?? "",
+                        CategoryName = global::StingTools.Core.ParameterHelpers.GetCategoryName(fi),
                         FamilyName = fi.Symbol?.FamilyName ?? "",
                         Discipline = "LPS",
                         SystemCode = classId ?? "",

@@ -136,7 +136,7 @@ namespace StingTools.Core.Symbols
                         // Pick a concept by family-name keyword match
                         // first (e.g. "pendant" → LTG_PENDANT), then
                         // fall back to first concept for the category.
-                        var concepts = SymbolConceptRegistry.GetConceptsForCategory(el.Category?.Name);
+                        var concepts = SymbolConceptRegistry.GetConceptsForCategory(global::StingTools.Core.ParameterHelpers.GetCategoryName(el));
                         var concept = ResolveConceptForElement(el, concepts);
                         if (concept == null) continue;
 

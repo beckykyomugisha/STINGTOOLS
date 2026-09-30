@@ -29,6 +29,122 @@ still machine-bound, 365 days for paid plans. Tests: 26 pass in `StingTools.Lice
 (13 new — portable accept/expire/forgery, trial day 89/90, clock rollback, edited and
 copied stamps). Plugin and issuer build 0/0. The trial and portable paths have not yet been
 run inside Revit.
+#### Completed (TAGACC-16 / 17, 2026-09-29)
+
+- **TAGACC-16** the 28 remaining `Category.Name` LOOKUPS (DiscMap, known-category lists,
+  category filters across BIM Manager, scheduling, Excel link, legends, smart placement, data
+  exchange, placement hints) now use `GetCategoryName`. Display-only reads are left as they are.
+- **TAGACC-17** `DocumentReloadedLatest` runs the same deferred retry and duplicate repair as a
+  sync (`StingToolsApp.RetryAfterCentralRefresh`).
+
+#### Completed (TAGACC-12..15 and the Tag Rules settings button, 2026-09-29)
+
+- **Tag Rules button** (TAGGING tab, beside Batch Tag; dispatch tag `TagBehaviour`,
+  `Tags/TagBehaviourSettingsCommand.cs`). Shows, in plain words, what tagging does to existing
+  tags and flips each switch with one click: RETAG_MOVED_ELEMENTS, RENUMBER_ON_OVERWRITE,
+  AUTO_CORRECT_STATUS_FROM_PHASE, SEQ_LOCK_MODE. Writes only that key to the
+  `project_config.json` beside the model and applies it at once. The same switches are in
+  Project Cfg → View Full Configuration. Batch Tag's mode picker states the move behaviour and
+  offers "Overwrite all and renumber" for one run (the saved setting is restored afterwards).
+- **Settings were lost on save.** Project Cfg → Save and `TagConfig.SaveToFile` rewrite the
+  whole file and did not write the new keys, so saving reset them. Both now write them, and
+  they are in the known-keys list (they were logged as possible typos).
+- **TAGACC-13** worksharing lock: `Core/Storage/StingSeqLockStore` keeps SEQ counters in a
+  DataStorage element borrowed before any new number is allocated (see ROADMAP).
+  `TagWriteOutcome.Deferred` marks an element that waited; the auto-tagger re-queues it.
+- **TAGACC-14** 129 direct `Category.Name` reads now go through `GetCategoryName`.
+- **TAGACC-15** `SpatialNameCodes.ZoneFromDepartment`: an exact declared code in a room's
+  Department is that zone, one letter included.
+- **TAGACC-12** `StingTools.Revit.SmokeTests/TaggingAccuracySmokeTests.cs` (4 in-Revit tests)
+  and `docs/TAGGING_ACCURACY_TEST_PROTOCOL.md` (two-user steps). **Not run; plugin not
+  compiled** in this environment.
+
+#### Completed (TAGACC-1..11: the open tagging-accuracy findings, 2026-09-29)
+
+Closes every finding the tagging review left open (ROADMAP "Tagging accuracy").
+
+- **TAGACC-1 copies.** `BuildTagIndexAndCounters` / `BuildExistingTagIndex` record which
+  element owns each tag (the lowest ElementId) alongside the index. A complete tag held by a
+  newer element while the owner still holds it is a copy: `RunFullPipeline` clears its LVL /
+  LOC / ZONE (locked tokens kept) and SEQ, and `BuildAndWriteTag` gives it a new SEQ in every
+  collision mode, leaving the owner's tag in the collision index. Previously every run skipped
+  the copy as complete.
+- **TAGACC-2 worksharing.** After each sync to central the index is rebuilt; duplicate holders
+  are re-sequenced at once when the auto-tagger is on (elements owned by others skipped), or
+  reported in a dialog with the fix. The auto-tagger context is invalidated so its SEQ counters
+  include the other users' numbers.
+- **TAGACC-3 one fallback.** `PopulateAll` and `BuildAndWriteTag` both follow
+  `STING_TAG_TOKEN_POLICY.json` for LOC, ZONE and LVL. `DetectProjectLocOrNull` stops treating
+  "nothing found" as BLD1. A null policy fallback leaves the token blank and the tag refused.
+  The unresolved-LOC count is reported after each run; default counts use the recorded source.
+- **TAGACC-4 stable numbers.** Overwrite keeps each element's SEQ (normalised to the current pad)
+  where still unique; `RENUMBER_ON_OVERWRITE` restores renumbering. The format migration no
+  longer renumbers either.
+- **TAGACC-5 moved elements.** A change of host level (against `ASS_LVL_ELEM_ID_INT`), or a stale
+  flag with a room that now names another LOC / ZONE, re-derives those tokens and rebuilds the
+  tag, keeping the SEQ if unique; the stale flag is cleared. `RETAG_MOVED_ELEMENTS = false` opts out.
+- **TAGACC-6 localised Revit.** `GetCategoryName` returns the English name for the
+  `BuiltInCategory` when the localised name is not a known key (`Core/CategoryEnglishNames.cs`);
+  direct `Category.Name` reads in the tagging core use it.
+- **TAGACC-7 / 8 SYS.** Primary connector, then the category's domain, then non-auxiliary
+  service. Hydronic systems with a fluid temperature ≤ 15 °C are CHW, not HWS.
+- **TAGACC-9 / 10 codes.** Project `ZONE_CODES` and project level codes
+  (`_BIM_COORD/spatial_codes.json`) are recognised first. "Level 1a" → L01A, "Mezzanine 2" → MZ2,
+  "Roof Plant" → RFP, "Roof 2" → RF2.
+- **TAGACC-11 proximity.** Same level, plan distance, and only neighbour values that were
+  themselves derived.
+- Tests: `SpatialNameCodesTests` extended, new `CategoryEnglishNamesTests`. **Not compiled or
+  run** (no .NET SDK in this environment; expectations checked against a Python port). The
+  Revit-bound behaviour is untested in Revit — ROADMAP TAGACC-12.
+
+#### Completed (tagging accuracy review, 2026-09-29)
+
+Deep review of the tagging pipeline for anything that stops a tag being right. Fixed here;
+the findings that need a decision or a larger change are TAGACC-1..11 in ROADMAP.
+
+- **Level codes.** The rules moved to the Revit-free `Core/SpatialNameCodes.cs`
+  (`GetLevelCodeForLevel` calls it). "21st / 22nd / 23rd / 31st Floor" read as L01 / L02 /
+  L03 because they contain "1st" / "2nd" / "3rd", and "Twenty-First" as L01; ordinals are now
+  read as whole numbers. "Level -1" lost its sign and became L01, the same code as Level 1;
+  it is now B1. An unrecognised level name was passed through with spaces turned into "-",
+  the tag separator: the write sanitiser stored "RING-BEAM" as "RING" (so "Plant Deck East"
+  and "Plant Deck West" both became "PLANT"), and an Overwrite run built a nine-segment tag
+  and refused to write it. Passthrough codes are now letters and digits only.
+- **ZONE and LOC text matching.** Codes matched with `Contains`, so "Zone 12" / "Z012" were
+  Z01, "Wing Annex" was Z01, "BLD10" / "Building 12" were BLD1 and "Block AB" was BLD1. They
+  now match only as whole tokens (`SpatialNameCodes.ZoneFromText`, `LocFromTextFallback`).
+  Workset-name LOC detection now passes the document, so project-declared LOC codes are
+  recognised there too (it consulted only the corporate baseline).
+- **"Detected" was decided by comparing with the fallback.** `PopulateAll` treated a LOC of
+  "BLD1" and a ZONE of "Z01" as undetected because those are the fallbacks, so a room that
+  genuinely said BLD1 / Z01 could have its value replaced by a scope box or a neighbour's,
+  and a project whose policy fallback is not Z01 had the fallback recorded as a detected
+  zone (ZONE_SOURCE "Room"). New `SpatialAutoDetect.DetectLocSpatial` / `DetectZoneSpatial`
+  return null when nothing in the element's context names a code; `DetectLoc` / `DetectZone`
+  keep their signatures on top. The workset LOC scan in `PopulateAll` was unreachable (the
+  value it tested was never empty) and matched with StartsWith, so "EXTRACT FANS" would have
+  read as EXT; it was removed rather than revived. LOC_SOURCE / ZONE_SOURCE are rewritten on
+  Overwrite (they kept the first run's value).
+- **Stale detection and the pre-tag audit** used the same fallback-as-detection: an element
+  whose LOC came from a neighbour, a type override or a scope box was flagged stale for not
+  being in a room (and Batch Tag's stale fix would have reset it to BLD1), and the audit
+  predicted every element as "spatial-auto". Both now compare only a positive detection.
+- **Overwrite undid token locks and category overrides.** `RunFullPipeline` restores
+  `ASS_TOKEN_LOCK_TXT` tokens and applies `CATEGORY_TOKEN_OVERRIDES` / `CATEGORY_FORCE_SYS`,
+  then `BuildAndWriteTag`'s overwrite path re-derived DISC / LVL / SYS / FUNC / PROD and wrote
+  them over the top. They now win on that path too.
+- **Containers could disagree with TAG1.** `BuildAndWriteTag` wrote containers with
+  overwrite:false on the normal path, so a container holding an older value (a partial tag
+  from an earlier run, a SEQ re-sequenced for a duplicate) kept it; and `WriteContainers`
+  stamped the token hash even when a write was refused, so the stale container was marked
+  current and skipped from then on. Containers are now always rewritten when the tag is, and
+  the hash is stamped only when every container matches.
+- **Electrical panel "MAINS"** mapped fixtures on a "MAINS DB" to SYS=DCW; now only "MAINS
+  WATER" does.
+- Tests: `SpatialNameCodesTests` (levels, zones, LOC aliases, including every defect above),
+  linked into `StingTools.Tags.Tests`. **Not compiled or run here** — the .NET SDK download
+  is blocked in this environment; the expectations were checked against a line-by-line port
+  of the new logic. The Revit-bound changes are not exercised in Revit.
 
 #### Completed (tester kit: install, 90-day licences, smoke tests, 2026-09-28)
 
@@ -25645,3 +25761,70 @@ every `GetString` read against the parameter's data type.
 - 10 tests in `TagLibraryPromotionTests` (manifest FILE and RETIRED lines, parsing, and
   each drift finding against real temp folders). Tags 4,044 passing; gates pass. Not run
   in Revit.
+
+#### Promote Library: clearer result when only the record is written (2026-09-29)
+
+- A promotion that copies nothing but rewrites the record reported "Published 0 of 0
+  family/families". It now says no family needed copying and how many families the record
+  lists.
+- A family whose copy to the share fails is left out of the record, so Load Tag Families
+  reports it instead of the record vouching for a file the share does not hold.
+- Plugin builds; gates pass. Not run in Revit.
+
+#### Shared tag library review: authoring stays local once the share is promoted (2026-09-29)
+
+- **Authoring commands wrote to the share.** `TagFamilyConfig.GetOutputDirectory` returned
+  the shared library whenever it held families. Once Promote Library had published there,
+  Create Tag Families, Propagate Universal Tag, Migrate Tag Families, Migrate Label
+  References and the template manager's tag-family pass saved straight into it: unreviewed
+  families went to everyone and the share drifted from its record. When the shared library
+  holds a promotion record (`IsPromotionManaged`), output now stays in the plugin's own
+  library; the share changes only through Promote Library.
+- **The template manager's tag-family pass scanned sub-folders**, so it would have edited
+  families in `_retired` and Revit backups. Both are now skipped.
+- **Repair Tag Library** says, when a promoted shared library exists, that it still holds
+  the old families and names the Promote Library button.
+- The record file name and `_retired` are constants on `TagLibraryPromotion`.
+  `deploy/INSTALL_GUIDE.md` gave the wrong tab for Promote Library (it is MODEL > Family
+  quick edit > Advanced family ops) and now says what the unconfigured default is.
+- Plugin builds; Tags tests and gates pass. Not run in Revit.
+
+#### Content library review: tags never load as fixtures, backups swept, downgrade warning (2026-09-29)
+
+- **A tag could load as a fixture.** `ContentResolver` (used by the DWG to MEP fixture
+  builder) searches every content root recursively and loads the first `.rfa` whose name
+  contains the requested category. The shipped tag library is one of those roots, so a
+  request for "Audio Visual Devices" matched `STING - Audio Visual Devices Tag.rfa`, and when
+  no symbol of the category was found the first symbol, a tag type, was returned. Revit
+  backups and families moved to `_retired` were candidates too. `Core/Content/ContentFileFilter`
+  now excludes all three unless a tag category is asked for (12 tests).
+- **Backups were left by five save paths.** Create Tag Families, Migrate Tag Families,
+  Propagate Universal Tag (the primed master), the template manager's tag-family pass and
+  the family parameter processor overwrote families without removing the `.0001.rfa` Revit
+  writes beside them; those were the junk "… Tag.0001" families. Each now calls
+  `RevitBackupSweeper.Sweep`, as the two fix commands already did.
+- **One backup-name rule.** `RevitBackupSweeper.IsBackupName` and
+  `TagLibraryPromotion.IsRevitBackupName` delegate to `Core/RevitBackupFiles.IsBackup`
+  instead of carrying their own copies. The content-root report no longer counts backups as
+  families.
+- **Promote Library warns before a downgrade.** Families to update whose shared copy is
+  newer than the local one (`PromotionPlan.NewerInTarget`) are named in the confirmation,
+  since promoting from an older plugin would replace them with older versions (1 test).
+- Plugin builds; Tags 4,057 passing; gates pass. Not run in Revit.
+
+#### Load Tag Families can update families already in a project (2026-09-29)
+
+- **A corrected library never reached an existing project.** Load Tag Families skipped every
+  family the project already had, so a family fixed by Repair Tag Library, a new build or a
+  promotion stayed old in every project that had loaded it. When some are present it now
+  asks whether to update them. Updates load with `TagFamilyUpdateOptions`, which keeps the
+  project's type parameter values, so tag styles set with the TAG_*_BOOL switches survive;
+  the existing options overwrite them and are still used for new families. New and updated
+  families load in separate groups, a refused update is repaired like a refused load, and
+  the result counts updates and any family left at its old version.
+- **One answer for "is this a checkout?".** Repair Tag Library required a `.git` folder
+  (so a worktree, where `.git` is a file, repaired the deployed copy) and Promote Library
+  did not look for `.git` at all. Both now use `TagFamilyConfig.RepoTagDirectory`.
+- Promote Library's header comment still said families only in the target are always kept;
+  it now describes the optional move to `_retired`.
+- Plugin builds; Tags tests and gates pass. Not run in Revit.

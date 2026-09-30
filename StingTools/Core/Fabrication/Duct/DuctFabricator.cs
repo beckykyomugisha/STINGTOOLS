@@ -77,7 +77,7 @@ namespace StingTools.Core.Fabrication.Duct
                 {
                     var el = doc.GetElement(id);
                     if (el == null) continue;
-                    string cat = el.Category?.Name ?? "";
+                    string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                     string nm = (el.Name ?? "").Replace(',', ';');
                     string seam = ReadString(el, "HVC_DCT_SEAM_TYPE_TXT");
                     string mat  = ReadString(el, "HVC_DCT_MAT_TXT");

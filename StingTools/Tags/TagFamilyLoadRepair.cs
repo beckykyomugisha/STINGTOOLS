@@ -47,7 +47,8 @@ namespace StingTools.Tags
         public int Transactions { get; private set; }
         public TagFamilyBatchLoader(Document doc) { _doc = doc; }
 
-        public bool TryLoad(IList<string> paths, out string why)
+        /// <param name="options">Load options; null loads new families and overwrites values.</param>
+        public bool TryLoad(IList<string> paths, out string why, IFamilyLoadOptions options = null)
         {
             why = null;
             var failures = new CapturingFailuresPreprocessor(rollBackOnError: true);
@@ -60,7 +61,7 @@ namespace StingTools.Tags
                 tx.SetFailureHandlingOptions(tx.GetFailureHandlingOptions().SetFailuresPreprocessor(failures));
                 foreach (string p in paths)
                 {
-                    try { _doc.LoadFamily(p, new TagFamilyLoadOptions(), out Family _); }
+                    try { _doc.LoadFamily(p, options ?? new TagFamilyLoadOptions(), out Family _); }
                     catch (Exception ex)
                     {
                         thrown.Add($"{Path.GetFileNameWithoutExtension(p)}: {ex.Message}");

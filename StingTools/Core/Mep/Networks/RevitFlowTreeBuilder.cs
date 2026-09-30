@@ -238,7 +238,7 @@ namespace StingTools.Core.Mep.Networks
         internal static string Describe(Element el)
         {
             string name = el.Name ?? "";
-            string cat = el.Category?.Name ?? "";
+            string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             return $"{cat} {el.Id.Value}{(string.IsNullOrEmpty(name) ? "" : " " + name)}".Trim();
         }
     }

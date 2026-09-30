@@ -91,7 +91,7 @@ namespace StingTools.UI
                 foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
                     if (!string.IsNullOrEmpty(categoryFilter) &&
-                        !string.Equals(el.Category?.Name, categoryFilter, StringComparison.OrdinalIgnoreCase))
+                        !string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(el), categoryFilter, StringComparison.OrdinalIgnoreCase))
                         continue;
 
                     if (!ElementUsesMaterial(el, fromMat.Id)) continue;
@@ -101,7 +101,7 @@ namespace StingTools.UI
                     {
                         ElementId   = el.Id?.Value ?? 0,
                         ElementName = el.Name ?? "",
-                        Category    = el.Category?.Name ?? "",
+                        Category    = global::StingTools.Core.ParameterHelpers.GetCategoryName(el),
                         Quantity    = qty,
                         Unit        = unit,
                         OldCost     = qty * fromCost,

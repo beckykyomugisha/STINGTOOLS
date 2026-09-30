@@ -519,7 +519,7 @@ namespace StingTools.Tags
             if (basePt == null) return null;
 
             double offsetFt = cfg.DefaultOffsetFt;
-            string catName = el.Category?.Name;
+            string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
             if (!string.IsNullOrEmpty(catName)
                 && cfg.PerCategoryOffsetFt.TryGetValue(catName, out double catOffset))
                 offsetFt = catOffset;

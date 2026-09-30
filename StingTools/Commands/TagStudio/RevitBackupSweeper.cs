@@ -63,14 +63,7 @@ namespace StingTools.Commands.TagStudio
         /// characters. Needed because the ? wildcard cannot express "digit", so a
         /// family legitimately named "Panel.TYPE.rfa" would otherwise be deleted.
         /// </summary>
-        internal static bool IsBackupName(string path)
-        {
-            string name = Path.GetFileNameWithoutExtension(path) ?? "";
-            int dot = name.LastIndexOf('.');
-            if (dot < 0 || dot == name.Length - 1) return false;
-            string tail = name.Substring(dot + 1);
-            return tail.Length == 4 && tail.All(char.IsDigit);
-        }
+        internal static bool IsBackupName(string path) => RevitBackupFiles.IsBackup(path);
 
 
         /// <summary>

@@ -331,7 +331,7 @@ namespace StingTools.Core.Drawing
             {
                 var el = doc.GetElement(id);
                 if (el?.Category == null) continue;
-                string cat = el.Category.Name ?? "";
+                string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(cat)) continue;
                 if (!byCat.TryGetValue(cat, out var list))
                     byCat[cat] = list = new List<ElementId>();

@@ -159,7 +159,7 @@ namespace StingTools.Core.Content
             {
                 foreach (var fs in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
                 {
-                    var c = fs.Category?.Name;
+                    var c = global::StingTools.Core.ParameterHelpers.GetCategoryName(fs);
                     if (string.IsNullOrEmpty(c)) continue;
                     if (!_byCategory.TryGetValue(c, out var l)) _byCategory[c] = l = new List<FamilySymbol>();
                     l.Add(fs);
@@ -180,6 +180,7 @@ namespace StingTools.Core.Content
                 try
                 {
                     rfas = Directory.EnumerateFiles(root, "*.rfa", SearchOption.AllDirectories)
+                        .Where(p => ContentFileFilter.IsLoadCandidate(p, req.Category))
                         .Where(p =>
                         {
                             var n = Path.GetFileNameWithoutExtension(p) ?? "";
@@ -216,7 +217,7 @@ namespace StingTools.Core.Content
         {
             foreach (var id in fam.GetFamilySymbolIds())
                 if (_doc.GetElement(id) is FamilySymbol fs &&
-                    string.Equals(fs.Category?.Name, cat, StringComparison.OrdinalIgnoreCase))
+                    string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), cat, StringComparison.OrdinalIgnoreCase))
                     return fs;
             return null;
         }
@@ -234,7 +235,7 @@ namespace StingTools.Core.Content
             foreach (var fs in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>())
                 if (string.Equals(fs.FamilyName, fn, StringComparison.OrdinalIgnoreCase)
                     && (string.IsNullOrEmpty(cat)
-                        || string.Equals(fs.Category?.Name, cat, StringComparison.OrdinalIgnoreCase)))
+                        || string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), cat, StringComparison.OrdinalIgnoreCase)))
                     return fs;
             return null;
         }
@@ -242,7 +243,7 @@ namespace StingTools.Core.Content
         private void AddToIndex(FamilySymbol fs)
         {
             if (_byCategory == null) EnsureIndex();
-            var c = fs.Category?.Name;
+            var c = global::StingTools.Core.ParameterHelpers.GetCategoryName(fs);
             if (string.IsNullOrEmpty(c)) return;
             if (!_byCategory.TryGetValue(c, out var l)) _byCategory[c] = l = new List<FamilySymbol>();
             l.Add(fs);

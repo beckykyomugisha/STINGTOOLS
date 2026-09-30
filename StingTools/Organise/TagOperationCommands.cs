@@ -5285,13 +5285,13 @@ namespace StingTools.Organise
                     if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
                     scope = new FilteredElementCollector(doc, view.Id)
                         .WhereElementIsNotElementType()
-                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                         .ToList();
                     break;
                 case TaskDialogResult.CommandLink3:
                     scope = new FilteredElementCollector(doc)
                         .WhereElementIsNotElementType()
-                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(e.Category.Name ?? ""))
+                        .Where(e => e.Category != null && TagConfig.DiscMap.ContainsKey(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                         .ToList();
                     break;
                 default: return Result.Cancelled;
@@ -5374,7 +5374,7 @@ namespace StingTools.Organise
                             Element host = doc.GetElement(refs[0]);
                             if (host == null) continue;
 
-                            string catName = host.Category?.Name ?? "";
+                            string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(host);
                             string disc = ParameterHelpers.GetString(host, ParamRegistry.DISC);
                             string groupKey = $"{catName}|{disc}";
 
@@ -6333,7 +6333,7 @@ namespace StingTools.Organise
                 if (el.Category == null) continue;
                 int catId = (int)el.Category.Id.Value;
                 if (catSet.Add(catId))
-                    availableCategories.Add((el.Category.Name, (BuiltInCategory)catId));
+                    availableCategories.Add((global::StingTools.Core.ParameterHelpers.GetCategoryName(el), (BuiltInCategory)catId));
             }
             availableCategories = availableCategories.OrderBy(c => c.Name).ToList();
 

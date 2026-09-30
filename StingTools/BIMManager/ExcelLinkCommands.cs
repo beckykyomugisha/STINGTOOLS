@@ -319,7 +319,7 @@ namespace StingTools.BIMManager
 
                 var elements = selIds
                     .Select(id => doc.GetElement(id))
-                    .Where(e => e != null && e.Category != null && knownCatNames.Contains(e.Category.Name))
+                    .Where(e => e != null && e.Category != null && knownCatNames.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                     .ToList();
                 return (elements, $"selection ({elements.Count} of {selIds.Count})");
             }
@@ -331,7 +331,7 @@ namespace StingTools.BIMManager
             var allElements = new FilteredElementCollector(doc)
                 .WherePasses(new ElementMulticategoryFilter(SharedParamGuids.AllCategoryEnums))
                 .WhereElementIsNotElementType()
-                .Where(e => e.Category != null && knownCatNames.Contains(e.Category.Name))
+                .Where(e => e.Category != null && knownCatNames.Contains(global::StingTools.Core.ParameterHelpers.GetCategoryName(e)))
                 .ToList();
             return (allElements, $"project ({allElements.Count} elements)");
         }

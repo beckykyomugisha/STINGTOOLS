@@ -748,13 +748,21 @@ namespace StingTools.Core
                                 // (replaces inline pipeline that was missing CategorySkipList,
                                 //  CategoryForceSys, CategoryTokenOverrides, TokenLock, AuditTrail,
                                 //  and had NativeMapper in wrong order)
+                                var autoReport = new TagConfig.TagWriteReport();
                                 bool pipelineOk = TagPipelineHelper.RunFullPipeline(
                                     doc, el, ctx, existingTags, seqCounters,
                                     _formulas, _gridLines,
                                     overwrite: false,
                                     skipComplete: true,
-                                    collisionMode: TagCollisionMode.AutoIncrement);
+                                    collisionMode: TagCollisionMode.AutoIncrement,
+                                    report: autoReport);
 
+                                // TAGACC-13: another user holds the SEQ counter — retry after sync.
+                                if (!pipelineOk && autoReport.Outcome == TagConfig.TagWriteOutcome.Deferred)
+                                {
+                                    EnqueueDeferred(id);
+                                    continue;
+                                }
                                 if (!pipelineOk) continue;
 
                                 // Stamp [AUTO_TAGGER] audit marker so elements tagged
@@ -860,7 +868,7 @@ namespace StingTools.Core
                                         && !(doc.ActiveView is ViewSheet))
                                     {
                                         var concept = StingTools.Core.Symbols.SymbolConceptRegistry
-                                            .GetConceptsForCategory(el.Category?.Name)
+                                            .GetConceptsForCategory(ParameterHelpers.GetCategoryName(el))
                                             .FirstOrDefault();
                                         if (concept != null)
                                         {
@@ -1723,7 +1731,11 @@ namespace StingTools.Core
                         string storedLoc = ParameterHelpers.GetString(el, ParamRegistry.LOC);
                         if (!string.IsNullOrEmpty(storedLoc) && storedLoc != "XX")
                         {
-                            string currentLoc = SpatialAutoDetect.DetectLoc(doc, el, roomIndex, projectLoc);
+                            // Only a POSITIVE detection that disagrees is staleness. DetectLoc
+                            // never returns empty (it falls back to the project LOC / BLD1), so an
+                            // element whose LOC came from a neighbour, a type override or a scope
+                            // box was flagged stale merely for not being in a room.
+                            string currentLoc = SpatialAutoDetect.DetectLocSpatial(doc, el, roomIndex);
                             if (!string.IsNullOrEmpty(currentLoc) && currentLoc != "XX" && currentLoc != storedLoc)
                                 isStale = true;
                         }
@@ -1733,7 +1745,7 @@ namespace StingTools.Core
                             string storedZone = ParameterHelpers.GetString(el, ParamRegistry.ZONE);
                             if (!string.IsNullOrEmpty(storedZone) && storedZone != "XX" && storedZone != "ZZ")
                             {
-                                string currentZone = SpatialAutoDetect.DetectZone(doc, el, roomIndex);
+                                string currentZone = SpatialAutoDetect.DetectZoneSpatial(doc, el, roomIndex);
                                 if (!string.IsNullOrEmpty(currentZone) && currentZone != "XX"
                                     && currentZone != "ZZ" && currentZone != storedZone)
                                     isStale = true;

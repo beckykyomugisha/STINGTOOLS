@@ -63,7 +63,7 @@ namespace StingTools.Commands.Baseline
             foreach (var t in new FilteredElementCollector(doc).OfClass(typeof(HostObjAttributes))
                                  .Cast<HostObjAttributes>())
             {
-                string cat = t.Category?.Name;
+                string cat = global::StingTools.Core.ParameterHelpers.GetCategoryName(t);
                 if (string.IsNullOrEmpty(cat)) continue;
 
                 CompoundStructure cs = null;
@@ -206,7 +206,7 @@ namespace StingTools.Commands.Baseline
                     var hosts = new FilteredElementCollector(doc).OfClass(typeof(HostObjAttributes))
                                     .ToList();
                     bool SameCategory(Element e, string cat)
-                        => string.Equals(e.Category?.Name, cat, StringComparison.OrdinalIgnoreCase);
+                        => string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(e), cat, StringComparison.OrdinalIgnoreCase);
 
                     foreach (var p in todo)
                     {

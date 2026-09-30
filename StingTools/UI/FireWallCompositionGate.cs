@@ -81,7 +81,7 @@ namespace StingTools.UI
             {
                 foreach (var el in new FilteredElementCollector(doc).WhereElementIsNotElementType())
                 {
-                    string catName = el.Category?.Name ?? "";
+                    string catName = global::StingTools.Core.ParameterHelpers.GetCategoryName(el);
                     foreach (var r in pack.Rules)
                     {
                         if (!WhereMatches(r.Where, el, catName)) continue;

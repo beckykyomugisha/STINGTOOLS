@@ -1,4 +1,4 @@
-// PromoteTagLibraryCommand - publish the finished tag library to the shared
+﻿// PromoteTagLibraryCommand - publish the finished tag library to the shared
 // content root.
 //
 // The shared root is searched BEFORE the deployed library and a deploy cannot
@@ -8,9 +8,10 @@
 // version-controlled copy - see TagLibraryPromotion for the full reasoning and
 // the 2026-09-21 case that prompted it.
 //
-// Copies only. It never deletes from the target: a family in the shared library
-// that is absent from the source is reported and kept, because this command
-// cannot know whether it is stale or something another team published.
+// It never deletes from the target. A family in the shared library that is absent
+// from the source is reported, and moved to _retired only if the user agrees,
+// because this command cannot know whether it is stale or something another team
+// published.
 
 using System;
 using System.IO;
@@ -40,7 +41,7 @@ namespace StingTools.Commands.TagStudio
 
             string source = Tags.TagFamilyConfig.LegacyTagDirectory();
             string target = Tags.TagFamilyConfig.SharedTagDirectory();
-            string git = FindRepoLibrary(source);
+            string git = Tags.TagFamilyConfig.RepoTagDirectory();
 
             if (string.IsNullOrWhiteSpace(target))
             {
@@ -69,7 +70,7 @@ namespace StingTools.Commands.TagStudio
             bool needsRecord = true;
             try
             {
-                string existing = Path.Combine(target, "_STING_PROMOTION_MANIFEST.txt");
+                string existing = Path.Combine(target, TagLibraryPromotion.ManifestFileName);
                 needsRecord = !File.Exists(existing) ||
                               TagLibraryPromotion.ParsePublished(File.ReadAllText(existing)).Count == 0;
             }
@@ -93,7 +94,13 @@ namespace StingTools.Commands.TagStudio
                     "The shared library is searched BEFORE the deployed one and a deploy cannot " +
                     "update it, so what is published here wins until it is published again.\n\n" +
                     "Nothing is deleted. A family already in the target and not in the source is " +
-                    "kept, unless you choose to move it to _retired in the next step.",
+                    "kept, unless you choose to move it to _retired in the next step." +
+                    (plan.NewerInTarget.Count > 0
+                        ? $"\n\nWARNING: {plan.NewerInTarget.Count} of the families to update are NEWER in the " +
+                          "shared library than here, so this plugin may be older than the one that published " +
+                          "them. Promoting replaces them with these copies: " +
+                          string.Join(", ", plan.NewerInTarget.Take(5)) + (plan.NewerInTarget.Count > 5 ? ", ..." : "")
+                        : ""),
                 CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                 DefaultButton = TaskDialogResult.Cancel,
             };
@@ -115,6 +122,9 @@ namespace StingTools.Commands.TagStudio
                     {
                         failures.Add($"{name}: {ex.Message}");
                         StingLog.Warn($"PromoteTagLibrary: {name} failed: {ex.Message}");
+                        // The share still holds the old copy (or none), so the record must
+                        // not vouch for it; Load Tag Families then reports it.
+                        plan.SourceHashes.Remove(name);
                     }
                 }
 
@@ -135,7 +145,7 @@ namespace StingTools.Commands.TagStudio
                     };
                     if (retire.Show() == TaskDialogResult.Yes)
                     {
-                        plan.RetiredFolder = Path.Combine("_retired", DateTime.Now.ToString("yyyyMMdd_HHmm"));
+                        plan.RetiredFolder = Path.Combine(TagLibraryPromotion.RetiredFolderName, DateTime.Now.ToString("yyyyMMdd_HHmm"));
                         string dest = Path.Combine(target, plan.RetiredFolder);
                         Directory.CreateDirectory(dest);
                         foreach (var name in plan.ExtraInTarget)
@@ -158,7 +168,7 @@ namespace StingTools.Commands.TagStudio
                 // so a partial promotion never claims a complete one.
                 string manifest = TagLibraryPromotion.BuildManifest(
                     plan, Environment.UserName, DateTime.UtcNow);
-                File.WriteAllText(Path.Combine(target, "_STING_PROMOTION_MANIFEST.txt"), manifest);
+                File.WriteAllText(Path.Combine(target, TagLibraryPromotion.ManifestFileName), manifest);
             }
             catch (Exception ex)
             {
@@ -171,7 +181,11 @@ namespace StingTools.Commands.TagStudio
                           $"{failures.Count} failed, manifest written to {target}");
 
             TaskDialog.Show("Promote Tag Library — done",
-                $"Published {written} of {plan.WouldWrite} family/families." +
+                (plan.WouldWrite > 0
+                    ? $"Published {written} of {plan.WouldWrite} family/families."
+                    : "No family needed copying; the shared library already matched.") +
+                $" The promotion record now lists {plan.SourceHashes.Count} family/families," +
+                " which Load Tag Families checks the shared library against." +
                 (plan.Retired.Count > 0 ? $" Retired {plan.Retired.Count} to {plan.RetiredFolder}." : "") + "\n\n" +
                 (failures.Count > 0
                     ? "FAILED:\n  " + string.Join("\n  ", failures.Take(8)) + "\n\n"
@@ -181,33 +195,6 @@ namespace StingTools.Commands.TagStudio
                 "library now answers family lookups.");
 
             return failures.Count > 0 ? Result.Failed : Result.Succeeded;
-        }
-
-        /// <summary>
-        /// The version-controlled copy, if this machine has the checkout.
-        ///
-        /// <para>The deployed library sits at &lt;repo&gt;/CompiledPlugin/data/TagFamilies
-        /// on a developer machine, so the git copy is a short walk up and back
-        /// down. Returns null on an end-user machine, where the check is skipped
-        /// rather than failed - refusing there would block the people the library
-        /// is for.</para>
-        /// </summary>
-        private static string FindRepoLibrary(string deployedDir)
-        {
-            try
-            {
-                var dir = new DirectoryInfo(deployedDir);
-                for (int i = 0; i < 6 && dir != null; i++, dir = dir.Parent)
-                {
-                    string candidate = Path.Combine(dir.FullName, "StingTools", "Data", "TagFamilies");
-                    if (Directory.Exists(candidate) &&
-                        !string.Equals(candidate.TrimEnd('\\'), deployedDir.TrimEnd('\\'),
-                                       StringComparison.OrdinalIgnoreCase))
-                        return candidate;
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"PromoteTagLibrary.FindRepoLibrary: {ex.Message}"); }
-            return null;
         }
     }
 }

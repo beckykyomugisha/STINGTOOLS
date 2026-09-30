@@ -398,7 +398,7 @@ namespace StingTools.Core.Clash
                 var key = new ClashElementKey(docGuid, -1, element.Id.Value, element.UniqueId, ifc);
                 // ToArray copies — necessary because the mesh buffer outlives the
                 // pooled lists (next extraction reuses the same backing storage).
-                return new ClashMeshBuffer(key, element.Category?.Name ?? "", verts.ToArray(), indices.ToArray());
+                return new ClashMeshBuffer(key, global::StingTools.Core.ParameterHelpers.GetCategoryName(element), verts.ToArray(), indices.ToArray());
             }
             catch (Exception ex) { StingLog.Warn("TryExtractOneElement: " + ex.Message); return null; }
         }

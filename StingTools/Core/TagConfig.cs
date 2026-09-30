@@ -31,17 +31,30 @@ namespace StingTools.Core
     /// </summary>
     public static partial class TagConfig
     {
-        // F-2 — elements whose LOC could not be derived and were assigned XX.
-        // Previously these were absorbed into the first building code, which made a
-        // multi-building project's first building silently over-counted.
+        // F-2 / TAGACC-3 — elements whose LOC nothing could derive, so the token policy's
+        // fallback was used. Counted so the number is reported, not absorbed.
         private static int _unresolvedLocCount;
 
-        /// <summary>F-2: count of elements assigned LOC "XX" because it could not be derived.</summary>
+        /// <summary>F-2: count of elements given the policy's LOC fallback because none could be derived.</summary>
         public static int UnresolvedLocCount => System.Threading.Volatile.Read(ref _unresolvedLocCount);
 
         /// <summary>F-2: reset at a batch boundary, alongside the other per-batch counters.</summary>
+        private static bool ReadConfigBool(IDictionary<string, object> data, string key, bool fallback)
+        {
+            if (data == null || !data.TryGetValue(key, out object o) || o == null) return fallback;
+            if (o is bool b) return b;
+            string sv = o.ToString().Trim();
+            if (sv.Equals("true", StringComparison.OrdinalIgnoreCase)) return true;
+            if (sv.Equals("false", StringComparison.OrdinalIgnoreCase)) return false;
+            return fallback;
+        }
+
         public static void ResetUnresolvedLocCount()
             => System.Threading.Interlocked.Exchange(ref _unresolvedLocCount, 0);
+
+        /// <summary>TAGACC-3: PopulateAll counts an element that nothing could locate.</summary>
+        internal static void NoteUnresolvedLoc()
+            => System.Threading.Interlocked.Increment(ref _unresolvedLocCount);
 
         public static int NumPad => ParamRegistry.NumPad;
         public static string Separator => ParamRegistry.Separator;
@@ -430,6 +443,31 @@ namespace StingTools.Core
         /// </summary>
         public static bool AutoCorrectStatusFromPhase { get; internal set; } = false;
 
+        /// <summary>
+        /// TAGACC-4: when false (the default) an Overwrite run keeps each element's stored
+        /// SEQ wherever it is still unique, so asset identifiers survive a re-derivation.
+        /// Set RENUMBER_ON_OVERWRITE = true in project_config.json to renumber instead.
+        /// </summary>
+        public static bool RenumberOnOverwrite { get; internal set; } = false;
+
+        /// <summary>
+        /// TAGACC-5: when true (the default) an element that has moved to another level, or
+        /// that the stale marker flagged, has LVL / LOC / ZONE re-derived on the next tagging
+        /// run even though its tag is complete — the tag describes where the element IS.
+        /// Locked tokens and type overrides still win. Set RETAG_MOVED_ELEMENTS = false in
+        /// project_config.json to treat tags as fixed identifiers instead.
+        /// </summary>
+        public static bool RetagMovedElements { get; internal set; } = true;
+
+        /// <summary>
+        /// TAGACC-13: how the worksharing SEQ lock (Core/Storage/StingSeqLockStore) is used.
+        /// "block" (default): no new sequence number while another user holds the counter or
+        /// central has a newer one — the element is deferred and retried. "warn": allocate
+        /// anyway and log (duplicates are repaired after sync). "off": ignore the lock.
+        /// Set SEQ_LOCK_MODE in project_config.json or with the Tag Rules button.
+        /// </summary>
+        public static string SeqLockMode { get; internal set; } = "block";
+
         /// <summary>FE-06: Full per-category token overrides. Key=category name, Value=dict of token->value.</summary>
         public static Dictionary<string, Dictionary<string, string>> CategoryTokenOverrides { get; internal set; }
             = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -721,6 +759,7 @@ namespace StingTools.Core
                     "DISC_MAP","SYS_MAP","PROD_MAP","FUNC_MAP","LOC_CODES","ZONE_CODES","TAG_FORMAT",
                     "TAG_PREFIX","TAG_SUFFIX","CATEGORY_SKIP","CATEGORY_FORCE_SYS","SEQ_SCHEME",
                     "SEQ_INCLUDE_ZONE","SEQ_INCLUDE_LOC","SEQ_LEVEL_RESET","STATUS_DEFAULT","REV_DEFAULT",
+                    "RENUMBER_ON_OVERWRITE","RETAG_MOVED_ELEMENTS","SEQ_LOCK_MODE",
                     "VALIDATE_STRICT_MODE","LOC_PATTERNS","ZONE_PATTERNS","COMPLIANCE_GATE_PCT","TAG1_ONLY",
                     "SEPARATOR_HISTORY","AUTO_RUN_WORKFLOW_ON_OPEN","ACTIVE_PRESET",
                     "CATEGORY_TOKEN_OVERRIDES","tag3DFamilyPath",
@@ -1141,6 +1180,16 @@ namespace StingTools.Core
                         StingLog.Info("TagConfig: AUTO_CORRECT_STATUS_FROM_PHASE = true — STATUS will always reflect Revit phase");
                 }
 
+                RenumberOnOverwrite = ReadConfigBool(data, "RENUMBER_ON_OVERWRITE", false);
+                RetagMovedElements = ReadConfigBool(data, "RETAG_MOVED_ELEMENTS", true);
+                SeqLockMode = "block";
+                if (data.TryGetValue("SEQ_LOCK_MODE", out object slmObj) && slmObj != null)
+                {
+                    string slm = slmObj.ToString().Trim().ToLowerInvariant();
+                    if (slm == "block" || slm == "warn" || slm == "off") SeqLockMode = slm;
+                    else StingLog.Warn($"TagConfig: SEQ_LOCK_MODE '{slmObj}' is not block / warn / off — using block.");
+                }
+
                 // Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;
                 if (data.TryGetValue("FORMULA_CACHE_TTL_MINUTES", out object fctObj))
@@ -1320,6 +1369,9 @@ namespace StingTools.Core
             AutoTaggerVisual = null;
             AutoTaggerStaleMarker = null;
             AutoCorrectStatusFromPhase = false;
+            RenumberOnOverwrite = false;
+            RetagMovedElements = true;
+            SeqLockMode = "block";
             // Reload FUNC/SYS matrix from CSV so custom project additions aren't lost on reset
             // Note: _validFuncsCsvLoaded/EnsureValidFuncsLoaded live in ISO19650Validator; use InvalidateValidatorCaches.
             ISO19650Validator.InvalidateValidatorCaches();
@@ -1529,6 +1581,13 @@ namespace StingTools.Core
                 if (AutoTaggerVisual.HasValue) data["AUTO_TAGGER_VISUAL"] = AutoTaggerVisual.Value;
                 else data["AUTO_TAGGER_VISUAL"] = Core.StingAutoTagger.IsVisualTaggingEnabled;
                 if (AutoTaggerStaleMarker.HasValue) data["AUTO_TAGGER_STALE_MARKER"] = AutoTaggerStaleMarker.Value;
+
+                // Tagging behaviour switches. This save rewrites the whole file, so a key it
+                // does not write is lost — these two were added 2026-09-29 (TAGACC-4 / -5).
+                data["RENUMBER_ON_OVERWRITE"] = RenumberOnOverwrite;
+                data["RETAG_MOVED_ELEMENTS"] = RetagMovedElements;
+                data["SEQ_LOCK_MODE"] = SeqLockMode;
+                data["AUTO_CORRECT_STATUS_FROM_PHASE"] = AutoCorrectStatusFromPhase;
 
                 string json = JsonConvert.SerializeObject(data, Formatting.Indented);
                 string dir = Path.GetDirectoryName(path);
@@ -2346,6 +2405,23 @@ namespace StingTools.Core
         // Removed dead _separatorHistory char[] array — SeparatorHistory list property
         // (loaded from project_config.json) is the actual implementation used in TagIsComplete.
 
+        /// <summary>
+        /// TAGACC-4: a stored SEQ in the current scheme and pad ("12" → "0012" at pad 4), or ""
+        /// when it cannot be one (letters under Numeric, digits under Alpha, zero, or too large
+        /// for the pad) and a new number must be allocated.
+        /// </summary>
+        internal static string NormaliseHeldSeq(string held)
+        {
+            if (string.IsNullOrEmpty(held)) return "";
+            if (CurrentSeqScheme == SeqScheme.Alpha)
+                return held.All(c => c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z') ? held.ToUpperInvariant() : "";
+            if (!held.All(c => c >= '0' && c <= '9')) return "";
+            if (!int.TryParse(held, out int n) || n <= 0) return "";
+            int pad = EffectiveSeqPad;
+            if (n > SeqAssigner.MaxSeqForPad(pad)) return "";
+            return SeqAssigner.BuildSeqString(n, CurrentSeqScheme, pad);
+        }
+
         public static bool TagIsComplete(string tagValue, int expectedTokens = 8)
         {
             if (string.IsNullOrEmpty(tagValue))
@@ -2501,6 +2577,9 @@ namespace StingTools.Core
             SkippedComplete,
             NotTaggable,
             Failed,
+            /// <summary>TAGACC-13: a new SEQ was needed but another user holds the counter;
+            /// retry after they synchronise. Not a fault.</summary>
+            Deferred,
         }
 
         /// <summary>Optional out-channel for <see cref="TagWriteOutcome"/>.</summary>
@@ -2511,7 +2590,8 @@ namespace StingTools.Core
             public bool IsDeliberateSkip =>
                 Outcome == TagWriteOutcome.SkippedComplete
                 || Outcome == TagWriteOutcome.AlreadyCurrent
-                || Outcome == TagWriteOutcome.NotTaggable;
+                || Outcome == TagWriteOutcome.NotTaggable
+                || Outcome == TagWriteOutcome.Deferred;
         }
 
         public static bool BuildAndWriteTag(Document doc, Element el,
@@ -2524,7 +2604,8 @@ namespace StingTools.Core
             ElementId lastPhaseId = null,
             string prevTagHint = null,
             string[] tokenValuesOut = null,
-            TagWriteReport report = null)
+            TagWriteReport report = null,
+            bool forceRebuild = false)
         {
             string catName = ParameterHelpers.GetCategoryName(el);
             // F-14: Merge ContainsKey guard + TryGetValue into a single map lookup
@@ -2539,6 +2620,24 @@ namespace StingTools.Core
             string existingTag = prevTagHint
                 ?? ParameterHelpers.GetString(el, ParamRegistry.TAG1);
             bool hasCompleteTag = TagIsComplete(existingTag);
+
+            // TAGACC-1: a complete tag that an older, still-existing element also holds is a
+            // copy (copy / paste / array / mirror copy instance parameters). It is not a
+            // valid identifier for this element, so it is rebuilt with a new SEQ whatever the
+            // collision mode — skipping it as "complete" left the duplicate in the model.
+            bool duplicateHolder = hasCompleteTag
+                && IsDuplicateTagHolder(doc, existingTags, existingTag, el);
+            if (duplicateHolder)
+            {
+                hasCompleteTag = false;
+                StingLog.WarnRateLimited("DuplicateTagHolder",
+                    $"Element {el.Id} holds '{existingTag}', which an older element also holds (a copy) — re-sequencing it");
+                stats?.RecordWarning($"Element {el.Id}: duplicate of an existing tag '{existingTag}' (copied element) — re-sequenced");
+            }
+
+            // TAGACC-5: the caller found the element has moved (another level, or flagged
+            // stale) and re-derived its spatial tokens, so its complete tag is out of date.
+            if (forceRebuild) hasCompleteTag = false;
 
             // A-9: idempotency guard — if the element's last-written tag equals
             // the current tag and the tag is complete, the element was already
@@ -2614,36 +2713,60 @@ namespace StingTools.Core
                 return ParamRegistry.IsTokenEffectivelyEmpty(v) ? "" : v.Trim();
             }
 
-            string loc = overwriteTokens ? RawToken(ParamRegistry.LOC) : Stored(1);
-            if (string.IsNullOrEmpty(loc) || loc == "XX")
+            // Overwrite re-derives DISC / LVL / SYS / FUNC / PROD below, but three things
+            // must still win over a fresh derivation, exactly as they do in RunFullPipeline
+            // (which applies them after PopulateAll and before calling here): a token
+            // listed in ASS_TOKEN_LOCK_TXT, a CATEGORY_TOKEN_OVERRIDES value, and a
+            // CATEGORY_FORCE_SYS system. Until 2026-09-29 the overwrite path derived these
+            // afresh and wrote them with overwrite:true, so "Overwrite all" silently undid
+            // every token lock and category override the pipeline had just restored.
+            HashSet<string> lockedKeys = null;
+            Dictionary<string, string> catOverrides = null;
+            if (overwriteTokens)
             {
-                // F-2 — was: first non-placeholder code from LocCodes, else "BLD1".
-                //
-                // That silently filed every element whose LOC could not be derived under
-                // whichever building sorts first. On a single-building project it is
-                // invisible and harmless. On a multi-building one — eight cottages, say —
-                // the first building absorbs every unplaceable element in the model, and
-                // its cost and quantities are wrong while reading entirely plausibly. A
-                // building that is over-counted because it is alphabetically first is not
-                // a defect anyone goes looking for.
-                //
-                // XX is already a legal LOC that ISO19650Validator accepts, and it says
-                // the true thing: location not established. Count them so the number is
-                // visible rather than absorbed.
-                loc = "XX";
-                System.Threading.Interlocked.Increment(ref _unresolvedLocCount);
+                string lockStr = ParameterHelpers.GetString(el, "ASS_TOKEN_LOCK_TXT");
+                if (!string.IsNullOrWhiteSpace(lockStr))
+                    lockedKeys = new HashSet<string>(
+                        lockStr.Split(',').Select(k => k.Trim()).Where(k => k.Length > 0),
+                        StringComparer.OrdinalIgnoreCase);
+                CategoryTokenOverrides?.TryGetValue(catName, out catOverrides);
             }
+            string Pinned(string key, string param)
+            {
+                if (!overwriteTokens) return "";
+                if (lockedKeys != null && lockedKeys.Contains(key))
+                {
+                    string held = RawToken(param);
+                    if (held.Length > 0) return held;
+                }
+                if (catOverrides != null)
+                    foreach (var kv in catOverrides)
+                        if (string.Equals(kv.Key, key, StringComparison.OrdinalIgnoreCase)
+                            && !ParamRegistry.IsTokenEffectivelyEmpty(kv.Value))
+                            return kv.Value.Trim();
+                if (key == "SYS" && CategoryForceSys != null
+                    && CategoryForceSys.TryGetValue(catName, out string forced)
+                    && !ParamRegistry.IsTokenEffectivelyEmpty(forced))
+                    return forced.Trim();
+                return "";
+            }
+
+            string loc = overwriteTokens ? RawToken(ParamRegistry.LOC) : Stored(1);
+            // TAGACC-3: a blank LOC or ZONE is left blank here and resolved by the token
+            // policy below (ResolveToken), which substitutes the policy's fallback and
+            // RECORDS it, or refuses the tag when a project sets the fallback to null.
+            // Until 2026-09-29 LOC was forced to a hardcoded "XX" here while PopulateAll
+            // wrote "BLD1", and ZONE was forced to the first ZONE_CODES entry, so the two
+            // layers disagreed and neither honoured the policy. PopulateAll now uses the
+            // same policy, so a blank reaching this point is rare (a caller that skipped
+            // PopulateAll); it is counted with the others.
+            if (string.IsNullOrEmpty(loc))
+                System.Threading.Interlocked.Increment(ref _unresolvedLocCount);
 
             string zone = overwriteTokens ? RawToken(ParamRegistry.ZONE) : Stored(2);
-            if (overwriteTokens || string.IsNullOrEmpty(zone))
-            {
-                // M-04 FIX: Also normalize "ZZ" placeholder. The SEQ key normalises XX/ZZ
-                // the same way in SeqAssigner.BuildSeqKey, for the scan and for allocation.
-                if (string.IsNullOrEmpty(zone) || zone == "XX" || zone == "ZZ")
-                    zone = ZoneCodes.FirstOrDefault(c => c != "XX" && c != "ZZ" && !string.IsNullOrEmpty(c)) ?? "Z01";
-            }
 
             string lvl = Stored(3);
+            if (string.IsNullOrEmpty(lvl)) lvl = Pinned("LVL", ParamRegistry.LVL);
             if (string.IsNullOrEmpty(lvl))
             {
                 lvl = ParameterHelpers.GetLevelCode(doc, el);
@@ -2665,6 +2788,7 @@ namespace StingTools.Core
             // literal ahead of the policy, so the policy's fallback was never reached, no
             // substitution was ever recorded, and a project override changed nothing.
             string sys = Stored(4);
+            if (string.IsNullOrEmpty(sys)) sys = Pinned("SYS", ParamRegistry.SYS);
             if (string.IsNullOrEmpty(sys))
             {
                 // Intelligence Layer: 6-layer system detection:
@@ -2680,8 +2804,14 @@ namespace StingTools.Core
             // (DCW, DHW, SAN, RWD, GAS), the DISC should be "P" (Plumbing).
             disc = GetSystemAwareDisc(disc, sys, catName);
             if (!string.IsNullOrEmpty(Stored(0))) disc = Stored(0);
+            else
+            {
+                string pinnedDisc = Pinned("DISC", ParamRegistry.DISC);
+                if (pinnedDisc.Length > 0) disc = pinnedDisc;
+            }
 
             string func = Stored(5);
+            if (string.IsNullOrEmpty(func)) func = Pinned("FUNC", ParamRegistry.FUNC);
             if (string.IsNullOrEmpty(func))
             {
                 // Smart FUNC from the SYS that will be WRITTEN, so the pair always agrees:
@@ -2691,17 +2821,25 @@ namespace StingTools.Core
             }
 
             string prod = Stored(6);
+            if (string.IsNullOrEmpty(prod)) prod = Pinned("PROD", ParamRegistry.PROD);
             if (string.IsNullOrEmpty(prod))
             {
                 prod = GetFamilyAwareProdCode(el, catName);
                 if (prod == "GEN") prod = "";
             }
 
-            // Throttle default-value warnings — record count, not per-element message.
+            // Default-value counts. PopulateAll records where LOC / ZONE came from; a
+            // "Default" source means nothing located the element and the policy fallback
+            // was written. (These compared the value with "BLD1" / "Z01", which counted a
+            // room that genuinely says BLD1 and missed a project whose fallback is not BLD1.)
             if (stats != null)
             {
-                if (loc == "BLD1") stats.DefaultLocCount++;
-                if (zone == "Z01") stats.DefaultZoneCount++;
+                if (string.IsNullOrEmpty(loc)
+                    || ParameterHelpers.GetString(el, ParamRegistry.LOC_SOURCE) == "Default")
+                    stats.DefaultLocCount++;
+                if (string.IsNullOrEmpty(zone)
+                    || ParameterHelpers.GetString(el, ParamRegistry.ZONE_SOURCE) == "Default")
+                    stats.DefaultZoneCount++;
             }
 
             // Validate-before-write. Which tokens may legitimately fall back, which must
@@ -2771,7 +2909,7 @@ namespace StingTools.Core
             {
                 StingLog.Warn($"SEQ scheme changed (scheme={CurrentSeqScheme}, includeZone={SeqIncludeZone}, includeLoc={SeqIncludeLoc}). " +
                     "Existing SEQ counters may not align with the new key format. " +
-                    "Run 'Assign Numbers' or 'Batch Tag' with Overwrite to re-sequence.");
+                    "Run 'Batch Tag' with Overwrite and RENUMBER_ON_OVERWRITE = true in project_config.json to re-sequence.");
                 _seqSchemeWarned = true;
             }
 
@@ -2789,7 +2927,9 @@ namespace StingTools.Core
 
             // The element's current tag is being replaced; take it out of the collision
             // index so it cannot collide with itself. Put back on any failure below.
-            bool removedOwnTag = existingTags != null && !string.IsNullOrEmpty(existingTag)
+            // A duplicate holder's tag belongs to the older element: it stays in the index.
+            bool removedOwnTag = !duplicateHolder
+                                 && existingTags != null && !string.IsNullOrEmpty(existingTag)
                                  && existingTags.Remove(existingTag);
             void RestoreOwnTag() { if (removedOwnTag) existingTags.Add(existingTag); }
 
@@ -2802,7 +2942,16 @@ namespace StingTools.Core
             string tag = null;
             bool seqAllocated = false;
             bool seqReassigned = false;
-            string storedSeq = Stored(7);
+            // TAGACC-4: Overwrite keeps the stored SEQ too (normalised to the current pad),
+            // unless RENUMBER_ON_OVERWRITE is set. It used to allocate a fresh number for every
+            // element on every Overwrite run, so printed tags, QR labels and COBie exports
+            // stopped matching the model. A duplicate holder's SEQ is the source element's
+            // and is never reused.
+            string storedSeq = duplicateHolder ? ""
+                : !overwriteTokens ? Stored(7)
+                : RenumberOnOverwrite ? ""
+                : NormaliseHeldSeq(RawToken(ParamRegistry.SEQ));
+            if (duplicateHolder) seqReassigned = true;
             if (!string.IsNullOrEmpty(storedSeq))
             {
                 string candidate = tagBody + storedSeq + tagSuffix;
@@ -2824,6 +2973,27 @@ namespace StingTools.Core
                     seqReassigned = true;
                     StingLog.Warn($"Element {el.Id}: stored SEQ '{storedSeq}' would duplicate tag '{candidate}' — allocating a new SEQ");
                     stats?.RecordWarning($"Element {el.Id}: SEQ {storedSeq} duplicated an existing tag — re-sequenced");
+                }
+            }
+
+            // TAGACC-13: a NEW number may only be handed out while this user holds the
+            // model's SEQ counter (worksharing lock). An element that keeps its stored SEQ
+            // never reaches here.
+            if (seq == null && !StingTools.Core.Storage.StingSeqLockStore.AllocationAllowed(doc, out string lockReason))
+            {
+                if (string.Equals(SeqLockMode, "warn", StringComparison.OrdinalIgnoreCase))
+                {
+                    StingLog.WarnRateLimited("SeqLockWarn",
+                        $"Allocating SEQ without the worksharing lock ({lockReason}); duplicates are repaired after sync.");
+                }
+                else
+                {
+                    StingLog.WarnRateLimited("SeqLockBlocked",
+                        $"No new sequence numbers: {lockReason}. Elements needing one are deferred.");
+                    stats?.RecordTokenRefusal("SEQ deferred — " + lockReason, el.Id?.Value ?? -1);
+                    RestoreOwnTag();
+                    report?.Set(TagWriteOutcome.Deferred);
+                    return false;
                 }
             }
 
@@ -3008,7 +3178,11 @@ namespace StingTools.Core
                     StingLog.Warn($"TAG1 write mismatch on {el.Id}: wrote '{tag}', read back '{writtenTag}'");
                 // Ensure the tag is in the index for same-batch duplicate prevention
                 if (existingTags != null && !string.IsNullOrEmpty(writtenTag))
+                {
                     existingTags.Add(writtenTag);
+                    // TAGACC-1: this element now owns the tag it holds; release the old one.
+                    ClaimTag(existingTags, writtenTag, duplicateHolder ? null : existingTag, el.Id.Value);
+                }
             }
 
             // Auto-populate STATUS from Revit phase/workset if not already set
@@ -3058,7 +3232,12 @@ namespace StingTools.Core
                 {
                     if (tokenVals[i] == null) tokenVals[i] = "";
                 }
-                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: overwriteTokens);
+                // Containers are a pure function of the tokens and TAG1 was just
+                // (re)written from them, so they are always brought into line. With
+                // overwrite:false a container that already held an older value (a
+                // partial tag from an earlier run, a SEQ re-sequenced for a duplicate,
+                // values copied with a pasted element) was left disagreeing with TAG1.
+                ParamRegistry.WriteContainers(el, tokenVals, catName, overwrite: true);
 
                 // hand the freshly-built token array back to
                 // the caller so RunFullPipeline doesn't have to do its own
@@ -3447,27 +3626,105 @@ namespace StingTools.Core
             return (GetSysCode(categoryName), 6);
         }
 
-        /// <summary>Layer 1: Read connected MEP system name via connectors.</summary>
+        /// <summary>
+        /// Layer 1: Read connected MEP system name via connectors.
+        ///
+        /// TAGACC-7: this returned the FIRST connector whose system mapped, so an AHU
+        /// (supply + return air + chilled water), a boiler (LTHW + gas) or a sink (DCW + DHW
+        /// + drainage) took whichever service the family author happened to place first.
+        /// Now, deterministically: a connector the family marks PRIMARY wins; otherwise the
+        /// service in the category's own domain (air for Mechanical Equipment / Air Terminals,
+        /// piping for Plumbing Fixtures and pipework); otherwise the first non-auxiliary
+        /// service (gas, fuel, condensate and drainage connections are auxiliary on
+        /// equipment); otherwise the first mapped one.
+        /// </summary>
         private static string GetSysFromConnector(Element el, string categoryName = null)
         {
             try
             {
                 FamilyInstance fi2 = el as FamilyInstance;
-                if (fi2?.MEPModel?.ConnectorManager != null)
+                if (fi2?.MEPModel?.ConnectorManager == null) return null;
+
+                Domain preferred = PreferredConnectorDomain(categoryName);
+                string inDomain = null, nonAuxiliary = null, first = null;
+                foreach (Connector conn in fi2.MEPModel.ConnectorManager.Connectors)
                 {
-                    foreach (Connector conn in fi2.MEPModel.ConnectorManager.Connectors)
-                    {
-                        if (conn.MEPSystem != null)
-                        {
-                            string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
-                            string mapped = MapSystemNameToCode(sysName, categoryName);
-                            if (!string.IsNullOrEmpty(mapped)) return mapped;
-                        }
-                    }
+                    if (conn?.MEPSystem == null) continue;
+                    string sysName = conn.MEPSystem.Name?.ToUpperInvariant() ?? "";
+                    string mapped = MapSystemNameToCode(sysName, categoryName);
+                    if (string.IsNullOrEmpty(mapped)) continue;
+                    mapped = RefineHydronic(mapped, sysName, doc: el.Document,
+                        systemTypeId: conn.MEPSystem.GetTypeId());
+
+                    bool primary = false;
+                    try { primary = conn.GetMEPConnectorInfo()?.IsPrimary == true; }
+                    catch (Exception ciEx) { StingLog.WarnRateLimited("SysConnectorInfo", $"Connector info unreadable on {el.Id}: {ciEx.Message}"); }
+                    if (primary) return mapped;
+
+                    Domain d = Domain.DomainUndefined;
+                    try { d = conn.Domain; } catch (Exception dEx) { StingLog.WarnRateLimited("SysConnectorDomain", $"Connector domain unreadable on {el.Id}: {dEx.Message}"); }
+                    if (inDomain == null && preferred != Domain.DomainUndefined && d == preferred) inDomain = mapped;
+                    if (nonAuxiliary == null && !AuxiliaryServices.Contains(mapped)) nonAuxiliary = mapped;
+                    if (first == null) first = mapped;
                 }
+                return inDomain ?? nonAuxiliary ?? first;
             }
             catch (Exception ex) { StingLog.Warn($"SYS detection from connector failed: {ex.Message}"); }
             return null;
+        }
+
+        /// <summary>Services that are a connection TO equipment rather than what it is for.</summary>
+        private static readonly HashSet<string> AuxiliaryServices =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "GAS", "FOL", "CON", "DRN", "CND" };
+
+        private static Domain PreferredConnectorDomain(string categoryName)
+        {
+            switch (categoryName ?? "")
+            {
+                case "Mechanical Equipment":
+                case "Air Terminals":
+                case "Duct Accessories":
+                case "Duct Fittings":
+                    return Domain.DomainHvac;
+                case "Plumbing Fixtures":
+                case "Plumbing Equipment":
+                case "Pipe Accessories":
+                case "Pipe Fittings":
+                case "Sprinklers":
+                    return Domain.DomainPiping;
+                case "Electrical Equipment":
+                case "Electrical Fixtures":
+                case "Lighting Fixtures":
+                case "Lighting Devices":
+                    return Domain.DomainElectrical;
+                default:
+                    return Domain.DomainUndefined;
+            }
+        }
+
+        /// <summary>
+        /// TAGACC-8: Revit's default hydronic classification ("Hydronic Supply / Return")
+        /// serves chilled water as well as heating, and the name classifier reads it as HWS.
+        /// When the code came from the word HYDRONIC and the piping system type carries a
+        /// design fluid temperature at or below 15 °C, the system is chilled water.
+        /// </summary>
+        private static string RefineHydronic(string code, string sourceText, Document doc, ElementId systemTypeId)
+        {
+            if (!string.Equals(code, "HWS", StringComparison.OrdinalIgnoreCase)) return code;
+            if (string.IsNullOrEmpty(sourceText)
+                || sourceText.IndexOf("HYDRONIC", StringComparison.OrdinalIgnoreCase) < 0) return code;
+            try
+            {
+                if (doc == null || systemTypeId == null || systemTypeId == ElementId.InvalidElementId) return code;
+                if (doc.GetElement(systemTypeId) is Autodesk.Revit.DB.Plumbing.PipingSystemType pst)
+                {
+                    // FluidTemperature is in Revit internal units (kelvin).
+                    double kelvin = pst.FluidTemperature;
+                    if (kelvin > 0 && kelvin <= 288.15) return "CHW";
+                }
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("RefineHydronic", $"Hydronic temperature check: {ex.Message}"); }
+            return code;
         }
 
         /// <summary>Layer 2: Read RBS_DUCT_SYSTEM_TYPE or RBS_PIPING_SYSTEM_TYPE parameter.</summary>
@@ -3487,11 +3744,13 @@ namespace StingTools.Core
 
                 // Piping system type
                 Parameter pipeSys = el.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM);
+                ElementId pipeSysTypeId = null;
                 if (pipeSys != null && pipeSys.HasValue)
                 {
+                    try { pipeSysTypeId = pipeSys.AsElementId(); } catch (Exception idEx) { StingLog.WarnRateLimited("SysPipeTypeId", $"Piping system type id unreadable on {el.Id}: {idEx.Message}"); }
                     string val = pipeSys.AsValueString()?.ToUpperInvariant() ?? "";
                     string mapped = MapSystemNameToCode(val, categoryName);
-                    if (!string.IsNullOrEmpty(mapped)) return mapped;
+                    if (!string.IsNullOrEmpty(mapped)) return RefineHydronic(mapped, val, el.Document, pipeSysTypeId);
                 }
 
                 // The system's Revit CLASSIFICATION ("Domestic Cold Water", "Hydronic Return",
@@ -3500,8 +3759,9 @@ namespace StingTools.Core
                 Parameter cls = el.get_Parameter(BuiltInParameter.RBS_SYSTEM_CLASSIFICATION_PARAM);
                 if (cls != null && cls.HasValue)
                 {
-                    string mapped = MapSystemNameToCode(cls.AsString() ?? cls.AsValueString(), categoryName);
-                    if (!string.IsNullOrEmpty(mapped)) return mapped;
+                    string clsText = cls.AsString() ?? cls.AsValueString();
+                    string mapped = MapSystemNameToCode(clsText, categoryName);
+                    if (!string.IsNullOrEmpty(mapped)) return RefineHydronic(mapped, clsText, el.Document, pipeSysTypeId);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"SYS detection from system type param failed: {ex.Message}"); }
@@ -3539,7 +3799,9 @@ namespace StingTools.Core
                     if (panel.Contains("SAN") || panel.Contains("SEWAGE") || panel.Contains("DRAIN")) return "SAN";
                     if (panel.Contains("DHW") || panel.Contains("HOT WATER")) return "DHW";
                     if (panel.Contains("HWS") || panel.Contains("LTHW")) return "HWS";
-                    if (panel.Contains("DCW") || panel.Contains("COLD WATER") || panel.Contains("MAINS")) return "DCW";
+                    // "MAINS WATER", not bare "MAINS": an electrical "MAINS DB" / "MAINS
+                    // SWITCHBOARD" fed every fixture on it SYS=DCW.
+                    if (panel.Contains("DCW") || panel.Contains("COLD WATER") || panel.Contains("MAINS WATER")) return "DCW";
                     if (panel.Contains("GAS")) return "GAS";
                     if (panel.Contains("HVAC") || panel.Contains("AHU") || panel.Contains("FCU")) return "HVAC";
                     // Default electrical panels → LV
@@ -3663,7 +3925,7 @@ namespace StingTools.Core
                 catch (Exception ex) { StingLog.Warn($"Room department read failed: {ex.Message}"); }
 
                 string combined = $"{roomName} {dept}";
-                string catUpper = (el.Category?.Name ?? "").ToUpperInvariant();
+                string catUpper = ParameterHelpers.GetCategoryName(el).ToUpperInvariant();
 
                 // Server/comms rooms → ICT for generic devices
                 if (combined.Contains("SERVER") || combined.Contains("COMMS") ||

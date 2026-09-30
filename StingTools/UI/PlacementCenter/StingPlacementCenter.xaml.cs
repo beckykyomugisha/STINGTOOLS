@@ -666,7 +666,7 @@ namespace StingTools.UI.PlacementCenter
                     if (string.IsNullOrEmpty(cat)) continue;
                     var symbols = new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol))
                         .Cast<FamilySymbol>().Where(fs => fs.Category != null
-                            && string.Equals(fs.Category.Name, cat, StringComparison.OrdinalIgnoreCase))
+                            && string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), cat, StringComparison.OrdinalIgnoreCase))
                         .ToList();
                     if (symbols.Count == 0) continue;
                     bool anyHosted = symbols.Any(fs => fs.Family?.FamilyPlacementType == FamilyPlacementType.OneLevelBasedHosted);
@@ -810,7 +810,7 @@ namespace StingTools.UI.PlacementCenter
                     foreach (var el in new FilteredElementCollector(_doc).OfClass(typeof(FamilySymbol)))
                     {
                         if (el is FamilySymbol fs && fs.Category != null
-                            && string.Equals(fs.Category.Name, cat, System.StringComparison.OrdinalIgnoreCase))
+                            && string.Equals(global::StingTools.Core.ParameterHelpers.GetCategoryName(fs), cat, System.StringComparison.OrdinalIgnoreCase))
                         { hasSymbol = true; break; }
                     }
                     if (!hasSymbol) emptyCats.Add(cat);
