@@ -7,7 +7,8 @@
 //   - counts how many escalated clashes are now CLOSED in ACC,
 //   - UNTRACKS the closed ones (removes them from the dedup map) so that if the
 //     same clash recurs in a later pull it is re-raised rather than silently
-//     skipped,
+//     skipped. The ORIGIN of each one stays in acc/acc_issue_origins.json, which
+//     nothing prunes, so ACC_ImportIssues still recognises it as STING-raised (A15),
 //   - reports what is still open / not found, and writes a closure CSV.
 //
 // Note on identity: ACC clashes and STING's own clash kernel (clashes.json) use
@@ -51,7 +52,29 @@ namespace StingTools.Core.Clash
             }
 
             string sidecar = AccPullClashesCommand.SidecarPath(doc);
-            var pushedMap = AccPullClashesCommand.LoadPushed(sidecar);
+            var pushedMap = AccPullClashesCommand.LoadPushed(sidecar, out string pushedErr);
+            // A6: unreadable is not empty. Syncing against an empty map would report "nothing
+            // tracked" and, worse, the save below would overwrite the corrupt file with {}.
+            if (pushedMap == null)
+            {
+                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
+                    "The escalation record could not be read, so nothing was synced and the file was left untouched:\n" +
+                    pushedErr + "\n\nRepair or restore it (JSON: clash signature -> ACC issue id), then re-run.");
+                StingLog.Warn("ACC_SyncIssueStatus REFUSED: " + pushedErr);
+                return Result.Failed;
+            }
+            // A15: the origin record keeps every escalation STING raised, closed or not, so
+            // ACC_ImportIssues can still recognise it after this sync stops tracking it.
+            string originsPath = AccPullClashesCommand.OriginsPath(doc);
+            var origins = AccIssueOrigins.Load(originsPath, out string originsErr);
+            if (origins == null)
+            {
+                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
+                    "The ACC issue origin record could not be read, so nothing was un-tracked (un-tracking would lose " +
+                    "the only record that STING raised those issues):\n" + originsErr);
+                StingLog.Warn("ACC_SyncIssueStatus REFUSED: " + originsErr);
+                return Result.Failed;
+            }
             if (pushedMap.Count == 0)
             {
                 AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
@@ -104,8 +127,18 @@ namespace StingTools.Core.Clash
                 else { open++; rows.Add($"{Csv(kv.Key)},{Csv(kv.Value)},{Csv(st)},keep"); }
             }
 
+            // Origins FIRST: an escalation is only un-tracked once its origin is on disk.
+            if (toUntrack.Count > 0 && origins.Absorb(AccIssueImport.ClashEscalationOrigin, pushedMap, DateTime.UtcNow) > 0 &&
+                !origins.TrySave(originsPath, out string originSaveErr))
+            {
+                AccPullClashesCommand.Report(policy, "ACC — Sync Issue Status",
+                    $"{closed} escalated clash(es) are closed in ACC, but the origin record could not be written, so " +
+                    "nothing was un-tracked:\n" + originSaveErr);
+                StingLog.Warn("ACC_SyncIssueStatus: origin record save failed — " + originSaveErr);
+                return Result.Failed;
+            }
             foreach (var sig in toUntrack) pushedMap.Remove(sig);   // closed → re-raise on recurrence
-            AccPullClashesCommand.SavePushed(sidecar, pushedMap);
+            string saveErr = toUntrack.Count > 0 ? AccPullClashesCommand.SavePushed(sidecar, pushedMap) : null;
 
             string csvPath = null;
             try

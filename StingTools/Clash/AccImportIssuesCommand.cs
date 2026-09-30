@@ -118,24 +118,35 @@ namespace StingTools.Core.Clash
             }
 
             // Round trip: ACC issues STING itself created, keyed by ACC id.
+            //
+            // A15: the append-only origin record comes FIRST. It is the one source nothing
+            // prunes - ACC_SyncIssueStatus removes closed escalations from pushed_clashes.json,
+            // and reading only that file lost the origin of every issue ACC had closed. The two
+            // tracking sidecars are still read after it, for escalations that predate it.
+            var linkNotes = new List<string>();
             var origins = new Dictionary<string, AccOriginLink>(StringComparer.Ordinal);
             string clashSidecar = AccPullClashesCommand.SidecarPath(doc);
-            AccOriginLink.AddSidecar(origins, AccIssueImport.ClashEscalationOrigin,
-                AccPullClashesCommand.LoadPushed(clashSidecar));
-            try
+            string accDir = Path.GetDirectoryName(clashSidecar) ?? "";
+            var originRecord = AccIssueOrigins.Load(Path.Combine(accDir, AccIssueOrigins.FileName), out string originErr);
+            if (originRecord != null) originRecord.AddTo(origins);
+            else linkNotes.Add("the ACC issue origin record could not be read, so issues STING raised may import " +
+                               "as ACC-owned: " + originErr);
+            foreach (var (file, origin) in new[]
+                     {
+                         (AccPushedMap.ClashFileName, AccIssueImport.ClashEscalationOrigin),
+                         (AccPushedMap.LifecycleGapFileName, AccIssueImport.LifecycleGapOrigin),
+                     })
             {
-                string gapSidecar = Path.Combine(Path.GetDirectoryName(clashSidecar) ?? "", "pushed_lifecycle_gaps.json");
-                AccOriginLink.AddSidecar(origins, AccIssueImport.LifecycleGapOrigin,
-                    AccPullClashesCommand.LoadPushed(gapSidecar));
+                var map = AccPushedMap.Load(Path.Combine(accDir, file), out string mapErr);
+                if (map != null) AccOriginLink.AddSidecar(origins, origin, map);
+                else linkNotes.Add($"{file} could not be read, so issues it names may import as ACC-owned: {mapErr}");
             }
-            catch (Exception ex) { StingLog.Warn("ACC_ImportIssues lifecycle-gap sidecar: " + ex.Message); }
 
             var records = pull.Value.Select(AccIssueImportRecord.From).Where(r => r != null).ToList();
 
             // Round trip, second source: the clash signature STING wrote into a custom attribute
             // when it escalated (issueCustomAttributes.clashSignature). Only consulted when that
             // mapping is configured; the sidecar wins where both name an issue.
-            var linkNotes = new List<string>();
             if (policy.IssueCustomAttributes.TryGetValue("clashSignature", out string sigTitle))
             {
                 try
