@@ -119,8 +119,17 @@ the rows with them.
   drawn round the 2.5 mm label with 1 mm clearance, **made visible by the same
   `TXT_*` switch** as the label it surrounds (so two boxes). Rooms — no box; the room
   tag reads as a block of text inside the room.
-- Keep the family origin at the label's centre so the placement offsets in the preset
-  mean what they say.
+- **Text is left-aligned** (ISO 3098 / house rule, 2026-10-01): label *Properties →
+  Horizontal Align = Left, Vertical Align = Middle*. The label is placed at the family
+  origin, so the placement offsets in the preset still mean what they say.
+
+### Build status (2026-10-01)
+
+All four labels are built and committed in `Data/TagFamilies` at **2.5 mm** — label
+type `2.5mm` (Arial 2.5 mm, transparent background), left / middle aligned, every row,
+prefix, suffix, space and break as in the tables below. Still to do by hand: the
+**3.5 mm label copy** tied to `TXT_3_5` (and the 2.5 mm label tied to `TXT_2_5`), and
+the **door box**. Until then the label shows at 2.5 mm whichever type is chosen.
 
 ---
 
@@ -162,7 +171,10 @@ panel zone 500–1500 mm AFFL.
 | 5 | T1 | Leading edge | `BLE_DOOR_LEADING_EDGE_CLEAR_MM` (add directly) — **new** | 0 | ␣␣LE␣ | mm | YES |
 | 6 | T1 | Glazing | `if(BLE_DOOR_GLAZING_BOOL, "Glazed", "")` | 0 | | | no |
 | 7 | T1 | Vision panel | `if(BLE_DOOR_GLAZING_BOOL, if(BLE_DOOR_VISION_PANEL_ZONE_BOOL, "VP zone ok", "VP ZONE NOT MET"), "")` — **new** param | 0 | ␣␣ | | YES |
-| 8 | T2 | Operation | `if(TAG_DEPTH_TIER_INT > 1, BLE_DOOR_OPERATION_TYPE_TXT, "")` | 0 | Op: | | — |
+| 8 | T2 | Door operation | `if(TAG_DEPTH_TIER_INT > 1, BLE_DOOR_OPERATION_TYPE_TXT, "")` | 0 | Op: | | — |
+
+- Row 8's calculated value is named **Door operation**, not *Operation*: doors carry a
+  built-in *Operation* parameter and Revit refuses a duplicate name.
 
 - Row 7 only speaks for a glazed door, and says so loudly when the zone is not met —
   an unticked box on a glazed door is exactly the case to surface.
