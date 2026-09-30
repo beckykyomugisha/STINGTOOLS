@@ -177,6 +177,9 @@ namespace StingTools.V6
             // Two-way issues: push STING-side changes back, auto-import on the server's
             // webhook signal, and what an escalated issue carries in ACC's own fields.
             "pushIssueChanges", "autoImportIssues", "issueCustomAttributes", "issueRootCause",
+            // ACC Reviews as the approval authority: how an ACC approval maps to an ISO 19650
+            // code, and whether publishing a deliverable starts an ACC review.
+            "reviewApprovalMap", "startAccReviewOnPublish",
         };
 
         /// <summary>The STING values an escalated clash issue can carry as ACC custom
@@ -291,6 +294,20 @@ namespace StingTools.V6
         /// <summary>Attach a one-topic BCF 2.1 file naming the two elements. Default on.</summary>
         public bool IssueBcfAttachment { get; private set; } = true;
 
+        /// <summary>ACC approval label (or outcome value, e.g. APPROVED) → ISO 19650 suitability
+        /// code the proposal offers. Every code is validated at load (a known code filed in
+        /// SHARED or PUBLISHED); an unmapped approval proposes "code to be chosen".</summary>
+        public IReadOnlyDictionary<string, string> ReviewApprovalMap { get; private set; } =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>The ACC approval workflow a review is started on when STING publishes a
+        /// deliverable whose file is in ACC. Empty = never start one.</summary>
+        public string ReviewWorkflowId { get; private set; } = string.Empty;
+
+        /// <summary>Start that review without asking when the project runs unattended. Off by
+        /// default: a review notifies real reviewers.</summary>
+        public bool ReviewStartUnattended { get; private set; }
+
         /// <summary>ACC clash statuses that are never escalated.</summary>
         public IReadOnlyCollection<string> EscalateExcludeStatuses { get; private set; } = DefaultExcludedClashStatuses;
 
@@ -390,6 +407,9 @@ namespace StingTools.V6
             bool pushChanges = false, autoImport = false;
             var issueAttrs = new Dictionary<string, string>(StringComparer.Ordinal);
             string rootCause = string.Empty;
+            var approvalMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string reviewWorkflowId = string.Empty;
+            bool reviewUnattended = false;
 
             try
             {
@@ -481,6 +501,34 @@ namespace StingTools.V6
                         issueAttrs[field] = kv.Value;
                     }
                 }
+                if (TryGet(o, "reviewApprovalMap", out var ramTok))
+                {
+                    approvalMap = RequireStringMap(ramTok, "reviewApprovalMap");
+                    foreach (var kv in approvalMap.ToList())
+                    {
+                        string code = kv.Value.Trim().ToUpperInvariant();
+                        string state = StingTools.Core.Drawing.Iso19650Suitability.CdeStateFor(code);
+                        if (!StingTools.Core.Drawing.Iso19650Suitability.IsKnown(code) || (state != "PUBLISHED" && state != "SHARED"))
+                            throw new FormatException($"'reviewApprovalMap.{kv.Key}' is '{kv.Value}', which is not an ISO 19650 " +
+                                                      "suitability an approval can grant (S1-S7, A1-A5, B1-B5 or CR)");
+                        approvalMap[kv.Key] = code;
+                    }
+                }
+                if (TryGet(o, "startAccReviewOnPublish", out var srTok))
+                {
+                    if (!(srTok is JObject sr))
+                        throw new FormatException($"'startAccReviewOnPublish' must be an object {{\"workflowId\": \"…\"}}, found {srTok.Type}");
+                    var badSub = sr.Properties().Select(p => p.Name)
+                                   .FirstOrDefault(n => !n.StartsWith("_", StringComparison.Ordinal) && n != "workflowId" && n != "unattended");
+                    if (badSub != null)
+                        throw new FormatException($"'startAccReviewOnPublish.{badSub}' is not read by this build (known: workflowId, unattended)");
+                    if (!TryGet(sr, "workflowId", out var wfTok))
+                        throw new FormatException("'startAccReviewOnPublish' needs a 'workflowId' - which approval workflow a review runs is the project's choice, not a default");
+                    reviewWorkflowId = RequireString(wfTok, "startAccReviewOnPublish.workflowId").Trim();
+                    if (reviewWorkflowId.Length == 0)
+                        throw new FormatException("'startAccReviewOnPublish.workflowId' is empty");
+                    if (TryGet(sr, "unattended", out var suTok2)) reviewUnattended = RequireBool(suTok2, "startAccReviewOnPublish.unattended");
+                }
             }
             catch (FormatException ex) { return Malformed(policy, ex.Message); }
 
@@ -513,6 +561,9 @@ namespace StingTools.V6
             policy.AutoImportIssues = autoImport;
             policy.IssueCustomAttributes = issueAttrs;
             policy.IssueRootCause = rootCause;
+            policy.ReviewApprovalMap = approvalMap;
+            policy.ReviewWorkflowId = reviewWorkflowId;
+            policy.ReviewStartUnattended = reviewUnattended;
             return policy;
         }
 

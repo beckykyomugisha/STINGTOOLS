@@ -5621,6 +5621,10 @@ namespace StingTools.Core
                 { "AccFederatedCompliance", "AccFederatedCompliance" },
                 { "AccSyncProjectInfo", "AccSyncProjectInfo" },
                 { "AccCheckLocations", "AccCheckLocations" },
+                { "AccReadReviews", "AccReadReviews" },
+                { "AccReviewProposals", "AccReviewProposals" },
+                { "AccReadTransmittals", "AccReadTransmittals" },
+                { "AccStartReview", "AccStartReview" },
                 { "ACC_UploadModel", "ACC_UploadModel" },
                 { "SharePointExport", "SharePointExport" },
 

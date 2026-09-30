@@ -129,6 +129,59 @@ namespace StingTools.BIMManager
             return row;
         }
 
+        /// <summary>
+        /// Record an ACC review decision a PERSON accepted (ACC_ReviewProposals) on the row
+        /// with <paramref name="id"/>. Approved: the row's suitability becomes
+        /// <paramref name="suitability"/> (when given) and a SENT/ISSUED/RECEIVED row moves to
+        /// ACKNOWLEDGED. Rejected: the row moves to REJECTED. Either way a history entry in the
+        /// same {from,to,by,at,note} shape as <see cref="MarkSent"/> records it. A read-only
+        /// row (imported from ACC) and a VOID / SUPERSEDED row are refused - null is returned
+        /// and nothing changes. <paramref name="why"/> says why when null.
+        /// </summary>
+        public static JObject RecordReviewDecision(JArray rows, string id, bool approved, string suitability,
+            DateTime now, string user, string note, out string why)
+        {
+            why = null;
+            if (rows == null || string.IsNullOrWhiteSpace(id)) { why = "no transmittal id"; return null; }
+            var row = rows.OfType<JObject>().FirstOrDefault(r => string.Equals(Id(r), id, StringComparison.OrdinalIgnoreCase));
+            if (row == null) { why = $"transmittal {id} is not in transmittals.json"; return null; }
+            if (row["read_only"]?.Type == JTokenType.Boolean && (bool)row["read_only"])
+            { why = $"transmittal {id} is a read-only row imported from ACC"; return null; }
+
+            string from = TransmittalStatus.Normalise(row["status"]?.ToString());
+            if (from == TransmittalStatus.Void || from == TransmittalStatus.Superseded)
+            { why = $"transmittal {id} is {from}"; return null; }
+
+            string to = from;
+            if (!approved) to = TransmittalStatus.Rejected;
+            else if (from == TransmittalStatus.Sent || from == TransmittalStatus.Issued || from == TransmittalStatus.Received)
+                to = TransmittalStatus.Acknowledged;
+
+            string oldSuit = Suitability(row);
+            if (approved && !string.IsNullOrWhiteSpace(suitability)) row["suitability"] = suitability.Trim().ToUpperInvariant();
+            row["status"] = to;
+            if (!(row["status_history"] is JArray hist))
+            {
+                hist = new JArray();
+                string legacy = row["status_history"]?.Type == JTokenType.String ? row["status_history"].ToString() : null;
+                if (!string.IsNullOrWhiteSpace(legacy)) hist.Add(new JObject { ["note"] = legacy, ["migrated"] = true });
+                row["status_history"] = hist;
+            }
+            var entry = new JObject
+            {
+                ["from"] = from, ["to"] = to,
+                ["by"] = user ?? "", ["at"] = now.ToString("o", System.Globalization.CultureInfo.InvariantCulture),
+                ["note"] = note ?? "",
+            };
+            if (approved && !string.IsNullOrWhiteSpace(suitability))
+            {
+                entry["suitability_from"] = oldSuit;
+                entry["suitability_to"] = suitability.Trim().ToUpperInvariant();
+            }
+            hist.Add(entry);
+            return row;
+        }
+
         private static string First(JToken t, params string[] keys)
         {
             if (!(t is JObject o)) return "";

@@ -2967,6 +2967,15 @@ namespace StingTools.UI
                     // file picker is needed. Deliberately in no KUT workflow (see the
                     // command's header) - the capability is wired, the decision is not made.
                     case "ACC_UploadLastBundle": RunCommand<Core.Clash.AccUploadLastBundleCommand>(app); break;
+                    // ACC Reviews → STING as proposals a person accepts (never a silent change).
+                    case "AccReadReviews":
+                    case "ACC_ReadReviews":      RunCommand<Core.Clash.AccReadReviewsCommand>(app); break;
+                    case "AccReviewProposals":
+                    case "ACC_ReviewProposals":  RunCommand<Core.Clash.AccReviewProposalsCommand>(app); break;
+                    case "AccReadTransmittals":
+                    case "ACC_ReadTransmittals": RunCommand<Core.Clash.AccReadTransmittalsCommand>(app); break;
+                    case "AccStartReview":
+                    case "ACC_StartReview":      RunCommand<Core.Clash.AccStartReviewCommand>(app); break;
                     case "CDEPackage": RunCommand<BIMManager.CDEPackageCommand>(app); break;
                     case "ValidateCDEHandover":
                     {

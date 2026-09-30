@@ -2470,6 +2470,21 @@ namespace StingTools.BIMManager
                 sb.AppendLine(new string('═', 50));
                 sb.AppendLine("Workflow: Draft → Review → Approved → Issued\n");
 
+                // Where a project runs its approvals in ACC (KUT: ISO 19650 appointing party's
+                // CDE), an approval recorded here is a SECOND authority that ACC never sees.
+                // Warn, do not block: the command still has its uses (a model with no ACC).
+                try
+                {
+                    var accPolicy = StingTools.Core.Clash.AccProjectSettingsFile.LoadFor(doc, "RevisionApprovalWorkflow");
+                    if (accPolicy.Source == StingTools.V6.AccPolicySource.Loaded && !string.IsNullOrEmpty(accPolicy.ProjectId))
+                    {
+                        sb.AppendLine("⚠ ACC Reviews is this project's approval authority (ACC is configured).");
+                        sb.AppendLine("  An approval recorded here is not an ACC approval. Approve in ACC, then run");
+                        sb.AppendLine("  ACC_ReadReviews and accept the decision with ACC_ReviewProposals.\n");
+                    }
+                }
+                catch (Exception accEx) { StingLog.Warn($"Revision approval: ACC authority check: {accEx.Message}"); }
+
                 foreach (var rev in revisions)
                 {
                     string desc = rev.Description ?? "(no description)";

@@ -49,6 +49,31 @@ namespace Planscape.Docs.Templates
             return res;
         }
 
+        /// <summary>
+        /// An ACC review APPROVED this deliverable and a person accepted the proposal
+        /// (ACC_ReviewProposals). The code is the one the person accepted - from the project's
+        /// reviewApprovalMap or chosen at accept time, never a default. A PUBLISHED code
+        /// publishes (and promotes the revision to the contractual series, as Publish does); a
+        /// SHARED code records the approval without publishing. Same state machine, audit and
+        /// persistence as every other transition.
+        /// </summary>
+        public static LifecycleResult ApproveFromReview(dynamic d, Document doc, TemplateManifest m, string user,
+            string suitabilityCode, string reason)
+        {
+            string code = StingTools.Core.Drawing.Iso19650Suitability.ExtractCode(suitabilityCode);
+            string state = StingTools.Core.Drawing.Iso19650Suitability.CdeStateFor(code);
+            if (state != "PUBLISHED" && state != "SHARED")
+                return new LifecycleResult { Ok = false, Message = $"'{suitabilityCode}' is not a suitability an approval can grant." };
+            return Transition(d, doc, m, state == "PUBLISHED" ? "Published" : "Approved", "A01", user,
+                newSuitability: code, newCde: state, reason: reason,
+                action: state == "PUBLISHED" ? "published_acc_review" : "approved_acc_review");
+        }
+
+        /// <summary>An ACC review REJECTED this deliverable and a person accepted that. The
+        /// status records it; suitability and CDE state are left as they were.</summary>
+        public static LifecycleResult RejectFromReview(dynamic d, Document doc, TemplateManifest m, string user, string reason)
+            => Transition(d, doc, m, "Rejected", "A01", user, null, null, reason, action: "rejected_acc_review");
+
         public static LifecycleResult Cancel(dynamic d, Document doc, TemplateManifest m, string issuedBy, string reason)
             => Transition(d, doc, m, "Cancelled", "A02", issuedBy, "CANCELLED", "ARCHIVE", reason, action: "cancelled");
 
@@ -479,7 +504,15 @@ namespace Planscape.Docs.Templates
                     if (arr[i] is JObject o && string.Equals(RowKey(o), docNumber, StringComparison.Ordinal))
                     { idx = i; break; }
                 }
-                if (idx >= 0) arr[idx] = row; else arr.Add(row);
+                // Overlay, not replace: the POCO only carries the fields it declares, and a row
+                // written by the MIDP import or by hand carries others (PlannedDate, Milestone,
+                // Title …). Replacing the row dropped every one of them on the first transition.
+                if (idx >= 0 && arr[idx] is JObject prior)
+                {
+                    foreach (var prop in row.Properties()) prior[prop.Name] = prop.Value;
+                }
+                else if (idx >= 0) arr[idx] = row;
+                else arr.Add(row);
 
                 string tmp = path + ".tmp";
                 File.WriteAllText(tmp, arr.ToString(Formatting.Indented));
