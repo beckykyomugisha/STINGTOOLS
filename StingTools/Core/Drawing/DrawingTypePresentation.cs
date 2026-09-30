@@ -266,6 +266,9 @@ namespace StingTools.Core.Drawing
             public bool PackApplied        { get; set; }
             public bool CropApplied        { get; set; }
             public bool TokenProfileApplied { get; set; }   // Phase 135 — Step 7.5
+            /// <summary>Title-block cells actually changed by <see cref="ApplyToSheet"/>
+            /// (DTW-4) — lets a heal pass report sheets it really re-synced.</summary>
+            public int TitleBlockParamsWritten { get; set; }
             public AnnotationRunStats Annotation { get; set; }
 
             // Phase 137 — managed-template routing
@@ -328,6 +331,7 @@ namespace StingTools.Core.Drawing
             {
                 var effectiveTokens = tokens ?? DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
                 var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, effectiveTokens);
+                r.TitleBlockParamsWritten = tbResult.ParamsWritten;
                 r.Warnings.AddRange(tbResult.Warnings);
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyToSheet TitleBlockParams: {ex.Message}"); }

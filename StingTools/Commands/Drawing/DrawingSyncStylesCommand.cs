@@ -96,21 +96,10 @@ namespace StingTools.Commands.Drawing
                         if (!(doc.GetElement(r.ViewId) is View v)) continue;
                         var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
                         if (dt == null) continue;
-                        // Phase 137 — explicit annotation skips so SyncStyles
-                        // re-applies VG/template/managed-template state without
-                        // running auto-tag / auto-dim / decorative / spot passes.
-                        var applied = DrawingTypePresentation.Apply(doc, v, dt, new DrawingTypePresentation.ApplyOptions
-                        {
-                            AnnotationOptions = new AnnotationRunOptions
-                            {
-                                SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                            },
-                            SkipSymbolDriftCheck = true // heal pass — drift is handled separately
-                        });
+                        var applied = Resync(doc, v, dt, out bool changed);
                         if (applied.Warnings.Count > 0)
                             warnings.AddRange(applied.Warnings.Select(w => $"[{v.Name}] {w}"));
-                        if (applied.ScaleApplied || applied.DetailLevelApplied || applied.TemplateApplied || applied.PackApplied)
-                            resynced++;
+                        if (changed) resynced++;
                     }
                     tx.Commit();
                 }
@@ -138,6 +127,39 @@ namespace StingTools.Commands.Drawing
                 msg = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// Re-apply one stamped view's profile. DTW-4: a sheet has no scale,
+        /// template or pack — its drift (TITLE_BLOCK_PARAM, title-block spec) is
+        /// healed by <see cref="DrawingTypePresentation.ApplyToSheet"/>. Running the
+        /// view pipeline on it no-oped, so sheet drift was reported and never
+        /// healed. <paramref name="changed"/> is true when something was written.
+        /// </summary>
+        internal static DrawingTypePresentation.ApplyResult Resync(
+            Document doc, View v, DrawingType dt, out bool changed)
+        {
+            if (v is ViewSheet sheet)
+            {
+                var sr = DrawingTypePresentation.ApplyToSheet(doc, sheet, dt);
+                changed = sr.TitleBlockParamsWritten > 0;
+                return sr;
+            }
+            // Phase 137 — explicit annotation skips so SyncStyles
+            // re-applies VG/template/managed-template state without
+            // running auto-tag / auto-dim / decorative / spot passes.
+            var applied = DrawingTypePresentation.Apply(doc, v, dt, new DrawingTypePresentation.ApplyOptions
+            {
+                AnnotationOptions = new AnnotationRunOptions
+                {
+                    SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
+                },
+                SkipSymbolDriftCheck = true // heal pass — drift is handled separately
+            });
+            changed = applied.ScaleApplied || applied.DetailLevelApplied
+                      || applied.TemplateApplied || applied.PackApplied
+                      || applied.TokenProfileApplied;
+            return applied;
         }
 
         private static string BuildPreview(System.Collections.Generic.List<DriftReport> reports)
@@ -206,18 +228,8 @@ namespace StingTools.Commands.Drawing
                         if (!(doc.GetElement(r.ViewId) is View v)) continue;
                         var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
                         if (dt == null) continue;
-                        var applied = DrawingTypePresentation.Apply(doc, v, dt, new DrawingTypePresentation.ApplyOptions
-                        {
-                            AnnotationOptions = new AnnotationRunOptions
-                            {
-                                SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
-                            },
-                            SkipSymbolDriftCheck = true // heal pass — drift is handled separately
-                        });
-                        if (applied.ScaleApplied || applied.DetailLevelApplied
-                            || applied.TemplateApplied || applied.PackApplied
-                            || applied.TokenProfileApplied)
-                            resynced++;
+                        DrawingSyncStylesCommand.Resync(doc, v, dt, out bool changed);
+                        if (changed) resynced++;
                     }
                     tx.Commit();
                 }
