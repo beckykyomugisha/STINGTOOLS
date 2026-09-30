@@ -171,6 +171,9 @@ namespace StingTools.V6
             "escalateDueDays", "escalateAssignedTo", "escalateAssignedToType", "escalateExcludeStatuses",
             // ACC-HARD-5: how an escalated clash issue lets its assignee FIND the objects.
             "issueDeepLinks", "issueViewerLinks", "issueBcfAttachment",
+            // Revision workflow: what Supersede / Replace does to the deliverable's ACC
+            // document ("ask" | "always" | "never"). Read by AccRetireDeliverable.
+            "retireSupersededInAcc",
         };
 
         public AccPolicySource Source { get; private set; } = AccPolicySource.Absent;

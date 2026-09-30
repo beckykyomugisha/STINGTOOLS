@@ -79,20 +79,47 @@ namespace Planscape.Docs.Templates
         }
 
         /// <summary>
-        /// Promotes a preliminary revision into the contractual series (P01 → C01 by
-        /// default). Idempotent for revisions already outside the preliminary series.
+        /// Promotes a preliminary revision into the contractual series. The contractual
+        /// series has its OWN count: the first authorisation is always
+        /// <see cref="FirstContractual"/> (C01), whatever preliminary number preceded it —
+        /// the UK NA starts contractual revisions at C01, and so does Revit's "STING
+        /// C-series" numbering sequence. This used to carry the number across (P03 → C03),
+        /// so deliverables.json said C03 while the drawing printed C01.
+        ///
+        /// <paramref name="previousRevisions"/> (e.g. the deliverable's revision history)
+        /// makes a later promotion take the NEXT contractual number: a document authorised
+        /// at C01, sent back to P for rework and authorised again becomes C02, never a
+        /// second C01. Idempotent for revisions already outside the preliminary series.
         /// </summary>
-        public string PromoteToContractual(string rev)
+        public string PromoteToContractual(string rev, IEnumerable<string> previousRevisions = null)
         {
-            if (string.IsNullOrWhiteSpace(rev)) return FirstContractual;
-            rev = rev.Trim();
-            if (!rev.StartsWith(PreliminaryPrefix, StringComparison.OrdinalIgnoreCase)) return rev;
-            // No separate contractual series declared ⇒ nothing to promote into.
-            if (SingleStage) return rev;
-            // A bare prefix carries no number: contractual prefix + "" would stamp the
-            // deliverable with a malformed revision that no later Bump can parse.
-            string suffix = rev.Substring(PreliminaryPrefix.Length);
-            return suffix.Length == 0 ? FirstContractual : ContractualPrefix + suffix;
+            if (!string.IsNullOrWhiteSpace(rev))
+            {
+                rev = rev.Trim();
+                if (!rev.StartsWith(PreliminaryPrefix, StringComparison.OrdinalIgnoreCase)) return rev;
+                // No separate contractual series declared ⇒ nothing to promote into.
+                if (SingleStage) return rev;
+            }
+            string highest = HighestInSeries(previousRevisions, ContractualPrefix);
+            return highest == null ? FirstContractual : Bump(highest);
+        }
+
+        /// <summary>The highest-numbered code carrying <paramref name="prefix"/> (exactly —
+        /// "C" does not match "Co" or "CR"), or null when there is none.</summary>
+        public static string HighestInSeries(IEnumerable<string> codes, string prefix)
+        {
+            if (codes == null || string.IsNullOrEmpty(prefix)) return null;
+            string best = null; int bestN = -1;
+            foreach (string raw in codes)
+            {
+                if (string.IsNullOrWhiteSpace(raw)) continue;
+                string c = raw.Trim();
+                string p = new string(c.TakeWhile(char.IsLetter).ToArray());
+                if (!string.Equals(p, prefix, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!int.TryParse(c.Substring(p.Length), out int n)) continue;
+                if (n > bestN) { bestN = n; best = c; }
+            }
+            return best;
         }
 
         /// <summary>

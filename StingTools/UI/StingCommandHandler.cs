@@ -2997,6 +2997,8 @@ namespace StingTools.UI
                     case "TrackElementRevisions": RunCommand<BIMManager.TrackElementRevisionsCommand>(app); break;
                     case "RevisionCompare": RunCommand<BIMManager.RevisionCompareCommand>(app); break;
                     case "IssueSheetsForRevision": RunCommand<BIMManager.IssueSheetsForRevisionCommand>(app); break;
+                    case "Revision_LeakCheck":     RunCommand<BIMManager.RevisionLeakCheckCommand>(app); break;
+                    case "Revision_SetPerSheetNumbering": RunCommand<BIMManager.RevisionSetPerSheetNumberingCommand>(app); break;
                     case "RevisionNamingEnforce": RunCommand<BIMManager.RevisionNamingEnforceCommand>(app); break;
                     case "RevisionTagIntegration": RunCommand<BIMManager.RevisionTagIntegrationCommand>(app); break;
                     case "RevisionExport": RunCommand<BIMManager.RevisionExportCommand>(app); break;

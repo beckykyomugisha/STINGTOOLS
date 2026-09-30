@@ -917,7 +917,8 @@ namespace StingTools.Docs
                         string sheetRev = null;
                         try
                         {
-                            sheetRev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString();
+                            // Issued revision only, numbered on this sheet — never a draft.
+                            sheetRev = Core.Drawing.SheetRevisionReader.IssuedNumber(doc, sheet);
                         }
                         catch (Exception ex)
                         {

@@ -277,7 +277,8 @@ namespace StingTools.Core
             "BCFExport", "BCFImport", "RevisionCompare", "TrackElementRevisions",
             "IssueSheetsForRevision", "RevisionNamingEnforce", "BulkRevisionStamp", "RevisionSync",
             "RevisionApprovalWorkflow", "RevisionDistribution", "Revision_CloudAudit", "Revision_Purge",
-            "Revision_Delete",
+            "Revision_Delete", "Revision_LeakCheck", "Revision_SetPerSheetNumbering",
+            "ExportCenterRunSchedules", "Midp_DriftReport",
             "PlatformSync", "CDEPackage", "CDEStatus", "ValidateDocNaming", "CreateTransmittal",
             "ExportToExcel", "ImportFromExcel", "ExcelRoundTrip", "IFCExport",
             "ACCPublish", "SharePointExport", "WorkflowPreset", "CreateWorkflowPreset",
@@ -380,6 +381,16 @@ namespace StingTools.Core
         // A workflow run from inside another (a step that is itself a workflow, or the
         // project setup wizard) must not stop the outer run with its own report dialog.
         [ThreadStatic] private static int _presetDepth;
+        [ThreadStatic] private static int _unattendedDepth;
+
+        /// <summary>True while an UNATTENDED preset is executing on this thread: nobody is
+        /// there to answer a dialog, so a command that would ask must decide (usually: refuse
+        /// and return Failed with the reason in its message) instead of blocking the run.</summary>
+        public static bool IsUnattended => _unattendedDepth > 0;
+
+        /// <summary>True while any preset is executing on this thread (attended or not): a
+        /// gate command returns Failed so the run records the step as failed.</summary>
+        public static bool IsRunningPreset => _presetDepth > 0;
 
         /// <summary>
         /// Execute a workflow preset with progress reporting and cancellation, and show
@@ -403,11 +414,16 @@ namespace StingTools.Core
         {
             bool attended = showReport && _presetDepth == 0;
             _presetDepth++;
+            // Only a TOP-LEVEL run without a report is unattended; a preset nested under an
+            // attended run still has a person present, and one nested under an unattended
+            // run is already counted.
+            bool noOneThere = !showReport && _presetDepth == 1;
+            if (noOneThere) _unattendedDepth++;
             // Unattended: nobody is there to answer a cloud project-root prompt (ACC-HARD-3),
             // so a cloud model without one refuses rather than blocks on a dialog.
             IDisposable noPrompt = attended ? null : CloudProjectRootResolver.SuppressPrompts();
             try { return ExecutePresetCore(preset, commandData, elements, attended, out outcome); }
-            finally { _presetDepth--; noPrompt?.Dispose(); }
+            finally { _presetDepth--; if (noOneThere) _unattendedDepth--; noPrompt?.Dispose(); }
         }
 
         private static Result ExecutePresetCore(WorkflowPreset preset,
@@ -2054,6 +2070,10 @@ namespace StingTools.Core
                 case "TrackElementRevisions":   return new BIMManager.TrackElementRevisionsCommand();
                 case "IssueSheetsForRevision":  return new BIMManager.IssueSheetsForRevisionCommand();
                 case "RevisionSync":            return new Docs.RevisionSyncCommand();
+                case "Revision_LeakCheck":      return new BIMManager.RevisionLeakCheckCommand();
+                case "Revision_SetPerSheetNumbering": return new BIMManager.RevisionSetPerSheetNumberingCommand();
+                case "ExportCenterRunSchedules": return new Docs.ExportCenterRunSchedulesCommand();
+                case "Midp_DriftReport":        return new Commands.Delivery.MidpDriftReportCommand();
                 case "RevisionApprovalWorkflow": return new BIMManager.RevisionApprovalWorkflowCommand();
                 case "RevisionDistribution":    return new BIMManager.RevisionDistributionCommand();
                 case "Revision_CloudAudit":     return new BIMManager.RevisionCloudAuditCommand();

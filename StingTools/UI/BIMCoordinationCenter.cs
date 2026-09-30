@@ -861,6 +861,16 @@ namespace StingTools.UI
             public bool RequiresSignature { get; set; }
             public string SignatureStatus { get; set; } = "None";
             public string SignedFilePath { get; set; }
+
+            // ── Revision workflow: link to the Revit issue ──
+            /// <summary>Sheets this deliverable stands for. When set, its revision comes
+            /// from the Revit issue of those sheets (DeliverableRevisionRule), not from the
+            /// row's own counter.</summary>
+            public List<string> SheetNumbers { get; set; } = new List<string>();
+            /// <summary>"SHEETS" (derived from the Revit issue) or "OWN" (own counter).</summary>
+            public string RevisionSource { get; set; }
+            /// <summary>Actual issue date (yyyy-MM-dd) — the MIDP's planned-vs-actual input.</summary>
+            public string IssuedDate { get; set; }
         }
 
         // ── Deliverable selection provider ────────────────────────────────

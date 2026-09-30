@@ -158,6 +158,15 @@ namespace StingTools.Core.Clash
                 suitability = Iso19650Suitability.DefaultFor(pick.Split(' ')[0]);
             }
 
+            // ISO 19650 revision/suitability pairing (Iso19650RevisionRules): refuse a file
+            // whose name says P03 being filed as A1, or C01 as S2.
+            var pairing = Iso19650RevisionRules.CheckFileName(file, suitability);
+            if (pairing.IsInconsistent)
+            {
+                refusal = $"{Path.GetFileName(file)} was NOT uploaded: {pairing.Reason}.";
+                return null;
+            }
+
             var options = new AccUploadOptions
             {
                 Suitability = suitability ?? string.Empty,

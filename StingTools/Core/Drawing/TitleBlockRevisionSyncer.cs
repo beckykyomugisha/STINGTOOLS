@@ -5,8 +5,9 @@
 // (tag DrawingTypes_SyncRevisions) dock buttons route here, as does
 // Phase C of Produce & Export and IssueSheetsForRevisionCommand.
 //
-// For every non-placeholder sheet it reads the newest Revision by
-// SequenceNumber and writes:
+// For every non-placeholder sheet it reads the sheet's current revision —
+// the latest ISSUED revision on it, numbered per sheet (SheetRevisionResolver;
+// drafts never reach the drawing) — and writes:
 //   - on the ViewSheet:            SHT_REV_TXT, SHT_REV_DATE_TXT
 //                                  (+ PRJ_DWG_SUITABILITY_COD_TXT when the
 //                                   revision carries a valid ISO 19650 SUIT)
@@ -19,9 +20,10 @@
 // mirror comes from Revision.IssuedTo — the native field STING repurposes
 // as the SUIT column of the revision schedule (see RevisionManagement).
 //
-// The value written is Revision.RevisionNumber (e.g. "P01"), NEVER the
-// internal SequenceNumber (1, 2, 3...). A "R{SequenceNumber}" fallback
-// applies only when RevisionNumber is empty or unreadable.
+// The value written is the number the revision prints ON THIS SHEET
+// (ViewSheet.GetRevisionNumberOnSheet, e.g. "P01"), NEVER the internal
+// SequenceNumber. A "R{SequenceNumber}" fallback applies only when Revit
+// cannot say (SheetRevisionReader.NumberOnSheet).
 //
 // Key design choices:
 //   - SyncAll runs inside a single Transaction; per-sheet failures are
@@ -195,30 +197,19 @@ namespace StingTools.Core.Drawing
         // Core implementation — must be called inside an active transaction.
         private static void SyncSheet(Document doc, ViewSheet sheet, RevisionSyncResult result)
         {
-            // Collect all revision ids issued to this sheet.
-            IList<ElementId> revIds;
-            try { revIds = sheet.GetAllRevisionIds(); }
-            catch { revIds = null; }
-
+            // The sheet's current revision is the latest ISSUED revision on it, numbered
+            // as it prints ON THIS SHEET (SheetRevisionResolver). It used to be the newest
+            // revision of any kind, so the first cloud of the auto-opened draft flipped the
+            // title block to a revision nobody had issued, and the project-level number
+            // made a sheet first issued in cycle 5 print P05 on its first issue.
             string revNr = "", revDate = "", revDesc = "", revSuit = "";
-
-            if (revIds != null && revIds.Count > 0)
+            var state = SheetRevisionReader.Read(doc, sheet);
+            if (state.Issued != null)
             {
-                // Sort newest-first: Revit assigns SequenceNumber in creation
-                // order; higher SequenceNumber == more recent.
-                var latest = revIds
-                    .Select(id => doc.GetElement(id))
-                    .OfType<Revision>()
-                    .OrderByDescending(r => r.SequenceNumber)
-                    .FirstOrDefault();
-
-                if (latest != null)
-                {
-                    revNr   = ResolveRevisionNumber(latest);
-                    revDate = latest.RevisionDate ?? "";
-                    revDesc = latest.Description  ?? "";
-                    try { revSuit = latest.IssuedTo ?? ""; } catch { revSuit = ""; }
-                }
+                revNr   = state.Issued.NumberOnSheet ?? "";
+                revDate = state.Issued.Date ?? "";
+                revDesc = state.Issued.Description ?? "";
+                revSuit = state.Issued.IssuedTo ?? "";
             }
 
             // Only mirror the suitability when the repurposed IssuedTo field holds
@@ -289,24 +280,6 @@ namespace StingTools.Core.Drawing
             }
 
             result.SheetsProcessed++;
-        }
-
-        // The user-facing revision number ("P01", "C02", ...) — never the
-        // internal SequenceNumber. Falls back to "R{SequenceNumber}" only when
-        // RevisionNumber is empty or unreadable.
-        private static string ResolveRevisionNumber(Revision rev)
-        {
-            try
-            {
-                string n = rev.RevisionNumber;
-                if (!string.IsNullOrWhiteSpace(n)) return n;
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"TitleBlockRevisionSyncer: RevisionNumber unreadable — {ex.Message}");
-            }
-            try { return "R" + rev.SequenceNumber.ToString(System.Globalization.CultureInfo.InvariantCulture); }
-            catch { return ""; }
         }
 
         // Writes value to a String parameter if it exists, is writable,

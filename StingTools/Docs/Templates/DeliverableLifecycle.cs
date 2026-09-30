@@ -65,7 +65,9 @@ namespace Planscape.Docs.Templates
                 if (!Persist(doc, existing))
                     return new LifecycleResult { Ok = false, Message = "Supersede not saved — see StingTools.log." };
                 MirrorToServer(doc, existing, "superseded", reason);
-                return new LifecycleResult { Updated = existing, TemplateId = "A03", Message = $"Superseded by {newDocNumber}" };
+                string acc = RetireInAcc(doc, existing);
+                return new LifecycleResult { Updated = existing, TemplateId = "A03",
+                    Message = $"Superseded by {newDocNumber}" + (acc == null ? "" : "\n" + acc) };
             }
             catch (Exception ex)
             {
@@ -104,12 +106,30 @@ namespace Planscape.Docs.Templates
                         $"replacement: {(okB ? "ok" : "FAILED")}). See StingTools.log." };
                 MirrorToServer(doc, existing, "replaced", reason);
                 MirrorToServer(doc, newReplacing, "replacing", reason);
-                return new LifecycleResult { Updated = newReplacing, TemplateId = "A04", Message = $"Replaces {existing.DocNumber}" };
+                string acc = RetireInAcc(doc, existing);
+                return new LifecycleResult { Updated = newReplacing, TemplateId = "A04",
+                    Message = $"Replaces {existing.DocNumber}" + (acc == null ? "" : "\n" + acc) };
             }
             catch (Exception ex)
             {
                 StingLog.Error("Replace failed", ex);
                 return new LifecycleResult { Ok = false, Message = ex.Message };
+            }
+        }
+
+        /// <summary>A superseded / replaced deliverable must leave circulation in the CDE too,
+        /// not only in deliverables.json. Returns the ACC line for the message, or null.</summary>
+        private static string RetireInAcc(Document doc, dynamic existing)
+        {
+            try
+            {
+                string key = DeliverableKey(existing);
+                return StingTools.Core.Clash.AccRetireDeliverable.AfterRetire(doc, key, "AB");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"RetireInAcc: {ex.Message}");
+                return "ACC: retirement not attempted — " + ex.Message;
             }
         }
 
@@ -142,7 +162,17 @@ namespace Planscape.Docs.Templates
                 // Revision prefixes come from the project manifest (default P→C), so an
                 // appointment mandating another convention is configuration, not a code change.
                 var revScheme = SchemeFor(m);
-                if (bumpRevision)
+                // A deliverable linked to sheets takes its revision from the Revit issue of
+                // those sheets; only an unlinked one (or one whose sheets are not issued yet)
+                // runs its own counter. RevisionSource says which, so nobody reads an own-counter
+                // value as the drawing's revision.
+                DeliverableRevisionDecision fromSheets = DeriveFromSheets(doc, d);
+                if (fromSheets.FromSheets)
+                {
+                    d.Revision = fromSheets.Revision;
+                    StingLog.Info($"Deliverable {DeliverableKey(d)}: revision {fromSheets.Revision} {fromSheets.Note}");
+                }
+                else if (bumpRevision)
                 {
                     string before = (string)d.Revision ?? revScheme.FirstPreliminary;
                     string after  = revScheme.Bump(before);
@@ -155,8 +185,17 @@ namespace Planscape.Docs.Templates
                 }
                 // ISO 19650: promote the preliminary revision series to the contractual
                 // series once the deliverable is authorised for publication.
-                if (string.Equals(newCde, "PUBLISHED", StringComparison.OrdinalIgnoreCase))
-                    d.Revision = revScheme.PromoteToContractual((string)d.Revision);
+                if (!fromSheets.FromSheets && string.Equals(newCde, "PUBLISHED", StringComparison.OrdinalIgnoreCase))
+                    d.Revision = revScheme.PromoteToContractual((string)d.Revision, HistoryRevisions(d));
+                try { d.RevisionSource = fromSheets.Source; }
+                catch (Exception ex) { StingLog.Warn($"RevisionSource not recorded: {ex.Message}"); }
+                if (!fromSheets.FromSheets && !string.IsNullOrEmpty(fromSheets.Note))
+                    StingLog.Info($"Deliverable {DeliverableKey(d)}: {fromSheets.Note}");
+                if (action == "issued" || action == "reissued" || action.StartsWith("published", StringComparison.Ordinal))
+                {
+                    try { d.IssuedDate = DateTime.Now.ToString("yyyy-MM-dd"); }
+                    catch (Exception ex) { StingLog.Warn($"IssuedDate not recorded: {ex.Message}"); }
+                }
                 d.IssuedBy = user;
 
                 AppendRevHistory(d, reason, user, templateId);
@@ -369,6 +408,52 @@ namespace Planscape.Docs.Templates
         private static RevisionScheme SchemeFor(TemplateManifest m)
             => RevisionScheme.Parse(m?.Project?.RevisionScheme);
 
+        /// <summary>The revisions a deliverable has carried, from its history — so a second
+        /// promotion takes the next contractual number rather than repeating C01.</summary>
+        private static List<string> HistoryRevisions(dynamic d)
+        {
+            var list = new List<string>();
+            try
+            {
+                if (d.RevisionHistory is System.Collections.IEnumerable hist)
+                    foreach (dynamic h in hist)
+                    {
+                        string r;
+                        try { r = (string)h.Revision; } catch { r = null; }
+                        if (!string.IsNullOrWhiteSpace(r)) list.Add(r);
+                    }
+            }
+            catch (Exception ex) { StingLog.Warn($"HistoryRevisions: {ex.Message}"); }
+            return list;
+        }
+
+        /// <summary>The Revit side of <see cref="DeliverableRevisionRule"/>: read the issued
+        /// revision (as each sheet prints it) of the sheets the deliverable is linked to.</summary>
+        private static DeliverableRevisionDecision DeriveFromSheets(Document doc, dynamic d)
+        {
+            string own;
+            List<string> linked = null;
+            try { own = (string)d.Revision; } catch { own = null; }
+            try
+            {
+                if (d.SheetNumbers is IEnumerable<string> sn) linked = sn.ToList();
+            }
+            catch { linked = null; }   // a row type without SheetNumbers is simply unlinked
+            if (linked == null || linked.Count == 0 || doc == null)
+                return DeliverableRevisionRule.Derive(own, linked, null);
+
+            var want = new HashSet<string>(linked, StringComparer.OrdinalIgnoreCase);
+            var issued = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
+                    if (want.Contains(sheet.SheetNumber ?? ""))
+                        issued[sheet.SheetNumber] = StingTools.Core.Drawing.SheetRevisionReader.IssuedNumber(doc, sheet);
+            }
+            catch (Exception ex) { StingLog.Warn($"DeriveFromSheets: {ex.Message}"); }
+            return DeliverableRevisionRule.Derive(own, linked, issued);
+        }
+
         private static void AppendRevHistory(dynamic d, string reason, string user, string templateId)
         {
             try
@@ -490,7 +575,7 @@ namespace Planscape.Docs.Templates
             catch (Exception ex) { StingLog.Error("DeliverableLifecycle.Persist failed", ex); return false; }
         }
 
-        private static string DeliverablesPath(Document doc)
+        internal static string DeliverablesPath(Document doc)
         {
             string root = ResolveProjectRoot(doc);
             string dir  = StingPaths.Meta(doc, "_BIM_COORD");

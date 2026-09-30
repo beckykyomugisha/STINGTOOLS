@@ -2,6 +2,54 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (Revision workflow core: issued-only, per-sheet, ISO pairing, issue completion, 2026-10-01)
+
+- **One resolver for a sheet's revision** (`Core/Drawing/SheetRevisionResolver` Revit-free +
+  `SheetRevisionReader` adapter): the latest ISSUED revision on the sheet, numbered as the
+  sheet prints it (`GetRevisionNumberOnSheet`). The title-block syncer, the Export Centre file
+  names, the sheet QR and Title Block Populate's CDE REF all use it. Before, all four took the
+  newest revision of any kind, so the first cloud of the auto-opened draft P04 put P04 on the
+  drawing and in file names before it was issued.
+- **Per-sheet numbering** (`RevisionNumberingSetup`, command `Revision_SetPerSheetNumbering`):
+  a sheet first issued in cycle 5 now prints P01. `CreateRevision` switches the mode only when
+  no issued revision would change number; otherwise the command lists every issued revision
+  that would renumber and asks. Unattended runs never renumber issued drawings.
+- **`Revision_LeakCheck`** (ReadOnly): lists sheets whose `SHT_REV_TXT` or title-block
+  `PRJ_TB_REVISION_NR_TXT` differs from the issued revision (a leak; fails inside a workflow).
+  It also reports drafts above the issued revision, for information. The CSV goes to Compliance.
+- **ISO 19650 revision/suitability pairing** (`Core/Drawing/Iso19650RevisionRules.Check`):
+  P needs S0–S7, C needs A/B/CR, and AB/AR may retire any revision. `CreateRevision` and
+  `IssueSheetsForRevision` refuse an inconsistent pair with the reason (Failed when
+  unattended), and the ACC upload refuses a file whose name carries a P/C code that contradicts
+  its suitability. `Iso19650Vocabulary.RevisionPrefixes` now derives from `RevisionSeries`;
+  the two lists had disagreed on "A".
+- **Contractual numbering**: `RevisionScheme.PromoteToContractual` now starts at C01, then
+  the next C from history. It used to map P03 to C03 while Revit's C-series printed C01.
+  Deliverables linked to sheets (new `SheetNumbers`) take their revision from the Revit issue
+  (`DeliverableRevisionRule`). Unlinked deliverables keep their own counter, and
+  `RevisionSource` = SHEETS | OWN records which applies.
+- **One issue-completion hook** (`BIMManager/RevisionIssueCompletion`). After
+  `IssueSheetsForRevision`, linked deliverables get the issued revision, suitability, CDE
+  state, `IssuedDate` and a history row. Each issued sheet's register row is created or
+  updated, keyed as the Export Centre keys its PDF. Matching issues are PROPOSED as RESPONDED
+  with a note. IG-02's silent auto-CLOSE is gone.
+- **Supersede / Replace reach ACC** (`V6/AccDocsLifecycle` + `Clash/AccRetireDeliverable`).
+  ACC has no move endpoint, so the document is copied with `copyFrom` into
+  `cdeFolders.ARCHIVE`. The copy and the original are both stamped with AB and ARCHIVE; the
+  original is never deleted. Every step is reported, and a partial result is labelled
+  INCOMPLETE. Setting `retireSupersededInAcc` = ask|always|never. Retirement only runs when
+  the register row carries `acc_version_urn`; transmittal bundles are deliberately not
+  retired.
+- **`WORKFLOW_KUT_FortnightlyIssue.json`**: leak check → issue → sync → sheet compliance →
+  scheduled exports → ACC Publish/upload (failOnError) → MIDP drift (optional; asks for its
+  CSV). `IssueSheetsForRevision` is unattended-safe: no dialogs, and it never issues a
+  revision that has no clouded sheet. New `WorkflowEngine.IsUnattended` / `IsRunningPreset`.
+- Plugin build 0/0; Tags.Tests 4257/4257 (58 revision tests); Acc.Tests 335/335 (12 new
+  loopback); Mep.Tests 87/87; wiring, KUT-tag, path and export-routing gates pass.
+  **Not exercised in Revit or against a live ACC tenant.** Still to verify there: the per-sheet
+  switch and renumber preview, `GetRevisionNumberOnSheet` under both modes, and the 201 shape of
+  `copyFrom` on ACC.
+
 #### Completed (ACC workarounds where Autodesk has no API: transmittals, model sets, project folder check, 2026-09-30)
 
 - **ACC transmittals (API is read-only).** STING cannot create an ACC transmittal, so after

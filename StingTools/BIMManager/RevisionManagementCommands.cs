@@ -660,6 +660,30 @@ namespace StingTools.BIMManager
                     catch (Exception suEx) { StingLog.Warn($"CreateRevision suitability lookup: {suEx.Message}"); }
                 }
 
+                // ISO 19650 pairing: P revisions go with S0-S7, C revisions with A/B/CR.
+                // A revision minted inconsistent carries the contradiction onto every
+                // drawing it is issued to, so refuse it here, with the reason.
+                var pairing = Core.Drawing.Iso19650RevisionRules.Check(isoCode, suitability);
+                if (pairing.IsInconsistent)
+                {
+                    string why = $"Revision {isoCode} with suitability {suitability} was NOT created: {pairing.Reason}.";
+                    StingLog.Warn("CreateRevision: " + why);
+                    message = why;
+                    if (WorkflowEngine.IsUnattended) return Result.Failed;
+                    TaskDialog.Show("StingTools Revision", why);
+                    return Result.Cancelled;
+                }
+
+                // Per-sheet numbering (ISO 19650: each drawing's first issue is P01). Switched
+                // here only when it renumbers nothing already issued; otherwise the log points
+                // at Revision_SetPerSheetNumbering, which asks.
+                try
+                {
+                    var numbering = Core.Drawing.RevisionNumberingSetup.EnsurePerSheet(doc, null);
+                    if (numbering.NeedsConsent) StingLog.Warn("CreateRevision: " + numbering.Message);
+                }
+                catch (Exception nEx) { StingLog.Warn($"CreateRevision per-sheet numbering: {nEx.Message}"); }
+
                 // Phase 101: the stepped TaskDialog picker that used to live here
                 // has been removed — the BCC Revisions tab is now the only entry
                 // point for creating revisions, and it passes ISO code +
@@ -1510,9 +1534,11 @@ namespace StingTools.BIMManager
                     .OrderByDescending(r => r.SequenceNumber)
                     .ToList();
 
+                bool unattended = WorkflowEngine.IsUnattended;
                 if (revisions.Count == 0)
                 {
-                    TaskDialog.Show("StingTools Issue Sheets", "No un-issued revisions found.");
+                    StingLog.Info("IssueSheets: no un-issued revision — nothing to issue.");
+                    if (!unattended) TaskDialog.Show("StingTools Issue Sheets", "No un-issued revisions found.");
                     return Result.Succeeded;
                 }
 
@@ -1585,6 +1611,33 @@ namespace StingTools.BIMManager
                 foreach (var sheet in sheets)
                     if (pickedNumbers.Contains(sheet.SheetNumber ?? ""))
                         targetSheetIds.Add(sheet.Id);
+
+                // Unattended, an issue with no sheet (no clouds, no picked sheets) would lock
+                // the revision against nothing. Leave it open and say so.
+                if (unattended && targetSheetIds.Count == 0)
+                {
+                    StingLog.Info($"IssueSheets (unattended): revision {revNum} has no clouded sheet — not issued.");
+                    return Result.Succeeded;
+                }
+
+                // ISO 19650 pairing of the revision and the suitability it is issued at.
+                string effectiveSuit = issueSuitability;
+                if (string.IsNullOrWhiteSpace(effectiveSuit))
+                {
+                    try { effectiveSuit = targetRev.IssuedTo ?? ""; }
+                    catch (Exception itEx) { StingLog.Warn($"IssueSheets IssuedTo read: {itEx.Message}"); effectiveSuit = ""; }
+                }
+                var pairing = Core.Drawing.Iso19650RevisionRules.Check(revNum, effectiveSuit);
+                if (pairing.IsInconsistent)
+                {
+                    string why = $"Revision {revNum} was NOT issued: {pairing.Reason}. " +
+                                 "Correct the suitability (or the revision series) and issue again.";
+                    StingLog.Warn("IssueSheets: " + why);
+                    message = why;
+                    if (unattended) return Result.Failed;
+                    TaskDialog.Show("StingTools Issue Sheets", why);
+                    return Result.Cancelled;
+                }
 
                 int sheetsIssued = 0;
                 using (var tx = new Transaction(doc, "STING Issue Sheets for Revision"))
@@ -1715,56 +1768,22 @@ namespace StingTools.BIMManager
                     }
                 }
 
+                // One issue-completion hook: linked deliverables, the document register and
+                // matching issues learn about the issue now, not at the next export.
+                string completionLine = CompleteIssue(doc, targetRev, revNum, effectiveSuit, targetSheetIds);
+
                 BIMCoordinationCenterCommand.RefreshBccIfOpen(doc);
 
-                TaskDialog.Show("StingTools Issue Sheets",
+                string report =
                     $"Revision {revNum} issued.\n\n" +
                     $"Sheets picked in BCC form: {pickedNumbers.Count}\n" +
                     $"Sheets with revision clouds: {sheetsWithClouds.Count}\n" +
                     $"Sheets updated: {sheetsIssued}\n" +
                     $"Revision marked as Issued: Yes\n" +
-                    syncLine + nextRevLine);
+                    syncLine + nextRevLine + "\n\n" + completionLine;
+                if (!unattended) TaskDialog.Show("StingTools Issue Sheets", report);
 
-                StingLog.Info($"Revision {revNum} issued to {sheetsIssued} sheets");
-
-                // IG-02: Auto-resolve matching issues when revision is issued
-                int issuesResolved = 0;
-                try
-                {
-                    string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
-                    var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
-                    if (issues.Count > 0)
-                    {
-                        foreach (var issue in issues)
-                        {
-                            string status = issue["status"]?.ToString() ?? "";
-                            if (status == "CLOSED" || status == "VOID" || status == "ACCEPTED") continue;
-
-                            // Match issues whose target_revision or revision matches the issued revision
-                            string issueRev = issue["target_revision"]?.ToString()
-                                ?? issue["revision"]?.ToString() ?? "";
-                            if (!string.IsNullOrEmpty(issueRev) &&
-                                string.Equals(issueRev, revNum, StringComparison.OrdinalIgnoreCase))
-                            {
-                                issue["status"] = "CLOSED";
-                                issue["date_closed"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm");
-                                issue["response"] = $"Auto-resolved: revision {revNum} issued to {sheetsIssued} sheets";
-                                issue["resolved_in_revision"] = revNum;
-                                issuesResolved++;
-                            }
-                        }
-                        if (issuesResolved > 0)
-                        {
-                            BIMManagerEngine.SaveJsonFile(issuesPath, issues);
-                            StingLog.Info($"IG-02: Auto-resolved {issuesResolved} issues for revision {revNum}");
-                        }
-                    }
-                }
-                catch (Exception issueEx)
-                {
-                    StingLog.Warn($"IG-02: Issue auto-resolve failed: {issueEx.Message}");
-                }
-
+                StingLog.Info($"Revision {revNum} issued to {targetSheetIds.Count} sheet(s) ({sheetsIssued} newly added). {completionLine.Replace("\n", " | ")}");
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -1773,6 +1792,110 @@ namespace StingTools.BIMManager
                 message = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        /// <summary>
+        /// After a successful issue: update linked deliverables (revision from the Revit
+        /// issue, suitability, CDE state, IssuedDate, history), create/update each issued
+        /// sheet's register row, and PROPOSE resolution of issues targeting this revision
+        /// (RESPONDED + note — never CLOSED; the raiser closes). Each store is loaded once
+        /// and saved once; a failure in one is reported and does not stop the others.
+        /// Returns the report lines for the dialog / log.
+        /// </summary>
+        private static string CompleteIssue(Document doc, Revision rev, string revNum, string suitability,
+            IEnumerable<ElementId> sheetIds)
+        {
+            var report = new IssueCompletionReport();
+            var ev = new RevisionIssueEvent
+            {
+                RevisionCode = revNum ?? "",
+                Suitability = suitability ?? "",
+                IssuedDate = DateTime.Now.ToString("yyyy-MM-dd"),
+                User = Environment.UserName,
+            };
+            try
+            {
+                string d = rev?.RevisionDate;
+                if (DateTime.TryParse(d, out var parsed)) ev.IssuedDate = parsed.ToString("yyyy-MM-dd");
+            }
+            catch (Exception ex) { StingLog.Warn($"IssueSheets completion: revision date: {ex.Message}"); }
+
+            foreach (var id in sheetIds ?? Enumerable.Empty<ElementId>())
+            {
+                if (!(doc.GetElement(id) is ViewSheet sheet)) continue;
+                string number = "";
+                try { number = rev != null ? Core.Drawing.SheetRevisionReader.NumberOnSheet(sheet, rev) : revNum; }
+                catch (Exception ex) { StingLog.Warn($"IssueSheets completion: number on {sheet.SheetNumber}: {ex.Message}"); number = revNum; }
+                string docNumber = null;
+                try { Docs.ExportCenterEngine.DecomposeSheetIdentifier(sheet, out docNumber); }
+                catch (Exception ex) { StingLog.Warn($"IssueSheets completion: identifier of {sheet.SheetNumber}: {ex.Message}"); }
+                ev.Sheets.Add(new IssuedSheet
+                {
+                    SheetNumber = sheet.SheetNumber ?? "",
+                    SheetName = sheet.Name ?? "",
+                    DocNumber = docNumber ?? sheet.SheetNumber ?? "",
+                    Revision = number,
+                });
+            }
+
+            var lines = new List<string>();
+            // Deliverables linked to the issued sheets.
+            try
+            {
+                string path = Planscape.Docs.Templates.DeliverableLifecycle.DeliverablesPath(doc);
+                if (File.Exists(path))
+                {
+                    var arr = Newtonsoft.Json.Linq.JArray.Parse(File.ReadAllText(path));
+                    var changed = RevisionIssueCompletion.ApplyToDeliverables(arr, ev, DateTime.UtcNow, report);
+                    if (changed.Count > 0)
+                    {
+                        string tmp = path + ".tmp";
+                        File.WriteAllText(tmp, arr.ToString(Newtonsoft.Json.Formatting.Indented));
+                        File.Copy(tmp, path, true);
+                        File.Delete(tmp);
+                    }
+                }
+                lines.Add($"Deliverables updated from this issue: {report.DeliverablesUpdated.Count}" +
+                          (report.DeliverablesUpdated.Count > 0 ? " (" + string.Join(", ", report.DeliverablesUpdated.Take(10)) + ")" : ""));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IssueSheets completion: deliverables: {ex.Message}");
+                lines.Add("Deliverables: NOT updated — " + ex.Message);
+            }
+
+            // Document register rows, one per issued sheet.
+            try
+            {
+                string regPath = CoordStores.Register(doc);
+                var register = BIMManagerEngine.LoadJsonArray(regPath);
+                RevisionIssueCompletion.ApplyToRegister(register, ev, DateTime.Now, report);
+                if (report.RegisterAdded + report.RegisterUpdated > 0) BIMManagerEngine.SaveJsonFile(regPath, register);
+                lines.Add($"Document register: {report.RegisterAdded} added, {report.RegisterUpdated} updated");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IssueSheets completion: register: {ex.Message}");
+                lines.Add("Document register: NOT updated — " + ex.Message);
+            }
+
+            // Issues targeting this revision: proposed for resolution, never closed.
+            try
+            {
+                string issuesPath = BIMManagerEngine.GetBIMManagerFilePath(doc, "issues.json");
+                var issues = BIMManagerEngine.LoadJsonArray(issuesPath);
+                var proposed = RevisionIssueCompletion.ProposeIssueResolutions(issues, ev, DateTime.Now, report);
+                if (proposed.Count > 0) BIMManagerEngine.SaveJsonFile(issuesPath, issues);
+                lines.Add($"Issues proposed as resolved (RESPONDED — review and close): {proposed.Count}");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"IssueSheets completion: issues: {ex.Message}");
+                lines.Add("Issues: NOT updated — " + ex.Message);
+            }
+
+            foreach (var w in report.Warnings) lines.Add("⚠ " + w);
+            return string.Join("\n", lines);
         }
     }
 

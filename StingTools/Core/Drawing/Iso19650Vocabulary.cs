@@ -207,15 +207,11 @@ namespace StingTools.Core.Drawing
             CdeStates.Concat(TerminalStatuses).ToArray();
 
         // ── Revision codes (UK convention layered on top of ISO 19650) ──
-        public static readonly string[] RevisionPrefixes =
-        {
-            "P",  // Preliminary (pre-construction)
-            "C",  // Construction (post-tender)
-            "T",  // Tender
-            "I",  // Information
-            "R",  // Revision
-            "A",  // As-built
-        };
+        // ONE vocabulary: StingTools.Core.RevisionSeries. This list used to be its own
+        // table and disagreed with it — here "A" meant As-built, there A1/A2 are
+        // Approved and As-built is "AB" — so an editor could offer a prefix the
+        // validator then called non-standard. It is now derived, never listed.
+        public static readonly string[] RevisionPrefixes = StingTools.Core.RevisionSeries.Prefixes;
 
         // ── RIBA Plan of Work 2020 stages ──
         public static readonly string[] RibaStages =

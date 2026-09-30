@@ -630,17 +630,20 @@ namespace StingTools.Docs
         /// The value is also the key "Changed Since Last Export" compares, so the
         /// first run after this change reports every previously exported sheet as
         /// changed once — the safe direction for a re-issue.</summary>
+        /// <remarks>Now the latest ISSUED revision, numbered on the sheet (SheetRevisionResolver —
+        /// the same answer the title block prints). SHEET_CURRENT_REVISION is Revit's
+        /// newest revision of any kind, so the first cloud of an un-issued draft renamed
+        /// every export to a revision nobody had issued.</remarks>
         private static (string rev, string date) GetCurrentRevision(Document doc, ViewSheet sheet)
         {
             string label = null, date = null;
             try
             {
-                label = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString();
-                var curId = sheet.GetCurrentRevision();
-                if (curId != null && curId != ElementId.InvalidElementId && doc.GetElement(curId) is Revision r)
+                var state = Core.Drawing.SheetRevisionReader.Read(doc, sheet);
+                if (state.Issued != null)
                 {
-                    date = r.RevisionDate;
-                    if (string.IsNullOrWhiteSpace(label)) label = r.RevisionNumber;
+                    label = state.Issued.NumberOnSheet;
+                    date = state.Issued.Date;
                 }
             }
             catch (Exception ex) { StingLog.Warn($"Export revision read on '{sheet?.SheetNumber}': {ex.Message}"); }

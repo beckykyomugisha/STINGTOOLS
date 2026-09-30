@@ -747,15 +747,15 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { StingLog.Warn($"SheetQrStamper: reading '{name}': {ex.Message}"); return ""; }
         }
 
-        /// <summary>Current sheet revision, or null. Reads the native
-        /// SHEET_CURRENT_REVISION so the QR agrees with the revision box the
-        /// title block prints — rather than a STING mirror of it that can drift.</summary>
+        /// <summary>Current sheet revision, or null: the latest ISSUED revision numbered
+        /// on the sheet (SheetRevisionResolver) — the value the revision box prints. The
+        /// native SHEET_CURRENT_REVISION includes un-issued drafts, so a QR read from it
+        /// sent a scanner to a revision that had never been issued.</summary>
         private static string ReadRevision(ViewSheet sheet)
         {
             try
             {
-                var p = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION);
-                var v = p?.AsString();
+                var v = SheetRevisionReader.IssuedNumber(sheet.Document, sheet);
                 return string.IsNullOrWhiteSpace(v) ? null : v;
             }
             catch (Exception ex)
