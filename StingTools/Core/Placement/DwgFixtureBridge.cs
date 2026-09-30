@@ -284,6 +284,10 @@ namespace StingTools.Core.Placement
             // ── 4) Place + stamp inside one transaction. ──
             var roomCache = CollectRooms(doc);
             var notHostedByReason = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // D4 rollup
+            // I2 — the same post-placement hooks FixturePlacementEngine runs (seed
+            // followsType stamping always; tag pipeline / COBie / MEP connect when the
+            // session toggles are on). Fresh per-run caches, as the engine does.
+            PostPlacementHooks.BeginRun();
             using (var t = new Transaction(doc, "STING Place DWG Fixtures"))
             {
                 t.Start();
@@ -300,6 +304,7 @@ namespace StingTools.Core.Placement
                         var rule = new PlacementRule
                         {
                             RuleId = $"dwg:{c.SeedId}",
+                            SeedId = c.SeedId ?? "",
                             CategoryFilter = c.Category,
                             VariantHint = c.Variant,
                             AnchorType = string.IsNullOrWhiteSpace(c.Anchor) ? "WALL_MIDPOINT" : c.Anchor,
@@ -332,6 +337,12 @@ namespace StingTools.Core.Placement
                             try { StingProvenanceSchema.Stamp(placed.Placed, EngineName,
                                 $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}|mh:{c.MountingHeightMm:F0}"); }
                             catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.Stamp: {ex.Message}"); }
+
+                            // I2 — post-placement hooks, inside this transaction and after the
+                            // provenance stamp, in the order the engine runs them. Without this a
+                            // DWG-placed medical-gas outlet never received MGS_GAS_TYPE_TXT.
+                            try { PostPlacementHooks.RunFor(placed.Placed, rule); }
+                            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge post-placement hook {placed.Placed.Id}: {ex.Message}"); }
                         }
                         else
                         {

@@ -103,6 +103,23 @@ namespace StingTools.Core.Drawing
         public static AnnotationRunStats Apply(
             Document doc, View view, DrawingType drawingType, AnnotationRunOptions options = null)
         {
+            // The loaded-symbol index lives for a production batch (DrawingProducer
+            // opens one); a stand-alone call gets its own, dropped when it returns.
+            bool ownsIndex = !_symbolBatchActive;
+            try
+            {
+                RevalidateSymbolIndex(doc);
+                return ApplyCore(doc, view, drawingType, options);
+            }
+            finally
+            {
+                if (ownsIndex) ResetSymbolIndex();
+            }
+        }
+
+        private static AnnotationRunStats ApplyCore(
+            Document doc, View view, DrawingType drawingType, AnnotationRunOptions options)
+        {
             var stats = new AnnotationRunStats();
             var pack = options?.PackOverride ?? drawingType?.Annotation;
             if (doc == null || view == null || drawingType == null || pack == null) return stats;
@@ -989,7 +1006,7 @@ namespace StingTools.Core.Drawing
             ElementId tagTypeId = ElementId.InvalidElementId;
             if (!string.IsNullOrWhiteSpace(rule?.TagFamily))
             {
-                var byRule = FindFamilySymbolByName(doc, rule.TagFamily);
+                var byRule = SymbolIndexFor(doc).FindByName(rule.TagFamily);
                 if (byRule != null) tagTypeId = byRule.Id;
                 else stats.Warnings.Add(
                     $"Rule tag family '{rule.TagFamily}' for {catKey} is not loaded; using the pack default.");
@@ -1290,9 +1307,9 @@ namespace StingTools.Core.Drawing
             {
                 if (!(doc.GetElement(baseTypeId) is FamilySymbol baseSym)) return baseTypeId;
                 string baseFam = baseSym.FamilyName;
-                var sameCat = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                    .Where(fs => fs.Category != null && baseSym.Category != null && fs.Category.Id == baseSym.Category.Id)
-                    .ToList();
+                var sameCat = baseSym.Category == null
+                    ? new List<FamilySymbol>()
+                    : SymbolIndexFor(doc).InCategory(baseSym.Category.Id.Value).Select(x => x.Symbol).ToList();
 
                 var famVariants = sameCat
                     .Select(fs => (fs, size: TagSizeVariant.SizeOfFamilyVariant(fs.FamilyName, baseFam)))
@@ -1335,20 +1352,63 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// The tag type for <paramref name="catKey"/>, memoised for the symbol index's
+        /// lifetime. The answer depends only on the pack's family for the category, the
+        /// view's drawing-type style for it and the host category, so those (and
+        /// catKey, which the warnings name) are the key; the warnings the first
+        /// resolution raised are replayed into each caller's stats.
+        /// </summary>
         private static ElementId ResolveTagTypeId(Document doc, View view, AnnotationRulePack pack,
             string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats = null)
+        {
+            string famName = null;
+            if (pack.TagFamilies != null && pack.TagFamilies.TryGetValue(catKey, out var fn)
+                && !string.IsNullOrWhiteSpace(fn))
+                famName = fn;
+            string styleName = ViewTagStyleFor(doc, view, hostCategory);
+
+            var index = SymbolIndexFor(doc);
+            string key = string.Join("\u001f", catKey ?? "", famName ?? "", styleName ?? "", ((long)hostCategory).ToString());
+            if (!index.TagTypeMemo.TryGetValue(key, out var memo))
+            {
+                var warnings = new AnnotationRunStats();
+                var id = ResolveTagTypeIdCore(doc, index, famName, styleName, catKey, hostCategory, warnings);
+                memo = (id, warnings.Warnings.ToList());
+                index.TagTypeMemo[key] = memo;
+            }
+            if (stats != null) stats.Warnings.AddRange(memo.Warnings);
+            return memo.Id;
+        }
+
+        /// <summary>Step 2's input: the CategoryTagStyles entry of the view's drawing
+        /// type for this category, or null.</summary>
+        private static string ViewTagStyleFor(Document doc, View view, BuiltInCategory hostCategory)
+        {
+            try
+            {
+                var dtId2 = view != null ? DrawingTypeStamper.Read(view) : null;
+                if (string.IsNullOrEmpty(dtId2)) return null;
+                var pack2 = DrawingTypeRegistry.TryGetPack(doc, dtId2);
+                if (pack2?.CategoryTagStyles == null) return null;
+                // Try the exact category name first, then BuiltInCategory string.
+                string catKey2 = Category.GetCategory(doc, hostCategory)?.Name ?? hostCategory.ToString();
+                if (!pack2.CategoryTagStyles.TryGetValue(catKey2, out var styleName))
+                    pack2.CategoryTagStyles.TryGetValue(hostCategory.ToString(), out styleName);
+                return string.IsNullOrEmpty(styleName) ? null : styleName;
+            }
+            catch { return null; /* resolver must never throw */ }
+        }
+
+        private static ElementId ResolveTagTypeIdCore(Document doc, SymbolIndex index, string famName, string styleName,
+            string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats)
         {
             ElementId result = ElementId.InvalidElementId;
 
             // 1. Named tag family from the rule pack
-            if (pack.TagFamilies != null && pack.TagFamilies.TryGetValue(catKey, out var famName)
-                && !string.IsNullOrWhiteSpace(famName))
+            if (!string.IsNullOrWhiteSpace(famName))
             {
-                var named = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .Where(fs => string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                var named = index.OfFamily(famName).Select(x => x.Symbol).ToList();
 
                 // A-8: this matched by family name across EVERY category, so a
                 // model family sharing the name could win and then throw once
@@ -1385,34 +1445,15 @@ namespace StingTools.Core.Drawing
             }
 
             // 2. CategoryTagStyles: check the active view's DrawingType pack.
-            if (result == null || result == ElementId.InvalidElementId)
+            if ((result == null || result == ElementId.InvalidElementId) && !string.IsNullOrEmpty(styleName))
             {
                 try
                 {
-                    var dtId2 = view != null ? DrawingTypeStamper.Read(view) : null;
-                    if (!string.IsNullOrEmpty(dtId2))
-                    {
-                        var pack2 = DrawingTypeRegistry.TryGetPack(doc, dtId2);
-                        if (pack2?.CategoryTagStyles != null)
-                        {
-                            // Try the exact category name first, then BuiltInCategory string.
-                            string catKey2 = Category.GetCategory(doc, hostCategory)?.Name ?? hostCategory.ToString();
-                            if (!pack2.CategoryTagStyles.TryGetValue(catKey2, out var styleName))
-                                pack2.CategoryTagStyles.TryGetValue(hostCategory.ToString(), out styleName);
-
-                            if (!string.IsNullOrEmpty(styleName))
-                            {
-                                // Find any FamilySymbol whose name contains the style preset name.
-                                var match = new FilteredElementCollector(doc)
-                                    .OfClass(typeof(FamilySymbol))
-                                    .Cast<FamilySymbol>()
-                                    .FirstOrDefault(fs =>
-                                        fs.Name.IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                        (fs.Family?.Name ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0);
-                                if (match != null) result = match.Id;
-                            }
-                        }
-                    }
+                    // Find any FamilySymbol whose name contains the style preset name.
+                    var match = index.All.FirstOrDefault(x =>
+                        (x.Name ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        (x.FamilyObjectName ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (match != null) result = match.Id;
                 }
                 catch { /* resolver must never throw */ }
             }
@@ -1429,11 +1470,8 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(stingName))
                 {
                     var wantCat = (long)TagCategoryFor(hostCategory);
-                    var sting = new FilteredElementCollector(doc)
-                        .OfClass(typeof(FamilySymbol))
-                        .Cast<FamilySymbol>()
-                        .Where(fs => string.Equals(fs.FamilyName, stingName, StringComparison.OrdinalIgnoreCase))
-                        .OrderByDescending(fs => fs.Category != null && fs.Category.Id.Value == wantCat)
+                    var sting = index.OfFamily(stingName)
+                        .OrderByDescending(x => x.CategoryId == wantCat)
                         .FirstOrDefault();
                     if (sting != null) result = sting.Id;
                 }
@@ -1443,12 +1481,10 @@ namespace StingTools.Core.Drawing
             //    because a non-STING tag does not display the ISO 19650 tag.
             if (result == null || result == ElementId.InvalidElementId)
             {
-                var fallback = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .FirstOrDefault(fs => fs.Category != null
-                        && fs.Category.CategoryType == CategoryType.Annotation
-                        && fs.Category.Id.Value == (long)TagCategoryFor(hostCategory));
+                var fallback = index.InCategory((long)TagCategoryFor(hostCategory))
+                    .Where(x => x.CategoryType == CategoryType.Annotation)
+                    .Select(x => x.Symbol)
+                    .FirstOrDefault();
                 if (fallback != null)
                 {
                     result = fallback.Id;
@@ -1459,6 +1495,137 @@ namespace StingTools.Core.Drawing
             }
 
             return result ?? ElementId.InvalidElementId;
+        }
+
+        // ─── Loaded-symbol index (P4) ─────────────────────────────────────
+        //
+        // ResolveTagTypeId and ApplyTagSizeVariant used to run a full FamilySymbol
+        // collector per category, per rule, per view — and read Category / FamilyName
+        // off every symbol each time. The index reads each symbol once and lives for
+        // a production batch (DrawingProducer.PrimeBatchCaches opens it, Reset drops
+        // it) or for one stand-alone Apply. It is rebuilt when the document or the
+        // number of loaded symbols changes (a family loaded or a type created or
+        // deleted mid-batch), checked at the start of every Apply.
+
+        [ThreadStatic] private static SymbolIndex _symbolIndex;
+        [ThreadStatic] private static bool _symbolBatchActive;
+
+        /// <summary>Open a batch: the symbol index (and the tag-type memo on it) is
+        /// kept across Apply calls until <see cref="EndSymbolBatch"/>.</summary>
+        internal static void BeginSymbolBatch()
+        {
+            _symbolIndex = null;
+            _symbolBatchActive = true;
+        }
+
+        internal static void EndSymbolBatch()
+        {
+            _symbolBatchActive = false;
+            _symbolIndex = null;
+        }
+
+        private static void ResetSymbolIndex() => _symbolIndex = null;
+
+        /// <summary>Drop the index if it was built for another document or the set of
+        /// loaded symbols has changed size since. GetElementCount on a class filter
+        /// does not materialise the symbols.</summary>
+        private static void RevalidateSymbolIndex(Document doc)
+        {
+            var idx = _symbolIndex;
+            if (idx == null) return;
+            try
+            {
+                if (!ReferenceEquals(idx.Doc, doc)
+                    || new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).GetElementCount() != idx.Count)
+                    _symbolIndex = null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AnnotationRunner symbol index check: {ex.Message}");
+                _symbolIndex = null;
+            }
+        }
+
+        private static SymbolIndex SymbolIndexFor(Document doc)
+        {
+            var idx = _symbolIndex;
+            if (idx == null || !ReferenceEquals(idx.Doc, doc))
+                _symbolIndex = idx = SymbolIndex.Build(doc);
+            return idx;
+        }
+
+        private sealed class SymbolInfo
+        {
+            public FamilySymbol Symbol;
+            public ElementId Id;
+            public string Name;
+            public string FamilyName;
+            public string FamilyObjectName;   // Family?.Name — step 2 matched on this
+            public long? CategoryId;
+            public CategoryType? CategoryType;
+        }
+
+        private sealed class SymbolIndex
+        {
+            public Document Doc;
+            public int Count;
+            public readonly List<SymbolInfo> All = new List<SymbolInfo>();
+            private readonly Dictionary<long, List<SymbolInfo>> _byCategory = new Dictionary<long, List<SymbolInfo>>();
+            private readonly Dictionary<string, List<SymbolInfo>> _byFamily
+                = new Dictionary<string, List<SymbolInfo>>(StringComparer.OrdinalIgnoreCase);
+            public readonly Dictionary<string, (ElementId Id, List<string> Warnings)> TagTypeMemo
+                = new Dictionary<string, (ElementId, List<string>)>(StringComparer.Ordinal);
+            private static readonly List<SymbolInfo> None = new List<SymbolInfo>();
+
+            public static SymbolIndex Build(Document doc)
+            {
+                var idx = new SymbolIndex { Doc = doc };
+                try
+                {
+                    foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
+                    {
+                        idx.Count++;
+                        if (!(el is FamilySymbol fs)) continue;
+                        var info = new SymbolInfo { Symbol = fs, Id = fs.Id };
+                        try { info.Name = fs.Name; } catch { info.Name = null; }
+                        try { info.FamilyName = fs.FamilyName; } catch { info.FamilyName = null; }
+                        try { info.FamilyObjectName = fs.Family?.Name; } catch { info.FamilyObjectName = null; }
+                        try
+                        {
+                            var cat = fs.Category;
+                            if (cat != null) { info.CategoryId = cat.Id.Value; info.CategoryType = cat.CategoryType; }
+                        }
+                        catch { info.CategoryId = null; }
+                        idx.All.Add(info);
+                        if (info.CategoryId.HasValue)
+                        {
+                            if (!idx._byCategory.TryGetValue(info.CategoryId.Value, out var cl))
+                                idx._byCategory[info.CategoryId.Value] = cl = new List<SymbolInfo>();
+                            cl.Add(info);
+                        }
+                        if (info.FamilyName != null)
+                        {
+                            if (!idx._byFamily.TryGetValue(info.FamilyName, out var fl))
+                                idx._byFamily[info.FamilyName] = fl = new List<SymbolInfo>();
+                            fl.Add(info);
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"AnnotationRunner symbol index: {ex.Message}"); }
+                return idx;
+            }
+
+            public List<SymbolInfo> InCategory(long categoryId)
+                => _byCategory.TryGetValue(categoryId, out var l) ? l : None;
+
+            public List<SymbolInfo> OfFamily(string familyName)
+                => familyName != null && _byFamily.TryGetValue(familyName, out var l) ? l : None;
+
+            /// <summary>As FindFamilySymbolByName: first symbol whose type or family
+            /// name matches, in collector order.</summary>
+            public FamilySymbol FindByName(string name)
+                => All.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)
+                                        || string.Equals(x.FamilyName, name, StringComparison.OrdinalIgnoreCase))?.Symbol;
         }
 
         private static FamilySymbol FindFamilySymbolByName(Document doc, string name)

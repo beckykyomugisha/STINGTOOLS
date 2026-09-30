@@ -101,9 +101,15 @@ namespace StingTools.Commands.Drawing
         /// Shared by Produce Per Level, Produce &amp; Export and MEP Plans Per Level.
         /// </summary>
         internal static PerLevelSelection RoutedMepPerLevel(Document doc)
+            => RoutedMepPerLevel(doc, StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc));
+
+        /// <summary>As <see cref="RoutedMepPerLevel(Document)"/>, with the discipline →
+        /// level presence the caller has already computed, so a command that needs it
+        /// for its own report does not collect every MEP element twice.</summary>
+        internal static PerLevelSelection RoutedMepPerLevel(Document doc, Dictionary<string, HashSet<ElementId>> presence)
         {
             var sel = new PerLevelSelection();
-            var presence = StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
+            presence = presence ?? StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
             var present = StingTools.Core.Mep.MepLevelViewProducer.Disciplines.Where(presence.ContainsKey).ToList();
             var routing = RoutePerLevel(doc, present);
             sel.Types = routing.Types;
@@ -252,7 +258,6 @@ namespace StingTools.Commands.Drawing
                 // / per-DrawingType Apply call hits the (template name →
                 // ElementId) and (pack id → pack) memos.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Plan", "RCP");
                 var contextLabels = levels.Select(l => l.Name).ToList();
@@ -260,6 +265,10 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, contextLabels, "PerLevel", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc);
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
@@ -271,6 +280,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceViewsPerLevel", ex); return Result.Failed; }
+            finally { DrawingProducer.ResetBatchCaches(); }
         }
 
         /// <summary>
@@ -374,7 +384,6 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 // P-13c / K-C5: one parser. This used to prefix-filter here and
                 // Split("::") by index below, which accepted names the binder
@@ -426,6 +435,10 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, scopes.Select(s => s.Name).ToList(), "ScopeBoxes", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc);
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
@@ -435,6 +448,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceFromScopeBoxes", ex); return Result.Failed; }
+            finally { DrawingProducer.ResetBatchCaches(); }
         }
 
         /// <summary>
@@ -560,7 +574,6 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches before per-room loop.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation");
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
@@ -577,6 +590,10 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, labels, "InteriorElevations", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc);
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
@@ -626,6 +643,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceInteriorElevations", ex); return Result.Failed; }
+            finally { DrawingProducer.ResetBatchCaches(); }
         }
     }
 
@@ -641,7 +659,6 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Section");
                 var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>().ToList();
@@ -651,6 +668,10 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, labels, "Sections", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc);
 
                 var preset = res.Preset;
                 var sec = preset?.SectionConfig ?? new SectionProductionConfig();
@@ -741,6 +762,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceSections", ex); return Result.Failed; }
+            finally { DrawingProducer.ResetBatchCaches(); }
         }
     }
 
@@ -756,7 +778,6 @@ namespace StingTools.Commands.Drawing
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation")
                     .Where(t => !(t.Name ?? "").ToLowerInvariant().Contains("interior")).ToList();
@@ -764,6 +785,10 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, new List<string> { "Building (auto-detect footprint)" }, "ExteriorElevations", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc);
 
                 var elev = res.Preset?.ElevationConfig ?? new ElevationProductionConfig();
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
@@ -859,6 +884,7 @@ namespace StingTools.Commands.Drawing
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }
+            finally { DrawingProducer.ResetBatchCaches(); }
         }
     }
 

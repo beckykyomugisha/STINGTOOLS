@@ -58,13 +58,33 @@ namespace StingTools.Commands.Drawing
             try
             {
                 string path = TitleBlockPopulateCommand.ResolveCsvPath(doc, "TITLE_BLOCK.csv");
+                // P6: NextNumber is called once per sheet by the Sheet Manager's batch
+                // paths, and each call re-parsed TITLE_BLOCK.csv. The pattern is kept
+                // per file and re-read when its last-write time changes.
+                DateTime written = DateTime.MinValue;
+                bool exists = !string.IsNullOrEmpty(path) && System.IO.File.Exists(path);
+                if (exists) written = System.IO.File.GetLastWriteTimeUtc(path);
+                lock (_patternLock)
+                {
+                    if (exists && _patternValue != null && written == _patternWriteUtc
+                        && string.Equals(path, _patternPath, StringComparison.OrdinalIgnoreCase))
+                        return _patternValue;
+                }
                 var csv = TitleBlockCsv.Load(path);
                 string p = csv.ValueFor(ParamRegistry.TB_SHEET_NUMBER_PATTERN, "");
-                if (!string.IsNullOrWhiteSpace(p)) return p.Trim();
+                string result = !string.IsNullOrWhiteSpace(p) ? p.Trim() : DefaultPattern;
+                if (exists)
+                    lock (_patternLock) { _patternValue = result; _patternPath = path; _patternWriteUtc = written; }
+                return result;
             }
             catch (Exception ex) { StingLog.Warn($"SheetNumbering pattern read: {ex.Message}"); }
-            return "{disc}-{seq:D3}";
+            return DefaultPattern;
         }
+
+        private const string DefaultPattern = "{disc}-{seq:D3}";
+        private static readonly object _patternLock = new object();
+        private static string _patternPath, _patternValue;
+        private static DateTime _patternWriteUtc;
 
         /// <summary>Apply a renumber plan in two passes, inside one transaction.
         ///

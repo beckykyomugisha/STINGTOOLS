@@ -29,65 +29,80 @@ namespace StingTools.Core.Mep
     {
         /// <summary>The MEP disciplines this answers for, in report order.</summary>
         public static readonly string[] Disciplines = { "M", "E", "P", "FP", "MG" };
-
         /// <summary>
         /// Discipline code → the levels hosting at least one element of it. A discipline
         /// with nothing modelled is absent from the map.
+        ///
+        /// One lazy collector pass over every category any rule reads (it used to be
+        /// five passes, each materialised with ToElements); the per-element rules are
+        /// <see cref="MepPresenceClassifier"/>. Callers that need the answer more than
+        /// once in a run should compute it once and pass it on — see
+        /// BatchProduceCommons.RoutedMepPerLevel(doc, presence).
         /// </summary>
         public static Dictionary<string, HashSet<ElementId>> LevelsByDiscipline(Document doc)
         {
             var map = new Dictionary<string, HashSet<ElementId>>(StringComparer.OrdinalIgnoreCase);
             if (doc == null) return map;
 
-            void Add(string disc, Element el)
-            {
-                var lid = LevelOf(el);
-                if (lid == ElementId.InvalidElementId) return;
-                if (!map.TryGetValue(disc, out var set)) map[disc] = set = new HashSet<ElementId>();
-                set.Add(lid);
-            }
-
-            foreach (var el in Collect(doc, BuiltInCategory.OST_DuctCurves, BuiltInCategory.OST_FlexDuctCurves,
-                                            BuiltInCategory.OST_DuctTerminal, BuiltInCategory.OST_MechanicalEquipment))
-                Add("M", el);
-
-            foreach (var el in Collect(doc, BuiltInCategory.OST_ElectricalFixtures, BuiltInCategory.OST_ElectricalEquipment,
-                                            BuiltInCategory.OST_LightingFixtures, BuiltInCategory.OST_LightingDevices,
-                                            BuiltInCategory.OST_DataDevices, BuiltInCategory.OST_FireAlarmDevices))
-                Add("E", el);
-
-            foreach (var el in Collect(doc, BuiltInCategory.OST_Sprinklers))
-                Add("FP", el);
-
-            foreach (var el in Collect(doc, BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_FlexPipeCurves,
-                                            BuiltInCategory.OST_PlumbingFixtures))
-                Add(IsFireProtection(el) ? "FP" : "P", el);
-
-            foreach (var el in Collect(doc, BuiltInCategory.OST_PipeCurves, BuiltInCategory.OST_PipeAccessory,
-                                            BuiltInCategory.OST_MechanicalEquipment, BuiltInCategory.OST_SpecialityEquipment,
-                                            BuiltInCategory.OST_PlumbingFixtures, BuiltInCategory.OST_MedicalEquipment))
-            {
-                string disc = null;
-                try { disc = ParameterHelpers.GetString(el, ParamRegistry.DISC); }
-                catch (Exception ex) { StingLog.Warn($"MepLevelViewProducer DISC read {el.Id}: {ex.Message}"); }
-                if (string.Equals((disc ?? "").Trim(), "MG", StringComparison.OrdinalIgnoreCase)) Add("MG", el);
-            }
-            return map;
-        }
-
-        private static IEnumerable<Element> Collect(Document doc, params BuiltInCategory[] cats)
-        {
+            var found = new Dictionary<string, HashSet<ElementId>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                return new FilteredElementCollector(doc).WhereElementIsNotElementType()
-                    .WherePasses(new ElementMulticategoryFilter(cats)).ToElements();
+                var collector = new FilteredElementCollector(doc).WhereElementIsNotElementType()
+                    .WherePasses(new ElementMulticategoryFilter(CategoryMap.Keys.ToList()));
+                foreach (var el in collector)
+                {
+                    var catId = el.Category?.Id;
+                    if (catId == null || !CategoryMap.TryGetValue((BuiltInCategory)catId.Value, out var cat)) continue;
+                    var discs = MepPresenceClassifier.Classify(cat,
+                        () => IsFireProtection(el),
+                        () =>
+                        {
+                            try { return ParameterHelpers.GetString(el, ParamRegistry.DISC); }
+                            catch (Exception ex) { StingLog.Warn($"MepLevelViewProducer DISC read {el.Id}: {ex.Message}"); return null; }
+                        });
+                    if (discs.Count == 0) continue;
+                    var lid = LevelOf(el);
+                    if (lid == ElementId.InvalidElementId) continue;
+                    foreach (var d in discs)
+                    {
+                        if (!found.TryGetValue(d, out var set)) found[d] = set = new HashSet<ElementId>();
+                        set.Add(lid);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                StingLog.Warn($"MepLevelViewProducer collect {string.Join(",", cats)}: {ex.Message}");
-                return Enumerable.Empty<Element>();
+                StingLog.Warn($"MepLevelViewProducer collect: {ex.Message}");
             }
+
+            // Keys in the order the per-rule passes used to add them.
+            foreach (var d in new[] { "M", "E", "FP", "P", "MG" })
+                if (found.TryGetValue(d, out var set)) map[d] = set;
+            return map;
         }
+
+        /// <summary>Every category a presence rule reads → its Revit-free name.</summary>
+        private static readonly Dictionary<BuiltInCategory, MepPresenceCategory> CategoryMap =
+            new Dictionary<BuiltInCategory, MepPresenceCategory>
+            {
+                { BuiltInCategory.OST_DuctCurves,           MepPresenceCategory.DuctCurve },
+                { BuiltInCategory.OST_FlexDuctCurves,       MepPresenceCategory.FlexDuctCurve },
+                { BuiltInCategory.OST_DuctTerminal,         MepPresenceCategory.DuctTerminal },
+                { BuiltInCategory.OST_MechanicalEquipment,  MepPresenceCategory.MechanicalEquipment },
+                { BuiltInCategory.OST_ElectricalFixtures,   MepPresenceCategory.ElectricalFixture },
+                { BuiltInCategory.OST_ElectricalEquipment,  MepPresenceCategory.ElectricalEquipment },
+                { BuiltInCategory.OST_LightingFixtures,     MepPresenceCategory.LightingFixture },
+                { BuiltInCategory.OST_LightingDevices,      MepPresenceCategory.LightingDevice },
+                { BuiltInCategory.OST_DataDevices,          MepPresenceCategory.DataDevice },
+                { BuiltInCategory.OST_FireAlarmDevices,     MepPresenceCategory.FireAlarmDevice },
+                { BuiltInCategory.OST_Sprinklers,           MepPresenceCategory.Sprinkler },
+                { BuiltInCategory.OST_PipeCurves,           MepPresenceCategory.PipeCurve },
+                { BuiltInCategory.OST_FlexPipeCurves,       MepPresenceCategory.FlexPipeCurve },
+                { BuiltInCategory.OST_PlumbingFixtures,     MepPresenceCategory.PlumbingFixture },
+                { BuiltInCategory.OST_PipeAccessory,        MepPresenceCategory.PipeAccessory },
+                { BuiltInCategory.OST_SpecialityEquipment,  MepPresenceCategory.SpecialityEquipment },
+                { BuiltInCategory.OST_MedicalEquipment,     MepPresenceCategory.MedicalEquipment },
+            };
 
         private static bool IsFireProtection(Element el)
         {

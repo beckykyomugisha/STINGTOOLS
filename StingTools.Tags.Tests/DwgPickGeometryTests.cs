@@ -75,6 +75,56 @@ namespace StingTools.Tags.Tests
             Assert.False(p.IsParallel);
         }
 
+        [Fact]
+        public void UnequalFacesUseTheirOverlapAsTheCentreline()
+        {
+            // A runs 0..10, B only 0..4, 1 apart. Averaging endpoints gave a centreline
+            // 0..7 — longer than B and shorter than A. The element exists only where
+            // both faces do: 0..4.
+            var p = DwgPickGeometry.MeasureParallelPair(0, 0, 10, 0, 0, 1, 4, 1);
+            Assert.True(p.IsParallel);
+            Assert.Equal(1, p.Gap, 9);
+            Assert.Equal(0, p.StartX, 9); Assert.Equal(0.5, p.StartY, 9);
+            Assert.Equal(4, p.EndX, 9);   Assert.Equal(0.5, p.EndY, 9);
+            Assert.Equal(4, p.Length, 9);
+        }
+
+        [Fact]
+        public void OffsetFacesUseTheOverlapNotEitherLine()
+        {
+            // A 0..4000, B 1000..5000: the shared stretch is 1000..4000.
+            var p = DwgPickGeometry.MeasureParallelPair(0, 0, 4000, 0, 5000, 250, 1000, 250);
+            Assert.True(p.IsParallel);
+            Assert.Equal(1000, p.StartX, 6); Assert.Equal(125, p.StartY, 6);
+            Assert.Equal(4000, p.EndX, 6);   Assert.Equal(125, p.EndY, 6);
+        }
+
+        [Fact]
+        public void TenDegreesApartIsNotParallel()
+        {
+            // cos 10° = 0.985 — inside the old 0.95 threshold (~18°), which let a
+            // skewed pick through and measured a nonsense thickness.
+            double a = 10 * Math.PI / 180;
+            var p = DwgPickGeometry.MeasureParallelPair(0, 0, 1000, 0, 0, 200, 1000 * Math.Cos(a), 200 + 1000 * Math.Sin(a));
+            Assert.False(p.IsParallel);
+        }
+
+        [Fact]
+        public void TwoDegreesApartIsStillParallel()
+        {
+            double a = 2 * Math.PI / 180;
+            var p = DwgPickGeometry.MeasureParallelPair(0, 0, 1000, 0, 0, 200, 1000 * Math.Cos(a), 200 + 1000 * Math.Sin(a));
+            Assert.True(p.IsParallel);
+        }
+
+        [Fact]
+        public void ParallelLinesThatDoNotOverlapAreNotAPair()
+        {
+            // Collinear-ish faces end to end share no stretch — nothing between them.
+            var p = DwgPickGeometry.MeasureParallelPair(0, 0, 10, 0, 20, 1, 30, 1);
+            Assert.False(p.IsParallel);
+        }
+
         // ── NearestIndex / IndexWithinTolerance ────────────────────────────
 
         [Fact]

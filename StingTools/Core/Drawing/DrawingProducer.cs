@@ -134,12 +134,19 @@ namespace StingTools.Core.Drawing
             ResetBatchCaches();
             if (doc == null) return;
             _cacheDocKey = CacheDocKey(doc);
+            // P4: the annotation pass's loaded-symbol index + tag-type memo share
+            // the batch's lifetime.
+            AnnotationRunner.BeginSymbolBatch();
             try
             {
+                // One View pass feeds both the stamped-view index and the name set
+                // (they were two full collectors).
                 var v = new Dictionary<string, ElementId>(StringComparer.Ordinal);
+                var names = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
                 {
                     if (!(el is View view) || view.IsTemplate) continue;
+                    if (!string.IsNullOrEmpty(view.Name)) names.Add(view.Name);
                     var dtId = StingTools.Core.ParameterHelpers.GetString(view, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
                     if (string.IsNullOrEmpty(dtId)) continue;
                     var ctxTag = StingTools.Core.ParameterHelpers.GetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? string.Empty;
@@ -147,10 +154,6 @@ namespace StingTools.Core.Drawing
                     v[ViewKey(dtId, ctxTag, ruleIdx)] = view.Id;
                 }
                 _existingViewCache = v;
-
-                var names = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
-                    if (el is View vn && !vn.IsTemplate && !string.IsNullOrEmpty(vn.Name)) names.Add(vn.Name);
                 _existingViewNames = names;
 
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
@@ -216,6 +219,7 @@ namespace StingTools.Core.Drawing
             // reference planes in the Family Editor sees them on the next run.
             try { StingTools.Commands.Drawing.TitleBlockSlotUtils.ClearSlotMapCache(); }
             catch (Exception ex) { StingLog.Warn($"ClearSlotMapCache: {ex.Message}"); }
+            AnnotationRunner.EndSymbolBatch();
         }
 
         // GAP-L: a cache slot only matches the doc it was primed against.
