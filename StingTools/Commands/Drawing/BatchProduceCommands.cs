@@ -128,6 +128,47 @@ namespace StingTools.Commands.Drawing
         }
 
         /// <summary>
+        /// DTW-29: the dialog's "Skip levels with nothing modelled". A plan of an MEP
+        /// discipline (M / E / P / FP / MG) is produced on a level only when that discipline
+        /// has something there — host or linked model (MepLevelViewProducer, the presence the
+        /// routed MEP default uses); any other discipline's plan only on a level holding at
+        /// least one model element. Each skipped pair is added to <paramref name="skipped"/>.
+        /// </summary>
+        internal static Func<DrawingType, Level, bool> SkipEmptyLevels(Document doc, List<string> skipped)
+        {
+            var presence = StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
+            var mep = new HashSet<string>(StingTools.Core.Mep.MepLevelViewProducer.Disciplines, StringComparer.OrdinalIgnoreCase);
+            var anyModel = new Dictionary<long, bool>();
+            return (dt, lvl) =>
+            {
+                var disc = (dt?.Discipline ?? "").Trim();
+                bool has;
+                if (mep.Contains(disc))
+                    has = presence.TryGetValue(disc, out var set) && set.Contains(lvl.Id);
+                else if (!anyModel.TryGetValue(lvl.Id.Value, out has))
+                    anyModel[lvl.Id.Value] = has = LevelHasModel(doc, lvl);
+                if (!has) skipped?.Add($"{dt?.Id} on {lvl.Name}");
+                return has;
+            };
+        }
+
+        private static bool LevelHasModel(Document doc, Level lvl)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .WherePasses(new ElementLevelFilter(lvl.Id))
+                    .WhereElementIsNotElementType()
+                    .Any(e => !(e is View) && e.Category != null && e.Category.CategoryType == CategoryType.Model);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SkipEmptyLevels {lvl?.Name}: {ex.Message}");
+                return true;   // cannot tell: produce rather than silently skip
+            }
+        }
+
+        /// <summary>
         /// A per-level step's types: params.drawingTypes when it names some (produced on
         /// every picked level, as asked), else <see cref="RoutedMepPerLevel"/>. False with
         /// <paramref name="error"/> for an unknown id or nothing to produce.
@@ -303,7 +344,15 @@ namespace StingTools.Commands.Drawing
                 var pickedLevels = res.SelectedContexts
                     .Select(n => levels.FirstOrDefault(l => l.Name == n)).Where(l => l != null).ToList();
                 int views = 0, sheets = 0; var warnings = new List<string>();
-                Produce(doc, pickedTypes, pickedLevels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
+                var skippedEmpty = new List<string>();
+                var include = res.Preset?.General?.SkipEmptyLevels == true
+                    ? BatchProduceCommons.SkipEmptyLevels(doc, skippedEmpty)
+                    : null;
+                Produce(doc, pickedTypes, pickedLevels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings, include);
+                if (skippedEmpty.Count > 0)
+                    warnings.Insert(0, $"Skipped {skippedEmpty.Count} drawing type / level pair(s) with nothing modelled "
+                        + "('Skip levels with nothing modelled'): " + string.Join("; ", skippedEmpty.Take(12))
+                        + (skippedEmpty.Count > 12 ? " …" : ""));
                 BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }

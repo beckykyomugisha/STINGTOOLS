@@ -61,9 +61,8 @@ namespace StingTools.UI
 
         // Tab 1 — general
         private RadioButton _dupNormal, _dupDetailing, _dupDependent;
-        private CheckBox _idempotent, _createSheets, _createPackage, _onlyDefault, _hideUnused;
-        // Phase 137 — GRAITEC PowerPack parity toggles
-        private CheckBox _hideUnwantedSections, _hideUnwantedRebars, _hideUnwantedTags, _skipEmptyLevels;
+        private CheckBox _idempotent, _createSheets, _onlyDefault;
+        private CheckBox _skipEmptyLevels;
         private TextBox _packageId;
         private ComboBox _scaleOverride, _detailLevelOverride;
 
@@ -288,11 +287,11 @@ namespace StingTools.UI
             sp.Children.Add(_dupDependent);
             _idempotent    = new CheckBox { Content = "Skip if a view already exists for this context", IsChecked = true, Margin = new Thickness(0,4,0,2) };
             _createSheets  = new CheckBox { Content = "Create sheets",            IsChecked = true, Margin = new Thickness(0,2,0,2) };
-            _createPackage = new CheckBox { Content = "Create drawing package",   IsChecked = true, Margin = new Thickness(0,2,0,2) };
             sp.Children.Add(_idempotent);
             sp.Children.Add(_createSheets);
-            sp.Children.Add(_createPackage);
-            sp.Children.Add(MakeLabel("Package id:"));
+            // DTW-29: "Create drawing package" was never read — a package is the package id
+            // stamped on the sheets, so the id below is the whole of the choice.
+            sp.Children.Add(MakeLabel("Drawing package id:"));
             _packageId = new TextBox { Margin = new Thickness(0,2,0,4) };
             sp.Children.Add(_packageId);
 
@@ -306,22 +305,22 @@ namespace StingTools.UI
 
             sp.Children.Add(MakeCardHeader("Generation Rules"));
             _onlyDefault = new CheckBox { Content = "Generate views only for default configuration", Margin = new Thickness(0,2,0,2) };
-            _hideUnused  = new CheckBox { Content = "Hide categories with no visible elements in view", Margin = new Thickness(0,2,0,2) };
             sp.Children.Add(_onlyDefault);
-            sp.Children.Add(_hideUnused);
-            // Phase 137 — GRAITEC PowerPack "Customize Drawings" parity:
-            //   * Hide unwanted sections — strips section heads/markers off the produced VG
-            //   * Hide unwanted rebars   — strips rebar tags / location lines off the produced VG
-            //   * Hide unwanted tags     — strips tag annotations from the produced view
-            //   * Skip empty levels      — when on, levels with no model elements get no view
-            _hideUnwantedSections = new CheckBox { Content = "Hide unwanted sections (GRAITEC parity)", Margin = new Thickness(0,2,0,2) };
-            _hideUnwantedRebars   = new CheckBox { Content = "Hide unwanted rebars (GRAITEC parity)",   Margin = new Thickness(0,2,0,2) };
-            _hideUnwantedTags     = new CheckBox { Content = "Hide unwanted tags",                       Margin = new Thickness(0,2,0,2) };
-            _skipEmptyLevels      = new CheckBox { Content = "Skip levels with no model elements",       IsChecked = true, Margin = new Thickness(0,2,0,2) };
-            sp.Children.Add(_hideUnwantedSections);
-            sp.Children.Add(_hideUnwantedRebars);
-            sp.Children.Add(_hideUnwantedTags);
-            sp.Children.Add(_skipEmptyLevels);
+            // DTW-29: "Hide categories with no visible elements", "Hide unwanted sections /
+            // rebars / tags" were never read and are removed — visibility belongs to the
+            // drawing type's view style pack and template, and the VG Overrides tab. "Skip
+            // levels with no model elements" is kept and now works, for Produce Per Level:
+            // an MEP plan is skipped on a level where its discipline has nothing modelled
+            // (host or linked model), any other plan on a level with no model element.
+            if (_commandType == "PerLevel")
+            {
+                _skipEmptyLevels = new CheckBox
+                {
+                    Content = "Skip levels with nothing modelled for the drawing type's discipline",
+                    IsChecked = true, Margin = new Thickness(0,2,0,2),
+                };
+                sp.Children.Add(_skipEmptyLevels);
+            }
 
             return sv;
         }
@@ -585,7 +584,6 @@ namespace StingTools.UI
                 CreatedAt = DateTime.UtcNow.ToString("o"),
                 CreatedBy = "STING",
                 CreateSheets = _createSheets?.IsChecked == true,
-                CreatePackage = _createPackage?.IsChecked == true,
                 PackageId = _packageId?.Text,
                 General = new ProductionGeneralSettings
                 {
@@ -597,11 +595,7 @@ namespace StingTools.UI
                     RunAutoDim    = _runDims?.IsChecked != false,
                     RunDecorative = _runDec?.IsChecked != false,
                     RunSpots      = _runSpots?.IsChecked != false,
-                    HideUnwantedCats = _hideUnused?.IsChecked == true,
                     GenerateOnlyDefault = _onlyDefault?.IsChecked == true,
-                    HideUnwantedSections = _hideUnwantedSections?.IsChecked == true,
-                    HideUnwantedRebars   = _hideUnwantedRebars?.IsChecked == true,
-                    HideUnwantedTags     = _hideUnwantedTags?.IsChecked == true,
                     SkipEmptyLevels      = _skipEmptyLevels?.IsChecked != false,
                     ScaleOverride = ParseScale(_scaleOverride?.Text),
                     DetailLevelOverride = (_detailLevelOverride?.Text == "By View") ? null : _detailLevelOverride?.Text
