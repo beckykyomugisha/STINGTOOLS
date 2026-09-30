@@ -2739,6 +2739,7 @@ SYS_MEDIUM_TXT,Medium,TEXT,Instance,<ALL>,TPL_TRACKING,83b8dcea-429b-4157-9f6e-a
 SYS_NAME_TXT,System Name,TEXT,Instance,<ALL>,TPL_TRACKING,25892b38-82b2-49a1-89ff-70795dcc3ac3,System name [ISO 19650-1:2018]
 SYS_PRESSURE_NR,Pressure,NUMBER,Instance,<ALL>,TPL_TRACKING,811a5bd7-c79f-4a97-95cc-32164c8ba420,System design pressure [ISO 19650-1:2018]
 SYS_TEMPERATURE_NR,Temperature,NUMBER,Instance,<ALL>,TPL_TRACKING,05045ac9-c5c4-4e4c-b597-2606b962b2a9,System design temperature [ISO 19650-1:2018]
+TAG_SEG_MASK_TXT,Seg Mask,TEXT,Instance,<ALL>,STINGTags_ISO19650,f3a4b5c6-d7e8-4f9a-0b1c-2d3e4f5a6b7d,Token segment visibility mask (8-char format e.g. 10110101)
 TPL_TRACKING_SPARE_01_TXT,Template - Spare 01,TEXT,Instance,Generic Models,TPL_TRACKING,71383214-27c6-45bd-a0e1-017efb6fb1c7,Spare parameter 1 for TPL_TRACKING group
 TPL_TRACKING_SPARE_02_TXT,Template - Spare 02,TEXT,Instance,Generic Models,TPL_TRACKING,f6797951-44b8-4682-b23e-ef6fd1a29bc9,Spare parameter 2 for TPL_TRACKING group
 TS_BOLD_BOOL,Bold,YESNO,Instance,Generic Models,TPL_TRACKING,b1f962e5-f659-42a2-ae64-0915cbea2669,Bold text [ISO 19650-1:2018]

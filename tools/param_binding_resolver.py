@@ -112,6 +112,13 @@ def resolve(n,desc,depth=0):
     if n=="BLE_PLASTER_FACES_NR": return "WALL_BASIC","wall-level"
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
+    # TAG_SEG_MASK_TXT is NOT a tag-family label switch like the TAG_*_BOOL rows
+    # below. TokenProfileApplier writes it on every TAGGED ELEMENT in a view and
+    # TagConfig.BuildDisplayTag reads it off that element to shorten the tag, so it
+    # lives wherever the tag containers live: ASS_TAG_1_TXT is <ALL>, and so is
+    # this. Caught by the TAG prefix it was bound to nothing (DTW-57), every write
+    # returned false and the mask never reached a tag.
+    if n=="TAG_SEG_MASK_TXT": return "UNIVERSAL","tag-host-mask"
     if pre=="TAG": return "NONE","annotation-only"
     # SHT_* binds to Sheets. It sat in the excluded tuple beside the genuinely
     # unbindable prefixes (Qto quantity sets, view/title-block metadata), so every

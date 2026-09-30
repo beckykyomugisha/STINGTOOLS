@@ -2977,7 +2977,7 @@ TAG_PARA_STATE_7_BOOL,17,annotation-only,,Paragraph depth state tier 7 [ISO 1965
 TAG_PARA_STATE_8_BOOL,17,annotation-only,,Paragraph depth state tier 8 [ISO 19650-3:2020]
 TAG_PARA_STATE_9_BOOL,17,annotation-only,,Paragraph depth state tier 9 [ISO 19650-3:2020]
 TAG_SCALE_TIER_AUTO_BOOL,17,annotation-only,,Tag scale tier auto-selection flag
-TAG_SEG_MASK_TXT,17,annotation-only,,Token segment visibility mask (8-char format e.g. 10110101)
+TAG_SEG_MASK_TXT,17,tag-host-mask,<ALL>,Token segment visibility mask (8-char format e.g. 10110101)
 TAG_STYLE_CODE_TXT,17,annotation-only,,Single consolidated tag style code (replaces 128 BOOL params)
 TAG_STYLE_SIZE_INT,17,annotation-only,,Tag text size index (2/2.5/3/3.5)
 TAG_STYLE_WEIGHT_INT,17,annotation-only,,Tag text weight index
