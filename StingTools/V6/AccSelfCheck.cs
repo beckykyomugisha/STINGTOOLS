@@ -522,7 +522,10 @@ namespace StingTools.V6
                 {
                     Add("5.1", "Model Coordination model sets", AccCheckStatus.Warn,
                         $"container {container} answered and has NO coordination model sets.",
-                        "Create the federated model set in ACC Model Coordination (playbook V4), or set coordContainerId if coordination lives in another container.");
+                        "Autodesk offers NO API to create model sets, so this is a one-time step in ACC: Model Coordination > " +
+                        "Model sets > Create model set > pick the folder the discipline models are published to (e.g. 01_SHARED/Models) > " +
+                        "Create. Clash tests then run automatically on every publish. Or set coordContainerId if coordination lives in " +
+                        "another container. Meanwhile STING's own rule-based clash (ClashRun, cycle step 5) runs locally in Revit.");
                     Skip("5.2", "Remembered model set", "there are no model sets (5.1)");
                     Skip("5.3", "Latest clash test", "there are no model sets (5.1)");
                     return true;
@@ -563,11 +566,14 @@ namespace StingTools.V6
                 var t = tests.Value;
                 if (t.TestCount == 0)
                     Add("5.3", "Latest clash test", AccCheckStatus.Warn, $"'{choice.Chosen.Name}' has no clash tests yet — a pull would check nothing.",
-                        "Wait for ACC to run the first clash test (it starts when the set's models are published).");
+                        "Clash tests cannot be started through Autodesk's API; ACC runs them automatically when models are " +
+                        "published into the model set's folder. Publish (or re-publish) at least two discipline models there, " +
+                        "wait for the test to finish, then run Pull Clashes. Meanwhile STING's own ClashRun (cycle step 5) runs locally.");
                 else if (!t.HasCompleted)
                     Add("5.3", "Latest clash test", AccCheckStatus.Warn,
                         $"{t.TestCount} test(s), none completed (status: {string.Join(", ", t.States)}) — a pull now would check nothing.",
-                        "Wait for the clash test to finish in ACC, then run Pull Clashes.");
+                        "Wait for the clash test to finish in ACC (Model Coordination shows its progress), then run Pull Clashes. " +
+                        "Meanwhile STING's own ClashRun (cycle step 5) runs locally.");
                 else
                     Add("5.3", "Latest clash test", AccCheckStatus.Pass,
                         $"latest completed test {t.LatestCompletedId}" +

@@ -73,9 +73,10 @@ namespace StingTools.Core.Clash
             }
 
             AccModelUpload.UploadResult result;
+            AccUploadOptions options;
             try
             {
-                var options = BuildOptions(doc, file, policy, out string optionsRefusal);
+                options = BuildOptions(doc, file, policy, out string optionsRefusal);
                 if (options == null)
                 {
                     if (!string.IsNullOrEmpty(optionsRefusal)) TaskDialog.Show(DialogTitle, optionsRefusal);
@@ -110,7 +111,9 @@ namespace StingTools.Core.Clash
                 return Result.Failed;
             }
 
-            string txNote = MarkBundleTransmittalSent(doc, file, result.ItemUrn);
+            var cover = UploadTransmittalCover(doc, creds, file, options);
+            string txNote = MarkBundleTransmittalSent(doc, file, result, cover.versionUrn);
+            if (!string.IsNullOrEmpty(cover.note)) txNote = (txNote == null ? "" : txNote + "\n") + cover.note;
             TaskDialog.Show(DialogTitle,
                 result.Message +
                 (string.IsNullOrWhiteSpace(result.FolderReason) ? "" : "\n\nFolder: " + result.FolderReason) +
@@ -181,8 +184,72 @@ namespace StingTools.Core.Clash
         /// <summary>IM-17: ACCPublish records its bundle's transmittal as PREPARED. When
         /// exactly that file has now reached ACC, the row becomes SENT with today's issue
         /// date. Any other file changes nothing. Returns a line for the dialog, or null.</summary>
-        private static string MarkBundleTransmittalSent(Document doc, string file, string itemUrn)
+        /// <summary>
+        /// Autodesk's ACC Transmittals API is READ-ONLY, so STING cannot create an ACC
+        /// transmittal. The nearest auditable equivalent: the bundle's transmittal cover sheet
+        /// (which otherwise sits unseen inside the ZIP) is uploaded beside it as its own
+        /// document, named by the STING transmittal id and carrying the same ISO 19650
+        /// attributes; the ACC version ids of both are recorded on the STING transmittal.
+        /// Only for the ACC Publish bundle that carries a transmittal id. A cover that fails
+        /// to upload does not undo the bundle upload - it is reported.
+        /// </summary>
+        private static (string versionUrn, string note) UploadTransmittalCover(Document doc, AccCredentials creds, string file, AccUploadOptions options)
         {
+            try
+            {
+                var rec = AccBundleRecord.Read(BundleRecordPath(doc));
+                if (rec == null || string.IsNullOrWhiteSpace(rec.TransmittalId)) return (null, null);
+                if (!string.Equals(Path.GetFullPath(rec.Path), Path.GetFullPath(file), StringComparison.OrdinalIgnoreCase))
+                    return (null, null);
+
+                string packageDir = Path.Combine(Path.GetDirectoryName(file) ?? "", Path.GetFileNameWithoutExtension(file));
+                string source = Path.Combine(packageDir, "TRANSMITTAL_COVER.txt");
+                if (!File.Exists(source))
+                    return (null, "The transmittal cover sheet was not found beside the bundle, so it was not uploaded separately.");
+
+                string staged = Path.Combine(StingPaths.Staging(doc, "acc"), SafeName(rec.TransmittalId) + "_TRANSMITTAL.txt");
+                File.Copy(source, staged, true);
+
+                var coverOptions = new AccUploadOptions
+                {
+                    Suitability = options?.Suitability ?? rec.Suitability,
+                    CdeFolders = options?.CdeFolders,
+                    CreateMissingAttributes = options?.CreateMissingAttributes ?? false,
+                };
+                if (options?.Metadata != null)
+                    coverOptions.Metadata = new AccDocMetadataInput
+                    {
+                        DocumentNumber = Path.GetFileNameWithoutExtension(staged),
+                        Suitability = options.Metadata.Suitability,
+                        Revision = options.Metadata.Revision,
+                        TransmittalId = rec.TransmittalId,
+                        Originator = options.Metadata.Originator,
+                    };
+                var r = AccModelUpload.UploadAsync(creds, staged, coverOptions).GetAwaiter().GetResult();
+                if (!r.Ok)
+                {
+                    StingLog.Warn("ACC upload: transmittal cover not uploaded: " + r.Message);
+                    return (null, "The bundle is in ACC, but its transmittal cover sheet could not be uploaded separately: " + r.Message);
+                }
+                return (r.VersionUrn, $"Transmittal cover uploaded to ACC as {Path.GetFileName(staged)} " +
+                                      "(Autodesk's API cannot create ACC transmittals; this document is the record there).");
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn("ACC upload: transmittal cover: " + ex.Message);
+                return (null, "The transmittal cover sheet could not be uploaded separately: " + ex.Message);
+            }
+        }
+
+        private static string SafeName(string s)
+        {
+            foreach (char c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
+            return s;
+        }
+
+        private static string MarkBundleTransmittalSent(Document doc, string file, AccModelUpload.UploadResult result, string coverVersionUrn)
+        {
+            string itemUrn = result?.ItemUrn;
             try
             {
                 var rec = AccBundleRecord.Read(BundleRecordPath(doc));
@@ -195,6 +262,11 @@ namespace StingTools.Core.Clash
                 var row = BIMManager.TransmittalRecord.MarkSent(rows, rec.TransmittalId, DateTime.Now,
                     Environment.UserName, "uploaded to ACC" + (string.IsNullOrWhiteSpace(itemUrn) ? "" : " as " + itemUrn));
                 if (row == null) return null;
+                // Traceability to ACC: the uploaded bundle and its cover sheet, by version.
+                if (!string.IsNullOrWhiteSpace(result?.ItemUrn)) row["acc_item_urn"] = result.ItemUrn;
+                if (!string.IsNullOrWhiteSpace(result?.VersionUrn)) row["acc_version_urn"] = result.VersionUrn;
+                if (!string.IsNullOrWhiteSpace(result?.FolderUrn)) row["acc_folder_urn"] = result.FolderUrn;
+                if (!string.IsNullOrWhiteSpace(coverVersionUrn)) row["acc_cover_version_urn"] = coverVersionUrn;
                 BIMManager.BIMManagerEngine.SaveJsonFile(txPath, rows);
                 StingLog.Info($"ACC upload: transmittal {rec.TransmittalId} marked SENT");
                 return $"Transmittal {rec.TransmittalId} is now recorded as SENT.";

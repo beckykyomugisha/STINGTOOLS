@@ -2,6 +2,26 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC workarounds where Autodesk has no API: transmittals, model sets, project folder check, 2026-09-30)
+
+- **ACC transmittals (API is read-only).** STING cannot create an ACC transmittal, so after
+  `ACC_UploadLastBundle` uploads an ACC Publish bundle it also uploads the bundle's transmittal
+  cover sheet as its own document (`<TX-id>_TRANSMITTAL.txt`). The cover goes to the same
+  CDE-state folder and carries the same ISO 19650 attributes, plus `STING Transmittal Id`.
+  The STING transmittal row records `acc_item_urn`, `acc_version_urn`, `acc_folder_urn` and
+  `acc_cover_version_urn`, so the record can be traced to exact ACC versions. A cover that
+  fails to upload is reported; it does not undo the bundle.
+- **Model sets and clash tests (no create API).** Self-check rows 5.1 and 5.3 now give the
+  exact one-time ACC steps (Model Coordination > Model sets > Create, and publishing into the
+  set's folder, which starts clash tests). They also point to STING's local ClashRun as the
+  interim check.
+- **Self-check row 0.1 "Project folder".** Shows where this model's shared project state
+  lives: a cloud mapping, beside the central model, or local. It FAILs when unresolved and
+  WARNs when a workshared local copy is still rooted per user, naming the Move command.
+  Prompts are suppressed, so the self-check never opens a folder picker. This is how the
+  Revit-bound cloud/central resolution (ACC-HARD-3a) gets verified on the first live run.
+- Plugin build 0/0; `StingTools.Acc.Tests` 294/294.
+
 #### Completed (ACC self-check — one-click, read-only go-live verification, 2026-09-30)
 
 - **`ACC_SelfCheck` / `AccSelfCheck`** (`Clash/AccSelfCheckCommand.cs`, ReadOnly; BIM

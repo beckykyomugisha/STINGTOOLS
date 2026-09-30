@@ -27,6 +27,71 @@ namespace StingTools.Core.Clash
     {
         private const string Title = "ACC — Self-check";
 
+        /// <summary>
+        /// Row 0.1 — where STING keeps THIS model's project state (_data/coord: issue register,
+        /// escalation record, ACC settings, counters). A cloud model or a workshared local copy
+        /// whose root resolves per user would split that state between people, silently. This
+        /// row makes the resolution visible before anyone relies on it. Prompts are suppressed:
+        /// a self-check must not pop a folder picker.
+        /// </summary>
+        private static AccCheckResult ProjectFolderRow(Document doc)
+        {
+            const string id = "0.1", title = "Project folder (shared project state)";
+            try
+            {
+                string root;
+                using (CloudProjectRootResolver.SuppressPrompts()) root = ProjectFolderEngine.GetRootPath(doc);
+                bool cloud = CloudProjectRootResolver.IsCloud(doc);
+                if (string.IsNullOrEmpty(root))
+                {
+                    string why = cloud ? (CloudProjectRootResolver.LastDecision(SafePath(doc))?.Reason ?? "no mapping for this cloud project")
+                                       : "the model has no resolvable project folder (unsaved, or its central model is unreachable)";
+                    return new AccCheckResult
+                    {
+                        Id = id, Title = title, Status = AccCheckStatus.Fail, Detail = why,
+                        Remedy = "BIM tab > Cloud Project Root: choose the shared folder for this project (a network share or " +
+                                 "synced folder every team member can reach).",
+                    };
+                }
+                if (cloud)
+                    return new AccCheckResult { Id = id, Title = title, Status = AccCheckStatus.Pass, Detail = $"cloud model; shared root from the project mapping: {root}" };
+
+                string central = null;
+                bool localCopy = false;
+                try
+                {
+                    if (doc.IsWorkshared)
+                    {
+                        var cmp = doc.GetWorksharingCentralModelPath();
+                        central = cmp == null ? null : ModelPathUtils.ConvertModelPathToUserVisiblePath(cmp);
+                        localCopy = WorksharedProjectRoot.IsLocalCopy(doc.PathName, central);
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn("ACC_SelfCheck central path: " + ex.Message); }
+
+                if (localCopy)
+                {
+                    string centralDir = WorksharedProjectRoot.CentralDirOf(central) ?? "";
+                    bool shared = centralDir.Length > 0 && root.StartsWith(centralDir, StringComparison.OrdinalIgnoreCase);
+                    return shared
+                        ? new AccCheckResult { Id = id, Title = title, Status = AccCheckStatus.Pass, Detail = $"workshared local copy; shared root beside the central model: {root}" }
+                        : new AccCheckResult
+                        {
+                            Id = id, Title = title, Status = AccCheckStatus.Warn,
+                            Detail = $"workshared local copy, but project state is kept PER USER at {root} (central: {central}).",
+                            Remedy = "BIM tab > Cloud Project Root > Move to the shared root (consented move; nothing is deleted).",
+                        };
+                }
+                return new AccCheckResult { Id = id, Title = title, Status = AccCheckStatus.Pass, Detail = $"local model; project root {root}" };
+            }
+            catch (Exception ex)
+            {
+                return new AccCheckResult { Id = id, Title = title, Status = AccCheckStatus.Fail, Detail = "could not resolve: " + ex.Message };
+            }
+        }
+
+        private static string SafePath(Document doc) { try { return doc.PathName; } catch { return null; } }
+
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
             var ctx = ParameterHelpers.GetContext(cmd);
@@ -41,6 +106,7 @@ namespace StingTools.Core.Clash
             {
                 // Network only, no Revit API inside: safe to block on from the API thread.
                 results = AccSelfCheck.RunAsync(creds, policy, DateTime.UtcNow).GetAwaiter().GetResult();
+                results.Insert(0, ProjectFolderRow(doc));
             }
             catch (Exception ex)
             {
