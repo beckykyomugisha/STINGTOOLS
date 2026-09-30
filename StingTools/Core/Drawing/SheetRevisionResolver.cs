@@ -80,6 +80,11 @@ namespace StingTools.Core.Drawing
         /// <summary>True for a STING-written stamp (a real leak); false for Revit's own
         /// "Current Revision", which a title block label may print.</summary>
         public bool IsStamp { get; set; }
+        /// <summary>The disagreeing stamp sits in a title block the user LOCKED
+        /// (TitleBlockParamApplier.IsTitleBlockLocked). Revision Sync deliberately leaves it
+        /// alone, so it is reported for the user to clear, not counted as a leak that fails
+        /// the run - a failure whose advised fix cannot clear it would fail every cycle (R10).</summary>
+        public bool IsLocked { get; set; }
         public override string ToString() =>
             $"{SheetNumber}: {Source} = '{Found}', issued = '{(Issued.Length == 0 ? "(none)" : Issued)}'";
     }
@@ -110,6 +115,12 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static List<RevisionLeakFinding> Check(string sheetNumber, SheetRevisionState state,
             IEnumerable<KeyValuePair<string, string>> stamps)
+            => Check(sheetNumber, state, stamps, null);
+
+        /// <summary>As Check; a stamp whose source is in <paramref name="lockedSources"/> is
+        /// reported with IsLocked (R10).</summary>
+        public static List<RevisionLeakFinding> Check(string sheetNumber, SheetRevisionState state,
+            IEnumerable<KeyValuePair<string, string>> stamps, ICollection<string> lockedSources)
         {
             var found = new List<RevisionLeakFinding>();
             if (state == null) return found;
@@ -123,6 +134,7 @@ namespace StingTools.Core.Drawing
                     {
                         SheetNumber = sheetNumber ?? "", Issued = issued, Found = v,
                         Source = kv.Key, IsStamp = true,
+                        IsLocked = lockedSources != null && lockedSources.Contains(kv.Key),
                     });
             }
             if (state.HasDraftAhead)

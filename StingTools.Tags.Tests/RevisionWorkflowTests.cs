@@ -84,6 +84,24 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void LeakCheck_ALockedTitleBlock_IsReportedAsLocked_NotALeak()
+        {
+            // R10: Revision Sync deliberately leaves a locked title block alone, so failing the
+            // run on it would fail every cycle with a fix that cannot clear it.
+            var s = SheetRevisionResolver.Resolve(new[] { F(3, 3, true, "P03") });
+            var found = SheetRevisionResolver.Check("A-101", s, new[]
+            {
+                new KeyValuePair<string, string>("TB (locked)", "P02"),
+                new KeyValuePair<string, string>("TB", "P02"),
+            }, new HashSet<string> { "TB (locked)" });
+            Assert.Single(found, f => f.IsStamp && f.IsLocked && f.Source == "TB (locked)");
+            Assert.Single(found, f => f.IsStamp && !f.IsLocked && f.Source == "TB");
+            // Without a lock set every disagreeing stamp is a leak, as before.
+            Assert.All(SheetRevisionResolver.Check("A-101", s,
+                new[] { new KeyValuePair<string, string>("TB (locked)", "P02") }), f => Assert.False(f.IsLocked));
+        }
+
+        [Fact]
         public void LeakCheck_StampOnNeverIssuedSheet_IsALeak()
         {
             var s = SheetRevisionResolver.Resolve(new[] { F(1, 1, false, "P01") });

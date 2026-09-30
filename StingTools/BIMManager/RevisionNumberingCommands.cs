@@ -87,7 +87,8 @@ namespace StingTools.BIMManager
                 if (doc == null) { message = "No document open."; return Result.Failed; }
 
                 var findings = Scan(doc, out int sheetCount);
-                var leaks = findings.Where(f => f.IsStamp).ToList();
+                var leaks = findings.Where(f => f.IsStamp && !f.IsLocked).ToList();
+                var locked = findings.Where(f => f.IsStamp && f.IsLocked).ToList();
                 var drafts = findings.Where(f => !f.IsStamp).ToList();
 
                 string csv = null;
@@ -97,7 +98,7 @@ namespace StingTools.BIMManager
                     var sb = new StringBuilder("Sheet,Source,Found,Issued,Kind\n");
                     foreach (var f in findings)
                         sb.AppendLine(string.Join(",", Csv(f.SheetNumber), Csv(f.Source), Csv(f.Found),
-                            Csv(f.Issued), f.IsStamp ? "LEAK" : "DRAFT-AHEAD"));
+                            Csv(f.Issued), !f.IsStamp ? "DRAFT-AHEAD" : f.IsLocked ? "LOCKED" : "LEAK"));
                     File.WriteAllText(csv, sb.ToString());
                 }
 
@@ -108,6 +109,11 @@ namespace StingTools.BIMManager
                     (leaks.Count > 0 ? "\n" + string.Join("\n", leaks.Take(20).Select(l => "  " + l)) +
                                        (leaks.Count > 20 ? $"\n  … and {leaks.Count - 20} more" : "") +
                                        "\n\nFix: run Revision Sync (RevisionSync) — it writes the issued revision." : "") +
+                    (locked.Count > 0 ? $"\n\nLocked title blocks printing another revision: {locked.Count} (not counted as leaks — " +
+                                        "Revision Sync leaves a locked title block untouched by design):\n" +
+                                        string.Join("\n", locked.Take(10).Select(l => "  " + l)) +
+                                        (locked.Count > 10 ? $"\n  … and {locked.Count - 10} more" : "") +
+                                        "\n" + Commands.Drawing.TitleBlockLock.HowToClear : "") +
                     (drafts.Count > 0 ? "\n\nA title block that labels Revit's built-in 'Current Revision' would print " +
                                         "the draft; STING's revision box (PRJ_TB_REVISION_NR_TXT) does not." : "") +
                     (csv == null ? "" : $"\n\nReport: {csv}");
@@ -129,6 +135,10 @@ namespace StingTools.BIMManager
             }
         }
 
+        private const string TbSource = "PRJ_TB_REVISION_NR_TXT (title block)";
+        private const string LockedTbSource = "PRJ_TB_REVISION_NR_TXT (title block, locked)";
+        private static readonly HashSet<string> LockedSources = new HashSet<string> { LockedTbSource };
+
         internal static List<RevisionLeakFinding> Scan(Document doc, out int sheetCount)
         {
             var all = new List<RevisionLeakFinding>();
@@ -146,11 +156,16 @@ namespace StingTools.BIMManager
                 {
                     foreach (var tb in new FilteredElementCollector(doc, sheet.Id)
                                  .OfCategory(BuiltInCategory.OST_TitleBlocks).OfClass(typeof(FamilyInstance)))
-                        stamps.Add(new KeyValuePair<string, string>("PRJ_TB_REVISION_NR_TXT (title block)",
+                    {
+                        bool isLocked = false;
+                        try { isLocked = TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet); }
+                        catch (Exception lx) { StingLog.Warn($"Revision_LeakCheck: lock read on {sheet.SheetNumber}: {lx.Message}"); }
+                        stamps.Add(new KeyValuePair<string, string>(isLocked ? LockedTbSource : TbSource,
                                                                      Text(tb, "PRJ_TB_REVISION_NR_TXT")));
+                    }
                 }
                 catch (Exception ex) { StingLog.Warn($"Revision_LeakCheck: title blocks on {sheet.SheetNumber}: {ex.Message}"); }
-                all.AddRange(SheetRevisionResolver.Check(sheet.SheetNumber, state, stamps));
+                all.AddRange(SheetRevisionResolver.Check(sheet.SheetNumber, state, stamps, LockedSources));
             }
             return all;
         }
