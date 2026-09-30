@@ -11,5 +11,5 @@ foreach ($ver in '2025','2026','2027') {
         }
     }
 }
-if ($removed -eq 0) { Write-Host "Nothing to remove — STING was not registered." }
+if ($removed -eq 0) { Write-Host "Nothing to remove - STING was not registered." }
 else { Write-Host "`nDone. Restart Revit to unload the plugin." -ForegroundColor Cyan }

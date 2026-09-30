@@ -60,12 +60,17 @@ namespace StingTools.Core
                 LogAssemblyEnvironment();
 
                 // --- LICENSE GATE (hard lock) -------------------------------
-                // No valid machine-bound license => register only an
-                // "Activate STING" button and load nothing else.
+                // Switched off while LicenseGate.Enforced is false: IsLicensed is
+                // then always true and none of the branches below do anything.
+                if (!StingTools.Core.Licensing.LicenseGate.Enforced)
+                    StingLog.Info("Licence check switched off in this build (LicenseGate.Enforced = false).");
+                // No valid licence (machine-bound or portable) and the 90-day
+                // trial is over => register only an "Activate STING" button
+                // and load nothing else.
                 if (!StingTools.Core.Licensing.LicenseGate.IsLicensed)
                 {
                     StingLog.Warn("STING not licensed (" + StingTools.Core.Licensing.LicenseGate.Status.Message +
-                                  ") machineCode=" + StingTools.Core.Licensing.LicenseGate.MachineCode +
+                                  ") machineCode=" + StingTools.Core.Licensing.MachineFingerprint.Stable +
                                   " — panels withheld; Activate button only.");
                     try { EnsureStingRibbonTab(application); RegisterActivationButton(application); }
                     catch (Exception lex) { StingLog.Warn("Activation button: " + lex.Message); }
@@ -93,13 +98,17 @@ namespace StingTools.Core
                 // Report which licence this machine is running. Fire-and-forget
                 // and entirely advisory — the licence is verified offline above
                 // and does not depend on this call succeeding, or happening at
-                // all. Opt out with STING_LICENSE_PRESENT=0.
-                try
+                // all. Opt out with STING_LICENSE_PRESENT=0. Skipped entirely
+                // while licensing is switched off (LicenseGate.Enforced).
+                if (StingTools.Core.Licensing.LicenseGate.Enforced)
                 {
-                    StingTools.Core.Licensing.LicensePresenter.PresentInBackground(
-                        application.ControlledApplication.VersionNumber);
+                    try
+                    {
+                        StingTools.Core.Licensing.LicensePresenter.PresentInBackground(
+                            application.ControlledApplication.VersionNumber);
+                    }
+                    catch (Exception pex) { StingLog.Warn("License presentation: " + pex.Message); }
                 }
-                catch (Exception pex) { StingLog.Warn("License presentation: " + pex.Message); }
 
                 // Pack 7 — wire the DocumentChanged cascade handler (room
                 // renumbers, level changes, sheet ISO violations). Gated by
@@ -144,6 +153,15 @@ namespace StingTools.Core
                 RegisterLpsPanel(application);
                 RegisterSustainabilityPanel(application);
                 RegisterCopilotPanel(application);
+
+                // During the built-in trial the full plugin loads, but the user still needs a
+                // way to paste a licence before the trial ends — keep the Activate button.
+                if (StingTools.Core.Licensing.LicenseGate.Status.IsTrial)
+                {
+                    StingLog.Info("STING running on trial: " + StingTools.Core.Licensing.LicenseGate.Status.Message);
+                    try { RegisterActivationButton(application); }
+                    catch (Exception aex) { StingLog.Warn("Activation button (trial): " + aex.Message); }
+                }
 
                 // Register the real-time auto-tagger (IUpdater) — starts disabled
                 StingAutoTagger.Register(application);
@@ -2308,7 +2326,7 @@ namespace StingTools.Core
                 "STING_Activate", "Activate\nSTING",
                 Assembly.GetExecutingAssembly().Location,
                 "StingTools.Commands.Licensing.ActivateStingCommand")
-            { ToolTip = "Activate STING Tools on this machine." };
+            { ToolTip = "Activate STING Tools on this machine, or see how many trial days are left." };
             panel.AddItem(data);
         }
 

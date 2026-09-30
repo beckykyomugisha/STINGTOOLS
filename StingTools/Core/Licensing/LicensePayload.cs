@@ -5,6 +5,12 @@ namespace StingTools.Core.Licensing
 {
     public sealed class LicensePayload
     {
+        /// <summary>
+        /// MachineCode value for a portable licence: valid on any machine until it expires.
+        /// Still RSA-signed, so it cannot be forged or extended — the expiry is the control.
+        /// </summary>
+        public const string AnyMachine = "*";
+
         [JsonPropertyName("licenseId")]   public string LicenseId { get; set; }
         [JsonPropertyName("machineCode")] public string MachineCode { get; set; }
         [JsonPropertyName("licensee")]    public string Licensee { get; set; }

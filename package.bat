@@ -14,6 +14,11 @@ setlocal enabledelayedexpansion
 ::    package.bat --nobuild  Zip the existing CompiledPlugin\ as-is
 ::                           (skip the compile — useful for a re-zip).
 ::
+::  Entries are added one by one with "/" in their names. Windows PowerShell's
+::  Compress-Archive and ZipFile.CreateFromDirectory both store "folder\file"
+::  with backslashes, which many unzip tools show as flat, oddly named files
+::  (install.bat looked "missing").
+::
 ::  This only reads the repo + writes the zip. It does NOT install into
 ::  Revit and does NOT touch the shared add-in slot (build.bat stages to
 ::  CompiledPlugin\ only; deploy.bat is the separate "make live" step).
@@ -41,13 +46,24 @@ if not exist "%SCRIPT_DIR%CompiledPlugin\StingTools.dll" (
     exit /b 1
 )
 
+:: ── 1b. Scripts must survive Windows PowerShell 5.1 ────────────────
+:: 5.1 reads a .ps1 without a BOM as ANSI, so one em dash inside a string
+:: becomes a curly quote that ends the string: a parser error on the tester's
+:: PC that never shows on a UTF-8 machine. Parse each script exactly that way.
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$bad=0; Get-ChildItem '%SCRIPT_DIR%deploy\*.ps1' | ForEach-Object { $b=[IO.File]::ReadAllBytes($_.FullName); $bom=$b.Length -ge 3 -and $b[0] -eq 0xEF -and $b[1] -eq 0xBB -and $b[2] -eq 0xBF; $t=if($bom){[Text.Encoding]::UTF8.GetString($b,3,$b.Length-3)}else{[Text.Encoding]::GetEncoding(1252).GetString($b)}; $tok=$null; $err=$null; [void][Management.Automation.Language.Parser]::ParseInput($t,[ref]$tok,[ref]$err); if($err.Count){ $bad++; Write-Host ('PARSE ERROR in deploy\'+$_.Name+' as Windows PowerShell 5.1 reads it: '+$err[0].Message) -ForegroundColor Red } }; exit $bad"
+if errorlevel 1 (
+    echo.
+    echo A deploy script would not run on a tester's PC. Use plain ASCII or save it with a UTF-8 BOM.
+    exit /b 1
+)
+
 :: ── 2. Date stamp (yyyymmdd) ──────────────────────────────────────
 for /f %%d in ('powershell -NoProfile -Command "Get-Date -Format yyyyMMdd"') do set "STAMP=%%d"
 
 :: ── 3. Stage deploy\ + CompiledPlugin\ and zip ────────────────────
 echo.
 echo === Packaging StingTools_Deploy_%STAMP%_gated.zip ===
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $r='%SCRIPT_DIR%'.TrimEnd('\'); $pkg=Join-Path $r '_pkg_stage'; $stage=Join-Path $pkg 'StingTools_Deploy'; if(Test-Path $pkg){Remove-Item $pkg -Recurse -Force}; New-Item -ItemType Directory -Force $stage | Out-Null; Get-ChildItem (Join-Path $r 'deploy') -File | Copy-Item -Destination $stage -Force; Copy-Item (Join-Path $r 'CompiledPlugin') (Join-Path $stage 'CompiledPlugin') -Recurse -Force; $addin=Join-Path $stage 'CompiledPlugin\StingTools.addin'; if(Test-Path $addin){Remove-Item $addin -Force}; $zip=Join-Path $r 'StingTools_Deploy_%STAMP%_gated.zip'; if(Test-Path $zip){Remove-Item $zip -Force}; Compress-Archive -Path $stage -DestinationPath $zip -CompressionLevel Optimal; Remove-Item $pkg -Recurse -Force; $mb=[math]::Round((Get-Item $zip).Length/1MB,1); Write-Host ('PACKAGED: '+$zip+'  ('+$mb+' MB)') -ForegroundColor Green"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; $r='%SCRIPT_DIR%'.TrimEnd('\'); $pkg=Join-Path $r '_pkg_stage'; $stage=Join-Path $pkg 'StingTools_Deploy'; if(Test-Path $pkg){Remove-Item $pkg -Recurse -Force}; New-Item -ItemType Directory -Force $stage | Out-Null; Get-ChildItem (Join-Path $r 'deploy') -File | Copy-Item -Destination $stage -Force; Copy-Item (Join-Path $r 'CompiledPlugin') (Join-Path $stage 'CompiledPlugin') -Recurse -Force; $addin=Join-Path $stage 'CompiledPlugin\StingTools.addin'; if(Test-Path $addin){Remove-Item $addin -Force}; $zip=Join-Path $r 'StingTools_Deploy_%STAMP%_gated.zip'; if(Test-Path $zip){Remove-Item $zip -Force}; Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem; $za=[IO.Compression.ZipFile]::Open($zip, 'Create'); try { Get-ChildItem $stage -Recurse -File | ForEach-Object { $rel='StingTools_Deploy/' + $_.FullName.Substring($stage.Length + 1).Replace('\','/'); [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($za, $_.FullName, $rel, [IO.Compression.CompressionLevel]::Optimal) } } finally { $za.Dispose() }; Remove-Item $pkg -Recurse -Force; $mb=[math]::Round((Get-Item $zip).Length/1MB,1); Write-Host ('PACKAGED: '+$zip+'  ('+$mb+' MB)') -ForegroundColor Green"
 if errorlevel 1 (
     echo.
     echo PACKAGING FAILED.

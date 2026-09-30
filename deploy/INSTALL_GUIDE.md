@@ -4,10 +4,9 @@
 Welcome, and thank you for testing. This guide takes you from a zip file to a
 working, licensed plugin in about **5 minutes**. Follow it top to bottom.
 
-> **The one thing that surprises everyone:** STING is **licensed per machine**.
-> After you install it, **every button is locked** until you activate with a
-> license file. Activation is **Step 2** below and takes 2 minutes. Don't skip it —
-> if buttons "do nothing", you're almost certainly not activated yet.
+> **Licensing in one line:** this build has **no licence check** — install it and
+> every command works, on any PC, with nothing to send or paste. You can skip **Step 2**.
+> (It describes how activation works in builds that have the check switched on.)
 
 ---
 
@@ -17,8 +16,7 @@ working, licensed plugin in about **5 minutes**. Follow it top to bottom.
 - **Autodesk Revit 2025 or 2026 already installed.** (Revit ships with the .NET 8
   runtime STING needs — there is nothing else to install.)
 - The zip file we sent you: `StingTools_Deploy_<date>_gated.zip`.
-- About 5 minutes, and an email channel back to us (to swap your machine code for a
-  license).
+- About 5 minutes. A licence is optional for the first 90 days.
 
 ---
 
@@ -42,8 +40,8 @@ working, licensed plugin in about **5 minutes**. Follow it top to bottom.
 
 3. **Fully close Revit** if it's open (all windows), then **reopen it**.
 
-4. On the Revit ribbon you'll now see a **"STING Tools"** tab. **At first it shows
-   only one button: "Activate STING".** That's expected — go to Step 2.
+4. On the Revit ribbon you'll now see a **"STING Tools"** tab and the STING panels.
+   You're ready — go to Step 3.
 
 > **Do not move or rename the extract folder after installing.** The manifest points
 > at that exact location. If you must move it, run `install.bat` again from the new
@@ -51,9 +49,14 @@ working, licensed plugin in about **5 minutes**. Follow it top to bottom.
 
 ---
 
-## STEP 2 — Activate (about 2 minutes — REQUIRED)
+## STEP 2 — Activate (before the 90-day trial ends)
 
-The plugin is locked to your specific machine for security. Here's the swap:
+There are two kinds of licence. Either one is pasted the same way.
+
+- **Portable licence** — works on any PC until its expiry date (usually 90 days). We
+  send you `StingTools.lic`; no machine code needed. Easiest: put it next to
+  `install.bat` and run the installer again. Or paste it as in step 4 below.
+- **Machine licence** — tied to one PC. Swap your machine code for it:
 
 1. In Revit: **STING Tools** ribbon → **Activate STING**.
 
@@ -68,19 +71,18 @@ The plugin is locked to your specific machine for security. Here's the swap:
    short block of text). **Paste it into the "Paste your license below" box** and
    click **Apply license**.
 
-5. You'll see **"Activated. Please restart Revit to load STING."** → **fully close and
-   reopen Revit.**
+5. You'll see **"Activated."** with the expiry date. If the trial had already ended,
+   **fully close and reopen Revit** to load the panels.
 
 6. Now the full plugin loads: the **STING dockable panels appear on the right** and
    the ribbon fills with commands. You're ready to test.
 
-> **Why a machine code?** It's a fingerprint of this PC (no personal data). The
-> licence only works on the machine that produced the code, and it has an expiry
-> date — so it's safe to email. You can't accidentally share your install with
-> someone else's PC.
+> **Why a machine code?** It's a fingerprint of this PC (no personal data). A machine
+> licence only works on the machine that produced the code, and it has an expiry date.
+> A portable licence skips the code but still expires — treat the file like a key.
 >
-> **One machine = one code = one licence.** If you test on a second PC, repeat Step 2
-> there (it will have a different code).
+> **A second PC** gets its own 90-day trial, and a portable licence works there too.
+> A machine licence does not — repeat Step 2 there for a new one.
 
 ---
 
@@ -130,8 +132,8 @@ That trio — button + expectation + log — is exactly what pins down a bug.
 
 | Symptom | Fix |
 |---|---|
-| **Only an "Activate STING" button shows, nothing else** | That's the un-activated state. Do **Step 2** (activate), then restart Revit. |
-| **"Your licence has expired" / "not valid for this machine"** | Send us your machine code again (Step 2) for a fresh licence. Expiry and machine-binding are normal. |
+| **Only an "Activate STING" button shows, nothing else** | The 90-day trial has ended and there is no valid licence. Do **Step 2**, then restart Revit. |
+| **"Your licence has expired" / "not valid for this machine"** | Ask us for a fresh licence — a portable one, or a machine one for your code (Step 2). Expiry and machine-binding are normal. |
 | **Buttons are greyed out or error "not licensed"** | Not activated, or the licence didn't save. Re-open **Activate STING**, re-paste, **Apply**, restart Revit. |
 | **Nothing appears in Revit after install** | Did you **fully close all Revit windows** before reopening? Confirm this file exists — paste into Explorer's address bar: `%AppData%\Autodesk\Revit\Addins\2025\StingTools.addin` (or `\2026\`). |
 | **Revit shows an add-in security / load warning at startup** | Choose **"Always Load"** so STING runs every time. |

@@ -7,13 +7,28 @@ namespace StingTools.Core.Licensing
     {
         private static LicenseResult _cached;
 
+        /// <summary>
+        /// Master switch for licensing. False = no licence check, no trial, no activation
+        /// prompt: STING loads fully on every machine. Set true to restore the gate (machine
+        /// and portable licences, plus the 90-day trial); nothing else needs changing.
+        /// A readonly field rather than a const so the compiler does not flag the gated
+        /// branches as unreachable.
+        /// </summary>
+        public static readonly bool Enforced = false;
+
+        private static readonly LicenseResult Disabled = new LicenseResult
+        {
+            State = LicenseState.Valid,
+            Message = "Licence check is switched off in this build."
+        };
+
         public static string MachineCode => MachineFingerprint.Current;
         public static string LicenseDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
             "Planscape", "StingTools");
         public static string LicensePath => Path.Combine(LicenseDir, "StingTools.lic");
 
-        public static LicenseResult Status => _cached ??= Evaluate();
+        public static LicenseResult Status => Enforced ? (_cached ??= Evaluate()) : Disabled;
         public static bool IsLicensed => Status.IsValid;
         public static void Invalidate() => _cached = null;
 
@@ -22,7 +37,24 @@ namespace StingTools.Core.Licensing
             string text = null;
             try { if (File.Exists(LicensePath)) text = File.ReadAllText(LicensePath).Trim(); }
             catch { /* unreadable => NoLicense */ }
-            return VerifyEither(text, DateTimeOffset.UtcNow);
+            var now = DateTimeOffset.UtcNow;
+            var licence = VerifyEither(text, now);
+            if (licence.IsValid) return licence;
+
+            // No usable licence: fall back to the built-in 90-day trial. It starts on the
+            // first launch that needs it, so a licensed machine never starts one.
+            LicenseResult trial;
+            try { trial = TrialStore.EvaluateAndRecord(MachineFingerprint.Stable, now); }
+            catch (Exception ex)
+            {
+                StingLog.Warn("STING trial check failed: " + ex.Message);
+                return licence;
+            }
+            if (trial.IsValid) return trial;
+
+            // Trial over. Report the licence problem when there is a licence file (an expired
+            // or wrong-machine licence is the actionable fact); otherwise the trial end.
+            return licence.State == LicenseState.NoLicense ? trial : licence;
         }
 
         /// <summary>

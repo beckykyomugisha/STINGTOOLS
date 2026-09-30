@@ -1,4 +1,4 @@
-﻿# STING Tools installer — writes a per-user .addin manifest for every
+﻿# STING Tools installer - writes a per-user .addin manifest for every
 # installed Revit version, pointing at the CompiledPlugin folder that
 # ships next to this script. No admin rights required.
 #
@@ -8,13 +8,21 @@
 # next to this script, and written to %APPDATA%\STING\sting_content.json
 # ("content_root"). The plugin reads <that folder>\Tags before its own copy and
 # falls back to its own copy whenever the share cannot be reached.
-param([string]$ContentLibrary)
+#
+# Licence (optional): -Licence <path>, else the first *.lic next to this script,
+# is copied to C:\ProgramData\Planscape\StingTools\StingTools.lic. A portable
+# licence (issued with --any-machine) activates every PC it is installed on.
+# Only relevant to builds with LicenseGate.Enforced = true.
+#
+# Older STING manifests (other file names, machine-wide copies) are disabled so
+# Revit cannot keep loading a previous build.
+param([string]$ContentLibrary, [string]$Licence)
 $ErrorActionPreference = 'Stop'
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dll  = Join-Path $here 'CompiledPlugin\StingTools.dll'
 
-Write-Host "STING Tools installer" -ForegroundColor Cyan
+Write-Host "STING Tools installer (2026-09-30: finds old installs in Addins and ApplicationPlugins)" -ForegroundColor Cyan
 Write-Host "---------------------"
 
 if (-not (Test-Path $dll)) {
@@ -22,6 +30,7 @@ if (-not (Test-Path $dll)) {
     Write-Host "Make sure you extracted the WHOLE zip and kept the folder structure intact."
     exit 1
 }
+Write-Host ("Plugin build: {0:yyyy-MM-dd HH:mm}   {1}" -f (Get-Item -LiteralPath $dll).LastWriteTime, $dll)
 
 $template = @"
 <?xml version="1.0" encoding="utf-8"?>
@@ -37,26 +46,100 @@ $template = @"
   </AddIn>
 </RevitAddIns>
 "@
-$addin = $template.Replace('__DLL__', $dll)
+# Escape the path for XML: a folder such as "M&E Projects" would otherwise write a
+# manifest Revit refuses to parse.
+$addin = $template.Replace('__DLL__', [System.Security.SecurityElement]::Escape($dll))
 
+# Revit holds the old DLL and re-reads manifests only at startup.
+if (Get-Process -Name 'Revit' -ErrorAction SilentlyContinue) {
+    Write-Host "ERROR: Revit is running. Close every Revit window, then run install.bat again." -ForegroundColor Red
+    exit 1
+}
+
+# A zip downloaded from the internet marks every file as blocked; clear that.
+Get-ChildItem -LiteralPath $here -Recurse -File | Unblock-File -ErrorAction SilentlyContinue
+
+# Any OTHER manifest that loads STING (an older install, a different file name, a
+# machine-wide copy) wins or collides with ours, and Revit then runs that old DLL -
+# which is how an old build keeps showing its licence window after an update.
+function Find-StingManifests([string]$dir, [switch]$Recurse) {
+    if (-not (Test-Path -LiteralPath $dir)) { return @() }
+    Get-ChildItem -LiteralPath $dir -Filter '*.addin' -File -Recurse:$Recurse -ErrorAction SilentlyContinue | Where-Object {
+        $t = Get-Content -LiteralPath $_.FullName -Raw -ErrorAction SilentlyContinue
+        $t -and ($t -match 'A1B2C3D4-5678-9ABC-DEF0-123456789ABC' -or $t -match 'StingTools\.Core\.StingToolsApp')
+    }
+}
+
+$blocked = @()
 $installed = 0
 foreach ($ver in '2025','2026','2027') {
     $revitApi = "C:\Program Files\Autodesk\Revit $ver\RevitAPI.dll"
     if (Test-Path $revitApi) {
         $addinsDir = Join-Path $env:APPDATA "Autodesk\Revit\Addins\$ver"
         New-Item -ItemType Directory -Force -Path $addinsDir | Out-Null
+        $ours = Join-Path $addinsDir 'StingTools.addin'
 
-        # Remove any per-machine duplicate that would make Revit load STING twice.
-        $machineDup = "C:\ProgramData\Autodesk\Revit\Addins\$ver\StingTools.addin"
-        if (Test-Path $machineDup) {
-            Remove-Item $machineDup -Force -ErrorAction SilentlyContinue
-            Write-Host "Removed conflicting machine-wide copy for $ver" -ForegroundColor Yellow
+        foreach ($m in (Find-StingManifests $addinsDir)) {
+            if ($m.FullName -ieq $ours) { continue }
+            $old = '?'
+            try { $old = ([xml](Get-Content -LiteralPath $m.FullName -Raw)).RevitAddIns.AddIn.Assembly } catch { }
+            Rename-Item -LiteralPath $m.FullName -NewName ($m.Name + '.disabled') -Force
+            Write-Host "Revit ${ver}: disabled old manifest $($m.Name) (it loaded $old)" -ForegroundColor Yellow
+        }
+        foreach ($m in (Find-StingManifests "C:\ProgramData\Autodesk\Revit\Addins\$ver")) {
+            try {
+                Remove-Item -LiteralPath $m.FullName -Force -ErrorAction Stop
+                Write-Host "Revit ${ver}: removed machine-wide manifest $($m.FullName)" -ForegroundColor Yellow
+            } catch {
+                Write-Host "Revit ${ver}: could NOT remove $($m.FullName) - it needs administrator rights." -ForegroundColor Red
+                $blocked += $m.FullName
+            }
         }
 
-        Set-Content -LiteralPath (Join-Path $addinsDir 'StingTools.addin') -Value $addin -Encoding UTF8
-        Write-Host ("Installed for Revit {0}  ->  {1}\StingTools.addin" -f $ver, $addinsDir) -ForegroundColor Green
+        Set-Content -LiteralPath $ours -Value $addin -Encoding UTF8
+        Write-Host ("Installed for Revit {0}  ->  {1}" -f $ver, $ours) -ForegroundColor Green
         $installed++
     }
+}
+
+# Autodesk app bundles (*.bundle\Contents\...\*.addin) are loaded by every Revit
+# version, from these three roots. An older STING packaged as a bundle loads from here.
+$bundleRoots = @(
+    (Join-Path $env:APPDATA 'Autodesk\ApplicationPlugins'),
+    'C:\ProgramData\Autodesk\ApplicationPlugins',
+    'C:\Program Files\Autodesk\ApplicationPlugins')
+foreach ($root in $bundleRoots) {
+    foreach ($m in (Find-StingManifests $root -Recurse)) {
+        try {
+            Rename-Item -LiteralPath $m.FullName -NewName ($m.Name + '.disabled') -Force -ErrorAction Stop
+            Write-Host "Disabled old STING app bundle manifest $($m.FullName)" -ForegroundColor Yellow
+        } catch {
+            Write-Host "Could NOT disable $($m.FullName) - it needs administrator rights." -ForegroundColor Red
+            $blocked += $m.FullName
+        }
+    }
+}
+
+# Final check: exactly one active STING manifest per Revit version, and it is ours.
+$others = @()
+foreach ($ver in '2025','2026','2027') {
+    $others += Find-StingManifests (Join-Path $env:APPDATA "Autodesk\Revit\Addins\$ver") |
+        Where-Object { $_.FullName -ine (Join-Path $env:APPDATA "Autodesk\Revit\Addins\$ver\StingTools.addin") }
+    $others += Find-StingManifests "C:\ProgramData\Autodesk\Revit\Addins\$ver"
+}
+foreach ($root in $bundleRoots) { $others += Find-StingManifests $root -Recurse }
+$others = @($others | Where-Object { $_ } | ForEach-Object { $_.FullName } | Where-Object { $blocked -notcontains $_ })
+if ($others.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Another STING registration is still active and Revit may load it instead:" -ForegroundColor Red
+    $others | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+}
+
+if ($blocked.Count -gt 0) {
+    Write-Host ""
+    Write-Host "An older STING install is still registered for all users, so Revit would keep loading it:" -ForegroundColor Red
+    $blocked | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }
+    Write-Host "Right-click install.bat > 'Run as administrator' to remove it, or delete those files by hand." -ForegroundColor Red
 }
 
 if ($installed -eq 0) {
@@ -100,6 +183,28 @@ if ($ContentLibrary) {
     }
 } else {
     Write-Host "No shared content library set; STING uses the tag families shipped with the plugin."
+}
+
+if (-not $Licence) {
+    $Licence = Get-ChildItem -LiteralPath $here -Filter '*.lic' -File -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty FullName
+}
+if ($Licence) {
+    if (Test-Path -LiteralPath $Licence) {
+        $licDir = 'C:\ProgramData\Planscape\StingTools'
+        try {
+            New-Item -ItemType Directory -Force -Path $licDir | Out-Null
+            Copy-Item -LiteralPath $Licence -Destination (Join-Path $licDir 'StingTools.lic') -Force
+            Write-Host "Licence installed: $licDir\StingTools.lic  (STING > Activate shows its expiry)" -ForegroundColor Green
+        } catch {
+            Write-Host "Could not install the licence: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "Paste it in Revit instead: STING Tools > Activate STING." -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "Licence file not found: $Licence" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "No licence file supplied. None is needed: this build has the licence check switched off."
 }
 
 Write-Host ""

@@ -2,6 +2,34 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (90-day trial and portable licences, 2026-09-30)
+
+Installing STING on a second PC no longer starts at a locked screen.
+
+- **Built-in 90-day trial.** With no valid licence, `LicenseGate` falls back to
+  `TrialPolicy` (Revit-free, tested). The trial starts on the first launch that needs it,
+  so a licensed machine never starts one. `TrialStore` keeps the stamp in two places,
+  `ProgramData\Planscape\StingTools\trial.dat` and `HKCU\Software\Planscape\StingTools`, and
+  reads the earliest start of the two. A hand-edited stamp fails its seal and ends the trial;
+  a clock set backwards does not add days. Deleting both copies restarts it — the trial is a
+  convenience, not a lock. The full plugin loads during the trial, with the Activate button
+  kept on the ribbon to show days left and take a licence.
+- **Portable licences.** A signed licence with `machineCode` `"*"`
+  (`LicensePayload.AnyMachine`) is valid on any PC until it expires. Issue one with
+  `StingLicenseIssuer issue --any-machine --name "…"`. It is still RSA-signed, so it cannot
+  be forged or extended; the expiry is the control.
+- **90 days by default.** The issuer's `--days` now defaults to 90 (was 365) and rejects a
+  non-numeric or out-of-range value instead of crashing.
+- **Installer.** `deploy/install.ps1` copies a `*.lic` found beside it (or `-Licence <path>`)
+  to where `LicenseGate` reads it, so a portable licence in the zip activates each PC.
+- The startup log now records the Stable machine code (what the dialog shows), not Current.
+
+Not changed: licences issued from planscape.build (`functions/api/license/issue.ts`) are
+still machine-bound, 365 days for paid plans. Tests: 26 pass in `StingTools.Licensing.Tests`
+(13 new — portable accept/expire/forgery, trial day 89/90, clock rollback, edited and
+copied stamps). Plugin and issuer build 0/0. The trial and portable paths have not yet been
+run inside Revit.
+
 #### Completed (TAGACC-16 / 17, 2026-09-29)
 
 - **TAGACC-16** the 28 remaining `Category.Name` LOOKUPS (DiscMap, known-category lists,
