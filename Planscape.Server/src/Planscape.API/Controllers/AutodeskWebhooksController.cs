@@ -176,7 +176,7 @@ public class AutodeskWebhooksController : ControllerBase
         {
             case "dm.version.added":
             case "dm.version.modified":
-                await HandleVersionAdded(conn.Value.TenantId, conn.Value.ProjectId, urn, ct);
+                await HandleVersionAdded(conn.Value.TenantId, conn.Value.ProjectId, urn, Str(root, "payload", "lineageUrn"), ct);
                 break;
             case "issue.created-1.0":
             case "issue.updated-1.0":
@@ -186,7 +186,7 @@ public class AutodeskWebhooksController : ControllerBase
                     new { @event = ev, accIssueId = Str(root, "payload", "id"), at = DateTime.UtcNow });
                 break;
             case "docs.approval.completed":
-                await HandleApprovalCompleted(conn.Value.TenantId, conn.Value.ProjectId, urn, ct);
+                await HandleApprovalCompleted(conn.Value.TenantId, conn.Value.ProjectId, urn, root, ct);
                 break;
             case "model.review.completed":
                 await Broadcast(conn.Value.ProjectId, "review.completed", new { urn, at = DateTime.UtcNow });
@@ -243,9 +243,9 @@ public class AutodeskWebhooksController : ControllerBase
         return matches.Count == 1 ? (matches[0].TenantId, matches[0].ProjectId) : null;
     }
 
-    private async Task HandleVersionAdded(Guid tenantId, Guid projectId, string urn, CancellationToken ct)
+    private async Task HandleVersionAdded(Guid tenantId, Guid projectId, string urn, string lineageUrn, CancellationToken ct)
     {
-        var doc = await FindByUrn(tenantId, projectId, urn, ct);
+        var doc = await FindByUrn(tenantId, projectId, urn, ct, lineageUrn);
         if (doc == null)
         {
             _log.LogInformation("dm.version.added: no DocumentRecord matching URN={Urn} in project {Project}; skipping", urn, projectId);
@@ -256,10 +256,23 @@ public class AutodeskWebhooksController : ControllerBase
         await Broadcast(projectId, "document.version.added", new { documentId = doc.Id, urn, at = doc.UpdatedAt });
     }
 
-    private async Task HandleApprovalCompleted(Guid tenantId, Guid projectId, string urn, CancellationToken ct)
+    private async Task HandleApprovalCompleted(Guid tenantId, Guid projectId, string urn, JsonElement root, CancellationToken ct)
     {
-        var doc = await FindByUrn(tenantId, projectId, urn, ct);
+        var doc = await FindByUrn(tenantId, projectId, urn, ct, Str(root, "payload", "lineageUrn"));
         if (doc == null) return;
+
+        // "Completed" is not "approved": a review that ends in rejection also completes.
+        // This used to publish on every completion, so a REJECTED drawing became PUBLISHED.
+        // Only an explicit approval outcome publishes; a rejection or an outcome this
+        // server does not recognise changes nothing and is broadcast for a person to act on.
+        string outcome = ApprovalOutcome(root);
+        if (outcome != "approved")
+        {
+            _log.LogInformation("docs.approval.completed for {Doc}: outcome '{Outcome}' — CDE state not changed", doc.Id, outcome);
+            await Broadcast(projectId, "document.approval.completed",
+                new { documentId = doc.Id, urn, outcome, published = false, at = DateTime.UtcNow });
+            return;
+        }
         // State transition: WIP/SHARED → PUBLISHED. Idempotent — never steps back.
         if (doc.CdeStatus == "WIP" || doc.CdeStatus == "SHARED")
         {
@@ -274,14 +287,69 @@ public class AutodeskWebhooksController : ControllerBase
         => HubBroadcastExtensions.SafeAsync(
             () => _hub.Clients.Group($"project-{projectId}").SendAsync(method, payload), _log, method);
 
-    /// <summary>URN lookup scoped to one tenant + project (no tenant context on this request).</summary>
-    private async Task<DocumentRecord?> FindByUrn(Guid tenantId, Guid projectId, string urn, CancellationToken ct)
+    /// <summary>
+    /// The approval outcome in a docs.approval.completed payload: "approved", "rejected", or
+    /// "unknown". The payload's field name for the outcome is not confirmed against a live
+    /// tenant, so several documented-looking spellings are read and anything else is
+    /// "unknown" — which never publishes.
+    /// </summary>
+    internal static string ApprovalOutcome(JsonElement root)
     {
-        if (string.IsNullOrEmpty(urn)) return null;
-        return await _db.Documents
+        foreach (var path in new[] { new[] { "payload", "approvalStatus" }, new[] { "payload", "status" },
+                                     new[] { "payload", "result" }, new[] { "payload", "outcome" },
+                                     new[] { "payload", "approvalStatus", "value" }, new[] { "payload", "approvalStatus", "label" } })
+        {
+            string v = Str(root, path).Trim().ToLowerInvariant();
+            if (v.Length == 0) continue;
+            if (v.Contains("reject") || v.Contains("not_approved") || v.Contains("not approved") || v.Contains("declin")) return "rejected";
+            if (v.Contains("approv")) return "approved";
+        }
+        return "unknown";
+    }
+
+    /// <summary>
+    /// The URNs that identify one ACC document across versions. A webhook names a VERSION
+    /// (urn:adsk.wipprod:fs.file:vf.XYZ?version=3); what was recorded at upload may be an
+    /// earlier version or the item/lineage (urn:adsk.wipprod:dm.lineage:XYZ). Matching the
+    /// raw version URN as a substring never found a later version, so every
+    /// dm.version.added was logged as "no DocumentRecord" and skipped.
+    /// </summary>
+    internal static string[] UrnCandidates(string urn, string lineageUrn)
+    {
+        var set = new System.Collections.Generic.List<string>();
+        void Add(string s) { if (!string.IsNullOrWhiteSpace(s) && !set.Contains(s)) set.Add(s); }
+        Add(lineageUrn);
+        Add(urn);
+        if (!string.IsNullOrWhiteSpace(urn))
+        {
+            int q = urn.IndexOf('?');
+            string versionBase = q >= 0 ? urn.Substring(0, q) : urn;                  // …fs.file:vf.XYZ
+            Add(versionBase);
+            int vf = versionBase.IndexOf("fs.file:vf.", StringComparison.OrdinalIgnoreCase);
+            if (vf >= 0)
+            {
+                string prefix = versionBase.Substring(0, vf);                          // urn:adsk.wipprod:
+                string id = versionBase.Substring(vf + "fs.file:vf.".Length);
+                Add(prefix + "dm.lineage:" + id);                                      // the lineage of the same file
+            }
+        }
+        return set.ToArray();
+    }
+
+    /// <summary>URN lookup scoped to one tenant + project (no tenant context on this request).</summary>
+    private async Task<DocumentRecord?> FindByUrn(Guid tenantId, Guid projectId, string urn, CancellationToken ct, string? lineageUrn = null)
+    {
+        if (string.IsNullOrEmpty(urn) && string.IsNullOrEmpty(lineageUrn)) return null;
+        var candidates = UrnCandidates(urn, lineageUrn ?? "");
+        var docs = _db.Documents
             .IgnoreQueryFilters()
-            .Where(d => d.TenantId == tenantId && d.ProjectId == projectId)
-            .FirstOrDefaultAsync(d => d.StatusHistoryJson != null && d.StatusHistoryJson.Contains(urn), ct);
+            .Where(d => d.TenantId == tenantId && d.ProjectId == projectId && d.StatusHistoryJson != null);
+        foreach (var c in candidates)
+        {
+            var hit = await docs.FirstOrDefaultAsync(d => d.StatusHistoryJson!.Contains(c), ct);
+            if (hit != null) return hit;
+        }
+        return null;
     }
 
     private static string Str(JsonElement el, params string[] path)
