@@ -80,7 +80,9 @@ namespace StingTools.Core.Drawing
         // EnsureUniqueSheetNumber doesn't re-collect every ViewSheet on each
         // assignment (was O(M²) across an M-sheet batch). Written back as each
         // number is assigned so later sheets in the same batch see it.
-        [ThreadStatic] private static HashSet<string>               _sheetNumberCache;
+        // DTW-45: a ledger, not a bare set — a number whose sheet an item's rollback
+        // removed is released instead of reading as taken for the rest of the batch.
+        [ThreadStatic] private static BatchNameLedger               _sheetNumberCache;
         // STACK-1: sheetId → the production context that claimed it during THIS
         // batch. STING_SHEET_CONTEXT_TXT is what normally tells two per-level
         // sheets apart; when it isn't bound, ReadSheetContext returns null for
@@ -93,7 +95,8 @@ namespace StingTools.Core.Drawing
         // P-12: view names, collected once per batch. NameExists ran a full
         // OfClass(View) collector and MakeUniqueViewName calls it up to 100
         // times per view — O(views^2) on a first run over a large model.
-        [ThreadStatic] private static HashSet<string>                _existingViewNames;
+        // DTW-45: likewise for view names.
+        [ThreadStatic] private static BatchNameLedger                _existingViewNames;
         // P-12: category name -> BuiltInCategory, built once per document.
         // Schedule rules resolved their category by iterating ~1,400 enum
         // members and calling Category.GetCategory on each, per rule.
@@ -155,7 +158,7 @@ namespace StingTools.Core.Drawing
                     v[ViewKey(dtId, ProductionContextKey.Identity(ctxTag), ruleIdx)] = view.Id;
                 }
                 _existingViewCache = v;
-                _existingViewNames = names;
+                _existingViewNames = new BatchNameLedger(names, StringComparer.Ordinal);
 
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
                 var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -177,7 +180,7 @@ namespace StingTools.Core.Drawing
                 }
                 _existingSheetCache = s;
                 _packageSheetCount  = pkg;
-                _sheetNumberCache   = nums;
+                _sheetNumberCache   = new BatchNameLedger(nums, StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
             {
@@ -554,7 +557,7 @@ namespace StingTools.Core.Drawing
                                     $"'{box}' was produced as an independent view instead.");
                 return ElementId.InvalidElementId;
             }
-            try { dep.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx)); }
+            try { dep.Name = MakeUniqueViewName(doc, BuildViewName(dt, rule, ctx), dep.Id); }
             catch (Exception ex) { StingLog.Warn($"Dependent view name: {ex.Message}"); }
             // Duplicate copies the parent's stamps; the caller restamps context and rule,
             // and the drawing type is stamped here so the view is found by type even if
@@ -608,7 +611,7 @@ namespace StingTools.Core.Drawing
                 var view = doc.GetElement(viewId) as View;
                 if (view == null) return ElementId.InvalidElementId;
 
-                try { view.Name = MakeUniqueViewName(doc, viewName); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                try { view.Name = MakeUniqueViewName(doc, viewName, view.Id); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
@@ -1629,22 +1632,33 @@ namespace StingTools.Core.Drawing
                 "DrawingProducer.SheetSegments", result?.Warnings);
         }
 
-        private static string MakeUniqueViewName(Document doc, string baseName)
+        private static string MakeUniqueViewName(Document doc, string baseName, ElementId forView = null)
         {
             string name = baseName;
             int n = 2;
             while (NameExists(doc, name) && n < 100) name = $"{baseName}_({n++})";
             // P-12: keep the batch name set current so the next probe in this
-            // run sees this name without another collector pass.
-            if (_existingViewNames != null && CacheMatchesDoc(doc)) _existingViewNames.Add(name);
+            // run sees this name without another collector pass. DTW-45: recorded
+            // against the view, so a rollback that removes the view frees the name.
+            if (_existingViewNames != null && CacheMatchesDoc(doc))
+                _existingViewNames.Record(name, forView?.Value ?? -1);
             return name;
         }
+
+        /// <summary>DTW-45: does element <paramref name="id"/> still exist? False once a
+        /// rolled-back transaction has taken it away.</summary>
+        private static Func<long, bool> Alive(Document doc) => id =>
+        {
+            if (id <= 0) return true;   // no owner recorded: treat as a real, standing name
+            try { var e = doc.GetElement(new ElementId(id)); return e != null && e.IsValidObject; }
+            catch (Exception ex) { StingLog.Warn($"DrawingProducer.Alive({id}): {ex.Message}"); return true; }
+        };
 
         private static bool NameExists(Document doc, string name)
         {
             // P-12: O(1) against the batch name set when primed for this doc.
             if (_existingViewNames != null && CacheMatchesDoc(doc))
-                return _existingViewNames.Contains(name);
+                return _existingViewNames.Contains(name, Alive(doc));
             try
             {
                 return new FilteredElementCollector(doc)
@@ -1805,7 +1819,12 @@ namespace StingTools.Core.Drawing
             HashSet<string> existing;
             if (useCache)
             {
-                existing = _sheetNumberCache;
+                // DTW-45: a number an earlier item in this batch took for a sheet its
+                // rollback removed is free again — otherwise this sheet got "-A".
+                int freed = _sheetNumberCache.Heal(baseNumber, Alive(doc));
+                if (freed > 0)
+                    StingLog.Info($"EnsureUniqueSheetNumber: {freed} number(s) under '{baseNumber}' freed — their sheets were rolled back.");
+                existing = _sheetNumberCache.Names;
             }
             else
             {
@@ -1829,6 +1848,8 @@ namespace StingTools.Core.Drawing
             // sees it for the next sheet in the same run.
             var chosen = SheetNumberEngine.MakeUnique(baseNumber, existing, out var note);
             if (note != null) result?.Warnings.Add(note);
+            if (useCache && chosen != null && excludeId != null)
+                _sheetNumberCache.Record(chosen, excludeId.Value);   // DTW-45: owned by this sheet
             return chosen ?? baseNumber;
         }
 

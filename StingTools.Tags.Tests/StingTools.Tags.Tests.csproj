@@ -292,6 +292,7 @@
     <!-- fix/dt-producers: the Revit-free decisions behind the producers (level segment,
          context identity, batch name ledger, unique view name, section from box, match-line
          upkeep, link levels, elevation faces). DrawingProducer and the commands call these files. -->
+    <Compile Include="..\StingTools\Core\Drawing\BatchNameLedger.cs" Link="Core\Drawing\BatchNameLedger.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ProductionContextKey.cs" Link="Core\Drawing\ProductionContextKey.cs" />
     <Compile Include="..\StingTools\Core\Panels\PanelSheetPlacementMode.cs" Link="Core\Panels\PanelSheetPlacementMode.cs" />
     <!-- Revit-free halves of fix/review-six: Seeds_Build's preset mode, and which stamped
