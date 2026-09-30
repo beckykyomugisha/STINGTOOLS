@@ -1612,29 +1612,36 @@ namespace StingTools.BIMManager
                     if (pickedNumbers.Contains(sheet.SheetNumber ?? ""))
                         targetSheetIds.Add(sheet.Id);
 
-                // Unattended, an issue with no sheet (no clouds, no picked sheets) would lock
-                // the revision against nothing. Leave it open and say so.
-                if (unattended && targetSheetIds.Count == 0)
-                {
-                    StingLog.Info($"IssueSheets (unattended): revision {revNum} has no clouded sheet — not issued.");
-                    return Result.Succeeded;
-                }
-
-                // ISO 19650 pairing of the revision and the suitability it is issued at.
+                // ISO 19650 pairing of the revision and the suitability it is issued at:
+                // the BCC form's code, else the revision's own "Issued to", else the one
+                // suitability every target sheet already carries (R6 — a recorded fact).
                 string effectiveSuit = issueSuitability;
                 if (string.IsNullOrWhiteSpace(effectiveSuit))
                 {
                     try { effectiveSuit = targetRev.IssuedTo ?? ""; }
                     catch (Exception itEx) { StingLog.Warn($"IssueSheets IssuedTo read: {itEx.Message}"); effectiveSuit = ""; }
                 }
-                var pairing = Core.Drawing.Iso19650RevisionRules.Check(revNum, effectiveSuit);
-                if (pairing.IsInconsistent)
+                if (string.IsNullOrWhiteSpace(effectiveSuit) && targetSheetIds.Count > 0)
                 {
-                    string why = $"Revision {revNum} was NOT issued: {pairing.Reason}. " +
-                                 "Correct the suitability (or the revision series) and issue again.";
+                    effectiveSuit = Core.Drawing.RevisionIssueGate.AgreedSuitability(targetSheetIds
+                        .Select(id => doc.GetElement(id) as ViewSheet)
+                        .Where(s => s != null)
+                        .Select(s => ParameterHelpers.GetString(s, ParamRegistry.DWG_SUITABILITY_COD)));
+                    if (!string.IsNullOrWhiteSpace(effectiveSuit))
+                    {
+                        issueSuitability = effectiveSuit;   // stamped into "Issued to" below
+                        StingLog.Info($"IssueSheets: suitability {effectiveSuit} taken from the target sheets (all agree).");
+                    }
+                }
+
+                // One gate (R6, R7): no target sheet, an inconsistent pair, or - in a
+                // workflow - a P/C revision with no suitability is refused, never issued.
+                bool inPreset = WorkflowEngine.IsRunningPreset;
+                if (!Core.Drawing.RevisionIssueGate.MayIssue(revNum, effectiveSuit, targetSheetIds.Count, inPreset, out string why))
+                {
                     StingLog.Warn("IssueSheets: " + why);
                     message = why;
-                    if (unattended) return Result.Failed;
+                    if (unattended || inPreset) return Result.Failed;
                     TaskDialog.Show("StingTools Issue Sheets", why);
                     return Result.Cancelled;
                 }

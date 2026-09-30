@@ -106,8 +106,72 @@ namespace StingTools.Core.Drawing
                 : Check(rev, suitabilityCode);
         }
 
+        /// <summary>True for a P or C series code — the revisions that must be issued at a
+        /// suitability for the pair to mean anything.</summary>
+        public static bool IsPairedSeries(string revisionCode)
+        {
+            return RevisionSeries.TryParseSeriesPrefix((revisionCode ?? "").Trim(), out string p, out _)
+                   && (p == "P" || p == "C");
+        }
+
         private static RevisionRuleResult Ok(string r) => new RevisionRuleResult { Verdict = RevisionRuleVerdict.Consistent, Reason = r };
         private static RevisionRuleResult Bad(string r) => new RevisionRuleResult { Verdict = RevisionRuleVerdict.Inconsistent, Reason = r };
         private static RevisionRuleResult Na(string r) => new RevisionRuleResult { Verdict = RevisionRuleVerdict.NotApplicable, Reason = r };
+    }
+
+    /// <summary>
+    /// Whether IssueSheetsForRevision may issue (R6, R7). One Revit-free rule so the
+    /// command's gates are tested:
+    ///   • no target sheet → never issued (it locked the revision against nothing, burned
+    ///     a number and proposed every open issue as RESPONDED);
+    ///   • an inconsistent revision/suitability pair → refused;
+    ///   • inside a workflow preset, a P/C revision with no suitability → refused: the title
+    ///     block, the export file name and the ACC upload would pair the new revision with
+    ///     the previous issue's suitability.
+    /// </summary>
+    public static class RevisionIssueGate
+    {
+        public static bool MayIssue(string revisionCode, string suitabilityCode, int targetSheets,
+            bool inPreset, out string reason)
+        {
+            string rev = string.IsNullOrWhiteSpace(revisionCode) ? "(unnumbered)" : revisionCode.Trim();
+            if (targetSheets <= 0)
+            {
+                reason = $"Revision {rev} was NOT issued: no sheet carries a cloud for it and none was picked. " +
+                         "Cloud the changes (or pick the sheets in the Coordination Center) and issue again.";
+                return false;
+            }
+            var pairing = Iso19650RevisionRules.Check(revisionCode, suitabilityCode);
+            if (pairing.IsInconsistent)
+            {
+                reason = $"Revision {rev} was NOT issued: {pairing.Reason}. " +
+                         "Correct the suitability (or the revision series) and issue again.";
+                return false;
+            }
+            if (inPreset && string.IsNullOrWhiteSpace(suitabilityCode) && Iso19650RevisionRules.IsPairedSeries(revisionCode))
+            {
+                reason = $"Revision {rev} was NOT issued: no suitability to issue it at. Set the revision's " +
+                         "'Issued to' field (Revit > Sheet Issues/Revisions) to the suitability code, or give " +
+                         "the clouded sheets one suitability (PRJ_DWG_SUITABILITY_COD_TXT), and run again.";
+                return false;
+            }
+            reason = "";
+            return true;
+        }
+
+        /// <summary>The one suitability the target sheets agree on, or "" when they carry none
+        /// or disagree. A recorded fact, never a default.</summary>
+        public static string AgreedSuitability(System.Collections.Generic.IEnumerable<string> sheetCodes)
+        {
+            string found = null;
+            foreach (var raw in sheetCodes ?? System.Linq.Enumerable.Empty<string>())
+            {
+                string c = (raw ?? "").Trim();
+                if (c.Length == 0) continue;
+                if (found == null) found = c;
+                else if (!string.Equals(found, c, StringComparison.OrdinalIgnoreCase)) return "";
+            }
+            return found ?? "";
+        }
     }
 }
