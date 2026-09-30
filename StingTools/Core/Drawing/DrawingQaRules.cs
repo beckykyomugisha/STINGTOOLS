@@ -6,6 +6,8 @@
 // callers gather facts, ask these rules, and act on the answer.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace StingTools.Core.Drawing
 {
@@ -51,6 +53,77 @@ namespace StingTools.Core.Drawing
         {
             if (!TryParseInvariant(a, out var x) || !TryParseInvariant(b, out var y)) return false;
             return Math.Abs(x - y) <= 1e-6 * Math.Max(1.0, Math.Max(Math.Abs(x), Math.Abs(y)));
+        }
+
+        // ── DTW-11: Sheet Number from ISO — what may move ──────────────────
+
+        internal sealed class IsoRenumberCandidate
+        {
+            public string Id;
+            public string Current;
+            /// <summary>The ISO 19650 identifier (SHT_TAG_1_TXT) the sheet would take.</summary>
+            public string Target;
+            /// <summary>STING_STYLE_LOCKED_BOOL — a locked sheet keeps its number.</summary>
+            public bool Locked;
+        }
+
+        internal sealed class IsoRenumberPlan
+        {
+            public List<IsoRenumberCandidate> Moves { get; } = new List<IsoRenumberCandidate>();
+            /// <summary>Locked sheets that would otherwise have moved.</summary>
+            public List<string> Locked { get; } = new List<string>();
+            /// <summary>Movers whose target is held by a sheet that is not moving.</summary>
+            public List<string> Held { get; } = new List<string>();
+            /// <summary>Targets two or more movers share: target → their current numbers.</summary>
+            public Dictionary<string, List<string>> Duplicates { get; }
+                = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// DTW-11: plan Sheet Number from ISO against EVERY sheet number in the
+        /// model, not only the ones being renamed. The old command checked
+        /// duplicates among its own targets, then renamed in two passes — a target
+        /// already held by a sheet outside the plan failed its second pass and left
+        /// that sheet on "~STINGTMP~", committed. Locked sheets never move, and a
+        /// mover whose target is held stays put (reported), repeated until stable
+        /// because a mover that stays keeps its number taken.
+        /// </summary>
+        internal static IsoRenumberPlan PlanIsoRenumber(
+            IEnumerable<IsoRenumberCandidate> candidates, IEnumerable<string> allNumbers)
+        {
+            var plan = new IsoRenumberPlan();
+            var movers = new List<IsoRenumberCandidate>();
+            foreach (var c in candidates ?? Enumerable.Empty<IsoRenumberCandidate>())
+            {
+                if (c == null || string.IsNullOrWhiteSpace(c.Target)
+                    || string.Equals(c.Target, c.Current, StringComparison.Ordinal)) continue;
+                if (c.Locked) { plan.Locked.Add(c.Current); continue; }
+                movers.Add(c);
+            }
+
+            foreach (var g in movers.GroupBy(m => m.Target, StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1))
+                plan.Duplicates[g.Key] = g.Select(m => m.Current).ToList();
+            if (plan.Duplicates.Count > 0) return plan; // caller refuses the run
+
+            var all = new HashSet<string>((allNumbers ?? Enumerable.Empty<string>())
+                .Where(n => !string.IsNullOrEmpty(n)), StringComparer.OrdinalIgnoreCase);
+            bool changed = true;
+            while (changed)
+            {
+                changed = false;
+                var moving = new HashSet<string>(movers.Select(m => m.Current), StringComparer.OrdinalIgnoreCase);
+                foreach (var m in movers.ToList())
+                {
+                    if (all.Contains(m.Target) && !moving.Contains(m.Target))
+                    {
+                        plan.Held.Add($"{m.Current} -> {m.Target}: '{m.Target}' is already another sheet's number; left as {m.Current}.");
+                        movers.Remove(m);
+                        changed = true;
+                    }
+                }
+            }
+            plan.Moves.AddRange(movers);
+            return plan;
         }
 
         internal static bool TryParseInvariant(string text, out double value)

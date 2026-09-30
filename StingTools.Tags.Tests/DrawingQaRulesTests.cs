@@ -1,3 +1,4 @@
+using System.Linq;
 using StingTools.Core.Drawing;
 using Xunit;
 
@@ -89,6 +90,64 @@ namespace StingTools.Tags.Tests
                 Assert.Equal(2.5, v);
             }
             finally { System.Globalization.CultureInfo.CurrentCulture = prior; }
+        }
+
+        // ── DTW-11: Sheet Number from ISO plans against every sheet number ──
+
+        private static DrawingQaRules.IsoRenumberCandidate Cand(string cur, string to, bool locked = false)
+            => new DrawingQaRules.IsoRenumberCandidate { Id = cur, Current = cur, Target = to, Locked = locked };
+
+        [Fact]
+        public void IsoRenumber_TargetHeldOutsideThePlan_StaysAndIsReported()
+        {
+            // "X" is an unstamped sheet nobody is renaming; the old two-pass rename
+            // failed its second pass and left A-001 on ~STINGTMP~0000.
+            var plan = DrawingQaRules.PlanIsoRenumber(
+                new[] { Cand("A-001", "X"), Cand("A-002", "P-O-V-L-DR-A-0002") },
+                new[] { "A-001", "A-002", "X" });
+            Assert.Equal(new[] { "A-002" }, plan.Moves.Select(m => m.Current));
+            Assert.Single(plan.Held);
+        }
+
+        [Fact]
+        public void IsoRenumber_HeldCascades_ToTheSheetThatWantedTheStayersNumber()
+        {
+            // A-001 cannot move (X is held), so A-002 cannot take A-001's number either.
+            var plan = DrawingQaRules.PlanIsoRenumber(
+                new[] { Cand("A-001", "X"), Cand("A-002", "A-001") },
+                new[] { "A-001", "A-002", "X" });
+            Assert.Empty(plan.Moves);
+            Assert.Equal(2, plan.Held.Count);
+        }
+
+        [Fact]
+        public void IsoRenumber_SwapBetweenMovers_IsAllowed()
+        {
+            var plan = DrawingQaRules.PlanIsoRenumber(
+                new[] { Cand("A-001", "A-002"), Cand("A-002", "A-001") },
+                new[] { "A-001", "A-002" });
+            Assert.Equal(2, plan.Moves.Count);
+        }
+
+        [Fact]
+        public void IsoRenumber_LockedSheet_KeepsItsNumber_AndBlocksItsTarget()
+        {
+            var plan = DrawingQaRules.PlanIsoRenumber(
+                new[] { Cand("A-001", "ISO-1", locked: true), Cand("A-002", "A-001") },
+                new[] { "A-001", "A-002" });
+            Assert.Equal(new[] { "A-001" }, plan.Locked);
+            Assert.Empty(plan.Moves);
+            Assert.Single(plan.Held);
+        }
+
+        [Fact]
+        public void IsoRenumber_DuplicateTargets_AreReported()
+        {
+            var plan = DrawingQaRules.PlanIsoRenumber(
+                new[] { Cand("A-001", "ISO-1"), Cand("A-002", "iso-1") },
+                new[] { "A-001", "A-002" });
+            Assert.Single(plan.Duplicates);
+            Assert.Empty(plan.Moves);
         }
 
         private static string RepoRoot()
