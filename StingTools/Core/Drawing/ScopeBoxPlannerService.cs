@@ -352,7 +352,7 @@ namespace StingTools.Core.Drawing
                 {
                     var dt = DrawingTypeRegistry.Get(doc, id);
                     if (dt == null) { report.Add($"'{box.Name}': drawing type '{id}' is no longer in the catalogue."); continue; }
-                    if (ScopeBoxSizing.TryMaxExtent(dt, drawables, plan.FitFactor, out var w, out var d, out _)
+                    if (ScopeBoxSizing.TryMaxExtent(dt, drawables, plan?.FitFactor ?? ScopeBoxSizing.DefaultFitFactor, out var w, out var d, out _)
                         && (Math.Min(m.WidthM, m.DepthM) > Math.Min(w, d) + 0.05 || Math.Max(m.WidthM, m.DepthM) > Math.Max(w, d) + 0.05))
                         report.Add($"'{box.Name}' ({ScopeBoxNames.Metres(m.WidthM)} × {ScopeBoxNames.Metres(m.DepthM)} m) is larger than '{id}' allows "
                                  + $"({ScopeBoxNames.Metres(w)} × {ScopeBoxNames.Metres(d)} m) — its plan will not fit the slot at 1:{dt.Scale}.");
