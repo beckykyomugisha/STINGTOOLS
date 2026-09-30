@@ -348,6 +348,8 @@ namespace StingTools.Core
             try
             {
                 if (row == null) return;
+                // ACC owns it: pushing it as new would restart the duplicate loop (IsAccOwned).
+                if (IssueSchema.IsAccOwned(row)) return;
                 Guid projectId = ResolvePlanscapeProjectId(doc);
                 if (projectId == Guid.Empty) return;   // not connected — nothing to do
 
@@ -455,6 +457,7 @@ namespace StingTools.Core
                     .Where(r => string.IsNullOrWhiteSpace(IssueSchema.ServerIdOf(r)) &&
                                 string.IsNullOrWhiteSpace((string)r["server_code"]) &&
                                 !string.Equals(IssueSchema.SourceOf(r), "server", StringComparison.OrdinalIgnoreCase) &&
+                                !IssueSchema.IsAccOwned(r) &&
                                 !string.IsNullOrWhiteSpace((string)r["title"]))
                     .Take(max).ToList();
                 if (pending.Count == 0) return 0;

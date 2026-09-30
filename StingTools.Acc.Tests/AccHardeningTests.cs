@@ -816,6 +816,18 @@ namespace StingTools.Acc.Tests
         }
     }
 
+    public class AccOwnedIssueTests
+    {
+        [Theory]
+        [InlineData("{\"acc_issue_id\":\"x\"}", true)]
+        [InlineData("{\"acc_origin\":\"clash\"}", true)]
+        [InlineData("{\"source\":\"ACC\"}", true)]
+        [InlineData("{\"source\":\"manual\"}", false)]
+        [InlineData("{\"source\":\"clash\",\"acc_issue_id\":\"\"}", false)]
+        public void AnIssueAccOwns_IsNeverPushedToTheServerAsNew(string json, bool accOwned)
+            => Assert.Equal(accOwned, StingTools.Core.IssueSchema.IsAccOwned(JObject.Parse(json)));
+    }
+
     public class WorkflowFailOnErrorTests
     {
         [Fact]

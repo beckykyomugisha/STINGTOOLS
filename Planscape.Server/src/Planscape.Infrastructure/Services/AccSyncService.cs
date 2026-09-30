@@ -405,6 +405,22 @@ public class AccSyncService
             string key = issue.Id.ToString();
             if (map.ContainsKey(key)) { skipped++; continue; }
 
+            // An issue that came FROM ACC (or is linked to one) is never created in ACC again:
+            // pushing it would make a second ACC issue, which the plugin's import brings back as
+            // a third, growing by one per cycle with every step reporting success. When its ACC
+            // id is known it is LINKED (so status read-back covers it); when not, it is skipped.
+            string originAccId = AccOriginId(issue);
+            if (originAccId != null)
+            {
+                map[key] = originAccId;
+                skipped++;
+                cfg[KeyIssueMap] = JObject.FromObject(map);
+                conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+                await _db.SaveChangesAsync(ct);
+                continue;
+            }
+            if (string.Equals(issue.Source, "acc", StringComparison.OrdinalIgnoreCase)) { skipped++; continue; }
+
             var (success, accId, error) = await PushIssueAsync(http, conn, issue, subtypeId!, region, ct);
             if (success)
             {
@@ -654,6 +670,19 @@ public class AccSyncService
         }
         cfg = new JObject();
         return false;
+    }
+
+    /// <summary>The ACC issue id an issue originated from, when it carries one
+    /// (CustomFields {"accIssueId": "..."}), else null. Never throws.</summary>
+    internal static string? AccOriginId(Planscape.Core.Entities.BimIssue issue)
+    {
+        if (string.IsNullOrWhiteSpace(issue?.CustomFields)) return null;
+        try
+        {
+            var id = (string?)JObject.Parse(issue!.CustomFields!)["accIssueId"];
+            return string.IsNullOrWhiteSpace(id) ? null : id.Trim();
+        }
+        catch (Newtonsoft.Json.JsonException) { return null; }
     }
 
     private static Dictionary<string, string> ReadIssueMap(JObject cfg)

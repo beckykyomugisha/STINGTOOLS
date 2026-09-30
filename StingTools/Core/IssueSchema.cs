@@ -211,6 +211,22 @@ namespace StingTools.Core
 
         public static string SourceName(IssueSource s) => s.ToString().ToLowerInvariant();
 
+        /// <summary>
+        /// True when ACC owns this issue: it was imported from ACC (acc_issue_id / source "acc")
+        /// or it is linked to an ACC issue STING itself raised (acc_origin). Such a row must
+        /// never be pushed to the Planscape server as a NEW issue: the server's ACC sync would
+        /// then create it in ACC a second time, the next import would bring that copy back as
+        /// a third row, and the loop grows one ACC issue per cycle per open issue — with every
+        /// step reporting success. ACC is the source of truth for these rows.
+        /// </summary>
+        public static bool IsAccOwned(JObject row)
+        {
+            if (row == null) return false;
+            if (!string.IsNullOrWhiteSpace((string)row["acc_issue_id"])) return true;
+            if (!string.IsNullOrWhiteSpace((string)row["acc_origin"])) return true;
+            return string.Equals(SourceOf(row), "acc", StringComparison.Ordinal);
+        }
+
         // ── Migration ─────────────────────────────────────────────────────
 
         // Legacy field → canonical field. Applied only when the canonical slot is empty,

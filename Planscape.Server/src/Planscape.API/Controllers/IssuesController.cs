@@ -373,6 +373,9 @@ public class IssuesController : ControllerBase
             LocationAccuracy = req.LocationAccuracy,
             DeviceId = req.DeviceId ?? Request.Headers["X-Device-Id"].ToString(),
             Source = source,
+            CustomFields = string.IsNullOrWhiteSpace(req.AccIssueId)
+                ? null
+                : new Newtonsoft.Json.Linq.JObject { ["accIssueId"] = req.AccIssueId!.Trim() }.ToString(Newtonsoft.Json.Formatting.None),
             // MODEL-VIEWER — pass through the 3D anchor when supplied.
             ModelId = req.ModelId,
             ModelElementGuid = req.ModelElementGuid,
@@ -1416,7 +1419,10 @@ public record CreateIssueRequest(
     string? Status,
     // CO-ASSIGNEES — additional AppUser ids who share responsibility.
     // Validated against project membership; stored as JSON array.
-    Guid[]? CoAssigneeUserIds);
+    Guid[]? CoAssigneeUserIds,
+    // ACC ORIGIN — the ACC issue this issue mirrors, when a client creates it from ACC.
+    // Stored in CustomFields; AccSyncService links such issues and never re-creates them in ACC.
+    string? AccIssueId = null);
 public record UpdateIssueRequest(
     string? Status,
     string? Priority,

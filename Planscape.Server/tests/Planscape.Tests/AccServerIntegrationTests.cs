@@ -187,6 +187,38 @@ public partial class AccServerIntegrationTests
     }
 
     [Fact]
+    public async Task Issues_that_came_from_ACC_are_linked_never_pushed_again()
+    {
+        // The duplicate loop: plugin imports an ACC issue -> Planscape server -> this sync
+        // would POST it to ACC as a NEW issue -> the next import brings the copy back.
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        using (var seed = fx.Db())
+        {
+            seed.Issues.Add(new BimIssue
+            {
+                TenantId = fx.TenantId, ProjectId = fx.ProjectId, IssueCode = "RFI-0100", Title = "From ACC (with id)",
+                Status = "OPEN", CreatedAt = DateTime.UtcNow, Source = "acc", CustomFields = "{\"accIssueId\":\"acc-original-7\"}",
+            });
+            seed.Issues.Add(new BimIssue
+            {
+                TenantId = fx.TenantId, ProjectId = fx.ProjectId, IssueCode = "RFI-0101", Title = "From ACC (no id)",
+                Status = "OPEN", CreatedAt = DateTime.UtcNow, Source = "acc",
+            });
+            await seed.SaveChangesAsync();
+        }
+        StubAcc(fx.Http, okPosts: 10);
+        using var db = fx.Db();
+        var r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        Assert.Equal(1, r.Pushed);                                   // only the Planscape-born issue
+        int posts = fx.Http.Calls.Count(c => c.Method == HttpMethod.Post && c.Url.EndsWith("/issues"));
+        Assert.Equal(1, posts);
+        var map = (JObject)JObject.Parse((await fx.ReadConnAsync()).ConfigJson!)[AccSyncService.KeyIssueMap]!;
+        Assert.Contains(map.Properties(), p => (string?)p.Value == "acc-original-7");   // linked, so read-back covers it
+    }
+
+    [Fact]
     public async Task Some_pushes_failing_is_PARTIAL_not_success()
     {
         var fx = new Fx();
