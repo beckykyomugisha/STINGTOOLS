@@ -575,16 +575,45 @@ With no `drawingTypes`, production makes each modelled discipline's routed plan 
 sheets. An unknown type or level, or an unreadable param value, fails the step with the
 reason. A view or sheet is counted only if its transaction commits.
 
-These resolve in a preset but still open a dialog there, so run them from their panels:
-- `Placement_PlaceFixtures` (asks to confirm or preview, then shows its result),
-  `Placement_MedGasOutlets` (result dialog)
-- `Routing_AutoDrop` (needs a selection; result panel)
-- `Cable_Calculate` and every `Calc_*` (`Calc_LoadSummary`, `Calc_VoltageDrop`, `Calc_FlagVD`,
-  `Calc_SizeBreakers`, `Calc_ApplyBreakers`, `Calc_FaultCurrent`, `Calc_AicStamp`,
-  `Calc_FeederSize`): each shows its summary, and they read their inputs from the Electrical
-  panel, not from step params
-- `Fire_SprinklerHydraulics` (needs a selection; asks for hazard, area and supply pressure)
-- `BOQExport` (coverage gate and result panel), `COBieExport` (opens the export wizard)
+Placement, routing, calculations and exports also run unattended. A missing input with no
+safe default fails the step and names the param; nothing is invented:
+- `Placement_PlaceFixtures`: `scope` defaults to the Fixtures tab choice (selected rooms), or
+  `activeview` / `project`. With no rooms selected the step fails. Other params:
+  - `mode`: `place` (default) or `preview`.
+  - `categories`, `packs`, `rules`: default all.
+  - It leaves the placed fixtures selected for the next step.
+- `Placement_MedGasOutlets`: no params. It skips with the reason when no room carries a gas
+  requirement.
+- `Routing_AutoDrop`: `scope` defaults to `selection`, or `activeview` / `project`. An empty
+  selection fails; it never widens to the whole model. Other params: `disciplines`
+  (electrical, plumbing, hvac) and `supports`.
+- `Cable_Calculate`: `loadKW`, `voltageV` and `lengthM` are required unless the Electrical
+  panel is open. Other params: `phases`, `powerFactor`, `vdLimitPct`, `installMethod`,
+  `material`, `insulation`, `cableType`, `standard`.
+- Voltage drop and breakers:
+  - `Calc_VoltageDrop` and `Calc_FlagVD` take `lightingLimitPct` (3), `otherLimitPct` (5),
+    `material`, `operatingTempC` and `standard`.
+  - `Calc_SizeBreakers` takes `standard` (default BS_MCB) and `continuous`.
+  - `Calc_ApplyBreakers` needs `Calc_SizeBreakers` earlier in the same preset.
+- Fault current and feeders:
+  - `Calc_FaultCurrent` needs `utilityFaultKa` (or the Electrical panel open); it never assumes
+    25 kA.
+  - `Calc_AicStamp` needs `Calc_FaultCurrent` earlier in the same preset.
+  - `Calc_FeederSize` takes `derateFactor`, `diversityPct`, `installMethod`, `insulation`,
+    `cableType`, `vdLimitPct` and `standard`.
+  - `Calc_LoadSummary` only clears the cache; the panel rebuilds the grid.
+- `Fire_SprinklerHydraulics`: `hazard` is required. Other params: `areaPerHeadM2` and
+  `supplyPressureBar`. The heads and the source still come from the selection.
+- `BOQExport`: `format` is xlsx. Other params:
+  - `fileName`: default STING_BOQ, in the BOQ folder.
+  - `onLowCoverage`: `export` (default, with the warning in the result) or `stop`.
+- `COBieExport`: params are `preset`, `worksheets`, `format` (xlsx / csv / both) and
+  `outputDir`. Behaviour:
+  - Below 60 % compliance the step fails, unless `exportBelowGate` is true.
+  - `refreshContainers` defaults to true.
+
+Values come from, in order: the step params, then the Electrical panel's current values when
+it is open, then the defaults above. A step never changes the panel's own values.
 
 Not checked for unattended use yet: the other `Plumb_*` commands, `DrawingTypes_ProduceAndExport`,
 `DrawingTypes_Renumber`, `DrawingTypes_HealTitleBlocks`.
