@@ -74,18 +74,18 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-17 | DrawingHealTitleBlocksCommand.cs:110 | Low | Wrong-family check ignores variant rules | Merged 2a8a1845b | Done |
 | DTW-18 | STING_DRAWING_TYPES.json titleBlockParams | Low | Hard-coded P01 / S2 / WIP reset real revision/suitability where a family carries them | Merged 2a8a1845b | Done |
 | DTW-19 | SheetNumberEngine.cs:311 | Low | O(n³) move lookup | Merged 2a8a1845b | Done |
-| DTW-20 | DrawingProductionConfigDialog.cs:616 / DrawingProducer.cs:624 | High | VG edits saved under "*" but the producer reads only dt.Id | Agent `fix/dt-producers` | In progress |
-| DTW-21 | DrawingProductionConfigDialog.cs:308,311 | High | Scale / detail-level override combos read by nothing | Agent `fix/dt-producers` | In progress |
-| DTW-22 | DrawingProductionConfigDialog.cs:184 | High | Preset combo has no handler; Save Preset always appends a new unnamed preset | Agent `fix/dt-producers` | In progress |
-| DTW-23 | BatchProduceCommands.cs:682 | High | Produce Sections default (Manual) and Per room produce nothing, silently | Agent `fix/dt-producers` | In progress |
-| DTW-24 | BatchProduceCommands.cs:692 | High | Produce Sections ignores ticked grids | Agent `fix/dt-producers` | In progress |
-| DTW-25 | DrawingProductionConfigDialog.cs:438 | Med | Section direction/angle/spacing/segmented/show/output options unread | Agent `fix/dt-producers` | In progress |
-| DTW-26 | BatchProduceCommands.cs:446 | High | From Scope Boxes produces unticked drawing types | Agent `fix/dt-producers` | In progress |
-| DTW-27 | BatchProduceCommands.cs:815 | High | Exterior Elevations: no sheets, 1+4 option ignored, not idempotent (4 new markers each run) | Agent `fix/dt-producers` | In progress |
-| DTW-28 | DrawingProductionConfigDialog.cs:366 | Med | Annotation sub-checkboxes unread | Agent `fix/dt-producers` | In progress |
-| DTW-29 | DrawingProductionConfigDialog.cs:298,315 | Med | Hide-unwanted / skip-empty-levels / create-package options unread | Agent `fix/dt-producers` | In progress |
-| DTW-30 | DrawingProductionConfigDialog.cs:284 | Med | All/Selected levels radios unread | Agent `fix/dt-producers` | In progress |
-| DTW-31 | ScopeBoxCommands.cs:220 | Med | Area-box production has no interactive Dependent option | Agent `fix/dt-producers` | In progress |
+| DTW-20 | DrawingProductionConfigDialog.cs:616 / DrawingProducer.cs:624 | High | VG edits saved under "*" but the producer reads only dt.Id | Merged (fix/dt-producers) | Done |
+| DTW-21 | DrawingProductionConfigDialog.cs:308,311 | High | Scale / detail-level override combos read by nothing | Merged (fix/dt-producers) | Done |
+| DTW-22 | DrawingProductionConfigDialog.cs:184 | High | Preset combo has no handler; Save Preset always appends a new unnamed preset | Merged (fix/dt-producers) | Done |
+| DTW-23 | BatchProduceCommands.cs:682 | High | Produce Sections default (Manual) and Per room produce nothing, silently | Merged (fix/dt-producers) | Done |
+| DTW-24 | BatchProduceCommands.cs:692 | High | Produce Sections ignores ticked grids | Merged (fix/dt-producers) | Done |
+| DTW-25 | DrawingProductionConfigDialog.cs:438 | Med | Section direction/angle/spacing/segmented/show/output options unread | Merged (fix/dt-producers) | Done |
+| DTW-26 | BatchProduceCommands.cs:446 | High | From Scope Boxes produces unticked drawing types | Merged (fix/dt-producers) | Done |
+| DTW-27 | BatchProduceCommands.cs:815 | High | Exterior Elevations: no sheets, 1+4 option ignored, not idempotent (4 new markers each run) | Merged (fix/dt-producers) | Done |
+| DTW-28 | DrawingProductionConfigDialog.cs:366 | Med | Annotation sub-checkboxes unread | Merged (fix/dt-producers) | Done |
+| DTW-29 | DrawingProductionConfigDialog.cs:298,315 | Med | Hide-unwanted / skip-empty-levels / create-package options unread | Merged (fix/dt-producers) | Done |
+| DTW-30 | DrawingProductionConfigDialog.cs:284 | Med | All/Selected levels radios unread | Merged (fix/dt-producers) | Done |
+| DTW-31 | ScopeBoxCommands.cs:220 | Med | Area-box production has no interactive Dependent option | Merged (fix/dt-producers) | Done |
 | DTW-32 | StingDockPanel.xaml tooltips 1446/1455/1477/1490/1491/2209 | Med | Tooltips promise behaviour the code lacks (planner, Sync Styles, pre-flight, counts) | Merged 796a5a041 | Done |
 | DTW-33 | StingDockPanel.xaml:1483/1493, DrawingTypeEditorDialog.cs:467 | Med | Three confusable scope-box producers | Merged 796a5a041 | Done |
 | DTW-34 | ProjectSetupCommand.cs:538 | Med | Wizard dependents/sections/elevations use legacy unstamped commands | Merged 796a5a041 | Done |
@@ -94,21 +94,21 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-37 | StingCommandHandler.cs:6587, StingDockPanel.xaml:1452/2206 | Low | Mislabelled result title; one command under two labels | Merged 796a5a041 | Done |
 | DTW-38 | MEP_DRAWING_PRODUCTION_GUIDE.md A1/A6/A7 | Low-Med | Guide places Produce From Areas, Dependent and Rename scope boxes wrongly | Merged 796a5a041 | Done |
 | DTW-39 | ScopeBoxPlannerService.cs:355 | High | No saved plan: NullReferenceException in area production (headless preset fails) | Fixed f91f8c42c | Done |
-| DTW-40 | BatchProduceCommands.cs:514 / ScopeBoxBinder | High | STING:: level segment matched to Level.Name only; "Level 1" unaddressable | fix/dt-producers | In progress |
-| DTW-41 | GenerateFromScopeBoxesCommand.cs | High | Legacy duplicate producer: blocks presets, duplicate views, L1 matches L10 | fix/dt-producers | In progress |
-| DTW-42 | DrawingProducer.cs:1422 | High | Identity keyed on level/box names; a rename re-mints views, sheets and numbers | fix/dt-producers | In progress |
-| DTW-43 | SheetNumberPolicy / DrawingTokenContext | Med | ISO LVL from SafeShort(name) disagrees with IsoLevelCode | fix/dt-producers | In progress |
-| DTW-44 | SheetNumberPolicy.cs:77 | Med | ISO pattern embeds frozen S2-P01 | fix/dt-producers | In progress |
-| DTW-45 | DrawingProducer.cs:1745 | Med | Batch caches not rolled back; false -A duplicates | fix/dt-producers | In progress |
-| DTW-46 | MatchLineEngine.cs:555 | Med | Generate keeps stale lines after a box moves | fix/dt-producers | In progress |
-| DTW-47 | MatchLineEngine.cs:1111 | Med | Orphan curves of deleted or retyped views never pruned | fix/dt-producers | In progress |
-| DTW-48 | MatchLineEngine.cs:756 | Low-Med | Unbound stamp param makes every run add curves, silently | fix/dt-producers | In progress |
-| DTW-49 | MepLevelViewProducer | Med | Host-only presence; linked MEP reads as nothing modelled | fix/dt-producers | In progress |
-| DTW-50 | SheetNumbering.cs:139 | Low-Med | Commit status ignored | fix/dt-producers | In progress |
-| DTW-51 | DrawingProducer CreateSheet | Low | Area sheets on one level share a name | fix/dt-producers | In progress |
-| DTW-52 | DrawingProducer.cs:725/891 | Low | Section in box context is a fixed 10 m cut at the origin; planner gap 9 | fix/dt-producers | In progress |
-| DTW-53 | DrawingProducer.cs:1547 | Low | Unique-name cap at 99; dead lock check | fix/dt-producers | In progress |
-| DTW-54 | DrawingProducer.cs:743 | Low-Med | Interior elevations: one face, owner plan from any level | fix/dt-producers | In progress |
+| DTW-40 | BatchProduceCommands.cs:514 / ScopeBoxBinder | High | STING:: level segment matched to Level.Name only; "Level 1" unaddressable | Merged (fix/dt-producers) | Done |
+| DTW-41 | GenerateFromScopeBoxesCommand.cs | High | Legacy duplicate producer: blocks presets, duplicate views, L1 matches L10 | Merged (fix/dt-producers) | Done |
+| DTW-42 | DrawingProducer.cs:1422 | High | Identity keyed on level/box names; a rename re-mints views, sheets and numbers | Merged (fix/dt-producers) | Done |
+| DTW-43 | SheetNumberPolicy / DrawingTokenContext | Med | ISO LVL from SafeShort(name) disagrees with IsoLevelCode | Merged (fix/dt-producers) | Done |
+| DTW-44 | SheetNumberPolicy.cs:77 | Med | ISO pattern embeds frozen S2-P01 | Merged (fix/dt-producers) | Done |
+| DTW-45 | DrawingProducer.cs:1745 | Med | Batch caches not rolled back; false -A duplicates | Merged (fix/dt-producers) | Done |
+| DTW-46 | MatchLineEngine.cs:555 | Med | Generate keeps stale lines after a box moves | Merged (fix/dt-producers) | Done |
+| DTW-47 | MatchLineEngine.cs:1111 | Med | Orphan curves of deleted or retyped views never pruned | Merged (fix/dt-producers) | Done |
+| DTW-48 | MatchLineEngine.cs:756 | Low-Med | Unbound stamp param makes every run add curves, silently | Merged (fix/dt-producers) | Done |
+| DTW-49 | MepLevelViewProducer | Med | Host-only presence; linked MEP reads as nothing modelled | Merged (fix/dt-producers) | Done |
+| DTW-50 | SheetNumbering.cs:139 | Low-Med | Commit status ignored | Merged (fix/dt-producers) | Done |
+| DTW-51 | DrawingProducer CreateSheet | Low | Area sheets on one level share a name | Merged (fix/dt-producers) | Done |
+| DTW-52 | DrawingProducer.cs:725/891 | Low | Section in box context is a fixed 10 m cut at the origin; planner gap 9 | Merged (fix/dt-producers) | Done |
+| DTW-53 | DrawingProducer.cs:1547 | Low | Unique-name cap at 99; dead lock check | Merged (fix/dt-producers) | Done |
+| DTW-54 | DrawingProducer.cs:743 | Low-Med | Interior elevations: one face, owner plan from any level | Merged (fix/dt-producers) | Done |
 | DTW-55 | RESOLVED_BINDINGS (STING_DRAWING_TYPE_ID_TXT + 11 view stamps) | High | <ALL> binds to the core set (no Views): every stamp on a view is a no-op, so re-runs cannot find their views | Merged ea43a06ab | Done |
 | DTW-56 | STING_MATCH_* params | High | Not bound to Lines: match-line pair keys never stored, re-runs duplicate curves | Merged ea43a06ab | Done |
 | DTW-57 | TAG_SEG_MASK_TXT | High | No binding row: token-profile segment masks of 18 types do nothing | Merged ea43a06ab | Done |
@@ -117,7 +117,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-60 | titleBlockParams keys (114 types) | High | Keys are display labels no title-block family has; ~10-13 warnings per sheet, nothing written | fix/dt-data | In progress |
 | DTW-61 | mep-coord-A1-1to50 | Med-High | 3 production rules, 1 slot: ISO and section stacked on the plan | fix/dt-data | In progress |
 | DTW-62 | spool / mep-coord / pres-3d / clar-markup | Med | One view template for mixed view kinds, so it throws and falls back | fix/dt-data | In progress |
-| DTW-63 | DrawingProducer.cs:1277 SLOT-3 | Med | Raw string view-type compare: spurious mismatch warning on most sheets | After fix/dt-producers (same file) | Queued |
+| DTW-63 | DrawingProducer.cs:1277 SLOT-3 | Med | Raw string view-type compare: spurious mismatch warning on most sheets | fix/dt-followups | In progress |
 | DTW-64 | STING_MATCH_LINES.json caption text type / line style | Med | Created by nothing: captions silently skipped | fix/dt-data | In progress |
 | DTW-65 | sectionMarker on 14 types | Med | Families created by nothing; markPrefix/bubble/farClip read by nothing | fix/dt-data | In progress |
 | DTW-66 | legend-A3 | Low-Med | Routed type can never be produced | fix/dt-data | In progress |
@@ -128,11 +128,14 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-71 | Id convention | Low | Ids missing paper/scale suffix; inconsistent prefixes | fix/dt-data | In progress |
 | DTW-72 | {mark} in per-level type names | Low | Prints XX | fix/dt-data | In progress |
 | DTW-73 | CLAUDE.md catalogue counts | Low | Says 93 types / 113 rules; data has 114 / 141 | fix/dt-data | In progress |
-| DTW-74 | ProjectSetupCommand.CreateTwoSectionsPerScopeBox | Med | Wizard "two building sections per scope box" still makes unstamped sections | After fix/dt-producers (section-from-box helper, DTW-52) | Queued |
+| DTW-74 | ProjectSetupCommand.CreateTwoSectionsPerScopeBox | Med | Wizard "two building sections per scope box" still makes unstamped sections | fix/dt-followups | In progress |
 | DTW-75 | STING_AUTO_PLACED_BOOL | Med | Written to viewports and schedule instances, not bound there | fix/dt-data | In progress |
 | DTW-76 | STING_PLACER_* | Med | <ALL> but written to detail lines and annotations; the group override is unreachable when spec-driven | fix/dt-data | In progress |
 | DTW-77 | WARN_STING_PACK_DRIFT | Low | View warning bound to elements | fix/dt-data | In progress |
 | DTW-78 | ManagedTemplateSyncer.cs:576 | Low | Literal parameter name instead of the ParamRegistry constant | 5da278b68 | Done |
+| DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | fix/dt-followups | In progress |
+| DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | fix/dt-followups | In progress |
+| DTW-81 | DrawingProducer.AdoptView | Med | Reported adoption even when the stamp failed; cache failure left a stale index | 08fe22fc9 | Done |
 
 ## Decisions
 
@@ -162,6 +165,29 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
 ## NEEDS REVIT CHECK
+
+Producer checks (DTW-20..54):
+- Rename "Level 1" to "Ground Floor" and re-run per-level production: expect no new views,
+  sheets or numbers.
+- A `STING::<type>::L01` box on a level named "Level 1" produces on that level.
+- ISO policy: new numbers have no `-S2-P01` tail; existing sheets are unchanged; the counter
+  continues.
+- Sections: only ticked grids are cut. A section type on a box cuts through the box; a 3D
+  type is boxed by it.
+- Interior elevations: four compass-named views share one marker, on the room's own plan.
+- Exterior elevations: run twice with no duplicates; 1+4 puts four faces on one sheet.
+- Match lines: move a box and Generate moves the lines; delete a plan and its curves are pruned.
+- Linked MEP: per-level default produces plans when MEP is in a link.
+- Presets: save, reload and overwrite by name; VG, scale and annotation options apply; Skip
+  empty levels lists the skipped levels.
+
+Binding checks (DTW-55..59), after Load Shared Parameters:
+- `STING_DRAWING_TYPE_ID_TXT` shows in a view's properties.
+- Re-produce and expect no duplicate views.
+- `STING_MATCH_*` resolve on Lines: the log shows 1/1, not 0/1. 0/1 means Revit refuses Lines,
+  and the key moves to Extensible Storage.
+- Healthcare filters create without warnings.
+
 
 Steps to run in a real model. None of these can be tested headlessly.
 
