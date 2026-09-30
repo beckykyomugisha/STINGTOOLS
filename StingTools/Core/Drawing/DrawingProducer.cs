@@ -428,7 +428,10 @@ namespace StingTools.Core.Drawing
                                     SkipAutoTag = true, SkipAutoDim = true,
                                     SkipDecorative = true, SkipSpots = true
                                 },
-                                SkipSymbolDriftCheck = true // idempotent refresh — batch path
+                                SkipSymbolDriftCheck = true, // idempotent refresh — batch path
+                                // The box this view is produced for: without it the
+                                // refresh re-ran the profile's own crop over the box crop.
+                                ContextScopeBox = ctx?.ScopeBox
                             };
                             var refreshed = DrawingTypePresentation.Apply(doc, existing, dt, refreshOpts);
                             result.Warnings.AddRange(refreshed.Warnings);
@@ -1368,8 +1371,9 @@ namespace StingTools.Core.Drawing
             string sbox = "";
             try { sbox = ctx?.ScopeBox?.Name ?? ""; } catch (Exception ex) { StingLog.Warn($"BuildContextTag scope box: {ex.Message}"); }
 
-            var tag = $"{lvl}::{room}::{ctx?.Tag ?? ""}";
-            return string.IsNullOrEmpty(sbox) ? tag : tag + "::" + sbox;
+            // One format, parsed back by ViewContextTag.ScopeBoxName when a re-sync has
+            // to recover the box (DrawingTypePresentation.Apply).
+            return ViewContextTag.Compose(lvl, room, ctx?.Tag, sbox);
         }
 
         private static View FindExistingView(Document doc, string dtId, DrawingContext ctx, int ruleIdx)
