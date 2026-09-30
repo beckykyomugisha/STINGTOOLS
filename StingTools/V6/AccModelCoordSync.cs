@@ -87,6 +87,17 @@ namespace StingTools.V6
         public double PenetrationMm => Math.Abs(DistanceM) * DistToMm;
     }
 
+    /// <summary>What the clash-tests endpoint says about a model set, without its results.</summary>
+    public sealed class AccClashTestSummary
+    {
+        public int TestCount { get; set; }
+        public List<string> States { get; set; } = new List<string>();
+        /// <summary>Empty when no test has completed.</summary>
+        public string LatestCompletedId { get; set; } = string.Empty;
+        public string LatestCompletedAt { get; set; } = string.Empty;
+        public bool HasCompleted => !string.IsNullOrEmpty(LatestCompletedId);
+    }
+
     public static class AccModelCoordSync
     {
         internal const string DefaultHost = "https://developer.api.autodesk.com";
@@ -298,6 +309,46 @@ namespace StingTools.V6
             ok.TotalAvailable = available;
             ok.Truncated = result.Count < available;
             return ok;
+        }
+
+        /// <summary>
+        /// The clash tests on a model set, WITHOUT reading any results: the tests endpoint
+        /// only, no resources call, no scope-file download. Used by the ACC self-check to say
+        /// "a completed test exists" cheaply. The same array keys and the same completed-test
+        /// rule as <see cref="GetClashesAsync"/>, so the two cannot disagree about what a
+        /// completed test is. A 200 with no tests array is TransportFailed, never "no tests".
+        /// </summary>
+        public static async Task<AccFetchResult<AccClashTestSummary>> GetClashTestSummaryAsync(
+            AccCredentials creds, string containerId, string modelSetId)
+        {
+            var summary = new AccClashTestSummary();
+            if (string.IsNullOrEmpty(containerId) || string.IsNullOrEmpty(modelSetId))
+                return AccFetchResult<AccClashTestSummary>.Failure(AccFetchStatus.NotFound, summary, 0,
+                    "no ACC container id or model-set id was supplied");
+
+            var got = await GetJsonAsync(creds,
+                $"{ClashBase}/containers/{AccIds.ForAcc(containerId)}/modelsets/{modelSetId}/tests").ConfigureAwait(false);
+            if (!got.Succeeded)
+                return AccFetchResult<AccClashTestSummary>.Failure(got.Status, summary, got.HttpStatus, got.Detail);
+
+            var tests = AccFetchOutcome.FindArray(got.Value, new[] { "tests", "results" });
+            if (tests == null)
+                return AccFetchResult<AccClashTestSummary>.Failure(AccFetchStatus.TransportFailed, summary, got.HttpStatus,
+                    "the clash-test response carried no 'tests' array — the bim360/clash/v3 tests sub-path or payload shape has changed");
+
+            summary.TestCount = tests.Count;
+            summary.States = tests.Select(t => (string)t["status"] ?? "?").Distinct().ToList();
+            var latest = tests
+                .Where(t => IsCompletedTest((string)t["status"]))
+                .OrderByDescending(t => (string)(t["completedAt"] ?? t["completedDate"] ?? t["updatedAt"]) ?? "")
+                .FirstOrDefault();
+            if (latest != null)
+            {
+                string tid = (string)(latest["clashTestId"] ?? latest["id"] ?? latest["testId"]);
+                summary.LatestCompletedId = string.IsNullOrEmpty(tid) ? "(id not reported)" : tid;
+                summary.LatestCompletedAt = (string)(latest["completedAt"] ?? latest["completedDate"] ?? latest["updatedAt"]) ?? "";
+            }
+            return AccFetchResult<AccClashTestSummary>.Success(summary, tests.Count == 0);
         }
 
         private static AccFetchResult<List<AccClashRecord>> Fail(AccFetchStatus status, int httpStatus, string detail)

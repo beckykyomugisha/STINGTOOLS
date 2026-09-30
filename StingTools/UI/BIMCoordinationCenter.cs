@@ -5653,6 +5653,7 @@ namespace StingTools.UI
                 b.Click += (s, e) => DispatchAction(action);
                 actRow.Children.Add(b);
             }
+            AddAct("🩺 Self-check",       "AccSelfCheck",       Color.FromRgb(0x45, 0x5A, 0x64), "Read-only go-live check: settings, sign-in, project, Issues, Model Coordination, Docs folders and attributes — PASS / WARN / FAIL / SKIPPED with the reason and remedy. Creates, uploads and changes nothing in ACC.");
             AddAct("⬇ Pull Clashes",      "AccPullClashes",     CHeaderBg,                        "Pull Model Coordination clashes from ACC, triage them, export a CSV, and optionally escalate the top clashes to ACC Issues.");
             AddAct("🔁 Sync Issue Status","AccSyncIssueStatus", Color.FromRgb(0x15, 0x65, 0xC0), "Pull ACC Issues and reconcile previously-escalated clashes — closed issues are un-tracked so recurring clashes re-raise.");
             AddAct("📥 Import Issues",    "AccImportIssues",    Color.FromRgb(0x2E, 0x7D, 0x32), "Import every ACC issue into the STING issue register (new rows, title/status/assignee updates). Never deletes STING issues; an issue edited in both places is reported as a conflict, not overwritten.");

@@ -251,7 +251,7 @@ namespace StingTools.Core
             "Niagara_ExportPoints", "Niagara_Reconcile", "Owner_KpiDashboard", "KUT_KpiDashboard",
             "KUT_ValuationFromBms", "KUT_LifecycleReconcile", "KUT_PushLifecycleGapsToAcc",
             "ACC_PullClashes", "ACC_SyncIssueStatus", "AccPullClashes", "AccSyncIssueStatus",
-            "ACC_ImportIssues", "AccImportIssues",
+            "ACC_ImportIssues", "AccImportIssues", "ACC_SelfCheck", "AccSelfCheck",
             "ACC_UploadModel", "ACC_UploadLastBundle",
             "Lite_ComCheck",
             "ReviewComments_Import", "ReviewComments_Dashboard", "ReviewComments_Export", "ValidateTemplate",
@@ -2125,6 +2125,8 @@ namespace StingTools.Core
                 case "AccSyncIssueStatus":      return new Core.Clash.AccSyncIssueStatusCommand();
                 case "ACC_ImportIssues":
                 case "AccImportIssues":         return new Core.Clash.AccImportIssuesCommand();
+                case "ACC_SelfCheck":
+                case "AccSelfCheck":            return new Core.Clash.AccSelfCheckCommand();
                 // Resolvable so a PROJECT-authored workflow can use it; deliberately not
                 // in any shipped KUT workflow, because a step cannot answer "which file?".
                 case "ACC_UploadModel":         return new Core.Clash.AccUploadModelCommand();

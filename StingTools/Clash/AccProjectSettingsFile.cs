@@ -60,12 +60,19 @@ namespace StingTools.Core.Clash
         /// over them. Logs where the ids came from, and a deprecation warning when they came
         /// from the machine file, so a pull against the wrong container can be explained.</summary>
         internal static AccCredentials LoadCredentials(Document doc, string commandName)
+            => LoadCredentials(doc, commandName, out _);
+
+        /// <summary>As above, also returning the project values still taken from the machine
+        /// file (computed BEFORE the project scope is applied, which overwrites them).</summary>
+        internal static AccCredentials LoadCredentials(Document doc, string commandName,
+            out System.Collections.Generic.IReadOnlyList<string> machineFileFallbacks)
         {
             var creds = AccIssueSync.LoadCredentials();
             AccOperatingPolicy policy = null;
             try { policy = AccOperatingPolicy.Load(PathFor(doc)); }
             catch (Exception ex) { StingLog.Warn($"{commandName}: ACC settings: {ex.Message}"); }
             var fallbacks = AccProjectScope.MachineFileFallbacks(creds, policy);
+            machineFileFallbacks = fallbacks;
             AccProjectScope.Apply(creds, policy);
             string line = $"{commandName}: {AccProjectScope.Describe(creds)}";
             if (creds.ProjectScope == AccProjectScopeSource.CredentialsFile) StingLog.Warn(line);
