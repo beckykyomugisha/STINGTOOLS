@@ -307,7 +307,6 @@ public partial class AccServerIntegrationTests
     private sealed class Receiver
     {
         public readonly RecordingHub Hub = new();
-        public readonly IDistributedCache Cache = new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions()));
         private readonly Fx _fx;
         private readonly string? _secret;
         public Receiver(Fx fx, string? secret = HookSecret) { _fx = fx; _secret = secret; }
@@ -328,7 +327,8 @@ public partial class AccServerIntegrationTests
                 ["Autodesk:WebhookSecret"] = _secret,
             }).Build();
             using var db = _fx.Db(withTenant: false);                   // anonymous endpoint: no tenant context
-            var ctl = new AutodeskWebhooksController(db, Hub, cfg, Cache, NullLogger<AutodeskWebhooksController>.Instance)
+            var guard = new ApsWebhookDeliveryGuard(db, NullLogger<ApsWebhookDeliveryGuard>.Instance);
+            var ctl = new AutodeskWebhooksController(db, Hub, cfg, guard, NullLogger<AutodeskWebhooksController>.Instance)
             {
                 ControllerContext = new ControllerContext { HttpContext = ctx },
             };
@@ -576,8 +576,9 @@ public partial class AccServerIntegrationTests
         StubWebhooks(fx.Http, p => p.Contains("issue.updated") ? HttpStatusCode.Forbidden : HttpStatusCode.Created);
         var cfg = WithSettings(fx.Config, new() { ["Autodesk:WebhookSecret"] = HookSecret });
         using var db = fx.Db();
-        var r = await Hooks(fx, db, cfg).SubscribeAsync(fx.ProjectId, null, default);
+        var r = await Hooks(fx, db, cfg).SubscribeAsync(fx.ProjectId, Array.Empty<string>(), default);   // [] = no DM hooks
         Assert.Equal(AccSyncService.StatusPartial, r.Status);
+        Assert.Equal("none", r.FolderSource);
         Assert.Single(r.Errors);
         var hooks = AccWebhookService.ReadHooks(JObject.Parse((await fx.ReadConnAsync()).ConfigJson!));
         var h = Assert.Single(hooks);

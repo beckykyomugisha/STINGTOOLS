@@ -2,6 +2,55 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (ACC server gaps — ACC-SRV-5..8, reconnect listing, 2026-09-30)
+
+`Planscape.Server` only. Built and tested; not run against a live ACC tenant.
+
+- **APS contract checked against the published OpenAPI specs** (`aps-sdk-openapi`
+  `webhooks/webhooks.yaml`, `datamanagement/datamanagement.yaml`). Confirmed: `POST
+  /webhooks/v1/tokens` creates the secret (200; **400 "Secret token already exists"**), `PUT
+  /webhooks/v1/tokens/@me` updates it (204; 404 when none); `dm.version.modified` and the four
+  events we use are in the spec's event enum; `x-ads-region` is a documented header on every
+  webhooks operation (US / EMEA / AUS / CAN / DEU / IND / JPN / GBR, also the region APS calls
+  back from); hook create answers **409 "hook already exists"**; a folder-scoped hook covers
+  sub-folders. APS has **no** endpoint listing a system's events.
+- **Secret token (`AccWebhookService.SetSecretAsync`).** Create first; on any failure other than
+  401/403 try the update; both failing reports both HTTP codes. Which call worked is returned
+  (`secretSetBy`) and recorded under the server-owned `accWebhookSecretSetBy` config key.
+- **Event names** are validated against a copy of the spec's enum (`KnownEvents`). Events are
+  configurable per system (`Autodesk:WebhookEvents:{system}`, comma-separated); an unknown one
+  is skipped and listed in `warnings`, the rest still subscribe.
+- **409 on hook create**: the existing hook is looked up (`GET …/hooks?scopeName&scopeValue`,
+  every `links.next` page) and adopted when its callback URL is ours; otherwise reported, never
+  recorded. Hooks are created with `autoReactivateHook: true`.
+- **Folders (ACC-SRV-6).** `GET /api/projects/{id}/acc/folders[?parentUrn=]` lists top folders
+  (hidden flagged) or a folder's sub-folders (`filter[type]=folders`, all pages). `subscribe`
+  with no `folderUrns` now defaults to the project's top folders (`topFolders?projectFilesOnly=true`,
+  hidden excluded) and reports `folderSource` / `folders`; `"folderUrns": []` means issue hooks
+  only. No web or mobile screen manages ACC today, so no picker was added — the API is
+  documented in `docs/DEPLOY_RUNBOOK.md` §3g.
+- **Atomic webhook dedupe (ACC-SRV-7).** `ApsWebhookDeliveryGuard` claims `x-adsk-delivery-id`
+  by inserting into `ApsWebhookDeliveries` (`INSERT … ON CONFLICT DO NOTHING`; OnModelCreating +
+  `PlatformSchemaPatcher` DDL, no migration). A delivery whose processing throws releases its
+  claim so APS's redelivery applies. Claims older than 48 h are pruned. The IDistributedCache
+  check-then-set is gone.
+- **Key ring encrypted at rest (ACC-SRV-8).** `DataProtection:CertificateBase64` (+
+  `CertificatePassword`) or, on Windows, `CertificateThumbprint` → `ProtectKeysWithCertificate`;
+  `PreviousCertificatesBase64` → `UnprotectKeysWithAnyCertificate` for rotation. Not configured
+  in Production = startup WARNING naming the setting; configured but unusable (bad base64, wrong
+  password, no private key, not RSA) = ERROR. Keys already stored in plain text stay readable.
+  Runbook §3f (openssl, Render env vars); `appsettings.Production.template.json`.
+- **Reconnects.** `GET /api/acc/reconnect-required` lists the tenant's ACC connections (tenant
+  admins: all; others: projects they administer) whose tokens cannot be decrypted, that have no
+  refresh token, or whose last status is `RECONNECT_REQUIRED`, with the reason and the call to
+  make. RECONNECT_REQUIRED errors now say what to do (`GET /api/acc/oauth/start?projectId=…`)
+  and that tokens encrypted under the old ring cannot be recovered — that ring is gone by design.
+- **Tests.** `AccServerIntegrationTests` 64 (was 45): secret create / update / both-fail /
+  forbidden, event validation, 409 adopt and foreign 409, default and hub-less folders, folder
+  paging, reconnect on unreadable tokens, 8 parallel deliveries → one processed (InMemory) and
+  16 racing claims → one winner on SQLite (both shown RED without the atomic claim), key
+  encryption selection, encrypted-at-rest round trip with rotation, reconnect listing and gate.
+
 #### Completed (ACC self-check — one-click, read-only go-live verification, 2026-09-30)
 
 - **`ACC_SelfCheck` / `AccSelfCheck`** (`Clash/AccSelfCheckCommand.cs`, ReadOnly; BIM

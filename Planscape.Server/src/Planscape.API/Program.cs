@@ -666,6 +666,7 @@ builder.Services.AddScoped<Planscape.Infrastructure.Services.PlatformSyncJob>();
 // #3 — server-side ACC issue sync (push Planscape issues → ACC + token-unification seam).
 builder.Services.AddScoped<Planscape.Infrastructure.Services.AccSyncService>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.AccWebhookService>();
+builder.Services.AddScoped<Planscape.Infrastructure.Services.ApsWebhookDeliveryGuard>();
 // ACC OAuth state: sealed (DataProtection, time-limited) + single-use (IReplayGuard).
 builder.Services.AddScoped<Planscape.API.Services.AccOAuthState>();
 builder.Services.AddScoped<Planscape.Infrastructure.Services.CustomFieldsPurgeJob>();

@@ -12,12 +12,18 @@ namespace Planscape.API.Controllers;
 ///
 ///   POST   /api/projects/{projectId}/acc/webhooks/subscribe   body: { "folderUrns": ["urn:adsk.wipprod:fs.folder:co.…"] }
 ///   DELETE /api/projects/{projectId}/acc/webhooks
+///   GET    /api/projects/{projectId}/acc/folders[?parentUrn=…]  — folder browser for folderUrns
 ///
 /// Same gate as connecting ACC (AccOAuthController.Start): [ProjectAccess] +
-/// CanAdministerProject. Issue hooks are always created (project scope); Data
-/// Management hooks only for the folder URNs given, because APS scopes DM hooks
-/// to a folder. The hooks' callback URL carries ?connectionId so
-/// AutodeskWebhooksController does not have to trust payload.projectId.
+/// CanAdministerProject. Issue hooks are always created (project scope). Data
+/// Management hooks are folder-scoped in APS: for the folderUrns given, or —
+/// when the body has no folderUrns — the project's top folders (Project Files),
+/// reported back as folderSource/folders. "folderUrns": [] means no DM hooks.
+/// The hooks' callback URL carries ?connectionId so AutodeskWebhooksController
+/// does not have to trust payload.projectId.
+///
+/// There is no ACC settings screen in the Planscape web or mobile app yet, so
+/// these endpoints are the interface (documented in docs/DEPLOY_RUNBOOK.md).
 ///
 /// 200 OK / PARTIAL (body says which), 409 RECONNECT_REQUIRED, 502 FAILED.
 /// </summary>
@@ -50,6 +56,24 @@ public class AccWebhookSubscriptionsController : ControllerBase
     {
         if (!await this.CanAdministerProjectAsync(_db, projectId, ct)) return Forbidden();
         return ToHttp(await _hooks.UnsubscribeAsync(projectId, ct));
+    }
+
+    /// <summary>
+    /// Browse the ACC folders a Data Management hook can be scoped to (ACC-SRV-6).
+    /// No parentUrn → the project's top folders (hidden ones flagged); with one →
+    /// its sub-folders, every page. Pick URNs from here for subscribe's folderUrns.
+    /// </summary>
+    [HttpGet("~/api/projects/{projectId:guid}/acc/folders")]
+    public async Task<IActionResult> Folders(Guid projectId, [FromQuery] string? parentUrn, CancellationToken ct)
+    {
+        if (!await this.CanAdministerProjectAsync(_db, projectId, ct)) return Forbidden();
+        var r = await _hooks.ListFoldersAsync(projectId, parentUrn, ct);
+        return r.Status switch
+        {
+            AccSyncService.StatusOk => Ok(r),
+            AccSyncService.StatusReconnect => Conflict(r),
+            _ => StatusCode(502, r),
+        };
     }
 
     private IActionResult ToHttp(AccWebhookService.Result r) => r.Status switch
