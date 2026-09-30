@@ -285,6 +285,86 @@ namespace StingTools.Core.Drawing
             return result;
         }
 
+        /// <summary>
+        /// Put a view some other engine made (an SLD or riser drafting view, a panel
+        /// schedule) on its drawing type's sheet, through the same path production uses:
+        /// the sheet is found by stamp + context (<paramref name="ctx"/>) or created with
+        /// the type's title block, number and name, and the view is stamped with the type
+        /// and context and placed in slot 0 at its own scale (no fit-to-slot: these views
+        /// are drawn at the scale their text is sized for). A re-run reuses the sheet;
+        /// another view of the same type already on it — an earlier run's — comes off the
+        /// sheet first (ExistingViewPlacement). The view's presentation is not touched.
+        /// Caller owns the transaction.
+        /// </summary>
+        public static ProduceResult PlaceExistingView(Document doc, DrawingType dt, DrawingContext ctx, View view)
+        {
+            var result = new ProduceResult();
+            if (doc == null || dt == null || view == null) return result;
+            ctx = ctx ?? new DrawingContext();
+            var opts = new ProduceOptions { CreateSheet = true, PlaceOnSheet = true, RunAnnotation = false, Idempotent = true };
+            var rule = new ProductionRule
+            {
+                Idx = 0,
+                ViewType = view is ViewSchedule ? "Schedule" : view is ViewDrafting ? "DraftingView" : view.ViewType.ToString(),
+                SlotIndex = 0,
+                Required = true,
+                // Pins the scale: PlaceViewOnSheet fits a view to its slot only when no
+                // override is set, and a fit would re-scale a 1:1 diagram whose text is
+                // paper-sized. Schedules have no scale to fit; the value only gates the fit.
+                ScaleOverride = view is ViewSchedule ? 1 : (SafeScale(view) ?? 1),
+            };
+
+            DrawingTypeStamper.Stamp(view, dt.Id);
+            StampViewParameters(doc, view.Id, dt, rule, ctx);
+            result.ViewIds.Add(view.Id);
+
+            result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
+            if (result.SheetId == ElementId.InvalidElementId)
+            {
+                result.Warnings.Add($"No sheet could be made for '{dt.Id}'; '{view.Name}' is not on a sheet.");
+                return result;
+            }
+
+            // Earlier runs' views of this type make way; anything else on the sheet stays.
+            try
+            {
+                var onSheet = new List<(Element vp, Element v)>();
+                foreach (var el in new FilteredElementCollector(doc, result.SheetId).WhereElementIsNotElementType())
+                {
+                    if (el is Viewport vpt) onSheet.Add((vpt, doc.GetElement(vpt.ViewId)));
+                    else if (el is ScheduleSheetInstance ssi && !ssi.IsTitleblockRevisionSchedule)
+                        onSheet.Add((ssi, doc.GetElement(ssi.ScheduleId)));
+                }
+                onSheet = onSheet.Where(x => x.v != null).ToList();
+                var decision = ExistingViewPlacement.Decide(onSheet.Select(x => new PlacedView
+                {
+                    ViewId = x.v.Id.Value,
+                    DrawingTypeId = StingTools.Core.ParameterHelpers.GetString(x.v, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
+                }), view.Id.Value, dt.Id);
+                foreach (var x in onSheet.Where(x => decision.RemoveViewIds.Contains(x.v.Id.Value)))
+                {
+                    result.Warnings.Add($"'{x.v.Name}' (an earlier {dt.Id} view) was taken off the sheet for '{view.Name}'.");
+                    doc.Delete(x.vp.Id);
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"Clearing the earlier {dt.Id} view off the sheet: {ex.Message}"); }
+
+            var famCtx = SheetPlacementBridge.BuildFamilySlotContext(doc, doc.GetElement(result.SheetId) as ViewSheet, dt, result);
+            var vpId = PlaceViewOnSheet(doc, result.SheetId, view.Id, dt, rule, result, famCtx);
+            if (vpId != ElementId.InvalidElementId)
+            {
+                result.ViewportIds.Add(vpId);
+                StampAutoPlaced(doc, vpId);
+            }
+            return result;
+        }
+
+        private static int? SafeScale(View v)
+        {
+            try { return v.Scale > 0 ? v.Scale : (int?)null; }
+            catch (Exception ex) { StingLog.Warn($"Scale of '{v?.Name}': {ex.Message}"); return null; }
+        }
+
         // D-7: the purpose -> view-kind decision lives in DrawingPurposeViewKind
         // (Revit-free, tested). The old switch defaulted every unlisted purpose
         // — Schematic, Clarification, Legend, Spool, Coordination — to

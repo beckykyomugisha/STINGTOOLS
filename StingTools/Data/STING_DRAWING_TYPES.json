@@ -11057,6 +11057,70 @@
       "phase": "*"
     },
     {
+      "id": "elec-sld-A1-NTS",
+      "name": "Electrical Single Line Diagram — A1 NTS",
+      "origin": "corporate",
+      "checksum": "f98c7f5d70fceb5fab3a0678273166471d4104c9c4a617b4b4a1dc0fc52495d0",
+      "purpose": "Schematic",
+      "discipline": "E",
+      "system": "LV",
+      "paperSize": "A1",
+      "orientation": "Landscape",
+      "titleBlockFamily": "STING_TB_SHEET_A1",
+      "scale": "NA",
+      "detailLevel": "Medium",
+      "viewTemplateName": "STING - Electrical Schematic",
+      "viewStylePackId": "corp-standard-elec",
+      "sheetNumberPattern": "E-SLD-{seq:D3}",
+      "sheetNamePattern": "SINGLE LINE DIAGRAM",
+      "crop": {
+        "kind": "None"
+      },
+      "slots": [
+        {
+          "label": "Main",
+          "viewType": "Schematic",
+          "normX": 0.03,
+          "normY": 0.05,
+          "normW": 0.94,
+          "normH": 0.9,
+          "required": true
+        }
+      ],
+      "annotation": {
+        "rules": []
+      },
+      "print": {
+        "colourScheme": "ByDiscipline",
+        "lineWeightScale": 1.0,
+        "halftoneLinks": false
+      },
+      "titleBlockParams": {
+        "PRJ_SHEET_SYSTEM_TXT": "{sys}",
+        "Client Name": "${PRJ_ORG_CLIENT_NAME}",
+        "Project Code": "${PRJ_ORG_PROJECT_CODE}",
+        "Originator": "${PRJ_ORG_ORIGINATOR_CODE}",
+        "Company Name": "${PRJ_ORG_COMPANY_NAME}",
+        "Company Address": "${PRJ_ORG_COMPANY_ADDRESS}",
+        "Appointing Party": "${PRJ_ORG_APPOINTING_PARTY}",
+        "Lead Appointed Party": "${PRJ_ORG_LEAD_APPOINTED_PARTY}",
+        "Discipline": "Electrical",
+        "Suitability": "S2",
+        "Sheet Status": "WIP",
+        "Revision": "P01"
+      },
+      "description": "Electrical single line diagram (distribution hierarchy from the circuit model) on A1, not to scale. The view is the drafting view SLD_Generate draws at 1:1; SLD_Generate puts it on this type's sheet and replaces an earlier run's SLD there. Not produced per level.",
+      "viewportTypeName": "STING - Standard Viewport",
+      "isoNaming": {
+        "volume": "01",
+        "type": "DR",
+        "role": "E",
+        "suitability": "S2",
+        "revision": "P01"
+      },
+      "phase": "*"
+    },
+    {
       "id": "mep-hvac-pipe-A1-1to100",
       "name": "HVAC Pipework Layout — A1 @ 1:100",
       "origin": "corporate",
@@ -12524,6 +12588,12 @@
       "phase": "*",
       "docType": "DETAIL",
       "drawingTypeId": "mep-detail-A3-1to20"
+    },
+    {
+      "discipline": "E",
+      "phase": "*",
+      "docType": "SLD",
+      "drawingTypeId": "elec-sld-A1-NTS"
     }
   ]
 }

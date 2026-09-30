@@ -279,6 +279,7 @@
     <Compile Include="..\StingTools\Core\Drawing\DisciplinePlanRouting.cs" Link="Core\Drawing\DisciplinePlanRouting.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ScopeBoxRenamePattern.cs" Link="Core\Drawing\ScopeBoxRenamePattern.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TemporaryBaseViews.cs" Link="Core\Drawing\TemporaryBaseViews.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ExistingViewPlacement.cs" Link="Core\Drawing\ExistingViewPlacement.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
