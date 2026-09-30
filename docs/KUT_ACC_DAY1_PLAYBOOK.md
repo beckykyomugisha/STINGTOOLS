@@ -389,8 +389,12 @@ A verification with no written result did not happen.
 
 ## 8. Known limitations today
 
-- **`ACCPublish` does not publish.** It builds a local zip. Upload is separate (`ACC_UploadModel`,
-  `ACC_UploadLastBundle`), and the upload is not in any KUT workflow on purpose.
+- **`ACCPublish` does not publish, and its bundle is not the drawings.** It zips the
+  information-management data (BEP, issue/document registers, transmittal log, COBie, health
+  reports). `ACC_UploadLastBundle` is step 7 of `WORKFLOW_KUT_FortnightlyIssue`: it uploads only the
+  bundle that run built (an earlier cycle's is refused), unattended only with `uploadUnattended`.
+  **The sheet PDFs/DWGs reach ACC through the Export Centre**: tick *Upload to ACC* on the export
+  profile the fortnightly scheduled job uses (step 5). Without that, the issue set stays local.
 - **Uploads route by CDE state and stamp document attributes on the new build** (`cdeFolders`,
   `docsAttributes`, §6). Every upload path runs the same pre-upload checks: the revision/suitability
   pairing (P with S0–S7, C with A/B/CR), and the upload ledger — an identical file already sent is

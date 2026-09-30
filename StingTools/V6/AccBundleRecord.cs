@@ -69,6 +69,25 @@ namespace StingTools.V6
         }
 
         /// <summary>One line for a dialog: what would be uploaded, and how old it is.</summary>
+        /// <summary>
+        /// R2: inside a workflow run, the bundle to upload must be the one THIS run built.
+        /// A bundle built before the run started means this run's ACC Publish did not build
+        /// one (skipped, cancelled, refused) — uploading it would re-send an earlier cycle's
+        /// ZIP and re-mark its transmittal SENT. Null <paramref name="runStartedUtc"/> (not in a
+        /// run) accepts any bundle: a person chose to upload the last one.
+        /// </summary>
+        public bool IsFromThisRun(DateTime? runStartedUtc, out string reason)
+        {
+            reason = string.Empty;
+            if (runStartedUtc == null) return true;
+            if (CreatedUtc >= runStartedUtc.Value) return true;
+            reason = $"The recorded ACC bundle was built {CreatedUtc:yyyy-MM-dd HH:mm}Z, before this workflow run " +
+                     $"started ({runStartedUtc.Value:yyyy-MM-dd HH:mm}Z): this run's ACC Publish did not build one. " +
+                     "Nothing was uploaded — re-sending an earlier cycle's bundle would duplicate it in ACC " +
+                     $"and re-mark its transmittal as sent. Bundle: {Describe()}";
+            return false;
+        }
+
         public string Describe() =>
             $"{System.IO.Path.GetFileName(Path)}  ({Suitability}, " +
             $"{(string.IsNullOrWhiteSpace(Revision) ? "no revision" : "revision " + Revision)}, {DeliverableCount} deliverable(s), " +

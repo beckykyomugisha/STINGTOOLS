@@ -387,6 +387,11 @@ namespace StingTools.Core
         // project setup wizard) must not stop the outer run with its own report dialog.
         [ThreadStatic] private static int _presetDepth;
         [ThreadStatic] private static int _unattendedDepth;
+        [ThreadStatic] private static DateTime? _runStartedUtc;
+
+        /// <summary>When the outermost running preset started (UTC); null outside a preset.
+        /// Lets a step refuse an artefact an EARLIER run produced (R2: the last ACC bundle).</summary>
+        public static DateTime? CurrentRunStartedUtc => _runStartedUtc;
 
         /// <summary>True while an UNATTENDED preset is executing on this thread: nobody is
         /// there to answer a dialog, so a command that would ask must decide (usually: refuse
@@ -418,6 +423,7 @@ namespace StingTools.Core
             bool showReport, out WorkflowOutcome outcome)
         {
             bool attended = showReport && _presetDepth == 0;
+            if (_presetDepth == 0) _runStartedUtc = DateTime.UtcNow;
             _presetDepth++;
             // Only a TOP-LEVEL run without a report is unattended; a preset nested under an
             // attended run still has a person present, and one nested under an unattended
@@ -428,7 +434,11 @@ namespace StingTools.Core
             // so a cloud model without one refuses rather than blocks on a dialog.
             IDisposable noPrompt = attended ? null : CloudProjectRootResolver.SuppressPrompts();
             try { return ExecutePresetCore(preset, commandData, elements, attended, out outcome); }
-            finally { _presetDepth--; if (noOneThere) _unattendedDepth--; noPrompt?.Dispose(); }
+            finally
+            {
+                _presetDepth--; if (noOneThere) _unattendedDepth--; noPrompt?.Dispose();
+                if (_presetDepth == 0) _runStartedUtc = null;
+            }
         }
 
         private static Result ExecutePresetCore(WorkflowPreset preset,

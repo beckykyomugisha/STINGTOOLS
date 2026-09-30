@@ -48,11 +48,11 @@ namespace StingTools.Core.Clash
         /// reason for cancelling.</summary>
         protected abstract string ResolveFile(Document doc, AccOperatingPolicy policy, out string cancelReason);
 
-        /// <summary>Every refusal on an unattended run is a FAILURE (ROADMAP REV-2, A5) -
+        /// <summary>Every refusal on an unattended run, or inside any workflow run, is a FAILURE (ROADMAP REV-2, A5, R2) -
         /// including "uploadUnattended is not set": the workflow step was meant to upload, and
         /// "Cancelled" would let a failOnError step read it as skipped.</summary>
         private static Result Refused(AccOperatingPolicy policy) =>
-            policy != null && policy.IsUnattended ? Result.Failed : Result.Cancelled;
+            (policy != null && policy.IsUnattended) || WorkflowEngine.IsRunningPreset ? Result.Failed : Result.Cancelled;
 
         protected abstract string DialogTitle { get; }
 
@@ -467,6 +467,13 @@ namespace StingTools.Core.Clash
                       $"  {stale.Path}\n\n" +
                       "Nothing was uploaded. Re-run ACC Publish to build a fresh bundle — " +
                       "uploading whatever now sits at that path would be a guess.";
+                return null;
+            }
+
+            // R2: inside a workflow run only the bundle this run built may go.
+            if (!rec.IsFromThisRun(WorkflowEngine.CurrentRunStartedUtc, out string staleWhy))
+            {
+                cancelReason = staleWhy;
                 return null;
             }
 
