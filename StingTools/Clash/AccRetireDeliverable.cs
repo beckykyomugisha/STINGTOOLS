@@ -5,15 +5,19 @@
 // follows the project setting), and hands the retirement to the Revit-free
 // AccDocsLifecycle client, recording what happened on the register row.
 //
-// Where the ACC document is found: a register row whose doc_number is the deliverable's
-// number and which carries acc_version_urn (+ acc_folder_urn). A transmittal BUNDLE is
-// deliberately NOT retired: one ZIP holds many deliverables, and archiving it to retire
+// Where the ACC document is found: the upload ledger (acc_upload_ledger.json) — every
+// per-document upload (Export Centre auto-upload, ACC_UploadModel) records its item,
+// version and folder there, one entry per rendition (PDF, DWG …). A register row carrying
+// acc_version_urn (+ acc_folder_urn) is still honoured when present. Nothing wrote those
+// register fields, so looking only there never found anything (R11). A transmittal BUNDLE
+// is deliberately NOT retired: one ZIP holds many deliverables, and archiving it to retire
 // one of them would retire the rest. That case is reported, not guessed at.
 //
 // Setting (acc_settings.json, optional): "retireSupersededInAcc": "ask" (default) |
 // "always" | "never". Unattended runs never prompt: "ask" becomes "not retired, reported".
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Autodesk.Revit.DB;
@@ -43,8 +47,23 @@ namespace StingTools.Core.Clash
                 var row = register.OfType<JObject>().FirstOrDefault(r =>
                     string.Equals(r["doc_number"]?.ToString(), docNumber, StringComparison.OrdinalIgnoreCase)
                     && !string.IsNullOrWhiteSpace(r["acc_version_urn"]?.ToString()));
-                if (row == null)
+
+                // The upload ledger is where per-document uploads are recorded (R11). An
+                // unreadable ledger is not "never uploaded": say so rather than report nothing.
+                string ledgerPath = AccUploadCommandBase.LedgerPath(doc);
+                var ledger = AccUploadLedger.Load(ledgerPath, out string ledgerErr);
+                var renditions = new List<(string version, string folder, AccLedgerEntry entry)>();
+                if (ledger != null)
+                    foreach (var e in ledger.LiveRenditions(docNumber))
+                        renditions.Add((e.VersionUrn, e.FolderUrn, e));
+                if (renditions.Count == 0 && row != null)
+                    renditions.Add((row["acc_version_urn"].ToString(), row["acc_folder_urn"]?.ToString(), null));
+
+                if (renditions.Count == 0)
                 {
+                    if (ledger == null)
+                        return $"ACC: {docNumber} NOT retired — the upload ledger could not be read ({ledgerErr}), " +
+                               "so STING cannot tell which ACC document it is. Retire it in ACC by hand.";
                     StingLog.Info($"ACC retire: {docNumber} has no per-document ACC record — nothing to retire in ACC.");
                     return $"ACC: no per-document ACC record for {docNumber}; if it reached ACC inside a transmittal " +
                            "bundle, retire it there by hand (a bundle is never archived for one of its documents).";
@@ -80,21 +99,37 @@ namespace StingTools.Core.Clash
                 if (!auth.Ok)
                     return $"ACC: {docNumber} NOT retired — not authenticated ({auth.Detail}).";
 
-                var res = AccDocsLifecycle.RetireAsync(creds.AccessToken, creds.ProjectId,
-                    row["acc_version_urn"].ToString(), row["acc_folder_urn"]?.ToString(), archive, retireSuitability,
-                    AccProjectSettingsFile.LoadFor(doc, "ACC retire").DocsAttributeNames)
-                    .GetAwaiter().GetResult();
+                var names = policy.DocsAttributeNames;
+                var lines = new List<string>();
+                bool allOk = true, ledgerDirty = false;
+                foreach (var (version, folder, entry) in renditions)
+                {
+                    var res = AccDocsLifecycle.RetireAsync(creds.AccessToken, creds.ProjectId,
+                        version, folder, archive, retireSuitability, names).GetAwaiter().GetResult();
+                    string label = entry != null ? $"{docNumber} ({entry.Format} {entry.Revision})" : docNumber;
+                    allOk &= res.Ok;
+                    if (res.Ok) StingLog.Info($"ACC retire {label}: {res.Detail}");
+                    else StingLog.Warn($"ACC retire {label} INCOMPLETE:\n{res.Detail}");
+                    lines.Add((res.Ok ? $"ACC: {label} retired to ARCHIVE as {retireSuitability}.\n"
+                                      : $"ACC: {label} retirement INCOMPLETE — finish it in ACC:\n") + res.Detail);
+                    if (res.Ok && entry != null)
+                    {
+                        entry.RetiredUtc = DateTime.UtcNow;
+                        entry.RetiredAs = retireSuitability;
+                        ledgerDirty = true;
+                    }
+                }
+                if (ledgerDirty && !ledger.TrySave(ledgerPath, out string saveErr))
+                    lines.Add($"(The retirement is done in ACC, but the upload ledger could not be updated: {saveErr} — " +
+                              "a later supersede would try to archive it again.)");
 
-                if (!string.IsNullOrEmpty(res.ArchivedItemUrn)) row["acc_archived_item_urn"] = res.ArchivedItemUrn;
-                if (!string.IsNullOrEmpty(res.ArchivedVersionUrn)) row["acc_archived_version_urn"] = res.ArchivedVersionUrn;
-                row["acc_retire_status"] = res.Ok ? "RETIRED" : "INCOMPLETE";
-                row["acc_retire_detail"] = res.Detail;
-                BIMManager.BIMManagerEngine.SaveJsonFile(regPath, register);
-
-                if (res.Ok) StingLog.Info($"ACC retire {docNumber}: {res.Detail}");
-                else StingLog.Warn($"ACC retire {docNumber} INCOMPLETE:\n{res.Detail}");
-                return (res.Ok ? $"ACC: {docNumber} retired to ARCHIVE as {retireSuitability}.\n"
-                               : $"ACC: {docNumber} retirement INCOMPLETE — finish it in ACC:\n") + res.Detail;
+                if (row != null)
+                {
+                    row["acc_retire_status"] = allOk ? "RETIRED" : "INCOMPLETE";
+                    row["acc_retire_detail"] = string.Join("\n", lines);
+                    BIMManager.BIMManagerEngine.SaveJsonFile(regPath, register);
+                }
+                return string.Join("\n", lines);
             }
             catch (Exception ex)
             {

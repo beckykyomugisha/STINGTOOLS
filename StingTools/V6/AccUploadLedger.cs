@@ -44,6 +44,13 @@ namespace StingTools.V6
         [JsonProperty("uploadedUtc")] public DateTime UploadedUtc { get; set; }
         [JsonProperty("itemUrn")] public string ItemUrn { get; set; } = string.Empty;
         [JsonProperty("versionUrn")] public string VersionUrn { get; set; } = string.Empty;
+        /// <summary>The ACC folder the file went into — what a later retirement (supersede /
+        /// replace → ARCHIVE) needs to stamp the original (R11).</summary>
+        [JsonProperty("folderUrn")] public string FolderUrn { get; set; } = string.Empty;
+        /// <summary>When STING retired this upload to the ARCHIVE folder; null while live. A
+        /// retired entry is not retired again by a second supersede.</summary>
+        [JsonProperty("retiredUtc")] public DateTime? RetiredUtc { get; set; }
+        [JsonProperty("retiredAs")] public string RetiredAs { get; set; }
     }
 
     public enum AccLedgerDecision
@@ -131,6 +138,26 @@ namespace StingTools.V6
                              $"{last.UploadedUtc:yyyy-MM-dd HH:mm}Z with different content. Revise the sheet " +
                              "(or allow re-issues in the export profile) — nothing was sent",
                 };
+        }
+
+        /// <summary>
+        /// The ACC documents a deliverable is live as: for each format, the newest recorded
+        /// upload of <paramref name="documentNumber"/> that has a version URN, unless that
+        /// newest one is already retired (R11 — Supersede / Replace find the deliverable here;
+        /// the document register never carried its ACC URNs).
+        /// </summary>
+        public List<AccLedgerEntry> LiveRenditions(string documentNumber)
+        {
+            string doc = (documentNumber ?? string.Empty).Trim();
+            if (doc.Length == 0) return new List<AccLedgerEntry>();
+            return Entries
+                .Where(e => e != null && !string.IsNullOrWhiteSpace(e.VersionUrn) &&
+                            string.Equals(e.DocumentNumber, doc, StringComparison.OrdinalIgnoreCase))
+                .GroupBy(e => (e.Format ?? string.Empty).ToUpperInvariant())
+                .Select(g => g.OrderByDescending(e => e.UploadedUtc).First())
+                .Where(e => e.RetiredUtc == null)
+                .OrderBy(e => e.Format, StringComparer.Ordinal)
+                .ToList();
         }
 
         /// <summary>Record a completed upload.</summary>

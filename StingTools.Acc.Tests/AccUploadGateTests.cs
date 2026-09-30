@@ -104,5 +104,45 @@ namespace StingTools.Acc.Tests
             Assert.Equal(AccUploadGateDecision.Refuse,
                 AccUploadGate.Check(new AccUploadLedger(), Path.Combine(_dir, "missing.pdf"), "a", "P01", "S2", false).Decision);
         }
+
+        // R11: Supersede / Replace find the deliverable's ACC documents in the ledger.
+        [Fact]
+        public void LiveRenditions_AreTheNewestPerFormat_WithTheirFolder_UntilRetired()
+        {
+            var ledger = new AccUploadLedger();
+            string doc = "KUT-PCE-ZZ-01-DR-A-0101";
+            var t0 = new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc);
+            var pdf1 = AccUploadGate.Check(ledger, File("a1.pdf", "p1"), doc, "P01", "S2", false);
+            AccUploadGate.Record(ledger, pdf1, File("a1.pdf", "p1"), doc, "P01", "S2", "item:1", "ver:1", t0, "fold:A");
+            var pdf2 = AccUploadGate.Check(ledger, File("a2.pdf", "p2"), doc, "P02", "S2", false);
+            AccUploadGate.Record(ledger, pdf2, File("a2.pdf", "p2"), doc, "P02", "S2", "item:1", "ver:2", t0.AddDays(14), "fold:A");
+            var dwg = AccUploadGate.Check(ledger, File("a2.dwg", "d2"), doc, "P02", "S2", false);
+            AccUploadGate.Record(ledger, dwg, File("a2.dwg", "d2"), doc, "P02", "S2", "item:2", "ver:3", t0.AddDays(14), "fold:A");
+            // Another document and an upload with no version are never offered.
+            ledger.Record(new AccLedgerEntry { DocumentNumber = "OTHER", Format = "PDF", VersionUrn = "ver:x", UploadedUtc = t0 });
+            ledger.Record(new AccLedgerEntry { DocumentNumber = doc, Format = "IFC", VersionUrn = "", UploadedUtc = t0 });
+
+            var live = ledger.LiveRenditions(doc.ToLowerInvariant());
+            Assert.Equal(new[] { "DWG", "PDF" }, live.ConvertAll(e => e.Format));
+            Assert.Equal("ver:2", live.Find(e => e.Format == "PDF").VersionUrn);
+            Assert.All(live, e => Assert.Equal("fold:A", e.FolderUrn));
+
+            // Retired renditions are not retired twice.
+            foreach (var e in live) e.RetiredUtc = t0.AddDays(20);
+            Assert.Empty(ledger.LiveRenditions(doc));
+            Assert.Empty(ledger.LiveRenditions(""));
+        }
+
+        [Fact]
+        public void TheFolderUrn_SurvivesASaveAndLoad()
+        {
+            var ledger = new AccUploadLedger();
+            ledger.Record(new AccLedgerEntry { DocumentNumber = "D", Format = "pdf", VersionUrn = "v", FolderUrn = "f", UploadedUtc = DateTime.UtcNow });
+            string path = Path.Combine(_dir, AccUploadLedger.FileName);
+            Assert.True(ledger.TrySave(path, out _));
+            var back = AccUploadLedger.Load(path, out string err);
+            Assert.Null(err);
+            Assert.Equal("f", Assert.Single(back.LiveRenditions("D")).FolderUrn);
+        }
     }
 }

@@ -283,7 +283,7 @@ namespace StingTools.Core.Clash
             try
             {
                 AccUploadGate.Record(pre.Ledger, pre.Gate, file, pre.DocumentNumber, pre.Revision, pre.Suitability,
-                    result?.ItemUrn, result?.VersionUrn, DateTime.UtcNow);
+                    result?.ItemUrn, result?.VersionUrn, DateTime.UtcNow, result?.FolderUrn);
                 if (pre.Ledger.TrySave(pre.LedgerPath, out string err)) return null;
                 StingLog.Warn("ACC upload: ledger not saved: " + err);
                 return $"The upload is in ACC, but the upload ledger could not be saved ({err}) - a re-run may send it again.";

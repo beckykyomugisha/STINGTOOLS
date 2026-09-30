@@ -116,7 +116,8 @@ namespace StingTools.V6
 
         /// <summary>Record an upload ACC confirmed. Call ONLY after a successful upload.</summary>
         public static void Record(AccUploadLedger ledger, AccUploadGateResult gate, string filePath, string documentNumber,
-            string revision, string suitability, string itemUrn, string versionUrn, DateTime utcNow)
+            string revision, string suitability, string itemUrn, string versionUrn, DateTime utcNow,
+            string folderUrn = null)
         {
             if (ledger == null || gate == null) return;
             string name = Path.GetFileName(filePath ?? string.Empty);
@@ -132,6 +133,7 @@ namespace StingTools.V6
                 UploadedUtc = utcNow,
                 ItemUrn = itemUrn ?? string.Empty,
                 VersionUrn = versionUrn ?? string.Empty,
+                FolderUrn = folderUrn ?? string.Empty,
             });
         }
 

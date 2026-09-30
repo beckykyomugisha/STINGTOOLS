@@ -1141,7 +1141,7 @@ namespace StingTools.Docs
                         continue;
                     }
                     V6.AccUploadGate.Record(ledger, gate, r.OutputPath, r.DocumentNumber, r.Revision, r.Suitability,
-                        up.ItemUrn, up.VersionUrn, DateTime.UtcNow);
+                        up.ItemUrn, up.VersionUrn, DateTime.UtcNow, up.FolderUrn);
                     // Save after every upload: a crash half-way must not forget what already went.
                     if (!ledger.TrySave(ledgerPath, out string saveErr))
                         problems.Add($"{name}: uploaded, but the ledger could not be saved ({saveErr}) — a re-run may send it again");
