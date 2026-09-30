@@ -41,15 +41,19 @@ namespace StingTools.Commands.Drawing
                 // changed-id set whenever the registries are reloaded.
                 var liveAffected = LiveProfileSync.GetAffectedViewIds(doc);
 
-                var reports = DrawingDriftDetector.Scan(doc);
-                // suppressedOnly count not provided by current Scan() return shape — assume 0.
-                int suppressedOnly = 0;
+                // DTW-14: Scan returns a report for a view whose ONLY items are
+                // template-suppressed. Re-applying those is Force Resync's job —
+                // Sync Styles re-applied them anyway, inflating the count and
+                // behaving like a force. Keep the actionable reports; count the rest.
+                var scanned = DrawingDriftDetector.Scan(doc);
+                var reports = scanned.Where(r => r.AnyActionable).ToList();
+                int suppressedOnly = scanned.Count(r => !r.AnyActionable && r.AnySuppressed);
                 if (reports.Count == 0 && liveAffected.Count == 0)
                 {
                     string msg2 = suppressedOnly > 0
-                        ? $"Every actionable view is already in sync with its Drawing Type.\n{suppressedOnly} view(s) have fields controlled by a view template — those are informational only."
+                        ? $"Every actionable view is already in sync with its Drawing Type.\n{suppressedOnly} view(s) have fields controlled by a view template — those are informational only (Force Resync re-applies them)."
                         : "Every stamped view is already in sync with its Drawing Type.";
-                    TaskDialog.Show("STING — Sync Styles", msg2);
+                    PresetDialog.Show("STING — Sync Styles", msg2, ref msg);
                     return Result.Succeeded;
                 }
 
@@ -84,7 +88,9 @@ namespace StingTools.Commands.Drawing
                     CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                     DefaultButton = TaskDialogResult.Ok,
                 };
-                if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+                // DTW-14: a raw Show() inside a workflow preset waited for a click
+                // nobody could give. In a preset, running the step is the consent.
+                if (!BatchProduceCommons.Confirm(confirm)) return Result.Cancelled;
 
                 int resynced = 0;
                 var warnings = new System.Collections.Generic.List<string>();
@@ -111,14 +117,18 @@ namespace StingTools.Commands.Drawing
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Re-synced {resynced} of {reports.Count} drifted view(s).");
+                if (suppressedOnly > 0)
+                    sb.AppendLine($"{suppressedOnly} view(s) differ only where their view template controls the field — not touched (use Force Resync).");
                 if (warnings.Count > 0)
                 {
                     sb.AppendLine();
                     sb.AppendLine("Warnings:");
                     foreach (var w in warnings.Take(15)) sb.AppendLine("  " + w);
                     if (warnings.Count > 15) sb.AppendLine($"  …({warnings.Count - 15} more)");
+                    if (PresetDialog.Quiet)
+                        foreach (var w in warnings) StingLog.Warn($"Sync Styles: {w}");
                 }
-                TaskDialog.Show("STING — Sync Styles", sb.ToString());
+                PresetDialog.Show("STING — Sync Styles", sb.ToString(), ref msg);
                 return Result.Succeeded;
             }
             catch (Exception ex)
@@ -200,8 +210,8 @@ namespace StingTools.Commands.Drawing
                     .Where(r => r.Any || r.AnySuppressed).ToList();
                 if (reports.Count == 0)
                 {
-                    TaskDialog.Show("STING — Force Resync",
-                        "No stamped views need re-syncing — every profile-controlled value matches the live state.");
+                    PresetDialog.Show("STING — Force Resync",
+                        "No stamped views need re-syncing — every profile-controlled value matches the live state.", ref msg);
                     return Result.Succeeded;
                 }
 
@@ -217,7 +227,7 @@ namespace StingTools.Commands.Drawing
                     CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel,
                     DefaultButton = TaskDialogResult.Cancel,
                 };
-                if (confirm.Show() != TaskDialogResult.Ok) return Result.Cancelled;
+                if (!BatchProduceCommons.Confirm(confirm)) return Result.Cancelled;
 
                 int resynced = 0;
                 using (var tx = new Transaction(doc, "STING — Force Resync (Suppressed)"))
@@ -233,7 +243,7 @@ namespace StingTools.Commands.Drawing
                     }
                     tx.Commit();
                 }
-                TaskDialog.Show("STING — Force Resync", $"Re-applied profile on {resynced} view(s).");
+                PresetDialog.Show("STING — Force Resync", $"Re-applied profile on {resynced} view(s).", ref msg);
                 return Result.Succeeded;
             }
             catch (Exception ex)
