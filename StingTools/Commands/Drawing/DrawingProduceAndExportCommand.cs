@@ -568,8 +568,10 @@ namespace StingTools.Commands.Drawing
             {
                 try
                 {
-                    string filename = StingTools.Docs.ExportCenterEngine.Sanitise(
-                        $"{sheet.SheetNumber}_{sheet.Name}", "_");
+                    // Named by the Export Centre's naming (ISO identifier + suitability +
+                    // revision), so both exporters agree and a new revision does not
+                    // overwrite the previous issue (DTW-88).
+                    string filename = StingTools.Docs.ExportCenterEngine.DefaultSheetFileStem(doc, sheet);
                     string dir = StingTools.Docs.ExportCenterEngine.DeliverableFolderForSheet(doc, sheet) ?? outDir;
                     if (!emitted.Add(Path.Combine(dir, filename + ".pdf")))
                     {

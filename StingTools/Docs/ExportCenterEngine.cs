@@ -1441,6 +1441,35 @@ namespace StingTools.Docs
             return File.Exists(produced) ? produced : null;
         }
 
+        /// <summary>
+        /// The Export Centre's filename stem for a sheet, for exporters with no profile of
+        /// their own (Produce &amp; Export). Uses the last-used Export Centre profile's
+        /// naming template, else the last template used, else the default ISO 19650
+        /// template (identifier, suitability, revision) — so a P02 issue does not
+        /// overwrite P01 and both exporters name a sheet the same way (DTW-88).
+        /// </summary>
+        public static string DefaultSheetFileStem(Document doc, View view)
+        {
+            string template = null, replacement = "-";
+            try
+            {
+                var st = LoadState();
+                var prof = st?.Profiles?.FirstOrDefault(p =>
+                    string.Equals(p.Name, st.LastProfile, StringComparison.OrdinalIgnoreCase));
+                template = prof?.Output?.NamingTemplate;
+                if (!string.IsNullOrEmpty(prof?.Output?.IllegalCharReplacement))
+                    replacement = prof.Output.IllegalCharReplacement;
+                if (string.IsNullOrWhiteSpace(template)) template = st?.LastNamingTemplate;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DefaultSheetFileStem: Export Centre state unreadable, using the default template: {ex.Message}");
+            }
+            var output = new OutputSettings();
+            if (string.IsNullOrWhiteSpace(template)) template = output.NamingTemplate;
+            return Sanitise(ResolveNaming(doc, view, template, output), replacement);
+        }
+
         /// <summary>Snapshot files of the given extension(s) in a folder (full path →
         /// last-write UTC) so a post-export diff can identify exactly what Revit
         /// produced. Extensions are given without the dot, e.g. "pdf" or "png","jpg".</summary>
