@@ -54,7 +54,11 @@ namespace StingTools.BIMManager
 
             string fileName = Path.GetFileName(e.FilePath);
             string fileFormat = Path.GetExtension(e.FilePath).ToUpperInvariant().TrimStart('.');
-            string suit = string.IsNullOrWhiteSpace(e.Suitability) ? "S0" : e.Suitability;
+            // A row with no suitability keeps the register's documented WIP/S0 convention, but
+            // says so (suitability_defaulted): the ACC upload must not read that S0 as a code
+            // somebody chose (R14).
+            bool suitDefaulted = string.IsNullOrWhiteSpace(e.Suitability);
+            string suit = suitDefaulted ? "S0" : e.Suitability;
             // No revision is recorded as none. This used to default to "P01", which put a
             // revision nobody issued on every model, report and bundle row — and, once the
             // ACC upload read the register, would have stamped it into ACC as ISO Revision.
@@ -76,6 +80,7 @@ namespace StingTools.BIMManager
                 existing["file_path"]     = e.FilePath;
                 existing["file_format"]   = fileFormat;
                 existing["suitability"]   = suit;
+                SetDefaultedFlag(existing, suitDefaulted);
                 existing["revision"]      = rev;
                 existing["status"]        = cde;
                 existing["cde_status"]    = cde;
@@ -109,11 +114,21 @@ namespace StingTools.BIMManager
             // Deliverable-sourced rows carry the ISO 19650 number so the unified
             // register can match them to their deliverables.json row.
             if (!string.IsNullOrWhiteSpace(e.DocNumber)) entry["doc_number"] = e.DocNumber;
+            SetDefaultedFlag(entry, suitDefaulted);
             ApplyIsoUnset(entry, e.IsoUnset);
             register.Add(entry);
             added = true;
             id = nextId;
             return true;
+        }
+
+        /// <summary>The register row's suitability is the S0 convention, not a recorded code.</summary>
+        public const string SuitabilityDefaultedKey = "suitability_defaulted";
+
+        private static void SetDefaultedFlag(JObject row, bool defaulted)
+        {
+            if (defaulted) row[SuitabilityDefaultedKey] = true;
+            else row.Remove(SuitabilityDefaultedKey);
         }
 
         /// <summary>Write (non-empty), clear (empty) or leave (null) the row's iso_unset flag.</summary>

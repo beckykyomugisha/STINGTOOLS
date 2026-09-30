@@ -116,9 +116,15 @@ namespace StingTools.V6
                 return f;
             }
 
+            // R14: an S0 the register filled in by convention is not a suitability anyone
+            // chose; sending it would file the document as WIP/S0 in ACC unasked.
+            bool suitDefaulted = registerRow?["suitability_defaulted"]?.Type == JTokenType.Boolean
+                                 && (bool)registerRow["suitability_defaulted"];
+            if (suitDefaulted)
+                f.Notes.Add("The document register's suitability for this file is the S0 default, not a recorded code, so it is not sent.");
             if (mapped != null)
             {
-                if (!ExportIsoFields.IsNotSetMarker(mapped.Suitability) &&
+                if (!suitDefaulted && !ExportIsoFields.IsNotSetMarker(mapped.Suitability) &&
                     !string.IsNullOrEmpty(Iso19650Suitability.CdeStateFor(Iso19650Suitability.ExtractCode(mapped.Suitability))))
                 {
                     f.Suitability = Iso19650Suitability.ExtractCode(mapped.Suitability);

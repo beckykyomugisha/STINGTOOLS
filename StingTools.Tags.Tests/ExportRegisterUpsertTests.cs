@@ -114,6 +114,22 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void A_defaulted_S0_is_marked_as_such_and_cleared_by_a_real_code()
+        {
+            // R14: the WIP/S0 convention for a row with no suitability stays, but is flagged,
+            // so the ACC upload does not read it as a code somebody chose.
+            var reg = new JArray();
+            ExportRegisterUpsert.Apply(reg, new ExportRegistration { FilePath = "model.ifc", DocType = "M3" }, Now, "u", out _, out _);
+            Assert.Equal("S0", (string)reg[0]["suitability"]);
+            Assert.True((bool)reg[0][ExportRegisterUpsert.SuitabilityDefaultedKey]);
+
+            ExportRegisterUpsert.Apply(reg, new ExportRegistration { FilePath = "model.ifc", Suitability = "S2" }, Now, "u", out _, out _);
+            Assert.Single(reg);
+            Assert.Equal("S2", (string)reg[0]["suitability"]);
+            Assert.Null(reg[0][ExportRegisterUpsert.SuitabilityDefaultedKey]);
+        }
+
+        [Fact]
         public void A_caller_that_says_nothing_about_IsoUnset_leaves_the_flag_alone()
         {
             var reg = new JArray();

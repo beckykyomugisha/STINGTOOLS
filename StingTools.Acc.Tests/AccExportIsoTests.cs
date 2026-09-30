@@ -92,6 +92,20 @@ namespace StingTools.Acc.Tests
         }
 
         [Fact]
+        public void ADefaultedRegisterSuitability_IsNotSent()
+        {
+            // R14: the register's S0 for a row nobody gave a code is a convention, not a choice.
+            var row = Row(Pdf, "S0");
+            row["suitability_defaulted"] = true;
+            var f = AccFileIso.Decide(Pdf, null, row);
+            Assert.False(f.Refused, f.Refusal);
+            Assert.Equal("", f.Suitability);
+            Assert.Contains(f.Notes, n => n.Contains("S0 default"));
+            // The same S0 recorded for real is sent.
+            Assert.Equal("S0", AccFileIso.Decide(Pdf, null, Row(Pdf, "S0")).Suitability);
+        }
+
+        [Fact]
         public void TheRegisterRow_SuppliesDocumentNumber_Suitability_AndRevision()
         {
             var f = AccFileIso.Decide(Pdf, null, Row(Pdf));
