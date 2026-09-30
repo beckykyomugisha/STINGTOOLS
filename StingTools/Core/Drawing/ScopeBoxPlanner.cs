@@ -32,6 +32,13 @@ namespace StingTools.Core.Drawing
         public string Level { get; set; }
         /// <summary>Plan points (m) the boxes must cover — element extents, or a LOC box's corners.</summary>
         public List<(double X, double Y)> Points { get; set; } = new List<(double X, double Y)>();
+        /// <summary>
+        /// The footprint's own frame, radians anticlockwise from X — set for a turned
+        /// STING-LOC box, so its boxes are laid square to the building rather than to the
+        /// grid, and its true corners (not its larger bounding box) are covered (DTW-92).
+        /// Null follows the request's grid angle.
+        /// </summary>
+        public double? AngleRad { get; set; }
     }
 
     /// <summary>A hand-drawn seed box, measured.</summary>
@@ -231,10 +238,12 @@ namespace StingTools.Core.Drawing
                     result.Warnings.Add($"Footprint {fp?.Loc ?? "(model)"}{(fp?.Level != null ? " at " + fp.Level : "")} has no geometry — skipped.");
                     continue;
                 }
+                // DTW-92: a turned building box is tiled in its own frame.
+                double frame = fp.AngleRad ?? req.GridAngleRad;
                 foreach (var cls in result.Classes)
                 {
                     if (cls.TileWidthM <= req.OverlapM + Eps || cls.TileDepthM <= req.OverlapM + Eps) continue;
-                    foreach (var tile in Tile(fp.Points, req.GridAngleRad, cls.TileWidthM, cls.TileDepthM, req.OverlapM, req.PaddingM))
+                    foreach (var tile in Tile(fp.Points, frame, cls.TileWidthM, cls.TileDepthM, req.OverlapM, req.PaddingM))
                     {
                         string code = (string.IsNullOrWhiteSpace(fp.Loc) ? "" : fp.Loc + "-")
                                     + cls.Key + "-" + tile.Index.ToString("D2", CultureInfo.InvariantCulture);
@@ -248,7 +257,7 @@ namespace StingTools.Core.Drawing
                         {
                             Name = name, AreaCode = code, ClassKey = cls.Key, Loc = fp.Loc, Level = fp.Level,
                             CentreX = tile.X, CentreY = tile.Y, WidthM = cls.TileWidthM, DepthM = cls.TileDepthM,
-                            AngleRad = req.GridAngleRad, SeedId = cls.Seed?.Id, SeedRotated = cls.SeedRotated,
+                            AngleRad = frame, SeedId = cls.Seed?.Id, SeedRotated = cls.SeedRotated,
                             Row = tile.Row, Column = tile.Column,
                         };
                         Judge(box, req, cls.Seed != null);
