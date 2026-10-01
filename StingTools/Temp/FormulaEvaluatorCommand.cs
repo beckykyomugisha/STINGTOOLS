@@ -469,12 +469,23 @@ namespace StingTools.Temp
                     .Where(l => !string.IsNullOrWhiteSpace(l) && !l.StartsWith("#"))
                     .Skip(1); // skip header
 
-                int droppedShort = 0;
+                int droppedShort = 0, familyOnly = 0;
                 var droppedNames = new List<string>();
 
                 foreach (string line in lines)
                 {
                     string[] cols = StingToolsApp.ParseCsvLine(line);
+                    // DSCH-3: exactly Discipline, Parameter_Name, Data_Type, Revit_Formula
+                    // is the declared "family formula only" row (the *_TAG_7_PARA_*
+                    // narratives). Family-formula authoring (TemplateManagerCommands)
+                    // uses it; the project formula engine has nothing to evaluate, by
+                    // design - counted once, not warned about on every load. Rows of
+                    // 5-9 fields are still truncated and still warned below (G-6).
+                    if (cols.Length == 4 && !string.IsNullOrWhiteSpace(cols[1]))
+                    {
+                        familyOnly++;
+                        continue;
+                    }
                     if (cols.Length < 10)
                     {
                         // G-6 — was a bare `continue`. A row that terminates early was
@@ -536,6 +547,8 @@ namespace StingTools.Temp
                 // indistinguishable, from the model, from one that loaded and did
                 // nothing; naming them is the only way a user finds out the CSV is
                 // truncated rather than the feature being broken.
+                if (familyOnly > 0)
+                    StingLog.Info($"Formula load: {familyOnly} family-formula-only row(s) (4 fields) left to family authoring.");
                 if (droppedShort > 0)
                 {
                     StingLog.Warn($"Formula load: DROPPED {droppedShort} row(s) with fewer than 10 columns — "

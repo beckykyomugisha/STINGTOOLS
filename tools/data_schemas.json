@@ -1789,12 +1789,9 @@
               "Thickness",
               "Diameter",
               "Tile_Width",
-              "Tile_Height",
-              "RGL_KCCA_APPROVAL_TXT",
-              "RGL_NEMA_APPROVAL_TXT",
-              "RGL_UMEME_APPROVAL_TXT"
+              "Tile_Height"
             ],
-            "alsoAllowedReason": "Width/Height/Length/Thickness/Diameter/Tile_* are Revit built-in or family geometry names, not shared parameters. The three RGL_*_APPROVAL_TXT do not exist (the real ones are *_REQ_TXT / *_REQ_BOOL / *_CERT_*); listed so the gate can ship, tracked as ROADMAP DSCH-4 - delete them from this list when fixed."
+            "alsoAllowedReason": "Width/Height/Length/Thickness/Diameter/Tile_* are Revit built-in or family geometry names, not shared parameters."
           }
         },
         {
