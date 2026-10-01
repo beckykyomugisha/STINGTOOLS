@@ -43,7 +43,7 @@ namespace StingTools.BIMManager
                 var dlg = new TaskDialog("STING — Cost File Browser")
                 {
                     MainContent       = currentInfo + "Choose a CSV file to use as your cost rate source.\n" +
-                                        "Required columns (case-insensitive): MAT_CODE, RATE, UNIT",
+                                        "Required columns (case-insensitive): Category, Unit_Rate_UGX or Unit_Rate_USD, Unit",
                     AllowCancellation = true,
                 };
                 dlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Browse for CSV file…");
@@ -81,7 +81,8 @@ namespace StingTools.BIMManager
                 {
                     TaskDialog.Show("STING — Cost File Browser",
                         $"The selected file is missing required columns:\n{validationError}\n\n" +
-                        "Required columns: MAT_CODE, RATE, UNIT (case-insensitive).\n" +
+                        "Required columns (case-insensitive): Category, Unit_Rate_UGX\n" +
+                        "(or Unit_Rate_USD), Unit - the layout of data/cost_rates_5d.csv.\n" +
                         "Please check the file and try again.");
                     return Result.Failed;
                 }
@@ -91,8 +92,14 @@ namespace StingTools.BIMManager
                 StingLog.Info($"CostFileBrowser: override set to '{chosenPath}'");
                 TaskDialog.Show("STING — Cost File Browser",
                     $"Cost rate file override saved.\n\nFile: {chosenPath}\n\n" +
-                    "All 5D commands will use this file instead of the built-in rates.\n" +
-                    "Use 'Clear override' to revert.");
+                    // DSCH-1: no rate loader reads cost_rates_override.json yet
+                    // (BOQCostManager.LoadCsvRates resolves TagConfig.CostRatesFileName
+                    // and has no document). This used to say "All 5D commands will use
+                    // this file", which nothing made true. ROADMAP DSCH-1.
+                    "The path is recorded for this project. Pricing does NOT read it yet:\n" +
+                    "the BOQ and 5D commands still use data/cost_rates_5d.csv (or the file\n" +
+                    "named by CostRatesFileName in project_config.json). To price from this\n" +
+                    "file today, copy it over that file. Use 'Clear override' to remove it.");
 
                 return Result.Succeeded;
             }
@@ -115,14 +122,13 @@ namespace StingTools.BIMManager
                 if (string.IsNullOrWhiteSpace(headerLine))
                     return "File is empty.";
 
-                var headers = headerLine.Split(',')
-                    .Select(h => h.Trim().Trim('"').ToLowerInvariant())
-                    .ToHashSet();
-
-                var missing = new System.Collections.Generic.List<string>();
-                if (!headers.Contains("mat_code")) missing.Add("MAT_CODE");
-                if (!headers.Contains("rate"))     missing.Add("RATE");
-                if (!headers.Contains("unit"))     missing.Add("UNIT");
+                // The SAME header contract the loaders use (BOQ/Rates/CostRateCsv).
+                // This used to demand MAT_CODE, RATE and UNIT — and the shipped
+                // cost_rates_5d.csv has no RATE column, so the browser rejected the
+                // very file format it was meant to accept.
+                var missing = StingTools.BOQ.Rates.CostRateCsvLayout
+                    .FromHeader(StingToolsApp.ParseCsvLine(headerLine))
+                    .MissingRequired();
 
                 return missing.Count == 0 ? null : string.Join(", ", missing);
             }

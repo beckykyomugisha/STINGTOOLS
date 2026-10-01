@@ -3452,72 +3452,23 @@ namespace StingTools.BOQ
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return rates;
             try
             {
-                string[] lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return rates;
-                string header = lines[0].ToLowerInvariant();
-                bool is7Col = header.Contains("mat_code");
-                // D6 — the 8-column schema adds a PROD column and keys the product
-                // tier on DISC|PROD. Two rows can now share a PROD code and stay
-                // distinct: Air Terminals ATU (M|GRL) and LAT (E|GRL) are different
-                // products in one Revit category, and keying on PROD alone would have
-                // collapsed them into one rate.
-                bool hasProd = header.Contains(",prod,") || header.StartsWith("category,prod");
+                // Columns are found by header NAME (Rates/CostRateCsv), never by
+                // position: D6 inserted PROD at index 1 and a positional reader
+                // reads every later column off by one.
+                var parsed = Rates.CostRateCsv.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                foreach (string problem in parsed.Problems)
+                    StingLog.WarnRateLimited("LoadCsvRates.Row", $"LoadCsvRates: {costFile} {problem}");
+                if (parsed.Layout.UnknownColumns.Count > 0)
+                    StingLog.Warn($"LoadCsvRates: {costFile} has column(s) no reader uses: " +
+                        string.Join(", ", parsed.Layout.UnknownColumns));
 
-                // CA-1 — explicit one-wins de-duplication. The first row for a key
-                // wins (top of file is authoritative); a later duplicate is skipped
-                // and logged, so a QS sees the collision instead of a silent
-                // last-row-wins overwrite. Applies to category, MAT_CODE keys alike.
-                int dupes = 0;
-                void Put(string key, double rate, string unit)
-                {
-                    if (string.IsNullOrEmpty(key)) return;
-                    string k = key.Trim();
-                    if (rates.ContainsKey(k))
-                    {
-                        dupes++;
-                        StingLog.WarnRateLimited("LoadCsvRates.Dupe",
-                            $"LoadCsvRates: duplicate rate key '{k}' in {costFile} — keeping first, skipping later row.");
-                        return;
-                    }
-                    rates[k] = (rate, string.IsNullOrEmpty(unit) ? "each" : unit);
-                }
-
-                for (int i = 1; i < lines.Length; i++)
-                {
-                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length < 3) continue;
-                    if (hasProd && cols.Length >= 8)
-                    {
-                        // Category, PROD, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
-                        if (double.TryParse(cols[5], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
-                        {
-                            string unit = cols[6].Trim();
-                            string prodCode = cols[1].Trim();
-                            string disc = cols[3].Trim();
-                            // D6: the product key. Registered FIRST so it wins the
-                            // one-wins de-dup against the coarser keys below.
-                            if (!string.IsNullOrEmpty(prodCode) && !string.IsNullOrEmpty(disc))
-                                Put($"{disc}|{prodCode}", rateUgx, unit);
-                            Put(cols[0], rateUgx, unit);   // category
-                            Put(cols[2], rateUgx, unit);   // MAT_CODE
-                        }
-                    }
-                    else if (is7Col && cols.Length >= 7)
-                    {
-                        // Legacy 7-column: Category, MAT_CODE, MAT_DISCIPLINE, USD, UGX, Unit, Description
-                        if (double.TryParse(cols[4], NumberStyles.Any, CultureInfo.InvariantCulture, out double rateUgx))
-                        {
-                            Put(cols[0], rateUgx, cols[5].Trim());
-                            Put(cols[1], rateUgx, cols[5].Trim());
-                        }
-                    }
-                    else if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate3))
-                    {
-                        Put(cols[0], rate3, cols.Length > 2 ? cols[2].Trim() : "each");
-                    }
-                }
-                if (dupes > 0)
-                    StingLog.Warn($"LoadCsvRates: {dupes} duplicate rate key(s) in {costFile} skipped (first-wins).");
+                var dupeKeys = new List<string>();
+                rates = Rates.CostRateCsv.ToUgxRateTable(parsed, dupeKeys);
+                foreach (string k in dupeKeys)
+                    StingLog.WarnRateLimited("LoadCsvRates.Dupe",
+                        $"LoadCsvRates: duplicate rate key '{k}' in {costFile} — keeping first, skipping later row.");
+                if (dupeKeys.Count > 0)
+                    StingLog.Warn($"LoadCsvRates: {dupeKeys.Count} duplicate rate key(s) in {costFile} skipped (first-wins).");
             }
             catch (Exception ex) { StingLog.Warn($"LoadCsvRates: {ex.Message}"); }
             return rates;

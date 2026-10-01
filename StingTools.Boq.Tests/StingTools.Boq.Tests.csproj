@@ -46,6 +46,8 @@
     <Compile Include="..\StingTools\Core\Materials\MaterialCodeResolution.cs" Link="Core\Materials\MaterialCodeResolution.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\RateResolutionLevel.cs" Link="BOQ\Rates\RateResolutionLevel.cs" />
     <Compile Include="..\StingTools\BOQ\Rates\CsvRateLookup.cs" Link="BOQ\Rates\CsvRateLookup.cs" />
+    <!-- DSCH-1 - the one cost-rate CSV parser (by header name, never by position). -->
+    <Compile Include="..\StingTools\BOQ\Rates\CostRateCsv.cs" Link="BOQ\Rates\CostRateCsv.cs" />
     <!-- RC-2 — Document-free unit canonicalisation (tonne↔kg). -->
     <!-- ROADMAP LIFE-3: the markup waterfall. Revit-free, but not previously
          compiled here, so the OH&amp;P base had no test. -->
@@ -155,6 +157,14 @@
     <!-- MAT-SCHED — the shipped commodity price list; the seam test proves every
          measurable commodity is also priceable. -->
     <None Include="..\StingTools\Data\STING_COMMODITY_RATES.csv" Link="Data\STING_COMMODITY_RATES.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <!-- DSCH-1 - the shipped cost card, and the schema registry that declares its
+         columns; CostRateCsvTests holds the parser's vocabulary to the registry. -->
+    <None Include="..\StingTools\Data\cost_rates_5d.csv" Link="Data\cost_rates_5d.csv">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\tools\data_schemas.json" Link="Data\data_schemas.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <!-- MAT-SCHED — the shipped stage library; unique orders and single-routing

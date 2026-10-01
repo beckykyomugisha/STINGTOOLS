@@ -2414,43 +2414,30 @@ namespace StingTools.BIMManager
 
             try
             {
-                string[] lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return rates;
-
-                // Auto-detect column layout from header
-                string header = lines[0].ToLowerInvariant();
-                bool is7Col = header.Contains("mat_code");
-
-                for (int i = 1; i < lines.Length; i++)
+                // By header NAME (BOQ/Rates/CostRateCsv). This reader used to take
+                // cols[3] as the USD rate; D6 inserted PROD at index 1, cols[3]
+                // became MAT_DISCIPLINE ("A"), every row failed to parse and the
+                // trace reported "No cost rates found" against a full file.
+                var parsed = StingTools.BOQ.Rates.CostRateCsv.Parse(
+                    File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                foreach (string problem in parsed.Problems)
+                    StingLog.Warn($"LoadCostRates: {costFile} {problem}");
+                foreach (var row in parsed.Rows)
                 {
-                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
-                    if (cols.Length < 3) continue;
-
-                    if (is7Col && cols.Length >= 7)
+                    // The trace is a USD view; a legacy single-rate card has no
+                    // currency column, so its one rate is shown as written.
+                    double? rate = row.RateUsd ?? (parsed.Layout.IsLegacyRateCard ? row.RateUgx : null);
+                    if (rate == null || string.IsNullOrEmpty(row.Category)) continue;
+                    // First row wins, as in BOQCostManager.LoadCsvRates (CA-1), so the
+                    // trace and the BOQ quote the same rate for a repeated category
+                    // ("Pipe Accessories" has three rows). This view used to keep the last.
+                    if (rates.ContainsKey(row.Category)) continue;
+                    rates[row.Category] = new CostRateEntry
                     {
-                        // 7-col format: Category, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD, Unit_Rate_UGX, Unit, Description
-                        if (double.TryParse(cols[3], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
-                        {
-                            rates[cols[0].Trim()] = new CostRateEntry
-                            {
-                                UnitRate = rate,
-                                Unit = cols.Length > 5 ? cols[5].Trim() : "each",
-                                Description = cols.Length > 6 ? cols[6].Trim() : ""
-                            };
-                        }
-                    }
-                    else
-                    {
-                        // 3-col format: Category, Rate, Unit
-                        if (double.TryParse(cols[1], NumberStyles.Any, CultureInfo.InvariantCulture, out double rate))
-                        {
-                            rates[cols[0].Trim()] = new CostRateEntry
-                            {
-                                UnitRate = rate,
-                                Unit = cols.Length > 2 ? cols[2].Trim() : "each"
-                            };
-                        }
-                    }
+                        UnitRate = rate.Value,
+                        Unit = string.IsNullOrEmpty(row.Unit) ? "each" : row.Unit,
+                        Description = row.Description
+                    };
                 }
             }
             catch (Exception ex) { StingLog.Warn($"LoadCostRates: {ex.Message}"); }
