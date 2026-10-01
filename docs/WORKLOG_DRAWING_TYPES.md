@@ -7,23 +7,17 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-Round 8 (the deeper pass) started 2026-10-02 on branch `fix/drawing-review-2`, from main
-ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and deployed
-(STING_KUT_LIVE c73ded891).
+Round 8 is merged on `fix/drawing-review-2` (PR #1040): DTW-149..214, 66 items. Open:
+DTW-82 (in-Revit checks), DTW-102 (linked MEP runs reported, not dimensioned), DTW-215 and
+DTW-216 (both low).
 
-1. Four read-only researchers are running:
-   - view graphics: packs, filters, templates, crop
-   - sheets and title blocks: factory, slots, placement
-   - authoring and config: editor, Excel round-trip, registries, JSON loaders
-   - end-to-end edge cases: worksharing, scale, phases, design options, odd levels and boxes,
-     re-runs after user edits, policy switch, undo
-
-   Log their findings as DTW-149 onwards. Fix them on disjoint file sets, merging one branch at
-   a time with build, tests and gates in between.
-2. Open a PR for `fix/drawing-review-2` when it has merged work; merge it once CI is green. Ask
-   the ACC session to redeploy STING_KUT_LIVE from its integration branch.
-3. Still open from before: DTW-82 (in-Revit checks) and DTW-102 (linked MEP runs reported, not
-   dimensioned).
+1. Mark PR #1040 ready, merge it once CI is green, and ask the ACC session to merge main into
+   `claude/acc-work-review-gaps-7e2ac7` and redeploy STING_KUT_LIVE after Revit closes.
+2. Next pass (round 9): DTW-215 and 216, then a convergence review of the round-8 code. The
+   areas it changed most are worksharing pre-flight, ProducedViewState, lazy sheets, replaces,
+   filter hash refresh, the Excel round-trip and managed V/G.
+3. The in-Revit checks (NEEDS REVIT CHECK below) decide several design points. Run them before
+   another deep pass.
 
 ## State (2026-10-01)
 
@@ -254,27 +248,29 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
 | DTW-191 | Legacy routing without origin | Low | Frozen corporate rules load as project rules | Merged | Done |
 | DTW-192 | TitleBlockMigrateCsvToRecipe | Low | Corporate CSV preferred; hand-built path; wrong instruction | Merged | Done |
 | DTW-193 | Editor push template | Low | Keeps the corporate checksum on a promoted entry | Merged | Done |
-| DTW-194 | SheetSequenceStore.WriteAll / ResolveSheetSequence | High | ProjectInformation owned by another user: counter falls back silently, numbers collide; out-of-date PI rolls back every item | fix/dt-r8-edgeB | In progress |
+| DTW-194 | SheetSequenceStore.WriteAll / ResolveSheetSequence | High | ProjectInformation owned by another user: counter falls back silently, numbers collide; out-of-date PI rolls back every item | Merged | Done |
 | DTW-195 | BatchProduceCommands per-level transactions | High | One owned or out-of-date view rolls back the whole level; no failures preprocessor (modal dialogs block presets) | Merged | Done |
-| DTW-196 | RefreshExistingView / Apply / PlaceViewOnSheet | Med-High | Re-run resets an auto-fitted view's scale and reverts a hand-changed template silently | fix/dt-r8-edgeB | In progress |
-| DTW-197 | ProduceAllViews sheet-first | Med | Empty sheet made and numbered when every rule fails | fix/dt-r8-edgeB | In progress |
-| DTW-198 | SheetNumberEngine.SafeShort on names | Med | Sheet names truncate level names (GroundFl, 'Level Level1') | Helpers merged; call sites in fix/dt-r8-edgeB | Partly done |
-| DTW-199 | PlaceViewOnSheet moved viewport | Med | Re-scales the user's view, then throws | fix/dt-r8-edgeB | In progress |
+| DTW-196 | RefreshExistingView / Apply / PlaceViewOnSheet | Med-High | Re-run resets an auto-fitted view's scale and reverts a hand-changed template silently | Merged | Done |
+| DTW-197 | ProduceAllViews sheet-first | Med | Empty sheet made and numbered when every rule fails | Merged | Done |
+| DTW-198 | SheetNumberEngine.SafeShort on names | Med | Sheet names truncate level names (GroundFl, 'Level Level1') | Merged | Done |
+| DTW-199 | PlaceViewOnSheet moved viewport | Med | Re-scales the user's view, then throws | Merged | Done |
 | DTW-200 | SheetNumberRestoreCommand | Med | After undo the history collides; no put-back; commit ignored | Merged | Done |
 | DTW-201 | DrawingSyncStylesCommand transaction | Med | One owned view rolls back everything, yet the report says re-synced | Merged | Done |
 | DTW-202 | DrawingHealTitleBlocksCommand transaction | Med | Same; audit log written for rolled-back heals | Merged | Done |
-| DTW-203 | Drawing type id change | Med | New id mints a parallel set; old sheets orphaned and unreported | fix/dt-r8-edgeB | In progress |
+| DTW-203 | Drawing type id change | Med | New id mints a parallel set; old sheets orphaned and unreported | Merged | Done |
 | DTW-204 | Production loops | Med | No progress or Escape inside a step; large runs look hung | Merged | Done |
 | DTW-205 | ShowResult warnings | Low-Med | Warnings beyond 20 lost (not logged) | Merged | Done |
-| DTW-206 | CropToContextBox | Med (Revit) | Box missing its level leaves an uncropped whole-floor view with only a warning | fix/dt-r8-edgeB | In progress |
+| DTW-206 | CropToContextBox | Med (Revit) | Box missing its level leaves an uncropped whole-floor view with only a warning | Merged | Done |
 | DTW-207 | Presence collectors | Low-Med | Count secondary design options and demolished-only elements | Merged | Done |
-| DTW-208 | Produced view phase | Low-Med | Views take the last phase and 'Show All'; demolished elements tagged | fix/dt-r8-edgeB | In progress |
-| DTW-209 | Reused sheet name | Low-Med | Sheet name not refreshed after a level rename | fix/dt-r8-edgeB | In progress |
+| DTW-208 | Produced view phase | Low-Med | Views take the last phase and 'Show All'; demolished elements tagged | Merged | Done |
+| DTW-209 | Reused sheet name | Low-Med | Sheet name not refreshed after a level rename | Merged | Done |
 | DTW-210 | BuildForExistingSheet policy | Low-Med | Heal uses the current policy, not the sheet's own number shape, after a policy switch | Merged | Done |
 | DTW-211 | Renumber after policy switch | Low-Med | Compacting converts issued profile sheets to ISO without saying so | Merged | Done |
-| DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | fix/dt-r8-edgeB | In progress |
-| DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | fix/dt-r8-edgeB | In progress |
-| DTW-214 | DrawingTypeEditorDialog new pack | Low | Still adds 'scale' to managedFields (ignored since DTW-170) | fix/dt-r8-edgeB | In progress |
+| DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | Merged | Done |
+| DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | Merged | Done |
+| DTW-214 | DrawingTypeEditorDialog new pack | Low | Still adds 'scale' to managedFields (ignored since DTW-170) | Merged | Done |
+| DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Read ProducedViewState in Sync Styles | Open |
+| DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Route them through the item runner or honour Failure | Open |
 
 ## Decisions
 
@@ -348,6 +344,11 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
   when it drifts, so data fixes reach projects that already ran.
 - **Override source (DTW-184).** The newer of the file and ES wins; nothing writes ES from the
   editor.
+- **Fitted scale (DTW-196).** Recorded in Extensible Storage (`ProducedViewState`) and kept on
+  refresh while the type scale is unchanged. A hand-changed template is still replaced by the
+  type's, but the replacement is reported; locking the view's style keeps the hand-picked one.
+- **Former ids (DTW-203).** `DrawingType.replaces` lists ids a type took over. Production adopts
+  their views and sheets; the Doctor lists unknown ids.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
