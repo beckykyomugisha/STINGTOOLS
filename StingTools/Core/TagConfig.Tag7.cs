@@ -619,11 +619,15 @@ namespace StingTools.Core
                 string configPath = StingToolsApp.FindDataFile("project_config.json");
                 if (string.IsNullOrEmpty(configPath)) return;
 
-                string json = File.ReadAllText(configPath);
-                Dictionary<string, object> data = JsonConvert.DeserializeObject<Dictionary<string, object>>(json)
-                    ?? new Dictionary<string, object>();
-                data["ACTIVE_PRESET"] = presetName;
-                File.WriteAllText(configPath, JsonConvert.SerializeObject(data, Formatting.Indented));
+                // DSCH-10: the same merge + atomic replace SaveToFile uses. This
+                // rewrote the whole file in place, so a crash mid-write left a
+                // truncated project_config.json, and re-serialising every key could
+                // reorder or retype values it did not own.
+                string merged = ConfigFileMerge.Merge(File.ReadAllText(configPath),
+                    new Dictionary<string, object> { ["ACTIVE_PRESET"] = presetName }, out _);
+                string tmp = configPath + ".tmp";
+                File.WriteAllText(tmp, merged);
+                File.Move(tmp, configPath, true);
             }
             catch (Exception ex)
             {
