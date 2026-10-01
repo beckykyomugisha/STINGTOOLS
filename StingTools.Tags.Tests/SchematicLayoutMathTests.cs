@@ -84,6 +84,85 @@ namespace StingTools.Tags.Tests
             Assert.Equal(new long[] { 3 }, groups[1]);
         }
 
+        // ── DTW-111: what is a stack ──────────────────────────────────────
+        // Levels every 10 ft (3.05 m). Coordinates in feet.
+        private static readonly List<double> Storeys = new List<double> { 0.0, 10.0, 20.0, 30.0 };
+
+        private static HashSet<long> StackIds(params (long, double, double, double, double)[] v)
+            => new HashSet<long>(SchematicLayoutMath.StackRuns(v.ToList(), Storeys).SelectMany(r => r));
+
+        [Fact]
+        public void A_WC_tail_through_the_slab_is_not_a_stack()
+        {
+            // 0.4 m (1.3 ft) drop from the pan connector through level 10: vertical, crosses a level, short.
+            Assert.Empty(StackIds((1, 5, 5, 9.2, 10.5)));
+        }
+
+        [Fact]
+        public void A_short_vertical_offset_between_floors_is_not_a_stack()
+        {
+            Assert.Empty(StackIds((1, 5, 5, 12.0, 15.0)));
+        }
+
+        [Fact]
+        public void Per_storey_segments_joined_by_fittings_are_one_stack()
+        {
+            // Three 9.5 ft segments at one plan position with 0.5 ft fitting gaps between them.
+            var runs = SchematicLayoutMath.StackRuns(new List<(long, double, double, double, double)>
+            {
+                (1, 0, 0, -1.0, 8.5), (2, 0.05, 0, 9.0, 18.5), (3, 0, 0.05, 19.0, 28.5),
+            }, Storeys);
+            Assert.Single(runs);
+            Assert.Equal(new long[] { 1, 2, 3 }, runs[0].OrderBy(x => x));
+        }
+
+        [Fact]
+        public void Tails_stacked_floor_above_floor_are_not_merged_into_a_stack()
+        {
+            // The same WC position on three floors: one plan position, but a storey of gap between tails.
+            Assert.Empty(StackIds((1, 5, 5, -0.8, 0.5), (2, 5, 5, 9.2, 10.5), (3, 5, 5, 19.2, 20.5)));
+        }
+
+        [Fact]
+        public void A_long_run_that_crosses_no_level_is_not_a_stack_when_levels_exist()
+        {
+            // 8 ft vertical wholly inside one storey (e.g. a plant-room drop): no level crossed.
+            Assert.Empty(StackIds((1, 5, 5, 11.0, 19.0)));
+            // Without levels, length alone decides.
+            Assert.Single(SchematicLayoutMath.StackRuns(new List<(long, double, double, double, double)>
+                { (1, 5, 5, 11.0, 19.0) }, new List<double>()));
+        }
+
+        [Fact]
+        public void A_fixture_behind_a_vertical_tail_is_counted_on_its_branch()
+        {
+            // stack 1 (a real run) — junction 10 — branch 30 — tail 31 (vertical, short) — WC 50
+            var adj = new Dictionary<long, long[]>
+            {
+                [1] = new long[] { 10 }, [10] = new long[] { 1, 30 },
+                [30] = new long[] { 10, 31 }, [31] = new long[] { 30, 50 }, [50] = new long[] { 31 },
+            };
+            var kinds = new Dictionary<long, SchematicPipeKind>
+            {
+                [1] = SchematicPipeKind.DrainPipe, [10] = SchematicPipeKind.Fitting, [30] = SchematicPipeKind.DrainPipe,
+                [31] = SchematicPipeKind.DrainPipe, [50] = SchematicPipeKind.Fixture,
+            };
+            var stacks = StackIds((1, 0, 0, -1.0, 28.0), (31, 4, 0, 9.2, 10.5));
+            Assert.Equal(new HashSet<long> { 1 }, stacks);
+            var blocked = new HashSet<long>(stacks) { 10 };
+            Assert.Equal(1, SchematicGraphRules.CountFixtures(30, blocked,
+                id => adj.TryGetValue(id, out var a) ? a : new long[0],
+                id => kinds.TryGetValue(id, out var k) ? k : SchematicPipeKind.Other));
+        }
+
+        [Fact]
+        public void Mostly_vertical_is_more_than_80_percent_of_the_length()
+        {
+            Assert.True(SchematicLayoutMath.IsMostlyVertical(0.1, 0, 3));
+            Assert.False(SchematicLayoutMath.IsMostlyVertical(3, 0, 0.1));
+            Assert.False(SchematicLayoutMath.IsMostlyVertical(0, 0, 0));
+        }
+
         // ── vents ─────────────────────────────────────────────────────────
         // Graph: stack 1 — fitting 10 — vent 20 (DN 75)
         //        stack 1 — fitting 11 — drain 30 — vent 40 (a branch vent, off the branch)
@@ -154,6 +233,18 @@ namespace StingTools.Tags.Tests
             Assert.True(SchematicLayoutMath.SupplySourceRank("PMP", true) < SchematicLayoutMath.SupplySourceRank(null, true));
             Assert.Equal(int.MaxValue, SchematicLayoutMath.SupplySourceRank("FX", false));
             Assert.Equal(int.MaxValue, SchematicLayoutMath.SupplySourceRank(null, false));
+        }
+
+        [Fact]
+        public void Only_a_meter_tank_or_pump_is_a_known_source_other_equipment_is_assumed()
+        {
+            // DTW-128: any connected equipment (rank 3) became the source and pressures from
+            // it were printed as modelled ones.
+            Assert.False(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank("MTR", false)));
+            Assert.False(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank("TK", true)));
+            Assert.False(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank("PMP", true)));
+            Assert.True(SchematicLayoutMath.SupplySourceIsAssumed(SchematicLayoutMath.SupplySourceRank(null, true)));
+            Assert.True(SchematicLayoutMath.SupplySourceIsAssumed(int.MaxValue));
         }
 
         [Fact]

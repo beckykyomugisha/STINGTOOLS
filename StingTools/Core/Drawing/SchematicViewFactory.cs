@@ -86,6 +86,70 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// Paper size (mm) of the main slot of the drawing type <paramref name="req"/> routes
+        /// to, and that type's scale (0 when it has none) — what a schematic generator fits
+        /// its drawing into before it chooses a view scale. The slot is a fraction of the
+        /// title block family's drawable rect (STING_TITLE_BLOCKS.json), as placement uses;
+        /// a family with no drawable rect falls back to the ISO paper size less 25 mm
+        /// margins, as placement does. False, with <paramref name="note"/>, when no size can
+        /// be had — the caller then draws without a fit check and says so.
+        /// </summary>
+        internal static bool TryGetSlotPaperSize(Document doc, DrawingRouteRequest req,
+            out double widthMm, out double heightMm, out int typeScale, out string note)
+        {
+            widthMm = heightMm = 0; typeScale = 0; note = null;
+            try
+            {
+                var dt = req == null ? null : DrawingRouteResolver.Resolve(doc, req);
+                if (dt == null) { note = "no drawing type is routed for this schematic"; return false; }
+                typeScale = dt.Scale;
+
+                double drawW = 0, drawH = 0;
+                try
+                {
+                    var lib = TitleBlockSpecRegistry.Load();
+                    var spec = lib?.Families?.FirstOrDefault(f => !f.Abstract
+                        && string.Equals(f.Id, dt.TitleBlockFamily, StringComparison.OrdinalIgnoreCase));
+                    var drawable = spec == null ? null : TitleBlockSpecRegistry.Resolve(lib, spec)?.Drawable;
+                    if (drawable != null && drawable.W > 0 && drawable.H > 0) { drawW = drawable.W; drawH = drawable.H; }
+                }
+                catch (Exception ex) { StingLog.Warn($"SchematicViewFactory: drawable of '{dt.TitleBlockFamily}': {ex.Message}"); }
+
+                if (drawW <= 0 || drawH <= 0)
+                {
+                    double pw, ph;
+                    switch ((dt.PaperSize ?? "").Trim().ToUpperInvariant())
+                    {
+                        case "A0": pw = 1189; ph = 841; break;
+                        case "A1": pw = 841;  ph = 594; break;
+                        case "A2": pw = 594;  ph = 420; break;
+                        case "A3": pw = 420;  ph = 297; break;
+                        case "A4": pw = 297;  ph = 210; break;
+                        default:
+                            note = $"drawing type '{dt.Id}' has no drawable rect and no ISO paper size ('{dt.PaperSize}')";
+                            return false;
+                    }
+                    if (string.Equals((dt.Orientation ?? "").Trim(), "Portrait", StringComparison.OrdinalIgnoreCase))
+                    { var t = pw; pw = ph; ph = t; }
+                    drawW = pw - 50; drawH = ph - 50;
+                }
+
+                var slot = dt.Slots?.FirstOrDefault();
+                double fw = slot != null && slot.NormW > 0 ? slot.NormW : 1.0;
+                double fh = slot != null && slot.NormH > 0 ? slot.NormH : 1.0;
+                widthMm = drawW * fw;
+                heightMm = drawH * fh;
+                return widthMm > 0 && heightMm > 0;
+            }
+            catch (Exception ex)
+            {
+                note = ex.Message;
+                StingLog.Warn($"SchematicViewFactory.TryGetSlotPaperSize: {ex.Message}");
+                return false;
+            }
+        }
+
         private static void Clear(Document doc, ViewDrafting view, string name)
         {
             try

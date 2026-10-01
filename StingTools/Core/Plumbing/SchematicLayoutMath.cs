@@ -143,6 +143,74 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
+        /// True when a pipe from (0,0,0) to (dx,dy,dz) is more than 80 % vertical — a
+        /// stack <em>candidate</em>, not yet a stack (see <see cref="StackRuns"/>).
+        /// </summary>
+        public static bool IsMostlyVertical(double dx, double dy, double dz)
+        {
+            double total = Math.Sqrt(dx * dx + dy * dy + dz * dz);
+            return total > 1e-6 && Math.Abs(dz) / total > 0.8;
+        }
+
+        /// <summary>
+        /// The stacks among mostly-vertical pipes; each returned list is one stack's ids.
+        /// DTW-111: every vertical pipe used to be a stack — each WC tail, trap drop and
+        /// vertical offset was drawn as a DN100 STACK, and because stacks block the walk
+        /// that counts a branch's fixtures, a fixture behind a vertical tail was never
+        /// counted. Now segments at one plan position whose heights meet (within
+        /// <see cref="StackRule.JoinGapFt"/>, a fitting) form a run, and a run is a stack
+        /// only when it is at least <see cref="StackRule.MinRunFt"/> tall and — when the
+        /// document has levels — passes through at least one level.
+        /// </summary>
+        public static List<List<long>> StackRuns(
+            IReadOnlyList<(long Id, double X, double Y, double ZMin, double ZMax)> verticals,
+            IReadOnlyList<double> sortedLevelElevations,
+            StackRule rule = null)
+        {
+            rule = rule ?? new StackRule();
+            var runs = new List<List<long>>();
+            if (verticals == null || verticals.Count == 0) return runs;
+
+            var byId = new Dictionary<long, (double ZMin, double ZMax)>();
+            foreach (var v in verticals)
+                byId[v.Id] = (Math.Min(v.ZMin, v.ZMax), Math.Max(v.ZMin, v.ZMax));
+
+            var planGroups = ClusterByPlanPosition(
+                verticals.Select(v => (v.Id, v.X, v.Y)).ToList(), rule.PlanToleranceFt);
+
+            foreach (var g in planGroups)
+            {
+                // Split the plan group into vertically contiguous runs.
+                var ordered = g.OrderBy(id => byId[id].ZMin).ToList();
+                var current = new List<long>();
+                double runMin = 0, runMax = 0;
+                foreach (var id in ordered)
+                {
+                    var (a, b) = byId[id];
+                    if (current.Count > 0 && a > runMax + rule.JoinGapFt)
+                    {
+                        if (IsStackRun(runMin, runMax, sortedLevelElevations, rule)) runs.Add(current);
+                        current = new List<long>();
+                    }
+                    if (current.Count == 0) { runMin = a; runMax = b; }
+                    else { runMin = Math.Min(runMin, a); runMax = Math.Max(runMax, b); }
+                    current.Add(id);
+                }
+                if (current.Count > 0 && IsStackRun(runMin, runMax, sortedLevelElevations, rule)) runs.Add(current);
+            }
+            return runs;
+        }
+
+        private static bool IsStackRun(double zMin, double zMax, IReadOnlyList<double> levels, StackRule rule)
+        {
+            if (zMax - zMin < rule.MinRunFt) return false;
+            if (levels == null || levels.Count == 0) return true;
+            foreach (var e in levels)
+                if (e > zMin + rule.LevelToleranceFt && e < zMax - rule.LevelToleranceFt) return true;
+            return false;
+        }
+
+        /// <summary>
         /// Rank of a candidate supply source (lower is better); int.MaxValue = not a
         /// source. A water meter is the incoming main; a tank or a pump set feeds the
         /// network; other equipment is a weaker guess. Anything else means the
@@ -160,6 +228,13 @@ namespace StingTools.Core.Plumbing
         }
 
         /// <summary>
+        /// True when a source of this rank is a guess: only a water meter, a tank or a pump
+        /// set is known to feed the network. Other connected equipment (rank 3) or no
+        /// source at all means the layout and any pressure from it are indicative (DTW-128).
+        /// </summary>
+        public static bool SupplySourceIsAssumed(int rank) => rank > 2;
+
+        /// <summary>
         /// Pressure label text, or null when none may be shown. A pressure is only
         /// printed when the inlet pressure was configured by the user; when the
         /// source node itself was not found in the model it is marked indicative.
@@ -173,6 +248,19 @@ namespace StingTools.Core.Plumbing
         /// <summary>Slope label: the value when known, "slope ?" when not — never a default.</summary>
         public static string SlopeLabel(double? slopePct)
             => slopePct.HasValue && !double.IsNaN(slopePct.Value) ? "× " + slopePct.Value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture) + "%" : "slope ?";
+    }
+
+    /// <summary>What makes a run of vertical pipe a stack (all lengths in feet).</summary>
+    public sealed class StackRule
+    {
+        /// <summary>Segments within this plan distance are one vertical line.</summary>
+        public double PlanToleranceFt { get; set; } = 150 / SchematicLayoutMath.MmPerFoot;
+        /// <summary>A vertical gap up to this (a coupling, a tee, a cleanout) still joins two segments.</summary>
+        public double JoinGapFt { get; set; } = 500 / SchematicLayoutMath.MmPerFoot;
+        /// <summary>Shortest run that is a stack: about one storey.</summary>
+        public double MinRunFt { get; set; } = 2000 / SchematicLayoutMath.MmPerFoot;
+        /// <summary>A level within this distance of a run's end is not crossed by it.</summary>
+        public double LevelToleranceFt { get; set; } = 50 / SchematicLayoutMath.MmPerFoot;
     }
 
     /// <summary>Kind of a graph node, as far as the vent / branch rules care.</summary>
@@ -288,6 +376,259 @@ namespace StingTools.Core.Plumbing
                 int left = preferredCol - step;
                 if (_taken.Add((row, left))) return left;
             }
+        }
+    }
+
+    /// <summary>A run of pass-through pipe and fittings between two nodes worth drawing.</summary>
+    public sealed class ChainSegment
+    {
+        public long From { get; set; }
+        public long To { get; set; }
+        /// <summary>The nodes passed through, in order from <see cref="From"/>.</summary>
+        public List<long> Through { get; } = new List<long>();
+    }
+
+    /// <summary>Outcome of fitting a schematic to its sheet slot.</summary>
+    public sealed class SchematicFitResult
+    {
+        public int Scale { get; set; }
+        /// <summary>False when no scale fits the slot (the drawing is larger than the slot).</summary>
+        public bool Fits { get; set; }
+        /// <summary>False when the slot size could not be read; the scale is then the minimum.</summary>
+        public bool SlotKnown { get; set; }
+        public double WidthMm { get; set; }
+        public double HeightMm { get; set; }
+        public double SlotWidthMm { get; set; }
+        public double SlotHeightMm { get; set; }
+
+        /// <summary>One line for the report, or null when it fits.</summary>
+        public string Problem()
+        {
+            if (!SlotKnown) return $"The sheet slot size could not be read; drawn at 1:{Scale} without a fit check.";
+            if (Fits) return null;
+            return $"The schematic ({WidthMm:F0} × {HeightMm:F0} mm at 1:{Scale}) is larger than its sheet slot "
+                 + $"({SlotWidthMm:F0} × {SlotHeightMm:F0} mm) at any scale that keeps its labels readable — "
+                 + "it overflows the sheet. Draw it per system (Named system…) to split it.";
+        }
+    }
+
+    /// <summary>
+    /// DTW-120: layout rules that keep a plumbing schematic on its sheet. The drainage
+    /// riser used true elevation at a pinned 1:50, so more than 7–8 storeys or ~19
+    /// stacks overflowed the A1 slot; the supply schematic gave every element its own
+    /// 20 mm column. Floors are now storey rows at a fixed pitch, columns a fixed pitch,
+    /// runs of pass-through pipe collapse to one line, and the scale is the smallest
+    /// that fits the drawing type's slot.
+    /// </summary>
+    public static class SchematicFit
+    {
+        public static readonly int[] StandardScales = { 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000 };
+
+        /// <summary>
+        /// Position of elevation <paramref name="z"/> in storeys: level i is row i, a
+        /// height between two levels interpolates between their rows, and beyond the
+        /// first / last level the adjacent storey's height carries on. With fewer than two
+        /// distinct levels <paramref name="fallbackStoreyFt"/> stands in for the storey
+        /// height (a display spacing only — no level is named from it).
+        /// </summary>
+        public static double StoreyRow(IReadOnlyList<double> sortedElevations, double z, double fallbackStoreyFt)
+        {
+            if (fallbackStoreyFt <= 0) fallbackStoreyFt = 1;
+            var e = new List<double>();
+            if (sortedElevations != null)
+                foreach (var v in sortedElevations)
+                    if (!double.IsNaN(v) && (e.Count == 0 || v - e[e.Count - 1] > 1e-3)) e.Add(v);
+            if (e.Count == 0) return z / fallbackStoreyFt;
+            if (e.Count == 1) return (z - e[0]) / fallbackStoreyFt;
+            if (z <= e[0]) return (z - e[0]) / (e[1] - e[0]);
+            int last = e.Count - 1;
+            if (z >= e[last]) return last + (z - e[last]) / (e[last] - e[last - 1]);
+            for (int i = 0; i < last; i++)
+                if (z <= e[i + 1]) return i + (z - e[i]) / (e[i + 1] - e[i]);
+            return last;
+        }
+
+        /// <summary>
+        /// The smallest standard scale, not below <paramref name="minScale"/>, at which the
+        /// paper extent fits the slot. When none fits, the scale that comes closest (the
+        /// smallest scale at the least overflow) with <c>Fits = false</c>. A slot of
+        /// unknown size (≤ 0) gives <paramref name="minScale"/> with <c>SlotKnown = false</c>.
+        /// </summary>
+        public static SchematicFitResult ChooseScale(Func<int, (double W, double H)> paperExtentMm,
+            double slotWidthMm, double slotHeightMm, int minScale, int maxScale = 1000)
+        {
+            if (minScale <= 0) minScale = 1;
+            var candidates = new List<int> { minScale };
+            candidates.AddRange(StandardScales.Where(s => s > minScale && s <= Math.Max(minScale, maxScale)));
+
+            if (paperExtentMm == null || slotWidthMm <= 0 || slotHeightMm <= 0)
+            {
+                var ext0 = paperExtentMm?.Invoke(minScale) ?? (0, 0);
+                return new SchematicFitResult { Scale = minScale, Fits = true, SlotKnown = false,
+                    WidthMm = ext0.W, HeightMm = ext0.H, SlotWidthMm = slotWidthMm, SlotHeightMm = slotHeightMm };
+            }
+
+            SchematicFitResult best = null;
+            double bestRatio = double.MaxValue;
+            foreach (int s in candidates)
+            {
+                var ext = paperExtentMm(s);
+                var r = new SchematicFitResult { Scale = s, SlotKnown = true, WidthMm = ext.W, HeightMm = ext.H,
+                    SlotWidthMm = slotWidthMm, SlotHeightMm = slotHeightMm };
+                if (ext.W <= slotWidthMm && ext.H <= slotHeightMm) { r.Fits = true; return r; }
+                double ratio = Math.Max(ext.W / slotWidthMm, ext.H / slotHeightMm);
+                if (ratio < bestRatio - 1e-9) { bestRatio = ratio; best = r; }
+            }
+            return best;
+        }
+
+        /// <summary>
+        /// Printed width of <paramref name="text"/> (its longest line), paper mm, for a
+        /// text type of <paramref name="heightMm"/> and width factor. An estimate: 0.7 ×
+        /// height per character covers capitals and digits in the usual sans fonts.
+        /// </summary>
+        public static double EstimateTextWidthMm(string text, double heightMm, double widthFactor = 1.0)
+        {
+            if (string.IsNullOrEmpty(text) || heightMm <= 0) return 0;
+            if (widthFactor <= 0) widthFactor = 1.0;
+            int longest = text.Replace("\r", "").Split('\n').Max(l => l.Length);
+            return longest * heightMm * 0.7 * widthFactor;
+        }
+
+        /// <summary>
+        /// Centreline offsets (paper mm, the first at 0) of columns whose contents reach
+        /// <c>Left</c> / <c>Right</c> mm either side: each column clears its neighbour's
+        /// contents by <paramref name="gap"/>, and is never closer than
+        /// <paramref name="minPitch"/>. DTW-121: a fixed pitch let a stack's labels run
+        /// into the next stack.
+        /// </summary>
+        public static List<double> ColumnOffsets(IReadOnlyList<(double Left, double Right)> halfWidths,
+            double minPitch, double gap)
+        {
+            var x = new List<double>();
+            if (halfWidths == null) return x;
+            for (int i = 0; i < halfWidths.Count; i++)
+            {
+                if (i == 0) { x.Add(0); continue; }
+                double need = Math.Max(0, halfWidths[i - 1].Right) + gap + Math.Max(0, halfWidths[i].Left);
+                x.Add(x[i - 1] + Math.Max(minPitch, need));
+            }
+            return x;
+        }
+
+        /// <summary>
+        /// Side of each branch (true = left), branches at <paramref name="positions"/> along
+        /// the stack: the right unless the last branch put there is closer than
+        /// <paramref name="clearance"/> (its label would be hit), then the left; when both
+        /// sides are that close, whichever side's last branch is farther away.
+        /// </summary>
+        public static bool[] AssignSides(IReadOnlyList<double> positions, double clearance)
+        {
+            if (positions == null) return new bool[0];
+            var left = new bool[positions.Count];
+            double lastRight = double.NegativeInfinity, lastLeft = double.NegativeInfinity;
+            foreach (int i in Enumerable.Range(0, positions.Count).OrderBy(i => positions[i]))
+            {
+                double p = positions[i];
+                bool goLeft;
+                if (p - lastRight >= clearance) goLeft = false;
+                else if (p - lastLeft >= clearance) goLeft = true;
+                else goLeft = p - lastLeft > p - lastRight;
+                left[i] = goLeft;
+                if (goLeft) lastLeft = p; else lastRight = p;
+            }
+            return left;
+        }
+
+        /// <summary>Printed height of <paramref name="text"/>, paper mm (lines × 1.5 × height).</summary>
+        public static double EstimateTextHeightMm(string text, double heightMm)
+        {
+            if (string.IsNullOrEmpty(text) || heightMm <= 0) return 0;
+            int lines = text.Replace("\r", "").Split('\n').Length;
+            return lines * heightMm * 1.5;
+        }
+
+        /// <summary>
+        /// The network reachable from <paramref name="start"/>, with every run of
+        /// pass-through nodes (those <paramref name="keep"/> rejects) collapsed into one
+        /// segment between kept nodes. <paramref name="start"/> is always kept. Each
+        /// segment is reported once.
+        /// </summary>
+        public static List<ChainSegment> CollapseChains(long start,
+            Func<long, IEnumerable<long>> neighbours, Func<long, bool> keep, int limit = 200000)
+        {
+            var segs = new List<ChainSegment>();
+            if (neighbours == null) return segs;
+            bool Keep(long id) => id == start || keep == null || keep(id);
+            IEnumerable<long> Nbrs(long id) => (neighbours(id) ?? Enumerable.Empty<long>()).Distinct().Where(n => n != id);
+
+            var done = new HashSet<(long, long)>();   // (kept node, first step) already walked
+            var queued = new HashSet<long> { start };
+            var queue = new Queue<long>();
+            queue.Enqueue(start);
+            int steps = 0;
+            while (queue.Count > 0 && steps < limit)
+            {
+                long u = queue.Dequeue();
+                foreach (var v in Nbrs(u))
+                {
+                    if (!done.Add((u, v))) continue;
+                    var seg = new ChainSegment { From = u };
+                    long prev = u, cur = v;
+                    var inWalk = new HashSet<long> { u };
+                    while (!Keep(cur) && steps++ < limit)
+                    {
+                        if (!inWalk.Add(cur)) break;          // a loop of pass-through nodes
+                        seg.Through.Add(cur);
+                        long p = prev;
+                        var next = Nbrs(cur).Where(n => n != p).ToList();
+                        if (next.Count == 0) break;           // dead end (should be kept; guard)
+                        prev = cur;
+                        cur = next[0];
+                    }
+                    if (seg.Through.Count > 0 && seg.Through[seg.Through.Count - 1] == cur) seg.Through.RemoveAt(seg.Through.Count - 1);
+                    seg.To = cur;
+                    // The same run walked from its other end is not reported again.
+                    done.Add((cur, seg.Through.Count > 0 ? seg.Through[seg.Through.Count - 1] : u));
+                    if (seg.To != seg.From) segs.Add(seg);
+                    if (Keep(cur) && queued.Add(cur)) queue.Enqueue(cur);
+                }
+            }
+            return segs;
+        }
+
+        /// <summary>
+        /// (row, column) of every node the segments reach from <paramref name="start"/>:
+        /// row from <paramref name="rowOf"/>, column the parent's (a single child) or fanned
+        /// out around it; no two nodes share a cell.
+        /// </summary>
+        public static Dictionary<long, (int Row, int Col)> LayoutTree(long start,
+            IEnumerable<ChainSegment> segments, Func<long, int> rowOf)
+        {
+            var adj = new Dictionary<long, List<long>>();
+            void Link(long a, long b)
+            {
+                if (!adj.TryGetValue(a, out var l)) adj[a] = l = new List<long>();
+                if (!l.Contains(b)) l.Add(b);
+            }
+            foreach (var s in segments ?? Enumerable.Empty<ChainSegment>()) { Link(s.From, s.To); Link(s.To, s.From); }
+
+            var cells = new Dictionary<long, (int Row, int Col)>();
+            var grid = new SchematicCellGrid();
+            var queue = new Queue<(long Id, int PrefCol)>();
+            queue.Enqueue((start, 0));
+            while (queue.Count > 0)
+            {
+                var (id, pref) = queue.Dequeue();
+                if (cells.ContainsKey(id)) continue;
+                int row = rowOf != null ? rowOf(id) : 0;
+                int col = grid.Claim(row, pref);
+                cells[id] = (row, col);
+                var kids = adj.TryGetValue(id, out var l) ? l.Where(k => !cells.ContainsKey(k)).ToList() : new List<long>();
+                for (int i = 0; i < kids.Count; i++)
+                    queue.Enqueue((kids[i], kids.Count == 1 ? col : col + i - kids.Count / 2));
+            }
+            return cells;
         }
     }
 }
