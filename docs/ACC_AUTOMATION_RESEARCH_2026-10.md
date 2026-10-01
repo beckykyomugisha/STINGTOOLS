@@ -210,7 +210,7 @@ ROADMAP ACC-AUT-8 to ACC-AUT-12 (§3), plus:
 ## 6. Live checks (NEEDS MANUAL CHECK)
 
 1. After reconnecting ACC on the server, `POST /api/projects/{id}/acc/webhooks/subscribe` creates 5 hooks, including `autodesk.construction.reviews/review.closed-1.0`.
-2. Close a review in ACC. The web client receives `acc.review.closed`. Then run `ACC_ReadReviews` in Revit.
+2. Close a review in ACC. The server log shows `Autodesk webhook review.closed-1.0: ACC review …`. No Planscape client acts on the broadcast yet (ACC-AUT-14). Then run `ACC_ReadReviews` in Revit.
 3. SSA:
    - set the `Acc__Ssa__*` environment variables and the connection's `accAuthMode: "ssa"`;
    - run `POST …/acc/sync`. The log shows no refresh-token use;

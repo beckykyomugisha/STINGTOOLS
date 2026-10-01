@@ -135,7 +135,7 @@ Seam audit (2026-10-01):
 ## NEEDS MANUAL CHECK
 - **ACC automation (AUT-5..7):** see docs/ACC_AUTOMATION_RESEARCH_2026-10.md §6.
   1. Reconnect server ACC to gain `data:create`. Subscribe should then create 5 hooks.
-  2. Close a review in ACC; clients should get `acc.review.closed`.
+  2. Close a review in ACC. The server log should show `Autodesk webhook review.closed-1.0: ACC review …` (no Planscape client acts on it yet - ACC-AUT-14); then run ACC_ReadReviews in Revit.
   3. SSA setup end to end: env vars + `accAuthMode` ssa, then sync. Confirm the robot is the issue creator.
 - **C1 recovery on KUT:** look in `_data/coord` (the `_BIM_COORD` alias) for `transmittals.json.corrupt.*` and `deliverables.json.corrupt.*`. If any exist, the old gate quarantined them: merge their rows back into the live array, and keep the newer rows on any id clash.
 - **C6 PDF byte-stability:** export one sheet twice from the Export Centre with no change, then compare SHA-256 (`certutil -hashfile x.pdf SHA256`). If they differ, re-exports land as HELD (reported, not failing), and a normalised hash can be added.

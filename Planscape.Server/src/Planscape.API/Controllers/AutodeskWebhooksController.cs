@@ -8,6 +8,7 @@
 //     "acc.review.closed" / "acc.review.created" to the project's group, carrying the
 //     documented payload fields (sequenceId, roundNum, status). Reported, not applied: the
 //     decision is read and proposed by ACC_ReadReviews / ACC_ReviewProposals, never here.
+//     No Planscape client listens for these yet (ROADMAP ACC-AUT-14); the receipt is logged.
 //   NOTE: docs.approval.completed and model.review.completed are NOT in the APS supported
 //   events list (read 2026-10-01); those two cases are kept for any hook that was created
 //   under them, but no current subscription produces them.
@@ -194,6 +195,10 @@ public class AutodeskWebhooksController : ControllerBase
                 break;
             case "review.closed-1.0":
             case "review.created-1.0":
+                // H-6: no Planscape client acts on the broadcast yet (ROADMAP ACC-AUT-14), so the
+                // receipt is LOGGED - that line is how a live check proves the event arrived.
+                _log.LogInformation("Autodesk webhook {Event}: ACC review {Review} (sequence {Seq}, status {Status}) for project {Project} - run ACC_ReadReviews in Revit to read its decision.",
+                    ev, urn, Str(root, "payload", "sequenceId"), Str(root, "payload", "status"), conn.Value.ProjectId);
                 await Broadcast(conn.Value.ProjectId, ev == "review.closed-1.0" ? "acc.review.closed" : "acc.review.created",
                     new
                     {
