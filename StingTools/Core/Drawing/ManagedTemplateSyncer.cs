@@ -56,6 +56,36 @@ namespace StingTools.Core.Drawing
             "tagColorScheme", "defaultTagStyle"
         };
 
+        /// <summary>
+        /// DTW-163: the fields this pack's managed template actually controls —
+        /// declared (or default) fields plus every field whose payload the pack
+        /// carries. See <see cref="ManagedTemplateFields"/>.
+        /// </summary>
+        internal static List<string> EffectiveFields(ViewStylePack pack)
+        {
+            if (pack == null) return new List<string>();
+            return ManagedTemplateFields.Effective(
+                pack.ManagedFields ?? DefaultManagedFields,
+                hasVgOverrides: pack.VgOverrides != null && pack.VgOverrides.Count > 0,
+                hasFilters: (pack.Filters != null && pack.Filters.Count > 0)
+                            || (pack.ByMaterialClass != null && pack.ByMaterialClass.Count > 0),
+                hasWorksetVisibility: !string.IsNullOrWhiteSpace(pack.WorksetVisibility),
+                hasViewRange: pack.ViewRange != null,
+                ignored: f =>
+                {
+                    // DTW-170: logged once per pack per session, not per view.
+                    lock (_ignoredLogged)
+                    {
+                        if (!_ignoredLogged.Add(pack.Id + "|" + f)) return;
+                    }
+                    StingLog.Warn($"ManagedTemplateSyncer: pack '{pack.Id}' lists managed field '{f}', "
+                        + "which a managed template never controls — ignored. "
+                        + ManagedTemplateFields.NeverControlled[f]);
+                });
+        }
+
+        private static readonly HashSet<string> _ignoredLogged = new HashSet<string>(StringComparer.Ordinal);
+
         private static string DocKey(Document doc)
         {
             if (doc == null) return "__null__";
@@ -211,7 +241,7 @@ namespace StingTools.Core.Drawing
         internal static string ComputePackChecksum(ViewStylePack pack)
         {
             if (pack == null) return string.Empty;
-            var fields = pack.ManagedFields ?? DefaultManagedFields;
+            var fields = EffectiveFields(pack);
             var probe = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
             foreach (var f in fields)
             {
@@ -281,10 +311,18 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// View types that can actually carry a View.ViewTemplateId. Revit
-        /// rejects the assignment on a schedule, a legend, a sheet and the
-        /// browser-only types, so minting a managed template for one produces a
-        /// template that can never be applied — and an exception per view when
+        /// rejects the assignment on a legend, a sheet and the browser-only
+        /// types, so minting a managed template for one produces a template
+        /// that can never be applied — and an exception per view when
         /// something tries.
+        ///
+        /// DTW-176: schedules DO take view templates (Revit 2022+), and the
+        /// template catalogue creates schedule templates. The earlier throw on
+        /// health-rds-A3 was a template seeded from a schedule of another
+        /// category — Revit only accepts a schedule template that is valid for
+        /// that schedule — so the assignment is now gated on
+        /// View.IsValidViewTemplate (DrawingTypePresentation) rather than the
+        /// whole view type being refused.
         ///
         /// Whitelist rather than blacklist: an unfamiliar view type is refused
         /// with a named warning instead of being discovered by a throw.
@@ -293,7 +331,7 @@ namespace StingTools.Core.Drawing
         {
             ViewType.FloorPlan, ViewType.CeilingPlan, ViewType.EngineeringPlan, ViewType.AreaPlan,
             ViewType.Section, ViewType.Elevation, ViewType.Detail, ViewType.DraftingView,
-            ViewType.ThreeD, ViewType.Walkthrough, ViewType.Rendering,
+            ViewType.ThreeD, ViewType.Walkthrough, ViewType.Rendering, ViewType.Schedule,
         };
 
         /// <summary>Revit-free predicate, so the rule is unit-testable.</summary>
@@ -307,13 +345,13 @@ namespace StingTools.Core.Drawing
 
             if (!CanCarryViewTemplate(viewType))
             {
-                // Named, not thrown. A Schedule or Legend profile bound to a
+                // Named, not thrown. A Legend or Sheet profile bound to a
                 // managed pack is a data mistake, and saying so is more useful
                 // than a stack trace from ViewTemplateId.
                 result.Warnings.Add(
                     $"Style pack '{pack.Id}' is managed, but a {viewType} view cannot carry a view template — "
                     + "no managed template minted. Bind this profile to an \"external\" pack "
-                    + "(corp-standard-detail serves the schedule profiles) so its overrides apply to the view directly.");
+                    + "(e.g. corp-standard-detail) so its overrides apply to the view directly.");
                 return ElementId.InvalidElementId;
             }
 
@@ -469,7 +507,7 @@ namespace StingTools.Core.Drawing
         private static void ApplyPackToTemplate(Document doc, View template, ViewStylePack pack, PackApplyResult r)
         {
             if (doc == null || template == null || pack == null) return;
-            var fields = pack.ManagedFields ?? DefaultManagedFields;
+            var fields = EffectiveFields(pack);
 
             foreach (var field in fields)
             {
@@ -479,6 +517,15 @@ namespace StingTools.Core.Drawing
                     {
                         case "vgOverrides":
                             ViewStylePackApplier.ApplyCategoryOverridesOnly(doc, template, pack, r);
+                            // The pack's lineWeightScale acts where its weights are
+                            // written — on the template in managed mode.
+                            ViewStylePackApplier.ApplyLineWeightScale(doc, template, pack, r);
+                            break;
+                        case "linkOverrides":
+                            // Element overrides cannot live on a template; the
+                            // presentation pipeline applies them to each view.
+                            // Listing the field only makes the template control
+                            // the Revit Links tab (VIS_GRAPHICS_RVT_LINKS).
                             break;
                         case "filters":
                             ViewStylePackApplier.ApplyFilterRulesOnly(doc, template, pack, r);
@@ -625,52 +672,29 @@ namespace StingTools.Core.Drawing
         private static void SetManagedTemplateParameterIds(Document doc, View template, ViewStylePack pack)
         {
             if (template == null || !template.IsTemplate) return;
-            var fields = pack.ManagedFields ?? DefaultManagedFields;
-            var paramIds = new List<ElementId>();
 
-            foreach (var f in fields)
+            // DTW-163: build the controlled set from BuiltInParameter ids, not from
+            // template.get_Parameter — the V/G "parameters" (VIS_GRAPHICS_*) and
+            // PLAN_VIEW_RANGE are template-parameter ids with no Parameter object
+            // behind them, which is why they used to be skipped and V/G released.
+            var managed = new HashSet<ElementId>();
+            foreach (var name in ManagedTemplateFields.BipNamesFor(EffectiveFields(pack)))
             {
-                BuiltInParameter? bip = null;
-                switch (f)
-                {
-                    case "scale":          bip = BuiltInParameter.VIEW_SCALE; break;
-                    case "detailLevel":    bip = BuiltInParameter.VIEW_DETAIL_LEVEL; break;
-                    case "discipline":     bip = BuiltInParameter.VIEW_DISCIPLINE; break;
-                    case "visualStyle":    bip = BuiltInParameter.MODEL_GRAPHICS_STYLE; break;
-                    case "phaseFilter":    bip = BuiltInParameter.VIEW_PHASE_FILTER; break;
-                    case "phase":          bip = BuiltInParameter.VIEW_PHASE; break;
-                    case "annotationCrop": bip = BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE; break;
-                    case "farClip":        bip = BuiltInParameter.VIEWER_BOUND_OFFSET_FAR; break;
-                    case "underlay":       bip = BuiltInParameter.VIEW_UNDERLAY_BOTTOM_ID; break;
-                    // viewRange, vgOverrides, filters, worksetVisibility — no single BIP
-                }
-                if (!bip.HasValue) continue;
-                try
-                {
-                    var p = template.get_Parameter(bip.Value);
-                    if (p != null) paramIds.Add(p.Id);
-                }
-                catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                if (Enum.TryParse<BuiltInParameter>(name, false, out var bip))
+                    managed.Add(new ElementId(bip));
+                else
+                    StingLog.Warn($"ManagedTemplateSyncer: '{name}' is not a BuiltInParameter in this Revit — not controlled.");
             }
 
             // Revit exposes the inverse: SetNonControlledTemplateParameterIds
-            // takes the parameters the template does NOT control. Phase 137
-            // built the managed list above and then discarded it, leaving the
-            // seed's own control flags in place. That was tolerable while the
-            // managed path was unreachable, but now that packs actually reach
-            // it a seed controlling VIEW_SCALE overrides the per-profile
-            // DrawingType.Scale the pipeline just wrote — "scale" is
-            // deliberately absent from DefaultManagedFields for exactly that
-            // reason (see the list at the top of this file).
-            //
-            // Complement = every template parameter minus the managed ones, so
-            // the pack controls precisely what it declares and nothing else.
+            // takes the parameters the template does NOT control. Complement =
+            // every template parameter minus the managed ones, so the pack
+            // controls precisely what it declares or carries, and nothing else.
             try
             {
                 var all = template.GetTemplateParameterIds();
                 if (all != null)
                 {
-                    var managed = new HashSet<ElementId>(paramIds);
                     var nonControlled = all.Where(id => !managed.Contains(id)).ToList();
                     template.SetNonControlledTemplateParameterIds(nonControlled);
                 }

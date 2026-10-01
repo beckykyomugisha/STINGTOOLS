@@ -343,7 +343,9 @@
         "param": "WALL_STRUCTURAL_USAGE_PARAM",
         "op": "notEquals",
         "value": "0",
-        "type": "int"
+        "type": "int",
+        "enum": "StructuralWallUsage",
+        "valueName": "NonBearing"
       },
       "override": {
         "cutColor": "#000000",
@@ -370,13 +372,17 @@
             "param": "FUNCTION_PARAM",
             "op": "equals",
             "value": "0",
-            "type": "int"
+            "type": "int",
+            "enum": "WallFunction",
+            "valueName": "Interior"
           },
           {
             "param": "WALL_STRUCTURAL_USAGE_PARAM",
             "op": "equals",
             "value": "0",
-            "type": "int"
+            "type": "int",
+            "enum": "StructuralWallUsage",
+            "valueName": "NonBearing"
           }
         ]
       },
@@ -460,10 +466,14 @@
         "logic": "or",
         "rules": [
           {
-            "param": "FUNCTION_PARAM",
-            "op": "equals",
-            "value": "3",
-            "type": "int"
+            "param": "ALL_MODEL_TYPE_NAME",
+            "op": "contains",
+            "value": "Cladding"
+          },
+          {
+            "param": "ALL_MODEL_TYPE_NAME",
+            "op": "contains",
+            "value": "Rainscreen"
           },
           {
             "param": "ALL_MODEL_TYPE_COMMENTS",
@@ -483,7 +493,7 @@
         "arch",
         "facade"
       ],
-      "notes": "External cladding / rainscreen — diagonal hatch."
+      "notes": "External cladding / rainscreen — diagonal hatch. Matched by type name / type comments: Revit's Wall Function has no cladding value (3 is Retaining)."
     },
     {
       "id": "arch-external-walls",
@@ -495,7 +505,9 @@
         "param": "FUNCTION_PARAM",
         "op": "equals",
         "value": "1",
-        "type": "int"
+        "type": "int",
+        "enum": "WallFunction",
+        "valueName": "Exterior"
       },
       "override": {
         "cutColor": "#000000",
@@ -1224,15 +1236,28 @@
       "categories": [
         "OST_StructuralColumns",
         "OST_StructuralFraming",
-        "OST_StructuralFoundation",
-        "OST_Walls",
-        "OST_Floors"
+        "OST_StructuralFoundation"
       ],
       "rule": {
-        "param": "STRUCTURAL_MATERIAL_TYPE",
-        "op": "equals",
-        "value": "1",
-        "type": "int"
+        "logic": "or",
+        "rules": [
+          {
+            "param": "STRUCTURAL_MATERIAL_TYPE",
+            "op": "equals",
+            "value": "2",
+            "type": "int",
+            "enum": "StructuralMaterialType",
+            "valueName": "Concrete"
+          },
+          {
+            "param": "STRUCTURAL_MATERIAL_TYPE",
+            "op": "equals",
+            "value": "5",
+            "type": "int",
+            "enum": "StructuralMaterialType",
+            "valueName": "PrecastConcrete"
+          }
+        ]
       },
       "override": {
         "surfFgColor": "#969696",
@@ -1244,7 +1269,7 @@
         "struct",
         "material"
       ],
-      "notes": "Concrete structural element — concrete hatch."
+      "notes": "Concrete structural element (in-situ or precast) — concrete hatch. Structural Material Type is a structural-family parameter; walls and floors do not carry it, so they are not bound here."
     },
     {
       "id": "struct-steel",
@@ -1257,8 +1282,10 @@
       "rule": {
         "param": "STRUCTURAL_MATERIAL_TYPE",
         "op": "equals",
-        "value": "2",
-        "type": "int"
+        "value": "1",
+        "type": "int",
+        "enum": "StructuralMaterialType",
+        "valueName": "Steel"
       },
       "override": {
         "projColor": "#5050DC",
@@ -1285,7 +1312,9 @@
         "param": "STRUCTURAL_MATERIAL_TYPE",
         "op": "equals",
         "value": "3",
-        "type": "int"
+        "type": "int",
+        "enum": "StructuralMaterialType",
+        "valueName": "Wood"
       },
       "override": {
         "projColor": "#A06E3C",
@@ -1310,10 +1339,24 @@
         "OST_StructuralColumns"
       ],
       "rule": {
-        "param": "STRUCTURAL_MATERIAL_TYPE",
-        "op": "equals",
-        "value": "5",
-        "type": "int"
+        "logic": "or",
+        "rules": [
+          {
+            "param": "ALL_MODEL_TYPE_NAME",
+            "op": "contains",
+            "value": "Masonry"
+          },
+          {
+            "param": "ALL_MODEL_TYPE_NAME",
+            "op": "contains",
+            "value": "Brick"
+          },
+          {
+            "param": "ALL_MODEL_TYPE_NAME",
+            "op": "contains",
+            "value": "Blockwork"
+          }
+        ]
       },
       "override": {
         "surfFgColor": "#B47864",
@@ -1324,7 +1367,7 @@
         "material",
         "masonry"
       ],
-      "notes": "Masonry — brick hatch."
+      "notes": "Masonry — brick hatch. Matched by type name: Revit's Structural Material Type has no masonry value (5 is PrecastConcrete) and walls do not carry that parameter."
     },
     {
       "id": "struct-col-uc",
@@ -1571,8 +1614,10 @@
       "rule": {
         "param": "WALL_STRUCTURAL_USAGE_PARAM",
         "op": "equals",
-        "value": "3",
-        "type": "int"
+        "value": "2",
+        "type": "int",
+        "enum": "StructuralWallUsage",
+        "valueName": "Shear"
       },
       "override": {
         "surfFgColor": "#969696",
@@ -1593,10 +1638,12 @@
         "OST_Walls"
       ],
       "rule": {
-        "param": "WALL_STRUCTURAL_USAGE_PARAM",
+        "param": "FUNCTION_PARAM",
         "op": "equals",
-        "value": "4",
-        "type": "int"
+        "value": "3",
+        "type": "int",
+        "enum": "WallFunction",
+        "valueName": "Retaining"
       },
       "override": {
         "surfFgColor": "#787878",
@@ -1608,7 +1655,7 @@
         "struct",
         "wall"
       ],
-      "notes": "Retaining wall."
+      "notes": "Retaining wall (Wall Function = Retaining; Structural Usage has no retaining value)."
     },
     {
       "id": "struct-bracing",
@@ -1617,10 +1664,33 @@
         "OST_StructuralFraming"
       ],
       "rule": {
-        "param": "INSTANCE_STRUCT_USAGE_PARAM",
-        "op": "equals",
-        "value": "4",
-        "type": "int"
+        "logic": "or",
+        "rules": [
+          {
+            "param": "INSTANCE_STRUCT_USAGE_PARAM",
+            "op": "equals",
+            "value": "7",
+            "type": "int",
+            "enum": "StructuralInstanceUsage",
+            "valueName": "Brace"
+          },
+          {
+            "param": "INSTANCE_STRUCT_USAGE_PARAM",
+            "op": "equals",
+            "value": "8",
+            "type": "int",
+            "enum": "StructuralInstanceUsage",
+            "valueName": "HorizontalBracing"
+          },
+          {
+            "param": "INSTANCE_STRUCT_USAGE_PARAM",
+            "op": "equals",
+            "value": "9",
+            "type": "int",
+            "enum": "StructuralInstanceUsage",
+            "valueName": "KickerBracing"
+          }
+        ]
       },
       "override": {
         "projColor": "#C8003C",
@@ -1632,7 +1702,7 @@
         "struct",
         "steel"
       ],
-      "notes": "Bracing members (Structural Usage = Other / Bracing)."
+      "notes": "Bracing members (Structural Usage = Vertical / Horizontal / Kicker Bracing)."
     },
     {
       "id": "struct-precast",

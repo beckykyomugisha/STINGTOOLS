@@ -132,7 +132,8 @@ namespace StingTools.Core.Mep
                 ProjColor   = hex,
                 CutColor    = hex,
                 SurfFgColor = hex,
-                SurfFgPattern = "Solid fill"
+                // Revit's own name; the applier also resolves solid by meaning (DTW-165).
+                SurfFgPattern = "<Solid fill>"
             };
             if (weight >= 1 && weight <= 16) { ov.ProjWeight = weight; ov.CutWeight = weight; }
             return ov;

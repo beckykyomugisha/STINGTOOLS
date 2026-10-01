@@ -243,6 +243,15 @@
     <Compile Include="..\StingTools\Core\RevitBackupFiles.cs" Link="Core\RevitBackupFiles.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRulePack.cs" Link="Core\Drawing\AnnotationRulePack.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewStylePack.cs" Link="Core\Drawing\ViewStylePack.cs" />
+    <!-- DTW-166/167/171: the AEC filter POCO + the factory's Revit-free decisions. -->
+    <Compile Include="..\StingTools\Core\Drawing\AecFilterDefinition.cs" Link="Core\Drawing\AecFilterDefinition.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AecFilterRuleLogic.cs" Link="Core\Drawing\AecFilterRuleLogic.cs" />
+    <!-- DTW-168: MR_SCHEDULES.csv VIEW_FILTER rule grammar (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Drawing\ViewFilterRuleText.cs" Link="Core\Drawing\ViewFilterRuleText.cs" />
+    <!-- DTW-165: fill-pattern name normaliser (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Drawing\FillPatternNames.cs" Link="Core\Drawing\FillPatternNames.cs" />
+    <!-- DTW-163: managed-template field -> BuiltInParameter map (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Drawing\ManagedTemplateFields.cs" Link="Core\Drawing\ManagedTemplateFields.cs" />
     <!-- V-11: the pack-intent-before-document-capability decision. -->
     <Compile Include="..\StingTools\Core\Drawing\WorksetVisibilityPlan.cs" Link="Core\Drawing\WorksetVisibilityPlan.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleKinds.cs" Link="Core\Drawing\AnnotationRuleKinds.cs" />
