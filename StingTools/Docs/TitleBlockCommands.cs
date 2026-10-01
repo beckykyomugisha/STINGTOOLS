@@ -696,9 +696,9 @@ namespace StingTools.Docs
                         StingLog.Info($"TB Populate: '{sheet.SheetNumber}' -> title block id {tb.Id}");
                     }
 
-                    // Lock gate — skip sheets the user has explicitly frozen
-                    int locked = ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0);
-                    if (locked != 0)
+                    // Lock gate — skip sheets the user has explicitly frozen.
+                    // DTW-154: instance, type AND sheet, not the instance alone.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
                     {
                         lockedSkipped++;
                         skippedSheets.Add($"{sheet.SheetNumber}: locked");
@@ -1763,7 +1763,8 @@ namespace StingTools.Docs
                 {
                     var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, counted[i]);
                     if (tb == null) { noTbSkipped++; continue; }
-                    if (ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0) != 0)
+                    // DTW-154: instance, type and sheet lock — not the instance alone.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, counted[i]))
                     { lockedSkipped++; continue; }
 
                     string seq = (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
@@ -1880,8 +1881,12 @@ namespace StingTools.Docs
                     if (sheet == null) continue;
                     var tb = TitleBlockEngine.GetTitleBlockOnSheet(doc, sheet);
                     if (tb == null) continue;
-                    int locked = ParameterHelpers.GetInt(tb, ParamRegistry.TB_LOCK, 0);
-                    if (locked != 0) continue;
+                    // DTW-154: instance, type and sheet lock — not the instance alone.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
+                    {
+                        StingLog.Info($"TB transmittal stamp: '{sheet.SheetNumber}' locked — not stamped");
+                        continue;
+                    }
 
                     // BOTH homes. Nearly every title-block parameter name exists twice
                     // -- once on the sheet as a project parameter, once on the family --
