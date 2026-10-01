@@ -15,6 +15,10 @@ using StingTools.Core;
 //      find the existing pair and update in place rather than
 //      duplicating annotations.
 //   4. STING_MATCH_DIR_TXT — "vertical" / "horizontal" / "dogleg".
+//   (DTW-56: keys 2-4 are stored in Extensible Storage —
+//   Core/Storage/StingMatchLineSchema — because 'Lines' does not allow bound
+//   parameters. The STING_MATCH_* names above are the legacy fallback read by
+//   ReadKeys; MatchLineKeyRules decides which store wins.)
 //   5. Tip captions at each end of the line ("see {paired_ref} →") via
 //      TextNote (preferred when the STING_TAG_MATCHLINE family is
 //      loaded; falls back to project text-note type).
@@ -475,18 +479,11 @@ namespace StingTools.Core.Drawing
         /// from the first colon-delimited field, which is identical in both
         /// the stamped and the collapsed key.
         /// </summary>
-        private static string BasePairKey(string stampedKey)
-        {
-            if (string.IsNullOrEmpty(stampedKey)) return stampedKey;
-            int i = stampedKey.LastIndexOf(":seg", StringComparison.OrdinalIgnoreCase);
-            if (i > 0 && int.TryParse(stampedKey.Substring(i + 4), out _))
-                return stampedKey.Substring(0, i);
-            return stampedKey;
-        }
+        private static string BasePairKey(string stampedKey) => MatchLineKeyRules.BasePairKey(stampedKey);
 
-        /// <summary>Indexes existing match-line DetailCurves by their
-        /// STING_MATCH_LINE_GUID stamp so re-runs can find them in
-        /// O(1) and update in place.</summary>
+        /// <summary>Indexes existing match-line DetailCurves by their pair key
+        /// (Extensible Storage first, STING_MATCH_LINE_GUID as a fallback — DTW-56)
+        /// so re-runs can find them in O(1) and update in place.</summary>
         private static Dictionary<string, List<CurveElement>> BuildExistingPairIndex(Document doc)
         {
             var idx = new Dictionary<string, List<CurveElement>>(StringComparer.OrdinalIgnoreCase);
@@ -494,22 +491,16 @@ namespace StingTools.Core.Drawing
             {
                 // Detail curves live in the Lines category; every other curve
                 // element (sketch lines, room/area separation lines, ...) is
-                // skipped by the collector instead of paying a LookupParameter
-                // each. When the stamp parameter is bound under exactly one shared
-                // definition, curves without a value are filtered out natively
-                // too. The per-element checks below stay, so the filter only
-                // ever narrows the scan, never decides.
-                var collector = new FilteredElementCollector(doc)
+                // skipped by the collector. MatchLineCandidates narrows further
+                // to curves that can carry a key; ReadKeys still decides.
+                var collector = MatchLineCandidates(doc, new FilteredElementCollector(doc)
                     .OfClass(typeof(CurveElement))
-                    .OfCategory(BuiltInCategory.OST_Lines);
-                var stampFilter = MatchStampHasValueFilter(doc);
-                if (stampFilter != null) collector = collector.WherePasses(stampFilter);
+                    .OfCategory(BuiltInCategory.OST_Lines));
+                if (collector == null) return idx;
                 foreach (var el in collector)
                 {
                     if (!(el is DetailCurve dc)) continue;
-                    var p = dc.LookupParameter(ParamRegistry.MATCH_LINE_GUID);
-                    if (p == null || !p.HasValue) continue;
-                    var key = BasePairKey(p.AsString());
+                    var key = ReadKeys(dc).BasePairKey;
                     if (string.IsNullOrEmpty(key)) continue;
                     if (!idx.TryGetValue(key, out var list))
                         idx[key] = list = new List<CurveElement>();
@@ -520,12 +511,77 @@ namespace StingTools.Core.Drawing
             return idx;
         }
 
+        /// <summary>
+        /// DTW-56: the keys a match-line curve carries. The Extensible Storage entity
+        /// (StingMatchLineSchema) is the primary store — 'Lines' does not allow bound
+        /// parameters, so the STING_MATCH_* shared parameters can never reach a detail
+        /// line. They are read only when there is no entity (an element that somehow
+        /// carries them, e.g. a model line), and an unbound parameter is "no value",
+        /// never an error. The decision is MatchLineKeyRules.Resolve. Never null;
+        /// MatchLineKeys.Empty when the element is not a match line.
+        /// </summary>
+        public static MatchLineKeys ReadKeys(Element el)
+        {
+            if (el == null) return MatchLineKeys.Empty;
+            var fromStorage = Storage.StingMatchLineSchema.Read(el);
+            MatchLineKeys fromParams = null;
+            if (fromStorage == null || fromStorage.IsEmpty)
+                fromParams = new MatchLineKeys(
+                    ReadTextParam(el, ParamRegistry.MATCH_LINE_GUID),
+                    ReadTextParam(el, ParamRegistry.MATCH_REF),
+                    ReadTextParam(el, ParamRegistry.MATCH_DIR),
+                    MatchLineKeySource.SharedParameters);
+            return MatchLineKeyRules.Resolve(fromStorage, fromParams);
+        }
+
+        /// <summary>A legacy key parameter's text, or null when it is unbound, not
+        /// text, or has no value.</summary>
+        private static string ReadTextParam(Element el, string name)
+        {
+            try
+            {
+                var p = el.LookupParameter(name);
+                if (p == null || p.StorageType != StorageType.String || !p.HasValue) return null;
+                return p.AsString();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MatchLineEngine: reading legacy {name} on {el.Id}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Narrow <paramref name="collector"/> to elements that can be match lines: those
+        /// with a match-line ES entity, or a value in the legacy pair-key parameter. Null
+        /// when neither store can hold anything in this document (no candidates). The
+        /// filter only narrows the scan; the per-element ReadKeys check decides.
+        /// </summary>
+        private static FilteredElementCollector MatchLineCandidates(Document doc, FilteredElementCollector collector)
+        {
+            var esFilter = Storage.StingMatchLineSchema.HasEntityFilter();
+            var paramFilter = MatchStampHasValueFilter(doc, out bool noDefinition);
+            ElementFilter filter;
+            if (paramFilter != null)
+                filter = esFilter != null ? new LogicalOrFilter(esFilter, paramFilter) : paramFilter;
+            else if (noDefinition)
+            {
+                if (esFilter == null) return null;   // neither an entity nor a parameter value can exist
+                filter = esFilter;
+            }
+            else
+                filter = null;   // the parameter name is ambiguous: scan, let ReadKeys decide
+            return filter != null ? collector.WherePasses(filter) : collector;
+        }
+
         /// <summary>A native "has a value" filter on STING_MATCH_LINE_GUID_TXT, or
         /// null when the parameter is not bound under exactly one shared definition
-        /// of that name (then LookupParameter's by-name answer is the only safe
-        /// test, and the caller scans the whole category).</summary>
-        private static ElementFilter MatchStampHasValueFilter(Document doc)
+        /// of that name. <paramref name="noDefinition"/> says which: true when no
+        /// definition exists (no element can carry a value), false when the name is
+        /// ambiguous or the lookup failed (the caller must then scan).</summary>
+        private static ElementFilter MatchStampHasValueFilter(Document doc, out bool noDefinition)
         {
+            noDefinition = false;
             try
             {
                 ElementId found = null;
@@ -536,7 +592,7 @@ namespace StingTools.Core.Drawing
                     if (found != null) return null;   // two definitions share the name
                     found = sp.Id;
                 }
-                if (found == null) return null;
+                if (found == null) { noDefinition = true; return null; }
                 return new ElementParameterFilter(
                     ParameterFilterRuleFactory.CreateHasValueParameterRule(found));
             }
@@ -641,13 +697,7 @@ namespace StingTools.Core.Drawing
             if (existing == null || existing.Count == 0) return false;
             // Two-sided pair — each side's curve carries its OPPOSITE
             // sheet's ref. The set of curve refs must equal {refA, refB}.
-            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var dc in existing)
-            {
-                var p = dc.LookupParameter(ParamRegistry.MATCH_REF);
-                if (p != null && p.HasValue) seen.Add(p.AsString() ?? "");
-            }
-            return seen.Contains(refA ?? "") && seen.Contains(refB ?? "");
+            return MatchLineKeyRules.RefsMatch(existing.Select(dc => ReadKeys(dc).Ref), refA, refB);
         }
 
         private static void PlaceCurve(Document doc, View view, ScopeBoxAdjacency edge,
@@ -759,23 +809,39 @@ namespace StingTools.Core.Drawing
                 var line = Line.CreateBound(a, b);
                 var dc = doc.Create.NewDetailCurve(view, line);
 
-                // DTW-48: the pair GUID is what lets the next run find this curve. A curve
+                // DTW-56: the keys go to Extensible Storage — 'Lines' does not allow bound
+                // parameters, so STING_MATCH_* can never reach a detail line. All three are
+                // written in one entity; a key the config switches off is stored empty.
+                string keyGuid = cfg.Stamping.WritePairGuid ? viewPairGuid : "";
+                string keyRef  = cfg.Stamping.WritePairedRef ? pairedRef : "";
+                string keyDir  = cfg.Stamping.WriteDirection ? edge.Direction : "";
+                bool anyKey = !string.IsNullOrEmpty(keyGuid) || !string.IsNullOrEmpty(keyRef) || !string.IsNullOrEmpty(keyDir);
+                string keyError = null;
+                bool keysStored = !anyKey || Storage.StingMatchLineSchema.Write(dc, keyGuid, keyRef, keyDir, out keyError);
+
+                // DTW-48: the pair key is what lets the next run find this curve. A curve
                 // that cannot carry it would be re-added on every run, so it is removed and
                 // the sweep stops placing, with one error that says why.
                 if (cfg.Stamping.WritePairGuid)
                 {
-                    if (!TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid, r))
+                    if (!keysStored)
                     {
                         try { doc.Delete(dc.Id); }
                         catch (Exception ex) { StingLog.Warn($"MatchLine: removing unstampable curve: {ex.Message}"); }
                         cache.GuidUnstampable = true;
-                        r.Errors.Add($"{ParamRegistry.MATCH_LINE_GUID} could not be written on a detail line, so match lines were not placed "
-                                   + "(an unstamped line is invisible to the next run, which would add another). "
-                                   + "Run Load Shared Params to bind it to Lines, then run match lines again.");
+                        r.Errors.Add("The match-line key could not be stored on a detail line (Extensible Storage: "
+                                   + (keyError ?? "unknown error") + "), so match lines were not placed "
+                                   + "(an unkeyed line is invisible to the next run, which would add another).");
                         return;
                     }
                 }
-                else if (!cache.GuidOffWarned)
+                else if (!keysStored && r.UnwritableParams.Add("StingMatchLine"))
+                {
+                    r.Warnings.Add("The match-line ref/direction could not be stored on a detail line (Extensible Storage: "
+                                 + (keyError ?? "unknown error") + ").");
+                }
+
+                if (!cfg.Stamping.WritePairGuid && !cache.GuidOffWarned)
                 {
                     cache.GuidOffWarned = true;
                     r.Warnings.Add("Match-line config has stamping.writePairGuid off: the lines placed now cannot be found by the next run, "
@@ -790,12 +856,6 @@ namespace StingTools.Core.Drawing
                     catch (Exception ex) { r.Warnings.Add($"line style apply: {ex.Message}"); }
                 }
 
-                // Stamp parameters (skip silently when binding missing —
-                // pre-flight check should have warned).
-                if (cfg.Stamping.WritePairedRef)
-                    TrySet(dc, ParamRegistry.MATCH_REF, pairedRef, r);
-                if (cfg.Stamping.WriteDirection)
-                    TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction, r);
 
                 // Phase 169 — discipline tint via per-element
                 // OverrideGraphicSettings. The view-style-pack default
@@ -860,36 +920,6 @@ namespace StingTools.Core.Drawing
             {
                 r.Errors.Add($"PlaceCurve: {ex.Message}");
                 StingLog.Error("MatchLineEngine.PlaceCurve", ex);
-            }
-        }
-
-        /// <summary>
-        /// DTW-48: write a text stamp and say whether it took. It swallowed every failure in
-        /// an empty catch and did nothing when the parameter was unbound, so a missing
-        /// binding looked like success. An unbound or read-only parameter is reported once.
-        /// </summary>
-        private static bool TrySet(Element el, string paramName, string value, MatchLineRunResult r = null)
-        {
-            try
-            {
-                var p = el.LookupParameter(paramName);
-                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
-                {
-                    if (r == null || r.UnwritableParams.Add(paramName))
-                    {
-                        var why = p == null ? "not bound to Lines" : p.IsReadOnly ? "read-only" : $"a {p.StorageType} parameter, not text";
-                        StingLog.Warn($"MatchLineEngine: {paramName} is {why}; match lines cannot carry it.");
-                        r?.Warnings.Add($"{paramName} is {why} — match lines cannot carry it. Run Load Shared Params.");
-                    }
-                    return false;
-                }
-                return p.Set(value ?? "");
-            }
-            catch (Exception ex)
-            {
-                StingLog.Warn($"MatchLineEngine: writing {paramName}: {ex.Message}");
-                r?.Warnings.Add($"Writing {paramName} on a match line failed: {ex.Message}");
-                return false;
             }
         }
 
@@ -1363,8 +1393,7 @@ namespace StingTools.Core.Drawing
                 foreach (var kv in existingByGuid)
                 foreach (var dc in kv.Value)
                 {
-                    var p = dc.LookupParameter(ParamRegistry.MATCH_REF);
-                    var refTxt = p?.AsString() ?? "";
+                    var refTxt = ReadKeys(dc).Ref;
                     if (string.IsNullOrEmpty(refTxt))
                     {
                         rep.PairsWithBrokenRef++;
@@ -1449,16 +1478,16 @@ namespace StingTools.Core.Drawing
                 }
 
                 // Walk every match-line curve in those views.
-                foreach (var el in new FilteredElementCollector(doc)
-                    .OfClass(typeof(CurveElement)))
+                var candidates = MatchLineCandidates(doc, new FilteredElementCollector(doc)
+                    .OfClass(typeof(CurveElement)));
+                foreach (var el in (IEnumerable<Element>)candidates ?? Enumerable.Empty<Element>())
                 {
                     if (!(el is DetailCurve dc)) continue;
-                    var pGuid = dc.LookupParameter(ParamRegistry.MATCH_LINE_GUID);
-                    if (pGuid == null || !pGuid.HasValue) continue;
                     if (!bundleViewIds.Contains(dc.OwnerViewId)) continue;
+                    var keys = ReadKeys(dc);
+                    if (!keys.IsMatchLine) continue;
                     rep.CurvesScanned++;
-                    var pRef = dc.LookupParameter(ParamRegistry.MATCH_REF);
-                    var refTxt = pRef?.AsString() ?? "";
+                    var refTxt = keys.Ref;
                     if (string.IsNullOrEmpty(refTxt))
                     {
                         rep.RefsBroken++;

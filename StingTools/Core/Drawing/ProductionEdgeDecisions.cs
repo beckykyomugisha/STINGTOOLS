@@ -310,7 +310,7 @@ namespace StingTools.Core.Drawing
         // ── DTW-224: the style elements an item edits are pre-checked ──
         //
         // Besides its stamped views and sheets, an item edits its pack's managed templates
-        // (STING:{packId}:{ViewType}, ManagedTemplateSyncer) and the pack's filters (rebuilt
+        // (STING MANAGED - {packId} - {ViewType}, ManagedTemplateNames) and the pack's filters (rebuilt
         // in place on drift, DTW-167). One owned by a colleague failed every item using the
         // pack at commit; it is now a skip with the reason.
 

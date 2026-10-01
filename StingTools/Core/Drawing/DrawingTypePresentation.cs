@@ -117,7 +117,7 @@ namespace StingTools.Core.Drawing
                 .OfClass(typeof(View))
                 .Cast<View>()
                 .FirstOrDefault(v => v.IsTemplate
-                    && string.Equals(v.Name, name, StringComparison.OrdinalIgnoreCase));
+                    && ManagedTemplateNames.Matches(v.Name, name));   // DT-R11-F: a managed name in either form
             ElementId resolved = tpl?.Id ?? ElementId.InvalidElementId;
 
             lock (_viewTemplateCacheLock)
@@ -768,7 +768,7 @@ namespace StingTools.Core.Drawing
             // Template Priority (highest to lowest):
             //   1. The explicit template for THIS view: the viewTemplateOverride of the
             //      production rule that makes this kind of view, else dt.ViewTemplateName.
-            //   2. Managed pack template (STING:{packId}:{ViewType}) — applied when there is
+            //   2. Managed pack template (STING MANAGED - {packId} - {ViewType}) — applied when there is
             //      no explicit template, it is not in the project, or it is for another
             //      kind of view.
             // Rationale: named templates carry user customisations that should not be silently
@@ -846,7 +846,7 @@ namespace StingTools.Core.Drawing
 
             // View Style Pack (shared graphic overrides) ---------------
             // Phase 137 — managed packs route through ManagedTemplateSyncer
-            // which mints (or updates) a "STING:{packId}:{ViewType}"
+            // which mints (or updates) a "STING MANAGED - {packId} - {ViewType}"
             // template and assigns it to the view; non-managed packs apply
             // their VG / filter / etc. payload directly to the view.
             // Gate on the RESOLVED pack, not on dt.ViewStylePackId. Gating on
