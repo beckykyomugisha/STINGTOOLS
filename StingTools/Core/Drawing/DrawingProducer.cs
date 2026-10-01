@@ -2470,7 +2470,14 @@ namespace StingTools.Core.Drawing
             => SheetNumberEngine.ApplyTokenPattern(pattern, disc, lvl, sys, mark, spool, purpose, seq, extras);
 
         private static Dictionary<string, string> BuildTokenDict(Document doc, DrawingType dt, DrawingContext ctx, int seq)
-            => BuildTokenDict(doc, dt, ctx?.Level?.Name, ctx?.Tag, ctx?.PackageId, seq);
+        {
+            var d = BuildTokenDict(doc, dt, ctx?.Level?.Name, ctx?.Tag, ctx?.PackageId, seq);
+            // DTW-117: the context's own scope box decides the building ({vol}), not only a
+            // lookup by tag — two boxes can share a tag in different buildings.
+            if (ctx?.ScopeBox != null)
+                DrawingTokenContext.ApplyContextVolume(doc, d, dt, ctx.ScopeBox, ctx.Tag);
+            return d;
+        }
 
         internal static Dictionary<string, string> BuildTokenDict(Document doc, DrawingType dt,
             string levelName, string tag, string packageId, int seq)
@@ -2551,16 +2558,13 @@ namespace StingTools.Core.Drawing
             if (doc == null) return null;
             try
             {
-                var storeys = new List<StoreyDatum>();
+                // DTW-116: levels come with Revit's Building Story flag, so datum levels
+                // (T.O. Steel, SSL) take the storey they sit in instead of a number.
+                var storeys = IsoLevelStoreys.FromDocument(doc);
                 var declared = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
                 {
                     if (string.IsNullOrWhiteSpace(l?.Name)) continue;
-                    storeys.Add(new StoreyDatum
-                    {
-                        Name = l.Name,
-                        ElevationMm = UnitUtils.ConvertFromInternalUnits(l.Elevation, UnitTypeId.Millimeters),
-                    });
                     // DTW-105: the level code the project declares (spatial_codes.json, the
                     // one ParameterHelpers.GetLevelCodeForLevel gives tags and box names) wins
                     // here too, so ISO sheet numbers, spool sheets and title-block heal agree
