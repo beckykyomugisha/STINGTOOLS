@@ -74,7 +74,7 @@ public class AccOAuthController : ControllerBase
     /// a refresh cannot widen a grant (the refresh scope must be the same or a subset).
     /// <c>Acc:Scopes</c> still overrides.
     /// </summary>
-    public const string DefaultScopes = "data:read data:write data:create";
+    public const string DefaultScopes = Planscape.Infrastructure.Services.Aps.ApsScopes.Default;
 
     [HttpGet("start")]
     public async Task<ActionResult> Start([FromQuery] Guid projectId, CancellationToken ct)

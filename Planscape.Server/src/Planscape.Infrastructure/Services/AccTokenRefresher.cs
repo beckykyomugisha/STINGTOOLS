@@ -103,13 +103,14 @@ public static class AccTokenRefresher
                 }
             }
 
-            if (Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(conn.RefreshToken))
+            bool ssa = Aps.ApsSsa.IsSsa(conn);   // AUT-7: no refresh token by design
+            if (!ssa && Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(conn.RefreshToken))
             {
                 logger?.LogError("ACC connection {Id}: stored refresh token cannot be decrypted — RECONNECT_REQUIRED.", conn.Id);
                 if (tx != null) await tx.RollbackAsync(ct);
                 return new Outcome(false, UnreadableTokenError, ReconnectRequired: true);
             }
-            if (string.IsNullOrWhiteSpace(conn.RefreshToken))
+            if (!ssa && string.IsNullOrWhiteSpace(conn.RefreshToken))
             {
                 if (tx != null) await tx.RollbackAsync(ct);
                 return new Outcome(false, NoRefreshTokenError, ReconnectRequired: true);

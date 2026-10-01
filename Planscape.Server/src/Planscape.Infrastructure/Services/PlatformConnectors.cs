@@ -53,6 +53,9 @@ public class AccConnector : IPlatformConnector
         var (id, secret) = AppCreds();
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret))
             return new PlatformTokenResult(false, Error: "Acc:ClientId / Acc:ClientSecret not configured on the server.");
+        // AUT-7: a Secure Service Account connection mints its token from a signed assertion;
+        // it has no refresh token, so none of the checks below apply to it.
+        if (Aps.ApsSsa.IsSsa(connection)) return await MintSsaTokenAsync(connection, id, secret, ct);
         if (Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(connection.RefreshToken))
             return new PlatformTokenResult(false, Error: AccTokenRefresher.UnreadableTokenError);
         if (string.IsNullOrWhiteSpace(connection.RefreshToken))
@@ -110,6 +113,77 @@ public class AccConnector : IPlatformConnector
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             _logger.LogWarning(ex, "ACC token refresh failed");
+            return new PlatformTokenResult(false, Error: ex.Message);
+        }
+        finally { gate.Release(); }
+    }
+
+    /// <summary>AUT-7: exchange a signed JWT assertion for an access token (see <see cref="Aps.ApsSsa"/>).
+    /// A configuration problem is returned as an error that names the setting; it is never
+    /// answered with another kind of token.</summary>
+    private async Task<PlatformTokenResult> MintSsaTokenAsync(PlatformConnection connection, string clientId, string secret, CancellationToken ct)
+    {
+        var settings = Aps.ApsSsa.Read(_config, out string? cfgError);
+        if (settings == null) return new PlatformTokenResult(false, Error: cfgError);
+
+        var gate = _refreshLocks.GetOrAdd(connection.Id, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(ct);
+        try
+        {
+            if (AccTokenRefresher.IsFresh(connection, AccTokenRefresher.DefaultBuffer))
+                return new PlatformTokenResult(true, connection.AccessToken, connection.RefreshToken, connection.TokenExpiresAt);
+
+            string assertion;
+            try
+            {
+                using var rsa = System.Security.Cryptography.RSA.Create();
+                rsa.ImportFromPem(settings.PrivateKeyPem);
+                assertion = Aps.ApsSsa.BuildAssertion(clientId, settings, rsa, DateTimeOffset.UtcNow, Aps.ApsSsa.Audience);
+            }
+            catch (Exception ex) when (ex is ArgumentException || ex is System.Security.Cryptography.CryptographicException)
+            {
+                return new PlatformTokenResult(false, Error: $"SSA private key ({Aps.ApsSsa.KeyPrivateKeyPem} / {Aps.ApsSsa.KeyPrivateKeyPath}) is not a usable RSA PEM key: {ex.Message}");
+            }
+
+            var http = _httpFactory.CreateClient();
+            // Minting is idempotent (a new assertion each time, nothing rotates), but ApsRetry
+            // still retries only what the server said it did not process.
+            using var resp = await Aps.ApsRetry.SendAsync(http, () =>
+            {
+                var req = new HttpRequestMessage(HttpMethod.Post, Aps.ApsEndpoints.TokenUrl(_config))
+                {
+                    Content = new FormUrlEncodedContent(new[]
+                    {
+                        new KeyValuePair<string, string>("grant_type", Aps.ApsSsa.GrantType),
+                        new KeyValuePair<string, string>("assertion", assertion),
+                    })
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                    Convert.ToBase64String(Encoding.UTF8.GetBytes($"{clientId}:{secret}")));
+                return req;
+            }, idempotent: true, _logger, ct);
+
+            string body = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+            {
+                // The body goes to the log only; the error reaches API responses.
+                _logger.LogWarning("ACC SSA token exchange HTTP {Status}: {Body}", (int)resp.StatusCode, body.Length > 500 ? body[..500] : body);
+                return new PlatformTokenResult(false, Error: $"ACC refused the SSA assertion (HTTP {(int)resp.StatusCode}) - check {Aps.ApsSsa.KeyServiceAccountId}, " +
+                    $"{Aps.ApsSsa.KeyKeyId}, that the service account and key are enabled, and that the SSA is invited to the ACC project.");
+            }
+            var j = JObject.Parse(body);
+            string? access = (string?)j["access_token"];
+            if (string.IsNullOrEmpty(access))
+                return new PlatformTokenResult(false, Error: "ACC SSA token response had no access_token.");
+            int expiresIn = (int?)j["expires_in"] ?? 3600;
+            var expiry = DateTime.UtcNow.AddSeconds(expiresIn - 60);
+            connection.AccessToken = access;
+            connection.TokenExpiresAt = expiry;
+            return new PlatformTokenResult(true, access, connection.RefreshToken, expiry);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "ACC SSA token exchange failed");
             return new PlatformTokenResult(false, Error: ex.Message);
         }
         finally { gate.Release(); }
