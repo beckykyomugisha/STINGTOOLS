@@ -176,6 +176,13 @@ namespace StingTools.Commands.Interop
     {
         [JsonProperty("archicad_pset")]   public string ArchiCadPset  { get; set; } = "";
         [JsonProperty("archicad_prop")]   public string ArchiCadProp  { get; set; } = "";
+        // DSCH round 3: Data/IFC/ARCHICAD_IFC_MAPPING.json (all 191 rows) and
+        // docs/archicad-zone-mapping-guide.md spell these pset_name / property_name.
+        // Only the two names above were bound, so Newtonsoft dropped both keys on every
+        // row: ArchiCadProp was "", the scan looked for keys ending in "." and no
+        // mapping ever wrote a value. Both spellings now bind.
+        [JsonProperty("pset_name")]       private string PsetNameAlias { set => ArchiCadPset = value ?? ""; }
+        [JsonProperty("property_name")]   private string PropertyNameAlias { set => ArchiCadProp = value ?? ""; }
         [JsonProperty("sting_param")]     public string StingParam    { get; set; } = "";
         [JsonProperty("revit_builtin")]   public string RevitBuiltIn  { get; set; } = "";
         [JsonProperty("notes")]           public string Notes         { get; set; } = "";
