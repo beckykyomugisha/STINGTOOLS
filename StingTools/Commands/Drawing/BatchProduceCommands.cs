@@ -295,11 +295,14 @@ namespace StingTools.Commands.Drawing
         private static List<double> OccupiedLevelElevations(Document linkDoc)
         {
             var levelIds = new HashSet<long>();
-            foreach (var e in new FilteredElementCollector(linkDoc).WhereElementIsNotElementType())
+            // DTW-207: main model + primary options; demolished elements do not count.
+            foreach (var e in StingTools.Core.Mep.ModelPresenceFilter.MainAndPrimary(
+                         new FilteredElementCollector(linkDoc).WhereElementIsNotElementType(), linkDoc))
             {
                 try
                 {
                     if (e is View || e.Category == null || e.Category.CategoryType != CategoryType.Model) continue;
+                    if (StingTools.Core.Mep.ModelPresenceFilter.IsDemolished(e)) continue;
                     var lid = e.LevelId;
                     if (lid != null && lid != ElementId.InvalidElementId) levelIds.Add(lid.Value);
                 }
@@ -315,10 +318,13 @@ namespace StingTools.Commands.Drawing
         {
             try
             {
-                return new FilteredElementCollector(doc)
-                    .WherePasses(new ElementLevelFilter(lvl.Id))
-                    .WhereElementIsNotElementType()
-                    .Any(e => !(e is View) && e.Category != null && e.Category.CategoryType == CategoryType.Model);
+                // DTW-207: a secondary design option or a demolished element does not make
+                // a level "modelled".
+                return StingTools.Core.Mep.ModelPresenceFilter.MainAndPrimary(new FilteredElementCollector(doc)
+                        .WherePasses(new ElementLevelFilter(lvl.Id))
+                        .WhereElementIsNotElementType(), doc)
+                    .Any(e => !(e is View) && e.Category != null && e.Category.CategoryType == CategoryType.Model
+                              && !StingTools.Core.Mep.ModelPresenceFilter.IsDemolished(e));
             }
             catch (Exception ex)
             {
