@@ -45,10 +45,16 @@ SKIP_DIRS = {"obj", "bin", ".git", "Data", "_template_sources", "_workflow_sourc
 # A public static method or property in Core that looks like a MAP or a PREDICATE —
 # the two shapes that silently do nothing when uncalled. Constructors, Execute and
 # event handlers are excluded: they are invoked by Revit, not by our code.
+# DSCH-12: the prefix must be followed by an upper-case letter or digit, so `Is`
+# no longer matches IsoSizes / IsoTextTiers and `Resolve` no longer matches
+# ResolvedUniversalExtras. The character after the name says what it is:
+# `(` a method (needs a call), `{` / `=` a property or field (needs a use).
 DECL = re.compile(
     r'^\s*public\s+static\s+(?:readonly\s+)?[\w<>,\[\]\?\. ]+\s+'
-    r'(?P<name>(?:Is|Has|Can|Should|Try|Get|Resolve|Lookup|Map|Find|Validate|Check)\w+)\s*[\(\{=]'
+    r'(?P<name>(?:Is|Has|Can|Should|Try|Get|Resolve|Lookup|Map|Find|Validate|Check)(?=[A-Z0-9_])\w+)'
+    r'\s*(?P<kind>[\(\{=])'
 )
+IDENT = re.compile(r'\b([A-Za-z_]\w*)\b(\s*\()?')
 
 EXCLUDE_NAMES = {"GetHashCode", "GetType", "GetEnumerator", "Execute", "GetString",
                  "GetInt", "GetDouble", "TryParse", "ToString"}
@@ -65,6 +71,7 @@ def cs_files(root):
 def main():
     # 1. Collect candidate declarations in Core.
     declared = {}   # name -> (relpath, lineno)
+    is_method = {}  # name -> True for a method, False for a property/field
     for full in cs_files(CORE):
         rel = os.path.relpath(full, REPO).replace("\\", "/")
         try:
@@ -79,10 +86,12 @@ def main():
             if name in EXCLUDE_NAMES or name in declared:
                 continue
             declared[name] = (rel, i)
+            is_method[name] = m.group("kind") == "("
 
-    # 2. Count call sites across the WHOLE plugin, excluding the declaration itself.
+    # 2. Count uses across the WHOLE plugin in ONE tokenised pass (DSCH-12). The
+    #    old loop ran every declaration's regex over every line - ~3e8 searches,
+    #    eight minutes. A method needs `Name(`; a property or field needs `Name`.
     callers = collections.Counter()
-    call_re = {n: re.compile(r'\b' + re.escape(n) + r'\s*\(') for n in declared}
     for full in cs_files(PLUGIN):
         rel = os.path.relpath(full, REPO).replace("\\", "/")
         try:
@@ -93,11 +102,17 @@ def main():
             s = line.lstrip()
             if s.startswith(("//", "///", "*")):
                 continue          # a mention in prose is not a caller
-            for name, rx in call_re.items():
+            seen = set()
+            for m in IDENT.finditer(line):
+                name = m.group(1)
+                if name not in declared or name in seen:
+                    continue
                 if declared[name] == (rel, i):
                     continue      # the declaration line itself
-                if rx.search(line):
-                    callers[name] += 1
+                if is_method[name] and not m.group(2):
+                    continue      # a method name not followed by ( is not a call
+                seen.add(name)
+                callers[name] += 1
 
     uncalled = sorted(n for n in declared if callers[n] == 0)
 
@@ -119,22 +134,33 @@ def main():
             fh.write("# A public static map or predicate in Core that nothing calls is a\n")
             fh.write("# mechanism that cannot fire. Seven such defects this workstream.\n")
             fh.write(f"{len(uncalled)}\n")
+            # The names, so "which ones are new" is a diff, not archaeology.
+            for n in uncalled:
+                fh.write(f"- {n}\n")
         print(f"\nwrote baseline = {len(uncalled)}")
         return 0
 
-    base = 0
+    base, base_names = 0, set()
     try:
         for line in open(BASELINE, encoding="utf-8"):
             line = line.strip()
-            if line and not line.startswith("#"):
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("- "):
+                base_names.add(line[2:].strip())
+            elif base == 0:
                 base = int(line)
-                break
     except (OSError, ValueError):
         pass
 
     print(f"  baseline                                         : {base}")
     if len(uncalled) > base:
         print(f"\nFAIL: {len(uncalled) - base} new uncalled declaration(s). Run with --report.")
+        if base_names:
+            for n in uncalled:
+                if n not in base_names:
+                    rel, ln = declared[n]
+                    print(f"  new: {n:34} {rel}:{ln}")
         return 1
     print("\nPASS")
     return 0

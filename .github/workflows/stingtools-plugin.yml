@@ -78,6 +78,11 @@ jobs:
       - name: QS NRM2 review round trip
         run: python3 tools/check_qs_nrm2_review.py
 
+      # DSCH-12: a public static map/predicate in Core that nothing calls is a
+      # mechanism that cannot fire. One tokenised pass (2 s, was 8 min); ratchet.
+      - name: No new declared-but-uncalled map or predicate
+        run: python3 tools/validate_declared_but_uncalled.py
+
       - name: Binding scope has not grown
         run: python3 tools/check_binding_scope.py --check
 
