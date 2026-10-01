@@ -59,13 +59,15 @@ public class AccSyncService
     public const string KeyIssueMap      = "accIssueMap";
     public const string KeyIssueStatus   = "accIssueStatus";
     public const string KeyIssueStatusAt = "accIssueStatusAt";
+    /// <summary>Per mapped issue: the Planscape UpdatedAt last pushed to ACC (C10).</summary>
+    public const string KeyIssuePushedAt = "accIssuePushedAt";
     public const string KeySubtypeId     = "accIssueSubtypeId";
     public const string KeyHubId         = "accHubId";
     public const string KeyRegion        = "accRegion";
     public const string KeyWebhookHooks  = "accWebhookHooks";
 
     /// <summary>ConfigJson keys only the server writes. A client PUT must not replace them.</summary>
-    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
+    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
 
     // Documented Issues v1 POST limits.
     private const int TitleMax = 100;
@@ -104,7 +106,9 @@ public class AccSyncService
         int? MappedClosedInAcc = null,
         int? MappedStatusRead = null,
         string? Error = null,
-        IReadOnlyList<string>? Failures = null);
+        IReadOnlyList<string>? Failures = null,
+        int Updated = 0,
+        int Diverged = 0);
 
     private static AccSyncReport Fail(string error) => new(false, StatusFailed, Error: error);
     private static AccSyncReport Reconnect(string error) => new(false, StatusReconnect, Error: error);
@@ -389,6 +393,7 @@ public class AccSyncService
                 : Fail($"Couldn't obtain an ACC access token — {tok.Error}"));
 
         var map = ReadIssueMap(cfg);
+        var pushedAt = ReadPushedAt(cfg);
 
         var open = await _db.Issues
             .Where(i => i.ProjectId == conn.ProjectId
@@ -425,9 +430,11 @@ public class AccSyncService
             if (success)
             {
                 map[key] = accId!;
+                pushedAt[key] = issue.UpdatedAt;
                 pushed++;
                 // Persist the mapping NOW: the issue exists in ACC from this moment.
                 cfg[KeyIssueMap] = JObject.FromObject(map);
+                cfg[KeyIssuePushedAt] = PushedAtJson(pushedAt);
                 conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
                 await _db.SaveChangesAsync(ct);
             }
@@ -438,6 +445,16 @@ public class AccSyncService
                 _logger.LogWarning("AccSyncService: push of issue {Code} failed: {Error}", issue.IssueCode, error);
             }
         }
+
+        // C10: a mapped issue edited in Planscape since its last push (title, description,
+        // status) is PATCHed to ACC. Before this a mapped issue was never touched again, so an
+        // issue closed or retitled in Planscape stayed open with the old text in ACC while the
+        // sync reported OK. ACC-owned issues are never PATCHed (they flow ACC → Planscape), and
+        // an issue ACC last reported closed is never reopened from here (the status is withheld
+        // and the divergence reported).
+        var (updated, diverged, updFailures) = await PushUpdatesAsync(http, conn, cfg, map, pushedAt, region, ct);
+        failed += updFailures.Count;
+        failures.AddRange(updFailures);
 
         var (pulledOpen, pullError) = await PullOpenCountAsync(http, conn, region, ct);
 
@@ -462,16 +479,123 @@ public class AccSyncService
         var errors = new List<string>();
         if (pullError != null) errors.Add($"Open-count pull failed: {pullError}");
         if (readBackError != null) errors.Add($"Status read-back failed: {readBackError}");
-        if (failed > 0) errors.Add($"{failed} of {failed + pushed} push(es) failed; first: {failures[0]}");
+        if (failed > 0) errors.Add($"{failed} of {failed + pushed + updated} push(es) failed; first: {failures[0]}");
+        if (diverged > 0) errors.Add($"{diverged} issue(s) closed in ACC are still open in Planscape (status not pushed back)");
 
-        if (pullError != null || (failed > 0 && pushed == 0)) status = StatusFailed;
+        if (pullError != null || (failed > 0 && pushed == 0 && updated == 0)) status = StatusFailed;
         else if (failed > 0 || readBackError != null) status = StatusPartial;
         else status = StatusOk;
 
         var report = new AccSyncReport(
             status == StatusOk, status, pushed, skipped, pulledOpen, failed, closedInAcc, statusRead,
-            errors.Count == 0 ? null : string.Join(" | ", errors), failures);
+            errors.Count == 0 ? null : string.Join(" | ", errors), failures, updated, diverged);
         return Mark(conn, report);
+    }
+
+    /// <summary>C10: PATCH mapped Planscape-born issues edited since their last push.</summary>
+    private async Task<(int updated, int diverged, List<string> failures)> PushUpdatesAsync(
+        HttpClient http, PlatformConnection conn, JObject cfg, Dictionary<string, string> map,
+        Dictionary<string, DateTime> pushedAt, string? region, CancellationToken ct)
+    {
+        int updated = 0, diverged = 0;
+        var failures = new List<string>();
+        if (map.Count == 0) return (0, 0, failures);
+
+        var ids = map.Keys.Select(k => Guid.TryParse(k, out var g) ? g : Guid.Empty).Where(g => g != Guid.Empty).ToList();
+        var mapped = await _db.Issues.Where(i => i.ProjectId == conn.ProjectId && ids.Contains(i.Id)).ToListAsync(ct);
+        var lastStatus = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (cfg[KeyIssueStatus] is JObject js)
+            foreach (var kv in js) if (kv.Value?.Type == JTokenType.String) lastStatus[kv.Key] = kv.Value.Value<string>()!;
+
+        bool dirty = false;
+        foreach (var issue in mapped)
+        {
+            string key = issue.Id.ToString();
+            string accId = map[key];
+            // ACC owns it: its edits flow ACC → Planscape, never back.
+            if (AccOriginId(issue) != null || string.Equals(issue.Source, "acc", StringComparison.OrdinalIgnoreCase)) continue;
+            // A mapping from before this change has no baseline: record one, PATCH nothing
+            // (a first run must not rewrite every ACC issue from Planscape).
+            if (!pushedAt.TryGetValue(key, out var at)) { pushedAt[key] = issue.UpdatedAt; dirty = true; continue; }
+            if (issue.UpdatedAt <= at) continue;
+
+            var decision = AccIssueUpdatePlan.Plan(issue.Title, issue.Description, issue.Status,
+                lastStatus.TryGetValue(accId, out var st) ? st : null);
+            if (decision.StatusWithheld) diverged++;
+            var (ok, error) = await PatchIssueAsync(http, conn, accId, decision.Body, region, ct);
+            if (ok)
+            {
+                updated++;
+                pushedAt[key] = issue.UpdatedAt;
+                dirty = true;
+            }
+            else
+            {
+                failures.Add($"{issue.IssueCode} (update): {error}");
+                _logger.LogWarning("AccSyncService: update of issue {Code} failed: {Error}", issue.IssueCode, error);
+            }
+        }
+        if (dirty)
+        {
+            cfg[KeyIssuePushedAt] = PushedAtJson(pushedAt);
+            conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+            await _db.SaveChangesAsync(ct);
+        }
+        return (updated, diverged, failures);
+    }
+
+    private async Task<(bool ok, string? error)> PatchIssueAsync(
+        HttpClient http, PlatformConnection conn, string accId, JObject body, string? region, CancellationToken ct)
+    {
+        string url = $"{ApsEndpoints.IssuesProjectUrl(_config, conn.ExternalProjectId)}/issues/{Uri.EscapeDataString(accId)}";
+        string json = body.ToString();
+        try
+        {
+            // PATCH sets fields to values: repeating it is harmless, so it may retry.
+            using var resp = await ApsRetry.SendAsync(http, () =>
+            {
+                var req = new HttpRequestMessage(HttpMethod.Patch, url)
+                {
+                    Content = new StringContent(json, Encoding.UTF8, "application/json")
+                };
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", conn.AccessToken);
+                if (!string.IsNullOrWhiteSpace(region)) req.Headers.TryAddWithoutValidation("x-ads-region", region);
+                return req;
+            }, idempotent: true, _logger, ct);
+            if (resp.IsSuccessStatusCode) return (true, null);
+            string respBody = await resp.Content.ReadAsStringAsync(ct);
+            _logger.LogWarning("ACC issue update {Id} HTTP {Status}: {Body}", accId, (int)resp.StatusCode, Truncate(respBody, 1000));
+            return (false, $"ACC rejected the update (HTTP {(int)resp.StatusCode}).");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    private static Dictionary<string, DateTime> ReadPushedAt(JObject cfg)
+    {
+        var d = new Dictionary<string, DateTime>();
+        if (cfg[KeyIssuePushedAt] is JObject jo)
+            foreach (var kv in jo)
+            {
+                // A Date token's ToString() drops sub-second precision, which made every
+                // pushed issue look newer than its stamp and re-PATCHed it on every sync.
+                if (kv.Value?.Type == JTokenType.Date) d[kv.Key] = kv.Value.Value<DateTime>();
+                else if (kv.Value?.Type == JTokenType.String &&
+                         DateTime.TryParse(kv.Value.Value<string>(), System.Globalization.CultureInfo.InvariantCulture,
+                                           System.Globalization.DateTimeStyles.RoundtripKind, out var t))
+                    d[kv.Key] = t;
+            }
+        return d;
+    }
+
+    /// <summary>Round-trip ("o") strings: no precision or culture loss.</summary>
+    private static JObject PushedAtJson(Dictionary<string, DateTime> pushedAt)
+    {
+        var jo = new JObject();
+        foreach (var kv in pushedAt) jo[kv.Key] = kv.Value.ToString("o", System.Globalization.CultureInfo.InvariantCulture);
+        return jo;
     }
 
     private async Task<(bool ok, string? accId, string? error)> PushIssueAsync(
@@ -728,7 +852,7 @@ public class AccSyncService
         return (inc.ToString(Newtonsoft.Json.Formatting.None), null);
     }
 
-    private static string MapStatus(string s) => s switch
+    internal static string MapStatus(string s) => s switch
     {
         "RESOLVED" => "completed",
         "CLOSED"   => "closed",
@@ -787,4 +911,30 @@ public class AccSyncService
             finally { _gate.Release(); }
         }
     }
+}
+
+/// <summary>
+/// C10: what one Planscape → ACC issue update sends. Pure: the rule is tested without HTTP.
+/// The status is withheld when ACC last reported the issue closed and Planscape would reopen
+/// it — ACC's close is the later fact the read-back has not yet carried into Planscape.
+/// </summary>
+public static class AccIssueUpdatePlan
+{
+    public sealed record Decision(JObject Body, bool StatusWithheld);
+
+    public static Decision Plan(string? title, string? description, string? planscapeStatus, string? accLastStatus)
+    {
+        var body = new JObject
+        {
+            ["title"] = Trunc(title, 100),
+            ["description"] = Trunc(description, 1000),
+        };
+        string target = AccSyncService.MapStatus(planscapeStatus ?? "");
+        bool accClosed = string.Equals(accLastStatus, "closed", StringComparison.OrdinalIgnoreCase);
+        bool withhold = accClosed && !string.Equals(target, "closed", StringComparison.OrdinalIgnoreCase);
+        if (!withhold) body["status"] = target;
+        return new Decision(body, withhold);
+    }
+
+    private static string Trunc(string? s, int n) => string.IsNullOrEmpty(s) ? "" : (s!.Length > n ? s.Substring(0, n) : s);
 }

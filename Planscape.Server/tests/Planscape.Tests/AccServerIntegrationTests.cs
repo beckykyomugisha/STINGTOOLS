@@ -152,6 +152,8 @@ public partial class AccServerIntegrationTests
                     ? Json(HttpStatusCode.Created, new { id = $"acc-{n}", status = "open" })
                     : Json(HttpStatusCode.BadRequest, new { detail = "rejected" });
             }
+            if (req.Method == HttpMethod.Patch && url.Contains("/construction/issues/v1/projects/acc-proj/issues/"))
+                return Json(HttpStatusCode.OK, new { id = url.Substring(url.LastIndexOf('/') + 1) });
             if (req.Method == HttpMethod.Get && url.Contains("filter[status]=open"))
                 return openCountOk
                     ? Json(HttpStatusCode.OK, new { pagination = new { limit = 1, offset = 0, totalResults = 7 }, results = new object[0] })
@@ -184,6 +186,99 @@ public partial class AccServerIntegrationTests
         Assert.Equal(7, r.PulledOpen);
         Assert.Equal(1, r.MappedClosedInAcc);
         Assert.Equal(AccSyncService.StatusOk, (await fx.ReadConnAsync()).LastSyncStatus);
+    }
+
+    // ── C10: Planscape edits reach ACC ─────────────────────────────────────
+
+    [Fact]
+    public async Task A_mapped_issue_edited_in_Planscape_is_patched_to_ACC_once()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubAcc(fx.Http, okPosts: 10);
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);   // creates acc-1
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+
+        using (var db = fx.Db())
+        {
+            var i = await db.Issues.SingleAsync();
+            i.Title = "Retitled in Planscape"; i.Status = "CLOSED"; i.UpdatedAt = DateTime.UtcNow.AddMinutes(5);
+            await db.SaveChangesAsync();
+        }
+        fx.Http.Calls.Clear();
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        Assert.Equal(1, r.Updated);
+        var patch = Assert.Single(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+        Assert.EndsWith("/issues/acc-1", patch.Url);
+        var body = JObject.Parse(patch.Body!);
+        Assert.Equal("Retitled in Planscape", (string?)body["title"]);
+        // acc-1 read back as "closed" (StubAcc's first id); Planscape closed it too, so the status goes.
+        Assert.Equal("closed", (string?)body["status"]);
+
+        // Nothing changed since: no second PATCH.
+        fx.Http.Calls.Clear();
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.Equal(0, r.Updated);
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+    }
+
+    [Fact]
+    public async Task An_issue_ACC_closed_is_never_reopened_from_Planscape()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 1);
+        StubAcc(fx.Http, okPosts: 10);   // read-back reports acc-1 closed
+        using (var db = fx.Db()) await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        using (var db = fx.Db())
+        {
+            var i = await db.Issues.SingleAsync();
+            i.Description = "more detail"; i.UpdatedAt = DateTime.UtcNow.AddMinutes(5);   // still OPEN in Planscape
+            await db.SaveChangesAsync();
+        }
+        fx.Http.Calls.Clear();
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+
+        var body = JObject.Parse(Assert.Single(fx.Http.Calls, c => c.Method == HttpMethod.Patch).Body!);
+        Assert.Null(body["status"]);                     // withheld: would reopen
+        Assert.Equal("more detail", (string?)body["description"]);
+        Assert.Equal(1, r.Diverged);
+        Assert.Contains("closed in ACC", r.Error);
+    }
+
+    [Fact]
+    public async Task A_legacy_mapping_gets_a_baseline_not_a_mass_patch()
+    {
+        var fx = new Fx();
+        Guid issueId = Guid.NewGuid();
+        await fx.SeedAsync(openIssues: 0, configJson: "{\"accIssueSubtypeId\":\"sub-1\",\"accIssueMap\":{\"" + issueId + "\":\"acc-9\"}}");
+        using (var seed = fx.Db())
+        {
+            seed.Issues.Add(new BimIssue { Id = issueId, TenantId = fx.TenantId, ProjectId = fx.ProjectId, IssueCode = "RFI-0001",
+                Title = "Old", Status = "OPEN", CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow });
+            await seed.SaveChangesAsync();
+        }
+        StubAcc(fx.Http, okPosts: 10);
+        AccSyncService.AccSyncReport r;
+        using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
+        Assert.Equal(0, r.Updated);
+        Assert.DoesNotContain(fx.Http.Calls, c => c.Method == HttpMethod.Patch);
+        var cfg = JObject.Parse((await fx.ReadConnAsync()).ConfigJson!);
+        Assert.NotNull(cfg[AccSyncService.KeyIssuePushedAt]?[issueId.ToString()]);
+    }
+
+    [Theory]
+    [InlineData("OPEN", "closed", true)]
+    [InlineData("OPEN", "open", false)]
+    [InlineData("CLOSED", "closed", false)]
+    [InlineData("OPEN", null, false)]
+    public void The_update_plan_withholds_only_a_reopen(string planscape, string? acc, bool withheld)
+    {
+        var d = AccIssueUpdatePlan.Plan("t", "d", planscape, acc);
+        Assert.Equal(withheld, d.StatusWithheld);
+        Assert.Equal(withheld, d.Body["status"] == null);
     }
 
     [Fact]
