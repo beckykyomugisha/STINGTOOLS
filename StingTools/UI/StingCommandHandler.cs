@@ -1657,6 +1657,9 @@ namespace StingTools.UI
                                     sb.AppendLine($"  Strict validation: ON");
                                 if (p.RequiredTokens?.Count > 0)
                                     sb.AppendLine($"  Required tokens: {string.Join(", ", p.RequiredTokens)}");
+                                var ignoredSettings = p.IgnoredSettings();
+                                if (ignoredSettings.Count > 0)
+                                    sb.AppendLine($"  ⚠ Set but NOT applied (TAGACC-25): {string.Join(", ", ignoredSettings)}");
                                 sb.AppendLine();
                             }
                             var td = new TaskDialog("STING Discipline Profiles");

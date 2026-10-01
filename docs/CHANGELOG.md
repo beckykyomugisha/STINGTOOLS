@@ -22,6 +22,18 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
   every not-applied key is used by none. Removing a real key fails it; adding an unused one fails it.
   `StingTools.Tags.Tests` 5,157 passing; build 0 / 0.
 
+#### Completed (TAGACC-25 interim: unapplied discipline-profile settings are named, 2026-10-01)
+
+- Six `DISCIPLINE_PROFILES` settings load into `DisciplineProfile` and are read by nothing:
+  `CollisionMode`, `SeqScheme`, `DefaultZone`, `DefaultLoc`, `SeqIncludeZone`, `SeqPadWidth`. A project that
+  set one got no effect and no word. Implementing them changes how tokens and SEQ keys are built, so that
+  stays a decision (ROADMAP TAGACC-25). Until then `DisciplineProfile.IgnoredSettings()` names them: the
+  loader logs a warning per discipline, and *Discipline Profiles* shows "Set but NOT applied".
+- **Gate** `DisciplineProfileIgnoredSettingsTests`: every profile property is either read somewhere in the
+  plugin or listed by `IgnoredSettings()` — and an implemented one must come off the list. Dropping one name
+  fails it. `StingTools.Tags.Tests` 5,145 passing; build 0 / 0.
+- (`DisciplineProfile.FromDict`, a snake_case parser, has no callers; the loader binds the PascalCase names
+  the in-app example uses. Left in place, noted here.)
 #### Completed (TAGACC-24 the project's SEQ pad width reaches the SEQ, 2026-10-01)
 
 - `TagConfig.EffectiveSeqPad` (the width every SEQ is padded to) prefers `TagConfig.SeqPadWidth` — default 4 —
