@@ -3792,6 +3792,7 @@ namespace StingTools.UI
                     case "BOQ_LabourRollup":        RunCommand<BOQ.BOQLabourRollupCommand>(app); break;
                     case "BOQ_CarbonGapReport":     RunCommand<BOQ.BOQCarbonGapReportCommand>(app); break;
                     case "BOQWriteItemParams":      RunCommand<BOQ.BOQWriteItemParamsCommand>(app); break;
+                    case "BOQSetRateOutcome":       RunCommand<BOQ.BOQSetRateOutcomeCommand>(app); break;   // DSCH-43
                     case "BOQExportProfessional":   RunCommand<BOQ.BOQProfessionalExportCommand>(app); break;
                     case "BOQBccRefresh":           RunCommand<BOQ.BOQBccRefreshCommand>(app); break;
 

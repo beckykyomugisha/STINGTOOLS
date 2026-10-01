@@ -335,18 +335,32 @@ namespace StingTools.Core.Storage
             string unit, string currency, string note,
             double wastePercent, double overheadPercent, double profitPercent,
             string dayworksCode, string lockedByUser, long lockedUntilUtcTicks)
+            => TryWrite(el, rate, outcome, includedIn, unit, currency, note,
+                        wastePercent, overheadPercent, profitPercent,
+                        dayworksCode, lockedByUser, lockedUntilUtcTicks, out _);
+
+        /// <summary>
+        /// As <see cref="Write(Element, double, RateOutcome, string, string, string, string, double, double, double, string, string, long)"/>,
+        /// returning why a write did not happen so a UI can show it (DSCH-43).
+        /// </summary>
+        public static bool TryWrite(Element el, double rate, RateOutcome outcome, string includedIn,
+            string unit, string currency, string note,
+            double wastePercent, double overheadPercent, double profitPercent,
+            string dayworksCode, string lockedByUser, long lockedUntilUtcTicks, out string error)
         {
-            if (el == null) return false;
+            error = null;
+            if (el == null) { error = "no element"; return false; }
             string refusal = RateOverrideOutcome.CheckWrite(rate, outcome, includedIn);
             if (refusal != null)
             {
                 StingLog.Warn($"StingCostRateOverrideSchema.Write {el.Id}: refused - {refusal}.");
+                error = refusal;
                 return false;
             }
             try
             {
                 var schema = GetOrCreateV3();
-                if (schema == null) return false;
+                if (schema == null) { error = "the v3 rate-override schema could not be created (see log)"; return false; }
 
                 var entity = new Entity(schema);
                 entity.Set(FieldRateV3,           rate);
@@ -369,6 +383,46 @@ namespace StingTools.Core.Storage
             catch (Exception ex)
             {
                 StingLog.Warn($"StingCostRateOverrideSchema.Write {el?.Id}: {ex.Message}");
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>True when the element carries a v3 entity (the only version STING writes).</summary>
+        public static bool HasV3(Element el)
+        {
+            try
+            {
+                var schema = Schema.Lookup(SchemaGuidV3);
+                if (el == null || schema == null) return false;
+                var e = el.GetEntity(schema);
+                return e != null && e.IsValid();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StingCostRateOverrideSchema.HasV3 {el?.Id}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// DSCH-43 — remove the v3 entity (the panel's "Clear outcome"). Older v1 / v2
+        /// entities are left in place and apply again on read. Needs an open transaction.
+        /// </summary>
+        public static bool DeleteV3(Element el, out string error)
+        {
+            error = null;
+            try
+            {
+                var schema = Schema.Lookup(SchemaGuidV3);
+                if (el == null || schema == null) { error = "no v3 rate override to remove"; return false; }
+                if (!el.DeleteEntity(schema)) { error = "Revit did not remove the v3 rate override"; return false; }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"StingCostRateOverrideSchema.DeleteV3 {el?.Id}: {ex.Message}");
+                error = ex.Message;
                 return false;
             }
         }

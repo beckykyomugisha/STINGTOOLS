@@ -114,5 +114,73 @@ namespace StingTools.BOQ.Rates
             if (loaded > 0 && profitPercent > 0) loaded *= 1.0 + profitPercent / 100.0;
             return new RateOverrideAnswer { Outcome = RateOutcome.Priced, UnitRate = loaded };
         }
+
+        /// <summary>
+        /// DSCH-43 — what the BOQ panel's "Rate: Nil / Included in… / Clear outcome"
+        /// does to one element, given the override already on it. Never guesses:
+        /// anything it will not do comes back as a <see cref="OutcomeEditPlan.Refusal"/>
+        /// the panel shows the user.
+        ///   * a locked override (a certified line) is not touched;
+        ///   * Included needs the item that carries the cost — "Incl." with no
+        ///     reference is not something a reviewer can check;
+        ///   * Nil / Included are written at rate 0 through <see cref="CheckWrite"/>;
+        ///   * Clear removes a v3 Nil / Included (or unreadable) entity (an older v1 / v2 priced
+        ///     override, if any, then applies again); with nothing declared it is refused.
+        /// </summary>
+        public static OutcomeEditPlan PlanEdit(OutcomeEdit edit, string includedIn,
+            bool hasV3Entity, RateOutcome currentOutcome, bool currentUnreadable, bool locked, string lockedBy)
+        {
+            if (locked)
+                return OutcomeEditPlan.Refuse("the rate override is locked"
+                    + (string.IsNullOrWhiteSpace(lockedBy) ? "" : $" by {lockedBy.Trim()}")
+                    + " — unlock it before changing its outcome");
+
+            switch (edit)
+            {
+                case OutcomeEdit.Clear:
+                    if (!hasV3Entity || (currentOutcome == RateOutcome.Priced && !currentUnreadable))
+                        return OutcomeEditPlan.Refuse("there is no Nil / Included outcome on this element to clear");
+                    return new OutcomeEditPlan { DeleteV3 = true };
+
+                case OutcomeEdit.Nil:
+                case OutcomeEdit.Included:
+                {
+                    var outcome = edit == OutcomeEdit.Nil ? RateOutcome.Nil : RateOutcome.Included;
+                    string reference = outcome == RateOutcome.Included ? (includedIn ?? "").Trim() : "";
+                    if (outcome == RateOutcome.Included && reference.Length == 0)
+                        return OutcomeEditPlan.Refuse("say which item carries the cost (e.g. E10/2)");
+                    string refusal = CheckWrite(0, outcome, reference);
+                    if (refusal != null) return OutcomeEditPlan.Refuse(refusal);
+                    return new OutcomeEditPlan { Write = true, Outcome = outcome, IncludedIn = reference };
+                }
+
+                default:
+                    return OutcomeEditPlan.Refuse($"unknown edit '{edit}'");
+            }
+        }
+
+        /// <summary>Parse the edit name passed from the panel ("Nil" / "Included" / "Clear").</summary>
+        public static bool TryParseEdit(string raw, out OutcomeEdit edit)
+            => Enum.TryParse((raw ?? "").Trim(), true, out edit) && Enum.IsDefined(typeof(OutcomeEdit), edit);
+    }
+
+    /// <summary>The three outcome edits the BOQ panel offers (DSCH-43).</summary>
+    public enum OutcomeEdit
+    {
+        Nil = 1,
+        Included = 2,
+        Clear = 3,
+    }
+
+    /// <summary>What to do to one element's override. Exactly one of Write / DeleteV3 / Refusal is set.</summary>
+    public sealed class OutcomeEditPlan
+    {
+        public bool Write { get; set; }
+        public bool DeleteV3 { get; set; }
+        public RateOutcome Outcome { get; set; } = RateOutcome.Priced;
+        public string IncludedIn { get; set; } = "";
+        public string Refusal { get; set; }
+
+        internal static OutcomeEditPlan Refuse(string why) => new OutcomeEditPlan { Refusal = why };
     }
 }
