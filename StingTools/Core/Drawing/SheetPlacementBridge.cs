@@ -475,6 +475,32 @@ namespace StingTools.Core.Drawing
                 doc.Regenerate();
                 var sheet = doc.GetElement(sheetId) as View;
                 var bb = ssi.get_BoundingBox(sheet);
+
+                // DT-R11: the insertion point is not the visible corner — Revit 2025
+                // measured the extent's top-left 2 mm left of the slot's. Move the
+                // instance so its MEASURED top-left lands on the slot's top-left
+                // (ScheduleSlotAlignment), then measure again.
+                if (bb != null)
+                {
+                    var corr = ScheduleSlotAlignment.Compute(pt.X, pt.Y, bb.Min.X, bb.Max.Y);
+                    if (corr.Refused)
+                        warnings?.Add(
+                            $"Schedule '{schedule.Name}': its extent's top-left is {(pt.X - bb.Min.X) * MmPerFt:0.0}, " +
+                            $"{(pt.Y - bb.Max.Y) * MmPerFt:0.0} mm from slot '{sp.Slot?.Label}' — too far to be a border " +
+                            "offset, so it was not moved. Check the schedule on the sheet.");
+                    else if (corr.Needed)
+                    {
+                        ssi.Point = new XYZ(ssi.Point.X + corr.Dx, ssi.Point.Y + corr.Dy, ssi.Point.Z);
+                        doc.Regenerate();
+                        bb = ssi.get_BoundingBox(sheet);
+                        if (bb != null && !ScheduleSlotAlignment.IsAligned(pt.X, pt.Y, bb.Min.X, bb.Max.Y,
+                                ScheduleSlotAlignment.AlignToleranceFt * 5))
+                            warnings?.Add(
+                                $"Schedule '{schedule.Name}': top-left still at ({bb.Min.X * MmPerFt:0.0}, {bb.Max.Y * MmPerFt:0.0}) mm " +
+                                $"after correction; slot '{sp.Slot?.Label}' top-left is ({pt.X * MmPerFt:0.0}, {pt.Y * MmPerFt:0.0}) mm.");
+                    }
+                }
+
                 if (bb != null)
                 {
                     double w = bb.Max.X - bb.Min.X, h = bb.Max.Y - bb.Min.Y;
