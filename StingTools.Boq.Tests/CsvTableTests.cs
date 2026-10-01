@@ -46,21 +46,29 @@ namespace StingTools.Boq.Tests
         public void Every_pinned_single_table_shipped_csv_has_a_header_that_names_its_columns()
         {
             // The registry pins each single-table CSV's header; CsvTable must find
-            // every declared column by name in the shipped file.
-            var reg = JObject.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Data", "data_schemas.json")));
-            var csvs = ((JObject)reg["schemas"]!).Properties()
-                .Where(p => (string?)p.Value["format"] == "csv-table"
-                         && File.Exists(Path.Combine(AppContext.BaseDirectory, "Data", Path.GetFileName(p.Name))))
-                .ToList();
-            Assert.NotEmpty(csvs);
-            foreach (var p in csvs)
+            // every declared column by name in the file as it is in the repository.
+            string root = AppContext.BaseDirectory;
+            while (root != null && !File.Exists(Path.Combine(root, "tools", "data_schemas.json")))
+                root = Path.GetDirectoryName(root);
+            Assert.NotNull(root);
+            var reg = JObject.Parse(File.ReadAllText(Path.Combine(root!, "tools", "data_schemas.json")));
+            int checkedFiles = 0;
+            foreach (var p in ((JObject)reg["schemas"]!).Properties())
             {
-                var t = CsvTable.Parse(File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Data", Path.GetFileName(p.Name))),
-                                       CommodityRateResolver.SplitCsvLine);
+                // headerInComment files (RESOLVED_BINDINGS) have no header row to look
+                // up by name: their readers stay positional by design.
+                if ((string?)p.Value["format"] != "csv-table" || p.Value["headerInComment"]?.Value<bool>() == true)
+                    continue;
+                string path = Path.Combine(root!, p.Name.Replace('/', Path.DirectorySeparatorChar));
+                Assert.True(File.Exists(path), $"{p.Name}: registered but missing");
+                var t = CsvTable.Parse(File.ReadAllLines(path), CommodityRateResolver.SplitCsvLine);
                 foreach (var c in p.Value["columns"]!)
                     if (c["optional"]?.Value<bool>() != true)
                         Assert.True(t.Has((string)c["name"]!), $"{p.Name}: column {c["name"]} not found by name");
+                checkedFiles++;
             }
+            // Guard against the test silently checking nothing.
+            Assert.True(checkedFiles >= 50, $"only {checkedFiles} pinned CSVs were checked");
         }
     }
 }
