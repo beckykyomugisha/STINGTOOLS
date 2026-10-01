@@ -245,6 +245,19 @@ namespace StingTools.Tags.Tests
             Assert.Contains("ProductionPresetRegistry.Load(_doc, out var loadError)", dlg);
         }
 
+        // ── DTW-189 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Excel_import_never_writes_overrides_outside_the_project_bucket()
+        {
+            var src = DrawingCatalogueFixture.Source("BIMManager", "DrawingTypeExcelCommands.cs");
+            int i = src.IndexOf("private static string ResolveProjectOverrideDir(", StringComparison.Ordinal);
+            Assert.True(i > 0);
+            var body = src.Substring(i, src.IndexOf("\n        }", i, StringComparison.Ordinal) - i);
+            Assert.DoesNotContain("GetRoutedDirectory", body);
+            Assert.Contains("if (string.IsNullOrEmpty(doc.PathName))", src);
+        }
+
         // ── DTW-186 ───────────────────────────────────────────────────────
 
         [Fact]

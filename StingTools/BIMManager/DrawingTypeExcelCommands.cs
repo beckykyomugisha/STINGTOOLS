@@ -1557,6 +1557,15 @@ namespace StingTools.BIMManager
             {
                 var doc = app?.ActiveUIDocument?.Document;
                 if (doc == null) { message = "No active document."; return Result.Failed; }
+                // DTW-189: project overrides live beside the .rvt — refuse an
+                // unsaved model up front, as the Drawing Type editor does.
+                if (string.IsNullOrEmpty(doc.PathName))
+                {
+                    TaskDialog.Show("STING — Drawing Types Excel Import",
+                        "Save the Revit project first — project overrides live under the .rvt directory, " +
+                        "and an import into an unsaved model would write files the registry never reads.");
+                    return Result.Cancelled;
+                }
 
                 var dlg = new Microsoft.Win32.OpenFileDialog
                 {
@@ -1670,14 +1679,14 @@ namespace StingTools.BIMManager
 
         private static string ResolveProjectOverrideDir(Document doc)
         {
-            if (doc != null && !string.IsNullOrEmpty(doc.PathName))
-            {
-                var d = StingPaths.Meta(doc, "_BIM_COORD");
-                Directory.CreateDirectory(d);
-                return d;
-            }
-            // Headless / detached fallback — write to standard exports directory.
-            return OutputLocationHelper.GetRoutedDirectory(doc, "Excel");
+            // DTW-189: no exports-folder fallback. The registries read the
+            // override only from the project's _BIM_COORD bucket, so writing
+            // it anywhere else reported "imported" for files nothing reads.
+            // Run() refuses an unsaved model before getting here.
+            if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
+            var d = StingPaths.Meta(doc, "_BIM_COORD");
+            Directory.CreateDirectory(d);
+            return d;
         }
     }
 }
