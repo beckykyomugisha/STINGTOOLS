@@ -47,6 +47,18 @@ namespace StingTools.Docs
               $"{Refused} refused, {Failed} failed" +
               (Held > 0 ? $", {Held} held (already in ACC at this revision with different bytes — revise to re-issue)" : "") +
               (NotEligible > 0 ? $", {NotEligible} not a single sheet (not uploaded)" : "") + ".";
+
+        /// <summary>P4: the upload was asked for and something did not reach ACC.</summary>
+        public bool IsProblem => Requested && (!string.IsNullOrEmpty(BlockedReason) || Failed > 0);
+
+        /// <summary>P4: the job's LastResult (shown in the schedule window). It said only
+        /// "12 ok / 0 failed", so a job whose every ACC upload failed read as a clean run.</summary>
+        public static string LastResultText(int ok, int failed, int warnings, ExportAccUploadTally acc)
+        {
+            string s = $"{ok} ok / {failed} failed" + (warnings > 0 ? $" ({warnings} warning(s))" : "");
+            string line = acc?.Line();
+            return string.IsNullOrEmpty(line) ? s : s + "; " + line;
+        }
     }
 
     public enum ScheduledExportVerdict { Succeeded, NothingDue, Failed }

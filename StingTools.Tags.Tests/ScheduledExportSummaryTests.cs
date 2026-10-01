@@ -107,5 +107,27 @@ namespace StingTools.Tags.Tests
             Assert.Equal(ScheduledExportVerdict.Failed, s.Verdict(false));
             Assert.Contains("bad json", s.Describe());
         }
-    }
+    
+        // P4: a scheduled job whose ACC uploads all failed recorded "3 ok / 0 failed".
+        [Fact]
+        public void LastResult_names_a_failed_ACC_upload()
+        {
+            var acc = new ExportAccUploadTally { Requested = true, Failed = 3 };
+            string r = ExportAccUploadTally.LastResultText(3, 0, 0, acc);
+            Assert.StartsWith("3 ok / 0 failed", r);
+            Assert.Contains("3 failed", r.Substring(r.IndexOf("ACC upload", System.StringComparison.Ordinal)));
+            Assert.True(acc.IsProblem);
+        }
+
+        [Fact]
+        public void LastResult_names_a_blocked_ACC_upload_and_omits_one_not_asked_for()
+        {
+            var blocked = new ExportAccUploadTally { Requested = true, BlockedReason = "not signed in" };
+            Assert.Contains("NOTHING was uploaded", ExportAccUploadTally.LastResultText(2, 0, 1, blocked));
+            Assert.True(blocked.IsProblem);
+            Assert.Equal("2 ok / 0 failed (1 warning(s))", ExportAccUploadTally.LastResultText(2, 0, 1, null));
+            Assert.Equal("2 ok / 0 failed", ExportAccUploadTally.LastResultText(2, 0, 0, new ExportAccUploadTally()));
+            Assert.False(new ExportAccUploadTally { Requested = true, Uploaded = 2 }.IsProblem);
+        }
+}
 }

@@ -103,8 +103,7 @@ namespace StingTools.Docs
                     else
                     {
                         var res = ExportCenterEngine.Run(doc, profile, ids);
-                        sch.LastResult = $"{res.Success} ok / {res.Failed} failed"
-                            + (res.Warnings.Count > 0 ? $" ({res.Warnings.Count} warning(s))" : "");
+                        sch.LastResult = ExportAccUploadTally.LastResultText(res.Success, res.Failed, res.Warnings.Count, res.Acc);
                         outcome.State = ScheduledJobState.Ran;
                         outcome.FilesOk = res.Success;
                         // "Skipped — ..." rows are the engine declining by rule (file exists,
@@ -112,7 +111,10 @@ namespace StingTools.Docs
                         outcome.FilesSkipped = res.Rows.Count(r => !r.Success && (r.Error ?? "").StartsWith("Skipped", StringComparison.OrdinalIgnoreCase));
                         outcome.FilesFailed = res.Failed - outcome.FilesSkipped;
                         outcome.Acc = res.Acc;
-                        StingLog.Info($"Scheduled export '{sch.ProfileName}' [{setName}]: {sch.LastResult}");
+                        if (res.Acc != null && res.Acc.IsProblem)
+                            StingLog.Warn($"Scheduled export '{sch.ProfileName}' [{setName}]: {sch.LastResult}");
+                        else
+                            StingLog.Info($"Scheduled export '{sch.ProfileName}' [{setName}]: {sch.LastResult}");
                     }
                 }
                 catch (Exception ex)
