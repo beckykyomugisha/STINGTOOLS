@@ -105,7 +105,8 @@ namespace StingTools.Core.Drawing
         /// <summary>
         /// DTW-224: the style elements producing <paramref name="dt"/> can edit — the
         /// resolved pack's managed templates (STING:{packId}:{ViewType}) for the view types
-        /// the item makes or reuses, and the pack's filters that exist in the model. Resolved
+        /// the item makes or reuses, and the pack's filters that exist in the model (named
+        /// filters and, DTW-227, its byMaterialClass filters). Resolved
         /// read-only; added to <paramref name="ids"/> and remembered as style elements, which
         /// Check never borrows.
         /// </summary>
@@ -135,7 +136,12 @@ namespace StingTools.Core.Drawing
                     }
                 }
 
-                if (pack.Filters != null && pack.Filters.Count > 0)
+                // DTW-227: the byMaterialClass filters (STING_MAT_CLASS_*) are edited by the
+                // same filter pass (EnsureMaterialClassFilter rebuilds their rules), so they
+                // are checked with the named ones.
+                var filterNames = ProductionEdgeDecisions.PackFilterNames(
+                    pack.Filters?.Select(f => f?.FilterName), pack.ByMaterialClass?.Keys);
+                if (filterNames.Count > 0)
                 {
                     if (_filtersByName == null)
                     {
@@ -143,11 +149,8 @@ namespace StingTools.Core.Drawing
                         foreach (var f in new FilteredElementCollector(_doc).OfClass(typeof(ParameterFilterElement)))
                             if (!string.IsNullOrEmpty(f.Name) && !_filtersByName.ContainsKey(f.Name)) _filtersByName[f.Name] = f.Id;
                     }
-                    foreach (var rule in pack.Filters)
-                    {
-                        if (string.IsNullOrWhiteSpace(rule?.FilterName)) continue;
-                        if (_filtersByName.TryGetValue(rule.FilterName.Trim(), out var fid) && ids.Add(fid)) _styleIds.Add(fid);
-                    }
+                    foreach (var name in filterNames)
+                        if (_filtersByName.TryGetValue(name, out var fid) && ids.Add(fid)) _styleIds.Add(fid);
                 }
             }
             catch (Exception ex)

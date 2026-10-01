@@ -722,7 +722,7 @@ namespace StingTools.Core.Drawing
         {
             try
             {
-                string filterName = $"STING_MAT_CLASS_{className}";
+                string filterName = ProductionEdgeDecisions.MaterialClassFilterName(className);   // DTW-227: one name rule
                 string cacheKey = (doc?.PathName ?? doc?.Title ?? "_") + "|" + className;
 
                 var matIds = new FilteredElementCollector(doc).OfClass(typeof(Material))
