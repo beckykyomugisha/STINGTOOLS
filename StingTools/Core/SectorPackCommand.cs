@@ -70,7 +70,17 @@ namespace StingTools.Core
                 if (pack.BoqDefaults != null)
                 {
                     foreach (var kv in pack.BoqDefaults.Properties())
-                        TagConfig.SetConfigValue("BOQ_TENDER_" + kv.Name, kv.Value.ToString());
+                    {
+                        // DSCH round 5: the shipped packs say OVERHEAD_PROFIT_PCT, every
+                        // reader asks for BOQ_TENDER_OHP_PCT, so a pack's OH&P was written
+                        // to a key nothing reads. Invariant culture: JValue.ToString()
+                        // would write 12.5 as "12,5" on a comma-decimal locale.
+                        string key = kv.Name == "OVERHEAD_PROFIT_PCT" ? "OHP_PCT" : kv.Name;
+                        string value = kv.Value is JValue jv
+                            ? Convert.ToString(jv.Value, System.Globalization.CultureInfo.InvariantCulture)
+                            : kv.Value.ToString();
+                        TagConfig.SetConfigValue("BOQ_TENDER_" + key, value);
+                    }
                 }
                 if (!string.IsNullOrEmpty(pack.TagStyle))
                     TagConfig.SetConfigValue("DEFAULT_TAG_STYLE", pack.TagStyle);
