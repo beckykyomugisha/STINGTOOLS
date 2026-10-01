@@ -772,6 +772,37 @@ namespace StingTools.Core.Drawing
             return ElementId.InvalidElementId;
         }
 
+        /// <summary>
+        /// DTW-169: a subcategory by name, under <paramref name="parent"/> when given
+        /// (BuiltInCategory or name), else under any category.
+        /// </summary>
+        private static ElementId ResolveSubCategoryId(Document doc, string parent, string sub)
+        {
+            if (doc == null || string.IsNullOrWhiteSpace(sub)) return ElementId.InvalidElementId;
+            var subName = sub.Trim().Trim('<', '>').Trim();
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(parent))
+                {
+                    var parentId = ResolveCategoryId(doc, parent);
+                    var parentCat = parentId == ElementId.InvalidElementId ? null : Category.GetCategory(doc, parentId);
+                    if (parentCat == null) return ElementId.InvalidElementId;
+                    foreach (Category s in parentCat.SubCategories)
+                        if (string.Equals(s.Name, subName, StringComparison.OrdinalIgnoreCase)) return s.Id;
+                    return ElementId.InvalidElementId;
+                }
+                foreach (Category c in doc.Settings.Categories)
+                    foreach (Category s in c.SubCategories)
+                        if (string.Equals(s.Name, subName, StringComparison.OrdinalIgnoreCase)) return s.Id;
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.WarnRateLimited("ViewStylePack.ResolveSubCategoryId",
+                    $"ViewStylePackApplier: subcategory lookup '{parent}' / '{sub}' threw — reported as not found: {ex.Message}");
+            }
+            return ElementId.InvalidElementId;
+        }
+
         private static ElementId ResolveLinePattern(Document doc, string name)
         {
             if (string.IsNullOrWhiteSpace(name)) return ElementId.InvalidElementId;
@@ -940,27 +971,71 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || overrides == null || r == null) return;
             foreach (var o in overrides)
             {
-                if (string.IsNullOrWhiteSpace(o.Category)) continue;
+                if (o == null) continue;
+                // DTW-169: a subcategory row (subCategory set, category optional)
+                // used to be dropped because only Category was read.
+                string label = string.IsNullOrWhiteSpace(o.SubCategory)
+                    ? o.Category
+                    : (string.IsNullOrWhiteSpace(o.Category) ? o.SubCategory : $"{o.Category} : {o.SubCategory}");
+                if (string.IsNullOrWhiteSpace(label)) continue;
                 try
                 {
-                    var catId = ResolveCategoryId(doc, o.Category);
+                    var catId = string.IsNullOrWhiteSpace(o.SubCategory)
+                        ? ResolveCategoryId(doc, o.Category)
+                        : ResolveSubCategoryId(doc, o.Category, o.SubCategory);
                     if (catId == ElementId.InvalidElementId)
                     {
-                        r.Warnings.Add($"PresetOverride: category '{o.Category}' not found.");
+                        r.Warnings.Add($"PresetOverride: category '{label}' not found.");
                         continue;
                     }
+                    if (o.Visible.HasValue)
+                        SafeWrite.Try(() => view.SetCategoryHidden(catId, !o.Visible.Value),
+                            "PresetOverride.Visibility", $"'{label}' in view '{view.Name}'", r.Warnings);
+
                     var ogs = view.GetCategoryOverrides(catId) ?? new OverrideGraphicSettings();
-                    if (o.Halftone.HasValue)          ogs.SetHalftone(o.Halftone.Value);
-                    if (o.ProjLineWeight.HasValue)     ogs.SetProjectionLineWeight(o.ProjLineWeight.Value);
+                    if (o.Halftone.HasValue) ogs.SetHalftone(o.Halftone.Value);
+
+                    // Weights go through ApplyWeight: 0 is "not stated", out-of-range
+                    // is reported, and neither throws away the rest of the override.
+                    ApplyWeight(o.ProjLineWeight, w => ogs.SetProjectionLineWeight(w), label, "projLineWeight", r);
                     if (!string.IsNullOrEmpty(o.ProjLineColor)) ogs.SetProjectionLineColor(HexColor(o.ProjLineColor));
-                    if (o.CutLineWeight.HasValue)      ogs.SetCutLineWeight(o.CutLineWeight.Value);
-                    if (!string.IsNullOrEmpty(o.CutLineColor))  ogs.SetCutLineColor(HexColor(o.CutLineColor));
-                    if (o.Transparency.HasValue)       ogs.SetSurfaceTransparency(Clamp(o.Transparency.Value, 0, 100));
-                    if (o.Visible.HasValue)            view.SetCategoryHidden(catId, !o.Visible.Value);
+                    ApplyLinePattern(doc, o.ProjLinePattern, id => ogs.SetProjectionLinePatternId(id), label, r);
+                    ApplyWeight(o.CutLineWeight, w => ogs.SetCutLineWeight(w), label, "cutLineWeight", r);
+                    if (!string.IsNullOrEmpty(o.CutLineColor)) ogs.SetCutLineColor(HexColor(o.CutLineColor));
+                    ApplyLinePattern(doc, o.CutLinePattern, id => ogs.SetCutLinePatternId(id), label, r);
+
+                    ApplyFill(doc, o.SurfFgColor, o.SurfFgPattern,
+                        c => ogs.SetSurfaceForegroundPatternColor(c), id => ogs.SetSurfaceForegroundPatternId(id),
+                        () => ogs.SetSurfaceForegroundPatternVisible(true), label, "surface foreground", r);
+                    ApplyFill(doc, o.SurfBgColor, o.SurfBgPattern,
+                        c => ogs.SetSurfaceBackgroundPatternColor(c), id => ogs.SetSurfaceBackgroundPatternId(id),
+                        () => ogs.SetSurfaceBackgroundPatternVisible(true), label, "surface background", r);
+                    ApplyFill(doc, o.CutFgColor, o.CutFgPattern,
+                        c => ogs.SetCutForegroundPatternColor(c), id => ogs.SetCutForegroundPatternId(id),
+                        () => ogs.SetCutForegroundPatternVisible(true), label, "cut foreground", r);
+                    ApplyFill(doc, o.CutBgColor, o.CutBgPattern,
+                        c => ogs.SetCutBackgroundPatternColor(c), id => ogs.SetCutBackgroundPatternId(id),
+                        () => ogs.SetCutBackgroundPatternVisible(true), label, "cut background", r);
+                    // Explicit pattern-visibility flags win over the "on" the fills set.
+                    if (o.SurfFgVisible.HasValue)
+                        SafeWrite.Try(() => ogs.SetSurfaceForegroundPatternVisible(o.SurfFgVisible.Value), "PresetOverride.Pattern", $"'{label}' surface fg visible", r.Warnings);
+                    if (o.SurfBgVisible.HasValue)
+                        SafeWrite.Try(() => ogs.SetSurfaceBackgroundPatternVisible(o.SurfBgVisible.Value), "PresetOverride.Pattern", $"'{label}' surface bg visible", r.Warnings);
+                    if (o.CutFgVisible.HasValue)
+                        SafeWrite.Try(() => ogs.SetCutForegroundPatternVisible(o.CutFgVisible.Value), "PresetOverride.Pattern", $"'{label}' cut fg visible", r.Warnings);
+
+                    if (o.Transparency.HasValue) ogs.SetSurfaceTransparency(Clamp(o.Transparency.Value, 0, 100));
+                    if (!string.IsNullOrEmpty(o.DetailLevel))
+                    {
+                        if (Enum.TryParse<ViewDetailLevel>(o.DetailLevel, true, out var dl))
+                            SafeWrite.Try(() => ogs.SetDetailLevel(dl), "PresetOverride.DetailLevel", $"'{label}' detail level", r.Warnings);
+                        else
+                            r.Warnings.Add($"PresetOverride '{label}': detail level '{o.DetailLevel}' is not Coarse / Medium / Fine — ignored.");
+                    }
                     view.SetCategoryOverrides(catId, ogs);
                     r.OverridesSet++;
                 }
-                catch (Exception ex) { r.Warnings.Add($"PresetOverride '{o.Category}': {ex.Message}"); }
+                catch (Exception ex) { r.Warnings.Add($"PresetOverride '{label}': {ex.Message}"); }
             }
         }
 
