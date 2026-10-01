@@ -3188,54 +3188,5 @@ namespace StingTools.UI
                 }
             });
         }
-
-        // ═══════════════════════════════════════════════════════════════════════
-        //  MAT tab — Material Manager stubs (XAML event handlers + MatActions API)
-        // ═══════════════════════════════════════════════════════════════════════
-
-        // Backing collection for the materials DataGrid
-        private System.Collections.ObjectModel.ObservableCollection<StingTools.UI.MaterialRow> _matRows;
-        private bool _matLoaded;
-
-        // (MAT-tab selection-sync + XAML event handlers removed with the MAT tab;
-        //  the live material UI is the dockable Material Hub. MatActions API kept below.)
-
-        // Public API for MatActions.cs
-        public void ShowMaterialsTab()
-        {
-            // Load and display materials tab
-            try
-            {
-                if (_matLoaded) return;
-                _matLoaded = true;
-                var doc = StingCommandHandler.CurrentApp?.ActiveUIDocument?.Document;
-                if (doc == null) return;
-                _matRows = MaterialRowBuilder.Build(doc);
-            }
-            catch (Exception ex) { StingLog.Warn($"ShowMaterialsTab: {ex.Message}"); }
-        }
-
-        // Material Manager layer and duplicate backing fields
-        private System.Collections.Generic.List<MaterialLayer> _layerRows = new System.Collections.Generic.List<MaterialLayer>();
-        private Autodesk.Revit.DB.ElementId _layerHostId = Autodesk.Revit.DB.ElementId.InvalidElementId;
-        private DuplicateMode _duplicateMode = DuplicateMode.SameName;
-        private System.Collections.Generic.List<DuplicateRow> _duplicateRows = new System.Collections.Generic.List<DuplicateRow>();
-
-        public void SetLayerRows(System.Collections.Generic.IList<MaterialLayer> rows, Autodesk.Revit.DB.ElementId hostId)
-        {
-            _layerRows = rows != null ? new System.Collections.Generic.List<MaterialLayer>(rows) : new System.Collections.Generic.List<MaterialLayer>();
-            _layerHostId = hostId ?? Autodesk.Revit.DB.ElementId.InvalidElementId;
-        }
-        public System.Collections.Generic.List<MaterialLayer> GetLayerRows() => _layerRows;
-        public Autodesk.Revit.DB.ElementId GetLayerHostId() => _layerHostId;
-        public DuplicateMode GetDuplicateMode() => _duplicateMode;
-        public void SetDuplicateMode(DuplicateMode mode) => _duplicateMode = mode;
-        public void SetDuplicateRows(System.Collections.Generic.IReadOnlyList<DuplicateRow> rows)
-        {
-            _duplicateRows = rows != null ? new System.Collections.Generic.List<DuplicateRow>(rows) : new System.Collections.Generic.List<DuplicateRow>();
-        }
-        public System.Collections.Generic.List<DuplicateRow> GetDuplicateRows() => _duplicateRows;
-        public System.Collections.Generic.IReadOnlyList<MaterialRow> GetCachedMaterialRows() => _matRows ?? (System.Collections.Generic.IReadOnlyList<MaterialRow>)System.Array.Empty<MaterialRow>();
-        public string GetSelectedAssetKind() => "Appearance";
     }
 }
