@@ -73,6 +73,9 @@ namespace StingTools.V6
         [JsonProperty("transmittalId")] public string TransmittalId { get; set; } = string.Empty;
         [JsonProperty("deliverableKey")] public string DeliverableKey { get; set; } = string.Empty;
         [JsonProperty("registerDocId")] public string RegisterDocId { get; set; } = string.Empty;
+        /// <summary>E4: the revision the approved file carries (its last P/C token), or empty
+        /// when its name carries none. A register row at another revision is refused.</summary>
+        [JsonProperty("approvedRevision")] public string ApprovedRevision { get; set; } = string.Empty;
 
         [JsonProperty("firstSeen")] public string FirstSeen { get; set; } = string.Empty;
         [JsonProperty("lastSeen")] public string LastSeen { get; set; } = string.Empty;
@@ -229,6 +232,7 @@ namespace StingTools.V6
                 Kind = value == "APPROVED" ? AccProposalKind.Approve : AccProposalKind.Reject,
                 VersionUrn = versionUrn ?? "",
                 FileName = fileName ?? "",
+                ApprovedRevision = Iso19650RevisionRules.RevisionFromFileName(fileName),
                 ReviewId = rec.ReviewId ?? "",
                 ReviewSequenceId = rec.ReviewSequenceId ?? "",
                 ReviewStatus = rs,
@@ -309,7 +313,8 @@ namespace StingTools.V6
                     !string.Equals(existing.Comment, p.Comment, StringComparison.Ordinal) ||
                     !string.Equals(existing.TransmittalId, p.TransmittalId, StringComparison.Ordinal) ||
                     !string.Equals(existing.DeliverableKey, p.DeliverableKey, StringComparison.Ordinal) ||
-                    !string.Equals(existing.RegisterDocId, p.RegisterDocId, StringComparison.Ordinal);
+                    !string.Equals(existing.RegisterDocId, p.RegisterDocId, StringComparison.Ordinal) ||
+                    !string.Equals(existing.ApprovedRevision, p.ApprovedRevision, StringComparison.Ordinal);
                 if (!changed) { result.Unchanged++; continue; }
 
                 existing.Kind = p.Kind;
@@ -322,6 +327,7 @@ namespace StingTools.V6
                 existing.TransmittalId = p.TransmittalId;
                 existing.DeliverableKey = p.DeliverableKey;
                 existing.RegisterDocId = p.RegisterDocId;
+                existing.ApprovedRevision = p.ApprovedRevision;
                 if (!string.IsNullOrEmpty(p.FileName)) existing.FileName = p.FileName;
                 result.Updated++;
             }
@@ -419,13 +425,39 @@ namespace StingTools.V6
                 .Select(o => FirstNonEmpty(S(o["DocNumber"]), S(o["Code"])))
                 .Where(k => k.Length > 0).ToList();
 
-        /// <summary>doc_id of document-register rows - the key the register's own suitability
-        /// writer (BIMManagerEngine.UpdateDocumentSuitability) matches on, so a match here is a
-        /// row that writer will find. Every register writer emits doc_id.</summary>
-        public static List<string> RegisterKeys(JArray rows) =>
-            (rows ?? new JArray()).OfType<JObject>()
-                .Select(o => S(o["doc_id"]))
+        /// <summary>Every key a document-register row can be found by, in the order
+        /// <see cref="AccRegisterSuitability.FindRow"/> tries them: doc_number, file_name, doc_id.
+        /// E4: doc_id alone never matched the rows the Export Centre and the upload path write
+        /// (keyed doc_number / file_name).</summary>
+        public static List<string> RegisterKeys(JArray rows)
+        {
+            var all = (rows ?? new JArray()).OfType<JObject>().ToList();
+            return all.Select(o => S(o["doc_number"]))
+                .Concat(all.Select(o => S(o["file_name"])))
+                .Concat(all.Select(o => S(o["doc_id"])))
                 .Where(k => k.Length > 0).ToList();
+        }
+
+        /// <summary>E4: the register row an ACC file belongs to, as a key
+        /// <see cref="AccRegisterSuitability.FindRow"/> resolves - doc_number first (separator-
+        /// bounded prefix of the file stem, as for deliverables), then a row whose file_name is
+        /// this file, then doc_id. Empty when none.</summary>
+        public static string MatchRegister(string fileName, JArray rows)
+        {
+            var all = (rows ?? new JArray()).OfType<JObject>().ToList();
+            string hit = MatchDocumentKey(fileName, all.Select(o => S(o["doc_number"])));
+            if (hit.Length > 0) return hit;
+            string name = Path.GetFileName((fileName ?? "").Trim());
+            string stem = Path.GetFileNameWithoutExtension(name);
+            if (name.Length > 0)
+            {
+                var byFile = all.Select(o => S(o["file_name"])).FirstOrDefault(f => f.Length > 0 &&
+                    (string.Equals(Path.GetFileName(f), name, StringComparison.OrdinalIgnoreCase) ||
+                     string.Equals(Path.GetFileNameWithoutExtension(f), stem, StringComparison.OrdinalIgnoreCase)));
+                if (!string.IsNullOrEmpty(byFile)) return byFile;
+            }
+            return MatchDocumentKey(fileName, all.Select(o => S(o["doc_id"])));
+        }
 
         // ── ACC transmittals into transmittals.json (read-only rows) ─────
 
@@ -514,5 +546,132 @@ namespace StingTools.V6
             t == null || t.Type == JTokenType.Null || t.Type == JTokenType.Array || t.Type == JTokenType.Object
                 ? string.Empty : (t.ToString() ?? string.Empty).Trim();
         private static string FirstNonEmpty(params string[] v) => v.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s)) ?? string.Empty;
+    }
+
+    /// <summary>What applying an ACC approval to one document-register row did (E4).</summary>
+    public enum AccRegisterApplyStatus
+    {
+        /// <summary>The code was written (with a suitability-history entry).</summary>
+        Applied,
+        /// <summary>The row already carries that code; nothing to write.</summary>
+        Unchanged,
+        /// <summary>No register row has that key.</summary>
+        NotFound,
+        /// <summary>Not applied - the reason says why (revision differs, the pair contradicts
+        /// itself, the register is unreadable, or the save failed).</summary>
+        Refused,
+    }
+
+    public sealed class AccRegisterApplyResult
+    {
+        public AccRegisterApplyStatus Status { get; set; }
+        public string Message { get; set; } = string.Empty;
+        /// <summary>The register array changed and must be saved (an Applied code, or a
+        /// conflict flag written on a Refused one).</summary>
+        public bool RegisterChanged { get; set; }
+        public bool Ok => Status == AccRegisterApplyStatus.Applied || Status == AccRegisterApplyStatus.Unchanged;
+    }
+
+    /// <summary>
+    /// E4. The document-register half of accepting an ACC approval, without a Document.
+    ///
+    /// The old writer matched doc_id only (so rows the Export Centre / upload path keyed by
+    /// doc_number or file_name were never found), returned void, ignored whether the save
+    /// happened and swallowed errors - while the command reported "register X → code".
+    /// Here: find the row (doc_number, file_name, doc_id), refuse when the row is at another
+    /// revision than the file ACC approved, and judge the code against the row's revision with
+    /// <see cref="Iso19650RevisionRules.Check"/>. A contradicted code is not stored: the row is
+    /// flagged with iso_conflict (as RevisionIssueCompletion.ApplyToRegister does, C8) and the
+    /// result says NOT applied.
+    /// </summary>
+    public static class AccRegisterSuitability
+    {
+        /// <summary>The row with <paramref name="key"/> as doc_number, else file_name (whole
+        /// name or stem), else doc_id. Null when none.</summary>
+        public static JObject FindRow(JArray rows, string key)
+        {
+            string k = (key ?? "").Trim();
+            if (rows == null || k.Length == 0) return null;
+            var all = rows.OfType<JObject>().ToList();
+            return all.FirstOrDefault(r => Same(r["doc_number"], k))
+                ?? all.FirstOrDefault(r =>
+                {
+                    string f = Str(r["file_name"]);
+                    return f.Length > 0 && (string.Equals(f, k, StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(Path.GetFileName(f), Path.GetFileName(k), StringComparison.OrdinalIgnoreCase) ||
+                                            string.Equals(Path.GetFileNameWithoutExtension(f), Path.GetFileNameWithoutExtension(k), StringComparison.OrdinalIgnoreCase));
+                })
+                ?? all.FirstOrDefault(r => Same(r["doc_id"], k));
+        }
+
+        /// <param name="describe">Code -> description for suitability_desc / history (optional).</param>
+        public static AccRegisterApplyResult Apply(JArray rows, string key, string code, string approvedRevision,
+            string reason, string user, DateTime now, Func<string, string> describe = null)
+        {
+            code = (code ?? "").Trim().ToUpperInvariant();
+            if (code.Length == 0)
+                return new AccRegisterApplyResult { Status = AccRegisterApplyStatus.Refused, Message = "no suitability code to apply" };
+            var row = FindRow(rows, key);
+            if (row == null)
+                return new AccRegisterApplyResult { Status = AccRegisterApplyStatus.NotFound, Message = $"'{key}' is not in the document register" };
+
+            string rowRev = Str(row["revision"]);
+            string accRev = (approvedRevision ?? "").Trim();
+            if (accRev.Length > 0 && rowRev.Length > 0 && !string.Equals(rowRev, accRev, StringComparison.OrdinalIgnoreCase))
+                return new AccRegisterApplyResult
+                {
+                    Status = AccRegisterApplyStatus.Refused,
+                    Message = $"the register row is at revision {rowRev} but ACC approved the {accRev} file - record {accRev} in the register first",
+                };
+
+            string judgedRev = rowRev.Length > 0 ? rowRev : accRev;
+            var pairing = Iso19650RevisionRules.Check(judgedRev, code);
+            if (pairing.IsInconsistent)
+            {
+                string conflict = $"{judgedRev} cannot carry {code}: {pairing.Reason}";
+                bool changed = !string.Equals(Str(row["iso_conflict"]), conflict, StringComparison.Ordinal);
+                row["iso_conflict"] = conflict;
+                return new AccRegisterApplyResult
+                {
+                    Status = AccRegisterApplyStatus.Refused,
+                    RegisterChanged = changed,
+                    Message = $"{code} not stored - {pairing.Reason}; the row is flagged (iso_conflict)",
+                };
+            }
+
+            string old = Str(row["suitability"]);
+            if (string.Equals(old, code, StringComparison.OrdinalIgnoreCase))
+            {
+                bool hadConflict = row["iso_conflict"] != null;
+                row.Remove("iso_conflict");
+                return new AccRegisterApplyResult { Status = AccRegisterApplyStatus.Unchanged, RegisterChanged = hadConflict, Message = $"already {code}" };
+            }
+
+            if (row["suitability_history"] == null || row["suitability_history"].Type != JTokenType.Array)
+                row["suitability_history"] = new JArray();
+            ((JArray)row["suitability_history"]).Add(new JObject
+            {
+                ["from"] = old,
+                ["from_desc"] = describe?.Invoke(old) ?? old,
+                ["to"] = code,
+                ["to_desc"] = describe?.Invoke(code) ?? code,
+                ["date"] = now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
+                ["reason"] = reason ?? "",
+                ["user"] = user ?? "",
+            });
+            row["suitability"] = code;
+            row["suitability_desc"] = describe?.Invoke(code) ?? code;
+            row.Remove("iso_conflict");
+            return new AccRegisterApplyResult
+            {
+                Status = AccRegisterApplyStatus.Applied, RegisterChanged = true,
+                Message = (old.Length > 0 ? old : "(none)") + " → " + code,
+            };
+        }
+
+        private static bool Same(JToken t, string v) => string.Equals(Str(t), v, StringComparison.OrdinalIgnoreCase);
+        private static string Str(JToken t) =>
+            t == null || t.Type == JTokenType.Null || t.Type == JTokenType.Array || t.Type == JTokenType.Object
+                ? string.Empty : (t.ToString() ?? string.Empty).Trim();
     }
 }
