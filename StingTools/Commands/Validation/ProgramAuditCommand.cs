@@ -68,25 +68,19 @@ namespace StingTools.Commands.Validation
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string templatePath;
-            if (PresetDialog.Quiet)
-            {
-                // Inside a preset the Owner's template is the step's params.programTemplate — never guessed.
-                templatePath = PresetDialog.InputFile(doc, "Program_Audit", "programTemplate",
-                    "the Owner program template (.xlsx)", ref msg);
-                if (templatePath == null) return Result.Failed;
-            }
-            else
-            {
-                var dlg = new Microsoft.Win32.OpenFileDialog
+            // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+            string templatePath = PresetDialog.InputFile(doc, "Program_Audit", "programTemplate", "the Owner program template (.xlsx)",
+                () =>
                 {
-                    Title = "Select the Owner program template (Excel)",
-                    Filter = "Excel Files (*.xlsx)|*.xlsx",
-                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance")
-                };
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                templatePath = dlg.FileName;
-            }
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select the Owner program template (Excel)",
+                        Filter = "Excel Files (*.xlsx)|*.xlsx",
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Compliance")
+                    };
+                    return dlg.ShowDialog() == true ? dlg.FileName : null;
+                }, ref msg, out var fileStop);
+            if (templatePath == null) return fileStop;
 
             var map = ProgramAuditMap.Load(doc);
 

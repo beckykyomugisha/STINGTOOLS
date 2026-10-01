@@ -506,11 +506,29 @@ namespace StingTools.Docs
             var doc = ctx.Doc;
 
             string fileName = $"SheetRegister_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+            // Save path — the input rule (PresetDialog), with one deliberate difference for an
+            // OUTPUT location: params.output when set (a folder or .csv path; relative to the
+            // routed SheetRegister folder); else the save prompt for a person; else (unattended)
+            // the project's routed SheetRegister folder — the prompt's own "Project folder for
+            // this export" choice — rather than a failure, because where an export lands is a
+            // project convention, not an input someone must supply.
             string filePath;
-            if (PresetDialog.Quiet)
+            string outParam = PresetDialog.Param("output").Trim('"');
+            if (outParam.Length > 0)
             {
-                // No one to ask where to save: the project's own routed folder for this export
-                // type — the "Project folder for this export" choice the prompt offers a person.
+                string routedDir = OutputLocationHelper.GetRoutedDirectory(doc, "SheetRegister");
+                string target = System.IO.Path.IsPathRooted(outParam) ? outParam : System.IO.Path.Combine(routedDir ?? "", outParam);
+                filePath = target.EndsWith(".csv", StringComparison.OrdinalIgnoreCase) ? target : System.IO.Path.Combine(target, fileName);
+                try { System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath)); }
+                catch (Exception ex)
+                {
+                    message = $"ExportSheetRegister: params.output '{outParam}' cannot be used ({ex.Message}); nothing was written.";
+                    StingLog.Warn(message);
+                    return Result.Failed;
+                }
+            }
+            else if (!PresetDialog.CanAsk)
+            {
                 filePath = OutputLocationHelper.GetRoutedPath(doc, "SheetRegister", fileName);
                 if (string.IsNullOrEmpty(filePath))
                 {

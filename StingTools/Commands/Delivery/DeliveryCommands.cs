@@ -231,23 +231,18 @@ namespace StingTools.Commands.Delivery
                 Document doc = ParameterHelpers.GetDoc(commandData);
                 if (doc == null) { message = "No active document."; return Result.Failed; }
 
-                string midpPath;
-                if (PresetDialog.Quiet)
-                {
-                    // Inside a preset the CSV is the step's params.midpCsv — never guessed.
-                    midpPath = PresetDialog.InputFile(doc, "Midp_DriftReport", "midpCsv", "the MIDP/TIDP CSV", ref message);
-                    if (midpPath == null) return Result.Failed;
-                }
-                else
-                {
-                    var dlg = new Microsoft.Win32.OpenFileDialog
+                // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+                string midpPath = PresetDialog.InputFile(doc, "Midp_DriftReport", "midpCsv", "the MIDP/TIDP CSV",
+                    () =>
                     {
-                        Title = "Pick a MIDP/TIDP CSV (Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability)",
-                        Filter = "CSV (*.csv)|*.csv|All files (*.*)|*.*",
-                    };
-                    if (dlg.ShowDialog() != true) return Result.Cancelled;
-                    midpPath = dlg.FileName;
-                }
+                        var dlg = new Microsoft.Win32.OpenFileDialog
+                        {
+                            Title = "Pick a MIDP/TIDP CSV (Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability)",
+                            Filter = "CSV (*.csv)|*.csv|All files (*.*)|*.*",
+                        };
+                        return dlg.ShowDialog() == true ? dlg.FileName : null;
+                    }, ref message, out var fileStop);
+                if (midpPath == null) return fileStop;
 
                 var plan = ParseMidpInteractive(midpPath, out int skipped, out int relativeLeftOut);
                 if (relativeLeftOut > 0) StingLog.Warn($"Midp_DriftReport: {relativeLeftOut} row(s) left out — relative month only");
@@ -325,12 +320,13 @@ namespace StingTools.Commands.Delivery
             relativeLeftOut = rel;
             if (rel == 0) return plan;
 
-            if (PresetDialog.Quiet)
+            // Input rule (PresetDialog): the step's params.m0 (yyyy-MM-dd) dates those rows when
+            // set; else a person is asked below; else (unattended) they stay left out and the
+            // caller reports the count — the same outcome as "Leave those rows out", never a
+            // date chosen on someone's behalf.
+            string raw = PresetDialog.Param("m0");
+            if (raw.Length > 0 || !PresetDialog.CanAsk)
             {
-                // Nobody to ask which date is M0. The step's params.m0 (yyyy-MM-dd) dates those
-                // rows; without it they stay left out and the caller reports the count — the
-                // same outcome as "Leave those rows out", never a date chosen on someone's behalf.
-                string raw = (WorkflowEngine.StepParam("m0") ?? "").Trim();
                 if (raw.Length == 0) return plan;
                 if (!DateTime.TryParseExact(raw, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture,
                         System.Globalization.DateTimeStyles.None, out var stepM0))

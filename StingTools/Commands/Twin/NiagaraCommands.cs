@@ -107,25 +107,19 @@ namespace StingTools.Commands.Twin
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string stationPath;
-            if (PresetDialog.Quiet)
-            {
-                // Inside a preset the station export is the step's params.stationExport — never guessed.
-                stationPath = PresetDialog.InputFile(doc, "Niagara_Reconcile", "stationExport",
-                    "the Niagara / BACnet station export", ref msg);
-                if (stationPath == null) return Result.Failed;
-            }
-            else
-            {
-                var dlg = new Microsoft.Win32.OpenFileDialog
+            // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+            string stationPath = PresetDialog.InputFile(doc, "Niagara_Reconcile", "stationExport", "the Niagara / BACnet station export",
+                () =>
                 {
-                    Title = "Select the Niagara / BACnet station export (CSV or XLSX with a point/device id column)",
-                    Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
-                };
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                stationPath = dlg.FileName;
-            }
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select the Niagara / BACnet station export (CSV or XLSX with a point/device id column)",
+                        Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
+                    };
+                    return dlg.ShowDialog() == true ? dlg.FileName : null;
+                }, ref msg, out var fileStop);
+            if (stationPath == null) return fileStop;
 
             HashSet<string> stationIds;
             try { stationIds = ReadIds(stationPath); }

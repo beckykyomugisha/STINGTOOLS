@@ -273,21 +273,25 @@ namespace StingTools.Commands.Classification
                 return Result.Succeeded;
             }
 
-            // Write mode: asked of a person; inside a workflow preset it is the step's
-            // "params": {"mode": "fill" | "overwrite"} — overwriting existing sections is the
-            // workflow author's decision, never a default.
+            // Write mode — the input rule (PresetDialog): the step's params.mode
+            // ("fill"|"overwrite") when set; else asked of a person; else (unattended) the step
+            // fails. Overwriting existing sections is never defaulted.
             bool overwrite;
-            if (PresetDialog.Quiet)
+            string mode = PresetDialog.Param("mode").ToLowerInvariant();
+            if (mode.Length > 0)
             {
-                string mode = (WorkflowEngine.StepParam("mode") ?? "").Trim().ToLowerInvariant();
                 if (mode != "fill" && mode != "overwrite")
                 {
-                    msg = "CSI_Assign in a workflow needs \"params\": {\"mode\": \"fill\"} (or \"overwrite\") on its step; " +
-                          "no CSI section was written.";
+                    msg = $"CSI_Assign: params.mode '{mode}' must be \"fill\" or \"overwrite\"; no CSI section was written.";
                     StingLog.Warn(msg);
                     return Result.Failed;
                 }
                 overwrite = mode == "overwrite";
+            }
+            else if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam("CSI_Assign", "mode", "\"fill\" (or \"overwrite\")", "no CSI section was written.", ref msg);
+                return Result.Failed;
             }
             else
             {
@@ -367,25 +371,19 @@ namespace StingTools.Commands.Classification
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string tocPath;
-            if (PresetDialog.Quiet)
-            {
-                // Inside a preset the TOC is the step's params.specToc — never guessed.
-                tocPath = PresetDialog.InputFile(doc, "SpecLink_Reconcile", "specToc",
-                    "the SpecLink spec TOC (.csv or .xlsx)", ref msg);
-                if (tocPath == null) return Result.Failed;
-            }
-            else
-            {
-                var dlg = new Microsoft.Win32.OpenFileDialog
+            // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+            string tocPath = PresetDialog.InputFile(doc, "SpecLink_Reconcile", "specToc", "the SpecLink spec TOC (.csv or .xlsx)",
+                () =>
                 {
-                    Title = "Select the SpecLink spec TOC (CSV or XLSX with Section + Title columns)",
-                    Filter = "Spec TOC (*.csv;*.xlsx)|*.csv;*.xlsx",
-                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
-                };
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                tocPath = dlg.FileName;
-            }
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select the SpecLink spec TOC (CSV or XLSX with Section + Title columns)",
+                        Filter = "Spec TOC (*.csv;*.xlsx)|*.csv;*.xlsx",
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
+                    };
+                    return dlg.ShowDialog() == true ? dlg.FileName : null;
+                }, ref msg, out var fileStop);
+            if (tocPath == null) return fileStop;
 
             Dictionary<string, string> spec;
             try { spec = ReadToc(tocPath); }

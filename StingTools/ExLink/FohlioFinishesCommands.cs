@@ -96,25 +96,19 @@ namespace StingTools.ExLink
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            string importPath;
-            if (PresetDialog.Quiet)
-            {
-                // Inside a preset the finishes export is the step's params.finishesExport — never guessed.
-                importPath = PresetDialog.InputFile(doc, "Fohlio_ImportFinishes", "finishesExport",
-                    "the Fohlio finishes export (.csv or .xlsx)", ref msg);
-                if (importPath == null) return Result.Failed;
-            }
-            else
-            {
-                var dlg = new Microsoft.Win32.OpenFileDialog
+            // Input rule (PresetDialog): params when set; else this picker for a person; else fail.
+            string importPath = PresetDialog.InputFile(doc, "Fohlio_ImportFinishes", "finishesExport", "the Fohlio finishes export (.csv or .xlsx)",
+                () =>
                 {
-                    Title = "Select the Fohlio finishes export (CSV or XLSX with a Room Number column)",
-                    Filter = "Fohlio finishes (*.csv;*.xlsx)|*.csv;*.xlsx",
-                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
-                };
-                if (dlg.ShowDialog() != true) return Result.Cancelled;
-                importPath = dlg.FileName;
-            }
+                    var dlg = new Microsoft.Win32.OpenFileDialog
+                    {
+                        Title = "Select the Fohlio finishes export (CSV or XLSX with a Room Number column)",
+                        Filter = "Fohlio finishes (*.csv;*.xlsx)|*.csv;*.xlsx",
+                        InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "Schedule")
+                    };
+                    return dlg.ShowDialog() == true ? dlg.FileName : null;
+                }, ref msg, out var fileStop);
+            if (importPath == null) return fileStop;
 
             List<Dictionary<string, string>> rows;
             try { rows = ReadRows(importPath); }
@@ -165,16 +159,22 @@ namespace StingTools.ExLink
             if (changes.Count > 15) prev.AppendLine($"  … +{changes.Count - 15} more");
 
             bool overwrite;
-            if (PresetDialog.Quiet)
+            // Input rule (PresetDialog): the step's params.mode ("fill"|"overwrite") when set;
+            // else the review below for a person; else (unattended) nothing is written and the
+            // step fails. Never defaulted.
+            string mode = PresetDialog.Param("mode").ToLowerInvariant();
+            if (mode.Length > 0 || !PresetDialog.CanAsk)
             {
-                // No one to review the diff: the step's params.mode ("fill"|"overwrite") is the
-                // decision; without it nothing is written (never defaulted).
                 StingLog.Info("Fohlio Import Finishes preview:\n" + prev);
-                string mode = (WorkflowEngine.StepParam("mode") ?? "").Trim().ToLowerInvariant();
+                if (mode.Length == 0)
+                {
+                    PresetDialog.MissingParam("Fohlio_ImportFinishes", "mode", "\"fill\" (or \"overwrite\")",
+                        $"{changes.Count} finish change(s) were proposed and nothing was written (preview in the STING log).", ref msg);
+                    return Result.Failed;
+                }
                 if (mode != "fill" && mode != "overwrite")
                 {
-                    msg = $"Fohlio_ImportFinishes in a workflow needs \"params\": {{\"mode\": \"fill\"}} (or \"overwrite\") on its step; " +
-                          $"{changes.Count} finish change(s) were proposed and nothing was written (preview in the STING log).";
+                    msg = $"Fohlio_ImportFinishes: params.mode '{mode}' must be \"fill\" or \"overwrite\"; nothing was written.";
                     StingLog.Warn(msg);
                     return Result.Failed;
                 }

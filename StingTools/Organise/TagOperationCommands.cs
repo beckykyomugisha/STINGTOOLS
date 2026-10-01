@@ -5786,20 +5786,23 @@ namespace StingTools.Organise
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Scope: asked of a person; inside a workflow preset it is the step's
-            // "params": {"scope": "project" | "view"} — the workflow author's decision, never a
-            // default (a project-wide retag on someone's behalf is not a guess to make).
-            string scopeChoice;   // "view" | "project" | null (cancelled)
-            if (PresetDialog.Quiet)
+            // Scope — the input rule (PresetDialog): the step's params.scope ("project"|"view")
+            // when set; else asked of a person; else (unattended) the step fails. Never
+            // defaulted: a project-wide retag on someone's behalf is not a guess to make.
+            string scopeChoice = PresetDialog.Param("scope").ToLowerInvariant();   // "view" | "project" | null (cancelled)
+            if (scopeChoice.Length > 0)
             {
-                scopeChoice = (WorkflowEngine.StepParam("scope") ?? "").Trim().ToLowerInvariant();
                 if (scopeChoice != "project" && scopeChoice != "view")
                 {
-                    message = "RetagStale in a workflow needs \"params\": {\"scope\": \"project\"} (or \"view\") on its step; " +
-                              "nothing was retagged.";
-                    StingLog.Warn("RetagStale: " + message);
+                    message = $"RetagStale: params.scope '{scopeChoice}' must be \"project\" or \"view\"; nothing was retagged.";
+                    StingLog.Warn(message);
                     return Result.Failed;
                 }
+            }
+            else if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam("RetagStale", "scope", "\"project\" (or \"view\")", "nothing was retagged.", ref message);
+                return Result.Failed;
             }
             else
             {

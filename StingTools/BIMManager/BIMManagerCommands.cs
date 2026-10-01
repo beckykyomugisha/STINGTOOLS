@@ -5977,20 +5977,25 @@ namespace StingTools.BIMManager
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // The status is asked of a person; inside a workflow preset it is the step's
-            // "params": {"status": "WIP"|"SHARED"|"PUBLISHED"|"ARCHIVE"} — a CDE transition is
-            // the workflow author's decision, never a default.
-            string status;
-            if (PresetDialog.Quiet)
+            // Status — the input rule (PresetDialog): the step's params.status
+            // (WIP|SHARED|PUBLISHED|ARCHIVE) when set; else asked of a person; else
+            // (unattended) the step fails. A CDE transition is never defaulted.
+            string status = PresetDialog.Param("status").ToUpperInvariant();
+            if (status.Length > 0)
             {
-                status = (WorkflowEngine.StepParam("status") ?? "").Trim().ToUpperInvariant();
                 if (status != "WIP" && status != "SHARED" && status != "PUBLISHED" && status != "ARCHIVE")
                 {
-                    message = "CDEStatus in a workflow needs \"params\": {\"status\": \"WIP\"} (or SHARED / PUBLISHED / ARCHIVE) " +
-                              "on its step; the CDE status was not changed.";
-                    StingLog.Warn("CDEStatus: " + message);
+                    message = $"CDEStatus: params.status '{status}' must be WIP, SHARED, PUBLISHED or ARCHIVE; " +
+                              "the CDE status was not changed.";
+                    StingLog.Warn(message);
                     return Result.Failed;
                 }
+            }
+            else if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam("CDEStatus", "status", "\"WIP\" (or SHARED / PUBLISHED / ARCHIVE)",
+                    "the CDE status was not changed.", ref message);
+                return Result.Failed;
             }
             else
             {
@@ -6033,10 +6038,10 @@ namespace StingTools.BIMManager
 
                 // CS-GAP-01: Compliance gate — blocks transitions when tag compliance is below threshold
                 string compGateError = BIMManagerEngine.ValidateCDEComplianceGate(status, doc);
-                if (compGateError != null && PresetDialog.Quiet)
+                if (compGateError != null && !PresetDialog.CanAsk)
                 {
-                    // An override needs a person to acknowledge it; a workflow never overrides.
-                    message = $"CDE compliance gate blocks {currentCDE} → {status} (not overridden in a workflow): {compGateError}";
+                    // An override needs a person to acknowledge it; an unattended run never overrides.
+                    message = $"CDE compliance gate blocks {currentCDE} → {status} (not overridden in an unattended run): {compGateError}";
                     StingLog.Warn("CDEStatus: " + message);
                     return Result.Failed;
                 }
@@ -6082,11 +6087,11 @@ namespace StingTools.BIMManager
                 // SHARED requires Reviewer, etc. Hard-block if role rank insufficient
                 // unless user explicitly overrides via the existing gate dialog.
                 var roleGate = CdeApprovalGate.Validate(doc, currentCDE ?? "WIP", status);
-                if (!roleGate.Pass && PresetDialog.Quiet)
+                if (!roleGate.Pass && !PresetDialog.CanAsk)
                 {
-                    // Same rule as the compliance gate: a workflow never overrides a role gate.
+                    // Same rule as the compliance gate: an unattended run never overrides a role gate.
                     message = $"CDE role gate: {roleGate.RequiredRole} required for {currentCDE} → {status} " +
-                              $"(not overridden in a workflow): {roleGate.Reason}";
+                              $"(not overridden in an unattended run): {roleGate.Reason}";
                     StingLog.Warn("CDEStatus: " + message);
                     return Result.Failed;
                 }

@@ -67,27 +67,25 @@ namespace StingTools.Commands.Twin
 
             // Optional Niagara station export (drives COMMISSIONED_UNPRICED).
             HashSet<string> stationIds = null;
+            // Input rule (PresetDialog): params.stationExport when set; else the picker for a
+            // person (Cancel skips the check); else (unattended) the check is skipped exactly as
+            // a person's Cancel skips it, and the report names the unset param. It is optional.
             string stationPath = null;
-            if (PresetDialog.Quiet)
+            if (PresetDialog.Param("stationExport").Length > 0 || PresetDialog.CanAsk)
             {
-                // Inside a preset: params.stationExport when the step names one; without it the
-                // check is skipped exactly as a person's Cancel skips it, and the report says so.
-                if (!string.IsNullOrWhiteSpace(WorkflowEngine.StepParam("stationExport")))
-                {
-                    stationPath = PresetDialog.InputFile(doc, "KUT_LifecycleReconcile", "stationExport",
-                        "the Niagara / BACnet station export", ref msg);
-                    if (stationPath == null) return Result.Failed;
-                }
-            }
-            else
-            {
-                var dlg = new Microsoft.Win32.OpenFileDialog
-                {
-                    Title = "Optional: select the Niagara / BACnet station export (Cancel to skip the commissioned-unpriced check)",
-                    Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
-                    InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
-                };
-                if (dlg.ShowDialog() == true) stationPath = dlg.FileName;
+                stationPath = PresetDialog.InputFile(doc, "KUT_LifecycleReconcile", "stationExport",
+                    "the Niagara / BACnet station export",
+                    () =>
+                    {
+                        var dlg = new Microsoft.Win32.OpenFileDialog
+                        {
+                            Title = "Optional: select the Niagara / BACnet station export (Cancel to skip the commissioned-unpriced check)",
+                            Filter = "Station export (*.csv;*.xlsx)|*.csv;*.xlsx",
+                            InitialDirectory = OutputLocationHelper.GetRoutedDirectory(doc, "AssetRegister")
+                        };
+                        return dlg.ShowDialog() == true ? dlg.FileName : null;
+                    }, ref msg, out var fileStop);
+                if (stationPath == null && fileStop == Result.Failed) return Result.Failed;
             }
             if (stationPath != null)
             {
@@ -161,8 +159,8 @@ namespace StingTools.Commands.Twin
             sb.AppendLine();
             sb.AppendLine($"PRICED_NO_BMS_POINT:    {pricedNoBms.Count}  (UGX {pricedNoBmsUgx:N0} priced, no/incomplete BMS point)");
             sb.AppendLine(stationIds == null
-                ? (PresetDialog.Quiet && stationPath == null
-                    ? "COMMISSIONED_UNPRICED:  (skipped — the step sets no params.stationExport)"
+                ? (!PresetDialog.CanAsk && stationPath == null
+                    ? "COMMISSIONED_UNPRICED:  (skipped — unattended run, the step sets no params.stationExport)"
                     : "COMMISSIONED_UNPRICED:  (skipped — no station export selected)")
                 : $"COMMISSIONED_UNPRICED:  {commissionedUnpriced.Count}  (station point, no priced BOQ line)");
             if (pricedNoBms.Count > 0)

@@ -50,8 +50,8 @@ namespace StingTools.Core
                     return Result.Succeeded;
                 }
 
-                var ms = LodScope.PickMilestone(doc, "Check", ref message);
-                if (ms == null) return PresetDialog.Quiet ? Result.Failed : Result.Cancelled;
+                var ms = LodScope.PickMilestone(doc, "Check", ref message, out var pickStop);
+                if (ms == null) return pickStop;
 
                 var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
                 var r = LodVerificationEngine.Verify(doc, ms.Id, scope);

@@ -104,19 +104,22 @@ namespace StingTools.Tags
 
             double scanBefore = ComplianceScan.Scan(doc).CompliancePercent;
 
-            // Scope: asked of a person; inside a workflow preset it is the step's
-            // "params": {"scope": "project" | "view"} — never defaulted.
-            string scopeChoice;   // "view" | "project" | null (cancelled)
-            if (PresetDialog.Quiet)
+            // Scope — the input rule (PresetDialog): the step's params.scope ("project"|"view")
+            // when set; else asked of a person; else (unattended) the step fails. Never defaulted.
+            string scopeChoice = PresetDialog.Param("scope").ToLowerInvariant();   // "view" | "project" | null (cancelled)
+            if (scopeChoice.Length > 0)
             {
-                scopeChoice = (WorkflowEngine.StepParam("scope") ?? "").Trim().ToLowerInvariant();
                 if (scopeChoice != "project" && scopeChoice != "view")
                 {
-                    message = "PreTagAudit in a workflow needs \"params\": {\"scope\": \"project\"} (or \"view\") on its step; " +
-                              "nothing was audited.";
-                    StingLog.Warn("PreTagAudit: " + message);
+                    message = $"PreTagAudit: params.scope '{scopeChoice}' must be \"project\" or \"view\"; nothing was audited.";
+                    StingLog.Warn(message);
                     return Result.Failed;
                 }
+            }
+            else if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam("PreTagAudit", "scope", "\"project\" (or \"view\")", "nothing was audited.", ref message);
+                return Result.Failed;
             }
             else
             {

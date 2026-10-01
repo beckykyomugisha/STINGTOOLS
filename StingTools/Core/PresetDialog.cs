@@ -53,20 +53,59 @@ namespace StingTools.Core
             return -1;
         }
 
+        // ── Inputs (choices, files, scopes, milestones) ─────────────────────────────────
+        //
+        // Results are one thing (above: quiet in ANY preset). Inputs follow a different rule,
+        // the same for every input a KUT step takes — a picker, a mode, a file, a scope, a
+        // milestone, a CDE status:
+        //   1. The step's "params" value, when set, is used — attended or not, so a workflow
+        //      author can always pin it. A value that is set but invalid fails the step.
+        //   2. Missing, and a person is present (CanAsk: a button click or an ATTENDED preset
+        //      run): the original prompt or picker is shown, exactly as before.
+        //   3. Missing, and the run is unattended: the step fails naming the param. An input
+        //      is never defaulted on someone's behalf.
+
         /// <summary>
-        /// The input file a command would ask a person to pick, taken inside a preset from
-        /// the step's <c>"params": {"<paramref name="key"/>": "path"}</c>. A relative path is
-        /// resolved against the project's _BIM_COORD folder. Returns null — and sets
-        /// <paramref name="message"/> naming the param — when it is missing or the file does
-        /// not exist: a file is never guessed.
+        /// True when a person is there to answer an input prompt: anything but an unattended
+        /// preset run (<see cref="WorkflowEngine.IsUnattended"/>). See the rule above.
+        /// </summary>
+        internal static bool CanAsk => !WorkflowEngine.IsUnattended;
+
+        /// <summary>The running step's "params" value for <paramref name="key"/>, trimmed; "" when unset or outside a preset.</summary>
+        internal static string Param(string key) => (WorkflowEngine.StepParam(key) ?? "").Trim();
+
+        /// <summary>
+        /// Rule 3: sets <paramref name="message"/> to "<paramref name="command"/> needs
+        /// params.<paramref name="key"/>" and logs it. The caller returns Result.Failed.
+        /// </summary>
+        internal static void MissingParam(string command, string key, string example, string effect, ref string message)
+        {
+            message = $"{command} in an unattended workflow needs \"params\": {{\"{key}\": {example}}} on its step; {effect}";
+            StingLog.Warn(message);
+        }
+
+        /// <summary>
+        /// An input file under the rule above. params.<paramref name="key"/> when set (absolute,
+        /// or relative to the project's _BIM_COORD folder; a missing file fails). Otherwise
+        /// <paramref name="ask"/> — the command's own picker, kept in the command so the
+        /// unattended gate can see it — when a person is present; otherwise a failure naming
+        /// the param. Returns null with <paramref name="stop"/> = Cancelled (the person
+        /// cancelled the picker) or Failed (<paramref name="message"/> says why).
         /// </summary>
         internal static string InputFile(Autodesk.Revit.DB.Document doc, string command, string key,
-            string what, ref string message)
+            string what, System.Func<string> ask, ref string message, out Result stop)
         {
-            string raw = (WorkflowEngine.StepParam(key) ?? "").Trim().Trim('"');
+            stop = Result.Failed;
+            string raw = Param(key).Trim('"');
             if (raw.Length == 0)
             {
-                message = $"{command} in a workflow needs \"params\": {{\"{key}\": \"<path to {what}>\"}} on its step " +
+                if (CanAsk && ask != null)
+                {
+                    string picked = ask();
+                    if (string.IsNullOrEmpty(picked)) stop = Result.Cancelled;
+                    return string.IsNullOrEmpty(picked) ? null : picked;
+                }
+                message = $"{command} in an unattended workflow needs \"params\": {{\"{key}\": \"<path to {what}>\"}} on its step " +
                           "(absolute, or relative to the project's _BIM_COORD folder); nothing was read.";
                 StingLog.Warn(message);
                 return null;

@@ -166,29 +166,36 @@ namespace StingTools.Commands.Validation
         }
 
         /// <summary>
-        /// The milestone to verify/stamp: picked by a person, or — inside a workflow preset —
-        /// the step's <c>"params": {"milestone": "&lt;id&gt;"}</c>. A preset step without a
-        /// known id returns null with <paramref name="message"/> set; never defaulted (which
-        /// milestone a gate certifies is the workflow author's decision).
+        /// The milestone to verify/stamp, by the input rule (PresetDialog): the step's
+        /// <c>"params": {"milestone": "&lt;id&gt;"}</c> when set (an unknown id fails); else
+        /// picked by a person; else (unattended) null with <paramref name="message"/> set.
+        /// Never defaulted — which milestone a gate certifies is the workflow author's call.
+        /// On null, <paramref name="stop"/> is Cancelled (the person cancelled) or Failed.
         /// </summary>
-        public static LodMilestone PickMilestone(Document doc, string action, ref string message)
+        public static LodMilestone PickMilestone(Document doc, string action, ref string message, out Result stop)
         {
+            stop = Result.Failed;
             var matrix = LodMatrixRegistry.Get(doc);
             var milestones = matrix.Milestones ?? new List<LodMilestone>();
             if (milestones.Count == 0) return null;
-            if (PresetDialog.Quiet)
+            string want = PresetDialog.Param("milestone");
+            string ids = string.Join(", ", milestones.Select(m => m.Id));
+            if (want.Length > 0)
             {
-                string want = (WorkflowEngine.StepParam("milestone") ?? "").Trim();
                 var hit = milestones.FirstOrDefault(m => string.Equals(m.Id, want, StringComparison.OrdinalIgnoreCase));
                 if (hit == null)
                 {
-                    message = $"LOD_{action} in a workflow needs \"params\": {{\"milestone\": \"<id>\"}} on its step " +
-                              (want.Length > 0 ? $"('{want}' is not a milestone in the LOD matrix) " : "") +
-                              "- one of: " + string.Join(", ", milestones.Select(m => m.Id)) + ". Nothing was verified.";
+                    message = $"LOD_{action}: params.milestone '{want}' is not a milestone in the LOD matrix - one of: {ids}. Nothing was verified.";
                     StingLog.Warn(message);
                 }
                 return hit;
             }
+            if (!PresetDialog.CanAsk)
+            {
+                PresetDialog.MissingParam($"LOD_{action}", "milestone", "\"<id>\"", $"one of: {ids}. Nothing was verified.", ref message);
+                return null;
+            }
+            stop = Result.Cancelled;
             var labels = milestones.Select(m => $"{m.Name}  (LOD {m.Lod})").ToList();
             string pick = StingListPicker.Show($"LOD {action} — pick milestone",
                 "Verification is a parameter/naming/geometry-presence maturity proxy, not a geometric survey.",
@@ -385,8 +392,8 @@ namespace StingTools.Commands.Validation
                 return Result.Succeeded;
             }
 
-            var ms = LodScope.PickMilestone(doc, "Verify", ref msg);
-            if (ms == null) return PresetDialog.Quiet ? Result.Failed : Result.Cancelled;
+            var ms = LodScope.PickMilestone(doc, "Verify", ref msg, out var pickStop);
+            if (ms == null) return pickStop;
 
             var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
             var r = LodVerificationEngine.Verify(doc, ms.Id, scope);
@@ -428,8 +435,8 @@ namespace StingTools.Commands.Validation
                 return Result.Succeeded;
             }
 
-            var ms = LodScope.PickMilestone(doc, "Stamp", ref msg);
-            if (ms == null) return PresetDialog.Quiet ? Result.Failed : Result.Cancelled;
+            var ms = LodScope.PickMilestone(doc, "Stamp", ref msg, out var pickStop);
+            if (ms == null) return pickStop;
 
             var scope = LodScope.Collect(ctx.UIDoc, doc, out var scopeReport);
             var r = LodVerificationEngine.Verify(doc, ms.Id, scope);
