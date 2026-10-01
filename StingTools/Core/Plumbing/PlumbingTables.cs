@@ -404,6 +404,33 @@ namespace StingTools.Core.Plumbing
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return 100; }
         }
 
+        /// <summary>
+        /// A number from STING_PLUMBING_SUPPLY_TABLES.json at <c>section.key</c>,
+        /// or <paramref name="fallback"/> when the file, section or key is
+        /// absent or not numeric.
+        /// </summary>
+        public static double SupplyNumber(string section, string key, double fallback)
+            => ReadNumber(Supply, section, key, fallback);
+
+        private static double ReadNumber(JObject root, string section, string key, double fallback)
+        {
+            try
+            {
+                var t = root?[section]?[key];
+                if (t != null && (t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                {
+                    double v = t.Value<double>();
+                    if (!double.IsNaN(v) && !double.IsInfinity(v)) return v;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.ReadNumber",
+                    $"PlumbingTables: {section}.{key} unreadable ({ex.Message}); using {fallback}");
+            }
+            return fallback;
+        }
+
         public static double StackCapacityDu(int dnMm)
         {
             EnsureLoaded();
