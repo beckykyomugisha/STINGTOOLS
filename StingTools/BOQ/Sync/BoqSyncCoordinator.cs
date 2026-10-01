@@ -76,6 +76,17 @@ namespace StingTools.BOQ.Sync
                     return result;
                 }
 
+                // Every server line needs a classification; refuse before a baseline
+                // is created rather than leave an empty one behind.
+                string unclassified = BoqLineClassification.PreflightProblem(boq.AllItems.Select(i => i.NRM2Section));
+                if (unclassified != null)
+                {
+                    result.SyncState = "Pending";
+                    result.Detail = unclassified;
+                    StingLog.Warn($"BoqSyncCoordinator: {unclassified}");
+                    return result;
+                }
+
                 var client = PlanscapeServerClient.Instance;
                 if (client == null)
                 {
@@ -214,6 +225,10 @@ namespace StingTools.BOQ.Sync
             return new
             {
                 sectionCode = item.NRM2Section ?? "",
+                // The server resolves (system, code) to its ClassificationCode within the
+                // tenant and refuses a line it cannot classify — it never defaults one.
+                classificationSystemCode = BoqLineClassification.SystemCode,
+                classificationCode = BoqLineClassification.CodeFor(item.NRM2Section),
                 itemDescription = string.IsNullOrEmpty(item.ResolvedNRM2Paragraph)
                     ? (item.Category ?? "")
                     : item.ResolvedNRM2Paragraph,

@@ -55,8 +55,9 @@ namespace StingTools.Boq.Tests
                 }
                 Assert.False(string.IsNullOrEmpty(r.Unit), $"line {r.LineNumber}: no unit");
             });
-            // The one deliberate zero in the shipped card is declared, not a bare 0.
-            Assert.Equal(RateOutcome.Nil, res.Rows.Single(r => r.Category == "Rooms").Outcome);
+            // Rooms are not billed at all (NOT MEASURED in STING_DEFAULT_COST_RATES.csv),
+            // so the card has no row for them — see DefaultCostRatesCsvTests.
+            Assert.DoesNotContain(res.Rows, r => r.Category == "Rooms");
             // The value the positional 5D trace lost: Walls is 85 USD, not unparseable "A".
             Assert.Equal(85.0, res.Rows.First(r => r.Category == "Walls").RateUsd);
         }

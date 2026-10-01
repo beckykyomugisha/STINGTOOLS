@@ -91,13 +91,6 @@ namespace StingTools.BOQ
         }
 
         /// <summary>
-        /// Diagnostic — current per-batch cache stats. Useful for the
-        /// Cost_RateHeatMap command to surface cache effectiveness.
-        /// </summary>
-        public static (int hits, int misses, int entries) GetRateCacheStats()
-            => (_rateCacheHits, _rateCacheMisses, _rateCache.Count);
-
-        /// <summary>
         /// Write cost params on the element if WRITE_COST_ON_TAG is true.
         /// Returns true on a successful write, false otherwise (including
         /// when the feature is disabled — caller cannot distinguish).

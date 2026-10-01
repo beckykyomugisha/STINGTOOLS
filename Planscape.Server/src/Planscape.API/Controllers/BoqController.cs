@@ -286,6 +286,19 @@ public class BoqController : ControllerBase
             return BadRequest($"{badPsType.Count} line(s) carry a ProvisionalSumType that is not Defined / Undefined / " +
                               "NotDeclared, or is on a line that is not a ProvisionalSum.");
 
+        // DSCH-44 follow-up — every line needs a real ClassificationCode (QuantityLine.ClassificationCodeId
+        // is a required FK, ON DELETE RESTRICT). The plugin never sent one, so new lines arrived
+        // with Guid.Empty and PostgreSQL refused the insert (23503) as an HTTP 500. A line is
+        // classified by an existing code id, or by (system code, code) resolved in this tenant.
+        // A line that resolves to nothing is refused with the codes that are missing; no default
+        // code is ever substituted.
+        var classified = await ResolveClassificationAsync(req);
+        if (classified.Problems.Count > 0)
+            return BadRequest($"{classified.Problems.Count} line(s) could not be classified, so nothing was stored. " +
+                              "Create the missing codes under Classification, or send a known classificationCodeId: " +
+                              string.Join("; ", classified.Problems.Distinct().Take(20)) +
+                              (classified.Problems.Distinct().Count() > 20 ? "; ..." : ""));
+
         // True upsert: if a line with the same IfcGlobalId already exists on this baseline, update it.
         var incomingGlobalIds = req
             .Where(r => !string.IsNullOrEmpty(r.IfcGlobalId))
@@ -298,8 +311,10 @@ public class BoqController : ControllerBase
             .ToDictionaryAsync(l => l.IfcGlobalId!);
 
         int created = 0, updated = 0;
-        foreach (var r in req)
+        for (int li = 0; li < req.Count; li++)
         {
+            var r = req[li];
+            Guid classificationCodeId = classified.CodeIds[li];
             // WP-FIX — payload v2: when the plugin marks the quantity FINAL, do
             // NOT re-gross (the deductions + waste are already in NetQuantity);
             // record the real wastage split from MeasuredWastePercent and back out
@@ -341,6 +356,7 @@ public class BoqController : ControllerBase
                 existing.Zone                 = r.Zone ?? existing.Zone;
                 existing.SectionCode          = r.SectionCode ?? existing.SectionCode;
                 existing.ItemDescription      = r.ItemDescription ?? existing.ItemDescription;
+                existing.ClassificationCodeId = classificationCodeId;
                 // DSCH-44 — the kind and the PS type travel together: a line that stops
                 // being a provisional sum loses its type.
                 if (r.LineKind != null)
@@ -361,7 +377,7 @@ public class BoqController : ControllerBase
                     TenantId             = tenantId,
                     ProjectId            = projectId,
                     BaselineId           = baselineId,
-                    ClassificationCodeId = r.ClassificationCodeId,
+                    ClassificationCodeId = classificationCodeId,
                     TakeoffRuleId        = r.TakeoffRuleId,
                     WorkPackageId        = r.WorkPackageId,
                     ProjectModelId       = r.ProjectModelId,
@@ -398,6 +414,74 @@ public class BoqController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(new { created, updated, baselineTotal = baseline.TotalValue });
+    }
+
+    /// <summary>
+    /// DSCH-44 follow-up — the ClassificationCode each request line maps to, by index, plus one
+    /// problem string per line that maps to none. Codes are read through the tenant
+    /// query filter, so another tenant's code can never be borrowed.
+    /// </summary>
+    private async Task<(Guid[] CodeIds, List<string> Problems)> ResolveClassificationAsync(
+        List<UpsertQuantityLineRequest> req)
+    {
+        var ids = new Guid[req.Count];
+        var problems = new List<string>();
+
+        var wantedIds = req.Where(r => r.ClassificationCodeId != Guid.Empty)
+            .Select(r => r.ClassificationCodeId).Distinct().ToList();
+        var knownIds = wantedIds.Count == 0 ? new HashSet<Guid>()
+            : (await _db.ClassificationCodes.Where(c => wantedIds.Contains(c.Id))
+                .Select(c => c.Id).ToListAsync()).ToHashSet();
+
+        static string Norm(string? s) => (s ?? "").Trim();
+        var sysWanted = req.Where(r => r.ClassificationCodeId == Guid.Empty)
+            .Select(r => Norm(r.ClassificationSystemCode).ToUpperInvariant())
+            .Where(s => s.Length > 0).Distinct().ToList();
+        var codeWanted = req.Where(r => r.ClassificationCodeId == Guid.Empty)
+            .Select(r => Norm(r.ClassificationCode)).Where(s => s.Length > 0).Distinct().ToList();
+
+        var byPair = new Dictionary<(string Sys, string Code), List<Guid>>();
+        if (sysWanted.Count > 0 && codeWanted.Count > 0)
+        {
+            var systems = await _db.ClassificationSystems
+                .Where(s => sysWanted.Contains(s.Code.ToUpper()))
+                .Select(s => new { s.Id, s.Code }).ToListAsync();
+            var systemIds = systems.Select(s => s.Id).ToList();
+            var codes = await _db.ClassificationCodes
+                .Where(c => systemIds.Contains(c.SystemId) && codeWanted.Contains(c.Code))
+                .Select(c => new { c.Id, c.SystemId, c.Code }).ToListAsync();
+            foreach (var c in codes)
+            {
+                string sys = systems.First(s => s.Id == c.SystemId).Code.ToUpperInvariant();
+                var key = (sys, c.Code);
+                if (!byPair.TryGetValue(key, out var list)) byPair[key] = list = new List<Guid>();
+                list.Add(c.Id);
+            }
+        }
+
+        for (int i = 0; i < req.Count; i++)
+        {
+            var r = req[i];
+            if (r.ClassificationCodeId != Guid.Empty)
+            {
+                if (knownIds.Contains(r.ClassificationCodeId)) ids[i] = r.ClassificationCodeId;
+                else problems.Add($"classificationCodeId {r.ClassificationCodeId} does not exist");
+                continue;
+            }
+            string sysCode = Norm(r.ClassificationSystemCode), code = Norm(r.ClassificationCode);
+            if (sysCode.Length == 0 || code.Length == 0)
+            {
+                problems.Add("a line with no classification (classificationSystemCode + classificationCode, or classificationCodeId)");
+                continue;
+            }
+            if (!byPair.TryGetValue((sysCode.ToUpperInvariant(), code), out var hits))
+                problems.Add($"{sysCode} code '{code}' is not defined");
+            else if (hits.Count > 1)
+                problems.Add($"{sysCode} code '{code}' matches {hits.Count} codes — send classificationCodeId");
+            else
+                ids[i] = hits[0];
+        }
+        return (ids, problems);
     }
 
     // ── BOQ Variations ────────────────────────────────────────────────────
@@ -865,7 +949,11 @@ public record UpsertQuantityLineRequest(
     double? EmbodiedCarbonKg = null,
     int? PayloadSchemaVersion = null,
     // DSCH-44 — "Defined" / "Undefined" / "NotDeclared" on a ProvisionalSum line; null otherwise.
-    string? ProvisionalSumType = null);
+    string? ProvisionalSumType = null,
+    // DSCH-44 follow-up — when ClassificationCodeId is not sent (Guid.Empty), the line is classified
+    // by this pair, resolved within the tenant (e.g. "NRM2" + "14"). Unresolvable = 400.
+    string? ClassificationSystemCode = null,
+    string? ClassificationCode = null);
 
 public record CreateVariationRequest(
     Guid BaselineId,

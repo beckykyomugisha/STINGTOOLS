@@ -29,6 +29,8 @@
     <Compile Include="..\StingTools\BOQ\ProvisionalSumType.cs" Link="ProvisionalSumType.cs" />
     <!-- DSCH-44 - row source vocabulary: labels, sync LineKind, PS / PC bill prefixes. -->
     <Compile Include="..\StingTools\BOQ\BoqRowSource.cs" Link="BoqRowSource.cs" />
+    <!-- DSCH-44 follow-up - how a synced line is classified on the server. -->
+    <Compile Include="..\StingTools\BOQ\Sync\BoqLineClassification.cs" Link="Sync\BoqLineClassification.cs" />
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
     <Compile Include="..\StingTools\BOQ\CarbonQuantity.cs" Link="CarbonQuantity.cs" />

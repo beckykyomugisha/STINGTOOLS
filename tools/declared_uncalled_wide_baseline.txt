@@ -1,7 +1,4 @@
 # D.1 WIDE declared-but-uncalled ceiling (DSCH-40). RATCHET: may fall, never rise.
 # Public static members anywhere in StingTools/ (tuple types, Load*/Build*
 # names included) that nothing calls, outside the narrow Core scope.
-3
-- GetBOQRatesByCategory
-- GetRateCacheStats
-- IsQsAuthored
+0

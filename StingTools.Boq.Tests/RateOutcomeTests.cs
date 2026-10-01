@@ -180,16 +180,10 @@ namespace StingTools.Boq.Tests
             Assert.Contains("declared NIL", m.Provenance);
         }
 
-        [Fact]
-        public void Shipped_Rooms_Resolves_To_A_Declared_Nil()
-        {
-            var lines = System.IO.File.ReadAllLines(
-                System.IO.Path.Combine(System.AppContext.BaseDirectory, "Data", "cost_rates_5d.csv"));
-            var res = CostRateCsv.Parse(lines, CommodityRateResolver.SplitCsvLine);
-            var rates = CostRateCsv.ToTables(res, out var declared);
-            var m = CsvRateLookup.Resolve(rates, "cost_rates_5d.csv", "Rooms", "A", "RM", "", "", declared);
-            Assert.NotNull(m);
-            Assert.Equal(RateOutcome.Nil, m.Outcome);
-        }
+        // The shipped card's Rooms NIL row was removed: Rooms are NOT MEASURED in
+        // STING_DEFAULT_COST_RATES.csv and never reach pricing, so a rate (even a
+        // declared nil) for them would be a second owner of the same decision.
+        // DefaultCostRatesCsvTests.Shipped_Card_Has_No_Row_For_A_Not_Measured_Category
+        // holds the two files together.
     }
 }

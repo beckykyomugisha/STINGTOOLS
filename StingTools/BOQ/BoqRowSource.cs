@@ -53,10 +53,6 @@ namespace StingTools.BOQ
             return BOQRowSource.Model;
         }
 
-        /// <summary>True for QS-authored rows that must never be overwritten by
-        /// a model re-takeoff (everything except Model).</summary>
-        public static bool IsQsAuthored(BOQRowSource s) => s != BOQRowSource.Model;
-
         /// <summary>
         /// DSCH-44 — the QuantityLine.LineKind sent to Planscape Server. PC sums and
         /// dayworks used to go as "Measured", so the server could not tell them from
