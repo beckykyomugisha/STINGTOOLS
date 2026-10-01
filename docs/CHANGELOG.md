@@ -21,6 +21,38 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
   owned keys overwrite, order kept, blank file, unreadable file refused, and a source check that both
   writers use the merge (fails against main's sources). `StingTools.Tags.Tests` all passing; plugin
   build 0 errors / 0 warnings. **Not run in Revit.**
+#### Completed (TAGACC-18 Token Confidence Audit reads the sources the tagger writes, 2026-10-01)
+
+- **The bug.** The Token Confidence Audit (`TokenConfidenceAudit`) classified `ASS_ZONE_SOURCE_TXT`
+  as High only for `Room` / `TYPE_OVERRIDE`. `PopulateAll` also writes `ScopeBox` (a `STING-ZONE::`
+  box) and `Proximity` (copied from the nearest tagged element) for ZONE, and `Proximity` for LOC.
+  All three fell through to **Low**, so a zone drawn as a scope box was reported as a silent default.
+  The "silent BLD1" count tested the literal `BLD1`, which the token policy's fallback need not be.
+- **The fix.** The bands live in `Core/TokenConfidenceBands.cs` (Revit-free) and each carries a
+  reason. `ScopeBox` is High for both tokens; `Proximity` is Medium (inherited, not detected). The
+  silent count is "LOC_SOURCE = Default", whatever value was written. The report lists a tally of
+  reasons, and the CSV now has one row per element with any Medium or Low token, with band and
+  reason per token (columns `*_BAND` / `*_REASON`; the old `Bands` column is gone).
+- **Tests** `TokenConfidenceBandsTests` (26 cases), including one that reads the source strings
+  `ParameterHelpers.cs` writes to `LOC_SOURCE` / `ZONE_SOURCE` and fails if the classifier does not
+  know one. With the ZONE `ScopeBox` case removed, 2 fail; with it, all pass. `StingTools.Tags.Tests`
+  4,625 passing; plugin build 0 errors / 0 warnings. **Not run in Revit.**
+#### Completed (TAGFAM-3: the four specialist tag labels, 2026-10-01)
+
+- **Built in the Revit 2025 Family Editor** on the families Create Tag Fams made (category, size
+  types and `TXT_*` switches already set), following `docs/SPECIALIST_TAG_BUILD_SHEET.md`:
+  `STING - Fire Door Tag` (5 rows), `STING - Accessible Door Tag` (8), `STING - Room Finish Tag`
+  (5), `STING - Fire Compartment Tag` (4). Each label's parameters were added from its
+  `_build\*.params.txt` file. Label type `2.5mm` (Arial 2.5 mm, transparent), **left-aligned**
+  and vertically centred — the user's ISO rule, now written into the sheet.
+- **Drawing types repointed** (DT-2): `arch-fire-strategy-A1-1to100` Doors → Fire Door Tag, Rooms →
+  Fire Compartment Tag; `arch-accessibility-A1-1to100` Doors → Accessible Door Tag;
+  `arch-floor-finishes-A1-1to100` Rooms → Room Finish Tag. Checksums re-stamped with
+  `tools/StampDrawingTypeChecksums` (3 drifted, `--check` clean).
+- **Found while building:** a calculated value cannot be named *Operation* on a door tag (doors
+  have a built-in *Operation*); Accessible Door's row is *Door operation*. Sheet updated.
+- **Not done:** the 3.5 mm label copy and the door box (sheet §Types, §Box). Tests 4,599 passing.
+  Not yet placed on a real drawing.
 
 #### Completed (TAGFAM-2 first Revit run, hub buttons, TAGFAM-4 category decisions, 2026-09-30)
 
