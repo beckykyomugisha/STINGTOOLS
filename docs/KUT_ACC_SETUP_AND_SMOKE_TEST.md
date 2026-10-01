@@ -80,10 +80,10 @@ Select-String -Path "$env:APPDATA\Autodesk\Revit\Addins\*\StingTools.addin" -Pat
   - then the **PLATFORM** tab → **ACC** card.
 - [ ] **2.3** Enter the **Client ID** from step 1.1 → **💾 Save Credentials**.
 - [ ] **2.4** **🔓 Sign in with Autodesk**. A browser opens; sign in as the IM.
-  - Expect: *"Signed in to Autodesk — tokens stored."*
+  - Expect: *"Signed in to Autodesk — tokens stored (encrypted for this Windows user)."*
 - [ ] **2.5** **🔌 Test / Refresh Token**.
-  - Expect: success, and a line saying the sign-in lapses in about **14 days if unused**.
-  - The sign-in renews itself whenever a model is opened with STING.
+  - Expect: *"ACC token refreshed — connected."*. The card's sign-in line then says the sign-in lapses in about **14 days if unused**.
+  - The sign-in renews itself in the background when a model is opened with STING and the sign-in is more than 3 days old.
 
 ---
 
@@ -135,8 +135,9 @@ Select-String -Path "$env:APPDATA\Autodesk\Revit\Addins\*\StingTools.addin" -Pat
   - `uploadUnattended`
   - `unattended`
 - [ ] **3.7 Self-check, second pass.**
-  - Row **6.1** (upload folders) must PASS for every CDE folder.
-  - Row **6.2** (attributes) must PASS. It WARNS if names are 7-field while attributes are off.
+  - Rows **6.1.1–6.1.4** (one per CDE folder) must PASS. Row **6.0** WARNs if a CDE state has no folder.
+  - With `docsAttributes: true`, rows **6.2.1–6.2.4** must PASS. WARN means attributes are missing, so they will not be written.
+  - With `docsAttributes` off, 6.2 shows SKIPPED. It WARNs instead if `fileNamingFields` is 7 while attributes are off.
 
 ---
 
@@ -184,8 +185,8 @@ Invoke-RestMethod -Method Put -Uri "https://planscape-api-free.onrender.com/api/
 Invoke-RestMethod -Method Post -Uri "https://planscape-api-free.onrender.com/api/projects/<Planscape project id>/acc/webhooks/subscribe" -Headers @{Authorization="Bearer $tok"} -ContentType "application/json" -Body '{}'
 ```
 
-  Expect status OK and **5 hooks**: two issue hooks, `review.closed-1.0`, and the file-version
-  hooks on the top folders.
+  Expect status OK and **3 + 2 × (top folders) hooks**, normally **5** (Project Files only):
+  `issue.created-1.0`, `issue.updated-1.0`, `review.closed-1.0`, and `dm.version.added` / `dm.version.modified` on each top folder.
 
 - [ ] **4.6 Nothing waiting on a reconnect.**
 
@@ -211,7 +212,7 @@ serve both this and the browser sign-in.
    - `Acc__Ssa__ServiceAccountId`, `Acc__Ssa__KeyId`
    - `Acc__Ssa__PrivateKeyPem` (the PEM; escaped `\n` is accepted)
 4. Switch the connection to SSA. The other settings are kept, because a PUT now merges:
-   First, find the connection id. It is the `id` of the row whose `platform` is ACC:
+   First, find the connection id. It is the `id` of the row whose `platform` is `0` (ACC):
 
 ```powershell
 Invoke-RestMethod -Uri "https://planscape-api-free.onrender.com/api/projects/<Planscape project id>/platform" -Headers @{Authorization="Bearer $tok"}
@@ -239,17 +240,17 @@ evidence** (file path, screenshot, or log line). A test with no written result d
 
 | # | Do | PASS looks like | If not |
 |---|---|---|---|
-| S1 | **🩺 Self-check** | `READY` / `READY WITH WARNINGS`; rows 6.1 and 6.2 as in 3.7 | Fix the first FAIL |
-| S2 | **⬇ Pull Clashes** on the KUT model set; accept *remember this model set* | A clash count above zero; a top-10 list with real document names on both sides; a CSV whose row count matches | "NOTHING WAS CHECKED …" → read the named failure. "a clash test has not completed" → wait for ACC |
-| S3 | Escalate **one** clash (answer the push offer with 1) | 1 created. **Open ACC Issues in the browser and see it**, under the clash type, with a viewer link and a BCF attachment | An issue-type rejection → pin `issueTypeId` / `issueSubtypeId` |
-| S4 | **🔁 Sync Issue Status** | "… reconciled …". Close the S3 issue in ACC and run again: it is un-tracked, or held as *closed in ACC, still clashing* if the clash still exists | Any failure leaves the record untouched; run again |
-| S5 | Snapshot `_data\coord`, then **📥 Import Issues** | ACC issues appear in STING; the S3 issue is **linked, not duplicated**; a second run creates nothing new | "refused: issues.json unreadable" → restore the snapshot |
-| S6 | **⬆ Upload to ACC** with a small test PDF named to the KUT standard, revision P01, suitability S2 | A new item in the SHARED folder. With attributes on, its Suitability / Revision attributes are filled. Upload it again: *"not uploaded again"* | 403 on storage → sign in again (2.4). A naming rejection → fix the name |
-| S7 | **Export with *Upload to ACC*** (Export Centre profile used by the fortnightly job) on one sheet | The PDF lands in the CDE folder of its suitability. The file name carries suitability + revision unless `docsAttributes` is true | — |
-| S8 | **SETUP** tab → **QUICK WORKFLOWS** → *KUT fortnightly issue (8 steps)* → **Run preset**, on a **copy** of the model with one clouded change | Steps 1–5 PASS; step 6 builds the bundle; step 7 uploads only *this* run's bundle; the run log is written | Step 1 fails → a sheet's revision stamp disagrees (the report names it). Step 2 "no sheet carries a cloud" → add the cloud |
-| S9 | Start or approve a review in ACC on the S6 file, then **📋 Read Reviews** → **✅ Review Decisions** → accept | A proposal for the S6 file; accepting it sets the register's suitability (e.g. A1). If a target refuses, the proposal stays **pending** and the next Accept applies only the rest | "NOT applied … revision" → the register row is at another revision |
+| S1 | **🩺 Self-check** | `READY` / `READY WITH WARNINGS`; rows 6.1.x and 6.2.x as in 3.7 | Fix the first FAIL |
+| S2 | **⬇ Pull Clashes** on the KUT model set; accept *remember this model set* | A clash count above zero; a top-10 list with real document names on both sides; a CSV whose row count matches | "NOTHING WAS CHECKED …" → read the named failure. *"no clash test on this model set has completed yet"* → wait for ACC |
+| S3 | **Before S2**, set `"escalateMaxCount": 1, "escalateMinScore": 0` in `acc_settings.json`. In the Pull Clashes dialog click **Push 1 clash(es) to ACC Issues** | 1 created. **Open ACC Issues in the browser and see it**, under the clash type, with a viewer link and a BCF attachment | An issue-type rejection → pin `issueTypeId` / `issueSubtypeId` |
+| S4 | **🔁 Sync Issue Status** | A summary *"… escalated clash(es) resolved in ACC"* with **Resolved / Closed in ACC, STILL CLASHING / Still open** counts. Close the S3 issue in ACC and run again: it is counted under *Closed in ACC, STILL CLASHING* while the clash exists, and becomes *Resolved* only after a Pull Clashes no longer reports it | Any failure leaves the record untouched; run again |
+| S5 | Snapshot `_data\coord`, then **📥 Import Issues** | ACC issues appear in STING; the S3 issue is **linked, not duplicated**; a second run creates nothing new | *"issues.json exists but could not be read, so nothing was imported"* → restore the snapshot |
+| S6 | **⬆ Upload to ACC** with a PDF **exported from a sheet**, so the document register holds its suitability and revision (e.g. S2 / P01). Name: the 7-field ISO name when `docsAttributes` is true, or a name ending `-S2-P01` when it is not | A new item in the SHARED folder. With attributes on, its Suitability / Revision attributes are filled. Upload it again: *"not uploaded again"* | 403 on storage → sign in again (2.4). *"ends in suitability and revision"* → the name must be 7-field (attributes on). A loose file with no register row asks for a CDE state (SHARED defaults to S3) |
+| S7 | Export one sheet with **Upload each exported sheet file to ACC after export** ticked on the Export Centre profile the fortnightly job uses | The PDF lands in the CDE folder of its suitability. The file name carries suitability + revision unless `docsAttributes` is true | — |
+| S8 | Precondition: a scheduled Export Centre job (profile with the ACC upload ticked) is **due** on a **copy** of the model with one clouded change. Then **SETUP** tab → **QUICK WORKFLOWS** → *KUT fortnightly issue (8 steps)* → **Run preset** | Steps 1–5 PASS (step 5 runs only *due* jobs and fails when nothing is exported); step 6 builds the bundle; step 7 uploads only *this* run's bundle; step 8 asks for the MIDP CSV (optional) | Step 1 fails → a sheet's revision stamp disagrees (the report names it). Step 2 *"no sheet carries a cloud"* → add the cloud. Step 5 fails → no job was due |
+| S9 | Run a review in ACC on the S6 file **through to approval (review closed)**, then **📋 Read Reviews** → **✅ Review Decisions** → Accept | A proposal for the S6 file; accepting it sets the register's suitability (e.g. A1). If a target refuses, it stays **pending** and the next Accept applies only the rest | *"review still open"* → close the review in ACC first. *"NOT applied … revision"* → the register row is at another revision |
 | S10 | **📨 Read Transmittals** | ACC transmittals appear as read-only rows; a second run reports them as unchanged | A save failure now fails the command with the reason |
-| S11 | *(server)* Close a review in ACC | The server log shows `Autodesk webhook review.closed-1.0: ACC review …` within a minute | No log line → check 4.5 (5 hooks) and that the webhook secret was set **before** the hooks |
+| S11 | *(server)* Close a review in ACC | The server log shows `Autodesk webhook review.closed-1.0: ACC review …` within a minute | No log line → check 4.5 (the review hook is listed) and that the webhook secret was set **before** the hooks |
 | S12 | *(server)* `POST …/acc/sync` | Status OK; issues raised **and** closed in Planscape since the first sync are reported once, not sent (the default) | RECONNECT_REQUIRED → 4.3 |
 | S13 | *(SSA only)* 4.7 step 5, then S12 | Success with no refresh token stored; an issue created by the sync shows the robot as its creator | The error names the `Acc:Ssa:*` setting |
 
