@@ -3413,6 +3413,20 @@ namespace StingTools.UI
                     "STING — Drawing Types", MessageBoxButton.OK);
                 return false;
             }
+            // DTW-187: never write over an override that failed to load — the
+            // editor is showing the corporate catalogue only, and saving would
+            // replace every project type and rule with it.
+            var overrideError = DrawingTypeRegistry.ProjectOverrideLoadError(_doc);
+            if (overrideError != null)
+            {
+                System.Windows.MessageBox.Show(
+                    "Nothing was saved.\n\nThis project's drawing_types.json could not be read:\n"
+                    + overrideError + "\n\nSaving now would overwrite it with only what the editor shows, losing every "
+                    + "project drawing type and routing rule in it. Repair or move the file, run Drawing Types → Reload, "
+                    + "and reopen the editor.",
+                    "STING — Drawing Types", MessageBoxButton.OK);
+                return false;
+            }
             try
             {
                 var dir = StingPaths.Meta(_doc, "_BIM_COORD");
@@ -3453,7 +3467,7 @@ namespace StingTools.UI
                     DrawingTypes = projectTypes,
                     Routing = projectRouting,
                 };
-                File.WriteAllText(typesPath, JsonConvert.SerializeObject(lib, Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(typesPath, JsonConvert.SerializeObject(lib, Formatting.Indented));
 
                 // ── Style packs ────────────────────────────────────────────
                 int packCount = SaveStylePacksToProjectOverride(dir, out string packsPath, out string packError);
@@ -3527,7 +3541,7 @@ namespace StingTools.UI
                     .ToList();
 
                 var doc = new ViewStylePackDoc { StylePacks = projectPacks, Extra = _packDocExtra };
-                File.WriteAllText(path, JsonConvert.SerializeObject(doc, Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(path, JsonConvert.SerializeObject(doc, Formatting.Indented));
                 return projectPacks.Count;
             }
             catch (Exception ex)

@@ -54,7 +54,7 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
                 var json = JsonConvert.SerializeObject(presets ?? new List<DrawingProductionPreset>(), Formatting.Indented);
-                File.WriteAllText(path, json);
+                OutputLocationHelper.WriteAllTextAtomic(path, json);
             }
             catch (Exception ex)
             {

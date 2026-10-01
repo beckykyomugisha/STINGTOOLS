@@ -249,6 +249,26 @@ namespace StingTools.Core.Drawing
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)
             => GetLibrary(doc).Routing;
 
+        // DTW-187: a project override that exists but cannot be read used to
+        // load as "no override" with only a log line. The editor then opened on
+        // the corporate catalogue, and its next Save overwrote the unreadable
+        // project file with that — every project type and rule gone. Writers
+        // ask this before saving and refuse while it is non-null.
+        private static readonly Dictionary<string, string> _overrideLoadErrors
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Why the project's drawing-type override could not be loaded, or null
+        /// when it loaded (or there is none). Anything that WRITES the override
+        /// must refuse while this is non-null, or it replaces data it never saw.
+        /// </summary>
+        public static string ProjectOverrideLoadError(Document doc)
+        {
+            GetLibrary(doc); // make sure the load has been attempted
+            lock (_lock)
+                return _overrideLoadErrors.TryGetValue(DocKey(doc), out var e) ? e : null;
+        }
+
         /// <summary>
         /// Convenience method: look up a <see cref="ViewStylePack"/> by id via
         /// <see cref="ViewStylePackRegistry"/>.  Returns null when the pack is not
@@ -263,6 +283,7 @@ namespace StingTools.Core.Drawing
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
                 if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
+                _overrideLoadErrors.Remove(key);
             }
             // DTW-2 / DTW-8: the presentation caches (view-template ids,
             // including negative "no such template" entries, and resolved packs)
@@ -407,6 +428,8 @@ namespace StingTools.Core.Drawing
 
                 var json = origin == DrawingOverrideOrigin.File ? File.ReadAllText(path) : es.OverridesJson;
                 var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(json);
+                if (lib == null && !string.IsNullOrWhiteSpace(json))
+                    throw new InvalidDataException("the override deserialised to nothing");
                 if (lib != null)
                 {
                     foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
@@ -421,6 +444,7 @@ namespace StingTools.Core.Drawing
             {
                 StingTools.Core.StingLog.Warn(
                     $"DrawingTypeRegistry: project override load failed — {ex.Message}");
+                lock (_lock) _overrideLoadErrors[DocKey(doc)] = ex.Message;
                 return null;
             }
         }

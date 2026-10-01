@@ -1387,8 +1387,8 @@ namespace StingTools.BIMManager
             var dtPath   = Path.Combine(outputDir, "drawing_types.json");
             var packPath = Path.Combine(outputDir, "view_style_packs.json");
             var settings = new JsonSerializerSettings { Formatting = Formatting.Indented, NullValueHandling = NullValueHandling.Ignore };
-            File.WriteAllText(dtPath,   JsonConvert.SerializeObject(projectDt,    settings));
-            File.WriteAllText(packPath, JsonConvert.SerializeObject(projectPacks, settings));
+            OutputLocationHelper.WriteAllTextAtomic(dtPath,   JsonConvert.SerializeObject(projectDt,    settings));
+            OutputLocationHelper.WriteAllTextAtomic(packPath, JsonConvert.SerializeObject(projectPacks, settings));
             StingLog.Info($"DrawingTypeExcel: wrote {dtPath}");
             StingLog.Info($"DrawingTypeExcel: wrote {packPath}");
 
@@ -1416,17 +1416,32 @@ namespace StingTools.BIMManager
         }
 
         public static StylePackDoc LoadStylePackDocFromProject(Document doc)
+            => LoadStylePackDocFromProject(doc, out _);
+
+        /// <summary>
+        /// The project's view_style_packs.json, or null when there is none.
+        /// DTW-187: <paramref name="error"/> is set when the file EXISTS but
+        /// cannot be read — the caller must not write the file in that case,
+        /// or it replaces packs it never saw.
+        /// </summary>
+        public static StylePackDoc LoadStylePackDocFromProject(Document doc, out string error)
         {
+            error = null;
             try
             {
                 if (doc == null || string.IsNullOrEmpty(doc.PathName)) return null;
                 var path = StingPaths.MetaFile(doc, "_BIM_COORD", "view_style_packs.json");
                 if (!File.Exists(path)) return null;
-                return JsonConvert.DeserializeObject<StylePackDoc>(File.ReadAllText(path));
+                var json = File.ReadAllText(path);
+                var parsed = JsonConvert.DeserializeObject<StylePackDoc>(json);
+                if (parsed == null && !string.IsNullOrWhiteSpace(json))
+                    error = "view_style_packs.json deserialised to nothing";
+                return parsed;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"DrawingTypeExcel: project style pack load failed — {ex.Message}");
+                error = ex.Message;
                 return null;
             }
         }
@@ -1554,8 +1569,22 @@ namespace StingTools.BIMManager
 
                 using var wb = new XLWorkbook(path);
 
+                // DTW-187: an override that exists but cannot be read must not
+                // be overwritten by an import that never saw its contents.
+                var dtError = DrawingTypeRegistry.ProjectOverrideLoadError(doc);
+                var projPacks = DrawingTypeExcelEngine.LoadStylePackDocFromProject(doc, out var packError);
+                if (dtError != null || packError != null)
+                {
+                    TaskDialog.Show("STING — Drawing Types Excel Import",
+                        "Nothing was imported.\n\nThe project's existing override could not be read:\n"
+                        + (dtError != null ? "• drawing_types.json: " + dtError + "\n" : "")
+                        + (packError != null ? "• view_style_packs.json: " + packError + "\n" : "")
+                        + "\nImporting would overwrite it with only what the workbook holds. Repair or move the file, "
+                        + "run Drawing Types → Reload, and import again.");
+                    return Result.Cancelled;
+                }
+
                 var corpPacks = DrawingTypeExcelEngine.LoadStylePackDocFromCorporate();
-                var projPacks = DrawingTypeExcelEngine.LoadStylePackDocFromProject(doc);
                 var existingPacks = DrawingTypeExcelEngine.MergeStylePacks(corpPacks, projPacks);
                 var existingDt = DrawingTypeRegistry.GetLibrary(doc) ?? new DrawingTypeLibrary();
 

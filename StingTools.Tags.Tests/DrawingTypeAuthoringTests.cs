@@ -131,5 +131,30 @@ namespace StingTools.Tags.Tests
             var src = DrawingCatalogueFixture.Source("Core", "Drawing", "DrawingTypeRegistry.cs");
             Assert.Contains("DrawingOverrideSource.Choose(", src);
         }
+
+        // ── DTW-187 ───────────────────────────────────────────────────────
+
+        [Theory]
+        [InlineData("UI/DrawingTypeEditorDialog.cs")]
+        [InlineData("BIMManager/DrawingTypeExcelCommands.cs")]
+        [InlineData("Core/Drawing/ProductionPresetRegistry.cs")]
+        [InlineData("Core/Drawing/ScopeBoxPlannerService.cs")]
+        public void Override_writers_are_atomic(string relPath)
+        {
+            var src = DrawingCatalogueFixture.Source(relPath.Split('/'));
+            Assert.DoesNotContain("File.WriteAllText(", src);
+            Assert.Contains("WriteAllTextAtomic(", src);
+        }
+
+        [Fact]
+        public void Writers_refuse_while_the_override_failed_to_load()
+        {
+            Assert.Contains("public static string ProjectOverrideLoadError(",
+                DrawingCatalogueFixture.Source("Core", "Drawing", "DrawingTypeRegistry.cs"));
+            Assert.Contains("DrawingTypeRegistry.ProjectOverrideLoadError(_doc)",
+                DrawingCatalogueFixture.Source("UI", "DrawingTypeEditorDialog.cs"));
+            Assert.Contains("DrawingTypeRegistry.ProjectOverrideLoadError(doc)",
+                DrawingCatalogueFixture.Source("BIMManager", "DrawingTypeExcelCommands.cs"));
+        }
     }
 }
