@@ -251,7 +251,7 @@ public class BoqController : ControllerBase
             {
                 l.Id, l.SectionCode, l.ItemDescription, l.IfcGlobalId, l.IfcType,
                 l.Level, l.Zone, l.Unit, l.NetQuantity, l.WastePercent, l.Quantity,
-                l.UnitRate, l.LineTotal, l.Currency, l.LineKind, l.PricingBasis,
+                l.UnitRate, l.LineTotal, l.Currency, l.LineKind, l.ProvisionalSumType, l.PricingBasis,
                 l.EmbodiedCarbonPerUnit, l.EmbodiedCarbonTotal,
                 ClassificationCodeId = l.ClassificationCodeId,
                 WorkPackageId        = l.WorkPackageId,
@@ -276,6 +276,15 @@ public class BoqController : ControllerBase
         var invalid = req.Where(r => r.NetQuantity < 0 || r.WastePercent < 0 || r.WastePercent > 100).ToList();
         if (invalid.Count > 0)
             return BadRequest($"{invalid.Count} line(s) have invalid NetQuantity or WastePercent.");
+
+        // DSCH-44 — a provisional-sum type is one of three exact tokens, and only on a
+        // provisional sum. Refused rather than stored, so a typo cannot read as a type.
+        var badPsType = req.Where(r => r.ProvisionalSumType != null
+            && (!ProvisionalSumTypes.Contains(r.ProvisionalSumType)
+                || !string.Equals(r.LineKind, "ProvisionalSum", StringComparison.Ordinal))).ToList();
+        if (badPsType.Count > 0)
+            return BadRequest($"{badPsType.Count} line(s) carry a ProvisionalSumType that is not Defined / Undefined / " +
+                              "NotDeclared, or is on a line that is not a ProvisionalSum.");
 
         // True upsert: if a line with the same IfcGlobalId already exists on this baseline, update it.
         var incomingGlobalIds = req
@@ -332,6 +341,13 @@ public class BoqController : ControllerBase
                 existing.Zone                 = r.Zone ?? existing.Zone;
                 existing.SectionCode          = r.SectionCode ?? existing.SectionCode;
                 existing.ItemDescription      = r.ItemDescription ?? existing.ItemDescription;
+                // DSCH-44 — the kind and the PS type travel together: a line that stops
+                // being a provisional sum loses its type.
+                if (r.LineKind != null)
+                {
+                    existing.LineKind           = r.LineKind;
+                    existing.ProvisionalSumType = r.ProvisionalSumType;
+                }
                 existing.EmbodiedCarbonPerUnit = carbonPerUnit ?? existing.EmbodiedCarbonPerUnit;
                 existing.EmbodiedCarbonTotal  = carbonTotal ?? (existing.EmbodiedCarbonPerUnit.HasValue
                     ? existing.EmbodiedCarbonPerUnit * existing.NetQuantity : null);
@@ -364,6 +380,7 @@ public class BoqController : ControllerBase
                     LineTotal            = lineTotal,
                     Currency             = r.Currency ?? "UGX",
                     LineKind             = r.LineKind ?? "Measured",
+                    ProvisionalSumType   = r.ProvisionalSumType,
                     PricingBasis         = r.PricingBasis ?? "Remeasure",
                     EmbodiedCarbonPerUnit = carbonPerUnit,
                     EmbodiedCarbonTotal  = carbonTotal,
@@ -846,7 +863,9 @@ public record UpsertQuantityLineRequest(
     bool? QuantityIsFinal = null,
     double? MeasuredWastePercent = null,
     double? EmbodiedCarbonKg = null,
-    int? PayloadSchemaVersion = null);
+    int? PayloadSchemaVersion = null,
+    // DSCH-44 — "Defined" / "Undefined" / "NotDeclared" on a ProvisionalSum line; null otherwise.
+    string? ProvisionalSumType = null);
 
 public record CreateVariationRequest(
     Guid BaselineId,

@@ -129,6 +129,9 @@ namespace StingTools.BOQ.Sync
                                 rate = Round(i.RateUGX, 2),
                                 source = i.RateSource ?? "",
                                 src = (int)i.Source,
+                                // DSCH-44 — a Defined <-> Undefined change is a change to
+                                // the bill. Null (omitted) on non-PS rows, so their hash is unchanged.
+                                psType = i.Source == BOQRowSource.ProvisionalSum ? (int?)i.PsType : null,
                                 uid = i.UniqueId ?? "",
                                 lvl = i.Level ?? "",
                                 loc = i.Location ?? "",

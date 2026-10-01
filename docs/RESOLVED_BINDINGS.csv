@@ -2328,6 +2328,7 @@ PV_SYSTEM_TYPE_TXT,4,meta-universal,<ALL>,Pv System Type Txt [STING]
 Pset_StingCost.Currency,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> Currency [Phase 184k / P8]
 Pset_StingCost.NRM2Section,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> NRM2Section [Phase 184k / P8]
 Pset_StingCost.ProvisionalSum,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> ProvisionalSum [Phase 184k / P8]
+Pset_StingCost.ProvisionalSumType,2,interop-universal,<ALL>,"STING IFC4 cost-data property set -> ProvisionalSumType: Defined / Undefined / NotDeclared on provisional sums (NRM2 2.9.1), blank otherwise [DSCH-44]"
 Pset_StingCost.RateSource,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> RateSource [Phase 184k / P8]
 Pset_StingCost.TotalCost,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> TotalCost [Phase 184k / P8]
 Pset_StingCost.UnitRate,2,interop-universal,<ALL>,STING IFC4 cost-data property set -> UnitRate [Phase 184k / P8]

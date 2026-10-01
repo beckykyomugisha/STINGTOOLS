@@ -2326,6 +2326,7 @@ PV_SYSTEM_TYPE_TXT,System Type,TEXT,Instance,<ALL>,ELC_PWR,5fc11222-86d7-5064-a3
 Pset_StingCost.Currency,Stingcost.currency,TEXT,Instance,<ALL>,CST_PROC,a768f8a1-7609-5d07-54e6-73b78d3cae54,STING IFC4 cost-data property set -> Currency [Phase 184k / P8]
 Pset_StingCost.NRM2Section,Stingcost.nrm2section,TEXT,Instance,<ALL>,CST_PROC,6160717f-4a9f-5991-247a-ef111e10f201,STING IFC4 cost-data property set -> NRM2Section [Phase 184k / P8]
 Pset_StingCost.ProvisionalSum,Stingcost.provisionalsum,YESNO,Instance,<ALL>,CST_PROC,a2384fa5-ffad-538e-bb92-9e4b30821ee4,STING IFC4 cost-data property set -> ProvisionalSum [Phase 184k / P8]
+Pset_StingCost.ProvisionalSumType,Stingcost.provisionalsumtype,TEXT,Instance,<ALL>,CST_PROC,1c113b05-c48e-5c70-8005-3589a36cb3dd,"STING IFC4 cost-data property set -> ProvisionalSumType: Defined / Undefined / NotDeclared on provisional sums (NRM2 2.9.1), blank otherwise [DSCH-44]"
 Pset_StingCost.RateSource,Stingcost.ratesource,TEXT,Instance,<ALL>,CST_PROC,e8223222-58c4-5f3a-0dd5-4f8fe77271ce,STING IFC4 cost-data property set -> RateSource [Phase 184k / P8]
 Pset_StingCost.TotalCost,Stingcost.totalcost,NUMBER,Instance,<ALL>,CST_PROC,f787a2bc-04cf-5f98-e322-418604468d23,STING IFC4 cost-data property set -> TotalCost [Phase 184k / P8]
 Pset_StingCost.UnitRate,Stingcost.unitrate,NUMBER,Instance,<ALL>,CST_PROC,46d1c660-c578-5808-6050-d8fdb88c9b6d,STING IFC4 cost-data property set -> UnitRate [Phase 184k / P8]

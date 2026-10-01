@@ -3572,6 +3572,7 @@ PARAM	46d1c660-c578-5808-6050-d8fdb88c9b6d	Pset_StingCost.UnitRate	NUMBER		2	1	S
 PARAM	a768f8a1-7609-5d07-54e6-73b78d3cae54	Pset_StingCost.Currency	TEXT		2	1	STING IFC4 cost-data property set -> Currency [Phase 184k / P8]	1
 PARAM	f787a2bc-04cf-5f98-e322-418604468d23	Pset_StingCost.TotalCost	NUMBER		2	1	STING IFC4 cost-data property set -> TotalCost [Phase 184k / P8]	1
 PARAM	a2384fa5-ffad-538e-bb92-9e4b30821ee4	Pset_StingCost.ProvisionalSum	YESNO		2	1	STING IFC4 cost-data property set -> ProvisionalSum [Phase 184k / P8]	1
+PARAM	1c113b05-c48e-5c70-8005-3589a36cb3dd	Pset_StingCost.ProvisionalSumType	TEXT		2	1	STING IFC4 cost-data property set -> ProvisionalSumType: Defined / Undefined / NotDeclared on provisional sums (NRM2 2.9.1), blank otherwise [DSCH-44]	1
 PARAM	e8223222-58c4-5f3a-0dd5-4f8fe77271ce	Pset_StingCost.RateSource	TEXT		2	1	STING IFC4 cost-data property set -> RateSource [Phase 184k / P8]	1
 PARAM	6160717f-4a9f-5991-247a-ef111e10f201	Pset_StingCost.NRM2Section	TEXT		2	1	STING IFC4 cost-data property set -> NRM2Section [Phase 184k / P8]	1
 PARAM	b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d50	ASS_PMT_PCT_COMPLETE_NR	NUMBER		2	1	Per-element percent complete (0-100) driving payment certificate valuation [Phase 184g / P5]	1

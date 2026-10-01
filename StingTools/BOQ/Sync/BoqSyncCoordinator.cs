@@ -249,7 +249,11 @@ namespace StingTools.BOQ.Sync
                 deductionQuantity = Math.Round(item.DeductionQuantity, 6),
                 unitRate = Math.Round(item.RateUGX, 2),
                 currency = "UGX",
-                lineKind = MapSourceToLineKind(item.Source),
+                lineKind = BoqSourceUtil.SyncLineKind(item.Source),
+                // DSCH-44 — NRM2 2.9.1 Defined / Undefined / NotDeclared, on provisional
+                // sums only (null otherwise, so the server stores nothing for them).
+                provisionalSumType = item.Source == BOQRowSource.ProvisionalSum
+                    ? ProvisionalSumTypes.WireToken(item.PsType) : null,
                 pricingBasis = "Remeasure",
                 // Carbon: ship the authoritative engine TOTAL (`embodiedCarbonKg`)
                 // AND a per-unit value derived from it against the FINAL quantity,
@@ -279,17 +283,6 @@ namespace StingTools.BOQ.Sync
             double basis = WastePreBase(item);
             if (basis <= 0 || item.WastageQuantity == 0) return 0;
             return item.WastageQuantity / basis * 100.0;
-        }
-
-        private static string MapSourceToLineKind(BOQRowSource source)
-        {
-            switch (source)
-            {
-                case BOQRowSource.ProvisionalSum: return "ProvisionalSum";
-                case BOQRowSource.Manual: return "Manual";
-                case BOQRowSource.Model:
-                default: return "Measured";
-            }
         }
     }
 }

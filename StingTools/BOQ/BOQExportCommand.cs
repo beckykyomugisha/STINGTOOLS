@@ -47,6 +47,7 @@ namespace StingTools.BOQ
         private static readonly XLColor EleDisc = XLColor.FromArgb(252, 235, 235);
         private static readonly XLColor PlmDisc = XLColor.FromArgb(225, 245, 238);
         private static readonly XLColor PsDisc  = XLColor.FromArgb(237, 231, 246);
+        private static readonly XLColor PcSumRow = XLColor.FromArgb(245, 240, 230);   // DSCH-44 — the panel's PC colour
         private static readonly XLColor ManualRow = BoqXlsxStyle.ManualRow;
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -175,6 +176,9 @@ namespace StingTools.BOQ
                     // NOT "Material Schedule" — see BuildMaterialScheduleSheet.
                     BuildMaterialScheduleSheet(wb.Worksheets.Add("Measured by Material"), boq);
                     BuildProvisionalSumsSheet(wb.Worksheets.Add("Provisional Sums"), boq);
+                    // DSCH-44 — PC sums are not provisional sums; they get their own sheet.
+                    if (boq.AllItems.Any(i => i.Source == BOQRowSource.PCSum))
+                        BuildPcSumsSheet(wb.Worksheets.Add("PC Sums"), boq);
                     // G3 — itemised preliminaries get their own section when active.
                     if (boq.PrelimsItemised && boq.PrelimLines != null && boq.PrelimLines.Count > 0)
                         BuildPreliminariesScheduleSheet(wb.Worksheets.Add("Preliminaries"), boq);
@@ -514,7 +518,7 @@ namespace StingTools.BOQ
 
         private void BuildProvisionalSumsSheet(IXLWorksheet ws, BOQDocument boq)
         {
-            BannerRow(ws, "Provisional Sums — open PCs awaiting instruction");
+            BannerRow(ws, "Provisional Sums — awaiting instruction (PC sums are on their own sheet)");
             // DSCH-35 — "Type" is the NRM2 2.9.1 declaration: Defined / Undefined / NOT DECLARED.
             string[] cols = { "PS Ref", "NRM2 §", "Category", "Description", "Type", "Unit", "Quantity",
                 "Rate UGX", "Rate USD", "Total UGX", "Status", "Note" };
@@ -559,6 +563,42 @@ namespace StingTools.BOQ
                     noteRow++;
                 }
             }
+            ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
+            ws.SheetView.FreezeRows(3);
+        }
+
+        /// <summary>
+        /// DSCH-44 — prime cost sums: priced allowances for goods from a named
+        /// supplier or register (e.g. the Fohlio FF&amp;E "pcSum" treatment). Listed
+        /// apart from provisional sums; no Defined / Undefined declaration applies.
+        /// </summary>
+        private void BuildPcSumsSheet(IXLWorksheet ws, BOQDocument boq)
+        {
+            BannerRow(ws, "Prime Cost (PC) Sums — named-supplier allowances");
+            string[] cols = { "PC Ref", "NRM2 §", "Category", "Description", "Unit", "Quantity",
+                "Rate UGX", "Rate USD", "Total UGX", "Note" };
+            WriteHeader(ws, 3, cols);
+            int row = 4;
+            var pcRows = boq.AllItems.Where(i => i.Source == BOQRowSource.PCSum).ToList();
+            foreach (var it in pcRows)
+            {
+                ws.Cell(row, 1).Value = it.BOQLineRef;
+                ws.Cell(row, 2).Value = it.NRM2Section;
+                ws.Cell(row, 3).Value = it.Category;
+                ws.Cell(row, 4).Value = BoqSourceUtil.BillPrefix(it.Source, it.PsType)
+                    + (string.IsNullOrEmpty(it.ResolvedNRM2Paragraph) ? it.ItemName : it.ResolvedNRM2Paragraph);
+                ws.Cell(row, 4).Style.Alignment.WrapText = true;
+                ws.Cell(row, 5).Value = it.Unit;
+                ws.Cell(row, 6).Value = it.Quantity;
+                ws.Cell(row, 7).Value = it.RateUGX;
+                ws.Cell(row, 8).Value = it.RateUSD;
+                ws.Cell(row, 9).Value = it.TotalUGX;
+                ws.Cell(row, 10).Value = it.Note;
+                row++;
+            }
+            ws.Cell(row + 1, 8).Value = "PC total";
+            ws.Cell(row + 1, 9).FormulaA1 = $"SUM(I4:I{row - 1})";
+            ws.Range(row + 1, 8, row + 1, 9).Style.Font.SetBold();
             ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
             ws.SheetView.FreezeRows(3);
         }
@@ -824,19 +864,13 @@ namespace StingTools.BOQ
             {
                 case BOQRowSource.Manual: return ManualRow;
                 case BOQRowSource.ProvisionalSum: return PsDisc;
+                case BOQRowSource.PCSum: return PcSumRow;
                 default: return XLColor.White;
             }
         }
 
-        private string SourceLabel(BOQRowSource s) => s switch
-        {
-            BOQRowSource.Model => "Model",
-            BOQRowSource.Manual => "Manual",
-            BOQRowSource.ProvisionalSum => "Provisional Sum",
-            BOQRowSource.Dayworks => "Dayworks",
-            BOQRowSource.PCSum => "PC Sum",
-            _ => ""
-        };
+        // One spelling per source (BoqSourceUtil) — the import parser reads it back.
+        private string SourceLabel(BOQRowSource s) => BoqSourceUtil.Label(s);
 
         private string JoinLevelLocation(BOQLineItem it)
         {

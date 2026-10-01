@@ -1003,7 +1003,8 @@ namespace StingTools.BOQ
             }
             else if (ffeTreatment == StingTools.BOQ.FfeTreatment.PcSum)
             {
-                line.Source = BOQRowSource.ProvisionalSum;
+                // DSCH-44 — a prime cost sum, not a provisional sum.
+                line.Source = StingTools.BOQ.FfeTreatment.RowSource(ffeTreatment);
                 string pcNote = "PC sum — Fohlio FF&E register" +
                     (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
                 line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
@@ -1031,7 +1032,7 @@ namespace StingTools.BOQ
             if (isPS) line.Source = BOQRowSource.ProvisionalSum;
 
             // DSCH-35 — defined / undefined (NRM2 2.9.1) from CST_PS_TYPE_TXT. Read on every
-            // PS line, including the Fohlio PC-sum route above. Blank stays Undeclared (flagged
+            // PS line (a Fohlio PC sum is not one — DSCH-44). Blank stays Undeclared (flagged
             // by the health check, never defaulted); unreadable text stays Undeclared and says so.
             if (line.Source == BOQRowSource.ProvisionalSum)
             {

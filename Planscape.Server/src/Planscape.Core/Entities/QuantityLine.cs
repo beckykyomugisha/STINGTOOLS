@@ -81,8 +81,19 @@ public class QuantityLine : ITenantScoped
     public decimal? LineTotal { get; set; }
     public string Currency { get; set; } = "GBP";
 
-    /// <summary>"Measured" / "ProvSum" / "PcSum" / "Daywork" / "Prelim" / "Variation".</summary>
+    /// <summary>
+    /// What kind of bill line this is. The StingTools plugin sends "Measured" /
+    /// "Manual" / "ProvisionalSum" / "PcSum" / "Daywork" (BoqSourceUtil.SyncLineKind);
+    /// IFC ingest writes "Measured". "Prelim" / "Variation" are reserved.
+    /// </summary>
     public string LineKind { get; set; } = "Measured";
+
+    /// <summary>
+    /// DSCH-44 — for a provisional sum, its NRM2 2.9.1 type: "Defined" / "Undefined" /
+    /// "NotDeclared". Null on every other line. Defined means the contractor is deemed
+    /// to have allowed for programming, planning and preliminaries; Undefined means not.
+    /// </summary>
+    public string? ProvisionalSumType { get; set; }
 
     /// <summary>
     /// "Lump" / "Remeasure" — under JCT remeasurable contracts the
@@ -114,4 +125,20 @@ public class QuantityLine : ITenantScoped
     public BoqBaseline? Baseline { get; set; }
     public WorkPackage? WorkPackage { get; set; }
     public ProjectModel? ProjectModel { get; set; }
+}
+
+/// <summary>
+/// DSCH-44 — the three values <see cref="QuantityLine.ProvisionalSumType"/> may hold
+/// (NRM2 2.9.1). Matched exactly: a near-miss is refused, never stored.
+/// </summary>
+public static class ProvisionalSumTypes
+{
+    public const string Defined = "Defined";
+    public const string Undefined = "Undefined";
+    public const string NotDeclared = "NotDeclared";
+
+    public static readonly IReadOnlyList<string> All = new[] { Defined, Undefined, NotDeclared };
+
+    public static bool Contains(string? value)
+        => value != null && All.Contains(value, StringComparer.Ordinal);
 }

@@ -25959,6 +25959,14 @@
       "data_type": "YesNo"
     },
     {
+      "param_name": "Pset_StingCost.ProvisionalSumType",
+      "guid": "1c113b05-c48e-5c70-8005-3589a36cb3dd",
+      "description": "STING cost property set ProvisionalSumType: Defined / Undefined / NotDeclared on provisional sums (NRM2 2.9.1) [DSCH-44]",
+      "binding": "universal",
+      "required": false,
+      "data_type": "Text"
+    },
+    {
       "param_name": "Pset_StingCost.RateSource",
       "guid": "e8223222-58c4-5f3a-0dd5-4f8fe77271ce",
       "description": "STING cost property set RateSource [Phase 184k / P8]",
