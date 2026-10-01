@@ -735,13 +735,6 @@
     },
     {
       "pset_name": "AC_Pset_ElementID",
-      "property_name": "elementGUID",
-      "sting_param": "AC_ELEMENT_GUID_TXT",
-      "element_types": [],
-      "notes": "Gap 12: ArchiCAD element GUID (AC_Pset_ElementID.elementGUID) — used by WriteGlobalIdRegistryAsync for cross-tool identity mapping; distinct from IFC GlobalId"
-    },
-    {
-      "pset_name": "AC_Pset_ElementID",
       "property_name": "ID",
       "sting_param": "AC_ELEMENT_ID_TXT",
       "element_types": [],
@@ -841,7 +834,7 @@
     {
       "pset_name": "ArchiCAD_PropertyGroup_Classification",
       "property_name": "Uniclass 2015 Pr",
-      "sting_param": "ASS_UNICLASS_2015_PR_TXT",
+      "sting_param": "UNICLASS_PR_TXT",
       "element_types": [],
       "notes": "Uniclass 2015 Product code — separate param from Ss to avoid collision"
     },
@@ -1583,21 +1576,21 @@
     {
       "pset_name": "Pset_ManufacturerTypeInformation",
       "property_name": "Manufacturer",
-      "sting_param": "MNFR_NAME_TXT",
+      "sting_param": "ASS_MANUFACTURER_TXT",
       "element_types": [],
       "notes": "Manufacturer name"
     },
     {
       "pset_name": "Pset_ManufacturerTypeInformation",
       "property_name": "ModelReference",
-      "sting_param": "MNFR_MODEL_TXT",
+      "sting_param": "ASS_MODEL_REF_TXT",
       "element_types": [],
       "notes": "Manufacturer model reference"
     },
     {
       "pset_name": "Pset_ManufacturerTypeInformation",
       "property_name": "ArticleNumber",
-      "sting_param": "MNFR_ARTICLE_NR_TXT",
+      "sting_param": "ASS_PART_NUMBER_TXT",
       "element_types": [],
       "notes": "Manufacturer article number"
     }

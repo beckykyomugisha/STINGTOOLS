@@ -2012,15 +2012,7 @@
           "valueRefersTo": {
             "sting_param": {
               "kind": "shared-param-names",
-              "file": "StingTools/Data/MR_PARAMETERS.txt",
-              "alsoAllowed": [
-                "AC_ELEMENT_GUID_TXT",
-                "ASS_UNICLASS_2015_PR_TXT",
-                "MNFR_NAME_TXT",
-                "MNFR_MODEL_TXT",
-                "MNFR_ARTICLE_NR_TXT"
-              ],
-              "alsoAllowedReason": "Not in MR_PARAMETERS.txt: no such parameter is defined, so these mappings cannot write. ROADMAP DSCH-21 - define them or remap; delete from this list when fixed."
+              "file": "StingTools/Data/MR_PARAMETERS.txt"
             }
           }
         }
