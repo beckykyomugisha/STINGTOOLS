@@ -143,6 +143,22 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-8: forget cached "no such template" answers for a document,
+        /// keeping the positive ids (each is re-validated when hit).
+        /// </summary>
+        private static void DropNegativeViewTemplateEntries(Document doc)
+        {
+            string docKey = DocKey(doc);
+            lock (_viewTemplateCacheLock)
+            {
+                if (!_viewTemplateCache.TryGetValue(docKey, out var docMap)) return;
+                foreach (var name in docMap.Where(kv => kv.Value == ElementId.InvalidElementId)
+                                           .Select(kv => kv.Key).ToList())
+                    docMap.Remove(name);
+            }
+        }
+
+        /// <summary>
         /// C-2 / D-3: clear the cached <see cref="ViewStylePack"/> entries for a
         /// given document. Same triggers as
         /// <see cref="InvalidateViewTemplateCache"/>.
@@ -185,6 +201,11 @@ namespace StingTools.Core.Drawing
         public static void Prewarm(Document doc)
         {
             if (doc == null) return;
+            // DTW-8: a negative entry ("no template of that name") persisted for
+            // the life of the document, so a template created or loaded after
+            // the first miss was never found. A batch starts from the truth:
+            // drop the negatives (positives are re-validated on every hit).
+            DropNegativeViewTemplateEntries(doc);
             try
             {
                 var lib = DrawingTypeRegistry.GetLibrary(doc);
@@ -235,6 +256,16 @@ namespace StingTools.Core.Drawing
             /// instead. Default false preserves the single-view diagnostic.
             /// </summary>
             public bool SkipSymbolDriftCheck { get; set; }
+
+            /// <summary>
+            /// DTW-65: apply the type's <c>sectionMarker.farClipMm</c> to a section,
+            /// elevation or detail view. Off by default because most callers have
+            /// already chosen the depth: a section box from a production preset, or an
+            /// elevation preset's far clip, and re-applying a profile (Sync Styles,
+            /// heal) must not reset a depth someone adjusted. Set it where the view was
+            /// made with no depth of its own (the producer's default section box).
+            /// </summary>
+            public bool ApplyTypeFarClip { get; set; }
         }
 
         public sealed class ApplyResult
@@ -245,6 +276,9 @@ namespace StingTools.Core.Drawing
             public bool PackApplied        { get; set; }
             public bool CropApplied        { get; set; }
             public bool TokenProfileApplied { get; set; }   // Phase 135 — Step 7.5
+            /// <summary>Title-block cells actually changed by <see cref="ApplyToSheet"/>
+            /// (DTW-4) — lets a heal pass report sheets it really re-synced.</summary>
+            public int TitleBlockParamsWritten { get; set; }
             public AnnotationRunStats Annotation { get; set; }
 
             // Phase 137 — managed-template routing
@@ -307,6 +341,7 @@ namespace StingTools.Core.Drawing
             {
                 var effectiveTokens = tokens ?? DrawingTokenContext.BuildForExistingSheet(doc, sheet, dt);
                 var tbResult = TitleBlockParamApplier.Apply(doc, sheet, dt, effectiveTokens);
+                r.TitleBlockParamsWritten = tbResult.ParamsWritten;
                 r.Warnings.AddRange(tbResult.Warnings);
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyToSheet TitleBlockParams: {ex.Message}"); }
@@ -468,6 +503,63 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// DTW-65: set a section / elevation / detail view's far clip to the type's
+        /// <c>sectionMarker.farClipMm</c>. Turns far clipping on ("clip without
+        /// line") when it is off, because the offset does nothing otherwise. A
+        /// template that controls far clipping makes the parameters read-only; that
+        /// is logged and left to the template. Returns true when the depth was set.
+        /// </summary>
+        public static bool ApplySectionMarkerFarClip(View view, DrawingType dt, ApplyResult r = null)
+        {
+            var spec = dt?.SectionMarker;
+            if (view == null || spec == null || string.IsNullOrWhiteSpace(spec.Family) || spec.FarClipMm <= 0) return false;
+            if (view.ViewType != ViewType.Section && view.ViewType != ViewType.Elevation && view.ViewType != ViewType.Detail)
+                return false;
+            try
+            {
+                var offset = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
+                if (offset == null || offset.IsReadOnly)
+                {
+                    StingTools.Core.StingLog.Info($"'{view.Name}': far clip is controlled elsewhere (template or view type); {dt.Id} farClipMm not applied.");
+                    return false;
+                }
+                var clipping = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_FAR_CLIPPING);
+                if (clipping != null && !clipping.IsReadOnly && clipping.StorageType == StorageType.Integer && clipping.AsInteger() == 0)
+                    clipping.Set(2); // 0 no clip · 1 clip with line · 2 clip without line
+                bool ok = offset.Set(spec.FarClipMm / 304.8);
+                if (!ok) r?.Warnings.Add($"'{view.Name}': Revit refused far clip {spec.FarClipMm:0} mm.");
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                r?.Warnings.Add($"'{view.Name}': far clip {spec.FarClipMm:0} mm: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// DTW-62: the explicit template name for <paramref name="view"/>: the
+        /// <c>viewTemplateOverride</c> of the first production rule that makes this
+        /// kind of view, else the type's <c>viewTemplateName</c>.
+        /// </summary>
+        internal static string ExplicitTemplateNameFor(DrawingType dt, View view)
+        {
+            if (dt == null) return null;
+            if (dt.ProductionRules != null && view != null)
+            {
+                string kind = DrawingTemplateCatalogue.ViewKindOf(view.ViewType.ToString());
+                if (kind != null)
+                {
+                    var rule = dt.ProductionRules.FirstOrDefault(pr =>
+                        !string.IsNullOrWhiteSpace(pr?.ViewTemplateOverride)
+                        && string.Equals(DrawingTemplateCatalogue.ViewKindOf(pr.ViewType), kind, StringComparison.OrdinalIgnoreCase));
+                    if (rule != null) return rule.ViewTemplateOverride.Trim();
+                }
+            }
+            return dt.ViewTemplateName;
+        }
+
         public static ApplyResult Apply(Document doc, View view, DrawingType dt, ApplyOptions options)
         {
             var r = new ApplyResult();
@@ -522,7 +614,6 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { r.Warnings.Add($"ViewStylePack resolve: {ex.Message}"); }
             int effectiveScale = dt.Scale;
             string effectiveDetailLevel = dt.DetailLevel;
-            string effectiveTemplateName = dt.ViewTemplateName;
             bool scaleFromPack = false, detailFromPack = false;
             if (fallbackPack != null && !fallbackPack.IsManaged)
             {
@@ -531,8 +622,6 @@ namespace StingTools.Core.Drawing
                 { effectiveScale = packScale; scaleFromPack = true; }
                 if (string.IsNullOrWhiteSpace(effectiveDetailLevel) && !string.IsNullOrWhiteSpace(fallbackPack.DetailLevel))
                 { effectiveDetailLevel = fallbackPack.DetailLevel; detailFromPack = true; }
-                if (string.IsNullOrWhiteSpace(effectiveTemplateName) && !string.IsNullOrWhiteSpace(fallbackPack.ViewTemplate))
-                { effectiveTemplateName = fallbackPack.ViewTemplate; }
             }
 
             // Scale -------------------------------------------------------
@@ -581,35 +670,53 @@ namespace StingTools.Core.Drawing
             }
 
             // Template Priority (highest to lowest):
-            //   1. dt.ViewTemplateName — explicit user/corporate named template; applied if found.
-            //   2. Managed pack template (STING:{packId}:{ViewType}) — applied if dt.ViewTemplateName
-            //      is absent or not found in the project.
+            //   1. The explicit template for THIS view: the viewTemplateOverride of the
+            //      production rule that makes this kind of view, else dt.ViewTemplateName.
+            //   2. Managed pack template (STING:{packId}:{ViewType}) — applied when there is
+            //      no explicit template, it is not in the project, or it is for another
+            //      kind of view.
             // Rationale: named templates carry user customisations that should not be silently
             // discarded; managed templates are the fallback for new projects without existing templates.
+            //
+            // DTW-62: a mixed-kind type (spool plan + ISO, coordination plan + ISO +
+            // section, 3D axon + key plan) names one template, which fits only one of
+            // its views. Assigning it to the others threw, and every sheet reported a
+            // warning for what is the expected case. A template of another kind is now
+            // skipped with a log line and the pack's kind-appropriate template applies.
             //
             // C-1: cached lookup; FilteredElementCollector<View> only runs
             // on first miss per (docKey, templateName).
             bool explicitTemplateApplied = false;
-            if (!string.IsNullOrWhiteSpace(dt.ViewTemplateName))
+            string explicitTemplateName = ExplicitTemplateNameFor(dt, view);
+            if (!string.IsNullOrWhiteSpace(explicitTemplateName))
             {
                 try
                 {
-                    ElementId tplId = ResolveViewTemplate(doc, dt.ViewTemplateName);
+                    ElementId tplId = ResolveViewTemplate(doc, explicitTemplateName);
                     if (tplId != null && tplId != ElementId.InvalidElementId)
                     {
-                        view.ViewTemplateId = tplId;
-                        r.TemplateApplied = true;
-                        explicitTemplateApplied = true;
+                        if (view.IsValidViewTemplate(tplId))
+                        {
+                            view.ViewTemplateId = tplId;
+                            r.TemplateApplied = true;
+                            explicitTemplateApplied = true;
+                        }
+                        else
+                        {
+                            StingTools.Core.StingLog.Info(
+                                $"DrawingTypePresentation.Apply: '{explicitTemplateName}' ({dt.Id}) is not a {view.ViewType} template; " +
+                                $"'{view.Name}' takes the view style pack's template instead.");
+                        }
                     }
                     else
                     {
-                        StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: viewTemplateName '{dt.ViewTemplateName}' not found in project — falling back to managed pack template.");
-                        r.Warnings.Add($"View template '{dt.ViewTemplateName}' not found in project; falling back to managed pack template.");
+                        StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: viewTemplateName '{explicitTemplateName}' not found in project — falling back to managed pack template.");
+                        r.Warnings.Add($"View template '{explicitTemplateName}' not found in project; falling back to managed pack template.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: could not apply view template '{dt.ViewTemplateName}' — {ex.Message}");
+                    StingTools.Core.StingLog.Warn($"DrawingTypePresentation.Apply: could not apply view template '{explicitTemplateName}' — {ex.Message}");
                     r.Warnings.Add($"ViewTemplate: {ex.Message}");
                 }
             }
@@ -636,6 +743,10 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { r.Warnings.Add($"CropApplier: {ex.Message}"); }
             }
+
+            // Section-marker far clip (DTW-65, opt-in) ----------------
+            if (options?.ApplyTypeFarClip == true)
+                ApplySectionMarkerFarClip(view, dt, r);
 
             // View Style Pack (shared graphic overrides) ---------------
             // Phase 137 — managed packs route through ManagedTemplateSyncer

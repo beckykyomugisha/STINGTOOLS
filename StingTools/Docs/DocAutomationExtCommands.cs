@@ -53,20 +53,6 @@ namespace StingTools.Docs
             ("C",  "Coordination",   new[] { ViewFamily.FloorPlan }),
         };
 
-        // ── Sheet numbering ranges (ISO 19650-inspired) ──
-        internal static readonly Dictionary<string, int> SheetStartNumbers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["G"]  = 0,    // General
-            ["A"]  = 100,  // Architectural
-            ["S"]  = 200,  // Structural
-            ["M"]  = 300,  // Mechanical
-            ["E"]  = 400,  // Electrical
-            ["P"]  = 500,  // Plumbing
-            ["FP"] = 600,  // Fire Protection
-            ["C"]  = 700,  // Coordination
-            ["L"]  = 800,  // Landscape
-        };
-
         // ── View naming pattern ──
         internal static string BuildViewName(string discipline, string viewType, string levelName, string scopeBoxName = null)
         {
@@ -463,28 +449,82 @@ namespace StingTools.Docs
             }
         }
 
-        // ── Collect existing sheet numbers ──
-        internal static HashSet<string> GetExistingSheetNumbers(Document doc)
+        // ── Sheet numbering ──
+        // DTW-96: Batch Create Sheets and the Documentation Package used to number
+        // with their own "{prefix}-{seq:D3}" from a 100/200/300 range table, so a
+        // project numbering "{disc}-{lvl}-{seq:D3}" got A-101 here and A-01-001 from
+        // the Sheet Manager. Numbers now come from the one implementation,
+        // SheetNumbering.NextNumber (PRJ_TB_SHEET_NUMBER_PATTERN_TXT).
+        //
+        // NextNumber rescans the document on every call, and a collector inside the
+        // caller's open transaction sees the numbers earlier iterations set, so a
+        // loop gets a fresh number each time — PROVIDED the number is taken before
+        // ViewSheet.Create (Revit's default number for a new sheet would otherwise
+        // occupy the next slot). <paramref name="issued"/> holds the numbers this
+        // run has set; a repeat means that assumption broke, and the sheet is
+        // refused rather than given a number another sheet already carries.
+        internal static string NextProjectSheetNumber(Document doc, string disc, string level,
+                                                      HashSet<string> issued)
         {
-            return new HashSet<string>(
-                new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewSheet))
-                    .Cast<ViewSheet>()
-                    .Select(s => s.SheetNumber),
-                StringComparer.OrdinalIgnoreCase);
+            string num = StingTools.Commands.Drawing.SheetNumbering.NextNumber(
+                doc, (disc ?? "").ToUpperInvariant(), level);
+            if (issued != null && issued.Contains(num))
+                throw new InvalidOperationException(
+                    $"sheet number '{num}' was already issued in this run; sheet not created");
+            return num;
         }
 
-        // ── Generate next sheet number ──
-        internal static string NextSheetNumber(string prefix, int seq, HashSet<string> existing)
+        /// <summary>The project level code of a plan view's level, or null when the
+        /// view has none (sections, elevations, 3D) — the pattern then drops {lvl}.</summary>
+        internal static string LevelCodeOf(View v)
         {
-            string num;
-            do
+            Level lvl = v?.GenLevel;
+            return lvl == null ? null : ParameterHelpers.GetLevelCodeForLevel(lvl);
+        }
+
+        /// <summary>The level code every view shares, else null.</summary>
+        internal static string SharedLevelCode(IEnumerable<View> views)
+        {
+            string code = null;
+            foreach (var v in views)
             {
-                num = $"{prefix}-{seq:D3}";
-                seq++;
-            } while (existing.Contains(num));
-            existing.Add(num);
-            return num;
+                string c = LevelCodeOf(v);
+                if (c == null) return null;
+                if (code == null) code = c;
+                else if (!string.Equals(code, c, StringComparison.OrdinalIgnoreCase)) return null;
+            }
+            return code;
+        }
+
+        /// <summary>DTW-96: the drawing type a sheet is FOR — the one every view on it
+        /// was produced as (DrawingTypePresentation.Apply stamps the view), and only
+        /// when the registry still knows that id. Mixed or unstamped views ⇒ null:
+        /// the sheet is not a drawing-type sheet and stays unstamped.</summary>
+        internal static string SharedDrawingTypeId(Document doc, IEnumerable<View> views)
+        {
+            string id = null;
+            foreach (var v in views)
+            {
+                string vid = DrawingTypeStamper.Read(v);
+                if (string.IsNullOrEmpty(vid)) return null;
+                if (id == null) id = vid;
+                else if (!string.Equals(id, vid, StringComparison.Ordinal)) return null;
+            }
+            return id != null && DrawingTypeRegistry.Get(doc, id) != null ? id : null;
+        }
+
+        /// <summary>Stamp <paramref name="sheet"/> with the drawing type of its views,
+        /// so Doctor and Renumber see it. Returns +1 stamped, -1 a drawing-type sheet
+        /// whose stamp could not be written (parameter not bound / not editable),
+        /// 0 not a drawing-type sheet.</summary>
+        internal static int StampSheetFromViews(Document doc, ViewSheet sheet, IEnumerable<View> placed)
+        {
+            string dtId = SharedDrawingTypeId(doc, placed);
+            if (dtId == null) return 0;
+            if (DrawingTypeStamper.Stamp(sheet, dtId)) return 1;
+            StingLog.Warn($"DTW-96: sheet {sheet.SheetNumber} is drawing type '{dtId}' but the "
+                + $"{DrawingTypeStamper.PARAM_DRAWING_TYPE_ID} stamp could not be written");
+            return -1;
         }
 
         // ── Get placed view IDs across all sheets ──
@@ -864,10 +904,11 @@ namespace StingTools.Docs
                 }
             }
 
-            var existingNums = DocAutomationHelper.GetExistingSheetNumbers(doc);
+            var issuedNums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             int sheetsCreated = 0;
             int viewsPlaced = 0;
             int errors = 0;
+            int dtStamped = 0, dtStampFailed = 0;
 
             // Maps "A/S/M/E/..." sheet prefix → ISO 19650 discipline code used by the router.
             static string PrefixToDisciplineCode(string prefix)
@@ -898,14 +939,16 @@ namespace StingTools.Docs
                         try
                         {
                             string prefix = InferDisciplinePrefix(v);
-                            int startNum = DocAutomationHelper.SheetStartNumbers.TryGetValue(prefix, out int sn) ? sn + 1 : 1;
-                            string sheetNum = DocAutomationHelper.NextSheetNumber(prefix, startNum, existingNums);
+                            // DTW-96: the project pattern, taken BEFORE Create.
+                            string sheetNum = DocAutomationHelper.NextProjectSheetNumber(
+                                doc, prefix, DocAutomationHelper.LevelCodeOf(v), issuedNums);
 
                             // Per-discipline title block (falls back to default inside Resolve()).
                             FamilySymbol titleBlock = StingTools.Core.TitleBlockRouter
                                 .Resolve(doc, PrefixToDisciplineCode(prefix)) ?? defaultTitleBlock;
                             ViewSheet sheet = ViewSheet.Create(doc, titleBlock.Id);
                             sheet.SheetNumber = sheetNum;
+                            issuedNums.Add(sheetNum);
                             sheet.Name = v.Name.Replace("STING - ", "");
                             sheetsCreated++;
 
@@ -915,6 +958,9 @@ namespace StingTools.Docs
                                 XYZ center = new XYZ(w / 2, h / 2, 0);
                                 Viewport.Create(doc, sheet.Id, v.Id, center);
                                 viewsPlaced++;
+
+                                int st = DocAutomationHelper.StampSheetFromViews(doc, sheet, new[] { v });
+                                if (st > 0) dtStamped++; else if (st < 0) dtStampFailed++;
                             }
                         }
                         catch (Exception ex)
@@ -948,13 +994,16 @@ namespace StingTools.Docs
                             try
                             {
                                 string prefix = mode == 3 ? group.Key : InferDisciplinePrefix(viewsInGroup[0]);
-                                int startNum = DocAutomationHelper.SheetStartNumbers.TryGetValue(prefix, out int sn) ? sn + 1 : 1;
-                                string sheetNum = DocAutomationHelper.NextSheetNumber(prefix, startNum, existingNums);
+                                var batch = viewsInGroup.Skip(s * maxPerSheet).Take(maxPerSheet).ToList();
+                                // DTW-96: the project pattern, taken BEFORE Create.
+                                string sheetNum = DocAutomationHelper.NextProjectSheetNumber(
+                                    doc, prefix, DocAutomationHelper.SharedLevelCode(batch), issuedNums);
 
                                 FamilySymbol titleBlock = StingTools.Core.TitleBlockRouter
                                     .Resolve(doc, PrefixToDisciplineCode(prefix)) ?? defaultTitleBlock;
                                 ViewSheet sheet = ViewSheet.Create(doc, titleBlock.Id);
                                 sheet.SheetNumber = sheetNum;
+                                issuedNums.Add(sheetNum);
                                 string suffix = sheetsNeeded > 1 ? $" ({s + 1}/{sheetsNeeded})" : "";
                                 sheet.Name = $"{group.Key} Views{suffix}";
                                 sheetsCreated++;
@@ -964,7 +1013,7 @@ namespace StingTools.Docs
                                 double usableW = w - 2 * margin;
                                 double usableH = h - 2 * margin;
 
-                                var batch = viewsInGroup.Skip(s * maxPerSheet).Take(maxPerSheet).ToList();
+                                var placedOnSheet = new List<View>();
                                 int cols = batch.Count <= 1 ? 1 : 2;
                                 int rows = (int)Math.Ceiling(batch.Count / (double)cols);
                                 double cellW = usableW / cols;
@@ -984,12 +1033,19 @@ namespace StingTools.Docs
                                         {
                                             Viewport.Create(doc, sheet.Id, v.Id, new XYZ(cx, cy, 0));
                                             viewsPlaced++;
+                                            placedOnSheet.Add(v);
                                         }
                                         catch (Exception ex)
                                         {
                                             StingLog.Warn($"Place viewport '{v.Name}': {ex.Message}");
                                         }
                                     }
+                                }
+
+                                if (placedOnSheet.Count > 0)
+                                {
+                                    int st = DocAutomationHelper.StampSheetFromViews(doc, sheet, placedOnSheet);
+                                    if (st > 0) dtStamped++; else if (st < 0) dtStampFailed++;
                                 }
                             }
                             catch (Exception ex)
@@ -1009,6 +1065,11 @@ namespace StingTools.Docs
             report.AppendLine(new string('═', 50));
             report.AppendLine($"  Sheets created: {sheetsCreated}");
             report.AppendLine($"  Views placed:   {viewsPlaced}");
+            if (dtStamped > 0)
+                report.AppendLine($"  Drawing-type stamped: {dtStamped}");
+            if (dtStampFailed > 0)
+                report.AppendLine($"  Drawing-type stamp NOT written: {dtStampFailed} "
+                    + $"(is {DrawingTypeStamper.PARAM_DRAWING_TYPE_ID} bound to Sheets?)");
             if (errors > 0)
                 report.AppendLine($"  Errors:         {errors}");
 
@@ -1017,7 +1078,8 @@ namespace StingTools.Docs
             td.MainContent = report.ToString();
             td.Show();
 
-            StingLog.Info($"BatchCreateSheets: sheets={sheetsCreated}, viewports={viewsPlaced}, errors={errors}");
+            StingLog.Info($"BatchCreateSheets: sheets={sheetsCreated}, viewports={viewsPlaced}, " +
+                $"dtStamped={dtStamped}, dtStampFailed={dtStampFailed}, errors={errors}");
             return Result.Succeeded;
         }
 
@@ -1456,6 +1518,7 @@ namespace StingTools.Docs
             int sheetsCreated = 0;
             int viewsPlaced = 0;
             int errors = 0;
+            int dtStamped = 0, dtStampFailed = 0;
             var nameCache = DocAutomationHelper.BuildViewNameIndex(doc);
 
             // Phase 1: Create Views
@@ -1554,7 +1617,7 @@ namespace StingTools.Docs
                     {
                         if (!titleBlock.IsActive) titleBlock.Activate();
 
-                        var existingNums = DocAutomationHelper.GetExistingSheetNumbers(doc);
+                        var issuedNums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         var placedIds = DocAutomationHelper.GetPlacedViewIds(doc);
 
                         // Get newly created views (unplaced, STING-named)
@@ -1582,11 +1645,13 @@ namespace StingTools.Docs
                                     }
                                 }
 
-                                int startNum = DocAutomationHelper.SheetStartNumbers.TryGetValue(prefix, out int sn) ? sn + 1 : 1;
-                                string sheetNum = DocAutomationHelper.NextSheetNumber(prefix, startNum, existingNums);
+                                // DTW-96: the project pattern, taken BEFORE Create.
+                                string sheetNum = DocAutomationHelper.NextProjectSheetNumber(
+                                    doc, prefix, DocAutomationHelper.LevelCodeOf(v), issuedNums);
 
                                 ViewSheet sheet = ViewSheet.Create(doc, titleBlock.Id);
                                 sheet.SheetNumber = sheetNum;
+                                issuedNums.Add(sheetNum);
                                 sheet.Name = v.Name.Replace("STING - ", "");
                                 sheetsCreated++;
 
@@ -1595,6 +1660,11 @@ namespace StingTools.Docs
                                     var (w, h) = DocAutomationHelper.GetTitleBlockSize(doc, sheet);
                                     Viewport.Create(doc, sheet.Id, v.Id, new XYZ(w / 2, h / 2, 0));
                                     viewsPlaced++;
+
+                                    // Phase 1 produced this view as a drawing type (plan/RCP
+                                    // via DrawingDispatcher); the sheet carries the same stamp.
+                                    int st = DocAutomationHelper.StampSheetFromViews(doc, sheet, new[] { v });
+                                    if (st > 0) dtStamped++; else if (st < 0) dtStampFailed++;
                                 }
                             }
                             catch (Exception ex)
@@ -1616,6 +1686,11 @@ namespace StingTools.Docs
             report.AppendLine($"  Phase 1: {viewsCreated} parent views + {dependentsCreated} dependents");
             report.AppendLine($"  Templates: {templatesAssigned} auto-assigned");
             report.AppendLine($"  Phase 2: {sheetsCreated} sheets + {viewsPlaced} viewports");
+            if (dtStamped > 0)
+                report.AppendLine($"  Drawing-type stamped: {dtStamped} sheets");
+            if (dtStampFailed > 0)
+                report.AppendLine($"  Drawing-type stamp NOT written: {dtStampFailed} sheets "
+                    + $"(is {DrawingTypeStamper.PARAM_DRAWING_TYPE_ID} bound to Sheets?)");
             if (errors > 0)
                 report.AppendLine($"  Errors: {errors}");
             report.AppendLine($"  Duration: {sw.Elapsed.TotalSeconds:F1}s");
@@ -1630,6 +1705,7 @@ namespace StingTools.Docs
 
             StingLog.Info($"DocPackage: views={viewsCreated}, deps={dependentsCreated}, " +
                 $"templates={templatesAssigned}, sheets={sheetsCreated}, placed={viewsPlaced}, " +
+                $"dtStamped={dtStamped}, dtStampFailed={dtStampFailed}, " +
                 $"errors={errors}, elapsed={sw.Elapsed.TotalSeconds:F1}s");
 
             return Result.Succeeded;

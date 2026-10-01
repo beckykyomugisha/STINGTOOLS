@@ -136,6 +136,10 @@ namespace StingTools.Tags
             progress.SetStatus("Building pipeline context...");
 
             var popCtx = TokenAutoPopulator.PopulationContext.Build(doc);
+            // DTW-147: stats was made before the context, so it copied whichever scope-box
+            // audit ran last (possibly another model). Take this model's audit.
+            stats.ScopeBoxNameProblems.Clear();
+            if (popCtx?.ScopeBoxNameProblems != null) stats.ScopeBoxNameProblems.AddRange(popCtx.ScopeBoxNameProblems);
             // Use existing SEQ counters so we don't collide with tags on elements
             // that may be excluded from this run (e.g., unfamiliar categories).
             // BuildTagIndexAndCounters merges sidecar data for session continuity.

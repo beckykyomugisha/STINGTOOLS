@@ -591,5 +591,15 @@ namespace StingTools.Tags.Tests
             Assert.Equal("BLD2", loc.KeyFor(ScopeBoxColourMode.Building));
             Assert.Null(loc.KeyFor(ScopeBoxColourMode.SizeClass));
         }
+
+        // DTW-143: the building key is read by ScopeBoxNames.TryParseLoc, the rule tagging
+        // reads by — not by cutting the prefix off the raw name.
+        [Theory]
+        [InlineData("STING-LOC:: BLD2 ", "BLD2")]       // trimmed, as tagging reads it
+        [InlineData("STING-LOC::BLD 2", null)]          // malformed: no building to colour by
+        [InlineData("STING-LOC::A::B", null)]
+        [InlineData("STING-LOC::", null)]
+        public void Building_colour_key_follows_the_loc_parser(string name, string expected)
+            => Assert.Equal(expected, new ScopeBoxColourSubject { Name = name }.KeyFor(ScopeBoxColourMode.Building));
     }
 }

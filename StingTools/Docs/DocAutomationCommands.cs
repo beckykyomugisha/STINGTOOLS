@@ -430,8 +430,15 @@ namespace StingTools.Docs
     }
 
     /// <summary>
-    /// Auto-Number Sheets: assigns sequential sheet numbers following a discipline-based
-    /// ISO 19650 pattern. Groups sheets by their discipline prefix and renumbers sequentially.
+    /// Auto-Number Sheets (button / workflow tag <c>AutoNumberSheets</c>). DTW-136: this
+    /// used to renumber EVERY sheet "&lt;first two characters&gt;-NNN" in its own two-pass
+    /// loop — destroying ISO identifiers and drawing-type numbers, ignoring locked title
+    /// blocks, skipping SHT_TAG_1 / the number history / the identifier rebuild, and able
+    /// to strand a sheet on _TEMP_nnnn. It now runs the one renumber path: Sheet Manager's
+    /// Auto-Number (SheetAutoNumberCommand — project pattern, locked and ISO-identifier
+    /// sheets untouched, taken numbers routed around, preview) applied through
+    /// SheetNumbering.Apply (park / restore / history / retag). Inside a workflow preset it
+    /// plans only unless the step sets params.apply = "true".
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
@@ -439,91 +446,7 @@ namespace StingTools.Docs
     {
         public Result Execute(ExternalCommandData commandData,
             ref string message, ElementSet elements)
-        {
-            var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
-            Document doc = ctx.Doc;
-
-            var sheets = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewSheet))
-                .Cast<ViewSheet>()
-                .OrderBy(s => s.SheetNumber)
-                .ToList();
-
-            if (sheets.Count == 0)
-            {
-                TaskDialog.Show("Auto-Number Sheets", "No sheets found.");
-                return Result.Succeeded;
-            }
-
-            // Group by first 2 chars (discipline prefix) — materialize to avoid
-            // deferred re-evaluation after Phase 1 mutates sheet numbers
-            var groups = sheets
-                .GroupBy(s => s.SheetNumber.Length >= 2 ? s.SheetNumber.Substring(0, 2).ToUpperInvariant() : "XX")
-                .OrderBy(g => g.Key)
-                .Select(g => new { Key = g.Key, Sheets = g.ToList() })
-                .ToList();
-
-            int totalRenamed = 0;
-            var report = new StringBuilder();
-            report.AppendLine($"Will renumber {sheets.Count} sheets in {groups.Count} discipline groups.");
-            report.AppendLine();
-            foreach (var g in groups)
-                report.AppendLine($"  [{g.Key}] — {g.Sheets.Count} sheets");
-
-            TaskDialog confirm = new TaskDialog("Auto-Number Sheets");
-            confirm.MainInstruction = $"Renumber {sheets.Count} sheets?";
-            confirm.MainContent = report.ToString() +
-                "\n\nEach group will be numbered sequentially: XX-001, XX-002, etc.\n" +
-                "This action can be undone with Ctrl+Z.";
-            confirm.CommonButtons = TaskDialogCommonButtons.Ok | TaskDialogCommonButtons.Cancel;
-            if (confirm.Show() == TaskDialogResult.Cancel)
-                return Result.Cancelled;
-
-            using (Transaction tx = new Transaction(doc, "STING Auto-Number Sheets"))
-            {
-                tx.Start();
-
-                // Phase 1: Temp names to avoid conflicts
-                int temp = 1;
-                foreach (var sheet in sheets)
-                {
-                    try
-                    {
-                        sheet.SheetNumber = $"_TEMP_{temp++:D4}";
-                    }
-                    catch (Exception ex)
-                    {
-                        StingLog.Warn($"Sheet temp rename: {ex.Message}");
-                    }
-                }
-
-                // Phase 2: Assign final numbers by group (using materialized groups)
-                foreach (var group in groups)
-                {
-                    int seq = 1;
-                    foreach (var sheet in group.Sheets.OrderBy(s => s.Name))
-                    {
-                        string newNum = $"{group.Key}-{seq:D3}";
-                        try
-                        {
-                            sheet.SheetNumber = newNum;
-                            totalRenamed++;
-                        }
-                        catch (Exception ex)
-                        {
-                            StingLog.Warn($"Sheet renumber '{newNum}': {ex.Message}");
-                        }
-                        seq++;
-                    }
-                }
-
-                tx.Commit();
-            }
-
-            TaskDialog.Show("Auto-Number Sheets",
-                $"Renumbered {totalRenamed} of {sheets.Count} sheets.");
-            return Result.Succeeded;
-        }
+            => new StingTools.Commands.Drawing.SheetAutoNumberCommand()
+                   .Execute(commandData, ref message, elements);
     }
 }

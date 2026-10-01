@@ -823,7 +823,20 @@ namespace StingTools.Model
             var a0 = a.GetEndPoint(0); var a1 = a.GetEndPoint(1);
             var b0 = b.GetEndPoint(0); var b1 = b.GetEndPoint(1);
             return DwgPickGeometry.MeasureParallelPair(
-                a0.X, a0.Y, a1.X, a1.Y, b0.X, b0.Y, b1.X, b1.Y, 0.95);
+                a0.X, a0.Y, a1.X, a1.Y, b0.X, b0.Y, b1.X, b1.Y);
+        }
+
+        /// <summary>Why a measured pair was refused: too far off parallel, or two
+        /// parallel lines that share no stretch along their length.</summary>
+        internal static string WhyNotAPair(DwgPickGeometry.ParallelPair pair, string what)
+        {
+            if (pair.Dot < DwgPickGeometry.DefaultMinDot)
+            {
+                double deg = Math.Acos(Math.Min(1.0, pair.Dot)) * 180.0 / Math.PI;
+                return $"The two {what} are not parallel enough ({deg:F1}° apart; they must be within "
+                     + $"{Math.Acos(DwgPickGeometry.DefaultMinDot) * 180.0 / Math.PI:F1}°).";
+            }
+            return $"The two {what} do not overlap along their length, so they are not two faces of one element.";
         }
 
         internal static string DescribeMatch(TypeMatchResult tm, string what, double measuredMm)
@@ -901,7 +914,7 @@ namespace StingTools.Model
                 if (!pair.IsParallel)
                 {
                     TaskDialog.Show("STING Pick Wall",
-                        $"The two lines are not parallel enough (dot={pair.Dot:F3}, need ≥ 0.95).");
+                        DwgPickSupport.WhyNotAPair(pair, "lines"));
                     return Result.Cancelled;
                 }
 
@@ -1055,7 +1068,7 @@ namespace StingTools.Model
                     if (!pair.IsParallel)
                     {
                         TaskDialog.Show("STING Pick Column",
-                            $"The two edges are not parallel enough (dot={pair.Dot:F3}, need ≥ 0.95).");
+                            DwgPickSupport.WhyNotAPair(pair, "edges"));
                         return Result.Cancelled;
                     }
                     dims = DwgPickGeometry.RectFromParallelEdges(pair);
@@ -1206,7 +1219,7 @@ namespace StingTools.Model
                         if (!pair.IsParallel)
                         {
                             TaskDialog.Show("STING Pick Beam",
-                                $"The two lines are not parallel enough (dot={pair.Dot:F3}, need ≥ 0.95).");
+                                DwgPickSupport.WhyNotAPair(pair, "lines"));
                             return Result.Cancelled;
                         }
                         widthMm = pair.Gap * Units.FeetToMm;

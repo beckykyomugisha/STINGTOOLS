@@ -4,6 +4,15 @@
 // elements by discipline (Electrical / Plumbing / HVAC) based on
 // their Category and dispatches each group to the matching drop
 // engine. Shows an aggregate result via StingResultPanel.
+//
+// Workflow preset (WorkflowEngine.IsRunningPreset): no dialog is shown. Step params:
+//   scope        selection | activeview | project   default: selection — the fixtures
+//                Placement_PlaceFixtures left selected. An empty selection FAILS the step
+//                (it does not widen to the whole model); name a scope to route more.
+//   disciplines  list of electrical | plumbing | hvac   default: the Routing tab's toggles
+//   supports     true | false                        default: the Routing tab's toggle
+//                (off unless ticked) — hangers per BS 5572 / MSS SP-58 after routing
+//   The result panel goes to the step message (PresetDialog).
 
 using System;
 using System.Collections.Generic;
@@ -57,9 +66,59 @@ namespace StingTools.Commands.Routing
             var doc = ctx.Doc;
             var uidoc = ctx.UIDoc;
 
-            var selIds = uidoc.Selection.GetElementIds();
+            bool headless = WorkflowEngine.IsRunningPreset;
+            bool includeElectrical = AutoDropOptions.IncludeElectrical;
+            bool includePlumbing = AutoDropOptions.IncludePlumbing;
+            bool includeHvac = AutoDropOptions.IncludeHvac;
+            bool emitSupports = AutoDropOptions.EmitSupports;
+            string scope = PresetStepInputs.ScopeSelection;
+            if (headless)
+            {
+                if (!PresetStepInputs.TryChoice("scope", WorkflowEngine.StepParam("scope"), PresetStepInputs.ScopeSelection,
+                        PresetStepInputs.Scopes, out scope, out var err)
+                    || !PresetStepInputs.TryChoiceList("disciplines", WorkflowEngine.StepParam("disciplines"),
+                        PresetStepInputs.DropDisciplines, out var discs, out err)
+                    || !PresetStepInputs.TryBool("supports", WorkflowEngine.StepParam("supports"),
+                        AutoDropOptions.EmitSupports, out emitSupports, out err))
+                { message = "Auto-drop: " + err; return Result.Failed; }
+                if (discs.Count > 0)
+                {
+                    includeElectrical = discs.Contains("electrical");
+                    includePlumbing = discs.Contains("plumbing");
+                    includeHvac = discs.Contains("hvac");
+                }
+            }
+
+            ICollection<ElementId> selIds;
+            if (scope == PresetStepInputs.ScopeSelection)
+            {
+                selIds = uidoc.Selection.GetElementIds();
+            }
+            else
+            {
+                // Preset only: every fixture instance in the active view or the model.
+                var view = uidoc.ActiveView;
+                if (scope == PresetStepInputs.ScopeActiveView && view == null)
+                { message = "Auto-drop: params.scope = activeview but no view is active."; return Result.Failed; }
+                var collector = scope == PresetStepInputs.ScopeActiveView
+                    ? new FilteredElementCollector(doc, view.Id)
+                    : new FilteredElementCollector(doc);
+                selIds = collector.OfClass(typeof(FamilyInstance))
+                    .WhereElementIsNotElementType()
+                    .Where(e => e.Category != null && DisciplineFor((BuiltInCategory)e.Category.Id.Value) != null)
+                    .Select(e => e.Id)
+                    .ToList();
+            }
             if (selIds == null || selIds.Count == 0)
             {
+                if (headless)
+                {
+                    message = scope == PresetStepInputs.ScopeSelection
+                        ? "Auto-drop: nothing is selected. Run Placement_PlaceFixtures (mode = place) earlier in the " +
+                          "preset, select the fixtures before launching, or set params.scope = activeview | project."
+                        : $"Auto-drop: no electrical / plumbing / HVAC fixture found in scope '{scope}'.";
+                    return Result.Failed;
+                }
                 TaskDialog.Show("STING v4 — Auto-drop",
                     "Select one or more fixtures before running Auto-drop.");
                 return Result.Cancelled;
@@ -82,6 +141,11 @@ namespace StingTools.Commands.Routing
 
             if (byDisc.Values.All(v => v.Count == 0))
             {
+                if (headless)
+                {
+                    message = "Auto-drop: the selection contains no electrical / plumbing / HVAC fixtures.";
+                    return Result.Failed;
+                }
                 TaskDialog.Show("STING v4 — Auto-drop",
                     "Selection contains no electrical / plumbing / HVAC fixtures.");
                 return Result.Cancelled;
@@ -92,7 +156,7 @@ namespace StingTools.Commands.Routing
             // conduit connector (sleeve targets) BEFORE routing, so failures
             // are surfaced as findings rather than discovered as failed drops.
             var preflightWarnings = new List<string>();
-            if (AutoDropOptions.IncludeElectrical && byDisc["Electrical"].Count > 0)
+            if (includeElectrical && byDisc["Electrical"].Count > 0)
             {
                 try
                 {
@@ -115,7 +179,7 @@ namespace StingTools.Commands.Routing
             var allResults = new List<DropResult>();
             try
             {
-                if (AutoDropOptions.IncludeElectrical && byDisc["Electrical"].Count > 0)
+                if (includeElectrical && byDisc["Electrical"].Count > 0)
                 {
                     var eng = new AutoConduitDrop(doc)
                     {
@@ -130,7 +194,7 @@ namespace StingTools.Commands.Routing
                         elecResult.Warnings.InsertRange(0, preflightWarnings);
                     allResults.Add(elecResult);
                 }
-                if (AutoDropOptions.IncludePlumbing && byDisc["Plumbing"].Count > 0)
+                if (includePlumbing && byDisc["Plumbing"].Count > 0)
                 {
                     var eng = new AutoPipeDrop(doc)
                     {
@@ -141,7 +205,7 @@ namespace StingTools.Commands.Routing
                     };
                     allResults.Add(eng.Execute(byDisc["Plumbing"]));
                 }
-                if (AutoDropOptions.IncludeHvac && byDisc["HVAC"].Count > 0)
+                if (includeHvac && byDisc["HVAC"].Count > 0)
                 {
                     var eng = new AutoDuctDrop(doc)
                     {
@@ -202,7 +266,7 @@ namespace StingTools.Commands.Routing
             // those into RoutingSupportPlacer with a synthetic SUSPENDED
             // rule so HangerPlacementEngine + HangerFamilyResolver can
             // place real FamilyInstances inside the same transaction.
-            if (AutoDropOptions.EmitSupports)
+            if (emitSupports)
             {
                 using (var sx = new Transaction(doc, "STING v4 Auto-drop supports"))
                 {
@@ -259,7 +323,7 @@ namespace StingTools.Commands.Routing
                 }
             }
 
-            ShowResult(allResults);
+            ShowResult(allResults, ref message);
             return Result.Succeeded;
         }
 
@@ -292,7 +356,7 @@ namespace StingTools.Commands.Routing
             return null;
         }
 
-        private void ShowResult(List<DropResult> results)
+        private void ShowResult(List<DropResult> results, ref string message)
         {
             var panel = StingResultPanel.Create("v4 Auto-drop");
             panel.SetSubtitle("Auto-drop across Electrical / Plumbing / HVAC");
@@ -311,7 +375,7 @@ namespace StingTools.Commands.Routing
                     if (r.Warnings.Count > 10) panel.Text($"(+{r.Warnings.Count - 10} more — see StingLog)");
                 }
             }
-            panel.Show();
+            PresetDialog.Show(panel, ref message);
         }
     }
 }

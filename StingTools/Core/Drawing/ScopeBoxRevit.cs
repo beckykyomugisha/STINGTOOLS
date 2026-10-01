@@ -139,21 +139,32 @@ namespace StingTools.Core.Drawing
             return map;
         }
 
-        /// <summary>Each STING-LOC box as a footprint (its four corners).</summary>
+        /// <summary>
+        /// Each STING-LOC box as a footprint: its four true corners, measured in its own frame
+        /// (TryMeasure), with the frame's angle so the planner lays its boxes square to it.
+        /// The bounding box of a turned box is larger than the box, so it used to overlap the
+        /// neighbouring building and get extra tiles (DTW-92). A box that cannot be measured
+        /// is reported and skipped; one measured only from its bounding box (no edges) is
+        /// used square to project north and said so.
+        /// </summary>
         public static List<ScopeBoxFootprint> BuildingFootprints(Document doc, List<string> warnings)
         {
             var list = new List<ScopeBoxFootprint>();
             foreach (var el in AllBoxes(doc).Where(e => ScopeBoxNames.Classify(e.Name) == ScopeBoxKind.Building))
             {
-                var code = el.Name.Substring(ScopeBoxNames.LocPrefix.Length);
-                if (!ScopeBoxNames.IsValidSegment(code)) { warnings?.Add($"'{el.Name}': building code '{code}' cannot appear in a box name — skipped."); continue; }
-                var bb = el.get_BoundingBox(null);
-                if (bb == null) continue;
-                list.Add(new ScopeBoxFootprint
-                {
-                    Loc = code,
-                    Points = { (M(bb.Min.X), M(bb.Min.Y)), (M(bb.Max.X), M(bb.Max.Y)), (M(bb.Min.X), M(bb.Max.Y)), (M(bb.Max.X), M(bb.Min.Y)) },
-                });
+                // DTW-93: parsed by the same rule tagging's LOC index uses.
+                if (!ScopeBoxNames.TryParseLoc(el.Name, out var code, out var bad)) { warnings?.Add($"'{el.Name}': {bad ?? "not a building box"} — skipped."); continue; }
+                if (!TryMeasure(el, out var m, out var why)) { warnings?.Add($"'{el.Name}' {why} — skipped."); continue; }
+                double a = m.FromBoundingBox ? 0 : m.AngleRad;
+                double c = Math.Cos(a), s = Math.Sin(a), cx = M(m.Centre.X), cy = M(m.Centre.Y);
+                var fp = new ScopeBoxFootprint { Loc = code, AngleRad = Math.Abs(a) > 1e-6 ? a : (double?)null };
+                foreach (var (u, v) in new[] { (-m.WidthM / 2, -m.DepthM / 2), (m.WidthM / 2, -m.DepthM / 2), (m.WidthM / 2, m.DepthM / 2), (-m.WidthM / 2, m.DepthM / 2) })
+                    fp.Points.Add((cx + u * c - v * s, cy + u * s + v * c));
+                if (fp.AngleRad != null)
+                    warnings?.Add($"'{el.Name}' is turned {ScopeBoxNames.Metres(a * 180 / Math.PI)}° — its area boxes are laid square to it, not to the grid.");
+                else if (m.FromBoundingBox)
+                    warnings?.Add($"'{el.Name}' has no readable edges; its bounding box is used, which is exact only if it is square to project north.");
+                list.Add(fp);
             }
             return list;
         }
@@ -166,15 +177,39 @@ namespace StingTools.Core.Drawing
         };
 
         /// <summary>
-        /// Level codes for every level, unique (see <see cref="ScopeBoxPlanner.UniqueLevelCodes"/>).
-        /// The one mapping used for footprints, the saved plan and production, so a level
-        /// always gets the same code in all three.
+        /// Level codes for every level, unique, and stable across renames: a code the saved
+        /// plan binds to a level's UniqueId stays on that level (see
+        /// <see cref="ScopeBoxPlanner.StableLevelCodes"/>, DTW-90). The one mapping used for
+        /// footprints, the saved plan and production, so a level always gets the same code
+        /// in all three. Reads the saved plan itself; where a level's name and its code now
+        /// disagree it is logged.
         /// </summary>
         public static Dictionary<long, string> LevelCodes(Document doc)
-            => ScopeBoxPlanner.UniqueLevelCodes(
+        {
+            var plan = ScopeBoxPlannerService.LoadPlan(doc, out var err);
+            if (err != null) StingLog.Warn($"ScopeBoxRevit.LevelCodes: {err} — levels coded from their names only.");
+            var notes = new List<string>();
+            var codes = LevelCodes(doc, plan, notes);
+            foreach (var n in notes) StingLog.Info("Scope-box level codes: " + n);
+            return codes;
+        }
+
+        /// <summary><see cref="LevelCodes(Document)"/> against a plan already loaded; disagreements go to <paramref name="notes"/>.</summary>
+        public static Dictionary<long, string> LevelCodes(Document doc, ScopeBoxPlanFile plan, List<string> notes)
+            => ScopeBoxPlanner.StableLevelCodes(
                 new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
                     .OrderBy(l => l.Elevation).ThenBy(l => l.Id.Value)
-                    .Select(l => (l.Id.Value, ParameterHelpers.GetLevelCodeForLevel(l))));
+                    .Select(l => (l.Id.Value, l.UniqueId, l.Name, ParameterHelpers.GetLevelCodeForLevel(l))),
+                plan?.LevelIds, notes);
+
+        /// <summary>Code → UniqueId for every level, under <see cref="LevelCodes(Document, ScopeBoxPlanFile, List{string})"/>: what the saved plan records.</summary>
+        public static Dictionary<string, string> LevelIdsByCode(Document doc, IDictionary<long, string> codes)
+        {
+            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
+                if (codes.TryGetValue(l.Id.Value, out var c) && !string.IsNullOrEmpty(c)) ids[c] = l.UniqueId;
+            return ids;
+        }
 
         /// <summary>
         /// The building's extent from its fabric (walls, floors, roofs, columns …). With a

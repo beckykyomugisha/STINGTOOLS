@@ -33,6 +33,10 @@ namespace StingTools.Core.Drawing
         public string Name { get; set; }
         /// <summary>Elevation in millimetres, relative to the project's own datum.</summary>
         public double ElevationMm { get; set; }
+        /// <summary>DTW-116 — Revit's "Building Story" flag (LEVEL_IS_BUILDING_STORY):
+        /// false for a datum level such as "T.O. Steel" that is not a storey; null when the
+        /// caller does not know, in which case the level counts as a storey.</summary>
+        public bool? IsBuildingStorey { get; set; }
     }
 
     public static class IsoLevelCode
@@ -48,7 +52,32 @@ namespace StingTools.Core.Drawing
         /// the code for a storey depends on where it sits in the STACK — you cannot
         /// tell whether a level is 01 or 02 by looking at it alone, which is why the
         /// name-only rule could never have been right.</summary>
+        /// <remarks>DTW-133 — levels share a storey within the band
+        /// <see cref="LevelSnapBand"/> defines (300 mm or half the local storey, the
+        /// smaller): the rule LinkLevelMapper uses, so an SSL level 50-150 mm under its FFL
+        /// is that storey here too. A fixed 50 mm made each SSL a storey of its own and
+        /// shifted every code below it.</remarks>
         public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys)
+            => BuildMap(storeys, (double?)null);
+
+        /// <summary>DTW-116 — the fixed tolerance the explicit overload used to be called
+        /// with. The default map no longer uses it (DTW-133: <see cref="LevelSnapBand"/>).</summary>
+        public const double DefaultCoincidentToleranceMm = 50.0;
+
+        /// <summary>
+        /// The map, with levels within <paramref name="coincidentToleranceMm"/> of each other
+        /// grouped into one storey (one code, one place in the stack), and levels whose
+        /// <see cref="StoreyDatum.IsBuildingStorey"/> is false left out of the count — they
+        /// take the code of the storey they coincide with or sit in.
+        ///
+        /// Numbering levels by list position gave coincident levels different codes and
+        /// shifted every storey above them (DTW-116).
+        /// </summary>
+        public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys, double coincidentToleranceMm)
+            => BuildMap(storeys, (double?)Math.Max(0, coincidentToleranceMm));
+
+        /// <summary>A fixed tolerance, or (null) the <see cref="LevelSnapBand"/> rule.</summary>
+        private static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys, double? fixedToleranceMm)
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (storeys == null) return map;
@@ -61,35 +90,112 @@ namespace StingTools.Core.Drawing
                 .ToList();
             if (ordered.Count == 0) return map;
 
+            // The stack is the building storeys. A level known NOT to be one (Building
+            // Story off) does not take a number; unknown counts. If nothing is flagged a
+            // storey, every level counts — a model with the flag cleared everywhere still
+            // needs codes.
+            var stack = ordered.Where(s => s.IsBuildingStorey != false).ToList();
+            if (stack.Count == 0) stack = ordered;
+
+            // Two levels are one storey when within the fixed tolerance or, by default, the
+            // LevelSnapBand band at the anchor. The local storey at an anchor is the gap to
+            // the nearest stack level beyond the band cap above it (else below it): levels
+            // inside the cap are the candidates themselves, not the storey height.
+            var stackElevs = stack.Select(s => s.ElevationMm).ToList();
+            bool Coincide(double anchorMm, double otherMm)
+            {
+                if (fixedToleranceMm.HasValue) return Math.Abs(otherMm - anchorMm) <= fixedToleranceMm.Value;
+                double cap = LevelSnapBand.MaxMm;
+                double storey = double.PositiveInfinity;
+                var above = stackElevs.Where(e => e > anchorMm + cap).ToList();
+                if (above.Count > 0) storey = above.Min() - anchorMm;
+                else
+                {
+                    var below = stackElevs.Where(e => e < anchorMm - cap).ToList();
+                    if (below.Count > 0) storey = anchorMm - below.Max();
+                }
+                return LevelSnapBand.Within(otherMm - anchorMm, storey, cap);
+            }
+
+            // Group coincident storeys: a new storey starts when a level no longer coincides
+            // with the first level of the current one.
+            var groups = new List<List<StoreyDatum>>();
+            foreach (var s in stack)
+            {
+                if (groups.Count == 0 || !Coincide(groups[groups.Count - 1][0].ElevationMm, s.ElevationMm))
+                    groups.Add(new List<StoreyDatum>());
+                groups[groups.Count - 1].Add(s);
+            }
+
             // The ground storey: nearest to datum, and on a tie the LOWER one — a
             // building with levels at -150 and +150 has its ground floor at the
             // slab, not the one above it.
-            var ground = ordered
-                .OrderBy(s => Math.Abs(s.ElevationMm))
-                .ThenBy(s => s.ElevationMm)
-                .First();
-            int groundIndex = ordered.IndexOf(ground);
-
-            for (int i = 0; i < ordered.Count; i++)
+            int groundIndex = 0;
+            double best = double.MaxValue, bestElev = double.MaxValue;
+            for (int i = 0; i < groups.Count; i++)
             {
-                var s = ordered[i];
-                string explicitCode = FromName(s.Name);
-
-                // A name that states a special code outranks the stack. ROOF is a
-                // roof wherever it sits, and a project that has named a level GF has
-                // already answered the question this class exists to answer.
-                if (explicitCode != null)
-                {
-                    map[s.Name] = explicitCode;
-                    continue;
-                }
-
-                int offset = i - groundIndex;
-                if (offset == 0) map[s.Name] = "00";
-                else if (offset > 0) map[s.Name] = offset.ToString("00");
-                else map[s.Name] = "B" + (-offset);
+                var rep = groups[i].OrderBy(s => Math.Abs(s.ElevationMm)).ThenBy(s => s.ElevationMm).First();
+                double d = Math.Abs(rep.ElevationMm);
+                if (d < best || (d == best && rep.ElevationMm < bestElev))
+                { best = d; bestElev = rep.ElevationMm; groundIndex = i; }
             }
 
+            var groupCodes = new string[groups.Count];
+            for (int i = 0; i < groups.Count; i++)
+            {
+                // A name in the group that states a code speaks for the group: "GF" and a
+                // coincident "Level 1 SSL" are both the ground storey.
+                string stated = groups[i].Select(s => FromName(s.Name)).FirstOrDefault(c => c != null);
+                int offset = i - groundIndex;
+                groupCodes[i] = stated
+                    ?? (offset == 0 ? "00" : offset > 0 ? offset.ToString("00") : "B" + (-offset));
+                foreach (var s in groups[i])
+                    // A name that states a special code outranks the stack. ROOF is a
+                    // roof wherever it sits, and a project that has named a level GF has
+                    // already answered the question this class exists to answer.
+                    map[s.Name] = FromName(s.Name) ?? groupCodes[i];
+            }
+
+            // Levels outside the stack take the storey they coincide with, else the one
+            // they sit in (at or below), else the lowest.
+            foreach (var s in ordered)
+            {
+                if (map.ContainsKey(s.Name)) continue;
+                string stated = FromName(s.Name);
+                if (stated != null) { map[s.Name] = stated; continue; }
+                int pick = -1;
+                for (int i = 0; i < groups.Count && pick < 0; i++)
+                    if (groups[i].Any(g => Coincide(g.ElevationMm, s.ElevationMm))) pick = i;
+                if (pick < 0)
+                    for (int i = 0; i < groups.Count; i++)
+                        if (groups[i][0].ElevationMm <= s.ElevationMm + 1e-6 || Coincide(groups[i][0].ElevationMm, s.ElevationMm)) pick = i;
+                map[s.Name] = groupCodes[pick < 0 ? 0 : pick];
+            }
+
+            return map;
+        }
+
+        /// <summary>
+        /// DTW-105: the same map with the project's declared level codes laid over it.
+        /// <paramref name="declaredByName"/> is the code the project states for a level
+        /// (spatial_codes.json — the one tags, box names and project-pattern sheets use),
+        /// keyed by level name. A declaration wins, written in the ISO level field form
+        /// (<see cref="Iso19650DocumentCode.NormaliseLevel"/>: "GF" -> 00, "L03" -> 03);
+        /// a blank one, or one with nothing left after sanitising, is ignored. Levels the
+        /// project does not declare keep the code the stack gives them.
+        /// </summary>
+        public static Dictionary<string, string> BuildMap(IEnumerable<StoreyDatum> storeys,
+            IDictionary<string, string> declaredByName)
+        {
+            var map = BuildMap(storeys);
+            if (declaredByName == null) return map;
+            foreach (var kv in declaredByName)
+            {
+                if (string.IsNullOrWhiteSpace(kv.Key) || string.IsNullOrWhiteSpace(kv.Value)) continue;
+                // Nothing an ISO field may hold ("--") is not a declaration.
+                if (!kv.Value.Any(c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) continue;
+                map[kv.Key] = Iso19650DocumentCode.NormaliseLevel(kv.Value);
+            }
             return map;
         }
 

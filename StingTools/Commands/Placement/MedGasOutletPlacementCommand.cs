@@ -18,6 +18,10 @@
 // wall, anything else free-standing at the wall's face.
 //
 // Workflow tag: Placement_MedGasOutlets
+//
+// Workflow preset: no step params (every input is on the rooms). No dialog is
+// shown — the result goes to the step message (PresetDialog). With no room
+// carrying MGS_GAS_REQUIREMENT_TXT the step is skipped with that reason.
 
 using System;
 using System.Collections.Generic;
@@ -146,10 +150,10 @@ namespace StingTools.Commands.Placement
 
             if (rooms.Count == 0)
             {
-                TaskDialog.Show("STING Med Gas Outlets",
+                PresetDialog.Show("STING Med Gas Outlets",
                     "No rooms with a 'MGS_GAS_REQUIREMENT_TXT' parameter found.\n\n" +
                     "Set this parameter on each clinical room to a comma-separated\n" +
-                    "list of gas codes, e.g.:  O2,VAC,MA4,N2O (medical air is MA4).");
+                    "list of gas codes, e.g.:  O2,VAC,MA4,N2O (medical air is MA4).", ref message);
                 return Result.Cancelled;
             }
 
@@ -336,7 +340,7 @@ namespace StingTools.Commands.Placement
                     sb.AppendLine($"  … and {warningList.Count - 8} more (see StingTools.log).");
             }
 
-            TaskDialog.Show("STING Medical Gas Outlet Placement", sb.ToString().TrimEnd());
+            PresetDialog.Show("STING Medical Gas Outlet Placement", sb.ToString().TrimEnd(), ref message);
             return Result.Succeeded;
         }
 

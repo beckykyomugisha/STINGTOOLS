@@ -42,11 +42,15 @@ namespace StingTools.Tags
             ParamRegistry.ResetTokenSanitiseCounters();
 
             try { return ExecuteCore(commandData, ref message, elements); }
-            catch (OperationCanceledException) { return Result.Cancelled; }
+            catch (OperationCanceledException) { if (PresetDialog.Quiet) message = "Tag & Combine cancelled."; return Result.Cancelled; }
             catch (Exception ex)
             {
                 StingLog.Error("TagAndCombineCommand crashed", ex);
-                try { TaskDialog.Show("STING Tools", $"Tag & Combine failed:\n{ex.Message}"); } catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
+                // Every dialog here goes through PresetDialog: this is step 1 of the
+                // MEPDrawingProduction preset, where a modal dialog stops the run.
+                try { PresetDialog.Show("STING Tools", $"Tag & Combine failed:\n{ex.Message}", ref message); }
+                catch (Exception dlgEx) { StingLog.Warn($"TaskDialog fallback: {dlgEx.Message}"); }
+                if (PresetDialog.Quiet) message = $"Tag & Combine failed: {ex.Message}";
                 return Result.Failed;
             }
         }
@@ -55,7 +59,7 @@ namespace StingTools.Tags
             ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref message); if (PresetDialog.Quiet) message = "Tag & Combine: no document open."; return Result.Failed; }
             UIDocument uidoc = ctx.UIDoc;
             Document doc = ctx.Doc;
 
@@ -70,11 +74,19 @@ namespace StingTools.Tags
                 new("Entire Project",
                     "Process all taggable elements across the entire model", "project"),
             };
-            // A workflow step may answer the scope question in params.scope (view /
-            // selected / project); without it the picker asks, as it always has.
+            // A workflow step answers the scope question in params.scope (view /
+            // selected / project). Inside a preset nobody can answer the picker, so a
+            // step without the param takes the whole project (what every built-in
+            // preset that runs this step means by "full pipeline"); outside a preset
+            // the picker asks, as it always has.
             string stepScope = WorkflowEngine.IsRunningPreset ? (WorkflowEngine.StepParam("scope") ?? "").Trim().ToLowerInvariant() : "";
             if (stepScope.Length > 0 && stepScope != "view" && stepScope != "selected" && stepScope != "project")
             { message = $"Tag & Combine: params.scope '{stepScope}' is not view, selected or project."; return Result.Failed; }
+            if (stepScope.Length == 0 && WorkflowEngine.IsRunningPreset)
+            {
+                stepScope = "project";
+                StingLog.Info("Tag & Combine: preset step has no params.scope — using the entire project.");
+            }
             string scopeResult = stepScope.Length > 0 ? stepScope : UI.StingModePicker.Show(
                 "Tag & Combine All",
                 "Auto-populate tokens, tag, and combine into all 53 containers",
@@ -86,7 +98,7 @@ namespace StingTools.Tags
             switch (scopeResult)
             {
                 case "view":
-                    if (doc.ActiveView == null) { TaskDialog.Show("Tag & Combine", "No active view."); return Result.Failed; }
+                    if (doc.ActiveView == null) { PresetDialog.Show("Tag & Combine", "No active view.", ref message); if (PresetDialog.Quiet) message = "Tag & Combine: no active view."; return Result.Failed; }
                     {
                         // Performance: use ElementMulticategoryFilter to skip non-taggable elements
                         var viewCollector = new FilteredElementCollector(doc, doc.ActiveView.Id)
@@ -102,8 +114,11 @@ namespace StingTools.Tags
                     targetIds = uidoc.Selection.GetElementIds();
                     if (targetIds.Count == 0)
                     {
-                        TaskDialog.Show("Tag & Combine", "No elements selected.");
-                        return Result.Cancelled;
+                        PresetDialog.Show("Tag & Combine", "No elements selected.", ref message);
+                        if (PresetDialog.Quiet) message = "Tag & Combine: scope is 'selected' but nothing is selected.";
+                        // In a preset an empty selection is a failed step with a reason,
+                        // not a quiet cancel the report could mistake for a choice.
+                        return PresetDialog.Quiet ? Result.Failed : Result.Cancelled;
                     }
                     scopeLabel = $"{targetIds.Count} selected elements";
                     break;
@@ -132,9 +147,10 @@ namespace StingTools.Tags
             {
                 string diag = popCtx?.DiagnosticSummary ?? "Context build returned null";
                 StingLog.Error($"TagAndCombine: PopulationContext failed — {diag}");
-                TaskDialog.Show("Tag & Combine",
+                PresetDialog.Show("Tag & Combine",
                     $"Failed to build population context.\n\nDiagnostics: {diag}\n\n" +
-                    "Check: rooms placed? Levels defined? Shared parameters bound?");
+                    "Check: rooms placed? Levels defined? Shared parameters bound?", ref message);
+                if (PresetDialog.Quiet) message = $"Tag & Combine: population context failed — {diag}. Check rooms, levels and shared-parameter bindings.";
                 return Result.Failed;
             }
             var formulas = TagPipelineHelper.LoadFormulas();
@@ -200,7 +216,8 @@ namespace StingTools.Tags
                 if (cancelled)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("Tag & Combine", $"Cancelled by user.\n{totalProcessed} elements processed before cancellation.\nAll changes rolled back.");
+                    PresetDialog.Show("Tag & Combine", $"Cancelled by user.\n{totalProcessed} elements processed before cancellation.\nAll changes rolled back.", ref message);
+                    if (PresetDialog.Quiet) message = $"Tag & Combine cancelled (Escape) after {totalProcessed} elements; all changes rolled back.";
                     return Result.Cancelled;
                 }
 
@@ -212,7 +229,9 @@ namespace StingTools.Tags
             ComplianceScan.InvalidateCache();
             // FIX-13: Invalidate auto-tagger cached context after batch tagging
             StingAutoTagger.InvalidateContext();
-            TagConfig.CheckComplianceGate(doc, "TagAndCombine");
+            // The compliance gate shows its own modal dialog; inside a preset the
+            // compliance figure goes into the step message below instead.
+            if (!PresetDialog.Quiet) TagConfig.CheckComplianceGate(doc, "TagAndCombine");
 
             var report = new StringBuilder();
             report.AppendLine("Tag & Combine All Complete");

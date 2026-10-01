@@ -15,13 +15,18 @@ using StingTools.Core;
 // scope box in the project, parses the name, creates a view for
 // each match using the bound DrawingType + the scope box as the
 // view's crop region, and places it on a sheet. The level-code
-// optional; when present it filters which Level the plan uses as
-// its associated level. The tag optional — free-form, stored on
-// the view so downstream automation can group / filter.
+// optional; when present it names the Level the plan uses as its
+// associated level. DTW-40: a segment cannot hold a space, so it is
+// read as the unique level code first (ScopeBoxRevit.LevelCodes —
+// "L01"), then the level name, then the name without spaces or
+// punctuation (LevelSegmentResolver) — "Level 1" is written L01 or
+// Level1. The tag optional — free-form, stored on the view so
+// downstream automation can group / filter.
 //
-// Idempotent: re-running does not create duplicates — it looks up
-// existing views stamped with the same (dt.Id, scopeBox.Name) pair
-// and re-applies the profile instead.
+// Idempotent: re-running does not create duplicates — production
+// (ProduceViewsFromScopeBoxesCommand, which DrawingTypes_FromScopeBoxes
+// now runs too) finds the view stamped for the same drawing type and
+// box (by the box's UniqueId — DTW-42) and re-applies the profile.
 
 using System;
 using System.Collections.Generic;
@@ -46,11 +51,11 @@ namespace StingTools.Core.Drawing
         private const string NamePrefix = "STING::";
 
         // ACC-02: the only legal characters inside a token segment are
-        // alphanumerics + dot + hyphen + underscore. Anything else is a
-        // typo or a manual rename that doesn't survive the parser.
-        private static readonly Regex _pattern =
-            new Regex(@"^STING::([A-Za-z0-9_\-\.]+)(?:::([A-Za-z0-9_\-\.]+))?(?:::([A-Za-z0-9_\-\.]+))?$",
-                      RegexOptions.Compiled);
+        // alphanumerics + dot + hyphen + underscore. DTW-93: the grammar lives in
+        // ScopeBoxNames (Revit-free, tested) — one segment rule for every STING
+        // prefix, prefix case ignored, name and segments trimmed. The old regex
+        // here matched with case after a case-blind prefix test, so
+        // "sting::arch-plan" was reported as malformed.
 
         /// <summary>
         /// ACC-02: a scope-box name beginning with STING:: that fails the
@@ -70,9 +75,7 @@ namespace StingTools.Core.Drawing
         /// STING:: prefix but fails the strict pattern. Exposed so the
         /// Scope Box Manager renders the same wording the scan warnings do.
         /// </summary>
-        public const string PatternReason =
-            "name has STING:: prefix but does not match "
-          + "STING::<id>[::<level>][::<tag>] (allowed chars: A-Z 0-9 . _ -)";
+        public const string PatternReason = ScopeBoxNames.DrawingTypePatternReason;
 
         /// <summary>The literal prefix every bindable scope-box name starts with.</summary>
         public static string Prefix => NamePrefix;
@@ -83,10 +86,7 @@ namespace StingTools.Core.Drawing
         /// or tag as it is typed, without assembling a whole candidate name.
         /// </summary>
         public static bool IsValidSegment(string segment)
-            => !string.IsNullOrEmpty(segment) && _segment.IsMatch(segment);
-
-        private static readonly Regex _segment =
-            new Regex(@"^[A-Za-z0-9_\-\.]+$", RegexOptions.Compiled);
+            => ScopeBoxNames.IsValidSegment(segment);
 
         /// <summary>
         /// The single public entry point for "is this scope-box name legal?".
@@ -110,23 +110,16 @@ namespace StingTools.Core.Drawing
             reason  = null;
             if (string.IsNullOrWhiteSpace(name)) return false;
 
-            // PERF-07: cheap startswith filter before the regex.
-            if (!name.StartsWith(NamePrefix, StringComparison.OrdinalIgnoreCase)) return false;
-
-            var m = _pattern.Match(name);
-            if (!m.Success)
-            {
-                // ACC-02: surface the rejection so the operator can
-                // fix typos like "STING::arch plan" → "STING::arch-plan".
-                reason = PatternReason;
+            // ACC-02: a non-null reason is surfaced so the operator can fix
+            // typos like "STING::arch plan" → "STING::arch-plan".
+            if (!ScopeBoxNames.TryParseDrawingType(name, out var id, out var level, out var tag, out reason))
                 return false;
-            }
 
             binding = new ScopeBoxBinding
             {
-                DrawingTypeId = m.Groups[1].Value,
-                LevelCode     = m.Groups[2].Success ? m.Groups[2].Value : null,
-                Tag           = m.Groups[3].Success ? m.Groups[3].Value : null,
+                DrawingTypeId = id,
+                LevelCode     = level,
+                Tag           = tag,
             };
             return true;
         }

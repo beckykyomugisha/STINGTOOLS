@@ -32,6 +32,18 @@ namespace StingTools.Commands.Electrical.Schematics
         private static readonly string[] KnownGasTypes =
             { "O2", "N2O", "CO2", "AIR", "VAC", "AGSS" };
 
+        // The categories MGS_GAS_TYPE_TXT is bound to (RESOLVED_BINDINGS.csv).
+        private static readonly ICollection<BuiltInCategory> MgpsCategories = new List<BuiltInCategory>
+        {
+            BuiltInCategory.OST_SpecialityEquipment,
+            BuiltInCategory.OST_MechanicalEquipment,
+            BuiltInCategory.OST_PlumbingFixtures,
+            BuiltInCategory.OST_MedicalEquipment,
+            BuiltInCategory.OST_PipeCurves,
+            BuiltInCategory.OST_PipeFitting,
+            BuiltInCategory.OST_PipeAccessory,
+        };
+
         // Legend text per gas type.
         private static readonly Dictionary<string, string> GasLegend =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -50,10 +62,12 @@ namespace StingTools.Commands.Electrical.Schematics
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
 
-            // Collect all non-type elements.
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // Only the categories MGS_GAS_TYPE_TXT is bound to (RESOLVED_BINDINGS.csv) can
+            // carry a gas type. Scanning every element of the model, as this did, cost three
+            // parameter lookups per wall, tag and view. Iterated lazily.
+            var mgpsElements = new FilteredElementCollector(doc)
+                .WherePasses(new ElementMulticategoryFilter(MgpsCategories))
+                .WhereElementIsNotElementType();
 
             // Group MGPS elements by gas type.
             var mgsByGas = new Dictionary<string, List<Element>>(StringComparer.OrdinalIgnoreCase);
@@ -70,11 +84,11 @@ namespace StingTools.Commands.Electrical.Schematics
             var tuByGas = new Dictionary<string, List<(Element el, string mark)>>(
                 StringComparer.OrdinalIgnoreCase);
 
-            foreach (var el in allElements)
+            foreach (var el in mgpsElements)
             {
                 try
                 {
-                    string gasType = el.LookupParameter("MGS_GAS_TYPE_TXT")?.AsString()?.Trim();
+                    string gasType = el.LookupParameter(ParamRegistry.MGS_GAS_TYPE)?.AsString()?.Trim();
                     if (string.IsNullOrEmpty(gasType)) continue;
 
                     gasType = gasType.ToUpperInvariant();
@@ -84,7 +98,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     mgsByGas[gasType].Add(el);
 
                     // Supply source?
-                    string supplyType = el.LookupParameter("MGS_SUPPLY_TYPE_TXT")?.AsString()?.Trim();
+                    string supplyType = el.LookupParameter(ParamRegistry.MGS_SUPPLY_TYPE)?.AsString()?.Trim();
                     if (!string.IsNullOrEmpty(supplyType))
                     {
                         if (!sourcesByGas.ContainsKey(gasType))
@@ -93,7 +107,7 @@ namespace StingTools.Commands.Electrical.Schematics
                     }
 
                     // Zone valve?
-                    string zvZone = el.LookupParameter("MGS_ZV_ZONE_TXT")?.AsString()?.Trim();
+                    string zvZone = el.LookupParameter(ParamRegistry.MGS_ZV_ZONE)?.AsString()?.Trim();
                     if (!string.IsNullOrEmpty(zvZone))
                     {
                         if (!zvByGas.ContainsKey(gasType))
@@ -112,7 +126,7 @@ namespace StingTools.Commands.Electrical.Schematics
                         tuByGas[gasType].Add((el, mark));
                     }
                 }
-                catch { /* parameter not applicable — skip */ }
+                catch (Exception ex) { StingLog.Warn($"MGPSSchematic: read {el.Id}: {ex.Message}"); }
             }
 
             // Determine the ordered list of gas types present in the project.
@@ -143,11 +157,11 @@ namespace StingTools.Commands.Electrical.Schematics
             {
                 tx.Start();
 
-                var view = CreateDraftingView(doc, "STING - MGPS Schematic");
+                var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, "STING - MGPS Schematic", out string viewError);
                 if (view == null)
                 {
                     tx.RollBack();
-                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING MGPS Schematic", message);
                     return Result.Failed;
                 }
@@ -312,20 +326,6 @@ namespace StingTools.Commands.Electrical.Schematics
 
         // ---------------------------------------------------------------- helpers
 
-        private static ViewDrafting CreateDraftingView(Document doc, string name)
-        {
-            var vft = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
-            if (vft == null) return null;
-            var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"MGPSSchematic view name '{name}': {ex.Message}"); }
-            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
-            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
-            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"MGPSSchematic scale: {ex.Message}"); }
-            return v;
-        }
 
         private static double Mm(double mm) => mm / 304.8;
 

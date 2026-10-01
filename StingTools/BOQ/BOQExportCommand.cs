@@ -5,6 +5,17 @@
 //  (when multiple snapshots exist) a comparison. Pre-export the command
 //  writes CST_* and ASS_BOQ_* parameters back onto modeled elements so the
 //  workbook and the model stay synchronised.
+//
+//  Workflow preset (BOQExport, WorkflowEngine.IsRunningPreset): no dialog, no
+//  Explorer window. Step params:
+//    format          xlsx                        default xlsx (the only format this
+//                                                command writes; anything else fails)
+//    fileName        base file name              default STING_BOQ (timestamped, in
+//                                                the routed BOQ export folder)
+//    onLowCoverage   export | stop               default export — the NRM2 coverage
+//                    warning the dialog asks about is put at the top of the step
+//                    message and the log; "stop" fails the step instead
+//  The result panel goes to the step message (PresetDialog).
 // ══════════════════════════════════════════════════════════════════════════
 using System;
 using System.Diagnostics;
@@ -45,6 +56,28 @@ namespace StingTools.BOQ
                 var ctx = ParameterHelpers.GetContext(commandData);
                 if (ctx?.Doc == null) return Result.Failed;
                 var doc = ctx.Doc;
+
+                bool headless = WorkflowEngine.IsRunningPreset;
+                string baseName = "STING_BOQ";
+                string onLowCoverage = "export";
+                string coverageNote = null;
+                if (headless)
+                {
+                    if (!PresetStepInputs.TryChoice("format", WorkflowEngine.StepParam("format"), "xlsx",
+                            new[] { new PresetStepInputs.Choice("xlsx", "excel", "xls") }, out _, out var err)
+                        || !PresetStepInputs.TryChoice("onLowCoverage", WorkflowEngine.StepParam("onLowCoverage"), "export",
+                            new[] { new PresetStepInputs.Choice("export", "continue", "yes"),
+                                    new PresetStepInputs.Choice("stop", "cancel", "no", "fail") },
+                            out onLowCoverage, out err))
+                    { message = "BOQ export: " + err; return Result.Failed; }
+                    string fn = WorkflowEngine.StepParam("fileName").Trim();
+                    if (fn.Length > 0)
+                    {
+                        if (fn.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                        { message = $"BOQ export: params.fileName = '{fn}' is not a valid file name."; return Result.Failed; }
+                        baseName = Path.GetFileNameWithoutExtension(fn);
+                    }
+                }
 
                 // Build BOQ + (optional) paragraph coverage gate
                 var boq = BOQCostManager.BuildBOQDocument(doc);
@@ -93,19 +126,35 @@ namespace StingTools.BOQ
                     }
                     detail.Append("\nOpen the NRM2 templates tab to fill in missing descriptions before exporting.");
 
-                    var td = new TaskDialog("BOQ paragraph coverage")
+                    if (headless)
                     {
-                        MainInstruction = $"NRM2 paragraph coverage is {boq.ParagraphCoveragePct:F0}%"
-                                        + (manyFallbacks && !lowCoverage
-                                           ? " — but most descriptions are synthesised, not resolved" : ""),
-                        MainContent = detail.ToString(),
-                        CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No | TaskDialogCommonButtons.Cancel,
-                        DefaultButton = TaskDialogResult.No
-                    };
-                    td.VerificationText = "Continue anyway";
-                    var r = td.Show();
-                    if (r == TaskDialogResult.Cancel) return Result.Cancelled;
-                    if (r == TaskDialogResult.No) return Result.Cancelled;
+                        // Unattended: the decision is the step's params.onLowCoverage, and the
+                        // warning travels with the result rather than being answered in silence.
+                        coverageNote = $"NRM2 paragraph coverage {boq.ParagraphCoveragePct:F0}% — " +
+                                       $"{genericRows} of {boq.AllItems.Count} items carry a generic description.";
+                        StingLog.Warn($"BOQExport (preset): {coverageNote} {detail.ToString().Replace("\n", " ")}");
+                        if (onLowCoverage == "stop")
+                        {
+                            message = $"BOQ export stopped (params.onLowCoverage = stop): {coverageNote}";
+                            return Result.Failed;
+                        }
+                    }
+                    else
+                    {
+                        var td = new TaskDialog("BOQ paragraph coverage")
+                        {
+                            MainInstruction = $"NRM2 paragraph coverage is {boq.ParagraphCoveragePct:F0}%"
+                                            + (manyFallbacks && !lowCoverage
+                                               ? " — but most descriptions are synthesised, not resolved" : ""),
+                            MainContent = detail.ToString(),
+                            CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No | TaskDialogCommonButtons.Cancel,
+                            DefaultButton = TaskDialogResult.No
+                        };
+                        td.VerificationText = "Continue anyway";
+                        var r = td.Show();
+                        if (r == TaskDialogResult.Cancel) return Result.Cancelled;
+                        if (r == TaskDialogResult.No) return Result.Cancelled;
+                    }
                 }
 
                 // Write cost parameters back to the model first so the workbook
@@ -118,7 +167,7 @@ namespace StingTools.BOQ
                     tx.Commit();
                 }
 
-                string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", "STING_BOQ", ".xlsx");
+                string outputPath = OutputLocationHelper.GetRoutedTimestampedPath(doc, "BOQ", baseName, ".xlsx");
                 using (var wb = new XLWorkbook())
                 {
                     BuildSummarySheet(wb.Worksheets.Add("BOQ Summary"), boq);
@@ -151,11 +200,16 @@ namespace StingTools.BOQ
                 }
 
                 var healthScore = BOQCostManager.ComputeBOQHealth(boq);
-                try { Process.Start("explorer.exe", $"/select,\"{outputPath}\""); } catch (Exception ex) { StingLog.Warn($"Explorer open: {ex.Message}"); }
+                if (!headless)
+                {
+                    try { Process.Start("explorer.exe", $"/select,\"{outputPath}\""); } catch (Exception ex) { StingLog.Warn($"Explorer open: {ex.Message}"); }
+                }
 
-                UI.StingResultPanel.Create("BOQ Exported")
-                    .SetSubtitle($"{boq.AllItems.Count:N0} items · grand total UGX {boq.GrandTotalUGX:N0}")
-                    .AddSection("FILE")
+                var resultPanel = UI.StingResultPanel.Create("BOQ Exported")
+                    .SetSubtitle($"{boq.AllItems.Count:N0} items · grand total UGX {boq.GrandTotalUGX:N0}");
+                if (coverageNote != null)
+                    resultPanel.AddSection("WARNING").Text(coverageNote + " The workbook was exported anyway (params.onLowCoverage = export).");
+                resultPanel.AddSection("FILE")
                     .Text(outputPath)
                     .AddSection("SUMMARY")
                     .Metric("Items", boq.AllItems.Count.ToString("N0"))
@@ -165,8 +219,8 @@ namespace StingTools.BOQ
                     .Metric("Carbon", $"{boq.TotalCarbonKg:F0} kgCO₂e")
                     .Metric("Paragraph coverage", $"{boq.ParagraphCoveragePct:F0}%")
                     .Metric("Health score", $"{healthScore.OverallScore:F0}/100 ({healthScore.Grade})")
-                    .Metric("Sign-off", BoqSignOffStore.StatusLine(doc, boq))
-                    .Show();
+                    .Metric("Sign-off", BoqSignOffStore.StatusLine(doc, boq));
+                PresetDialog.Show(resultPanel, ref message);
 
                 StingLog.Info($"BOQ exported: {Path.GetFileName(outputPath)} ({boq.AllItems.Count} items)");
                 return Result.Succeeded;
@@ -174,6 +228,7 @@ namespace StingTools.BOQ
             catch (Exception ex)
             {
                 StingLog.Error("BOQExportCommand", ex);
+                if (WorkflowEngine.IsRunningPreset) { message = $"BOQ export failed: {ex.Message}"; return Result.Failed; }
                 message = ex.Message;
                 TaskDialog.Show("STING BOQ", $"Export failed: {ex.Message}");
                 return Result.Failed;

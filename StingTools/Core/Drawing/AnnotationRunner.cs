@@ -3,7 +3,8 @@
 // AnnotationRunner consumes an AnnotationRulePack and runs four
 // passes against a single View, in order:
 //
-//   1. Tag rules    — IndependentTag.Create per resolved rule
+//   1. Tag rules    — IndependentTag.Create per resolved rule; rooms,
+//                     spaces and areas take a SpatialElementTag (DTW-83)
 //   2. Dim rules    — chained dims across grids / levels
 //   3. Decorative   — north arrow, scale bar, key plan, matchlines
 //   4. Spot rules   — spot elevations / spot coordinates
@@ -102,6 +103,23 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static AnnotationRunStats Apply(
             Document doc, View view, DrawingType drawingType, AnnotationRunOptions options = null)
+        {
+            // The loaded-symbol index lives for a production batch (DrawingProducer
+            // opens one); a stand-alone call gets its own, dropped when it returns.
+            bool ownsIndex = !_symbolBatchActive;
+            try
+            {
+                RevalidateSymbolIndex(doc);
+                return ApplyCore(doc, view, drawingType, options);
+            }
+            finally
+            {
+                if (ownsIndex) ResetSymbolIndex();
+            }
+        }
+
+        private static AnnotationRunStats ApplyCore(
+            Document doc, View view, DrawingType drawingType, AnnotationRunOptions options)
         {
             var stats = new AnnotationRunStats();
             var pack = options?.PackOverride ?? drawingType?.Annotation;
@@ -289,7 +307,7 @@ namespace StingTools.Core.Drawing
             // AutoAnnotationRule.SkipIfTagged (default true) was read nowhere,
             // so re-running SyncStyles, a drift heal, or DrawingTypePresentation
             // .Apply doubled every tag on the view.
-            var taggedIndex = new Lazy<Dictionary<ElementId, List<string>>>(() => BuildTaggedElementIndex(doc, view, stats));
+            var taggedIndex = new Lazy<Dictionary<string, List<string>>>(() => BuildTaggedElementIndex(doc, view, stats));
 
             // One pass per (category, rule tag family, familyMatch) — not per
             // category, which silently dropped the second of two rules on one
@@ -351,6 +369,18 @@ namespace StingTools.Core.Drawing
                     // per-rule catch below swallowed it as a warning, so the
                     // whole auto-tag pass silently placed nothing. Pass the long.
                     if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
+
+                    // DTW-83: rooms, spaces and areas take a SpatialElementTag
+                    // (NewRoomTag / NewSpaceTag / NewAreaTag). IndependentTag.Create
+                    // on a room threw once per room (or duplicated), so the 40
+                    // shipped room / space / area rules placed nothing.
+                    var spatial = SpatialTagRouting.KindOf(((BuiltInCategory)cv).ToString());
+                    if (spatial != SpatialTagKind.None)
+                    {
+                        TagSpatialCategory(doc, view, pack, (BuiltInCategory)cv, spatial, effCat, stats, rule,
+                            taggedIndex.Value, drawingType, specialistFamilies);
+                        continue;
+                    }
                     TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value, drawingType,
                         specialistFamilies);
                 }
@@ -618,7 +648,8 @@ namespace StingTools.Core.Drawing
                         if (refs == null) continue;
                         foreach (Reference r in refs)
                         {
-                            var host = doc.GetElement(r);
+                            // Through the link, so a chain to linked grids counts (DTW-85).
+                            var host = ViewLinks.Resolve(doc, r);
                             if (host?.Category == null) continue;
                             if (host.Category.Id.Value == (long)targetCat) return true;
                         }
@@ -647,44 +678,22 @@ namespace StingTools.Core.Drawing
                 return;
             }
 
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfCategory(BuiltInCategory.OST_Grids)
-                .WhereElementIsNotElementType()
-                .Cast<Grid>()
-                .ToList();
-            if (grids.Count < 2) return;
-
-            // A-4: split by orientation. Every grid used to go into ONE
-            // ReferenceArray with a dimension line running between the end
-            // points of the first and last grid in COLLECTOR order — arbitrary
-            // in both direction and position. A dimension can only measure
-            // mutually parallel references, so on any project with orthogonal
-            // grids (i.e. essentially all of them) NewDimension threw and the
-            // per-view catch swallowed it: grid auto-dimensioning never once
-            // succeeded on a real model.
-            //
-            // Each parallel set now gets its own chain, on a line PERPENDICULAR
-            // to that set — which is the only orientation that can measure the
-            // spacing between them — placed just outside the grid extent.
-            var eastWest = new List<Grid>();   // run along X; spaced along Y
-            var northSouth = new List<Grid>(); // run along Y; spaced along X
-            double zPlane = 0; bool haveZ = false;
-            double xMin = double.MaxValue, xMax = double.MinValue;
-            double yMin = double.MaxValue, yMax = double.MinValue;
-
-            foreach (var g in grids)
-            {
-                var line = g.Curve as Line;
-                if (line == null) continue;    // arc grids cannot join a linear chain
-                var d = line.Direction;
-                var a = line.GetEndPoint(0);
-                var b = line.GetEndPoint(1);
-                if (!haveZ) { zPlane = a.Z; haveZ = true; }
-                xMin = Math.Min(xMin, Math.Min(a.X, b.X)); xMax = Math.Max(xMax, Math.Max(a.X, b.X));
-                yMin = Math.Min(yMin, Math.Min(a.Y, b.Y)); yMax = Math.Max(yMax, Math.Max(a.Y, b.Y));
-                if (RunsEastWest(d.X, d.Y)) eastWest.Add(g); else northSouth.Add(g);
-            }
-            if (!haveZ) return;
+            // DTW-85: the host's grids AND those of loaded links shown in the view —
+            // an MEP model whose grids live in the linked architectural model found
+            // none and placed no chain. Linked grids carry link references.
+            var gridLines = ViewLinks.StraightGrids(doc, view, stats.Warnings, out int arcs);
+            // DTW-140: where a linked grid lies on a host grid (copy / monitor, possibly a
+            // hair off) the host one is kept — StraightGrids lists host grids first and
+            // KeepFirstOfCoincident keeps the first, as the column-grid dimensioner does.
+            // Without it the offset link copy could win and the chain measure the link.
+            var gridSegs = gridLines.Select((g, i) => new GridSeg(i,
+                g.Line.GetEndPoint(0).X, g.Line.GetEndPoint(0).Y,
+                g.Line.GetEndPoint(1).X, g.Line.GetEndPoint(1).Y)).ToList();
+            var lines = GridChainGeometry.KeepFirstOfCoincident(gridSegs)
+                .Select(i => (gridLines[i].Line, gridLines[i].Ref)).ToList();
+            if (arcs > 0 && lines.Count >= 2)
+                stats.Warnings.Add($"Grid dim: {arcs} arc grid(s) cannot join a linear chain — left out.");
+            if (lines.Count < 2) return;
 
             // B1: honour the pack's dimensionStrategy. This was a declared
             // rule-pack field with no consumer — GridDimensioner read it but
@@ -703,89 +712,56 @@ namespace StingTools.Core.Drawing
             if (dimStyleId == ElementId.InvalidElementId)
                 dimStyleId = ResolveDimensionStyleId(doc, pack.DimensionStyle);
 
-            double marginFt = 10.0;   // ~3 m clear of the grid extent
-
-            // East-west grids are stacked along Y, so their chain runs along Y,
-            // offset beyond the eastern extent.
-            PlaceGridChain(doc, view, eastWest, dimStyleId, stats, "east-west",
-                positionOf: g => ((Line)g.Curve).Origin.Y,
-                pointAt: (pos, off) => new XYZ(xMax + off, pos, zPlane),
-                marginFt: marginFt);
-
-            // North-south grids are stacked along X, so their chain runs along
-            // X, offset beyond the northern extent.
-            PlaceGridChain(doc, view, northSouth, dimStyleId, stats, "north-south",
-                positionOf: g => ((Line)g.Curve).Origin.X,
-                pointAt: (pos, off) => new XYZ(pos, yMax + off, zPlane),
-                marginFt: marginFt);
+            PlaceGridChains(doc, view, lines, dimStyleId, stats);
         }
 
         /// <summary>
-        /// Orientation test for a grid line: true when the curve runs
-        /// predominantly along model X (an "east-west" grid on plan), which
-        /// means the set is spaced along Y and must be dimensioned by a chain
-        /// running along Y.
-        /// Revit-free so the classification is testable; ties (|dx| == |dy|,
-        /// a 45-degree grid) resolve to east-west deterministically rather
-        /// than by collector order.
+        /// One chain per set of parallel grids. A-4 split the grids by world axis
+        /// (a dimension can only measure mutually parallel references); DTW-86
+        /// groups them by their own direction instead, measures each grid ACROSS
+        /// its set (dot with the set's normal) and runs the line along that normal
+        /// — so a rotated building is dimensioned rather than reported as
+        /// "coincident" from equal world-Y origins. Geometry: GridChainGeometry.
         /// </summary>
-        internal static bool RunsEastWest(double dirX, double dirY)
-            => Math.Abs(dirX) >= Math.Abs(dirY);
-
-        /// <summary>
-        /// Span of a parallel grid set along its spacing axis, widened by a
-        /// margin. Returns false when there are fewer than two DISTINCT
-        /// positions — coincident grids cannot be dimensioned and produced a
-        /// zero-length dimension line.
-        /// Revit-free so the degenerate cases are testable.
-        /// </summary>
-        internal static bool TryGridSpan(IReadOnlyList<double> positions, double marginFt,
-            out double lo, out double hi)
+        private static void PlaceGridChains(Document doc, View view, List<(Line Line, Reference Ref)> lines,
+            ElementId dimStyleId, AnnotationRunStats stats)
         {
-            lo = hi = 0;
-            if (positions == null || positions.Count < 2) return false;
-            double mn = double.MaxValue, mx = double.MinValue;
-            foreach (var p in positions) { if (p < mn) mn = p; if (p > mx) mx = p; }
-            if (mx - mn < 1e-6) return false;
-            lo = mn - marginFt;
-            hi = mx + marginFt;
-            return true;
-        }
-
-        private static void PlaceGridChain(Document doc, View view, List<Grid> set,
-            ElementId dimStyleId, AnnotationRunStats stats, string label,
-            Func<Grid, double> positionOf, Func<double, double, XYZ> pointAt, double marginFt)
-        {
-            if (set == null || set.Count < 2) return;
-            try
+            const double marginFt = 10.0;   // ~3 m clear of the grid extent
+            double zPlane = lines[0].Line.GetEndPoint(0).Z;
+            var segs = lines.Select((t, i) =>
             {
-                var positions = set.Select(positionOf).ToList();
-                if (!TryGridSpan(positions, marginFt, out double lo, out double hi))
-                {
-                    stats.Warnings.Add($"Grid dim ({label}): grids are coincident — no chain placed.");
-                    return;
-                }
+                var a = t.Line.GetEndPoint(0); var b = t.Line.GetEndPoint(1);
+                return new GridSeg(i, a.X, a.Y, b.X, b.Y);
+            }).ToList();
 
-                var refs = new ReferenceArray();
-                foreach (var g in set)
+            foreach (var plan in GridChainGeometry.Plan(segs, marginFt))
+            {
+                if (!plan.Placeable)
                 {
-                    try { refs.Append(new Reference(g)); }
-                    catch (Exception ex) { StingLog.Warn($"Grid ref {g.Id}: {ex.Message}"); }
+                    if (plan.Reason == "grids are coincident")
+                        stats.Warnings.Add($"Grid dim ({plan.Label}): grids are coincident — no chain placed.");
+                    continue;
                 }
-                if (refs.Size < 2) return;
+                try
+                {
+                    var refs = new ReferenceArray();
+                    foreach (int i in plan.Members) refs.Append(lines[i].Ref);
+                    if (refs.Size < 2) continue;
 
-                var dimLine = Line.CreateBound(pointAt(lo, marginFt), pointAt(hi, marginFt));
-                var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
-                    ? doc.Create.NewDimension(view, dimLine, refs)
-                    : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
-                if (dim != null)
-                {
-                    stats.DimsCreated++;
-                    Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimGridChain,
-                        AnnotationProvenance.Key(view.UniqueId, label));
+                    var dimLine = Line.CreateBound(new XYZ(plan.LineX0, plan.LineY0, zPlane),
+                                                   new XYZ(plan.LineX1, plan.LineY1, zPlane));
+                    var dim = (dimStyleId == null || dimStyleId == ElementId.InvalidElementId)
+                        ? doc.Create.NewDimension(view, dimLine, refs)
+                        : doc.Create.NewDimension(view, dimLine, refs, (DimensionType)doc.GetElement(dimStyleId));
+                    if (dim != null)
+                    {
+                        stats.DimsCreated++;
+                        Storage.StingAnnotationProvenanceSchema.Stamp(dim, AnnotationProvenance.DimGridChain,
+                            AnnotationProvenance.Key(view.UniqueId, plan.Label));
+                    }
                 }
+                catch (Exception ex) { stats.Warnings.Add($"Grid dim ({plan.Label}): {ex.Message}"); }
             }
-            catch (Exception ex) { stats.Warnings.Add($"Grid dim ({label}): {ex.Message}"); }
         }
 
         /// <summary>
@@ -885,13 +861,14 @@ namespace StingTools.Core.Drawing
         // TagDepthLayering / TokenProfileApplier.WriteCategoryDepths.
 
         /// <summary>
-        /// Element ids already carrying an IndependentTag in this view, each with
+        /// Hosts already carrying a tag in this view — IndependentTags and (DTW-83)
+        /// room / space / area tags — keyed by <see cref="TaggedHostKey"/>, each with
         /// the families of those tags ("" when the family cannot be read — still a
         /// tag). Built once per view and shared across every tag rule.
         /// </summary>
-        private static Dictionary<ElementId, List<string>> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
+        private static Dictionary<string, List<string>> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
         {
-            var set = new Dictionary<ElementId, List<string>>();
+            var set = new Dictionary<string, List<string>>();
             try
             {
                 foreach (var el in new FilteredElementCollector(doc, view.Id)
@@ -902,10 +879,17 @@ namespace StingTools.Core.Drawing
                     try
                     {
                         string fam = (doc.GetElement(tag.GetTypeId()) as FamilySymbol)?.FamilyName ?? "";
-                        foreach (var id in tag.GetTaggedLocalElementIds())
+                        // GetTaggedElementIds, not ...LocalElementIds: a tag on a
+                        // linked element is a tag too (DTW-85), keyed by link instance.
+                        foreach (var lid in tag.GetTaggedElementIds())
                         {
-                            if (id == null || id == ElementId.InvalidElementId) continue;
-                            if (!set.TryGetValue(id, out var fams)) set[id] = fams = new List<string>();
+                            if (lid == null) continue;
+                            long linkInst = lid.LinkInstanceId?.Value ?? -1;
+                            long linked = lid.LinkedElementId?.Value ?? -1;
+                            long hostId = lid.HostElementId?.Value ?? -1;
+                            if (hostId <= 0 && (linkInst <= 0 || linked <= 0)) continue;
+                            var key = TaggedHostKey.From(hostId, linkInst, linked);
+                            if (!set.TryGetValue(key, out var fams)) set[key] = fams = new List<string>();
                             fams.Add(fam);
                         }
                     }
@@ -914,6 +898,7 @@ namespace StingTools.Core.Drawing
                         StingLog.Warn($"BuildTaggedElementIndex: tag {tag.Id} — {ex.Message}");
                     }
                 }
+                AddSpatialTagsToIndex(doc, view, set);
             }
             catch (Exception ex)
             {
@@ -974,14 +959,16 @@ namespace StingTools.Core.Drawing
 
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
             BuiltInCategory bic, string catKey, AnnotationRunStats stats,
-            AutoAnnotationRule rule = null, Dictionary<ElementId, List<string>> alreadyTagged = null,
+            AutoAnnotationRule rule = null, Dictionary<string, List<string>> alreadyTagged = null,
             DrawingType drawingType = null, ISet<string> specialistFamilies = null)
         {
             var elements = new FilteredElementCollector(doc, view.Id)
                 .OfCategory(bic)
                 .WhereElementIsNotElementType()
                 .ToElements();
-            if (elements.Count == 0) return;
+            // DTW-85: the same category in loaded links the view shows.
+            var linked = LinkedElementsOf(doc, view, bic, catKey, stats);
+            if (elements.Count == 0 && linked.Count == 0) return;
 
             // B1: a per-rule tagFamily wins over the pack-level TagFamilies map.
             // AutoAnnotationRule.TagFamily was declared and read nowhere, so a rule
@@ -989,7 +976,7 @@ namespace StingTools.Core.Drawing
             ElementId tagTypeId = ElementId.InvalidElementId;
             if (!string.IsNullOrWhiteSpace(rule?.TagFamily))
             {
-                var byRule = FindFamilySymbolByName(doc, rule.TagFamily);
+                var byRule = SymbolIndexFor(doc).FindByName(rule.TagFamily);
                 if (byRule != null) tagTypeId = byRule.Id;
                 else stats.Warnings.Add(
                     $"Rule tag family '{rule.TagFamily}' for {catKey} is not loaded; using the pack default.");
@@ -1074,7 +1061,7 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     if (skipIfTagged && alreadyTagged != null
-                        && alreadyTagged.TryGetValue(el.Id, out var onElement)
+                        && alreadyTagged.TryGetValue(TaggedHostKey.Local(el.Id.Value), out var onElement)
                         && TagRuleIdentity.ShouldSkip(onElement, isSpecialistRule, placedFamily, specialistFamilies))
                     {
                         stats.Skipped++;
@@ -1146,8 +1133,9 @@ namespace StingTools.Core.Drawing
                         // same element in this run doesn't tag it twice.
                         if (alreadyTagged != null)
                         {
-                            if (!alreadyTagged.TryGetValue(el.Id, out var fams))
-                                alreadyTagged[el.Id] = fams = new List<string>();
+                            var key = TaggedHostKey.Local(el.Id.Value);
+                            if (!alreadyTagged.TryGetValue(key, out var fams))
+                                alreadyTagged[key] = fams = new List<string>();
                             fams.Add(placedFamily);
                         }
                     }
@@ -1158,6 +1146,79 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
             }
+
+            // ── DTW-85: linked elements. Same rule filters; the tag references the
+            // element through its link instance and sits at the element's centre
+            // mapped into host coordinates. Material tags need a face reference
+            // through the link, which this pass does not build — counted, not tried.
+            int linkedPlaced = 0, linkedFailed = 0, linkedFaces = 0;
+            string firstLinkedFailure = null;
+            foreach (var (link, les) in linked)
+            {
+                if (tagsFaces) { linkedFaces += les.Count; continue; }
+                foreach (var le in les)
+                {
+                    try
+                    {
+                        var key = TaggedHostKey.Linked(link.Instance.Id.Value, le.Id.Value);
+                        if (skipIfTagged && alreadyTagged != null
+                            && alreadyTagged.TryGetValue(key, out var onLinked)
+                            && TagRuleIdentity.ShouldSkip(onLinked, isSpecialistRule, placedFamily, specialistFamilies))
+                        {
+                            stats.Skipped++;
+                            continue;
+                        }
+                        if (familyRx != null)
+                        {
+                            var et = link.Doc.GetElement(le.GetTypeId()) as ElementType;
+                            if (!RuleFamilyFilter.Matches(familyRx, et?.FamilyName, et?.Name)) continue;
+                        }
+                        if (minSizeMm.HasValue)
+                        {
+                            // No host view for a linked element's own document: measure unviewed.
+                            bool keep = ElementSize.Keeps(le, null, minSizeMm, out bool noSize);
+                            if (noSize) unmeasured++;
+                            if (!keep) { belowMin++; stats.Skipped++; continue; }
+                        }
+
+                        var local = GetElementCentre(le);
+                        if (local == null) { stats.Skipped++; continue; }
+                        var pt = link.Transform.OfPoint(local);
+                        var linkRef = new Reference(le).CreateLinkReference(link.Instance);
+
+                        var tag = IndependentTag.Create(doc, tagTypeId, view.Id, linkRef, addLeader, orientation, pt);
+                        if (tag == null) { linkedFailed++; firstLinkedFailure ??= $"{link.Name}/{le.Id}: Revit returned no tag"; continue; }
+                        if (leader == TagLeaderMode.Free)
+                        {
+                            try { tag.LeaderEndCondition = LeaderEndCondition.Free; }
+                            catch (Exception exL)
+                            {
+                                StingLog.WarnRateLimited("AnnotationRunner.FreeLeader",
+                                    $"Free leader on linked tag {tag.Id} for {catKey}: {exL.Message} — left attached");
+                            }
+                        }
+                        linkedPlaced++;
+                        stats.TagsPlaced++;
+                        if (alreadyTagged != null)
+                        {
+                            if (!alreadyTagged.TryGetValue(key, out var fams)) alreadyTagged[key] = fams = new List<string>();
+                            fams.Add(placedFamily);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        linkedFailed++;
+                        firstLinkedFailure ??= $"{link.Name}/{le.Id}: {ex.Message}";
+                    }
+                }
+            }
+            if (linkedFailed > 0)
+                stats.Warnings.Add($"{catKey}: {linkedFailed} linked element(s) could not be tagged — first: {firstLinkedFailure}");
+            if (linkedFaces > 0)
+                stats.Warnings.Add($"{catKey}: {linkedFaces} element(s) in linked models not given material tags — " +
+                                   "material callouts through a link are not supported yet.");
+            if (linkedPlaced > 0)
+                StingLog.Info($"AnnotationRunner {catKey} in '{view.Name}': {linkedPlaced} linked element(s) tagged.");
 
             if (belowMin > 0)
                 stats.Warnings.Add($"{catKey}: {belowMin} element(s) under minSizeMm {minSizeMm:0.#} not tagged.");
@@ -1290,9 +1351,9 @@ namespace StingTools.Core.Drawing
             {
                 if (!(doc.GetElement(baseTypeId) is FamilySymbol baseSym)) return baseTypeId;
                 string baseFam = baseSym.FamilyName;
-                var sameCat = new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>()
-                    .Where(fs => fs.Category != null && baseSym.Category != null && fs.Category.Id == baseSym.Category.Id)
-                    .ToList();
+                var sameCat = baseSym.Category == null
+                    ? new List<FamilySymbol>()
+                    : SymbolIndexFor(doc).InCategory(baseSym.Category.Id.Value).Select(x => x.Symbol).ToList();
 
                 var famVariants = sameCat
                     .Select(fs => (fs, size: TagSizeVariant.SizeOfFamilyVariant(fs.FamilyName, baseFam)))
@@ -1335,20 +1396,63 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// The tag type for <paramref name="catKey"/>, memoised for the symbol index's
+        /// lifetime. The answer depends only on the pack's family for the category, the
+        /// view's drawing-type style for it and the host category, so those (and
+        /// catKey, which the warnings name) are the key; the warnings the first
+        /// resolution raised are replayed into each caller's stats.
+        /// </summary>
         private static ElementId ResolveTagTypeId(Document doc, View view, AnnotationRulePack pack,
             string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats = null)
+        {
+            string famName = null;
+            if (pack.TagFamilies != null && pack.TagFamilies.TryGetValue(catKey, out var fn)
+                && !string.IsNullOrWhiteSpace(fn))
+                famName = fn;
+            string styleName = ViewTagStyleFor(doc, view, hostCategory);
+
+            var index = SymbolIndexFor(doc);
+            string key = string.Join("\u001f", catKey ?? "", famName ?? "", styleName ?? "", ((long)hostCategory).ToString());
+            if (!index.TagTypeMemo.TryGetValue(key, out var memo))
+            {
+                var warnings = new AnnotationRunStats();
+                var id = ResolveTagTypeIdCore(doc, index, famName, styleName, catKey, hostCategory, warnings);
+                memo = (id, warnings.Warnings.ToList());
+                index.TagTypeMemo[key] = memo;
+            }
+            if (stats != null) stats.Warnings.AddRange(memo.Warnings);
+            return memo.Id;
+        }
+
+        /// <summary>Step 2's input: the CategoryTagStyles entry of the view's drawing
+        /// type for this category, or null.</summary>
+        private static string ViewTagStyleFor(Document doc, View view, BuiltInCategory hostCategory)
+        {
+            try
+            {
+                var dtId2 = view != null ? DrawingTypeStamper.Read(view) : null;
+                if (string.IsNullOrEmpty(dtId2)) return null;
+                var pack2 = DrawingTypeRegistry.TryGetPack(doc, dtId2);
+                if (pack2?.CategoryTagStyles == null) return null;
+                // Try the exact category name first, then BuiltInCategory string.
+                string catKey2 = Category.GetCategory(doc, hostCategory)?.Name ?? hostCategory.ToString();
+                if (!pack2.CategoryTagStyles.TryGetValue(catKey2, out var styleName))
+                    pack2.CategoryTagStyles.TryGetValue(hostCategory.ToString(), out styleName);
+                return string.IsNullOrEmpty(styleName) ? null : styleName;
+            }
+            catch { return null; /* resolver must never throw */ }
+        }
+
+        private static ElementId ResolveTagTypeIdCore(Document doc, SymbolIndex index, string famName, string styleName,
+            string catKey, BuiltInCategory hostCategory, AnnotationRunStats stats)
         {
             ElementId result = ElementId.InvalidElementId;
 
             // 1. Named tag family from the rule pack
-            if (pack.TagFamilies != null && pack.TagFamilies.TryGetValue(catKey, out var famName)
-                && !string.IsNullOrWhiteSpace(famName))
+            if (!string.IsNullOrWhiteSpace(famName))
             {
-                var named = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .Where(fs => string.Equals(fs.FamilyName, famName, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+                var named = index.OfFamily(famName).Select(x => x.Symbol).ToList();
 
                 // A-8: this matched by family name across EVERY category, so a
                 // model family sharing the name could win and then throw once
@@ -1385,34 +1489,15 @@ namespace StingTools.Core.Drawing
             }
 
             // 2. CategoryTagStyles: check the active view's DrawingType pack.
-            if (result == null || result == ElementId.InvalidElementId)
+            if ((result == null || result == ElementId.InvalidElementId) && !string.IsNullOrEmpty(styleName))
             {
                 try
                 {
-                    var dtId2 = view != null ? DrawingTypeStamper.Read(view) : null;
-                    if (!string.IsNullOrEmpty(dtId2))
-                    {
-                        var pack2 = DrawingTypeRegistry.TryGetPack(doc, dtId2);
-                        if (pack2?.CategoryTagStyles != null)
-                        {
-                            // Try the exact category name first, then BuiltInCategory string.
-                            string catKey2 = Category.GetCategory(doc, hostCategory)?.Name ?? hostCategory.ToString();
-                            if (!pack2.CategoryTagStyles.TryGetValue(catKey2, out var styleName))
-                                pack2.CategoryTagStyles.TryGetValue(hostCategory.ToString(), out styleName);
-
-                            if (!string.IsNullOrEmpty(styleName))
-                            {
-                                // Find any FamilySymbol whose name contains the style preset name.
-                                var match = new FilteredElementCollector(doc)
-                                    .OfClass(typeof(FamilySymbol))
-                                    .Cast<FamilySymbol>()
-                                    .FirstOrDefault(fs =>
-                                        fs.Name.IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                                        (fs.Family?.Name ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0);
-                                if (match != null) result = match.Id;
-                            }
-                        }
-                    }
+                    // Find any FamilySymbol whose name contains the style preset name.
+                    var match = index.All.FirstOrDefault(x =>
+                        (x.Name ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                        (x.FamilyObjectName ?? "").IndexOf(styleName, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (match != null) result = match.Id;
                 }
                 catch { /* resolver must never throw */ }
             }
@@ -1429,11 +1514,8 @@ namespace StingTools.Core.Drawing
                 if (!string.IsNullOrEmpty(stingName))
                 {
                     var wantCat = (long)TagCategoryFor(hostCategory);
-                    var sting = new FilteredElementCollector(doc)
-                        .OfClass(typeof(FamilySymbol))
-                        .Cast<FamilySymbol>()
-                        .Where(fs => string.Equals(fs.FamilyName, stingName, StringComparison.OrdinalIgnoreCase))
-                        .OrderByDescending(fs => fs.Category != null && fs.Category.Id.Value == wantCat)
+                    var sting = index.OfFamily(stingName)
+                        .OrderByDescending(x => x.CategoryId == wantCat)
                         .FirstOrDefault();
                     if (sting != null) result = sting.Id;
                 }
@@ -1443,12 +1525,10 @@ namespace StingTools.Core.Drawing
             //    because a non-STING tag does not display the ISO 19650 tag.
             if (result == null || result == ElementId.InvalidElementId)
             {
-                var fallback = new FilteredElementCollector(doc)
-                    .OfClass(typeof(FamilySymbol))
-                    .Cast<FamilySymbol>()
-                    .FirstOrDefault(fs => fs.Category != null
-                        && fs.Category.CategoryType == CategoryType.Annotation
-                        && fs.Category.Id.Value == (long)TagCategoryFor(hostCategory));
+                var fallback = index.InCategory((long)TagCategoryFor(hostCategory))
+                    .Where(x => x.CategoryType == CategoryType.Annotation)
+                    .Select(x => x.Symbol)
+                    .FirstOrDefault();
                 if (fallback != null)
                 {
                     result = fallback.Id;
@@ -1459,6 +1539,137 @@ namespace StingTools.Core.Drawing
             }
 
             return result ?? ElementId.InvalidElementId;
+        }
+
+        // ─── Loaded-symbol index (P4) ─────────────────────────────────────
+        //
+        // ResolveTagTypeId and ApplyTagSizeVariant used to run a full FamilySymbol
+        // collector per category, per rule, per view — and read Category / FamilyName
+        // off every symbol each time. The index reads each symbol once and lives for
+        // a production batch (DrawingProducer.PrimeBatchCaches opens it, Reset drops
+        // it) or for one stand-alone Apply. It is rebuilt when the document or the
+        // number of loaded symbols changes (a family loaded or a type created or
+        // deleted mid-batch), checked at the start of every Apply.
+
+        [ThreadStatic] private static SymbolIndex _symbolIndex;
+        [ThreadStatic] private static bool _symbolBatchActive;
+
+        /// <summary>Open a batch: the symbol index (and the tag-type memo on it) is
+        /// kept across Apply calls until <see cref="EndSymbolBatch"/>.</summary>
+        internal static void BeginSymbolBatch()
+        {
+            _symbolIndex = null;
+            _symbolBatchActive = true;
+        }
+
+        internal static void EndSymbolBatch()
+        {
+            _symbolBatchActive = false;
+            _symbolIndex = null;
+        }
+
+        private static void ResetSymbolIndex() => _symbolIndex = null;
+
+        /// <summary>Drop the index if it was built for another document or the set of
+        /// loaded symbols has changed size since. GetElementCount on a class filter
+        /// does not materialise the symbols.</summary>
+        private static void RevalidateSymbolIndex(Document doc)
+        {
+            var idx = _symbolIndex;
+            if (idx == null) return;
+            try
+            {
+                if (!ReferenceEquals(idx.Doc, doc)
+                    || new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).GetElementCount() != idx.Count)
+                    _symbolIndex = null;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AnnotationRunner symbol index check: {ex.Message}");
+                _symbolIndex = null;
+            }
+        }
+
+        private static SymbolIndex SymbolIndexFor(Document doc)
+        {
+            var idx = _symbolIndex;
+            if (idx == null || !ReferenceEquals(idx.Doc, doc))
+                _symbolIndex = idx = SymbolIndex.Build(doc);
+            return idx;
+        }
+
+        private sealed class SymbolInfo
+        {
+            public FamilySymbol Symbol;
+            public ElementId Id;
+            public string Name;
+            public string FamilyName;
+            public string FamilyObjectName;   // Family?.Name — step 2 matched on this
+            public long? CategoryId;
+            public CategoryType? CategoryType;
+        }
+
+        private sealed class SymbolIndex
+        {
+            public Document Doc;
+            public int Count;
+            public readonly List<SymbolInfo> All = new List<SymbolInfo>();
+            private readonly Dictionary<long, List<SymbolInfo>> _byCategory = new Dictionary<long, List<SymbolInfo>>();
+            private readonly Dictionary<string, List<SymbolInfo>> _byFamily
+                = new Dictionary<string, List<SymbolInfo>>(StringComparer.OrdinalIgnoreCase);
+            public readonly Dictionary<string, (ElementId Id, List<string> Warnings)> TagTypeMemo
+                = new Dictionary<string, (ElementId, List<string>)>(StringComparer.Ordinal);
+            private static readonly List<SymbolInfo> None = new List<SymbolInfo>();
+
+            public static SymbolIndex Build(Document doc)
+            {
+                var idx = new SymbolIndex { Doc = doc };
+                try
+                {
+                    foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
+                    {
+                        idx.Count++;
+                        if (!(el is FamilySymbol fs)) continue;
+                        var info = new SymbolInfo { Symbol = fs, Id = fs.Id };
+                        try { info.Name = fs.Name; } catch { info.Name = null; }
+                        try { info.FamilyName = fs.FamilyName; } catch { info.FamilyName = null; }
+                        try { info.FamilyObjectName = fs.Family?.Name; } catch { info.FamilyObjectName = null; }
+                        try
+                        {
+                            var cat = fs.Category;
+                            if (cat != null) { info.CategoryId = cat.Id.Value; info.CategoryType = cat.CategoryType; }
+                        }
+                        catch { info.CategoryId = null; }
+                        idx.All.Add(info);
+                        if (info.CategoryId.HasValue)
+                        {
+                            if (!idx._byCategory.TryGetValue(info.CategoryId.Value, out var cl))
+                                idx._byCategory[info.CategoryId.Value] = cl = new List<SymbolInfo>();
+                            cl.Add(info);
+                        }
+                        if (info.FamilyName != null)
+                        {
+                            if (!idx._byFamily.TryGetValue(info.FamilyName, out var fl))
+                                idx._byFamily[info.FamilyName] = fl = new List<SymbolInfo>();
+                            fl.Add(info);
+                        }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"AnnotationRunner symbol index: {ex.Message}"); }
+                return idx;
+            }
+
+            public List<SymbolInfo> InCategory(long categoryId)
+                => _byCategory.TryGetValue(categoryId, out var l) ? l : None;
+
+            public List<SymbolInfo> OfFamily(string familyName)
+                => familyName != null && _byFamily.TryGetValue(familyName, out var l) ? l : None;
+
+            /// <summary>As FindFamilySymbolByName: first symbol whose type or family
+            /// name matches, in collector order.</summary>
+            public FamilySymbol FindByName(string name)
+                => All.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase)
+                                        || string.Equals(x.FamilyName, name, StringComparison.OrdinalIgnoreCase))?.Symbol;
         }
 
         private static FamilySymbol FindFamilySymbolByName(Document doc, string name)
@@ -1512,15 +1723,46 @@ namespace StingTools.Core.Drawing
                     var p10 = new XYZ(max.X - inset, min.Y + inset, 0);
                     var p11 = new XYZ(max.X - inset, max.Y - inset, 0);
                     var p01 = new XYZ(min.X + inset, max.Y - inset, 0);
+                    // DTW-130/148: the frame is stamped. A complete frame that still matches the
+                    // crop is left alone; one that is incomplete or no longer matches (crop or
+                    // scope box changed) is removed and redrawn.
+                    var existing = Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(CurveElement),
+                            AnnotationProvenance.DecoMatchlineFrame).Values.SelectMany(l => l).ToList();
+                    if (existing.Count > 0)
+                    {
+                        var want = new[] { p00, p10, p11, p01 };
+                        bool current = existing.Count == 4 && existing.All(e =>
+                            (e as CurveElement)?.GeometryCurve is Line ln
+                            && want.Any(w => SamePlanPoint(ln.GetEndPoint(0), w))
+                            && want.Any(w => SamePlanPoint(ln.GetEndPoint(1), w)));
+                        if (current) { result.Skipped++; return; }
+                        foreach (var e in existing)
+                        {
+                            try { doc.Delete(e.Id); }
+                            catch (Exception ex) { result.Warnings.Add("Matchline frame: old side not removed: " + ex.Message); }
+                        }
+                    }
+                    int side = 0;
                     foreach (var (a, b) in new[] { (p00, p10), (p10, p11), (p11, p01), (p01, p00) })
                     {
-                        try { doc.Create.NewDetailCurve(view, Line.CreateBound(a, b)); }
+                        side++;
+                        try
+                        {
+                            var dc = doc.Create.NewDetailCurve(view, Line.CreateBound(a, b));
+                            if (!Storage.StingAnnotationProvenanceSchema.Stamp(dc, AnnotationProvenance.DecoMatchlineFrame,
+                                    AnnotationProvenance.Key(view.UniqueId, "side" + side)))
+                                result.Warnings.Add("Matchline frame line not stamped — a re-run may draw it again.");
+                        }
                         catch (Exception ex) { result.Warnings.Add("Matchline detail curve: " + ex.Message); }
                     }
                 }
                 catch (Exception ex) { result.Warnings.Add("Matchline pass: " + ex.Message); }
             }
         }
+
+        /// <summary>DTW-148: plan-position equality for frame corners (1 mm), Z ignored.</summary>
+        private static bool SamePlanPoint(XYZ a, XYZ b)
+            => a != null && b != null && Math.Abs(a.X - b.X) < 1.0 / 304.8 && Math.Abs(a.Y - b.Y) < 1.0 / 304.8;
 
         private static void PlaceDecorativeIfDeclared(Document doc, View view, string familyName, string position, double? sizeMm, BoundingBoxXYZ outline, AnnotationResult result)
         {

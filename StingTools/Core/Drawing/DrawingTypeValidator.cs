@@ -125,6 +125,17 @@ namespace StingTools.Core.Drawing
                         $"View template '{dt.ViewTemplateName}' not found in project.",
                         "Create the template via Template Mgr > Template Setup Wizard, or clear the profile's viewTemplateName.");
             }
+            // DTW-62: a production rule may name the template for its own view kind.
+            if (dt.ProductionRules != null)
+                foreach (var rule in dt.ProductionRules)
+                {
+                    var over = rule?.ViewTemplateOverride?.Trim();
+                    if (string.IsNullOrEmpty(over) || DrawingTemplateCatalogue.IsManagedName(over)) continue;
+                    if (!HasViewTemplate(doc, over))
+                        r.Add(ValidationSeverity.Warning, "DT-020",
+                            $"View template '{over}' (production rule {rule.Idx}, {rule.ViewType}) not found in project.",
+                            "Create it with View Templates (it is in the drawing-type template catalogue), or clear the rule's viewTemplateOverride.");
+                }
 
             // Viewport type ----------------------------------------------
             if (!string.IsNullOrWhiteSpace(dt.ViewportTypeName))
@@ -145,10 +156,13 @@ namespace StingTools.Core.Drawing
             // Section marker family --------------------------------------
             if (IsSectionLikePurpose(dt.Purpose) && !string.IsNullOrWhiteSpace(dt.SectionMarker?.Family))
             {
+                // DTW-65: no STING marker .rfa ships and nothing creates one, so a
+                // warning here fired on every project for a drawing that is fine:
+                // Revit draws its own default head. Reported, not warned.
                 if (!HasAnnotationFamily(doc, dt.SectionMarker.Family))
-                    r.Add(ValidationSeverity.Warning, "DT-030",
-                        $"Section/elevation marker family '{dt.SectionMarker.Family}' not loaded.",
-                        "Load the marker family or set sectionMarker.family to null to use project default.");
+                    r.Add(ValidationSeverity.Info, "DT-030",
+                        $"Marker family '{dt.SectionMarker.Family}' not loaded — Revit's default marker is used.",
+                        "Load the marker family to use it; nothing else depends on it.");
             }
 
             // Named view type -------------------------------------------
@@ -163,6 +177,16 @@ namespace StingTools.Core.Drawing
                         $"View type '{dt.ViewFamilyTypeName}' is not in this project.",
                         "Run DrawingTypes_EnsureViewTypes (SETUP → Drawing production) to create it.");
             }
+
+            // DTW-66: a type whose only view cannot be created (a legend) is a
+            // place-existing type. Say so up front instead of letting production
+            // report it as something that did not happen.
+            if ((dt.ProductionRules == null || dt.ProductionRules.Count == 0)
+                && DrawingPurposeViewKind.TryResolve(dt.Purpose, out var onlyKind)
+                && !DrawingPurposeViewKind.IsProducible(onlyKind))
+                r.Add(ValidationSeverity.Info, "DT-032",
+                    $"'{dt.Id}' is placed, not produced: {DrawingPurposeViewKind.NotProducibleReason(onlyKind) ?? $"no producer makes a {onlyKind} view."}",
+                    "Create the view in Revit, then place it with Sheet Manager (Place Unplaced Views) on a sheet of this type.");
 
             // Tag families ------------------------------------------------
             if (dt.Annotation?.TagFamilies != null)

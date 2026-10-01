@@ -37,6 +37,16 @@ namespace StingTools.Commands.Electrical.Schematics
         private const string TypeEarthElectrode = "EarthElectrode";
         private const string TypeBondingBar   = "BondingBar";
 
+        // Where LPS components live (the categories LPS Mark Element Types and the LPS
+        // schedules look in).
+        private static readonly ICollection<BuiltInCategory> LpsHostCategories = new List<BuiltInCategory>
+        {
+            BuiltInCategory.OST_ElectricalEquipment,
+            BuiltInCategory.OST_GenericModel,
+            BuiltInCategory.OST_ElectricalFixtures,
+            BuiltInCategory.OST_Conduit,
+        };
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -59,21 +69,26 @@ namespace StingTools.Commands.Electrical.Schematics
 
             // Collect every element carrying an ELC_LPS_ELEMENT_TYPE_TXT value
             // (stamped by LPS Mark Element Types: AIR_TERMINAL / DOWN_CONDUCTOR /
-            // EARTH_ELECTRODE / BONDING_BAR / SPD).
-            var allElements = new FilteredElementCollector(doc)
-                .WhereElementIsNotElementType()
-                .ToList();
+            // EARTH_ELECTRODE / BONDING_BAR / SPD). The parameter is bound to Electrical
+            // Equipment and Generic Models (RESOLVED_BINDINGS.csv); fixtures and conduit
+            // are where LPS families are also hosted (LpsCandidateCategories). Scanning
+            // every element of the model, as this did, cost a parameter lookup per wall,
+            // tag and view. Iterated lazily, one parameter read per element.
+            var lpsElements = new FilteredElementCollector(doc)
+                .WherePasses(new ElementMulticategoryFilter(LpsHostCategories))
+                .WhereElementIsNotElementType();
 
             var airTerminals   = new List<Element>();
             var downConductors = new List<Element>();
             var earthElectrodes = new List<Element>();
             var bondingBars    = new List<Element>();
 
-            foreach (var el in allElements)
+            foreach (var el in lpsElements)
             {
                 // "AIR_TERMINAL" and the older "AirTerminal" spelling compare equal.
-                string compType = ParameterHelpers.GetString(el, LpsParams.ELEMENT_TYPE_TXT)
-                    .Replace("_", "").Trim();
+                var p = el.LookupParameter(LpsParams.ELEMENT_TYPE_TXT);
+                if (p == null || p.StorageType != StorageType.String) continue;
+                string compType = (p.AsString() ?? "").Replace("_", "").Trim();
 
                 if (string.IsNullOrEmpty(compType)) continue;
 
@@ -104,11 +119,11 @@ namespace StingTools.Commands.Electrical.Schematics
             {
                 tx.Start();
 
-                var view = CreateDraftingView(doc, "STING - LPS Schematic");
+                var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, "STING - LPS Schematic", out string viewError);
                 if (view == null)
                 {
                     tx.RollBack();
-                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING LPS Schematic", message);
                     return Result.Failed;
                 }
@@ -253,20 +268,6 @@ namespace StingTools.Commands.Electrical.Schematics
 
         // ---------------------------------------------------------------- helpers
 
-        private static ViewDrafting CreateDraftingView(Document doc, string name)
-        {
-            var vft = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
-            if (vft == null) return null;
-            var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"LPSSchematic view name '{name}': {ex.Message}"); }
-            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
-            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
-            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"LPSSchematic scale: {ex.Message}"); }
-            return v;
-        }
 
         private static double Mm(double mm) => mm / 304.8;
 

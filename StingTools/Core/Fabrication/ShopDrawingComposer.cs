@@ -434,16 +434,88 @@ namespace StingTools.Core.Fabrication
             // in-memory bucket remains as the degraded path for documents
             // where ExtensibleStorage is unavailable (no transaction, or
             // ProjectInformation owned by another user).
+            //
+            // DTW-94: the project's sheet-number policy (PRJ_ORG_SHEET_NUMBER_POLICY_TXT)
+            // applies to spool sheets as it does to every produced drawing: the drawing
+            // type's pattern is resolved through SheetNumberPolicy.ResolvePattern, exactly
+            // as DrawingProducer does, so an "iso" project gets ISO 19650 numbers here too.
+            // Resolved before the sequence because under ISO it also picks the counter: the
+            // number's own template (SheetNumberEngine.CounterBucket), the same bucket the
+            // producer draws from, so a spool sheet and a produced sheet that would share a
+            // number share a counter instead of colliding.
+            var options = StingTools.Commands.Fabrication.FabricationOptions.ShopDrawing;
+            var policy = SheetNumberPolicyKind.Profile;
+            string registryNumPattern = drawingType?.SheetNumberPattern;
+            if (drawingType != null)
+            {
+                try
+                {
+                    policy = SheetNumberPolicy.Parse(StingTools.Core.Drawing.DrawingProducer.ReadSheetNumberPolicy(doc));
+                    registryNumPattern = SheetNumberPolicy.ResolvePattern(drawingType, policy, out var policyNote);
+                    if (!string.IsNullOrEmpty(policyNote)) result?.Warnings.Add(policyNote);
+                }
+                catch (Exception exPol)
+                {
+                    result?.Warnings.Add($"Sheet-number policy: {exPol.Message} — the drawing type's own pattern is used.");
+                    policy = SheetNumberPolicyKind.Profile;
+                    registryNumPattern = drawingType.SheetNumberPattern;
+                }
+            }
+            // DTW-100: {lvl} as the producer reads it. Under an ISO-shaped pattern the spool
+            // sheet carries the ISO 19650 code of the assembly's level (DrawingProducer's
+            // DTW-43 code, from the same BuildIsoLevelMap), not ASS_LVL_COD_TXT — the two
+            // differed, so a spool sheet and a produced sheet on one level used different
+            // level codes and different ISO counter buckets. Any other pattern keeps
+            // ASS_LVL_COD_TXT. The number's code also feeds the bucket, the counter and the
+            // title-block tokens; the name pattern is resolved on its own.
+            string numberPattern = !string.IsNullOrEmpty(options?.SheetNumberPattern) ? options.SheetNumberPattern : registryNumPattern;
+            string namePattern = !string.IsNullOrEmpty(options?.SheetNamePattern) ? options.SheetNamePattern : drawingType?.SheetNamePattern;
+            string assemblyLevelCode = levelCode;
+            string nameLevelCode = levelCode;
+            if (SheetNumberPolicy.IsAlreadyIso(numberPattern) || SheetNumberPolicy.IsAlreadyIso(namePattern))
+            {
+                string levelName = AssemblyLevelName(doc, ai);
+                var isoMap = levelName != null ? StingTools.Core.Drawing.DrawingProducer.BuildIsoLevelMap(doc) : null;
+                levelCode = SheetNumberPolicy.SpoolLevelToken(numberPattern, assemblyLevelCode, levelName, isoMap);
+                nameLevelCode = SheetNumberPolicy.SpoolLevelToken(namePattern, assemblyLevelCode, levelName, isoMap);
+                if (levelName == null)
+                    result?.Warnings.Add($"Spool sheet: the assembly's level could not be found, so its ISO number uses "
+                                       + $"ASS_LVL_COD_TXT '{assemblyLevelCode}' for {{lvl}}, not the level's ISO code.");
+                bucket = $"{discCode}:{sysCode}:{levelCode}";
+            }
+
+            // The ISO counter applies only when the policy-resolved pattern is the one
+            // that numbers this sheet (a pattern captured in the options dialog wins).
+            string isoTemplate = null;
+            if (policy == SheetNumberPolicyKind.Iso && string.IsNullOrEmpty(options?.SheetNumberPattern)
+                && !string.IsNullOrEmpty(registryNumPattern))
+            {
+                isoTemplate = SheetNumberEngine.Template(registryNumPattern,
+                    disc: discCode, lvl: levelCode, sys: sysCode, mark: "", spool: spool ?? "", purpose: drawingType?.Purpose ?? "",
+                    extras: BuildTokenDict(doc, drawingType, spool, discCode, discipline, sysCode, levelCode, 0));
+                if (isoTemplate == null)
+                    result?.Warnings.Add($"Sheet-number pattern '{registryNumPattern}' does not carry exactly one {{seq}} token, "
+                                       + "so it cannot share an ISO counter; numbered from the spool bucket.");
+            }
+
             int seq;
             bool persisted = false;
             try
             {
-                seq = SheetSequenceStore.Next(
-                    doc,
-                    drawingTypeId: drawingType?.Id ?? "fabrication-spool",
-                    packageId:     sysCode,
-                    discipline:    discCode,
-                    vol:           levelCode ?? "");
+                if (isoTemplate != null)
+                {
+                    var tpl = isoTemplate;
+                    seq = SheetSequenceStore.NextForBucket(doc,
+                        SheetNumberEngine.CounterBucket(policy, tpl, drawingType?.Id, sysCode, discCode, levelCode ?? ""),
+                        () => HighestSequence(doc, tpl));
+                }
+                else
+                    seq = SheetSequenceStore.Next(
+                        doc,
+                        drawingTypeId: drawingType?.Id ?? "fabrication-spool",
+                        packageId:     sysCode,
+                        discipline:    discCode,
+                        vol:           levelCode ?? "");
                 persisted = true;
             }
             catch (Exception exSeq)
@@ -475,8 +547,6 @@ namespace StingTools.Core.Fabrication
             // a corporate pattern; otherwise fall back to the spool
             // number (if minted by AssemblyBuilder) or the engine
             // default SP-{disc}-{sys}-{lvl}-{seq}.
-            var options = StingTools.Commands.Fabrication.FabricationOptions.ShopDrawing;
-            string registryNumPattern = drawingType?.SheetNumberPattern;
             var extraTokens = BuildTokenDict(doc, drawingType, spool, discCode, discipline, sysCode, levelCode, seq);
             string sheetNumber = !string.IsNullOrEmpty(options?.SheetNumberPattern)
                 ? SubstituteTokens(options.SheetNumberPattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
@@ -491,13 +561,13 @@ namespace StingTools.Core.Fabrication
             string unique = EnsureUniqueSheetNumber(doc, sheetNumber, result?.Warnings);
             try { sheet.SheetNumber = unique; }
             catch (Exception ex)
-            { result.Warnings.Add($"SheetNumber assign ('{unique}'): {ex.Message}"); }
+            { result?.Warnings.Add($"SheetNumber assign ('{unique}'): {ex.Message}"); }
 
             string registryNamePattern = drawingType?.SheetNamePattern;
             string sheetName = !string.IsNullOrEmpty(options?.SheetNamePattern)
-                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
+                ? SubstituteTokens(options.SheetNamePattern, spool, discCode, sysCode, nameLevelCode, seq, discipline, extras: extraTokens)
                 : !string.IsNullOrEmpty(registryNamePattern)
-                    ? SubstituteTokens(registryNamePattern, spool, discCode, sysCode, levelCode, seq, discipline, extras: extraTokens)
+                    ? SubstituteTokens(registryNamePattern, spool, discCode, sysCode, nameLevelCode, seq, discipline, extras: extraTokens)
                     : (!string.IsNullOrEmpty(spool)
                         ? $"Spool {spool}"
                         : $"{discipline} spool {unique}");
@@ -556,9 +626,63 @@ namespace StingTools.Core.Fabrication
             catch (Exception ex) { result.Warnings.Add($"ApplyToSheet: {ex.Message}"); }
         }
 
+        /// <summary>
+        /// DTW-100: the name of the level an assembly sits on — its own level when Revit
+        /// gives it one, else the level most of its members are on (a member's level, or
+        /// an MEP curve's reference level). Null when none can be found; the caller then
+        /// keeps ASS_LVL_COD_TXT and says so.
+        /// </summary>
+        private static string AssemblyLevelName(Document doc, AssemblyInstance ai)
+        {
+            try
+            {
+                if (ai.LevelId != null && ai.LevelId != ElementId.InvalidElementId
+                    && doc.GetElement(ai.LevelId) is Level own)
+                    return own.Name;
+                var counts = new Dictionary<long, int>();
+                foreach (var id in ai.GetMemberIds())
+                {
+                    var m = doc.GetElement(id);
+                    if (m == null) continue;
+                    var lid = m.LevelId;
+                    if ((lid == null || lid == ElementId.InvalidElementId) && m is MEPCurve mc)
+                        lid = mc.ReferenceLevel?.Id;
+                    if (lid == null || lid == ElementId.InvalidElementId) continue;
+                    counts.TryGetValue(lid.Value, out var n);
+                    counts[lid.Value] = n + 1;
+                }
+                if (counts.Count == 0) return null;
+                var best = counts.OrderByDescending(kv => kv.Value).ThenBy(kv => kv.Key).First().Key;
+                return (doc.GetElement(new ElementId(best)) as Level)?.Name;
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"ShopDrawingComposer: assembly {ai?.Id.Value} level: {ex.Message}");
+                return null;
+            }
+        }
+
         private static string ReadString(Element el, string param)
         {
             try { return el?.LookupParameter(param)?.AsString() ?? ""; } catch { return ""; }
+        }
+
+        /// <summary>
+        /// First-use seed for an ISO counter bucket: the highest sequence any sheet already
+        /// carries in <paramref name="template"/>'s shape (DTW-94; the same reading
+        /// DrawingProducer seeds with, including numbers that still end in a status tail).
+        /// </summary>
+        private static int HighestSequence(Document doc, string template)
+        {
+            int max = 0;
+            foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+            {
+                if (!(el is ViewSheet vs) || vs.IsPlaceholder) continue;
+                var n = SheetNumberEngine.ExtractSequence(vs.SheetNumber, template)
+                     ?? SheetNumberEngine.ExtractSequence(SheetNumberPolicy.StripStatusSuffix(vs.SheetNumber), template);
+                if (n.HasValue && n.Value > max) max = n.Value;
+            }
+            return max;
         }
 
         /// <summary>

@@ -67,6 +67,14 @@ namespace StingTools.Core.Drawing
         /// <summary>When true, repeated runs match existing views by name + tag and skip creation.</summary>
         [JsonProperty("idempotent")]      public bool   Idempotent { get; set; } = true;
         [JsonProperty("runAnnotation")]   public bool   RunAnnotation { get; set; } = true;
+
+        // DTW-28: which parts of the annotation pass run when RunAnnotation is on. Each
+        // defaults to true — "run what the drawing type's pack asks for" — so a preset
+        // saved before these existed behaves exactly as it did.
+        [JsonProperty("runAutoTag")]      public bool   RunAutoTag { get; set; } = true;
+        [JsonProperty("runAutoDim")]      public bool   RunAutoDim { get; set; } = true;
+        [JsonProperty("runDecorative")]   public bool   RunDecorative { get; set; } = true;
+        [JsonProperty("runSpots")]        public bool   RunSpots { get; set; } = true;
         [JsonProperty("hideUnwantedCats")] public bool  HideUnwantedCats { get; set; } = false;
 
         /// <summary>When true, only create views the active DrawingType marks Required.</summary>

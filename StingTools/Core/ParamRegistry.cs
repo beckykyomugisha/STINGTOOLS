@@ -182,6 +182,12 @@ namespace StingTools.Core
         public const string TAG_POS_GUID = "E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
         public const string VIEW_TAG_STYLE = "STING_VIEW_TAG_STYLE";
         public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
+        // DTW-59: a view style pack's default tag style preset ("{size}{style}_{color}"),
+        // written onto the managed view template by ManagedTemplateSyncer (INT-02). It was
+        // written as a bare literal and defined in no shared-parameter file, so the write
+        // never landed. Bound to Views. UUIDv5 of the name in 7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00.
+        public const string DEFAULT_TAG_STYLE = "STING_DEFAULT_TAG_STYLE_TXT";
+        public const string DEFAULT_TAG_STYLE_GUID = "4e90ed9d-5b3a-5791-ab43-c90a1f440310";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
         public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
         // ── Tag audit trail ─────────────────────────────────────────────
@@ -386,12 +392,26 @@ namespace StingTools.Core
         public const string CIRCUIT_POLES_GUID        = "C2A7E5B1-3003-5333-9333-300000000003";
         public const string CIRCUIT_LABEL             = "ELC_CIRCUIT_LABEL_TXT";
         public const string CIRCUIT_LABEL_GUID        = "C2A7E5B1-3004-5333-9333-300000000004";
+        public const string CIRCUIT_DESC              = "ELC_CIRCUIT_DESC_TXT";
+
+        // Schematic generators (fire alarm, earthing, MGPS) — names as bound in
+        // MR_PARAMETERS.txt / RESOLVED_BINDINGS.csv.
+        public const string FLS_DEV_LOOP              = "FLS_SFTY_DEV_LOOP_TXT";
+        public const string FLS_LOOP_NR               = "FLS_SFTY_LOOP_NR_TXT";
+        public const string ELC_EARTHING_SYSTEM       = "ELC_EARTHING_SYSTEM_TXT";
+        public const string ELC_MET_LOCATION          = "ELC_MET_LOCATION_TXT";
+        public const string MGS_GAS_TYPE              = "MGS_GAS_TYPE_TXT";
+        public const string MGS_SUPPLY_TYPE           = "MGS_SUPPLY_TYPE_TXT";
+        public const string MGS_ZV_ZONE               = "MGS_ZV_ZONE_TXT";
 
         // ── Phase 137 — Drawing production stamps ────────────────────────
         // Written onto views/sheets by the production engine so audits and
         // browser organisers can find STING-produced artefacts.
         public const string STING_VIEW_CONTEXT_TAG     = "STING_VIEW_CONTEXT_TAG_TXT";
         public const string STING_DRAWING_PACKAGE_ID   = "STING_DRAWING_PACKAGE_ID_TXT";
+        // DTW-75: written to viewports / schedule sheet instances, which take no
+        // bound shared parameter, so it never landed. Mark those with
+        // SheetPlacementBridge.MarkAutoPlaced (Extensible Storage) instead.
         public const string STING_AUTO_PLACED_BOOL     = "STING_AUTO_PLACED_BOOL";
         public const string STING_PRODUCTION_RULE_IDX  = "STING_PRODUCTION_RULE_IDX_INT";
         public const string STING_SHEET_SEQUENCE       = "PRJ_SHEET_SEQUENCE_INT";

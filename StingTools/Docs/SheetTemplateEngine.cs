@@ -1017,24 +1017,24 @@ namespace StingTools.Docs
                     foreach (char c in Path.GetInvalidFileNameChars())
                         fileName = fileName.Replace(c, '_');
 
-                    var viewIds = new List<ElementId> { sheet.Id };
-
-                    var pdfOpts = new PDFExportOptions
-                    {
-                        FileName = fileName,
-                        Combine = false,
-                        AlwaysUseRaster = false
-                    };
-
-                    bool ok = doc.Export(ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet), viewIds, pdfOpts);
-                    if (ok)
+                    // Shared single-sheet routine: with Combine = false Revit ignored
+                    // FileName and "Exported: X.pdf" named a file that did not exist
+                    // (DTW-135). A sheet counts only when its PDF is on disk.
+                    string folder = ExportCenterEngine.DisciplineSubFolder(doc, outputDir, sheet);
+                    string path = ExportCenterEngine.ExportSingleSheetPdf(doc, sheet, folder, fileName,
+                        o => o.AlwaysUseRaster = false, out bool ok, out string renameWarning);
+                    if (!string.IsNullOrEmpty(renameWarning))
+                        StingLog.Warn($"PDF export {sheet.SheetNumber}: {renameWarning}");
+                    if (path != null && File.Exists(path))
                     {
                         exported++;
-                        StingLog.Info($"Exported: {fileName}.pdf");
+                        StingLog.Info($"Exported: {path}");
                     }
                     else
                     {
-                        StingLog.Warn($"PDF export returned false for sheet {sheet.SheetNumber}");
+                        StingLog.Warn(ok
+                            ? $"PDF export for sheet {sheet.SheetNumber}: Revit reported success but no PDF appeared in {folder}"
+                            : $"PDF export returned false for sheet {sheet.SheetNumber}");
                     }
                 }
                 catch (Exception ex)

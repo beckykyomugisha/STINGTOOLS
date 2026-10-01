@@ -74,7 +74,7 @@ namespace StingTools.Commands.Drawing
                     var pattern = SheetNumberPolicy.ResolvePattern(dt, policy);
                     if (string.IsNullOrEmpty(pattern)) continue;
 
-                    ReadProductionContext(s, out var levelName, out var tag);
+                    ReadProductionContext(doc, s, out var levelName, out var tag);
                     var probeTokens = DrawingProducer.BuildTokenDict(doc, dt, levelName, tag, pkg, 0);
                     var template = DrawingProducer.NumberTemplate(pattern, dt, levelName, tag, probeTokens);
                     if (template == null)
@@ -120,19 +120,30 @@ namespace StingTools.Commands.Drawing
                     return Result.Succeeded;
                 }
 
-                var plan = SheetNumberEngine.PlanRenumber(items, allSheets.Select(s => s.SheetNumber));
+                // DTW-7: the policy decides whether a sheet already carrying a full
+                // ISO identifier may move — under the profile policy it is pinned.
+                var plan = SheetNumberEngine.PlanRenumber(items, allSheets.Select(s => s.SheetNumber), policy);
                 int lockedCount = items.Count(i => i.Locked);
                 int buckets = items.Select(i => i.Bucket).Distinct().Count();
 
                 if (plan.Moves.Count == 0 && plan.Conflicts.Count == 0)
                 {
-                    BatchProduceCommons.Show("STING — Renumber", "Sheet numbers are already gap-free.");
+                    BatchProduceCommons.Show("STING — Renumber", "Sheet numbers are already gap-free." +
+                        (plan.IsoPreserved.Count > 0
+                            ? $"\n{plan.IsoPreserved.Count} sheet(s) carrying a full ISO 19650 identifier were kept as they are."
+                            : ""));
                     return Result.Succeeded;
                 }
 
                 var preview = new StringBuilder();
                 preview.AppendLine($"{plan.Moves.Count} sheet(s) will be renumbered across {buckets} counter bucket(s); " +
                                    $"{lockedCount} locked sheet(s) keep their numbers.");
+                if (plan.IsoPreserved.Count > 0)
+                {
+                    preview.AppendLine($"{plan.IsoPreserved.Count} sheet(s) already carry a full ISO 19650 identifier and keep it:");
+                    foreach (var p in plan.IsoPreserved.Take(5)) preview.AppendLine("  " + p);
+                    if (plan.IsoPreserved.Count > 5) preview.AppendLine($"  …({plan.IsoPreserved.Count - 5} more)");
+                }
                 foreach (var m in plan.Moves.Take(15)) preview.AppendLine($"  {m.From}  →  {m.To}");
                 if (plan.Moves.Count > 15) preview.AppendLine($"  …({plan.Moves.Count - 15} more)");
                 if (plan.Conflicts.Count > 0)
@@ -190,6 +201,11 @@ namespace StingTools.Commands.Drawing
 
                 var report = new StringBuilder();
                 report.AppendLine($"Renumbered {outcome.Done} sheet(s). {lockedCount} locked sheet(s) kept their numbers.");
+                if (plan.IsoPreserved.Count > 0)
+                {
+                    report.AppendLine($"{plan.IsoPreserved.Count} sheet(s) kept their ISO 19650 identifier (policy: {policy}).");
+                    foreach (var p in plan.IsoPreserved) StingLog.Info($"Renumber: {p}");
+                }
                 if (outcome.Failed > 0)
                 {
                     report.AppendLine($"{outcome.Failed} rename(s) refused by Revit and restored:");
@@ -217,7 +233,7 @@ namespace StingTools.Commands.Drawing
         /// PRJ_SHEET_LEVEL_TXT for sheets produced before the context stamp; an
         /// unresolved "{lvl}" the producer left there is treated as absent.
         /// </summary>
-        private static void ReadProductionContext(ViewSheet s, out string levelName, out string tag)
+        private static void ReadProductionContext(Document doc, ViewSheet s, out string levelName, out string tag)
         {
             levelName = null; tag = null;
             var ctx = DrawingTypeStamper.ReadSheetContext(s);
@@ -226,6 +242,21 @@ namespace StingTools.Commands.Drawing
                 var parts = ctx.Split(new[] { "::" }, StringSplitOptions.None);
                 if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0])) levelName = parts[0];
                 if (parts.Length > 2 && !string.IsNullOrEmpty(parts[2])) tag = parts[2];
+
+                // DTW-118: the stamp's name part is the level's name WHEN PRODUCED. After a
+                // rename the ISO level map (keyed by current names) has no code for it, and
+                // the plan came out "...-Level1-DR-...". The id (DTW-42) names the level;
+                // its current name is what the producer would use today.
+                var ids = ProductionContextIds.Parse(ctx);
+                if (ids.LevelId.HasValue && doc != null)
+                {
+                    try
+                    {
+                        if (doc.GetElement(new ElementId(ids.LevelId.Value)) is Level lvl && !string.IsNullOrEmpty(lvl.Name))
+                            levelName = lvl.Name;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DrawingRenumber level #{ids.LevelId} for {s.SheetNumber}: {ex.Message}"); }
+                }
             }
             if (levelName == null)
             {

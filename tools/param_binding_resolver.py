@@ -112,6 +112,13 @@ def resolve(n,desc,depth=0):
     if n=="BLE_PLASTER_FACES_NR": return "WALL_BASIC","wall-level"
     if pre=="ASS" and ("TAG" in n or sub in("DISCIPLINE","LOC","ZONE","LVL","SYSTEM","SYS","FUNC","PRODCT","PROD","SEQ","STATUS","DISPLAY","CAT","DESCRIPTION","SYSTEMS","MODEL","MANUFACTURER","ID")): return "UNIVERSAL","universal"
     if pre=="IFC": return "UNIVERSAL","universal"
+    # TAG_SEG_MASK_TXT is NOT a tag-family label switch like the TAG_*_BOOL rows
+    # below. TokenProfileApplier writes it on every TAGGED ELEMENT in a view and
+    # TagConfig.BuildDisplayTag reads it off that element to shorten the tag, so it
+    # lives wherever the tag containers live: ASS_TAG_1_TXT is <ALL>, and so is
+    # this. Caught by the TAG prefix it was bound to nothing (DTW-57), every write
+    # returned false and the mask never reached a tag.
+    if n=="TAG_SEG_MASK_TXT": return "UNIVERSAL","tag-host-mask"
     if pre=="TAG": return "NONE","annotation-only"
     # SHT_* binds to Sheets. It sat in the excluded tuple beside the genuinely
     # unbindable prefixes (Qto quantity sets, view/title-block metadata), so every
@@ -449,10 +456,28 @@ except FileNotFoundError:
     pass
 
 _widened = 0
+_explicit_narrowed = []
 for _i, _o in enumerate(out):
     _n, _g, _srcx, _cats, _d = _o
     _was = _prev.get(_n)
     if not _was or _was == _cats:
+        continue
+    if _srcx == "explicit" and cell_parse(_was)[0]:
+        # A hand-authored (Yes) home that displaced a blanket <ALL> is the one
+        # binding this pass must not overrule. The explicit branch above already
+        # says why: <ALL> is 139 ELEMENT categories, and a parameter someone placed
+        # on Views, Lines or Project Information has no business on them. Carrying
+        # the committed <ALL> back would also leave the explicit home unreachable
+        # whenever it is outside the core set -- DTW-55: twelve view stamps sat at
+        # <ALL>, so no view ever received one and every re-run of drawing
+        # production duplicated its views.
+        #
+        # Only the <ALL> goes. Extras the committed cell carried ("<ALL>|X") stay.
+        # A project that already bound the parameter <ALL> keeps it: the loader
+        # unions with a live binding and never removes a category.
+        _keep = sorted(set(_cats.split("|")) | set(cell_parse(_was)[1]))
+        out[_i] = (_n, _g, _srcx, "|".join(_keep), _d)
+        _explicit_narrowed.append(_n)
         continue
     if set(_cats.split("|")) <= set(_was.split("|")):
         # Nothing new, possibly in a different order: keep the committed
@@ -478,6 +503,9 @@ for _i, _o in enumerate(out):
         _widened += 1
 
 print("kept wider committed bindings on %d parameter(s)" % _widened)
+if _explicit_narrowed:
+    print("explicit (Yes) homes replaced a committed <ALL> on %d parameter(s): %s"
+          % (len(_explicit_narrowed), ", ".join(sorted(_explicit_narrowed))))
 
 # A _TXT display mirror binds wherever the value it mirrors binds. A tag label can
 # only read TEXT, so a mirror missing from a category its source is on shows a blank

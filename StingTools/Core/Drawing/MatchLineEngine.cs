@@ -47,6 +47,8 @@ namespace StingTools.Core.Drawing
         public int  TipCaptionsPlaced   { get; set; }
         public List<string> Warnings    { get; set; } = new List<string>();
         public List<string> Errors      { get; set; } = new List<string>();
+        /// <summary>DTW-48: parameters already reported unwritable in this run (said once).</summary>
+        internal HashSet<string> UnwritableParams { get; } = new HashSet<string>(StringComparer.Ordinal);
     }
 
     public sealed class MatchLineRunOptions
@@ -122,7 +124,15 @@ namespace StingTools.Core.Drawing
 
                 var viewByScope = BuildViewByScopeIndex(doc);
                 var existingByGuid = BuildExistingPairIndex(doc);
+                // One viewport pass, one line-style / note-type resolve and one
+                // caption collection per view for the whole sweep -- these were
+                // re-collected per view pair and per segment.
+                var cache = new SweepCache(doc, cfg);
 
+                // DTW-47: the view pairs this run still pairs, and the box pairs whose
+                // placement failed (never pruned on the strength of a partial run).
+                var liveViewPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var failedPairs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 using (var tx = new Transaction(doc, "STING Match-Line sweep"))
                 {
                     tx.Start();
@@ -131,16 +141,17 @@ namespace StingTools.Core.Drawing
                         try
                         {
                             PlaceOrUpdatePair(doc, edge, cfg, viewByScope,
-                                              existingByGuid, opts, r);
+                                              existingByGuid, opts, r, cache, liveViewPairs);
                         }
                         catch (Exception ex)
                         {
+                            failedPairs.Add(edge.PairGuid ?? "");
                             r.Errors.Add($"pair {edge.Key}: {ex.Message}");
                             StingLog.Error($"MatchLineEngine pair {edge.Key}", ex);
                         }
                     }
-                    if (opts.PruneOrphans)
-                        PruneOrphans(doc, groupedEdges, existingByGuid, r);
+                    if (opts.PruneOrphans && !cache.GuidUnstampable)
+                        PruneOrphans(doc, groupedEdges, existingByGuid, r, liveViewPairs, failedPairs);
                     // A commit a failure handler rolls back placed nothing: say so, so the
                     // run's counts are not read as match lines in the model.
                     var status = tx.Commit();
@@ -170,6 +181,8 @@ namespace StingTools.Core.Drawing
             var list = new List<Element>();
             try
             {
+                ScopeBoxPlanFile plan = null;
+                bool planLoaded = false;
                 foreach (var el in new FilteredElementCollector(doc)
                     .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
                     .WhereElementIsNotElementType())
@@ -180,26 +193,60 @@ namespace StingTools.Core.Drawing
                     // every area plan inside it.
                     if (!MatchLineGeometry.IsMatchLineBox(el.Name)) continue;
 
-                    // Optional discipline filter — match against the scope-
-                    // box name prefix (e.g. arch- / struct- / mep-) which
-                    // is the convention from the Week 5 scope-box auto-binder.
+                    // Optional discipline filter. DTW-143: names are read through the
+                    // ScopeBoxNames parsers (one rule), not a Split on "::" — and area
+                    // boxes, which the Split never matched, are filtered by the
+                    // disciplines their size class lists in the saved plan.
                     if (!string.IsNullOrEmpty(disciplineFilter))
                     {
-                        var name = el.Name ?? "";
-                        if (name.IndexOf("STING::", StringComparison.OrdinalIgnoreCase) >= 0)
+                        if (!planLoaded)
                         {
-                            // Look at the drawing-type id for discipline prefix
-                            var parts = name.Split(new[] { "::" }, StringSplitOptions.None);
-                            if (parts.Length >= 2 &&
-                                !parts[1].StartsWith(disciplineFilter, StringComparison.OrdinalIgnoreCase))
-                                continue;
+                            plan = ScopeBoxPlannerService.LoadPlan(doc, out var planErr);
+                            if (planErr != null) StingLog.Warn($"CollectScopeBoxes: {planErr}");
+                            planLoaded = true;
                         }
+                        if (!PassesDisciplineFilter(el.Name, disciplineFilter, plan)) continue;
                     }
                     list.Add(el);
                 }
             }
             catch (Exception ex) { StingLog.Warn($"CollectScopeBoxes: {ex.Message}"); }
             return list;
+        }
+
+        /// <summary>
+        /// DTW-143: whether a box survives the match-line discipline filter. STING::&lt;type&gt;
+        /// boxes match on the drawing-type id's prefix (arch- / struct- / mep-, the binder
+        /// convention); a malformed STING:: name matches nothing. Area boxes match when their
+        /// size class in the saved plan lists the filter's discipline; an area box the plan
+        /// does not know is kept (nothing says which discipline it serves). Plain boxes are
+        /// not narrowed.
+        /// </summary>
+        private static bool PassesDisciplineFilter(string name, string filter, ScopeBoxPlanFile plan)
+        {
+            switch (ScopeBoxNames.Classify(name))
+            {
+                case ScopeBoxKind.DrawingType:
+                    return ScopeBoxNames.TryParseDrawingType(name, out var dtId, out _, out _, out _)
+                        && dtId.StartsWith(filter, StringComparison.OrdinalIgnoreCase);
+                case ScopeBoxKind.Area:
+                {
+                    if (!ScopeBoxNames.TryParseArea(name, out _, out _, out _)) return false;
+                    var entry = plan?.Boxes?.FirstOrDefault(b => string.Equals(b.Name?.Trim(), name.Trim(), StringComparison.OrdinalIgnoreCase));
+                    var cls = entry == null ? null : plan.Classes?.FirstOrDefault(c => c.Key == entry.ClassKey);
+                    var types = cls?.DrawingTypes ?? new List<string>();
+                    var discs = cls?.Disciplines ?? new List<string>();
+                    if (types.Count == 0 && discs.Count == 0) return true;
+                    // Same rule as a STING:: box (type-id prefix), or the class's discipline code.
+                    string f = filter.Trim();
+                    string want = DisciplineFromTypeId(f) ?? f;
+                    return types.Any(t => t != null && t.StartsWith(f, StringComparison.OrdinalIgnoreCase))
+                        || discs.Any(d => string.Equals(d, want, StringComparison.OrdinalIgnoreCase)
+                                       || string.Equals(d, f, StringComparison.OrdinalIgnoreCase));
+                }
+                default:
+                    return true;
+            }
         }
 
         // ── Adjacency detection ──────────────────────────────────────────
@@ -336,12 +383,13 @@ namespace StingTools.Core.Drawing
                 foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(View)))
                 {
                     if (!(el is View v) || v.IsTemplate) continue;
+                    // Plans only. DTW-52: a section or 3D view is now produced FROM a scope
+                    // box (cut through it / boxed by it); it does not continue onto the next
+                    // box's sheet, and a plan-shaped match line drawn in it is nonsense.
                     if (v.ViewType != ViewType.FloorPlan
                         && v.ViewType != ViewType.CeilingPlan
                         && v.ViewType != ViewType.AreaPlan
-                        && v.ViewType != ViewType.EngineeringPlan
-                        && v.ViewType != ViewType.Section
-                        && v.ViewType != ViewType.Elevation)
+                        && v.ViewType != ViewType.EngineeringPlan)
                         continue;
                     var p = v.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP);
                     if (p == null) continue;
@@ -356,42 +404,54 @@ namespace StingTools.Core.Drawing
             return idx;
         }
 
-        /// <summary>Reads STING_SHEET_FULL_REF on the sheet hosting
-        /// the view; falls back to Sheet Number when the param isn't
-        /// bound. Returns "" when the view isn't placed on a sheet.</summary>
-        private static string ResolveSheetRef(Document doc, View view)
+        /// <summary>Sheet reference for every placed view, from ONE viewport pass:
+        /// view id -> the hosting sheet's number, falling back to
+        /// PRJ_SHEET_FULL_REF_TXT when the sheet has no number. A view with no
+        /// viewport is absent (callers read that as ""). The first viewport found
+        /// for a view wins, as the per-view scan this replaces did.</summary>
+        private static Dictionary<long, string> BuildSheetRefIndex(Document doc)
         {
+            var idx = new Dictionary<long, string>();
             try
             {
                 foreach (var vp in new FilteredElementCollector(doc).OfClass(typeof(Viewport)))
                 {
                     if (!(vp is Viewport viewport)) continue;
-                    if (viewport.ViewId != view.Id) continue;
+                    long viewId = viewport.ViewId.Value;
+                    if (idx.ContainsKey(viewId)) continue;
                     if (!(doc.GetElement(viewport.SheetId) is ViewSheet sheet)) continue;
-                    // The SHEET NUMBER first, not the full reference.
-                    //
-                    // This is an ANNOTATION on a drawing -- "continued on sheet X" --
-                    // and the standard this project works to is a full ISO identifier
-                    // in the sheet-number field and the SHORTEST usable form in
-                    // annotations, because a seven-field identifier inside a match-line
-                    // note is unreadable at any sheet scale. It is the same decision
-                    // already made for elevation, section and callout tags.
-                    //
-                    // PRJ_SHEET_FULL_REF_TXT stays as the fallback for a sheet with no
-                    // number at all, which is the only case where it is the better of
-                    // the two.
-                    if (!string.IsNullOrWhiteSpace(sheet.SheetNumber)) return sheet.SheetNumber;
-
-                    var pFull = sheet.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
-                    if (pFull != null && pFull.HasValue)
-                    {
-                        var v = pFull.AsString();
-                        if (!string.IsNullOrEmpty(v)) return v;
-                    }
-                    return "";
+                    idx[viewId] = SheetRefOf(sheet);
                 }
             }
-            catch (Exception ex) { StingLog.Warn($"ResolveSheetRef: {ex.Message}"); }
+            catch (Exception ex) { StingLog.Warn($"BuildSheetRefIndex: {ex.Message}"); }
+            return idx;
+        }
+
+        /// <summary>The sheet NUMBER first, not the full reference.
+        ///
+        /// This is an ANNOTATION on a drawing -- "continued on sheet X" --
+        /// and the standard this project works to is a full ISO identifier
+        /// in the sheet-number field and the SHORTEST usable form in
+        /// annotations, because a seven-field identifier inside a match-line
+        /// note is unreadable at any sheet scale. It is the same decision
+        /// already made for elevation, section and callout tags.
+        ///
+        /// PRJ_SHEET_FULL_REF_TXT stays as the fallback for a sheet with no
+        /// number at all, which is the only case where it is the better of
+        /// the two.</summary>
+        private static string SheetRefOf(ViewSheet sheet)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(sheet.SheetNumber)) return sheet.SheetNumber;
+                var pFull = sheet.LookupParameter("PRJ_SHEET_FULL_REF_TXT");
+                if (pFull != null && pFull.HasValue)
+                {
+                    var v = pFull.AsString();
+                    if (!string.IsNullOrEmpty(v)) return v;
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetRefOf: {ex.Message}"); }
             return "";
         }
 
@@ -432,7 +492,19 @@ namespace StingTools.Core.Drawing
             var idx = new Dictionary<string, List<CurveElement>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(CurveElement)))
+                // Detail curves live in the Lines category; every other curve
+                // element (sketch lines, room/area separation lines, ...) is
+                // skipped by the collector instead of paying a LookupParameter
+                // each. When the stamp parameter is bound under exactly one shared
+                // definition, curves without a value are filtered out natively
+                // too. The per-element checks below stay, so the filter only
+                // ever narrows the scan, never decides.
+                var collector = new FilteredElementCollector(doc)
+                    .OfClass(typeof(CurveElement))
+                    .OfCategory(BuiltInCategory.OST_Lines);
+                var stampFilter = MatchStampHasValueFilter(doc);
+                if (stampFilter != null) collector = collector.WherePasses(stampFilter);
+                foreach (var el in collector)
                 {
                     if (!(el is DetailCurve dc)) continue;
                     var p = dc.LookupParameter(ParamRegistry.MATCH_LINE_GUID);
@@ -448,12 +520,40 @@ namespace StingTools.Core.Drawing
             return idx;
         }
 
+        /// <summary>A native "has a value" filter on STING_MATCH_LINE_GUID_TXT, or
+        /// null when the parameter is not bound under exactly one shared definition
+        /// of that name (then LookupParameter's by-name answer is the only safe
+        /// test, and the caller scans the whole category).</summary>
+        private static ElementFilter MatchStampHasValueFilter(Document doc)
+        {
+            try
+            {
+                ElementId found = null;
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(SharedParameterElement)))
+                {
+                    if (!(el is SharedParameterElement sp)) continue;
+                    if (!string.Equals(sp.Name, ParamRegistry.MATCH_LINE_GUID, StringComparison.Ordinal)) continue;
+                    if (found != null) return null;   // two definitions share the name
+                    found = sp.Id;
+                }
+                if (found == null) return null;
+                return new ElementParameterFilter(
+                    ParameterFilterRuleFactory.CreateHasValueParameterRule(found));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MatchLineEngine stamp filter: {ex.Message}");
+                return null;
+            }
+        }
+
         // ── Pair placement ───────────────────────────────────────────────
 
         private static void PlaceOrUpdatePair(Document doc, ScopeBoxAdjacency edge,
             MatchLineConfig cfg, Dictionary<long, List<View>> viewByScope,
             Dictionary<string, List<CurveElement>> existingByGuid,
-            MatchLineRunOptions opts, MatchLineRunResult r)
+            MatchLineRunOptions opts, MatchLineRunResult r, SweepCache cache,
+            HashSet<string> liveViewPairs = null)
         {
             // Resolve a representative view per side (first view bound to
             // the scope box; multi-level pairs get one match line per
@@ -483,21 +583,23 @@ namespace StingTools.Core.Drawing
                         FallbackPairKey(viewA), FallbackPairKey(viewB)))
                     continue;
 
-                var refA = ResolveSheetRef(doc, viewA);
-                var refB = ResolveSheetRef(doc, viewB);
+                var refA = cache.SheetRef(viewA);
+                var refB = cache.SheetRef(viewB);
 
                 // Per-(view, view) pair guid combines the scope-pair guid
                 // with view ids so each level/instance gets its own
                 // stamp — drift can flag one view's match line stale
                 // without affecting the rest.
                 string viewPairGuid = $"{edge.PairGuid}:{viewA.UniqueId}:{viewB.UniqueId}";
+                liveViewPairs?.Add(viewPairGuid);   // DTW-47: this view pair still pairs
 
                 bool existed = existingByGuid.TryGetValue(viewPairGuid, out var existing);
                 if (existed && !opts.ForceRestamp)
                 {
-                    // Verify ref still matches; if it does, no-op.
+                    // No-op only when the refs still match AND the lines are still where
+                    // the boundary is (DTW-46) — a moved box used to keep its old lines.
                     bool refsCurrent = AllRefsMatch(existing, refA, refB);
-                    if (refsCurrent) { r.PairsSkipped++; continue; }
+                    if (refsCurrent && GeometryCurrent(existing, edge, viewA, viewB, cfg)) { r.PairsSkipped++; continue; }
                 }
 
                 // Strip any prior pair (idempotent re-apply).
@@ -507,8 +609,9 @@ namespace StingTools.Core.Drawing
 
                 // Place the curve in viewA referencing refB, and the
                 // curve in viewB referencing refA.
-                PlaceCurve(doc, viewA, edge, cfg, viewPairGuid, refB, r);
-                PlaceCurve(doc, viewB, edge, cfg, viewPairGuid, refA, r);
+                PlaceCurve(doc, viewA, edge, cfg, viewPairGuid, refB, r, cache);
+                PlaceCurve(doc, viewB, edge, cfg, viewPairGuid, refA, r, cache);
+                if (cache.GuidUnstampable) return;   // DTW-48: nothing was placed; the error says why
 
                 if (existed) r.PairsUpdated++;
                 else         r.PairsCreated++;
@@ -549,7 +652,7 @@ namespace StingTools.Core.Drawing
 
         private static void PlaceCurve(Document doc, View view, ScopeBoxAdjacency edge,
             MatchLineConfig cfg, string viewPairGuid, string pairedRef,
-            MatchLineRunResult r)
+            MatchLineRunResult r, SweepCache cache)
         {
             // Phase 169 — for dog-leg pairs, draw every segment of the
             // shared boundary; single-face pairs degenerate to one
@@ -567,50 +670,120 @@ namespace StingTools.Core.Drawing
                     ? viewPairGuid
                     : $"{viewPairGuid}:seg{s + 1}";
                 PlaceCurveSegment(doc, view, edge, cfg, segGuid, pairedRef,
-                                  seg.Start, seg.End, r);
+                                  seg.Start, seg.End, r, cache);
+            }
+        }
+
+        /// <summary>
+        /// Where a boundary segment is drawn in <paramref name="view"/>: on a plan at the
+        /// view's level, extended past the crop by the configured distance. The one
+        /// definition placement and the DTW-46 "has the boundary moved?" check share.
+        /// </summary>
+        private static void ProjectSegment(View view, XYZ segStart, XYZ segEnd, MatchLineConfig cfg, out XYZ a, out XYZ b)
+        {
+            // Project the line onto the view plane. For plans
+            // (FloorPlan / CeilingPlan / AreaPlan) we drop Z.
+            if (view.ViewType == ViewType.FloorPlan
+                || view.ViewType == ViewType.CeilingPlan
+                || view.ViewType == ViewType.AreaPlan
+                || view.ViewType == ViewType.EngineeringPlan)
+            {
+                double z = view.GenLevel?.Elevation ?? 0.0;
+                a = new XYZ(segStart.X, segStart.Y, z);
+                b = new XYZ(segEnd.X,   segEnd.Y,   z);
+            }
+            else
+            {
+                a = segStart; b = segEnd;
+            }
+
+            // Optional extension beyond the crop edge so the line
+            // visually breaks the drawable zone instead of stopping
+            // exactly at the boundary.
+            double extFt = MmToFt(cfg.Geometry.ExtendBeyondCropMm);
+            if (extFt > 1e-6)
+            {
+                var dir = (b - a).Normalize();
+                a = a - dir * extFt;
+                b = b + dir * extFt;
+            }
+        }
+
+        /// <summary>
+        /// DTW-46: true when the pair's placed curves still lie where the boundary is now
+        /// (MatchLineUpkeep.SegmentsMatch, within 5 mm, in plan). A box moved after the
+        /// lines were drawn fails this, and the pair is redrawn.
+        /// </summary>
+        private static bool GeometryCurrent(List<CurveElement> existing, ScopeBoxAdjacency edge,
+            View viewA, View viewB, MatchLineConfig cfg)
+        {
+            try
+            {
+                var segments = (edge.Segments != null && edge.Segments.Count > 0)
+                    ? edge.Segments
+                    : new List<(XYZ Start, XYZ End)> { (edge.LineStart, edge.LineEnd) };
+                var expected = new List<(double, double, double, double)>();
+                foreach (var v in new[] { viewA, viewB })
+                    foreach (var seg in segments)
+                    {
+                        ProjectSegment(v, seg.Start, seg.End, cfg, out var a, out var b);
+                        expected.Add((a.X, a.Y, b.X, b.Y));
+                    }
+                var placed = new List<(double, double, double, double)>();
+                foreach (var ce in existing ?? new List<CurveElement>())
+                {
+                    if (!(ce?.GeometryCurve is Line ln)) return false;
+                    var p0 = ln.GetEndPoint(0); var p1 = ln.GetEndPoint(1);
+                    placed.Add((p0.X, p0.Y, p1.X, p1.Y));
+                }
+                return MatchLineUpkeep.SegmentsMatch(placed, expected, MmToFt(5.0));
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MatchLineEngine geometry check {edge?.PairGuid}: {ex.Message}");
+                return false;   // redraw rather than keep lines that might be stale
             }
         }
 
         private static void PlaceCurveSegment(Document doc, View view, ScopeBoxAdjacency edge,
             MatchLineConfig cfg, string viewPairGuid, string pairedRef,
-            XYZ segStart, XYZ segEnd, MatchLineRunResult r)
+            XYZ segStart, XYZ segEnd, MatchLineRunResult r, SweepCache cache)
         {
             try
             {
-                // Project the line onto the view plane. For plans
-                // (FloorPlan / CeilingPlan / AreaPlan) we drop Z.
-                XYZ a, b;
-                if (view.ViewType == ViewType.FloorPlan
-                    || view.ViewType == ViewType.CeilingPlan
-                    || view.ViewType == ViewType.AreaPlan
-                    || view.ViewType == ViewType.EngineeringPlan)
-                {
-                    double z = view.GenLevel?.Elevation ?? 0.0;
-                    a = new XYZ(segStart.X, segStart.Y, z);
-                    b = new XYZ(segEnd.X,   segEnd.Y,   z);
-                }
-                else
-                {
-                    a = segStart; b = segEnd;
-                }
+                ProjectSegment(view, segStart, segEnd, cfg, out var a, out var b);
 
-                // Optional extension beyond the crop edge so the line
-                // visually breaks the drawable zone instead of stopping
-                // exactly at the boundary.
-                double extFt = MmToFt(cfg.Geometry.ExtendBeyondCropMm);
-                if (extFt > 1e-6)
-                {
-                    var dir = (b - a).Normalize();
-                    a = a - dir * extFt;
-                    b = b + dir * extFt;
-                }
+                // DTW-48: once a curve has refused the pair stamp, place no more.
+                if (cache.GuidUnstampable) return;
 
                 var line = Line.CreateBound(a, b);
                 var dc = doc.Create.NewDetailCurve(view, line);
 
+                // DTW-48: the pair GUID is what lets the next run find this curve. A curve
+                // that cannot carry it would be re-added on every run, so it is removed and
+                // the sweep stops placing, with one error that says why.
+                if (cfg.Stamping.WritePairGuid)
+                {
+                    if (!TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid, r))
+                    {
+                        try { doc.Delete(dc.Id); }
+                        catch (Exception ex) { StingLog.Warn($"MatchLine: removing unstampable curve: {ex.Message}"); }
+                        cache.GuidUnstampable = true;
+                        r.Errors.Add($"{ParamRegistry.MATCH_LINE_GUID} could not be written on a detail line, so match lines were not placed "
+                                   + "(an unstamped line is invisible to the next run, which would add another). "
+                                   + "Run Load Shared Params to bind it to Lines, then run match lines again.");
+                        return;
+                    }
+                }
+                else if (!cache.GuidOffWarned)
+                {
+                    cache.GuidOffWarned = true;
+                    r.Warnings.Add("Match-line config has stamping.writePairGuid off: the lines placed now cannot be found by the next run, "
+                                 + "so every re-run adds another set. Turn it on to make match lines idempotent.");
+                }
+
                 // Apply line style.
-                var styleId = ResolveLineStyleId(doc, cfg.Geometry.LineStyleName)
-                           ?? ResolveLineStyleId(doc, cfg.Geometry.FallbackLineStyleName);
+                var styleId = cache.LineStyleId;
                 if (styleId != null && styleId != ElementId.InvalidElementId)
                 {
                     try { dc.LineStyle = doc.GetElement(styleId); }
@@ -620,11 +793,9 @@ namespace StingTools.Core.Drawing
                 // Stamp parameters (skip silently when binding missing —
                 // pre-flight check should have warned).
                 if (cfg.Stamping.WritePairedRef)
-                    TrySet(dc, ParamRegistry.MATCH_REF, pairedRef);
-                if (cfg.Stamping.WritePairGuid)
-                    TrySet(dc, ParamRegistry.MATCH_LINE_GUID, viewPairGuid);
+                    TrySet(dc, ParamRegistry.MATCH_REF, pairedRef, r);
                 if (cfg.Stamping.WriteDirection)
-                    TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction);
+                    TrySet(dc, ParamRegistry.MATCH_DIR, edge.Direction, r);
 
                 // Phase 169 — discipline tint via per-element
                 // OverrideGraphicSettings. The view-style-pack default
@@ -641,7 +812,7 @@ namespace StingTools.Core.Drawing
                     !string.IsNullOrEmpty(cfg.Captions.TipFormat))
                 {
                     string caption = cfg.Captions.TipFormat.Replace("{paired_ref}", pairedRef);
-                    var noteTypeId = ResolveTextNoteTypeId(doc, cfg.Captions.FallbackTextNoteTypeName);
+                    var noteTypeId = cache.NoteTypeId;
                     if (noteTypeId != null && noteTypeId != ElementId.InvalidElementId)
                     {
                         bool bothEnds = string.Equals(cfg.Captions.TipPlacement, "BothEnds", StringComparison.OrdinalIgnoreCase);
@@ -662,8 +833,9 @@ namespace StingTools.Core.Drawing
                         // a boundary that moved no longer strands its old caption. The
                         // shape + proximity sweep remains for captions placed before
                         // stamping existed.
-                        RemoveStampedCaptions(doc, view, viewPairGuid, r);
-                        RemoveExistingCaptions(doc, view, noteTypeId, cfg.Captions.TipFormat, points, r);
+                        var captions = cache.CaptionsIn(view, r);
+                        RemoveStampedCaptions(doc, view, captions, viewPairGuid, r);
+                        RemoveExistingCaptions(doc, view, captions, noteTypeId, cfg.Captions.TipFormat, points, r);
 
                         for (int i = 0; i < points.Count; i++)
                         {
@@ -673,6 +845,11 @@ namespace StingTools.Core.Drawing
                                 r.TipCaptionsPlaced++;
                                 Storage.StingAnnotationProvenanceSchema.Stamp(tn, AnnotationProvenance.MatchCaption,
                                     AnnotationProvenance.Key(viewPairGuid, i.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                                // Keep the view's caption snapshot current, so a later
+                                // segment in this view sees the note exactly as a fresh
+                                // collector would have.
+                                captions.Added(tn,
+                                    Storage.StingAnnotationProvenanceSchema.Read(tn) != null ? viewPairGuid : null);
                             }
                             catch (Exception ex) { StingLog.Warn($"Caption create: {ex.Message}"); }
                         }
@@ -686,14 +863,34 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static void TrySet(Element el, string paramName, string value)
+        /// <summary>
+        /// DTW-48: write a text stamp and say whether it took. It swallowed every failure in
+        /// an empty catch and did nothing when the parameter was unbound, so a missing
+        /// binding looked like success. An unbound or read-only parameter is reported once.
+        /// </summary>
+        private static bool TrySet(Element el, string paramName, string value, MatchLineRunResult r = null)
         {
             try
             {
                 var p = el.LookupParameter(paramName);
-                if (p != null && !p.IsReadOnly) p.Set(value ?? "");
+                if (p == null || p.IsReadOnly || p.StorageType != StorageType.String)
+                {
+                    if (r == null || r.UnwritableParams.Add(paramName))
+                    {
+                        var why = p == null ? "not bound to Lines" : p.IsReadOnly ? "read-only" : $"a {p.StorageType} parameter, not text";
+                        StingLog.Warn($"MatchLineEngine: {paramName} is {why}; match lines cannot carry it.");
+                        r?.Warnings.Add($"{paramName} is {why} — match lines cannot carry it. Run Load Shared Params.");
+                    }
+                    return false;
+                }
+                return p.Set(value ?? "");
             }
-            catch { /* binding missing — pre-flight warns */ }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"MatchLineEngine: writing {paramName}: {ex.Message}");
+                r?.Warnings.Add($"Writing {paramName} on a match line failed: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>Phase 169 — sets a per-element OverrideGraphicSettings
@@ -727,18 +924,26 @@ namespace StingTools.Core.Drawing
         private static string ExtractDisciplineCode(string scopeBoxName)
         {
             if (string.IsNullOrEmpty(scopeBoxName)) return null;
-            // Strip the STING:: prefix if present (Week 5 binder convention).
-            var work = scopeBoxName;
-            const string p = "STING::";
-            if (work.StartsWith(p, StringComparison.OrdinalIgnoreCase))
-                work = work.Substring(p.Length);
-            // Drawing-type id starts the segment after the prefix.
-            int sep = work.IndexOf("::", StringComparison.Ordinal);
-            if (sep > 0) work = work.Substring(0, sep);
-            // Common drawing-type id prefixes: arch- / struct- / mep- /
-            // elec- / plumb- / fp- / pres- / clar- / coord- / fab- ...
-            // Map them to ISO 19650 single-letter discipline codes that
-            // the colour map expects.
+            // DTW-143: the drawing-type id comes from ScopeBoxNames' parser (one rule).
+            // Any other STING kind (area, zone, ...) carries no drawing type to read a
+            // discipline from; a plain box keeps the old reading of its whole name.
+            switch (ScopeBoxNames.Classify(scopeBoxName))
+            {
+                case ScopeBoxKind.DrawingType:
+                    return ScopeBoxNames.TryParseDrawingType(scopeBoxName, out var dtId, out _, out _, out _)
+                        ? DisciplineFromTypeId(dtId) : null;
+                case ScopeBoxKind.Plain:
+                    return DisciplineFromTypeId(scopeBoxName.Trim());
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>Common drawing-type id prefixes (arch- / struct- / mep- / elec- /
+        /// plumb- / fp- ...) mapped to the ISO 19650 discipline codes the colour map uses.</summary>
+        private static string DisciplineFromTypeId(string work)
+        {
+            if (string.IsNullOrEmpty(work)) return null;
             string lower = work.ToLowerInvariant();
             if (lower.StartsWith("arch")  || lower.StartsWith("a-")) return "A";
             if (lower.StartsWith("struct")|| lower.StartsWith("s-")) return "S";
@@ -813,25 +1018,22 @@ namespace StingTools.Core.Drawing
         /// </summary>
         /// <summary>Delete the captions this segment stamped last time, by key —
         /// exact, and independent of where the boundary has moved to.</summary>
-        private static void RemoveStampedCaptions(Document doc, View view, string viewPairGuid, MatchLineRunResult r)
+        private static void RemoveStampedCaptions(Document doc, View view, ViewCaptions captions,
+            string viewPairGuid, MatchLineRunResult r)
         {
             try
             {
-                foreach (var kv in Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(TextNote), AnnotationProvenance.MatchCaption))
+                foreach (var el in captions.StampedFor(viewPairGuid))
                 {
-                    if (!string.Equals(AnnotationProvenance.HostOf(kv.Key), viewPairGuid, StringComparison.Ordinal)) continue;
-                    foreach (var el in kv.Value)
-                    {
-                        try { doc.Delete(el.Id); }
-                        catch (Exception ex) { StingLog.Warn($"Stamped caption prune {el.Id}: {ex.Message}"); }
-                    }
+                    try { doc.Delete(el.Id); captions.Deleted(el.Id); }
+                    catch (Exception ex) { StingLog.Warn($"Stamped caption prune {el.Id}: {ex.Message}"); }
                 }
             }
             catch (Exception ex) { r?.Warnings.Add($"Could not clear stamped captions in '{view.Name}': {ex.Message}"); }
         }
 
-        private static void RemoveExistingCaptions(Document doc, View view, ElementId noteTypeId,
-            string tipFormat, IList<XYZ> points, MatchLineRunResult r)
+        private static void RemoveExistingCaptions(Document doc, View view, ViewCaptions captions,
+            ElementId noteTypeId, string tipFormat, IList<XYZ> points, MatchLineRunResult r)
         {
             if (doc == null || view == null || points == null || points.Count == 0) return;
             if (string.IsNullOrEmpty(tipFormat)) return;
@@ -843,9 +1045,8 @@ namespace StingTools.Core.Drawing
             try
             {
                 var doomed = new List<ElementId>();
-                foreach (var el in new FilteredElementCollector(doc, view.Id).OfClass(typeof(TextNote)))
+                foreach (var tn in captions.Live())
                 {
-                    if (!(el is TextNote tn)) continue;
                     if (tn.GetTypeId() != noteTypeId) continue;
                     var text = (tn.Text ?? "").TrimEnd('\r', '\n');
                     if (!shape.IsMatch(text)) continue;
@@ -859,7 +1060,7 @@ namespace StingTools.Core.Drawing
                 }
                 foreach (var id in doomed)
                 {
-                    try { doc.Delete(id); }
+                    try { doc.Delete(id); captions.Deleted(id); }
                     catch (Exception ex) { StingLog.Warn($"Caption prune {id}: {ex.Message}"); }
                 }
             }
@@ -868,6 +1069,132 @@ namespace StingTools.Core.Drawing
                 // Fail open: a failed prune means a possible duplicate caption,
                 // not a failed sweep.
                 r?.Warnings.Add($"Could not clear prior captions in '{view.Name}': {ex.Message}");
+            }
+        }
+
+        /// <summary>Everything one sweep resolves once instead of per view pair or
+        /// per segment: the sheet reference of every placed view, the line style,
+        /// the caption note type and, per view, its text notes.</summary>
+        private sealed class SweepCache
+        {
+            private readonly Document _doc;
+            private readonly MatchLineConfig _cfg;
+            private Dictionary<long, string> _sheetRefs;
+            private bool _lineStyleResolved, _noteTypeResolved;
+            private ElementId _lineStyleId, _noteTypeId;
+            private readonly Dictionary<long, ViewCaptions> _captions = new Dictionary<long, ViewCaptions>();
+
+            public SweepCache(Document doc, MatchLineConfig cfg) { _doc = doc; _cfg = cfg; }
+
+            /// <summary>DTW-48: set once a placed curve refused the pair-GUID stamp. The
+            /// rest of the sweep places nothing — an unstamped curve is invisible to the
+            /// next run, which would add another beside it.</summary>
+            public bool GuidUnstampable { get; set; }
+            /// <summary>DTW-48: "stamping switched off in the config" said once per sweep.</summary>
+            public bool GuidOffWarned { get; set; }
+
+            public string SheetRef(View view)
+            {
+                if (_sheetRefs == null) _sheetRefs = BuildSheetRefIndex(_doc);
+                return view != null && _sheetRefs.TryGetValue(view.Id.Value, out var s) ? s : "";
+            }
+
+            public ElementId LineStyleId
+            {
+                get
+                {
+                    if (!_lineStyleResolved)
+                    {
+                        _lineStyleId = ResolveLineStyleId(_doc, _cfg.Geometry.LineStyleName)
+                                    ?? ResolveLineStyleId(_doc, _cfg.Geometry.FallbackLineStyleName);
+                        _lineStyleResolved = true;
+                    }
+                    return _lineStyleId;
+                }
+            }
+
+            public ElementId NoteTypeId
+            {
+                get
+                {
+                    if (!_noteTypeResolved)
+                    {
+                        _noteTypeId = ResolveTextNoteTypeId(_doc, _cfg.Captions.FallbackTextNoteTypeName);
+                        _noteTypeResolved = true;
+                    }
+                    return _noteTypeId;
+                }
+            }
+
+            public ViewCaptions CaptionsIn(View view, MatchLineRunResult r)
+            {
+                if (!_captions.TryGetValue(view.Id.Value, out var vc))
+                    _captions[view.Id.Value] = vc = ViewCaptions.Collect(_doc, view, r);
+                return vc;
+            }
+        }
+
+        /// <summary>One view's text notes, collected once per sweep and kept in step
+        /// with what the sweep deletes and creates, so every segment sees the same
+        /// set a fresh collector would return.</summary>
+        private sealed class ViewCaptions
+        {
+            private readonly List<TextNote> _notes = new List<TextNote>();
+            private readonly Dictionary<string, List<TextNote>> _stampedByHost
+                = new Dictionary<string, List<TextNote>>(StringComparer.Ordinal);
+            private readonly HashSet<long> _deleted = new HashSet<long>();
+
+            public static ViewCaptions Collect(Document doc, View view, MatchLineRunResult r)
+            {
+                var vc = new ViewCaptions();
+                try
+                {
+                    foreach (var el in new FilteredElementCollector(doc, view.Id).OfClass(typeof(TextNote)))
+                        if (el is TextNote tn) vc._notes.Add(tn);
+                }
+                catch (Exception ex) { r?.Warnings.Add($"Could not read captions in '{view.Name}': {ex.Message}"); }
+                try
+                {
+                    foreach (var kv in Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(TextNote), AnnotationProvenance.MatchCaption))
+                    {
+                        var host = AnnotationProvenance.HostOf(kv.Key);
+                        if (host == null) continue;
+                        foreach (var el in kv.Value)
+                            if (el is TextNote tn) vc.AddStamped(host, tn);
+                    }
+                }
+                catch (Exception ex) { r?.Warnings.Add($"Could not clear stamped captions in '{view.Name}': {ex.Message}"); }
+                return vc;
+            }
+
+            private void AddStamped(string host, TextNote tn)
+            {
+                if (!_stampedByHost.TryGetValue(host, out var list)) _stampedByHost[host] = list = new List<TextNote>();
+                list.Add(tn);
+            }
+
+            public IEnumerable<TextNote> Live()
+            {
+                foreach (var tn in _notes)
+                    if (!_deleted.Contains(tn.Id.Value)) yield return tn;
+            }
+
+            public List<TextNote> StampedFor(string host)
+            {
+                var result = new List<TextNote>();
+                if (host != null && _stampedByHost.TryGetValue(host, out var list))
+                    foreach (var tn in list)
+                        if (!_deleted.Contains(tn.Id.Value)) result.Add(tn);
+                return result;
+            }
+
+            public void Deleted(ElementId id) { if (id != null) _deleted.Add(id.Value); }
+
+            public void Added(TextNote tn, string host)
+            {
+                if (tn == null) return;
+                _notes.Add(tn);
+                if (host != null) AddStamped(host, tn);
             }
         }
 
@@ -934,26 +1261,28 @@ namespace StingTools.Core.Drawing
         // ── Orphan pruning + validation ──────────────────────────────────
 
         private static void PruneOrphans(Document doc, List<ScopeBoxAdjacency> currentEdges,
-            Dictionary<string, List<CurveElement>> existingByGuid, MatchLineRunResult r)
+            Dictionary<string, List<CurveElement>> existingByGuid, MatchLineRunResult r,
+            ISet<string> liveViewPairs = null, ISet<string> failedPairs = null)
         {
-            // An orphan is a stamped match-line whose viewPairGuid prefix
-            // (the scope-box pair GUID) doesn't appear in `currentEdges`.
+            // An orphan is a stamped match line whose box pair is no longer adjacent, or —
+            // DTW-47 — whose key names two views this run did not pair (a view deleted, or
+            // retyped so it no longer pairs). Those used to survive every run beside the
+            // new pair's lines. See MatchLineUpkeep.ShouldPrune.
             var liveScopePairs = new HashSet<string>(
                 currentEdges.Select(e => e.PairGuid),
                 StringComparer.OrdinalIgnoreCase);
             int pruned = 0;
             foreach (var kv in existingByGuid)
             {
-                var key = kv.Key ?? "";
-                // viewPairGuid format: "<scopePairGuid>:<viewA>:<viewB>"
-                var sep = key.IndexOf(':');
-                var scopePairGuid = sep > 0 ? key.Substring(0, sep) : key;
-                if (liveScopePairs.Contains(scopePairGuid)) continue;
+                if (!MatchLineUpkeep.ShouldPrune(kv.Key ?? "", liveScopePairs, liveViewPairs, failedPairs)) continue;
                 foreach (var dc in kv.Value)
-                    try { doc.Delete(dc.Id); pruned++; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                {
+                    if (dc == null || !dc.IsValidObject) continue;   // already replaced this run
+                    try { doc.Delete(dc.Id); pruned++; } catch (Exception ex) { StingLog.Warn($"Match-line prune {dc.Id}: {ex.Message}"); }
+                }
             }
             if (pruned > 0)
-                r.Warnings.Add($"pruned {pruned} orphan match-line curve(s) — paired scope boxes no longer adjacent");
+                r.Warnings.Add($"pruned {pruned} orphan match-line curve(s) — their scope boxes are no longer adjacent, or their views no longer pair");
 
             // Their captions too. Only STAMPED captions can be tied to a pair, so
             // only those are pruned; an unstamped caption might be a person's note.
@@ -965,9 +1294,7 @@ namespace StingTools.Core.Drawing
                     var s = Storage.StingAnnotationProvenanceSchema.Read(el);
                     if (s == null || s.Value.Producer != AnnotationProvenance.MatchCaption) continue;
                     var host = AnnotationProvenance.HostOf(s.Value.Key) ?? "";
-                    var sep = host.IndexOf(':');
-                    var scopePairGuid = sep > 0 ? host.Substring(0, sep) : host;
-                    if (liveScopePairs.Contains(scopePairGuid)) continue;
+                    if (!MatchLineUpkeep.ShouldPrune(host, liveScopePairs, liveViewPairs, failedPairs)) continue;
                     try { doc.Delete(el.Id); captions++; }
                     catch (Exception ex) { StingLog.Warn($"Orphan caption prune {el.Id}: {ex.Message}"); }
                 }

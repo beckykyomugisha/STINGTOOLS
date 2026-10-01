@@ -57,8 +57,12 @@ namespace StingTools.Commands.Drawing
                     packLabels);
                 if (string.IsNullOrEmpty(packPicked)) return Result.Cancelled;
                 var packId = packPicked.Split('—')[0].Trim();
-                var pack = ViewStylePackRegistry.Get(doc, packId);
-                if (pack == null) { msg = "Pack not found."; return Result.Failed; }
+                var resolved = ViewStylePackRegistry.Get(doc, packId);
+                if (resolved == null) { msg = "Pack not found."; return Result.Failed; }
+                // DTW-9: work on a copy. Get() returns the registry's memoised pack,
+                // so editing it in place changed what every caller saw even when the
+                // conversion was then abandoned.
+                var pack = ClonePack(resolved);
 
                 // Pick a Revit template
                 var templates = new FilteredElementCollector(doc)
@@ -82,6 +86,7 @@ namespace StingTools.Commands.Drawing
 
                 // Read settings
                 int vgRead, filterRead;
+                string originalTemplateName = sourceTemplate.Name;
                 using (var tx = new Transaction(doc, "STING — Read template into pack"))
                 {
                     tx.Start();
@@ -104,13 +109,28 @@ namespace StingTools.Commands.Drawing
                             sourceTemplate.Name = legacyName;
                         }
                     }
-                    catch { /* non-fatal */ }
+                    catch (Exception ex) { StingLog.Warn($"Convert to Managed: source template not renamed — {ex.Message}"); }
 
-                    tx.Commit();
+                    // DTW-9: persist BEFORE committing. The override used to be
+                    // written after the commit by a method that silently returned on
+                    // an unsaved model or an IO error, so the template was renamed
+                    // to *_legacy and the dialog said "now managed" while nothing
+                    // had been saved. If the pack cannot be saved, nothing changes.
+                    if (!SaveProjectOverride(doc, pack, out var saveError))
+                    {
+                        tx.RollBack();
+                        var fail = $"Pack '{pack.Id}' was NOT converted — the project override could not be saved:\n{saveError}\n\n" +
+                                   $"Nothing was changed; the template '{originalTemplateName}' keeps its name.";
+                        StingLog.Warn("Convert to Managed: " + fail);
+                        PresetDialog.Show("STING — Convert to Managed", fail, ref msg);
+                        return Result.Failed;
+                    }
+
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                        StingLog.Warn($"Convert to Managed: the template rename did not commit ({status}); the pack itself was saved as managed.");
                 }
 
-                // Persist to project override
-                SaveProjectOverride(doc, pack);
                 ViewStylePackRegistry.Reload(doc);
 
                 var sb = new StringBuilder();
@@ -141,8 +161,10 @@ namespace StingTools.Commands.Drawing
             vgRead = 0; filterRead = 0;
 
             // Discipline / visual style / detail / phase filter
-            try { pack.Discipline = tpl.Discipline.ToString(); } catch { }
-            try { pack.VisualStyle = tpl.DisplayStyle.ToString(); } catch { }
+            try { pack.Discipline = tpl.Discipline.ToString(); }
+            catch (Exception ex) { StingLog.Warn($"Convert to Managed: discipline not read from '{tpl.Name}' — {ex.Message}"); }
+            try { pack.VisualStyle = tpl.DisplayStyle.ToString(); }
+            catch (Exception ex) { StingLog.Warn($"Convert to Managed: visual style not read from '{tpl.Name}' — {ex.Message}"); }
             // PhaseFilter is not on the View base class; read via parameter.
             try
             {
@@ -157,7 +179,7 @@ namespace StingTools.Commands.Drawing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Convert to Managed: phase filter not read from '{tpl.Name}' — {ex.Message}"); }
 
             // VG overrides per category — only categories that the template
             // actually overrides (different from default).
@@ -186,7 +208,7 @@ namespace StingTools.Commands.Drawing
                     if (any) { pack.VgOverrides[c.Name] = ov; vgRead++; }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Convert to Managed: category overrides not fully read from '{tpl.Name}' — {ex.Message}"); }
 
             // Filter rules
             pack.Filters = pack.Filters ?? new List<StyleFilterRule>();
@@ -212,21 +234,38 @@ namespace StingTools.Commands.Drawing
                         rule.CutLineColor = ColorToHex(ogs.CutLineColor);
                     if (ogs.CutLineWeight > 0) rule.CutLineWeight = ogs.CutLineWeight;
                     if (ogs.Transparency > 0)   rule.Transparency = ogs.Transparency;
+                    // DTW-9: replace, don't append — the pack may already carry a
+                    // rule for this filter (inherited, or from an earlier convert),
+                    // and two rules for one filter left the result order-dependent.
+                    pack.Filters.RemoveAll(f => string.Equals(f?.FilterName, pf.Name, StringComparison.OrdinalIgnoreCase));
                     pack.Filters.Add(rule);
                     filterRead++;
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"Convert to Managed: filters not fully read from '{tpl.Name}' — {ex.Message}"); }
         }
 
         private static string ColorToHex(Autodesk.Revit.DB.Color c)
             => $"#{c.Red:X2}{c.Green:X2}{c.Blue:X2}";
 
-        internal static void SaveProjectOverride(Document doc, ViewStylePack pack)
+        internal static ViewStylePack ClonePack(ViewStylePack pack)
+            => JsonConvert.DeserializeObject<ViewStylePack>(JsonConvert.SerializeObject(pack));
+
+        /// <summary>
+        /// Write <paramref name="pack"/> into the project override
+        /// (_BIM_COORD/view_style_packs.json). DTW-9: returns false with a reason
+        /// instead of returning silently — on an unsaved model (no project folder),
+        /// an unreadable existing override (which used to be overwritten with this
+        /// one pack, losing the rest) or an IO error.
+        /// </summary>
+        internal static bool SaveProjectOverride(Document doc, ViewStylePack pack, out string error)
         {
+            error = null;
             try
             {
-                if (doc == null || string.IsNullOrEmpty(doc.PathName)) return;
+                if (doc == null) { error = "no document"; return false; }
+                if (string.IsNullOrEmpty(doc.PathName))
+                { error = "the model has never been saved, so it has no project folder for the override — save it first"; return false; }
                 var dir = StingPaths.Meta(doc, "_BIM_COORD");
                 Directory.CreateDirectory(dir);
                 var path = Path.Combine(dir, "view_style_packs.json");
@@ -235,7 +274,11 @@ namespace StingTools.Commands.Drawing
                 if (File.Exists(path))
                 {
                     try { lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(File.ReadAllText(path)); }
-                    catch { lib = null; }
+                    catch (Exception ex)
+                    {
+                        error = $"the existing override '{path}' could not be read ({ex.Message}); fix or move it — it was not overwritten";
+                        return false;
+                    }
                 }
                 if (lib == null) lib = new ViewStylePackLibrary { Version = 1 };
                 lib.Packs = lib.Packs ?? new List<ViewStylePack>();
@@ -246,8 +289,14 @@ namespace StingTools.Commands.Drawing
                 lib.Packs.Add(pack);
 
                 File.WriteAllText(path, JsonConvert.SerializeObject(lib, Formatting.Indented));
+                return true;
             }
-            catch (Exception ex) { StingLog.Warn("SaveProjectOverride: " + ex.Message); }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                StingLog.Warn("SaveProjectOverride: " + ex.Message);
+                return false;
+            }
         }
     }
 
@@ -279,8 +328,10 @@ namespace StingTools.Commands.Drawing
                     managedPacks.Select(p => $"{p.Id} — {p.Name}").ToList());
                 if (string.IsNullOrEmpty(picked)) return Result.Cancelled;
                 var packId = picked.Split('—')[0].Trim();
-                var pack = ViewStylePackRegistry.Get(doc, packId);
-                if (pack == null) { msg = "Pack not found."; return Result.Failed; }
+                var resolvedPack = ViewStylePackRegistry.Get(doc, packId);
+                if (resolvedPack == null) { msg = "Pack not found."; return Result.Failed; }
+                // DTW-9: edit a copy, not the registry's memoised pack.
+                var pack = ConvertPackToManagedCommand.ClonePack(resolvedPack);
 
                 var prefix = $"STING:{pack.Id}:";
                 var managedTemplates = new FilteredElementCollector(doc)
@@ -298,7 +349,7 @@ namespace StingTools.Commands.Drawing
                         // Run syncer for FloorPlan as a baseline so detach has
                         // something to rename — best-effort.
                         try { ManagedTemplateSyncer.EnsureTemplate(doc, pack, ViewType.FloorPlan); }
-                        catch { }
+                        catch (Exception ex) { StingLog.Warn($"Detach: baseline FloorPlan template not minted — {ex.Message}"); }
                         managedTemplates = new FilteredElementCollector(doc)
                             .OfClass(typeof(View)).Cast<View>()
                             .Where(v => v.IsTemplate && (v.Name ?? "").StartsWith(prefix, StringComparison.Ordinal))
@@ -324,10 +375,21 @@ namespace StingTools.Commands.Drawing
                     pack.TemplateMode = "external";
                     if (firstRenamed != null && string.IsNullOrEmpty(pack.Name))
                         pack.Name = newBase;
+
+                    // DTW-9: save before committing the renames; if the pack cannot
+                    // be saved as external, STING would keep managing templates it
+                    // no longer recognises by name — roll everything back instead.
+                    if (!ConvertPackToManagedCommand.SaveProjectOverride(doc, pack, out var saveError))
+                    {
+                        tx.RollBack();
+                        var fail = $"Pack '{pack.Id}' was NOT detached — the project override could not be saved:\n{saveError}\n\nNothing was changed.";
+                        StingLog.Warn("Detach Managed: " + fail);
+                        PresetDialog.Show("STING — Detach Managed", fail, ref msg);
+                        return Result.Failed;
+                    }
                     tx.Commit();
                 }
 
-                ConvertPackToManagedCommand.SaveProjectOverride(doc, pack);
                 ViewStylePackRegistry.Reload(doc);
 
                 var sb = new StringBuilder();

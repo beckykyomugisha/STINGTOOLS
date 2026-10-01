@@ -180,6 +180,7 @@ RECORDS = (
     ".Add(",          # errors.Add(...), failures.Add(...)
     "++",             # a failure counter
     "TaskDialog",     # told the user directly
+    "PresetDialog",   # told the user, or carried in `message` inside a preset
     "message =",      # the IExternalCommand out-parameter
     "MessageBox",
     ".Append",        # a report being built
