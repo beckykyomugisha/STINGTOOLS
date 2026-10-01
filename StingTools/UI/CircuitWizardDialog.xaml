@@ -114,6 +114,7 @@
                     <DataGridTextColumn Header="Util %" Binding="{Binding UtilDisplay}" Width="60" IsReadOnly="True"/>
                     <DataGridTextColumn Header="Rating" Binding="{Binding ProposedRatingDisplay}" Width="60" IsReadOnly="True"/>
                     <DataGridTextColumn Header="CSA" Binding="{Binding ProposedCsaDisplay}" Width="60" IsReadOnly="True"/>
+                    <DataGridTextColumn Header="Device note" Binding="{Binding RatingRefusal}" Width="*" IsReadOnly="True"/>
                 </DataGrid.Columns>
             </DataGrid>
 

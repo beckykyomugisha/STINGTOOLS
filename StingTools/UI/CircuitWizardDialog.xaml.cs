@@ -271,6 +271,14 @@ namespace StingTools.UI
                 MessageBoxAlt("Nothing to create.");
                 return;
             }
+            var refused = Proposals.Where(p => p.Source.RatingRefusal != null).ToList();
+            if (refused.Count > 0)
+            {
+                MessageBoxAlt($"{refused.Count} proposed circuit(s) have no standard protective device and cannot be created:\n" +
+                    string.Join("\n", refused.Take(10).Select(p => $"  {p.ProposedLabel}: {p.RatingRefusal}")) +
+                    "\n\nSplit or remove them first.");
+                return;
+            }
             CircuitWizardCommand.PendingCircuits = Proposals.Select(p => p.Source).ToList();
             CircuitWizardCommand.PendingPanelName = panel;
             try { StingElectricalCommandHandler.Instance?.SetCommand("Circuit_CreateWizard"); }
@@ -338,7 +346,8 @@ namespace StingTools.UI
         public int ElementsCount => Source.Elements.Count;
         public string TotalVADisplay => $"{Source.TotalLoadVA:0}";
         public string UtilDisplay => $"{Source.UtilisationPct:0}%";
-        public string ProposedRatingDisplay => $"{Source.ProposedRatingA:0}A";
+        public string ProposedRatingDisplay => Source.RatingRefusal != null ? "NO DEVICE" : $"{Source.ProposedRatingA:0}A";
+        public string RatingRefusal => Source.RatingRefusal;
         public string ProposedCsaDisplay => $"{Source.ProposedCsaMm2:0.#}mm²";
         public void Refresh()
         {
@@ -347,6 +356,7 @@ namespace StingTools.UI
             OnChanged(nameof(TotalVADisplay));
             OnChanged(nameof(UtilDisplay));
             OnChanged(nameof(ProposedRatingDisplay));
+            OnChanged(nameof(RatingRefusal));
             OnChanged(nameof(ProposedCsaDisplay));
         }
         public event PropertyChangedEventHandler PropertyChanged;

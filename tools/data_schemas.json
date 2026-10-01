@@ -10671,7 +10671,7 @@
     },
     "StingTools/Data/STING_WIRE_TABLES.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet. breakerSizes is the ONLY copy of the BS EN 60898 / BS EN 60947-2 / NEC Table 240.6(A) rating lists (DSCH-25): read by VoltageDropEngine.ResolveBreakerSizes, no code fallback; pinned to the standards by StingTools.Tags.Tests/BreakerRatingDataTests."
     },
     "StingTools/Data/SectorPacks/DATACENTRE_PACK.json": {
       "format": "json",
