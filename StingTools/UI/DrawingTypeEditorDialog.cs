@@ -78,8 +78,11 @@ namespace StingTools.UI
         /// future editor control, which flipping a dirty flag inside each of
         /// the ~40 inline edit lambdas certainly could be.
         /// </summary>
-        private Dictionary<string, string> _packSnapshot
-            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // DTW-186: keyed by the pack OBJECT, not its id. The id is editable in
+        // the form, so an id-keyed lookup missed a renamed corporate pack and
+        // its edit was dropped on save.
+        private Dictionary<object, string> _packSnapshot
+            = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);
 
         /// <summary>The same snapshot for drawing types. Save wrote only
         /// project-origin types, so an edit to a corporate type (its scale, sheet
@@ -89,8 +92,8 @@ namespace StingTools.UI
         /// opening a type's form, which creates empty Crop / SectionMarker /
         /// Annotation / TokenProfile / Slots objects, does not count as an edit and
         /// freeze an untouched corporate type into the project file.</summary>
-        private Dictionary<string, string> _typeSnapshot
-            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<object, string> _typeSnapshot
+            = new Dictionary<object, string>(ReferenceEqualityComparer.Instance); // DTW-186: by object, the id is editable
         private DrawingType _current;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
@@ -360,7 +363,7 @@ namespace StingTools.UI
             foreach (var t in _types)
             {
                 if (t?.Id == null) continue;
-                try { _typeSnapshot[t.Id] = EditKey(t); }
+                try { _typeSnapshot[t] = EditKey(t); }
                 catch (Exception ex) { StingLog.Warn($"Type snapshot '{t.Id}': {ex.Message}"); }
             }
 
@@ -1273,7 +1276,7 @@ namespace StingTools.UI
             if (_currentPack == null) return;
             var json = JsonConvert.SerializeObject(_currentPack);
             var copy = JsonConvert.DeserializeObject<ViewStylePack>(json);
-            copy.Id = _currentPack.Id + "-copy";
+            copy.Id = CatalogueIds.UniqueCopyId(_currentPack.Id, _packs.Select(x => x?.Id));
             copy.Name = (_currentPack.Name ?? _currentPack.Id) + " (copy)";
             copy.Origin = "project";
             _packs.Add(copy);
@@ -1350,7 +1353,13 @@ namespace StingTools.UI
             {
                 t.ViewTemplateName = _currentPack.ViewTemplate;
                 if (!string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                {
                     t.Origin = "project";   // edits land in project override on save
+                    // DTW-193: the corporate checksum no longer describes this
+                    // entry. Kept, it read as a drifted corporate parent
+                    // (ResolveExtends) on every child that extends it.
+                    t.Checksum = null;
+                }
                 n++;
             }
             // Refresh the Drawing Types tab list display.
@@ -1361,43 +1370,116 @@ namespace StingTools.UI
         }
 
         // ── JSON load ──
+        /// <summary>Set when the project's view_style_packs.json exists but could
+        /// not be read. Pack save refuses while it is set (DTW-187): the editor
+        /// is not showing that file's packs, so writing would erase them.</summary>
+        private string _packOverrideError;
+
+        /// <summary>
+        /// Corporate packs with the project's own packs layered on top by id
+        /// (project wins, origin "project"), the same merge
+        /// ViewStylePackRegistry applies at runtime.
+        ///
+        /// DTW-178: this used to load the corporate file only. Save writes the
+        /// project-origin packs it holds, so every pack saved in an earlier
+        /// session was absent from the list and the next save erased it.
+        /// </summary>
         private List<ViewStylePack> LoadViewStylePacks()
         {
-            var list = new List<ViewStylePack>();
+            var merged = new List<ViewStylePack>();
+            var byId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            JArray corporateRouting = null;
+            _packOverrideError = null;
             try
             {
                 var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
-                if (!File.Exists(path)) return list;
-                var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
-
-                // Keep the document header (schemaVersion / name / description /
-                // namespace / lastUpdated) so a save re-emits it rather than
-                // truncating the file to a bare pack array — but DROP routing.
-                // ViewStylePackRegistry.Merge prepends project routing over
-                // corporate, so re-emitting the corporate table into the project
-                // override would freeze all of it where it wins for ever.
-                _packDocExtra = doc?.Extra;
-                if (_packDocExtra != null)
+                if (File.Exists(path))
                 {
-                    foreach (var key in _packDocExtra.Keys
-                        .Where(k => string.Equals(k, "routing", StringComparison.OrdinalIgnoreCase))
-                        .ToList())
-                        _packDocExtra.Remove(key);
-                }
+                    var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
 
-                // Snapshot every pack as loaded, so an in-place edit to a
-                // corporate pack is detectable at save time.
-                _packSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var p in doc?.StylePacks ?? new List<ViewStylePack>())
-                {
-                    if (p?.Id == null) continue;
-                    try { _packSnapshot[p.Id] = JsonConvert.SerializeObject(p, Formatting.None); }
-                    catch (Exception ex) { StingLog.Warn($"Pack snapshot '{p.Id}': {ex.Message}"); }
+                    // Keep the document header (schemaVersion / name / description /
+                    // namespace / lastUpdated) so a save re-emits it rather than
+                    // truncating the file to a bare pack array — but DROP routing.
+                    // ViewStylePackRegistry.Merge prepends project routing over
+                    // corporate, so re-emitting the corporate table into the project
+                    // override would freeze all of it where it wins for ever.
+                    _packDocExtra = doc?.Extra;
+                    if (_packDocExtra != null)
+                    {
+                        foreach (var key in _packDocExtra.Keys
+                            .Where(k => string.Equals(k, "routing", StringComparison.OrdinalIgnoreCase))
+                            .ToList())
+                        {
+                            corporateRouting = _packDocExtra[key] as JArray;
+                            _packDocExtra.Remove(key);
+                        }
+                    }
+                    foreach (var p in doc?.StylePacks ?? new List<ViewStylePack>())
+                    {
+                        if (p == null || string.IsNullOrWhiteSpace(p.Id) || byId.ContainsKey(p.Id)) continue;
+                        if (string.IsNullOrEmpty(p.Origin)) p.Origin = "corporate";
+                        byId[p.Id] = merged.Count;
+                        merged.Add(p);
+                    }
                 }
-
-                return doc?.StylePacks ?? list;
             }
-            catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
+            catch (Exception ex) { StingLog.Warn("ViewStylePacks corporate load: " + ex.Message); }
+
+            // ── Project override ─────────────────────────────────────────
+            try
+            {
+                if (_doc != null && !string.IsNullOrEmpty(_doc.PathName))
+                {
+                    var projPath = Path.Combine(StingPaths.Meta(_doc, "_BIM_COORD"), "view_style_packs.json");
+                    if (File.Exists(projPath))
+                    {
+                        var json = File.ReadAllText(projPath);
+                        var proj = JsonConvert.DeserializeObject<ViewStylePackDoc>(json);
+                        if (proj == null && !string.IsNullOrWhiteSpace(json))
+                            throw new InvalidDataException("view_style_packs.json deserialised to nothing");
+                        foreach (var p in proj?.StylePacks ?? new List<ViewStylePack>())
+                        {
+                            if (p == null || string.IsNullOrWhiteSpace(p.Id)) continue;
+                            // Everything in the override file is the project's.
+                            p.Origin = "project";
+                            if (byId.TryGetValue(p.Id, out int at)) merged[at] = p;
+                            else { byId[p.Id] = merged.Count; merged.Add(p); }
+                        }
+
+                        // Keep routing the PROJECT authored. A rule identical to a
+                        // corporate rule is a frozen copy from an older save and is
+                        // dropped, so the corporate table can change again.
+                        var projRouting = proj?.Extra?
+                            .Where(kv => string.Equals(kv.Key, "routing", StringComparison.OrdinalIgnoreCase))
+                            .Select(kv => kv.Value as JArray).FirstOrDefault(a => a != null);
+                        if (projRouting != null)
+                        {
+                            var kept = new JArray(projRouting.Where(r =>
+                                corporateRouting == null || !corporateRouting.Any(c => JToken.DeepEquals(c, r))));
+                            if (kept.Count > 0)
+                            {
+                                _packDocExtra ??= new Dictionary<string, JToken>(StringComparer.Ordinal);
+                                _packDocExtra["routing"] = kept;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _packOverrideError = ex.Message;
+                StingLog.Warn("ViewStylePacks project override load: " + ex.Message);
+            }
+
+            // Snapshot every pack AFTER the merge, so an in-place edit to a
+            // corporate pack is detectable at save time.
+            _packSnapshot = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);
+            foreach (var p in merged)
+            {
+                try { _packSnapshot[p] = JsonConvert.SerializeObject(p, Formatting.None); }
+                catch (Exception ex) { StingLog.Warn($"Pack snapshot '{p.Id}': {ex.Message}"); }
+            }
+            return merged;
         }
 
         // ── POCO models for view style packs ──
@@ -2494,7 +2576,10 @@ namespace StingTools.UI
                     if (string.IsNullOrEmpty(_current.ViewStylePackId)) return;
                     _current.ViewTemplateName = null;
                     if (!string.Equals(_current.Origin, "project", StringComparison.OrdinalIgnoreCase))
+                    {
                         _current.Origin = "project";
+                        _current.Checksum = null; // DTW-193: corporate checksum no longer applies
+                    }
                     RenderForm();   // refresh to show the cleared field
                 }));
             linkRow.Children.Add(MakePackInlineLink("↑ Push to pack",
@@ -3362,7 +3447,7 @@ namespace StingTools.UI
         {
             if (_current == null) return;
             var copy = Clone(_current);
-            copy.Id = _current.Id + "-copy";
+            copy.Id = CatalogueIds.UniqueCopyId(_current.Id, _types.Select(x => x?.Id));
             copy.Name = (_current.Name ?? _current.Id) + " (copy)";
             copy.Origin = "project";
             copy.Checksum = null;
@@ -3413,6 +3498,31 @@ namespace StingTools.UI
                     "STING — Drawing Types", MessageBoxButton.OK);
                 return false;
             }
+            // DTW-187: never write over an override that failed to load — the
+            // editor is showing the corporate catalogue only, and saving would
+            // replace every project type and rule with it.
+            var overrideError = DrawingTypeRegistry.ProjectOverrideLoadError(_doc);
+            if (overrideError != null)
+            {
+                System.Windows.MessageBox.Show(
+                    "Nothing was saved.\n\nThis project's drawing_types.json could not be read:\n"
+                    + overrideError + "\n\nSaving now would overwrite it with only what the editor shows, losing every "
+                    + "project drawing type and routing rule in it. Repair or move the file, press Reload JSON (DOCS tab), "
+                    + "and reopen the editor.",
+                    "STING — Drawing Types", MessageBoxButton.OK);
+                return false;
+            }
+            // DTW-186: refuse blank or duplicate ids before anything is written.
+            var idProblems = CatalogueIds.IdProblems("Drawing type", _types.Where(t => t != null).Select(t => t.Id))
+                .Concat(CatalogueIds.IdProblems("Style pack", (_packs ?? new List<ViewStylePack>()).Where(p => p != null).Select(p => p.Id)))
+                .ToList();
+            if (idProblems.Count > 0)
+            {
+                System.Windows.MessageBox.Show(
+                    "Nothing was saved. Fix these ids first:\n\n• " + string.Join("\n• ", idProblems.Take(20)),
+                    "STING — Drawing Types", MessageBoxButton.OK);
+                return false;
+            }
             try
             {
                 var dir = StingPaths.Meta(_doc, "_BIM_COORD");
@@ -3429,7 +3539,7 @@ namespace StingTools.UI
                 {
                     if (t?.Id == null) continue;
                     if (string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (!_typeSnapshot.TryGetValue(t.Id, out var before)) continue;
+                    if (!_typeSnapshot.TryGetValue(t, out var before)) continue;
                     string now;
                     try { now = EditKey(t); }
                     catch (Exception ex) { StingLog.Warn($"Type diff '{t.Id}': {ex.Message}"); continue; }
@@ -3453,7 +3563,7 @@ namespace StingTools.UI
                     DrawingTypes = projectTypes,
                     Routing = projectRouting,
                 };
-                File.WriteAllText(typesPath, JsonConvert.SerializeObject(lib, Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(typesPath, JsonConvert.SerializeObject(lib, Formatting.Indented));
 
                 // ── Style packs ────────────────────────────────────────────
                 int packCount = SaveStylePacksToProjectOverride(dir, out string packsPath, out string packError);
@@ -3501,6 +3611,12 @@ namespace StingTools.UI
             try
             {
                 if (_packs == null) { error = "no packs were loaded."; return -1; }
+                if (_packOverrideError != null)
+                {
+                    error = "the project's view_style_packs.json could not be read when the editor opened ("
+                          + _packOverrideError + "). Saving would erase the packs in it; repair or move the file and reopen the editor.";
+                    return -1;
+                }
 
                 // A pack is written when it is project-origin OR when its
                 // serialisation has moved since load. The second case is what
@@ -3513,7 +3629,7 @@ namespace StingTools.UI
                 {
                     if (p?.Id == null) continue;
                     if (string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (!_packSnapshot.TryGetValue(p.Id, out var before)) continue;
+                    if (!_packSnapshot.TryGetValue(p, out var before)) continue;
                     string now;
                     try { now = JsonConvert.SerializeObject(p, Formatting.None); }
                     catch (Exception ex) { StingLog.Warn($"Pack diff '{p.Id}': {ex.Message}"); continue; }
@@ -3527,7 +3643,7 @@ namespace StingTools.UI
                     .ToList();
 
                 var doc = new ViewStylePackDoc { StylePacks = projectPacks, Extra = _packDocExtra };
-                File.WriteAllText(path, JsonConvert.SerializeObject(doc, Formatting.Indented));
+                OutputLocationHelper.WriteAllTextAtomic(path, JsonConvert.SerializeObject(doc, Formatting.Indented));
                 return projectPacks.Count;
             }
             catch (Exception ex)
