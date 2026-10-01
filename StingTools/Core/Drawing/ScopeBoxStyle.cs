@@ -120,7 +120,11 @@ namespace StingTools.Core.Drawing
                 case ScopeBoxColourMode.Discipline: return Discipline;
                 case ScopeBoxColourMode.SizeClass: return kind == ScopeBoxKind.Area ? SizeClass : null;
                 case ScopeBoxColourMode.Building:
-                    if (kind == ScopeBoxKind.Building) return Name.Substring(ScopeBoxNames.LocPrefix.Length);
+                    // DTW-143: through the LOC parser (trimmed, one legal code). A malformed
+                    // STING-LOC:: name has no building, so it is left alone rather than
+                    // coloured under its raw text.
+                    if (kind == ScopeBoxKind.Building)
+                        return ScopeBoxNames.TryParseLoc(Name, out var bld, out _) ? bld : null;
                     // The building of an area box comes from the saved plan, not from
                     // parsing its code: "A1-100-03" and "ANNEX-A1-100-03" cannot be told
                     // apart by shape alone.
