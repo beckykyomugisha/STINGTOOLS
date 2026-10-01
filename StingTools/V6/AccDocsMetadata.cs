@@ -139,7 +139,7 @@ namespace StingTools.V6
         /// TransportFailed — never an empty folder, because "no definitions" would lead
         /// EnsureDefinitionsAsync to create duplicates.</summary>
         public static async Task<AccFetchResult<List<AccAttributeDefinition>>> ListDefinitionsAsync(
-            string accessToken, string projectId, string folderUrn)
+            string accessToken, string projectId, string folderUrn, AccCredentials creds = null)
         {
             var empty = new List<AccAttributeDefinition>();
             string bad = CheckInputs(accessToken, projectId, folderUrn, "folder URN");
@@ -153,7 +153,7 @@ namespace StingTools.V6
             for (int page = 0; page < MaxPages; page++)
             {
                 string url = $"{baseUrl}?limit={PageLimit}&offset={offset}";
-                var resp = await SendAsync(accessToken, HttpMethod.Get, url, null).ConfigureAwait(false);
+                var resp = await SendAsync(accessToken, HttpMethod.Get, url, null, creds, idempotent: true).ConfigureAwait(false);
                 if (resp.Failure != null)
                     return AccFetchResult<List<AccAttributeDefinition>>.Failure(resp.Failure.Value, empty, resp.Status,
                         $"listing custom attributes on folder {folderUrn}: {resp.Detail}");
@@ -198,10 +198,10 @@ namespace StingTools.V6
         /// </summary>
         public static async Task<AccFetchResult<AccDefinitionReport>> EnsureDefinitionsAsync(
             string accessToken, string projectId, string folderUrn, bool allowCreate,
-            IEnumerable<AccAttributeSpec> required = null)
+            IEnumerable<AccAttributeSpec> required = null, AccCredentials creds = null)
         {
             var report = new AccDefinitionReport();
-            var listed = await ListDefinitionsAsync(accessToken, projectId, folderUrn).ConfigureAwait(false);
+            var listed = await ListDefinitionsAsync(accessToken, projectId, folderUrn, creds).ConfigureAwait(false);
             if (!listed.Succeeded)
                 return AccFetchResult<AccDefinitionReport>.Failure(listed.Status, report, listed.HttpStatus, listed.Detail);
 
@@ -229,7 +229,7 @@ namespace StingTools.V6
                 if (string.Equals(spec.Type, "array", StringComparison.OrdinalIgnoreCase))
                     body["arrayValues"] = new JArray(spec.ArrayValues);
 
-                var resp = await SendAsync(accessToken, HttpMethod.Post, createUrl, body.ToString(Formatting.None)).ConfigureAwait(false);
+                var resp = await SendAsync(accessToken, HttpMethod.Post, createUrl, body.ToString(Formatting.None), creds, idempotent: false).ConfigureAwait(false);
                 if (resp.Failure != null || resp.Status < 200 || resp.Status >= 300)
                 {
                     var kind = resp.Failure ?? AccFetchOutcome.Classify(resp.Status, 0);
@@ -267,7 +267,8 @@ namespace StingTools.V6
         /// </summary>
         public static async Task<AccFetchResult<AccAttributeWriteReport>> SetVersionAttributesAsync(
             string accessToken, string projectId, string versionUrn,
-            IDictionary<string, string> valuesByName, IEnumerable<AccAttributeDefinition> definitions)
+            IDictionary<string, string> valuesByName, IEnumerable<AccAttributeDefinition> definitions,
+            AccCredentials creds = null)
         {
             var report = new AccAttributeWriteReport();
             string bad = CheckInputs(accessToken, projectId, versionUrn, "version URN");
@@ -283,7 +284,8 @@ namespace StingTools.V6
 
             string url = $"{DocsBase}/projects/{Uri.EscapeDataString(DocsProjectId(projectId))}" +
                          $"/versions/{Uri.EscapeDataString(versionUrn.Trim())}/custom-attributes:batch-update";
-            var resp = await SendAsync(accessToken, HttpMethod.Post, url, plan.ToString(Formatting.None)).ConfigureAwait(false);
+            // batch-update sets values: sending the same plan twice leaves the same state.
+            var resp = await SendAsync(accessToken, HttpMethod.Post, url, plan.ToString(Formatting.None), creds, idempotent: true).ConfigureAwait(false);
             if (resp.Failure != null)
                 return AccFetchResult<AccAttributeWriteReport>.Failure(resp.Failure.Value, report, resp.Status,
                     $"stamping custom attributes on {versionUrn}: {resp.Detail}");
@@ -370,8 +372,33 @@ namespace StingTools.V6
         /// rebuilt per attempt (HttpRequestMessage is single-use). Retry-After is honoured
         /// (delta-seconds or HTTP date), capped at <see cref="MaxRetryWait"/>; absent, the
         /// wait is 1, 2, 4 s.</summary>
-        private static async Task<Resp> SendAsync(string token, HttpMethod method, string url, string jsonBody)
+        private static async Task<Resp> SendAsync(string token, HttpMethod method, string url, string jsonBody,
+            AccCredentials creds = null, bool idempotent = true)
         {
+            // AUT-4: with credentials, go through the shared ACC transport - a 401 refreshes the
+            // token once and resends (an upload that outlived its token used to fail its stamp),
+            // and 429/503 follow the same Retry-After rules as every other ACC call.
+            if (creds != null)
+            {
+                var sent = await AccHttp.SendAsync(() =>
+                {
+                    var req = new HttpRequestMessage(method, url);
+                    req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                    if (jsonBody != null) req.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+                    return req;
+                }, creds, idempotent, timeout: TimeSpan.FromSeconds(60), maxAttempts: MaxAttempts).ConfigureAwait(false);
+                if (sent.Auth != null && !sent.Auth.Ok)
+                    return new Resp { Status = 0, Failure = AccFetchStatus.AuthFailed, Detail = "not signed in to ACC: " + sent.Auth.Detail };
+                if (sent.Status == 0)
+                    return new Resp { Status = 0, Failure = AccFetchStatus.TransportFailed, Detail = "the request did not complete: " + sent.Error };
+                if (sent.Status == 429)
+                    return new Resp
+                    {
+                        Status = 429, Body = sent.Body ?? string.Empty, Failure = AccFetchStatus.TransportFailed,
+                        Detail = $"Autodesk rate-limited all {sent.Attempts} attempts (HTTP 429) — nothing was changed; retry later",
+                    };
+                return new Resp { Status = sent.Status, Body = sent.Body ?? string.Empty };
+            }
             for (int attempt = 0; attempt < MaxAttempts; attempt++)
             {
                 try

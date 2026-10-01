@@ -200,14 +200,14 @@ namespace StingTools.V6
             };
 
             r.CopyStamped = await StampAsync(accessToken, projectId, archiveFolderUrn, r.ArchivedVersionUrn,
-                                             values, "2. stamp the archived copy", r).ConfigureAwait(false);
+                                             values, "2. stamp the archived copy", r, creds).ConfigureAwait(false);
 
             if (string.IsNullOrWhiteSpace(sourceFolderUrn))
                 r.Steps.Add("3. stamp the original: NOT DONE — its folder is not recorded, so its attribute " +
                             "definitions cannot be read. Set its suitability to " + suit + " in ACC by hand.");
             else
                 r.OriginalStamped = await StampAsync(accessToken, projectId, sourceFolderUrn, versionUrn,
-                                                     values, "3. stamp the original", r).ConfigureAwait(false);
+                                                     values, "3. stamp the original", r, creds).ConfigureAwait(false);
 
             r.Ok = r.CopyStamped && r.OriginalStamped;
             r.Status = r.Ok ? AccFetchStatus.Ok : AccFetchStatus.TransportFailed;
@@ -215,15 +215,15 @@ namespace StingTools.V6
         }
 
         private static async Task<bool> StampAsync(string token, string projectId, string folderUrn, string version,
-            IDictionary<string, string> values, string label, AccRetireResult r)
+            IDictionary<string, string> values, string label, AccRetireResult r, AccCredentials creds = null)
         {
-            var defs = await AccDocsMetadata.ListDefinitionsAsync(token, projectId, folderUrn).ConfigureAwait(false);
+            var defs = await AccDocsMetadata.ListDefinitionsAsync(token, projectId, folderUrn, creds).ConfigureAwait(false);
             if (!defs.Succeeded)
             {
                 r.Steps.Add($"{label}: FAILED — attribute definitions unreadable: {defs.Detail}");
                 return false;
             }
-            var w = await AccDocsMetadata.SetVersionAttributesAsync(token, projectId, version, values, defs.Value)
+            var w = await AccDocsMetadata.SetVersionAttributesAsync(token, projectId, version, values, defs.Value, creds)
                                          .ConfigureAwait(false);
             if (!w.Succeeded || !w.Value.IsConfirmed)
             {

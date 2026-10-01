@@ -754,7 +754,7 @@ namespace StingTools.V6
                     string id = folders.Count == 1 ? "6.2" : $"6.2.{i}";
                     // allowCreate: false — read-only. Nothing is created, whatever the settings say.
                     var defs = await AccDocsMetadata.EnsureDefinitionsAsync(_c.AccessToken, _c.ProjectId, urn, allowCreate: false,
-                        _p.DocsAttributeNames.Specs()).ConfigureAwait(false);
+                        _p.DocsAttributeNames.Specs(), _c).ConfigureAwait(false);
                     if (!defs.Succeeded)
                     {
                         Note(defs.Status, defs.HttpStatus, $"listing custom attributes on {label}");

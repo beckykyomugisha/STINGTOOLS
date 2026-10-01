@@ -650,7 +650,7 @@ namespace StingTools.V6
                 return;
             }
             var defs = await AccDocsMetadata.EnsureDefinitionsAsync(creds.AccessToken, projectId, folderUrn,
-                options.CreateMissingAttributes, (options.AttributeNames ?? AccAttributeNames.Default).Specs()).ConfigureAwait(false);
+                options.CreateMissingAttributes, (options.AttributeNames ?? AccAttributeNames.Default).Specs(), creds).ConfigureAwait(false);
             if (!defs.Succeeded)
             {
                 result.MetadataComplete = false;
@@ -669,7 +669,7 @@ namespace StingTools.V6
                 return;
             }
             var write = await AccDocsMetadata.SetVersionAttributesAsync(creds.AccessToken, projectId, result.VersionUrn,
-                toWrite, defs.Value.Usable).ConfigureAwait(false);
+                toWrite, defs.Value.Usable, creds).ConfigureAwait(false);
             if (!write.Succeeded)
             {
                 result.MetadataComplete = false;
