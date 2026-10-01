@@ -364,3 +364,28 @@ recorded in ROADMAP were worked rather than left open. Three parallel worktree b
    the same pair running parallel at 60 mm still fails.
 6. Arc-flash labels: PPE category text from data; colours unchanged.
 7. Load shared parameters on a clean project after the DSCH-2 conversion: still 3,018 / 374 / 0.
+
+### DSCH-2 — positional CSV readers converted (four parallel batches)
+
+`Core/CsvTable` (Revit-free, tested over every pinned csv-table) is the one header-name reader.
+Converted: default cost rates (Scheduling, Site cut/fill), COBie cost codes, NRM1 benchmarks,
+COMcheck space map, Uniclass map, ISO symbol index, FUNC/SYS matrix, room classifier and lux
+targets, plumbing fitting lengths, PROD codes, the three STING_MATERIAL_* rule files,
+CATEGORY_BINDINGS / PARAMETER_CATEGORIES (SharedParamGuids, SyncParameterSchema), MR_PARAMETERS.csv,
+SCHEDULE_FIELD_REMAP, TITLE_BLOCK.csv (three readers), COBie type map (FamilyParamCreator), labour rates.
+Every replaced index matched the shipped header: no latent mis-reads were found, which is the
+expected result — the point is that the next column move cannot cause one.
+
+Decisions:
+- A missing required column logs one Warn naming file and column, and keeps the old safe outcome.
+- **Headerless override files are no longer read** (`_BIM_COORD/uniclass_map.csv` used to load
+  without a header). The documented layout has one; the refusal is logged. COMcheck keeps its
+  headerless overlay path because it was deliberately supported there.
+- **The schema gate itself had pinned data rows as headers** for STING_LABOUR_RATES and
+  RESOLVED_BINDINGS (their headers were `#` comments). Labour rates now carry a real header row;
+  RESOLVED_BINDINGS is generated and every reader skips `#`, so it declares `headerInComment`.
+  The gate now fails an empty or numeric column name, and names the commented header line.
+- Left positional: RESOLVED_BINDINGS readers (no header row to read), multi-section TAG_CONFIG
+  packs and BOQ_TEMPLATE, `CsiMasterFormat` / `MaterialProdOverrideRules` (deliberately naive), writers.
+- Found and recorded, not changed: DSCH-28 (COBie cost-code key), DSCH-29 (BCC demo rates).
+
