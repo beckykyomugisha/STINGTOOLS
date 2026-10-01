@@ -1103,6 +1103,12 @@ namespace StingTools.Docs
                         r.AccUpload = "not uploaded: " + Core.Drawing.ExportIsoFields.DescribeUnset(r.IsoFieldsUnset);
                         refused++; problems.Add($"{name}: {Core.Drawing.ExportIsoFields.DescribeUnset(r.IsoFieldsUnset)}"); continue;
                     }
+                    string wipRefusal = V6.AccCdeRouting.UnroutedWipRefusal(r.Suitability, policy.CdeFolders);
+                    if (wipRefusal != null)
+                    {
+                        r.AccUpload = "not uploaded: " + wipRefusal;
+                        refused++; problems.Add($"{name}: {wipRefusal}"); continue;
+                    }
                     // The one pre-upload discipline ACC_UploadModel also runs: ISO 19650
                     // revision/suitability pairing, then the ledger (identical -> skip; changed
                     // under a revision already sent -> refused unless the profile allows it).
@@ -1152,6 +1158,7 @@ namespace StingTools.Docs
                     if (!ledger.TrySave(ledgerPath, out string saveErr))
                         problems.Add($"{name}: uploaded, but the ledger could not be saved ({saveErr}) — a re-run may send it again");
                     r.AccUpload = "uploaded" +
+                                  (string.IsNullOrWhiteSpace(up.FolderReason) ? "" : " to " + up.FolderReason) +
                                   (gate.ReissueAllowed ? " (re-issue allowed by the profile)" : "") +
                                   (gate.StatusChange ? " (" + gate.Reason + ")" : "") +
                                   (up.MetadataComplete ? "" : " — " + up.MetadataNote);

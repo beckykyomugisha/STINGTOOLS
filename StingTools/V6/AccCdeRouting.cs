@@ -120,6 +120,23 @@ namespace StingTools.V6
         /// <summary>Data Management folder ids are "urn:adsk.wip…:fs.folder:…" (wipprod,
         /// wipemea, …). Only the documented shape is accepted; the region segment is not
         /// pinned because it varies by hub.</summary>
+        /// <summary>
+        /// C9: with NO cdeFolders mapped, every upload goes to one folder (the configured upload
+        /// folder, else 'Project Files'). A WIP (S0) file there sits beside shared and published
+        /// documents — ISO 19650 keeps work in progress out of the shared areas. Returns why such
+        /// a file is not sent, or null when it may go (routed, or not WIP).
+        /// </summary>
+        public static string UnroutedWipRefusal(string suitability, IReadOnlyDictionary<string, string> cdeFolders)
+        {
+            if (cdeFolders != null && cdeFolders.Count > 0) return null;   // routed per state by Resolve
+            string code = Iso19650Suitability.ExtractCode(suitability ?? string.Empty);
+            if (string.IsNullOrEmpty(code)) return null;
+            if (!string.Equals(Iso19650Suitability.CdeStateFor(code), "WIP", StringComparison.OrdinalIgnoreCase)) return null;
+            return $"{code} is work in progress, and this project maps no \"cdeFolders\", so it would land in the same " +
+                   "ACC folder as shared and published documents. Map cdeFolders (WIP → its own folder) or share the " +
+                   "sheet at an S1–S7 suitability first";
+        }
+
         public static bool LooksLikeFolderUrn(string urn)
             => !string.IsNullOrWhiteSpace(urn)
                && urn.StartsWith("urn:adsk.", StringComparison.Ordinal)

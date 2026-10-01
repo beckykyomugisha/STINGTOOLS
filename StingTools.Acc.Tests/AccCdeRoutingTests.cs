@@ -12,6 +12,24 @@ namespace StingTools.Acc.Tests
 {
     public class AccCdeRoutingTests
     {
+        // C9: with no cdeFolders, a WIP file would share one folder with published ones.
+        [Theory]
+        [InlineData("S0", true)]
+        [InlineData("S2", false)]
+        [InlineData("A1", false)]
+        [InlineData("", false)]
+        public void WithNoCdeFolders_OnlyWipIsHeldBack(string suit, bool refused)
+            => Assert.Equal(refused, AccCdeRouting.UnroutedWipRefusal(suit, new System.Collections.Generic.Dictionary<string, string>()) != null);
+
+        [Fact]
+        public void WithCdeFolders_WipGoesToItsOwnFolder_NoRefusalHere()
+            => Assert.Null(AccCdeRouting.UnroutedWipRefusal("S0",
+                new System.Collections.Generic.Dictionary<string, string> { ["WIP"] = "urn:adsk.wipprod:fs.folder:co.x" }));
+
+        [Fact]
+        public void NullFolders_CountAsNone()
+            => Assert.Contains("cdeFolders", AccCdeRouting.UnroutedWipRefusal("S0", null));
+
         private static readonly Dictionary<string, string> AllFour = new Dictionary<string, string>
         {
             ["WIP"]       = "urn:adsk.wipprod:fs.folder:co.wip",
