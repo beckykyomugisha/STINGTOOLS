@@ -500,6 +500,20 @@ def _csv_cell_ok(cell, col):
     return None
 
 
+def _comment_header_before(rows, data_idx):
+    """The '# a,b,...' comment directly above rows[data_idx] when it has the same
+    field count as that row - (fields, 1-based line) - else None."""
+    if data_idx == 0:
+        return None
+    r = rows[data_idx - 1]
+    if not r or not r[0].lstrip("﻿").lstrip().startswith("#"):
+        return None
+    fields = [r[0].lstrip("﻿").lstrip()[1:].strip()] + [c.strip() for c in r[1:]]
+    if len(fields) != len(rows[data_idx]) or not all(fields):
+        return None
+    return fields, data_idx
+
+
 def validate_csv_table(rel, schema):
     global checked_files
     text = read_text(rel)
@@ -515,8 +529,27 @@ def validate_csv_table(rel, schema):
         return
 
     raw_header = rows[hdr_idx]
-    header = [c.lstrip("﻿") for c in raw_header]
     hdr_line = hdr_idx + 1
+    prev = _comment_header_before(rows, hdr_idx)
+    if schema.get("headerInComment"):
+        # The file's column names are the '#' comment line just above the first
+        # data row (a generated file whose readers skip every '#' line).
+        if prev is None:
+            err(f"{rel}: schema says headerInComment, but no '# a,b,...' line precedes "
+                f"the first data row at line {hdr_line}.")
+            return
+        raw_header, hdr_line, hdr_idx = prev[0], prev[1], hdr_idx - 1
+    else:
+        # A header that is really a data row is how a schema ends up pinning
+        # 'Electrical Fixtures, , EA, 0.50' as column names: catch it.
+        dataish = [c for c in raw_header if not c.strip() or _is_num(c.strip())]
+        if dataish:
+            hint = (f" Line {prev[1]} looks like the real header, commented out: "
+                    f"uncomment it, or declare \"headerInComment\": true.") if prev else ""
+            err(f"{rel}:{hdr_line}: header has empty or numeric column name(s) "
+                f"{dataish} - this is a data row, not a header.{hint}")
+            return
+    header = [c.lstrip("﻿") for c in raw_header]
     for i, c in enumerate(header):
         if c != c.strip():
             err(f"{rel}:{hdr_line}: header column {i + 1} {c!r} has surrounding "
@@ -973,6 +1006,18 @@ def self_test(reg):
     text_case(COST, "duplicate DISC|PROD key", csv_duplicate_row)
     text_case(COST, "mixed line endings", mixed_eol)
     text_case(COST, "not UTF-8", not_utf8)
+    # A header hidden in a '#' comment made v1 of two schemas pin a DATA row as
+    # column names (STING_LABOUR_RATES, RESOLVED_BINDINGS). Both shapes must fail.
+    def comment_out_header(text):
+        return text.replace("category_name,family_filter", "# category_name,family_filter", 1)
+
+    def drop_comment_header(text):
+        return "".join(ln for ln in text.splitlines(True) if not ln.startswith("# Parameter_Name"))
+
+    text_case(D + "Labour/STING_LABOUR_RATES.csv", "header commented out - first data row read as header",
+              comment_out_header)
+    text_case(D + "RESOLVED_BINDINGS.csv", "headerInComment declared but the comment header is gone",
+              drop_comment_header)
     text_case(D + "STING_DEFAULT_COST_RATES.csv", "non-numeric rate", csv_break_number(1))
 
     FORM = D + "FORMULAS_WITH_DEPENDENCIES.csv"
