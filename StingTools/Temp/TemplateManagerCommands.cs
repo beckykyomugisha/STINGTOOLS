@@ -906,9 +906,14 @@ namespace StingTools.Temp
 
         /// <summary>
         /// Loads VIEW_FILTER records from MR_SCHEDULES.csv.
-        /// Returns filter name, categories, rule type, parameter, value, override settings.
+        /// Returns filter name, discipline, categories (column 6) and the rule text
+        /// (column 8 — "System_Type Contains Chilled Water Supply", "Fire_Rating
+        /// HasValue", "Type=Visibility (no parameter rules)"; parse it with
+        /// <see cref="StingTools.Core.Drawing.ViewFilterRuleText.Parse"/>). DTW-168:
+        /// this returned column 7, the override recipe, and the caller looked for a
+        /// "Rule=…, Param=…" grammar in it that no row uses.
         /// </summary>
-        public static List<(string name, string discipline, string categories, string fields)>
+        public static List<(string name, string discipline, string categories, string ruleText)>
             LoadViewFiltersFromCsv()
         {
             var results = new List<(string, string, string, string)>();
@@ -920,15 +925,17 @@ namespace StingTools.Temp
                 {
                     if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                     string[] cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols.Length < 8) continue;
+                    if (cols.Length < 7) continue;
                     if (cols[0].Trim() != "VIEW_FILTER") continue;
 
                     string name = cols[3].Trim();        // Schedule_Name = filter name
                     string discipline = cols[2].Trim();   // Discipline
                     string categories = cols[6].Trim();   // Multi_Categories
-                    string fields = cols[7].Trim();       // Fields = rules
+                    // Column 8 holds the rule; a short row has none, which the
+                    // caller refuses rather than reading as "no rule".
+                    string ruleText = cols.Length > 8 ? cols[8].Trim() : "";
 
-                    results.Add((name, discipline, categories, fields));
+                    results.Add((name, discipline, categories, ruleText));
                 }
             }
             catch (Exception ex) { StingLog.Warn($"LoadViewFiltersFromCsv: {ex.Message}"); }

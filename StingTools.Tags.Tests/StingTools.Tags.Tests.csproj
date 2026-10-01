@@ -240,6 +240,8 @@
     <!-- DTW-166/167/171: the AEC filter POCO + the factory's Revit-free decisions. -->
     <Compile Include="..\StingTools\Core\Drawing\AecFilterDefinition.cs" Link="Core\Drawing\AecFilterDefinition.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AecFilterRuleLogic.cs" Link="Core\Drawing\AecFilterRuleLogic.cs" />
+    <!-- DTW-168: MR_SCHEDULES.csv VIEW_FILTER rule grammar (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Drawing\ViewFilterRuleText.cs" Link="Core\Drawing\ViewFilterRuleText.cs" />
     <!-- DTW-165: fill-pattern name normaliser (Revit-free). -->
     <Compile Include="..\StingTools\Core\Drawing\FillPatternNames.cs" Link="Core\Drawing\FillPatternNames.cs" />
     <!-- DTW-163: managed-template field -> BuiltInParameter map (Revit-free). -->
