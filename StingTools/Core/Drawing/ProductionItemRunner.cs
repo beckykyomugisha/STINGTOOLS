@@ -93,9 +93,9 @@ namespace StingTools.Core.Drawing
         {
             if (!RequiresSheetCounters || _countersChecked) return _blockedLine == null;
             _countersChecked = true;
-            string block = null;
-            try { block = Preflight.CheckSheetCounters(); }
-            catch (Exception ex) { StingLog.Warn($"{_logTag} counter pre-flight: {ex.Message} — not pre-checked."); }
+            // CheckSheetCounters reports what it could not determine (logged) as "no block":
+            // the write itself is then the arbiter, and a refusal there fails the item.
+            string block = Preflight.CheckSheetCounters();
             if (block == null) return true;
             _blockedLine = ProductionEdgeDecisions.CountersBlockedLine(block);
             Stopped = true;
