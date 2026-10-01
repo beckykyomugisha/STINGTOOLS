@@ -26,48 +26,48 @@
   <Properties>
 
     <Property name="PLM_SUP_FLOW_LS" cardinality="optional">
-      <Definition>Supply pipe design flow in litres per second. Read by Calc Pipe Flow (H-W) as the flow to size for, and written back as the full-bore flow of the DN it selects (stingtools-bonsai ops/mep_ops.py).</Definition>
+      <Definition>Supply pipe design flow in litres per second. An input: Calc Pipe Flow (H-W) sizes for it, refuses a segment without it, and does not write it (it used to overwrite it with the selected DN's full-bore capacity, so a second run sized for the wrong flow).</Definition>
       <DataType>IfcReal</DataType>
       <Unit>l/s</Unit>
       <SinceVersion>5.8.0</SinceVersion>
     </Property>
 
     <Property name="PLM_SUP_DN" cardinality="optional">
-      <Definition>Supply pipe nominal diameter (DN, mm) selected by Calc Pipe Flow (H-W), the smallest DN in the series that carries PLM_SUP_FLOW_LS.</Definition>
+      <Definition>Supply pipe nominal diameter (DN, mm) selected by Calc Pipe Flow (H-W): the smallest DN in the series whose full-bore Hazen-Williams capacity carries PLM_SUP_FLOW_LS at no more than 3.0 m/s.</Definition>
       <DataType>IfcInteger</DataType>
       <Unit>mm</Unit>
       <SinceVersion>5.8.0</SinceVersion>
     </Property>
 
     <Property name="PLM_SUP_VEL_MS" cardinality="optional">
-      <Definition>Supply pipe velocity in metres per second at the selected DN (Hazen-Williams, full bore), written by Calc Pipe Flow (H-W).</Definition>
+      <Definition>Supply pipe velocity in metres per second: the design flow PLM_SUP_FLOW_LS over the bore area of the selected DN, written by Calc Pipe Flow (H-W).</Definition>
       <DataType>IfcReal</DataType>
       <Unit>m/s</Unit>
       <SinceVersion>5.8.0</SinceVersion>
     </Property>
 
     <Property name="PLM_DRN_DU" cardinality="optional">
-      <Definition>Discharge unit of a sanitary terminal (BS EN 12056-2 Table 1), written by Calc Drainage Units (DU).</Definition>
+      <Definition>Discharge unit of a sanitary terminal (BS EN 12056-2 Table 1), written by Calc Drainage Units (DU). A terminal whose PredefinedType and Name match no table entry is refused, not given a default.</Definition>
       <DataType>IfcReal</DataType>
       <Unit>DU</Unit>
       <SinceVersion>5.8.0</SinceVersion>
     </Property>
 
     <Property name="ELC_CONDUIT_DN_MM" cardinality="optional">
-      <Definition>Conduit internal diameter in millimetres. Read by Calc Conduit Fill; not written by STING.</Definition>
+      <Definition>Conduit internal diameter in millimetres. A required input of Calc Conduit Fill (a segment without it is refused); not written by STING.</Definition>
       <DataType>IfcReal</DataType>
       <Unit>mm</Unit>
       <SinceVersion>5.8.0</SinceVersion>
     </Property>
 
     <Property name="ELC_CABLE_COUNT" cardinality="optional">
-      <Definition>Number of cables in the conduit. Read by Calc Conduit Fill; not written by STING.</Definition>
+      <Definition>Number of cables in the conduit. A required input of Calc Conduit Fill (a segment without it is refused); not written by STING.</Definition>
       <DataType>IfcInteger</DataType>
       <SinceVersion>5.8.0</SinceVersion>
     </Property>
 
     <Property name="ELC_CABLE_OD_MM" cardinality="optional">
-      <Definition>Overall diameter of one cable in millimetres. Read by Calc Conduit Fill; not written by STING.</Definition>
+      <Definition>Overall diameter of one cable in millimetres. A required input of Calc Conduit Fill (a segment without it is refused); not written by STING.</Definition>
       <DataType>IfcReal</DataType>
       <Unit>mm</Unit>
       <SinceVersion>5.8.0</SinceVersion>

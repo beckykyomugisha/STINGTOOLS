@@ -28,6 +28,37 @@ def _get_mep_pset(element) -> dict:
         return {}
 
 
+def _positive(mep: dict, key: str):
+    """The value of ``key`` as a positive float, or None when it is missing, blank,
+    not a number or not positive. Callers refuse the element on None; nothing is
+    ever substituted for a missing input."""
+    raw = mep.get(key)
+    if raw is None or (isinstance(raw, str) and not raw.strip()):
+        return None
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return v if v > 0 and math.isfinite(v) else None
+
+
+def _describe(el) -> str:
+    """How a refused element is named in the report: GlobalId, else #id, plus Name."""
+    gid = getattr(el, "GlobalId", None)
+    ident = gid if isinstance(gid, str) and gid else f"#{el.id()}" if hasattr(el, "id") else "?"
+    name = getattr(el, "Name", None)
+    return f"{ident} ({name})" if isinstance(name, str) and name else ident
+
+
+def _report_refused(op, what: str, refused: list) -> None:
+    """One WARNING naming every refused element (first 10 in full) and its missing input."""
+    if not refused:
+        return
+    shown = "; ".join(f"{d}: {why}" for d, why in refused[:10])
+    more = f"; and {len(refused) - 10} more" if len(refused) > 10 else ""
+    op.report({"WARNING"}, f"{len(refused)} {what} skipped, nothing written: {shown}{more}")
+
+
 def _write_mep_pset(element, props: dict) -> bool:
     """Write props into Pset_StingMEP on element. Returns True on success.
 
@@ -54,8 +85,10 @@ class StingCalcPipeFlowOperator(bpy.types.Operator):
     bl_label = "Calc Pipe Flow (H-W)"
     bl_description = (
         "Apply Hazen-Williams formula to every IfcPipeSegment: select "
-        "the smallest standard DN that keeps velocity ≤ 3.0 m/s. "
-        "Writes PLM_SUP_VEL_MS, PLM_SUP_FLOW_LS, PLM_SUP_DN to Pset_StingMEP."
+        "the smallest standard DN whose full-bore capacity carries the design "
+        "flow PLM_SUP_FLOW_LS at no more than 3.0 m/s. Writes PLM_SUP_DN and "
+        "PLM_SUP_VEL_MS to Pset_StingMEP. A segment with no design flow is "
+        "skipped and reported, never sized for an assumed flow."
     )
     bl_options = {"REGISTER", "UNDO"}
 
@@ -73,19 +106,19 @@ class StingCalcPipeFlowOperator(bpy.types.Operator):
         return 0.8492 * cls._HW_C * (r ** 0.63) * (s ** 0.54)
 
     @classmethod
-    def _select_dn(cls, flow_ls: float) -> tuple[int, float, float]:
-        """Return (DN_mm, velocity_m_s, flow_L_s) for the smallest passing DN."""
+    def _select_dn(cls, flow_ls: float):
+        """(DN_mm, velocity_m_s) for the smallest DN whose full-bore capacity at the
+        design gradient carries ``flow_ls`` with the design-flow velocity at or below
+        _MAX_VEL. The velocity is the design flow over the bore area. None when no DN
+        in the series qualifies - the caller refuses rather than writing the largest."""
         for dn in cls._DN_SERIES:
             d_m = dn / 1000.0
             area = math.pi * (d_m / 2.0) ** 2
-            v = cls._hw_velocity(d_m)
-            q = v * area * 1000.0   # L/s
-            if q >= flow_ls:
-                return dn, min(v, cls._MAX_VEL), q
-        dn = cls._DN_SERIES[-1]
-        d_m = dn / 1000.0
-        v = cls._hw_velocity(d_m)
-        return dn, v, v * math.pi * (d_m / 2.0) ** 2 * 1000.0
+            capacity_ls = cls._hw_velocity(d_m) * area * 1000.0
+            velocity = (flow_ls / 1000.0) / area
+            if capacity_ls >= flow_ls and velocity <= cls._MAX_VEL:
+                return dn, velocity
+        return None
 
     def execute(self, context: bpy.types.Context) -> set[str]:
         ifc = _get_ifc()
@@ -100,18 +133,28 @@ class StingCalcPipeFlowOperator(bpy.types.Operator):
             return {"CANCELLED"}
 
         processed = 0
+        refused = []
         for el in ifc.by_type("IfcPipeSegment"):
             mep = _get_mep_pset(el)
-            # Use existing flow if stamped, else default 0.5 L/s for a domestic branch
-            flow_ls = float(mep.get("PLM_SUP_FLOW_LS", 0.5) or 0.5)
-            dn, vel, actual_flow = self._select_dn(flow_ls)
+            # The design flow is an input. It is not assumed when missing, and it is
+            # not overwritten: the old code wrote the selected DN's capacity back
+            # into PLM_SUP_FLOW_LS, so a second run sized for the wrong flow.
+            flow_ls = _positive(mep, "PLM_SUP_FLOW_LS")
+            if flow_ls is None:
+                refused.append((_describe(el), "no design flow PLM_SUP_FLOW_LS"))
+                continue
+            pick = self._select_dn(flow_ls)
+            if pick is None:
+                refused.append((_describe(el), f"{flow_ls:g} l/s needs more than DN{self._DN_SERIES[-1]}"))
+                continue
+            dn, vel = pick
             _write_mep_pset(el, {
                 "PLM_SUP_DN": int(dn),
                 "PLM_SUP_VEL_MS": round(vel, 3),
-                "PLM_SUP_FLOW_LS": round(actual_flow, 3),
             })
             processed += 1
 
+        _report_refused(self, "pipe segment(s)", refused)
         self.report({"INFO"}, f"Hazen-Williams sizing applied to {processed} pipe segment(s)")
         return {"FINISHED"}
 
@@ -147,8 +190,9 @@ class StingCalcDrainageUnitsOperator(bpy.types.Operator):
         "SHOWERBASE": 0.6,
     }
 
-    def _resolve_du(self, el) -> float:
-        """Resolve DU from PredefinedType or Name heuristics."""
+    def _resolve_du(self, el):
+        """DU from PredefinedType, else from a table key in the Name; None when
+        neither identifies the fixture (the caller refuses - no default DU)."""
         try:
             pt = (el.PredefinedType or "").upper().replace(" ", "")
         except AttributeError:
@@ -160,7 +204,7 @@ class StingCalcDrainageUnitsOperator(bpy.types.Operator):
         for key, du in self._DU_TABLE.items():
             if key in name:
                 return du
-        return 0.5  # conservative default
+        return None
 
     def execute(self, context: bpy.types.Context) -> set[str]:
         ifc = _get_ifc()
@@ -176,12 +220,18 @@ class StingCalcDrainageUnitsOperator(bpy.types.Operator):
 
         processed = 0
         total_du = 0.0
+        refused = []
         for el in ifc.by_type("IfcSanitaryTerminal"):
             du = self._resolve_du(el)
+            if du is None:
+                refused.append((_describe(el), "fixture type not in the BS EN 12056-2 table "
+                                               "(PredefinedType / Name)"))
+                continue
             _write_mep_pset(el, {"PLM_DRN_DU": round(du, 1)})
             processed += 1
             total_du += du
 
+        _report_refused(self, "sanitary terminal(s)", refused)
         self.report(
             {"INFO"},
             f"Drainage units assigned to {processed} sanitary terminal(s) — total DU: {total_du:.1f}",
@@ -200,8 +250,9 @@ class StingCalcConduitFillOperator(bpy.types.Operator):
     bl_label = "Calc Conduit Fill"
     bl_description = (
         "Check BS 7671 40% fill rule for each IfcCableCarrierSegment. "
-        "Reads cable count + diameter from Pset_StingMEP; writes "
-        "ELC_FILL_PCT and ELC_FILL_STATUS (OK / OVERLOADED)."
+        "Reads ELC_CONDUIT_DN_MM, ELC_CABLE_COUNT and ELC_CABLE_OD_MM from "
+        "Pset_StingMEP; writes ELC_FILL_PCT and ELC_FILL_STATUS (OK / OVERLOADED). "
+        "A segment missing any of the three is skipped and reported."
     )
     bl_options = {"REGISTER", "UNDO"}
 
@@ -220,20 +271,23 @@ class StingCalcConduitFillOperator(bpy.types.Operator):
             return {"CANCELLED"}
 
         processed = overloaded = 0
+        refused = []
         for el in ifc.by_type("IfcCableCarrierSegment"):
             mep = _get_mep_pset(el)
+            conduit_d = _positive(mep, "ELC_CONDUIT_DN_MM")   # internal diameter, mm
+            cable_n = _positive(mep, "ELC_CABLE_COUNT")
+            cable_d = _positive(mep, "ELC_CABLE_OD_MM")       # one cable's overall diameter, mm
+            missing = [k for k, v in (("ELC_CONDUIT_DN_MM", conduit_d), ("ELC_CABLE_COUNT", cable_n),
+                                      ("ELC_CABLE_OD_MM", cable_d)) if v is None]
+            if cable_n is not None and cable_n != int(cable_n):
+                missing.append("ELC_CABLE_COUNT (not a whole number)")
+            if missing:
+                refused.append((_describe(el), "missing " + ", ".join(missing)))
+                continue
 
-            # Conduit internal diameter (mm); default 25 mm if not set
-            conduit_d = float(mep.get("ELC_CONDUIT_DN_MM", 25) or 25)
             conduit_area = math.pi * (conduit_d / 2.0) ** 2   # mm²
-
-            # Cable count and individual cable outer diameter (mm)
-            cable_count = int(float(mep.get("ELC_CABLE_COUNT", 1) or 1))
-            cable_d = float(mep.get("ELC_CABLE_OD_MM", 6) or 6)   # typical 6 mm²/1.5 mm² T&E
-            cable_area_each = math.pi * (cable_d / 2.0) ** 2
-            total_cable_area = cable_count * cable_area_each
-
-            fill_pct = (total_cable_area / conduit_area * 100.0) if conduit_area > 0 else 0.0
+            total_cable_area = int(cable_n) * math.pi * (cable_d / 2.0) ** 2
+            fill_pct = total_cable_area / conduit_area * 100.0
             status = "OK" if fill_pct <= self._MAX_FILL_PCT else "OVERLOADED"
 
             _write_mep_pset(el, {
@@ -244,6 +298,7 @@ class StingCalcConduitFillOperator(bpy.types.Operator):
             if status == "OVERLOADED":
                 overloaded += 1
 
+        _report_refused(self, "cable carrier segment(s)", refused)
         msg = f"Conduit fill checked on {processed} segment(s)"
         if overloaded:
             msg += f" — {overloaded} OVERLOADED (>40%)"

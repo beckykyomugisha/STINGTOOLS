@@ -74,6 +74,10 @@ def _mep_keys():
                 and isinstance(node.func.value, ast.Name) and node.func.value.id == "mep"
                 and node.args and isinstance(node.args[0], ast.Constant)):
             read.add(node.args[0].value)
+        # _positive(mep, "KEY") - the required-input reader (refuses when missing)
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_positive"
+                and len(node.args) == 2 and isinstance(node.args[1], ast.Constant)):
+            read.add(node.args[1].value)
     return written, read
 
 
@@ -87,9 +91,10 @@ def test_every_pset_stingmep_property_the_addon_uses_is_declared():
 PY_TYPE = {"IfcReal": float, "IfcInteger": int, "IfcLabel": str, "IfcText": str, "IfcIdentifier": str}
 
 
-def _run_operator(cls_name, elements, monkeypatch):
+def _run_operator(cls_name, elements, monkeypatch, mep=None):
     mod = importlib.import_module(f"{PKG}.ops.mep_ops")
     written = []
+    monkeypatch.setattr(mod, "_get_mep_pset", lambda el: dict(mep or {}))
     monkeypatch.setattr(mod, "_write_mep_pset", lambda el, props: written.append(props) or True)
     fake_ifc = MagicMock()
     fake_ifc.by_type.side_effect = lambda t: elements.get(t, [])
@@ -100,15 +105,17 @@ def _run_operator(cls_name, elements, monkeypatch):
     return written
 
 
-@pytest.mark.parametrize("cls_name,ifc_class,attrs", [
-    ("StingCalcPipeFlowOperator", "IfcPipeSegment", {}),
-    ("StingCalcDrainageUnitsOperator", "IfcSanitaryTerminal", {"PredefinedType": "WC", "Name": "WC"}),
-    ("StingCalcConduitFillOperator", "IfcCableCarrierSegment", {}),
+@pytest.mark.parametrize("cls_name,ifc_class,attrs,mep", [
+    # inputs given as text, as files written before 5.8.0 hold them
+    ("StingCalcPipeFlowOperator", "IfcPipeSegment", {}, {"PLM_SUP_FLOW_LS": "0.5"}),
+    ("StingCalcDrainageUnitsOperator", "IfcSanitaryTerminal", {"PredefinedType": "WC", "Name": "WC"}, {}),
+    ("StingCalcConduitFillOperator", "IfcCableCarrierSegment", {},
+     {"ELC_CONDUIT_DN_MM": "25", "ELC_CABLE_COUNT": "3", "ELC_CABLE_OD_MM": "6"}),
 ])
-def test_mep_operators_write_values_of_the_declared_type(cls_name, ifc_class, attrs, monkeypatch):
+def test_mep_operators_write_values_of_the_declared_type(cls_name, ifc_class, attrs, mep, monkeypatch):
     pytest.importorskip("ifcopenshell")
     el = MagicMock(**attrs)
-    written = _run_operator(cls_name, {ifc_class: [el]}, monkeypatch)
+    written = _run_operator(cls_name, {ifc_class: [el]}, monkeypatch, mep)
     assert written, f"{cls_name} wrote nothing"
     declared = CONTRACT["Pset_StingMEP"]
     for props in written:
