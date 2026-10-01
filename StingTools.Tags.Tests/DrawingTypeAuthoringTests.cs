@@ -186,5 +186,38 @@ namespace StingTools.Tags.Tests
             var body = EditorMethod("private int SaveStylePacksToProjectOverride(");
             Assert.Contains("_packOverrideError != null", body);
         }
+
+        // ── DTW-186 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Repeated_clones_get_distinct_ids()
+        {
+            var ids = new List<string> { "arch-plan" };
+            var a = CatalogueIds.UniqueCopyId("arch-plan", ids); ids.Add(a);
+            var b = CatalogueIds.UniqueCopyId("arch-plan", ids); ids.Add(b);
+            var c = CatalogueIds.UniqueCopyId("arch-plan", ids);
+            Assert.Equal("arch-plan-copy", a);
+            Assert.Equal("arch-plan-copy-2", b);
+            Assert.Equal("arch-plan-copy-3", c);
+        }
+
+        [Fact]
+        public void Blank_and_duplicate_ids_are_reported()
+        {
+            var p = CatalogueIds.IdProblems("Drawing type", new[] { "a", "", "A", "b", null });
+            Assert.Equal(2, p.Count);
+            Assert.Contains(p, x => x.Contains("no id"));
+            Assert.Contains(p, x => x.Contains("'a'"));
+            Assert.Empty(CatalogueIds.IdProblems("Drawing type", new[] { "a", "b" }));
+        }
+
+        [Fact]
+        public void Editor_snapshots_by_object_not_by_editable_id()
+        {
+            var src = DrawingCatalogueFixture.Source("UI", "DrawingTypeEditorDialog.cs");
+            Assert.DoesNotContain("_typeSnapshot.TryGetValue(t.Id", src);
+            Assert.DoesNotContain("_packSnapshot.TryGetValue(p.Id", src);
+            Assert.Contains("CatalogueIds.IdProblems(", EditorMethod("private bool SaveToProjectOverride()"));
+        }
     }
 }

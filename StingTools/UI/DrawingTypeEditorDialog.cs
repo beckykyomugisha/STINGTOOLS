@@ -78,8 +78,11 @@ namespace StingTools.UI
         /// future editor control, which flipping a dirty flag inside each of
         /// the ~40 inline edit lambdas certainly could be.
         /// </summary>
-        private Dictionary<string, string> _packSnapshot
-            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // DTW-186: keyed by the pack OBJECT, not its id. The id is editable in
+        // the form, so an id-keyed lookup missed a renamed corporate pack and
+        // its edit was dropped on save.
+        private Dictionary<object, string> _packSnapshot
+            = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);
 
         /// <summary>The same snapshot for drawing types. Save wrote only
         /// project-origin types, so an edit to a corporate type (its scale, sheet
@@ -89,8 +92,8 @@ namespace StingTools.UI
         /// opening a type's form, which creates empty Crop / SectionMarker /
         /// Annotation / TokenProfile / Slots objects, does not count as an edit and
         /// freeze an untouched corporate type into the project file.</summary>
-        private Dictionary<string, string> _typeSnapshot
-            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<object, string> _typeSnapshot
+            = new Dictionary<object, string>(ReferenceEqualityComparer.Instance); // DTW-186: by object, the id is editable
         private DrawingType _current;
         private ListBox _lbTypes;
         private TextBox _tbSearch;
@@ -360,7 +363,7 @@ namespace StingTools.UI
             foreach (var t in _types)
             {
                 if (t?.Id == null) continue;
-                try { _typeSnapshot[t.Id] = EditKey(t); }
+                try { _typeSnapshot[t] = EditKey(t); }
                 catch (Exception ex) { StingLog.Warn($"Type snapshot '{t.Id}': {ex.Message}"); }
             }
 
@@ -1273,7 +1276,7 @@ namespace StingTools.UI
             if (_currentPack == null) return;
             var json = JsonConvert.SerializeObject(_currentPack);
             var copy = JsonConvert.DeserializeObject<ViewStylePack>(json);
-            copy.Id = _currentPack.Id + "-copy";
+            copy.Id = CatalogueIds.UniqueCopyId(_currentPack.Id, _packs.Select(x => x?.Id));
             copy.Name = (_currentPack.Name ?? _currentPack.Id) + " (copy)";
             copy.Origin = "project";
             _packs.Add(copy);
@@ -1464,10 +1467,10 @@ namespace StingTools.UI
 
             // Snapshot every pack AFTER the merge, so an in-place edit to a
             // corporate pack is detectable at save time.
-            _packSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            _packSnapshot = new Dictionary<object, string>(ReferenceEqualityComparer.Instance);
             foreach (var p in merged)
             {
-                try { _packSnapshot[p.Id] = JsonConvert.SerializeObject(p, Formatting.None); }
+                try { _packSnapshot[p] = JsonConvert.SerializeObject(p, Formatting.None); }
                 catch (Exception ex) { StingLog.Warn($"Pack snapshot '{p.Id}': {ex.Message}"); }
             }
             return merged;
@@ -3435,7 +3438,7 @@ namespace StingTools.UI
         {
             if (_current == null) return;
             var copy = Clone(_current);
-            copy.Id = _current.Id + "-copy";
+            copy.Id = CatalogueIds.UniqueCopyId(_current.Id, _types.Select(x => x?.Id));
             copy.Name = (_current.Name ?? _current.Id) + " (copy)";
             copy.Origin = "project";
             copy.Checksum = null;
@@ -3500,6 +3503,17 @@ namespace StingTools.UI
                     "STING — Drawing Types", MessageBoxButton.OK);
                 return false;
             }
+            // DTW-186: refuse blank or duplicate ids before anything is written.
+            var idProblems = CatalogueIds.IdProblems("Drawing type", _types.Where(t => t != null).Select(t => t.Id))
+                .Concat(CatalogueIds.IdProblems("Style pack", (_packs ?? new List<ViewStylePack>()).Where(p => p != null).Select(p => p.Id)))
+                .ToList();
+            if (idProblems.Count > 0)
+            {
+                System.Windows.MessageBox.Show(
+                    "Nothing was saved. Fix these ids first:\n\n• " + string.Join("\n• ", idProblems.Take(20)),
+                    "STING — Drawing Types", MessageBoxButton.OK);
+                return false;
+            }
             try
             {
                 var dir = StingPaths.Meta(_doc, "_BIM_COORD");
@@ -3516,7 +3530,7 @@ namespace StingTools.UI
                 {
                     if (t?.Id == null) continue;
                     if (string.Equals(t.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (!_typeSnapshot.TryGetValue(t.Id, out var before)) continue;
+                    if (!_typeSnapshot.TryGetValue(t, out var before)) continue;
                     string now;
                     try { now = EditKey(t); }
                     catch (Exception ex) { StingLog.Warn($"Type diff '{t.Id}': {ex.Message}"); continue; }
@@ -3606,7 +3620,7 @@ namespace StingTools.UI
                 {
                     if (p?.Id == null) continue;
                     if (string.Equals(p.Origin, "project", StringComparison.OrdinalIgnoreCase)) continue;
-                    if (!_packSnapshot.TryGetValue(p.Id, out var before)) continue;
+                    if (!_packSnapshot.TryGetValue(p, out var before)) continue;
                     string now;
                     try { now = JsonConvert.SerializeObject(p, Formatting.None); }
                     catch (Exception ex) { StingLog.Warn($"Pack diff '{p.Id}': {ex.Message}"); continue; }
