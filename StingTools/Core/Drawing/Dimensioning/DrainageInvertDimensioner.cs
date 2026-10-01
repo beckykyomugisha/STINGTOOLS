@@ -151,6 +151,7 @@ namespace StingTools.Core.Drawing.Dimensioning
             catch (Exception ex) { result.Warnings.Add($"AutoSpotInvert: could not read existing notes ({ex.Message}); duplicates possible."); }
 
             var claimed = new HashSet<ElementId>();
+            var stamps = new ProvenanceStampTally();
             var writtenKeys = new HashSet<string>(StringComparer.Ordinal);
             var processedPipes = new HashSet<string>(StringComparer.Ordinal);
 
@@ -204,7 +205,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 {
                     claimed.Add(hit.Id);
                     if (!string.Equals(hit.Text?.Trim(), text, StringComparison.Ordinal)) { hit.Text = text; updated++; }
-                    StingAnnotationProvenanceSchema.Stamp(hit, AnnotationProvenance.DrainageIl, key);
+                    stamps.Record(StingAnnotationProvenanceSchema.Stamp(hit, AnnotationProvenance.DrainageIl, key, out var adoptErr), adoptErr);
                     return;
                 }
                 // 3. New.
@@ -212,7 +213,7 @@ namespace StingTools.Core.Drawing.Dimensioning
                 if (created != null)
                 {
                     claimed.Add(created.Id);
-                    StingAnnotationProvenanceSchema.Stamp(created, AnnotationProvenance.DrainageIl, key);
+                    stamps.Record(StingAnnotationProvenanceSchema.Stamp(created, AnnotationProvenance.DrainageIl, key, out var newErr), newErr);
                     placed++;
                     result.SpotsPlaced++;
                 }
@@ -236,10 +237,13 @@ namespace StingTools.Core.Drawing.Dimensioning
                 result.Warnings.Add($"AutoSpotInvert: {updated} invert/gradient note(s) updated and {moved} moved to follow the model.");
             if (removed > 0)
                 result.Warnings.Add($"AutoSpotInvert: {removed} note(s) removed whose pipe, or pipe end, no longer exists.");
+            var stampWarning = stamps.Warning("AutoSpotInvert");
+            if (stampWarning != null) { result.Warnings.Add(stampWarning); StingLog.Warn(stampWarning); }
             int orphans = legacy.Count(tn => !claimed.Contains(tn.Id));
             if (orphans > 0)
                 result.Warnings.Add($"AutoSpotInvert: {orphans} older, unstamped IL/gradient note(s) in '{view.Name}' no longer sit on a pipe end. " +
-                                    "They predate provenance stamping, so they cannot be proven ours and were left in place — review and delete.");
+                                    "They carry no provenance stamp (placed before stamping existed, or their stamp could not be written), " +
+                                    "so they cannot be proven ours and were left in place — review and delete.");
             if (nominal > 0)
                 result.Warnings.Add($"AutoSpotInvert: {nominal} pipe(s) carry no internal diameter; their ILs use the NOMINAL size " +
                                     "and may be a few mm out. Set the pipe type's segment sizes.");

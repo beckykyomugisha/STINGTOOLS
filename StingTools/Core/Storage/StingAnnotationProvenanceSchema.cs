@@ -57,12 +57,28 @@ namespace StingTools.Core.Storage
         /// falls back to the old heuristic for it, which is the pre-stamp behaviour.
         /// </summary>
         public static bool Stamp(Element annotation, string producer, string key)
+            => Stamp(annotation, producer, key, out _);
+
+        /// <summary>
+        /// As <see cref="Stamp(Element,string,string)"/>, and says why when it
+        /// fails, so a caller can put the failure in its run's warnings (via
+        /// <see cref="StingTools.Core.Drawing.ProvenanceStampTally"/>) rather than
+        /// leave it in the log. The commonest cause is a caller running under an
+        /// add-in whose VendorId is not the schema's: the write level is Vendor,
+        /// so Revit refuses with "not allowed to the current add-in".
+        /// </summary>
+        public static bool Stamp(Element annotation, string producer, string key, out string error)
         {
-            if (annotation == null || string.IsNullOrEmpty(producer) || string.IsNullOrEmpty(key)) return false;
+            error = null;
+            if (annotation == null || string.IsNullOrEmpty(producer) || string.IsNullOrEmpty(key))
+            {
+                error = "nothing to stamp (no annotation, producer or key)";
+                return false;
+            }
             try
             {
                 var schema = GetOrCreate();
-                if (schema == null) return false;
+                if (schema == null) { error = "provenance schema could not be created (see log)"; return false; }
                 var e = new Entity(schema);
                 e.Set(FieldProducer, producer);
                 e.Set(FieldKey, key);
@@ -71,6 +87,7 @@ namespace StingTools.Core.Storage
             }
             catch (Exception ex)
             {
+                error = ex.Message;
                 StingLog.Warn($"Annotation provenance stamp on {annotation.Id} ({producer}): {ex.Message}");
                 return false;
             }

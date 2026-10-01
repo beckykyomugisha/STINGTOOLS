@@ -2,6 +2,40 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (DRAW-9 two in-Revit smoke failures: curved walls named, provenance stamps that cannot be written reported, 2026-10-01)
+
+Verified by unit tests only. The in-Revit smoke rerun (`tools/run_revit_smoke.ps1`) has not been done;
+DRAW-9 stays open in the ROADMAP until it is.
+
+- **Curved wall skipped silently (`ElementDimensionerSmokeTests.WallLength_…_CurvedWarns_…`).** The
+  warning "no pair of planar end faces (curved or joined?)" existed but could not be reached for a curved
+  wall: `TryWallAxis` returned false for any location curve that is not a `Line`, and `RunWallLength`
+  `continue`d on it. The smoke run showed `warnings: []`. `TryWallAxis` now says which kind of location it
+  found (`WallLocationKind`: arc, other curve, none, degenerate), and `WallAxisRules.SkipWarning` (Revit-free,
+  new `Core/Drawing/Dimensioning/WallAxisRules.cs`) names the wall for every kind it cannot dimension.
+  `AutoDimOpenings` had the same silent `continue` and uses the same warning.
+- **Drainage notes treated as orphans after the pipe moved (`DrainageInvertSmokeTests.Invert_PlanView_…`).**
+  Root cause: `StingAnnotationProvenanceSchema` is write-locked (`AccessLevel.Vendor`) to VendorId
+  `Planscape`. ricaun.RevitTest runs the tests inside its own add-in, VendorId `ricaun` (read from the
+  `.addin` bundled in ricaun.RevitTest.TestAdapter 1.11.1), so Revit refused every `SetEntity` — "not
+  allowed to the current add-in". `Stamp` caught that and wrote a `StingLog` line only. The notes were
+  placed, re-runs still matched them by text and position, and only when the pipe moved did the engine
+  report them as "older, unstamped" notes that "predate provenance stamping" — which was not true.
+  - The smoke project now carries `ricaun.RevitTest.Application.VendorId = Planscape`, which ricaun's
+    console writes into its application `.addin` (`UpdateRevitAddinFileUsingTestMetadata`), so the
+    harness writes Extensible Storage the way the plugin does in production.
+  - A stamp that fails is now a run warning, not just a log line: `Stamp(…, out error)` gives the reason,
+    `ProvenanceStampTally` (Revit-free, in `AnnotationProvenance.cs`) counts attempts and failures, and
+    `AutoSpotInvert`, `AutoDimWallLength`, `AutoDimOpenings` and `AutoDimColumnGrid` report
+    "N of M annotation(s) were placed but could not be provenance-stamped (reason)…", naming the required
+    VendorId when Revit's refusal is the vendor lock. The orphan warning no longer claims the notes
+    predate stamping; it says they carry no stamp, for either reason.
+- **Tests.** `StingTools.Tags.Tests/AnnotationSmokeFixTests.cs` (11 cases, then 12): RED against helpers
+  that encoded the pre-fix behaviour (no warning) — 9 failed, 2 passed; GREEN after — 12 passed. One case
+  holds the VendorId in the warning to `StingTools.addin` and `StingSchemaBuilder.VendorId`.
+- Not changed: the other stamp sites (`AnnotationRunner` grid/level chains and match-line frames,
+  `MatchLineEngine` captions, `MEPDimensioner`) still only log a failed stamp — listed under DRAW-9.
+
 #### Completed (TAGFAM-3 finished: 3.5 mm copies and door boxes on all four specialist tags, run headlessly, 2026-10-01)
 
 - **Run without the Revit UI.** `pyrevit run` launches Revit 2025, runs a script and closes it, so the
