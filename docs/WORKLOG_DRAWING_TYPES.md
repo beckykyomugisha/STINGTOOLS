@@ -136,6 +136,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | Merged | Done |
 | DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | Merged | Done |
 | DTW-81 | DrawingProducer.AdoptView | Med | Reported adoption even when the stamp failed; cache failure left a stale index | 08fe22fc9 | Done |
+| DTW-82 | Whole loop | High | Nothing merged in this loop has been run in Revit | Run the NEEDS REVIT CHECK list | Open (needs Revit) |
 | DTW-83 | AnnotationRunner.cs:356 / TagCategory | High | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | Merged | Done |
 | DTW-84 | MEPDimensioner.cs:152 | Med | Chains never cross fittings; witness lines parallel to their references; no idempotency | Merged | Done |
 | DTW-85 | AnnotationRunner / MEPDimensioner collectors | Med | Host-only: linked MEP and linked grids get no annotation, silently | Merged | Done |
@@ -184,6 +185,20 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-128 | SupplySchematicGenerator ~197/~109 | Low | DN printed twice per pipe; rank-3 source not marked assumed | Merged | Done |
 | DTW-129 | ParameterHelpers.DeriveSheetLevel ~4590 | Med | Sheet level stamp uses the elevation code; after DTW-105 the number uses the declared code | Merged | Done |
 | DTW-130 | AnnotationRunner matchline frame | Low | Four plain detail lines with no provenance, so a re-run adds another frame; refresh skips the whole decorative pass when a pack sets matchlineOffsetMm | Stamped frame; hold-back removed | Done |
+| DTW-131 | DwgCaptureDedup / DwgFixtureBridge | High | Dedup ignores level: stacked identical floors get no fixtures after the first | fix/dt-r6a | In progress |
+| DTW-132 | ProjectSetupCommand MatchLevels ~1696 | Med-High | Wizard dependents match level name only (area/STING:: code boxes skipped); area boxes get every plan type | fix/dt-r6a | In progress |
+| DTW-133 | IsoLevelCode tolerance 50 mm | Med | SSL levels 50-150 mm below FFL become separate storeys | fix/dt-r6a | In progress |
+| DTW-134 | DrawingTokenContext.BuildForExistingSheet ~262 | Med | Heal takes {lvl} from the stamp's level name (stale after a rename) | fix/dt-r6a | In progress |
+| DTW-135 | PrintManager / SheetTemplateEngine / AutomationEngine PDFs | Med | FileName without Combine; exported path recorded without checking it exists | fix/dt-r6b | In progress |
+| DTW-136 | AutoNumberSheetsCommand | Med | Renumbers all sheets as XX-NNN, bypassing SheetNumbering (ISO, locks, history) | fix/dt-r6b | In progress |
+| DTW-137 | ExportCenterEngine.ResolveProducedFile ~1523 | Low-Med | Stale earlier PDF counted when the re-export failed | fix/dt-r6b | In progress |
+| DTW-138 | ParameterHelpers _levelMap vs SheetNumbering | Low-Med | Session-long level map cache used by retag after level edits | fix/dt-r6a | In progress |
+| DTW-139 | DrawingPackageManager ~119 | Low | Package PDF names carry no revision | fix/dt-r6b | In progress |
+| DTW-140 | AnnotationRunner.DimGrids | Low | No coincident-grid filter: an offset linked grid can beat the host | fix/dt-r6b | In progress |
+| DTW-141 | DrawingTokenContext.ApplyContextVolume | Low | Expensive lookups before checking the pattern uses {vol} | fix/dt-r6a | In progress |
+| DTW-142 | BatchScopeDepth across documents | Low | Nested scope on another document wipes the outer batch's claims | fix/dt-r6b | In progress |
+| DTW-143 | ScopeBoxStyle / RenamePattern / MatchLineEngine | Low | Box names parsed by hand, not through ScopeBoxNames | fix/dt-r6b | In progress |
+| DTW-144 | LOC index (ParameterHelpers ~1735) | Low-Med | Stricter grammar drops user-typed LOC names silently (log only) | fix/dt-r6a | In progress |
 
 ## Decisions
 

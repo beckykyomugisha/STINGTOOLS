@@ -8,15 +8,10 @@
 //
 // The passes are now idempotent (C-4, DTW-83/84/85, provenance on the dimensioners),
 // so a refresh runs the same passes a new view gets — the dialog's annotation boxes
-// and preset fields decide, exactly as for a new view. One piece is still not
-// idempotent and stays off on a refresh:
-//
-//   * the decorative pass's MATCHLINE FRAME (pack.matchlineOffsetMm) — four plain
-//     detail lines with no record of what drew them, so a second run draws a second
-//     frame. The north arrow / scale bar / key plan (one instance per family per
-//     view) and the flow-arrow symbols (indexed by host) ARE idempotent, but they
-//     share the decorative switch with the frame, so when the pack draws a frame the
-//     whole decorative switch is held back on a refresh and the reason is reported.
+// and preset fields decide, exactly as for a new view. The decorative pass's matchline
+// frame was the last piece that was not idempotent; since DTW-130 its sides are stamped
+// (Deco.MatchlineFrame) and the frame is skipped when present, so nothing is held back.
+// MatchlineHeldBack is kept for callers that still read it; Choose no longer sets it.
 //
 // Revit-free so the decision is tested (ProductionAnnotationPolicyTests).
 
