@@ -894,6 +894,14 @@ namespace StingTools.Core
                         }
                         CurrentSeqScheme = parsed;
                     }
+                    else
+                    {
+                        // DSCH round 6: an unknown value (the Kibale overlay shipped
+                        // "DISC_SYS_LVL") was dropped without a word and the previous
+                        // scheme kept. Say so; the value stays unapplied.
+                        StingLog.Warn($"SEQ_SCHEME '{seqSchemeStr}' in {path} is not a sequence scheme " +
+                                      $"({string.Join(" / ", Enum.GetNames(typeof(SeqScheme)))}); keeping {CurrentSeqScheme}.");
+                    }
                 }
                 if (data.TryGetValue("SEQ_INCLUDE_ZONE", out object seqZoneObj))
                 {
