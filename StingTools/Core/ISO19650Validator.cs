@@ -474,6 +474,17 @@ namespace StingTools.Core
                     errors.Add(new ValidationError(funcProdError, ValidationErrorType.CrossValidation));
             }
 
+            // DSCH-27: SEQ_RANGE_ALLOCATION (per DISC) was never checked. A numeric SEQ
+            // outside its discipline's allocated range collides when models are federated.
+            if (!string.IsNullOrEmpty(disc) && TagConfig.SeqRangeAllocation.Count > 0
+                && TagConfig.CurrentSeqScheme != SeqScheme.Alpha
+                && int.TryParse(ParameterHelpers.GetString(el, ParamRegistry.SEQ), out int seqNumber))
+            {
+                string rangeError = TagConfig.ValidateSeqRange(seqNumber, disc);
+                if (rangeError != null)
+                    errors.Add(new ValidationError(rangeError, ValidationErrorType.CrossValidation));
+            }
+
             // DSCH-27: the project's DISCIPLINE_PROFILES (AllowedSysCodes / AllowedFuncCodes,
             // and RequiredTokens under ValidationStrictness) were loaded but never enforced:
             // TagConfig.ValidateAgainstProfile had no caller. Only a project that defines a

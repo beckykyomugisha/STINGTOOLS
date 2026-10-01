@@ -347,9 +347,12 @@ namespace StingTools.Core
         public static double SheetMarginBottomMm { get; set; } = 15.0;
         public static double SheetMarginGapMm { get; set; } = 8.0;
 
-        /// <summary>FUT-01: SEQ namespace range allocation per linked model.
-        /// Loaded from SEQ_RANGE_ALLOCATION in project_config.json.
-        /// Format: {"ARCH": [1, 4999], "MEP": [5000, 8999], "STR": [9000, 9999]}.</summary>
+        /// <summary>FUT-01: SEQ namespace range allocation per DISC code, so federated
+        /// discipline models number into disjoint ranges. Loaded from SEQ_RANGE_ALLOCATION
+        /// in project_config.json by SeqRangeAllocationParser:
+        /// {"M": [1, 9999], "E": [10000, 19999]} or {"M": {"min": 1, "max": 9999}}.
+        /// Checked by ISO19650Validator.ValidateElement (ValidateSeqRange); SEQ allocation
+        /// does not yet start at the range minimum.</summary>
         public static Dictionary<string, (int Min, int Max)> SeqRangeAllocation { get; internal set; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
 
@@ -406,15 +409,15 @@ namespace StingTools.Core
             return whole;
         }
 
-        /// <summary>FUT-01: Validate a SEQ number is within the allocated range for the model discipline.
-        /// Returns null if valid, error message if out of range.</summary>
+        /// <summary>FUT-01: Validate a SEQ number is within the range allocated to a DISC code.
+        /// Returns null if valid (or no allocation is defined), error message if out of range.</summary>
         public static string ValidateSeqRange(int seqNumber, string modelDiscipline)
         {
             string Pad(int n) => n.ToString().PadLeft(EffectiveSeqPad, '0');
             if (SeqRangeAllocation.Count == 0) return null; // No allocation defined
             var (min, max) = GetSeqRange(modelDiscipline);
             if (seqNumber < min || seqNumber > max)
-                return $"SEQ {Pad(seqNumber)} is outside allocated range {Pad(min)}-{Pad(max)} for model '{modelDiscipline}'. " +
+                return $"SEQ {Pad(seqNumber)} is outside allocated range {Pad(min)}-{Pad(max)} for DISC '{modelDiscipline}'. " +
                        $"Configure SEQ_RANGE_ALLOCATION in project_config.json.";
             return null;
         }
@@ -1220,6 +1223,18 @@ namespace StingTools.Core
                     else StingLog.Warn($"TagConfig: SEQ_LOCK_MODE '{slmObj}' is not block / warn / off — using block.");
                 }
 
+                // DSCH-27: SEQ_RANGE_ALLOCATION was documented and read (GetSeqRange /
+                // ValidateSeqRange) but never loaded, so the allocation could not apply.
+                {
+                    var seqRangeProblems = new List<string>();
+                    data.TryGetValue("SEQ_RANGE_ALLOCATION", out object seqRangeObj);
+                    SeqRangeAllocation = SeqRangeAllocationParser.Parse(
+                        seqRangeObj as Newtonsoft.Json.Linq.JToken, seqRangeProblems);
+                    foreach (var problem in seqRangeProblems) StingLog.Warn($"TagConfig: {problem}");
+                    if (SeqRangeAllocation.Count > 0)
+                        StingLog.Info($"TagConfig: SEQ_RANGE_ALLOCATION — {SeqRangeAllocation.Count} DISC range(s)");
+                }
+
                 // Load configurable formula/grid cache TTL
                 FormulaCacheTTLMinutes = 5;
                 if (data.TryGetValue("FORMULA_CACHE_TTL_MINUTES", out object fctObj))
@@ -1381,6 +1396,7 @@ namespace StingTools.Core
             AutoRunWorkflowOnOpen = string.Empty;
             // NP11: Reset SEQ scheme state on LoadDefaults to prevent cross-project bleed
             CurrentSeqScheme = SeqScheme.Numeric;
+            SeqRangeAllocation = new Dictionary<string, (int Min, int Max)>(StringComparer.OrdinalIgnoreCase);
             SeqIncludeZone = false;
             SeqIncludeLoc = false;
             SeqLevelReset = false;

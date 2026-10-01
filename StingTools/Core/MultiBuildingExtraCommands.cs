@@ -28,27 +28,31 @@ namespace StingTools.Core
                 if (ctx?.Doc == null) return Result.Failed;
                 string raw = TagConfig.GetConfigValue("SEQ_RANGE_ALLOCATION") ?? "";
                 var rp = StingResultPanel.Create("SEQ Range Allocation")
-                    .SetSubtitle("Per-building SEQ counter ranges (Phase 59 FUT-01).")
+                    .SetSubtitle("Per-discipline SEQ ranges for federated models (Phase 59 FUT-01). Checked by tag validation.")
                     .AddSection("CONFIG");
                 if (string.IsNullOrEmpty(raw))
                 {
                     rp.Text("No SEQ_RANGE_ALLOCATION in project_config.json.");
                     rp.AddSection("TO ENABLE").Text("Add to project_config.json:");
                     rp.Text("  \"SEQ_RANGE_ALLOCATION\": {");
-                    rp.Text("    \"BLD1\": { \"min\": 1, \"max\": 4999 },");
-                    rp.Text("    \"BLD2\": { \"min\": 5000, \"max\": 7999 },");
-                    rp.Text("    \"BLD3\": { \"min\": 8000, \"max\": 9999 }");
+                    rp.Text("    \"M\": [1, 4999],");
+                    rp.Text("    \"E\": [5000, 7999],");
+                    rp.Text("    \"P\": { \"min\": 8000, \"max\": 9999 }");
                     rp.Text("  }");
                 }
                 else
                 {
                     try
                     {
-                        var j = JObject.Parse(raw);
-                        foreach (var kv in j.Properties())
+                        // The same parser TagConfig loads with, so what is shown is what applies.
+                        var problems = new System.Collections.Generic.List<string>();
+                        var ranges = SeqRangeAllocationParser.Parse(JObject.Parse(raw), problems);
+                        foreach (var kv in ranges)
+                            rp.Metric($"DISC {kv.Key}", $"{kv.Value.Min} — {kv.Value.Max}");
+                        if (problems.Count > 0)
                         {
-                            var body = kv.Value as JObject;
-                            rp.Metric(kv.Name, body != null ? $"{body["min"]} — {body["max"]}" : kv.Value.ToString());
+                            rp.AddSection("IGNORED");
+                            foreach (var p in problems) rp.Text(p);
                         }
                     }
                     catch (Exception ex)
