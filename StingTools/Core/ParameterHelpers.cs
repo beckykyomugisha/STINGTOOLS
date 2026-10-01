@@ -4693,6 +4693,11 @@ namespace StingTools.Core
                 // elevation stack with the project's declared level codes laid over it
                 // (DTW-105). This built its own elevation-only map, so on a declared level
                 // the SHT_TAG_1 stamp and the sheet number named two different codes.
+                // DTW-146: a key miss means levels or spatial_codes.json may have changed;
+                // the registry caches the file per document without watching it, so reload
+                // it here or the new map is built from the old declared codes.
+                try { SpatialCodeRegistry.Reload(doc); }
+                catch (Exception ex) { StingLog.Warn($"BuildLevelMap: spatial codes reload: {ex.Message}"); }
                 var map = StingTools.Core.Drawing.DrawingProducer.BuildIsoLevelMap(doc);
                 if (map == null) return null;   // BuildIsoLevelMap logged why
                 _levelMap = map;

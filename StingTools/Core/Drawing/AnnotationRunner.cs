@@ -1716,13 +1716,6 @@ namespace StingTools.Core.Drawing
             {
                 try
                 {
-                    // DTW-130: the frame is stamped, so a re-run finds it and draws no second one.
-                    if (Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(CurveElement),
-                            AnnotationProvenance.DecoMatchlineFrame).Count > 0)
-                    {
-                        result.Skipped++;
-                        return;
-                    }
                     var inset = pack.MatchlineOffsetMm.Value / 304.8;
                     var min = outline.Min;
                     var max = outline.Max;
@@ -1730,6 +1723,25 @@ namespace StingTools.Core.Drawing
                     var p10 = new XYZ(max.X - inset, min.Y + inset, 0);
                     var p11 = new XYZ(max.X - inset, max.Y - inset, 0);
                     var p01 = new XYZ(min.X + inset, max.Y - inset, 0);
+                    // DTW-130/148: the frame is stamped. A complete frame that still matches the
+                    // crop is left alone; one that is incomplete or no longer matches (crop or
+                    // scope box changed) is removed and redrawn.
+                    var existing = Storage.StingAnnotationProvenanceSchema.Index(doc, view, typeof(CurveElement),
+                            AnnotationProvenance.DecoMatchlineFrame).Values.SelectMany(l => l).ToList();
+                    if (existing.Count > 0)
+                    {
+                        var want = new[] { p00, p10, p11, p01 };
+                        bool current = existing.Count == 4 && existing.All(e =>
+                            (e as CurveElement)?.GeometryCurve is Line ln
+                            && want.Any(w => SamePlanPoint(ln.GetEndPoint(0), w))
+                            && want.Any(w => SamePlanPoint(ln.GetEndPoint(1), w)));
+                        if (current) { result.Skipped++; return; }
+                        foreach (var e in existing)
+                        {
+                            try { doc.Delete(e.Id); }
+                            catch (Exception ex) { result.Warnings.Add("Matchline frame: old side not removed: " + ex.Message); }
+                        }
+                    }
                     int side = 0;
                     foreach (var (a, b) in new[] { (p00, p10), (p10, p11), (p11, p01), (p01, p00) })
                     {
@@ -1747,6 +1759,10 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex) { result.Warnings.Add("Matchline pass: " + ex.Message); }
             }
         }
+
+        /// <summary>DTW-148: plan-position equality for frame corners (1 mm), Z ignored.</summary>
+        private static bool SamePlanPoint(XYZ a, XYZ b)
+            => a != null && b != null && Math.Abs(a.X - b.X) < 1.0 / 304.8 && Math.Abs(a.Y - b.Y) < 1.0 / 304.8;
 
         private static void PlaceDecorativeIfDeclared(Document doc, View view, string familyName, string position, double? sizeMm, BoundingBoxXYZ outline, AnnotationResult result)
         {
