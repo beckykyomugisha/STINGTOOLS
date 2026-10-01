@@ -1,0 +1,7 @@
+{
+  "_comment": "Kibale BOQ rate-provider policy (DSCH round 6). Without this file the project rate card (compiled priority 87) loses to the material library (95) and the corporate cost_rates_5d.csv category rate (90), so rate_card.json - which prices 12 of its 13 categories - never reached the bill. Same ranking as project-templates/KUT/_BIM_COORD/boq_rate_policy.json. Copy beside rate_card.json.",
+  "providers": {
+    "project-rate-card": { "priority": 93 },
+    "material-library": { "priority": 85 }
+  }
+}

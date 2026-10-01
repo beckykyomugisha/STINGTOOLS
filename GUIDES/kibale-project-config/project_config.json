@@ -31,7 +31,7 @@
 
   "COMPLIANCE_GATE_PCT": 80,
   "AUTO_TAGGER_ENABLED": false,
-  "AUTO_TAGGER_DISC_FILTER": ["A", "S"],
+  "AUTO_TAGGER_DISC_FILTER": "A,S",
   "_tagger_note": "Leave the live auto-tagger OFF while you build COT01. Turn it on only once the cottage validates clean, or you will be fixing tags on geometry you are still moving.",
 
   "FORMULA_CACHE_TTL_MINUTES": 5,
@@ -39,7 +39,7 @@
 
   "CATEGORY_SKIP": ["Cameras", "Lines", "Reference Planes", "Constraints", "Levels", "Grids", "Scope Boxes"],
 
-  "SEQ_SCHEME": "DISC_SYS_LVL",
+  "SEQ_SCHEME": "Numeric",
   "SEQ_INCLUDE_LOC": true,
-  "_seq_note": "SEQ_INCLUDE_LOC keeps sequence numbers unique per building. Without it, COT01-0001 and COT02-0001 collide across the eight cottages."
+  "_seq_note": "SEQ_SCHEME is one of Numeric | Alpha (DISC_SYS_LVL was never a scheme and was ignored). SEQ_INCLUDE_LOC keeps sequence numbers unique per building. Without it, COT01-0001 and COT02-0001 collide across the eight cottages."
 }
