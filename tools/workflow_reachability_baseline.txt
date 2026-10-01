@@ -1094,7 +1094,6 @@ Symbols_AutoPlaceToggle
 Symbols_BatchHeal
 Symbols_ClearMepDetail
 Symbols_Coverage
-Symbols_CreateAll
 Symbols_CreateFP
 Symbols_CreateLighting
 Symbols_CreateSLD
