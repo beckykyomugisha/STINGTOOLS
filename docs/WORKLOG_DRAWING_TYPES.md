@@ -7,17 +7,15 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-Round 8 is merged on `fix/drawing-review-2` (PR #1040): DTW-149..214, 66 items. Open:
-DTW-82 (in-Revit checks), DTW-102 (linked MEP runs reported, not dimensioned), DTW-215 and
-DTW-216 (both low).
+Round 9 is merged on `fix/drawing-review-3` (DTW-215..227). Open: DTW-82 (in-Revit checks),
+DTW-102 (linked MEP runs reported, not dimensioned), DTW-228 (low).
 
-1. Mark PR #1040 ready, merge it once CI is green, and ask the ACC session to merge main into
-   `claude/acc-work-review-gaps-7e2ac7` and redeploy STING_KUT_LIVE after Revit closes.
-2. Next pass (round 9): DTW-215 and 216, then a convergence review of the round-8 code. The
-   areas it changed most are worksharing pre-flight, ProducedViewState, lazy sheets, replaces,
-   filter hash refresh, the Excel round-trip and managed V/G.
-3. The in-Revit checks (NEEDS REVIT CHECK below) decide several design points. Run them before
-   another deep pass.
+1. Merge the round-9 PR once CI is green; ask the ACC session to merge main and redeploy (it needs
+   the user's approval for deploy.bat).
+2. The in-Revit checks are the real gate now. Rounds 8 and 9 found few new defects outside seams;
+   the next value comes from running NEEDS REVIT CHECK, especially worksharing, managed V/G and
+   bindings.
+3. After the Revit checks: fix DTW-228 and anything they turn up; then round 10.
 
 ## State (2026-10-01)
 
@@ -269,8 +267,20 @@ DTW-216 (both low).
 | DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | Merged | Done |
 | DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | Merged | Done |
 | DTW-214 | DrawingTypeEditorDialog new pack | Low | Still adds 'scale' to managedFields (ignored since DTW-170) | Merged | Done |
-| DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Read ProducedViewState in Sync Styles | Open |
-| DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Route them through the item runner or honour Failure | Open |
+| DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Merged (fix/dt-r9-a) | Done |
+| DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Merged (fix/dt-r9-a) | Done |
+| DTW-217 | MepViewProducer:123 / MepCoordinationCommands:67 | Med-High | System filters written to a view whose managed template controls filters: masked, reported applied | Merged | Done |
+| DTW-218 | DrawingProducer.ApplyPresetVg / ApplyPresetOverrides | Med | Preset VG masked by managed templates, counted as applied | Merged | Done |
+| DTW-219 | ManagedTemplateFields phaseFilter | Med | Packs with no phase filter still control it; Show Complete (DTW-208) undone | Merged | Done |
+| DTW-220 | ProductionItemRunner sheet-counter gate | Med | Up-front Project Information gate borrows PI and blocks refresh-only re-runs | Merged | Done |
+| DTW-221 | DrawingProducer.RefreshReusedSheetName | Med | Legacy comparison uses the new name rule; pre-round-8 sheets never renamed | Merged | Done |
+| DTW-222 | ShortLevel vs Renumber | Med-Low | Long digit-ending level names change number shape; Renumber converts existing sheets | Merged | Done |
+| DTW-223 | DrawingProducer CreateSheet catch | Low | Counter burned when ViewSheet.Create throws | Merged | Done |
+| DTW-224 | WorksharingPreflight.ProductionElements | Low | Managed templates and filters edited by the run are not pre-checked | Merged | Done |
+| DTW-225 | DrawingProducer.CreateSheet numbering | Low-Med | New sheets on long digit-ending levels take the new ShortLevel shape while existing sheets use the legacy one | Merged | Done |
+| DTW-226 | ManagedTemplateSyncer vs MEP system filters | Low | Does a pack re-sync keep the system filters MEP coordination added to the template? | Merged | Done |
+| DTW-227 | WorksharingPreflight material-class filters | Low | Not pre-checked | Merged | Done |
+| DTW-228 | ViewStylePackApplier.ApplyFilterEnabled | Low | A pack with filterEnabled=false disables every filter on a view with no managed template, including MEP system filters | Disable only the pack's own filters | Open |
 
 ## Decisions
 
@@ -349,6 +359,11 @@ DTW-216 (both low).
   type's, but the replacement is reported; locking the view's style keeps the hand-picked one.
 - **Former ids (DTW-203).** `DrawingType.replaces` lists ids a type took over. Production adopts
   their views and sheets; the Doctor lists unknown ids.
+- **Counter gate (DTW-220).** A colleague holding Project Information no longer stops a run or
+  gets borrowed up front. Items that reuse their sheet proceed, and items needing a new number
+  are refused per item. Revit borrows Project Information only when a number is actually written.
+- **MEP colours (DTW-217).** System filters go to the template when it controls filters, so every
+  view using that template is coloured, and the report says so.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 

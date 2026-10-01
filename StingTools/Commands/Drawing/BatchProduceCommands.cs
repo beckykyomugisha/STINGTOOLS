@@ -45,8 +45,8 @@ namespace StingTools.Commands.Drawing
         internal static void Take(ProduceResult pr, List<string> warnings)
         {
             if (pr == null) return;
-            warnings?.AddRange(pr.Failure == null ? pr.Warnings : pr.Warnings.Where(w => w != pr.Failure));
-            if (pr.Failure != null) throw new InvalidOperationException(pr.Failure);
+            var failure = pr.TakeInto(warnings);
+            if (failure != null) throw new InvalidOperationException(failure);
         }
 
         internal static ProduceOptions BuildOptions(DrawingProductionPreset preset)
@@ -1300,7 +1300,6 @@ namespace StingTools.Commands.Drawing
 
                     foreach (var job in jobs)
                     {
-                        if (runner.Stopped) break;   // DTW-194: the counters cannot be written
                         var ctx = new DrawingContext
                         {
                             Tag = job.Tag, PackageId = packageId, OwnerLevel = host,
@@ -1371,7 +1370,6 @@ namespace StingTools.Commands.Drawing
                     }
                 }
                 tg.Assimilate();
-                if (runner.BlockedLine != null) warnings.Insert(0, runner.BlockedLine);   // DTW-194
             }
             return null;
         }

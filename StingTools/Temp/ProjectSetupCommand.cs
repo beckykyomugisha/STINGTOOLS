@@ -1383,7 +1383,13 @@ namespace StingTools.Temp
                             {
                                 var dctx = new Core.Drawing.DrawingContext { CustomBounds = cut.Bounds, Tag = tag };
                                 var pr = Core.Drawing.DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                                warnings.AddRange(pr.Warnings);
+                                var failure = pr.TakeInto(warnings);   // DTW-216: a refused item is not kept
+                                if (failure != null)
+                                {
+                                    t.RollBack();
+                                    warnings.Add(Core.Drawing.ProductionEdgeDecisions.RolledBackLine(tag, failure));
+                                    continue;
+                                }
                                 if (t.Commit() == TransactionStatus.Committed)
                                 {
                                     views += pr.ViewIds.Count;
@@ -1772,7 +1778,14 @@ namespace StingTools.Temp
                         {
                             var dctx = new Core.Drawing.DrawingContext { Level = job.Level, ScopeBox = job.Box, Tag = job.Tag };
                             var pr = Core.Drawing.DrawingProducer.ProduceAllViews(doc, job.Type, dctx, opts);
-                            warnings.AddRange(pr.Warnings);
+                            var failure = pr.TakeInto(warnings);   // DTW-216: a refused item is not kept
+                            if (failure != null)
+                            {
+                                t.RollBack();
+                                warnings.Add(Core.Drawing.ProductionEdgeDecisions.RolledBackLine(
+                                    $"{job.Box.Name} / {job.Level.Name} ({job.Type.Id})", failure));
+                                continue;
+                            }
                             if (t.Commit() == TransactionStatus.Committed)
                             {
                                 views += pr.ViewIds.Count;
@@ -1882,7 +1895,13 @@ namespace StingTools.Temp
                         {
                             var dctx = new Core.Drawing.DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name };
                             var pr = Core.Drawing.DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
-                            warnings.AddRange(pr.Warnings);
+                            var failure = pr.TakeInto(warnings);   // DTW-216: a refused item is not kept
+                            if (failure != null)
+                            {
+                                t.RollBack();
+                                warnings.Add(Core.Drawing.ProductionEdgeDecisions.RolledBackLine($"Grid {g.Name}", failure));
+                                continue;
+                            }
                             if (t.Commit() == TransactionStatus.Committed)
                             {
                                 views += pr.ViewIds.Count;

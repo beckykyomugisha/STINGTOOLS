@@ -2,6 +2,116 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-9 measured in Revit 2025: 163 → 36 parameters per door tag, 2026-10-01)
+
+- `tools/pyrevit/headless/time_add_shared_params.py` on main `6710ad2c1` (TAGFAM-9 merged), headless Revit 2025:
+  `GetAllFamilyParams` for `STING - Door Tag` now returns **36** parameters (was 163), and `AddSharedParameters`
+  built them in **71.9 s** end to end (124 s for 163 on the morning baseline).
+- **The seconds are not a clean figure.** The machine was under load during this run: the same lookup took
+  0.19 s (0.03 s in the morning), and a repeated profile of the same 36 parameters as INSTANCE took 37.2 s and
+  then 72.8 s, with each later family in the session slower. So the earlier ~28 s estimate is neither confirmed
+  nor refuted, and whether TYPE parameters (#1047 made 22 of the 36 TYPE) add more slowly than INSTANCE ones
+  could not be separated from that noise. What is measured is the count: 78 % fewer `AddParameter` calls,
+  which is where all the time goes (TAGFAM-6). Re-time on a quiet machine before quoting a per-family figure.
+
+#### Completed (TAGFAM-10 Specialty Equipment tag families renamed to their declared names, 2026-10-01)
+
+- Same fault as TAGFAM-7, found by its gate: the healthcare variant suffixes `Specialty Equipment Tag Asset`
+  and `… Tag General` already contain "Tag", so the generic `{prefix} - {suffix} Tag` built
+  `STING - Specialty Equipment Tag Asset Tag` / `… General Tag`, while the GEN and MEP tag configs (#35/#36,
+  #60/#61) and `LABEL_DEFINITIONS.json` declare them without the last " Tag". Both suffixes are now mapped in
+  `VariantSuffixToCsvName`; the tuples are unchanged, so the label-definitions audit is unaffected.
+- The two `.rfa` files in `Data/TagFamilies` were `git mv`ed to the declared names; the manifest `familyFile`
+  entries follow (ids and checksums unchanged — `restamp_content_manifest.py` reports 210/210 match).
+- Both old names were added to `TagFamilyNameAliases.LegacyFamilyNames`. Existing projects are migrated by
+  **in-place rename on next load**: Load Tag Families already renames from that table; Create Tag Families now
+  runs the rename over the healthcare variants as well as the tie-ins. Placed tags are kept, no second family
+  is loaded, nothing is deleted; both names present is reported and left.
+- Gate: `TagFamilyNameGateTests.KnownNameDisagreements` is now empty. RED with the aliases added and the
+  exceptions removed (4 failing: legacy names shipped, alias targets not generated, creator names differing
+  from their declarations, and a tier-map assertion that assumed every canonical name has a family plan —
+  corrected to compare legacy and canonical resolution with the category supplied); GREEN after.
+  Tags suite 5,543 passed; plugin build 0/0.
+- **Not run in Revit.**
+
+#### Completed (TAGFAM-9 style switches opt-in: new tag families carry TAG_STYLE_CODE_TXT, not 128 switches, 2026-10-01)
+
+Verified by build (0 errors / 0 warnings) and unit tests only. **Not run in Revit**, and the new build time
+has **not been re-measured**.
+
+- **Evidence.** In Revit 2025 `FamilyManager.AddParameter` costs ~0.78 s per parameter (TAGFAM-6). A door
+  tag received 163 parameters, 128 of them the `TAG_{2|2.5|3|3.5}{NOM|BOLD|ITALIC|BOLDITALIC}_{colour}_BOOL`
+  style switches, and took ~124 s. The headless audit of all 211 shipped tag families
+  (`tools/pyrevit/headless/audit_style_switches.py`) found the switches on all 211 and **zero** associated
+  with any family element: they changed nothing a tag shows.
+- **Decision (owner's architect).** New builds stop adding the switches by default. A family's style is its
+  type plus the existing `TAG_STYLE_CODE_TXT` (`ParamRegistry.TAG_STYLE_CODE`, TEXT in `MR_PARAMETERS.txt`).
+  `tag_style_catalogue.json` gains `"family_style_switches": []` — style codes (`"2.5BOLD_BLUE"`, or `"*"`
+  for all 128) whose switches are still added. Existing families and projects are untouched; nothing removes
+  a switch.
+- **One composer.** `Core/TagStyleFamilyParams.cs` (Revit-free) parses the field, validates each entry as a
+  size × style × colour code (invalid ones are logged and named, never silently dropped) and composes the
+  style list. `TagStyleCatalogue.FamilyStyleSwitchParams` exposes it; `TagFamilyConfig.StyleParams` is now
+  `TAG_STYLE_CODE_TXT` + the opted-in switches + the box / leader / scale / depth parameters, and every
+  creator path reads it: Create Tag Families, declared families, Migrate Tag Families, Propagate Universal,
+  Family Parameter Creator.
+- **Writers.** `TagTypeVariantWriter`, `TagStyleEngine.ApplyTagStyle` (the Apply Tag Style command) and
+  `ApplyToType` write the code (`{size}{style}_{colour}`, the TAG-01 format) and still drive a switch when the
+  family has it. A STING tag type with neither is counted and named — in the Apply Tag Style dialog, the
+  Migrate Tag Families summary, the Propagate per-family log line and a `StingLog` warning — rather than
+  skipped.
+- **Conformance.** Family Conformance check (4) passes with either `TAG_STYLE_CODE_TXT` or the sampled
+  switches; with neither it says so and names what is missing.
+- **Expected effect.** ~36 parameters per door tag instead of 163, so ~28 s instead of ~124 s at 0.78 s each.
+  Propagated families inherit whatever the universal master carries, so they keep its switches until the
+  master is rebuilt.
+- **Create Tag Families adds type-level parameters as TYPE.** Its `AddSharedParameters` (which also serves
+  declared families and the tie-in loops) passed `isInstance: true` for every parameter, so on a family built
+  that way `TAG_STYLE_CODE_TXT` — now the only record of a new family's style — had no per-type value, and the
+  depth gates and box / leader parameters were undrivable for the same reason. One rule now decides TYPE vs
+  INSTANCE for all three adding paths: `Core/TagFamilyParamScope.cs` (Revit-free) via
+  `TagFamilyConfig.IsTypeScopedParam`. TYPE: the depth gates, `StyleParams` (code, opted-in switches, box /
+  leader / scale / depth), `STING_TAG_POS`, the depth cache, any `TAG_BOX_*` / `TAG_LEADER_*` and any style
+  switch. Everything else (`ASS_TAG_*` containers, tokens, description, label params) stays INSTANCE.
+  Migrate's old rule (everything but `ASS_TAG*` is type) and Family Parameter Creator's inline set gave the
+  same answer for their lists and now call the shared rule. Parameters already on a family are not re-scoped.
+- **Remaining (logged on TAGFAM-9).** Colour schemes, switch-by-discipline, the scale tiers and
+  `TokenProfileApplier` still set only switches, so on a switch-less family they record no style.
+- **Tests.** `StingTools.Tags.Tests/TagStyleFamilyParamsTests.cs`, 29 cases: the shipped field binds through
+  the real parser with nothing rejected, every entry is a valid code, `StyleParams` carries no switch the
+  catalogue does not list and is composed from the catalogue, `TAG_STYLE_CODE_TXT` leads the list and is TEXT in
+  `MR_PARAMETERS.txt`, the writers and conformance check use it. **RED against `origin/main`: 9 of 29 failing;
+  GREEN: 29 of 29.** `TagFamilyParamScopeTests.cs`, 22 cases: the TYPE / INSTANCE rule by name (including
+  `TAG_7_SECTION_VISIBLE_A_BOOL` staying INSTANCE, which tightened the switch-shape match), and that
+  `AddSharedParameters`, Migrate and Family Parameter Creator all call it. **RED against the first commit of
+  this branch: 5 of 22 failing; GREEN: 22 of 22.** Full Tags suite 5,532 passing, 0 failing (after rebasing onto origin/main with #1040 and #1045).
+#### Completed (TAGFAM-7 tie-in tag families renamed to their declared names, 2026-10-01)
+
+- `TieInPointFamilies` carried the verbose declared name as the suffix for Pipe, Duct and Cable Tray, so
+  `GetTieInFamilyName` missed `VariantSuffixToCsvName` and appended " Tag": the families were built and
+  shipped as `STING - Tie-In Point Tag (Duct — HVAC) Tag` etc. while the MEP tag config and
+  `PerFamilyTierMap` declare them without it. The suffixes are now `Tie-In Pipe` / `Tie-In Duct` /
+  `Tie-In Cable Tray` (keys already in `VariantSuffixToCsvName`), and the three `.rfa` files in
+  `Data/TagFamilies` were `git mv`ed to the declared names. Manifest `familyFile` entries follow (ids and
+  checksums unchanged — `restamp_content_manifest.py` reports 210/210 match).
+- One alias table: `Tags/TagFamilyNameAliases.cs` (Revit-free, `TagFamilyConfig.LegacyFamilyNames` points
+  at it) maps each old name to its canonical one and holds the matching rule — trimmed, case-insensitive,
+  "/" read as "-" (a family loaded from a file cannot carry "/", so `LV/ELV` declared is `LV-ELV` loaded).
+  `PerFamilyTierMap.Resolve` now tries exact, then legacy alias, then that match.
+- Existing projects are migrated by **in-place rename on next load**: Load Tag Families and Create Tag
+  Families (`Tags/TagFamilyLegacyRename.cs`) rename a project family that has an old name to the library
+  name when the project does not already hold the new one — placed tags stay on it, and the load then
+  updates it rather than adding a second family. When both are present it is reported and nothing is
+  changed. No family is ever deleted. Renames and conflicts are logged and listed in the load report.
+- Gate: `StingTools.Tags.Tests/TagFamilyNameGateTests` — every creator name equals its CSV /
+  `PerFamilyTierMap` declaration (after "/"-"-") or has none; no doubled "…) Tag"; every shipped `.rfa` is
+  a generated or declared name; no legacy name ships; every alias maps to a name that is generated and
+  shipped; the tier map resolves legacy and "-" spellings. RED against the main creator and library
+  (4 failing), GREEN after. Two older disagreements of the same kind (Specialty Equipment Tag Asset /
+  General) are listed as known and logged as **TAGFAM-10**. Tags suite 5,169 passed; plugin build 0/0.
+- **Not run in Revit.** The rename path (`Family.Name` set inside a transaction) is untested against a
+  real project that holds the old names.
+
 #### Completed (TAGACC-25 discipline profiles: CollisionMode applied, five settings retired, 2026-10-01)
 
 - Decision (architect, TAGACC-25): implement `CollisionMode`; retire `SeqScheme`, `SeqPadWidth`,
@@ -22685,7 +22795,35 @@ in this branch the next pull will fast-forward.
    Phase 175 SLD sync updater wiring (assignment lands later).
 
 **Not integrated**: unresolved merge-conflict markers
-(`<<<<<<< HEAD` / `=======` / `>>>>>>>` referencing
+(`
+#### Completed (Drawing production round 9, convergence, branch `fix/drawing-review-3`)
+
+Round 9 of the drawing review loop: a convergence review of round 8, with the merge seams between
+its five parallel branches fixed. Findings DTW-215..227; details are in
+`docs/WORKLOG_DRAWING_TYPES.md`.
+
+- **Managed V/G seams.**
+  - MEP system colours now go to the template when it controls filters (one helper serves all
+    three MEP paths).
+  - Preset VG under such a template is reported as masked, not counted.
+  - Packs that name no phase filter no longer control it, so new views keep "Show Complete".
+- **Worksharing.**
+  - A colleague holding Project Information no longer stops a run or gets borrowed up front.
+    Items that reuse sheets proceed; items needing a new number are refused individually.
+  - Pack templates and filters, including material-class filters, are pre-checked so an owned one
+    skips the item instead of failing its commit.
+  - Callers outside the production runner now roll back a refused item.
+- **Scale and names.**
+  - Sync Styles keeps production-fitted scales, and drift no longer flags them.
+  - Pre-round-8 sheet names are recognised, so they refresh after a level rename.
+  - Renumber and new sheets keep the legacy number shape for long, digit-ending level names.
+  - A failed sheet creation releases its counter.
+- **Verified.** A pack re-sync keeps the system filters MEP coordination added (source-guard
+  tests).
+
+Build 0/0; Tags.Tests 5,530; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
+
+
 `origin/claude/review-model-collaboration-3ZiRc`) were physically
 present in the sibling branch's `StingToolsApp.cs` and would not have
 compiled there. They are NOT brought across — this branch resolves the
@@ -26453,6 +26591,7 @@ Round 8 of the drawing review loop, findings DTW-149..214; details and the Revit
 
 Build 0/0; Tags.Tests 5,367; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
 
+<<<<<<< HEAD
 #### Completed (Data-schema drift: one registry, gated in CI, nine review rounds — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
 
 `tools/validate_data_schemas.py` failed on `main` (`cost_rates_5d.csv` header mismatch:

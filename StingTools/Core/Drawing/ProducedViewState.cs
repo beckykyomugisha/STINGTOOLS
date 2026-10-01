@@ -91,6 +91,28 @@ namespace StingTools.Core.Drawing
         internal static bool RecordFit(View view, int fittedScale, int baseScale)
             => Write(view, s => { s.FittedScale = fittedScale; s.FitBaseScale = baseScale; });
 
+        /// <summary>DTW-215: forget a fit that no longer describes <paramref name="view"/> (its type scale changed).</summary>
+        internal static bool ClearFit(View view)
+            => Write(view, s => { s.FittedScale = 0; s.FitBaseScale = 0; });
+
+        /// <summary>
+        /// DTW-215: the element that holds <paramref name="view"/>'s fit — the view itself,
+        /// or for a dependent its primary (a dependent's scale is its parent's, and only the
+        /// parent is fitted).
+        /// </summary>
+        internal static View FitHolder(View view)
+        {
+            if (view == null) return null;
+            try
+            {
+                var pid = view.GetPrimaryViewId();
+                if (pid != null && pid != ElementId.InvalidElementId && view.Document.GetElement(pid) is View primary)
+                    return primary;
+            }
+            catch (Exception ex) { StingLog.Warn($"ProducedViewState.FitHolder {view.Id}: {ex.Message}"); }
+            return view;
+        }
+
         /// <summary>DTW-209: record the name production gave <paramref name="sheet"/>.</summary>
         internal static bool RecordSheetName(ViewSheet sheet, string name)
             => Write(sheet, s => s.GeneratedSheetName = name ?? "");

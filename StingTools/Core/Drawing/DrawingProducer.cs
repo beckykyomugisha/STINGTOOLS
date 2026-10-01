@@ -96,6 +96,15 @@ namespace StingTools.Core.Drawing
         /// <summary>DTW-209: the reused sheet's context stamp before this run re-stamped it.</summary>
         internal string PriorSheetStamp { get; set; }
 
+        /// <summary>
+        /// DTW-216: this result's notes into <paramref name="warnings"/> and its
+        /// <see cref="Failure"/> back (null = keep it). A caller that gets a failure rolls
+        /// the item's transaction back and reports
+        /// <see cref="ProductionEdgeDecisions.RolledBackLine"/>; earlier items stay.
+        /// </summary>
+        internal string TakeInto(List<string> warnings)
+            => ProductionEdgeDecisions.TakeItem(Warnings, Failure, warnings);
+
         internal void Fail(string reason)
         {
             if (string.IsNullOrWhiteSpace(reason)) return;
@@ -538,14 +547,30 @@ namespace StingTools.Core.Drawing
                 var tokens = BuildTokenDict(doc, dt, ctx, seq);
                 var expected = GeneratedSheetName(dt, ctx, ctx.Level?.Name, seq, tokens);
                 var stored = ProducedViewState.Read(sheet)?.GeneratedSheetName;
-                string legacy = null;
+                var legacies = new List<string>();
                 if (string.IsNullOrEmpty(stored))
                 {
                     var oldLevel = ProductionContextIds.LevelName(result.PriorSheetStamp ?? DrawingTypeStamper.ReadSheetContext(sheet));
-                    if (!string.IsNullOrEmpty(oldLevel)) legacy = GeneratedSheetName(dt, ctx, oldLevel, seq, tokens);
+                    if (!string.IsNullOrEmpty(oldLevel)) legacies.Add(GeneratedSheetName(dt, ctx, oldLevel, seq, tokens));
+                    // DTW-221: a sheet named before DTW-198 carries the level as number shaping
+                    // cut it ("GroundFl"), plus the DTW-51 area. Compare with that name too —
+                    // under the old level name, or the current one when the stamp has none.
+                    string area = ctx?.ScopeBox == null ? null
+                        : (!string.IsNullOrWhiteSpace(ctx.Tag) ? ctx.Tag : ctx.ScopeBox.Name);
+                    string iso = null;
+                    tokens?.TryGetValue(IsoLevelKey, out iso);
+                    legacies.Add(LegacyLevelShape.SheetName(dt.SheetNamePattern, dt.Discipline ?? "",
+                        !string.IsNullOrEmpty(oldLevel) ? oldLevel : ctx.Level?.Name, iso, dt.IsoNaming?.Level,
+                        dt.System ?? "", ctx?.Tag, dt.Purpose ?? "", seq, tokens, area));
                 }
-                var rename = ProductionEdgeDecisions.ReusedSheetRename(sheet.Name, stored, legacy, expected,
-                    DrawingTypeStamper.IsLocked(sheet));
+                if (legacies.Count == 0) legacies.Add(null);
+                string rename = null;
+                foreach (var legacy in legacies)
+                {
+                    rename = ProductionEdgeDecisions.ReusedSheetRename(sheet.Name, stored, legacy, expected,
+                        DrawingTypeStamper.IsLocked(sheet));
+                    if (rename != null) break;
+                }
                 if (rename != null)
                 {
                     var old = sheet.Name;
@@ -2055,8 +2080,11 @@ namespace StingTools.Core.Drawing
 
             // DTW-194: reserved BEFORE the sheet exists, so a number that cannot be
             // reserved leaves no sheet behind — never one numbered from a guess.
+            // DTW-225: a level whose existing sheets of this type carry the pre-DTW-198
+            // number shape keeps it for new sheets — number and counter template alike.
+            var legacyLevel = opts.OverrideSheetNumber == null ? LegacyNumberLevelFor(doc, dt, ctx, numberPattern) : null;
             var reserved = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result,
-                out var seqBucket, out var seqFailure);
+                out var seqBucket, out var seqFailure, legacyLevel);
             if (!reserved.HasValue)
             {
                 result.Fail(ProductionEdgeDecisions.SheetNotNumberedLine(dt.Id, seqFailure));
@@ -2066,13 +2094,26 @@ namespace StingTools.Core.Drawing
 
             ViewSheet sheet;
             try { sheet = ViewSheet.Create(doc, titleBlockId); }
-            catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
+            catch (Exception ex)
+            {
+                // DTW-223: the number was reserved above. A sheet Revit refused used to
+                // keep it (a gap in the run) and the request ended with its views unplaced
+                // and no Failure, so the item committed as if it had produced. Give the
+                // number back when nothing has taken a later one, and fail the request.
+                bool released = false;
+                try { released = SheetSequenceStore.ReleaseIfLast(doc, seqBucket, seq); }
+                catch (Exception rex) { StingLog.Warn($"CreateSheet: releasing {seqBucket}#{seq}: {rex.Message}"); }
+                result.Fail($"'{dt.Id}': Revit could not create the sheet ({ex.Message})"
+                    + (released ? "; its reserved number was released." : "."));
+                return ElementId.InvalidElementId;
+            }
 
             // One token dict for the number, the name and the title-block
             // cells, built with the REAL doc handle so {project} /
             // {originator} resolve from ProjectInformation instead of coming
             // back blank.
             var tokens = BuildTokenDict(doc, dt, ctx, seq);
+            if (!string.IsNullOrEmpty(legacyLevel)) tokens[LegacyNumberLevelKey] = legacyLevel;
             // DTW-43: an ISO-shaped number carries the ISO level code, so the {lvl} the
             // title block and the K-12 segment stamps show must be the same code, not the
             // level's name.
@@ -2727,7 +2768,7 @@ namespace StingTools.Core.Drawing
         /// </summary>
         private static int? ResolveSheetSequence(Document doc, DrawingType dt, DrawingContext ctx,
             string effectivePackage, SheetNumberPolicyKind policy, string numberPattern, ProduceResult result,
-            out string bucketKey, out string failure)
+            out string bucketKey, out string failure, string legacyLevel = null)
         {
             failure = null;
             bucketKey = null;
@@ -2741,7 +2782,9 @@ namespace StingTools.Core.Drawing
             // to the same ISO fields and a per-type counter handed them all 0001.
             try
             {
-                var template = NumberTemplate(numberPattern, dt, ctx, BuildTokenDict(doc, dt, ctx, 0));
+                var probe = BuildTokenDict(doc, dt, ctx, 0);
+                if (!string.IsNullOrEmpty(legacyLevel)) probe[LegacyNumberLevelKey] = legacyLevel;
+                var template = NumberTemplate(numberPattern, dt, ctx, probe);
                 var bucket = SheetNumberEngine.CounterBucket(policy, template, dt.Id, effectivePackage,
                     dt.Discipline ?? "", dt.IsoNaming?.Volume ?? "");
                 if (policy == SheetNumberPolicyKind.Iso && template == null)
@@ -2949,6 +2992,47 @@ namespace StingTools.Core.Drawing
         /// so no sheet-number pattern token can name it.</summary>
         internal const string IsoLevelKey = "lvl.iso";
 
+        /// <summary>DTW-225: the token-dict key carrying the pre-DTW-198 {lvl} a new sheet's
+        /// number continues (see LegacyLevelShape.NewSheetNumberLevel). Set only by
+        /// CreateSheet; like <see cref="IsoLevelKey"/>, no pattern can name it.</summary>
+        internal const string LegacyNumberLevelKey = "lvl.legacy";
+
+        /// <summary>
+        /// DTW-225: the pre-DTW-198 {lvl} for a new sheet of <paramref name="dt"/> on this
+        /// level when its existing sheets there are numbered in that shape; else null.
+        /// Reads only when the level's shape changed at all (non-ISO pattern, long
+        /// digit-ending name), so ordinary runs never scan the sheets.
+        /// </summary>
+        private static string LegacyNumberLevelFor(Document doc, DrawingType dt, DrawingContext ctx, string numberPattern)
+        {
+            var levelName = ctx?.Level?.Name;
+            if (doc == null || dt == null || !LegacyLevelShape.NumberShapeChanged(numberPattern, levelName)) return null;
+            try
+            {
+                var probe = BuildTokenDict(doc, dt, ctx, 0);
+                var current = NumberTemplate(numberPattern, dt, ctx, probe);
+                var legacyLvl = LegacyLevelShape.NumberLevel(numberPattern, levelName, dt.IsoNaming?.Level);
+                var legacy = SheetNumberEngine.Template(numberPattern, dt.Discipline ?? "", legacyLvl,
+                    dt.System ?? "", ctx?.Tag ?? "", ctx?.Tag ?? "", dt.Purpose ?? "", probe);
+                if (current == null || legacy == null) return null;
+                var existing = new List<LegacyLevelShape.ExistingSheet>();
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)))
+                {
+                    if (!(el is ViewSheet vs) || vs.IsPlaceholder) continue;
+                    var id = ParameterHelpers.GetString(vs, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID);
+                    if (!string.Equals(id, dt.Id, StringComparison.OrdinalIgnoreCase)) continue;
+                    existing.Add(new LegacyLevelShape.ExistingSheet(id, DrawingTypeStamper.ReadSheetContext(vs), vs.SheetNumber));
+                }
+                return LegacyLevelShape.NewSheetNumberLevel(numberPattern, dt.Id, levelName, ctx.Level.Id.Value,
+                    dt.IsoNaming?.Level, current, legacy, existing);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"LegacyNumberLevelFor ({dt.Id}, {levelName}): {ex.Message}");
+                return null;
+            }
+        }
+
         /// <summary>
         /// DTW-43: {lvl} for <paramref name="pattern"/>. An ISO-shaped pattern
         /// (SheetNumberPolicy.IsAlreadyIso) takes the ISO 19650 level code — the one
@@ -2973,6 +3057,10 @@ namespace StingTools.Core.Drawing
         {
             string iso = null;
             if (extras != null) extras.TryGetValue(IsoLevelKey, out iso);
+            // DTW-225: a new sheet continuing its level's pre-DTW-198 shape.
+            if (extras != null && !SheetNumberPolicy.IsAlreadyIso(pattern)
+                && extras.TryGetValue(LegacyNumberLevelKey, out var legacy) && !string.IsNullOrEmpty(legacy))
+                return legacy;
             // DTW-198: a non-ISO pattern takes ShortLevel (keeps "Basement 1" / "Basement 2"
             // apart), the same in the number, its counter template and Renumber.
             return ProductionEdgeDecisions.NumberLevel(pattern, levelName, iso, dt?.IsoNaming?.Level);

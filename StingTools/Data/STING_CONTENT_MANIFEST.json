@@ -1582,7 +1582,7 @@
                             "kind":  "tagFamily",
                             "category":  "Specialty Equipment Asset",
                             "discipline":  "*",
-                            "familyFile":  "STING - Specialty Equipment Tag Asset Tag.rfa",
+                            "familyFile":  "STING - Specialty Equipment Tag Asset.rfa",
                             "checksum":  "27b2dd920035f4b574648d184f6e594acb0c92f38378fe0242d0e05c7273b1b8",
                             "status":  "built",
                             "origin":  "corporate"
@@ -1592,7 +1592,7 @@
                             "kind":  "tagFamily",
                             "category":  "Specialty Equipment General",
                             "discipline":  "*",
-                            "familyFile":  "STING - Specialty Equipment Tag General Tag.rfa",
+                            "familyFile":  "STING - Specialty Equipment Tag General.rfa",
                             "checksum":  "aa752531884e5e245e9aab6e5ea97620d33858f105eeccae499e015f83f85d1a",
                             "status":  "built",
                             "origin":  "corporate"
@@ -1792,7 +1792,7 @@
                             "kind":  "tagFamily",
                             "category":  "Tie-In Point Tag (Pipe - Plumbing \u0026 Hydraulic)",
                             "discipline":  "P",
-                            "familyFile":  "STING - Tie-In Point Tag (Pipe — Plumbing \u0026 Hydraulic) Tag.rfa",
+                            "familyFile":  "STING - Tie-In Point Tag (Pipe — Plumbing \u0026 Hydraulic).rfa",
                             "checksum":  "590fc167f6ecb6a537e6ec4d55120cf7ce633b3bb7f43e82d93bb928dd58175a",
                             "status":  "built",
                             "origin":  "corporate"
@@ -1802,7 +1802,7 @@
                             "kind":  "tagFamily",
                             "category":  "Tie-In Point Tag (Duct - HVAC)",
                             "discipline":  "M",
-                            "familyFile":  "STING - Tie-In Point Tag (Duct — HVAC) Tag.rfa",
+                            "familyFile":  "STING - Tie-In Point Tag (Duct — HVAC).rfa",
                             "checksum":  "b3d6b8c63c6d3348acb7e7968ab33f6b27a721b813be5123d88593efbc4321e1",
                             "status":  "built",
                             "origin":  "corporate"
@@ -1822,7 +1822,7 @@
                             "kind":  "tagFamily",
                             "category":  "Tie-In Point Tag (Cable Tray - Electrical)",
                             "discipline":  "E",
-                            "familyFile":  "STING - Tie-In Point Tag (Cable Tray — Electrical) Tag.rfa",
+                            "familyFile":  "STING - Tie-In Point Tag (Cable Tray — Electrical).rfa",
                             "checksum":  "3bc21bf7ea9c6eed9ad29c009978ed57accaae073bfbc6764f6de48bd3bea519",
                             "status":  "built",
                             "origin":  "corporate"

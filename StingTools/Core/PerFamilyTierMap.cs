@@ -99,13 +99,41 @@ namespace StingTools.Core
         public static TierPlan Resolve(string familyName, string revitCategory)
         {
             TierPlan plan;
-            if (!string.IsNullOrEmpty(familyName) && ByFamilyName.TryGetValue(familyName, out var p))
+            if (!string.IsNullOrEmpty(familyName) && TryGetFamilyPlan(familyName, out var p))
                 plan = p;
             else if (!string.IsNullOrEmpty(revitCategory) && ByCategory.TryGetValue(revitCategory, out var q))
                 plan = q;
             else
                 plan = DefaultPlan;
             return ApplyNarrativeMode(plan);
+        }
+
+        /// <summary>
+        /// Family-name lookup. Exact name first; then the legacy alias table
+        /// (TAGFAM-7: a project may still hold "… (Duct — HVAC) Tag"); then the
+        /// "/"-equals-"-" match, because a family loaded from a file cannot carry
+        /// "/" ("LV/ELV" is declared, "LV-ELV" is loaded). Rule lives in
+        /// <see cref="StingTools.Tags.TagFamilyNameAliases"/>.
+        /// </summary>
+        private static bool TryGetFamilyPlan(string familyName, out TierPlan plan)
+        {
+            if (ByFamilyName.TryGetValue(familyName, out plan)) return true;
+            string name = StingTools.Tags.TagFamilyNameAliases.Canonicalise(familyName);
+            if (ByFamilyName.TryGetValue(name, out plan)) return true;
+            return ByMatchKey.TryGetValue(StingTools.Tags.TagFamilyNameAliases.MatchKey(name), out plan);
+        }
+
+        private static readonly Dictionary<string, TierPlan> ByMatchKey = BuildMatchKeyMap();
+
+        private static Dictionary<string, TierPlan> BuildMatchKeyMap()
+        {
+            var d = new Dictionary<string, TierPlan>(StringComparer.OrdinalIgnoreCase);
+            foreach (var kv in ByFamilyName)
+            {
+                string k = StingTools.Tags.TagFamilyNameAliases.MatchKey(kv.Key);
+                if (!d.ContainsKey(k)) d[k] = kv.Value;
+            }
+            return d;
         }
 
         /// <summary>

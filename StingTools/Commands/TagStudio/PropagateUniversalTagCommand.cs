@@ -588,7 +588,7 @@ namespace StingTools.Commands.TagStudio
                     StingLog.Info($"PropagateUniversalTag timing: '{targetName}' " +
                         $"total={r.MsTotal}ms (edit={r.MsEdit} params={r.MsParams} variants={r.MsVariants} " +
                         $"saveload={r.MsSaveLoad} other={Math.Max(0, r.MsTotal - r.MsEdit - r.MsParams - r.MsVariants - r.MsSaveLoad)}) " +
-                        $"types={r.TypesCreated} params={r.ParamsAdded}");
+                        $"types={r.TypesCreated} params={r.ParamsAdded} unstyled={r.UnstyledTypes}");
 
                     rows.Add(new List<string>
                     {
@@ -703,6 +703,7 @@ namespace StingTools.Commands.TagStudio
         {
             public int ParamsAdded;
             public int TypesCreated;
+            public int UnstyledTypes;   // TAGFAM-9: types with neither TAG_STYLE_CODE_TXT nor the switch
             public bool Success;
             public string ErrorMessage;
             // The project was updated but the library .rfa on disk was not. Every
@@ -913,6 +914,7 @@ namespace StingTools.Commands.TagStudio
                         // document; resolve them in the family being edited.
                         result.TypesCreated = TagTypeVariantWriter.CreateStandardVariants(
                             fm, variants, TagTypeVariantWriter.BuildArrowheadLookup(famDoc));
+                        result.UnstyledTypes = TagTypeVariantWriter.LastUnstyledTypes.Count;
                         result.MsVariants = swPhase.ElapsedMilliseconds;
 
                         tx.Commit();

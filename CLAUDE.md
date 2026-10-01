@@ -2592,7 +2592,7 @@ HasTemplate, IsStingTemplate, HasFilters, FilterOverrides, DetailLevel, CorrectD
 `Tags/TagStyleEngine.cs` (1,007 lines) + `Tags/TagStyleCommands.cs` (752 lines) provide comprehensive tag visual appearance control through a parameter-driven style matrix with 9 commands.
 
 ### Style Matrix
-Tag families contain label rows bound to `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` parameters. Exactly one BOOL parameter is set to true per element type, making that label row visible:
+The matrix below is a set of `TAG_{SIZE}{STYLE}_{COLOR}_BOOL` switch parameters; exactly one is set to true per element type. **No shipped family associates a switch with a label row (audit of all 211, 2026-10-01), and since TAGFAM-9 new families do not receive the switches** unless `tag_style_catalogue.json` `family_style_switches` lists them — a family's style is its type plus `TAG_STYLE_CODE_TXT` (written by the type-variant writer and Apply Tag Style):
 - **Sizes**: 2.5, 3.5, 2, 3 (mm text height). **2.5 and 3.5 are the ISO 3098 heights and every default uses them** (2.5 mm; 3.5 mm for emphasis) — discipline presets, colour schemes, rule presets, the style catalogue's pre-created variants and the scale tiers. The 2 and 3 mm rows stay for projects that pick them explicitly; the style grid marks them "not ISO". One rule: `Core/Drawing/IsoTagText`
 - **Styles**: NOM (normal), BOLD, ITALIC, BOLDITALIC
 - **Colors**: BLACK, BLUE, GREEN, RED, ORANGE, PURPLE, GREY, WHITE (`ParamRegistry.TagStyleColors`)

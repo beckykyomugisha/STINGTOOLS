@@ -17,20 +17,63 @@ namespace StingTools.Core.Drawing
     {
         // ── DTW-194: the sheet-number counters ─────────────────────────
 
+        // ── DTW-220: the run-level gate notes, it never stops the run ──
+        //
+        // The run used to borrow Project Information before its first item and stop when a
+        // colleague held it — even a re-run where every item reuses its sheet and no number
+        // is ever reserved — and then kept Project Information borrowed until sync,
+        // blocking the next colleague. A new sheet number is checked where it is needed
+        // (DrawingProducer, SheetSequenceStore.WriteBlockReason), so the run-level gate
+        // only says, once, that items needing a new sheet will be refused.
+
+        internal enum CountersGate { Proceed, NoteNewSheetsSkipped }
+
         /// <summary>
-        /// The line a production run stops with when the sheet-number counters (Extensible
-        /// Storage on Project Information) cannot be written. Numbering from a guess instead
-        /// gave two users the same numbers, so nothing is produced.
+        /// What the run does about the sheet-number counters, from their status read
+        /// without borrowing: <paramref name="ownerIfOther"/> is the colleague holding
+        /// Project Information (null when free or mine); <paramref name="outOfDate"/> when it
+        /// changed in central since the last reload. Never stops the run.
         /// </summary>
-        internal static string CountersBlockedLine(string reason)
-            => "Run stopped before any drawing was produced: the sheet-number counters on Project Information "
-             + $"cannot be written — {(string.IsNullOrWhiteSpace(reason) ? "reason unknown" : reason.Trim())}. "
-             + "Sheets are never numbered from a guess; fix this and run again.";
+        internal static CountersGate SheetCountersGate(bool workshared, string ownerIfOther, bool outOfDate)
+            => workshared && (!string.IsNullOrWhiteSpace(ownerIfOther) || outOfDate)
+                ? CountersGate.NoteNewSheetsSkipped
+                : CountersGate.Proceed;
+
+        /// <summary>The run-level note when new sheet numbers cannot be reserved; null when they can.</summary>
+        internal static string CountersNote(bool workshared, string ownerIfOther, bool outOfDate)
+        {
+            if (SheetCountersGate(workshared, ownerIfOther, outOfDate) == CountersGate.Proceed) return null;
+            var why = new List<string>();
+            if (!string.IsNullOrWhiteSpace(ownerIfOther))
+                why.Add($"Project Information is owned by {ownerIfOther.Trim()} — ask them to synchronise and relinquish");
+            if (outOfDate)
+                why.Add("Project Information has changed in the central model — reload latest");
+            return "New sheet numbers cannot be reserved: " + string.Join("; ", why) + ". "
+                 + "Items that reuse their existing sheet are produced; items needing a new sheet will be skipped.";
+        }
 
         /// <summary>The per-item failure when a sheet cannot be numbered.</summary>
         internal static string SheetNotNumberedLine(string drawingTypeId, string reason)
             => $"'{drawingTypeId}': no sheet was made — its number could not be reserved "
              + $"({(string.IsNullOrWhiteSpace(reason) ? "reason unknown" : reason.Trim())}). Nothing of it was produced.";
+
+        // ── DTW-216: every caller rolls a refused item back ────────────
+
+        /// <summary>
+        /// An item's notes into <paramref name="into"/>, and its failure handed back (null
+        /// when the item can be kept). The failure line is left out of the notes: the
+        /// caller rolls the item back and reports it once, as the reason.
+        /// </summary>
+        internal static string TakeItem(IEnumerable<string> notes, string failure, List<string> into)
+        {
+            if (into != null && notes != null)
+                into.AddRange(failure == null ? notes : notes.Where(w => w != failure));
+            return failure;
+        }
+
+        /// <summary>The report line for an item rolled back because production refused it.</summary>
+        internal static string RolledBackLine(string label, string failure)
+            => $"{label}: {(string.IsNullOrWhiteSpace(failure) ? "production refused the item" : failure.Trim())} — rolled back; nothing of it was kept.";
 
         // ── DTW-197: the sheet is made after the first view ────────────
 
@@ -69,6 +112,33 @@ namespace StingTools.Core.Drawing
         /// </summary>
         internal static bool RefitOnRerun(bool scalePinned, bool fitRecorded, int fitBaseScale, int typeScale)
             => !scalePinned && (!fitRecorded || fitBaseScale != typeScale);
+
+        // ── DTW-215: Sync Styles honours the same fit ──────────────────
+
+        /// <summary>
+        /// The scale Sync Styles / Force Resync keeps for a view, or 0 to apply the drawing
+        /// type's — the same rule as a production refresh (<see cref="ScaleOnRefresh"/>).
+        /// <paramref name="dropFit"/> is true when a fit is recorded but the type's scale has
+        /// changed since: the type's scale is applied and the record, which no longer
+        /// describes the view, is dropped (the next production run fits it again).
+        /// </summary>
+        internal static int ScaleOnResync(int typeScale, int fittedScale, int fitBaseScale, out bool dropFit)
+        {
+            int keep = ScaleOnRefresh(typeScale, fittedScale, fitBaseScale);
+            dropFit = fittedScale > 0 && keep == 0;
+            return keep;
+        }
+
+        /// <summary>
+        /// The scale the drift check expects of a view: its fitted scale while that fit is
+        /// current, else the type's. Without it every fitted view read as SCALE drift, and
+        /// Sync Styles listed it on every run.
+        /// </summary>
+        internal static int ExpectedScale(int typeScale, int fittedScale, int fitBaseScale)
+        {
+            int keep = ScaleOnRefresh(typeScale, fittedScale, fitBaseScale);
+            return keep > 0 ? keep : typeScale;
+        }
 
         /// <summary>The report line for a view template a re-run replaced.</summary>
         internal static string TemplateReplacedLine(string viewName, string oldTemplate, string newTemplate, string drawingTypeId)
@@ -236,5 +306,81 @@ namespace StingTools.Core.Drawing
         internal static string KeptOnOtherSheetLine(string viewName, string otherSheet, string thisSheet)
             => $"'{viewName}' is kept on sheet {otherSheet}, where it was moved; it was not placed on {thisSheet} "
              + "and its scale was left alone.";
+
+        // ── DTW-224: the style elements an item edits are pre-checked ──
+        //
+        // Besides its stamped views and sheets, an item edits its pack's managed templates
+        // (STING:{packId}:{ViewType}, ManagedTemplateSyncer) and the pack's filters (rebuilt
+        // in place on drift, DTW-167). One owned by a colleague failed every item using the
+        // pack at commit; it is now a skip with the reason.
+
+        /// <summary>
+        /// The Revit ViewType names whose managed template an item with these production
+        /// rule view types can touch, or null when they are not all known — then every
+        /// template of the pack is checked. A FloorPlan rule may make a structural
+        /// (EngineeringPlan) or area plan, so those are included.
+        /// </summary>
+        internal static HashSet<string> ManagedTemplateViewTypes(IEnumerable<string> ruleViewTypes)
+        {
+            var list = ruleViewTypes?.ToList();
+            if (list == null || list.Count == 0) return null;
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var raw in list)
+            {
+                switch ((raw ?? "").Trim())
+                {
+                    case "FloorPlan": set.Add("FloorPlan"); set.Add("EngineeringPlan"); set.Add("AreaPlan"); break;
+                    case "RCP":
+                    case "CeilingPlan": set.Add("CeilingPlan"); break;
+                    case "Section": set.Add("Section"); break;
+                    case "Detail": set.Add("Detail"); set.Add("Section"); break;
+                    case "Elevation": set.Add("Elevation"); break;
+                    case "ThreeD": set.Add("ThreeD"); break;
+                    case "DraftingView": set.Add("DraftingView"); break;
+                    case "Schedule": set.Add("Schedule"); break;
+                    default: return null;
+                }
+            }
+            return set;
+        }
+
+        /// <summary>
+        /// Why an item is skipped for its style elements — "style pack template/filter owned
+        /// by X ('…')", "… not up to date … reload latest" — or null when none blocks it.
+        /// </summary>
+        internal static string StylePackBlockReason(IEnumerable<KeyValuePair<string, string>> ownedByOthers,
+            IEnumerable<string> outOfDate)
+        {
+            var why = ProductionRunReport.BlockReason(ownedByOthers, outOfDate, null);
+            return why == null ? null : "style pack template/filter " + why;
+        }
+
+        /// <summary>The name of the filter a pack's byMaterialClass entry is drawn through
+        /// (ViewStylePackApplier.EnsureMaterialClassFilter creates it under this name).</summary>
+        internal static string MaterialClassFilterName(string className) => "STING_MAT_CLASS_" + className;
+
+        /// <summary>
+        /// DTW-227: the names of the filters a pack's filter pass edits — its named filters
+        /// and the filters of its byMaterialClass entries — trimmed, blanks dropped, each once.
+        /// The worksharing pre-check resolves these read-only.
+        /// </summary>
+        internal static List<string> PackFilterNames(IEnumerable<string> filterNames, IEnumerable<string> materialClasses)
+        {
+            var result = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);   // Revit filter names: case-insensitive
+            if (filterNames != null)
+                foreach (var n in filterNames)
+                    if (!string.IsNullOrWhiteSpace(n) && seen.Add(n.Trim())) result.Add(n.Trim());
+            if (materialClasses != null)
+                foreach (var c in materialClasses)
+                {
+                    // The class is used as the applier uses it (untrimmed), so the name matches
+                    // the filter it creates.
+                    if (string.IsNullOrWhiteSpace(c)) continue;
+                    var name = MaterialClassFilterName(c);
+                    if (seen.Add(name)) result.Add(name);
+                }
+            return result;
+        }
     }
 }

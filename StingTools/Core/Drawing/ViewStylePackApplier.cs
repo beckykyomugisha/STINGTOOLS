@@ -113,7 +113,7 @@ namespace StingTools.Core.Drawing
                 var all = new HashSet<ElementId>(template.GetTemplateParameterIds());
                 var nonControlled = new HashSet<ElementId>(template.GetNonControlledTemplateParameterIds());
                 foreach (var bip in new[] { BuiltInParameter.VIS_GRAPHICS_MODEL, BuiltInParameter.VIS_GRAPHICS_FILTERS,
-                                            BuiltInParameter.VIS_GRAPHICS_WORKSETS })
+                                            BuiltInParameter.VIS_GRAPHICS_WORKSETS, BuiltInParameter.VIS_GRAPHICS_ANNOTATION })
                 {
                     var id = new ElementId(bip);
                     if (all.Contains(id) && !nonControlled.Contains(id)) result.Add(bip);
@@ -722,7 +722,7 @@ namespace StingTools.Core.Drawing
         {
             try
             {
-                string filterName = $"STING_MAT_CLASS_{className}";
+                string filterName = ProductionEdgeDecisions.MaterialClassFilterName(className);   // DTW-227: one name rule
                 string cacheKey = (doc?.PathName ?? doc?.Title ?? "_") + "|" + className;
 
                 var matIds = new FilteredElementCollector(doc).OfClass(typeof(Material))
@@ -1035,6 +1035,11 @@ namespace StingTools.Core.Drawing
             PackApplyResult r)
         {
             if (doc == null || view == null || overrides == null || r == null) return;
+            // DTW-218: as DTW-173 for Apply - a template that controls the view's model
+            // (or annotation) category V/G masks an override written to the view, so it
+            // never shows. Such rows are not written and not counted; one warning says so.
+            var masked = TemplateControlledVg(doc, view);
+            int maskedRows = 0;
             foreach (var o in overrides)
             {
                 if (o == null) continue;
@@ -1054,6 +1059,7 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"PresetOverride: category '{label}' not found.");
                         continue;
                     }
+                    if (masked.Count > 0 && IsMaskedCategory(doc, catId, masked)) { maskedRows++; continue; }
                     if (o.Visible.HasValue)
                         SafeWrite.Try(() => view.SetCategoryHidden(catId, !o.Visible.Value),
                             "PresetOverride.Visibility", $"'{label}' in view '{view.Name}'", r.Warnings);
@@ -1102,6 +1108,30 @@ namespace StingTools.Core.Drawing
                     r.OverridesSet++;
                 }
                 catch (Exception ex) { r.Warnings.Add($"PresetOverride '{label}': {ex.Message}"); }
+            }
+            if (maskedRows > 0)
+                r.Warnings.Add($"Preset VG overrides on '{view.Name}': the view's template controls category "
+                    + $"overrides, so {maskedRows} preset override(s) would be masked and were not written. "
+                    + "Put them in the drawing type's style pack, or release V/G in the template, for them to show.");
+        }
+
+        /// <summary>DTW-218: is this category's V/G (model or annotation, by the category
+        /// or its parent) controlled by the view's template?</summary>
+        private static bool IsMaskedCategory(Document doc, ElementId catId, HashSet<BuiltInParameter> masked)
+        {
+            try
+            {
+                var cat = Category.GetCategory(doc, catId);
+                var root = cat?.Parent ?? cat;
+                bool annotation = root != null && root.CategoryType == CategoryType.Annotation;
+                return masked.Contains(annotation ? BuiltInParameter.VIS_GRAPHICS_ANNOTATION
+                                                  : BuiltInParameter.VIS_GRAPHICS_MODEL);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("ViewStylePack.PresetMask",
+                    $"ViewStylePackApplier: category type read failed - writing the preset override: {ex.Message}");
+                return false;
             }
         }
 
