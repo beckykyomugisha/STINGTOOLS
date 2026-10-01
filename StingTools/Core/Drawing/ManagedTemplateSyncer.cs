@@ -408,6 +408,17 @@ namespace StingTools.Core.Drawing
                 bool storedIsLegacy = !string.IsNullOrEmpty(stored) && stored.Length != 64;
                 if (!string.Equals(stored, current, StringComparison.Ordinal))
                 {
+                    // DTW-226: the re-apply is ADDITIVE for filters. ApplyFilterRules adds a
+                    // pack filter the template lacks and rewrites the overrides of the pack's
+                    // own filters; it never removes a filter and never touches one the pack
+                    // does not name. Filters something else put on the managed template —
+                    // the MEP system filters MepCoordinationEngine.ApplyThroughHost adds
+                    // (DTW-217) — therefore survive a re-sync with their colours, and MEP
+                    // coordination need not be re-run after it. ApplyPackToTemplate has no
+                    // filterEnabled case either, so it never disables them. The template is
+                    // updated in place, never deleted and re-minted (TryDelete only removes
+                    // a template minted moments ago in this call). Keep it that way:
+                    // ManagedTemplateFilterPreservationTests guards the source.
                     ApplyPackToTemplate(doc, existing, pack, result);
                     SetManagedTemplateParameterIds(doc, existing, pack);
                     StingTools.Core.ParameterHelpers.SetString(existing,

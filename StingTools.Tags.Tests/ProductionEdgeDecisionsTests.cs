@@ -408,5 +408,27 @@ namespace StingTools.Tags.Tests
         [Fact]
         public void Free_style_elements_do_not_block()
             => Assert.Null(ProductionEdgeDecisions.StylePackBlockReason(null, null));
+
+        // ── DTW-227: material-class filters are pre-checked too ──
+
+        [Fact]
+        public void A_packs_material_class_filters_are_among_the_filters_it_edits()
+        {
+            // RED before DTW-227: only the named filters were listed, so a material-class
+            // filter owned by a colleague failed the item at commit.
+            var names = ProductionEdgeDecisions.PackFilterNames(
+                new[] { "arch-walls-fire", " arch-doors " },
+                new[] { "Concrete", "Masonry" });
+            Assert.Equal(new[] { "arch-walls-fire", "arch-doors", "STING_MAT_CLASS_Concrete", "STING_MAT_CLASS_Masonry" }, names);
+        }
+
+        [Fact]
+        public void Blank_and_repeated_filter_names_are_listed_once()
+        {
+            var names = ProductionEdgeDecisions.PackFilterNames(
+                new[] { "f1", "", null, "F1" }, new[] { "  ", null, "Wood", "wood" });
+            Assert.Equal(new[] { "f1", "STING_MAT_CLASS_Wood" }, names);
+            Assert.Empty(ProductionEdgeDecisions.PackFilterNames(null, null));
+        }
     }
 }

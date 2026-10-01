@@ -106,5 +106,87 @@ namespace StingTools.Tags.Tests
             Assert.Null(pick.Sequence);
             Assert.False(pick.Legacy);
         }
+
+        // ── DTW-225: a NEW sheet continues the shape its type + level already use ──
+
+        private const string Pattern = "E-{lvl}-{seq:D3}";
+
+        private static (string Current, string Legacy) Templates(string level)
+        {
+            var extras = new Dictionary<string, string>();
+            return (SheetNumberEngine.Template(Pattern, "E", ProductionEdgeDecisions.NumberLevel(Pattern, level, null, null),
+                        "", "", "", "Plan", extras),
+                    SheetNumberEngine.Template(Pattern, "E", LegacyLevelShape.NumberLevel(Pattern, level, null),
+                        "", "", "", "Plan", extras));
+        }
+
+        private static LegacyLevelShape.ExistingSheet Sheet(string type, string ctx, string number)
+            => new LegacyLevelShape.ExistingSheet(type, ctx, number);
+
+        [Fact]
+        public void ANewSheetBesideLegacySheetsOfItsTypeAndLevelTakesTheLegacyLevel()
+        {
+            var t = Templates("Basement 1");
+            var existing = new[] { Sheet("elec-power", "Basement 1::#L312::::", "E-Basement-004") };
+            // RED before DTW-225: the new sheet took ShortLevel ("Basemen1") and the
+            // level's numbers split into two shapes.
+            var lvl = LegacyLevelShape.NewSheetNumberLevel(Pattern, "elec-power", "Basement 1", 312, null,
+                t.Current, t.Legacy, existing);
+            Assert.Equal("Basement 1", lvl);   // SafeShort cuts it to "Basement" downstream
+            var number = SheetNumberEngine.ApplyTokenPattern(Pattern, "E", lvl, "", "", "", "Plan", 5,
+                new Dictionary<string, string>());
+            Assert.Equal("E-Basement-005", number);
+            // The counter template follows the same shape, so the seed reads the old numbers.
+            Assert.Equal(4, LegacyLevelShape.Sequence("E-Basement-004", t.Legacy));
+        }
+
+        [Fact]
+        public void TheLevelIsMatchedByIdAfterARename()
+        {
+            var t = Templates("Basement 1");
+            var existing = new[] { Sheet("elec-power", "Old name::#L312::::", "E-Basement-004") };
+            Assert.Equal("Basement 1", LegacyLevelShape.NewSheetNumberLevel(Pattern, "elec-power", "Basement 1", 312, null,
+                t.Current, t.Legacy, existing));
+        }
+
+        [Fact]
+        public void LegacySheetsOfAnotherTypeOrLevelDoNotDecide()
+        {
+            var t = Templates("Basement 1");
+            var existing = new[]
+            {
+                Sheet("elec-lighting", "Basement 1::#L312::::", "E-Basement-004"),   // other type
+                Sheet("elec-power", "Basement 2::#L313::::", "E-Basement-001"),      // other level, same legacy shape
+            };
+            Assert.Null(LegacyLevelShape.NewSheetNumberLevel(Pattern, "elec-power", "Basement 1", 312, null,
+                t.Current, t.Legacy, existing));
+        }
+
+        [Fact]
+        public void CurrentShapeSheetsKeepTheCurrentShape()
+        {
+            var t = Templates("Basement 1");
+            var existing = new[] { Sheet("elec-power", "Basement 1::#L312::::", "E-Basemen1-002") };
+            Assert.Null(LegacyLevelShape.NewSheetNumberLevel(Pattern, "elec-power", "Basement 1", 312, null,
+                t.Current, t.Legacy, existing));
+        }
+
+        [Fact]
+        public void ALevelWhoseShapeDidNotChangeIsLeftAlone()
+        {
+            var t = Templates("Level 1");
+            var existing = new[] { Sheet("elec-power", "Level 1::#L5::::", "E-Level1-001") };
+            Assert.Null(LegacyLevelShape.NewSheetNumberLevel(Pattern, "elec-power", "Level 1", 5, null,
+                t.Current, t.Legacy, existing));
+        }
+
+        [Fact]
+        public void APreIdStampMatchesByLevelName()
+        {
+            var t = Templates("Basement 1");
+            var existing = new[] { Sheet("elec-power", "Basement 1::::", "E-Basement-004") };
+            Assert.Equal("Basement 1", LegacyLevelShape.NewSheetNumberLevel(Pattern, "elec-power", "Basement 1", 312, null,
+                t.Current, t.Legacy, existing));
+        }
     }
 }

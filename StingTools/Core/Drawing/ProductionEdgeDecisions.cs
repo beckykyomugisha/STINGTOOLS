@@ -354,5 +354,33 @@ namespace StingTools.Core.Drawing
             var why = ProductionRunReport.BlockReason(ownedByOthers, outOfDate, null);
             return why == null ? null : "style pack template/filter " + why;
         }
+
+        /// <summary>The name of the filter a pack's byMaterialClass entry is drawn through
+        /// (ViewStylePackApplier.EnsureMaterialClassFilter creates it under this name).</summary>
+        internal static string MaterialClassFilterName(string className) => "STING_MAT_CLASS_" + className;
+
+        /// <summary>
+        /// DTW-227: the names of the filters a pack's filter pass edits — its named filters
+        /// and the filters of its byMaterialClass entries — trimmed, blanks dropped, each once.
+        /// The worksharing pre-check resolves these read-only.
+        /// </summary>
+        internal static List<string> PackFilterNames(IEnumerable<string> filterNames, IEnumerable<string> materialClasses)
+        {
+            var result = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);   // Revit filter names: case-insensitive
+            if (filterNames != null)
+                foreach (var n in filterNames)
+                    if (!string.IsNullOrWhiteSpace(n) && seen.Add(n.Trim())) result.Add(n.Trim());
+            if (materialClasses != null)
+                foreach (var c in materialClasses)
+                {
+                    // The class is used as the applier uses it (untrimmed), so the name matches
+                    // the filter it creates.
+                    if (string.IsNullOrWhiteSpace(c)) continue;
+                    var name = MaterialClassFilterName(c);
+                    if (seen.Add(name)) result.Add(name);
+                }
+            return result;
+        }
     }
 }
