@@ -47,6 +47,8 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
     <!-- Same version as the main plugin to avoid transitive mismatch. -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <!-- DTW-179..183: the Drawing Type Excel round-trip (Revit-free half) is exercised end to end. -->
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
   </ItemGroup>
 
   <ItemGroup>
@@ -228,6 +230,14 @@
     <Compile Include="..\StingTools\Core\Drawing\TitleBlockFamilyNaming.cs" Link="Core\Drawing\TitleBlockFamilyNaming.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TitleBlockParamAliases.cs" Link="Core\Drawing\TitleBlockParamAliases.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TitleBlockSeedRemap.cs" Link="Core\Drawing\TitleBlockSeedRemap.cs" />
+    <!-- DTW-149/155: the title-block spec model + its extends resolution are
+         Revit-free; the tests resolve every shipped family through the real
+         Resolve(). Load() needs StingToolsApp.FindDataFile (TestHelpers shim). -->
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockSpec.cs" Link="Core\Drawing\TitleBlockSpec.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SlotFitScale.cs" Link="Core\Drawing\SlotFitScale.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SheetSequenceSeed.cs" Link="Core\Drawing\SheetSequenceSeed.cs" />
+    <!-- DTW-194..213: the producer's edge-case decisions, Revit-free. -->
+    <Compile Include="..\StingTools\Core\Drawing\ProductionEdgeDecisions.cs" Link="Core\Drawing\ProductionEdgeDecisions.cs" />
     <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
          style-pack routing predicate. All three are Revit-free on purpose, so
          the gates that keep the shipped JSON and the runner in agreement can
@@ -243,6 +253,15 @@
     <Compile Include="..\StingTools\Core\RevitBackupFiles.cs" Link="Core\RevitBackupFiles.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRulePack.cs" Link="Core\Drawing\AnnotationRulePack.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewStylePack.cs" Link="Core\Drawing\ViewStylePack.cs" />
+    <!-- DTW-166/167/171: the AEC filter POCO + the factory's Revit-free decisions. -->
+    <Compile Include="..\StingTools\Core\Drawing\AecFilterDefinition.cs" Link="Core\Drawing\AecFilterDefinition.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\AecFilterRuleLogic.cs" Link="Core\Drawing\AecFilterRuleLogic.cs" />
+    <!-- DTW-168: MR_SCHEDULES.csv VIEW_FILTER rule grammar (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Drawing\ViewFilterRuleText.cs" Link="Core\Drawing\ViewFilterRuleText.cs" />
+    <!-- DTW-165: fill-pattern name normaliser (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Drawing\FillPatternNames.cs" Link="Core\Drawing\FillPatternNames.cs" />
+    <!-- DTW-163: managed-template field -> BuiltInParameter map (Revit-free). -->
+    <Compile Include="..\StingTools\Core\Drawing\ManagedTemplateFields.cs" Link="Core\Drawing\ManagedTemplateFields.cs" />
     <!-- V-11: the pack-intent-before-document-capability decision. -->
     <Compile Include="..\StingTools\Core\Drawing\WorksetVisibilityPlan.cs" Link="Core\Drawing\WorksetVisibilityPlan.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleKinds.cs" Link="Core\Drawing\AnnotationRuleKinds.cs" />
@@ -256,6 +275,10 @@
     <Compile Include="..\StingTools\Core\Drawing\ExteriorElevationTags.cs" Link="Core\Drawing\ExteriorElevationTags.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberEngine.cs" Link="Core\Drawing\SheetNumberEngine.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTokens.cs" Link="Core\Drawing\SheetNumberTokens.cs" />
+    <!-- DTW-195/204/205: production-run report wording. -->
+    <Compile Include="..\StingTools\Core\Drawing\ProductionRunReport.cs" Link="Core\Drawing\ProductionRunReport.cs" />
+    <!-- DTW-200: which recorded renames a restore may still reverse. -->
+    <Compile Include="..\StingTools\Core\Drawing\SheetRestorePlanner.cs" Link="Core\Drawing\SheetRestorePlanner.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingQaRules.cs" Link="Core\Drawing\DrawingQaRules.cs" />
     <Compile Include="..\StingTools\BIMManager\ExportRegisterUpsert.cs" Link="BIMManager\ExportRegisterUpsert.cs" />
     <Compile Include="..\StingTools\BIMManager\TransmittalRecord.cs" Link="BIMManager\TransmittalRecord.cs" />
@@ -278,6 +301,9 @@
          and DrawingTypeValidator call these same files, so
          DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\DrawingOverrideSource.cs" Link="Core\Drawing\DrawingOverrideSource.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\CatalogueIds.cs" Link="Core\Drawing\CatalogueIds.cs" />
+    <Compile Include="..\StingTools\BIMManager\DrawingTypeExcelEngine.cs" Link="BIMManager\DrawingTypeExcelEngine.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingRouteRequests.cs" Link="Core\Drawing\DrawingRouteRequests.cs" />
     <!-- Board name + per-board sheet keys. PanelViewSchedule and PanelDoorDiagram call this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\BoardNaming.cs" Link="Core\Drawing\BoardNaming.cs" />

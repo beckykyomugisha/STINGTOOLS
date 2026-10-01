@@ -249,6 +249,26 @@ namespace StingTools.Core.Drawing
         public static IReadOnlyList<DrawingRoutingRule> ListRouting(Document doc)
             => GetLibrary(doc).Routing;
 
+        // DTW-187: a project override that exists but cannot be read used to
+        // load as "no override" with only a log line. The editor then opened on
+        // the corporate catalogue, and its next Save overwrote the unreadable
+        // project file with that — every project type and rule gone. Writers
+        // ask this before saving and refuse while it is non-null.
+        private static readonly Dictionary<string, string> _overrideLoadErrors
+            = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Why the project's drawing-type override could not be loaded, or null
+        /// when it loaded (or there is none). Anything that WRITES the override
+        /// must refuse while this is non-null, or it replaces data it never saw.
+        /// </summary>
+        public static string ProjectOverrideLoadError(Document doc)
+        {
+            GetLibrary(doc); // make sure the load has been attempted
+            lock (_lock)
+                return _overrideLoadErrors.TryGetValue(DocKey(doc), out var e) ? e : null;
+        }
+
         /// <summary>
         /// Convenience method: look up a <see cref="ViewStylePack"/> by id via
         /// <see cref="ViewStylePackRegistry"/>.  Returns null when the pack is not
@@ -263,6 +283,7 @@ namespace StingTools.Core.Drawing
                 var key = DocKey(doc);
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
                 if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
+                _overrideLoadErrors.Remove(key);
             }
             // DTW-2 / DTW-8: the presentation caches (view-template ids,
             // including negative "no such template" entries, and resolved packs)
@@ -384,46 +405,46 @@ namespace StingTools.Core.Drawing
             if (doc == null) return null;
             try
             {
-                // Pack 122 / Gap C — Extensible Storage first. Survives "Save As"
-                // and project renames; only falls back to the on-disk JSON for
-                // pre-migration projects.
-                var esJson = StingTools.Core.Storage.StingDrawingTypesSchema.Read(doc)?.OverridesJson;
-                if (!string.IsNullOrEmpty(esJson))
-                {
-                    var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(esJson);
-                    if (lib != null)
-                    {
-                        foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
-                            if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
-                        foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
-                            if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
-                        DedupeById(lib, "project");
-                    }
-                    return lib;
-                }
+                // Pack 122 / Gap C — the override may live in Extensible
+                // Storage (survives "Save As" and renames) and/or on disk.
+                // DTW-184: ES_Migrate copies the file into ES once, but the
+                // editor and the Excel import write the FILE — so reading ES
+                // unconditionally ignored every edit made after migration.
+                // The newer of the two wins (DrawingOverrideSource.Choose).
+                var es = StingTools.Core.Storage.StingDrawingTypesSchema.Read(doc);
+                string path = null;
+                if (!string.IsNullOrEmpty(doc.PathName)
+                    && !string.IsNullOrEmpty(Path.GetDirectoryName(doc.PathName)))
+                    path = StingPaths.MetaFile(doc, "_BIM_COORD", "drawing_types.json");
+                bool fileExists = !string.IsNullOrEmpty(path) && File.Exists(path);
 
-                var projPath = doc.PathName;
-                if (string.IsNullOrEmpty(projPath)) return null;
-                var dir = Path.GetDirectoryName(projPath);
-                if (string.IsNullOrEmpty(dir)) return null;
-                var path = StingPaths.MetaFile(doc, "_BIM_COORD", "drawing_types.json");
-                if (!File.Exists(path)) return null;
-                var jsonOnDisk = File.ReadAllText(path);
-                var libOnDisk = JsonConvert.DeserializeObject<DrawingTypeLibrary>(jsonOnDisk);
-                if (libOnDisk != null)
+                var origin = DrawingOverrideSource.Choose(
+                    !string.IsNullOrEmpty(es?.OverridesJson), es?.UpdatedUtcTicks ?? 0,
+                    fileExists, fileExists ? File.GetLastWriteTimeUtc(path) : DateTime.MinValue);
+                if (origin == DrawingOverrideOrigin.None) return null;
+                if (origin == DrawingOverrideOrigin.File && !string.IsNullOrEmpty(es?.OverridesJson))
+                    StingTools.Core.StingLog.Info(
+                        $"DrawingTypeRegistry: '{path}' is newer than the Extensible Storage copy — loading the file.");
+
+                var json = origin == DrawingOverrideOrigin.File ? File.ReadAllText(path) : es.OverridesJson;
+                var lib = JsonConvert.DeserializeObject<DrawingTypeLibrary>(json);
+                if (lib == null && !string.IsNullOrWhiteSpace(json))
+                    throw new InvalidDataException("the override deserialised to nothing");
+                if (lib != null)
                 {
-                    foreach (var t in libOnDisk.DrawingTypes ?? new List<DrawingType>())
-                        if (string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
-                    foreach (var rr in libOnDisk.Routing ?? new List<DrawingRoutingRule>())
+                    foreach (var t in lib.DrawingTypes ?? new List<DrawingType>())
+                        if (t != null && string.IsNullOrEmpty(t.Origin)) t.Origin = "project";
+                    foreach (var rr in lib.Routing ?? new List<DrawingRoutingRule>())
                         if (rr != null && string.IsNullOrEmpty(rr.Origin)) rr.Origin = "project";
-                    DedupeById(libOnDisk, "project");
+                    DedupeById(lib, "project");
                 }
-                return libOnDisk;
+                return lib;
             }
             catch (Exception ex)
             {
                 StingTools.Core.StingLog.Warn(
                     $"DrawingTypeRegistry: project override load failed — {ex.Message}");
+                lock (_lock) _overrideLoadErrors[DocKey(doc)] = ex.Message;
                 return null;
             }
         }
@@ -465,24 +486,16 @@ namespace StingTools.Core.Drawing
             // never-reached trailing rule.
             if (over.Routing != null && over.Routing.Count > 0)
             {
-                merged.Routing.InsertRange(0, over.Routing);
-                var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                var deduped = new List<DrawingRoutingRule>();
-                foreach (var rule in merged.Routing)
-                {
-                    if (rule == null) continue;
-                    string sig = string.Join("|",
-                        rule.Discipline ?? "*",
-                        rule.Phase ?? "*",
-                        rule.DocType ?? "*",
-                        rule.DisciplineMatches ?? "",
-                        rule.PhaseMatches ?? "",
-                        rule.DocTypeMatches ?? "",
-                        rule.LevelMatches ?? "",
-                        rule.ProjectCodeMatches ?? "");
-                    if (seen.Add(sig)) deduped.Add(rule);
-                }
-                merged.Routing = deduped;
+                // DTW-191: a project rule identical (signature + target) to a
+                // corporate rule is a stale copy from an override written
+                // before routing carried an origin — drop it so the corporate
+                // rule keeps its origin and the editor stops re-saving it.
+                merged.Routing = DrawingRoutingMatcher.MergeRouting(
+                    baseLib?.Routing, over.Routing, out int stale);
+                if (stale > 0)
+                    StingTools.Core.StingLog.Info(
+                        $"DrawingTypeRegistry: ignored {stale} project routing rule(s) identical to a corporate rule " +
+                        "(frozen copies from an older override; the next editor save drops them from the file).");
             }
 
             return merged;

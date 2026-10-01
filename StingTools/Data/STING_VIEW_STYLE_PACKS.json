@@ -133,7 +133,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -562,7 +561,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -812,7 +810,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -1083,7 +1080,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -1370,7 +1366,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -1608,7 +1603,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -1832,7 +1826,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2033,7 +2026,6 @@
       "colorScheme": "Discipline",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2196,7 +2188,6 @@
       "colorScheme": "MedicalGas",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2347,7 +2338,6 @@
       "colorScheme": "Pressure",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2477,7 +2467,6 @@
       "colorScheme": "ElectricalSupply",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2563,7 +2552,6 @@
       "colorScheme": "FireRating",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2710,7 +2698,6 @@
       "colorScheme": "Radiation",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2824,7 +2811,6 @@
       "colorScheme": "AntiLigature",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -2934,7 +2920,6 @@
       "colorScheme": "WaterSafety",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",
@@ -4065,7 +4050,6 @@
       "origin": "corporate",
       "templateMode": "managed",
       "managedFields": [
-        "scale",
         "detailLevel",
         "discipline",
         "visualStyle",

@@ -738,6 +738,10 @@ namespace StingTools.Docs
                 var scheduleInstances = new FilteredElementCollector(doc, source.Id)
                     .OfClass(typeof(ScheduleSheetInstance))
                     .Cast<ScheduleSheetInstance>()
+                    // DTW-159: the title block's own revision schedule comes with
+                    // the title block on the new sheet. Copying it as well put a
+                    // second, free-standing revision table on the clone.
+                    .Where(s => !s.IsTitleblockRevisionSchedule)
                     .ToList();
 
                 foreach (var ssi in scheduleInstances)

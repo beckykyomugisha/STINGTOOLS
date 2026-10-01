@@ -652,6 +652,12 @@ namespace StingTools.Core
                 // element in the next.
                 try { Drawing.DrawingTypeRegistry.Reload(e.Document); }
                 catch (Exception ex) { StingLog.Warn($"DocumentClosing DrawingTypeRegistry.Reload: {ex.Message}"); }
+                // DTW-190: the pack and match-line registries cache per document
+                // too and were never dropped on close.
+                try { Drawing.ViewStylePackRegistry.Reload(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing ViewStylePackRegistry.Reload: {ex.Message}"); }
+                try { Drawing.MatchLineConfigRegistry.Reload(e.Document); }
+                catch (Exception ex) { StingLog.Warn($"DocumentClosing MatchLineConfigRegistry.Reload: {ex.Message}"); }
                 // Phase 183 — drop the LiveProfileSync snapshot + staged
                 // diff for this document so the next session starts clean.
                 try { Drawing.LiveProfileSync.InvalidateCache(e.Document); }

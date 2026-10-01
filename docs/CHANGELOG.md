@@ -26370,3 +26370,52 @@ Later rounds on the same branch (DTW-82..145):
 
 Build 0/0; Tags.Tests 5,080; `run_ci_gates.py --quick` 36/36; drawing-type checksums OK.
 Nothing has been run in Revit; the worklog lists the checks.
+
+#### Completed (Drawing production round 8, the deeper pass, branch `fix/drawing-review-2`, PR #1040)
+
+Round 8 of the drawing review loop, findings DTW-149..214; details and the Revit checks are in
+`docs/WORKLOG_DRAWING_TYPES.md`.
+
+- **View graphics.**
+  - Managed style packs now control V/G overrides, filters, worksets, links and view range. Before,
+    they released them, so produced views got none of the packs' graphics.
+  - The structural filter enum values were wrong (concrete and steel were swapped, among others);
+    every enum rule is now pinned to its named member by a test.
+  - "Solid fill" now resolves and a colour with no pattern draws solid; a missing pattern is warned.
+  - Filters store a definition hash and are rebuilt in place when it drifts.
+  - CSV view filters no longer widen to whole categories.
+  - Preset VG applies subcategories and every field.
+  - Tight and room-boundary crops measure model elements only.
+- **Title blocks.**
+  - Families take the nearest base's template, so A0/A2/A3 no longer build from A1.
+  - Cover and clarification families have their own drawables.
+  - Fit-to-slot only coarsens the type's scale, adds an annotation margin, and warns on overflow.
+  - Schedules anchor at the slot's top-left.
+  - Family swaps and title-block writes honour every lock.
+  - The revision table is never duplicated on the master path.
+  - NONBIM mode is reachable.
+  - Sheet counters seed per discipline and volume.
+- **Authoring.**
+  - The drawing-type editor no longer erases saved project style packs.
+  - The Excel round-trip imports the shipped catalogue with zero changes and keeps every routing
+    predicate.
+  - Overrides are written atomically and never after a failed load.
+  - The newer of file and ES override wins.
+  - Clone ids are unique, and presets report save failures.
+- **Edge cases.**
+  - Worksharing: views, sheets and Project Information are pre-flighted and borrowed; a refused
+    item rolls back quietly with a report line instead of a modal.
+  - Production shows progress and honours Escape.
+  - Restore after undo is safe.
+  - Presence scans ignore secondary design options and demolished elements.
+  - Converting to the ISO policy keeps issued sheets unless asked.
+  - Sheets are created only once a view exists.
+  - Fitted scales are kept on refresh.
+  - Moved viewports are left where the user put them.
+  - `replaces` adopts views and sheets under a former id.
+  - A scope box that misses its level fails the item.
+  - New views get a phase filter.
+  - Generated sheet names refresh after a level rename unless edited by hand.
+
+Build 0/0; Tags.Tests 5,367; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
+

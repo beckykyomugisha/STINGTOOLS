@@ -289,8 +289,9 @@ namespace StingTools.Temp
 
                 // ── Phase 3: CSV-driven filters from MR_SCHEDULES.csv VIEW_FILTER rows ──
                 int csvCreated = 0, csvSkipped = 0;
+                var csvRefused = new List<string>();
                 var csvFilters = TemplateManager.LoadViewFiltersFromCsv();
-                foreach (var (csvName, csvDisc, csvCategories, csvFields) in csvFilters)
+                foreach (var (csvName, csvDisc, csvCategories, csvRuleText) in csvFilters)
                 {
                     string fullName = $"STING - {csvName}";
                     if (existingNames.Contains(fullName)) { csvSkipped++; continue; }
@@ -322,50 +323,61 @@ namespace StingTools.Temp
 
                         if (csvCatIds.Count == 0) { csvSkipped++; continue; }
 
-                        // Parse rule from Fields: "Rule=Equals, Param=ASS_STATUS_TXT, Value=NEW"
-                        string ruleType = null, paramName = null, ruleValue = "";
-                        foreach (string part in csvFields.Split(','))
+                        // DTW-168: the rule is column 8 prose ("System_Type Contains
+                        // Chilled Water Supply"). A category-only filter is made ONLY
+                        // when the row says it has no parameter rules; a rule that does
+                        // not parse, or names a parameter this project cannot resolve,
+                        // is refused — never widened to every element in the categories.
+                        var spec = StingTools.Core.Drawing.ViewFilterRuleText.Parse(csvRuleText);
+                        if (spec.Kind == StingTools.Core.Drawing.ViewFilterRuleKind.CategoryOnly)
                         {
-                            string p = part.Trim();
-                            if (p.StartsWith("Rule=")) ruleType = p.Substring(5).Trim();
-                            else if (p.StartsWith("Param=")) paramName = p.Substring(6).Trim();
-                            else if (p.StartsWith("Value=")) ruleValue = p.Substring(6).Trim();
-                        }
-
-                        if (!string.IsNullOrEmpty(ruleType) && !string.IsNullOrEmpty(paramName) &&
-                            spLookup.TryGetValue(paramName, out ElementId csvParamId))
-                        {
-                            FilterRule csvRule = null;
-                            switch (ruleType)
-                            {
-                                case "HasValue":
-                                    csvRule = ParameterFilterRuleFactory.CreateHasValueParameterRule(csvParamId);
-                                    break;
-                                case "HasNoValue":
-                                    csvRule = ParameterFilterRuleFactory.CreateHasNoValueParameterRule(csvParamId);
-                                    break;
-                                case "Equals":
-                                    csvRule = ParameterFilterRuleFactory.CreateEqualsRule(csvParamId, ruleValue);
-                                    break;
-                                case "Contains":
-                                    csvRule = ParameterFilterRuleFactory.CreateContainsRule(csvParamId, ruleValue);
-                                    break;
-                            }
-                            if (csvRule != null)
-                            {
-                                var epf = new ElementParameterFilter(csvRule);
-                                ParameterFilterElement.Create(doc, fullName, csvCatIds, epf);
-                                csvCreated++;
-                                created++;
-                            }
-                        }
-                        else
-                        {
-                            // No parameter rule — create category-only filter
                             ParameterFilterElement.Create(doc, fullName, csvCatIds);
                             csvCreated++;
                             created++;
+                            continue;
                         }
+                        if (spec.Kind == StingTools.Core.Drawing.ViewFilterRuleKind.Unparseable)
+                        {
+                            csvRefused.Add($"{csvName}: rule {spec.Reason}");
+                            csvSkipped++; skipped++;
+                            continue;
+                        }
+
+                        ElementId csvParamId = ElementId.InvalidElementId;
+                        if (spec.IsBuiltIn)
+                        {
+                            if (Enum.TryParse<BuiltInParameter>(spec.Param, false, out var csvBip))
+                                csvParamId = new ElementId(csvBip);
+                        }
+                        else if (spLookup.TryGetValue(spec.Param, out var spId)) csvParamId = spId;
+                        else if (Enum.TryParse<BuiltInParameter>(spec.Param, false, out var asBip)) csvParamId = new ElementId(asBip);
+                        if (csvParamId == ElementId.InvalidElementId)
+                        {
+                            csvRefused.Add($"{csvName}: parameter '{spec.ParamText}' ({spec.Param}) is not bound in this project");
+                            csvSkipped++; skipped++;
+                            continue;
+                        }
+
+                        FilterRule csvRule = null;
+                        switch (spec.Op)
+                        {
+                            case "HasValue":    csvRule = ParameterFilterRuleFactory.CreateHasValueParameterRule(csvParamId); break;
+                            case "HasNoValue":  csvRule = ParameterFilterRuleFactory.CreateHasNoValueParameterRule(csvParamId); break;
+                            case "Equals":      csvRule = ParameterFilterRuleFactory.CreateEqualsRule(csvParamId, spec.Value); break;
+                            case "NotEquals":   csvRule = ParameterFilterRuleFactory.CreateNotEqualsRule(csvParamId, spec.Value); break;
+                            case "Contains":    csvRule = ParameterFilterRuleFactory.CreateContainsRule(csvParamId, spec.Value); break;
+                            case "NotContains": csvRule = ParameterFilterRuleFactory.CreateNotContainsRule(csvParamId, spec.Value); break;
+                            case "BeginsWith":  csvRule = ParameterFilterRuleFactory.CreateBeginsWithRule(csvParamId, spec.Value); break;
+                        }
+                        if (csvRule == null)
+                        {
+                            csvRefused.Add($"{csvName}: operator '{spec.Op}' not supported");
+                            csvSkipped++; skipped++;
+                            continue;
+                        }
+                        ParameterFilterElement.Create(doc, fullName, csvCatIds, new ElementParameterFilter(csvRule));
+                        csvCreated++;
+                        created++;
                     }
                     catch (Exception ex)
                     {
@@ -383,6 +395,13 @@ namespace StingTools.Temp
                 string csvNote = csvFilters.Count > 0
                     ? $"\nCSV-driven: {csvCreated} created, {csvSkipped} skipped (from {csvFilters.Count} VIEW_FILTER rows)."
                     : "";
+                if (csvRefused.Count > 0)
+                {
+                    foreach (var why in csvRefused) StingLog.Warn($"Create Filters — CSV row refused: {why}");
+                    csvNote += $"\nRefused (rule could not be built, so no filter rather than one matching everything): "
+                        + string.Join("; ", csvRefused.Take(8))
+                        + (csvRefused.Count > 8 ? $"; … {csvRefused.Count - 8} more in the log" : "");
+                }
 
                 TaskDialog.Show("Create Filters",
                     $"Created {created} view filters.\nSkipped {skipped} (exist or failed).\n" +

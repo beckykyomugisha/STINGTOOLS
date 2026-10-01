@@ -182,18 +182,20 @@ namespace StingTools.Core.Drawing
 
         // ── P12.A — fit-to-slot scaling ─────────────────────────────────────
 
-        private static readonly int[] StandardScales =
-            { 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 1250, 2000, 2500, 5000, 10000 };
-
-        /// <summary>P12.A — set the view's scale so its paper footprint fits
-        /// inside the slot rect. Computes the required scale from the view's
-        /// crop-region outline (paper feet at its current scale) versus the
-        /// slot's paper width/height, rounds UP to the next standard scale, and
-        /// treats <see cref="SlotPlacement.ScaleHint"/> as a floor/override
-        /// (used when it also fits). Only applied to cropped graphical views;
-        /// schedules / legends / 3D and uncropped views are left untouched.
-        /// Never throws.</summary>
-        internal static void ApplyFitScale(Document doc, View v, SlotPlacement sp)
+        /// <summary>P12.A — make the view's paper footprint fit inside the slot
+        /// rect. Computes the required scale from the view's extent versus the
+        /// slot's paper width/height and rounds UP to the next standard scale.
+        ///
+        /// DTW-150: fitting only ever COARSENS. The baseline is
+        /// <paramref name="typeScale"/> (the drawing type's scale; 0 = use the
+        /// view's current scale), and the view moves off it only when it does
+        /// not fit — a small plan on a 1:100 type stays 1:100 instead of
+        /// becoming 1:50 or 1:20. <see cref="SlotPlacement.ScaleHint"/> stays a
+        /// floor. A coarsening is reported in <paramref name="warnings"/>.
+        ///
+        /// Only applied to cropped graphical views; schedules / legends / 3D and
+        /// uncropped views are left untouched. Never throws.</summary>
+        internal static void ApplyFitScale(Document doc, View v, SlotPlacement sp, int typeScale = 0, List<string> warnings = null)
         {
             if (v == null || sp == null || !sp.HasSize) return;
             if (!IsScalableView(v)) return;
@@ -271,11 +273,37 @@ namespace StingTools.Core.Drawing
                     fit = Math.Max(curW * curScale / sp.WidthFt,
                                    curH * curScale / sp.HeightFt);
                 }
-                int fitScale = RoundUpToStandardScale(fit);
-                int target = sp.ScaleHint.HasValue ? Math.Max(fitScale, sp.ScaleHint.Value) : fitScale;
+                // DTW-157 — the crop is not the viewport: grid/level heads, the
+                // annotation crop and the title extend past it. Grow the measured
+                // extent by the data-driven margin before choosing a scale.
+                double margin = SlotFitScale.DefaultAnnotationMarginFactor;
+                try
+                {
+                    var rules = StingTools.Commands.Drawing.ViewportPlacementRules.Load();
+                    if (rules != null) margin = rules.AnnotationMarginFactor;
+                }
+                catch (Exception exR) { StingTools.Core.StingLog.Warn($"ApplyFitScale margin: {exR.Message}"); }
+                fit *= SlotFitScale.ClampMarginFactor(margin);
+
+                int target = SlotFitScale.Decide(fit, typeScale, v.Scale, sp.ScaleHint, out bool coarsened);
+                if (coarsened)
+                {
+                    int baseline = typeScale > 0 ? typeScale : v.Scale;
+                    warnings?.Add($"View '{v.Name}' does not fit slot '{sp.Slot?.Label}' at 1:{baseline} — coarsened to 1:{target}.");
+                }
                 if (target > 0 && target != v.Scale)
                 {
-                    try { v.Scale = target; } catch { /* view type rejects scale */ }
+                    // DTW-157 — a view template that controls View Scale makes this
+                    // throw. It used to be swallowed, so the view kept a scale that
+                    // does not fit and nothing said so.
+                    try { v.Scale = target; }
+                    catch (Exception exS)
+                    {
+                        var msg = $"View '{v.Name}': could not set scale 1:{target} for slot '{sp.Slot?.Label}' " +
+                                  $"(stays 1:{v.Scale}; a view template may control View Scale) — {exS.Message}";
+                        StingTools.Core.StingLog.Warn("SheetPlacementBridge.ApplyFitScale: " + msg);
+                        warnings?.Add(msg);
+                    }
                 }
             }
             catch (Exception ex)
@@ -319,14 +347,7 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static int RoundUpToStandardScale(double v)
-        {
-            if (v <= 1) return 1;
-            foreach (var s in StandardScales) if (s >= v - 1e-9) return s;
-            return (int)(Math.Ceiling(v / 1000.0) * 1000);
-        }
-
-        private static XYZ GetTitleBlockOrigin(Element titleBlock)
+        internal static XYZ GetTitleBlockOrigin(Element titleBlock)
         {
             try
             {
@@ -338,46 +359,137 @@ namespace StingTools.Core.Drawing
         }
 
         // P12.B — memoised per-family drawable rect from STING_TITLE_BLOCKS.json
-        // (extends-resolved). Corporate baseline is read-only at runtime so a
-        // one-time cache is safe.
+        // (extends-resolved). DTW-161: keyed on the file's path and last-write
+        // time, like ViewportPlacementRules.Load, so an edit to the JSON is
+        // picked up without restarting Revit. It used to be cached for the session.
         private static Dictionary<string, StingTools.Core.Drawing.DrawableRect> _drawableCache;
+        private static string _drawableCachePath;
+        private static DateTime _drawableCacheWriteUtc;
         private static readonly object _drawableLock = new object();
 
         private static StingTools.Core.Drawing.DrawableRect ResolveDrawableForFamily(string familyName)
         {
             if (string.IsNullOrEmpty(familyName)) return null;
-            var cache = _drawableCache;
-            if (cache == null)
+
+            string path = null;
+            DateTime written = DateTime.MinValue;
+            try
             {
-                lock (_drawableLock)
+                path = StingToolsApp.FindDataFile("STING_TITLE_BLOCKS.json");
+                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                    written = System.IO.File.GetLastWriteTimeUtc(path);
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily stamp: {ex.Message}"); }
+
+            Dictionary<string, StingTools.Core.Drawing.DrawableRect> cache;
+            lock (_drawableLock)
+            {
+                cache = _drawableCache;
+                bool current = cache != null && written == _drawableCacheWriteUtc
+                    && string.Equals(path, _drawableCachePath, StringComparison.OrdinalIgnoreCase);
+                if (!current)
                 {
-                    cache = _drawableCache;
-                    if (cache == null)
+                    cache = new Dictionary<string, StingTools.Core.Drawing.DrawableRect>(StringComparer.OrdinalIgnoreCase);
+                    StingTools.Core.Drawing.TitleBlockLibrary lib = null;
+                    try
                     {
-                        cache = new Dictionary<string, StingTools.Core.Drawing.DrawableRect>(StringComparer.OrdinalIgnoreCase);
-                        try
-                        {
-                            var lib = StingTools.Core.Drawing.TitleBlockSpecRegistry.Load();
-                            if (lib?.Families != null)
-                                foreach (var f in lib.Families)
-                                {
-                                    if (f.Abstract || string.IsNullOrEmpty(f.Id)) continue;
-                                    var resolved = StingTools.Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, f);
-                                    if (resolved?.Drawable != null) cache[f.Id] = resolved.Drawable;
-                                }
-                        }
-                        catch (Exception ex)
-                        {
-                            // DTW-104: a failed load is not a read. Answer this call from what was
-                            // read so far, but do not cache it, so the next call tries again.
-                            StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message} — not cached; will retry.");
-                            return cache.TryGetValue(familyName, out var partial) ? partial : null;
-                        }
-                        _drawableCache = cache;
+                        lib = StingTools.Core.Drawing.TitleBlockSpecRegistry.Load();
+                        if (lib?.Families != null)
+                            foreach (var f in lib.Families)
+                            {
+                                if (f.Abstract || string.IsNullOrEmpty(f.Id)) continue;
+                                var resolved = StingTools.Core.Drawing.TitleBlockSpecRegistry.Resolve(lib, f);
+                                if (resolved?.Drawable != null) cache[f.Id] = resolved.Drawable;
+                            }
                     }
+                    catch (Exception ex)
+                    {
+                        // DTW-104: a failed load is not a read. Answer this call from what was
+                        // read so far, but do not cache it, so the next call tries again.
+                        StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ResolveDrawableForFamily: {ex.Message} — not cached; will retry.");
+                        return cache.TryGetValue(familyName, out var partial) ? partial : null;
+                    }
+                    // Load() reports its own failure and returns null; that is not a
+                    // read either, so it is not cached.
+                    if (lib == null)
+                        return null;
+                    _drawableCache = cache;
+                    _drawableCachePath = path;
+                    _drawableCacheWriteUtc = written;
                 }
             }
             return cache.TryGetValue(familyName, out var d) ? d : null;
+        }
+
+        /// <summary>
+        /// DTW-157 — after placement, compare the viewport's box (which includes
+        /// annotation and title, unlike the crop the fit measured) with its slot
+        /// and report an overrun. Silent when the outline is not available yet.
+        /// </summary>
+        internal static void ReportViewportOverflow(Viewport vp, SlotPlacement sp, List<string> warnings)
+        {
+            if (vp == null || sp?.Center == null || !sp.HasSize || warnings == null) return;
+            try
+            {
+                var box = vp.GetBoxOutline();
+                if (box == null) return;
+                double w = box.MaximumPoint.X - box.MinimumPoint.X, h = box.MaximumPoint.Y - box.MinimumPoint.Y;
+                if (w < 1e-9 || h < 1e-9) return;
+                if (SlotFitScale.Overflows(box.MinimumPoint.X, box.MinimumPoint.Y, box.MaximumPoint.X, box.MaximumPoint.Y,
+                        sp.Center.X, sp.Center.Y, sp.WidthFt, sp.HeightFt, MmToFt(1.0)))
+                {
+                    string name = (vp.Document?.GetElement(vp.ViewId) as View)?.Name ?? vp.ViewId.ToString();
+                    warnings.Add($"Viewport '{name}' ({w * MmPerFt:0} x {h * MmPerFt:0} mm with annotation) runs past slot " +
+                                 $"'{sp.Slot?.Label}' ({sp.WidthFt * MmPerFt:0} x {sp.HeightFt * MmPerFt:0} mm).");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SheetPlacementBridge.ReportViewportOverflow: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// DTW-151 — place a schedule into a slot. A ScheduleSheetInstance's
+        /// point is its TOP-LEFT corner (TitleBlockFactory.PlaceRevisionSchedules
+        /// relies on the same), not its centre: passing the slot centre hung the
+        /// schedule off the slot's right and bottom edges. With a sized slot the
+        /// schedule goes to the slot's top-left; without one, to
+        /// <paramref name="fallback"/> as before. Afterwards the placed schedule
+        /// is measured and a schedule wider or taller than its slot is reported.
+        /// Throws what ScheduleSheetInstance.Create throws.
+        /// </summary>
+        internal static ScheduleSheetInstance PlaceScheduleInSlot(Document doc, ElementId sheetId,
+            ViewSchedule schedule, SlotPlacement sp, XYZ fallback, List<string> warnings)
+        {
+            XYZ pt = fallback ?? XYZ.Zero;
+            if (sp?.Center != null && sp.HasSize)
+                pt = new XYZ(sp.Center.X - sp.WidthFt / 2.0, sp.Center.Y + sp.HeightFt / 2.0, 0);
+
+            var ssi = ScheduleSheetInstance.Create(doc, sheetId, schedule.Id, pt);
+            if (ssi == null || sp == null || !sp.HasSize) return ssi;
+
+            try
+            {
+                // A new instance has no extent until the document regenerates.
+                doc.Regenerate();
+                var sheet = doc.GetElement(sheetId) as View;
+                var bb = ssi.get_BoundingBox(sheet);
+                if (bb != null)
+                {
+                    double w = bb.Max.X - bb.Min.X, h = bb.Max.Y - bb.Min.Y;
+                    double tolFt = MmToFt(1.0);
+                    if (w > sp.WidthFt + tolFt || h > sp.HeightFt + tolFt)
+                        warnings?.Add(
+                            $"Schedule '{schedule.Name}' is {w * MmPerFt:0} x {h * MmPerFt:0} mm, larger than slot " +
+                            $"'{sp.Slot?.Label}' ({sp.WidthFt * MmPerFt:0} x {sp.HeightFt * MmPerFt:0} mm) — it runs past the slot.");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"SheetPlacementBridge.PlaceScheduleInSlot: could not measure '{schedule.Name}': {ex.Message}");
+            }
+            return ssi;
         }
 
         internal static PlacementResult PlaceAccordingToSlots(Document doc, ViewSheet sheet, DrawingType dt, List<ElementId> viewIds, ProduceResult result)
@@ -434,7 +546,7 @@ namespace StingTools.Core.Drawing
                         // per-slot Scale override pins it. Runs after the slot
                         // overrides so an explicit pin always wins.
                         if (sp != null && slot.Scale == null)
-                            ApplyFitScale(doc, v, sp);
+                            ApplyFitScale(doc, v, sp, dt.Scale, pr.Warnings);
                     }
 
                     // SLOT-3: warn when view type doesn't match slot expectation
@@ -451,7 +563,7 @@ namespace StingTools.Core.Drawing
                     {
                         try
                         {
-                            var ssi = ScheduleSheetInstance.Create(doc, sheet.Id, scheduleView.Id, pt);
+                            var ssi = PlaceScheduleInSlot(doc, sheet.Id, scheduleView, sp, pt, pr.Warnings); // DTW-151
                             if (ssi != null)
                             {
                                 pr.ViewportIds.Add(ssi.Id);
@@ -491,6 +603,7 @@ namespace StingTools.Core.Drawing
                                 StingTools.Core.StingLog.Warn($"SheetPlacementBridge: viewport type '{slot.ViewportType}' not found in document — slot '{slot?.Label}' uses default.");
                             }
                         }
+                        ReportViewportOverflow(vp, sp, pr.Warnings); // DTW-157
                     }
                 }
                 catch (Exception ex) { pr.Warnings.Add($"PlaceAccordingToSlots[{i}]: {ex.Message}"); }

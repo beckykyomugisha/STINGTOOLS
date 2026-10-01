@@ -270,39 +270,110 @@ namespace StingTools.Core.Drawing
             }
         }
 
+        /// <summary>
+        /// DTW-172: categories that are model-typed or view-visible but say nothing
+        /// about where the drawing's content is. Datums run edge to edge, scope
+        /// boxes / section boxes / cameras are view furniture, and a link or CAD
+        /// import's extents are its whole file.
+        /// </summary>
+        private static readonly HashSet<BuiltInCategory> ExtentNoise = new HashSet<BuiltInCategory>
+        {
+            BuiltInCategory.OST_Grids, BuiltInCategory.OST_Levels, BuiltInCategory.OST_CLines,
+            BuiltInCategory.OST_VolumeOfInterest, BuiltInCategory.OST_SectionBox,
+            BuiltInCategory.OST_Cameras, BuiltInCategory.OST_Viewers, BuiltInCategory.OST_Elev,
+            BuiltInCategory.OST_RvtLinks,
+        };
+
+        /// <summary>Does this element's extent describe the drawing's content?</summary>
+        private static bool CountsForExtent(Element el)
+        {
+            if (el == null || el is ImportInstance) return false;
+            var cat = el.Category;
+            if (cat == null || cat.CategoryType != CategoryType.Model) return false;
+            return !ExtentNoise.Contains((BuiltInCategory)cat.Id.Value);
+        }
+
+        /// <summary>
+        /// DTW-172: run <paramref name="measure"/> with the view's crop turned off, so a
+        /// view-scoped collector sees everything the view would show uncropped. With
+        /// the crop on, the collector only returned what the CURRENT crop showed, so
+        /// a refresh could only ever shrink the crop, never grow it to new content.
+        /// The caller owns the open transaction; the crop state is always restored.
+        /// </summary>
+        private static T WithCropOff<T>(Document doc, View view, Func<T> measure, List<string> warnings)
+        {
+            bool wasActive = false;
+            try { wasActive = view.CropBoxActive; }
+            catch (Exception ex) { warnings?.Add($"Crop state unreadable ({ex.Message}) — measured with the crop as it is."); }
+            // Plans only: a plan's view range still bounds what an uncropped view
+            // shows. A section or elevation with its crop lifted sees everything
+            // within the far clip across the whole model width, so there the
+            // current crop stays the measuring frame.
+            if (!wasActive || !(view is ViewPlan)) return measure();
+            try
+            {
+                view.CropBoxActive = false;
+                doc.Regenerate();
+            }
+            catch (Exception ex)
+            {
+                warnings?.Add($"Could not lift the crop to measure ({ex.Message}) — the extent is limited to the current crop.");
+                try { view.CropBoxActive = true; } catch (Exception ex2) { StingLog.Warn($"DrawingCropApplier: restore crop: {ex2.Message}"); }
+                return measure();
+            }
+            try { return measure(); }
+            finally
+            {
+                try { view.CropBoxActive = true; }
+                catch (Exception ex) { warnings?.Add($"Could not restore the crop after measuring: {ex.Message}"); }
+            }
+        }
+
         private static BoundingBoxXYZ GetOrComputeUnion(Document doc, View view, List<string> warnings)
         {
             string key = DocKey(doc);
             long viewKey = view.Id.Value;
 
-            // FIX-3: cheap element-count fingerprint. ID() runs O(1) per
-            // element via the FilteredElementCollector; element movement
-            // alone won't trigger a refresh, which is acceptable for the
-            // crop-margin use case (margin dominates the visible result),
-            // but element add / delete is captured.
-            int currentCount = 0;
-            try
+            return WithCropOff(doc, view, () =>
             {
-                currentCount = new FilteredElementCollector(doc, view.Id)
-                    .WhereElementIsNotElementType().GetElementCount();
-            }
-            catch { /* fall through; treat as forced re-compute */ }
+                // FIX-3: cheap element-count fingerprint. Element movement alone
+                // won't trigger a refresh, which is acceptable for the crop-margin
+                // use case (margin dominates the visible result), but element add /
+                // delete is captured.
+                var members = new FilteredElementCollector(doc, view.Id)
+                    .WhereElementIsNotElementType()
+                    .Where(CountsForExtent)
+                    .ToList();
+                int currentCount = members.Count;
 
-            lock (_bboxLock)
-            {
-                if (_bboxCache.TryGetValue(key, out var docMap)
-                    && docMap.TryGetValue(viewKey, out var cached)
-                    && cached.ElementCount == currentCount
-                    && cached.Union != null)
-                    return cached.Union;
-            }
+                lock (_bboxLock)
+                {
+                    if (_bboxCache.TryGetValue(key, out var docMap)
+                        && docMap.TryGetValue(viewKey, out var cached)
+                        && cached.ElementCount == currentCount
+                        && cached.Union != null)
+                        return cached.Union;
+                }
 
+                var union = UnionOf(members, view);
+                lock (_bboxLock)
+                {
+                    if (!_bboxCache.TryGetValue(key, out var docMap))
+                        _bboxCache[key] = docMap = new Dictionary<long, BboxEntry>();
+                    docMap[viewKey] = new BboxEntry { Union = union, ElementCount = currentCount };
+                }
+                return union;
+            }, warnings);
+        }
+
+        private static BoundingBoxXYZ UnionOf(IEnumerable<Element> elements, View view)
+        {
             BoundingBoxXYZ union = null;
-            int counted = 0;
-            foreach (var el in new FilteredElementCollector(doc, view.Id).WhereElementIsNotElementType())
+            foreach (var el in elements)
             {
-                counted++;
-                var bb = el.get_BoundingBox(view);
+                BoundingBoxXYZ bb = null;
+                try { bb = el.get_BoundingBox(view); }
+                catch (Exception ex) { StingLog.WarnRateLimited("DrawingCropApplier.Bbox", $"Bounding box of {el.Id}: {ex.Message}"); }
                 if (bb == null) continue;
                 if (union == null) { union = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max }; continue; }
                 union.Min = new XYZ(Math.Min(union.Min.X, bb.Min.X),
@@ -312,13 +383,6 @@ namespace StingTools.Core.Drawing
                                      Math.Max(union.Max.Y, bb.Max.Y),
                                      Math.Max(union.Max.Z, bb.Max.Z));
             }
-
-            lock (_bboxLock)
-            {
-                if (!_bboxCache.TryGetValue(key, out var docMap))
-                    _bboxCache[key] = docMap = new Dictionary<long, BboxEntry>();
-                docMap[viewKey] = new BboxEntry { Union = union, ElementCount = counted };
-            }
             return union;
         }
 
@@ -326,25 +390,19 @@ namespace StingTools.Core.Drawing
         {
             try
             {
-                var rooms = new FilteredElementCollector(doc, view.Id)
-                    .OfCategory(BuiltInCategory.OST_Rooms)
-                    .WhereElementIsNotElementType()
-                    .ToList();
-                if (rooms.Count == 0) { warnings.Add("RoomBoundary: no rooms in view, falling back to TightBbox."); SetTightBboxCrop(doc, view, marginMm, warnings); return; }
-
-                BoundingBoxXYZ union = null;
-                foreach (var r in rooms)
+                // DTW-172: measured with the crop lifted, so rooms outside the
+                // current crop count and a refresh can grow the crop as well as shrink it.
+                int roomCount = 0;
+                var union = WithCropOff(doc, view, () =>
                 {
-                    var bb = r.get_BoundingBox(view);
-                    if (bb == null) continue;
-                    if (union == null) { union = new BoundingBoxXYZ { Min = bb.Min, Max = bb.Max }; continue; }
-                    union.Min = new XYZ(Math.Min(union.Min.X, bb.Min.X),
-                                         Math.Min(union.Min.Y, bb.Min.Y),
-                                         Math.Min(union.Min.Z, bb.Min.Z));
-                    union.Max = new XYZ(Math.Max(union.Max.X, bb.Max.X),
-                                         Math.Max(union.Max.Y, bb.Max.Y),
-                                         Math.Max(union.Max.Z, bb.Max.Z));
-                }
+                    var rooms = new FilteredElementCollector(doc, view.Id)
+                        .OfCategory(BuiltInCategory.OST_Rooms)
+                        .WhereElementIsNotElementType()
+                        .ToList();
+                    roomCount = rooms.Count;
+                    return UnionOf(rooms, view);
+                }, warnings);
+                if (roomCount == 0) { warnings.Add("RoomBoundary: no rooms in view, falling back to TightBbox."); SetTightBboxCrop(doc, view, marginMm, warnings); return; }
                 if (union == null) { warnings.Add("RoomBoundary: no room bboxes."); return; }
 
                 // E-2: same model-space-into-crop-frame conversion as

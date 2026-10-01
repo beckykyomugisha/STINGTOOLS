@@ -28,6 +28,8 @@ namespace StingTools.Core.Drawing
     {
         public ParameterFilterElement Filter { get; set; }
         public bool Created { get; set; }
+        /// <summary>DTW-167: an existing filter was rebuilt to the current definition.</summary>
+        public bool Updated { get; set; }
         public List<string> Warnings { get; } = new List<string>();
         public string Error { get; set; }
         public bool Ok => Filter != null && string.IsNullOrEmpty(Error);
@@ -39,8 +41,10 @@ namespace StingTools.Core.Drawing
 
         /// <summary>
         /// Find or create a ParameterFilterElement matching <paramref name="def"/>.
-        /// Idempotent — returns the existing filter when one already exists with
-        /// the same name. Caller owns the active Transaction.
+        /// Idempotent. An existing filter of the same name is returned — and, when
+        /// its stamped definition hash differs from <paramref name="def"/> (or it
+        /// carries none), its categories and rules are rebuilt to the current
+        /// definition first (DTW-167). Caller owns the active Transaction.
         /// </summary>
         public static FilterFactoryResult FindOrCreate(Document doc, AecFilterDefinition def)
         {
@@ -54,7 +58,7 @@ namespace StingTools.Core.Drawing
                 .Cast<ParameterFilterElement>()
                 .ToList();
             var existing = all.FirstOrDefault(f => string.Equals(f.Name, def.Name, StringComparison.OrdinalIgnoreCase));
-            if (existing != null) { r.Filter = existing; r.Created = false; return r; }
+            if (existing != null) { r.Filter = existing; r.Created = false; Refresh(doc, existing, def, r); return r; }
 
             // A project may hold this filter under the mojibake name the corporate
             // data carried until 2026-09 ("â‰¤" for "≤"). Rename it rather than
@@ -75,46 +79,182 @@ namespace StingTools.Core.Drawing
                     {
                         r.Warnings.Add($"Filter '{garbled}' matches '{def.Name}' but could not be renamed: {ex.Message}");
                     }
-                    r.Filter = legacy; r.Created = false; return r;
+                    r.Filter = legacy; r.Created = false;
+                    Refresh(doc, legacy, def, r);
+                    return r;
                 }
             }
 
-            // Resolve category ids (skip categories not present in this Revit version).
-            var catIds = ResolveCategories(doc, def.Categories, r.Warnings);
-            if (catIds.Count == 0) { r.Error = $"No filterable categories resolved for '{def.Name}'."; return r; }
-
-            // Validate categories are filterable.
-            var allFilterable = ParameterFilterUtilities.GetAllFilterableCategories();
-            catIds = catIds.Where(id => allFilterable.Contains(id)).ToList();
-            if (catIds.Count == 0) { r.Error = $"All requested categories are non-filterable for '{def.Name}'."; return r; }
-
-            // Build the rule tree.
-            ElementFilter elementFilter = null;
-            try
-            {
-                elementFilter = BuildFilter(doc, def.Rule, catIds, r.Warnings);
-            }
-            catch (Exception ex)
-            {
-                r.Error = $"Rule build failed for '{def.Name}': {ex.Message}";
-                return r;
-            }
-            if (elementFilter == null)
-            {
-                r.Error = $"Rule build returned null for '{def.Name}'.";
-                return r;
-            }
+            if (!TryBuild(doc, def, r.Warnings, out var catIds, out var elementFilter, out var error))
+            { r.Error = error; return r; }
 
             try
             {
                 r.Filter = ParameterFilterElement.Create(doc, def.Name, catIds, elementFilter);
                 r.Created = true;
+                DefinitionStamp.Write(r.Filter, AecFilterRuleLogic.DefinitionHash(def.Categories, def.Rule));
             }
             catch (Exception ex)
             {
                 r.Error = $"ParameterFilterElement.Create failed for '{def.Name}': {ex.Message}";
             }
             return r;
+        }
+
+        /// <summary>Resolve categories and build the element filter for <paramref name="def"/>.</summary>
+        private static bool TryBuild(Document doc, AecFilterDefinition def, List<string> warnings,
+            out List<ElementId> catIds, out ElementFilter elementFilter, out string error)
+        {
+            elementFilter = null; error = null;
+
+            // Resolve category ids (skip categories not present in this Revit version).
+            catIds = ResolveCategories(doc, def.Categories, warnings);
+            if (catIds.Count == 0) { error = $"No filterable categories resolved for '{def.Name}'."; return false; }
+
+            // Validate categories are filterable.
+            var allFilterable = ParameterFilterUtilities.GetAllFilterableCategories();
+            catIds = catIds.Where(id => allFilterable.Contains(id)).ToList();
+            if (catIds.Count == 0) { error = $"All requested categories are non-filterable for '{def.Name}'."; return false; }
+
+            // Build the rule tree.
+            try
+            {
+                elementFilter = BuildFilter(doc, def.Rule, catIds, warnings);
+            }
+            catch (Exception ex)
+            {
+                error = $"Rule build failed for '{def.Name}': {ex.Message}";
+                return false;
+            }
+            if (elementFilter == null)
+            {
+                error = $"Rule build returned null for '{def.Name}'.";
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// DTW-167: FindOrCreate used to return an existing filter by name and never
+        /// look at it again, so every correction to STING_AEC_FILTERS.json (DTW-164's
+        /// concrete / steel swap among them) stopped at projects that had already
+        /// run. The filter now carries a hash of the definition it was built from;
+        /// on a mismatch — or no stamp, i.e. built before stamps existed — its
+        /// categories and rules are rebuilt in place. The element id is unchanged,
+        /// so the views using it keep their overrides.
+        /// </summary>
+        private static void Refresh(Document doc, ParameterFilterElement existing, AecFilterDefinition def, FilterFactoryResult r)
+        {
+            string hash = AecFilterRuleLogic.DefinitionHash(def.Categories, def.Rule);
+            string stored = DefinitionStamp.Read(existing);
+            if (string.Equals(stored, hash, StringComparison.Ordinal)) return;
+
+            var buildWarnings = new List<string>();
+            if (!TryBuild(doc, def, buildWarnings, out var catIds, out var elementFilter, out var error))
+            {
+                r.Warnings.Add($"Filter '{def.Name}' differs from its current definition, which could not be built "
+                    + $"({error}{(buildWarnings.Count > 0 ? "; " + string.Join("; ", buildWarnings) : "")}) — left as it is.");
+                return;
+            }
+
+            // The new filter may not be valid for the old categories and vice versa,
+            // so try both orders before giving up.
+            bool applied = TrySetDefinition(existing, catIds, elementFilter, categoriesFirst: true, out var err1)
+                        || TrySetDefinition(existing, catIds, elementFilter, categoriesFirst: false, out _);
+            if (!applied)
+            {
+                r.Warnings.Add($"Filter '{def.Name}' differs from its current definition but could not be updated ({err1}) — left as it is.");
+                return;
+            }
+
+            DefinitionStamp.Write(existing, hash);
+            r.Updated = true;
+            r.Warnings.AddRange(buildWarnings);
+            if (stored == null)
+                StingLog.Info($"AecFilterFactory: filter '{def.Name}' rebuilt from the current definition and stamped (it predates definition stamps).");
+            else
+                r.Warnings.Add($"Updated filter '{def.Name}' to the current definition (its categories / rules had changed).");
+        }
+
+        private static bool TrySetDefinition(ParameterFilterElement f, List<ElementId> catIds, ElementFilter ef,
+            bool categoriesFirst, out string error)
+        {
+            error = null;
+            try
+            {
+                if (categoriesFirst)
+                {
+                    f.SetCategories(catIds);
+                    f.SetElementFilter(ef);
+                }
+                else
+                {
+                    f.SetElementFilter(ef);
+                    f.SetCategories(catIds);
+                }
+                return true;
+            }
+            catch (Exception ex) { error = ex.Message; return false; }
+        }
+
+        /// <summary>DTW-167 — the definition hash stamped on a STING filter (ExtensibleStorage).</summary>
+        private static class DefinitionStamp
+        {
+            private static readonly Guid SchemaGuid = new Guid("5A3C9E21-7B4D-4F6A-9C1E-AEC0F11E5167");
+            private const string SchemaName = "StingAecFilterDefinition";
+            private const string FieldHash = "DefinitionHash";
+
+            private static Autodesk.Revit.DB.ExtensibleStorage.Schema GetOrCreate()
+            {
+                var existing = Autodesk.Revit.DB.ExtensibleStorage.Schema.Lookup(SchemaGuid);
+                if (existing != null) return existing;
+                var sb = new Autodesk.Revit.DB.ExtensibleStorage.SchemaBuilder(SchemaGuid);
+                sb.SetSchemaName(SchemaName);
+                sb.SetVendorId(StingTools.Core.Storage.StingSchemaBuilder.VendorId);
+                sb.SetReadAccessLevel(Autodesk.Revit.DB.ExtensibleStorage.AccessLevel.Public);
+                sb.SetWriteAccessLevel(Autodesk.Revit.DB.ExtensibleStorage.AccessLevel.Vendor);
+                sb.AddSimpleField(FieldHash, typeof(string))
+                    .SetDocumentation("SHA-256 of the AEC filter definition (categories + rule) this filter was built from");
+                return sb.Finish();
+            }
+
+            internal static string Read(Element e)
+            {
+                if (e == null) return null;
+                try
+                {
+                    var schema = Autodesk.Revit.DB.ExtensibleStorage.Schema.Lookup(SchemaGuid);
+                    if (schema == null) return null;
+                    var entity = e.GetEntity(schema);
+                    if (entity == null || !entity.IsValid()) return null;
+                    var v = entity.Get<string>(FieldHash);
+                    return string.IsNullOrEmpty(v) ? null : v;
+                }
+                catch (Exception ex)
+                {
+                    StingLog.WarnRateLimited("AecFilterFactory.StampRead", $"AecFilterFactory: reading the definition stamp failed: {ex.Message}");
+                    return null;
+                }
+            }
+
+            internal static void Write(Element e, string hash)
+            {
+                if (e == null || string.IsNullOrEmpty(hash)) return;
+                try
+                {
+                    var schema = GetOrCreate();
+                    if (schema == null) return;
+                    var entity = new Autodesk.Revit.DB.ExtensibleStorage.Entity(schema);
+                    entity.Set(FieldHash, hash);
+                    e.SetEntity(entity);
+                }
+                catch (Exception ex)
+                {
+                    // Not fatal: the filter is correct now; the next run simply
+                    // rebuilds it again because it still carries no stamp.
+                    StingLog.WarnRateLimited("AecFilterFactory.StampWrite", $"AecFilterFactory: writing the definition stamp failed: {ex.Message}");
+                }
+            }
         }
 
         // ── Rule-tree → ElementFilter ───────────────────────────────────
@@ -126,14 +266,17 @@ namespace StingTools.Core.Drawing
 
             if (node.IsCompound)
             {
-                var children = node.Rules
+                // DTW-171: an AND that loses a child matches MORE than the
+                // definition says, so it fails the whole filter; an OR that
+                // loses one matches less and only warns (AecFilterRuleLogic).
+                var built = node.Rules
                     .Select(r => BuildFilter(doc, r, catIds, warnings))
-                    .Where(f => f != null)
                     .ToList();
-                if (children.Count == 0) return null;
+                var children = AecFilterRuleLogic.Combine(node.Logic, built, warnings);
+                if (children == null || children.Count == 0) return null;
                 if (children.Count == 1) return children[0];
 
-                if (string.Equals(node.Logic, "or", StringComparison.OrdinalIgnoreCase))
+                if (AecFilterRuleLogic.IsOr(node.Logic))
                     return new LogicalOrFilter(children);
                 return new LogicalAndFilter(children);
             }
@@ -170,6 +313,33 @@ namespace StingTools.Core.Drawing
             // Phase / level rules compare ElementId.
             if (kind == "phase" || kind == "level")
             {
+                // DTW-166: Phase Created / Demolished are not filterable for every
+                // category set. Say so by name rather than leave it to
+                // ParameterFilterElement.Create's generic failure: phase graphics
+                // belong to Phase Graphic Overrides / phase filters, not to V/G filters.
+                if (kind == "phase" && !IsFilterableForCategories(doc, catIds, paramId))
+                {
+                    warnings?.Add($"'{node.Param}' cannot be a view-filter rule for these categories in this "
+                        + "Revit — filter skipped. Phase graphics belong to Phase Graphic Overrides (Manage > Phases).");
+                    return null;
+                }
+
+                // DTW-166: "None" means no phase / level — InvalidElementId —
+                // not an element named "None". PHASE_DEMOLISHED notEquals None
+                // ("has been demolished") used to look up a Phase called "None",
+                // find nothing and drop the rule, so phase-demolished was never
+                // created and corp-base referenced a filter that did not exist.
+                if (AecFilterRuleLogic.IsNoneValue(value))
+                {
+                    var lop = op.ToLowerInvariant();
+                    if (lop != "equals" && lop != "notequals")
+                    {
+                        warnings?.Add($"{kind} rule '{op}' against None is meaningless — only equals / notEquals.");
+                        return null;
+                    }
+                    return BuildElementIdRule(paramId, op, ElementId.InvalidElementId, warnings);
+                }
+
                 var resolvedValueId = ResolveValueElementId(doc, kind, value);
                 if (resolvedValueId == null || resolvedValueId == ElementId.InvalidElementId)
                 {
@@ -208,16 +378,23 @@ namespace StingTools.Core.Drawing
                     case "integer":
                     case "yesno":
                     {
-                        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv))
-                            iv = 0;
+                        // DTW-171: an unparseable value was compared as 0.
+                        if (!AecFilterRuleLogic.TryParseInt(value, out var iv))
+                        {
+                            warnings?.Add($"Rule on '{node.Param}': '{value}' is not an integer — rule refused.");
+                            return null;
+                        }
                         return BuildIntRule(paramId, op, iv, warnings);
                     }
                     case "double":
                     case "number":
                     case "length":
                     {
-                        if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv))
-                            dv = 0;
+                        if (!AecFilterRuleLogic.TryParseDouble(value, out var dv))
+                        {
+                            warnings?.Add($"Rule on '{node.Param}': '{value}' is not a number — rule refused.");
+                            return null;
+                        }
                         // Filter rules compare in Revit internal units (1 V = 10.7639).
                         // Voltage values in STING_AEC_FILTERS.json are written in volts,
                         // so "> 1000" meant ~93 V and flagged every 230/400 V element as
@@ -405,6 +582,26 @@ namespace StingTools.Core.Drawing
 
             warnings?.Add($"BuiltInParameter '{paramName}' not recognised.");
             return ElementId.InvalidElementId;
+        }
+
+        /// <summary>
+        /// Is <paramref name="paramId"/> filterable across all of <paramref name="catIds"/>?
+        /// A failed check is reported as filterable so Create gets the final word.
+        /// </summary>
+        private static bool IsFilterableForCategories(Document doc, ICollection<ElementId> catIds, ElementId paramId)
+        {
+            if (doc == null || catIds == null || catIds.Count == 0 || paramId == null) return true;
+            try
+            {
+                var common = ParameterFilterUtilities.GetFilterableParametersInCommon(doc, catIds);
+                return common == null || common.Contains(paramId);
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("AecFilterFactory.Filterable",
+                    $"AecFilterFactory: filterable-parameter check failed ({ex.Message}) — leaving it to Create.");
+                return true;
+            }
         }
 
         private static ElementId ResolveValueElementId(Document doc, string kind, string value)
