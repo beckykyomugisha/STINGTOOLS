@@ -2,6 +2,15 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-6 shared-parameter lookup indexed once per family, 2026-10-01)
+
+- `TagFamilyCreatorCommand.AddSharedParameters` found each of ~199 parameters by walking every group and
+  definition of the shared-parameter file through the Revit API (~3,300 definitions, so ~650k reads per
+  family), after a separate pass that only counted them. It now walks the file once, building a
+  name → `ExternalDefinition` index (first match by exact name, as before) while counting, and the
+  private `FindSharedDefinition` is removed. Behaviour is unchanged; the speed-up is **not measured** —
+  the 5-minutes-per-family figure from the 2026-09-30 run needs re-timing in Revit (worklog NEEDS REVIT
+  CHECK). Build 0 errors / 0 warnings; `StingTools.Tags.Tests` all passing.
 #### Completed (TAGFAM-5 arrowheads resolved in the family document, 2026-10-01)
 
 - **The bug.** `MigrateTagFamiliesCommand` and `PropagateUniversalTagCommand` (clone and master priming)

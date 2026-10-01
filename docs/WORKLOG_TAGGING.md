@@ -7,18 +7,18 @@ gates + CI; never weaken a test; never renumber/overwrite a real model.
 
 ## Resume here
 
-1. Merge PR #1022 (TAGACC-18) and PR #1023 (TAGACC-19) when CI is green; #1023 will need main merged
-   in (ROADMAP/CHANGELOG rows sit side by side — keep both).
-2. **NEEDS REVIT CHECK #1** below (pyRevit Size Copies on Fire Door / Accessible Door / Room Finish),
-   then copy the saved `.rfa` files from `Documents\STING_TAG_BUILD` into `StingTools/Data/TagFamilies`.
-3. Next findings: F6 (tag-family consistency gate), then F5 (multi-user SEQ protocol), then a
-   deeper pass over other whole-file writers of shared JSON (same shape as TAGACC-19).
+1. Merge PR #1026 (TAGFAM-5 arrowheads) and the TAGFAM-6 PR when CI is green (merge `origin/main`
+   in first if CHANGELOG conflicts — keep both entries, newest first).
+2. **NEEDS REVIT CHECK** items below — #1 (pyRevit Size Copies) unblocks committing the three
+   remaining specialist `.rfa` files; #4 times the TAGFAM-6 change.
+3. Next research: F6 gate (tag-family consistency — names on disk vs names the code looks up, see
+   TAGFAM-7), then the other private `FindSharedDefinition` copies (MigrateTagLabelReferences,
+   StampGateStatus, FamilyLabelAuthor) for the same per-parameter walk as TAGFAM-6.
 
-## State (2026-10-01, pass 1)
+## State (2026-10-01, pass 1 continued)
 
-- PR #1019 merged; PR #1020 merged (`51b14eb81`) — the four specialist labels are on main.
-- PR #1022 open — TAGACC-18 Token Confidence Audit (branch `claude/token-confidence-sources`).
-- PR #1023 open — TAGACC-19 config save keeps keys (branch `claude/config-save-keeps-keys`).
+- Merged: #1019, #1020 (specialist labels), #1022 TAGACC-18, #1023 TAGACC-19, #1024 worklog, #1025 TAGFAM-7 log.
+- Open: #1026 TAGFAM-5 (branch `claude/tagfam-5-arrowheads`); TAGFAM-6 (branch `claude/tagfam-6-param-index`).
 - Live Revit build is `C:\Dev\STING_KUT_LIVE` (detached, ACC hardening + an early snapshot of TAGFAM-1). It does
   **not** have #1018 onward. Rebuilding it (merge `origin/main` into `claude/kut-combined-acc-tags`)
   is blocked for this agent by the auto-mode classifier ("Modify Shared Resources"); a person must do it.
@@ -67,6 +67,8 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
    families load (hub button now `Manual`), Temporary Structure / MEP Ancillary Framing tags are accepted
    or reported.
 3. **TAGACC-12** — `pwsh tools/run_revit_smoke.ps1`, then protocol Part B with two users.
+4. **TAGFAM-6 timing** — on the next *Create Tag Fams* run, note seconds per family from the STING log
+   (`AddSharedParameters: added …` lines are one per family) and compare with ~300 s on 2026-09-30.
 
 ## Decisions
 
