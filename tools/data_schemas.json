@@ -10615,7 +10615,7 @@
     },
     "StingTools/Data/PARAMETER_REGISTRY.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet. Descriptions are generated from MR_PARAMETERS.txt and warning_thresholds direction/message and deprecated/replaced_by are validated by tools/sync_registry_from_txt.py (param-csv-drift.yml, DSCH-47)."
     },
     "StingTools/Data/PRESET_COMBINATIONS.json": {
       "format": "json",
