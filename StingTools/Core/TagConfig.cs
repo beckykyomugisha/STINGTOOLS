@@ -813,14 +813,14 @@ namespace StingTools.Core
                             int? pad = null;
                             string[] segs = null;
 
-                            if (fmt.TryGetValue("separator", out object sepVal) && sepVal is string s)
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.SeparatorKey, out object sepVal) && sepVal is string s)
                                 sep = s;
-                            if (fmt.TryGetValue("num_pad", out object padVal))
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.NumPadKey, out object padVal))
                             {
                                 if (padVal is long lv) pad = (int)lv;
                                 else if (int.TryParse(padVal?.ToString(), out int iv)) pad = iv;
                             }
-                            if (fmt.TryGetValue("segment_order", out object segVal))
+                            if (fmt.TryGetValue(StingTools.Tags.TagFormatConfig.SegmentOrderKey, out object segVal))
                             {
                                 var parsed = JsonConvert.DeserializeObject<string[]>(
                                     JsonConvert.SerializeObject(segVal));
@@ -829,6 +829,13 @@ namespace StingTools.Core
                             }
 
                             ParamRegistry.ApplyTagFormatOverrides(sep, pad, segs);
+
+                            // TAGACC-23: a format saved by the old Tag Format command used names
+                            // nothing reads. Say so rather than apply it silently or forget it.
+                            if (StingTools.Tags.TagFormatConfig.IsLegacyUnreadSection(
+                                    Newtonsoft.Json.Linq.JObject.FromObject(fmt)))
+                                StingLog.Warn("TAG_FORMAT in " + path + " uses NumPad/SegmentOrder/Separator, " +
+                                    "which were never applied (TAGACC-23). Re-save it with Tag Format to use it.");
                         }
                     }
                     catch (Exception ex)
@@ -1559,9 +1566,9 @@ namespace StingTools.Core
                     ["ZONE_CODES"] = ZoneCodes,
                     ["TAG_FORMAT"] = new Dictionary<string, object>
                     {
-                        ["separator"] = Separator,
-                        ["num_pad"] = NumPad,
-                        ["segment_order"] = SegmentOrder
+                        [StingTools.Tags.TagFormatConfig.SeparatorKey] = Separator,
+                        [StingTools.Tags.TagFormatConfig.NumPadKey] = NumPad,
+                        [StingTools.Tags.TagFormatConfig.SegmentOrderKey] = SegmentOrder
                     },
                     ["TAG_PREFIX"] = TagPrefix,
                     ["TAG_SUFFIX"] = TagSuffix,

@@ -253,13 +253,6 @@ namespace StingTools.Tags
         // ── Format config I/O ────────────────────────────────────────
 
         /// <summary>Tag format configuration stored in project_config.json.</summary>
-        public class TagFormatConfig
-        {
-            public int NumPad { get; set; } = 4;
-            public string Separator { get; set; } = "-";
-            public string[] SegmentOrder { get; set; } = { "DISC", "LOC", "ZONE", "LVL", "SYS", "FUNC", "PROD", "SEQ" };
-        }
-
         public static TagFormatConfig LoadFormatConfig(string configPath)
         {
             if (!File.Exists(configPath)) return new TagFormatConfig();
@@ -932,11 +925,13 @@ namespace StingTools.Tags
             return Result.Succeeded;
         }
 
-        private void SaveAndShow(string configPath, TagIntelligenceHelper.TagFormatConfig fmt)
+        private void SaveAndShow(string configPath, TagFormatConfig fmt)
         {
             try
             {
                 TagIntelligenceHelper.SaveFormatConfig(configPath, fmt);
+                // TAGACC-23: apply now, as loading the file would — this used to only save.
+                ParamRegistry.ApplyTagFormatOverrides(fmt.Separator, fmt.NumPad, fmt.SegmentOrder);
                 string preview = TagIntelligenceHelper.BuildSampleTag(fmt);
                 TaskDialog.Show("Tag Format",
                     $"Settings saved to:\n{configPath}\n\n" +
