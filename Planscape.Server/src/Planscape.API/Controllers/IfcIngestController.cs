@@ -370,9 +370,13 @@ public class IfcIngestController : ControllerBase
             // the shared mapping only (DSCH-24): Pset_StingTags.FullTag first. The
             // old hardcoded fallbacks (Pset_Common.Tag, the IfcElement.Tag
             // attribute) are gone — neither carries a STING tag.
+            var unmapped = new List<string>();
             var tag1 = IfcPsetMappingTable.Resolve(
-                           mapping, el.Properties, IfcPsetMappingTable.TagParam, el.IfcType)
+                           mapping, el.Properties, IfcPsetMappingTable.TagParam, el.IfcType, unmapped)
                     ?? "";
+            // DSCH-38: a value a row's value_map does not list is reported, not stored.
+            foreach (var why in unmapped)
+                _logger.LogWarning("IFC ingest: element {GlobalId}: {Reason}", el.GlobalId, why);
 
             if (existing.TryGetValue(el.GlobalId, out var row))
             {
