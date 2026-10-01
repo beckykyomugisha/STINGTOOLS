@@ -25,7 +25,7 @@ python tools/check_kut_workflow_tags.py ; python tools/check_unattended_cycle.py
 Last full green (2026-10-01, after merging round 4 onto #1021): build 0/0; Acc 697, Tags 5217, Cost 169, Mep 87; `run_ci_gates.py --quick` 36/0; drawing-type checksums OK.
 
 ## Deploy (KUT live)
-`git -C C:/Dev/STING_KUT_LIVE checkout --detach <commit>` then `cmd.exe //c 'C:\Dev\STING_KUT_LIVE\deploy.bat'` with Revit closed. Verify: manifests point at STING_KUT_LIVE; deployed DLL == `StingTools/bin/Release/StingTools.dll`; 210 tag families in `CompiledPlugin/data/TagFamilies`; **no `Seeds/` folder** (the 137 seed families are superseded — never restore them). Last deploy: `c73ded891` (claude/kut-combined-acc-tags = integration incl. #1021 + round 4 + SRV-11) at 06:35 on 2026-10-01; verified (3 manifests, DLL hash match, 210 tag families, no Seeds/). User told to re-run Load Shared Parameters (drawing stamps now bind to Views).
+`git -C C:/Dev/STING_KUT_LIVE checkout --detach <commit>` then `cmd.exe //c 'C:\Dev\STING_KUT_LIVE\deploy.bat'` with Revit closed. Verify: manifests point at STING_KUT_LIVE; deployed DLL == `StingTools/bin/Release/StingTools.dll`; 210 tag families in `CompiledPlugin/data/TagFamilies`; **no `Seeds/` folder** (the 137 seed families are superseded — never restore them). Last deploy: `57c3b236e` (claude/kut-combined-acc-tags = integration incl. main through #1028 + round 4 + SRV-11) at 07:00 on 2026-10-01; verified (3 manifests, DLL hash match, 210 tag families, no Seeds/). User told to re-run Load Shared Parameters (drawing stamps now bind to Views).
 
 ## Findings (open)
 ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the revision/ACC table below.
