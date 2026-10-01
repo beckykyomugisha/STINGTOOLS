@@ -2,6 +2,28 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (KUT workflows run without modal waits, area 3, 2026-10-01)
+
+Every step of every `WORKFLOW_KUT_*.json` preset now runs inside a preset without a window that waits on a person. Build 0/0. Tags (4,730) and Acc (614) tests green. `check_unattended_cycle.py`, `check_kut_workflow_tags.py` and `check_workflow_wiring.ps1` pass. None of this has been run in Revit.
+
+- **UNGATED baseline lines: 74 → 0.** Messages go through `PresetDialog.Show`: logged in full, summarised into the step message, and shown only to a person. A new 4-argument overload covers the instruction + content result window.
+- **Choices come from the step's `params`.** These are `CDEStatus` `status`, `LOD_Verify` / `LOD_Stamp` `milestone`, `PreTagAudit` `scope`, and `CSI_Assign` / `Fohlio_Import` / `Fohlio_ImportFinishes` `mode`. A missing param fails the step by name and is never defaulted. Inside a preset, `CDEStatus` never overrides a compliance or role gate.
+- **Input files come from the step's `params`, through the new `PresetDialog.InputFile`.** The path may be absolute or relative to `_BIM_COORD`, and a missing file is refused. The params are `midpCsv` (+ optional `m0`), `programTemplate`, `specToc`, `stationExport` (optional for `KUT_LifecycleReconcile`), `fohlioExport` and `finishesExport`.
+- **Two prompts the source-level gate cannot see are gated too:**
+  - The LOD milestone picker in `LodScope.PickMilestone`, which `LODValidation` shares.
+  - `ExportSheetRegister`'s save-path prompt. Inside a preset it writes to the routed SheetRegister folder.
+- **Small fixes on the way:**
+  - `AuditTagsCSV` returns Failed on a failed export.
+  - No Explorer window or auto-opened CSV inside a preset.
+  - `FullComplianceDashboard` puts its exception in the step message.
+- **Params set in the KUT presets:**
+  - Mobilisation `CDEStatus` `status=WIP`.
+  - Deliverable A–D `LOD_Verify` `milestone=deliverable-a…d`.
+  - Deliverable D `LOD_Stamp` `milestone=deliverable-d`.
+  - Deliverable A / GateAudit `PreTagAudit` `scope=project`.
+- **Params left unset on purpose:** the input files, the CSI / Fohlio write modes and the GateAudit milestone. Those steps fail with the param's name until a project sets them (reasons in WORKLOG "Decisions").
+- **Behaviour change:** `PresetDialog.Quiet` covers attended preset runs too, so a person running these workflows by hand no longer gets the pickers on those steps.
+
 #### Completed (Revision/issue workflow → ACC, R1–R14, 2026-10-01)
 
 Findings from a read-only audit of the fortnightly issue chain (`WORKFLOW_KUT_FortnightlyIssue`). Build 0/0; Acc, Tags, Cost and Mep tests green; every gate passes. None of this has been run in Revit yet (ROADMAP REVWF-2).

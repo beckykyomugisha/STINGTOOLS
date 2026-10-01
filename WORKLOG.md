@@ -132,4 +132,20 @@ Seam audit (2026-10-01):
 - **C9:** WIP without cdeFolders is refused, not opted in by a new key. ISO 19650 keeps WIP out of shared areas, and the fix is mapping cdeFolders (a key that already exists).
 - **C10:** the status is withheld (and reported) whenever ACC last said closed and Planscape says anything else, completed included. Undoing ACC's close is never the sync's call.
 - **Area 3 RetagStale:** the scope is a step param, failing when missing, not defaulted. KUT steps set "project" because their labels say "since the last gate".
+- **Area 3 remaining KUT steps (UNGATED 74 → 0):** every choice or input file is a step param; a missing one fails the step by name. Params set in the WORKFLOW_KUT_*.json files, each because the step label or workflow purpose settles it:
+  - Mobilisation `CDEStatus` `status=WIP`: "Initialise CDE state register" at kick-off, and ISO 19650 information starts in WIP.
+  - Deliverable A/B/C/D `LOD_Verify` `milestone=deliverable-a/-b/-c/-d`: each label already named the id to pick.
+  - Deliverable D `LOD_Stamp` `milestone=deliverable-d`: it stamps "the verified milestone", which step 6 verifies.
+  - Deliverable A and GateAudit `PreTagAudit` `scope=project`: a deliverable gate audits the model, not whichever view is open.
+- **Params deliberately NOT set (those steps fail clearly in a preset until a project sets them):**
+  - GateAudit `LOD_Verify` milestone: "the milestone you are approaching" is the author's call.
+  - Every input file: `midpCsv`, `programTemplate`, `specToc`, `stationExport`, `fohlioExport`, `finishesExport`. None has a canonical location in the project.
+  - `CSI_Assign` / `Fohlio_Import` / `Fohlio_ImportFinishes` `mode` (fill | overwrite): fill keeps stale values and overwrite discards manual ones, and no label says which.
+- **Not failures:** an absent optional input is reported, not failed, where a person's Cancel already meant "skip":
+  - MIDP relative-month rows without `params.m0` are left out and counted.
+  - `KUT_LifecycleReconcile` without `params.stationExport` skips the commissioned-unpriced check and says so.
+- **Gate overrides:** `CDEStatus` never overrides a compliance or role gate inside a preset. An override needs a person to acknowledge it, so the step fails naming the gate.
+- **ExportSheetRegister output path:** inside a preset the file goes to the routed SheetRegister folder, which is the prompt's own "Project folder for this export" choice. An output location is a convention, not an input, so this is not treated as a guessed file.
+- **Attended preset runs lose the prompts too.** `PresetDialog.Quiet` is true for any preset, so a person running a KUT workflow by hand now gets "needs params.x" failures instead of pickers on those steps. This follows the RetagStale precedent. Open question, not yet logged in ROADMAP: should attended runs still prompt (gate on `WorkflowEngine.IsUnattended` instead)?
+- **Helper overloads:** `PresetDialog.Show(title, instruction, content, ref msg)` replaces the repeated hand-built instruction + content window. `PresetDialog.InputFile` resolves a file param (absolute or relative to `_BIM_COORD`) and refuses a missing file.
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).
