@@ -821,6 +821,7 @@ namespace StingTools.Temp
             // Get expected columns from schema
             var expectedColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var requiredColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            bool cellsMustBeFilled = true;
 
             var columns = schema["columns"] ?? schema["fields"];
             if (columns is JArray colArray)
@@ -846,6 +847,10 @@ namespace StingTools.Temp
             {
                 // DSCH round 5: the shipped schema's own shape. Without this branch
                 // both sets stayed empty and the validation checked nothing.
+                // required_columns there means "the file carries this column", not
+                // "every cell is filled" (most material rows leave most properties
+                // blank), so only column presence is checked for this shape.
+                cellsMustBeFilled = false;
                 foreach (var t in schema["required_columns"] as JArray ?? new JArray())
                 {
                     expectedColumns.Add(t.ToString());
@@ -860,8 +865,8 @@ namespace StingTools.Temp
 
             // Validate each material file
             int totalIssues = 0;
-            totalIssues += ValidateFile("BLE_MATERIALS.csv", expectedColumns, requiredColumns, report);
-            totalIssues += ValidateFile("MEP_MATERIALS.csv", expectedColumns, requiredColumns, report);
+            totalIssues += ValidateFile("BLE_MATERIALS.csv", expectedColumns, requiredColumns, report, cellsMustBeFilled);
+            totalIssues += ValidateFile("MEP_MATERIALS.csv", expectedColumns, requiredColumns, report, cellsMustBeFilled);
 
             TaskDialog td = new TaskDialog("Schema Validate");
             td.MainInstruction = totalIssues == 0
@@ -874,7 +879,7 @@ namespace StingTools.Temp
         }
 
         private int ValidateFile(string fileName, HashSet<string> expectedCols,
-            HashSet<string> requiredCols, StringBuilder report)
+            HashSet<string> requiredCols, StringBuilder report, bool cellsMustBeFilled = true)
         {
             string path = StingToolsApp.FindDataFile(fileName);
             if (path == null)
@@ -933,7 +938,7 @@ namespace StingTools.Temp
 
             // Sample data quality: check first 100 rows for empty required fields
             int emptyRequired = 0;
-            for (int i = 1; i < Math.Min(lines.Length, 101); i++)
+            for (int i = 1; cellsMustBeFilled && i < Math.Min(lines.Length, 101); i++)
             {
                 var cols = StingToolsApp.ParseCsvLine(lines[i]);
                 foreach (string req in requiredCols)
