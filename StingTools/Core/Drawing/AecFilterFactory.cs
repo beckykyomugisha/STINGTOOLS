@@ -126,14 +126,17 @@ namespace StingTools.Core.Drawing
 
             if (node.IsCompound)
             {
-                var children = node.Rules
+                // DTW-171: an AND that loses a child matches MORE than the
+                // definition says, so it fails the whole filter; an OR that
+                // loses one matches less and only warns (AecFilterRuleLogic).
+                var built = node.Rules
                     .Select(r => BuildFilter(doc, r, catIds, warnings))
-                    .Where(f => f != null)
                     .ToList();
-                if (children.Count == 0) return null;
+                var children = AecFilterRuleLogic.Combine(node.Logic, built, warnings);
+                if (children == null || children.Count == 0) return null;
                 if (children.Count == 1) return children[0];
 
-                if (string.Equals(node.Logic, "or", StringComparison.OrdinalIgnoreCase))
+                if (AecFilterRuleLogic.IsOr(node.Logic))
                     return new LogicalOrFilter(children);
                 return new LogicalAndFilter(children);
             }
@@ -208,16 +211,23 @@ namespace StingTools.Core.Drawing
                     case "integer":
                     case "yesno":
                     {
-                        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv))
-                            iv = 0;
+                        // DTW-171: an unparseable value was compared as 0.
+                        if (!AecFilterRuleLogic.TryParseInt(value, out var iv))
+                        {
+                            warnings?.Add($"Rule on '{node.Param}': '{value}' is not an integer — rule refused.");
+                            return null;
+                        }
                         return BuildIntRule(paramId, op, iv, warnings);
                     }
                     case "double":
                     case "number":
                     case "length":
                     {
-                        if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv))
-                            dv = 0;
+                        if (!AecFilterRuleLogic.TryParseDouble(value, out var dv))
+                        {
+                            warnings?.Add($"Rule on '{node.Param}': '{value}' is not a number — rule refused.");
+                            return null;
+                        }
                         // Filter rules compare in Revit internal units (1 V = 10.7639).
                         // Voltage values in STING_AEC_FILTERS.json are written in volts,
                         // so "> 1000" meant ~93 V and flagged every 230/400 V element as
