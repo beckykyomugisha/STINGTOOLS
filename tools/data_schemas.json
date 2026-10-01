@@ -1,0 +1,5135 @@
+{
+  "registryVersion": 1,
+  "_doc": [
+    "The ONE source of truth for the shape of every data file the plugin and its gates read.",
+    "Read by tools/validate_data_schemas.py (CI: stingtools-plugin.yml > Validate data files) and by the C# tests that hold a reader to its declared columns.",
+    "How to change a data file and its schema together: docs/DATA_SCHEMAS.md.",
+    "schemas    : full schema. csv-table = ordered columns (optional:true may be absent), type num|int|str, required, enum, min, pattern, unique. json = POCO-derived (poco) or hand-declared (keys) key sets.",
+    "structural : registered, format checks only (UTF-8, line endings, strict JSON / parseable CSV) — with the reason there is no deeper schema.",
+    "nonData    : glob -> reason, for binaries and documentation under a root.",
+    "schemaVersion is per file: bump it whenever a column or key is added, removed, renamed or reordered."
+  ],
+  "roots": [
+    {
+      "path": "StingTools/Data"
+    },
+    {
+      "path": "project-templates",
+      "extensions": [
+        ".json",
+        ".csv",
+        ".yml",
+        ".yaml"
+      ]
+    },
+    {
+      "path": "GUIDES/kibale-project-config",
+      "extensions": [
+        ".json",
+        ".csv"
+      ]
+    },
+    {
+      "path": "tools",
+      "extensions": [
+        ".json",
+        ".csv",
+        ".yml",
+        ".yaml"
+      ]
+    }
+  ],
+  "nonData": {
+    "StingTools/Data/**.rfa": "Revit families (binary). Audited by FamilyConformanceCheck, not by this gate.",
+    "StingTools/Data/**.md": "Documentation.",
+    "StingTools/Data/*.xlsx": "Excel reference workbooks (binary); human-facing guides, read by no loader.",
+    "StingTools/Data/**.dyn": "Dynamo graph (Generative Design); authored in Dynamo.",
+    "StingTools/Data/*.py": "Python script shipped as data (template validation).",
+    "StingTools/Data/TagFamilies/_master": "Master tag family placeholder; binary."
+  },
+  "schemas": {
+    "StingTools/Data/BINDING_COVERAGE_MATRIX.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Parameter_Name",
+          "type": "str"
+        },
+        {
+          "name": "Air Terminals",
+          "type": "num"
+        },
+        {
+          "name": "Analytical Links",
+          "type": "num"
+        },
+        {
+          "name": "Analytical Members",
+          "type": "num"
+        },
+        {
+          "name": "Analytical Nodes",
+          "type": "num"
+        },
+        {
+          "name": "Analytical Openings",
+          "type": "num"
+        },
+        {
+          "name": "Analytical Panels",
+          "type": "num"
+        },
+        {
+          "name": "Area Loads",
+          "type": "num"
+        },
+        {
+          "name": "Areas",
+          "type": "num"
+        },
+        {
+          "name": "Assemblies",
+          "type": "num"
+        },
+        {
+          "name": "Audio Visual Devices",
+          "type": "num"
+        },
+        {
+          "name": "Boundary Conditions",
+          "type": "num"
+        },
+        {
+          "name": "Building Pad",
+          "type": "num"
+        },
+        {
+          "name": "Cable Tray Fittings",
+          "type": "num"
+        },
+        {
+          "name": "Cable Tray Runs",
+          "type": "num"
+        },
+        {
+          "name": "Cable Trays",
+          "type": "num"
+        },
+        {
+          "name": "Casework",
+          "type": "num"
+        },
+        {
+          "name": "Ceilings",
+          "type": "num"
+        },
+        {
+          "name": "Columns",
+          "type": "num"
+        },
+        {
+          "name": "Communication Devices",
+          "type": "num"
+        },
+        {
+          "name": "Conduit Fittings",
+          "type": "num"
+        },
+        {
+          "name": "Conduit Runs",
+          "type": "num"
+        },
+        {
+          "name": "Conduits",
+          "type": "num"
+        },
+        {
+          "name": "Coordination Model",
+          "type": "num"
+        },
+        {
+          "name": "Curtain Panels",
+          "type": "num"
+        },
+        {
+          "name": "Curtain Systems",
+          "type": "num"
+        },
+        {
+          "name": "Curtain Wall Mullions",
+          "type": "num"
+        },
+        {
+          "name": "Data Devices",
+          "type": "num"
+        },
+        {
+          "name": "Detail Items",
+          "type": "num"
+        },
+        {
+          "name": "Doors",
+          "type": "num"
+        },
+        {
+          "name": "Duct Accessories",
+          "type": "num"
+        },
+        {
+          "name": "Duct Fittings",
+          "type": "num"
+        },
+        {
+          "name": "Duct Insulation",
+          "type": "num"
+        },
+        {
+          "name": "Duct Lining",
+          "type": "num"
+        },
+        {
+          "name": "Duct Placeholders",
+          "type": "num"
+        },
+        {
+          "name": "Ducts",
+          "type": "num"
+        },
+        {
+          "name": "Electrical Circuits",
+          "type": "num"
+        },
+        {
+          "name": "Electrical Connectors",
+          "type": "num"
+        },
+        {
+          "name": "Electrical Equipment",
+          "type": "num"
+        },
+        {
+          "name": "Electrical Fixtures",
+          "type": "num"
+        },
+        {
+          "name": "Electrical Spare/Space Circuits",
+          "type": "num"
+        },
+        {
+          "name": "Entourage",
+          "type": "num"
+        },
+        {
+          "name": "Fascia",
+          "type": "num"
+        },
+        {
+          "name": "Fire Alarm Devices",
+          "type": "num"
+        },
+        {
+          "name": "Fire Protection",
+          "type": "num"
+        },
+        {
+          "name": "Flex Ducts",
+          "type": "num"
+        },
+        {
+          "name": "Flex Pipes",
+          "type": "num"
+        },
+        {
+          "name": "Floors",
+          "type": "num"
+        },
+        {
+          "name": "Food Service Equipment",
+          "type": "num"
+        },
+        {
+          "name": "Furniture",
+          "type": "num"
+        },
+        {
+          "name": "Furniture Systems",
+          "type": "num"
+        },
+        {
+          "name": "Generic Annotations",
+          "type": "num"
+        },
+        {
+          "name": "Generic Models",
+          "type": "num"
+        },
+        {
+          "name": "Gutter",
+          "type": "num"
+        },
+        {
+          "name": "HVAC Zones",
+          "type": "num"
+        },
+        {
+          "name": "Handrails",
+          "type": "num"
+        },
+        {
+          "name": "Hardscape",
+          "type": "num"
+        },
+        {
+          "name": "Internal Area Loads",
+          "type": "num"
+        },
+        {
+          "name": "Internal Line Loads",
+          "type": "num"
+        },
+        {
+          "name": "Internal Point Loads",
+          "type": "num"
+        },
+        {
+          "name": "Lighting Devices",
+          "type": "num"
+        },
+        {
+          "name": "Lighting Fixtures",
+          "type": "num"
+        },
+        {
+          "name": "Line Loads",
+          "type": "num"
+        },
+        {
+          "name": "Lines",
+          "type": "num"
+        },
+        {
+          "name": "MEP Ancillary Framing",
+          "type": "num"
+        },
+        {
+          "name": "MEP Fabrication Containment",
+          "type": "num"
+        },
+        {
+          "name": "MEP Fabrication Ductwork",
+          "type": "num"
+        },
+        {
+          "name": "MEP Fabrication Ductwork Stiffeners",
+          "type": "num"
+        },
+        {
+          "name": "MEP Fabrication Hangers",
+          "type": "num"
+        },
+        {
+          "name": "MEP Fabrication Pipework",
+          "type": "num"
+        },
+        {
+          "name": "MEP Spaces",
+          "type": "num"
+        },
+        {
+          "name": "Mass",
+          "type": "num"
+        },
+        {
+          "name": "Materials",
+          "type": "num"
+        },
+        {
+          "name": "Mechanical Control Devices",
+          "type": "num"
+        },
+        {
+          "name": "Mechanical Equipment",
+          "type": "num"
+        },
+        {
+          "name": "Mechanical Equipment Sets",
+          "type": "num"
+        },
+        {
+          "name": "Medical Equipment",
+          "type": "num"
+        },
+        {
+          "name": "Model Groups",
+          "type": "num"
+        },
+        {
+          "name": "Nurse Call Devices",
+          "type": "num"
+        },
+        {
+          "name": "Pads",
+          "type": "num"
+        },
+        {
+          "name": "Parking",
+          "type": "num"
+        },
+        {
+          "name": "Parts",
+          "type": "num"
+        },
+        {
+          "name": "Pipe Accessories",
+          "type": "num"
+        },
+        {
+          "name": "Pipe Fittings",
+          "type": "num"
+        },
+        {
+          "name": "Pipe Insulation",
+          "type": "num"
+        },
+        {
+          "name": "Pipe Placeholders",
+          "type": "num"
+        },
+        {
+          "name": "Pipes",
+          "type": "num"
+        },
+        {
+          "name": "Piping Systems",
+          "type": "num"
+        },
+        {
+          "name": "Planting",
+          "type": "num"
+        },
+        {
+          "name": "Plumbing Equipment",
+          "type": "num"
+        },
+        {
+          "name": "Plumbing Fixtures",
+          "type": "num"
+        },
+        {
+          "name": "Point Loads",
+          "type": "num"
+        },
+        {
+          "name": "Profiles",
+          "type": "num"
+        },
+        {
+          "name": "Project Information",
+          "type": "num"
+        },
+        {
+          "name": "Property Line Segments",
+          "type": "num"
+        },
+        {
+          "name": "Property Lines",
+          "type": "num"
+        },
+        {
+          "name": "RVT Links",
+          "type": "num"
+        },
+        {
+          "name": "Railings",
+          "type": "num"
+        },
+        {
+          "name": "Ramps",
+          "type": "num"
+        },
+        {
+          "name": "Rebar",
+          "type": "num"
+        },
+        {
+          "name": "Revision Clouds",
+          "type": "num"
+        },
+        {
+          "name": "Roads",
+          "type": "num"
+        },
+        {
+          "name": "Roof Soffits",
+          "type": "num"
+        },
+        {
+          "name": "Roofs",
+          "type": "num"
+        },
+        {
+          "name": "Rooms",
+          "type": "num"
+        },
+        {
+          "name": "Security Devices",
+          "type": "num"
+        },
+        {
+          "name": "Shaft Openings",
+          "type": "num"
+        },
+        {
+          "name": "Sheets",
+          "type": "num"
+        },
+        {
+          "name": "Signage",
+          "type": "num"
+        },
+        {
+          "name": "Site",
+          "type": "num"
+        },
+        {
+          "name": "Slab Edges",
+          "type": "num"
+        },
+        {
+          "name": "Spaces",
+          "type": "num"
+        },
+        {
+          "name": "Specialty Equipment",
+          "type": "num"
+        },
+        {
+          "name": "Sprinklers",
+          "type": "num"
+        },
+        {
+          "name": "Stair Landings",
+          "type": "num"
+        },
+        {
+          "name": "Stair Runs",
+          "type": "num"
+        },
+        {
+          "name": "Stair Supports",
+          "type": "num"
+        },
+        {
+          "name": "Stairs",
+          "type": "num"
+        },
+        {
+          "name": "Structural Area Reinforcement",
+          "type": "num"
+        },
+        {
+          "name": "Structural Beam Systems",
+          "type": "num"
+        },
+        {
+          "name": "Structural Columns",
+          "type": "num"
+        },
+        {
+          "name": "Structural Connections",
+          "type": "num"
+        },
+        {
+          "name": "Structural Fabric Reinforcement",
+          "type": "num"
+        },
+        {
+          "name": "Structural Foundations",
+          "type": "num"
+        },
+        {
+          "name": "Structural Framing",
+          "type": "num"
+        },
+        {
+          "name": "Structural Load Cases",
+          "type": "num"
+        },
+        {
+          "name": "Structural Loads",
+          "type": "num"
+        },
+        {
+          "name": "Structural Path Reinforcement",
+          "type": "num"
+        },
+        {
+          "name": "Structural Rebar",
+          "type": "num"
+        },
+        {
+          "name": "Structural Rebar Couplers",
+          "type": "num"
+        },
+        {
+          "name": "Structural Stiffeners",
+          "type": "num"
+        },
+        {
+          "name": "Structural Trusses",
+          "type": "num"
+        },
+        {
+          "name": "Telephone Devices",
+          "type": "num"
+        },
+        {
+          "name": "Temporary Structures",
+          "type": "num"
+        },
+        {
+          "name": "Top Rails",
+          "type": "num"
+        },
+        {
+          "name": "Toposolid",
+          "type": "num"
+        },
+        {
+          "name": "Toposolid Links",
+          "type": "num"
+        },
+        {
+          "name": "Vertical Circulation",
+          "type": "num"
+        },
+        {
+          "name": "Vibration Dampers",
+          "type": "num"
+        },
+        {
+          "name": "Vibration Isolators",
+          "type": "num"
+        },
+        {
+          "name": "Vibration Management",
+          "type": "num"
+        },
+        {
+          "name": "Views",
+          "type": "num"
+        },
+        {
+          "name": "Wall Sweeps",
+          "type": "num"
+        },
+        {
+          "name": "Walls",
+          "type": "num"
+        },
+        {
+          "name": "Windows",
+          "type": "num"
+        },
+        {
+          "name": "Wire",
+          "type": "num"
+        },
+        {
+          "name": "Zones",
+          "type": "num"
+        }
+      ]
+    },
+    "StingTools/Data/BLE_MATERIALS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "SOURCE_SHEET",
+          "type": "str"
+        },
+        {
+          "name": "MAT_DISCIPLINE",
+          "type": "str"
+        },
+        {
+          "name": "MAT_ISO_19650_ID",
+          "type": "str"
+        },
+        {
+          "name": "MAT_CODE",
+          "type": "str"
+        },
+        {
+          "name": "MAT_ELEMENT_TYPE",
+          "type": "str"
+        },
+        {
+          "name": "MAT_CATEGORY",
+          "type": "str"
+        },
+        {
+          "name": "MAT_NAME",
+          "type": "str"
+        },
+        {
+          "name": "MAT_APPLICATION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LOCATION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_THICKNESS_INCH",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_UNIT_USD",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_UNIT_UGX",
+          "type": "num"
+        },
+        {
+          "name": "MAT_DURABILITY",
+          "type": "str"
+        },
+        {
+          "name": "MAT_SPECIFICATIONS",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_COUNT",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_1_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_1_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_1_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_2_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_2_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_2_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_3_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_3_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_3_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_4_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_4_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_4_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_5_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_5_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_5_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_MANUFACTURER",
+          "type": "str"
+        },
+        {
+          "name": "MAT_STANDARD",
+          "type": "str"
+        },
+        {
+          "name": "MAT_FEATURES",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-REVIT-BASE-MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-IDENTITY-CLASS",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-TRANSPARENCY",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-SMOOTHNESS",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-SHININESS",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-SURFACE-FG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE-FG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-FG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-FG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-IMAGE",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-DESCRIPTION",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-COMMENTS",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE-BG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE-BG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-BG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-BG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-PHYSICAL-ASSET",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-THERMAL-ASSET",
+          "type": "str"
+        },
+        {
+          "name": "BLE_MAT_TEXTURE_URL",
+          "type": "str"
+        },
+        {
+          "name": "PROP_DENSITY_KG_M3",
+          "type": "num"
+        },
+        {
+          "name": "PROP_THERMAL_COND_W_MK",
+          "type": "num"
+        },
+        {
+          "name": "PROP_THERMAL_RES_M2K_W",
+          "type": "num"
+        },
+        {
+          "name": "PROP_SPECIFIC_HEAT_J_KGK",
+          "type": "num"
+        },
+        {
+          "name": "PROP_FIRE_RATING",
+          "type": "str"
+        },
+        {
+          "name": "PROP_ACOUSTIC_ABS",
+          "type": "num"
+        },
+        {
+          "name": "PROP_SOUND_RED_DB",
+          "type": "num"
+        },
+        {
+          "name": "PROP_CARBON_KG_M3",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_ASSEMBLY_USD",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_ASSEMBLY_UGX",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-CUT_PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE_PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-BACKGROUND_PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SHADING_RGB",
+          "type": "num"
+        },
+        {
+          "name": "PROP_COMP_STRENGTH_MPA",
+          "type": "num"
+        },
+        {
+          "name": "PROP_TENS_STRENGTH_MPA",
+          "type": "num"
+        },
+        {
+          "name": "PROP_CARBON_FOSSIL_KG_M3",
+          "type": "num"
+        },
+        {
+          "name": "PROP_CARBON_BIOGENIC_KG_M3",
+          "type": "num"
+        }
+      ]
+    },
+    "StingTools/Data/BOQ_DESCRIPTIONS.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "description": "No POCO: Temp/BOQTemplateLibrary.LoadBuiltin parses it with JArray and reads fields explicitly, so the key list is hand-declared.",
+      "readers": [
+        "StingTools/Temp/BOQTemplateLibrary.cs"
+      ],
+      "kind": "array-of-object",
+      "keys": [
+        "category",
+        "nrm2_section",
+        "paragraph",
+        "placeholders"
+      ],
+      "req": [
+        "category",
+        "paragraph"
+      ],
+      "types": {
+        "category": "str",
+        "nrm2_section": "str",
+        "paragraph": "str",
+        "placeholders": "list-of-str"
+      }
+    },
+    "StingTools/Data/CATEGORY_BINDINGS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Parameter_Name",
+          "type": "str"
+        },
+        {
+          "name": "Revit_Category",
+          "type": "str"
+        },
+        {
+          "name": "Binding_Type",
+          "type": "str"
+        },
+        {
+          "name": "Is_Shared",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/COBIE_DOCUMENT_TYPES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "DocTypeCode",
+          "type": "str"
+        },
+        {
+          "name": "DocTypeName",
+          "type": "str"
+        },
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "ApplicableTo",
+          "type": "str"
+        },
+        {
+          "name": "Mandatory",
+          "type": "str"
+        },
+        {
+          "name": "RegulatoryRef",
+          "type": "str"
+        },
+        {
+          "name": "RetentionPeriod",
+          "type": "str"
+        },
+        {
+          "name": "Format",
+          "type": "str"
+        },
+        {
+          "name": "NamingConvention",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/COBIE_JOB_TEMPLATES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "TypeCodePattern",
+          "type": "str"
+        },
+        {
+          "name": "JobName",
+          "type": "str"
+        },
+        {
+          "name": "JobType",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "Duration",
+          "type": "num"
+        },
+        {
+          "name": "DurationUnit",
+          "type": "str"
+        },
+        {
+          "name": "Start",
+          "type": "num"
+        },
+        {
+          "name": "TaskStartUnit",
+          "type": "str"
+        },
+        {
+          "name": "Frequency",
+          "type": "num"
+        },
+        {
+          "name": "FrequencyUnit",
+          "type": "str"
+        },
+        {
+          "name": "Priority",
+          "type": "str"
+        },
+        {
+          "name": "SFG20Code",
+          "type": "str"
+        },
+        {
+          "name": "ResourceNames",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/COBIE_PICKLISTS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "ListName",
+          "type": "str"
+        },
+        {
+          "name": "Value",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/COBIE_SPARE_PARTS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "TypeCodePattern",
+          "type": "str"
+        },
+        {
+          "name": "SpareName",
+          "type": "str"
+        },
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "PartNumber",
+          "type": "str"
+        },
+        {
+          "name": "SetNumber",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "Supplier",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/COBIE_SYSTEM_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "SystemCode",
+          "type": "str"
+        },
+        {
+          "name": "SystemName",
+          "type": "str"
+        },
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "UniclassSsCode",
+          "type": "str"
+        },
+        {
+          "name": "CIBSECode",
+          "type": "str"
+        },
+        {
+          "name": "Discipline",
+          "type": "str"
+        },
+        {
+          "name": "StingSysCode",
+          "type": "str"
+        },
+        {
+          "name": "StingFuncCode",
+          "type": "str"
+        },
+        {
+          "name": "ComponentTypes",
+          "type": "str"
+        },
+        {
+          "name": "DesignCapacity",
+          "type": "str"
+        },
+        {
+          "name": "Redundancy",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/COBIE_TYPE_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "TypeCode",
+          "type": "str"
+        },
+        {
+          "name": "TypeName",
+          "type": "str"
+        },
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "AssetType",
+          "type": "str"
+        },
+        {
+          "name": "Manufacturer",
+          "type": "str"
+        },
+        {
+          "name": "ModelNumber",
+          "type": "str"
+        },
+        {
+          "name": "WarrantyDurationYears",
+          "type": "num"
+        },
+        {
+          "name": "ReplacementCostGBP",
+          "type": "num"
+        },
+        {
+          "name": "ExpectedLifeYears",
+          "type": "num"
+        },
+        {
+          "name": "DurationUnit",
+          "type": "str"
+        },
+        {
+          "name": "MaintenanceFreqMonths",
+          "type": "num"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "Material",
+          "type": "str"
+        },
+        {
+          "name": "Finish",
+          "type": "str"
+        },
+        {
+          "name": "SFG20Code",
+          "type": "str"
+        },
+        {
+          "name": "UniclassCode",
+          "type": "str"
+        },
+        {
+          "name": "RevitCategory",
+          "type": "str"
+        },
+        {
+          "name": "StingDiscCode",
+          "type": "str"
+        },
+        {
+          "name": "StingSysCode",
+          "type": "str"
+        },
+        {
+          "name": "StingFuncCode",
+          "type": "str"
+        },
+        {
+          "name": "StingProdCode",
+          "type": "str"
+        },
+        {
+          "name": "CostRateCode",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/COBIE_ZONE_TYPES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "ZoneTypeCode",
+          "type": "str"
+        },
+        {
+          "name": "ZoneTypeName",
+          "type": "str"
+        },
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "ClassificationCode",
+          "type": "str"
+        },
+        {
+          "name": "RegulatoryDriver",
+          "type": "str"
+        },
+        {
+          "name": "Properties",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/ARCH.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/COORD.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/ELE.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/FP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/GEN.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/LV.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/MEP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/PLM.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/DISCIPLINE_NOTES/STR.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "NoteNumber",
+          "type": "num"
+        },
+        {
+          "name": "NoteText",
+          "type": "str"
+        },
+        {
+          "name": "AppliesTo",
+          "type": "str"
+        },
+        {
+          "name": "UgandaNBCRef",
+          "type": "str"
+        },
+        {
+          "name": "ISORef",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/Fabrication/STING_ISO_SYMBOLS_INDEX.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "symbol_code",
+          "type": "str"
+        },
+        {
+          "name": "family_filename",
+          "type": "str"
+        },
+        {
+          "name": "category",
+          "type": "str"
+        },
+        {
+          "name": "description",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/HEALTHCARE_ACOUSTIC_NR_TARGETS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "RoomClass",
+          "type": "str"
+        },
+        {
+          "name": "NRTarget",
+          "type": "num"
+        },
+        {
+          "name": "RT60TargetS",
+          "type": "num"
+        },
+        {
+          "name": "STCMin",
+          "type": "num"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/HEALTHCARE_ADJACENCY_HBN.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "RoomClassA",
+          "type": "str"
+        },
+        {
+          "name": "RoomClassB",
+          "type": "str"
+        },
+        {
+          "name": "Target",
+          "type": "num"
+        },
+        {
+          "name": "SourceRef",
+          "type": "str"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/HEALTHCARE_ENDOSCOPE_TYPES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "ScopeCode",
+          "type": "str"
+        },
+        {
+          "name": "ScopeName",
+          "type": "str"
+        },
+        {
+          "name": "DeconMethod",
+          "type": "str"
+        },
+        {
+          "name": "SpaldingTier",
+          "type": "str"
+        },
+        {
+          "name": "CycleTimeMin",
+          "type": "num"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/HEALTHCARE_EQUIPMENT_WEIGHTS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "EquipmentCode",
+          "type": "str"
+        },
+        {
+          "name": "EquipmentName",
+          "type": "str"
+        },
+        {
+          "name": "WeightKg",
+          "type": "num"
+        },
+        {
+          "name": "FloorLoadKnM2Min",
+          "type": "num"
+        },
+        {
+          "name": "VibrationVcBand",
+          "type": "str"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/Labour/STING_LABOUR_RATES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Electrical Fixtures",
+          "type": "str"
+        },
+        {
+          "name": "",
+          "type": "str"
+        },
+        {
+          "name": "EA",
+          "type": "str"
+        },
+        {
+          "name": "0.50",
+          "type": "num"
+        },
+        {
+          "name": "Sparks",
+          "type": "str"
+        },
+        {
+          "name": "48.00",
+          "type": "num"
+        }
+      ]
+    },
+    "StingTools/Data/MEP/STING_MEP_SYMBOLS_INDEX.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "symbol_code",
+          "type": "str"
+        },
+        {
+          "name": "family_filename",
+          "type": "str"
+        },
+        {
+          "name": "category",
+          "type": "str"
+        },
+        {
+          "name": "standard",
+          "type": "str"
+        },
+        {
+          "name": "view_types",
+          "type": "str"
+        },
+        {
+          "name": "color_scheme",
+          "type": "str"
+        },
+        {
+          "name": "paper_size_mm",
+          "type": "num"
+        },
+        {
+          "name": "description",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/MEP_MATERIALS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "SOURCE_SHEET",
+          "type": "str"
+        },
+        {
+          "name": "MAT_DISCIPLINE",
+          "type": "str"
+        },
+        {
+          "name": "MAT_ISO_19650_ID",
+          "type": "str"
+        },
+        {
+          "name": "MAT_CODE",
+          "type": "str"
+        },
+        {
+          "name": "MAT_ELEMENT_TYPE",
+          "type": "str"
+        },
+        {
+          "name": "MAT_CATEGORY",
+          "type": "str"
+        },
+        {
+          "name": "MAT_NAME",
+          "type": "str"
+        },
+        {
+          "name": "MAT_APPLICATION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LOCATION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_THICKNESS_INCH",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_UNIT_USD",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_UNIT_UGX",
+          "type": "num"
+        },
+        {
+          "name": "MAT_DURABILITY",
+          "type": "str"
+        },
+        {
+          "name": "MAT_SPECIFICATIONS",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_COUNT",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_1_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_1_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_1_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_2_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_2_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_2_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_3_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_3_THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "MAT_LAYER_3_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_4_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_4_THICKNESS_MM",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_4_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_5_MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_5_THICKNESS_MM",
+          "type": "str"
+        },
+        {
+          "name": "MAT_LAYER_5_FUNCTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_MANUFACTURER",
+          "type": "str"
+        },
+        {
+          "name": "MAT_STANDARD",
+          "type": "str"
+        },
+        {
+          "name": "MAT_FEATURES",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-REVIT-BASE-MATERIAL",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-IDENTITY-CLASS",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-TRANSPARENCY",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-SMOOTHNESS",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-SHININESS",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-SURFACE-FG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE-FG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-FG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-FG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-IMAGE",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-DESCRIPTION",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-COMMENTS",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE-BG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE-BG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-BG-PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-CUT-BG-COLOR",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-PHYSICAL-ASSET",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-THERMAL-ASSET",
+          "type": "str"
+        },
+        {
+          "name": "BLE_MAT_TEXTURE_URL",
+          "type": "str"
+        },
+        {
+          "name": "PROP_DENSITY_KG_M3",
+          "type": "num"
+        },
+        {
+          "name": "PROP_THERMAL_COND_W_MK",
+          "type": "num"
+        },
+        {
+          "name": "PROP_THERMAL_RES_M2K_W",
+          "type": "num"
+        },
+        {
+          "name": "PROP_SPECIFIC_HEAT_J_KGK",
+          "type": "num"
+        },
+        {
+          "name": "PROP_FIRE_RATING",
+          "type": "str"
+        },
+        {
+          "name": "PROP_ACOUSTIC_ABS",
+          "type": "num"
+        },
+        {
+          "name": "PROP_SOUND_RED_DB",
+          "type": "num"
+        },
+        {
+          "name": "PROP_CARBON_KG_M3",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_ASSEMBLY_USD",
+          "type": "num"
+        },
+        {
+          "name": "MAT_COST_ASSEMBLY_UGX",
+          "type": "num"
+        },
+        {
+          "name": "BLE_APP-CUT_PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SURFACE_PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-BACKGROUND_PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "BLE_APP-SHADING_RGB",
+          "type": "num"
+        },
+        {
+          "name": "PROP_COMP_STRENGTH_MPA",
+          "type": "num"
+        },
+        {
+          "name": "PROP_TENS_STRENGTH_MPA",
+          "type": "num"
+        },
+        {
+          "name": "PROP_CARBON_FOSSIL_KG_M3",
+          "type": "num"
+        },
+        {
+          "name": "PROP_CARBON_BIOGENIC_KG_M3",
+          "type": "num"
+        }
+      ]
+    },
+    "StingTools/Data/MR_PARAMETERS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Revit_Category",
+          "type": "str"
+        },
+        {
+          "name": "Parameter_Name",
+          "type": "str"
+        },
+        {
+          "name": "Parameter_GUID",
+          "type": "str"
+        },
+        {
+          "name": "Data_Type",
+          "type": "str"
+        },
+        {
+          "name": "Group_Name",
+          "type": "str"
+        },
+        {
+          "name": "Binding_Type",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "Has_Formula",
+          "type": "str"
+        },
+        {
+          "name": "Formula",
+          "type": "str"
+        },
+        {
+          "name": "Input_Parameters",
+          "type": "str"
+        },
+        {
+          "name": "Discipline",
+          "type": "str"
+        },
+        {
+          "name": "User_Modifiable",
+          "type": "num"
+        },
+        {
+          "name": "Hide_When_No_Value",
+          "type": "num"
+        }
+      ]
+    },
+    "StingTools/Data/MR_SCHEDULES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Record_Type",
+          "type": "str"
+        },
+        {
+          "name": "Source_File",
+          "type": "str"
+        },
+        {
+          "name": "Discipline",
+          "type": "str"
+        },
+        {
+          "name": "Schedule_Name",
+          "type": "str"
+        },
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "Schedule_Type",
+          "type": "str"
+        },
+        {
+          "name": "Multi_Categories",
+          "type": "str"
+        },
+        {
+          "name": "Fields",
+          "type": "str"
+        },
+        {
+          "name": "Filters",
+          "type": "str"
+        },
+        {
+          "name": "Sorting",
+          "type": "str"
+        },
+        {
+          "name": "Grouping",
+          "type": "str"
+        },
+        {
+          "name": "Totals",
+          "type": "str"
+        },
+        {
+          "name": "Formulas",
+          "type": "str"
+        },
+        {
+          "name": "Header_Color",
+          "type": "str"
+        },
+        {
+          "name": "Text_Color",
+          "type": "str"
+        },
+        {
+          "name": "Background_Color",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/MedGas/STING_MEDGAS_PIPE_SIZING.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "GasCode",
+          "type": "str"
+        },
+        {
+          "name": "FlowRangeLpmMin",
+          "type": "num"
+        },
+        {
+          "name": "FlowRangeLpmMax",
+          "type": "num"
+        },
+        {
+          "name": "PipeOdMm",
+          "type": "num"
+        },
+        {
+          "name": "Material",
+          "type": "str"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/MedGas/STING_MEDGAS_TERMINAL_UNITS_BS5682.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "GasCode",
+          "type": "str"
+        },
+        {
+          "name": "GasName",
+          "type": "str"
+        },
+        {
+          "name": "NominalKPa",
+          "type": "num"
+        },
+        {
+          "name": "IndexConvention",
+          "type": "str"
+        },
+        {
+          "name": "ColourBSEN",
+          "type": "str"
+        },
+        {
+          "name": "ConnectorType",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/PARAMETER_CATEGORIES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Parameter Name",
+          "type": "str"
+        },
+        {
+          "name": "Schedule Display Name",
+          "type": "str"
+        },
+        {
+          "name": "Data Type",
+          "type": "str"
+        },
+        {
+          "name": "Type/Instance",
+          "type": "str"
+        },
+        {
+          "name": "Categories",
+          "type": "str"
+        },
+        {
+          "name": "Group",
+          "type": "str"
+        },
+        {
+          "name": "GUID",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/PYREVIT_SCRIPT_MANIFEST.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Script_Name",
+          "type": "str"
+        },
+        {
+          "name": "Script_Path",
+          "type": "str"
+        },
+        {
+          "name": "Button_Name",
+          "type": "str"
+        },
+        {
+          "name": "Parameters_Read",
+          "type": "str"
+        },
+        {
+          "name": "Parameters_Written",
+          "type": "str"
+        },
+        {
+          "name": "Revit_Categories",
+          "type": "str"
+        },
+        {
+          "name": "Last_Validated_Date",
+          "type": "num"
+        },
+        {
+          "name": "pyRevit_Extension",
+          "type": "str"
+        },
+        {
+          "name": "StingTools_Replacement",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/Plumbing/STING_BS5422_INSULATION.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Service",
+          "type": "str"
+        },
+        {
+          "name": "OD_MM_MIN",
+          "type": "num"
+        },
+        {
+          "name": "OD_MM_MAX",
+          "type": "num"
+        },
+        {
+          "name": "Lambda_0p030",
+          "type": "num"
+        },
+        {
+          "name": "Lambda_0p035",
+          "type": "num"
+        },
+        {
+          "name": "Lambda_0p040",
+          "type": "num"
+        },
+        {
+          "name": "Lambda_0p045",
+          "type": "num"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/Plumbing/STING_PLUMB_FITTINGS_EQ_LENGTH.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "FittingType",
+          "type": "str"
+        },
+        {
+          "name": "DN15",
+          "type": "num"
+        },
+        {
+          "name": "DN20",
+          "type": "num"
+        },
+        {
+          "name": "DN22",
+          "type": "num"
+        },
+        {
+          "name": "DN25",
+          "type": "num"
+        },
+        {
+          "name": "DN28",
+          "type": "num"
+        },
+        {
+          "name": "DN32",
+          "type": "num"
+        },
+        {
+          "name": "DN35",
+          "type": "num"
+        },
+        {
+          "name": "DN40",
+          "type": "num"
+        },
+        {
+          "name": "DN50",
+          "type": "num"
+        },
+        {
+          "name": "DN65",
+          "type": "num"
+        },
+        {
+          "name": "DN80",
+          "type": "num"
+        },
+        {
+          "name": "DN100",
+          "type": "num"
+        },
+        {
+          "name": "DN125",
+          "type": "num"
+        },
+        {
+          "name": "DN150",
+          "type": "num"
+        }
+      ]
+    },
+    "StingTools/Data/RADIATION_BRACHY_SOURCES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "SourceCode",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "EnergyMeV",
+          "type": "num"
+        },
+        {
+          "name": "HalfLifeDays",
+          "type": "num"
+        },
+        {
+          "name": "DoseConstant",
+          "type": "num"
+        },
+        {
+          "name": "ShieldRefMm",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/RADIATION_PET_TABLES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Material",
+          "type": "str"
+        },
+        {
+          "name": "kVp_or_MeV",
+          "type": "num"
+        },
+        {
+          "name": "TenthValueLayerMm",
+          "type": "num"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/RESOLVED_BINDINGS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "ACC_ISSUE_ID_TXT",
+          "type": "str"
+        },
+        {
+          "name": "<ALL>",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/ROOM_TYPE_CLASSIFIER.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "room_name_pattern",
+          "type": "str"
+        },
+        {
+          "name": "en12464_room_code",
+          "type": "str"
+        },
+        {
+          "name": "target_lux",
+          "type": "num"
+        },
+        {
+          "name": "notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/SCHEDULE_FIELD_REMAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Old_Schedule_Field",
+          "type": "str"
+        },
+        {
+          "name": "Consolidated_Parameter",
+          "type": "str"
+        },
+        {
+          "name": "Action",
+          "type": "str"
+        },
+        {
+          "name": "Deprecated_Date",
+          "type": "str"
+        },
+        {
+          "name": "Deprecation_Owner",
+          "type": "str"
+        },
+        {
+          "name": "Sunset_Date",
+          "type": "str"
+        },
+        {
+          "name": "Migration_Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_COMCHECK_SPACE_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Pattern",
+          "type": "str"
+        },
+        {
+          "name": "ComCheckSpaceType",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_DEFAULT_COST_RATES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "USD global benchmark rates, the lowest-priority rate provider (DefaultRateProvider, priority 60).",
+      "readers": [
+        "StingTools/BIMManager/SchedulingCommands.cs Scheduling4DEngine.LoadDefaultCostRatesCsv"
+      ],
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str",
+          "required": true,
+          "description": "Revit category name."
+        },
+        {
+          "name": "RatePerUnit_USD",
+          "type": "num",
+          "required": true,
+          "min": 0,
+          "description": "USD per Unit."
+        },
+        {
+          "name": "Unit",
+          "type": "str",
+          "required": true,
+          "description": "Unit of measure."
+        },
+        {
+          "name": "Description",
+          "type": "str",
+          "description": "Free text."
+        }
+      ],
+      "unique": [
+        [
+          "Category"
+        ]
+      ]
+    },
+    "StingTools/Data/STING_DRAWING_TYPES.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "readers": [
+        "StingTools/Core/Drawing/DrawingTypeRegistry.cs"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Drawing/DrawingType.cs",
+        "DrawingTypeLibrary"
+      ],
+      "req": [
+        "drawingTypes"
+      ],
+      "children": {
+        "drawingTypes": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Drawing/DrawingType.cs",
+            "DrawingType"
+          ],
+          "req": [
+            "id",
+            "name"
+          ],
+          "children": {
+            "crop": {
+              "kind": "object",
+              "poco": [
+                "StingTools/Core/Drawing/DrawingType.cs",
+                "DrawingCropStrategy"
+              ]
+            },
+            "sectionMarker": {
+              "kind": "object",
+              "poco": [
+                "StingTools/Core/Drawing/DrawingType.cs",
+                "SectionMarkerSpec"
+              ]
+            },
+            "print": {
+              "kind": "object",
+              "poco": [
+                "StingTools/Core/Drawing/DrawingType.cs",
+                "PrintOverride"
+              ]
+            },
+            "isoNaming": {
+              "kind": "object",
+              "poco": [
+                "StingTools/Core/Drawing/DrawingType.cs",
+                "IsoNaming"
+              ]
+            },
+            "slots": {
+              "kind": "array-of-object",
+              "poco": [
+                "StingTools/Core/Drawing/DrawingType.cs",
+                "DrawingSlot"
+              ]
+            }
+          }
+        },
+        "routing": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Drawing/DrawingType.cs",
+            "DrawingRoutingRule"
+          ],
+          "req": [
+            "drawingTypeId"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/STING_FINISH_CODES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "FINISH_CODE",
+          "type": "str"
+        },
+        {
+          "name": "SURFACE",
+          "type": "str"
+        },
+        {
+          "name": "FINISH_DESCRIPTION",
+          "type": "str"
+        },
+        {
+          "name": "MAT_CODE",
+          "type": "str"
+        },
+        {
+          "name": "MAT_NAME",
+          "type": "str"
+        },
+        {
+          "name": "THICKNESS_MM",
+          "type": "num"
+        },
+        {
+          "name": "REVIT_TYPE_HINT",
+          "type": "str"
+        },
+        {
+          "name": "NOTES",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_FUNC_SYS_MATRIX.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "SYS_CODE",
+          "type": "str"
+        },
+        {
+          "name": "SYS_DESCRIPTION",
+          "type": "str"
+        },
+        {
+          "name": "FUNC_CODE",
+          "type": "str"
+        },
+        {
+          "name": "FUNC_DESCRIPTION",
+          "type": "str"
+        },
+        {
+          "name": "DISCIPLINE",
+          "type": "str"
+        },
+        {
+          "name": "CIBSE_REF",
+          "type": "str"
+        },
+        {
+          "name": "ISO_19650_VALID",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_MATERIAL_DISCIPLINE_AFFINITY.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "MaterialClassPattern",
+          "type": "str"
+        },
+        {
+          "name": "PrimaryDiscipline",
+          "type": "str"
+        },
+        {
+          "name": "SecondaryDisciplines",
+          "type": "str"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_MATERIAL_UNICLASS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "MaterialClassPattern",
+          "type": "str"
+        },
+        {
+          "name": "UniclassCode",
+          "type": "str"
+        },
+        {
+          "name": "UniclassTitle",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_NRM1_BENCHMARKS.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "BuildingType",
+          "type": "str"
+        },
+        {
+          "name": "ElementCode",
+          "type": "num"
+        },
+        {
+          "name": "ElementName",
+          "type": "str"
+        },
+        {
+          "name": "Unit",
+          "type": "str"
+        },
+        {
+          "name": "LowRate",
+          "type": "num"
+        },
+        {
+          "name": "LikelyRate",
+          "type": "num"
+        },
+        {
+          "name": "HighRate",
+          "type": "num"
+        },
+        {
+          "name": "Source",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_NRM2_MEASUREMENT_RULES.json": {
+      "format": "json",
+      "schemaVersion": 1,
+      "readers": [
+        "StingTools/BOQ/MeasurementStandard/MeasurementRules.cs"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/BOQ/MeasurementStandard/MeasurementRules.cs",
+        "MeasurementRuleLibrary"
+      ],
+      "req": [
+        "rules"
+      ],
+      "children": {
+        "defaults": {
+          "kind": "object",
+          "poco": [
+            "StingTools/BOQ/MeasurementStandard/MeasurementRules.cs",
+            "MeasurementDefaults"
+          ]
+        },
+        "rules": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/BOQ/MeasurementStandard/MeasurementRules.cs",
+            "MeasurementRule"
+          ],
+          "req": [
+            "id",
+            "matchCategory",
+            "unit",
+            "measure"
+          ]
+        }
+      }
+    },
+    "StingTools/Data/STING_OMNICLASS_13_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "FamilyRegex",
+          "type": "str"
+        },
+        {
+          "name": "TypeRegex",
+          "type": "str"
+        },
+        {
+          "name": "Sys",
+          "type": "str"
+        },
+        {
+          "name": "Section",
+          "type": "str"
+        },
+        {
+          "name": "Title",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_OMNICLASS_21_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "FamilyRegex",
+          "type": "str"
+        },
+        {
+          "name": "TypeRegex",
+          "type": "str"
+        },
+        {
+          "name": "Sys",
+          "type": "str"
+        },
+        {
+          "name": "Section",
+          "type": "str"
+        },
+        {
+          "name": "Title",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_OMNICLASS_23_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "FamilyRegex",
+          "type": "str"
+        },
+        {
+          "name": "TypeRegex",
+          "type": "str"
+        },
+        {
+          "name": "Sys",
+          "type": "str"
+        },
+        {
+          "name": "Section",
+          "type": "str"
+        },
+        {
+          "name": "Title",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_OMNICLASS_41_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "FamilyRegex",
+          "type": "str"
+        },
+        {
+          "name": "TypeRegex",
+          "type": "str"
+        },
+        {
+          "name": "Sys",
+          "type": "str"
+        },
+        {
+          "name": "Section",
+          "type": "str"
+        },
+        {
+          "name": "Title",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_PROD_CODES.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "PROD_CODE",
+          "type": "str"
+        },
+        {
+          "name": "CATEGORY",
+          "type": "str"
+        },
+        {
+          "name": "FAMILY_PATTERN",
+          "type": "str"
+        },
+        {
+          "name": "DESCRIPTION",
+          "type": "str"
+        },
+        {
+          "name": "DISCIPLINE",
+          "type": "str"
+        },
+        {
+          "name": "SYSTEM",
+          "type": "str"
+        },
+        {
+          "name": "STANDARD_REF",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/STING_UNICLASS_MAP.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "BuiltInCategory",
+          "type": "str"
+        },
+        {
+          "name": "UniclassCode",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "Source",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/TAG_PARAM_ALIGNMENT_AUDIT.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "ParameterName",
+          "type": "str"
+        },
+        {
+          "name": "Group",
+          "type": "str"
+        },
+        {
+          "name": "DataType_TagCSV",
+          "type": "str"
+        },
+        {
+          "name": "Default_TagCSV",
+          "type": "str"
+        },
+        {
+          "name": "In_MR_PARAMETERS",
+          "type": "str"
+        },
+        {
+          "name": "MR_GUID",
+          "type": "str"
+        },
+        {
+          "name": "MR_DataType",
+          "type": "str"
+        },
+        {
+          "name": "MR_Group",
+          "type": "str"
+        },
+        {
+          "name": "In_PARAMETER_CATEGORIES",
+          "type": "str"
+        },
+        {
+          "name": "In_FAMILY_PARAMETER_BINDINGS",
+          "type": "str"
+        },
+        {
+          "name": "In_FORMULAS",
+          "type": "str"
+        },
+        {
+          "name": "In_Files",
+          "type": "str"
+        },
+        {
+          "name": "In_Catalog_Files",
+          "type": "str"
+        },
+        {
+          "name": "In_Data_Files",
+          "type": "str"
+        },
+        {
+          "name": "Status",
+          "type": "str"
+        },
+        {
+          "name": "Issues",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/TITLE_BLOCK.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "ParameterName",
+          "type": "str"
+        },
+        {
+          "name": "DefaultValue",
+          "type": "str"
+        },
+        {
+          "name": "ARCH",
+          "type": "str"
+        },
+        {
+          "name": "STR",
+          "type": "str"
+        },
+        {
+          "name": "MEP",
+          "type": "str"
+        },
+        {
+          "name": "ELE",
+          "type": "str"
+        },
+        {
+          "name": "PLM",
+          "type": "str"
+        },
+        {
+          "name": "FP",
+          "type": "str"
+        },
+        {
+          "name": "LV",
+          "type": "str"
+        },
+        {
+          "name": "COORD",
+          "type": "str"
+        },
+        {
+          "name": "GEN",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/TPL_SCHEDULE_METADATA.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Record_ID",
+          "type": "num"
+        },
+        {
+          "name": "Source_Table",
+          "type": "str"
+        },
+        {
+          "name": "Revit_Category",
+          "type": "str"
+        },
+        {
+          "name": "Import_Priority",
+          "type": "num"
+        },
+        {
+          "name": "Dependency_On",
+          "type": "str"
+        },
+        {
+          "name": "Name",
+          "type": "str"
+        },
+        {
+          "name": "Description",
+          "type": "str"
+        },
+        {
+          "name": "Discipline",
+          "type": "str"
+        },
+        {
+          "name": "Parameter_Group",
+          "type": "str"
+        },
+        {
+          "name": "ISO_Standard",
+          "type": "str"
+        },
+        {
+          "name": "Linked_Standard",
+          "type": "str"
+        },
+        {
+          "name": "Color_Hex",
+          "type": "str"
+        },
+        {
+          "name": "BIM_LOD",
+          "type": "str"
+        },
+        {
+          "name": "Version",
+          "type": "str"
+        },
+        {
+          "name": "Revision",
+          "type": "str"
+        },
+        {
+          "name": "Status",
+          "type": "str"
+        },
+        {
+          "name": "Is_Active",
+          "type": "str"
+        },
+        {
+          "name": "Sort_Order",
+          "type": "num"
+        },
+        {
+          "name": "Last_Modified",
+          "type": "str"
+        },
+        {
+          "name": "Created_By",
+          "type": "str"
+        },
+        {
+          "name": "Approved_By",
+          "type": "str"
+        },
+        {
+          "name": "Tags",
+          "type": "str"
+        },
+        {
+          "name": "Notes",
+          "type": "str"
+        },
+        {
+          "name": "Type",
+          "type": "str"
+        },
+        {
+          "name": "Angle_Degrees",
+          "type": "num"
+        },
+        {
+          "name": "Size_mm",
+          "type": "num"
+        },
+        {
+          "name": "Fill",
+          "type": "str"
+        },
+        {
+          "name": "Text_Size_mm",
+          "type": "num"
+        },
+        {
+          "name": "Witness_Line_Gap_mm",
+          "type": "num"
+        },
+        {
+          "name": "Witness_Line_Extension_mm",
+          "type": "num"
+        },
+        {
+          "name": "Dimension_Line_Extension_mm",
+          "type": "num"
+        },
+        {
+          "name": "Tick_Mark_Style",
+          "type": "str"
+        },
+        {
+          "name": "Tick_Mark_Size_mm",
+          "type": "num"
+        },
+        {
+          "name": "Units_Format",
+          "type": "str"
+        },
+        {
+          "name": "Precision",
+          "type": "num"
+        },
+        {
+          "name": "Suppress_Zeros",
+          "type": "str"
+        },
+        {
+          "name": "Categories",
+          "type": "str"
+        },
+        {
+          "name": "Rule_Parameter",
+          "type": "str"
+        },
+        {
+          "name": "Rule_Operator",
+          "type": "str"
+        },
+        {
+          "name": "Rule_Value",
+          "type": "str"
+        },
+        {
+          "name": "Override_Lines_Weight",
+          "type": "num"
+        },
+        {
+          "name": "Override_Surface_Pattern",
+          "type": "str"
+        },
+        {
+          "name": "Override_Transparency",
+          "type": "num"
+        },
+        {
+          "name": "Apply_To",
+          "type": "str"
+        },
+        {
+          "name": "Segment_1_Type",
+          "type": "str"
+        },
+        {
+          "name": "Segment_1_Length_mm",
+          "type": "num"
+        },
+        {
+          "name": "Segment_2_Type",
+          "type": "str"
+        },
+        {
+          "name": "Segment_2_Length_mm",
+          "type": "num"
+        },
+        {
+          "name": "Segment_3_Type",
+          "type": "str"
+        },
+        {
+          "name": "Segment_3_Length_mm",
+          "type": "num"
+        },
+        {
+          "name": "Segment_4_Type",
+          "type": "str"
+        },
+        {
+          "name": "Segment_4_Length_mm",
+          "type": "num"
+        },
+        {
+          "name": "Space_Length_mm",
+          "type": "num"
+        },
+        {
+          "name": "Line_Weight",
+          "type": "num"
+        },
+        {
+          "name": "Line_Pattern",
+          "type": "str"
+        },
+        {
+          "name": "Line_Number",
+          "type": "num"
+        },
+        {
+          "name": "Thickness_mm",
+          "type": "num"
+        },
+        {
+          "name": "Projection_Use",
+          "type": "str"
+        },
+        {
+          "name": "Cut_Use",
+          "type": "str"
+        },
+        {
+          "name": "Category",
+          "type": "str"
+        },
+        {
+          "name": "Subcategory",
+          "type": "str"
+        },
+        {
+          "name": "Line_Weight_Projection",
+          "type": "num"
+        },
+        {
+          "name": "Line_Weight_Cut",
+          "type": "num"
+        },
+        {
+          "name": "Material",
+          "type": "str"
+        },
+        {
+          "name": "New",
+          "type": "str"
+        },
+        {
+          "name": "Existing",
+          "type": "str"
+        },
+        {
+          "name": "Demolished",
+          "type": "str"
+        },
+        {
+          "name": "Temporary",
+          "type": "str"
+        },
+        {
+          "name": "Future",
+          "type": "str"
+        },
+        {
+          "name": "Sequence_Number",
+          "type": "num"
+        },
+        {
+          "name": "ISO_Code",
+          "type": "str"
+        },
+        {
+          "name": "GUID",
+          "type": "str"
+        },
+        {
+          "name": "Data_Type",
+          "type": "str"
+        },
+        {
+          "name": "Group_Name",
+          "type": "str"
+        },
+        {
+          "name": "Visible",
+          "type": "str"
+        },
+        {
+          "name": "User_Modifiable",
+          "type": "str"
+        },
+        {
+          "name": "Hide_When_No_Value",
+          "type": "str"
+        },
+        {
+          "name": "Schedule_Recommended",
+          "type": "str"
+        },
+        {
+          "name": "Parameters",
+          "type": "str"
+        },
+        {
+          "name": "Group_By",
+          "type": "str"
+        },
+        {
+          "name": "Sort_By",
+          "type": "str"
+        },
+        {
+          "name": "Filter",
+          "type": "str"
+        },
+        {
+          "name": "Totals",
+          "type": "str"
+        },
+        {
+          "name": "Font_Name",
+          "type": "str"
+        },
+        {
+          "name": "Bold",
+          "type": "str"
+        },
+        {
+          "name": "Italic",
+          "type": "str"
+        },
+        {
+          "name": "Width_Factor",
+          "type": "num"
+        },
+        {
+          "name": "Line_Spacing_Factor",
+          "type": "num"
+        },
+        {
+          "name": "Tab_Size_mm",
+          "type": "num"
+        },
+        {
+          "name": "Leader_Type",
+          "type": "str"
+        },
+        {
+          "name": "Leader_Offset_mm",
+          "type": "num"
+        },
+        {
+          "name": "View_Type",
+          "type": "str"
+        },
+        {
+          "name": "Detail_Level",
+          "type": "str"
+        },
+        {
+          "name": "Visual_Style",
+          "type": "str"
+        },
+        {
+          "name": "Scale",
+          "type": "str"
+        },
+        {
+          "name": "Filters_Applied",
+          "type": "str"
+        },
+        {
+          "name": "Phase_Filter",
+          "type": "str"
+        },
+        {
+          "name": "Default_Workset",
+          "type": "str"
+        },
+        {
+          "name": "VG_Overrides",
+          "type": "str"
+        },
+        {
+          "name": "Show_Grids",
+          "type": "str"
+        },
+        {
+          "name": "Show_Levels",
+          "type": "str"
+        },
+        {
+          "name": "Show_Sections",
+          "type": "str"
+        },
+        {
+          "name": "Underlay",
+          "type": "str"
+        },
+        {
+          "name": "View_Range",
+          "type": "str"
+        },
+        {
+          "name": "Shadows",
+          "type": "str"
+        },
+        {
+          "name": "Ambient_Occlusion",
+          "type": "str"
+        },
+        {
+          "name": "Silhouettes",
+          "type": "str"
+        },
+        {
+          "name": "Is_Default_Views",
+          "type": "str"
+        },
+        {
+          "name": "Editable_Default",
+          "type": "str"
+        },
+        {
+          "name": "Suppress_Leading_Zeros",
+          "type": "str"
+        },
+        {
+          "name": "Suppress_Trailing_Zeros",
+          "type": "str"
+        }
+      ]
+    },
+    "StingTools/Data/cost_rates_5d.csv": {
+      "format": "csv-table",
+      "schemaVersion": 2,
+      "description": "Corporate 5D cost-rate card (UGX-native, USD for the 5D trace). One row per product; DISC|PROD is the most specific rate key (D6). v2 (2026-09-07, #844) inserted PROD at column 2.",
+      "readers": [
+        "StingTools/BOQ/Rates/CostRateCsv.cs (the only parser; BOQCostManager.LoadCsvRates, Scheduling4DEngine 5D Cost Trace and the Cost File Browser call it)"
+      ],
+      "columns": [
+        {
+          "name": "Category",
+          "type": "str",
+          "required": true,
+          "description": "Revit category name; the coarsest rate key (first row wins)."
+        },
+        {
+          "name": "PROD",
+          "type": "str",
+          "description": "ISO 19650 PROD token (ASS_PRODCT_COD_TXT). With MAT_DISCIPLINE forms the DISC|PROD key. Empty when the category has no product tier."
+        },
+        {
+          "name": "MAT_CODE",
+          "type": "str",
+          "description": "Material/cost code; also registered as a rate key."
+        },
+        {
+          "name": "MAT_DISCIPLINE",
+          "type": "str",
+          "enum": [
+            "A",
+            "S",
+            "M",
+            "E",
+            "P",
+            "FP"
+          ],
+          "description": "Discipline code (ASS_DISCIPLINE_COD_TXT) for the DISC|PROD key."
+        },
+        {
+          "name": "Unit_Rate_USD",
+          "type": "num",
+          "required": true,
+          "min": 0,
+          "description": "Rate in USD per Unit — shown by the 5D Cost Trace."
+        },
+        {
+          "name": "Unit_Rate_UGX",
+          "type": "num",
+          "required": true,
+          "min": 0,
+          "description": "Rate in UGX per Unit — what the BOQ prices with."
+        },
+        {
+          "name": "Unit",
+          "type": "str",
+          "required": true,
+          "description": "Unit of measure (m, m2, m3, each)."
+        },
+        {
+          "name": "Description",
+          "type": "str",
+          "description": "Free text; quote it if it contains a comma."
+        }
+      ],
+      "unique": [
+        [
+          "MAT_DISCIPLINE",
+          "PROD"
+        ],
+        [
+          "MAT_CODE"
+        ]
+      ]
+    },
+    "tools/tester-kit/licence-issuer/testers.csv": {
+      "format": "csv-table",
+      "schemaVersion": 1,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "columns": [
+        {
+          "name": "Name",
+          "type": "str"
+        },
+        {
+          "name": "MachineCode",
+          "type": "str"
+        }
+      ]
+    }
+  },
+  "structural": {
+    "GUIDES/kibale-project-config/boq_custom_templates.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "GUIDES/kibale-project-config/boq_links.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "GUIDES/kibale-project-config/carbon_factors_ug.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "GUIDES/kibale-project-config/material_price_book.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "GUIDES/kibale-project-config/project_config.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "GUIDES/kibale-project-config/rate_card.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "GUIDES/kibale-project-config/spatial_codes.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "GUIDES/kibale-project-config/takeoff_rules.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/BOQ_CLIENT_VOCABULARY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/BOQ_TEMPLATE.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/COBIE_ATTRIBUTE_TEMPLATES.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/CODE_LEGEND.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Electrical/STING_WIRE_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/FAMILY_LIBRARY_MANIFEST.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/FAMILY_PARAMETER_BINDINGS.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/FORMULAS_WITH_DEPENDENCIES.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/Fabrication/STING_FAB_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Fabrication/STING_FAB_RULES_EXT.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/HEALTHCARE_ALERT_ROUTING.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/HEALTHCARE_PACK_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/HEALTHCARE_RDS_FIELDMAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_BEHAVIOURAL.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_DIALYSIS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_HBO.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_HSDU.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_HYBRID_OR.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_LIGATURE_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_MATERNITY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_MORTUARY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/IFC/ARCHICAD_IFC_MAPPING.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/IFC/STING_IFC_PSET_MAPPING.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LABEL_DEFINITIONS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LPS/STING_LPS_CLASSES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LPS/STING_LPS_FLASH_DENSITY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LPS/STING_LPS_RISK_FACTORS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LPS/STING_LPS_RISK_TABLES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LPS/STING_LPS_SPD_CATALOGUE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LPS_FAMILY_INVENTORY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/LUX_TARGETS_EN12464.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/MATERIAL_LOOKUP.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/MATERIAL_SCHEMA.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/MR_PARAMETERS.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/MR_PARAMETERS_LPS_MASTER.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/MedGas/STING_MEDGAS_FAB_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/PARAGRAPH_PRESETS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/PARAMETER_REGISTRY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/PRESET_COMBINATIONS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/PROJECT_TEAM_TEMPLATE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Parameters/STING_ELEC_WIRE_PARAMS.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/Parameters/STING_HANGER_PARAMS.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/Parameters/STING_PARAMS_V4.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/Parameters/STING_PARAMS_V6.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/Parameters/STING_SLEEVE_PARAMS.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/Placement/DWG_SYMBOL_MAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_CATEGORY_HEIGHT_DEFAULTS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_CATEGORY_LOAD_DEFAULTS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_CATEGORY_TO_SEED_MAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_FAMILY_HOST_TEMPLATES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_HEIGHT_STANDARDS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_MANUFACTURER_CATALOGUE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.accessibility.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.architecture.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.baseline-extensions2.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.ceiling-pendants.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.commissioning.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.conduiting-phase.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.electrical.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.healthcare-education.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.in-wall-chase.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.mechanical.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.medical-gases.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.mk-electrical.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.routing.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.toilet-fixtures.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Placement/STING_PLACEMENT_RULES.windows-glazing.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Plumbing/LEGIONELLA_REPORT_TEMPLATE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Plumbing/STING_PIPE_MATERIALS_HYDRAULIC.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Plumbing/STING_PLUMBING_DRAINAGE_TABLES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Plumbing/STING_PLUMBING_MATERIAL_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Plumbing/STING_PLUMBING_SUPPLY_TABLES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Plumbing/STING_PUMP_CATALOGUE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Plumbing/STING_TMV_STANDARDS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Routing/MEP_INSULATION_PARAMS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Routing/STING_SEPARATION_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Routing/STING_SERVICE_CORRIDORS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Routing/STING_SLEEVE_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/SCALE_TIERS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/SCHEDULE_SPEC_all_disciplines.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_AEC_FILTERS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_AIC_TIERS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_ARC_FLASH_PPE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_BINDING_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_BOQ_PRINT_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_BS7671_DISCONNECTION.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_CARBON_FACTORS_UG.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_CLIMATE_DATA.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_CLIMATE_MONTHLY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_COMMODITY_RATES.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/STING_CONSTRUCTION_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_CONSUMABLES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_CONTENT_MANIFEST.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_COUNTRIES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_CSI_MASTERFORMAT_MAP.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/STING_CTF_COEFFICIENTS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_CX_TASKS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_DEMAND_FACTORS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_DEVICE_COORD_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_DIVERSITY_FACTORS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_DWG_FIXTURE_MAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_DWG_RUN_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_ELECTRICAL_ASSIGNMENT.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_ELECTRICAL_CARBON.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_EMERGENCY_KEYWORDS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_EXTERNAL_FORMATS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_FAMILY_SWAP_REGISTRY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_FAN_SPECTRA.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_FIRE_WALL_COMPOSITION.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_FITTING_LOSSES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_GAS_DESIGN.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_GREEN_BASELINES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_GREEN_MEASURES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_GREEN_PHYSICS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_GREEN_SCHEMES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_GRID_CARBON_FACTORS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_HEALTHCARE_MATERIAL_GATES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_HVAC_LCC_DEFAULTS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_ICE_EMBODIED_ENERGY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_ICMS3_PHASE_MAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_IDU_CATALOGUE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_LLM_CONFIG.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_LOAD_ASSUMPTIONS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_LOAD_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_LOD_MATRIX.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_LPD_LIMITS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_LPS_SLD_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_LUX_TARGETS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_MATCH_LINES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_MATERIAL_CLASS_NORMALISER.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/STING_MATERIAL_PACKS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_MATERIAL_PROD_OVERRIDES.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/STING_MATERIAL_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_MATERIAL_STAGES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_MEP_SERVICE_MAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_MEP_SIZING_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_MEP_SYSTEM_TYPES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_OWNER_STANDARDS_PACK.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PANEL_SCHEDULE_SPECS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PANEL_SCHEDULE_TEMPLATES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PARAMS_MATCHLINE.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/STING_PARAM_ALIAS_MAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PRELIMS_TEMPLATE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PRESSURE_REGIMES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PROD_EXCLUSIONS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PROJECT_BASELINE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_PUMP_CATALOGUE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_REFNET_JOINTS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_REFRIG_CHARGE_TABLES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_REFRIG_VENDOR_LIMITS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_ROOM_NUMBERING.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_RTS_REFERENCE_CASES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SCOPE_BOX_STYLE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SHEET_DISCIPLINES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SILENCER_DATA.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SITE_TOOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SLAB_SYSTEMS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SMOKE_CONTROL_DESIGN.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SPATIAL_CODES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SPRINKLER_DESIGN.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SUPPLIER_UNITS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SUSTAINABILITY_GATES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_SYMBOL_SHAPES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_ARCH.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_ARCH_DesignConstruction.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_GEN.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_GEN_DesignConstruction.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_HEALTH_DesignConstruction.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_MEP.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_MEP_DesignConstruction.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_STR.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_CONFIG_v5_0_STR_DesignConstruction.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/STING_TAG_SCHEMES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TAG_TOKEN_POLICY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TAKEOFF_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TCC_DATABASE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TEMPLATE_ASSIGNMENT_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TEXTURE_PROVIDERS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TITLE_BLOCKS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TITLE_BLOCK_PARAMETERS.txt": {
+      "format": "text",
+      "reason": "Revit shared-parameter file; GUID/type agreement is gated by tools/check_shared_param_files.py and the duplicate-GUID step."
+    },
+    "StingTools/Data/STING_TOKEN_DEPTH_OVERRIDES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TOKEN_DEPTH_PRESETS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_TYPE_CATALOGUES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_UGANDA_REGIONAL_LOADS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_US_PRESET_OVERLAY.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_VARIATION_LIABILITY_MAP.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_VIEWPORT_PLACEMENT_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_VIEW_STYLE_PACKS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_VISIBILITY_PRESETS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_WATER_USAGE_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STING_WIRE_TABLES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/STRUCTURAL_EXCEL_TEMPLATE.csv": {
+      "format": "csv-table",
+      "reason": "RAGGED rows (field count differs from the header) — investigated in DSCH round 2."
+    },
+    "StingTools/Data/Schemas/STING_DRAWING_TYPES.schema.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Schemas/STING_FAB_RULES.schema.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Schemas/STING_PLACEMENT_RULES.schema.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/SectorPacks/DATACENTRE_PACK.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/SectorPacks/EDUCATION_PACK.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/SectorPacks/HEALTHCARE_PACK.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/SectorPacks/RESIDENTIAL_PACK.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_AcousticSeal.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_AirTerminal.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_AudioVisualDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_Casework.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_CommunicationDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_DataDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_Door.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_DuctAccessory.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_ElectricalEquipment.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_ElectricalFixture.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_FireAlarmDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_FireDamper.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_FireProtection.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_FoodServiceEquipment.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_Furniture.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_GenericModel.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_JunctionBox.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_LabFixture.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_LightingDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_LightingFixture.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_MechanicalControlDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_MechanicalEquipment.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_MedGasOutlet.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_NurseCallDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_Parking.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_PipeAccessory.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_PlumbingEquipment.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_PlumbingFixture.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_SecurityDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_SpecialityEquipment.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_Sprinkler.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_TelephoneDevice.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Seeds/STING_SEED_Window.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_BMS_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_DRAINAGE_ABOVE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_EARTHING_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_ELEC_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_FP_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_GAS_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_ISO6412_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_LIGHTING_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_LINE_WEIGHTS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_MEP_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_MIXED_STANDARD_PROFILES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_PIPE_ACCESSORIES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_PLUMBING_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SAFETY_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SLD_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SLD_SYMBOLS_BS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SLD_SYMBOLS_CIBSE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SLD_SYMBOLS_IEEE.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SLD_SYMBOLS_NFPA.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_STRUCTURAL_ANNOTATIONS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SYMBOL_ALIASES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SYMBOL_CONCEPTS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_SYMBOL_STANDARDS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_TELECOM_SYMBOLS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Symbols/STING_WIRE_ANNOTATIONS.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/TAG_CONFIG_v5_0_CONTAINERS.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/TAG_CONFIG_v5_0_DISC_SYS_FUNC.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/TAG_CONFIG_v5_0_VALIDATION.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/TAG_GUIDE_V3.csv": {
+      "format": "csv-sections",
+      "reason": "Multi-table file: several header rows, one per section. Encoding and line endings are checked; each section's columns are not."
+    },
+    "StingTools/Data/TAG_PLACEMENT_PRESETS_DEFAULT.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/TAG_STYLE_RULES.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/Templates/STING_CORPORATE_BRAND.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_AntiLigatureAudit.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_BOQ_CostLifecycle.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_BOQ_FullRefresh.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_BOQ_QuickValuation.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_BOQ_TenderPack.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_DailyFieldWalk.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_DailyQA_Enhanced.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_DrawingProductionSetup.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_DuctSpoolProduction.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_ElectricalDesignReview.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_ElectricalPostFitOut.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_ElectricalQA.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_ElectricalRoughIn.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_ElectricalSubmission.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_HTM-01-06-EndoReprocess.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_HTM-04-01-Annual.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_HVACCommissioning.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_HVACDesign.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_HealthcareCommissioning.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_CoordinationCycle.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_DeliverableA.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_DeliverableB.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_DeliverableC.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_DeliverableD.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_FFESync.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_GateAudit.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_LifecycleReconcile.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_Mobilisation.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_KUT_MonthlyReport.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_LpsCommissioning.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_MEPDrawingProduction.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_MEPDrawingSetup.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_MEPPreIssue.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_MEPSystemsValidate.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_MgasVerification.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_MorningHealthCheck.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_NFPA110-GeneratorTest.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_OptionDecisionGate.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_OptionPackage.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_PanelScheduleProduction.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_PenetrationRegister.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_PenetrationSweep.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_PlumbingAudit.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_PlumbingDesign.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_PlumbingRoughIn.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_PressureRegimeAudit.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_RdsIssue.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_RevisionIssue.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_SLDProduction.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_SustainabilityAssessment.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_SymbolsAndSLD.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_TierConversionHandover.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/WORKFLOW_WeeklyDataDrop.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/family-library/manifest.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/project_bep.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "StingTools/Data/tag_style_catalogue.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/boq_rate_policy.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/classification_policy.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/climate_data.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/fohlio_map.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/lod_matrix.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/manifest.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/owner_standards.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/project_config.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/sting_classification.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "project-templates/KUT/_BIM_COORD/tag_schemes.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "tools/drawing_binding_contract.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "tools/qr_payload_corpus.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    },
+    "tools/tests/fixtures/globalid_corpus.json": {
+      "format": "json",
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    }
+  }
+}

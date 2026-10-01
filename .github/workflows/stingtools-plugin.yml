@@ -9,6 +9,8 @@ on:
       - 'Planscape.Server/src/Planscape.Shared/**'
       - 'Planscape.Server/src/Planscape.PluginSync/**'
       - 'tools/**'
+      - 'project-templates/**'
+      - 'GUIDES/kibale-project-config/**'
       - '.github/workflows/stingtools-plugin.yml'
   pull_request:
     branches: [main]
@@ -16,6 +18,8 @@ on:
       - 'StingTools/**'
       - 'StingTools.Standards/**'
       - 'tools/**'
+      - 'project-templates/**'
+      - 'GUIDES/kibale-project-config/**'
       - '.github/workflows/stingtools-plugin.yml'
 
 env:
@@ -43,6 +47,22 @@ jobs:
           done
           [ $FAIL -eq 0 ] && echo "✓ All JSON files valid"
           exit $FAIL
+
+      # Data schemas (DSCH): every file under StingTools/Data, project-templates,
+      # GUIDES/kibale-project-config and tools must be registered in
+      # tools/data_schemas.json, and is checked against what is declared there —
+      # CSV headers and per-row field counts, JSON unknown keys (derived from the
+      # POCO) and duplicate keys, encoding and line endings. The validator existed
+      # since H-5 and ran in NO workflow, so when D6 inserted PROD into
+      # cost_rates_5d.csv it failed on main for weeks and nobody saw it, while the
+      # 5D Cost Trace — still indexing by position — silently lost every rate.
+      # The self-test runs first: it mutates real files and fails if any defect
+      # goes uncaught, so a broken checker cannot report green.
+      - name: Data-schema validator catches what it claims to
+        run: python3 tools/validate_data_schemas.py --self-test
+
+      - name: Data files match their schemas
+        run: python3 tools/validate_data_schemas.py
 
       # Drawing-type corporate lock: every corporate entry in
       # STING_DRAWING_TYPES.json carries a SHA-256 of its C# serialisation, and

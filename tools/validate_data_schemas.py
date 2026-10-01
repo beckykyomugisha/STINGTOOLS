@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-H-5 — schema validation for the shipped StingTools/Data files.
+H-5 / DSCH — schema validation for every shipped data file.
 
 WHY THIS EXISTS
 ---------------
@@ -11,38 +11,61 @@ error, and not a runtime exception — Newtonsoft leaves the member at its defau
 and the feature silently does nothing. CI's only gate was
 `json.load(open(f))`, which proves a file is well-formed JSON and nothing else.
 
-That is how G-2 sat undetected across 13,212 rows.
+That is how G-2 sat undetected across 13,212 rows. And for CSV the same class
+of defect is a column inserted, renamed or split by an unquoted comma: every
+reader that indexes by position then reads its neighbour's value. D6 inserted
+PROD into cost_rates_5d.csv; this validator noticed, but ran in no workflow,
+so the drift — and the 5D Cost Trace it silently broke — sat on main unseen.
 
-This validator fails the build on an UNKNOWN KEY, which is the specific thing
-Newtonsoft will not tell you about.
+ONE SOURCE OF TRUTH
+-------------------
+Every schema lives in tools/data_schemas.json. This file holds no schema of its
+own: it reads that registry, and so do the C# tests that hold a reader to the
+columns it declares (StingTools.Boq.Tests/CostRateCsvTests). Change a data
+file and its schema in the same commit — see docs/DATA_SCHEMAS.md.
 
-HOW THE SCHEMAS ARE KEPT HONEST
--------------------------------
-A hand-maintained key list is just a second thing to drift. So for files bound
-to a Newtonsoft POCO, the allowed key set is DERIVED FROM THE C# SOURCE at
-validation time by reading the auto-properties off the named class. Add a
-property to the POCO and the validator accepts it immediately; delete one and
-every data file still using it fails. The schema cannot rot because there is no
-schema — there is the POCO.
+For JSON bound to a Newtonsoft POCO the allowed key set is still DERIVED FROM
+THE C# SOURCE at validation time, by reading the auto-properties off the named
+class. Add a property to the POCO and the validator accepts it immediately;
+delete one and every data file still using it fails. The registry only names
+the class.
 
-Files read through JObject/JArray with explicit field reads (no POCO) carry a
-hand-declared key list, marked as such below, because there is no type to
-derive from.
+COVERAGE IS ENFORCED
+--------------------
+Every file under the registry's roots must be registered — with a full schema,
+as structural-only (format checks, with the reason it has no deeper schema), or
+as non-data (binary / documentation). A new file nobody registered FAILS, with
+the command that prints a stub for it. A registered file that no longer exists
+fails too, so the registry cannot outlive its data.
+
+WHAT EVERY REGISTERED TEXT FILE GETS
+------------------------------------
+  * UTF-8, no mixed CRLF/LF line endings, not empty
+  * JSON: strict parse, and NO DUPLICATE KEYS — Python's json and Newtonsoft
+    both keep the last duplicate silently, so the first value is lost
+  * CSV table: header matches the declared columns (order, case, whitespace),
+    no duplicate header names, every row has exactly the header's field count,
+    typed / required / enum / unique cells
+  * CSV sections (multi-table files): encoding and line endings only
 
 CONVENTIONS HONOURED
 --------------------
-  * Keys beginning with "_" are comments (`_note`, `_comment`, `_description`).
-    Newtonsoft ignores them; so do we.
+  * JSON keys beginning with "_" are comments; Newtonsoft ignores them, so do we.
   * Newtonsoft matches property names case-insensitively, so key matching here
     is case-insensitive too.
-  * CSV files may carry leading `#` comment lines before the header.
+  * CSV files may carry leading `#` comment lines before the header, and `#`
+    comment rows in the body.
 
 USAGE
   python3 tools/validate_data_schemas.py             # validate, exit 1 on error
-  python3 tools/validate_data_schemas.py --list      # show resolved key sets
+  python3 tools/validate_data_schemas.py --self-test # prove every check fires
+  python3 tools/validate_data_schemas.py --scaffold PATH   # print a registry stub
+  python3 tools/validate_data_schemas.py --describe PATH   # print a file's schema
+  python3 tools/validate_data_schemas.py --list      # show resolved JSON key sets
 """
 
 import csv
+import fnmatch
 import io
 import json
 import os
@@ -50,11 +73,16 @@ import re
 import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA = os.path.join(REPO, "StingTools", "Data")
+REGISTRY_PATH = os.path.join(REPO, "tools", "data_schemas.json")
+SUPPORTED_REGISTRY_VERSION = 1
 
 errors = []
 warnings = []
 checked_files = 0
+
+# Where a relative registry path is resolved. The self-test points this at a
+# temp copy so it can mutate files without touching the tree.
+ROOT = REPO
 
 
 def err(msg):
@@ -66,6 +94,16 @@ def warn(msg):
     # element and bury the real findings under 90 identical lines.
     if msg not in warnings:
         warnings.append(msg)
+
+
+def load_registry(path=REGISTRY_PATH):
+    with io.open(path, "r", encoding="utf-8") as fh:
+        reg = json.load(fh, object_pairs_hook=_no_dupes(path))
+    v = reg.get("registryVersion")
+    if v != SUPPORTED_REGISTRY_VERSION:
+        raise SystemExit(f"{path}: registryVersion {v!r} is not supported by this "
+                         f"validator (expects {SUPPORTED_REGISTRY_VERSION}).")
+    return reg
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -159,94 +197,70 @@ def _strip_nested_classes(body):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Schema declarations
+#  Text-level checks shared by every registered text file
 # ─────────────────────────────────────────────────────────────────────────────
-#
-# poco : (relative .cs path, class name)  -> allowed keys derived from source
-# keys : explicit set                     -> for JObject readers with no POCO
-# req  : keys that must be present
-# kind : "object" | "array-of-object"
-# children : { json-key : schema } for nested objects / arrays
 
-DRAWING_CS = "StingTools/Core/Drawing/DrawingType.cs"
-NRM2_CS = "StingTools/BOQ/MeasurementStandard/MeasurementRules.cs"
+def read_text(rel, where=None):
+    """UTF-8 text of a registered file, or None after recording why not."""
+    where = where or rel
+    path = os.path.join(ROOT, rel)
+    try:
+        with io.open(path, "rb") as fh:
+            raw = fh.read()
+    except OSError as ex:
+        err(f"{where}: cannot be read — {ex}")
+        return None
+    if not raw.strip():
+        err(f"{where}: file is EMPTY. An empty data file loads as 'no rows' "
+            f"everywhere it is read, which looks exactly like a working file "
+            f"with nothing in it. Delete it, or give it content.")
+        return None
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as ex:
+        err(f"{where}: not UTF-8 (byte {ex.start}: {raw[ex.start:ex.start + 4]!r}). "
+            f"The plugin reads data files as UTF-8, so a Windows-1252 byte becomes "
+            f"U+FFFD and any key containing it stops matching. Re-save as UTF-8.")
+        return None
+    crlf = raw.count(b"\r\n")
+    lf = raw.count(b"\n") - crlf
+    if crlf and lf:
+        want_cr = crlf < lf                 # report the first line of the minority kind
+        lines = raw.split(b"\n")[:-1]
+        first = next(i for i, ln in enumerate(lines, start=1)
+                     if ln.endswith(b"\r") == want_cr)
+        err(f"{where}:{first}: MIXED line endings ({crlf} CRLF, {lf} LF; line {first} "
+            f"is the first {'CRLF' if want_cr else 'LF'} one). Pick one; a "
+            f"reader that splits on '\\n' keeps a trailing '\\r' on the CRLF rows "
+            f"only, so the same key matches on some rows and not others.")
+    return text
 
-JSON_SCHEMAS = {
-    "STING_NRM2_MEASUREMENT_RULES.json": {
-        "kind": "object",
-        "poco": (NRM2_CS, "MeasurementRuleLibrary"),
-        "req": ["rules"],
-        "children": {
-            "defaults": {"kind": "object", "poco": (NRM2_CS, "MeasurementDefaults")},
-            "rules": {
-                "kind": "array-of-object",
-                "poco": (NRM2_CS, "MeasurementRule"),
-                "req": ["id", "matchCategory", "unit", "measure"],
-            },
-        },
-    },
 
-    "STING_DRAWING_TYPES.json": {
-        "kind": "object",
-        "poco": (DRAWING_CS, "DrawingTypeLibrary"),
-        "req": ["drawingTypes"],
-        "children": {
-            "drawingTypes": {
-                "kind": "array-of-object",
-                "poco": (DRAWING_CS, "DrawingType"),
-                "req": ["id", "name"],
-                "children": {
-                    "crop": {"kind": "object", "poco": (DRAWING_CS, "DrawingCropStrategy")},
-                    "sectionMarker": {"kind": "object", "poco": (DRAWING_CS, "SectionMarkerSpec")},
-                    "print": {"kind": "object", "poco": (DRAWING_CS, "PrintOverride")},
-                    "isoNaming": {"kind": "object", "poco": (DRAWING_CS, "IsoNaming")},
-                    "slots": {"kind": "array-of-object", "poco": (DRAWING_CS, "DrawingSlot")},
-                },
-            },
-            "routing": {
-                "kind": "array-of-object",
-                "poco": (DRAWING_CS, "DrawingRoutingRule"),
-                "req": ["drawingTypeId"],
-            },
-        },
-    },
+def _no_dupes(where):
+    def hook(pairs):
+        seen = {}
+        for k, v in pairs:
+            if k in seen:
+                ident = next((f"{n}={pairs_dict(pairs)[n]!r}" for n in
+                              ("id", "name", "commandTag", "category", "key", "code")
+                              if n in pairs_dict(pairs) and n != k), "an unnamed object")
+                err(f"{where}: DUPLICATE KEY '{k}' in the object with {ident} - "
+                    f"Newtonsoft and Python both keep the LAST value silently, so "
+                    f"{seen[k]!r:.60} is discarded at load. Merge or rename one of them.")
+            seen[k] = v
+        return seen
+    return hook
 
-    # No POCO — Temp/BOQTemplateLibrary.LoadBuiltin parses this with JArray and
-    # reads fields explicitly in FromJson, so the contract is the reader, not a
-    # type. Hand-declared, and that is called out rather than hidden.
-    "BOQ_DESCRIPTIONS.json": {
-        "kind": "array-of-object",
-        "keys": ["category", "nrm2_section", "paragraph", "placeholders"],
-        "req": ["category", "paragraph"],
-        "types": {
-            "category": "str",
-            "nrm2_section": "str",
-            "paragraph": "str",
-            "placeholders": "list-of-str",
-        },
-    },
-}
 
-# CSV contracts. `header` is exact and ordered — a renamed or reordered column
-# is precisely the silent break this gate is for. `types` are checked per cell;
-# blank is allowed unless the column is in `req`.
-CSV_SCHEMAS = {
-    "cost_rates_5d.csv": {
-        "header": ["Category", "MAT_CODE", "MAT_DISCIPLINE",
-                   "Unit_Rate_USD", "Unit_Rate_UGX", "Unit", "Description"],
-        "types": {"Unit_Rate_USD": "num", "Unit_Rate_UGX": "num"},
-        "req": ["Category", "Unit_Rate_USD", "Unit_Rate_UGX", "Unit"],
-    },
-    "STING_DEFAULT_COST_RATES.csv": {
-        "header": ["Category", "RatePerUnit_USD", "Unit", "Description"],
-        "types": {"RatePerUnit_USD": "num"},
-        "req": ["Category", "RatePerUnit_USD", "Unit"],
-    },
-}
+def pairs_dict(pairs):
+    d = {}
+    for k, v in pairs:
+        d.setdefault(k, v)
+    return d
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Validation
+#  JSON
 # ─────────────────────────────────────────────────────────────────────────────
 
 def allowed_keys(schema, where):
@@ -273,6 +287,8 @@ def type_ok(value, expected):
         return isinstance(value, str)
     if expected == "num":
         return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if expected == "int":
+        return isinstance(value, int) and not isinstance(value, bool)
     if expected == "bool":
         return isinstance(value, bool)
     if expected == "list-of-str":
@@ -320,80 +336,313 @@ def validate_node(node, schema, where):
         validate_object(node, schema, where)
 
 
-def validate_json(name, schema):
+def validate_json(rel, schema):
     global checked_files
-    path = os.path.join(DATA, name)
-    if not os.path.isfile(path):
-        err(f"{name}: MISSING from StingTools/Data — a schema is declared for it.")
+    text = read_text(rel)
+    if text is None:
         return
     try:
-        with io.open(path, "r", encoding="utf-8-sig") as fh:
-            doc = json.load(fh)
-    except Exception as ex:
-        err(f"{name}: not valid JSON — {ex}")
+        doc = json.loads(text, object_pairs_hook=_no_dupes(rel))
+    except ValueError as ex:
+        err(f"{rel}: not valid JSON — {ex}")
         return
     checked_files += 1
-    validate_node(doc, schema, name)
+    if schema.get("kind") or schema.get("poco") or schema.get("keys"):
+        validate_node(doc, schema, os.path.basename(rel))
 
 
-def validate_csv(name, schema):
+# ─────────────────────────────────────────────────────────────────────────────
+#  CSV
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _is_comment_or_blank(row):
+    return (not row or not "".join(row).strip()
+            or row[0].lstrip("﻿").lstrip().startswith("#"))
+
+
+def _csv_cell_ok(cell, col):
+    t = col.get("type", "str")
+    if t in ("num", "int"):
+        try:
+            v = float(cell.replace(",", "")) if t == "num" else int(cell)
+        except ValueError:
+            return f"is not {'a number' if t == 'num' else 'an integer'}"
+        if "min" in col and v < col["min"]:
+            return f"is below the minimum {col['min']}"
+    if "enum" in col and cell not in col["enum"]:
+        return f"is not one of {col['enum']}"
+    if "pattern" in col and not re.fullmatch(col["pattern"], cell):
+        return f"does not match /{col['pattern']}/"
+    return None
+
+
+def validate_csv_table(rel, schema):
     global checked_files
-    path = os.path.join(DATA, name)
-    if not os.path.isfile(path):
-        err(f"{name}: MISSING from StingTools/Data — a schema is declared for it.")
+    text = read_text(rel)
+    if text is None:
         return
-
-    with io.open(path, "r", encoding="utf-8-sig", newline="") as fh:
-        rows = list(csv.reader(fh))
     checked_files += 1
+    rows = list(csv.reader(io.StringIO(text)))
 
     # Skip leading comment/blank lines; the first real row is the header.
-    hdr_idx = None
-    for i, row in enumerate(rows):
-        if not row or not "".join(row).strip():
-            continue
-        if row[0].lstrip().startswith("#"):
-            continue
-        hdr_idx = i
-        break
+    hdr_idx = next((i for i, r in enumerate(rows) if not _is_comment_or_blank(r)), None)
     if hdr_idx is None:
-        err(f"{name}: no header row found.")
+        err(f"{rel}: no header row found.")
         return
 
-    header = [c.strip() for c in rows[hdr_idx]]
-    expected = schema["header"]
-    if header != expected:
-        err(f"{name}: header mismatch.\n"
-            f"      expected: {expected}\n"
-            f"      found   : {header}")
+    raw_header = rows[hdr_idx]
+    header = [c.lstrip("﻿") for c in raw_header]
+    hdr_line = hdr_idx + 1
+    for i, c in enumerate(header):
+        if c != c.strip():
+            err(f"{rel}:{hdr_line}: header column {i + 1} {c!r} has surrounding "
+                f"whitespace — a reader that looks it up by name will not find it.")
+    seen = {}
+    for c in header:
+        k = c.strip().lower()
+        if k in seen:
+            err(f"{rel}:{hdr_line}: header column '{c.strip()}' appears twice — a "
+                f"name lookup returns only one of them.")
+        seen[k] = True
+
+    cols = schema["columns"]
+    declared = [c["name"] for c in cols]
+    present = [c.strip() for c in header]
+    # The header must be the declared columns, in the declared order, with only
+    # columns marked optional allowed to be absent. A column that is not declared
+    # is an error even when it is "extra": silent extras are how a reader ends up
+    # indexing the wrong field.
+    expected = [n for n in declared if n in present or not _col(cols, n).get("optional")]
+    if present != expected:
+        undeclared = [c for c in present if c not in declared]
+        missing = [c for c in expected if c not in present]
+        detail = []
+        if undeclared:
+            detail.append(f"undeclared column(s) {undeclared} — declare them in "
+                          f"tools/data_schemas.json (and bump schemaVersion)")
+        if missing:
+            detail.append(f"missing required column(s) {missing}")
+        if not detail:
+            detail.append("same columns, different order")
+        err(f"{rel}:{hdr_line}: header does not match schema v{schema.get('schemaVersion', 1)} — "
+            + "; ".join(detail) + f".\n      expected: {expected}\n      found   : {present}")
         return                              # per-cell checks would be meaningless
 
-    types = schema.get("types", {})
-    req = set(schema.get("req", []))
-    idx = {c: i for i, c in enumerate(header)}
+    idx = {c: i for i, c in enumerate(present)}
+    unique = [tuple(u) for u in schema.get("unique", [])]
+    seen_keys = {u: {} for u in unique}
+    n = len(present)
 
     for ln, row in enumerate(rows[hdr_idx + 1:], start=hdr_idx + 2):
-        if not row or not "".join(row).strip():
+        if _is_comment_or_blank(row):
             continue
-        if row[0].lstrip().startswith("#"):
+        if len(row) != n:
+            cause = ("an unquoted comma inside a field split it in two — quote the field"
+                     if len(row) > n else
+                     "trailing fields are missing — every row must carry every column, "
+                     "even when empty")
+            err(f"{rel}:{ln}: row has {len(row)} fields, header has {n}: {cause}. "
+                f"Every column after the split is read from its neighbour.")
             continue
-        if len(row) != len(expected):
-            err(f"{name}:{ln}: expected {len(expected)} columns, found {len(row)}")
-            continue
-        for col, i in idx.items():
-            cell = (row[i] or "").strip()
+        for name, i in idx.items():
+            col = _col(cols, name)
+            cell = row[i].strip()
             if not cell:
-                if col in req:
-                    err(f"{name}:{ln}: '{col}' is required but empty")
+                if col.get("required"):
+                    err(f"{rel}:{ln}: column '{name}' is required but empty")
                 continue
-            if types.get(col) == "num":
-                try:
-                    float(cell.replace(",", ""))
-                except ValueError:
-                    err(f"{name}:{ln}: '{col}' = '{cell}' is not a number")
+            problem = _csv_cell_ok(cell, col)
+            if problem:
+                err(f"{rel}:{ln}: column '{name}' = '{cell}' {problem} "
+                    f"(schema type {col.get('type', 'str')})")
+        for u in unique:
+            if not all(c in idx for c in u):
+                continue
+            key = tuple(row[idx[c]].strip() for c in u)
+            if any(not k for k in key):
+                continue                    # an empty part does not form a key
+            if key in seen_keys[u]:
+                err(f"{rel}:{ln}: duplicate {'/'.join(u)} = {'/'.join(key)} "
+                    f"(first at line {seen_keys[u][key]}). Readers keep one and "
+                    f"drop the other.")
+            else:
+                seen_keys[u][key] = ln
 
 
-def self_test():
+def _col(cols, name):
+    return next((c for c in cols if c["name"] == name), {})
+
+
+def validate_structural(rel, fmt):
+    """Registered without a deeper schema: format-level checks only."""
+    global checked_files
+    if fmt == "json":
+        validate_json(rel, {})
+        return
+    text = read_text(rel)
+    if text is None:
+        return
+    checked_files += 1
+    if fmt in ("csv-sections", "csv-table"):
+        try:
+            list(csv.reader(io.StringIO(text)))
+        except csv.Error as ex:
+            err(f"{rel}: CSV does not parse — {ex}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Coverage
+# ─────────────────────────────────────────────────────────────────────────────
+
+def tracked_files(reg):
+    """Every file under the registry's roots (git-tracked when git is available)."""
+    out = []
+    try:
+        import subprocess
+        roots = [r["path"] for r in reg["roots"]]
+        listing = subprocess.check_output(
+            ["git", "-C", REPO, "ls-files", "-z", "--"] + roots,
+            stderr=subprocess.DEVNULL).decode("utf-8")
+        out = [p for p in listing.split("\0") if p]
+    except Exception:
+        for r in reg["roots"]:
+            for dp, _, fns in os.walk(os.path.join(REPO, r["path"])):
+                for fn in fns:
+                    out.append(os.path.relpath(os.path.join(dp, fn), REPO).replace(os.sep, "/"))
+    result = []
+    for p in out:
+        for r in reg["roots"]:
+            if p.startswith(r["path"].rstrip("/") + "/"):
+                exts = r.get("extensions")
+                if exts is None or os.path.splitext(p)[1].lower() in exts:
+                    result.append(p)
+                break
+    return sorted(set(result))
+
+
+def classify(reg, rel):
+    """('schema', schema) | ('structural', fmt) | ('nondata', reason) | (None, None)"""
+    if rel in reg.get("schemas", {}):
+        return "schema", reg["schemas"][rel]
+    if rel in reg.get("structural", {}):
+        return "structural", reg["structural"][rel]
+    for pat, reason in reg.get("nonData", {}).items():
+        if fnmatch.fnmatchcase(rel, pat):
+            return "nondata", reason
+    return None, None
+
+
+def check_coverage(reg):
+    files = tracked_files(reg)
+    unregistered = [f for f in files if classify(reg, f)[0] is None]
+    for f in unregistered:
+        err(f"{f}: NO SCHEMA. Every data file must be registered in "
+            f"tools/data_schemas.json.\n      Run: python tools/validate_data_schemas.py "
+            f"--scaffold \"{f}\"\n      and add the printed entry under \"schemas\" "
+            f"(or under \"structural\" with the reason it has no column/key schema).")
+    on_disk = set(files)
+    for section in ("schemas", "structural"):
+        for rel in reg.get(section, {}):
+            if rel not in on_disk and not os.path.isfile(os.path.join(REPO, rel)):
+                err(f"{rel}: registered under \"{section}\" in tools/data_schemas.json "
+                    f"but the file does not exist. Remove the entry with the file.")
+    both = set(reg.get("schemas", {})) & set(reg.get("structural", {}))
+    for rel in sorted(both):
+        err(f"{rel}: registered under both \"schemas\" and \"structural\" — pick one.")
+    return files
+
+
+def validate_registered(reg, rel):
+    kind, s = classify(reg, rel)
+    if kind == "schema":
+        fmt = s.get("format")
+        if fmt == "csv-table":
+            validate_csv_table(rel, s)
+        elif fmt == "json":
+            validate_json(rel, s)
+        else:
+            err(f"{rel}: schema format {fmt!r} is not one this validator knows.")
+    elif kind == "structural":
+        fmt = s if isinstance(s, str) else s.get("format")
+        validate_structural(rel, fmt)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Scaffold / describe — the schema is the documentation
+# ─────────────────────────────────────────────────────────────────────────────
+
+def scaffold(rel):
+    rel = rel.replace("\\", "/")
+    ext = os.path.splitext(rel)[1].lower()
+    path = os.path.join(REPO, rel)
+    if ext == ".csv":
+        with io.open(path, encoding="utf-8-sig", newline="") as fh:
+            rows = list(csv.reader(fh))
+        hi = next(i for i, r in enumerate(rows) if not _is_comment_or_blank(r))
+        header = [c.strip() for c in rows[hi]]
+        body = [r for r in rows[hi + 1:] if not _is_comment_or_blank(r)]
+        cols = []
+        for i, name in enumerate(header):
+            vals = [r[i].strip() for r in body if i < len(r) and r[i].strip()]
+            col = {"name": name, "type": "str", "description": "TODO"}
+            if vals and all(_is_num(v) for v in vals):
+                col["type"] = "num"
+            cols.append(col)
+        entry = {"format": "csv-table", "schemaVersion": 1,
+                 "description": "TODO — what the file is and who reads it",
+                 "readers": ["TODO path/to/Reader.cs"], "columns": cols}
+    elif ext == ".json":
+        entry = {"format": "json", "schemaVersion": 1,
+                 "description": "TODO", "readers": ["TODO"],
+                 "kind": "object", "poco": ["TODO path/to/Poco.cs", "TODO ClassName"]}
+    else:
+        entry = "TODO reason this file has no schema"
+    print(json.dumps({rel: entry}, indent=2, ensure_ascii=False))
+    return 0
+
+
+def _is_num(v):
+    try:
+        float(v.replace(",", ""))
+        return True
+    except ValueError:
+        return False
+
+
+def describe(reg, rel):
+    rel = rel.replace("\\", "/")
+    kind, s = classify(reg, rel)
+    if kind is None:
+        print(f"{rel}: not registered.")
+        return 1
+    if kind != "schema":
+        print(f"{rel}: {kind} — {s}")
+        return 0
+    print(f"{rel}  (format {s.get('format')}, schema v{s.get('schemaVersion', 1)})")
+    print(f"  {s.get('description', '')}")
+    for r in s.get("readers", []):
+        print(f"  read by: {r}")
+    for c in s.get("columns", []):
+        flags = [c.get("type", "str")]
+        if c.get("required"):
+            flags.append("required")
+        if c.get("optional"):
+            flags.append("optional column")
+        if "enum" in c:
+            flags.append("one of " + "/".join(c["enum"]))
+        print(f"  - {c['name']:<16} [{', '.join(flags)}] {c.get('description', '')}")
+    for u in s.get("unique", []):
+        print(f"  unique: {' + '.join(u)}")
+    if "poco" in s:
+        print(f"  keys derived from {s['poco'][1]} in {s['poco'][0]}")
+    return 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Self-test — prove each check fires
+# ─────────────────────────────────────────────────────────────────────────────
+
+def self_test(reg):
     """
     Prove the gate actually fires.
 
@@ -403,96 +652,154 @@ def self_test():
     in a temp copy and asserts the validator rejects it. If any case passes
     validation, the gate is not working and the build fails on that alone.
     """
-    global DATA, errors, warnings, checked_files
+    global ROOT, errors, warnings, checked_files
     import shutil
     import tempfile
 
-    real_data = DATA
+    D = "StingTools/Data/"
     cases = []
 
-    def case(name, label, mutate):
-        cases.append((name, label, mutate))
+    def json_case(rel, label, mutate):
+        cases.append((rel, label, "json", mutate))
 
-    def add_unknown_json(doc, path):
-        node = doc
-        for p in path:
-            node = node[p]
-        node["thisKeyDoesNotExist"] = "x"
-        return doc
+    def text_case(rel, label, mutate):
+        cases.append((rel, label, "text", mutate))
 
-    case("STING_NRM2_MEASUREMENT_RULES.json", "unknown key on a rule",
-         lambda d: add_unknown_json(d, ["rules", 0]))
-    case("STING_NRM2_MEASUREMENT_RULES.json", "unknown key at the root",
-         lambda d: add_unknown_json(d, []))
-    case("STING_DRAWING_TYPES.json", "unknown key on a drawing type",
-         lambda d: add_unknown_json(d, ["drawingTypes", 0]))
-    case("STING_DRAWING_TYPES.json", "unknown key on a nested crop block",
-         lambda d: add_unknown_json(d, ["drawingTypes", 0, "crop"]))
-    case("BOQ_DESCRIPTIONS.json", "unknown key on a description",
-         lambda d: add_unknown_json(d, [0]))
-    case("STING_NRM2_MEASUREMENT_RULES.json", "missing required key",
-         lambda d: (d["rules"][0].pop("unit"), d)[1])
+    def add_unknown_json(path):
+        def m(doc):
+            node = doc
+            for p in path:
+                node = node[p]
+            node["thisKeyDoesNotExist"] = "x"
+            return doc
+        return m
 
-    def csv_rename_header(text):
-        lines = text.split("\n")
-        for i, ln in enumerate(lines):
-            if ln.strip() and not ln.lstrip().startswith("#"):
-                lines[i] = ln.replace("Unit", "Units", 1)
-                break
-        return "\n".join(lines)
+    json_case(D + "STING_NRM2_MEASUREMENT_RULES.json", "unknown key on a rule",
+              add_unknown_json(["rules", 0]))
+    json_case(D + "STING_NRM2_MEASUREMENT_RULES.json", "unknown key at the root",
+              add_unknown_json([]))
+    json_case(D + "STING_DRAWING_TYPES.json", "unknown key on a drawing type",
+              add_unknown_json(["drawingTypes", 0]))
+    json_case(D + "STING_DRAWING_TYPES.json", "unknown key on a nested crop block",
+              add_unknown_json(["drawingTypes", 0, "crop"]))
+    json_case(D + "BOQ_DESCRIPTIONS.json", "unknown key on a description",
+              add_unknown_json([0]))
+    json_case(D + "STING_NRM2_MEASUREMENT_RULES.json", "missing required key",
+              lambda d: (d["rules"][0].pop("unit"), d)[1])
 
-    def csv_break_number(text):
+    def first_data_line(text):
         lines = text.split("\n")
         seen_header = False
         for i, ln in enumerate(lines):
-            if not ln.strip() or ln.lstrip().startswith("#"):
+            if not ln.strip() or ln.lstrip("﻿").lstrip().startswith("#"):
                 continue
             if not seen_header:
                 seen_header = True
+                hdr = i
                 continue
-            parts = ln.split(",")
-            if len(parts) > 1:
-                parts[1] = "not-a-number"
-                lines[i] = ",".join(parts)
-            break
+            return lines, hdr, i
+        return lines, None, None
+
+    def csv_rename_header(text):
+        lines, hdr, _ = first_data_line(text)
+        lines[hdr] = lines[hdr].replace("Unit", "Units", 1)
         return "\n".join(lines)
 
-    csv_cases = [
-        ("cost_rates_5d.csv", "renamed column", csv_rename_header),
-        ("STING_DEFAULT_COST_RATES.csv", "non-numeric rate", csv_break_number),
-    ]
+    def csv_insert_column(text):
+        # The D6 defect itself: a column inserted at index 1 of header and rows.
+        lines, hdr, _ = first_data_line(text)
+        out = []
+        for i, ln in enumerate(lines):
+            if i < hdr or not ln.strip() or ln.lstrip().startswith("#"):
+                out.append(ln)
+                continue
+            first, _, rest = ln.partition(",")
+            out.append(first + "," + ("NEWCOL" if i == hdr else "x") + "," + rest)
+        return "\n".join(out)
+
+    def csv_break_number(col_index):
+        def m(text):
+            lines, _, row = first_data_line(text)
+            parts = lines[row].split(",")
+            parts[col_index] = "not-a-number"
+            lines[row] = ",".join(parts)
+            return "\n".join(lines)
+        return m
+
+    def csv_unquoted_comma(text):
+        lines, _, row = first_data_line(text)
+        lines[row] = lines[row] + ", and a stray comma"
+        return "\n".join(lines)
+
+    def csv_duplicate_row(text):
+        lines, _, row = first_data_line(text)
+        lines.insert(row + 1, lines[row])
+        return "\n".join(lines)
+
+    def mixed_eol(text):
+        lines = text.split("\n")
+        return "\r\n".join(lines[:3]) + "\n" + "\n".join(lines[3:])
+
+    def not_utf8(text):
+        return text.replace("e", "\udce9", 1)     # surrogateescape -> lone 0xE9 byte
+
+    COST = D + "cost_rates_5d.csv"
+    text_case(COST, "renamed column", csv_rename_header)
+    text_case(COST, "inserted (undeclared) column — the D6 drift", csv_insert_column)
+    text_case(COST, "non-numeric UGX rate", csv_break_number(5))
+    text_case(COST, "row split by an unquoted comma", csv_unquoted_comma)
+    text_case(COST, "duplicate DISC|PROD key", csv_duplicate_row)
+    text_case(COST, "mixed line endings", mixed_eol)
+    text_case(COST, "not UTF-8", not_utf8)
+    text_case(D + "STING_DEFAULT_COST_RATES.csv", "non-numeric rate", csv_break_number(1))
+    text_case(D + "BOQ_DESCRIPTIONS.json", "duplicate JSON key",
+              lambda t: t.replace('"category"', '"category": "dup", "category"', 1))
+    text_case(D + "BOQ_DESCRIPTIONS.json", "empty file", lambda t: "")
 
     failures = []
     tmp = tempfile.mkdtemp(prefix="sting_schema_selftest_")
     try:
-        for name, label, mutate in cases:
+        for rel, label, mode, mutate in cases:
             errors, warnings, checked_files = [], [], 0
-            with io.open(os.path.join(real_data, name), encoding="utf-8-sig") as fh:
-                doc = json.load(fh)
-            doc = mutate(doc)
-            DATA = tmp
-            with io.open(os.path.join(tmp, name), "w", encoding="utf-8") as fh:
-                json.dump(doc, fh)
-            validate_json(name, JSON_SCHEMAS[name])
+            ROOT = REPO
+            src = os.path.join(REPO, rel)
+            dst = os.path.join(tmp, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            if mode == "json":
+                with io.open(src, encoding="utf-8-sig") as fh:
+                    doc = json.load(fh)
+                with io.open(dst, "w", encoding="utf-8") as fh:
+                    json.dump(mutate(doc), fh)
+            else:
+                with io.open(src, encoding="utf-8-sig", newline="") as fh:
+                    text = fh.read().replace("\r\n", "\n")
+                with io.open(dst, "wb") as fh:
+                    fh.write(mutate(text).encode("utf-8", "surrogateescape"))
+            ROOT = tmp
+            validate_registered(reg, rel)
             if not errors:
-                failures.append(f"{name}: '{label}' was NOT caught")
+                failures.append(f"{rel}: '{label}' was NOT caught")
 
-        for name, label, mutate in csv_cases:
-            errors, warnings, checked_files = [], [], 0
-            with io.open(os.path.join(real_data, name), encoding="utf-8-sig") as fh:
-                text = fh.read()
-            DATA = tmp
-            with io.open(os.path.join(tmp, name), "w", encoding="utf-8", newline="") as fh:
-                fh.write(mutate(text))
-            validate_csv(name, CSV_SCHEMAS[name])
-            if not errors:
-                failures.append(f"{name}: '{label}' was NOT caught")
+        # Coverage: an unregistered file and a registered-but-missing file both fail.
+        errors, warnings, checked_files = [], [], 0
+        ROOT = REPO
+        fake = dict(reg)
+        fake["schemas"] = dict(reg["schemas"])
+        fake["structural"] = dict(reg.get("structural", {}))
+        victim = next(iter(fake["structural"]))
+        fake["structural"].pop(victim)
+        fake["schemas"]["StingTools/Data/__no_such_file__.csv"] = {"format": "csv-table", "columns": []}
+        check_coverage(fake)
+        if not any(victim in e and "NO SCHEMA" in e for e in errors):
+            failures.append("coverage: an unregistered data file was NOT caught")
+        if not any("__no_such_file__" in e for e in errors):
+            failures.append("coverage: a registered file that does not exist was NOT caught")
+        total = len(cases) + 2
     finally:
-        DATA = real_data
+        ROOT = REPO
         errors, warnings, checked_files = [], [], 0
         shutil.rmtree(tmp, ignore_errors=True)
 
-    total = len(cases) + len(csv_cases)
     if failures:
         print(f"SELF-TEST FAILED - the gate does not fire on {len(failures)} of {total} case(s):")
         for f in failures:
@@ -505,34 +812,53 @@ def self_test():
 
 
 def main():
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    if "--scaffold" in sys.argv:
+        return scaffold(sys.argv[sys.argv.index("--scaffold") + 1])
+
+    reg = load_registry()
+
+    if "--describe" in sys.argv:
+        return describe(reg, sys.argv[sys.argv.index("--describe") + 1])
+
     if "--self-test" in sys.argv:
-        return self_test()
+        return self_test(reg)
 
     if "--list" in sys.argv:
-        for name, schema in JSON_SCHEMAS.items():
-            keys = allowed_keys(schema, name)
-            print(f"{name}: {sorted(keys) if keys else '(unchecked)'}")
+        for rel, schema in sorted(reg["schemas"].items()):
+            if schema.get("format") == "json":
+                keys = allowed_keys(schema, rel)
+                print(f"{rel}: {sorted(keys) if keys else '(structural only)'}")
         return 0
 
-    for name, schema in sorted(JSON_SCHEMAS.items()):
-        validate_json(name, schema)
-    for name, schema in sorted(CSV_SCHEMAS.items()):
-        validate_csv(name, schema)
+    files = check_coverage(reg)
+    for rel in files:
+        validate_registered(reg, rel)
 
     for w in warnings:
         print(f"::warning::{w}")
+
+    n_schema = sum(1 for f in files if classify(reg, f)[0] == "schema")
+    n_struct = sum(1 for f in files if classify(reg, f)[0] == "structural")
+    n_non = sum(1 for f in files if classify(reg, f)[0] == "nondata")
 
     if errors:
         print(f"\n{len(errors)} schema error(s) across {checked_files} file(s):\n")
         for e in errors:
             print(f"  [FAIL] {e}")
-        print("\nAn unknown key is not cosmetic: Newtonsoft's MissingMemberHandling")
-        print("is Ignore everywhere in this repo, so the value is dropped at load")
+        print("\nAn unknown key or a shifted column is not cosmetic: Newtonsoft's")
+        print("MissingMemberHandling is Ignore everywhere in this repo and most CSV")
+        print("readers index by position, so the value is dropped or misread at load")
         print("and the feature reading it does nothing, with no error anywhere.")
+        print("How to change a data file and its schema together: docs/DATA_SCHEMAS.md")
         return 1
 
-    print(f"OK - {checked_files} data file(s) validated against their schemas, "
-          f"{len(warnings)} warning(s)")
+    print(f"OK - {len(files)} file(s) under the registry roots: {n_schema} against a full "
+          f"schema, {n_struct} structural-only, {n_non} non-data; "
+          f"{checked_files} parsed, {len(warnings)} warning(s)")
     return 0
 
 
