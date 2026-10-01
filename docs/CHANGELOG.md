@@ -27064,3 +27064,24 @@ sync interval never reached ACC, and nothing said so.
   never re-posted blind.
 
 Server ACC tests 183 passed (9 new cases). Live ACC acceptance of a closed create is not yet checked.
+
+#### ACC round 5: fixes to what rounds 3–4 changed (F1–F10, 2026-10-01)
+
+- **F1** A clash pull where ACC gave no document names is no longer recorded as a complete,
+  empty pull. Recording it that way released every "closed in ACC" hold.
+- **F2** An Accept that applies to some STING records but not others stays pending. The next
+  Accept applies only the rest, with the same code.
+- **F3** A withheld status is re-checked and reported on every sync, and sent once ACC shows
+  the pushed value again.
+- **F4** Before sending a status, the server reads ACC's status as it is now. If it cannot read
+  it, the status is held back and the report says so.
+- **F5** A model set whose last pull is 30 days older than the newest pull no longer keeps
+  holds alive.
+- **F6** The MIDP issued-date fallback reads the stored date value instead of its text.
+- **F7** An unreadable actual date is counted and named.
+- **F8** ACC Read Transmittals fails if it cannot save.
+- **F9** An empty review-queue file is reported as unreadable.
+- **F10 (part)** Every ACC state file is written through its own temp file.
+
+Tests: Acc 710, Cost 171, server ACC integration 100. F3 and F4 were each shown to fail
+without the fix.

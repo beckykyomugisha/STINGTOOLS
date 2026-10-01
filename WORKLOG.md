@@ -3,8 +3,8 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Fix round-5 P1s: F1 (a pull without document names releases every hold), F3 (withheld status forgotten after one report), F2 (partial review accept marked Accepted).
-2. Then the P2s: F6 (MIDP issued-date fallback broken by E5), F7, F8, F9, F4, F5, F10.
+1. QUEUED USER TASK (2026-10-01): ACC/APS automation research and implementation. Write docs/ACC_AUTOMATION_RESEARCH_2026-10.md; build the no-input items first, then config slots with REPLACE_WITH_ values, then one batched scope change. Report the ids/settings checklist in chat. No deploy.bat, no Revit.
+2. After that: ACC-LOCK-1 (cross-process lock on the shared ACC state files), then the speculative round-5 items (offset paging before a NOT_FOUND untrack; comment-key time zones).
 3. Then area 2/3: tagging, drawing production and MEP.
 
 ## Branches
@@ -22,7 +22,7 @@ dotnet test Planscape.Server/tests/Planscape.Tests --filter "FullyQualifiedName~
 powershell -File tools/check_path_discipline.ps1 ; tools/check_workflow_wiring.ps1 ; tools/check_export_routing.ps1
 python tools/check_kut_workflow_tags.py ; python tools/check_unattended_cycle.py
 ```
-Last full green (2026-10-01, after merging round 4 onto #1021): build 0/0; Acc 697, Tags 5217, Cost 169, Mep 87; `run_ci_gates.py --quick` 36/0; drawing-type checksums OK.
+Last full green (2026-10-01, after F1-F10): build 0/0; Acc 710, Tags 5221, Cost 171, Mep 87; server ACC integration 100; `run_ci_gates.py --quick` 36/0; drawing-type checksums OK.
 
 ## Deploy (KUT live)
 `git -C C:/Dev/STING_KUT_LIVE checkout --detach <commit>` then `cmd.exe //c 'C:\Dev\STING_KUT_LIVE\deploy.bat'` with Revit closed. Verify: manifests point at STING_KUT_LIVE; deployed DLL == `StingTools/bin/Release/StingTools.dll`; 210 tag families in `CompiledPlugin/data/TagFamilies`; **no `Seeds/` folder** (the 137 seed families are superseded — never restore them). Last deploy: `57c3b236e` (claude/kut-combined-acc-tags = integration incl. main through #1028 + round 4 + SRV-11) at 07:00 on 2026-10-01; verified (3 manifests, DLL hash match, 210 tag families, no Seeds/). User told to re-run Load Shared Parameters (drawing stamps now bind to Views).
@@ -94,16 +94,16 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 ## Findings — ACC round 5: what rounds 3–4 changed (audit 2026-10-01)
 | Id | Area | Where | Sev | Defect | Plan |
 |---|---|---|---|---|---|
-| F1 | Escalation holds | Clash/AccPullClashesCommand.cs:257; V6/AccModelCoordSync.cs:342-348,396 | P1 | A pull with no document names (scope file missing) has no signatures yet is recorded COMPLETE → ReleaseAbsent releases every hold → re-escalation of everything closed in ACC | complete:false when any clash lacks a signature |
-| F2 | Review accept | Clash/AccReadReviewsCommand.cs:452,332 | P1 | Partial apply (register refused) marked Accepted → refused part never retried | Keep pending / PartiallyApplied until every target applied; idempotent re-run |
-| F3 | Server update | AccSyncService.cs PushUpdatesAsync | P1 | Withheld status: pushedAt + snapshot advance → divergence reported once then forgotten; Planscape CLOSED never sent later | Don't advance status on withhold; re-report divergence each sweep |
-| F4 | Server update | AccSyncService.cs AccIssueUpdatePlan | P2 | Status guard uses previous sweep's read-back (stale or null → unchecked PATCH) | GET current status before a status PATCH; read failure → withhold |
-| F5 | Clash presence | V6/AccEscalationRecord.cs:293-300 | P2 | Presence = union of every model set ever pulled; stale sets keep holds alive forever | Use the remembered set / drop stale snapshots |
-| F6 | MIDP | Commands/Delivery/DeliveryCommands.cs:480,504 | P2 | JArray.Parse turns history timestamps into dates; (string) gives MM/dd/yyyy HH:mm:ss which E5's parser refuses → issued deliverable shown not issued | DateParseHandling.None or read the DateTime value |
-| F7 | MIDP | Core/Delivery/MidpCsv.cs:156 | P2 | Unreadable actual date silently becomes "not delivered" | Count + reason like planned dates |
-| F8 | Transmittals | Clash/AccReadReviewsCommand.cs:499 | P2 | ACC_ReadTransmittals ignores the save result and reports success | Check, report, Failed |
-| F9 | Review queue | V6/AccReviewProposals.cs:151,167 | P2 | Zero-byte queue read as empty → decided proposals re-proposed; Save failure silent | Empty = unreadable; report save failure |
-| F10 | Concurrency | AtomicFile.TryWrite, AccIssueImportState.Save, AccReviewQueue.Save | P2 | Fixed `.tmp` name + no cross-process lock on read-modify-write (two Revit sessions on the shared KUT folder) | Unique temp name + lock-file pattern from AccCredentialStore |
+| F1 | Escalation holds | Clash/AccPullClashesCommand.cs:257; V6/AccModelCoordSync.cs:342-348,396 | P1 | A pull with no document names (scope file missing) has no signatures yet is recorded COMPLETE → ReleaseAbsent releases every hold → re-escalation of everything closed in ACC | **Done** ee08bf5b7: AccClashPresence.IsCompleteEvidence (untruncated AND no live clash without a signature) |
+| F2 | Review accept | Clash/AccReadReviewsCommand.cs:452,332 | P1 | Partial apply (register refused) marked Accepted → refused part never retried | **Done** f3676f944: AppliedTargets + PartialCode; Settle -> Complete/Partial/NothingApplied; a retry applies only the rest |
+| F3 | Server update | AccSyncService.cs PushUpdatesAsync | P1 | Withheld status: pushedAt + snapshot advance → divergence reported once then forgotten; Planscape CLOSED never sent later | **Done** 591e353f6: pushedAt not advanced on a withhold; re-reported every sync; sent once ACC returns (red/green) |
+| F4 | Server update | AccSyncService.cs AccIssueUpdatePlan | P2 | Status guard uses previous sweep's read-back (stale or null → unchecked PATCH) | **Done** 09ef75594: fresh single-id read before a status PATCH; unreadable -> status withheld + named (red/green) |
+| F5 | Clash presence | V6/AccEscalationRecord.cs:293-300 | P2 | Presence = union of every model set ever pulled; stale sets keep holds alive forever | **Done** f66c11f72: a set 30 days staler than the newest pull no longer counts (newest always counts) |
+| F6 | MIDP | Commands/Delivery/DeliveryCommands.cs:480,504 | P2 | JArray.Parse turns history timestamps into dates; (string) gives MM/dd/yyyy HH:mm:ss which E5's parser refuses → issued deliverable shown not issued | **Done** 1f10e8d12: MidpCsv.TryDateValue reads the stored DateTime |
+| F7 | MIDP | Core/Delivery/MidpCsv.cs:156 | P2 | Unreadable actual date silently becomes "not delivered" | **Done** 1f10e8d12: BadActualDate + DateProblems line |
+| F8 | Transmittals | Clash/AccReadReviewsCommand.cs:499 | P2 | ACC_ReadTransmittals ignores the save result and reports success | **Done** 4842e721f: a failed save fails the command with the reason |
+| F9 | Review queue | V6/AccReviewProposals.cs:151,167 | P2 | Zero-byte queue read as empty → decided proposals re-proposed; Save failure silent | **Done** 4842e721f: an empty queue file is unreadable; Save uses a unique temp name |
+| F10 | Concurrency | AtomicFile.TryWrite, AccIssueImportState.Save, AccReviewQueue.Save | P2 | Fixed `.tmp` name + no cross-process lock on read-modify-write (two Revit sessions on the shared KUT folder) | **Part done** 5f6f8e8eb: unique temp names + cleanup in every ACC state writer. OPEN: a cross-process lock around load-modify-save (ROADMAP ACC-LOCK-1) |
 | ACC-SRV-11 | Server sync | AccSyncService.cs | P2 | Issue raised and closed between sweeps never reached ACC, nothing said | **Done** 351c2d1f6: accClosedBetweenSweeps report (default) / create |
 
 Speculative (needs live check): offset paging in PullIssuesAsync can skip an issue → NOT_FOUND untrack → re-raise (re-read by id before untracking); E9 comment keys hash JSON whose dates may re-serialise per time zone.
@@ -223,3 +223,6 @@ Seam audit (2026-10-01):
 - **DOCX-REG-1:** the ISO note is its own display field. Suitability drives CDE logic, so a marker must never be written into it.
 - **ACC-SRV-11:** the default is report, not create. It sends nothing to ACC, and a closed issue appearing in ACC is a visible change people did not ask for. Create mode is one config key away (`accClosedBetweenSweeps`). The baseline is the first sync's time (`accIssueSyncSince`), not the previous sweep's: a sweep that broke mid-run would otherwise lose an issue for good. Each issue is reported once (`accIssueClosedReported`). Whether ACC accepts a create whose status is `closed` is NEEDS MANUAL CHECK.
 - **KUT build merge (c73ded891):** the Curtain System Tag conflict was resolved to main, which replaced it with the Temporary Structure Tag. Revit 2025 measured that a Curtain System tag cannot be made. The tag-families session was told.
+- **F2:** the proposal stays PENDING on a partial apply rather than gaining a new state. Every existing reader already handles pending, and the targets already applied are recorded on the proposal, so a retry cannot apply twice. The first code chosen sticks, so a retry never asks again or mixes codes.
+- **F4:** a fresh single-id GET is made only when a status is about to be sent, so a normal sweep costs nothing extra. If the read fails, the title/description still go and the status waits.
+- **F5:** staleness is measured against the newest pull, not the clock, so a project that has not pulled for a month keeps its holds.
