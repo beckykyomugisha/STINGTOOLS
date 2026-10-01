@@ -2,6 +2,25 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-19 saving tag settings keeps the rest of project_config.json, 2026-10-01)
+
+- **The bug.** `project_config.json` is shared: besides the tag maps it carries `SEQ_SCHEME`,
+  `SEQ_INCLUDE_LOC` / `_ZONE`, `SEQ_LEVEL_RESET`, `CDE_FIRST_LAYOUT`, `FOLDER_CODE_SUFFIX`, every
+  `COST_*` / `BOQ_TENDER_*` rate, SLA thresholds, permissions and more. Both whole-file writers
+  rebuilt it from their own key list: *Save Config to Project* wrote 13 keys (dropping even
+  `TAG_PREFIX`, `CATEGORY_SKIP`, `CATEGORY_TOKEN_OVERRIDES`, `COMPLIANCE_GATE_PCT` and the
+  auto-tagger switches), and `TagConfig.SaveToFile` — called by the Project Setup Wizard, the
+  auto-tagger toggles and Tag Ops — wrote its ~25. One click reset everything else to defaults,
+  including the SEQ keys that decide how the next tags are numbered.
+- **The fix.** `Core/ConfigFileMerge.cs` overlays the owned keys on the file as it is and keeps
+  every other key in place. `TagConfig.SaveToFile` uses it, writes through a temp file, and
+  refuses (logged, returns false) rather than overwrite a file that is not valid JSON. *Save Config
+  to Project* now calls `TagConfig.SaveToFile` — one writer. It no longer adds
+  `LEADER_CLEARANCE_MARGIN_FT` when absent (the reader defaults it to 0.5); an existing value is kept.
+- **Tests** `ConfigFileMergeTests` (10): SEQ / folder / cost / nested keys survive with their values,
+  owned keys overwrite, order kept, blank file, unreadable file refused, and a source check that both
+  writers use the merge (fails against main's sources). `StingTools.Tags.Tests` all passing; plugin
+  build 0 errors / 0 warnings. **Not run in Revit.**
 #### Completed (TAGACC-18 Token Confidence Audit reads the sources the tagger writes, 2026-10-01)
 
 - **The bug.** The Token Confidence Audit (`TokenConfidenceAudit`) classified `ASS_ZONE_SOURCE_TXT`
