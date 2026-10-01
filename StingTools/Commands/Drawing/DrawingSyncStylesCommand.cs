@@ -96,31 +96,27 @@ namespace StingTools.Commands.Drawing
                 // nobody could give. In a preset, running the step is the consent.
                 if (!BatchProduceCommons.Confirm(confirm)) return Result.Cancelled;
 
-                int resynced = 0;
                 var warnings = new System.Collections.Generic.List<string>();
-                using (var tx = new Transaction(doc, "STING — Sync Drawing Type Styles"))
-                {
-                    tx.Start();
-                    foreach (var r in reports)
-                    {
-                        if (!(doc.GetElement(r.ViewId) is View v)) continue;
-                        var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
-                        if (dt == null) continue;
-                        var applied = Resync(doc, v, dt, out bool changed);
-                        if (applied.Warnings.Count > 0)
-                            warnings.AddRange(applied.Warnings.Select(w => $"[{v.Name}] {w}"));
-                        if (changed) resynced++;
-                    }
-                    tx.Commit();
-                }
+                var run = ResyncEach(doc, reports, "STING — Sync Drawing Type Styles", warnings);
+                int resynced = run.Changed;
 
-                // Phase 183 — clear the staged diff now that every
-                // affected view has been re-applied; next Inspect /
-                // SyncStyles starts from a fresh baseline.
-                LiveProfileSync.ConsumeStagedDiff(doc);
+                // Phase 183 — clear the staged diff once every affected view has been
+                // re-applied. DTW-201: only when every one of them was kept; a view
+                // skipped or rolled back keeps the diff, so the next run picks it up.
+                var liveIds = new HashSet<long>(liveAffected.Select(i => i.Value));
+                var liveMissed = run.NotKept.Where(n => liveIds.Contains(n.Id)).ToList();
+                if (liveMissed.Count == 0) LiveProfileSync.ConsumeStagedDiff(doc);
+                else warnings.Add($"{liveMissed.Count} view(s) affected by the profile edit were not re-synced; "
+                                  + "the edit stays staged so the next Sync Styles re-applies them.");
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Re-synced {resynced} of {reports.Count} drifted view(s).");
+                if (run.NotKept.Count > 0)
+                {
+                    sb.AppendLine($"{run.NotKept.Count} view(s) NOT re-synced (skipped or rolled back, nothing changed on them):");
+                    foreach (var n in run.NotKept.Take(15)) sb.AppendLine("  " + n.Name);
+                    if (run.NotKept.Count > 15) sb.AppendLine($"  …({run.NotKept.Count - 15} more)");
+                }
                 if (suppressedOnly > 0)
                     sb.AppendLine($"{suppressedOnly} view(s) differ only where their view template controls the field — not touched (use Force Resync).");
                 if (warnings.Count > 0)
@@ -141,6 +137,63 @@ namespace StingTools.Commands.Drawing
                 msg = ex.Message;
                 return Result.Failed;
             }
+        }
+
+        internal sealed class ResyncRun
+        {
+            public int Changed;
+            /// <summary>Views skipped (not editable) or rolled back — nothing changed on them.</summary>
+            public List<(long Id, string Name)> NotKept = new List<(long, string)>();
+        }
+
+        /// <summary>
+        /// DTW-201: one transaction per view, inside one group (one undo). A single view
+        /// owned by someone else used to roll back every view, and the report still said
+        /// "Re-synced N". In a workshared model each view (and a sheet's title blocks) is
+        /// pre-checked and skipped by name when it cannot be edited; a refusal at commit
+        /// rolls back that view only. <see cref="ResyncRun.Changed"/> counts committed
+        /// changes only.
+        /// </summary>
+        internal static ResyncRun ResyncEach(Document doc, List<DriftReport> reports, string groupName, List<string> warnings)
+        {
+            var run = new ResyncRun();
+            var runner = new ProductionItemRunner(doc, "SyncStyles");
+            using (var tg = new TransactionGroup(doc, groupName))
+            {
+                tg.Start();
+                foreach (var r in reports)
+                {
+                    if (!(doc.GetElement(r.ViewId) is View v)) continue;
+                    var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
+                    if (dt == null) continue;
+                    string name = v is ViewSheet vs ? $"{vs.SheetNumber} - {vs.Name}" : v.Name;
+                    bool changed = false;
+                    var outcome = runner.Run($"{groupName} - {name}", $"[{name}]",
+                        () => runner.Preflight.Active ? runner.Preflight.Check(EditedBy(doc, v)) : null,
+                        () =>
+                        {
+                            var applied = Resync(doc, v, dt, out changed);
+                            if (applied.Warnings.Count > 0)
+                                warnings.AddRange(applied.Warnings.Select(w => $"[{name}] {w}"));
+                        },
+                        st => $"[{name}] the transaction did not commit ({st}); not re-synced.",
+                        warnings);
+                    if (outcome == ProductionItemRunner.ItemResult.Committed) { if (changed) run.Changed++; }
+                    else run.NotKept.Add((v.Id.Value, name));
+                }
+                tg.Assimilate();
+            }
+            return run;
+        }
+
+        /// <summary>What re-syncing <paramref name="v"/> writes to: the view, and on a sheet its title blocks.</summary>
+        private static ICollection<ElementId> EditedBy(Document doc, View v)
+        {
+            var ids = new List<ElementId> { v.Id };
+            if (v is ViewSheet)
+                ids.AddRange(new FilteredElementCollector(doc, v.Id).OfCategory(BuiltInCategory.OST_TitleBlocks)
+                    .WhereElementIsNotElementType().ToElementIds());
+            return ids;
         }
 
         /// <summary>
@@ -233,21 +286,19 @@ namespace StingTools.Commands.Drawing
                 };
                 if (!BatchProduceCommons.Confirm(confirm)) return Result.Cancelled;
 
-                int resynced = 0;
-                using (var tx = new Transaction(doc, "STING — Force Resync (Suppressed)"))
+                // DTW-201: per view, as Sync Styles — one owned view no longer rolls back all.
+                var warnings = new List<string>();
+                var run = DrawingSyncStylesCommand.ResyncEach(doc, reports, "STING — Force Resync (Suppressed)", warnings);
+                var sb = new StringBuilder();
+                sb.AppendLine($"Re-applied profile on {run.Changed} view(s).");
+                if (run.NotKept.Count > 0)
                 {
-                    tx.Start();
-                    foreach (var r in reports)
-                    {
-                        if (!(doc.GetElement(r.ViewId) is View v)) continue;
-                        var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
-                        if (dt == null) continue;
-                        DrawingSyncStylesCommand.Resync(doc, v, dt, out bool changed);
-                        if (changed) resynced++;
-                    }
-                    tx.Commit();
+                    sb.AppendLine($"{run.NotKept.Count} view(s) NOT re-applied (skipped or rolled back):");
+                    foreach (var n in run.NotKept.Take(15)) sb.AppendLine("  " + n.Name);
                 }
-                PresetDialog.Show("STING — Force Resync", $"Re-applied profile on {resynced} view(s).", ref msg);
+                foreach (var w in warnings) StingLog.Warn($"Force Resync: {w}");
+                foreach (var w in warnings.Take(10)) sb.AppendLine("  " + w);
+                PresetDialog.Show("STING — Force Resync", sb.ToString(), ref msg);
                 return Result.Succeeded;
             }
             catch (Exception ex)
