@@ -181,32 +181,6 @@ namespace StingTools.Model
             return Math.Min(rw, 75.0); // physical upper limit
         }
 
-        /// <summary>Validate airborne sound insulation against Part E / BB93 / HTM requirements.</summary>
-        public static AcousticResult ValidateAirborne(List<AcousticMaterialData> layers, string separationType)
-        {
-            double rw = CalculateRwComposite(layers);
-            double required = 45.0; // default
-            string standard = "Approved Document E";
-
-            if (_partEMinima.TryGetValue(separationType, out double minRw))
-                required = minRw;
-
-            if (separationType.Contains("classroom")) standard = "BB93";
-            else if (separationType.Contains("ward") || separationType.Contains("theatre")) standard = "HTM 08-01";
-
-            return new AcousticResult
-            {
-                CheckName = $"Airborne Sound Insulation (DnT,w+Ctr)",
-                CalculatedValue = rw,
-                RequiredValue = required,
-                Unit = " dB",
-                Standard = standard,
-                Recommendation = rw < required
-                    ? $"Increase mass by {(required - rw) * 2:F0} kg/m² or add resilient layer (+8dB)"
-                    : "Meets requirement"
-            };
-        }
-
         /// <summary>Calculate impact sound level L'nT,w for floor construction.</summary>
         public static AcousticResult ValidateImpact(List<AcousticMaterialData> layers, string floorType)
         {
@@ -360,12 +334,6 @@ namespace StingTools.Model
                 Standard = standard,
                 Recommendation = rec
             };
-        }
-
-        /// <summary>Get RT60 limits for a room type.</summary>
-        public static (double Min, double Max) GetLimits(string roomType)
-        {
-            return _rt60Limits.TryGetValue(roomType, out var l) ? l : (0.4, 1.0);
         }
     }
 
