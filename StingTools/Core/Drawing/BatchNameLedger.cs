@@ -63,6 +63,26 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// DTW-213: as <see cref="Contains(string, Func{long, bool})"/>, but the owner is
+        /// judged with the name it took — <paramref name="holds"/>(name, ownerId) — so an
+        /// element id Revit reused after a rollback, now a different element, does not keep
+        /// holding the name.
+        /// </summary>
+        public bool Contains(string name, Func<string, long, bool> holds)
+            => Contains(name, holds == null ? null : (Func<long, bool>)(id => holds(name, id)));
+
+        /// <summary>DTW-213: <see cref="Heal(string, Func{long, bool})"/> judged by (name, ownerId).</summary>
+        public int Heal(string prefix, Func<string, long, bool> holds)
+        {
+            if (holds == null || _owners.Count == 0) return 0;
+            var gone = _owners
+                .Where(kv => (prefix == null || kv.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) && !holds(kv.Key, kv.Value))
+                .Select(kv => kv.Key).ToList();
+            foreach (var n in gone) { Names.Remove(n); _owners.Remove(n); }
+            return gone.Count;
+        }
+
+        /// <summary>
         /// Release every name starting with <paramref name="prefix"/> whose owner is gone —
         /// run before a rule that walks suffixes of a base name (A-101, A-101-A, …).
         /// Returns how many were released.

@@ -85,6 +85,24 @@ namespace StingTools.Core.Drawing
         public bool SheetReused { get; set; }
         public List<string> Warnings { get; } = new List<string>();
 
+        /// <summary>
+        /// Why this request must not be kept, or null. Set when production stopped short
+        /// of a drawing it could stand behind — a sheet whose number could not be reserved
+        /// (DTW-194), an area view its scope box could not crop (DTW-206). The line is in
+        /// <see cref="Warnings"/> too; a batch rolls the item back on it.
+        /// </summary>
+        public string Failure { get; set; }
+
+        /// <summary>DTW-209: the reused sheet's context stamp before this run re-stamped it.</summary>
+        internal string PriorSheetStamp { get; set; }
+
+        internal void Fail(string reason)
+        {
+            if (string.IsNullOrWhiteSpace(reason)) return;
+            if (Failure == null) Failure = reason;
+            if (!Warnings.Contains(reason)) Warnings.Add(reason);
+        }
+
         /// <summary>DTW-114: what the annotation pass placed on each view this run found
         /// already produced (and refreshed).</summary>
         public List<AnnotationRefresh> AnnotationRefreshes { get; } = new List<AnnotationRefresh>();
@@ -111,7 +129,6 @@ namespace StingTools.Core.Drawing
         // cleared by Reset() / the IDisposable scope returned by Prime().
         [ThreadStatic] private static Dictionary<string, ElementId> _existingViewCache;
         [ThreadStatic] private static Dictionary<string, ElementId> _existingSheetCache;
-        [ThreadStatic] private static Dictionary<string, int>       _packageSheetCount;
         // GAP-L: the set of sheet numbers in use, primed once per batch so
         // EnsureUniqueSheetNumber doesn't re-collect every ViewSheet on each
         // assignment (was O(M²) across an M-sheet batch). Written back as each
@@ -210,7 +227,6 @@ namespace StingTools.Core.Drawing
                 _existingViewNames = new BatchNameLedger(names, StringComparer.Ordinal);
 
                 var s = new Dictionary<string, ElementId>(StringComparer.Ordinal);
-                var pkg = new Dictionary<string, int>(StringComparer.Ordinal);
                 var nums = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var sheet in new FilteredElementCollector(doc).OfClass(typeof(ViewSheet)).Cast<ViewSheet>())
                 {
@@ -221,14 +237,11 @@ namespace StingTools.Core.Drawing
                     // not-bound from bound-but-blank.
                     var shtCtx = DrawingTypeStamper.ReadSheetContext(sheet) ?? string.Empty;
                     if (!string.IsNullOrEmpty(dtId)) s[SheetKey(dtId, pkgId, ProductionContextKey.Identity(shtCtx))] = sheet.Id;
-                    if (pkg.TryGetValue(pkgId, out var n)) pkg[pkgId] = n + 1;
-                    else pkg[pkgId] = 1;
                     // Same pass feeds the sheet-number cache — no extra collector.
                     try { if (!string.IsNullOrEmpty(sheet.SheetNumber)) nums.Add(sheet.SheetNumber); }
                     catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
                 }
                 _existingSheetCache = s;
-                _packageSheetCount  = pkg;
                 _sheetNumberCache   = new BatchNameLedger(nums, StringComparer.OrdinalIgnoreCase);
             }
             catch (Exception ex)
@@ -239,21 +252,31 @@ namespace StingTools.Core.Drawing
 
         // ── STACK-1 helpers — per-batch sheet↔context claims ────────────────
 
-        /// <summary>True when this batch already used <paramref name="sheetId"/>
+        /// <summary>True when this batch already used <paramref name="sheet"/>
         /// for a context other than <paramref name="ctx"/>. Claims only exist for
-        /// the current run, so this never blocks legitimate reuse across runs.</summary>
-        private static bool ClaimedByOtherContext(ElementId sheetId, string ctx)
+        /// the current run, so this never blocks legitimate reuse across runs.
+        /// DTW-213: a claim is keyed by id but remembers the sheet's UniqueId; a claim whose
+        /// id Revit has reused for another sheet after a rollback is ignored and dropped.</summary>
+        private static bool ClaimedByOtherContext(ViewSheet sheet, string ctx)
         {
-            if (sheetId == null || _sheetCtxClaims == null) return false;
-            return _sheetCtxClaims.TryGetValue(sheetId.Value, out var owner)
-                && !string.Equals(owner, ctx ?? "", StringComparison.Ordinal);
+            if (sheet == null || _sheetCtxClaims == null) return false;
+            if (!_sheetCtxClaims.TryGetValue(sheet.Id.Value, out var claim)) return false;
+            int cut = claim.IndexOf('\n');
+            string uid = cut < 0 ? null : claim.Substring(0, cut);
+            string owner = cut < 0 ? claim : claim.Substring(cut + 1);
+            if (!ProductionEdgeDecisions.StillHolds(uid == null, true, true, sheet.UniqueId, uid, ignoreCase: false))
+            {
+                _sheetCtxClaims.Remove(sheet.Id.Value);
+                return false;
+            }
+            return !string.Equals(owner, ctx ?? "", StringComparison.Ordinal);
         }
 
-        private static void ClaimSheetForContext(ElementId sheetId, string ctx)
+        private static void ClaimSheetForContext(ViewSheet sheet, string ctx)
         {
-            if (sheetId == null) return;
+            if (sheet == null) return;
             if (_sheetCtxClaims == null) _sheetCtxClaims = new Dictionary<long, string>();
-            _sheetCtxClaims[sheetId.Value] = ctx ?? "";
+            _sheetCtxClaims[sheet.Id.Value] = (sheet.UniqueId ?? "") + "\n" + (ctx ?? "");
         }
 
         /// <summary>
@@ -276,7 +299,6 @@ namespace StingTools.Core.Drawing
             public Dictionary<string, ElementId> ExistingViewCache, ExistingSheetCache;
             public BatchNameLedger ExistingViewNames, SheetNumberCache;
             public Dictionary<string, BuiltInCategory> CategoryByName;
-            public Dictionary<string, int> PackageSheetCount;
             public string CacheDocKey, IsoLevelMapDocKey;
             public HashSet<long> RefreshedViews;
             public Dictionary<string, string> IsoLevelMap;
@@ -289,7 +311,6 @@ namespace StingTools.Core.Drawing
             ExistingViewNames  = _existingViewNames,
             CategoryByName     = _categoryByName,
             ExistingSheetCache = _existingSheetCache,
-            PackageSheetCount  = _packageSheetCount,
             SheetNumberCache   = _sheetNumberCache,
             CacheDocKey        = _cacheDocKey,
             RefreshedViews     = _refreshedViews,
@@ -304,7 +325,6 @@ namespace StingTools.Core.Drawing
             _existingViewNames  = s.ExistingViewNames;
             _categoryByName     = s.CategoryByName;
             _existingSheetCache = s.ExistingSheetCache;
-            _packageSheetCount  = s.PackageSheetCount;
             _sheetNumberCache   = s.SheetNumberCache;
             _cacheDocKey        = s.CacheDocKey;
             _refreshedViews     = s.RefreshedViews;
@@ -322,7 +342,6 @@ namespace StingTools.Core.Drawing
             _existingViewNames  = null;
             _categoryByName     = null;
             _existingSheetCache = null;
-            _packageSheetCount  = null;
             _sheetNumberCache   = null;
             _cacheDocKey        = null;
             _refreshedViews     = null;   // DTW-114
@@ -383,9 +402,48 @@ namespace StingTools.Core.Drawing
             if (rules.All(r => r == null))
                 return result;
 
+            // DTW-206: an area plan whose box does not reach its level cannot take the box
+            // as crop; it used to stay a whole-floor plan on an area-named sheet.
+            if (ctx.ScopeBox != null && ctx.Level != null && rules.Any(r => r != null && IsPlanRule(r)))
+            {
+                try
+                {
+                    if (ScopeBoxRevit.TryMeasure(ctx.ScopeBox, out var bm, out _))
+                    {
+                        var miss = ProductionEdgeDecisions.BoxMissesLevel(ctx.ScopeBox.Name, ctx.Level.Name,
+                            bm.ZMinFt, bm.ZMaxFt, ctx.Level.ProjectElevation);
+                        if (miss != null) { result.Fail($"'{dt.Id}': {miss}"); return result; }
+                    }
+                }
+                catch (Exception ex) { StingLog.Warn($"DrawingProducer box reach '{ctx.ScopeBox.Name}': {ex.Message}"); }
+            }
+
+            // DTW-197: the sheet used to be made before any view, so a request whose every
+            // rule failed left an empty, numbered sheet behind, counted as produced. An
+            // existing sheet is found now; a new one is made only once a view exists.
+            bool sheetKnown = false, sheetAttempted = false;
+            NewSheetRecord newSheet = null;
             if (opts.CreateSheet)
-                result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result,
+            {
+                var found = FindSheetForRequest(doc, dt, ctx, result,
                     opts.Idempotent ? rules.Where(r => r != null).Select(r => r.Idx).ToList() : null);
+                if (found != null)
+                {
+                    result.SheetId = found; sheetKnown = true;
+                    if (opts.OverrideSheetName == null) RefreshReusedSheetName(doc, dt, ctx, found, result);   // DTW-209
+                }
+                else
+                {
+                    // DTW-194: a new sheet will need a number. When the counters cannot be
+                    // written nothing is produced — not even the views.
+                    var block = SheetSequenceStore.WriteBlockReason(doc);
+                    if (block != null)
+                    {
+                        result.Fail(ProductionEdgeDecisions.SheetNotNumberedLine(dt.Id, block));
+                        return result;
+                    }
+                }
+            }
 
             // P1 — resolve the title-block family's slot grid once for this
             // sheet (null for norm-only profiles / no sheet) and reuse it across
@@ -404,6 +462,31 @@ namespace StingTools.Core.Drawing
                 result.ViewIds.Add(viewId);
                 StampViewParameters(doc, viewId, dt, rule, ctx);
 
+                // DTW-206: read back the crop of an area plan; one the box did not take
+                // fails the request (a batch rolls it back) instead of being kept.
+                if (ctx.ScopeBox != null && doc.GetElement(viewId) is ViewPlan vp)
+                {
+                    ElementId crop = null;
+                    try { crop = vp.get_Parameter(BuiltInParameter.VIEWER_VOLUME_OF_INTEREST_CROP)?.AsElementId(); }
+                    catch (Exception ex) { StingLog.Warn($"Crop read-back '{vp.Name}': {ex.Message}"); }
+                    if (crop != null && crop != ctx.ScopeBox.Id)
+                    {
+                        result.Fail(ProductionEdgeDecisions.NotCroppedLine(vp.Name, ctx.ScopeBox.Name));
+                        return result;
+                    }
+                }
+
+                if (ProductionEdgeDecisions.CreateSheetNow(opts.CreateSheet, sheetKnown, sheetAttempted, viewProduced: true))
+                {
+                    sheetAttempted = true;
+                    result.SheetId = CreateSheet(doc, dt, ctx, opts, result, ctx.PackageId ?? dt.PackageId ?? "",
+                        BuildContextTag(ctx), out newSheet);
+                    if (result.Failure != null) return result;   // DTW-194: no number, no sheet
+                    if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
+                        famCtx = SheetPlacementBridge.BuildFamilySlotContext(
+                            doc, doc.GetElement(result.SheetId) as ViewSheet, dt, result);
+                }
+
                 if (opts.PlaceOnSheet && result.SheetId != ElementId.InvalidElementId)
                 {
                     // DTW-21: a preset scale is the scale asked for — do not fit it away.
@@ -417,7 +500,116 @@ namespace StingTools.Core.Drawing
                 }
             }
 
+            // DTW-197: no view, so no sheet — and say so, since nothing was drawn.
+            if (opts.CreateSheet && !sheetKnown && !sheetAttempted && result.ViewIds.Count == 0)
+                result.Warnings.Add($"'{dt.Id}': no view could be produced{DescribeContext(ctx)}, so no sheet was made.");
+
+            // DTW-197: a sheet made here that ends with nothing on it (every placement
+            // failed, or each view is kept on another sheet) is removed and its number
+            // released, rather than left as an empty, numbered sheet.
+            if (newSheet != null && ProductionEdgeDecisions.DiscardNewSheet(true, opts.PlaceOnSheet,
+                    result.ViewportIds.Count, result.ViewportsReused))
+                DiscardEmptySheet(doc, dt, newSheet, result);
+
             return result;
+        }
+
+        /// <summary>
+        /// DTW-209: a reused sheet kept the name it was given, so after a level rename it
+        /// still said "Level 1". Its name is re-derived and replaced — reported — when it is
+        /// still the name production gave it (ProductionEdgeDecisions.ReusedSheetRename);
+        /// a hand-edited name or a style-locked sheet is left alone.
+        /// </summary>
+        private static void RefreshReusedSheetName(Document doc, DrawingType dt, DrawingContext ctx, ElementId sheetId,
+            ProduceResult result)
+        {
+            try
+            {
+                if (!(doc.GetElement(sheetId) is ViewSheet sheet)) return;
+                // A sheet with no context stamp may be shared by several contexts (the
+                // parameter unbound); renaming it per context would flip its name each item.
+                if (DrawingTypeStamper.ReadSheetContext(sheet) == null) return;
+                var pattern = dt.SheetNamePattern ?? "";
+                int seq = 0;
+                try { seq = sheet.LookupParameter(DrawingTypeStamper.PARAM_SHEET_SEQUENCE)?.AsInteger() ?? 0; }
+                catch (Exception ex) { StingLog.Warn($"RefreshReusedSheetName seq {sheet.Id}: {ex.Message}"); }
+                if (seq <= 0 && pattern.IndexOf("{seq", StringComparison.OrdinalIgnoreCase) >= 0) return;   // cannot rebuild it
+
+                var tokens = BuildTokenDict(doc, dt, ctx, seq);
+                var expected = GeneratedSheetName(dt, ctx, ctx.Level?.Name, seq, tokens);
+                var stored = ProducedViewState.Read(sheet)?.GeneratedSheetName;
+                string legacy = null;
+                if (string.IsNullOrEmpty(stored))
+                {
+                    var oldLevel = ProductionContextIds.LevelName(result.PriorSheetStamp ?? DrawingTypeStamper.ReadSheetContext(sheet));
+                    if (!string.IsNullOrEmpty(oldLevel)) legacy = GeneratedSheetName(dt, ctx, oldLevel, seq, tokens);
+                }
+                var rename = ProductionEdgeDecisions.ReusedSheetRename(sheet.Name, stored, legacy, expected,
+                    DrawingTypeStamper.IsLocked(sheet));
+                if (rename != null)
+                {
+                    var old = sheet.Name;
+                    sheet.Name = rename;
+                    result.Warnings.Add($"Sheet {sheet.SheetNumber} renamed '{old}' → '{rename}' (its generated name changed — e.g. the level was renamed).");
+                }
+                // Remember what production calls it now, so a later hand edit is recognised.
+                if (string.Equals(sheet.Name, expected, StringComparison.Ordinal) && stored != expected)
+                    ProducedViewState.RecordSheetName(sheet, expected);
+            }
+            catch (Exception ex) { result.Warnings.Add($"Refreshing the name of sheet {sheetId}: {ex.Message}"); }
+        }
+
+        /// <summary>DTW-206: a rule that makes a plan-family view (floor, ceiling, area,
+        /// structural plan) — the views a scope box crops.</summary>
+        private static bool IsPlanRule(ProductionRule r)
+        {
+            var vt = r?.ViewType ?? "";
+            return vt.IndexOf("Plan", StringComparison.OrdinalIgnoreCase) >= 0
+                || string.Equals(vt, "RCP", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>DTW-197: what a new sheet consumed, so it can be given back.</summary>
+        private sealed class NewSheetRecord
+        {
+            public ElementId SheetId;
+            public string Number;
+            public string Bucket;
+            public int Seq;
+        }
+
+        private static string DescribeContext(DrawingContext ctx)
+        {
+            var what = ctx?.ScopeBox?.Name ?? ctx?.Level?.Name ?? ctx?.Tag;
+            return string.IsNullOrWhiteSpace(what) ? "" : $" for '{what}'";
+        }
+
+        /// <summary>
+        /// DTW-197: delete a sheet this request made and could put nothing on, and give
+        /// back its counter value when no later sheet has taken the next one. The caller's
+        /// transaction owns the delete; a rollback restores both.
+        /// </summary>
+        private static void DiscardEmptySheet(Document doc, DrawingType dt, NewSheetRecord s, ProduceResult result)
+        {
+            try
+            {
+                doc.Delete(s.SheetId);
+                result.SheetId = ElementId.InvalidElementId;
+                try
+                {
+                    if (_existingSheetCache != null)
+                        foreach (var k in _existingSheetCache.Where(kv => kv.Value == s.SheetId).Select(kv => kv.Key).ToList())
+                            _existingSheetCache.Remove(k);
+                    _sheetCtxClaims?.Remove(s.SheetId.Value);
+                }
+                catch (Exception ex) { StingLog.Warn($"DiscardEmptySheet caches: {ex.Message}"); }
+                bool released = SheetSequenceStore.ReleaseIfLast(doc, s.Bucket, s.Seq);
+                result.Warnings.Add($"Sheet {s.Number} ('{dt.Id}') was removed: nothing could be placed on it"
+                    + (released ? ", and its number was released." : "."));
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Sheet {s.Number} ('{dt.Id}') has nothing on it and could not be removed: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -456,7 +648,8 @@ namespace StingTools.Core.Drawing
             result.SheetId = CreateOrFindSheet(doc, dt, ctx, opts, result);
             if (result.SheetId == ElementId.InvalidElementId)
             {
-                result.Warnings.Add($"No sheet could be made for '{dt.Id}'; '{view.Name}' is not on a sheet.");
+                if (result.Failure == null)
+                    result.Warnings.Add($"No sheet could be made for '{dt.Id}'; '{view.Name}' is not on a sheet.");
                 return result;
             }
 
@@ -475,7 +668,7 @@ namespace StingTools.Core.Drawing
                 {
                     ViewId = x.v.Id.Value,
                     DrawingTypeId = StingTools.Core.ParameterHelpers.GetString(x.v, DrawingTypeStamper.PARAM_DRAWING_TYPE_ID),
-                }), view.Id.Value, dt.Id, ctx.FormerDrawingTypeIds);
+                }), view.Id.Value, dt.Id, ProductionEdgeDecisions.FormerIds(dt, ctx.FormerDrawingTypeIds));
                 foreach (var x in onSheet.Where(x => decision.RemoveViewIds.Contains(x.v.Id.Value)))
                 {
                     result.Warnings.Add($"'{x.v.Name}' (an earlier {dt.Id} view) was taken off the sheet for '{view.Name}'.");
@@ -540,7 +733,8 @@ namespace StingTools.Core.Drawing
 
                 if (opts.Idempotent)
                 {
-                    var existing = FindExistingView(doc, dt.Id, ctx, rule.Idx);
+                    var existing = FindExistingView(doc, dt.Id, ctx, rule.Idx)
+                                ?? AdoptFormerTypeView(doc, dt, ctx, rule, result);   // DTW-203
                     if (existing != null)
                     {
                         result.WasIdempotent = true;
@@ -586,6 +780,35 @@ namespace StingTools.Core.Drawing
                 result.Warnings.Add($"ProduceSingleView({rule?.ViewType}): {ex.Message}");
                 return ElementId.InvalidElementId;
             }
+        }
+
+        /// <summary>
+        /// DTW-203: a view an earlier run produced under one of this type's former ids
+        /// (<c>replaces</c>, or the caller's former ids) for this context and rule. It is
+        /// re-stamped with the current id and reused, rather than a parallel view being
+        /// made beside it. Null when there is none.
+        /// </summary>
+        private static View AdoptFormerTypeView(Document doc, DrawingType dt, DrawingContext ctx, ProductionRule rule,
+            ProduceResult result)
+        {
+            foreach (var former in ProductionEdgeDecisions.FormerIds(dt, ctx?.FormerDrawingTypeIds))
+            {
+                var v = FindExistingView(doc, former, ctx, rule.Idx);
+                if (v == null) continue;
+                if (DrawingTypeStamper.Stamp(v, dt.Id))
+                {
+                    try
+                    {
+                        if (_existingViewCache != null && CacheMatchesDoc(doc))
+                            _existingViewCache[ViewKey(dt.Id, ProductionContextKey.Identity(BuildContextTag(ctx)), rule.Idx)] = v.Id;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"AdoptFormerTypeView cache: {ex.Message}"); }
+                    result.Warnings.Add($"'{v.Name}' was produced as '{former}'; '{dt.Id}' replaces it, so it was re-stamped and reused.");
+                    return v;
+                }
+                result.Warnings.Add($"'{v.Name}' (stamped '{former}', replaced by '{dt.Id}') could not be re-stamped; a new view is made.");
+            }
+            return null;
         }
 
         // ── "Duplicate as Dependent" ─────────────────────────────────────────
@@ -728,7 +951,10 @@ namespace StingTools.Core.Drawing
 
                 try { view.Name = MakeUniqueViewName(doc, viewName, view.Id, result); }
                 catch (Exception ex) { result.Warnings.Add($"Naming view '{viewName}': {ex.Message} — it keeps Revit's default name."); }
-                if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+                // DTW-208: new views only, and before the presentation, so the annotation
+                // pass already sees the production phase filter (a template that controls
+                // it still wins).
+                ApplyProductionPhase(doc, view, dt, result);
 
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
                 {
@@ -740,11 +966,15 @@ namespace StingTools.Core.Drawing
                     // DTW-97: a new view with no depth of its own takes the type's section-marker
                     // far clip. Not on refresh (a depth someone adjusted stays) and not when the
                     // caller built the section box (CustomBounds carries its own depth).
-                    ApplyTypeFarClip = ctx?.CustomBounds == null
+                    ApplyTypeFarClip = ctx?.CustomBounds == null,
+                    KeepScale = rule.ScaleOverride > 0 && PrimaryViewIdValue(view) < 0 ? rule.ScaleOverride.Value : 0,   // DTW-212
                 };
                 var presResult = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
                 result.Warnings.AddRange(presResult.Warnings);
 
+                // DTW-212: the rule's scale was set before Apply, which reset it to the
+                // type's. Applied after, like the preset's overrides below.
+                ApplyRuleScaleOverride(view, rule, result);
                 ApplyPresetVg(doc, view, dt, opts, result);
                 ApplyPresetViewOverrides(view, opts, result);
 
@@ -764,6 +994,69 @@ namespace StingTools.Core.Drawing
         /// A dependent's scale belongs to its parent and is left alone; a view whose
         /// template controls scale or detail level refuses the write, and that is reported.
         /// </summary>
+        /// <summary>
+        /// DTW-208: a new view took Revit's defaults — the newest phase and "Show All", so
+        /// demolished elements showed and were tagged. The view style pack's
+        /// <c>phaseFilter</c> / <c>phase</c> apply when the project has them (a managed
+        /// pack already sets them on its template); otherwise "Show All" becomes "Show
+        /// Complete". The phase itself stays Revit's (the newest) unless the pack names
+        /// one. A view whose template controls either is left alone. Re-runs never touch
+        /// an existing view's phase.
+        /// </summary>
+        private static void ApplyProductionPhase(Document doc, View view, DrawingType dt, ProduceResult result)
+        {
+            if (view == null || view is ViewSchedule) return;
+            try
+            {
+                ViewStylePack pack = null;
+                try { pack = ViewStylePackRegistry.ResolveForDrawingType(doc, dt, out _); }
+                catch (Exception ex) { StingLog.Warn($"ApplyProductionPhase pack '{dt?.Id}': {ex.Message}"); }
+
+                var pf = view.get_Parameter(BuiltInParameter.VIEW_PHASE_FILTER);
+                if (pf != null)
+                {
+                    var filters = new FilteredElementCollector(doc).OfClass(typeof(PhaseFilter)).Cast<PhaseFilter>().ToList();
+                    var current = doc.GetElement(pf.AsElementId())?.Name;
+                    var target = ProductionEdgeDecisions.ProductionPhaseFilter(pack?.PhaseFilter, current, pf.IsReadOnly,
+                        filters.Select(f => f.Name));
+                    var hit = target == null ? null
+                        : filters.FirstOrDefault(f => string.Equals(f.Name, target, StringComparison.OrdinalIgnoreCase));
+                    if (hit != null && pf.Set(hit.Id))
+                        StingLog.Info($"DrawingProducer: '{view.Name}' phase filter '{current}' -> '{hit.Name}'.");
+                    else if (!string.IsNullOrWhiteSpace(pack?.PhaseFilter) && !pf.IsReadOnly
+                             && !filters.Any(f => string.Equals(f.Name, pack.PhaseFilter.Trim(), StringComparison.OrdinalIgnoreCase)))
+                        result.Warnings.Add($"'{view.Name}': phase filter '{pack.PhaseFilter}' (pack '{pack.Id}') is not in this project; left '{current}'.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(pack?.Phase))
+                {
+                    var ph = view.get_Parameter(BuiltInParameter.VIEW_PHASE);
+                    var phase = new FilteredElementCollector(doc).OfClass(typeof(Phase)).Cast<Phase>()
+                        .FirstOrDefault(p => string.Equals(p.Name, pack.Phase.Trim(), StringComparison.OrdinalIgnoreCase));
+                    if (ph != null && !ph.IsReadOnly && phase != null && ph.AsElementId() != phase.Id) ph.Set(phase.Id);
+                    else if (phase == null)
+                        StingLog.Info($"DrawingProducer: pack '{pack.Id}' phase '{pack.Phase}' is not a phase of this project; '{view.Name}' keeps Revit's.");
+                }
+            }
+            catch (Exception ex) { result.Warnings.Add($"'{view.Name}': phase / phase filter not set — {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// DTW-212: a production rule's scaleOverride, applied after the drawing type's
+        /// presentation (which sets the type's scale). A dependent's scale is its parent's.
+        /// </summary>
+        private static void ApplyRuleScaleOverride(View view, ProductionRule rule, ProduceResult result)
+        {
+            if (view == null || rule?.ScaleOverride is not int scale || scale <= 0 || PrimaryViewIdValue(view) >= 0) return;
+            try
+            {
+                if (view.Scale != scale) view.Scale = scale;
+                if (view.Scale != scale)
+                    result.Warnings.Add($"'{view.Name}': rule scale 1:{scale} did not take (its view template controls scale).");
+            }
+            catch (Exception ex) { result.Warnings.Add($"'{view.Name}': rule scale 1:{scale} not applied — {ex.Message}"); }
+        }
+
         private static void ApplyPresetViewOverrides(View view, ProduceOptions opts, ProduceResult result)
         {
             var g = opts?.Preset?.General;
@@ -871,16 +1164,27 @@ namespace StingTools.Core.Drawing
             if (_refreshedViews != null && CacheMatchesDoc(doc) && !_refreshedViews.Add(view.Id.Value)) return;
             try
             {
+                // DTW-196: a view production fitted to its slot keeps that scale (until the
+                // type's own scale changes); a rule's scaleOverride is applied after Apply.
+                int keepScale = rule?.ScaleOverride > 0 && PrimaryViewIdValue(view) < 0 ? rule.ScaleOverride.Value : 0;   // DTW-212
+                if (rule?.ScaleOverride.HasValue != true)
+                {
+                    var st = ProducedViewState.Read(view);
+                    if (st != null) keepScale = ProductionEdgeDecisions.ScaleOnRefresh(dt.Scale, st.FittedScale, st.FitBaseScale);
+                }
                 var refreshOpts = new DrawingTypePresentation.ApplyOptions
                 {
                     AnnotationOptions = BuildAnnotationOptions(view, dt, rule, opts, refresh: true, out var heldBack),
                     SkipSymbolDriftCheck = true, // idempotent refresh — batch path
                     // The box this view is produced for: without it the
                     // refresh re-ran the profile's own crop over the box crop.
-                    ContextScopeBox = contextBox
+                    ContextScopeBox = contextBox,
+                    KeepScale = keepScale,
+                    ReportTemplateReplacement = true,   // DTW-196
                 };
                 var refreshed = DrawingTypePresentation.Apply(doc, view, dt, refreshOpts);
                 result.Warnings.AddRange(refreshed.Warnings);
+                ApplyRuleScaleOverride(view, rule, result);     // DTW-212
                 ApplyPresetViewOverrides(view, opts, result);   // DTW-21: a re-run honours them too
 
                 int tags = refreshed.AnnotationTagsPlaced, dims = refreshed.AnnotationDimsPlaced,
@@ -1403,6 +1707,17 @@ namespace StingTools.Core.Drawing
 
         private static ElementId CreateOrFindSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts, ProduceResult result,
             IReadOnlyCollection<int> reusableRuleIdxs = null)
+            => FindSheetForRequest(doc, dt, ctx, result, reusableRuleIdxs)
+               ?? CreateSheet(doc, dt, ctx, opts, result, ctx.PackageId ?? dt.PackageId ?? "", BuildContextTag(ctx), out _);
+
+        /// <summary>
+        /// The existing sheet for this request — by its stamps, by a former drawing-type
+        /// id, or the sheet a reused view is already on — or null when one must be made.
+        /// DTW-197: split from creation so production can make the sheet only once a view
+        /// exists.
+        /// </summary>
+        private static ElementId FindSheetForRequest(Document doc, DrawingType dt, DrawingContext ctx, ProduceResult result,
+            IReadOnlyCollection<int> reusableRuleIdxs)
         {
             string effectivePackage = ctx.PackageId ?? dt.PackageId ?? "";
             string sheetCtx = BuildContextTag(ctx);
@@ -1415,7 +1730,7 @@ namespace StingTools.Core.Drawing
             // A sheet stamped with an id this request used to route to (the shipped id,
             // before a project re-routed the key) is the same sheet: adopt and re-stamp it
             // rather than mint a duplicate beside it.
-            foreach (var former in (ctx.FormerDrawingTypeIds ?? Array.Empty<string>())
+            foreach (var former in ProductionEdgeDecisions.FormerIds(dt, ctx.FormerDrawingTypeIds)   // DTW-203: + dt.replaces
                          .Where(f => !string.IsNullOrWhiteSpace(f) && !string.Equals(f, dt.Id, StringComparison.OrdinalIgnoreCase)))
             {
                 existing = FindExistingSheet(doc, former, effectivePackage, sheetCtx, legacyCtx, ctxLevelId, result);
@@ -1434,10 +1749,7 @@ namespace StingTools.Core.Drawing
                 return existing;
             }
 
-            existing = SheetOfReusedView(doc, dt, ctx, reusableRuleIdxs, sheetCtx, legacyCtx, ctxLevelId, effectivePackage, result);
-            if (existing != null) return existing;
-
-            return CreateSheet(doc, dt, ctx, opts, result, effectivePackage, sheetCtx);
+            return SheetOfReusedView(doc, dt, ctx, reusableRuleIdxs, sheetCtx, legacyCtx, ctxLevelId, effectivePackage, result);
         }
 
         /// <summary>
@@ -1572,14 +1884,14 @@ namespace StingTools.Core.Drawing
                 // records the claim below.
                 var unstampable = candidates.FirstOrDefault(s =>
                     DrawingTypeStamper.ReadSheetContext(s) == null
-                    && !ClaimedByOtherContext(s.Id, sheetCtx));
+                    && !ClaimedByOtherContext(s, sheetCtx));
                 if (unstampable != null)
                 {
                     result.Warnings.Add(
                         $"{DrawingTypeStamper.PARAM_SHEET_CONTEXT} is not bound in this project, so sheets cannot be " +
                         $"matched per level / scope box. Reusing sheet {unstampable.Id} for context '{sheetCtx}'. " +
                         "Run LoadSharedParams to bind it, then re-run production.");
-                    ClaimSheetForContext(unstampable.Id, sheetCtx);
+                    ClaimSheetForContext(unstampable, sheetCtx);
                     result.SheetReused = true;
                     return unstampable.Id;
                 }
@@ -1618,6 +1930,7 @@ namespace StingTools.Core.Drawing
             try
             {
                 var stamped = DrawingTypeStamper.ReadSheetContext(sheet);
+                if (result != null) result.PriorSheetStamp = stamped;   // DTW-209
                 if (stamped == null || string.Equals(stamped, sheetCtx, StringComparison.Ordinal)) return;
                 if (DrawingTypeStamper.StampSheetContext(sheet, sheetCtx))
                 {
@@ -1631,8 +1944,9 @@ namespace StingTools.Core.Drawing
         }
 
         private static ElementId CreateSheet(Document doc, DrawingType dt, DrawingContext ctx, ProduceOptions opts,
-            ProduceResult result, string effectivePackage, string sheetCtx)
+            ProduceResult result, string effectivePackage, string sheetCtx, out NewSheetRecord made)
         {
+            made = null;
             ElementId titleBlockId = ElementId.InvalidElementId;
             try
             {
@@ -1714,10 +2028,6 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
-            ViewSheet sheet;
-            try { sheet = ViewSheet.Create(doc, titleBlockId); }
-            catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
-
             // The sequence has to be resolved BEFORE the number is built —
             // the pattern's {seq} / {seq:Dn} needs it. It used to be consumed
             // further down, after numbering, and only stamped into
@@ -1743,7 +2053,20 @@ namespace StingTools.Core.Drawing
             }
             catch (Exception ex) { result.Warnings.Add($"Sheet-number policy: {ex.Message}"); }
 
-            int seq = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result);
+            // DTW-194: reserved BEFORE the sheet exists, so a number that cannot be
+            // reserved leaves no sheet behind — never one numbered from a guess.
+            var reserved = ResolveSheetSequence(doc, dt, ctx, effectivePackage, policy, numberPattern, result,
+                out var seqBucket, out var seqFailure);
+            if (!reserved.HasValue)
+            {
+                result.Fail(ProductionEdgeDecisions.SheetNotNumberedLine(dt.Id, seqFailure));
+                return ElementId.InvalidElementId;
+            }
+            int seq = reserved.Value;
+
+            ViewSheet sheet;
+            try { sheet = ViewSheet.Create(doc, titleBlockId); }
+            catch (Exception ex) { result.Warnings.Add($"CreateSheet: {ex.Message}"); return ElementId.InvalidElementId; }
 
             // One token dict for the number, the name and the title-block
             // cells, built with the REAL doc handle so {project} /
@@ -1785,21 +2108,12 @@ namespace StingTools.Core.Drawing
             catch (Exception ex) { result.Warnings.Add($"SheetNumber: {ex.Message}"); }
             try
             {
-                var sheetName = opts.OverrideSheetName ?? SubstituteTokens(dt.SheetNamePattern, dt, ctx, seq, tokens);
-                // DTW-51: every area box on a level produced a sheet with the same name
-                // ("Power Layout - Level 1") unless the pattern names {mark}. Say which
-                // area the sheet is when the pattern does not.
-                if (opts.OverrideSheetName == null && ctx.ScopeBox != null)
-                {
-                    var p = dt.SheetNamePattern ?? "";
-                    bool namesArea = p.IndexOf("{mark}", StringComparison.OrdinalIgnoreCase) >= 0
-                                  || p.IndexOf("{spool}", StringComparison.OrdinalIgnoreCase) >= 0;
-                    string area = !string.IsNullOrWhiteSpace(ctx.Tag) ? ctx.Tag : ctx.ScopeBox.Name;
-                    if (!namesArea && !string.IsNullOrWhiteSpace(area)
-                        && (sheetName ?? "").IndexOf(area, StringComparison.OrdinalIgnoreCase) < 0)
-                        sheetName = $"{sheetName} - {area}";
-                }
+                // DTW-198: the name takes the full level name ("Ground Floor", not the
+                // number's "GroundFl"); DTW-51: and the area when the pattern omits it.
+                var sheetName = opts.OverrideSheetName ?? GeneratedSheetName(dt, ctx, ctx.Level?.Name, seq, tokens);
                 sheet.Name = sheetName;
+                // DTW-209: remembered, so a reuse after a level rename can tell it from a hand edit.
+                if (opts.OverrideSheetName == null) ProducedViewState.RecordSheetName(sheet, sheet.Name);
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 
@@ -1828,7 +2142,7 @@ namespace StingTools.Core.Drawing
                 // Newly-created sheet should be discoverable next time.
                 if (_existingSheetCache != null)
                     _existingSheetCache[SheetKey(dt.Id, effectivePackage, ProductionContextKey.Identity(sheetCtx))] = sheet.Id;
-                ClaimSheetForContext(sheet.Id, sheetCtx);   // STACK-1
+                ClaimSheetForContext(sheet, sheetCtx);   // STACK-1
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
 
@@ -1843,6 +2157,7 @@ namespace StingTools.Core.Drawing
                 catch (Exception ex2) { result.Warnings.Add($"TitleBlockParams: {ex2.Message}"); }
             }
 
+            made = new NewSheetRecord { SheetId = sheet.Id, Number = sheet.SheetNumber, Bucket = seqBucket, Seq = seq };
             return sheet.Id;
         }
 
@@ -1859,7 +2174,37 @@ namespace StingTools.Core.Drawing
                 if (IsViewAlreadyOnSheet(doc, sheetId, viewId, out var existingVpId))
                 {
                     result.ViewportsReused++;
+                    // DTW-196: a view whose fit was never recorded (produced before the
+                    // record existed), or whose type scale has changed since, is fitted
+                    // again; otherwise the refresh kept its fitted scale already.
+                    if (doc.GetElement(viewId) is View vOn && !(vOn is ViewSchedule) && PrimaryViewIdValue(vOn) < 0)
+                    {
+                        var st = ProducedViewState.Read(vOn);
+                        if (ProductionEdgeDecisions.RefitOnRerun(rule.ScaleOverride.HasValue || pinScale,
+                                st != null && st.FittedScale > 0, st?.FitBaseScale ?? 0, dt.Scale))
+                        {
+                            var spOn = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
+                                rule.SlotIndex >= 0 ? rule.SlotIndex : 0, result, famCtx);
+                            if (spOn != null)
+                            {
+                                SheetPlacementBridge.ApplyFitScale(doc, vOn, spOn, dt.Scale, result.Warnings);
+                                ProducedViewState.RecordFit(vOn, SafeScale(vOn) ?? 0, dt.Scale);
+                            }
+                        }
+                    }
                     return existingVpId;
+                }
+
+                // DTW-199: a view someone moved to another sheet is theirs to keep there.
+                // The fit below re-scaled it to this sheet's slot, then Viewport.Create threw
+                // (a view sits on one sheet only). Say where it is and leave it alone.
+                var elsewhere = SheetHoldingView(doc, sheetId, viewId);
+                if (elsewhere != null)
+                {
+                    var here = (doc.GetElement(sheetId) as ViewSheet)?.SheetNumber ?? sheetId.Value.ToString();
+                    result.Warnings.Add(ProductionEdgeDecisions.KeptOnOtherSheetLine(
+                        doc.GetElement(viewId)?.Name ?? viewId.Value.ToString(), elsewhere, here));
+                    return ElementId.InvalidElementId;
                 }
 
                 var sp = SheetPlacementBridge.ResolveSlot(doc, sheetId, dt,
@@ -1878,7 +2223,11 @@ namespace StingTools.Core.Drawing
                 if (sp != null && !rule.ScaleOverride.HasValue && !pinScale
                     && doc.GetElement(viewId) is View vFit
                     && PrimaryViewIdValue(vFit) < 0)
+                {
                     SheetPlacementBridge.ApplyFitScale(doc, vFit, sp, dt.Scale, result.Warnings);
+                    // DTW-196: remembered, so a re-run keeps the fitted scale.
+                    if (!(vFit is ViewSchedule)) ProducedViewState.RecordFit(vFit, SafeScale(vFit) ?? 0, dt.Scale);
+                }
 
                 // SLOT-3: warn on a view/slot type mismatch rather than
                 // placing it silently into the wrong slot. DTW-63: slot terms
@@ -2009,6 +2358,28 @@ namespace StingTools.Core.Drawing
                 StingLog.Warn($"IsViewAlreadyOnSheet({viewId}): {ex.Message}");
                 return false;   // fail open — attempt the placement
             }
+        }
+
+        /// <summary>
+        /// DTW-199: the number of the OTHER sheet <paramref name="viewId"/> is placed on, or
+        /// null when it is on no sheet but <paramref name="sheetId"/>. Schedules can sit on
+        /// many sheets and are never "elsewhere".
+        /// </summary>
+        private static string SheetHoldingView(Document doc, ElementId sheetId, ElementId viewId)
+        {
+            try
+            {
+                if (!(doc.GetElement(viewId) is View v) || v is ViewSchedule) return null;
+                if (Viewport.CanAddViewToSheet(doc, sheetId, viewId)) return null;
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(Viewport)))
+                {
+                    if (!(el is Viewport vp) || vp.ViewId != viewId || vp.SheetId == sheetId) continue;
+                    return (doc.GetElement(vp.SheetId) as ViewSheet)?.SheetNumber ?? vp.SheetId.Value.ToString();
+                }
+                var p = v.get_Parameter(BuiltInParameter.VIEWPORT_SHEET_NUMBER)?.AsString();
+                return string.IsNullOrWhiteSpace(p) ? null : p;
+            }
+            catch (Exception ex) { StingLog.Warn($"SheetHoldingView({viewId}): {ex.Message}"); return null; }
         }
 
         private static void StampViewParameters(Document doc, ElementId viewId, DrawingType dt, ProductionRule rule, DrawingContext ctx)
@@ -2270,20 +2641,39 @@ namespace StingTools.Core.Drawing
             return name;
         }
 
-        /// <summary>DTW-45: does element <paramref name="id"/> still exist? False once a
-        /// rolled-back transaction has taken it away.</summary>
-        private static Func<long, bool> Alive(Document doc) => id =>
+        /// <summary>DTW-45 / DTW-213: does the sheet that took number <c>name</c> (owner
+        /// <c>id</c>) still hold it? False once a rollback took the sheet away — and also when
+        /// Revit has reused the id for another element, or the sheet has been renumbered.</summary>
+        private static Func<string, long, bool> SheetNumberHeld(Document doc) => (name, id) =>
         {
-            if (id <= 0) return true;   // no owner recorded: treat as a real, standing name
-            try { var e = doc.GetElement(new ElementId(id)); return e != null && e.IsValidObject; }
-            catch (Exception ex) { StingLog.Warn($"DrawingProducer.Alive({id}): {ex.Message}"); return true; }
+            try
+            {
+                var e = id <= 0 ? null : doc.GetElement(new ElementId(id));
+                var s = e as ViewSheet;
+                return ProductionEdgeDecisions.StillHolds(id <= 0, e != null && e.IsValidObject, s != null,
+                    s?.SheetNumber, name, ignoreCase: true);
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingProducer.SheetNumberHeld({id}): {ex.Message}"); return true; }
+        };
+
+        /// <summary>DTW-45 / DTW-213: the same for a view name.</summary>
+        private static Func<string, long, bool> ViewNameHeld(Document doc) => (name, id) =>
+        {
+            try
+            {
+                var e = id <= 0 ? null : doc.GetElement(new ElementId(id));
+                var v = e as View;
+                return ProductionEdgeDecisions.StillHolds(id <= 0, e != null && e.IsValidObject,
+                    v != null && !(v is ViewSheet), v?.Name, name, ignoreCase: false);
+            }
+            catch (Exception ex) { StingLog.Warn($"DrawingProducer.ViewNameHeld({id}): {ex.Message}"); return true; }
         };
 
         private static bool NameExists(Document doc, string name)
         {
             // P-12: O(1) against the batch name set when primed for this doc.
             if (_existingViewNames != null && CacheMatchesDoc(doc))
-                return _existingViewNames.Contains(name, Alive(doc));
+                return _existingViewNames.Contains(name, ViewNameHeld(doc));
             try
             {
                 return new FilteredElementCollector(doc)
@@ -2326,16 +2716,24 @@ namespace StingTools.Core.Drawing
         /// <summary>
         /// Resolve the next sheet sequence for this (drawing type, package).
         /// Extracted so numbering can consume it before the sheet number is
-        /// built. Behaviour is unchanged: persisted ES counter first, then the
-        /// per-batch cache, then a package sheet count.
+        /// built. The persisted ES counter only: null, with <paramref name="failure"/>
+        /// saying why, when it cannot be reserved.
+        ///
+        /// DTW-194: a counter that could not be written (Project Information owned by
+        /// another user, or changed in central) fell back to a count of the package's
+        /// sheets — a guess that collided with the numbers the other user had stored,
+        /// leaving "-A" sheets and numbers out of sequence. No sheet is numbered from a
+        /// guess now; the caller makes no sheet and says why.
         /// </summary>
-        private static int ResolveSheetSequence(Document doc, DrawingType dt, DrawingContext ctx,
-            string effectivePackage, SheetNumberPolicyKind policy, string numberPattern, ProduceResult result)
+        private static int? ResolveSheetSequence(Document doc, DrawingType dt, DrawingContext ctx,
+            string effectivePackage, SheetNumberPolicyKind policy, string numberPattern, ProduceResult result,
+            out string bucketKey, out string failure)
         {
+            failure = null;
+            bucketKey = null;
             // Phase 169 — persisted sequence counter via ExtensibleStorage on
-            // ProjectInfo. Falls back to the per-batch cache (and ultimately a
-            // sheet count) when ES is unavailable. Survives Revit restarts and
-            // the renumber command's compaction so deleted sheets don't regrow gaps.
+            // ProjectInfo. Survives Revit restarts and the renumber command's
+            // compaction so deleted sheets don't regrow gaps.
             //
             // The bucket comes from SheetNumberEngine.CounterBucket: unchanged
             // (type, package, discipline, vol) under the Profile policy; under ISO,
@@ -2350,34 +2748,15 @@ namespace StingTools.Core.Drawing
                     result?.Warnings.Add(
                         $"DrawingType '{dt.Id}': sheet-number pattern '{numberPattern}' does not carry exactly one " +
                         "{seq} token, so it cannot share an ISO counter; numbered from its own bucket.");
+                bucketKey = bucket;
                 return SheetSequenceStore.NextForBucket(doc, bucket,
                     () => SeedSequence(doc, dt, effectivePackage, template));
             }
             catch (Exception ex)
             {
-                StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next: {ex.Message}");
-            }
-
-            // Legacy fallback path — preserves prior behaviour for documents
-            // where ExtensibleStorage isn't writable.
-            try
-            {
-                if (_packageSheetCount != null && CacheMatchesDoc(doc))
-                {
-                    _packageSheetCount.TryGetValue(effectivePackage, out var n);
-                    var next = n + 1;
-                    _packageSheetCount[effectivePackage] = next;
-                    return next;
-                }
-                return new FilteredElementCollector(doc)
-                    .OfClass(typeof(ViewSheet))
-                    .Cast<ViewSheet>()
-                    .Count(s => string.Equals(StingTools.Core.ParameterHelpers.GetString(s, DrawingTypeStamper.PARAM_DRAWING_PACKAGE_ID) ?? "", effectivePackage, StringComparison.Ordinal));
-            }
-            catch (Exception ex)
-            {
-                StingTools.Core.StingLog.Warn($"ResolveSheetSequence fallback: {ex.Message}");
-                return 0;
+                StingTools.Core.StingLog.Warn($"SheetSequenceStore.Next ({dt?.Id}): {ex.Message}");
+                failure = ex.Message;
+                return null;
             }
         }
 
@@ -2450,7 +2829,7 @@ namespace StingTools.Core.Drawing
             {
                 // DTW-45: a number an earlier item in this batch took for a sheet its
                 // rollback removed is free again — otherwise this sheet got "-A".
-                int freed = _sheetNumberCache.Heal(baseNumber, Alive(doc));
+                int freed = _sheetNumberCache.Heal(baseNumber, SheetNumberHeld(doc));
                 if (freed > 0)
                     StingLog.Info($"EnsureUniqueSheetNumber: {freed} number(s) under '{baseNumber}' freed — their sheets were rolled back.");
                 existing = _sheetNumberCache.Names;
@@ -2577,12 +2956,26 @@ namespace StingTools.Core.Drawing
         /// instead of the level name cut to eight characters ("Level1", "Mezzanin", and
         /// "Level 1" / "Level 1A" colliding). Every other pattern keeps the name.
         /// </summary>
+        /// <summary>
+        /// DTW-198: the name production gives a sheet for <paramref name="levelName"/> —
+        /// full level name, and the area of a scope-box sheet (DTW-51).
+        /// </summary>
+        private static string GeneratedSheetName(DrawingType dt, DrawingContext ctx, string levelName, int seq,
+            IDictionary<string, string> tokens)
+        {
+            string area = ctx?.ScopeBox == null ? null
+                : (!string.IsNullOrWhiteSpace(ctx.Tag) ? ctx.Tag : ctx.ScopeBox.Name);
+            return ProductionEdgeDecisions.SheetName(dt.SheetNamePattern, dt.Discipline ?? "",
+                levelName ?? dt.IsoNaming?.Level, dt.System ?? "", ctx?.Tag, dt.Purpose ?? "", seq, tokens, area);
+        }
+
         private static string LevelForPattern(string pattern, DrawingType dt, string levelName, IDictionary<string, string> extras)
         {
-            if (levelName != null && SheetNumberPolicy.IsAlreadyIso(pattern)
-                && extras != null && extras.TryGetValue(IsoLevelKey, out var iso) && !string.IsNullOrEmpty(iso))
-                return iso;
-            return levelName ?? dt?.IsoNaming?.Level ?? "";
+            string iso = null;
+            if (extras != null) extras.TryGetValue(IsoLevelKey, out iso);
+            // DTW-198: a non-ISO pattern takes ShortLevel (keeps "Basement 1" / "Basement 2"
+            // apart), the same in the number, its counter template and Renumber.
+            return ProductionEdgeDecisions.NumberLevel(pattern, levelName, iso, dt?.IsoNaming?.Level);
         }
 
         [ThreadStatic] private static Dictionary<string, string> _isoLevelMap;

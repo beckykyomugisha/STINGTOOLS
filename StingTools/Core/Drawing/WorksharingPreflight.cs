@@ -64,7 +64,7 @@ namespace StingTools.Core.Drawing
                 {
                     if (dt == null || string.IsNullOrEmpty(dt.Id)) continue;
                     var keys = new List<string> { dt.Id };
-                    if (ctx.FormerDrawingTypeIds != null) keys.AddRange(ctx.FormerDrawingTypeIds);
+                    keys.AddRange(ProductionEdgeDecisions.FormerIds(dt, ctx.FormerDrawingTypeIds));   // DTW-203
                     foreach (var key in keys)
                     {
                         if (!_byType.TryGetValue(key, out var list)) continue;
@@ -157,6 +157,23 @@ namespace StingTools.Core.Drawing
             return ProductionRunReport.BlockReason(owned, stale, notObtained);
         }
 
+        /// <summary>
+        /// DTW-194: can the sheet-number counters — Extensible Storage on Project
+        /// Information — be written for the whole run? Checks ownership and that the
+        /// element is up to date, and borrows it. Null when they can (always, for a model
+        /// that is not workshared). Asked once, before the first item: a run that cannot
+        /// write them would number every new sheet from a guess, or roll back every item.
+        /// </summary>
+        internal string CheckSheetCounters()
+        {
+            if (!_active) return null;
+            ElementId pi = null;
+            try { pi = _doc.ProjectInformation?.Id; }
+            catch (Exception ex) { StingLog.Warn($"WorksharingPreflight counters: {ex.Message}"); }
+            if (pi == null || pi == ElementId.InvalidElementId) return null;
+            return Check(new[] { pi });
+        }
+
         /// <summary>Both checks for one item: null when it may run.</summary>
         internal string CheckItem(IEnumerable<DrawingType> types, DrawingContext ctx)
             => _active ? Check(ProductionElements(types, ctx)) : null;
@@ -167,6 +184,7 @@ namespace StingTools.Core.Drawing
             {
                 var e = _doc.GetElement(id);
                 if (e is ViewSheet s) return $"{s.SheetNumber} - {s.Name}";
+                if (e is ProjectInfo) return "Project Information";
                 if (e is View v) return v.Name;
                 if (e != null) return $"{e.Category?.Name ?? e.GetType().Name} {id.Value}";
             }
