@@ -413,9 +413,6 @@ namespace StingTools.UI
             }
         }
 
-        /// <summary>Get all available theme names.</summary>
-        public static string[] GetThemeNames() => ThemeOrder;
-
         /// <summary>
         /// Resolve a theme key to a frozen <see cref="SolidColorBrush"/>
         /// for code-behind use (where <see cref="DynamicResource"/> isn't

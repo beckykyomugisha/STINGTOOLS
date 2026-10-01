@@ -800,41 +800,6 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// TAG-01: Read TAG_STYLE_CODE_TXT first; if empty, fall back to scanning the
-        /// 128 BOOL params and returning the first true one's code string.
-        /// Returns empty string if no style is set.
-        /// </summary>
-        public static string GetStyleCode(Element el)
-        {
-            if (el == null) return "";
-            try
-            {
-                string code = ParameterHelpers.GetString(el, ParamRegistry.TAG_STYLE_CODE);
-                if (!string.IsNullOrEmpty(code)) return code;
-
-                // Fallback: scan BOOL params
-                string[] allStyleParams = ParamRegistry.AllTagStyleParams;
-                foreach (string pname in allStyleParams)
-                {
-                    Parameter p = ParameterHelpers.CachedLookup(el, pname);
-                    if (p == null) continue;
-                    int val = 0;
-                    if (p.StorageType == StorageType.Integer) val = p.AsInteger();
-                    else if (p.StorageType == StorageType.String && int.TryParse(p.AsString(), out int sv)) val = sv;
-                    if (val != 0)
-                    {
-                        // Strip "TAG_" prefix and "_BOOL" suffix to get type name e.g. "2BOLD_BLUE"
-                        if (pname.StartsWith("TAG_") && pname.EndsWith("_BOOL"))
-                            return pname.Substring(4, pname.Length - 9);
-                        return pname;
-                    }
-                }
-            }
-            catch (Exception ex) { StingLog.Warn($"GetStyleCode: {ex.Message}"); }
-            return "";
-        }
-
-        /// <summary>
         /// Apply discipline-aware tag styles from a color scheme.
         /// Each element gets the style matching its DISC token.
         /// </summary>

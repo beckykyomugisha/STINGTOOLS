@@ -3640,7 +3640,7 @@ namespace StingTools.Core
         /// Write all applicable containers for an element based on its category.
         /// Returns count of containers written.
         /// TAG7 is always skipped here — it requires the narrative builder
-        /// (TagConfig.BuildTag7Narrative) rather than simple token concatenation.
+        /// (TagConfig.BuildTag7Sections) rather than simple token concatenation.
         /// </summary>
         // FUT-20: Discipline-to-container prefix mapping for selective writes.
         // Elements with DISC=M skip ELC_*, PLM_*, FLS_*, COM_*, etc. containers.

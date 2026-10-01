@@ -311,22 +311,6 @@ namespace StingTools.Tags
         }
 
         /// <summary>
-        /// Whether a family declares "Universal: No", without resolving its
-        /// category. EnsureLoaded plus one hash lookup.
-        ///
-        /// <para>Exists because asking <see cref="Resolve(Document, Family)"/>
-        /// for this costs a full category resolution, and
-        /// <c>FindTagCategory</c> enumerates every category in the document on
-        /// every call. Asking it 206 times to populate a confirmation dialog
-        /// froze Revit before the dialog could appear - measured 2026-09-22,
-        /// and the command never logged a line because it never got that far.
-        /// Callers that only need the flag must use this.</para>
-        /// </summary>
-        public static bool IsNonUniversal(string familyName)
-            => !string.Equals(LabelMasterGroup(familyName), TagConfigDeclarations.UniversalGroup,
-                              StringComparison.OrdinalIgnoreCase);
-
-        /// <summary>
         /// Which master this family takes its label from. EnsureLoaded plus one
         /// hash lookup - no category resolution.
         ///
