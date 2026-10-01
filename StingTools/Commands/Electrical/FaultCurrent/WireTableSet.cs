@@ -17,12 +17,17 @@ namespace StingTools.Commands.Electrical.FaultCurrent
     /// Conductor resistance table from STING_WIRE_TABLES.json → copperTables[0]
     /// (mohm_per_m = BS EN 60228 class 2 copper at 20 °C). Held by
     /// FaultCurrentEngine / FeederSizerEngine / BS7671ComplianceEngine.
-    /// Aluminium = copper × 1.61 if no Al table is shipped.
+    /// Aluminium = copper × aluminiumFactor (data; 1.61 fallback) if no Al table is shipped.
     /// </summary>
     public partial class WireTableSet
     {
         private readonly List<(double csaMm2, double mohmPerM)> _copper = new();
-        private const double AluminiumFactor = 1.61;
+        /// <summary>Fallback when STING_WIRE_TABLES.json carries no positive aluminiumFactor.</summary>
+        public const double DefaultAluminiumFactor = 1.61;
+        private double _aluminiumFactor = DefaultAluminiumFactor;
+
+        /// <summary>Al/Cu resistance ratio in use (data <c>aluminiumFactor</c>, else 1.61).</summary>
+        public double AluminiumFactor => _aluminiumFactor;
 
         /// <summary>Number of tabulated sizes (0 = nothing loaded).</summary>
         public int Count => _copper.Count;
@@ -31,6 +36,12 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         public static WireTableSet FromJson(JObject root)
         {
             var ws = new WireTableSet();
+            var alTok = root?["aluminiumFactor"];
+            if (alTok != null && (alTok.Type == JTokenType.Float || alTok.Type == JTokenType.Integer))
+            {
+                double alF = alTok.Value<double>();
+                if (alF > 0) ws._aluminiumFactor = alF;
+            }
             var table = (root?["copperTables"] as JArray)?.OfType<JObject>().FirstOrDefault();
             if (table == null) return ws;
             foreach (var sz in table["sizes"] as JArray ?? new JArray())
@@ -61,7 +72,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 double t = (csaMm2 - lo.csaMm2) / (hi.csaMm2 - lo.csaMm2);
                 r = lo.mohmPerM + t * (hi.mohmPerM - lo.mohmPerM);
             }
-            return string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? r * AluminiumFactor : r;
+            return string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? r * _aluminiumFactor : r;
         }
     }
 
