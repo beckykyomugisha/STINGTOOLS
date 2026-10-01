@@ -159,15 +159,11 @@ namespace StingTools.Core
 
         // ── Stale detection + display mode + tag position ───────────────
         public const string STALE = "STING_STALE_BOOL";
-        public const string STALE_GUID = "C9D0E1F2-A3B4-4C5D-8E6F-7A8B9C0D1E2F";
         public const string CLUSTER_COUNT = "STING_CLUSTER_COUNT";
-        public const string CLUSTER_COUNT_GUID = "D1E2F3A4-B5C6-4D7E-8F9A-0B1C2D3E4F5A";
         public const string CLUSTER_LABEL = "STING_CLUSTER_LABEL";
-        public const string CLUSTER_LABEL_GUID = "D2E3F4A5-B6C7-4D8E-9F0A-1B2C3D4E5F6B";
         /// <summary>FIX-B04: JSON array of cluster member bounding box centers for decluster restore.</summary>
         public const string CLUSTER_MEMBER_POS = "STING_CLUSTER_MEMBER_POS_TXT";
         public const string DISPLAY_MODE = "STING_DISPLAY_MODE";
-        public const string DISPLAY_MODE_GUID = "D0E1F2A3-B4C5-4D6E-8F7A-8B9C0D1E2F3A";
         /// <summary>
         /// Default display mode when STING_DISPLAY_MODE is 0 (unset).
         /// 1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full 8-segment.
@@ -185,27 +181,20 @@ namespace StingTools.Core
         // so nothing was broken; but the first caller to trust the constant would have
         // bound the wrong parameter. Deleting it makes that a compile error instead.
         public const string TAG_POS = "STING_TAG_POS";
-        public const string TAG_POS_GUID = "E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B";
         public const string VIEW_TAG_STYLE = "STING_VIEW_TAG_STYLE";
-        public const string VIEW_TAG_STYLE_GUID = "E2F3A4B5-C6D7-4E8F-9A0B-1C2D3E4F5A6C";
         // DTW-59: a view style pack's default tag style preset ("{size}{style}_{color}"),
         // written onto the managed view template by ManagedTemplateSyncer (INT-02). It was
         // written as a bare literal and defined in no shared-parameter file, so the write
         // never landed. Bound to Views. UUIDv5 of the name in 7f9f5e3a-a7c0-b2e4-4d91-4a557c5e3a00.
         public const string DEFAULT_TAG_STYLE = "STING_DEFAULT_TAG_STYLE_TXT";
-        public const string DEFAULT_TAG_STYLE_GUID = "4e90ed9d-5b3a-5791-ab43-c90a1f440310";
         public const string TAG_SEG_MASK = "TAG_SEG_MASK_TXT";
-        public const string TAG_SEG_MASK_GUID = "F3A4B5C6-D7E8-4F9A-0B1C-2D3E4F5A6B7D";
         // ── Tag audit trail ─────────────────────────────────────────────
         /// <summary>Previous ASS_TAG_1 value before the last tag write — used for change detection and reverse diff.</summary>
         public const string TAG_PREV = "ASS_TAG_PREV_TXT";
-        public const string TAG_PREV_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2e";
         /// <summary>ISO-8601 datetime of the last tag modification written by any STING command.</summary>
         public const string TAG_MODIFIED_DT = "ASS_TAG_MODIFIED_DT";
-        public const string TAG_MODIFIED_DT_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2d";
         /// <summary>Revit Environment.UserName that performed the last tag modification.</summary>
         public const string TAG_MODIFIED_BY = "ASS_TAG_MODIFIED_BY_TXT";
-        public const string TAG_MODIFIED_BY_GUID = "c1f4d6b8-2a3e-4d5b-9c6f-7a8b9c0d1e2f";
         // ── Project tag scheme (Phase 191) ──────────────────────────────
         /// <summary>Default target container for project-grammar tag renderings
         /// (TagSchemeEngine) — e.g. the ISO 19650 PROJECT-ORIGINATOR-VOLUME-
@@ -213,63 +202,46 @@ namespace StingTools.Core
         /// tokens; never edited directly. UUIDv5 in the Planscape docs
         /// namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string TAG_SCHEME = "ASS_TAG_SCHEME_TXT";
-        public const string TAG_SCHEME_GUID = "2c8224df-92e0-567b-a9df-c8cd1e4402a3";
         /// <summary>Phase 192 (B1) — milestone id stamped by LOD_Stamp on elements
         /// that PASS LodVerificationEngine at that milestone's LOD (e.g.
         /// "deliverable-c"). UUIDv5 in the Planscape docs namespace
         /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string LOD_VERIFIED = "ASS_LOD_VERIFIED_TXT";
-        public const string LOD_VERIFIED_GUID = "60440963-a414-5667-88f4-d12082344c4d";
         /// <summary>Phase 192 (C2) — CSI MasterFormat section (e.g. "23 31 00")
         /// resolved by CSI_Assign from STING_CSI_MASTERFORMAT_MAP.csv. Reconciled
         /// against the RIB SpecLink spec TOC. UUIDv5 in namespace
         /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string CSI_SECTION = "CSI_SECTION_TXT";
-        public const string CSI_SECTION_GUID = "3c2c7d9d-93e2-5f95-a002-69b17450efe6";
         public const string CSI_TITLE = "CSI_TITLE_TXT";
-        public const string CSI_TITLE_GUID = "160a2335-1886-5503-b569-28d9e63f5a75";
         /// <summary>Phase 192 (C1) — Fohlio item URL/ID. The "link, never
         /// duplicate" key into the Owner's Fohlio FF&amp;E single source of truth.
         /// UUIDv5 in namespace a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string FOHLIO_REF = "FOHLIO_REF_TXT";
-        public const string FOHLIO_REF_GUID = "0ecf2056-1239-52bc-87f8-17c281e67209";
         /// <summary>Fohlio procurement unit cost + quote currency, pulled into the BOQ
         /// by FohlioRateProvider. UUIDv5 in namespace
         /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string FOHLIO_UNIT_COST = "FOHLIO_UNIT_COST_NR";
-        public const string FOHLIO_UNIT_COST_GUID = "b6e507ab-bab5-5b7f-aecd-ca78bd14f4c5";
         public const string FOHLIO_CURRENCY = "FOHLIO_CURRENCY_TXT";
-        public const string FOHLIO_CURRENCY_GUID = "f369abea-4433-541c-a409-128ec9c1675e";
         /// <summary>Phase 195 — EDGE/LEED Sustainability shared params (group 35
         /// SUS_SUSTAINABILITY). SUS_*_NR intensities are project-scoped; SUS_EDGE_LEVEL_TXT
         /// is project-scoped; SUS_EPD_REF_TXT binds to materials/types.</summary>
         public const string SUS_ENERGY_KWH_M2 = "SUS_ENERGY_KWH_M2_NR";
-        public const string SUS_ENERGY_KWH_M2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c01";
         public const string SUS_WATER_L_PD = "SUS_WATER_L_PD_NR";
-        public const string SUS_WATER_L_PD_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c02";
         public const string SUS_MAT_CARBON_KGM2 = "SUS_MAT_CARBON_KGM2_NR";
-        public const string SUS_MAT_CARBON_KGM2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c03";
         public const string SUS_MAT_ENERGY_MJ_M2 = "SUS_MAT_ENERGY_MJ_M2_NR";
-        public const string SUS_MAT_ENERGY_MJ_M2_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c04";
         public const string SUS_EDGE_LEVEL = "SUS_EDGE_LEVEL_TXT";
-        public const string SUS_EDGE_LEVEL_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c05";
         public const string SUS_EPD_REF = "SUS_EPD_REF_TXT";
-        public const string SUS_EPD_REF_GUID = "5d3b0f22-7e1a-5c8b-9d40-2a1e4f5b6c06";
         /// <summary>Phase 192 (E4) — decorative-lighting hoisting params (A1 §5
         /// lighting schedule). UUIDv5 in namespace
         /// a7c0b2e4-4d91-4a55-9c7e-7f6e5d4c3b2a.</summary>
         public const string LTG_HOIST_WEIGHT_KG = "LTG_HOIST_WEIGHT_KG";
-        public const string LTG_HOIST_WEIGHT_KG_GUID = "f2ec67d7-0d9a-561b-b3f6-11b713ac468e";
         public const string LTG_HOIST_MOTOR_TXT = "LTG_HOIST_MOTOR_TXT";
-        public const string LTG_HOIST_MOTOR_TXT_GUID = "aabcfa8d-62bb-55bc-8cf2-d84e365a75a5";
         public const string LTG_HOIST_DROP_MM = "LTG_HOIST_DROP_MM";
-        public const string LTG_HOIST_DROP_MM_GUID = "c110503a-c776-5c6e-8298-24adf24d1fd0";
         // Per-view 8-char "1"/"0" mask gating which segments render in
         // BuildDisplayTag without mutating the canonical ASS_TAG_1_TXT.
         // Bound to OST_Views so users can hide ZONE in a presentation view
         // without breaking exports — review fix for TAG-token-toggling #1.
         public const string VIEW_TOKEN_MASK = "STING_VIEW_TOKEN_MASK_TXT";
-        public const string VIEW_TOKEN_MASK_GUID = "F4A5B6C7-D8E9-4F0A-1B2C-3D4E5F6A7B8E";
 
         // ── Cost management — currency-neutral parameters (Phase 184 / P0.2) ─
         //
@@ -281,89 +253,55 @@ namespace StingTools.Core
         // project's current FX rate. GUIDs UUIDv5 in the cost namespace
         // b9d4e1a2-7c63-4f89-9e0a-1f5a2c8b3d40.
         public const string CST_UNIT_RATE_NR     = "ASS_CST_UNIT_RATE_NR";
-        public const string CST_UNIT_RATE_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D41";
         public const string CST_CURRENCY_TXT     = "ASS_CST_CURRENCY_TXT";
-        public const string CST_CURRENCY_TXT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D42";
         public const string CST_FX_TO_BASE_NR    = "ASS_CST_FX_TO_BASE_NR";
-        public const string CST_FX_TO_BASE_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D43";
         public const string CST_FX_DATE_DT       = "ASS_CST_FX_DATE_DT";
-        public const string CST_FX_DATE_DT_GUID  = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D44";
         public const string CST_AS_OF_DT         = "ASS_CST_AS_OF_DT";
-        public const string CST_AS_OF_DT_GUID    = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D45";
 
         // P2 — stale-cost detection (mirrors STING_STALE_BOOL for cost).
         // Set by StingCostStaleMarker IUpdater when geometry / material /
         // type changes invalidate the last-costed line item. Cleared by
         // `Cost_ClearStale` after a successful BOQ_Build.
         public const string CST_STALE_BOOL       = "ASS_CST_STALE_BOOL";
-        public const string CST_STALE_BOOL_GUID  = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D46";
         public const string CST_STALE_REASON_TXT = "ASS_CST_STALE_REASON_TXT";
-        public const string CST_STALE_REASON_TXT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D47";
 
         // Phase 184g / P5.1 — payment certificate params
         public const string PMT_PCT_COMPLETE_NR  = "ASS_PMT_PCT_COMPLETE_NR";
-        public const string PMT_PCT_COMPLETE_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D50";
         public const string PMT_CERT_NO_NR       = "ASS_PMT_CERT_NO_NR";
-        public const string PMT_CERT_NO_NR_GUID  = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D51";
         public const string PMT_CERT_DATE_DT     = "ASS_PMT_CERT_DATE_DT";
-        public const string PMT_CERT_DATE_DT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D52";
         public const string PMT_LAST_VALUED_DT   = "ASS_PMT_LAST_VALUED_DT";
-        public const string PMT_LAST_VALUED_DT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D53";
 
         // Phase 184g / P5.2 — variation tracking
         public const string VAR_NO_TXT           = "ASS_VAR_NO_TXT";
-        public const string VAR_NO_TXT_GUID      = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D60";
         public const string VAR_INSTRUCTION_DT   = "ASS_VAR_INSTRUCTION_DT";
-        public const string VAR_INSTRUCTION_DT_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D61";
         public const string VAR_VALUATION_NR     = "ASS_VAR_VALUATION_NR";
-        public const string VAR_VALUATION_NR_GUID = "B9D4E1A2-7C63-4F89-9E0A-1F5A2C8B3D62";
 
         // ── Phase 182–183 — HVAC sizing-registry audit-trail params ──────
         // Set by MepAutoSizeCommand / HvacSegmentRoleDetector /
         // HvacDetectStaleSizesCommand / HvacCarbonReportCommand. GUIDs
         // match MR_PARAMETERS.txt + MR_PARAMETERS.csv + PARAMETER_REGISTRY.json.
         public const string HVC_SEGMENT_ROLE_TXT      = "HVC_SEGMENT_ROLE_TXT";
-        public const string HVC_SEGMENT_ROLE_TXT_GUID = "5BF0485F-08DD-53D1-9CC5-D956305D42E0";
         public const string HVC_SIZE_PREV_TXT         = "HVC_SIZE_PREV_TXT";
-        public const string HVC_SIZE_PREV_TXT_GUID    = "B4385937-438E-5D5F-8CE0-F13C2A94A63D";
         public const string HVC_SIZE_MODIFIED_DT      = "HVC_SIZE_MODIFIED_DT";
-        public const string HVC_SIZE_MODIFIED_DT_GUID = "B485412F-0A10-5CF7-9A49-DD2AE6199442";
         public const string HVC_SIZE_RULE_ID_TXT      = "HVC_SIZE_RULE_ID_TXT";
-        public const string HVC_SIZE_RULE_ID_TXT_GUID = "B02AE4EA-C9A0-5424-9E20-7D4406352260";
         public const string HVC_PIPE_SERVICE_TXT      = "HVC_PIPE_SERVICE_TXT";
-        public const string HVC_PIPE_SERVICE_TXT_GUID = "97E69122-4E43-5B88-9C82-6EAF586DDC07";
         public const string HVC_PRESSURE_CLASS_TXT      = "HVC_PRESSURE_CLASS_TXT";
-        public const string HVC_PRESSURE_CLASS_TXT_GUID = "61D432D6-77FE-5811-972F-0B28493D3DE7";
         public const string HVC_SIZE_STALE_BOOL       = "HVC_SIZE_STALE_BOOL";
-        public const string HVC_SIZE_STALE_BOOL_GUID  = "ECBC8E8A-3466-53DD-92C9-A28D15EBF43D";
         public const string HVC_REFRIGERANT_KG_NR     = "HVC_REFRIGERANT_KG_NR";
-        public const string HVC_REFRIGERANT_KG_NR_GUID = "B99D07D1-6ECA-50CF-B983-B6FE2442BC8C";
         public const string HVC_REFRIGERANT_TYPE_TXT     = "HVC_REFRIGERANT_TYPE_TXT";
-        public const string HVC_REFRIGERANT_TYPE_TXT_GUID = "10D87A6E-B7D8-5058-81A9-BC62394D9BAD";
         public const string HVC_CAPACITY_KW           = "HVC_CAPACITY_KW";
-        public const string HVC_CAPACITY_KW_GUID      = "397EE526-7AF0-5516-A2A1-48DB5A42F249";
         public const string PRJ_ORG_PRESSURE_PROFILE_TXT      = "PRJ_ORG_PRESSURE_PROFILE_TXT";
-        public const string PRJ_ORG_PRESSURE_PROFILE_TXT_GUID = "8B3BFDCF-AAB3-5944-A451-E4766BFAF8CE";
 
         // ── Phase 175 — Symbol system parameters ─────────────────────────
         public const string SYMBOL_ID                 = "STING_SYMBOL_ID";
-        public const string SYMBOL_ID_GUID            = "A4B5C6D7-E8F9-4A0B-1C2D-3E4F5A6B7C8D";
         public const string SYMBOL_STANDARD           = "STING_SYMBOL_STANDARD";
-        public const string SYMBOL_STANDARD_GUID      = "B5C6D7E8-F9A0-4B1C-2D3E-4F5A6B7C8D9E";
         public const string SYMBOL_HOST_ELEMENT_ID    = "STING_HOST_ELEMENT_ID";
-        public const string SYMBOL_HOST_ELEMENT_ID_GUID = "C6D7E8F9-A0B1-4C2D-3E4F-5A6B7C8D9E0F";
         public const string SYMBOL_LABEL_ID           = "STING_SYMBOL_LABEL_ID";
-        public const string SYMBOL_LABEL_ID_GUID      = "D7E8F9A0-B1C2-4D3E-4F5A-6B7C8D9E0F1A";
         public const string SYMBOL_OVERRIDE           = "STING_SYMBOL_OVERRIDE";
-        public const string SYMBOL_OVERRIDE_GUID      = "E8F9A0B1-C2D3-4E4F-5A6B-7C8D9E0F1A2B";
         public const string VIEW_SYMBOL_STANDARD      = "STING_VIEW_SYMBOL_STANDARD";
-        public const string VIEW_SYMBOL_STANDARD_GUID = "F9A0B1C2-D3E4-4F5A-6B7C-8D9E0F1A2B3C";
         public const string SLD_ELEMENT_ID            = "STING_SLD_ELEMENT_ID";
-        public const string SLD_ELEMENT_ID_GUID       = "0A1B2C3D-4E5F-4A6B-7C8D-9E0F1A2B3C4D";
         public const string SYMBOL_LIBRARY_VERSION    = "STING_SYMBOL_LIBRARY_VERSION";
-        public const string SYMBOL_LIBRARY_VERSION_GUID = "1B2C3D4E-5F6A-4B7C-8D9E-0F1A2B3C4D5E";
         public const string SYMBOL_COMPOUND_PARENT_ID = "STING_COMPOUND_PARENT_ID";
-        public const string SYMBOL_COMPOUND_PARENT_ID_GUID = "2C3D4E5F-6A7B-4C8D-9E0F-1A2B3C4D5E6F";
 
         // Family-embedded standard switching — model family (.rfa) parameters.
         // STING_SYMBOL_STD is an Integer type param; each value gates one
@@ -391,13 +329,9 @@ namespace StingTools.Core
         // RATING / POLES / LABEL) remain supported as fallback so imported
         // third-party families render labels without re-binding.
         public const string CIRCUIT_REF               = "ELC_CIRCUIT_REF_TXT";
-        public const string CIRCUIT_REF_GUID          = "C2A7E5B1-3001-5333-9333-300000000001";
         public const string CIRCUIT_RATING            = "ELC_CIRCUIT_RATING_TXT";
-        public const string CIRCUIT_RATING_GUID       = "C2A7E5B1-3002-5333-9333-300000000002";
         public const string CIRCUIT_POLES             = "ELC_CIRCUIT_POLES_NR";
-        public const string CIRCUIT_POLES_GUID        = "C2A7E5B1-3003-5333-9333-300000000003";
         public const string CIRCUIT_LABEL             = "ELC_CIRCUIT_LABEL_TXT";
-        public const string CIRCUIT_LABEL_GUID        = "C2A7E5B1-3004-5333-9333-300000000004";
         public const string CIRCUIT_DESC              = "ELC_CIRCUIT_DESC_TXT";
 
         // Schematic generators (fire alarm, earthing, MGPS) — names as bound in
@@ -439,76 +373,53 @@ namespace StingTools.Core
         // vertical/horizontal/dogleg so the drift detector knows what
         // shape to expect when validating against the scope-box graph.
         public const string MATCH_REF       = "STING_MATCH_REF_TXT";
-        public const string MATCH_REF_GUID  = "A6B7C8D9-EAFB-4ACC-5D6E-7F8A9BACDBEC";
         public const string MATCH_LINE_GUID = "STING_MATCH_LINE_GUID_TXT";
-        public const string MATCH_LINE_GUID_GUID = "A7B8C9DA-FBAC-4BCD-6E7F-8A9BACDBECFD";
         public const string MATCH_DIR       = "STING_MATCH_DIR_TXT";
-        public const string MATCH_DIR_GUID  = "A8B9CADB-ACBD-4CDE-7F8A-9BACDBECFDAE";
 
 
         // LOG-01: Detection source tracking parameters
         public const string LOC_SOURCE = "ASS_LOC_SOURCE_TXT";
-        public const string LOC_SOURCE_GUID = "A1B2C3D4-E5F6-4A7B-8C9D-0E1F2A3B4C5D";
         public const string ZONE_SOURCE = "ASS_ZONE_SOURCE_TXT";
-        public const string ZONE_SOURCE_GUID = "A2B3C4D5-E6F7-4A8B-9C0D-1E2F3A4B5C6E";
         public const string SYS_DETECT_LAYER = "ASS_SYS_DETECT_LAYER_INT";
-        public const string SYS_DETECT_LAYER_GUID = "A3B4C5D6-E7F8-4A9B-0C1D-2E3F4A5B6C7F";
 
         // ORF-02: COBie Serial Number
         public const string SERIAL_NR = "ASS_SERIAL_NR_TXT";
-        public const string SERIAL_NR_GUID = "B1C2D3E4-F5A6-4B7C-8D9E-0F1A2B3C4D5E";
 
         // ORF-03: COBie Installation Date and Warranty
         public const string INSTALL_DATE = "ASS_INSTALLATION_DATE_TXT";
-        public const string INSTALL_DATE_GUID = "B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6F";
         public const string WARRANTY = "ASS_WARRANTY_TXT";
-        public const string WARRANTY_GUID = "B3C4D5E6-F7A8-4B9C-0D1E-2F3A4B5C6D7A";
 
         // ORF-04: Notes
         public const string NOTES = "ASS_NOTES_TXT";
-        public const string NOTES_GUID = "B4C5D6E7-F8A9-4BAC-1D2E-3F4A5B6C7D8B";
 
         // ORF-05: Flow Rate and Power Rating
         public const string FLOW_RATE = "ASS_FLOW_RATE_TXT";
-        public const string FLOW_RATE_GUID = "B5C6D7E8-F9AA-4BBC-2D3E-4F5A6B7C8D9C";
         public const string POWER_RATING = "ASS_POWER_RATING_TXT";
-        public const string POWER_RATING_GUID = "B6C7D8E9-FAAB-4BCC-3D4E-5F6A7B8C9DAD";
 
         // ORF-06: Room Height
         public const string ROOM_HEIGHT = "ASS_ROOM_HEIGHT_MM";
-        public const string ROOM_HEIGHT_GUID = "B7C8D9EA-FBAC-4BDC-4D5E-6F7A8B9CADBE";
 
         // Phase 19: PROD detection source tracking
         public const string PROD_DETECT = "ASS_PROD_DETECT_TXT";
-        public const string PROD_DETECT_GUID = "C1D2E3F4-A5B6-4C7D-8E9F-0A1B2C3D4E5F";
         public const string PROD_PATTERN_SRC = "ASS_PROD_PATTERN_SRC_TXT";
-        public const string PROD_PATTERN_SRC_GUID = "C2D3E4F5-A6B7-4C8D-9E0F-1A2B3C4D5E6A";
 
         // Phase 19: Type-level LOC/ZONE overrides
         public const string TYPE_LOC_OVERRIDE = "ASS_TYPE_LOC_OVERRIDE_TXT";
-        public const string TYPE_LOC_OVERRIDE_GUID = "C3D4E5F6-A7B8-4C9D-0E1F-2A3B4C5D6E7B";
         public const string TYPE_ZONE_OVERRIDE = "ASS_TYPE_ZONE_OVERRIDE_TXT";
-        public const string TYPE_ZONE_OVERRIDE_GUID = "C4D5E6F7-A8B9-4CAD-1E2F-3A4B5C6D7E8C";
 
         // Phase 19: Level ID tracking
         public const string LVL_ELEM_ID = "ASS_LVL_ELEM_ID_INT";
-        public const string LVL_ELEM_ID_GUID = "C5D6E7F8-A9BA-4CBD-2E3F-4A5B6C7D8E9D";
 
         // Phase 19: Grid reference tracking
         public const string GRID_X_ID = "ASS_GRID_X_ID_INT";
-        public const string GRID_X_ID_GUID = "C6D7E8F9-AABB-4CCD-3E4F-5A6B7C8D9EAE";
         public const string GRID_Y_ID = "ASS_GRID_Y_ID_INT";
-        public const string GRID_Y_ID_GUID = "C7D8E9FA-ABBC-4CDE-4E5F-6A7B8C9DAEBF";
         public const string GRID_DIST = "ASS_GRID_DIST_NR";
-        public const string GRID_DIST_GUID = "C8D9EAFB-ACBD-4CEF-5E6F-7A8B9CADBECF";
 
         // Phase 19: MEP System Name
         public const string MEP_SYS_NAME = "ASS_MEP_SYS_NAME_TXT";
-        public const string MEP_SYS_NAME_GUID = "C9DAEBFC-ADBE-4CFA-6E7F-8A9BACBDCED0";
 
         // Phase 19: Host Type
         public const string HOST_TYPE = "ASS_HOST_TYPE_TXT";
-        public const string HOST_TYPE_GUID = "CADBECFD-AECF-4D0B-7E8F-9AABBBCCDDEE";
 
         // Phase 39: Sheet-Level Tagging Containers
         public const string SHT_NUMBER = "SHT_NUMBER_TXT";
@@ -528,24 +439,16 @@ namespace StingTools.Core
         // GUIDs are UUIDv5 with fixed namespace; values mirror MR_PARAMETERS.txt entries.
         // All bound to ViewSheet category; runtime dispatch via TitleBlockCommands.cs.
         public const string TB_VARIANT             = "PRJ_TB_VARIANT_TXT";
-        public const string TB_VARIANT_GUID        = "e4c060c3-1c31-5860-b0d0-ef9472016895";
         public const string TB_SCHEMA_VERSION      = "PRJ_TB_SCHEMA_VERSION_TXT";
-        public const string TB_SCHEMA_VERSION_GUID = "9832b76e-07df-509e-b139-d402bc50ba68";
         public const string TB_LOGO_PATH           = "PRJ_TB_LOGO_PATH_TXT";
-        public const string TB_LOGO_PATH_GUID      = "3bb5edc1-54f9-56ff-92c9-405a8dde646c";
         public const string TB_LAST_SYNC           = "PRJ_TB_LAST_SYNC_TXT";
-        public const string TB_LAST_SYNC_GUID      = "1817eeb3-4c56-50c2-b386-6b3be3d98fc4";
         public const string TB_LAST_SYNC_BY        = "PRJ_TB_LAST_SYNC_BY_TXT";
-        public const string TB_LAST_SYNC_BY_GUID   = "eb514ec7-6636-5987-9667-8e85c31a8f85";
         public const string TB_LOCK                = "PRJ_TB_LOCK_BOOL";
-        public const string TB_LOCK_GUID           = "74c9d75f-840c-5263-9acf-8fecf80ec6aa";
         public const string TB_DISCIPLINE          = "PRJ_TB_DISCIPLINE_TXT";
-        public const string TB_DISCIPLINE_GUID     = "edbf1392-5aea-505b-8b05-7a6432b0c3e1";
         // P4 — MEP system/service code shown on the title block SYSTEM cell.
         // Instance param on OST_TitleBlocks; filled from DrawingType.System via
         // the {sys} token. UUIDv5, Planscape docs namespace (matches MR_PARAMETERS.txt).
         public const string PRJ_SHEET_SYSTEM       = "PRJ_SHEET_SYSTEM_TXT";
-        public const string PRJ_SHEET_SYSTEM_GUID  = "972024c1-53c5-5b57-b9f7-98e89fa53572";
         // Canonical home for these toggles is the GROUP 26 TBL_TITLEBLOCK FamilyInstance
         // (added in Drawing Template Manager). All five constants below name GROUP 26
         // params; the root title-block spec A1_common_v2.0 declares them, so
@@ -565,34 +468,27 @@ namespace StingTools.Core
         // already inserted into a document stays bound. It only stops the binder
         // re-creating the dead spelling on new projects.
         public const string TB_SHOW_KEYPLAN        = "PRJ_TB_SHOW_KEY_PLAN_BOOL";
-        public const string TB_SHOW_KEYPLAN_GUID   = "9a64e982-1b97-5922-9831-0948aaf1cf76";
         public const string TB_SHOW_SCALEBAR       = "PRJ_TB_SHOW_SCALE_BAR_BOOL";
-        public const string TB_SHOW_SCALEBAR_GUID  = "afcd0647-42e0-537f-bd18-5f46ed1871df";
         public const string TB_SHOW_NORTHARROW     = "PRJ_TB_SHOW_NORTH_ARROW_BOOL";
-        public const string TB_SHOW_NORTHARROW_GUID= "0981c0a9-7805-568a-8fee-abb012f6239c";
         // NB: this pair pointed at the GROUP 13 legacy param (PRJ_TB_SHOW_DISCBAND_BOOL
         // / 483f47d7) while its three siblings above already pointed at their GROUP 26
         // equivalents — the odd one out in a block whose stated contract is "the GROUP 26
         // TB_ versions". Repointed to match.
         public const string TB_SHOW_DISCBAND       = "PRJ_TB_SHOW_DISCIPLINE_BAND_BOOL";
-        public const string TB_SHOW_DISCBAND_GUID  = "fcd1f7f2-8b64-5cd7-9d27-982d604a231e";
         // Gates the revision-history zone (the native Revit revision schedule
         // created by TitleBlockFactory for slots with purposeTag "revision-history").
         public const string TB_SHOW_REV_TABLE      = "PRJ_TB_SHOW_REV_TABLE_BOOL";
-        public const string TB_SHOW_REV_TABLE_GUID = "da7b6ce4-8e29-5985-9211-2c5a917bbc4b";
         // Gates the QR stamp (SheetQrStamper). Declared in MR_PARAMETERS.txt since the
         // title-block work began and documented in TitleBlockSpec + SLOT_TAXONOMY, but
         // until 2026-09-14 it appeared in ZERO of the ~30 title-block specs and was read
         // by no C# at all — the fourth sibling of the K-11 inversion above, arrived at by
         // a different route: not bound-to-the-wrong-spelling, but never wired at all.
         public const string TB_SHOW_QR_CODE        = "PRJ_TB_SHOW_QR_CODE_BOOL";
-        public const string TB_SHOW_QR_CODE_GUID   = "77246dff-2e64-5986-baa8-7ba6d38a8e1b";
         // The URL the sheet's QR code encodes. Its MR_PARAMETERS description has read
         // "Engine populates with deep link URL to CDE record" since it was declared;
         // SheetQrStamper is that engine, and is the first thing ever to write it.
         // NB: no PRJ_ prefix — that is the shipped spelling, do not "correct" it.
         public const string TB_QR_PAYLOAD          = "TB_QR_PAYLOAD_TXT";
-        public const string TB_QR_PAYLOAD_GUID     = "33472683-7bb0-572a-bcfb-af85c0a9dbcd";
         // ── Per-family QR configuration. ──
         // These exist because the FIRST cut could only find a QR cell for families
         // listed in STING_TITLE_BLOCKS.json, and real projects do not use those. A
@@ -603,31 +499,22 @@ namespace StingTools.Core
         /// <summary>{"x":701,"y":85,"size":24} in mm from the sheet origin. The
         /// highest-priority anchor: authored once per family, works for any family.</summary>
         public const string TB_QR_ANCHOR           = "TB_QR_ANCHOR_JSON_TXT";
-        public const string TB_QR_ANCHOR_GUID      = "4d22d338-3235-55b2-8a16-8496736f346a";
         /// <summary>Printed size override in mm, when the cell is sized but not placed
         /// by TB_QR_ANCHOR_JSON_TXT.</summary>
         public const string TB_QR_SIZE_MM          = "TB_QR_SIZE_MM_TXT";
-        public const string TB_QR_SIZE_MM_GUID     = "1e12f424-d0bb-599c-a284-7362405fa621";
         /// <summary>Token template for what this sheet's QR encodes. Blank means the
         /// STING deep link. Lets a client whose CDE is elsewhere point the code there
         /// without a code change.</summary>
         public const string TB_QR_PAYLOAD_TEMPLATE      = "TB_QR_PAYLOAD_TEMPLATE_TXT";
-        public const string TB_QR_PAYLOAD_TEMPLATE_GUID = "54dea7ad-c65a-5d41-891c-beb8c6d71ed9";
         public const string TB_SCALE_OVERRIDE      = "PRJ_TB_SCALE_OVERRIDE_TXT";
-        public const string TB_SCALE_OVERRIDE_GUID = "624563ac-3067-5990-ba13-a4d750e9ffc2";
         public const string TB_ISSUE_SUMMARY       = "PRJ_TB_ISSUE_SUMMARY_TXT";
-        public const string TB_ISSUE_SUMMARY_GUID  = "a3408dee-9ced-5ccd-970c-0958bcc713a9";
         public const string TB_DELIVERABLE_DATADROP      = "PRJ_TB_DELIVERABLE_DATADROP_TXT";
-        public const string TB_DELIVERABLE_DATADROP_GUID = "d63919e8-7cf5-5202-bd59-1dc03554fee4";
         public const string TB_DELIVERABLE_STATUS        = "PRJ_TB_DELIVERABLE_STATUS_TXT";
-        public const string TB_DELIVERABLE_STATUS_GUID   = "5fea853a-6ed7-505e-a677-50fb83f435b0";
         public const string TB_DELIVERABLE_DUE           = "PRJ_TB_DELIVERABLE_DUE_TXT";
-        public const string TB_DELIVERABLE_DUE_GUID      = "525f8b24-26eb-52ae-8760-c6aa1621815a";
         public const string TB_DELIVERABLE_CDE           = "PRJ_TB_DELIVERABLE_CDE_TXT";
         /// <summary>CDE state as a number (0 unknown … 4 archived) — drives the
         /// title-block status band. Name owned by SuitabilityPresentation.</summary>
         public const string TB_CDE_STATE_INT             = Drawing.SuitabilityPresentation.StateParameter;
-        public const string TB_CDE_STATE_INT_GUID        = "4f2b28ee-4444-5a79-ac09-97c6d3c23d74";
 
         /// <summary>The ISO 19650 STATUS / suitability CODE cell — "S2", "S4", "A1".
         ///
@@ -653,7 +540,6 @@ namespace StingTools.Core
 
         /// <summary>Suitability description, in the standard's wording.</summary>
         public const string DWG_SUITABILITY_DESC         = "PRJ_DWG_SUITABILITY_DESC_TXT";
-        public const string TB_DELIVERABLE_CDE_GUID      = "0d917e49-c6f6-5951-b2b7-7a00bdb3b0df";
 
         /// <summary>The CDE REFERENCE cell — the string that locates this exact issue
         /// in the common data environment: ISO 19650 document identifier + suitability
@@ -671,7 +557,6 @@ namespace StingTools.Core
         /// project-wide default — which is why it is NOT in AllTitleBlockParams,
         /// the same as DWG_SUITABILITY_COD / DWG_SUITABILITY_DESC.</summary>
         public const string TB_CDE_REF                   = "PRJ_TB_CDE_REF_TXT";
-        public const string TB_CDE_REF_GUID              = "f30f7a36-8d82-5385-a215-ae1eec90df2b";
 
         /// <summary>How the CDE REF cell is composed — CONTAINER / SUFFIX / FULL.
         ///
@@ -685,7 +570,6 @@ namespace StingTools.Core
         /// fit. A project that wants the searchable filename can still ask for FULL —
         /// which is why this is a setting and not a decision baked into the code.</summary>
         public const string TB_CDE_REF_FORMAT            = "PRJ_TB_CDE_REF_FORMAT_TXT";
-        public const string TB_CDE_REF_FORMAT_GUID       = "5f2c9a71-4b63-53d8-9e07-1c8a4f62db35";
 
         /// <summary>The pattern Auto-Number Sheets builds a number from —
         /// "{disc}-{seq:D3}" by default, giving A-001.
@@ -697,13 +581,9 @@ namespace StingTools.Core
         /// is the same grammar for projects that are not driving production through
         /// drawing types.</summary>
         public const string TB_SHEET_NUMBER_PATTERN      = "PRJ_TB_SHEET_NUMBER_PATTERN_TXT";
-        public const string TB_SHEET_NUMBER_PATTERN_GUID = "8b41d6e2-7a95-5c14-b3f8-2d60e97a1c48";
         public const string TB_LAST_TRANSMITTAL          = "PRJ_TB_LAST_TRANSMITTAL_TXT";
-        public const string TB_LAST_TRANSMITTAL_GUID     = "953d56bb-e854-5817-9fa0-90ed013f276c";
         public const string TB_LAST_TRANSMITTAL_DATE     = "PRJ_TB_LAST_TRANSMITTAL_DATE_TXT";
-        public const string TB_LAST_TRANSMITTAL_DATE_GUID= "8edb7300-d8a4-5df3-b0ba-b21710da9724";
         public const string TB_NOTES_LEGEND_REF          = "PRJ_TB_NOTES_LEGEND_REF_TXT";
-        public const string TB_NOTES_LEGEND_REF_GUID     = "a083c0ca-5782-59a2-a459-85107690aa6d";
 
         /// <summary>All 20 title-block parameters added in STING Title Block System v1.0
         /// (19 originals plus PRJ_TB_SHOW_REV_TABLE_BOOL, which gates the embedded revision
@@ -734,7 +614,6 @@ namespace StingTools.Core
         // "PLNS"; company name to "Planscape Limited". These feed TemplateManifest,
         // DocumentIdentityGenerator, TokenContext.FromDeliverable, and WorkflowEngine.
         public const string ORG_PROJECT_CODE            = "PRJ_ORG_PROJECT_CODE_TXT";
-        public const string ORG_PROJECT_CODE_GUID       = "d72513d3-2aed-5048-a949-b262fcd51a39";
 
         // ── Template Manager v2 — drift + lockdown + library + profile ──
         // Five parameters added in the Template Manager v2 rebuild. Auto-loaded
@@ -743,39 +622,22 @@ namespace StingTools.Core
         // names that DriftDetector, CorporateLibrary, TemplateRulesRegistry,
         // and the dashboard's Lock toggle look up via LookupParameter.
         public const string TM_TEMPLATE_CHECKSUM        = "STING_TEMPLATE_CHECKSUM_TXT";
-        public const string TM_TEMPLATE_CHECKSUM_GUID   = "a1f2b3c4-d5e6-4f70-8123-456789abcd01";
         public const string TM_TEMPLATE_LOCKED          = "STING_TEMPLATE_LOCKED_BOOL";
-        public const string TM_TEMPLATE_LOCKED_GUID     = "a1f2b3c4-d5e6-4f70-8123-456789abcd02";
         public const string TM_CORP_LIB_PATH            = "PRJ_CORPORATE_LIBRARY_PATH_TXT";
-        public const string TM_CORP_LIB_PATH_GUID       = "a1f2b3c4-d5e6-4f70-8123-456789abcd03";
         public const string TM_CORP_LIB_VERSION         = "PRJ_CORPORATE_LIBRARY_VERSION_TXT";
-        public const string TM_CORP_LIB_VERSION_GUID    = "a1f2b3c4-d5e6-4f70-8123-456789abcd04";
         public const string TM_PROFILE                  = "PRJ_TEMPLATE_PROFILE_TXT";
-        public const string TM_PROFILE_GUID             = "a1f2b3c4-d5e6-4f70-8123-456789abcd05";
         public const string ORG_ORIGINATOR_CODE         = "PRJ_ORG_ORIGINATOR_CODE_TXT";
-        public const string ORG_ORIGINATOR_CODE_GUID    = "d9b568c8-0dcf-5226-add0-a6e3643589e8";
         public const string ORG_COMPANY_NAME            = "PRJ_ORG_COMPANY_NAME_TXT";
-        public const string ORG_COMPANY_NAME_GUID       = "f08b9a37-5e44-5074-a9e1-0a0f6418a305";
         public const string ORG_COMPANY_ADDRESS         = "PRJ_ORG_COMPANY_ADDRESS_TXT";
-        public const string ORG_COMPANY_ADDRESS_GUID    = "834df80b-0472-5724-afab-1c90ce7eac80";
         public const string ORG_CLIENT_NAME             = "PRJ_ORG_CLIENT_NAME_TXT";
-        public const string ORG_CLIENT_NAME_GUID        = "32487484-61c4-5043-aec1-0851720902a6";
         public const string ORG_APPOINTING_PARTY        = "PRJ_ORG_APPOINTING_PARTY_TXT";
-        public const string ORG_APPOINTING_PARTY_GUID   = "b9df91ba-d8ee-561c-9786-d0ce3c74c55e";
         public const string ORG_LEAD_APPOINTED_PARTY    = "PRJ_ORG_LEAD_APPOINTED_PARTY_TXT";
-        public const string ORG_LEAD_APPOINTED_PARTY_GUID = "77069632-0604-5cb1-b6ef-5e2211f6b3f4";
         public const string ORG_PARTICIPANTS            = "PRJ_ORG_PARTICIPANTS_TXT";
-        public const string ORG_PARTICIPANTS_GUID       = "a4c8ef52-5bb2-579f-9308-8a6c2177bf52";
         public const string ORG_PHASE                   = "PRJ_ORG_PHASE_TXT";
-        public const string ORG_PHASE_GUID              = "d187fdbd-f701-5334-90da-1ab6694c5034";
         public const string ORG_CLASS                   = "PRJ_ORG_CLASS_TXT";
-        public const string ORG_CLASS_GUID              = "cef45220-b201-5c44-baed-275a0fd556a7";
         public const string ORG_WORKFLOW_PROFILE        = "PRJ_ORG_WORKFLOW_PROFILE_TXT";
-        public const string ORG_WORKFLOW_PROFILE_GUID   = "48a26ee9-211d-5525-8fbb-9f8eb1f38878";
         public const string ORG_SIGNATURE_PROVIDER      = "PRJ_ORG_SIGNATURE_PROVIDER_TXT";
-        public const string ORG_SIGNATURE_PROVIDER_GUID = "e669eea3-d1fa-51b7-b820-83fa21d40877";
         public const string ORG_AI_EXTRACT_ENABLED      = "PRJ_ORG_AI_EXTRACT_ENABLED_BOOL";
-        public const string ORG_AI_EXTRACT_ENABLED_GUID = "a7c93ee1-9df2-5531-b873-1df826526e82";
 
         // DRAW-6 — project sheet-number policy (short / profile / iso), read by
         // DrawingProducer through SheetNumberPolicy. Referenced since the policy
@@ -785,7 +647,6 @@ namespace StingTools.Core
         // UUIDv5(Planscape docs namespace, name), the scheme every PRJ_ORG_*
         // sibling uses. Not in AllOrganisationParams (template-engine seed set).
         public const string ORG_SHEET_NUMBER_POLICY      = StingTools.Core.Drawing.SheetNumberPolicy.PolicyParameterName;
-        public const string ORG_SHEET_NUMBER_POLICY_GUID = "89828bdc-25ad-5245-bce8-3274203c34b2";
 
         /// <summary>All 13 PRJ_ORG_* parameters added in template engine v1.1 (S01).</summary>
         public static readonly string[] AllOrganisationParams = new[]
@@ -804,26 +665,17 @@ namespace StingTools.Core
         // OST_Materials via IsMaterialRelevantParam; the SUS_FIXTURE_* ones bind
         // to plumbing fixtures via the PLM_DRN group → MEP category set).
         public const string MAT_COST_SUPPLY  = "MAT_COST_SUPPLY_NR";
-        public const string MAT_COST_SUPPLY_GUID = "114852b0-7002-5680-80cd-930f91e8250b";
         public const string MAT_COST_INSTALL = "MAT_COST_INSTALL_NR";
-        public const string MAT_COST_INSTALL_GUID = "0621af78-0fbf-540e-9e6d-61df9925ae90";
         public const string MAT_VAT_PCT      = "MAT_VAT_PCT_NR";
-        public const string MAT_VAT_PCT_GUID = "9794f566-efc2-5622-a23f-9e65e117eb48";
         public const string MAT_EMB_CARBON   = "STING_EMB_CARBON_NR";
-        public const string MAT_EMB_CARBON_GUID = "800e0d61-f88d-5071-bc87-0c4ca3e51243";
         public const string MAT_EPD_SRC      = "STING_MAT_EPD_SRC_TXT";
-        public const string MAT_EPD_SRC_GUID = "2776ca48-33b8-57a8-b2a6-ee982e442767";
         public const string MAT_EPD_DATE     = "STING_MAT_EPD_DATE_TXT";
-        public const string MAT_EPD_DATE_GUID = "c02ad751-5de9-50cc-a018-d7469595f8cf";
         public const string MAT_LIFECYCLE    = "STING_MAT_LIFECYCLE_TXT";
-        public const string MAT_LIFECYCLE_GUID = "e5455edb-f4f9-5585-a65e-363aa31f0b59";
 
         // Sustainability water-efficiency stamps (read off plumbing fixtures by
         // SustainabilityEngine before falling back to vendor flow/flush params).
         public const string SUS_FIXTURE_FLOW = "SUS_FIXTURE_FLOW_LPM";
-        public const string SUS_FIXTURE_FLOW_GUID = "b9c085ac-8d25-5286-bb8c-50f78c515e7c";
         public const string SUS_FIXTURE_FLUSH = "SUS_FIXTURE_FLUSH_L";
-        public const string SUS_FIXTURE_FLUSH_GUID = "733de214-c4aa-5640-896c-ff9c472c8dfd";
 
         /// <summary>All Material-scoped STING parameters surfaced by the
         /// Material Manager. Drift detection + ParameterHelpers refresh
@@ -3961,35 +3813,27 @@ namespace StingTools.Core
 
         // ASS_PLACE_ANCHOR_TXT — anchor reference used by FixturePlacementEngine (e.g. "DOOR_HINGE", "ROOM_CENTRE", "WALL_MIDPOINT")
         public const string PLACE_ANCHOR = "ASS_PLACE_ANCHOR_TXT";
-        public const string PLACE_ANCHOR_GUID = "a4b5c6d7-e8f9-4a0b-8c1d-2e3f4a5b6c7d";
 
         // ASS_PLACE_OFFSET_X_MM — signed horizontal offset from anchor in millimetres
         public const string PLACE_OFFSET_X_MM = "ASS_PLACE_OFFSET_X_MM";
-        public const string PLACE_OFFSET_X_MM_GUID = "b5c6d7e8-f9a0-4b1c-9d2e-3f4a5b6c7d8e";
 
         // ASS_PLACE_SIDE_TXT — wall/host side flag ("LEFT", "RIGHT", "EITHER")
         public const string PLACE_SIDE = "ASS_PLACE_SIDE_TXT";
-        public const string PLACE_SIDE_GUID = "c6d7e8f9-a0b1-4c2d-ae3f-4a5b6c7d8e9f";
 
         // ELC_CPC_SZ_MM — circuit protective conductor size in mm² per BS 7671
         public const string CPC_SZ_MM = "ELC_CPC_SZ_MM";
-        public const string CPC_SZ_MM_GUID = "d7e8f9a0-b1c2-4d3e-bf4a-5b6c7d8e9fa0";
 
         // PLM_PPE_INSULATION_THK_MM — pipe insulation thickness in millimetres
         public const string PPE_INSULATION_THK_MM = "PLM_PPE_INSULATION_THK_MM";
-        public const string PPE_INSULATION_THK_MM_GUID = "e8f9a0b1-c2d3-4e4f-ca5b-6c7d8e9fa0b1";
 
         // PLM_SLOPE_PCT — drainage pipe slope per BS EN 12056 (1:80 default for sanitary)
         public const string PLM_SLOPE_PCT_V4 = "PLM_SLOPE_PCT";
-        public const string PLM_SLOPE_PCT_V4_GUID = "f9a0b1c2-d3e4-4f5a-db6c-7d8e9fa0b1c2";
 
         // Phase 139.2 — first-fix box ↔ second-fix device matching key.
         public const string BOX_LOCATION_ID = "STING_BOX_LOCATION_ID";
-        public const string BOX_LOCATION_ID_GUID = "C7A3F2E1-9B04-4D88-B5A1-3E6F8D2C1047";
 
         // Phase 139.2 — flag set on placed pendant/downlight when noggin is required.
         public const string NOGGIN_REQUIRED = "STING_NOGGIN_REQUIRED";
-        public const string NOGGIN_REQUIRED_GUID = "D8B4A3F2-7C05-4E99-C6B2-4F7B9E3D2158";
 
         #endregion
 
@@ -4016,226 +3860,129 @@ namespace StingTools.Core
 
         // --- T4: Commissioning & handover (N-G16 QR workflow) ---
         public const string COMM_STATE_TXT               = "COMM_STATE_TXT";
-        public const string COMM_STATE_TXT_GUID          = "5753b5aa-0004-4000-8000-000000000001";
         public const string COMM_DATE_TXT                = "COMM_DATE_TXT";
-        public const string COMM_DATE_TXT_GUID           = "5753b5aa-0004-4000-8000-000000000002";
         public const string COMM_OPERATIVE_TXT           = "COMM_OPERATIVE_TXT";
-        public const string COMM_OPERATIVE_TXT_GUID      = "5753b5aa-0004-4000-8000-000000000003";
         public const string COMM_WITNESS_TXT             = "COMM_WITNESS_TXT";
-        public const string COMM_WITNESS_TXT_GUID        = "5753b5aa-0004-4000-8000-000000000010";
         public const string COMM_NOTES_TXT               = "COMM_NOTES_TXT";
-        public const string COMM_NOTES_TXT_GUID          = "5753b5aa-0004-4000-8000-000000000011";
 
         // --- T5: Cost & procurement (N-G12 install/labour + UGX/USD quote) ---
         public const string CST_UG_PRICE_UGX             = "CST_UG_PRICE_UGX";
-        public const string CST_UG_PRICE_UGX_GUID        = "694fcd57-d0c2-5ed3-afca-f225781b3bc8";
         public const string CST_INTL_PRICE_USD           = "CST_INTL_PRICE_USD";
-        public const string CST_INTL_PRICE_USD_GUID      = "c40720fa-3e80-5880-86c3-a82f43055fbf";
         public const string CST_QUOTE_REF_TXT            = "CST_QUOTE_REF_TXT";
-        public const string CST_QUOTE_REF_TXT_GUID       = "4de58d8f-38e2-584f-b8aa-5a5744a80fcd";
         public const string CST_INSTALL_HRS              = "CST_INSTALL_HRS";
-        public const string CST_INSTALL_HRS_GUID         = "5753b5aa-0005-4000-8000-000000000010";
         public const string CST_LABOUR_CREW_TXT          = "CST_LABOUR_CREW_TXT";
-        public const string CST_LABOUR_CREW_TXT_GUID     = "5753b5aa-0005-4000-8000-000000000011";
         public const string CST_LABOUR_RATE_GBP          = "CST_LABOUR_RATE_GBP";
-        public const string CST_LABOUR_RATE_GBP_GUID     = "5753b5aa-0005-4000-8000-000000000012";
         public const string CST_FX_RATE_USD_UGX          = "CST_FX_RATE_USD_UGX";
-        public const string CST_FX_RATE_USD_UGX_GUID     = "d4e003e1-1f43-5d22-93c1-d9e91d672c52";
         public const string CST_LABOUR_HOURS             = "CST_LABOUR_HOURS";
-        public const string CST_LABOUR_HOURS_GUID        = "cb945ed3-ff4d-531c-89fa-c06f503ab46c";
         public const string CST_LABOUR_RATE_UGX          = "CST_LABOUR_RATE_UGX";
-        public const string CST_LABOUR_RATE_UGX_GUID     = "3d736d48-cba0-570b-a521-844539bd998c";
         public const string CST_SHIPPING_UGX             = "CST_SHIPPING_UGX";
-        public const string CST_SHIPPING_UGX_GUID        = "5758facf-7a3f-5900-b3ea-abf487990b25";
         public const string CST_DUTY_PCT                 = "CST_DUTY_PCT";
-        public const string CST_DUTY_PCT_GUID            = "c26d2b96-a012-50d6-bcb9-6a32f24212e0";
 
         // --- T6: Carbon & sustainability (N-G13 — ISO 14064 / BS EN 15978) ---
         public const string CBN_A1_A3_KG_CO2E            = "CBN_A1_A3_KG_CO2E";
-        public const string CBN_A1_A3_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000001";
         public const string CBN_A4_KG_CO2E               = "CBN_A4_KG_CO2E";
-        public const string CBN_A4_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000002";
         public const string CBN_B6_KG_CO2E_YR            = "CBN_B6_KG_CO2E_YR";
-        public const string CBN_B6_KG_CO2E_YR_GUID       = "5753b5aa-0006-4000-8000-000000000003";
         public const string CBN_A5_KG_CO2E               = "CBN_A5_KG_CO2E";
-        public const string CBN_A5_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000010";
         public const string CBN_C1_KG_CO2E               = "CBN_C1_KG_CO2E";
-        public const string CBN_C1_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000011";
         public const string CBN_C2_KG_CO2E               = "CBN_C2_KG_CO2E";
-        public const string CBN_C2_KG_CO2E_GUID          = "5753b5aa-0006-4000-8000-000000000012";
         public const string CBN_C3_C4_KG_CO2E            = "CBN_C3_C4_KG_CO2E";
-        public const string CBN_C3_C4_KG_CO2E_GUID       = "5753b5aa-0006-4000-8000-000000000013";
 
         // --- PARAM-10: parameters the code read before any file defined them (2026-09-27) ---
         public const string ELC_CBL_RATED_V_NR               = "ELC_CBL_RATED_V_NR";
-        public const string ELC_CBL_RATED_V_NR_GUID          = "826c7919-4bb2-56eb-a0df-7ec7bd852126";
         public const string PROJECT_REGION                   = "PROJECT_REGION";
-        public const string PROJECT_REGION_GUID              = "8785ba08-0398-5be0-ad70-a3e0b545b44b";
         public const string PRJ_ORG_CURRENCY_TXT             = "PRJ_ORG_CURRENCY_TXT";
-        public const string PRJ_ORG_CURRENCY_TXT_GUID        = "6a3d0f1e-1067-59c4-958a-0bbccbdb35d5";
         public const string PRJ_ORG_DISCIPLINES_TXT          = "PRJ_ORG_DISCIPLINES_TXT";
-        public const string PRJ_ORG_DISCIPLINES_TXT_GUID     = "bc8e6c91-1c5d-5120-8d73-41936a67b070";
         public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT     = "PRJ_ORG_MAT_SIGNOFF_SUIT_TXT";
-        public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT_GUID = "6302d0f2-16a2-5449-a6db-cc3e9c374609";
         /// <summary>Regional HTM variant (NHS-England / SHTM / WHTM / NHS-NI); selects the
         /// Scottish TMV limits (DSCH-36). Parsed by HtmRegionalVariants.TryParseRegion.</summary>
         public const string PRJ_ORG_HEALTH_HTM_REGION_TXT      = "PRJ_ORG_HEALTH_HTM_REGION_TXT";
-        public const string PRJ_ORG_HEALTH_HTM_REGION_TXT_GUID = "c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013";
         public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT       = "PRJ_ELC_SUPPLY_VOLTAGE_TXT";
-        public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT_GUID  = "878bb409-fa13-5d8f-ae92-8fdac5aa7375";
         public const string PLM_RECIRC_DELTA_T_K             = "PLM_RECIRC_DELTA_T_K";
-        public const string PLM_RECIRC_DELTA_T_K_GUID        = "b0ae4e71-3170-55ff-9c47-5e559ee12943";
         public const string PLM_FIX_TYPE_TXT                 = "PLM_FIX_TYPE_TXT";
-        public const string PLM_FIX_TYPE_TXT_GUID            = "825bb253-9c4b-5051-bd48-8b50ebdbd40b";
         public const string CST_PROVISIONAL_SUM              = "CST_PROVISIONAL_SUM";
-        public const string CST_PROVISIONAL_SUM_GUID         = "981c4d13-349b-473c-a4b5-71e0b1f4d878";
         public const string CST_PS_TYPE_TXT                  = "CST_PS_TYPE_TXT";
-        public const string CST_PS_TYPE_TXT_GUID             = "963d74eb-a24f-5d19-8a69-11f29cc15676";
         public const string PLM_TMV_ASSISTED_BOOL            = "PLM_TMV_ASSISTED_BOOL";
-        public const string PLM_TMV_ASSISTED_BOOL_GUID       = "ac32041d-b1f2-5bfc-86bd-80622407b94b";
         // DSCH-36. Read by TMVEngine (and the measured temperature by WaterSafetyValidator)
         // through ParamRegistry.Ext, but no shared-parameter file defined them, so none was
         // ever bound and every TMV read blank: no measured temperature reached the check.
         public const string PLM_TMV_MEASURED_C               = "PLM_TMV_MEASURED_C";
-        public const string PLM_TMV_MEASURED_C_GUID          = "1e9925ed-2c23-52cc-9bac-4b0940eb7249";
         public const string PLM_TMV_INLET_HOT_C              = "PLM_TMV_INLET_HOT_C";
-        public const string PLM_TMV_INLET_HOT_C_GUID         = "6719d6d1-15b4-5b0c-9e04-d3e9cd52e14d";
         public const string PLM_TMV_INLET_COLD_C             = "PLM_TMV_INLET_COLD_C";
-        public const string PLM_TMV_INLET_COLD_C_GUID        = "fc47f1d3-f246-5684-b890-8262519c76c9";
         public const string PLM_TMV_TEST_DATE_TXT            = "PLM_TMV_TEST_DATE_TXT";
-        public const string PLM_TMV_TEST_DATE_TXT_GUID       = "e38a2138-93cf-59ac-9ed6-ce88c6b521ea";
         public const string PLM_TMV_NEXT_TEST_TXT            = "PLM_TMV_NEXT_TEST_TXT";
-        public const string PLM_TMV_NEXT_TEST_TXT_GUID       = "fe2fd66a-99ce-505e-857d-9c53087361fe";
         public const string PLM_TMV_TYPE_TXT                 = "PLM_TMV_TYPE_TXT";
-        public const string PLM_TMV_TYPE_TXT_GUID            = "c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001";
         public const string MGS_GAS_REQUIREMENT_TXT          = "MGS_GAS_REQUIREMENT_TXT";
-        public const string MGS_GAS_REQUIREMENT_TXT_GUID     = "0427a377-ac36-52c4-b9e3-ab62433bc577";
         public const string HVC_SYSTEM_ID_TXT                = "HVC_SYSTEM_ID_TXT";
-        public const string HVC_SYSTEM_ID_TXT_GUID           = "3955ebbc-36a2-5a8e-b495-f463c9d9fa8f";
         public const string MNT_ACCESS_DIR_TXT               = "MNT_ACCESS_DIR_TXT";
-        public const string MNT_ACCESS_DIR_TXT_GUID          = "949f0c78-685c-5f70-b670-fe74183f81dd";
         public const string ELC_CDT_CABLE_MANIFEST_TXT       = "ELC_CDT_CABLE_MANIFEST_TXT";
-        public const string ELC_CDT_CABLE_MANIFEST_TXT_GUID  = "fd6672f7-86e9-55f8-a982-cb3f1118f151";
         public const string BLE_PLASTER_FACES_NR             = "BLE_PLASTER_FACES_NR";
-        public const string BLE_PLASTER_FACES_NR_GUID        = "10694d13-4a6e-5947-9f2f-d89e531db0c7";
 
         // --- T7: Fabrication & QC (BS EN ISO 6412 spool / QC inspector chain) ---
         public const string ASS_SPOOL_NR_TXT             = "ASS_SPOOL_NR_TXT";
-        public const string ASS_SPOOL_NR_TXT_GUID        = "1a4353be-eaaa-5e46-95ee-b64a74667194";
         // DSCH-42. The tokens an element keeps through re-derivation (comma-separated
         // keys, e.g. "LVL,ZONE"). BatchTagCommand read it through Ext("TOKEN_LOCK"),
         // a key with no mapping, so its lock check never fired.
         public const string ASS_TOKEN_LOCK_TXT           = "ASS_TOKEN_LOCK_TXT";
-        public const string ASS_TOKEN_LOCK_TXT_GUID      = "c9e5a3b4-d6f7-4a8c-b10d-3e4f5a6b7c8d";
         public const string ASS_FAB_STATUS_TXT           = "ASS_FAB_STATUS_TXT";
-        public const string ASS_FAB_STATUS_TXT_GUID      = "29ba93ba-238e-5aad-930a-a621b0f43b5b";
         public const string ASS_QC_INSPECTOR_TXT         = "ASS_QC_INSPECTOR_TXT";
-        public const string ASS_QC_INSPECTOR_TXT_GUID    = "a028f908-b100-53bc-b21a-1a0a6a03ffac";
         public const string ASS_WEIGHT_KG                = "ASS_WEIGHT_KG";
-        public const string ASS_WEIGHT_KG_GUID           = "eacedb67-b65b-58f7-a5b7-f1b0253ac6c9";
         public const string ASS_TEST_PRESSURE_BAR        = "ASS_TEST_PRESSURE_BAR";
-        public const string ASS_TEST_PRESSURE_BAR_GUID   = "3e3624d3-c79d-5dd5-8014-46c8d273b9ea";
         public const string ASS_FAB_LOC_TXT              = "ASS_FAB_LOC_TXT";
-        public const string ASS_FAB_LOC_TXT_GUID         = "e420804b-d43f-593c-91b1-fd00a18aa584";
         public const string ASS_FAB_SEQ_NR               = "ASS_FAB_SEQ_NR";
-        public const string ASS_FAB_SEQ_NR_GUID          = "5fc70bc2-9955-583c-9d96-5b54c8f34f53";
         public const string ASS_SHIP_DATE_TXT            = "ASS_SHIP_DATE_TXT";
-        public const string ASS_SHIP_DATE_TXT_GUID       = "c2fc8e62-b793-517c-94c6-d2d7ae7584fe";
         // Migrated to canonical ASS_INSTALLATION_DATE_TXT (GROUP 1, GUID cfc716aa); the
         // 953575a9 alias remains in MR_PARAMETERS.txt for backwards compat but is marked
         // DEPRECATED. See FabricationParamsV4.INSTALL_DATE_TXT for the v4 fabrication entry.
         public const string ASS_INSTALL_DATE_TXT         = "ASS_INSTALLATION_DATE_TXT";
-        public const string ASS_INSTALL_DATE_TXT_GUID    = "cfc716aa-126d-5e9e-a9e8-3c2a2b52d933";
         public const string ASS_BOM_REV_TXT              = "ASS_BOM_REV_TXT";
-        public const string ASS_BOM_REV_TXT_GUID         = "0293f487-2ca9-5514-9b18-ac98b1a20b27";
         public const string ASS_WELD_COUNT_NR            = "ASS_WELD_COUNT_NR";
-        public const string ASS_WELD_COUNT_NR_GUID       = "6c77833e-4b97-57f5-9a8b-97cc20d6cb61";
         public const string ASS_BOLT_COUNT_NR            = "ASS_BOLT_COUNT_NR";
-        public const string ASS_BOLT_COUNT_NR_GUID       = "77c9f963-0164-5c71-879d-ee7308091866";
         public const string ASS_FLANGE_COUNT_NR          = "ASS_FLANGE_COUNT_NR";
-        public const string ASS_FLANGE_COUNT_NR_GUID     = "016faa7f-1e8f-5a5d-acfb-14983937de69";
         public const string ASS_FITTING_COUNT_NR         = "ASS_FITTING_COUNT_NR";
-        public const string ASS_FITTING_COUNT_NR_GUID    = "ead7d5f3-68fa-58c6-8a21-fa8c6a1ff318";
         public const string ASS_LENGTH_TOTAL_MM          = "ASS_LENGTH_TOTAL_MM";
-        public const string ASS_LENGTH_TOTAL_MM_GUID     = "2605366f-f56b-5843-b8cb-9781b42a4345";
         public const string ASS_CUT_COUNT_NR             = "ASS_CUT_COUNT_NR";
-        public const string ASS_CUT_COUNT_NR_GUID        = "16e7224e-cab9-5233-b155-3fbe194a3d56";
         public const string ASS_INSULATION_AREA_M2       = "ASS_INSULATION_AREA_M2";
-        public const string ASS_INSULATION_AREA_M2_GUID  = "21a49d34-9ae2-5058-8d7e-43db4dabd545";
         public const string ASS_SUPPORT_COUNT_NR         = "ASS_SUPPORT_COUNT_NR";
-        public const string ASS_SUPPORT_COUNT_NR_GUID    = "9fadd466-7dfa-5845-9a18-d618c77c418d";
         public const string ASS_FAB_NOTES_TXT            = "ASS_FAB_NOTES_TXT";
-        public const string ASS_FAB_NOTES_TXT_GUID       = "9107dff2-054c-5371-b3ae-6d329aa12542";
         public const string ASS_SPOOL_DRAWING_REF_TXT    = "ASS_SPOOL_DRAWING_REF_TXT";
-        public const string ASS_SPOOL_DRAWING_REF_TXT_GUID = "c1a5983c-333d-53ff-94d1-4326d9ffff86";
 
         // --- T8: Clash triage + resolution (N-G5 / N-G6) ---
         public const string CLASH_TRIAGE_SEVERITY_NR     = "CLASH_TRIAGE_SEVERITY_NR";
-        public const string CLASH_TRIAGE_SEVERITY_NR_GUID = "5753b5aa-0008-4000-8000-000000000001";
         public const string CLASH_TRIAGE_CATEGORY_TXT    = "CLASH_TRIAGE_CATEGORY_TXT";
-        public const string CLASH_TRIAGE_CATEGORY_TXT_GUID = "5753b5aa-0008-4000-8000-000000000002";
         public const string CLASH_RESOLUTION_STATUS_TXT  = "CLASH_RESOLUTION_STATUS_TXT";
-        public const string CLASH_RESOLUTION_STATUS_TXT_GUID = "5753b5aa-0008-4000-8000-000000000003";
         public const string CLASH_TRIAGE_SCORE           = "CLASH_TRIAGE_SCORE";
-        public const string CLASH_TRIAGE_SCORE_GUID      = "5753b5aa-0008-4000-8000-000000000010";
         public const string CLASH_RESOLUTION_ACTION_TXT  = "CLASH_RESOLUTION_ACTION_TXT";
-        public const string CLASH_RESOLUTION_ACTION_TXT_GUID = "5753b5aa-0008-4000-8000-000000000011";
 
         // --- T9: As-built reconciliation & model health (N-G4 / N-G9) ---
         public const string ASBUILT_DEVIATION_MM         = "ASBUILT_DEVIATION_MM";
-        public const string ASBUILT_DEVIATION_MM_GUID    = "5753b5aa-0009-4000-8000-000000000001";
         public const string ASBUILT_CAPTURE_DATE_TXT     = "ASBUILT_CAPTURE_DATE_TXT";
-        public const string ASBUILT_CAPTURE_DATE_TXT_GUID = "5753b5aa-0009-4000-8000-000000000002";
         public const string HEALTH_SCORE_LAST_NR         = "HEALTH_SCORE_LAST_NR";
-        public const string HEALTH_SCORE_LAST_NR_GUID    = "5753b5aa-0009-4000-8000-000000000003";
         public const string HEALTH_SCORE_DATE_TXT        = "HEALTH_SCORE_DATE_TXT";
-        public const string HEALTH_SCORE_DATE_TXT_GUID   = "5753b5aa-0009-4000-8000-000000000010";
 
         // --- T10: Compliance / audit trail (N-G8 ACC round-trip + N-G14 IFC PSet) ---
         public const string IFC_PSET_OVERRIDE_TXT        = "IFC_PSET_OVERRIDE_TXT";
-        public const string IFC_PSET_OVERRIDE_TXT_GUID   = "5753b5aa-000a-4000-8000-000000000001";
         public const string ACC_ISSUE_ID_TXT             = "ACC_ISSUE_ID_TXT";
-        public const string ACC_ISSUE_ID_TXT_GUID        = "5753b5aa-000a-4000-8000-000000000002";
         public const string ACC_SYNC_STATUS_TXT          = "ACC_SYNC_STATUS_TXT";
-        public const string ACC_SYNC_STATUS_TXT_GUID     = "5753b5aa-000a-4000-8000-000000000003";
 
         // --- T11: Lightning protection system (BS EN 62305) ---
         public const string ELC_LPS_CLASS_TXT                  = "ELC_LPS_CLASS_TXT";
-        public const string ELC_LPS_CLASS_TXT_GUID             = "081c2e86-3af9-5658-8a26-63da9c1eccc2";
         public const string ELC_LPS_ROLLING_SPHERE_RADIUS_M    = "ELC_LPS_ROLLING_SPHERE_RADIUS_M";
-        public const string ELC_LPS_ROLLING_SPHERE_RADIUS_M_GUID = "c4eeed34-608c-56a5-b97f-7c899d76f208";
         public const string ELC_LPS_MESH_SIZE_M                = "ELC_LPS_MESH_SIZE_M";
-        public const string ELC_LPS_MESH_SIZE_M_GUID           = "d6a9566f-eda9-5e6d-9dcf-fd14440c395b";
         public const string ELC_LPS_AIR_TERMINAL_COUNT_NR      = "ELC_LPS_AIR_TERMINAL_COUNT_NR";
-        public const string ELC_LPS_AIR_TERMINAL_COUNT_NR_GUID = "36889f59-a8ba-55c8-8777-6ba332b39bff";
         public const string ELC_LPS_DOWN_CONDUCTOR_COUNT_NR    = "ELC_LPS_DOWN_CONDUCTOR_COUNT_NR";
-        public const string ELC_LPS_DOWN_CONDUCTOR_COUNT_NR_GUID = "157527ba-17a8-5014-b6c5-f70273ccd5f5";
         public const string ELC_LPS_EARTH_ELECTRODE_COUNT_NR   = "ELC_LPS_EARTH_ELECTRODE_COUNT_NR";
-        public const string ELC_LPS_EARTH_ELECTRODE_COUNT_NR_GUID = "d02bca9d-9159-5477-8488-48f9076841fa";
         public const string ELC_LPS_EARTH_RESISTANCE_OHM       = "ELC_LPS_EARTH_RESISTANCE_OHM";
-        public const string ELC_LPS_EARTH_RESISTANCE_OHM_GUID  = "80da349f-708b-5165-bb2e-f369dec80e4b";
         public const string ELC_LPS_BOND_TYPE_TXT              = "ELC_LPS_BOND_TYPE_TXT";
-        public const string ELC_LPS_BOND_TYPE_TXT_GUID         = "1cb4c3d3-8c12-5be3-9eeb-4072b4be3240";
         public const string ELC_LPS_PROTECTION_ANGLE_DEG       = "ELC_LPS_PROTECTION_ANGLE_DEG";
-        public const string ELC_LPS_PROTECTION_ANGLE_DEG_GUID  = "0063477e-cda5-58a3-a802-061838e57a47";
         public const string ELC_LPS_ZONE_TXT                   = "ELC_LPS_ZONE_TXT";
-        public const string ELC_LPS_ZONE_TXT_GUID              = "a01025f4-6155-524e-8514-72507f5e04ef";
         public const string ELC_LPS_RISK_ASSESSMENT_TXT        = "ELC_LPS_RISK_ASSESSMENT_TXT";
-        public const string ELC_LPS_RISK_ASSESSMENT_TXT_GUID   = "330d6fb5-2891-5a28-8ec6-e04618c9d1e4";
         public const string ELC_LPS_SURGE_PROTECTION_LVL_TXT   = "ELC_LPS_SURGE_PROTECTION_LVL_TXT";
-        public const string ELC_LPS_SURGE_PROTECTION_LVL_TXT_GUID = "c1605d30-bdcb-560e-9d97-bae3303a078e";
         public const string ELC_LPS_SEPARATION_DISTANCE_MM     = "ELC_LPS_SEPARATION_DISTANCE_MM";
-        public const string ELC_LPS_SEPARATION_DISTANCE_MM_GUID = "441346ff-828f-5298-9fbb-96f27feb22ef";
         public const string ELC_LPS_CONDUCTOR_CROSS_SECT_MM2   = "ELC_LPS_CONDUCTOR_CROSS_SECT_MM2";
-        public const string ELC_LPS_CONDUCTOR_CROSS_SECT_MM2_GUID = "423133ca-7535-521d-9c37-65ec7ae68166";
         public const string ELC_LPS_EARTH_TYPE_TXT             = "ELC_LPS_EARTH_TYPE_TXT";
-        public const string ELC_LPS_EARTH_TYPE_TXT_GUID        = "3703245d-a866-5e05-8737-72babfbb85a4";
         public const string ELC_LPS_INSPECTION_INTERVAL_MONTHS = "ELC_LPS_INSPECTION_INTERVAL_MONTHS";
-        public const string ELC_LPS_INSPECTION_INTERVAL_MONTHS_GUID = "5339fe4f-caa3-5edc-99b1-53c0defd4ad8";
         public const string ELC_LPS_TEST_DATE_TXT              = "ELC_LPS_TEST_DATE_TXT";
-        public const string ELC_LPS_TEST_DATE_TXT_GUID         = "d654df13-0913-5e8f-8dfe-98b3971beb86";
         public const string ELC_LPS_CERT_REF_TXT               = "ELC_LPS_CERT_REF_TXT";
-        public const string ELC_LPS_CERT_REF_TXT_GUID          = "0a8dbcfb-6f73-5c8c-94eb-b72606feae87";
 
         #endregion
     }
