@@ -156,18 +156,18 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | Merged | Done |
 | DTW-101 | ElementDimensioner.RunColumnToGrid | Low-Med | Column-to-grid uses host grids only | Merged | Done |
 | DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit | Open |
-| DTW-103 | DrawingProducer.FindExistingSheet ~1314/1340 | Med | Legacy name-only sheet stamp accepted with no level check (the view lookup has one), so after a level rename and reuse the new plan lands on the old level's sheet | fix/dt-review4 | In progress |
+| DTW-103 | DrawingProducer.FindExistingSheet ~1314/1340 | Med | Legacy name-only sheet stamp accepted with no level check (the view lookup has one), so after a level rename and reuse the new plan lands on the old level's sheet | Merged | Done |
 | DTW-104 | SheetPlacementBridge.ResolveDrawableForFamily ~357 | Med | A failed title-block spec load is cached for the session | Merged | Done |
-| DTW-105 | DrawingProducer.BuildIsoLevelMap ~2377 | Low-Med | ISO sheet level ignores project-declared level codes (spatial_codes.json), unlike tags, boxes and project-pattern sheets | fix/dt-review4 | In progress |
-| DTW-106 | ProjectSetupCommand ~1850 vs BatchProduceCommands ~849 | Low | Wizard grid sections carry no package id, so a second, empty sheet is minted when DOCS uses a package | fix/dt-review4 | In progress |
-| DTW-107 | BatchProduceCommands ~666 | Low | Unguarded RollBack in a catch can abort the whole TransactionGroup | fix/dt-review4 | In progress |
-| DTW-108 | DrawingProducer PrimeBatchScope ~156/231 | Low | A nested scope resets the outer batch's caches, including the sheet-claim table | fix/dt-review4 | In progress |
+| DTW-105 | DrawingProducer.BuildIsoLevelMap ~2377 | Low-Med | ISO sheet level ignores project-declared level codes (spatial_codes.json), unlike tags, boxes and project-pattern sheets | Merged | Done |
+| DTW-106 | ProjectSetupCommand ~1850 vs BatchProduceCommands ~849 | Low | Wizard grid sections carry no package id, so a second, empty sheet is minted when DOCS uses a package | Merged | Done |
+| DTW-107 | BatchProduceCommands ~666 | Low | Unguarded RollBack in a catch can abort the whole TransactionGroup | Merged | Done |
+| DTW-108 | DrawingProducer PrimeBatchScope ~156/231 | Low | A nested scope resets the outer batch's caches, including the sheet-claim table | Merged | Done |
 | DTW-109 | PanelDoorDiagramCommand ~225 | Low | Drafting view named by board name; a rename orphans the old view | Merged | Done |
-| DTW-110 | BatchProduceCommands ~991-1004 | Low | Exterior job loop uses placed/legacy snapshots taken once | fix/dt-review4 | In progress |
+| DTW-110 | BatchProduceCommands ~991-1004 | Low | Exterior job loop uses placed/legacy snapshots taken once | Merged | Done |
 | DTW-111 | PipeNetworkGraph.ClassifyStacks ~705 | High | Every vertical drop is a stack: fake stacks, and fixtures behind tails never counted | fix/dt-plumb2 | In progress |
 | DTW-112 | DwgFixtureBridge ~287 | Med-High | No idempotency: a re-run places everything twice | fix/dt-r5 | In progress |
 | DTW-113 | SeedEnsurer ~128 / DwgFixtureBridge ~403 | Med | Any loaded family marks a category served, so the seed is never built and the bridge skips the category | fix/dt-r5 | In progress |
-| DTW-114 | DrawingProducer refresh ~481 | Med | Re-runs never tag or dimension elements added since; no command re-annotates produced views | After fix/dt-review4 | Queued |
+| DTW-114 | DrawingProducer refresh ~481 | Med | Re-runs never tag or dimension elements added since; no command re-annotates produced views | fix/dt-r5b | In progress |
 | DTW-115 | LinkLevelMapper ~26 | Med | 3 mm at-or-below tolerance maps an MEP SSL level to the storey below | fix/dt-r5 | In progress |
 | DTW-116 | IsoLevelCode.BuildMap ~56 | Med | Coincident levels each take a number and shift ISO codes | fix/dt-r5 | In progress |
 | DTW-117 | DrawingTokenContext ~71 | Med | Multi-building ISO: {vol} never carries the building | fix/dt-r5 | In progress |
@@ -175,13 +175,14 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-119 | Drainage/Supply schematic views | Med-Low | A new view every run, orphans accumulate | fix/dt-plumb2 | In progress |
 | DTW-120 | Drainage/Supply layout | Med-Low | True-Z / per-element columns overflow the sheet on large models | fix/dt-plumb2 | In progress |
 | DTW-121 | DrainageSchematicGenerator labels | Low-Med | Labels collide with neighbouring stacks and levels | fix/dt-plumb2 | In progress |
-| DTW-122 | BatchProduceCommands.LevelHasModel ~236 | Low-Med | Skip-empty-levels ignores links for non-MEP plans | After fix/dt-review4 | Queued |
+| DTW-122 | BatchProduceCommands.LevelHasModel ~236 | Low-Med | Skip-empty-levels ignores links for non-MEP plans | fix/dt-r5b | In progress |
 | DTW-123 | Doctor | Low | Views and sheets of deleted boxes and levels are never reported | fix/dt-r5 | In progress |
 | DTW-124 | PlumbingVisualisationCommands ~117/742, DwgFixtureBridge ~357 | Low | Commit status ignored | fix/dt-plumb2 + fix/dt-r5 | In progress |
 | DTW-125 | ViewStylePackApplier ~625 | Low | Material-class filter cache never invalidated | fix/dt-r5 | In progress |
 | DTW-126 | MergeRecoveryStubs ~520 | Low | Index miss not revalidated | fix/dt-r5 | In progress |
 | DTW-127 | ViewStylePackApplier ~549 | Low | Link overrides matched on the instance name | fix/dt-r5 | In progress |
 | DTW-128 | SupplySchematicGenerator ~197/~109 | Low | DN printed twice per pipe; rank-3 source not marked assumed | fix/dt-plumb2 | In progress |
+| DTW-129 | ParameterHelpers.DeriveSheetLevel ~4590 | Med | Sheet level stamp uses the elevation code; after DTW-105 the number uses the declared code | fix/dt-r5b | In progress |
 
 ## Decisions
 
@@ -220,6 +221,11 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   Manager does, not by the drawing-type policy. The sheets are stamped when every view on them
   shares one drawing type, so `DrawingTypes_Renumber` can move them onto the type's pattern.
   This keeps a single creation rule for hand-assembled sheets.
+- **Declared level codes (DTW-105/129).** A project-declared level code (spatial_codes.json) wins
+  in the ISO map. One map, `DrawingProducer.BuildIsoLevelMap`, feeds the sheet number, spool
+  sheets, title-block heal and the sheet level stamp.
+- **Package sheets (DTW-106).** A reused view's existing sheet is reused across packages, with a
+  warning. The sheet key is unchanged, so existing per-package sheets behave as before.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
