@@ -104,12 +104,13 @@ namespace StingTools.Commands.Drawing
                 // re-applied. DTW-201: only when every one of them was kept; a view
                 // skipped or rolled back keeps the diff, so the next run picks it up.
                 var liveIds = new HashSet<long>(liveAffected.Select(i => i.Value));
-                var liveMissed = run.NotKept.Where(n => liveIds.Contains(n.Id)).ToList();
+                var liveMissed = run.NotKept.Concat(run.NotReached).Where(n => liveIds.Contains(n.Id)).ToList();
                 if (liveMissed.Count == 0) LiveProfileSync.ConsumeStagedDiff(doc);
                 else warnings.Add($"{liveMissed.Count} view(s) affected by the profile edit were not re-synced; "
                                   + "the edit stays staged so the next Sync Styles re-applies them.");
 
                 var sb = new StringBuilder();
+                if (run.Stopped) sb.AppendLine(warnings[0]);
                 sb.AppendLine($"Re-synced {resynced} of {reports.Count} drifted view(s).");
                 if (run.NotKept.Count > 0)
                 {
@@ -144,6 +145,10 @@ namespace StingTools.Commands.Drawing
             public int Changed;
             /// <summary>Views skipped (not editable) or rolled back — nothing changed on them.</summary>
             public List<(long Id, string Name)> NotKept = new List<(long, string)>();
+            /// <summary>DTW-204: the user stopped the run with Escape.</summary>
+            public bool Stopped;
+            /// <summary>Views not reached because the run was stopped.</summary>
+            public List<(long Id, string Name)> NotReached = new List<(long, string)>();
         }
 
         /// <summary>
@@ -157,12 +162,17 @@ namespace StingTools.Commands.Drawing
         internal static ResyncRun ResyncEach(Document doc, List<DriftReport> reports, string groupName, List<string> warnings)
         {
             var run = new ResyncRun();
-            var runner = new ProductionItemRunner(doc, "SyncStyles");
+            using (var runner = new ProductionItemRunner(doc, "Sync Styles", reports.Count))
             using (var tg = new TransactionGroup(doc, groupName))
             {
                 tg.Start();
                 foreach (var r in reports)
                 {
+                    if (runner.ShouldStop())   // DTW-204: between views, never inside one
+                    {
+                        run.NotReached.Add((r.ViewId?.Value ?? -1L, r.ViewName));
+                        continue;
+                    }
                     if (!(doc.GetElement(r.ViewId) is View v)) continue;
                     var dt = DrawingTypeRegistry.Get(doc, r.DrawingTypeId);
                     if (dt == null) continue;
@@ -181,7 +191,9 @@ namespace StingTools.Commands.Drawing
                     if (outcome == ProductionItemRunner.ItemResult.Committed) { if (changed) run.Changed++; }
                     else run.NotKept.Add((v.Id.Value, name));
                 }
-                tg.Assimilate();
+                tg.Assimilate();   // a stopped run keeps what it committed
+                run.Stopped = runner.Stopped;
+                if (run.Stopped) warnings.Insert(0, runner.StoppedLine("view(s)"));
             }
             return run;
         }
@@ -290,6 +302,7 @@ namespace StingTools.Commands.Drawing
                 var warnings = new List<string>();
                 var run = DrawingSyncStylesCommand.ResyncEach(doc, reports, "STING — Force Resync (Suppressed)", warnings);
                 var sb = new StringBuilder();
+                if (run.Stopped) sb.AppendLine(warnings[0]);
                 sb.AppendLine($"Re-applied profile on {run.Changed} view(s).");
                 if (run.NotKept.Count > 0)
                 {

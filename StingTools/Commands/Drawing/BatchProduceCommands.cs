@@ -560,9 +560,11 @@ namespace StingTools.Commands.Drawing
                 return go;
             };
             DrawingTypePresentation.Prewarm(doc);
+            bool stopped;
             using (DrawingProducer.PrimeBatchScope(doc))
-                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, include);
+                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, include, out stopped);
             message = BatchProduceCommons.StepSummary("Produce Per Level", views, sheets, warnings);
+            if (stopped) { message += " " + warnings[0]; return Result.Cancelled; }   // DTW-204
             var coveredLine = BatchProduceCommons.CoveredSummary(covered);
             if (coveredLine != null) { StingLog.Info("Produce Per Level: " + coveredLine); message += " " + coveredLine + "."; }
             if (attempted == 0 && covered.Count > 0)
@@ -587,17 +589,31 @@ namespace StingTools.Commands.Drawing
         internal static void Produce(Document doc, List<DrawingType> types, List<Level> levels, ProduceOptions opts,
             string packageId, ref int views, ref int sheets, List<string> warnings,
             Func<DrawingType, Level, bool> include = null)
+            => Produce(doc, types, levels, opts, packageId, ref views, ref sheets, warnings, include, out _);
+
+        /// <summary>As above; <paramref name="stopped"/> is true when the user pressed
+        /// Escape (DTW-204) — what was committed before is kept and a warning says how far
+        /// the run got.</summary>
+        internal static void Produce(Document doc, List<DrawingType> types, List<Level> levels, ProduceOptions opts,
+            string packageId, ref int views, ref int sheets, List<string> warnings,
+            Func<DrawingType, Level, bool> include, out bool stopped)
         {
-            var runner = new ProductionItemRunner(doc, "ProduceViewsPerLevel");
+            // The pairs to produce, decided once (include records its own skips), so the
+            // run knows its length for the progress window.
+            var pairs = new List<(Level Level, DrawingType Type)>();
+            foreach (var level in levels)
+                foreach (var dt in types)
+                    if (include == null || include(dt, level)) pairs.Add((level, dt));
+
             int made = 0, madeSheets = 0;
+            using (var runner = new ProductionItemRunner(doc, "Produce Per Level", pairs.Count))
             using (var tg = new TransactionGroup(doc, "STING Produce Per Level"))
             {
                 tg.Start();
-                foreach (var level in levels)
+                foreach (var (level, dt) in pairs)
                 {
-                    foreach (var dt in types)
+                    if (runner.ShouldStop()) break;   // DTW-204: between items, never inside one
                     {
-                        if (include != null && !include(dt, level)) continue;
                         var dctx = new DrawingContext { Level = level, PackageId = packageId };
                         // Counted only once Revit has committed it: a commit a failure
                         // handler rolls back produced nothing, and must not read as production.
@@ -618,7 +634,9 @@ namespace StingTools.Commands.Drawing
                         }
                     }
                 }
-                tg.Assimilate();
+                tg.Assimilate();   // a stopped run keeps what it committed
+                stopped = runner.Stopped;
+                if (stopped) warnings.Insert(0, runner.StoppedLine("level / drawing-type pair(s)"));
             }
             views += made; sheets += madeSheets;
         }
@@ -758,15 +776,18 @@ namespace StingTools.Commands.Drawing
 
             int views = 0, sheets = 0; var warnings = new List<string>();
             DrawingTypePresentation.Prewarm(doc);
+            bool stopped;
             using (DrawingProducer.PrimeBatchScope(doc))
-                Produce(doc, scopes, bindingByName, types, levels, opts, packageId, ref views, ref sheets, warnings);
+                stopped = Produce(doc, scopes, bindingByName, types, levels, opts, packageId, ref views, ref sheets, warnings);
             message = BatchProduceCommons.StepSummary("Produce From Scope Boxes", views, sheets, warnings);
+            if (stopped) { message += " " + warnings[0]; return Result.Cancelled; }   // DTW-204
             if (views == 0) { message += " Nothing was produced."; return Result.Failed; }
             return Result.Succeeded;
         }
 
-        /// <summary>One transaction per box — shared by the dialog and the workflow.</summary>
-        private static void Produce(Document doc, List<Element> scopes, Dictionary<string, ScopeBoxBinding> bindingByName,
+        /// <summary>One transaction per box — shared by the dialog and the workflow. True
+        /// when the user stopped the run with Escape (DTW-204).</summary>
+        private static bool Produce(Document doc, List<Element> scopes, Dictionary<string, ScopeBoxBinding> bindingByName,
             List<DrawingType> types, List<Level> levels, ProduceOptions opts, string packageId,
             ref int views, ref int sheets, List<string> warnings)
         {
@@ -780,12 +801,15 @@ namespace StingTools.Commands.Drawing
                 Id = l.Id.Value, Name = l.Name,
                 Code = codes.TryGetValue(l.Id.Value, out var c) ? c : null,
             }).ToList();
-            var runner = new ProductionItemRunner(doc, "ProduceFromScopeBoxes");
+            int total = scopes.Count(sc => bindingByName.TryGetValue(sc.Name ?? "", out var b0)
+                && types.Any(t => string.Equals(t.Id, b0.DrawingTypeId, StringComparison.OrdinalIgnoreCase)));
+            using (var runner = new ProductionItemRunner(doc, "Produce From Scope Boxes", total))
             using (var tg = new TransactionGroup(doc, "STING Produce From Scope Boxes"))
             {
                 tg.Start();
                 foreach (var scope in scopes)
                 {
+                    if (runner.ShouldStop()) break;   // DTW-204
                     if (!bindingByName.TryGetValue(scope.Name ?? "", out var bnd)) continue;
                     var dt = types.FirstOrDefault(t => string.Equals(t.Id, bnd.DrawingTypeId, StringComparison.OrdinalIgnoreCase));
                     if (dt == null) continue;
@@ -849,7 +873,9 @@ namespace StingTools.Commands.Drawing
                         if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;   // P-9: reuse is not production
                     }
                 }
-                tg.Assimilate();
+                tg.Assimilate();   // a stopped run keeps what it committed
+                if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("scope box(es)"));
+                return runner.Stopped;
             }
         }
 
@@ -898,12 +924,13 @@ namespace StingTools.Commands.Drawing
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
 
-                var runner = new ProductionItemRunner(doc, "ProduceInteriorElevations");
+                using (var runner = new ProductionItemRunner(doc, "Produce Interior Elevations", res.SelectedContexts.Count))
                 using (var tg = new TransactionGroup(doc, "STING Interior Elevations"))
                 {
                     tg.Start();
                     foreach (var roomLabel in res.SelectedContexts)
                     {
+                        if (runner.ShouldStop()) break;   // DTW-204
                         var room = rooms.FirstOrDefault(r =>
                         {
                             var n = ParameterHelpers.GetString(r, "Name") ?? "";
@@ -931,7 +958,8 @@ namespace StingTools.Commands.Drawing
                             warnings);
                         if (outcome == ProductionItemRunner.ItemResult.Committed) { views += tv; sheets += ts; }
                     }
-                    tg.Assimilate();
+                    tg.Assimilate();   // a stopped run keeps what it committed
+                    if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("room(s)"));
                 }
                 BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
@@ -1033,12 +1061,14 @@ namespace StingTools.Commands.Drawing
                     }).Where(x => x != null).ToList();
                 }
 
-                var runner = new ProductionItemRunner(doc, "ProduceSections");
+                var sectionContexts = contextsToProduce.ToList();
+                using (var runner = new ProductionItemRunner(doc, "Produce Sections", sectionContexts.Count))
                 using (var tg = new TransactionGroup(doc, "STING Produce Sections"))
                 {
                     tg.Start();
-                    foreach (var dctx in contextsToProduce)
+                    foreach (var dctx in sectionContexts)
                     {
+                        if (runner.ShouldStop()) break;   // DTW-204
                         int tv = 0, ts = 0;
                         // DTW-195: pre-flight the grid's sections and sheets; a refusal at
                         // commit rolls back this grid only, as a report line.
@@ -1058,7 +1088,8 @@ namespace StingTools.Commands.Drawing
                             warnings);
                         if (outcome == ProductionItemRunner.ItemResult.Committed) { views += tv; sheets += ts; }
                     }
-                    tg.Assimilate();
+                    tg.Assimilate();   // a stopped run keeps what it committed
+                    if (runner.Stopped) warnings.Insert(0, runner.StoppedLine("grid section(s)"));
                 }
                 BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;

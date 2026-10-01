@@ -83,13 +83,15 @@ namespace StingTools.Commands.Drawing
                 var unknownType = new List<string>();
                 var notKept = new List<string>();
                 var runWarnings = new List<string>();
-                var runner = new ProductionItemRunner(doc, "HealTitleBlocks");
+                bool stopped = false;
+                using (var runner = new ProductionItemRunner(doc, "Heal Title Blocks", sheets.Count))
                 using (TitleBlockParamApplier.Batch())
                 using (var tg = new TransactionGroup(doc, "STING — Heal Title Blocks"))
                 {
                     tg.Start();
                     foreach (var x in sheets)
                     {
+                        if (runner.ShouldStop()) break;   // DTW-204: between sheets, never inside one
                         var dt = DrawingTypeRegistry.Get(doc, x.DtId);
                         if (dt == null)
                         {
@@ -142,7 +144,9 @@ namespace StingTools.Commands.Drawing
                             });
                         }
                     }
-                    tg.Assimilate();
+                    tg.Assimilate();   // a stopped run keeps what it committed
+                    stopped = runner.Stopped;
+                    if (stopped) runWarnings.Insert(0, runner.StoppedLine("sheet(s)"));
                 }
 
                 // DTW-202: the audit records heals Revit kept — nothing rolled back.
@@ -150,6 +154,7 @@ namespace StingTools.Commands.Drawing
                 foreach (var w in runWarnings) StingLog.Warn($"Heal Title Blocks: {w}");
 
                 var sb = new StringBuilder();
+                if (stopped) sb.AppendLine(runWarnings[0]);
                 sb.AppendLine($"Healed title blocks on {healed} of {sheets.Count} sheet(s).");
                 if (notKept.Count > 0)
                 {
