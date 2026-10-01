@@ -16,6 +16,29 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
   for every source the tagger writes. Making `SameFloor` ignore levels fails 2; letting Medium sources
   through fails 4. Build 0 / 0; `StingTools.Tags.Tests` 5,119 passing. **Not run in Revit.**
 
+#### Completed (TAGACC-20 SYS connector rules are testable, 2026-10-01)
+
+- An audit of which TAGACC fixes have a test or protocol step found TAGACC-7 / 8 with none: the rules
+  lived inside `TagConfig.GetSysFromConnector` / `RefineHydronic`, wrapped around Revit connector
+  reads. They are now `Core/SysConnectorChoice` — `Choose` (primary, else the category's domain, else
+  first non-auxiliary, else first; connector order kept), `PreferredDomain`, `RefineHydronic` (HWS read
+  from HYDRONIC with a known fluid temperature ≤ 288.15 K is CHW). `TagConfig` reads the connectors and
+  the temperature and calls them; behaviour unchanged.
+- **Tests** `SysConnectorChoiceTests` (19): an AHU takes air whatever the connector order, a boiler is not
+  its gas connection, a sink takes its first piping service, primary wins, auxiliary-only falls back, the
+  15 °C boundary both sides, unknown temperature unchanged. Reverting `Choose` to "first connector" fails 2;
+  making the boundary strict fails 1. Build 0 / 0; `StingTools.Tags.Tests` 5,100 passing.
+#### Completed (TAGFAM-6 follow-up: one shared-parameter index for every tag command, 2026-10-01)
+
+- Three more commands carried a private `FindSharedDefinition` that walked the whole shared-parameter
+  file for every name: `MigrateTagLabelReferencesCommand` (once per remapped name **per family**, across
+  the library), `FamilyLabelAuthor.BindSharedParameters` (per label parameter per family) and
+  `StampGateStatusCommand` (4 names). All four sites, the creator included, now use
+  `Tags/SharedParamDefinitionIndex` — built once per opened file (Migrate: once per run), first exact-name
+  match as before. The private copies are removed.
+- **Gate** `SharedParamLookupGateTests`: no source file defines a per-name `FindSharedDefinition` walk
+  again (fails with any one copy restored). Build 0 / 0; `StingTools.Tags.Tests` 5,082 passing.
+  **Not timed in Revit.**
 #### Completed (TAGFAM-8 content manifest lists every shipped tag family, 2026-10-01)
 
 - `Data/TagFamilies` held 210 `.rfa` files; `STING_CONTENT_MANIFEST.json` listed 206. The four TAGFAM-3

@@ -270,9 +270,10 @@ namespace StingTools.Tags
                     TagParamInjector.InstallSwallower(tx); // Phase 196 — before Start
                     tx.Start();
                     var idx = TagParamInjector.BuildIndex(fdoc);
+                    var defIndex = SharedParamDefinitionIndex.Build(defFile); // TAGFAM-6: one walk
                     foreach (string name in paramNames)
                     {
-                        ExternalDefinition ext = FindSharedDefinition(defFile, name);
+                        ExternalDefinition ext = SharedParamDefinitionIndex.Find(defIndex, name);
                         if (ext == null)
                         {
                             result.Warnings.Add($"Shared param '{name}' not in {Path.GetFileName(opts.SharedParamFile)}");
@@ -447,14 +448,6 @@ namespace StingTools.Tags
         // ------------------------------------------------------------------
         // Small helpers shared with the outer command's style.
         // ------------------------------------------------------------------
-        private static ExternalDefinition FindSharedDefinition(DefinitionFile defFile, string paramName)
-        {
-            foreach (DefinitionGroup g in defFile.Groups)
-                foreach (Definition d in g.Definitions)
-                    if (d.Name == paramName && d is ExternalDefinition ext) return ext;
-            return null;
-        }
-
         /// <summary>
         /// Locate an already-bound family parameter by name, or null. Exposed
         /// <c>internal</c> so the title-block seed-augment path
