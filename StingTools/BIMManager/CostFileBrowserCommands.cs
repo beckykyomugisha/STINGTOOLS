@@ -117,18 +117,16 @@ namespace StingTools.BIMManager
         {
             try
             {
-                using var sr = new StreamReader(path);
-                string? headerLine = sr.ReadLine();
-                if (string.IsNullOrWhiteSpace(headerLine))
+                // The SAME parser the loaders use (BOQ/Rates/CostRateCsv), so a file
+                // with a leading # comment is judged by its real header, as the
+                // loaders judge it. This used to demand MAT_CODE, RATE and UNIT —
+                // and the shipped cost_rates_5d.csv has no RATE column, so the
+                // browser rejected the very file format it was meant to accept.
+                var parsed = StingTools.BOQ.Rates.CostRateCsv.Parse(
+                    File.ReadLines(path).Take(200), StingToolsApp.ParseCsvLine);
+                if (parsed.Problems.Contains("file has no header row"))
                     return "File is empty.";
-
-                // The SAME header contract the loaders use (BOQ/Rates/CostRateCsv).
-                // This used to demand MAT_CODE, RATE and UNIT — and the shipped
-                // cost_rates_5d.csv has no RATE column, so the browser rejected the
-                // very file format it was meant to accept.
-                var missing = StingTools.BOQ.Rates.CostRateCsvLayout
-                    .FromHeader(StingToolsApp.ParseCsvLine(headerLine))
-                    .MissingRequired();
+                var missing = parsed.Layout.MissingRequired();
 
                 return missing.Count == 0 ? null : string.Join(", ", missing);
             }

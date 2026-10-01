@@ -2497,10 +2497,13 @@ namespace StingTools.BIMManager
         {
             // STUB — full implementation pending
             UI.BIMCoordinationCenter.CurrentInstance?.Show4DInlineResult("Configure Cost File",
-                "5D Cost Rate File: cost_rates_5d.csv (default location: model folder)\n" +
-                "To customise, place a cost_rates_5d.csv file in the same folder as the Revit model.\n" +
-                "Column format: Category, Unit, UnitRate, Labour, Material, Plant\n" +
-                "\nFull file browser configuration — coming in next phase.");
+                // DSCH round 7: this described a file in the model folder (FindDataFile
+                // never looks there) and a column layout no reader understands.
+                "5D Cost Rate File: data/cost_rates_5d.csv in the plugin folder\n" +
+                "(or the file named by CostRatesFileName in project_config.json).\n" +
+                "Columns, by name: Category, PROD, MAT_CODE, MAT_DISCIPLINE, Unit_Rate_USD,\n" +
+                "Unit_Rate_UGX, Unit, Description - see tools/data_schemas.json.\n" +
+                "A project rate card goes in _data/coord/rate_card.json.");
             return Result.Succeeded;
         }
     }
