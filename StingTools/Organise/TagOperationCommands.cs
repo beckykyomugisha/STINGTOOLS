@@ -341,6 +341,7 @@ namespace StingTools.Organise
             // Merge existing tags for complete collision detection
             foreach (string t in existingTagIndex) tagIndex.Add(t);
             int fixedCount = 0;
+            int refusedCount = 0;
 
             int totalDupElements = duplicates.Sum(kvp => kvp.Value.Count - 1);
             var fixProgress = StingProgressDialog.Show("Fix Duplicates", totalDupElements);
@@ -383,27 +384,29 @@ namespace StingTools.Organise
                         string seqKey = TagConfig.BuildSeqKey(disc, sys, func, prod, lvl, zone, loc);
                         if (!seqCounters.TryGetValue(seqKey, out _)) seqCounters[seqKey] = 0;
 
-                        // Find next unique SEQ
-                        string newTag = "";
-                        string newSeq = "";
-                        int maxSeqVal = (int)Math.Pow(10, ParamRegistry.NumPad) - 1;
-                        int safety = 10000;
-                        do
+                        // Find next unique SEQ through the one allocator (DSCH-39): it
+                        // honours the DISC's SEQ_RANGE_ALLOCATION and refuses an overflow.
+                        // This loop used to write the last (duplicate) tag after an overflow.
+                        // FIX-WR11: TAG_PREFIX / TAG_SUFFIX are part of the compared tag.
+                        string tagBody = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod)
+                                       + ParamRegistry.Separator;
+                        if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
+                            tagBody = TagConfig.TagPrefix + ParamRegistry.Separator + tagBody;
+                        string tagSuffix = string.IsNullOrEmpty(TagConfig.TagSuffix)
+                            ? "" : ParamRegistry.Separator + TagConfig.TagSuffix;
+                        var seqRes = SeqAssigner.AssignNext(
+                            seqKey, seqCounters, tagBody, tagSuffix, SeqScheme.Numeric,
+                            ParamRegistry.NumPad, "", 10000, tagIndex,
+                            range: TagConfig.SeqRangeFor(disc));
+                        if (!seqRes.Success)
                         {
-                            seqCounters[seqKey]++;
-                            if (seqCounters[seqKey] > maxSeqVal)
-                            {
-                                StingLog.Warn($"FixDuplicates SEQ overflow for group {seqKey}");
-                                break;
-                            }
-                            newSeq = seqCounters[seqKey].ToString().PadLeft(ParamRegistry.NumPad, '0');
-                            newTag = string.Join(ParamRegistry.Separator, disc, loc, zone, lvl, sys, func, prod, newSeq);
-                            // FIX-WR11: Apply TAG_PREFIX/TAG_SUFFIX for consistency
-                            if (!string.IsNullOrEmpty(TagConfig.TagPrefix))
-                                newTag = TagConfig.TagPrefix + ParamRegistry.Separator + newTag;
-                            if (!string.IsNullOrEmpty(TagConfig.TagSuffix))
-                                newTag = newTag + ParamRegistry.Separator + TagConfig.TagSuffix;
-                        } while (tagIndex.Contains(newTag) && safety-- > 0);
+                            StingLog.Warn($"FixDuplicates: no SEQ for {elem.Id} in group {seqKey} ({seqRes.Failure}) — element left unchanged");
+                            refusedCount++;
+                            fixProgress.Increment($"Skipped {elem.Id}");
+                            continue;
+                        }
+                        string newSeq = seqRes.Seq;
+                        string newTag = seqRes.Tag;
 
                         tagIndex.Add(newTag);
                         ParameterHelpers.SetString(elem, ParamRegistry.SEQ, newSeq, overwrite: true);
@@ -470,7 +473,11 @@ namespace StingTools.Organise
             StingAutoTagger.InvalidateContext();
             TagConfig.CheckComplianceGate(doc, "FixDuplicates"); // Phase 67d
             TaskDialog.Show("Fix Duplicates",
-                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}");
+                $"Fixed {fixedCount} duplicate tags across {duplicates.Count} tag values.{dupeNote}"
+                + (refusedCount > 0
+                    ? $"\n{refusedCount} element(s) left unchanged: no sequence number free in their group "
+                      + "(pad capacity or SEQ_RANGE_ALLOCATION range full) — see the log."
+                    : ""));
             return Result.Succeeded;
         }
     }
