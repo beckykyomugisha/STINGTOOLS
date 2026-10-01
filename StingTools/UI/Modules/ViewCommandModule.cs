@@ -18,6 +18,7 @@ namespace StingTools.UI.Modules
             registry.Register("DrawingTypes_Renumber",               app => StingCommandHandler.RunCommandPublic<Commands.Drawing.DrawingRenumberCommand>(app));
             registry.Register("DrawingTypes_HealTitleBlocks",        app => StingCommandHandler.RunCommandPublic<Commands.Drawing.DrawingHealTitleBlocksCommand>(app));
             registry.Register("DrawingTypes_Doctor",                 app => StingCommandHandler.RunCommandPublic<Commands.Drawing.DrawingDoctorCommand>(app));
+            registry.Register("DrawingTypes_SelfTest",               app => StingCommandHandler.RunCommandPublic<Commands.Drawing.DrawingSelfTestCommand>(app));
             registry.Register("DrawingTypes_MigrateCsv",             app => StingCommandHandler.RunCommandPublic<Commands.Drawing.TitleBlockMigrateCsvToRecipeCommand>(app));
             registry.Register("DrawingTypes_ProducePerLevel",        app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ProduceViewsPerLevelCommand>(app));
             registry.Register("DrawingTypes_ProduceFromScopeBoxes",  app => StingCommandHandler.RunCommandPublic<Commands.Drawing.ProduceViewsFromScopeBoxesCommand>(app));
