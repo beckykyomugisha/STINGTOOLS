@@ -6,9 +6,9 @@
 # compare them.
 #
 # Regenerate: python tools/binding_simulator.py
-declared 3604
-bound    3444
-skipped  160
+declared 3668
+bound    3509
+skipped  159
 conflict 0
 
 # Re-measured 2026-09-17. The previous figures (3401/3238/163) were from
@@ -17,3 +17,7 @@ conflict 0
 # skip count moving. Of the 160 skipped, 57 are parameters the CODE WRITES per
 # element and that are bound to nothing - see docs/BINDING_SCOPE_BASELINE.json and
 # ROADMAP CREATEPARM-1.
+
+# Re-measured 2026-10-01 (DSCH round 2): 3668 / 3509 / 159 / 0. The file had
+# drifted from 3604 / 3444 / 160 because nothing ran the simulator. CI now runs
+# `binding_simulator.py --check`, which fails if skipped or conflict RISE.

@@ -64,6 +64,50 @@ jobs:
       - name: Data files match their schemas
         run: python3 tools/validate_data_schemas.py
 
+      # DSCH round 2: eleven check scripts under tools/ ran in NO workflow, so each
+      # could regress unseen — the state validate_data_schemas.py was in. Each is a
+      # ratchet or a zero-tolerance check that passes on main today. Not gated, with
+      # the reason, in docs/WORKLOG_DATA_SCHEMAS.md: validate_dual_owner and
+      # check_qs_nrm2_review (both fail on main — ROADMAP DSCH-6/7) and
+      # validate_declared_but_uncalled (runs over 5 minutes).
+      - name: Binding scope has not grown
+        run: python3 tools/check_binding_scope.py --check
+
+      - name: Shared-parameter kit files agree on GUID and type
+        run: python3 tools/check_shared_param_types.py
+
+      - name: Tag vocabulary has no sentinel that doubles as a code
+        run: python3 tools/check_tag_vocabulary.py --check
+
+      - name: Every title-block CSV row is defined, bound and offered
+        run: python3 tools/check_title_block_surfaces.py
+
+      - name: KUT coordination cycle has no unbaselined interactive step
+        run: python3 tools/check_unattended_cycle.py
+
+      - name: Parameter readership matcher works
+        run: python3 tools/validate_param_readership.py --self-test
+
+      - name: Parameter readership has not regressed
+        run: python3 tools/validate_param_readership.py
+
+      - name: Gap-register header count is current
+        run: python3 tools/register_count.py --check
+
+      - name: No new declared-but-unbound shared parameter
+        run: python3 tools/binding_simulator.py --check
+
+      - name: Content-manifest checksums match the shipped tag families
+        run: python3 tools/restamp_content_manifest.py --check StingTools/Data/TagFamilies
+
+      - name: Commands resolve the application through a resolver
+        shell: pwsh
+        run: ./tools/check_command_app_acquisition.ps1
+
+      - name: No new dispatch drift
+        shell: pwsh
+        run: ./tools/check_dispatch_parity.ps1
+
       # Drawing-type corporate lock: every corporate entry in
       # STING_DRAWING_TYPES.json carries a SHA-256 of its C# serialisation, and
       # DrawingTypeRegistry demotes any entry whose hash does not match to
