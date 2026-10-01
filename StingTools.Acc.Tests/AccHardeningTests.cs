@@ -256,6 +256,77 @@ namespace StingTools.Acc.Tests
             Assert.Equal("fresh-from-other-session", mine.AccessToken);
             Assert.Equal("rotated-by-other-session", mine.RefreshToken);
         }
+
+        // D1: the BIM Coordination Center wrote the refresh token it loaded in the morning over
+        // the one APS had rotated since, and other sessions then adopted the dead token.
+        [Fact]
+        public void AnOlderRefreshToken_NeverOverwritesANewerOneOnDisk()
+        {
+            var live = H.Creds();
+            live.RefreshToken = "rotated-at-noon";
+            live.RefreshTokenIssuedAt = new DateTime(2026, 10, 1, 12, 0, 0, DateTimeKind.Utc);
+            Assert.True(AccIssueSync.SaveCredentials(live, out _));
+
+            var stale = H.Creds();
+            stale.RefreshToken = "loaded-this-morning";
+            stale.RefreshTokenIssuedAt = new DateTime(2026, 10, 1, 8, 0, 0, DateTimeKind.Utc);
+            Assert.True(AccIssueSync.SaveCredentials(stale, out _));
+
+            Assert.Equal("rotated-at-noon", AccCredentialStore.Load(out _).RefreshToken);
+            Assert.Equal("rotated-at-noon", stale.RefreshToken);   // the caller goes on with the live one
+        }
+
+        [Fact]
+        public void ANewerTokenStillReplacesAnOlderOne()
+        {
+            var old = H.Creds();
+            old.RefreshToken = "old"; old.RefreshTokenIssuedAt = DateTime.UtcNow.AddHours(-3);
+            Assert.True(AccIssueSync.SaveCredentials(old, out _));
+            var signedIn = H.Creds();
+            signedIn.RefreshToken = "fresh-sign-in"; signedIn.RefreshTokenIssuedAt = DateTime.UtcNow;
+            Assert.True(AccIssueSync.SaveCredentials(signedIn, out _));
+            Assert.Equal("fresh-sign-in", AccCredentialStore.Load(out _).RefreshToken);
+        }
+
+        [Fact]
+        public async Task ASessionHoldingTheNewerToken_DoesNotAdoptAnOlderFile()
+        {
+            var older = H.Creds();
+            older.RefreshToken = "older-on-disk";
+            older.RefreshTokenIssuedAt = DateTime.UtcNow.AddHours(-5);
+            older.AccessToken = "older-access";
+            older.AccessTokenExpiry = DateTime.UtcNow.AddMinutes(50);
+            Assert.True(AccIssueSync.SaveCredentials(older, out _));
+
+            using var server = LoopbackServer.Always(200,
+                "{\"access_token\":\"refreshed-access\",\"refresh_token\":\"rotated-from-mine\",\"expires_in\":3600}");
+            AccIssueSync.OverrideHostForTests(server.BaseUrl);
+            var mine = H.Creds();
+            mine.RefreshToken = "mine-newer";
+            mine.RefreshTokenIssuedAt = DateTime.UtcNow.AddHours(-1);
+            mine.AccessTokenExpiry = DateTime.UtcNow.AddHours(-1);
+
+            var o = await AccIssueSync.EnsureAuthDetailedAsync(mine);
+
+            Assert.True(o.Ok, o.Detail);
+            Assert.Equal(1, server.RequestCount);                 // refreshed with its own token
+            Assert.Equal("refreshed-access", mine.AccessToken);   // not the file's older one
+            Assert.Equal("rotated-from-mine", AccCredentialStore.Load(out _).RefreshToken);
+        }
+
+        [Theory]
+        [InlineData("b", 12, "a", 8, true)]     // file newer, different
+        [InlineData("b", 8, "a", 12, false)]    // file older
+        [InlineData("a", 12, "a", 8, false)]    // same token
+        [InlineData("b", 0, "a", 8, false)]     // file has no issue time: never overrides
+        [InlineData("b", 12, "a", 0, true)]     // mine has none: a dated file token wins
+        public void FileTokenIsNewer(string fileTok, int fileHour, string mineTok, int mineHour, bool expected)
+        {
+            DateTime At(int h) => h == 0 ? default : new DateTime(2026, 10, 1, h, 0, 0, DateTimeKind.Utc);
+            var file = H.Creds(); file.RefreshToken = fileTok; file.RefreshTokenIssuedAt = At(fileHour);
+            var mine = H.Creds(); mine.RefreshToken = mineTok; mine.RefreshTokenIssuedAt = At(mineHour);
+            Assert.Equal(expected, AccIssueSync.FileTokenIsNewer(file, mine));
+        }
     }
 
     public class AccIdsAndIssueShapeTests : IDisposable

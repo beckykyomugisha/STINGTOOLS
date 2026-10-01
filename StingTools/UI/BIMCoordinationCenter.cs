@@ -5602,7 +5602,16 @@ namespace StingTools.UI
             // machine file's own ids either way, so the order of the two writes does not matter.
             void SaveAcc(V6.AccCredentials c, Action<bool, string> afterProject = null)
             {
-                V6.AccIssueSync.SaveCredentials(c);
+                // D7: a failed save used to be followed by "saved"; the sign-in then lived in
+                // memory only and the next Revit session was not signed in.
+                string credFail = V6.AccIssueSync.SaveCredentials(c, out string credErr)
+                    ? null : "the sign-in was NOT saved on this machine (" + credErr + ") — it works in this session only";
+                if (credFail != null) ShowStatus("ACC " + credFail + ".");
+                // The project ids live in the project's own file: still saved, and the outcome
+                // reported with the credential failure (never "saved" when it was not).
+                var after = afterProject;
+                afterProject = (okP, errP) => after?.Invoke(okP && credFail == null,
+                    string.Join("; ", new[] { credFail, string.IsNullOrEmpty(errP) ? null : errP }.Where(x => x != null)));
                 string projectId = c.ProjectId, coordId = c.CoordContainerId, folder = c.FolderUrn;
                 string typeId = c.IssueTypeId, subtypeId = string.IsNullOrEmpty(c.IssueTypeId) ? "" : c.IssueSubtypeId;
                 if (string.IsNullOrEmpty(cardSettingsPath)) { afterProject?.Invoke(false, "the model has no project folder"); return; }
@@ -5623,12 +5632,21 @@ namespace StingTools.UI
             }
 
             string loadedTypeId = initType ?? "";
+            string loadedRefresh = creds.RefreshToken ?? "";
             V6.AccCredentials Gather()
             {
                 var c = LoadScoped();
                 c.ClientId         = clientIdBox.Text.Trim();
                 c.ClientSecret     = clientSecBox.Password;
-                c.RefreshToken     = refreshBox.Password;
+                // D1: the box holds the token as it was when the card opened. APS has rotated it
+                // since whenever a command refreshed, and writing it back signed every session out.
+                // Only a token the person actually typed or pasted replaces the current one.
+                if (!string.Equals(refreshBox.Password ?? "", loadedRefresh, StringComparison.Ordinal))
+                {
+                    c.RefreshToken = refreshBox.Password;
+                    c.RefreshTokenIssuedAt = DateTime.UtcNow;
+                    loadedRefresh = refreshBox.Password ?? "";
+                }
                 c.ProjectId        = projectIdBox.Text.Trim();
                 c.CoordContainerId = coordIdBox.Text.Trim();
                 c.FolderUrn        = folderUrnBox.Text.Trim();
@@ -5665,12 +5683,13 @@ namespace StingTools.UI
             {
                 try
                 {
+                    ShowStatus("Saving the ACC sign-in and the project ids…");
                     SaveAcc(Gather(), (ok, err) =>
                     {
-                        if (ok) ShowStatus("ACC sign-in saved on this machine; project ids saved with this project.");
+                        ShowStatus(ok ? "ACC sign-in saved on this machine; project ids saved with this project."
+                                      : "ACC settings NOT fully saved: " + err);
                         ShowPlatformDetail("ACC");
                     });
-                    ShowStatus("ACC sign-in saved on this machine; saving the project ids…");
                 }
                 catch (Exception ex) { StingLog.Warn($"ACC save: {ex.Message}"); ShowStatus($"ACC save failed: {ex.Message}"); }
             };

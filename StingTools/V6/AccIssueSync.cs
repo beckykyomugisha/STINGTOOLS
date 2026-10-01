@@ -266,6 +266,15 @@ namespace StingTools.V6
 
             bool rotatedElsewhere = !string.Equals(file.RefreshToken, creds.RefreshToken, StringComparison.Ordinal);
             if (!rotatedElsewhere) return false;
+            // D1: a DIFFERENT token is not necessarily a newer one — an older token written back
+            // over the file must not be adopted by the sessions still holding the live one.
+            // Legacy files with no issue times keep the old rule (adopt when different).
+            if (file.RefreshTokenIssuedAt != default && creds.RefreshTokenIssuedAt != default &&
+                file.RefreshTokenIssuedAt <= creds.RefreshTokenIssuedAt)
+            {
+                StingLog.Warn("AccIssueSync: the machine file holds an OLDER refresh token than this session — not adopted");
+                return false;
+            }
 
             creds.RefreshToken = file.RefreshToken;
             creds.RefreshTokenIssuedAt = file.RefreshTokenIssuedAt;
@@ -863,9 +872,46 @@ namespace StingTools.V6
 
         public static bool SaveCredentials(AccCredentials c, out string error)
         {
+            KeepNewerFileToken(c);
             bool ok = AccCredentialStore.Save(ToMachineFile(c), out error);
             if (!ok) StingLog.Warn("AccIssueSync.SaveCredentials: " + error);
             return ok;
+        }
+
+        /// <summary>
+        /// D1: APS rotates the refresh token on every refresh and invalidates the old one. A
+        /// caller holding an OLDER token (a card opened this morning, a second Revit process)
+        /// must never write it over a newer one: that signs every session out ("sign in
+        /// again"). When the machine file holds a different refresh token issued LATER for the
+        /// same client, its tokens win — on disk and in <paramref name="c"/>, so the caller goes
+        /// on with the live one. A token with no issue time (legacy) never overrides anything.
+        /// </summary>
+        internal static void KeepNewerFileToken(AccCredentials c)
+        {
+            if (c == null) return;
+            AccCredentials file;
+            try { file = AccCredentialStore.Load(out _); }
+            catch (Exception ex) { StingLog.Warn("AccIssueSync: machine credentials unreadable before save: " + ex.Message); return; }
+            if (!FileTokenIsNewer(file, c)) return;
+            StingLog.Info("AccIssueSync: kept the newer refresh token another session saved (not overwritten by an older one)");
+            c.RefreshToken = file.RefreshToken;
+            c.RefreshTokenIssuedAt = file.RefreshTokenIssuedAt;
+            if (!string.IsNullOrEmpty(file.AccessToken) && file.AccessTokenExpiry > c.AccessTokenExpiry)
+            {
+                c.AccessToken = file.AccessToken;
+                c.AccessTokenExpiry = file.AccessTokenExpiry;
+            }
+        }
+
+        /// <summary>True when <paramref name="file"/> holds a different refresh token for the same
+        /// client, issued later than the one in <paramref name="mine"/>. Revit-free; tested.</summary>
+        internal static bool FileTokenIsNewer(AccCredentials file, AccCredentials mine)
+        {
+            if (file == null || mine == null || string.IsNullOrEmpty(file.RefreshToken)) return false;
+            if (!string.Equals(file.ClientId ?? "", mine.ClientId ?? "", StringComparison.Ordinal)) return false;
+            if (string.Equals(file.RefreshToken, mine.RefreshToken, StringComparison.Ordinal)) return false;
+            if (file.RefreshTokenIssuedAt == default) return false;
+            return mine.RefreshTokenIssuedAt == default || file.RefreshTokenIssuedAt > mine.RefreshTokenIssuedAt;
         }
 
         // ── helpers ──────────────────────────────────────────────────────────
