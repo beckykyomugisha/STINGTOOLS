@@ -99,12 +99,10 @@ namespace StingTools.Standards.HTM
             { "HSDU-W",     10 }
         };
 
-        // HTM 04-01 — sentinel-point dead-leg ≤ 1 m for sentinel temperature monitoring.
-        public const double DeadLegSentinelMaxM = 1.0;
-
-        // HTM 04-01 — augmented-care temperature window for hot-water at outlet.
-        public const double TmvOutletMinC = 38.0;
-        public const double TmvOutletMaxC = 41.0;
+        // HTM 04-01 TMV outlet limits and dead-leg (spur) limits are not here: their one
+        // owner is StingTools/Data/Plumbing/STING_TMV_STANDARDS.json, read through
+        // StingTools.Core.Plumbing.WaterSafetyLimits (DSCH-25). The 1 m sentinel dead-leg
+        // and the 38–41 °C window that used to sit here had no source.
 
         // HTM 05-02 — BS 9999 progressive horizontal evacuation refuge sizing
         // baseline (m² per non-ambulant occupant in the receiving compartment).

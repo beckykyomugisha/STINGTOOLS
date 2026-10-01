@@ -3057,7 +3057,7 @@ PARAM	c8d4f6e2-1102-4d27-8c61-0e7a3f9b6002	HVC_HEPA_GRADE_TXT	TEXT		5	1	HEPA gra
 PARAM	c8d4f6e2-1103-4d27-8c61-0e7a3f9b6003	HVC_HEPA_LAST_TST_DT	TEXT		5	1	Last DOP / PAO test date (ISO 8601)	1
 PARAM	c8d4f6e2-1104-4d27-8c61-0e7a3f9b6004	HVC_ACH_OUTSIDE_NR	INTEGER		5	1	Outside-air ACH component (total ACH reuses HVC_AIR_CHANGES_PER_HR)	1
 PARAM	c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001	PLM_TMV_TYPE_TXT	TEXT		6	1	Thermostatic mixing valve type: TMV2 / TMV3 / NONE [HTM 04-01]	1
-PARAM	c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002	PLM_DEAD_LEG_M_NR	NUMBER		6	1	Distance from main to outlet (m) [HTM 04-01 <= 1 m for sentinel]	1
+PARAM	c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002	PLM_DEAD_LEG_M_NR	NUMBER		6	1	Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]	1
 PARAM	c8d4f6e2-1203-4d27-8c61-0e7a3f9b7003	PLM_AUG_CARE_BOOL	YESNO		6	1	Augmented-care wing rules apply [HTM 04-01 Pt C -- Pseudomonas]	1
 PARAM	c8d4f6e2-1204-4d27-8c61-0e7a3f9b7004	PLM_POU_FILTER_BOOL	YESNO		6	1	Point-of-use filter fitted [HTM 04-01]	1
 PARAM	c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005	PLM_SENTINEL_BOOL	YESNO		6	1	Sentinel temperature monitoring point [HTM 04-01]	1
@@ -3126,6 +3126,7 @@ PARAM	6302d0f2-16a2-5449-a6db-cc3e9c374609	PRJ_ORG_MAT_SIGNOFF_SUIT_TXT	TEXT		13
 PARAM	878bb409-fa13-5d8f-ae92-8fdac5aa7375	PRJ_ELC_SUPPLY_VOLTAGE_TXT	TEXT		13	1	Electrical supply voltage and phases chosen in Project Setup (for example 400/230 V 3-phase). Recorded for schedules and title blocks.	1
 PARAM	b0ae4e71-3170-55ff-9c47-5e559ee12943	PLM_RECIRC_DELTA_T_K	NUMBER		6	1	Temperature difference between the hot water and the air around the recirculation pipework, K, used for the pipe heat loss. Read by the recirculation loop balancer; blank = 40 K (60 C water, 20 C air).	1
 PARAM	825bb253-9c4b-5051-bd48-8b50ebdbd40b	PLM_FIX_TYPE_TXT	TEXT		6	1	Plumbing fixture kind (WC, BASIN, SINK, SHOWER, URINAL, BIDET, BATH ...). The connector completeness check uses it to know how many connectors the fixture needs.	1
+PARAM	ac32041d-b1f2-5bfc-86bd-80622407b94b	PLM_TMV_ASSISTED_BOOL	YESNO		6	1	TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]	1
 PARAM	0427a377-ac36-52c4-b9e3-ab62433bc577	MGS_GAS_REQUIREMENT_TXT	TEXT		29	1	Medical gases a clinical room needs, comma-separated codes: O2, N2O, CO2, MA4 (medical air), MA7 (surgical air), N2, HE, VAC, AGS (scavenging). Read by Med Gas Outlet placement.	1
 PARAM	3955ebbc-36a2-5a8e-b495-f463c9d9fa8f	HVC_SYSTEM_ID_TXT	TEXT		5	1	Air system that serves this space (for example AHU-01). Block Load groups spaces by it; blank falls back to the space's HVAC zone.	1
 PARAM	949f0c78-685c-5f70-b670-fe74183f81dd	MNT_ACCESS_DIR_TXT	TEXT		9	1	Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or BOTTOM. Read by the maintenance clash check.	1
@@ -3188,7 +3189,7 @@ PARAM	cde9d6ca-3327-585b-a8f7-6260416747c8	PLM_VLV_DESIGN_FLOW_LS	TEXT		6	1	Valv
 PARAM	a0daacb6-3075-5571-adac-f16dd4986012	PLM_VLV_DESIGN_DP_KPA	TEXT		6	1	Valve design pressure drop kPa [Phase 178b]	1
 PARAM	83e44d79-e601-5250-bcbc-d63193ac441f	PLM_VLV_FAIL_POSITION_TXT	TEXT		6	1	Valve fail-safe position OPEN/CLOSED/LAST [Phase 178b]	1
 PARAM	ab46d616-d864-572c-8d9d-5bb51ccaab79	PLM_VLV_WRAS_APPROVED_BOOL	YESNO		6	1	Valve WRAS-approved [Phase 178b]	1
-PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]	1
+PARAM	af8461f1-b314-5f60-8e8d-e38963de14f8	PLM_DEAD_LEG_LENGTH_M	TEXT		6	1	Dead-leg length m flagged by DeadLegDetector (limits in STING_TMV_STANDARDS.json) [DSCH-25]	1
 PARAM	98ab6e19-8d12-53c0-b388-8705f9413373	PLM_PRJ_PLUMBING_CODE_TXT	TEXT		1	1	Project plumbing-code toggle BS-UK / IPC-US / UPC-US [Phase 178b]	1
 PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e01	PLM_RECIRC_PUMP_DUTY_LPM	TEXT		6	1	DHW recirculation pump duty in l/min computed by RecircLoopBalancer to maintain ≤5°C ΔT loop [Phase 187]	1
 PARAM	c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e02	PLM_RECIRC_DRV_KV	TEXT		6	1	Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]	1
@@ -3597,7 +3598,7 @@ PARAM	6a90ee96-13a4-506c-94f5-17fe68bb0447	WARN_MGS_PRESSURE_DROP_HIGH	TEXT		29	
 PARAM	837dd978-f34e-5b61-be1d-58fa9b2508a0	WARN_MGS_VERIFY_FAILED	TEXT		29	1	Warning: NFPA 99 §5.1.12 MGPS verification test failed [CRITICAL] [NFPA 99 §5.1.12]	1
 PARAM	3bde10e2-47fa-5c7f-bfdf-4477d71f30dd	WARN_MGS_ZVB_NO_REF	TEXT		29	1	Warning: Zone Valve Box has no reference code [HIGH] [HTM 02-01]	1
 PARAM	66672d3c-6e12-5bb1-8d1b-dd18ce03cc97	WARN_PLM_AUG_CARE_NO_FILTER	TEXT		6	1	Warning: Augmented-care outlet missing point-of-use filter [HIGH] [HTM 04-01 Pt C]	1
-PARAM	e3032fbc-4ddb-5dcb-b703-399527e01c69	WARN_PLM_DEAD_LEG_EXCEEDED	TEXT		6	1	Warning: Sentinel point dead-leg exceeds 1 m [HIGH] [HTM 04-01]	1
+PARAM	e3032fbc-4ddb-5dcb-b703-399527e01c69	WARN_PLM_DEAD_LEG_EXCEEDED	TEXT		6	1	Warning: Sentinel point spur exceeds 3 m [HIGH] [HTM 04-01 Pt A 12.5]	1
 PARAM	6e559368-acab-5a14-bc67-5555391112d5	WARN_RAD_CONTROLLED_AREA_NOT_SIGNED	TEXT		30	1	Warning: Controlled area has no regulatory signage element placed [HIGH] [IRR17 / NCRP]	1
 PARAM	a1e344bb-2ef4-58b2-a4c2-ffc156fd9bed	WARN_RAD_DOOR_NO_INTERLOCKS	TEXT		30	1	Warning: Radiation-controlled access door missing interlock specification [HIGH] [NCRP 151 / RCR]	1
 PARAM	27e1d293-a360-5253-b05c-952712c921c9	WARN_RAD_DOSIMETRY_POST_MISSING	TEXT		30	1	Warning: Controlled area boundary has no dosimetry monitoring post [MEDIUM] [IRR17]	1

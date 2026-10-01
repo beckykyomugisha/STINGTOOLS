@@ -4106,6 +4106,10 @@ namespace StingTools.Core
         public const string PLM_RECIRC_DELTA_T_K_GUID        = "b0ae4e71-3170-55ff-9c47-5e559ee12943";
         public const string PLM_FIX_TYPE_TXT                 = "PLM_FIX_TYPE_TXT";
         public const string PLM_FIX_TYPE_TXT_GUID            = "825bb253-9c4b-5051-bd48-8b50ebdbd40b";
+        public const string PLM_TMV_ASSISTED_BOOL            = "PLM_TMV_ASSISTED_BOOL";
+        public const string PLM_TMV_ASSISTED_BOOL_GUID       = "ac32041d-b1f2-5bfc-86bd-80622407b94b";
+        public const string PLM_TMV_TYPE_TXT                 = "PLM_TMV_TYPE_TXT";
+        public const string PLM_TMV_TYPE_TXT_GUID            = "c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001";
         public const string MGS_GAS_REQUIREMENT_TXT          = "MGS_GAS_REQUIREMENT_TXT";
         public const string MGS_GAS_REQUIREMENT_TXT_GUID     = "0427a377-ac36-52c4-b9e3-ab62433bc577";
         public const string HVC_SYSTEM_ID_TXT                = "HVC_SYSTEM_ID_TXT";

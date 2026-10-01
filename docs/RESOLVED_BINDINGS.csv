@@ -1932,8 +1932,8 @@ PLM_CAP_CU_M,6,safe-prefix,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insula
 PLM_CONN_FROM_TAG,6,tag-container,<ALL>,Routed pipe connection-from fixture tag [Plumbing routing]
 PLM_CONN_TO_TAG,6,tag-container,<ALL>,Routed pipe connection-to fixture tag [Plumbing routing]
 PLM_CONN_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Conn Type [ISO 19650]
-PLM_DEAD_LEG_LENGTH_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]
-PLM_DEAD_LEG_M_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Distance from main to outlet (m) [HTM 04-01 <= 1 m for sentinel]
+PLM_DEAD_LEG_LENGTH_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Dead-leg length m flagged by DeadLegDetector (limits in STING_TMV_STANDARDS.json) [DSCH-25]
+PLM_DEAD_LEG_M_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]
 PLM_DEMAND_FLOW_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Design flow rate l/s for pipe or branch [Phase 178b]
 PLM_DFU_COUNT_INT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b]
 PLM_DRN_ACCESS_POINTS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Access Points Txt [ISO 19650-1:2018]
@@ -2088,6 +2088,7 @@ PLM_TAG_7_PARA_PIPE_INSULATION_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessori
 PLM_TAG_7_PARA_PIPE_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe paragraph container - NEW v4.3 [ISO 19650-3:2020]
 PLM_TAG_7_PARA_PLM_EQUIP_TXT,6,tag-container,<ALL>,Plm Equip paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_TIEIN_TXT,6,tag-container,<ALL>,Plumbing tie-in point paragraph container [ISO 19650-3:2020]
+PLM_TMV_ASSISTED_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]"
 PLM_TMV_BLEND_TEMP_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV blended outlet temperature setpoint C [Phase 178b]
 PLM_TMV_CLASS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV class TMV2 TMV3 [BS 7942 Phase 178b]
 PLM_TMV_KVS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV flow coefficient Kvs for flow-rate calc (BS 8680) [Plumbing]
@@ -3510,7 +3511,7 @@ WARN_PER_VOC_EMISSIONS,9,warn-mirror,<ALL>,Warning: VOC emissions limit for indo
 WARN_PLM_AUG_CARE_NO_FILTER,6,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Warning: Augmented-care outlet missing point-of-use filter [HIGH] [HTM 04-01 Pt C]
 WARN_PLM_CAPACITY_PLM_EQUIP,17,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Tag warning: plm capacity plm equip
 WARN_PLM_CONNECTION_TYPE_PIPE_FITTINGS,17,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Tag warning: plm connection type pipe fittings
-WARN_PLM_DEAD_LEG_EXCEEDED,6,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Warning: Sentinel point dead-leg exceeds 1 m [HIGH] [HTM 04-01]
+WARN_PLM_DEAD_LEG_EXCEEDED,6,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Warning: Sentinel point spur exceeds 3 m [HIGH] [HTM 04-01 Pt A 12.5]
 WARN_PLM_EQP_PRESSURE_KPA,6,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Warning: Equipment pressure rating check [HIGH]
 WARN_PLM_FIRE_RATING_PIPE_ACC,17,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Tag warning: plm fire rating pipe acc
 WARN_PLM_FIXTURE_ACCESS,6,warn-mirror,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Warning: Plumbing fixture access clearance [MEDIUM]

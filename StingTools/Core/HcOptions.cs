@@ -52,7 +52,9 @@ namespace StingTools.Core
         public static double DpMinPa        => GetDouble("Hc.DpMinPa",        2.5);
         public static double AchMin         => GetDouble("Hc.AchMin",         12.0);
         public static bool   AnteroomStrict => GetBool  ("Hc.AnteroomStrict", true);
-        public static double DeadLegMaxM    => GetDouble("Hc.DeadLegMaxM",    1.0);
+        // Override only: 0 = the HTM 04-01 spur limit from STING_TMV_STANDARDS.json;
+        // a value may only tighten it (WaterSafetyValidator).
+        public static double DeadLegMaxM    => GetDouble("Hc.DeadLegMaxM",    0);
         public static int    AdjacencyDepth => (int)GetDouble("Hc.AdjacencyDepth", 3);
         public static int    EndoMinReaders => (int)GetDouble("Hc.EndoMinReaders", 4);
         public static int    UpsMaxAgeYrs   => (int)GetDouble("Hc.UpsMaxAgeYrs",   5);

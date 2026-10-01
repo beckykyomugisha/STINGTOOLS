@@ -471,34 +471,27 @@ namespace StingTools.Commands.Plumbing
             var ctx = ParameterHelpers.GetContext(data);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
 
-            var elems = new FilteredElementCollector(ctx.Doc)
-                .WhereElementIsNotElementType()
-                .OfCategory(BuiltInCategory.OST_PipeAccessory)
-                .Cast<Element>()
-                .Concat(new FilteredElementCollector(ctx.Doc)
-                    .WhereElementIsNotElementType()
-                    .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
-                    .Cast<Element>())
-                .ToList();
-
+            // The status comes from the one TMV check (TMVEngine / WaterSafetyLimits):
+            // it used to report every TMV as passing without looking at a limit.
+            var reg = TMVEngine.ScanAll(ctx.Doc);
             var rows = new List<SupplyTmvRow>();
             var lines = new List<string>();
-            int total = 0;
-            foreach (var el in elems)
+            foreach (var r in reg.Records)
             {
-                string cls = "";
-                try { cls = el.LookupParameter(ParamRegistry.PLM_TMV_CLASS)?.AsString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                if (string.IsNullOrEmpty(cls)) continue;
-                string outletC = "";
-                try { outletC = el.LookupParameter(ParamRegistry.PLM_TMV_BLEND)?.AsValueString() ?? ""; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                rows.Add(new SupplyTmvRow { Fixture = el.Name, Type = cls, Pass = true, Status = $"outlet {outletC}" });
-                lines.Add($"{el.Id.Value} · {el.Name} · TMV {cls} · outlet {outletC}");
-                total++;
+                rows.Add(new SupplyTmvRow { Fixture = r.FamilyName, Type = r.Scheme, Pass = r.Status == WaterCheckStatus.Pass,
+                                            Status = r.StatusText + (string.IsNullOrEmpty(r.FailReason) ? "" : " — " + r.FailReason) });
+                lines.Add($"{r.Id.Value} · {r.FamilyName} · {(string.IsNullOrEmpty(r.Scheme) ? "scheme?" : r.Scheme)} " +
+                          $"{(string.IsNullOrEmpty(r.Outlet) ? "outlet?" : r.Outlet)} · set {r.SetOutletC:0.#} °C · {r.StatusText}" +
+                          (string.IsNullOrEmpty(r.FailReason) ? "" : " — " + r.FailReason));
             }
 
             var panel = StingResultPanel.Create("TMV Register");
             panel.AddSection("SUMMARY")
-                 .Metric("TMVs found", rows.Count.ToString());
+                 .Metric("TMVs found", rows.Count.ToString())
+                 .Metric("Pass", reg.PassCount.ToString())
+                 .Metric("Fail", reg.FailCount.ToString())
+                 .Metric("Not checked", reg.NotCheckedCount.ToString());
+            foreach (var w in reg.Warnings.Take(5)) panel.Text("⚠ " + w);
             if (lines.Count > 0)
             {
                 panel.AddSection("REGISTER (first 80)");

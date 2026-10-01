@@ -3352,6 +3352,116 @@
         "selectionRules": "Not read by PumpSelector (safety margin is an input of the command); kept as guidance for whoever copies this file."
       }
     },
+    "StingTools/Data/Plumbing/STING_TMV_STANDARDS.json": {
+      "format": "json",
+      "schemaVersion": 2,
+      "description": "DSCH-25: the one owner of TMV outlet limits (by outlet, TMV2/TMV3 scheme, assisted bathing) and dead-leg limits. Bound by WaterSafetyLimits.Parse (JsonConvert into WaterSafetyLimitsFile), which also refuses an invalid file so every check reports NOT CHECKED. Rows carry source and, where unconfirmed, verify.",
+      "readers": [
+        "StingTools/Core/Plumbing/WaterSafetyLimits.cs",
+        "StingTools/Core/Plumbing/PlumbingTables.cs",
+        "StingTools/Core/Plumbing/TMVEngine.cs",
+        "StingTools/Core/Plumbing/DeadLegDetector.cs",
+        "StingTools/Core/Validation/Healthcare/WaterSafetyValidator.cs"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Plumbing/WaterSafetyLimits.cs",
+        "WaterSafetyLimitsFile"
+      ],
+      "req": [
+        "version",
+        "healthcareRequiredScheme",
+        "outletLimits",
+        "deadLegLimits"
+      ],
+      "children": {
+        "outletLimits": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Plumbing/WaterSafetyLimits.cs",
+            "TmvOutletLimit"
+          ],
+          "req": [
+            "outlet",
+            "scheme",
+            "maxSetC",
+            "neverExceedC",
+            "source"
+          ],
+          "types": {
+            "outlet": "str",
+            "scheme": "str",
+            "assisted": "bool",
+            "maxSetC": "num",
+            "neverExceedC": "num",
+            "source": "str",
+            "verify": "str",
+            "note": "str"
+          }
+        },
+        "deadLegLimits": {
+          "kind": "object",
+          "poco": [
+            "StingTools/Core/Plumbing/WaterSafetyLimits.cs",
+            "DeadLegLimits"
+          ],
+          "req": [
+            "healthcareSpur",
+            "blendedDownstream",
+            "uninsulatedHotByOd",
+            "redundantBranchMaxDiameters"
+          ],
+          "children": {
+            "healthcareSpur": {
+              "kind": "object",
+              "poco": [
+                "StingTools/Core/Plumbing/WaterSafetyLimits.cs",
+                "SourcedLengthLimit"
+              ],
+              "req": [
+                "valueM",
+                "source"
+              ],
+              "types": {
+                "valueM": "num",
+                "source": "str",
+                "verify": "str"
+              }
+            },
+            "blendedDownstream": {
+              "kind": "object",
+              "poco": [
+                "StingTools/Core/Plumbing/WaterSafetyLimits.cs",
+                "SourcedLengthLimit"
+              ],
+              "req": [
+                "valueM",
+                "source"
+              ],
+              "types": {
+                "valueM": "num",
+                "source": "str",
+                "verify": "str"
+              }
+            },
+            "uninsulatedHotByOd": {
+              "kind": "array-of-object",
+              "poco": [
+                "StingTools/Core/Plumbing/WaterSafetyLimits.cs",
+                "HotPipeLengthRow"
+              ],
+              "req": [
+                "maxLengthM"
+              ],
+              "types": {
+                "upToOdMm": "num",
+                "maxLengthM": "num"
+              }
+            }
+          }
+        }
+      }
+    },
     "StingTools/Data/RADIATION_BRACHY_SOURCES.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -10375,11 +10485,7 @@
     },
     "StingTools/Data/Plumbing/STING_PLUMBING_SUPPLY_TABLES.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
-    },
-    "StingTools/Data/Plumbing/STING_TMV_STANDARDS.json": {
-      "format": "json",
-      "reason": "Read by TMVEngine (limits and class tolerances, constants as fallback; the bath limit disagrees 44 vs 46 and the code value is kept, logged once). DSCH-15 closed."
+      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet. Its TMV outlet and dead-leg keys (dhwTempLimitsC.ScaldRisk/TmvOutletMax*, deadLegLimitsM) were removed in DSCH-25: Plumbing/STING_TMV_STANDARDS.json owns them."
     },
     "StingTools/Data/Routing/MEP_INSULATION_PARAMS.json": {
       "format": "json",

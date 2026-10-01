@@ -58,7 +58,9 @@ namespace StingTools.Core.Plumbing
         private static readonly object _lock = new object();
         private static JObject _drainage;
         private static JObject _supply;
-        private static JObject _tmvStandards;
+        private static WaterSafetyLimitsFile _waterSafety;
+        private static List<string> _waterSafetyErrors = new List<string>();
+        private static bool _waterSafetyLoaded;
         private static List<MaterialHydraulic> _materials;
         private static List<FixtureUnitRow> _fixtureUnits;
         private static List<FittingEquivLength> _fittings;
@@ -73,19 +75,34 @@ namespace StingTools.Core.Plumbing
         public static JObject Drainage     { get { EnsureLoaded(); return _drainage; } }
         public static JObject Supply       { get { EnsureLoaded(); return _supply;   } }
 
-        /// <summary>STING_TMV_STANDARDS.json (BS 8680 / HTM 04-01 TMV limits); empty when absent.</summary>
-        public static JObject TmvStandards
+        /// <summary>
+        /// STING_TMV_STANDARDS.json — TMV outlet limits and dead-leg limits, the one
+        /// owner of those values. Null when the file is missing or invalid; the
+        /// reason is in <see cref="WaterSafetyErrors"/> and logged once, and every
+        /// caller then reports NOT CHECKED (no constant fallback).
+        /// </summary>
+        public static WaterSafetyLimitsFile WaterSafety
         {
             get
             {
-                if (_tmvStandards != null) return _tmvStandards;
+                if (_waterSafetyLoaded) return _waterSafety;
                 lock (_lock)
                 {
-                    if (_tmvStandards == null) _tmvStandards = LoadJson("STING_TMV_STANDARDS.json");
-                    return _tmvStandards;
+                    if (_waterSafetyLoaded) return _waterSafety;
+                    string text = ReadDataText("STING_TMV_STANDARDS.json");
+                    _waterSafety = WaterSafetyLimits.Parse(text, out var errors);
+                    _waterSafetyErrors = errors;
+                    if (_waterSafety == null)
+                        StingLog.Error("PlumbingTables: STING_TMV_STANDARDS.json unusable — TMV and dead-leg checks will report NOT CHECKED: "
+                                       + string.Join("; ", errors));
+                    _waterSafetyLoaded = true;
+                    return _waterSafety;
                 }
             }
         }
+
+        /// <summary>Why <see cref="WaterSafety"/> is null (empty when it loaded).</summary>
+        public static IReadOnlyList<string> WaterSafetyErrors { get { var _ = WaterSafety; return _waterSafetyErrors; } }
 
         /// <summary>
         /// The number at a JSON path (SelectToken syntax) under <paramref name="root"/>,
@@ -117,7 +134,8 @@ namespace StingTools.Core.Plumbing
             lock (_lock)
             {
                 _drainage = _supply = null;
-                _tmvStandards = null;
+                _waterSafety = null;
+                _waterSafetyLoaded = false;
                 _materials = null;
                 _fixtureUnits = null;
                 _fittings = null;
@@ -318,6 +336,30 @@ namespace StingTools.Core.Plumbing
             catch (Exception ex)
             {
                 StingLog.Warn($"EnsureProjectOverlay: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static string ReadDataText(string fileName)
+        {
+            try
+            {
+                var path = StingToolsApp.FindDataFile(fileName);
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    var fallback = Path.Combine(StingToolsApp.DataPath ?? "", "Plumbing", fileName);
+                    if (File.Exists(fallback)) path = fallback;
+                }
+                if (string.IsNullOrEmpty(path) || !File.Exists(path))
+                {
+                    StingLog.Warn($"PlumbingTables: data file '{fileName}' not found");
+                    return null;
+                }
+                return File.ReadAllText(path);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Error($"PlumbingTables.ReadDataText({fileName})", ex);
                 return null;
             }
         }

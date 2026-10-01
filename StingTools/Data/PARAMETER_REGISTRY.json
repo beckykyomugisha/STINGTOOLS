@@ -21125,7 +21125,7 @@
     {
       "param_name": "PLM_DEAD_LEG_M_NR",
       "guid": "c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002",
-      "description": "Distance from main to outlet (m) [HTM 04-01 <= 1 m for sentinel]",
+      "description": "Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]",
       "datatype": "NUMBER",
       "group_id": 6,
       "group_name": "PLM_DRN",
@@ -22003,6 +22003,18 @@
       "guid": "825bb253-9c4b-5051-bd48-8b50ebdbd40b",
       "description": "Plumbing fixture kind (WC, BASIN, SINK, SHOWER, URINAL, BIDET, BATH ...). The connector completeness check uses it to know how many connectors the fixture needs.",
       "datatype": "TEXT",
+      "group_id": 6,
+      "group_name": "PLM_DRN",
+      "binding": "universal",
+      "required": false,
+      "discipline": "Plumbing",
+      "curated": true
+    },
+    {
+      "param_name": "PLM_TMV_ASSISTED_BOOL",
+      "guid": "ac32041d-b1f2-5bfc-86bd-80622407b94b",
+      "description": "TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]",
+      "datatype": "YESNO",
       "group_id": 6,
       "group_name": "PLM_DRN",
       "binding": "universal",
@@ -22889,7 +22901,7 @@
     {
       "param_name": "PLM_DEAD_LEG_LENGTH_M",
       "guid": "af8461f1-b314-5f60-8e8d-e38963de14f8",
-      "description": "Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]",
+      "description": "Dead-leg length m flagged by DeadLegDetector (limits in STING_TMV_STANDARDS.json) [DSCH-25]",
       "datatype": "TEXT",
       "group_id": 6,
       "group_name": "PLM_DRN",

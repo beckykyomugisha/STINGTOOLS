@@ -1,20 +1,35 @@
 using StingTools.Core.Validation;
 using System;
 using Autodesk.Revit.DB;
-using StingTools.Standards.HTM;
+using StingTools.Core.Plumbing;
 using System.Collections.Generic;
 
 namespace StingTools.Core.Validation.Healthcare
 {
-    /// <summary>HTM 04-01 — TMV3, sentinel dead-leg ≤ 1 m, augmented-care POU
-    /// filters, RO-loop topology, hot/cold water temperature window.</summary>
+    /// <summary>HTM 04-01 — TMV outlet limits (TMV3 required), sentinel spur
+    /// length (HTM 04-01 Pt A §12.5, 3 m), augmented-care POU filters, RO-loop
+    /// topology. Limits come from STING_TMV_STANDARDS.json (WaterSafetyLimits);
+    /// unusable data means NOT CHECKED, never a constant.</summary>
     public class WaterSafetyValidator : HealthcareValidatorBase
     {
         public override string Name => "WaterSafetyValidator";
         private const string Tag = "WaterSafetyValidator";
 
-        // Hc.DeadLegMaxM slider override. Default mirrors HTM 04-01.
-        public double DeadLegMaxM { get; set; } = HTMStandards.DeadLegSentinelMaxM;
+        /// <summary>Panel override (Hc.DeadLegMaxM). It may only tighten the HTM 04-01
+        /// spur limit; zero or less = no override.</summary>
+        public double DeadLegOverrideM { get; set; }
+
+        /// <summary>The limit applied: the data's healthcare spur limit, tightened by
+        /// the override. Null when the data is unusable (NOT CHECKED).</summary>
+        public double? DeadLegMaxM
+        {
+            get
+            {
+                var spur = PlumbingTables.WaterSafety?.DeadLegLimits?.HealthcareSpur;
+                if (spur == null) return null;
+                return WaterSafetyLimits.TightenOnly(spur.ValueM, DeadLegOverrideM, out _);
+            }
+        }
 
         public override List<ValidationResult> Validate(Document doc)
         {
@@ -31,16 +46,34 @@ namespace StingTools.Core.Validation.Healthcare
             var f = new ElementMulticategoryFilter(cats);
             var els = new FilteredElementCollector(doc).WherePasses(f).WhereElementIsNotElementType().ToElements();
 
+            var limits = PlumbingTables.WaterSafety;
+            double? deadLegMax = DeadLegMaxM;
+            var spur = limits?.DeadLegLimits?.HealthcareSpur;
+            if (limits == null)
+                res.Add(new ValidationResult(ElementId.InvalidElementId, ValidationSeverity.Warning,
+                    "PLM.WATERSAFETY.NOT_CHECKED",
+                    "NOT CHECKED — STING_TMV_STANDARDS.json unusable, so TMV and dead-leg limits were not applied: "
+                    + string.Join("; ", PlumbingTables.WaterSafetyErrors), Tag));
+            else if (spur != null)
+            {
+                WaterSafetyLimits.TightenOnly(spur.ValueM, DeadLegOverrideM, out bool ignored);
+                if (ignored)
+                    res.Add(new ValidationResult(ElementId.InvalidElementId, ValidationSeverity.Info,
+                        "PLM.DEADLEG.OVERRIDE_IGNORED",
+                        $"Dead-leg override {DeadLegOverrideM:0.##} m is looser than {spur.ValueM:0.##} m ({spur.Source}) — ignored; an override may only tighten",
+                        Tag));
+            }
+
             foreach (var el in els)
             {
                 // Sentinel dead-leg check.
                 var sentinel = GetParamBool(el, "PLM_SENTINEL_BOOL");
                 var deadLegM = GetParamDouble(el, "PLM_DEAD_LEG_M_NR");
-                if (sentinel && deadLegM.HasValue && deadLegM.Value > DeadLegMaxM)
+                if (sentinel && deadLegM.HasValue && deadLegMax.HasValue && deadLegM.Value > deadLegMax.Value)
                 {
                     res.Add(new ValidationResult(el.Id, ValidationSeverity.Error,
                         "PLM.DEADLEG.OVER",
-                        $"{el.Name} sentinel point dead-leg {deadLegM:F2} m > max {DeadLegMaxM} m [HTM 04-01]",
+                        $"{el.Name} sentinel point spur {deadLegM:F2} m > max {deadLegMax.Value:0.##} m [{spur?.Source}]",
                         Tag));
                 }
 
@@ -53,16 +86,27 @@ namespace StingTools.Core.Validation.Healthcare
                         Tag));
                 }
 
-                // TMV outlet temperature window.
-                var hot = GetParamDouble(el, "PLM_HOTWTR_TEMP_C");
-                var tmv = GetParam(el, "PLM_TMV_TYPE_TXT");
-                if (!string.IsNullOrEmpty(tmv) && tmv != "NONE" && hot.HasValue &&
-                    (hot.Value < HTMStandards.TmvOutletMinC || hot.Value > HTMStandards.TmvOutletMaxC))
+                // TMV outlet limit — by outlet, scheme and assisted bathing (DSCH-25).
+                var tmvType  = GetParam(el, ParamRegistry.PLM_TMV_TYPE_TXT);
+                var tmvClass = GetParam(el, ParamRegistry.PLM_TMV_CLASS);
+                bool hasTmv  = (!string.IsNullOrWhiteSpace(tmvType) && !tmvType.Trim().Equals("NONE", StringComparison.OrdinalIgnoreCase))
+                            || !string.IsNullOrWhiteSpace(tmvClass);
+                if (hasTmv)
                 {
-                    res.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
-                        "PLM.TMV.OUTLET_TEMP",
-                        $"{el.Name} TMV outlet {hot:F1} °C outside HTM 04-01 window {HTMStandards.TmvOutletMinC}–{HTMStandards.TmvOutletMaxC} °C",
-                        Tag));
+                    string assistedRaw = GetParam(el, ParamRegistry.PLM_TMV_ASSISTED_BOOL);
+                    bool? assisted = string.IsNullOrEmpty(assistedRaw) ? (bool?)null : assistedRaw != "0";
+                    var c = WaterSafetyLimits.CheckTmv(limits,
+                        WaterSafetyLimits.NormaliseOutlet(GetParam(el, ParamRegistry.PLM_FIX_TYPE_TXT)),
+                        WaterSafetyLimits.NormaliseScheme(tmvClass) ?? WaterSafetyLimits.NormaliseScheme(tmvType),
+                        assisted, isHealthcare: true,
+                        GetParamDouble(el, ParamRegistry.PLM_TMV_BLEND) ?? 0,
+                        GetParamDouble(el, ParamRegistry.PLM_TMV_MEASURED_C) ?? 0);
+                    if (c.Status == WaterCheckStatus.Fail)
+                        res.Add(new ValidationResult(el.Id, ValidationSeverity.Warning,
+                            "PLM.TMV.OUTLET_TEMP", $"{el.Name} TMV: {c.Reason} [{c.StandardRef}]", Tag));
+                    else if (c.Status == WaterCheckStatus.NotChecked && limits != null)
+                        res.Add(new ValidationResult(el.Id, ValidationSeverity.Info,
+                            "PLM.TMV.NOT_CHECKED", $"{el.Name} TMV: {c.Reason}", Tag));
                 }
 
                 // Dialysis station belongs to RO loop?

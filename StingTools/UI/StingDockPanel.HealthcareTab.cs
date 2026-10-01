@@ -212,7 +212,7 @@ namespace StingTools.UI
                 StingCommandHandler.SetExtraParam("Hc.DpMinPa",       NumStr(sldHcDpMin?.Value, 2.5));
                 StingCommandHandler.SetExtraParam("Hc.AchMin",        NumStr(sldHcAchMin?.Value, 12));
                 StingCommandHandler.SetExtraParam("Hc.AnteroomStrict",BoolStr(chkHcAnteroomStrict?.IsChecked));
-                StingCommandHandler.SetExtraParam("Hc.DeadLegMaxM",   NumStr(sldHcDeadLegMaxM?.Value, 1));
+                StingCommandHandler.SetExtraParam("Hc.DeadLegMaxM",   NumStr(sldHcDeadLegMaxM?.Value, 0));
                 StingCommandHandler.SetExtraParam("Hc.AdjacencyDepth",SelectedComboTag(cmbHcAdjacencyDepth, "3"));
                 StingCommandHandler.SetExtraParam("Hc.EndoMinReaders",NumStr(sldHcRfidMin?.Value, 4));
                 StingCommandHandler.SetExtraParam("Hc.UpsMaxAgeYrs",  NumStr(sldHcUpsMaxAgeYrs?.Value, 5));

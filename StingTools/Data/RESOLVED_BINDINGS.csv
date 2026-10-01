@@ -2085,6 +2085,7 @@ PLM_TAG_7_PARA_PIPE_INSULATION_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pip
 PLM_TAG_7_PARA_PIPE_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TAG_7_PARA_PLM_EQUIP_TXT,<ALL>
 PLM_TAG_7_PARA_TIEIN_TXT,<ALL>
+PLM_TMV_ASSISTED_BOOL,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_BLEND_TEMP_C,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_CLASS_TXT,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
 PLM_TMV_KVS,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures
