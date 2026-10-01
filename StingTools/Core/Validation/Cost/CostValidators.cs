@@ -147,14 +147,13 @@ namespace StingTools.Core.Validation.Cost
             try
             {
                 // Get the registry the same way BOQCostManager does — by
-                // loading the CSV + COBie tables. We don't have the
+                // loading the CSV rate table. We don't have the
                 // dictionaries here so we ask the registry by-key with
                 // empty fallbacks; it will still pick up the rate
                 // providers that don't need the dictionaries (param +
                 // ES + default).
                 var registry = RateProviderRegistry.Get(doc,
                     new Dictionary<string, (double rate, string unit)>(),
-                    new Dictionary<string, string>(),
                     TagConfig.GetConfigDouble("UGX_PER_USD", 3700.0),
                     TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0));
 

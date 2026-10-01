@@ -1315,8 +1315,13 @@
     },
     "StingTools/Data/COBIE_TYPE_MAP.csv": {
       "format": "csv-table",
-      "schemaVersion": 1,
-      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values.",
+      "schemaVersion": 2,
+      "description": "Header pinned from the shipped file on 2026-10-01 (DSCH round 1). Columns and order are the contract; cell types inferred from the shipped values. v2 (DSCH-28): CostRateCode column removed with the COBie rate provider; rates come from the cost-rate file only.",
+      "readers": [
+        "StingTools/Temp/COBieDataCommands.cs",
+        "StingTools/Tags/FamilyParamCreatorCommand.cs",
+        "StingTools/UI/CobieMaterialBridge.cs"
+      ],
       "columns": [
         {
           "name": "TypeCode",
@@ -1400,10 +1405,6 @@
         },
         {
           "name": "StingProdCode",
-          "type": "str"
-        },
-        {
-          "name": "CostRateCode",
           "type": "str"
         }
       ]

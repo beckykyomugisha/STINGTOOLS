@@ -175,15 +175,14 @@ namespace StingTools.BOQ
                 {
                     System.Threading.Interlocked.Increment(ref _rateCacheMisses);
                     double ugxPerGbp = TagConfig.GetConfigDouble("UGX_PER_GBP", 4700.0);
-                    // CA-5 — pass the REAL CSV + COBie rate tables (was two empty
+                    // CA-5 — pass the REAL CSV rate table (was two empty
                     // dicts). The registry is cached per-document, so whichever caller
                     // builds it first wins; with empty dicts here a tag-time stamp that
                     // ran before BuildBOQDocument would have poisoned the bill's
-                    // registry with no CSV/COBie rates. Now CST_MODELED_TOTAL_UGX uses
+                    // registry with no CSV rates. Now CST_MODELED_TOTAL_UGX uses
                     // the same rate source as the bill.
                     var rateRegistry = RateProviderRegistry.Get(doc,
                         BOQCostManager.LoadCsvRates(doc),
-                        BOQCostManager.LoadCobieCostCodes(),
                         ugxPerUsd, ugxPerGbp);
                     var req = new RateRequest
                     {

@@ -3,7 +3,7 @@
 //
 //  Single entry point that BOQCostManager.ResolveRate calls. Maintains a
 //  priority-ordered list, walks it on each request and returns the first
-//  non-null lookup. Cached per Document so the CSV + COBie tables are
+//  non-null lookup. Cached per Document so the CSV rate table is
 //  loaded once per BuildBOQDocument run.
 //
 //  Currency adapter: providers may return rates in any currency
@@ -26,7 +26,7 @@ namespace StingTools.BOQ.Rates
     internal sealed class RateProviderRegistry
     {
         // Per-document cache. Each Document gets its own registry so the
-        // CSV/COBie tables are loaded once per run and providers don't
+        // CSV rate table is loaded once per run and providers don't
         // leak between projects.
         private static readonly ConcurrentDictionary<string, RateProviderRegistry> _cache
             = new ConcurrentDictionary<string, RateProviderRegistry>(StringComparer.OrdinalIgnoreCase);
@@ -69,6 +69,10 @@ namespace StingTools.BOQ.Rates
                 var policy = RatePolicy.Parse(File.ReadAllText(path));
                 if (policy?.Providers != null && policy.Providers.Count > 0)
                     StingLog.Info($"RateProviderRegistry: applied boq_rate_policy.json ({policy.Providers.Count} provider override(s)).");
+                // DSCH-28 - the COBie type-map provider was removed. A policy that still
+                // names it ranks nothing; say so instead of ignoring the entry silently.
+                if (policy?.Providers != null && policy.Providers.ContainsKey("cobie-typemap"))
+                    StingLog.Warn("RateProviderRegistry: boq_rate_policy.json names 'cobie-typemap', which was removed (DSCH-28) - the entry has no effect. Rates come from the cost-rate file's PROD / material / category rows.");
                 return policy ?? RatePolicy.Empty;
             }
             catch (Exception ex)
@@ -80,18 +84,17 @@ namespace StingTools.BOQ.Rates
 
         /// <summary>
         /// Acquire the registry for this document. Builds it lazily from
-        /// the CSV + COBie tables on first call; subsequent calls hit the
+        /// the CSV rate table on first call; subsequent calls hit the
         /// cache.
         /// </summary>
         public static RateProviderRegistry Get(
             Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             double ugxPerUsd,
             double ugxPerGbp = 0)
         {
             string key = doc?.PathName ?? "default";
-            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, cobieCostCodes, LoadPolicy(doc), ugxPerUsd, ugxPerGbp));
+            return _cache.GetOrAdd(key, _ => Build(doc, csvRates, LoadPolicy(doc), ugxPerUsd, ugxPerGbp));
         }
 
         /// <summary>
@@ -103,7 +106,6 @@ namespace StingTools.BOQ.Rates
         private static RateProviderRegistry Build(
             Document doc,
             Dictionary<string, (double rate, string unit)> csvRates,
-            Dictionary<string, string> cobieCostCodes,
             RatePolicy policy,
             double ugxPerUsd, double ugxPerGbp)
         {
@@ -134,7 +136,6 @@ namespace StingTools.BOQ.Rates
                 // registry doesn't fail when a project hasn't configured
                 // them yet. See Get(doc, ...) below.
                 new CsvRateProvider(csvRates),
-                new CobieRateProvider(cobieCostCodes, csvRates),
                 new DefaultRateProvider()
             };
 
