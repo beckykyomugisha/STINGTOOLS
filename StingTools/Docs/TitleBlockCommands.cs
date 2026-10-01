@@ -1454,7 +1454,7 @@ namespace StingTools.Docs
                 .OrderBy(s => s.SheetNumber)
                 .ToList();
 
-            int swapped = 0, alreadyMatch = 0, noTb = 0, noMatch = 0;
+            int swapped = 0, alreadyMatch = 0, noTb = 0, noMatch = 0, locked = 0;
             var swapDetails = new List<string>();
 
             using (var tx = new Transaction(doc, "STING Title Block Set Variant"))
@@ -1474,6 +1474,10 @@ namespace StingTools.Docs
                     if (string.Equals(currentFn, targetFn, StringComparison.OrdinalIgnoreCase)
                         && tb.Symbol.Id == targetSym.Id)
                     { alreadyMatch++; continue; }
+
+                    // DTW-153: a locked title block (instance, type or sheet) is not swapped.
+                    if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
+                    { locked++; continue; }
 
                     try
                     {
@@ -1497,7 +1501,7 @@ namespace StingTools.Docs
             }
 
             StingLog.Info($"TB SetVariant: swapped {swapped}, already match {alreadyMatch}, " +
-                $"no TB {noTb}, no matching family {noMatch}");
+                $"no TB {noTb}, no matching family {noMatch}, locked {locked}");
 
             var b = StingResultPanel.Create("")
                 .SetTitle("Title Block Set Variant")
@@ -1509,6 +1513,7 @@ namespace StingTools.Docs
                 .Metric("Already matching", alreadyMatch.ToString())
                 .Metric("No title block", noTb.ToString())
                 .Metric("No matching variant family", noMatch.ToString())
+                .Metric("Skipped — title block locked", locked.ToString())
                 .AddSection("Available STING_TB_* Families");
             foreach (var kvp in byVariant.OrderBy(k => k.Key))
                 b.Metric(kvp.Key, kvp.Value.FamilyName ?? "");

@@ -151,6 +151,7 @@ namespace StingTools.Commands.Drawing
 
             int migrated = 0;
             int skipped  = 0;
+            int locked   = 0;
             var report = new StringBuilder();
 
             using (var tg = new TransactionGroup(doc, "STING Migrate Legacy Title Blocks"))
@@ -193,6 +194,13 @@ namespace StingTools.Commands.Drawing
                                 if (sheet == null) continue;
                                 var tb = TitleBlockSlotUtils.FindTitleBlockOnSheet(doc, sheet) as FamilyInstance;
                                 if (tb == null) { skipped++; continue; }
+                                // DTW-153: a locked title block (instance, type or sheet) is not migrated.
+                                if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
+                                {
+                                    locked++;
+                                    report.AppendLine($"  🔒 {sheet.SheetNumber}  locked (PRJ_TB_LOCK_BOOL) — not migrated");
+                                    continue;
+                                }
                                 tb.Symbol = targetSym;
                                 var modeParam = tb.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
                                 if (modeParam != null && !modeParam.IsReadOnly)
@@ -217,6 +225,7 @@ namespace StingTools.Commands.Drawing
             sb.AppendLine();
             sb.AppendLine($"Migrated : {migrated}");
             sb.AppendLine($"Skipped  : {skipped}");
+            sb.AppendLine($"Locked   : {locked}");
             sb.AppendLine();
             sb.Append(report.ToString());
             TaskDialog.Show("STING — Migrate Legacy Title Blocks", sb.ToString());

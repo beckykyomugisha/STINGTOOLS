@@ -169,6 +169,7 @@ namespace StingTools.Docs
             var sizeChanged = new List<string>();
             var detail = new List<string>();
             var failures = new List<string>();
+            var lockedSheets = new List<string>();
 
             using (var tx = new Transaction(doc, "STING Swap Title Block"))
             {
@@ -194,6 +195,14 @@ namespace StingTools.Docs
 
                         if (tb.Symbol != null && tb.Symbol.Id == newType.Id) { already++; continue; }
 
+                        // DTW-153: a locked title block is not swapped. The lock is
+                        // the instance, its type, or the sheet (PRJ_TB_LOCK_BOOL).
+                        if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(tb, sheet))
+                        {
+                            lockedSheets.Add(sheet.SheetNumber);
+                            continue;
+                        }
+
                         string fromLabel = tb.Symbol != null
                             ? $"{tb.Symbol.FamilyName} : {tb.Symbol.Name}" : "(unknown)";
                         bool differentSize = !SameSheetSize(doc, sheet, tb, newType);
@@ -218,7 +227,7 @@ namespace StingTools.Docs
             }
 
             StingLog.Info($"TB Swap: target='{newType.FamilyName}:{newType.Name}' scope={scopeLabel} " +
-                $"swapped={swapped} placed={placed} already={already} failed={failed}");
+                $"swapped={swapped} placed={placed} already={already} locked={lockedSheets.Count} failed={failed}");
 
             // ── Report ──────────────────────────────────────────────────────
             var b = StingResultPanel.Create("")
@@ -232,7 +241,13 @@ namespace StingTools.Docs
                 .Metric("Swapped", swapped.ToString())
                 .Metric("Title block placed (sheet had none)", placed.ToString())
                 .Metric("Already on target type", already.ToString())
+                .Metric("Skipped — title block locked", lockedSheets.Count.ToString())
                 .Metric("Failed", failed.ToString());
+            if (lockedSheets.Count > 0)
+                b.AddSection("Locked (not swapped)")
+                 .Text("PRJ_TB_LOCK_BOOL is set on the title block, its type or the sheet. " +
+                       "Unlock first to swap:\n  " + string.Join(", ", lockedSheets.Take(60)) +
+                       (lockedSheets.Count > 60 ? $"  … +{lockedSheets.Count - 60} more" : ""));
 
             b.AddSection("Viewports")
                 .Text("Swapping the type never moves or deletes a viewport — every view " +

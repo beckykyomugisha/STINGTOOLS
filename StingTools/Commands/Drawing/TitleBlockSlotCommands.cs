@@ -269,6 +269,14 @@ namespace StingTools.Commands.Drawing
                 TaskDialog.Show("STING — Toggle BIM Mode", "Active sheet has no title block.");
                 return Result.Cancelled;
             }
+            // DTW-153: a locked title block (instance, type or sheet) is not swapped.
+            if (StingTools.Core.Drawing.TitleBlockParamApplier.IsTitleBlockLocked(titleBlock, sheet))
+            {
+                TaskDialog.Show("STING — Toggle BIM Mode",
+                    $"Sheet {sheet.SheetNumber}'s title block is locked (PRJ_TB_LOCK_BOOL on the title block, " +
+                    "its type or the sheet). Unlock it first to change its BIM mode.");
+                return Result.Cancelled;
+            }
             var sym = doc.GetElement(titleBlock.GetTypeId()) as FamilySymbol;
             var currentName = sym?.Family?.Name ?? "";
             var bimModeParam = titleBlock.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
