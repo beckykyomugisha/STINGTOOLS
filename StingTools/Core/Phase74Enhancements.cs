@@ -216,7 +216,7 @@ namespace StingTools.Core
 
             // DD1 — Brief/concept
             items.Add(new DeliverableItem { Name = "BIM Execution Plan", Milestone = "DD1", CommandTag = "GenerateBEP",
-                Status = File.Exists(Path.Combine(StingToolsApp.DataPath ?? "", "project_bep.json")) ? "Complete" : "NotStarted", CompletionPct = 100 });
+                Status = File.Exists(CoordStores.Bep(doc) ?? "") ? "Complete" : "NotStarted", CompletionPct = 100 });
 
             // DD2 — Design development
             items.Add(new DeliverableItem { Name = "Model Health Report", Milestone = "DD2", CommandTag = "ModelHealthDashboard" });

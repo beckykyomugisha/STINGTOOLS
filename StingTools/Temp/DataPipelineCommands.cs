@@ -2405,17 +2405,11 @@ namespace StingTools.Temp
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Load BEP from project-specific BIM manager directory (where Create/Update BEP save it),
-            // falling back to the data directory for legacy/standalone BEP files.
-            string bepPath = BIMManager.BIMManagerEngine.GetBIMManagerFilePath(doc, "project_bep.json");
-            if (!File.Exists(bepPath))
-            {
-                // Fallback: check data directory for legacy BEP files
-                string fallback = StingToolsApp.FindDataFile("project_bep.json");
-                if (!string.IsNullOrEmpty(fallback))
-                    bepPath = fallback;
-            }
-            if (!File.Exists(bepPath))
+            // The project BEP is the one Create/Update BEP write. There is no fallback to the
+            // shipped Data/project_bep.json: that is a corporate sample, and validating a
+            // project against it reports another project's codes as this one's rules.
+            string bepPath = CoordStores.Bep(doc);
+            if (string.IsNullOrEmpty(bepPath) || !File.Exists(bepPath))
             {
                 TaskDialog.Show("BEP Validation",
                     "No project_bep.json found.\n\n" +
@@ -2443,17 +2437,20 @@ namespace StingTools.Temp
             var allowedFunc = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var allowedProd = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            if (bep["allowed_loc"] is JArray locArr)
+            // Create BEP nests the lists under "allowed_codes"; older/hand-written BEPs carry
+            // them at the top level.
+            JObject codes = (bep["allowed_codes"] as JObject) ?? bep;
+            if (codes["allowed_loc"] is JArray locArr)
                 foreach (string v in locArr) allowedLoc.Add(v);
-            if (bep["allowed_zone"] is JArray zoneArr)
+            if (codes["allowed_zone"] is JArray zoneArr)
                 foreach (string v in zoneArr) allowedZone.Add(v);
-            if (bep["allowed_disc"] is JArray discArr)
+            if (codes["allowed_disc"] is JArray discArr)
                 foreach (string v in discArr) allowedDisc.Add(v);
-            if (bep["allowed_sys"] is JArray sysArr)
+            if (codes["allowed_sys"] is JArray sysArr)
                 foreach (string v in sysArr) allowedSys.Add(v);
-            if (bep["allowed_func"] is JArray funcArr)
+            if (codes["allowed_func"] is JArray funcArr)
                 foreach (string v in funcArr) allowedFunc.Add(v);
-            if (bep["allowed_prod"] is JArray prodArr)
+            if (codes["allowed_prod"] is JArray prodArr)
                 foreach (string v in prodArr) allowedProd.Add(v);
 
             if (allowedLoc.Count == 0 && allowedZone.Count == 0 && allowedDisc.Count == 0
