@@ -7,6 +7,11 @@
 // 0.01–0.03 in w.c. (2.49–7.47 Pa). The file holds inches of water column, as
 // USP states them; Pa is derived here (1 in w.c. = 249.0889 Pa).
 //
+// Every row names the CLN_ROOM_CLASS_TXT value it audits (DSCH-36): a suite is the
+// primary class (PH-CSP-797 buffer room / PH-CSP-800 C-SEC) plus the classes that
+// extend it with a suffix (-ANTE ante-room, -CSCA containment segregated compounding
+// area). HTMStandards and ASHRAE170Standards hold no PH-CSP rows.
+//
 // A panel override may only TIGHTEN a limit. A room with no recorded pressure
 // differential or air-change rate is NOT CHECKED, never passed.
 
@@ -20,8 +25,7 @@ namespace StingTools.Core.Validation.Healthcare
     public class UspRoomSpec
     {
         public string  Code            { get; set; } = "";
-        /// <summary>CLN_ROOM_CLASS_TXT value this row audits; empty = no room class
-        /// identifies it yet (reference only).</summary>
+        /// <summary>CLN_ROOM_CLASS_TXT value this row audits (required).</summary>
         public string  RoomClass       { get; set; } = "";
         public string  Standard        { get; set; } = "";
         public string  Iso             { get; set; } = "";
@@ -71,6 +75,7 @@ namespace StingTools.Core.Validation.Healthcare
             foreach (var r in f.Rooms)
             {
                 if (string.IsNullOrWhiteSpace(r.Code)) errors.Add("room without code");
+                if (string.IsNullOrWhiteSpace(r.RoomClass)) errors.Add($"{r.Code}: no roomClass — a row no room class selects is never checked");
                 if (r.Polarity != "POS" && r.Polarity != "NEG") errors.Add($"{r.Code}: polarity must be POS or NEG");
                 if (r.MinInWc <= 0) errors.Add($"{r.Code}: minInWc must be > 0");
                 if (r.MaxInWc.HasValue && r.MaxInWc.Value < r.MinInWc) errors.Add($"{r.Code}: maxInWc below minInWc");
@@ -86,6 +91,25 @@ namespace StingTools.Core.Validation.Healthcare
         public static UspRoomSpec ForRoomClass(UspCascadeFile f, string roomClass) =>
             string.IsNullOrWhiteSpace(roomClass) ? null :
             f?.Rooms.FirstOrDefault(r => string.Equals(r.RoomClass, roomClass.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>Primary room class of a panel standard: "USP-800" → PH-CSP-800 (C-SEC),
+        /// anything else → PH-CSP-797 (buffer room).</summary>
+        public static string PrimaryRoomClass(string standard) =>
+            string.Equals(standard?.Trim(), "USP-800", StringComparison.OrdinalIgnoreCase) ? "PH-CSP-800" : "PH-CSP-797";
+
+        /// <summary>The rows of a standard's suite: the primary class and every class that
+        /// extends it ("PH-CSP-800-ANTE", "PH-CSP-800-CSCA"), primary first.</summary>
+        public static List<UspRoomSpec> SuiteRows(UspCascadeFile f, string standard)
+        {
+            var primary = PrimaryRoomClass(standard);
+            if (f?.Rooms == null) return new List<UspRoomSpec>();
+            return f.Rooms.Where(r => !string.IsNullOrWhiteSpace(r.RoomClass) &&
+                    (string.Equals(r.RoomClass, primary, StringComparison.OrdinalIgnoreCase) ||
+                     r.RoomClass.StartsWith(primary + "-", StringComparison.OrdinalIgnoreCase)))
+                .OrderBy(r => string.Equals(r.RoomClass, primary, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(r => r.RoomClass, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
 
         /// <summary>Checks one room. <paramref name="dpPa"/> / <paramref name="ach"/> null =
         /// not recorded. Overrides of zero or less mean none; an override looser than the
