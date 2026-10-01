@@ -83,6 +83,11 @@ jobs:
       - name: No new declared-but-uncalled map or predicate
         run: python3 tools/validate_declared_but_uncalled.py
 
+      # DSCH-40: the wide scope - tuple return types, members outside Core/,
+      # Load* / Build* names - under its own ratchet, so the Core baseline stays 0.
+      - name: No new declared-but-uncalled member (wide scope)
+        run: python3 tools/validate_declared_but_uncalled.py --wide
+
       # DSCH-27: test-oracle markers are verified, not trusted; prove the check fires.
       - name: Declared-but-uncalled marker check can fail
         run: python3 tools/validate_declared_but_uncalled.py --self-test
