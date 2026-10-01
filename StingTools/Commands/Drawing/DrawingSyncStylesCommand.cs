@@ -35,6 +35,10 @@ namespace StingTools.Commands.Drawing
                 var doc = (data?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document;
                 if (doc == null) { msg = "No document open."; return Result.Failed; }
 
+                // DTW-125: material-class filters are rebuilt from the model's current
+                // materials on this pass, not taken from a session-old cache.
+                ViewStylePackApplier.InvalidateMaterialClassFilterCache();
+
                 // Phase 183 — pick up views affected by on-disk profile /
                 // pack edits even when no drift would have shown up in
                 // the live VG state yet. LiveProfileSync stages the
