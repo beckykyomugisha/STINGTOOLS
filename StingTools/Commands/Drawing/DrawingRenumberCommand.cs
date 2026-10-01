@@ -74,7 +74,7 @@ namespace StingTools.Commands.Drawing
                     var pattern = SheetNumberPolicy.ResolvePattern(dt, policy);
                     if (string.IsNullOrEmpty(pattern)) continue;
 
-                    ReadProductionContext(s, out var levelName, out var tag);
+                    ReadProductionContext(doc, s, out var levelName, out var tag);
                     var probeTokens = DrawingProducer.BuildTokenDict(doc, dt, levelName, tag, pkg, 0);
                     var template = DrawingProducer.NumberTemplate(pattern, dt, levelName, tag, probeTokens);
                     if (template == null)
@@ -233,7 +233,7 @@ namespace StingTools.Commands.Drawing
         /// PRJ_SHEET_LEVEL_TXT for sheets produced before the context stamp; an
         /// unresolved "{lvl}" the producer left there is treated as absent.
         /// </summary>
-        private static void ReadProductionContext(ViewSheet s, out string levelName, out string tag)
+        private static void ReadProductionContext(Document doc, ViewSheet s, out string levelName, out string tag)
         {
             levelName = null; tag = null;
             var ctx = DrawingTypeStamper.ReadSheetContext(s);
@@ -242,6 +242,21 @@ namespace StingTools.Commands.Drawing
                 var parts = ctx.Split(new[] { "::" }, StringSplitOptions.None);
                 if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0])) levelName = parts[0];
                 if (parts.Length > 2 && !string.IsNullOrEmpty(parts[2])) tag = parts[2];
+
+                // DTW-118: the stamp's name part is the level's name WHEN PRODUCED. After a
+                // rename the ISO level map (keyed by current names) has no code for it, and
+                // the plan came out "...-Level1-DR-...". The id (DTW-42) names the level;
+                // its current name is what the producer would use today.
+                var ids = ProductionContextIds.Parse(ctx);
+                if (ids.LevelId.HasValue && doc != null)
+                {
+                    try
+                    {
+                        if (doc.GetElement(new ElementId(ids.LevelId.Value)) is Level lvl && !string.IsNullOrEmpty(lvl.Name))
+                            levelName = lvl.Name;
+                    }
+                    catch (Exception ex) { StingLog.Warn($"DrawingRenumber level #{ids.LevelId} for {s.SheetNumber}: {ex.Message}"); }
+                }
             }
             if (levelName == null)
             {

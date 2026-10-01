@@ -303,6 +303,8 @@
     <!-- DTW-99: which (drawing type, level) pairs a scope box already produces. -->
     <Compile Include="..\StingTools\Core\Drawing\PerLevelBoxCoverage.cs" Link="Core\Drawing\PerLevelBoxCoverage.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ProductionContextKey.cs" Link="Core\Drawing\ProductionContextKey.cs" />
+    <!-- DTW-118/123: the ids read back out of a context stamp. -->
+    <Compile Include="..\StingTools\Core\Drawing\ProductionContextIds.cs" Link="Core\Drawing\ProductionContextIds.cs" />
     <Compile Include="..\StingTools\Core\Drawing\BatchNameLedger.cs" Link="Core\Drawing\BatchNameLedger.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewNameUniquifier.cs" Link="Core\Drawing\ViewNameUniquifier.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SectionFromBox.cs" Link="Core\Drawing\SectionFromBox.cs" />
