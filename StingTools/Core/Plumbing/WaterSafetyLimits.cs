@@ -12,6 +12,14 @@
 //     44 °C unassisted, 46 °C assisted, in exceptional circumstances only)
 // Healthcare premises require TMV3 (HTM 04-01 Pt A Table 2; HSG274 Pt 2 §2.76).
 //
+// Jurisdiction (DSCH-36): rows with no "jurisdiction" are HTM 04-01 (England) and
+// apply everywhere a region has no rows of its own. "SCOTLAND" rows (SHTM 04-01
+// Part A v2 Table 4) replace them for a Scottish project, which the existing
+// project setting PRJ_ORG_HEALTH_HTM_REGION_TXT identifies (HtmRegionalVariants).
+// An unrecorded region keeps the England rows and says so in the check's notes.
+// SHTM also sets a paediatric-bath limit; no parameter marks a bath as paediatric,
+// so that limit is reported NOT CHECKED rather than assumed either way.
+//
 // Dead-leg limits: HSG274 Part 2 gives NO numeric length — its test is time to
 // temperature (§2.82). The lengths are design proxies: HTM 04-01 Pt A §12.5
 // (healthcare spur ≤ 3 m), §10.48 (blended pipe downstream of a mixer ≤ 2 m),
@@ -22,6 +30,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using StingTools.Standards.HTM;
 
 namespace StingTools.Core.Plumbing
 {
@@ -32,6 +41,11 @@ namespace StingTools.Core.Plumbing
         public string Outlet       { get; set; } = "";
         public string Scheme       { get; set; } = "";
         public bool   Assisted     { get; set; }
+        /// <summary>SHTM paediatric-bath row. Applied only when an outlet is known to be
+        /// paediatric, which no parameter records yet (reported NOT CHECKED).</summary>
+        public bool   Paediatric   { get; set; }
+        /// <summary>"" = HTM 04-01 (England), the default rows; "SCOTLAND" = SHTM 04-01.</summary>
+        public string Jurisdiction { get; set; } = "";
         public double MaxSetC      { get; set; }
         public double NeverExceedC { get; set; }
         public string Source       { get; set; } = "";
@@ -86,6 +100,9 @@ namespace StingTools.Core.Plumbing
         public string Reason { get; set; } = "";
         public string StandardRef { get; set; } = "";
         public TmvOutletLimit Limit { get; set; }
+        /// <summary>What the check could not establish or assumed, whatever the status
+        /// (unrecorded jurisdiction, England row used for a region, paediatric limit).</summary>
+        public List<string> Notes { get; } = new List<string>();
     }
 
     public class DeadLegLimitResult
@@ -101,6 +118,21 @@ namespace StingTools.Core.Plumbing
     {
         public static readonly string[] Outlets = { "BATH", "SHOWER", "BASIN", "BIDET" };
         public static readonly string[] Schemes = { "TMV2", "TMV3" };
+        /// <summary>Jurisdiction values a row may carry ("" = HTM 04-01, England).</summary>
+        public static readonly string[] Jurisdictions = { "", "SCOTLAND" };
+
+        /// <summary>The jurisdiction value whose rows a region uses; "" = the HTM 04-01 rows.</summary>
+        public static string JurisdictionFor(HtmRegion? region) => region == HtmRegion.Scotland ? "SCOTLAND" : "";
+
+        /// <summary>Note for a region with no rows of its own (null = not recorded).</summary>
+        public static string JurisdictionNote(HtmRegion? region)
+        {
+            if (region == null)
+                return "jurisdiction not recorded (PRJ_ORG_HEALTH_HTM_REGION_TXT) — HTM 04-01 (England) TMV limits applied";
+            if (region == HtmRegion.Wales || region == HtmRegion.NorthernIreland)
+                return $"no {(region == HtmRegion.Wales ? "WHTM" : "NHS-NI")} TMV rows — HTM 04-01 (England) TMV limits applied";
+            return null;
+        }
 
         /// <summary>Parses the file and validates it. Returns null (with errors)
         /// when it cannot be used — the caller must then report NOT CHECKED.</summary>
@@ -118,14 +150,22 @@ namespace StingTools.Core.Plumbing
             {
                 foreach (var r in f.OutletLimits)
                 {
-                    string id = $"{r.Outlet}/{r.Scheme}{(r.Assisted ? "/assisted" : "")}";
+                    r.Jurisdiction = (r.Jurisdiction ?? "").Trim().ToUpperInvariant();
+                    string id = $"{r.Outlet}/{r.Scheme}{(r.Assisted ? "/assisted" : "")}{(r.Paediatric ? "/paediatric" : "")}{(r.Jurisdiction == "" ? "" : "/" + r.Jurisdiction)}";
+                    if (!Jurisdictions.Contains(r.Jurisdiction)) errors.Add($"outletLimits {id}: unknown jurisdiction");
+                    if (r.Assisted && r.Paediatric) errors.Add($"outletLimits {id}: a row cannot be both assisted and paediatric");
                     if (!Outlets.Contains(r.Outlet)) errors.Add($"outletLimits {id}: unknown outlet");
                     if (!Schemes.Contains(r.Scheme)) errors.Add($"outletLimits {id}: unknown scheme");
                     if (r.MaxSetC <= 0 || r.NeverExceedC < r.MaxSetC) errors.Add($"outletLimits {id}: maxSetC/neverExceedC invalid");
                     if (string.IsNullOrWhiteSpace(r.Source)) errors.Add($"outletLimits {id}: no source");
                 }
-                var dup = f.OutletLimits.GroupBy(r => (r.Outlet, r.Scheme, r.Assisted)).FirstOrDefault(g => g.Count() > 1);
+                var dup = f.OutletLimits.GroupBy(r => (r.Outlet, r.Scheme, r.Assisted, r.Paediatric, r.Jurisdiction)).FirstOrDefault(g => g.Count() > 1);
                 if (dup != null) errors.Add($"outletLimits: duplicate row {dup.Key}");
+                // A region's rows for an outlet/scheme must include the general (unassisted,
+                // non-paediatric) row, or selecting that region would lose the check.
+                foreach (var g in f.OutletLimits.GroupBy(r => (r.Outlet, r.Scheme, r.Jurisdiction)))
+                    if (!g.Any(r => !r.Assisted && !r.Paediatric))
+                        errors.Add($"outletLimits {g.Key}: no general (unassisted, non-paediatric) row");
             }
             if (!Schemes.Contains(f.HealthcareRequiredScheme ?? "")) errors.Add("healthcareRequiredScheme must be TMV2 or TMV3");
 
@@ -182,13 +222,25 @@ namespace StingTools.Core.Plumbing
         /// <summary>
         /// Checks one TMV. <paramref name="setC"/> is the design set point and
         /// <paramref name="measuredC"/> the commissioning reading (0 or less = none).
-        /// <paramref name="assisted"/> null = not recorded.
+        /// <paramref name="assisted"/> null = not recorded. <paramref name="region"/> is the
+        /// project's HTM region (PRJ_ORG_HEALTH_HTM_REGION_TXT); null = not recorded.
         /// </summary>
         public static TmvCheck CheckTmv(WaterSafetyLimitsFile limits, string outlet, string scheme,
-            bool? assisted, bool isHealthcare, double setC, double measuredC)
+            bool? assisted, bool isHealthcare, double setC, double measuredC, HtmRegion? region)
         {
+            var c = CheckTmvCore(limits, outlet, scheme, assisted, isHealthcare, setC, measuredC, region, out var notes);
+            c.Notes.AddRange(notes);
+            return c;
+        }
+
+        private static TmvCheck CheckTmvCore(WaterSafetyLimitsFile limits, string outlet, string scheme,
+            bool? assisted, bool isHealthcare, double setC, double measuredC, HtmRegion? region, out List<string> notes)
+        {
+            notes = new List<string>();
             TmvCheck NotChecked(string why) => new TmvCheck { Status = WaterCheckStatus.NotChecked, Reason = "NOT CHECKED — " + why };
             if (limits == null) return NotChecked("TMV limits data (STING_TMV_STANDARDS.json) not loaded");
+            var regionNote = JurisdictionNote(region);
+            if (regionNote != null) notes.Add(regionNote);
             if (outlet == null) return NotChecked("outlet type unknown (set PLM_FIX_TYPE_TXT to BATH, SHOWER, BASIN or BIDET)");
             if (scheme == null) return NotChecked("TMV scheme unknown (PLM_TMV_CLASS_TXT must be TMV2 or TMV3)");
 
@@ -202,9 +254,24 @@ namespace StingTools.Core.Plumbing
 
             if (setC <= 0 && measuredC <= 0) return NotChecked("no set point (PLM_TMV_BLEND_TEMP_C) and no measured outlet temperature");
 
-            var unassisted = Find(limits, outlet, scheme, false);
-            var assistedRow = Find(limits, outlet, scheme, true);
+            // The region's own rows when it has any for this outlet and scheme, else HTM 04-01.
+            string jur = JurisdictionFor(region);
+            if (jur != "" && !limits.OutletLimits.Any(r => r.Jurisdiction == jur && r.Outlet == outlet && r.Scheme == scheme))
+            {
+                notes.Add($"no {jur} row for {outlet.ToLowerInvariant()} under {scheme} — HTM 04-01 (England) limit applied");
+                jur = "";
+            }
+            var unassisted  = Find(limits, outlet, scheme, false, false, jur);
+            var assistedRow = Find(limits, outlet, scheme, true,  false, jur);
+            var paediatric  = Find(limits, outlet, scheme, false, true,  jur);
             if (unassisted == null) return NotChecked($"no limit for {outlet} under {scheme}");
+            if (paediatric != null && assisted != true)
+            {
+                Check(paediatric, setC, measuredC, out bool okPaed);
+                if (!okPaed)
+                    notes.Add($"paediatric {outlet.ToLowerInvariant()} limit {paediatric.MaxSetC:0.#} °C NOT CHECKED — no parameter marks this " +
+                              $"{outlet.ToLowerInvariant()} as paediatric; it was checked as a general one [{paediatric.Source}]");
+            }
 
             // An assisted row exists only where the standard gives one (TMV3 bath);
             // elsewhere the unassisted limit applies whether or not bathing is assisted.
@@ -241,8 +308,9 @@ namespace StingTools.Core.Plumbing
 
         private static string Describe(TmvOutletLimit r) => $"{(r.Assisted ? "assisted " : "")}{r.Outlet.ToLowerInvariant()} ({r.Scheme})";
 
-        private static TmvOutletLimit Find(WaterSafetyLimitsFile f, string outlet, string scheme, bool assisted) =>
-            f.OutletLimits.FirstOrDefault(r => r.Outlet == outlet && r.Scheme == scheme && r.Assisted == assisted);
+        private static TmvOutletLimit Find(WaterSafetyLimitsFile f, string outlet, string scheme, bool assisted, bool paediatric, string jurisdiction) =>
+            f.OutletLimits.FirstOrDefault(r => r.Outlet == outlet && r.Scheme == scheme && r.Assisted == assisted
+                                            && r.Paediatric == paediatric && r.Jurisdiction == jurisdiction);
 
         /// <summary>
         /// The dead-leg length limit for one leg.

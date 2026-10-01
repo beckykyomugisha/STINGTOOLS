@@ -51,8 +51,9 @@ namespace StingTools.Standards.HTM
             { "RECOV-2",      6 },
             { "WARD-INPT",    6 },
             { "ENDOSCOPY",   15 },
-            { "PH-CSP-797",  30 }, // listed so the class is known; PressureRegimeValidator checks
-            { "PH-CSP-800",  30 }, // these rooms against STING_HC_PHARMACY_USP.json, not this table
+            // PH-CSP-* (USP pharmacy rooms): no row here. Their air changes, polarity and ΔP have
+            // one owner, StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json (UspCascade);
+            // PressureRegimeValidator routes them there before this table is read (DSCH-36).
             { "MORT",         6 },
             { "POST",        15 },
             { "DECON-D",     10 },

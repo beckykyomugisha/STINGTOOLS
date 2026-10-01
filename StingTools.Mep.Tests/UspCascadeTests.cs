@@ -1,5 +1,7 @@
 using System.Linq;
 using StingTools.Core.Validation.Healthcare;
+using StingTools.Standards.ASHRAE170;
+using StingTools.Standards.HTM;
 using Xunit;
 
 namespace StingTools.Mep.Tests
@@ -76,6 +78,76 @@ namespace StingTools.Mep.Tests
             Assert.Contains(f, x => x.Code == "USP.OVERRIDE");
             Assert.True(Fails(UspCascade.Check(Buffer797, "POS", 5.0, 30, achOverride: 40), "USP.ACH"));
             Assert.False(Fails(UspCascade.Check(Buffer797, "POS", 5.0, 30, achOverride: 20), "USP.ACH"));
+        }
+
+        // DSCH-36: ante-rooms and C-SCAs have their own room classes, so they are checked.
+        [Fact]
+        public void EveryShippedRowHasARoomClass()
+        {
+            Assert.All(Shipped().Rooms, r => Assert.False(string.IsNullOrWhiteSpace(r.RoomClass), r.Code + " has no roomClass"));
+        }
+
+        [Fact]
+        public void AnteRoomsAndCscaAreChecked()
+        {
+            var f = Shipped();
+            var ante797 = UspCascade.ForRoomClass(f, "PH-CSP-797-ANTE");
+            var ante800 = UspCascade.ForRoomClass(f, "PH-CSP-800-ANTE");
+            var csca    = UspCascade.ForRoomClass(f, "PH-CSP-800-CSCA");
+            Assert.Equal("ANT-797", ante797?.Code);
+            Assert.Equal("ANT-800", ante800?.Code);
+            Assert.Equal("CSCA-800", csca?.Code);
+            // C-SCA: negative 2.49–7.47 Pa, at least 12 ACPH.
+            Assert.True(Fails(UspCascade.Check(csca, "NEG", -5.0, 11), "USP.ACH"));
+            Assert.False(Fails(UspCascade.Check(csca, "NEG", -5.0, 12), "USP.ACH"));
+            Assert.True(Fails(UspCascade.Check(csca, "NEG", -8.0, 12), "USP.DP"));
+            Assert.True(Fails(UspCascade.Check(csca, "POS", -5.0, 12), "USP.POL"));
+            // Ante-room: positive, at least 4.98 Pa.
+            Assert.True(Fails(UspCascade.Check(ante797, "POS", 4.0, 30), "USP.DP"));
+            Assert.False(Fails(UspCascade.Check(ante800, "POS", 5.0, 30), "USP.DP"));
+        }
+
+        [Fact]
+        public void SuiteRowsCoverTheSelectedStandard()
+        {
+            var f = Shipped();
+            Assert.Equal(new[] { "PH-CSP-797", "PH-CSP-797-ANTE" },
+                UspCascade.SuiteRows(f, "USP-797").Select(r => r.RoomClass).ToArray());
+            Assert.Equal(new[] { "PH-CSP-800", "PH-CSP-800-ANTE", "PH-CSP-800-CSCA" },
+                UspCascade.SuiteRows(f, "USP-800").Select(r => r.RoomClass).ToArray());
+            // every row belongs to exactly one suite
+            Assert.Equal(f.Rooms.Count, UspCascade.SuiteRows(f, "USP-797").Count + UspCascade.SuiteRows(f, "USP-800").Count);
+        }
+
+        [Fact]
+        public void RowWithoutRoomClassIsRefused()
+        {
+            Assert.Null(UspCascade.Parse("{\"rooms\":[{\"code\":\"X\",\"polarity\":\"POS\",\"minInWc\":0.02,\"achMin\":30,\"source\":\"s\"}]}", out var e));
+            Assert.Contains(e, x => x.Contains("roomClass"));
+        }
+
+        // Every USP room class is offered in the COBie ClinicalRoomClass picklist, so a
+        // modeller can pick it.
+        [Fact]
+        public void EveryUspRoomClassIsInThePicklist()
+        {
+            var picklist = RepoData.Read("COBIE_PICKLISTS.csv").Split('\n')
+                .Select(l => l.Trim().Split(','))
+                .Where(c => c.Length >= 2 && c[0] == "ClinicalRoomClass")
+                .Select(c => c[1]).ToList();
+            Assert.All(Shipped().Rooms, r => Assert.Contains(r.RoomClass, picklist));
+        }
+
+        // DSCH-36: one owner for PH-CSP air changes / polarity / ΔP — the USP file. The HTM
+        // and ASHRAE 170 tables used to repeat them.
+        [Fact]
+        public void VentilationTablesHoldNoPharmacyRows()
+        {
+            static bool Csp(string k) => k.StartsWith("PH-CSP", System.StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain(HTMStandards.MinAchByRoomClass.Keys, Csp);
+            Assert.DoesNotContain(HTMStandards.DesignPressureRegime.Keys, Csp);
+            Assert.DoesNotContain(HTMStandards.DesignDeltaPaPaByRoomClass.Keys, Csp);
+            Assert.DoesNotContain(ASHRAE170Standards.Table71.Keys, Csp);
         }
 
         [Fact]

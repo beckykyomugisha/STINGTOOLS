@@ -28,7 +28,9 @@ namespace StingTools.Commands.Healthcare.Specialist
                 bool   hasBuffer   = HcOptions.UspHasBuffer;
                 bool   hasAnteroom = HcOptions.UspHasAnteroom;
                 var cascade = HcSpecialistData.UspCascadeData;
-                string roomClass = std == "USP-800" ? "PH-CSP-800" : "PH-CSP-797";
+                // The whole suite of the selected standard is audited: the primary room
+                // (buffer room / C-SEC) and its ante-room and C-SCA classes (DSCH-36).
+                string primaryClass = UspCascade.PrimaryRoomClass(std);
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"STING — {std.Replace("USP-", "USP <")}> Pharmacy Audit").AppendLine();
@@ -38,39 +40,52 @@ namespace StingTools.Commands.Healthcare.Specialist
                     TaskDialog.Show("STING — USP Audit", sb.ToString());
                     return Result.Succeeded;
                 }
-                var spec = UspCascade.ForRoomClass(cascade, roomClass);
-                if (spec != null)
+                var suite = UspCascade.SuiteRows(cascade, std);
+                if (suite.Count == 0)
+                {
+                    sb.AppendLine($"NOT CHECKED — STING_HC_PHARMACY_USP.json has no row for {primaryClass}.");
+                    TaskDialog.Show("STING — USP Audit", sb.ToString());
+                    return Result.Succeeded;
+                }
+                foreach (var spec in suite)
                 {
                     var maxPa = UspCascade.MaxPa(spec);
-                    sb.AppendLine($"{spec.Code} ({roomClass}): {spec.Polarity} to {spec.RelativeTo}, " +
+                    sb.AppendLine($"{spec.Code} ({spec.RoomClass}): {spec.Polarity} to {spec.RelativeTo}, " +
                                   $"|ΔP| ≥ {UspCascade.MinPa(spec):0.##} Pa{(maxPa.HasValue ? $" and ≤ {maxPa.Value:0.##} Pa" : "")}, ACH ≥ {spec.AchMin:0}");
                     sb.AppendLine($"  Source: {spec.Source}");
                     if (!string.IsNullOrWhiteSpace(spec.Verify)) sb.AppendLine($"  VERIFY: {spec.Verify}");
-                    sb.AppendLine();
                 }
+                sb.AppendLine();
+                if (dpOverride > 0 || achOverride > 0)
+                    sb.AppendLine($"Panel overrides apply to {primaryClass} rooms only.").AppendLine();
 
-                var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
-                    .WhereElementIsNotElementType().ToElements()
-                    .Where(r => string.Equals(Get(r,"CLN_ROOM_CLASS_TXT"), roomClass, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-                if (rooms.Count == 0) sb.AppendLine($"No {roomClass} rooms found.");
-                int fail = 0, notChecked = 0;
-                foreach (var r in rooms)
+                var allRooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms)
+                    .WhereElementIsNotElementType().ToElements().ToList();
+                int total = 0, fail = 0, notChecked = 0;
+                foreach (var spec in suite)
                 {
-                    var findings = UspCascade.Check(spec, Get(r,"CLN_PRESS_REGIME_TXT"),
-                        GetD(r,"CLN_PRESS_DELTA_DESIGN_PA_NR"), GetD(r,"HVC_AIR_CHANGES_PER_HR"),
-                        dpOverride, achOverride);
-                    if (findings.Count == 0) sb.AppendLine($"[PASS   ] {r.Name}");
-                    foreach (var f in findings)
+                    var rooms = allRooms
+                        .Where(r => string.Equals(Get(r,"CLN_ROOM_CLASS_TXT").Trim(), spec.RoomClass, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    if (rooms.Count == 0) { sb.AppendLine($"No {spec.RoomClass} rooms found."); continue; }
+                    bool primary = string.Equals(spec.RoomClass, primaryClass, StringComparison.OrdinalIgnoreCase);
+                    total += rooms.Count;
+                    foreach (var r in rooms)
                     {
-                        if (f.Status == "FAIL") fail++;
-                        else if (f.Status == "NOT CHECKED") notChecked++;
-                        sb.AppendLine($"[{f.Status,-11}] {f.Code,-12} {r.Name}: {f.Message}");
+                        var findings = UspCascade.Check(spec, Get(r,"CLN_PRESS_REGIME_TXT"),
+                            GetD(r,"CLN_PRESS_DELTA_DESIGN_PA_NR"), GetD(r,"HVC_AIR_CHANGES_PER_HR"),
+                            primary ? dpOverride : 0, primary ? achOverride : 0);
+                        if (findings.Count == 0) sb.AppendLine($"[PASS   ] {spec.RoomClass,-16} {r.Name}");
+                        foreach (var f in findings)
+                        {
+                            if (f.Status == "FAIL") fail++;
+                            else if (f.Status == "NOT CHECKED") notChecked++;
+                            sb.AppendLine($"[{f.Status,-11}] {f.Code,-12} {spec.RoomClass} {r.Name}: {f.Message}");
+                        }
                     }
                 }
                 sb.AppendLine();
-                sb.AppendLine($"Rooms: {rooms.Count} · failures: {fail} · not checked: {notChecked}");
-                sb.AppendLine("Ante-rooms and C-SCAs have no room class yet, so they are not audited here.");
+                sb.AppendLine($"Rooms: {total} · failures: {fail} · not checked: {notChecked}");
                 if (!hasBuffer)   sb.AppendLine("[WARNING] USP.BUFFER   panel asserts no buffer room — verify PEC/SEC layout");
                 if (!hasAnteroom) sb.AppendLine("[WARNING] USP.ANTERM   panel asserts no anteroom — verify clean/dirty cascade");
                 sb.AppendLine();

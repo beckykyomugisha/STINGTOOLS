@@ -4064,6 +4064,10 @@ namespace StingTools.Core
         public const string PRJ_ORG_DISCIPLINES_TXT_GUID     = "bc8e6c91-1c5d-5120-8d73-41936a67b070";
         public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT     = "PRJ_ORG_MAT_SIGNOFF_SUIT_TXT";
         public const string PRJ_ORG_MAT_SIGNOFF_SUIT_TXT_GUID = "6302d0f2-16a2-5449-a6db-cc3e9c374609";
+        /// <summary>Regional HTM variant (NHS-England / SHTM / WHTM / NHS-NI); selects the
+        /// Scottish TMV limits (DSCH-36). Parsed by HtmRegionalVariants.TryParseRegion.</summary>
+        public const string PRJ_ORG_HEALTH_HTM_REGION_TXT      = "PRJ_ORG_HEALTH_HTM_REGION_TXT";
+        public const string PRJ_ORG_HEALTH_HTM_REGION_TXT_GUID = "c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013";
         public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT       = "PRJ_ELC_SUPPLY_VOLTAGE_TXT";
         public const string PRJ_ELC_SUPPLY_VOLTAGE_TXT_GUID  = "878bb409-fa13-5d8f-ae92-8fdac5aa7375";
         public const string PLM_RECIRC_DELTA_T_K             = "PLM_RECIRC_DELTA_T_K";

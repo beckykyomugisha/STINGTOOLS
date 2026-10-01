@@ -17,6 +17,7 @@ using System.Text;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.DB.Plumbing;
 using StingTools.Core;
+using StingTools.Standards.HTM;
 using Autodesk.Revit.DB.Architecture;
 
 namespace StingTools.Core.Plumbing
@@ -55,6 +56,8 @@ namespace StingTools.Core.Plumbing
         /// <summary>Normative reference applied during validation.</summary>
         public string    StandardRef     { get; set; } = "";
         public bool      IsHealthcare    { get; set; }
+        /// <summary>What the check assumed or could not establish (see TmvCheck.Notes).</summary>
+        public List<string> Notes        { get; } = new List<string>();
     }
 
     public class TMVRegisterResult
@@ -91,6 +94,8 @@ namespace StingTools.Core.Plumbing
                 result.Warnings.Add("STING_TMV_STANDARDS.json unusable — every TMV is NOT CHECKED: "
                                     + string.Join("; ", PlumbingTables.WaterSafetyErrors));
             bool isHealthcareProject = IsHealthcareProject(doc);
+            var region = ProjectHtmRegion(doc);
+            var noteCounts = new Dictionary<string, int>(StringComparer.Ordinal);
 
             foreach (var el in elements)
             {
@@ -99,7 +104,9 @@ namespace StingTools.Core.Plumbing
                     var rec = BuildRecord(doc, el, isHealthcareProject);
                     if (rec == null) continue;
 
-                    ApplyCheck(rec, limits);
+                    ApplyCheck(rec, limits, region);
+                    foreach (var n in rec.Notes)
+                        noteCounts[n] = noteCounts.TryGetValue(n, out var k) ? k + 1 : 1;
 
                     // Check test overdue
                     rec.TestOverdue = IsTestOverdue(rec.AnnualTestDueDate);
@@ -117,24 +124,49 @@ namespace StingTools.Core.Plumbing
                 }
             }
 
+            // Notes go to the register warnings once each, with how many TMVs they cover,
+            // so a passing row still shows what was assumed (e.g. jurisdiction, paediatric).
+            foreach (var kv in noteCounts.OrderByDescending(k => k.Value))
+                result.Warnings.Add($"{kv.Key} ({kv.Value} TMV{(kv.Value == 1 ? "" : "s")})");
+
             StingLog.Info($"TMVEngine.ScanAll: {result.TotalTMVs} TMVs, " +
                           $"{result.PassCount} pass, {result.FailCount} fail, {result.NotCheckedCount} not checked, " +
                           $"{result.OverdueCount} overdue");
             return result;
         }
 
-        /// <summary>Checks one record against the limits (null = data unusable)
-        /// and sets Status, FailReason and StandardRef.</summary>
-        public static void ApplyCheck(TMVRecord rec, WaterSafetyLimitsFile limits)
+        /// <summary>Checks one record against the limits (null = data unusable) for the
+        /// project's HTM region (null = not recorded) and sets Status, FailReason,
+        /// StandardRef and Notes.</summary>
+        public static void ApplyCheck(TMVRecord rec, WaterSafetyLimitsFile limits, HtmRegion? region)
         {
             if (rec == null) return;
             var c = WaterSafetyLimits.CheckTmv(limits,
                 string.IsNullOrEmpty(rec.Outlet) ? null : rec.Outlet,
                 string.IsNullOrEmpty(rec.Scheme) ? null : rec.Scheme,
-                rec.Assisted, rec.IsHealthcare, rec.SetOutletC, rec.ActualOutletC);
+                rec.Assisted, rec.IsHealthcare, rec.SetOutletC, rec.ActualOutletC, region);
             rec.Status      = c.Status;
             rec.FailReason  = c.Reason;
             rec.StandardRef = c.StandardRef;
+            rec.Notes.Clear();
+            rec.Notes.AddRange(c.Notes);
+        }
+
+        /// <summary>The project's HTM region from PRJ_ORG_HEALTH_HTM_REGION_TXT; null when
+        /// blank or unrecognised (the TMV check then says England rows were assumed).</summary>
+        public static HtmRegion? ProjectHtmRegion(Document doc)
+        {
+            try
+            {
+                var pi = doc?.ProjectInformation;
+                if (pi == null) return null;
+                string raw = ReadString(pi, ParamRegistry.PRJ_ORG_HEALTH_HTM_REGION_TXT);
+                if (HtmRegionalVariants.TryParseRegion(raw, out var r)) return r;
+                if (!string.IsNullOrWhiteSpace(raw))
+                    StingLog.Warn($"TMVEngine: PRJ_ORG_HEALTH_HTM_REGION_TXT '{raw}' names no region — treated as not recorded");
+            }
+            catch (Exception ex) { StingLog.Warn("TMVEngine.ProjectHtmRegion: " + ex.Message); }
+            return null;
         }
 
         /// <summary>
