@@ -747,6 +747,38 @@ public partial class AccServerIntegrationTests
         Assert.NotNull(e2);
     }
 
+    // S3: pointing the connection at another ACC project kept the old project's issue map, so
+    // issues already pushed were never created in the new project and edits PATCHed foreign ids.
+    [Fact]
+    public async Task Changing_the_ACC_project_archives_the_old_issue_state_and_the_next_sync_starts_clean()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 2);
+        StubAcc(fx.Http, okPosts: 10);
+        using (var db = fx.Db()) Assert.Equal(2, (await fx.Service(db).SyncProjectAsync(fx.ProjectId)).Pushed);
+
+        AccSyncService.SelectionResult sel;
+        using (var db = fx.Db())
+            sel = await fx.Service(db).SaveSelectionDetailedAsync(fx.ProjectId, null, "b.acc-proj-2", "US", null, default);
+        Assert.Null(sel.Error);
+        Assert.Equal(2, sel.ArchivedMappings);
+
+        var cfg = JObject.Parse((await fx.ReadConnAsync()).ConfigJson!);
+        Assert.Null(cfg[AccSyncService.KeyIssueMap]);                             // clean for the new project
+        var arch = Assert.Single((JArray)cfg[AccSyncService.KeyProjectArchive]!);
+        Assert.Equal("acc-proj", (string?)arch["projectId"]);
+        Assert.Equal(2, ((JObject)arch[AccSyncService.KeyIssueMap]!).Count);      // kept, not deleted
+
+        // A client cannot overwrite the archive.
+        var (merged, _) = AccSyncService.MergeClientConfig(cfg.ToString(), "{\"accProjectArchive\":[]}");
+        Assert.Single((JArray)JObject.Parse(merged!)[AccSyncService.KeyProjectArchive]!);
+
+        // Same project again: nothing archived.
+        using (var db = fx.Db())
+            Assert.Equal(0, (await fx.Service(db).SaveSelectionDetailedAsync(fx.ProjectId, null, "acc-proj-2", null, null, default)).ArchivedMappings);
+        Assert.Equal(0, AccSyncService.ArchiveForProjectChange(new JObject(), "x", "y"));   // nothing to archive
+    }
+
     // H-7: choosing a hub stored no region unless the caller sent one, so a non-US hub's Issues
     // and webhook calls went without x-ads-region. It is now read from the hub itself.
     [Fact]

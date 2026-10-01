@@ -132,7 +132,24 @@ public class PlatformController : ControllerBase
         }
 
         if (request.Name != null) conn.Name = request.Name;
-        if (request.ExternalProjectId != null) conn.ExternalProjectId = request.ExternalProjectId;
+        if (request.ExternalProjectId != null)
+        {
+            // S3: a different ACC project gets a clean issue state (the old one is archived).
+            if (conn.Platform == PlatformType.ACC && !string.IsNullOrWhiteSpace(conn.ConfigJson))
+            {
+                try
+                {
+                    if (Newtonsoft.Json.Linq.JToken.Parse(conn.ConfigJson) is Newtonsoft.Json.Linq.JObject cfg
+                        && AccSyncService.ArchiveForProjectChange(cfg, conn.ExternalProjectId, request.ExternalProjectId) >= 0)
+                        conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
+                }
+                catch (Newtonsoft.Json.JsonException)
+                {
+                    return BadRequest(new { error = "The stored ConfigJson is unreadable; it may hold the ACC issue map. Repair it before changing the ACC project." });
+                }
+            }
+            conn.ExternalProjectId = request.ExternalProjectId;
+        }
         if (request.AccessToken != null) conn.AccessToken = request.AccessToken;
         if (request.RefreshToken != null) conn.RefreshToken = request.RefreshToken;
         if (request.TokenExpiresAt.HasValue) conn.TokenExpiresAt = request.TokenExpiresAt;

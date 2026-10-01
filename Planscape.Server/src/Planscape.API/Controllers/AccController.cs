@@ -120,8 +120,17 @@ public class AccController : ControllerBase
         if (!await this.CanAdministerProjectAsync(_db, projectId, ct)) return Forbidden();
         if (req.Region != null && !AccRegions.IsValid(req.Region))
             return BadRequest(new { error = "invalid_region", allowed = AccRegions.All });
-        var error = await _acc.SaveSelectionAsync(projectId, req.HubId, req.AccProjectId, req.Region, req.IssueSubtypeId, ct);
-        return error == null ? NoContent() : BadRequest(new { error });
+        var r = await _acc.SaveSelectionDetailedAsync(projectId, req.HubId, req.AccProjectId, req.Region, req.IssueSubtypeId, ct);
+        if (r.Error != null) return BadRequest(new { error = r.Error });
+        // S3: a project change archived the previous project's issue state - say so.
+        if (r.ArchivedMappings > 0 || r.HooksPointAtOldProject)
+            return Ok(new
+            {
+                archivedIssueMappings = r.ArchivedMappings,
+                note = "The ACC project changed: the previous project's issue mapping was archived (accProjectArchive) and the next sync starts clean." +
+                       (r.HooksPointAtOldProject ? " Webhooks still point at the previous project: DELETE acc/webhooks, then POST acc/webhooks/subscribe." : ""),
+            });
+        return NoContent();
     }
 
     private ObjectResult Forbidden()

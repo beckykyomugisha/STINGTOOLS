@@ -79,8 +79,47 @@ public class AccSyncService
     /// <summary>ACC-SRV-11 policy (client-set): "report" (default) or "create".</summary>
     public const string KeyClosedBetweenSweeps = "accClosedBetweenSweeps";
 
+    /// <summary>S3: earlier ACC projects' issue state, archived (never deleted) when the
+    /// connection is pointed at a different ACC project.</summary>
+    public const string KeyProjectArchive = "accProjectArchive";
+
     /// <summary>ConfigJson keys only the server writes. A client PUT must not replace them.</summary>
-    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePushedState, KeyIssuePendingVerify, KeyWebhookHooks, KeyIssueSyncSince, KeyIssueClosedReported, AccWebhookService.KeySecretSetBy };
+    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePushedState, KeyIssuePendingVerify, KeyWebhookHooks, KeyIssueSyncSince, KeyIssueClosedReported, KeyProjectArchive, AccWebhookService.KeySecretSetBy };
+
+    /// <summary>The keys whose values belong to ONE ACC project (ids, statuses, baselines).</summary>
+    public static readonly IReadOnlyList<string> ProjectScopedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePushedState, KeyIssuePendingVerify, KeyIssueSyncSince, KeyIssueClosedReported };
+
+    /// <summary>
+    /// S3: the connection is being pointed at a different ACC project. Every project-scoped key
+    /// (the issue map and its baselines) belongs to the OLD project: kept, it made the new
+    /// project skip every issue already pushed and PATCH ids that do not exist there. They are
+    /// moved under <see cref="KeyProjectArchive"/> (never deleted) and the connection starts
+    /// clean. Returns how many issue mappings were archived; 0 when nothing changed. Webhook
+    /// hooks are NOT touched - their ids are needed to delete them; the caller says so.
+    /// </summary>
+    public static int ArchiveForProjectChange(JObject cfg, string? oldProjectId, string? newProjectId)
+    {
+        string oldId = ApsEndpoints.StripHubPrefix((oldProjectId ?? "").Trim());
+        string newId = ApsEndpoints.StripHubPrefix((newProjectId ?? "").Trim());
+        if (oldId.Length == 0 || string.Equals(oldId, newId, StringComparison.OrdinalIgnoreCase)) return 0;
+        var entry = new JObject { ["projectId"] = oldId, ["archivedAt"] = DateTime.UtcNow.ToString("o") };
+        bool any = false;
+        foreach (var k in ProjectScopedConfigKeys)
+        {
+            if (cfg[k] == null) continue;
+            entry[k] = cfg[k]!.DeepClone();
+            cfg.Remove(k);
+            any = true;
+        }
+        if (!any) return 0;
+        var arr = cfg[KeyProjectArchive] as JArray ?? new JArray();
+        arr.Add(entry);
+        cfg[KeyProjectArchive] = arr;
+        return (entry[KeyIssueMap] as JObject)?.Count ?? 0;
+    }
+
+    /// <summary>What a selection change did, for the API response.</summary>
+    public sealed record SelectionResult(string? Error, int ArchivedMappings, bool HooksPointAtOldProject);
 
     // Documented Issues v1 POST limits.
     private const int TitleMax = 100;
@@ -278,10 +317,20 @@ public class AccSyncService
     internal static readonly IReadOnlyList<string> KnownRegions = new[] { "US", "CAN", "EMEA", "GBR", "DEU", "IND", "JPN", "AUS" };
 
     public async Task<string?> SaveSelectionAsync(Guid projectId, string? hubId, string? accProjectId, string? region, string? subtypeId, CancellationToken ct)
+        => (await SaveSelectionDetailedAsync(projectId, hubId, accProjectId, region, subtypeId, ct)).Error;
+
+    public async Task<SelectionResult> SaveSelectionDetailedAsync(Guid projectId, string? hubId, string? accProjectId, string? region, string? subtypeId, CancellationToken ct)
     {
+        var r = await SaveSelectionCoreAsync(projectId, hubId, accProjectId, region, subtypeId, ct);
+        return r;
+    }
+
+    private async Task<SelectionResult> SaveSelectionCoreAsync(Guid projectId, string? hubId, string? accProjectId, string? region, string? subtypeId, CancellationToken ct)
+    {
+        static SelectionResult Err(string? e) => new(e, 0, false);
         var conn = await FindActiveAsync(projectId, ct);
-        if (conn == null) return "No active ACC connection for this project.";
-        if (!TryParseConfig(conn, out var cfg, out var cfgErr)) return cfgErr;
+        if (conn == null) return Err("No active ACC connection for this project.");
+        if (!TryParseConfig(conn, out var cfg, out var cfgErr)) return Err(cfgErr);
 
         // H-7: a hub chosen without a region used to store none, so every server Issues and
         // webhooks call for a non-US hub went without x-ads-region. Take it from the hub's own
@@ -291,22 +340,33 @@ public class AccSyncService
         {
             var (hubs, hubErr) = await ListHubsAsync(projectId, ct);
             if (hubs == null)
-                return $"The hub's region could not be read ({hubErr}). Nothing was saved; send \"region\" with the selection.";
+                return Err($"The hub's region could not be read ({hubErr}). Nothing was saved; send \"region\" with the selection.");
             string want = ApsEndpoints.StripHubPrefix(hubId.Trim());
             var hub = hubs.FirstOrDefault(h => string.Equals(ApsEndpoints.StripHubPrefix(h.Id), want, StringComparison.OrdinalIgnoreCase));
             if (hub == null)
-                return $"Hub {hubId} is not among the hubs this ACC grant can see. Nothing was saved.";
+                return Err($"Hub {hubId} is not among the hubs this ACC grant can see. Nothing was saved.");
             string r = (hub.Region ?? "").Trim().ToUpperInvariant();
             if (KnownRegions.Contains(r)) region = r;
             else _logger.LogWarning("ACC hub {Hub} reports region '{Region}', not a known x-ads-region value; none stored.", hubId, hub.Region);
         }
-        if (accProjectId != null) conn.ExternalProjectId = ApsEndpoints.StripHubPrefix(accProjectId.Trim());
+        int archived = 0;
+        bool hooksStale = false;
+        if (accProjectId != null)
+        {
+            string next = ApsEndpoints.StripHubPrefix(accProjectId.Trim());
+            if (!string.Equals(ApsEndpoints.StripHubPrefix(conn.ExternalProjectId ?? ""), next, StringComparison.OrdinalIgnoreCase))
+            {
+                archived = ArchiveForProjectChange(cfg, conn.ExternalProjectId, next);
+                hooksStale = cfg[KeyWebhookHooks] is JArray hk && hk.Count > 0;
+            }
+            conn.ExternalProjectId = next;
+        }
         if (hubId != null) cfg[KeyHubId] = hubId.Trim();
         if (region != null) cfg[KeyRegion] = region.Trim().ToUpperInvariant();
         if (subtypeId != null) cfg[KeySubtypeId] = subtypeId.Trim();
         conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
         await _db.SaveChangesAsync(ct);
-        return null;
+        return new SelectionResult(null, archived, hooksStale);
     }
 
     /// <summary>
