@@ -288,7 +288,7 @@ namespace StingTools.Commands.Electrical.Photometric
                 : -1;
         }
 
-        private static double ParseDouble(string s) => double.TryParse(s, out double v) ? v : 0;
+        private static double ParseDouble(string s) => StingTools.Core.Electrical.InvariantNumber.ParseOr(s);
         private static double TopOf(params double[] xs) { double m = 0; foreach (var x in xs) if (x > m) m = x; return m; }
 
         private static OverrideGraphicSettings MakeOverride(int r, int g, int b)

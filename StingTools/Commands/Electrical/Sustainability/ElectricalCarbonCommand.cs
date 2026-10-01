@@ -52,14 +52,16 @@ namespace StingTools.Commands.Electrical.Sustainability
                     if (kw <= 0) continue;
                     var cat = LoadDemandEngine.Classify(sys.LoadName ?? sys.Name ?? "");
                     double demandKw = kw * cat.Factor;
-                    double hours = carbon.AnnualHours.TryGetValue(cat.Category, out double h) ? h : carbon.DefaultAnnualH;
+                    bool hoursDefaulted = !carbon.AnnualHours.TryGetValue(cat.Category, out double h);
+                    double hours = hoursDefaulted ? carbon.DefaultAnnualH : h;
                     double kwh   = demandKw * hours;
                     double kgCO2e = kwh * carbon.GridFactor;
                     opRows.Add(new OpRow
                     {
                         Panel = sys.PanelName ?? "", Circuit = sys.LoadName ?? sys.Name ?? "",
                         Category = cat.Category, ConnectedKw = kw, DemandKw = demandKw,
-                        AnnualHours = hours, AnnualKwh = kwh, AnnualKgCO2e = kgCO2e
+                        AnnualHours = hours, AnnualKwh = kwh, AnnualKgCO2e = kgCO2e,
+                        HoursDefaulted = hoursDefaulted
                     });
                 }
                 catch (Exception ex) { StingLog.Warn($"Carbon op {sys.Name}: {ex.Message}"); }
@@ -152,7 +154,7 @@ namespace StingTools.Commands.Electrical.Sustainability
                 {
                     if (p.StorageType == StorageType.Double)  { var v = p.AsDouble();  if (v > 0) return v; }
                     if (p.StorageType == StorageType.Integer) { var v = p.AsInteger(); if (v > 0) return v; }
-                    if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double s) && s > 0) return s;
+                    if (p.StorageType == StorageType.String && StingTools.Core.Electrical.InvariantNumber.TryParse(p.AsString(), out double s) && s > 0) return s;
                 }
                 catch { }
             }
@@ -215,7 +217,7 @@ namespace StingTools.Commands.Electrical.Sustainability
 
             var ws2 = wb.Worksheets.Add("Operational");
             string[] hdr = { "Panel", "Circuit", "Category", "Connected (kW)", "Demand (kW)",
-                             "Annual hrs", "Annual kWh", "Annual kgCO2e" };
+                             "Annual hrs", "Annual kWh", "Annual kgCO2e", "Hours source" };
             for (int i = 0; i < hdr.Length; i++)
             {
                 ws2.Cell(1, i + 1).Value = hdr[i];
@@ -229,6 +231,10 @@ namespace StingTools.Commands.Electrical.Sustainability
                 ws2.Cell(row, 3).Value = o.Category;    ws2.Cell(row, 4).Value = o.ConnectedKw;
                 ws2.Cell(row, 5).Value = o.DemandKw;    ws2.Cell(row, 6).Value = o.AnnualHours;
                 ws2.Cell(row, 7).Value = o.AnnualKwh;   ws2.Cell(row, 8).Value = o.AnnualKgCO2e;
+                // A category with no annualHoursByLoadType row ran on DefaultAnnualH.
+                ws2.Cell(row, 9).Value = o.HoursDefaulted
+                    ? $"DEFAULT {c.DefaultAnnualH:0} h (no row for {o.Category})" : "annualHoursByLoadType";
+                if (o.HoursDefaulted) ws2.Cell(row, 9).Style.Fill.BackgroundColor = XLColor.LightYellow;
                 row++;
             }
             ws2.Columns().AdjustToContents();
@@ -254,6 +260,7 @@ namespace StingTools.Commands.Electrical.Sustainability
         {
             public string Panel, Circuit, Category;
             public double ConnectedKw, DemandKw, AnnualHours, AnnualKwh, AnnualKgCO2e;
+            public bool HoursDefaulted;
         }
         private class EmRow
         {

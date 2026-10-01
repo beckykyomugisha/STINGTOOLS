@@ -10,5 +10,6 @@ namespace StingTools.Core
         public static void Info(string msg) { /* no-op in tests */ }
         public static void Warn(string msg) { /* no-op in tests */ }
         public static void Error(string msg, Exception ex = null) { /* no-op in tests */ }
+        public static void WarnRateLimited(string key, string msg) { /* no-op in tests */ }
     }
 }

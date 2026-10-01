@@ -179,7 +179,7 @@ namespace StingTools.Commands.Electrical.Reports
             try
             {
                 if (p.StorageType == StorageType.Double) return p.AsDouble();
-                if (p.StorageType == StorageType.String && double.TryParse(p.AsString(), out double v)) return v;
+                if (p.StorageType == StorageType.String && StingTools.Core.Electrical.InvariantNumber.TryParse(p.AsString(), out double v)) return v;
                 if (p.StorageType == StorageType.Integer) return p.AsInteger();
             }
             catch { }

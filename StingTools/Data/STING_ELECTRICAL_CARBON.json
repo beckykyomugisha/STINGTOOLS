@@ -8,12 +8,15 @@
     "_comment": "BEIS 2024 average UK grid scope 2 — was 0.193 in 2023, 0.181 in 2022 expected to fall ~3-5% per year",
     "annualHoursByLoadType": {
       "Lighting":      { "weekday": 12, "weekend": 6,  "annualH": 3120,  "_note": "Office occupancy ~3120 h/year typical commercial" },
-      "Lighting_24x7": { "weekday": 24, "weekend": 24, "annualH": 8760 },
       "Small Power":   { "annualH": 2600, "_note": "Plug load duty cycle ~30% over working hours" },
       "HVAC":          { "annualH": 4400, "_note": "CIBSE TM52 — heating + cooling combined" },
       "Lifts / Elevators":         { "annualH": 1500 },
       "EV Charging":   { "annualH": 2000 },
       "IT / Server":   { "annualH": 8760, "_note": "Continuous" },
+      "Cooking":       { "annualH": 3000, "_note": "default, not sourced" },
+      "Water Heating": { "annualH": 3000, "_note": "default, not sourced" },
+      "Space Heating": { "annualH": 3000, "_note": "default, not sourced" },
+      "Process / Motor": { "annualH": 3000, "_note": "default, not sourced" },
       "General":       { "annualH": 3000 }
     }
   },

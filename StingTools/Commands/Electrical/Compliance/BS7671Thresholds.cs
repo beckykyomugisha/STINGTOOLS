@@ -34,6 +34,9 @@ namespace StingTools.Commands.Electrical.Compliance
         public double Cmin { get; set; } = DefaultCmin;
         public Dictionary<string, double> Ze { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double> IaMultiplier { get; } = new(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Device types whose Ia comes from a time/current table, not a multiple
+        /// of In (iaMultipliers value <c>"table"</c>, e.g. BS88). Zs is NOT CHECKED for them.</summary>
+        public HashSet<string> TableOnlyDevices { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double> AdiabaticK { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double> DisconnectFinal { get; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, double> DisconnectDistribution { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -89,8 +92,23 @@ namespace StingTools.Commands.Electrical.Compliance
                 ZeSource[sys.Name] = sourceLabel;
             }
             foreach (var m in (root["iaMultipliers"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
+            {
                 if (m.Value.Type == JTokenType.Float || m.Value.Type == JTokenType.Integer)
+                {
                     IaMultiplier[m.Name] = m.Value.Value<double>();
+                    TableOnlyDevices.Remove(m.Name);
+                }
+                else if (m.Value.Type == JTokenType.String &&
+                         string.Equals(m.Value.ToString(), "table", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Ia read from the device's time/current table (e.g. BS 88 fuses,
+                    // Table 41.2) — there is no single multiple of In to apply.
+                    TableOnlyDevices.Add(m.Name);
+                    IaMultiplier.Remove(m.Name);
+                }
+                else
+                    Warnings.Add($"{sourceLabel}: iaMultipliers.{m.Name} is neither a number nor \"table\" ('{m.Value}') — ignored");
+            }
             foreach (var k in (root["adiabaticK"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())
                 if (TryNumber(k.Value, $"adiabaticK.{k.Name}", out double kv)) AdiabaticK[k.Name] = kv;
             foreach (var d in (root["disconnectionTimesSec"] as JObject)?.Properties() ?? Enumerable.Empty<JProperty>())

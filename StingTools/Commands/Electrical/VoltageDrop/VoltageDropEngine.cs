@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace StingTools.Commands.Electrical.VoltageDrop
 {
@@ -50,14 +52,80 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             70.0, 95.0, 120.0, 150.0, 185.0, 240.0, 300.0, 400.0
         };
 
-        public static readonly int[] BreakerSizesBSMCB =
+        // Fallback ratings, used when STING_WIRE_TABLES.json → breakerSizes is absent or
+        // unreadable. The data file is the source (DSCH-E2); see ResolveBreakerSizes.
+        internal static readonly int[] DefaultBreakerSizesBSMCB =
         { 6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125 };
 
-        public static readonly int[] BreakerSizesBSMCCB =
+        internal static readonly int[] DefaultBreakerSizesBSMCCB =
         { 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600 };
 
-        public static readonly int[] BreakerSizesNEC =
+        internal static readonly int[] DefaultBreakerSizesNEC =
         { 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400 };
+
+        private static readonly Lazy<(int[] Mcb, int[] Mccb, int[] Nec)> _breakerSizes =
+            new Lazy<(int[] Mcb, int[] Mccb, int[] Nec)>(LoadBreakerSizes);
+
+        /// <summary>BS EN 60898 MCB ratings (STING_WIRE_TABLES.json breakerSizes.BS_EN_60898_MCB).</summary>
+        public static int[] BreakerSizesBSMCB => _breakerSizes.Value.Mcb;
+
+        /// <summary>BS EN 60947-2 MCCB ratings (breakerSizes.BS_EN_60947_MCCB).</summary>
+        public static int[] BreakerSizesBSMCCB => _breakerSizes.Value.Mccb;
+
+        /// <summary>NEC 240.6(A) OCPD ratings. Stays on the built-in list — see ResolveBreakerSizes.</summary>
+        public static int[] BreakerSizesNEC => _breakerSizes.Value.Nec;
+
+        private static (int[] Mcb, int[] Mccb, int[] Nec) LoadBreakerSizes()
+        {
+            JObject root = null;
+            try
+            {
+                string path = StingTools.Core.StingToolsApp.FindDataFile("STING_WIRE_TABLES.json");
+                if (!string.IsNullOrEmpty(path) && File.Exists(path))
+                    root = JObject.Parse(File.ReadAllText(path));
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"VoltageDropEngine.LoadBreakerSizes: {ex.Message}");
+            }
+            return ResolveBreakerSizes(root);
+        }
+
+        /// <summary>
+        /// Breaker rating lists from STING_WIRE_TABLES.json → breakerSizes, the built-in
+        /// lists as the fallback for any key that is missing or not a list of positive
+        /// numbers. MCB and MCCB come from the data. NEC keeps the built-in list (up to
+        /// 400 A) even when the data differs — the data's 450–1200 A tail would change
+        /// sizer results above 400 A, so the difference is logged instead of applied.
+        /// </summary>
+        internal static (int[] Mcb, int[] Mccb, int[] Nec) ResolveBreakerSizes(JObject root)
+        {
+            var bs = root?["breakerSizes"] as JObject;
+            int[] mcb = ReadRatings(bs?["BS_EN_60898_MCB"]) ?? DefaultBreakerSizesBSMCB;
+            int[] mccb = ReadRatings(bs?["BS_EN_60947_MCCB"]) ?? DefaultBreakerSizesBSMCCB;
+            int[] necData = ReadRatings(bs?["NEC_OCPD"]);
+            if (necData != null && !necData.SequenceEqual(DefaultBreakerSizesNEC))
+                StingTools.Core.StingLog.WarnRateLimited("VoltageDropEngine.NecBreakerSizes",
+                    "STING_WIRE_TABLES.json breakerSizes.NEC_OCPD [" + string.Join(", ", necData) +
+                    "] differs from the built-in NEC list [" + string.Join(", ", DefaultBreakerSizesNEC) +
+                    "]; the built-in list is used so NEC sizing results do not change.");
+            return (mcb, mccb, DefaultBreakerSizesNEC);
+        }
+
+        private static int[] ReadRatings(JToken tok)
+        {
+            if (!(tok is JArray arr) || arr.Count == 0) return null;
+            var list = new List<int>(arr.Count);
+            foreach (var t in arr)
+            {
+                if (t.Type != JTokenType.Integer && t.Type != JTokenType.Float) return null;
+                double v = t.Value<double>();
+                if (v <= 0 || v != Math.Floor(v)) return null;
+                list.Add((int)v);
+            }
+            list.Sort();
+            return list.ToArray();
+        }
 
         /// <summary>
         /// Multiplier applied to copper resistance to obtain aluminium

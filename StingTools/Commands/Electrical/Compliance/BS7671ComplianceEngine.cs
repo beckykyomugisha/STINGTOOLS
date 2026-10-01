@@ -107,6 +107,23 @@ namespace StingTools.Commands.Electrical.Compliance
             double uoV = 230, BS7671Thresholds thresholds = null)
         {
             var th = thresholds ?? Thresholds();
+            // A device whose Ia is read from its time/current table (BS 88 fuses:
+            // iaMultipliers "table") has no multiple of In to apply. It used to fall
+            // through to the 5 × In default; it is now NOT CHECKED, never a pass or
+            // fail on an invented Ia.
+            if (th.TableOnlyDevices.Contains(ocpdType ?? ""))
+                return new ZsCheckResult
+                {
+                    OcpdType         = ocpdType,
+                    RatingA          = ratingA,
+                    IaA              = double.NaN,
+                    ZsMaxOhm         = double.NaN,
+                    ZsActualOhm      = computedZsOhm,
+                    Passes           = false,
+                    MarginPercent    = double.NaN,
+                    Checked          = false,
+                    NotCheckedReason = $"Zs NOT CHECKED: {ocpdType} Ia comes from the device time/current table (BS 7671 Table 41.2), which is not shipped"
+                };
             double iaMult = th.IaMultiplier.TryGetValue(ocpdType?.ToUpperInvariant() ?? "", out double m)
                 ? m : 5.0;
             double ia = iaMult * Math.Max(ratingA, 1);
@@ -253,7 +270,9 @@ namespace StingTools.Commands.Electrical.Compliance
 
             // Final verdict — fail any single check, escalate to overall fail. An
             // unchecked adiabatic test cannot produce a PASS: it is UNVERIFIED.
-            string verdict = !zsCheck.Passes
+            // A Zs test that could not run (table-only device) is UNVERIFIED too.
+            string verdict = !zsCheck.Checked ? "UNVERIFIED"
+                           : !zsCheck.Passes
                                 ? (rcd.RecommendedMA > 0 ? "PASS_VIA_RCD" : "FAIL")
                            : !adiabaticChecked ? "UNVERIFIED"
                            : ad.Passes ? "PASS" : "FAIL";
@@ -262,7 +281,10 @@ namespace StingTools.Commands.Electrical.Compliance
             {
                 OcpdType        = inp.OcpdType,
                 RatingA         = inp.RatingA,
-                Assumptions     = new List<string>(inp.Assumptions ?? new List<string>()),
+                Assumptions     = zsCheck.Checked
+                                    ? new List<string>(inp.Assumptions ?? new List<string>())
+                                    : new List<string>(inp.Assumptions ?? new List<string>()) { zsCheck.NotCheckedReason },
+                ZsChecked       = zsCheck.Checked,
                 CircuitTag      = inp.CircuitTag,
                 PanelName       = inp.PanelName,
                 LoadName        = inp.LoadName,
@@ -293,6 +315,10 @@ namespace StingTools.Commands.Electrical.Compliance
     {
         public string OcpdType; public double RatingA, IaA, ZsMaxOhm, ZsActualOhm, MarginPercent;
         public bool Passes;
+        /// <summary>False when no Zs limit could be derived (Passes is then false and
+        /// ZsMaxOhm NaN) — the result is NOT CHECKED, not a fail.</summary>
+        public bool Checked = true;
+        public string NotCheckedReason;
     }
 
     public class AdiabaticResult
@@ -329,6 +355,8 @@ namespace StingTools.Commands.Electrical.Compliance
         public double Cmin;
         public double ZeOhm, ZsActualOhm, ZsMaxOhm, ZsMarginPct, ProspectivePscA, ClearingTimeMs, AdiabaticMinCsa, K;
         public bool ZsPasses, AdiabaticPasses;
+        /// <summary>False when the Zs limit could not be derived (table-only device).</summary>
+        public bool ZsChecked = true;
         public int RcdRequiredMA;
     }
 }
