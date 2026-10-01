@@ -8,7 +8,7 @@
 //      recommended DN.
 //   3. Calls Pipe.Create() for the new vent run.
 //   4. Optionally places an AAV family instance at the termination.
-//   5. Writes PLM_VENT_DN_MM and PLM_VENT_PIPE_ID back to the drain pipe.
+//   5. Writes PLM_VENT_DN_MM back to the drain pipe.
 //
 // Must be called inside a Transaction (the caller owns the transaction).
 
@@ -184,7 +184,6 @@ namespace StingTools.Core.Plumbing
 
             // 7. Write params back to drain pipe
             TryWriteInt(drainPipe, ParamRegistry.PLM_VENT_DN, req.RecommendedVentDnMm);
-            TryWriteString(drainPipe, ParamRegistry.PLM_VENT_PIPE_ID, ventPipe.Id.Value.ToString());
 
             // 8. Place AAV if required
             if (req.RequiresAav && opts.PlaceAavs)

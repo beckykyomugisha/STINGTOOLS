@@ -768,7 +768,7 @@ CLN_STRUCT_SIGN_OFF_DT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|P
 CLN_STRUCT_SIGN_OFF_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Structural Engineer sign-off name [H-23]
 CLN_TAG_7_PARA_TXT,28,tag-container,<ALL>,Clinical TAG7 rich narrative paragraph container
 CLN_TRANSPORT_PATH_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Heavy-equipment transport path designation [H-23]
-CLN_VIB_VM_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Vibration criterion (_m/s rms VC band) [H-23]
+CLN_VIB_VM_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Vibration criterion (um/s rms VC band) [H-23]
 CLN_WASTE_BIN_BIM_ID_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,IoT smart bin BIM element id [H-30]
 CLN_WASTE_CLASS_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Clinical waste class: HC1-General/HC2-Offensive/HC3-Infectious/HC4-Anatomical/HC5-Cytotoxic/HC6-Radioactive [H-30]
 CLN_WASTE_ROUTE_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Waste segregation route id [H-30]
@@ -1034,8 +1034,8 @@ ELC_ARC_FLASH_ENCL_H_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE
 ELC_ARC_FLASH_ENCL_W_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 enclosure width in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]"
 ELC_ARC_FLASH_GAP_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,"IEEE 1584-2018 conductor gap in mm - blank = the typical gap for the equipment class, noted on the label [STING MEPG-11]"
 ELC_ARC_FLASH_IE_CAL_CM2,4,elc-sub,Electrical Equipment|Electrical Circuits,Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]
-ELC_ARC_FLASH_LABEL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]
-ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]
+ELC_ARC_FLASH_LABEL_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Arc flash label text: ANSI Z535.4 signal word (WARNING / DANGER), voltage, incident energy at the working distance, arc flash boundary, clearing time and basis; no PPE category. NOT CALCULATED text with the reason when no result [IEEE 1584-2018 / STING DSCH-25]"
+ELC_ARC_FLASH_PPE_CAT,4,elc-sub,Electrical Equipment|Electrical Circuits,"Incident-energy band at the working distance, e.g. 4-8 cal/cm2, from the bands in STING_ARC_FLASH_PPE.json; N/A when not calculated. Not an NFPA 70E PPE category: 130.5(H) puts incident energy or a category on a label, not both [IEEE 1584-2018 / STING DSCH-25]"
 ELC_ARC_FLASH_WORK_DIST_MM,4,elc-sub,Electrical Equipment|Electrical Circuits,Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]
 ELC_ATS_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,ATS test log document reference [H-27]
 ELC_ATS_TIME_S_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required Automatic Transfer Switch time (s) -- NFPA 99 <=10 s for LS/CR
@@ -1070,11 +1070,11 @@ ELC_CBT_SHOP_DRAWING_REQ_BOOL,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tr
 ELC_CBT_SHOP_DRAWING_REQ_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,ELC_CBT_SHOP_DRAWING_REQ_BOOL display mirror [auto-generated]
 ELC_CBT_SUPPORT_SPACING_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray support spacing
 ELC_CBT_SUPPORT_SPACING_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,ELC_CBT_SUPPORT_SPACING_MM display mirror [auto-generated]
-ELC_CDT_BEND_ANGLE_DEG,4,elc-sub,Conduits|Conduit Fittings,Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 _522.8]
-ELC_CDT_BEND_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,Number of bends in this conduit run (BS 7671 _522.8.5 limits to 3 between draw-in points)
+ELC_CDT_BEND_ANGLE_DEG,4,elc-sub,Conduits|Conduit Fittings,Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 s.522.8]
+ELC_CDT_BEND_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,Number of bends in this conduit run (BS 7671 s.522.8.5 limits to 3 between draw-in points)
 ELC_CDT_BEND_RADIUS_MM,4,elc-sub,Conduits|Conduit Fittings,Conduit bend radius
 ELC_CDT_BEND_RADIUS_TXT,4,elc-sub,Conduits|Conduit Fittings,ELC_CDT_BEND_RADIUS_MM display mirror [auto-generated]
-ELC_CDT_BREAKPOINT_TXT,4,elc-sub,Conduits|Conduit Fittings,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 _522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.
+ELC_CDT_BREAKPOINT_TXT,4,elc-sub,Conduits|Conduit Fittings,Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 s.522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.
 ELC_CDT_CABLE_COUNT_NR,4,elc-sub,Conduits|Conduit Fittings,"Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)"
 ELC_CDT_CABLE_MANIFEST_TXT,4,elc-sub,Conduits|Conduit Fittings,"Cables in this conduit as csa:count pairs, comma-separated (for example 2.5:3,4:2; add /S for solid conductors). Read by the v4 conduit fill check."
 ELC_CDT_CBL_FILL_PCT,4,elc-sub,Conduits|Conduit Fittings|Cable Trays,Cable fill percentage of conduit cross-section (design value) [ISO 19650-1:2018]
@@ -1177,10 +1177,10 @@ ELC_LIGHTING_TARGET_LUX_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices,Elc Lig
 ELC_LPD_LIMIT_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Standard LPD limit for the room type in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
 ELC_LPD_STATUS_TXT,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]
 ELC_LPD_W_PER_M2,4,elc-sub,Lighting Fixtures|Lighting Devices|Rooms,Calculated lighting power density of the room in W/m2 [ASHRAE 90.1 / Part L 2021 / CIBSE LG7 / STING Phase 178]
-ELC_LPS_AIRTERM_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,"LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 _5.2]"
+ELC_LPS_AIRTERM_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,"LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 s.5.2]"
 ELC_LPS_AIR_TERMINAL_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Count of air terminals / lightning rods on the protected zone
 ELC_LPS_AIR_TERMINAL_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_AIR_TERMINAL_COUNT_NR display mirror [auto-generated]
-ELC_LPS_BOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]
+ELC_LPS_BOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 s.6.2]
 ELC_LPS_BOND_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP)
 ELC_LPS_CERT_REF_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Certificate reference for the LPS inspection / commissioning
 ELC_LPS_CLASS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,LPS class per BS EN 62305 (I / II / III / IV)
@@ -1188,20 +1188,20 @@ ELC_LPS_COMPLIANCE_STATUS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Proj
 ELC_LPS_CONDUCTOR_CROSS_SECT_MM2,4,elc-sub,Electrical Equipment|Generic Models,Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305)
 ELC_LPS_CONDUCTOR_CROSS_SECT_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_CONDUCTOR_CROSS_SECT_MM2 display mirror [auto-generated]
 ELC_LPS_CONDUCTOR_MATERIAL_TXT,4,elc-sub,Electrical Equipment|Generic Models,Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor
-ELC_LPS_DOWNCOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 _5.3]
+ELC_LPS_DOWNCOND_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 s.5.3]
 ELC_LPS_DOWN_CONDUCTOR_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,"Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I)"
 ELC_LPS_DOWN_CONDUCTOR_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_DOWN_CONDUCTOR_COUNT_NR display mirror [auto-generated]
 ELC_LPS_EARTH_ELECTRODE_COUNT_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Count of earth electrodes serving the LPS
 ELC_LPS_EARTH_ELECTRODE_COUNT_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_EARTH_ELECTRODE_COUNT_NR display mirror [auto-generated]
 ELC_LPS_EARTH_RESISTANCE_OHM,4,elc-sub,Electrical Equipment|Generic Models,Measured earth resistance in ohms (target <10 ohm per BS EN 62305)
 ELC_LPS_EARTH_RESISTANCE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_EARTH_RESISTANCE_OHM display mirror [auto-generated]
-ELC_LPS_EARTH_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]
+ELC_LPS_EARTH_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 s.5.4]
 ELC_LPS_EARTH_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Earth electrode type (ROD / RING / FOUNDATION / MESH)
 ELC_LPS_ELEMENT_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Foundations,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily
-ELC_LPS_FROM_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
+ELC_LPS_FROM_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 s.6.1]
 ELC_LPS_INSPECTION_INTERVAL_MONTHS,4,elc-sub,Electrical Equipment|Generic Models|Project Information,"Inspection interval in months (12 for class I/II, 24 for class III/IV)"
 ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_INSPECTION_INTERVAL_MONTHS display mirror [auto-generated]
-ELC_LPS_KC_FACTOR_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)
+ELC_LPS_KC_FACTOR_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Current-distribution factor kc per BS EN 62305-3 s.6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)
 ELC_LPS_MESH_SIZE_M,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Air terminal mesh grid size in metres per BS EN 62305 class
 ELC_LPS_MESH_SIZE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_MESH_SIZE_M display mirror [auto-generated]
 ELC_LPS_PROJECT_NG_OVERRIDE_NR,4,elc-sub,Electrical Equipment|Generic Models|Project Information,Project ground flash density Ng (flashes/km2/year) override from lightning location service
@@ -1216,9 +1216,9 @@ ELC_LPS_SEPARATION_DISTANCE_MM,4,elc-sub,Electrical Equipment|Generic Models,Sep
 ELC_LPS_SEPARATION_DISTANCE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_SEPARATION_DISTANCE_MM display mirror [auto-generated]
 ELC_LPS_SPD_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]
 ELC_LPS_SURGE_PROTECTION_LVL_TXT,4,elc-sub,Electrical Equipment|Generic Models,Surge protection device level (Type 1 / Type 2 / Type 3)
-ELC_LPS_TESTCLAMP_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]
+ELC_LPS_TESTCLAMP_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 s.7.2]
 ELC_LPS_TEST_DATE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ISO 8601 date of last LPS test / inspection
-ELC_LPS_TO_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
+ELC_LPS_TO_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 s.6.1]
 ELC_LPS_ZONE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Project Information|Rooms,Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3)
 ELC_LP_CONNECTION_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Connection Type Txt [ISO 19650-1:2018]
 ELC_LP_EARTH_RES_OHMS,4,elc-sub,Electrical Equipment|Generic Models,Elc Lp Earth Res Ohms [ISO 19650-1:2018]
@@ -1280,7 +1280,7 @@ ELC_PWR_SPARE_02_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Spare pa
 ELC_PWR_TXT,4,elc-sub,Electrical Circuits|Electrical Equipment|Electrical Fixtures,ELC_PWR_KW display mirror [auto-generated]
 ELC_RECEPT_TYPE_TXT,4,elc-sub,Electrical Fixtures,Receptacle type: HOSP-GR / TR / ISO / EMG-RED
 ELC_RECONCILE_DRIFT_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Conduit reconciliation drift flag [Electrical]
-ELC_SEL_COORD_OK,4,elc-sub,Electrical Equipment|Electrical Circuits,Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13]
+ELC_SEL_COORD_OK,4,elc-sub,Electrical Equipment|Electrical Circuits,Selective coordination check result stamp: 1 = passes BS 7671 s.536 / NEC 240.87 criteria for this panel [STING Gap 13]
 ELC_SEL_COORD_VERIFIED_BOOL,4,elc-sub,Electrical Equipment|Electrical Circuits,"Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]"
 ELC_SPARE_WAYS_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Spare Ways Nr [ISO 19650-1:2018]
 ELC_SPARE_WAYS_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,ELC_SPARE_WAYS_NR display mirror [auto-generated]
@@ -1318,7 +1318,7 @@ ELC_WIRE_ANNOT_SHOW_VD_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,S
 ELC_WIRE_ANNOT_SLASH_LEN_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Wire annotation slash/tick mark length in mm at model scale (default 6). Controls visual size of conductor-count slashes. [STING annotation style]
 ELC_WIRE_ANNOT_SPACING_MM,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Spacing between adjacent slash marks in mm along conduit (default 3). [STING annotation style]
 ELC_WIRE_ARMOURED_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,True if cable is SWA (steel wire armoured) or equivalent [BS 7671]
-ELC_WIRE_ARMOUR_CONT_OK_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 _543 [STING Gap 12]
+ELC_WIRE_ARMOUR_CONT_OK_BOOL,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 s.543 [STING Gap 12]
 ELC_WIRE_BEND_COUNT_INT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Conduit bend count for BS 7671 pull validation [Electrical]
 ELC_WIRE_CIRCUIT_BREAKER_A,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Upstream overcurrent protective device rating in amperes [BS 7671 Section 433]
 ELC_WIRE_CIRCUIT_TYPE_TXT,4,elc-sub,Cable Trays|Conduits|Electrical Circuits,Circuit type: FINAL/SUB-MAIN/FEEDER/RING/RADIAL/MOTOR/EV/LIGHTING/POWER/DATA [BS 7671]
@@ -1745,7 +1745,7 @@ MGS_TU_BS5682_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumb
 MGS_TU_INDEXED_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Has gas-specific NIST/DISS indexing
 MGS_VERIFY_BY_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,ASSE 6030 verifier name
 MGS_VERIFY_CERT_REF_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT)
-MGS_VERIFY_DT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,NFPA 99 _5.1.12 verification date (ISO 8601)
+MGS_VERIFY_DT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,NFPA 99 s.5.1.12 verification date (ISO 8601)
 MGS_VERIFY_PASS_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories|Pipe Fittings|Pipes,Latest verification passed
 MGS_WORKING_PRESSURE_KPA,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Working Pressure Kpa [STING]
 MGS_ZVB_REF_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories|Generic Models,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)
@@ -1934,7 +1934,7 @@ PLM_CONN_FROM_TAG,6,tag-container,<ALL>,Routed pipe connection-from fixture tag 
 PLM_CONN_TO_TAG,6,tag-container,<ALL>,Routed pipe connection-to fixture tag [Plumbing routing]
 PLM_CONN_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Conn Type [ISO 19650]
 PLM_DEAD_LEG_LENGTH_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Dead-leg length m flagged by DeadLegDetector (limits in STING_TMV_STANDARDS.json) [DSCH-25]
-PLM_DEAD_LEG_M_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]
+PLM_DEAD_LEG_M_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: healthcare spur generally <= 3 m; blended pipe after a TMV <= 2 m, Pt A 10.48]"
 PLM_DEMAND_FLOW_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Design flow rate l/s for pipe or branch [Phase 178b]
 PLM_DFU_COUNT_INT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b]
 PLM_DRN_ACCESS_POINTS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Access Points Txt [ISO 19650-1:2018]
@@ -1943,6 +1943,7 @@ PLM_DRN_BODY_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pip
 PLM_DRN_CLEANOUT_LOCS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Cleanout Locs Txt [ISO 19650-1:2018]
 PLM_DRN_COVER_DS_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Cover depth at the downstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]"
 PLM_DRN_COVER_US_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Cover depth at the upstream end of a drainage pipe, m, ground level to pipe crown; blank when no ground level is known [Approved Document H]"
+PLM_DRN_DU_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Discharge units of this fixture (BS EN 12056-2), written by Scan Fixtures from the fixture-unit table [DSCH-42]"
 PLM_DRN_FILL_RATIO_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fill Ratio Nr [ISO 19650-1:2018]
 PLM_DRN_FITTING_ACCESS_PROVISION_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fitting Access Provision Txt [ISO 19650-1:2018]
 PLM_DRN_FITTING_CONNECTION_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Drn Fitting Connection Type Txt [ISO 19650-1:2018]
@@ -1977,6 +1978,7 @@ PLM_EXJ_END_CONNECTION_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Fl
 PLM_EXJ_LATERAL_MOVEMENT_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exj Lateral Movement Mm [ISO 19650-1:2018]
 PLM_EXJ_MOVEMENT_CAPABILITY_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exj Movement Capability Txt [ISO 19650-1:2018]
 PLM_EXJ_TEMP_RANGE_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exj Temp Range C [ISO 19650-1:2018]
+PLM_EXPVSL_SZ_L,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Mechanical Equipment|Plumbing Equipment,"Expansion vessel volume, litres, from the BS 7074-1 sizing, stamped on the vessel the sizer places [DSCH-42]"
 PLM_EXP_JOINT_END_CONNECTION_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exp Joint End Connection Txt [ISO 19650-1:2018]
 PLM_EXP_JOINT_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exp Joint Mat Txt [ISO 19650-1:2018]
 PLM_EXP_JOINT_PRESSURE_RATING_BAR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Exp Joint Pressure Rating Bar [ISO 19650-1:2018]
@@ -1990,6 +1992,7 @@ PLM_FLUSH_LOG_REF_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pi
 PLM_FRICTION_LOSS_PA_M,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Friction head loss Pa per metre [Phase 178b]
 PLM_GASKET_THICKNESS_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Gasket Thickness Mm [ISO 19650-1:2018]
 PLM_GSK_SZ_DIMENSION_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Gsk Sz Dimension Txt [ISO 19650-1:2018]
+PLM_HAS_TRAP_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Fixture has a trap: set by Insert P-Traps when it finds or places one, and read so a re-run does not place a second [DSCH-42]"
 PLM_HED_M,6,safe-prefix,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures,Plm Hed M [ISO 19650-1:2018]
 PLM_HOTWTR_FUEL_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Hotwtr Fuel Type Txt [ISO 19650-1:2018]
 PLM_HOTWTR_HEATER_EFF_PCT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Hotwtr Heater Eff Pct [ISO 19650-1:2018]
@@ -2005,6 +2008,7 @@ PLM_MAT_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe I
 PLM_NOMINAL_DIA_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Routed pipe nominal diameter mm [Plumbing routing]
 PLM_PIPE_GRADIENT_PCT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Pipe Gradient Pct [ISO 19650]
 PLM_PIPE_INS_THK_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Pipe Ins Thk Mm [STING]
+PLM_PIPE_REAL_SIZE_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Pipe sized by the STING real-time sizer; with PLM_CALC_DN set, the sizer skips it on the next pass [DSCH-42]"
 PLM_PIPE_SERVICE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe service type stamp (SoilWaste/ColdWaterSupply/etc) [Plumbing routing]
 PLM_POU_FILTER_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Point-of-use filter fitted [HTM 04-01]
 PLM_PPE_COLOR_BS1710_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Pipe identification colour per BS 1710 [Phase 178b]
@@ -2047,6 +2051,8 @@ PLM_PRV_INLET_PRESSURE_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Fl
 PLM_PRV_SET_PRESSURE_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,PRV set-point pressure kPa [Phase 178b]
 PLM_PSR_KPA,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Plm Psr Kpa [ISO 19650-1:2018]
 PLM_PSR_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,PLM_PSR_KPA display mirror [auto-generated]
+PLM_PUMP_DUTY_FLOW_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Mechanical Equipment|Plumbing Equipment,"Pump duty flow, l/s, from Pump Select (head is MEP_PUMP_HEAD_M) [DSCH-42]"
+PLM_PUMP_MODEL_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Mechanical Equipment|Plumbing Equipment,Catalogue pump (manufacturer and model) Pump Select matched to the duty point; blank when none covers it [DSCH-42]
 PLM_PWR_KW,6,safe-prefix,Flex Pipes|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Equipment|Plumbing Fixtures,Plm Pwr Kw [ISO 19650-1:2018]
 PLM_RECIRC_DELTA_T_K,6,project-level,Project Information,"Temperature difference between the hot water and the air around the recirculation pipework, K, used for the pipe heat loss. Read by the recirculation loop balancer; blank = 40 K (60 C water, 20 C air)."
 PLM_RECIRC_DRV_KV,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,"Per-branch DRV pre-set Kv (l/min·bar^-0.5) — proportional to branch heat-loss share, stamped on DRV valve fixtures [Phase 187]"
@@ -2075,8 +2081,11 @@ PLM_STR_STYLE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|
 PLM_SUDS_ATTEN_VOL_M3,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,SuDS attenuation volume m3 [CIRIA C753 Phase 178b]
 PLM_SUP_DN_REQ_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Recommended supply pipe DN mm — WaterSupplySizer [Phase 188]
 PLM_SUP_DP_PAM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Supply pipe friction pressure drop Pa/m (Hazen-Williams) — WaterSupplySizer [Phase 188]
+PLM_SUP_LU_CW_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Cold-water loading units (BS EN 806-3): per fixture from Scan Fixtures, accumulated on a pipe by the real-time sizer; read by the supply sizer and pump select [DSCH-42]"
+PLM_SUP_LU_HW_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Hot-water loading units (BS EN 806-3) of this fixture, written by Scan Fixtures; read by the supply sizer [DSCH-42]"
 PLM_SUP_QD_LPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Cold/hot water supply design flow Qd l/s — WaterSupplySizer [Phase 188]
 PLM_SUP_VEL_MPS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures|Plumbing Equipment,Supply pipe velocity m/s per BS EN 806-3 / Hunter — WaterSupplySizer [Phase 188]
+PLM_SUP_WSFU_NR,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"Water supply fixture units (IPC / UPC) of this fixture, written by Scan Fixtures; read by the supply sizer [DSCH-42]"
 PLM_SYS_TXT,6,safe-prefix,Flex Pipes|MEP Fabrication Pipework|Pipe Accessories|Pipe Fittings|Pipe Insulation|Pipes|Plumbing Fixtures,Plumbing system code
 PLM_TAG_7_PARA_ANAL_PIPES_TXT,6,tag-pipe,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Anal Pipes paragraph [ISO 19650-3:2020]
 PLM_TAG_7_PARA_DRAIN_TXT,6,tag-container,<ALL>,"Drainage paragraph (trap type, cleanout, vent terminals, expansion joints, strainers) [ISO 19650-3:2020]"
@@ -2092,7 +2101,12 @@ PLM_TAG_7_PARA_TIEIN_TXT,6,tag-container,<ALL>,Plumbing tie-in point paragraph c
 PLM_TMV_ASSISTED_BOOL,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]"
 PLM_TMV_BLEND_TEMP_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV blended outlet temperature setpoint C [Phase 178b]
 PLM_TMV_CLASS_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV class TMV2 TMV3 [BS 7942 Phase 178b]
+PLM_TMV_INLET_COLD_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"TMV cold supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]"
+PLM_TMV_INLET_HOT_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"TMV hot supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]"
 PLM_TMV_KVS,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,TMV flow coefficient Kvs for flow-rate calc (BS 8680) [Plumbing]
+PLM_TMV_MEASURED_C,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,"TMV outlet temperature measured at commissioning or the annual test, C (the design set-point is PLM_TMV_BLEND_TEMP_C), entered from the commissioning record; checked against the never-exceed limit in STING_TMV_STANDARDS.json. Blank = not measured [DSCH-36]"
+PLM_TMV_NEXT_TEST_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Date the next TMV performance test is due (yyyy-MM-dd); blank = test date + 12 months. The TMV register reports a past date as overdue [DSCH-36]
+PLM_TMV_TEST_DATE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Date of the last TMV performance test (yyyy-MM-dd); the TMV register derives the next test (+12 months) from it when PLM_TMV_NEXT_TEST_TXT is blank [DSCH-36]
 PLM_TMV_TYPE_TXT,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Thermostatic mixing valve type: TMV2 / TMV3 / NONE [HTM 04-01]
 PLM_TRAP_SEAL_DEPTH_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b]
 PLM_TRAP_SEAL_MM,6,safe-prefix,Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Pipe Insulation|Plumbing Fixtures,Trap seal depth in mm
@@ -2137,7 +2151,7 @@ PRJ_DRAWING_TITLE_TXT,13,universal-meta,<ALL>|Project Information,Prj Drawing Ti
 PRJ_DWG_ISSUE_PURPOSE_TXT,13,sheet-identity,Sheets,Prj Dwg Issue Purpose Txt [ISO 19650-1:2018]
 PRJ_DWG_LOIN_LOD_TXT,13,sheet-identity,Sheets,"Level of Information Need / Level of Detail at issue -- e.g. ""LOD 300"" / ""LOIN-3"" / ""LOD 350"" [BS EN 17412-1:2020]"
 PRJ_DWG_SUITABILITY_COD_TXT,13,sheet-identity,Sheets,Prj Dwg Suitability Cod Txt [ISO 19650-1:2018]
-PRJ_DWG_SUITABILITY_DESC_TXT,13,sheet-identity,Sheets,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 _5.6 Annex A]"
+PRJ_DWG_SUITABILITY_DESC_TXT,13,sheet-identity,Sheets,"Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for ""S2"" the description is ""Shared, Non-contractual"" [BS EN ISO 19650-2:2018 s.5.6 Annex A]"
 PRJ_DWG_SUPERSEDES_TXT,13,sheet-identity,Sheets,Prj Dwg Supersedes Txt [ISO 19650-1:2018]
 PRJ_ELC_SUPPLY_VOLTAGE_TXT,13,project-level,Project Information,Electrical supply voltage and phases chosen in Project Setup (for example 400/230 V 3-phase). Recorded for schedules and title blocks.
 PRJ_GRID_REF_TXT,13,universal-meta,<ALL>|Project Information,Prj Grid Ref Txt [ISO 19650-1:2018]
@@ -2199,19 +2213,19 @@ PRJ_REV_COD_TXT,13,universal-meta,<ALL>|Project Information,ISO 19650 revision c
 PRJ_RTS_CLASS_TXT,13,universal-meta,<ALL>|Project Information,ASHRAE Radiant Time Series construction class (Reactive / Light / Medium / Heavy)  -  controls thermal-mass lag in BlockLoadEngine [Phase 187d]
 PRJ_SHEET_BIM_MODE_TXT,13,sheet-identity,Sheets|Project Information,"Per-sheet BIM mode marker -- ""BIM"" or ""NONBIM"" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]"
 PRJ_SHEET_FULL_REF_TXT,13,sheet-identity,Sheets,"ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. ""STG-PLNS-ZZ-01-DR-A-0001""). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]"
-PRJ_SHEET_LEVEL_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. ""01"" / ""GF"" / ""ZZ""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_LEVEL_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. ""01"" / ""GF"" / ""ZZ""). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]"
 PRJ_SHEET_OF_TOTAL_TXT,13,sheet-identity,Sheets,"""Sheet n of total"" string for the title block (e.g. ""03 / 12""). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]"
-PRJ_SHEET_ORIG_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. ""PLNS""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_PROJECT_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. ""STG""). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_ROLE_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. ""A"" architect / ""S"" structural / ""M"" mechanical / ""E"" electrical / ""P"" plumbing / ""FP"" fire / ""LV"" landscape / ""G"" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_ORIG_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. ""PLNS""). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]"
+PRJ_SHEET_PROJECT_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. ""STG""). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 s.5.1.6]"
+PRJ_SHEET_ROLE_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. ""A"" architect / ""S"" structural / ""M"" mechanical / ""E"" electrical / ""P"" plumbing / ""FP"" fire / ""LV"" landscape / ""G"" general). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]"
 PRJ_SHEET_SEQUENCE_INT,27,sheet-identity,Sheets,Production sheet sequence number [STING DT v137]
-PRJ_SHEET_SEQ_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. ""0001""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_SEQ_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. ""0001""). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]"
 PRJ_SHEET_SYSTEM_TXT,13,sheet-identity,Sheets,"MEP system/service code shown on the title block SYSTEM cell (e.g. DCW, HVAC, LV) [P4]"
-PRJ_SHEET_TYPE_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. ""DR"" drawing / ""M3"" model / ""SH"" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
-PRJ_SHEET_VOLUME_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. ""ZZ"" / ""01"" / ""M01""). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]"
+PRJ_SHEET_TYPE_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. ""DR"" drawing / ""M3"" model / ""SH"" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]"
+PRJ_SHEET_VOLUME_TXT,13,sheet-identity,Sheets,"ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. ""ZZ"" / ""01"" / ""M01""). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]"
 PRJ_STATUS_COD_TXT,13,sheet-identity,Sheets,ISO 19650 document status code
 PRJ_TB_APVD_BY_TXT,13,sheet-identity,Sheets,Name or initials of person who approved the drawing [ISO 19650-1:2018]
-PRJ_TB_AUTHORISED_BY_TXT,13,sheet-identity,Sheets,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]"
+PRJ_TB_AUTHORISED_BY_TXT,13,sheet-identity,Sheets,"4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 s.5.6.2]"
 PRJ_TB_AUTHORISED_DATE_TXT,13,sheet-identity,Sheets,Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]
 PRJ_TB_CDE_REF_FORMAT_TXT,13,sheet-identity,Sheets,"How the CDE REF cell is composed -- CONTAINER (default: the CDE folder the deliverable lives in, e.g. ""SHARED/A/DR""), SUFFIX (suitability + revision, e.g. ""S4-P01"") or FULL (the whole published filename: document identifier + suitability + revision). CONTAINER is the default because the document identifier is already printed in the DRG NO. cell [ISO 19650-2:2018]"
 PRJ_TB_CDE_REF_TXT,13,sheet-identity,Sheets,"CDE reference -- the identifier that locates this exact issue in the common data environment: ISO 19650 document identifier + suitability code + revision, e.g. ""SAH-PLNS-ZZ-L01-DR-A-0001-S2-P01"". Derived by Title Block Populate; distinct from PRJ_TB_DELIVERABLE_CDE_TXT, which holds the CDE STATE (WIP / SHARED / PUBLISHED) [ISO 19650-2:2018]"
@@ -3302,14 +3316,14 @@ WARN_ELC_IP_RATING_ELECTRICAL_FIX,17,warn-mirror,Electrical Equipment|Electrical
 WARN_ELC_LABELLING_ELECTRICAL_EQUI,17,warn-mirror,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Tag warning: elc labelling electrical equi
 WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW,4,warn-mirror,Electrical Equipment|Generic Models,Warning: down-conductor cross-section below class minimum (50 mm2 Cu / 70 mm2 Al / 50 mm2 Steel) [BS EN 62305-3 Tab 6] [HIGH]
 WARN_ELC_LPS_DOWN_COND_INSUFFICIENT,4,warn-mirror,Electrical Equipment|Generic Models,"Warning: down-conductor count below class minimum (Class I=4, II=3, III/IV=2) [BS EN 62305-3 Tab 4] [HIGH]"
-WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,4,warn-mirror,Electrical Equipment|Generic Models,Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 _5.4.1] [HIGH]
-WARN_ELC_LPS_INSPECTION_OVERDUE,4,warn-mirror,Electrical Equipment|Generic Models,"Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 _E.7] [MEDIUM]"
+WARN_ELC_LPS_EARTH_RESISTANCE_HIGH,4,warn-mirror,Electrical Equipment|Generic Models,Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 s.5.4.1] [HIGH]
+WARN_ELC_LPS_INSPECTION_OVERDUE,4,warn-mirror,Electrical Equipment|Generic Models,"Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 s.E.7] [MEDIUM]"
 WARN_ELC_LPS_MESH_SIZE_EXCEEDED,4,warn-mirror,Electrical Equipment|Generic Models,"Warning: air-termination mesh exceeds class limit (I=5x5, II=10x10, III=15x15, IV=20x20 m) [BS EN 62305-3 Tab 2] [HIGH]"
-WARN_ELC_LPS_NO_BONDING,4,warn-mirror,Electrical Equipment|Generic Models,Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 _6.2] [HIGH]
-WARN_ELC_LPS_NO_CLASS,4,warn-mirror,Electrical Equipment|Generic Models,Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 _8] [CRITICAL]
+WARN_ELC_LPS_NO_BONDING,4,warn-mirror,Electrical Equipment|Generic Models,Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 s.6.2] [HIGH]
+WARN_ELC_LPS_NO_CLASS,4,warn-mirror,Electrical Equipment|Generic Models,Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 s.8] [CRITICAL]
 WARN_ELC_LPS_NO_RISK_ASSESSMENT,4,warn-mirror,Electrical Equipment|Generic Models,Warning: BS EN 62305-2 risk assessment reference (R1..R4) not recorded -- class selection cannot be justified [HIGH]
-WARN_ELC_LPS_NO_ZONE,4,warn-mirror,Electrical Equipment|Generic Models,Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 _4.1] [MEDIUM]
-WARN_ELC_LPS_SEPARATION_FAIL,4,warn-mirror,Electrical Equipment|Generic Models,Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 _6.3] [HIGH]
+WARN_ELC_LPS_NO_ZONE,4,warn-mirror,Electrical Equipment|Generic Models,Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 s.4.1] [MEDIUM]
+WARN_ELC_LPS_SEPARATION_FAIL,4,warn-mirror,Electrical Equipment|Generic Models,Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 s.6.3] [HIGH]
 WARN_ELC_PNL_AIC_INADEQUATE,17,warn-mirror,Electrical Equipment|Electrical Circuits,Tag warning: ELC_PNL_AIC_RATING_KA below available fault current at panel location (BS 7671 Section 434 / NFPA 70 Section 110.9)
 WARN_ELC_PNL_FEEDER_UNDERSIZED,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: Panel feeder cable undersized for connected load (BS 7671) [CRITICAL]
 WARN_ELC_PNL_LOAD_BALANCE,4,warn-mirror,Electrical Equipment|Electrical Circuits,Warning: Panel load imbalance >20% across phases (BS 7671) [HIGH]

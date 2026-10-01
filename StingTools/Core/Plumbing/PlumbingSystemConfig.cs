@@ -141,7 +141,7 @@ namespace StingTools.Core.Plumbing
             {
                 var path = ProjectConfigPath(doc);
                 if (string.IsNullOrEmpty(path) || !File.Exists(path))
-                    return ReadFromProjectInfo(doc) ?? Defaults();
+                    return Defaults();
                 var text = File.ReadAllText(path);
                 var c = JsonConvert.DeserializeObject<PlumbingSystemConfig>(text);
                 if (c == null) return Defaults();
@@ -182,50 +182,24 @@ namespace StingTools.Core.Plumbing
             }
         }
 
-        // ── ProjectInformation stamping (so the config travels with the .rvt) ──
+        // ── ProjectInformation: only the plumbing-code switch the sizers read ──
+        // The config itself lives in the JSON file. DSCH-42: this used to stamp eight
+        // more fields (building type, k-factor, standards, materials) for a read-back
+        // when the JSON was missing, but none of those parameters was defined in any
+        // shared-parameter file, so nothing was ever stored and the read-back always
+        // returned the defaults. Removed rather than defined: a second copy of the
+        // config on Project Information would be a second owner.
         private static void StampProjectInfo(Document doc, PlumbingSystemConfig cfg)
         {
             try
             {
                 var pi = doc?.ProjectInformation;
                 if (pi == null) return;
-                TrySetParam(pi, ParamRegistry.PLM_BLDG_TYPE, cfg.BuildingType);
-                TrySetParam(pi, ParamRegistry.PLM_K_FACTOR,  cfg.KFactor.ToString("F2"));
-                TrySetParam(pi, ParamRegistry.PLM_STD_DRAIN, cfg.DrainStandard);
-                TrySetParam(pi, ParamRegistry.PLM_STD_SUPPLY,cfg.SupplyStandard);
-                TrySetParam(pi, ParamRegistry.PLM_MAT_DCW,   GetOrDefault(cfg.Materials, "DCW",      "COPPER_R250"));
-                TrySetParam(pi, ParamRegistry.PLM_MAT_DHW,   GetOrDefault(cfg.Materials, "DHW",      "COPPER_R250"));
-                TrySetParam(pi, ParamRegistry.PLM_MAT_DRN,   GetOrDefault(cfg.Materials, "Drainage", "UPVC_DRAIN"));
-                TrySetParam(pi, ParamRegistry.PLM_MAT_VNT,   GetOrDefault(cfg.Materials, "Vent",     "UPVC_DRAIN"));
                 // Mirror to legacy plumbing-code switch so DrainageSizer / VentDesigner picks up.
                 TrySetParam(pi, ParamRegistry.PRJ_PLUMBING_CODE,
                     cfg.DrainStandard.StartsWith("IPC", StringComparison.OrdinalIgnoreCase) ? "IPC-US" : "BS-UK");
             }
             catch (Exception ex) { StingLog.Warn($"PlumbingSystemConfig.StampProjectInfo: {ex.Message}"); }
-        }
-
-        private static PlumbingSystemConfig ReadFromProjectInfo(Document doc)
-        {
-            try
-            {
-                var pi = doc?.ProjectInformation;
-                if (pi == null) return null;
-                var c = Defaults();
-                var bt = ReadString(pi, ParamRegistry.PLM_BLDG_TYPE);
-                if (!string.IsNullOrEmpty(bt)) c.BuildingType = bt;
-                var k  = ReadString(pi, ParamRegistry.PLM_K_FACTOR);
-                if (!string.IsNullOrEmpty(k) && StingTools.Core.NumberText.TryParse(k, out var kv) && kv > 0) c.KFactor = kv;
-                var sd = ReadString(pi, ParamRegistry.PLM_STD_DRAIN);
-                if (!string.IsNullOrEmpty(sd)) c.DrainStandard  = sd;
-                var ss = ReadString(pi, ParamRegistry.PLM_STD_SUPPLY);
-                if (!string.IsNullOrEmpty(ss)) c.SupplyStandard = ss;
-                var m = ReadString(pi, ParamRegistry.PLM_MAT_DCW); if (!string.IsNullOrEmpty(m)) c.Materials["DCW"] = m;
-                m     = ReadString(pi, ParamRegistry.PLM_MAT_DHW); if (!string.IsNullOrEmpty(m)) c.Materials["DHW"] = m;
-                m     = ReadString(pi, ParamRegistry.PLM_MAT_DRN); if (!string.IsNullOrEmpty(m)) c.Materials["Drainage"] = m;
-                m     = ReadString(pi, ParamRegistry.PLM_MAT_VNT); if (!string.IsNullOrEmpty(m)) c.Materials["Vent"]     = m;
-                return c;
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
         }
 
         private static void TrySetParam(Element el, string name, string value)

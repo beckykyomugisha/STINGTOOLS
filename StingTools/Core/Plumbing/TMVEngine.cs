@@ -211,13 +211,13 @@ namespace StingTools.Core.Plumbing
                 // design set-point in PLM_TMV_BLEND is set during design and
                 // left untouched here.
                 ok &= TryWriteDouble(el, ParamRegistry.PLM_TMV_MEASURED_C,    outletC);
-                ok &= TryWriteString(el, ParamRegistry.PLM_TMV_TEST_DATE,    testDate);
+                ok &= TryWriteString(el, ParamRegistry.PLM_TMV_TEST_DATE_TXT,    testDate);
 
                 // Compute annual test due: test date + 12 months
                 if (DateTime.TryParse(testDate, out var testDt))
                 {
                     string dueTxt = testDt.AddMonths(12).ToString("yyyy-MM-dd");
-                    TryWriteString(el, ParamRegistry.PLM_TMV_NEXT_TEST, dueTxt);
+                    TryWriteString(el, ParamRegistry.PLM_TMV_NEXT_TEST_TXT, dueTxt);
                 }
             }
             catch (Exception ex)
@@ -288,8 +288,8 @@ namespace StingTools.Core.Plumbing
             rec.InletColdC    = ReadDouble(el, ParamRegistry.PLM_TMV_INLET_COLD_C);
 
             // Test dates
-            rec.LastTestDate      = ReadString(el, ParamRegistry.PLM_TMV_TEST_DATE);
-            rec.AnnualTestDueDate = ReadString(el, ParamRegistry.PLM_TMV_NEXT_TEST);
+            rec.LastTestDate      = ReadString(el, ParamRegistry.PLM_TMV_TEST_DATE_TXT);
+            rec.AnnualTestDueDate = ReadString(el, ParamRegistry.PLM_TMV_NEXT_TEST_TXT);
 
             // If annual due not stored, compute from test date
             if (string.IsNullOrWhiteSpace(rec.AnnualTestDueDate)

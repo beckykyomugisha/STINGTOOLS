@@ -1722,8 +1722,8 @@ PLM_CAP_CU_M,6,Generic Models|Pipe Accessories|Pipe Fittings|Pipes|Plumbing Equi
 PLM_CONN_FROM_TAG,6,Pipes,Pipes,True,Routed pipe connection-from fixture tag [Plumbing routing]
 PLM_CONN_TO_TAG,6,Pipes,Pipes,True,Routed pipe connection-to fixture tag [Plumbing routing]
 PLM_CONN_TYPE_TXT,6,,,False,Plm Conn Type [ISO 19650]
-PLM_DEAD_LEG_LENGTH_M,6,,,False,Dead-leg length m flagged by DeadLegDetector [HSG 274 Phase 178b]
-PLM_DEAD_LEG_M_NR,6,Pipes|Plumbing Fixtures,,True,Distance from main to outlet (m) [HTM 04-01 <= 1 m for sentinel]
+PLM_DEAD_LEG_LENGTH_M,6,,,False,Dead-leg length m flagged by DeadLegDetector (limits in STING_TMV_STANDARDS.json) [DSCH-25]
+PLM_DEAD_LEG_M_NR,6,Pipes|Plumbing Fixtures,,True,"Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: healthcare spur generally <= 3 m; blended pipe after a TMV <= 2 m, Pt A 10.48]"
 PLM_DEMAND_FLOW_LPS,6,,,False,Design flow rate l/s for pipe or branch [Phase 178b]
 PLM_DFU_COUNT_INT,6,,,False,IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b]
 PLM_DRN_ACCESS_POINTS_TXT,6,Generic Models|Pipe Accessories|Pipe Fittings|Pipes|Plumbing Equipment|Plumbing Fixtures|Sprinklers,Pipe Accessories|Pipe Fittings|Plumbing Fixtures,True,Plm Drn Access Points Txt [ISO 19650-1:2018]
@@ -3232,7 +3232,7 @@ WARN_PER_VOC_EMISSIONS,9,Air Terminals|Cable Tray Fittings|Cable Trays|Casework|
 WARN_PLM_AUG_CARE_NO_FILTER,6,,,False,Warning: Augmented-care outlet missing point-of-use filter [HIGH] [HTM 04-01 Pt C]
 WARN_PLM_CAPACITY_PLM_EQUIP,17,,,False,Tag warning: plm capacity plm equip
 WARN_PLM_CONNECTION_TYPE_PIPE_FITTINGS,17,,,False,Tag warning: plm connection type pipe fittings
-WARN_PLM_DEAD_LEG_EXCEEDED,6,,,False,Warning: Sentinel point dead-leg exceeds 1 m [HIGH] [HTM 04-01]
+WARN_PLM_DEAD_LEG_EXCEEDED,6,,,False,Warning: Sentinel point spur exceeds 3 m [HIGH] [HTM 04-01 Pt A 12.5]
 WARN_PLM_EQP_PRESSURE_KPA,6,Flex Pipes|Generic Models|Mechanical Equipment|Pipe Accessories|Pipe Fittings|Pipes|Plumbing Fixtures,Generic Models|Mechanical Equipment|Plumbing Fixtures,True,Warning: Equipment pressure rating check [HIGH]
 WARN_PLM_FIRE_RATING_PIPE_ACC,17,,,False,Tag warning: plm fire rating pipe acc
 WARN_PLM_FIXTURE_ACCESS,6,Flex Pipes|Generic Models|Mechanical Equipment|Pipe Accessories|Pipe Fittings|Pipes|Plumbing Fixtures,Generic Models|Mechanical Equipment|Plumbing Fixtures,True,Warning: Plumbing fixture access clearance [MEDIUM]

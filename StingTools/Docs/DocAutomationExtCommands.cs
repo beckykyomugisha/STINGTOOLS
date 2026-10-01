@@ -3003,7 +3003,7 @@ namespace StingTools.Docs
                         string warrDurLabor = ParameterHelpers.GetString(sample, ParamRegistry.WARR_DUR_LABOR);
                         string warrDurUnit = ParameterHelpers.GetString(sample, ParamRegistry.WARR_DUR_UNIT);
                         if (string.IsNullOrEmpty(warrDurUnit)) warrDurUnit = "year";
-                        string replaceCost = ParameterHelpers.GetString(sample, ParamRegistry.REPLACE_COST);
+                        string replaceCost = ParameterHelpers.GetValueText(sample, ParamRegistry.REPLACE_COST);
                         if (string.IsNullOrEmpty(replaceCost)) replaceCost = cost;
                         string expectedLife = ParameterHelpers.GetString(sample, "ASS_EXPECTED_LIFE_YEARS_YRS");
                         string durUnit = ParameterHelpers.GetString(sample, ParamRegistry.DUR_UNIT);
@@ -3315,7 +3315,9 @@ namespace StingTools.Docs
                         foreach (var (key, paramName, unit, attrDesc) in attrParams)
                         {
                             if (string.IsNullOrEmpty(paramName)) continue;
-                            string val = ParameterHelpers.GetString(el, paramName);
+                            // GetValueText, not GetString: several of these are NUMBER or
+                            // CURRENCY, and GetString returns "" for them (DSCH-42).
+                            string val = ParameterHelpers.GetValueText(el, paramName);
                             if (string.IsNullOrEmpty(val)) continue;
                             WriteRow(wsAttr, attrRow++,
                                 key, createdBy, createdOn, "STING Parameter",

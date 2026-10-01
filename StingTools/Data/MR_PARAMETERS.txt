@@ -2745,7 +2745,7 @@ PARAM	b1c4e8d3-7f5a-5d2c-9e6b-3a4f5c8d2b1e	ELC_LPS_COMPLIANCE_STATUS_TXT	TEXT		4
 PARAM	c2d5f9e4-8a6b-5e3d-a07c-4b5d6e9c3f2a	ELC_LPS_CONDUCTOR_MATERIAL_TXT	TEXT		4	1	Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor	1
 PARAM	d3e6fa05-9b7c-5e4d-b18d-5c6e7fad4321	ELC_LPS_PROJECT_NG_OVERRIDE_NR	NUMBER		4	1	Project ground flash density Ng (flashes/km2/year) override from lightning location service	1
 PARAM	094be161-c341-5db9-bf8a-66f182942bf6	ELC_LPS_PROJECT_NG_OVERRIDE_TXT	TEXT		4	1	ELC_LPS_PROJECT_NG_OVERRIDE_NR display mirror [auto-generated]	1
-PARAM	b1332559-0830-5d8f-8ac7-5f77a963cd94	ELC_LPS_KC_FACTOR_NR	NUMBER		4	1	Current-distribution factor kc per BS EN 62305-3 _6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)	1
+PARAM	b1332559-0830-5d8f-8ac7-5f77a963cd94	ELC_LPS_KC_FACTOR_NR	NUMBER		4	1	Current-distribution factor kc per BS EN 62305-3 s.6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc)	1
 PARAM	75cd5268-c764-551b-872d-00b0b31308a6	ELC_LPS_ELEMENT_TYPE_TXT	TEXT		4	1	LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily	1
 PARAM	c40720fa-3e80-5880-86c3-a82f43055fbf	CST_INTL_PRICE_USD	NUMBER		2	1	International supplier unit price in USD	1
 PARAM	afaa54ec-cd64-58a2-9da2-e9cf309d34cb	CST_INTL_PRICE_TXT	TEXT		2	1	CST_INTL_PRICE_USD display mirror [auto-generated]	1
@@ -2808,19 +2808,19 @@ PARAM	a7c93ee1-9df2-5531-b873-1df826526e82	PRJ_ORG_AI_EXTRACT_ENABLED_BOOL	YESNO
 PARAM	c6796da5-3755-5074-b19f-493318188ac8	PRJ_SHEET_BIM_MODE_TXT	TEXT		13	1	Per-sheet BIM mode marker -- "BIM" or "NONBIM" -- set as default value by the title-block family the sheet uses. TitleBlock_ToggleBIMMode swaps the title-block family between BIM/NONBIM variants, this param keeps a record of the current variant for audit purposes [title block factory v2.0 two-family architecture]	1
 PARAM	87cdf4f5-91e9-562d-9deb-0532fc642705	PRJ_TB_STRUCTURAL_CONSULTANTS_ADDRESS_TXT	TEXT		13	1	Structural consultant office address shown on title block -- paired with PRJ_TB_STRUCTURAL_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]	1
 PARAM	72432a96-c7b4-5459-8579-18d5f095edd8	PRJ_TB_MEP_CONSULTANTS_ADDRESS_TXT	TEXT		13	1	MEP consultant office address shown on title block -- paired with PRJ_TB_MEP_CONSULTANTS_NAME_TXT [ISO 19650-1:2018]	1
-PARAM	d6b56315-8f12-5bc5-b984-039d2b46bb77	PRJ_SHEET_PROJECT_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. "STG"). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 _5.1.6]	1
-PARAM	94cb197e-5358-5bdb-9759-7aca37d9c15c	PRJ_SHEET_ORIG_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. "PLNS"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1
-PARAM	498273b7-a814-57e4-8316-8359609a8bdd	PRJ_SHEET_VOLUME_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. "ZZ" / "01" / "M01"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1
-PARAM	43a870ab-1356-5f0e-977e-d9df46688a3b	PRJ_SHEET_LEVEL_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. "01" / "GF" / "ZZ"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1
-PARAM	c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a	PRJ_SHEET_TYPE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. "DR" drawing / "M3" model / "SH" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1
-PARAM	75667436-72f2-5b47-af1a-2d861e754989	PRJ_SHEET_ROLE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. "A" architect / "S" structural / "M" mechanical / "E" electrical / "P" plumbing / "FP" fire / "LV" landscape / "G" general). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1
-PARAM	b11bf925-8cf7-5941-b8aa-9ccea031253d	PRJ_SHEET_SEQ_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. "0001"). Sheet-instance scope [BS EN ISO 19650-2:2018 _5.1.6]	1
+PARAM	d6b56315-8f12-5bc5-b984-039d2b46bb77	PRJ_SHEET_PROJECT_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 1 (project code, e.g. "STG"). Sheet-instance scope, populated per sheet [BS EN ISO 19650-2:2018 s.5.1.6]	1
+PARAM	94cb197e-5358-5bdb-9759-7aca37d9c15c	PRJ_SHEET_ORIG_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 2 (originator code, e.g. "PLNS"). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]	1
+PARAM	498273b7-a814-57e4-8316-8359609a8bdd	PRJ_SHEET_VOLUME_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 3 (volume / system, e.g. "ZZ" / "01" / "M01"). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]	1
+PARAM	43a870ab-1356-5f0e-977e-d9df46688a3b	PRJ_SHEET_LEVEL_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 4 (level / location, e.g. "01" / "GF" / "ZZ"). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]	1
+PARAM	c5c9de9a-9ad8-5de7-8ee6-0149cd674a6a	PRJ_SHEET_TYPE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 5 (type, e.g. "DR" drawing / "M3" model / "SH" schedule). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]	1
+PARAM	75667436-72f2-5b47-af1a-2d861e754989	PRJ_SHEET_ROLE_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 6 (role, e.g. "A" architect / "S" structural / "M" mechanical / "E" electrical / "P" plumbing / "FP" fire / "LV" landscape / "G" general). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]	1
+PARAM	b11bf925-8cf7-5941-b8aa-9ccea031253d	PRJ_SHEET_SEQ_TXT	TEXT		13	1	ISO 19650 7-segment sheet ID -- segment 7 (4-digit zero-padded sequence number, e.g. "0001"). Sheet-instance scope [BS EN ISO 19650-2:2018 s.5.1.6]	1
 PARAM	fdb62488-a957-546e-9c2c-95eb4c605559	PRJ_SHEET_FULL_REF_TXT	TEXT		13	1	ISO 19650 full 7-segment sheet ID -- concatenation of PROJECT-ORIG-VOLUME-LEVEL-TYPE-ROLE-SEQ (e.g. "STG-PLNS-ZZ-01-DR-A-0001"). Populated by SetString when any segment changes -- Revit family-formula parser doesn't reliably support text concat in this context [BS EN ISO 19650-2:2018]	1
 PARAM	da8b102d-0dcc-5dce-83d1-82abc3bdbab5	PRJ_SHEET_OF_TOTAL_TXT	TEXT		13	1	"Sheet n of total" string for the title block (e.g. "03 / 12"). Auto-updated by SheetCountAutoUpdate command from PRJ_TB_TOTAL_NO_SHEETS_TXT and Revit's built-in Sheet Number [ISO 19650-1:2018]	1
-PARAM	7d12b6b6-9c62-515e-a611-92ab4e74e93f	PRJ_DWG_SUITABILITY_DESC_TXT	TEXT		13	1	Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for "S2" the description is "Shared, Non-contractual" [BS EN ISO 19650-2:2018 _5.6 Annex A]	1
+PARAM	7d12b6b6-9c62-515e-a611-92ab4e74e93f	PRJ_DWG_SUITABILITY_DESC_TXT	TEXT		13	1	Descriptive label paired with PRJ_DWG_SUITABILITY_COD_TXT -- e.g. for "S2" the description is "Shared, Non-contractual" [BS EN ISO 19650-2:2018 s.5.6 Annex A]	1
 PARAM	9ba3db45-85dd-5f83-92e3-6b9f5a07b52d	PRJ_TB_FEDERATION_STATUS_TXT	TEXT		13	1	Federation status of the sheet's host model at issue time -- e.g. "Federated v.4", "Discipline-isolated", "Coordination-pending" [ISO 19650-2:2018]	1
 PARAM	3a2b846f-94ae-5dfd-8ab2-aa5800d48f92	PRJ_DWG_LOIN_LOD_TXT	TEXT		13	1	Level of Information Need / Level of Detail at issue -- e.g. "LOD 300" / "LOIN-3" / "LOD 350" [BS EN 17412-1:2020]	1
-PARAM	862eb92a-b8c6-5429-9330-e43afd73744b	PRJ_TB_AUTHORISED_BY_TXT	TEXT		13	1	4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 _5.6.2]	1
+PARAM	862eb92a-b8c6-5429-9330-e43afd73744b	PRJ_TB_AUTHORISED_BY_TXT	TEXT		13	1	4-eyes authorisation signature -- distinct from APVD (which can be the same person who approved). Used for high-risk deliverables (CDM, statutory submissions) where a separate authoriser must counter-sign [ISO 19650-1:2018 s.5.6.2]	1
 PARAM	380b2001-f9db-5977-be90-a98d214353cc	PRJ_TB_AUTHORISED_DATE_TXT	TEXT		13	1	Date of 4-eyes authorisation signature -- paired with PRJ_TB_AUTHORISED_BY_TXT [ISO 19650-1:2018]	1
 PARAM	d09f3202-3748-5fcd-ae64-9531b2e71db1	PRJ_ORG_UNICLASS_CO_TXT	TEXT		13	1	Project Uniclass 2015 Complex (Co_) classification, e.g. "Co_25_30 Office buildings" -- provides the project's industry-standard taxonomy on the title block [Uniclass 2015]	1
 PARAM	27a03309-63b6-5b89-9545-0e5fc5124d33	PRJ_ORG_COORD_SYSTEM_TXT	TEXT		13	1	Project geodetic coordinate system, e.g. "OS GB / British National Grid" / "WGS 84 UTM 36N" / "Uganda Cassini-Soldner" -- surveyors / GIS reference [BS 7666-2:2006]	1
@@ -2924,26 +2924,26 @@ PARAM	a6b7c8d9-eafb-4acc-5d6e-7f8a9bacdbec	STING_MATCH_REF_TXT	TEXT		27	1	Paired
 PARAM	a7b8c9da-fbac-4bcd-6e7f-8a9bacdbecfd	STING_MATCH_LINE_GUID_TXT	TEXT		27	1	Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]	1
 PARAM	a8b9cadb-acbd-4cde-7f8a-9bacdbecfdae	STING_MATCH_DIR_TXT	TEXT		27	1	Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]	1
 # -- Lightning Protection System tag containers (BS EN 62305) ---------------
-PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 _5.2]	1
-PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 _5.3]	1
-PARAM	e1c5f9d4-1003-5111-9111-100000000003	ELC_LPS_EARTH_TAG_TXT	TEXT		4	1	LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]	1
-PARAM	e1c5f9d4-1004-5111-9111-100000000004	ELC_LPS_BOND_TAG_TXT	TEXT		4	1	LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 _6.2]	1
+PARAM	e1c5f9d4-1001-5111-9111-100000000001	ELC_LPS_AIRTERM_TAG_TXT	TEXT		4	1	LPS air-terminal / finial tag -- full ISO 19650 tag for rod, mesh node, or strike termination [BS EN 62305-3 s.5.2]	1
+PARAM	e1c5f9d4-1002-5111-9111-100000000002	ELC_LPS_DOWNCOND_TAG_TXT	TEXT		4	1	LPS down-conductor tag -- full tag for descent conductors connecting air terminals to earth [BS EN 62305-3 s.5.3]	1
+PARAM	e1c5f9d4-1003-5111-9111-100000000003	ELC_LPS_EARTH_TAG_TXT	TEXT		4	1	LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 s.5.4]	1
+PARAM	e1c5f9d4-1004-5111-9111-100000000004	ELC_LPS_BOND_TAG_TXT	TEXT		4	1	LPS equipotential bonding tag -- full tag for bonding conductor or bonding bar [BS EN 62305-3 s.6.2]	1
 PARAM	e1c5f9d4-1005-5111-9111-100000000005	ELC_LPS_SPD_TAG_TXT	TEXT		4	1	LPS surge protective device tag -- full tag for SPD Type 1 / 2 / 3 [BS EN 62305-4 / BS EN 61643]	1
-PARAM	e1c5f9d4-1006-5111-9111-100000000006	ELC_LPS_TESTCLAMP_TAG_TXT	TEXT		4	1	LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 _7.2]	1
-PARAM	e1c5f9d4-1010-5111-9111-100000000010	ELC_LPS_FROM_LPZ_TXT	TEXT		4	1	LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]	1
-PARAM	e1c5f9d4-1011-5111-9111-100000000011	ELC_LPS_TO_LPZ_TXT	TEXT		4	1	LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]	1
+PARAM	e1c5f9d4-1006-5111-9111-100000000006	ELC_LPS_TESTCLAMP_TAG_TXT	TEXT		4	1	LPS test clamp / inspection point tag -- full tag for clamps allowing earth-resistance test [BS EN 62305-3 s.7.2]	1
+PARAM	e1c5f9d4-1010-5111-9111-100000000010	ELC_LPS_FROM_LPZ_TXT	TEXT		4	1	LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 s.6.1]	1
+PARAM	e1c5f9d4-1011-5111-9111-100000000011	ELC_LPS_TO_LPZ_TXT	TEXT		4	1	LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 s.6.1]	1
 PARAM	e1c5f9d4-1007-5111-9111-100000000007	ELC_TAG_7_PARA_LPS_TXT	TEXT		4	1	Electrical TAG7 paragraph container for LPS (class, LPZ, down conductors, earth resistance, last test) [STING Phase 176]	1
 # -- Lightning Protection System validation warnings (BS EN 62305) ----------
-PARAM	f1d6f0e5-2001-5222-9222-200000000001	WARN_ELC_LPS_NO_CLASS	TEXT		4	1	Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 _8] [CRITICAL]	1
+PARAM	f1d6f0e5-2001-5222-9222-200000000001	WARN_ELC_LPS_NO_CLASS	TEXT		4	1	Warning: LPS class missing -- set ELC_LPS_CLASS_TXT to I / II / III / IV [BS EN 62305-1 s.8] [CRITICAL]	1
 PARAM	f1d6f0e5-2002-5222-9222-200000000002	WARN_ELC_LPS_DOWN_COND_INSUFFICIENT	TEXT		4	1	Warning: down-conductor count below class minimum (Class I=4, II=3, III/IV=2) [BS EN 62305-3 Tab 4] [HIGH]	1
-PARAM	f1d6f0e5-2003-5222-9222-200000000003	WARN_ELC_LPS_EARTH_RESISTANCE_HIGH	TEXT		4	1	Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 _5.4.1] [HIGH]	1
+PARAM	f1d6f0e5-2003-5222-9222-200000000003	WARN_ELC_LPS_EARTH_RESISTANCE_HIGH	TEXT		4	1	Warning: earth resistance exceeds 10 ohm -- refit electrodes or supplement ring earth [BS EN 62305-3 s.5.4.1] [HIGH]	1
 PARAM	f1d6f0e5-2004-5222-9222-200000000004	WARN_ELC_LPS_NO_RISK_ASSESSMENT	TEXT		4	1	Warning: BS EN 62305-2 risk assessment reference (R1..R4) not recorded -- class selection cannot be justified [HIGH]	1
-PARAM	f1d6f0e5-2005-5222-9222-200000000005	WARN_ELC_LPS_SEPARATION_FAIL	TEXT		4	1	Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 _6.3] [HIGH]	1
-PARAM	f1d6f0e5-2006-5222-9222-200000000006	WARN_ELC_LPS_INSPECTION_OVERDUE	TEXT		4	1	Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 _E.7] [MEDIUM]	1
+PARAM	f1d6f0e5-2005-5222-9222-200000000005	WARN_ELC_LPS_SEPARATION_FAIL	TEXT		4	1	Warning: separation distance s = ki.kc.l/km is below computed value -- services may flashover during strike [BS EN 62305-3 s.6.3] [HIGH]	1
+PARAM	f1d6f0e5-2006-5222-9222-200000000006	WARN_ELC_LPS_INSPECTION_OVERDUE	TEXT		4	1	Warning: inspection interval exceeded (Class I/II=12 mo, III/IV=24 mo) [BS EN 62305-3 s.E.7] [MEDIUM]	1
 PARAM	f1d6f0e5-2007-5222-9222-200000000007	WARN_ELC_LPS_CONDUCTOR_CROSS_SECT_LOW	TEXT		4	1	Warning: down-conductor cross-section below class minimum (50 mm2 Cu / 70 mm2 Al / 50 mm2 Steel) [BS EN 62305-3 Tab 6] [HIGH]	1
-PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 _6.2] [HIGH]	1
+PARAM	f1d6f0e5-2008-5222-9222-200000000008	WARN_ELC_LPS_NO_BONDING	TEXT		4	1	Warning: equipotential bonding type not specified (DIRECT / SPD / ISOLATING_SPARK_GAP) [BS EN 62305-3 s.6.2] [HIGH]	1
 PARAM	f1d6f0e5-2009-5222-9222-200000000009	WARN_ELC_LPS_MESH_SIZE_EXCEEDED	TEXT		4	1	Warning: air-termination mesh exceeds class limit (I=5x5, II=10x10, III=15x15, IV=20x20 m) [BS EN 62305-3 Tab 2] [HIGH]	1
-PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 _4.1] [MEDIUM]	1
+PARAM	f1d6f0e5-2010-5222-9222-200000000010	WARN_ELC_LPS_NO_ZONE	TEXT		4	1	Warning: lightning protection zone (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) not assigned [BS EN 62305-4 s.4.1] [MEDIUM]	1
 # -- SLD / Symbol workflow circuit parameters (Phase 175 -- read by SymbolAnnotationEngine.BuildLabel) --
 PARAM	c2a7e5b1-3001-5333-9333-300000000001	ELC_CIRCUIT_REF_TXT	TEXT		4	1	Electrical circuit reference (e.g. L1 / DB1-3) -- rendered into SLD labels by SymbolAnnotationEngine [STING Phase 175]	1
 PARAM	c2a7e5b1-3002-5333-9333-300000000002	ELC_CIRCUIT_RATING_TXT	TEXT		4	1	Circuit / device rating string (e.g. 32A / 100A) -- rendered into SLD labels [STING Phase 175]	1
@@ -2959,14 +2959,14 @@ PARAM	f1d6e7c8-1006-5178-9178-100000000006	ELC_LPD_LIMIT_W_PER_M2	TEXT		4	1	Stan
 PARAM	f1d6e7c8-1007-5178-9178-100000000007	ELC_LPD_STATUS_TXT	TEXT		4	1	LPD compliance status (PASS / FAIL / WARNING / UNCHECKED) [STING Phase 178]	1
 PARAM	a2e7f8d9-1001-5179-9179-100000000001	ELC_ARC_FLASH_IE_CAL_CM2	TEXT		4	1	Calculated incident energy in cal/cm2 at the working distance [IEEE 1584-2018 / NFPA 70E / STING Phase 179]	1
 PARAM	a2e7f8d9-1002-5179-9179-100000000002	ELC_ARC_FLASH_BOUNDARY_MM	TEXT		4	1	Arc flash boundary distance in mm -- the distance at which incident energy = 1.2 cal/cm2 [IEEE 1584-2018 / STING Phase 179]	1
-PARAM	a2e7f8d9-1003-5179-9179-100000000003	ELC_ARC_FLASH_PPE_CAT	TEXT		4	1	NFPA 70E Table 130.5(G) PPE category 0-4 (-1 = exceeds Cat 4 / dangerous) [STING Phase 179]	1
+PARAM	a2e7f8d9-1003-5179-9179-100000000003	ELC_ARC_FLASH_PPE_CAT	TEXT		4	1	Incident-energy band at the working distance, e.g. 4-8 cal/cm2, from the bands in STING_ARC_FLASH_PPE.json; N/A when not calculated. Not an NFPA 70E PPE category: 130.5(H) puts incident energy or a category on a label, not both [IEEE 1584-2018 / STING DSCH-25]	1
 PARAM	a2e7f8d9-1004-5179-9179-100000000004	ELC_ARC_FLASH_WORK_DIST_MM	TEXT		4	1	Working distance from the arc source in mm (default 455 mm for LV equipment per IEEE 1584) [STING Phase 179]	1
 PARAM	a2e7f8d9-100d-5179-9179-10000000000d	ELC_ARC_FLASH_ELECTRODE_TXT	TEXT		4	1	IEEE 1584-2018 electrode configuration VCB / VCBB / HCB / VOA / HOA - blank = VCB assumed and noted on the label [STING MEPG-11]	1
 PARAM	a2e7f8d9-100e-5179-9179-10000000000e	ELC_ARC_FLASH_GAP_MM	TEXT		4	1	IEEE 1584-2018 conductor gap in mm - blank = the typical gap for the equipment class, noted on the label [STING MEPG-11]	1
 PARAM	a2e7f8d9-100f-5179-9179-10000000000f	ELC_ARC_FLASH_ENCL_H_MM	TEXT		4	1	IEEE 1584-2018 enclosure height in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]	1
 PARAM	a2e7f8d9-1010-5179-9179-100000000010	ELC_ARC_FLASH_ENCL_W_MM	TEXT		4	1	IEEE 1584-2018 enclosure width in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]	1
 PARAM	a2e7f8d9-1011-5179-9179-100000000011	ELC_ARC_FLASH_ENCL_D_MM	TEXT		4	1	IEEE 1584-2018 enclosure depth in mm - blank = the typical enclosure for the equipment class, noted on the label [STING MEPG-11]	1
-PARAM	a2e7f8d9-1005-5179-9179-100000000005	ELC_ARC_FLASH_LABEL_TXT	TEXT		4	1	Formatted NFPA 70E arc flash warning label text -- voltage / energy / boundary / PPE [STING Phase 179]	1
+PARAM	a2e7f8d9-1005-5179-9179-100000000005	ELC_ARC_FLASH_LABEL_TXT	TEXT		4	1	Arc flash label text: ANSI Z535.4 signal word (WARNING / DANGER), voltage, incident energy at the working distance, arc flash boundary, clearing time and basis; no PPE category. NOT CALCULATED text with the reason when no result [IEEE 1584-2018 / STING DSCH-25]	1
 PARAM	a2e7f8d9-1006-5179-9179-100000000006	ELC_SEL_COORD_VERIFIED_BOOL	YESNO		4	1	Selective coordination check result (1=passes, 0=fails) [BS 7671 / NEC 240.87 / STING Phase 179]	1
 PARAM	a2e7f8d9-1007-5179-9179-100000000007	ELC_BUSBAR_CSA_MM2	TEXT		4	1	Busbar trunking conductor cross-sectional area in mm2 [BS EN 60439-1 / STING Phase 179]	1
 PARAM	a2e7f8d9-1008-5179-9179-100000000008	ELC_BUSBAR_RATING_A	TEXT		4	1	Busbar trunking continuous current rating in amperes [BS EN 60439-1 / STING Phase 179]	1
@@ -3021,7 +3021,7 @@ PARAM	c8d4f6e2-b006-4d27-8c61-0e7a3f9b1006	MGS_TU_INDEXED_BOOL	YESNO		29	1	Has g
 PARAM	c8d4f6e2-b007-4d27-8c61-0e7a3f9b1007	MGS_ZVB_REF_TXT	TEXT		29	1	Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)	1
 PARAM	c8d4f6e2-b008-4d27-8c61-0e7a3f9b1008	MGS_AAP_REF_TXT	TEXT		29	1	Owning area alarm panel ID	1
 PARAM	c8d4f6e2-b009-4d27-8c61-0e7a3f9b1009	MGS_PIPE_BRAZED_BOOL	YESNO		29	1	Brazed under inert-gas purge [HTM 02-01]	1
-PARAM	c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010	MGS_VERIFY_DT	TEXT		29	1	NFPA 99 _5.1.12 verification date (ISO 8601)	1
+PARAM	c8d4f6e2-b010-4d27-8c61-0e7a3f9b1010	MGS_VERIFY_DT	TEXT		29	1	NFPA 99 s.5.1.12 verification date (ISO 8601)	1
 PARAM	c8d4f6e2-b011-4d27-8c61-0e7a3f9b1011	MGS_VERIFY_BY_TXT	TEXT		29	1	ASSE 6030 verifier name	1
 PARAM	c8d4f6e2-b012-4d27-8c61-0e7a3f9b1012	MGS_VERIFY_PASS_BOOL	YESNO		29	1	Latest verification passed	1
 PARAM	c8d4f6e2-b013-4d27-8c61-0e7a3f9b1013	MGS_VERIFY_CERT_REF_TXT	TEXT		29	1	Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT)	1
@@ -3058,7 +3058,7 @@ PARAM	c8d4f6e2-1102-4d27-8c61-0e7a3f9b6002	HVC_HEPA_GRADE_TXT	TEXT		5	1	HEPA gra
 PARAM	c8d4f6e2-1103-4d27-8c61-0e7a3f9b6003	HVC_HEPA_LAST_TST_DT	TEXT		5	1	Last DOP / PAO test date (ISO 8601)	1
 PARAM	c8d4f6e2-1104-4d27-8c61-0e7a3f9b6004	HVC_ACH_OUTSIDE_NR	INTEGER		5	1	Outside-air ACH component (total ACH reuses HVC_AIR_CHANGES_PER_HR)	1
 PARAM	c8d4f6e2-1201-4d27-8c61-0e7a3f9b7001	PLM_TMV_TYPE_TXT	TEXT		6	1	Thermostatic mixing valve type: TMV2 / TMV3 / NONE [HTM 04-01]	1
-PARAM	c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002	PLM_DEAD_LEG_M_NR	NUMBER		6	1	Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: generally <= 3 m]	1
+PARAM	c8d4f6e2-1202-4d27-8c61-0e7a3f9b7002	PLM_DEAD_LEG_M_NR	NUMBER		6	1	Spur length from main to outlet (m) [HTM 04-01 Pt A 12.5: healthcare spur generally <= 3 m; blended pipe after a TMV <= 2 m, Pt A 10.48]	1
 PARAM	c8d4f6e2-1203-4d27-8c61-0e7a3f9b7003	PLM_AUG_CARE_BOOL	YESNO		6	1	Augmented-care wing rules apply [HTM 04-01 Pt C -- Pseudomonas]	1
 PARAM	c8d4f6e2-1204-4d27-8c61-0e7a3f9b7004	PLM_POU_FILTER_BOOL	YESNO		6	1	Point-of-use filter fitted [HTM 04-01]	1
 PARAM	c8d4f6e2-1205-4d27-8c61-0e7a3f9b7005	PLM_SENTINEL_BOOL	YESNO		6	1	Sentinel temperature monitoring point [HTM 04-01]	1
@@ -3084,7 +3084,7 @@ PARAM	c8d4f6e2-1513-4d27-8c61-0e7a3f9ba013	PRJ_ORG_HEALTH_HTM_REGION_TXT	TEXT		1
 PARAM	c8d4f6e2-1514-4d27-8c61-0e7a3f9ba014	PRJ_ORG_HEALTH_IHFG_BOOL	YESNO		13	1	iHFG (International Health Facility Guidelines) authority applies	1
 PARAM	c8d4f6e2-1515-4d27-8c61-0e7a3f9ba015	PRJ_ORG_HEALTH_PACK_PROFILE_TXT	TEXT		13	1	Healthcare pack profile (acute / community / mental / standalone) for validator gating	1
 PARAM	c8d4f6e2-2001-4d27-8c61-0e7a3f9bb001	CLN_FLOOR_LOAD_KN_M2_NR	NUMBER		28	1	Imposed floor load (kN/m2) for heavy imaging equipment [H-23]	1
-PARAM	c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002	CLN_VIB_VM_NR	NUMBER		28	1	Vibration criterion (_m/s rms VC band) [H-23]	1
+PARAM	c8d4f6e2-2002-4d27-8c61-0e7a3f9bb002	CLN_VIB_VM_NR	NUMBER		28	1	Vibration criterion (um/s rms VC band) [H-23]	1
 PARAM	c8d4f6e2-2003-4d27-8c61-0e7a3f9bb003	CLN_EQUIP_WEIGHT_KG_NR	NUMBER		28	1	Heavy-equipment design weight (kg) [H-23]	1
 PARAM	c8d4f6e2-2004-4d27-8c61-0e7a3f9bb004	CLN_STRUCT_SIGN_OFF_TXT	TEXT		28	1	Structural Engineer sign-off name [H-23]	1
 PARAM	c8d4f6e2-2005-4d27-8c61-0e7a3f9bb005	CLN_STRUCT_SIGN_OFF_DT	TEXT		28	1	Structural Engineer sign-off date [H-23]	1
@@ -3111,8 +3111,8 @@ PARAM	c8d4f6e2-2601-4d27-8c61-0e7a3f9c1001	ICT_HEALTHIOT_DEVICE_ID_TXT	TEXT		3	1
 PARAM	c8d4f6e2-2602-4d27-8c61-0e7a3f9c1002	ICT_HEALTHIOT_PROTOCOL_TXT	TEXT		3	1	IoT protocol BACNET/OPC-UA/MODBUS/REST/PROPRIETARY [H-20]	1
 PARAM	c8d4f6e2-2603-4d27-8c61-0e7a3f9c1003	ICT_HEALTHIOT_ENDPOINT_TXT	TEXT		3	1	IoT endpoint URI [H-20]	1
 PARAM	c8d4f6e2-2604-4d27-8c61-0e7a3f9c1004	ICT_HEALTHIOT_ALERT_BAND_TXT	TEXT		3	1	IoT alert band free-text [H-20]	1
-PARAM	c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90	ELC_CDT_BEND_ANGLE_DEG	TEXT		4	1	Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 _522.8]	1
-PARAM	d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01	ELC_CDT_BEND_COUNT_NR	TEXT		4	1	Number of bends in this conduit run (BS 7671 _522.8.5 limits to 3 between draw-in points)	1
+PARAM	c7f5a2e1-9b3d-4e1c-8a2f-7d6b3e4c5a90	ELC_CDT_BEND_ANGLE_DEG	TEXT		4	1	Conduit bend angle in degrees: 11.25/22.5/30/45/60/90/120 [BS 7671:2018+A2:2022 s.522.8]	1
+PARAM	d8e6b3f2-ac4e-5f2d-9b3e-8e7c4f5d6b01	ELC_CDT_BEND_COUNT_NR	TEXT		4	1	Number of bends in this conduit run (BS 7671 s.522.8.5 limits to 3 between draw-in points)	1
 PARAM	e9f7c4f3-bd5f-6f3e-ac4f-9f8d5e6e7c12	ELC_CDT_RUN_LENGTH_M	TEXT		4	1	Conduit run length in metres (BS 7671 max ~6m between draw-in points)	1
 PARAM	fa1b8d54-ce6f-7f4f-bd5f-af9e6f7f8d23	ELC_CDT_CABLE_COUNT_NR	TEXT		4	1	Number of cables drawn in this conduit (BS EN 61386 fill: 1=53%/43%, 2=31%/20%, 3+=40%/35%)	1
 PARAM	b1c2d3e4-fd6f-8e0d-ce7e-be0f7f8e9f34	ELC_CIRCUIT_GROUP_TXT	TEXT		4	1	Logical circuit group key (kitchen / emergency-lighting / fire-alarm / comms-room) -- circuits with the same value tend to land on the same panel. Resolved by STING_ELECTRICAL_ASSIGNMENT.json or stamped manually.	1
@@ -3128,6 +3128,20 @@ PARAM	878bb409-fa13-5d8f-ae92-8fdac5aa7375	PRJ_ELC_SUPPLY_VOLTAGE_TXT	TEXT		13	1
 PARAM	b0ae4e71-3170-55ff-9c47-5e559ee12943	PLM_RECIRC_DELTA_T_K	NUMBER		6	1	Temperature difference between the hot water and the air around the recirculation pipework, K, used for the pipe heat loss. Read by the recirculation loop balancer; blank = 40 K (60 C water, 20 C air).	1
 PARAM	825bb253-9c4b-5051-bd48-8b50ebdbd40b	PLM_FIX_TYPE_TXT	TEXT		6	1	Plumbing fixture kind (WC, BASIN, SINK, SHOWER, URINAL, BIDET, BATH ...). The connector completeness check uses it to know how many connectors the fixture needs.	1
 PARAM	ac32041d-b1f2-5bfc-86bd-80622407b94b	PLM_TMV_ASSISTED_BOOL	YESNO		6	1	TMV serves an assisted bath (HTM 04-01 Part A Table 2: 46 C assisted, 44 C unassisted; Yes only where the WSG approved assisted bathing above 44 C) [DSCH-25]	1
+PARAM	1e9925ed-2c23-52cc-9bac-4b0940eb7249	PLM_TMV_MEASURED_C	NUMBER		6	1	TMV outlet temperature measured at commissioning or the annual test, C (the design set-point is PLM_TMV_BLEND_TEMP_C), entered from the commissioning record; checked against the never-exceed limit in STING_TMV_STANDARDS.json. Blank = not measured [DSCH-36]	1
+PARAM	6719d6d1-15b4-5b0c-9e04-d3e9cd52e14d	PLM_TMV_INLET_HOT_C	NUMBER		6	1	TMV hot supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]	1
+PARAM	fc47f1d3-f246-5684-b890-8262519c76c9	PLM_TMV_INLET_COLD_C	NUMBER		6	1	TMV cold supply temperature at the valve inlet, C, recorded at commissioning or the annual test; read by the TMV register. Blank = not recorded [DSCH-36]	1
+PARAM	e38a2138-93cf-59ac-9ed6-ce88c6b521ea	PLM_TMV_TEST_DATE_TXT	TEXT		6	1	Date of the last TMV performance test (yyyy-MM-dd); the TMV register derives the next test (+12 months) from it when PLM_TMV_NEXT_TEST_TXT is blank [DSCH-36]	1
+PARAM	fe2fd66a-99ce-505e-857d-9c53087361fe	PLM_TMV_NEXT_TEST_TXT	TEXT		6	1	Date the next TMV performance test is due (yyyy-MM-dd); blank = test date + 12 months. The TMV register reports a past date as overdue [DSCH-36]	1
+PARAM	28bdf697-33ae-5dbf-b4fd-3c94ce6a5d58	PLM_DRN_DU_NR	NUMBER		6	1	Discharge units of this fixture (BS EN 12056-2), written by Scan Fixtures from the fixture-unit table [DSCH-42]	1
+PARAM	392bcd1a-944b-5f2b-a317-d3a23d30ad21	PLM_SUP_LU_CW_NR	NUMBER		6	1	Cold-water loading units (BS EN 806-3): per fixture from Scan Fixtures, accumulated on a pipe by the real-time sizer; read by the supply sizer and pump select [DSCH-42]	1
+PARAM	e3d7ba72-4141-5afc-93c5-b7ffa09547a3	PLM_SUP_LU_HW_NR	NUMBER		6	1	Hot-water loading units (BS EN 806-3) of this fixture, written by Scan Fixtures; read by the supply sizer [DSCH-42]	1
+PARAM	722f3bd5-f203-5d23-98dc-1b098e4a43d5	PLM_SUP_WSFU_NR	NUMBER		6	1	Water supply fixture units (IPC / UPC) of this fixture, written by Scan Fixtures; read by the supply sizer [DSCH-42]	1
+PARAM	94b648c4-8cda-5426-8131-7d26fe9aa5fc	PLM_HAS_TRAP_BOOL	YESNO		6	1	Fixture has a trap: set by Insert P-Traps when it finds or places one, and read so a re-run does not place a second [DSCH-42]	1
+PARAM	2e41e03c-098e-5cfb-8cfc-ae0a22c105fe	PLM_PIPE_REAL_SIZE_BOOL	YESNO		6	1	Pipe sized by the STING real-time sizer; with PLM_CALC_DN set, the sizer skips it on the next pass [DSCH-42]	1
+PARAM	b82ab713-0579-5c2d-b43e-eb89d06b9cb2	PLM_EXPVSL_SZ_L	NUMBER		6	1	Expansion vessel volume, litres, from the BS 7074-1 sizing, stamped on the vessel the sizer places [DSCH-42]	1
+PARAM	eb502972-2c78-57d4-b6cd-bf064bd90e13	PLM_PUMP_DUTY_FLOW_LPS	NUMBER		6	1	Pump duty flow, l/s, from Pump Select (head is MEP_PUMP_HEAD_M) [DSCH-42]	1
+PARAM	26e35f99-3472-5d3a-83f4-38290d4a9caa	PLM_PUMP_MODEL_TXT	TEXT		6	1	Catalogue pump (manufacturer and model) Pump Select matched to the duty point; blank when none covers it [DSCH-42]	1
 PARAM	0427a377-ac36-52c4-b9e3-ab62433bc577	MGS_GAS_REQUIREMENT_TXT	TEXT		29	1	Medical gases a clinical room needs, comma-separated codes: O2, N2O, CO2, MA4 (medical air), MA7 (surgical air), N2, HE, VAC, AGS (scavenging). Read by Med Gas Outlet placement.	1
 PARAM	3955ebbc-36a2-5a8e-b495-f463c9d9fa8f	HVC_SYSTEM_ID_TXT	TEXT		5	1	Air system that serves this space (for example AHU-01). Block Load groups spaces by it; blank falls back to the space's HVAC zone.	1
 PARAM	949f0c78-685c-5f70-b670-fe74183f81dd	MNT_ACCESS_DIR_TXT	TEXT		9	1	Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or BOTTOM. Read by the maintenance clash check.	1
@@ -3154,7 +3168,7 @@ PARAM	def7081a-9ac1-2d3e-4f50-6172839405a6	ELC_JB_TYPE_TXT	TEXT		4	1	Junction bo
 PARAM	ef8192ab-cdb2-3e4f-5061-7283940516b7	ELC_JB_SIZE_MM	TEXT		4	1	Trade-size of the junction box in W x D x H millimetres. Default 100x100x60.	1
 PARAM	f0a293bc-decb-4f50-6172-839405162718	ELC_JB_AUTO_PLACED_BOOL	YESNO		4	1	True (1) when the box was auto-placed by JunctionBoxAutoPlacer at a bend-count or run-length break-point. False (0) for manually-placed boxes.	1
 PARAM	a1b3a4cd-efdc-5061-7283-940516271829	ELC_JB_REASON_TXT	TEXT		4	1	Reason auto-placer put the box here: BENDS_EXCESS / RUN_TOO_LONG / FILL_OVER / WALL_PENETRATION / MANUAL. Surfaced in the Penetration / Pull-Box register schedule.	1
-PARAM	b2c4a5dd-fe1d-6172-8394-051627182930	ELC_CDT_BREAKPOINT_TXT	TEXT		4	1	Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 _522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.	1
+PARAM	b2c4a5dd-fe1d-6172-8394-051627182930	ELC_CDT_BREAKPOINT_TXT	TEXT		4	1	Reference stamped on a conduit by JunctionBoxAutoPlacer when the run hits a BS 7671 s.522.8.5 break-point. Format: JB:<id>@<reason> when a box was placed; NEEDED:<reason>@<xyz> when the seed family wasn't loaded.	1
 PARAM	9468e66a-ee14-50bb-b0e9-00005ea06497	PLM_DFU_COUNT_INT	INTEGER		6	1	IPC 2021 Drainage Fixture Units assigned to fixture or pipe segment [Phase 178b]	1
 PARAM	689d24e8-c9b5-5705-8f7f-57a3e6436c19	PLM_WSFU_COUNT_INT	INTEGER		6	1	IPC 2021 Water Supply Fixture Units [Phase 178b]	1
 PARAM	cde11f1f-ce97-59b6-9e31-88733c0074bc	PLM_TRAP_SEAL_DEPTH_MM	TEXT		6	1	Trap water seal depth mm minimum 50 [BS EN 12056-2 Phase 178b]	1
@@ -3237,7 +3251,7 @@ PARAM	492a3142-5d6e-47f8-6c7d-8e9fa0b1c2d3	ELC_WIRE_MAX_DEMAND_A	NUMBER		4	1	Max
 PARAM	5a3b4253-6e7f-4809-7d8e-9fa0b1c2d3e4	ELC_WIRE_CIRCUIT_BREAKER_A	NUMBER		4	1	Upstream overcurrent protective device rating in amperes [BS 7671 Section 433]	1
 PARAM	6b4c5364-7f80-4910-8e9f-a0b1c2d3e4f5	ELC_WIRE_EARTH_CSA_MM2	NUMBER		4	1	Earth/CPC conductor cross-sectional area in mm2 [BS 7671 Section 543]	1
 PARAM	7c5d6475-8091-4a21-9fa0-b1c2d3e4f506	ELC_WIRE_ARMOURED_BOOL	YESNO		4	1	True if cable is SWA (steel wire armoured) or equivalent [BS 7671]	1
-PARAM	7c5d6475-8091-4a21-9fa0-b1c2d3e4f507	ELC_WIRE_ARMOUR_CONT_OK_BOOL	YESNO		4	1	Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 _543 [STING Gap 12]	1
+PARAM	7c5d6475-8091-4a21-9fa0-b1c2d3e4f507	ELC_WIRE_ARMOUR_CONT_OK_BOOL	YESNO		4	1	Set to 1 when SWA armour continuity at both terminations has been verified per BS 7671 s.543 [STING Gap 12]	1
 PARAM	8d6e7586-9102-4b32-a0b1-c2d3e4f50617	ELC_WIRE_FIRE_RATED_BOOL	YESNO		4	1	True if circuit requires fire-survival cable (e.g. MICC, FP200) [BS 9999 / BS 8519 / BS 7671 Ch.56]	1
 PARAM	9e7f8697-a213-4c43-b1c2-d3e4f5061728	ELC_WIRE_SHIELDED_BOOL	YESNO		4	1	True if cable is screened/shielded (data, fire-alarm, CCTV circuits) [BS 7671]	1
 PARAM	af809708-b324-4d54-c2d3-e4f507182839	ELC_WIRE_CIRCUIT_TYPE_TXT	TEXT		4	1	Circuit type: FINAL/SUB-MAIN/FEEDER/RING/RADIAL/MOTOR/EV/LIGHTING/POWER/DATA [BS 7671]	1
@@ -3254,7 +3268,7 @@ PARAM	492aa108-5dce-47fe-6c7e-8e9fa0b1c3d9	ELC_WIRE_ANNOT_SHOW_DIA_BOOL	YESNO		4
 PARAM	5a3bb219-6edf-4800-7d8f-9fa0b1c2d4ea	ELC_WIRE_ANNOT_SHOW_AMPACITY_BOOL	YESNO		4	1	Show cable ampacity (Iz) and max demand (Ib) in wire annotation label. [STING annotation style]	1
 PARAM	6b4cc32a-7fe0-4911-8e90-a0b1c2d3e5fb	ELC_WIRE_ANNOT_COMPACT_BOOL	YESNO		4	1	Compact label mode: omits panel name and install method to fit tight drawings. [STING annotation style]	1
 PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f00	ELC_PANEL_MAIN_BREAKER_TXT	TEXT		4	1	Main incomer / MCCB rating label (e.g. "250A 65kA MCCB") used for TCC database lookup and selective coordination checks [BS 7671:2018 / STING Gap 13]	1
-PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f01	ELC_SEL_COORD_OK	YESNO		4	1	Selective coordination check result stamp: 1 = passes BS 7671 _536 / NEC 240.87 criteria for this panel [STING Gap 13]	1
+PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f01	ELC_SEL_COORD_OK	YESNO		4	1	Selective coordination check result stamp: 1 = passes BS 7671 s.536 / NEC 240.87 criteria for this panel [STING Gap 13]	1
 PARAM	b04373ec-3a97-5c0e-a13b-b72450d52f02	ELC_PNL_NAME_TXT	TEXT		4	1	Source panel / distribution board name stamped on conduit by WireParamStampCommand (matches ElectricalSystem.BaseEquipment.Name) [STING Gap 1/2]	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1001	PEN_FIRE_RATING_TXT	TEXT		33	1	Required fire rating of the penetration: FR30/FR60/FR90/FR120/blank for non-rated [BS 9999, BS 476-20, EN 1366-3]	1
 PARAM	a7c0b2e4-3301-4d27-9c61-0e7a3f9d1002	PEN_SEALANT_TYPE_TXT	TEXT		33	1	Sealant system: INTUMESCENT/SILICONE/MORTAR/PILLOW/COLLAR/WRAP/NONE [BS 9999]	1
