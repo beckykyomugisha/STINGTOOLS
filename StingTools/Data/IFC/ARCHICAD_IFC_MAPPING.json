@@ -1427,10 +1427,26 @@
     },
     {
       "pset_name": "Qto_BeamBaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true. Element weight kg. IFC4 / IFC4X3: Qto_BeamBaseQuantities.NetWeight, weight taking cut-outs, openings and recesses into account (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Qto_BeamBaseQuantities.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCBEAM"],
+      "notes": "quantity_set: true. Element weight kg. IFC2X3: the beam quantity NetWeight (IFC2x3 TC1 IfcBeam, Quantity Use Definition, https://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/HTML/ifcsharedbldgelements/lexical/ifcbeam.htm). Ordered fallback, tried second.",
+      "verify": "IFC2x3 TC1 names the quantity NetWeight but not the IfcElementQuantity that carries it; \"BaseQuantities\" is the name exporters use (this map's other IFC2X3 quantity rows assume it). An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Qto_BeamBaseQuantities",
       "property_name": "Weight",
       "sting_param": "QTO_WEIGHT_KG",
       "element_types": ["IFCBEAM"],
-      "notes": "quantity_set: true"
+      "notes": "quantity_set: true. Element weight kg. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Qto_BeamBaseQuantities.Weight is not a buildingSMART IFC2X3, IFC4 or IFC4X3 quantity; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
     },
     {
       "pset_name": "Qto_DoorBaseQuantities",
@@ -1462,10 +1478,26 @@
     },
     {
       "pset_name": "Qto_ColumnBaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true. Element weight kg. IFC4 / IFC4X3: Qto_ColumnBaseQuantities.NetWeight, weight taking cut-outs, openings and recesses into account (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Qto_ColumnBaseQuantities.xml). Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "BaseQuantities",
+      "property_name": "NetWeight",
+      "sting_param": "QTO_WEIGHT_KG",
+      "element_types": ["IFCCOLUMN"],
+      "notes": "quantity_set: true. Element weight kg. IFC2X3: the column quantity NetWeight (IFC2x3 TC1 IfcColumn, Quantity Use Definition, https://standards.buildingsmart.org/IFC/RELEASE/IFC2x3/TC1/HTML/ifcsharedbldgelements/lexical/ifccolumn.htm). Ordered fallback, tried second.",
+      "verify": "IFC2x3 TC1 names the quantity NetWeight but not the IfcElementQuantity that carries it; \"BaseQuantities\" is the name exporters use (this map's other IFC2X3 quantity rows assume it). An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Qto_ColumnBaseQuantities",
       "property_name": "Weight",
       "sting_param": "QTO_WEIGHT_KG",
       "element_types": ["IFCCOLUMN"],
-      "notes": "quantity_set: true"
+      "notes": "quantity_set: true. Element weight kg. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Qto_ColumnBaseQuantities.Weight is not a buildingSMART IFC2X3, IFC4 or IFC4X3 quantity; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
     },
     {
       "pset_name": "Qto_SlabBaseQuantities",
@@ -1637,10 +1669,18 @@
     },
     {
       "pset_name": "Pset_EnvironmentalImpactValues",
+      "property_name": "ClimateChange",
+      "sting_param": "CBN_GWP_KG_CO2E",
+      "element_types": [],
+      "notes": "Global warming potential kg CO₂e. IFC4 / IFC4X3: Pset_EnvironmentalImpactValues.ClimateChange, greenhouse gases emitted in equivalent CO2 as a mass (https://github.com/buildingSMART/IFC4.3.x-development/blob/master/reference_schemas/psd/Pset_EnvironmentalImpactValues.xml). IFC2X3 has no Pset_EnvironmentalImpactValues. Ordered fallback, tried first. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
+    },
+    {
+      "pset_name": "Pset_EnvironmentalImpactValues",
       "property_name": "GlobalWarmingPotential",
       "sting_param": "CBN_GWP_KG_CO2E",
       "element_types": [],
-      "notes": "Global warming potential kg CO₂e"
+      "notes": "Global warming potential kg CO₂e. Last fallback: the name this map used before DSCH-38.",
+      "verify": "Pset_EnvironmentalImpactValues.GlobalWarmingPotential is not a buildingSMART IFC4 or IFC4X3 property; kept in case ArchiCAD writes it under this name. An ArchiCAD IFC sample export would confirm which of these sources ArchiCAD writes."
     },
     {
       "pset_name": "Pset_ManufacturerTypeInformation",

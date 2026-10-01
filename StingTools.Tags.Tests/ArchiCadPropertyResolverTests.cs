@@ -130,9 +130,10 @@ namespace StingTools.Tags.Tests
         public void ShippedMap_EveryNonBuildingSmartSourceInTheFallbackGroups_CarriesVerify()
         {
             // The legacy vendor names are kept as last fallbacks only, and say so.
-            var legacy = new[] { "FinishFloor", "FinishCeiling", "FinishWalls", "CeilingHeight", "SolarHeatGainCoefficientGlazing" };
+            var legacy = new[] { "FinishFloor", "FinishCeiling", "FinishWalls", "CeilingHeight", "SolarHeatGainCoefficientGlazing",
+                                 "Weight", "GlobalWarmingPotential" };
             var rows = ShippedMap().Where(m => legacy.Contains(m.ArchiCadProp)).ToList();
-            Assert.Equal(5, rows.Count);
+            Assert.Equal(8, rows.Count);   // Weight: beam + column
             Assert.All(rows, r => Assert.False(string.IsNullOrEmpty(r.Verify), r.ArchiCadProp));
         }
 
@@ -153,6 +154,58 @@ namespace StingTools.Tags.Tests
                 ("Qto_WallBaseQuantities.GrossSideArea", "5"), ("BaseQuantities.GrossArea", "6")))
                 .ToDictionary(c => c.TargetKey, c => c.Value);
             Assert.Equal("6", wall["QTO_GROSS_AREA_M2"]);
+        }
+            public static IEnumerable<object[]> WeightAndCarbonSources() => new[]
+        {
+            // (IFC class, parameter, source) - every source on its own is read
+            new object[] { "IFCBEAM", "QTO_WEIGHT_KG", "Qto_BeamBaseQuantities.NetWeight" },
+            new object[] { "IFCBEAM", "QTO_WEIGHT_KG", "BaseQuantities.NetWeight" },
+            new object[] { "IFCBEAM", "QTO_WEIGHT_KG", "Qto_BeamBaseQuantities.Weight" },
+            new object[] { "IFCCOLUMN", "QTO_WEIGHT_KG", "Qto_ColumnBaseQuantities.NetWeight" },
+            new object[] { "IFCCOLUMN", "QTO_WEIGHT_KG", "BaseQuantities.NetWeight" },
+            new object[] { "IFCCOLUMN", "QTO_WEIGHT_KG", "Qto_ColumnBaseQuantities.Weight" },
+            new object[] { "IFCWALL", "CBN_GWP_KG_CO2E", "Pset_EnvironmentalImpactValues.ClimateChange" },
+            new object[] { "IFCWALL", "CBN_GWP_KG_CO2E", "Pset_EnvironmentalImpactValues.GlobalWarmingPotential" },
+        };
+
+        [Theory]
+        [MemberData(nameof(WeightAndCarbonSources))]
+        public void ShippedMap_ReadsWeightAndCarbon_FromEachSchemasName(string ifcClass, string param, string source)
+        {
+            var got = ArchiCadPropertyResolver.FirstPerTarget(ShippedMap(), ifcClass, Props((source, "1")))
+                .Where(c => c.TargetKey == param).ToList();
+            Assert.Equal(source, Assert.Single(got).SourceKey);
+        }
+
+        [Theory]
+        [InlineData("IFCBEAM", "Qto_BeamBaseQuantities")]
+        [InlineData("IFCCOLUMN", "Qto_ColumnBaseQuantities")]
+        public void ShippedMap_Weight_PrefersIfc4ThenIfc2x3ThenTheVendorName(string ifcClass, string qto)
+        {
+            var map = ShippedMap();
+            string Pick(params (string k, string v)[] kv) =>
+                ArchiCadPropertyResolver.FirstPerTarget(map, ifcClass, Props(kv)).Single(c => c.TargetKey == "QTO_WEIGHT_KG").Value;
+            Assert.Equal("ifc4", Pick((qto + ".Weight", "vendor"), ("BaseQuantities.NetWeight", "ifc2x3"), (qto + ".NetWeight", "ifc4")));
+            Assert.Equal("ifc2x3", Pick((qto + ".Weight", "vendor"), ("BaseQuantities.NetWeight", "ifc2x3")));
+            var vendor = ArchiCadPropertyResolver.FirstPerTarget(map, ifcClass, Props((qto + ".Weight", "vendor")))
+                .Single(c => c.TargetKey == "QTO_WEIGHT_KG");
+            Assert.False(string.IsNullOrEmpty(vendor.Mapping.Verify));
+        }
+
+        [Fact]
+        public void ShippedMap_Carbon_PrefersClimateChange_OverTheVendorName()
+        {
+            var got = ArchiCadPropertyResolver.FirstPerTarget(ShippedMap(), "IFCWALL", Props(
+                ("Pset_EnvironmentalImpactValues.GlobalWarmingPotential", "vendor"),
+                ("Pset_EnvironmentalImpactValues.ClimateChange", "ifc4")));
+            Assert.Equal("ifc4", got.Single(c => c.TargetKey == "CBN_GWP_KG_CO2E").Value);
+        }
+
+        [Fact]
+        public void ShippedMap_WeightIsNotReadForOtherClasses()
+        {
+            var got = ArchiCadPropertyResolver.FirstPerTarget(ShippedMap(), "IFCWALL", Props(("BaseQuantities.NetWeight", "9")));
+            Assert.DoesNotContain(got, c => c.TargetKey == "QTO_WEIGHT_KG");
         }
     }
 }
