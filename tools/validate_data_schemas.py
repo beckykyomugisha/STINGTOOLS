@@ -614,6 +614,30 @@ def _col(cols, name):
 _ref_cache = {}
 
 
+def check_stale_allowances(reg):
+    """An alsoAllowed name that now exists is a stale exception: it hides the
+    next time that name goes missing. Fail until it is removed from the list."""
+    def walk(node, where):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k in ("refersTo",) or k == "valueRefersTo":
+                    refs = [v] if k == "refersTo" else list(v.values())
+                    for ref in refs:
+                        names = _ref_set(ref, where)
+                        for a in ref.get("alsoAllowed", []):
+                            if names is not None and a in names:
+                                err(f"{where}: '{a}' is in alsoAllowed but now exists in "
+                                    f"{ref['file']} - remove it from the list in "
+                                    f"tools/data_schemas.json (and close its ROADMAP item).")
+                else:
+                    walk(v, where)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v, where)
+    for rel, schema in reg.get("schemas", {}).items():
+        walk(schema, rel)
+
+
 def _ref_set(ref, where):
     """The set of names a refersTo points at. Kinds:
          shared-param-names : column 3 of the PARAM rows of a Revit shared-parameter file
@@ -1028,6 +1052,18 @@ def self_test(reg):
             failures.append("POCO scan: a private [JsonProperty(\"instance\")] alias was not counted")
         total += 3
 
+        # A stale exception: a name in alsoAllowed that now exists.
+        import copy
+        errors = []
+        fake3 = copy.deepcopy(reg)
+        ref = (fake3["schemas"]["StingTools/Data/IFC/ARCHICAD_IFC_MAPPING.json"]
+               ["children"]["property_mappings"]["valueRefersTo"]["sting_param"])
+        ref["alsoAllowed"] = ref.get("alsoAllowed", []) + ["PER_U_VALUE_W_M2K"]
+        check_stale_allowances(fake3)
+        if not any("now exists" in e for e in errors):
+            failures.append("allowances: a stale alsoAllowed entry was NOT caught")
+        total += 1
+
         # Two data files with one name: FindDataFile reads only the first.
         global tracked_files
         real_tracked = tracked_files
@@ -1084,6 +1120,7 @@ def main():
         return 0
 
     files = check_coverage(reg)
+    check_stale_allowances(reg)
     for rel in files:
         validate_registered(reg, rel)
 
