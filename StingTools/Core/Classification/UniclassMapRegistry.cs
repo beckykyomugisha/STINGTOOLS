@@ -137,18 +137,19 @@ namespace StingTools.Core.Classification
         private static void Apply(string[] lines, Dictionary<BuiltInCategory, UniclassMapEntry> map, string origin)
         {
             if (lines == null) return;
-            foreach (string raw in lines)
+            // DSCH-2: columns by header name, not position.
+            var t = CsvTable.Parse(lines, StingToolsApp.ParseCsvLine);
+            if (t.HeaderLine == 0) return;   // empty / comment-only file
+            var missing = t.Missing("BuiltInCategory", "UniclassCode");
+            if (missing.Count > 0)
             {
-                if (string.IsNullOrWhiteSpace(raw)) continue;
-                string line = raw.Trim();
-                if (line.StartsWith("#")) continue;
-
-                string[] f = StingToolsApp.ParseCsvLine(line);
-                if (f == null || f.Length < 2) continue;
-
-                string catName = (f[0] ?? "").Trim();
+                StingLog.Warn($"UniclassMapRegistry: {origin} header has no {string.Join(", ", missing)} column; file skipped.");
+                return;
+            }
+            foreach (var r in t.Rows)
+            {
+                string catName = r["BuiltInCategory"];
                 if (catName.Length == 0) continue;
-                if (catName.Equals("BuiltInCategory", StringComparison.OrdinalIgnoreCase)) continue; // header
 
                 if (!Enum.TryParse(catName, ignoreCase: false, result: out BuiltInCategory bic))
                 {
@@ -156,15 +157,15 @@ namespace StingTools.Core.Classification
                     continue;
                 }
 
-                string code = (f[1] ?? "").Trim();
+                string code = r["UniclassCode"];
                 if (code.Length == 0) continue;
 
                 var entry = new UniclassMapEntry
                 {
                     Category    = bic,
                     Code        = code,
-                    Description = f.Length > 2 ? (f[2] ?? "").Trim() : "",
-                    Source      = f.Length > 3 ? (f[3] ?? "").Trim() : ""
+                    Description = r["Description"],
+                    Source      = r["Source"]
                 };
 
                 if (entry.Table == UniclassTable.Unknown)
