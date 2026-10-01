@@ -169,6 +169,218 @@ namespace StingTools.V6
 
         public bool TrySave(string path, out string error)
             => AtomicFile.TryWrite(path, JsonConvert.SerializeObject(this, Formatting.Indented), out error);
+
+        // ── E1: escalations closed in ACC while the clash still exists ──────────
+        //
+        // Kept beside the append-only entries, in the same file, but NOT append-only: a hold is
+        // released once a complete clash pull no longer contains the clash, so a real recurrence
+        // after that is escalated again. Files written before E1 have no such list; it loads empty.
+
+        /// <summary>Escalations closed / voided in ACC whose clash was still present the last
+        /// time anyone looked. ACC_PullClashes refuses to re-escalate these while they persist.</summary>
+        [JsonProperty("closedInAcc")] public List<AccClosedInAccEntry> ClosedInAcc { get; set; } = new List<AccClosedInAccEntry>();
+
+        /// <summary>The signatures currently held (closed in ACC, still clashing).</summary>
+        public HashSet<string> HeldKeys(string origin)
+            => new HashSet<string>((ClosedInAcc ?? new List<AccClosedInAccEntry>())
+                .Where(e => e != null && string.Equals(e.Origin, origin, StringComparison.Ordinal) && !string.IsNullOrEmpty(e.Key))
+                .Select(e => e.Key), StringComparer.Ordinal);
+
+        /// <summary>Hold a signature. Idempotent on (origin, key); a re-hold refreshes the
+        /// issue id and status. Returns true when the record changed.</summary>
+        public bool Hold(string origin, string key, string issueId, string status, DateTime nowUtc)
+        {
+            origin = (origin ?? string.Empty).Trim();
+            key = (key ?? string.Empty).Trim();
+            if (origin.Length == 0 || key.Length == 0) return false;
+            ClosedInAcc ??= new List<AccClosedInAccEntry>();
+            var e = ClosedInAcc.FirstOrDefault(x => x != null && string.Equals(x.Origin, origin, StringComparison.Ordinal) &&
+                                                    string.Equals(x.Key, key, StringComparison.Ordinal));
+            if (e != null)
+            {
+                if (string.Equals(e.IssueId, issueId ?? string.Empty, StringComparison.Ordinal) &&
+                    string.Equals(e.Status, status ?? string.Empty, StringComparison.Ordinal)) return false;
+                e.IssueId = issueId ?? string.Empty;
+                e.Status = status ?? string.Empty;
+                return true;
+            }
+            ClosedInAcc.Add(new AccClosedInAccEntry
+            {
+                Origin = origin, Key = key, IssueId = issueId ?? string.Empty, Status = status ?? string.Empty, HeldSinceUtc = nowUtc,
+            });
+            return true;
+        }
+
+        /// <summary>Release every hold of <paramref name="origin"/> whose signature is NOT in
+        /// <paramref name="presentInCompletePull"/>. The caller passes only a COMPLETE pull's
+        /// active signatures - a partial or failed one proves nothing is gone. Returns the
+        /// released signatures.</summary>
+        public List<string> ReleaseAbsent(string origin, ISet<string> presentInCompletePull)
+        {
+            var released = new List<string>();
+            if (presentInCompletePull == null || ClosedInAcc == null) return released;
+            foreach (var e in ClosedInAcc.ToList())
+            {
+                if (e == null || !string.Equals(e.Origin, origin, StringComparison.Ordinal)) continue;
+                if (presentInCompletePull.Contains(e.Key)) continue;
+                ClosedInAcc.Remove(e);
+                released.Add(e.Key);
+            }
+            return released;
+        }
+    }
+
+    /// <summary>An escalation ACC closed or voided while its clash was still present (E1).</summary>
+    public sealed class AccClosedInAccEntry
+    {
+        [JsonProperty("origin")] public string Origin { get; set; } = string.Empty;
+        [JsonProperty("key")] public string Key { get; set; } = string.Empty;
+        [JsonProperty("issueId")] public string IssueId { get; set; } = string.Empty;
+        /// <summary>The ACC status it had when held (closed / void / not_an_issue).</summary>
+        [JsonProperty("status")] public string Status { get; set; } = string.Empty;
+        [JsonProperty("heldSinceUtc")] public DateTime HeldSinceUtc { get; set; }
+    }
+
+    /// <summary>acc_clash_presence.json - per coordination model set, the ACTIVE clash
+    /// signatures in the latest COMPLETE clash pull (E1). Only a complete pull is ever written
+    /// here (not a failed, not-ready or truncated one), so "absent from it" means the clash is
+    /// really gone - the one fact that may un-track a closed escalation.</summary>
+    public sealed class AccClashPresence
+    {
+        public const string FileName = "acc_clash_presence.json";
+
+        [JsonProperty("modelSets")]
+        public Dictionary<string, AccClashPresenceSet> ModelSets { get; set; } =
+            new Dictionary<string, AccClashPresenceSet>(StringComparer.Ordinal);
+
+        /// <summary>Tri-state, as <see cref="AccPushedMap.Load"/>.</summary>
+        public static AccClashPresence Load(string path, out string error)
+        {
+            error = null;
+            if (string.IsNullOrEmpty(path)) { error = "no path for the clash presence record"; return null; }
+            try
+            {
+                if (!File.Exists(path)) return new AccClashPresence();
+                string text = File.ReadAllText(path);
+                if (string.IsNullOrWhiteSpace(text)) { error = $"{FileName} is empty"; return null; }
+                var r = JsonConvert.DeserializeObject<AccClashPresence>(text);
+                if (r == null) { error = $"{FileName} is not a clash presence record"; return null; }
+                var sets = new Dictionary<string, AccClashPresenceSet>(StringComparer.Ordinal);
+                foreach (var kv in r.ModelSets ?? new Dictionary<string, AccClashPresenceSet>())
+                    if (kv.Value != null) { kv.Value.Signatures ??= new List<string>(); sets[kv.Key] = kv.Value; }
+                r.ModelSets = sets;
+                return r;
+            }
+            catch (Exception ex) { error = $"{FileName} could not be read: {ex.Message}"; return null; }
+        }
+
+        /// <summary>Replace one model set's snapshot with a complete pull's active signatures.</summary>
+        public void Record(string modelSetId, string modelSetName, IEnumerable<string> activeSignatures, DateTime nowUtc)
+        {
+            if (string.IsNullOrEmpty(modelSetId)) return;
+            ModelSets[modelSetId] = new AccClashPresenceSet
+            {
+                Name = modelSetName ?? string.Empty,
+                PulledUtc = nowUtc,
+                Signatures = (activeSignatures ?? Enumerable.Empty<string>())
+                    .Where(s => !string.IsNullOrEmpty(s)).Distinct(StringComparer.Ordinal)
+                    .OrderBy(s => s, StringComparer.Ordinal).ToList(),
+            };
+        }
+
+        /// <summary>The union of every recorded set's signatures, or <c>null</c> when no complete
+        /// pull has ever been recorded - "unknown", which must not read as "nothing present".</summary>
+        public HashSet<string> Present()
+        {
+            if (ModelSets == null || ModelSets.Count == 0) return null;
+            var all = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var s in ModelSets.Values)
+                foreach (var sig in s?.Signatures ?? new List<string>()) all.Add(sig);
+            return all;
+        }
+
+        public bool TrySave(string path, out string error)
+            => AtomicFile.TryWrite(path, JsonConvert.SerializeObject(this, Formatting.Indented), out error);
+    }
+
+    public sealed class AccClashPresenceSet
+    {
+        [JsonProperty("name")] public string Name { get; set; } = string.Empty;
+        [JsonProperty("pulledUtc")] public DateTime PulledUtc { get; set; }
+        [JsonProperty("signatures")] public List<string> Signatures { get; set; } = new List<string>();
+    }
+
+    /// <summary>What ACC_SyncIssueStatus does with one tracked escalation (E1).</summary>
+    public enum AccEscalationAction
+    {
+        /// <summary>Still open in ACC: stays tracked, so the pull keeps skipping it.</summary>
+        Keep,
+        /// <summary>Closed in ACC AND absent from the latest complete clash pull: resolved.
+        /// Un-tracked, so a real recurrence later is escalated again.</summary>
+        Untrack,
+        /// <summary>Closed / voided in ACC but the clash is still present (or no complete pull
+        /// is known). Un-tracked and HELD: the pull refuses to raise it again while it persists
+        /// and reports it as "closed in ACC, still clashing".</summary>
+        HoldClosedStillClashing,
+        /// <summary>The ACC issue no longer exists (deleted). Un-tracked and reported.</summary>
+        UntrackNotFound,
+    }
+
+    public sealed class AccEscalationDecision
+    {
+        public string Signature { get; set; } = string.Empty;
+        public string IssueId { get; set; } = string.Empty;
+        /// <summary>The ACC status, or NOT_FOUND.</summary>
+        public string Status { get; set; } = string.Empty;
+        public AccEscalationAction Action { get; set; }
+        public bool RemovesFromTracking => Action != AccEscalationAction.Keep;
+    }
+
+    /// <summary>The ACC_SyncIssueStatus decision, without Revit or the network (E1).
+    ///
+    /// The old rule un-tracked every escalation ACC had closed and ACC_PullClashes checked only
+    /// the tracking map - so a clash still active in Model Coordination whose issue somebody
+    /// closed or voided was raised again on every cycle. Now an escalation leaves tracking for
+    /// good only when the clash is absent from a COMPLETE pull; otherwise it is held.</summary>
+    public static class AccEscalationReconcile
+    {
+        public const string NotFoundStatus = "NOT_FOUND";
+
+        /// <param name="pushed">signature -> ACC issue id (the tracking set).</param>
+        /// <param name="statusById">ACC issue id -> status, from a COMPLETE issue read.</param>
+        /// <param name="isClosed">Is an ACC status terminal (closed / void / not_an_issue)?</param>
+        /// <param name="presentInLatestCompletePull">Active clash signatures in the latest
+        /// complete pull, or null when none is known.</param>
+        public static List<AccEscalationDecision> Decide(
+            IReadOnlyDictionary<string, string> pushed,
+            IReadOnlyDictionary<string, string> statusById,
+            Func<string, bool> isClosed,
+            ISet<string> presentInLatestCompletePull)
+        {
+            var result = new List<AccEscalationDecision>();
+            if (pushed == null) return result;
+            statusById ??= new Dictionary<string, string>();
+            foreach (var kv in pushed.OrderBy(k => k.Key, StringComparer.Ordinal))
+            {
+                var d = new AccEscalationDecision { Signature = kv.Key ?? string.Empty, IssueId = kv.Value ?? string.Empty };
+                if (string.IsNullOrEmpty(d.IssueId) || !statusById.TryGetValue(d.IssueId, out string st))
+                {
+                    d.Status = NotFoundStatus;
+                    d.Action = AccEscalationAction.UntrackNotFound;
+                }
+                else
+                {
+                    d.Status = st ?? string.Empty;
+                    if (isClosed != null && isClosed(st))
+                        d.Action = presentInLatestCompletePull != null && !presentInLatestCompletePull.Contains(d.Signature)
+                            ? AccEscalationAction.Untrack
+                            : AccEscalationAction.HoldClosedStillClashing;
+                    else d.Action = AccEscalationAction.Keep;
+                }
+                result.Add(d);
+            }
+            return result;
+        }
     }
 
     /// <summary>Write-temp-then-replace, reporting failure instead of throwing.</summary>

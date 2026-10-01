@@ -96,14 +96,22 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static RevisionRuleResult CheckFileName(string fileName, string suitabilityCode)
         {
+            string rev = RevisionFromFileName(fileName);
+            return rev.Length == 0
+                ? Na("the file name carries no P/C revision code")
+                : Check(rev, suitabilityCode);
+        }
+
+        /// <summary>The revision a file name carries: the LAST token that is a P/C series code
+        /// ("…-0001-P03.pdf" → "P03"). Empty when there is none - never a guess.</summary>
+        public static string RevisionFromFileName(string fileName)
+        {
             string stem = System.IO.Path.GetFileNameWithoutExtension(fileName ?? "") ?? "";
-            string rev = null;
+            string rev = "";
             foreach (string t in stem.Split(new[] { '-', '_', ' ', '.' }, StringSplitOptions.RemoveEmptyEntries))
                 if (RevisionSeries.TryParseSeriesPrefix(t, out string p, out _) && (p == "P" || p == "C"))
                     rev = t;
-            return rev == null
-                ? Na("the file name carries no P/C revision code")
-                : Check(rev, suitabilityCode);
+            return rev;
         }
 
         /// <summary>True for a P or C series code — the revisions that must be issued at a

@@ -38,5 +38,46 @@ namespace StingTools.Acc.Tests
             }
             finally { Thread.CurrentThread.CurrentCulture = before; }
         }
+
+        // E10 — CSV formula injection: a cell a spreadsheet would run as a formula is text.
+
+        [Theory]
+        [InlineData("=HYPERLINK(\"http://x\",\"click\")")]
+        [InlineData("+SUM(A1:A9)")]
+        [InlineData("-2+3")]
+        [InlineData("@cmd")]
+        [InlineData("\tlead tab")]
+        [InlineData("\rlead cr")]
+        public void A_formula_lead_is_neutralised_and_quoted(string value)
+        {
+            string cell = AccCsv.Cell(value);
+            Assert.StartsWith("\"'", cell);
+            Assert.EndsWith("\"", cell);
+        }
+
+        [Theory]
+        [InlineData("Duct clashes beam", "\"Duct clashes beam\"")]
+        [InlineData("say \"hi\"", "\"say \"\"hi\"\"\"")]
+        [InlineData("", "\"\"")]
+        [InlineData(null, "\"\"")]
+        public void Ordinary_text_is_only_quoted(string value, string expected)
+            => Assert.Equal(expected, AccCsv.Cell(value));
+
+        [Fact]
+        public void The_clash_csv_guards_an_acc_document_name()
+        {
+            var scored = new List<ScoredClash> { new ScoredClash { ClashId = "c1", Score = 0.5, Category = "HIGH", Rationale = "=1+1" } };
+            var byId = new Dictionary<string, AccClashRecord>
+            {
+                ["c1"] = new AccClashRecord { Id = "c1", LeftDocument = "=cmd|' /C calc'!A0", RightDocument = "M.rvt" },
+            };
+            var row = AccClashCsv.Rows(scored, byId)[1];
+            Assert.Contains("\"'=cmd|' /C calc'!A0\"", row);
+            Assert.EndsWith("\"'=1+1\"", row);
+        }
+
+        [Fact]
+        public void Federated_compliance_uses_the_same_guard()
+            => Assert.Equal("'=x", AccFederatedCompliance.Csv("=x"));
     }
 }

@@ -1727,7 +1727,9 @@ namespace StingTools.Core
                         status.Equals("RESOLVED", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    string priority = issue["priority"]?.ToString() ?? "LOW";
+                    // E6: no stated priority (an ACC import) means no SLA, not LOW / two weeks.
+                    string priority = IssueSchema.SlaPriority(issue as JObject);
+                    if (priority == null) continue;
                     string createdStr = issue["created_date"]?.ToString();
                     if (!DateTime.TryParse(createdStr, out var createdDate)) continue;
 

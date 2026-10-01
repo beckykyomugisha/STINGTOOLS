@@ -284,10 +284,9 @@ namespace StingTools.V6
 
         internal static string Csv(string s)
         {
-            s ??= string.Empty;
             // A leading = + - @ would be run as a formula by Excel (CSV injection); model data
-            // is third-party input.
-            if (s.Length > 0 && "=+-@".IndexOf(s[0]) >= 0) s = "'" + s;
+            // is third-party input. E10: the one guard, shared with every ACC CSV (AccCsv).
+            s = AccCsv.Guard(s);
             return s.IndexOfAny(new[] { ',', '"', '\n', '\r' }) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
         }
     }

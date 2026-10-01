@@ -244,13 +244,19 @@ namespace StingTools.Commands.Delivery
                     }, ref message, out var fileStop);
                 if (midpPath == null) return fileStop;
 
-                var plan = ParseMidpInteractive(midpPath, out int skipped, out int relativeLeftOut);
+                var plan = ParseMidpInteractive(midpPath, out int skipped, out int relativeLeftOut, out var parse);
                 if (relativeLeftOut > 0) StingLog.Warn($"Midp_DriftReport: {relativeLeftOut} row(s) left out — relative month only");
+                StingLog.Info("Midp_DriftReport parse: " + parse.Describe());
+                if (parse.Refused)
+                {
+                    PresetDialog.Show(StingResultPanel.Create("MIDP drift")
+                        .AddSection("FILE REFUSED").Text(parse.Describe()), ref message);
+                    return Result.Failed;
+                }
                 if (plan.Count == 0)
                 {
                     PresetDialog.Show(StingResultPanel.Create("MIDP drift")
-                        .AddSection("NO ROWS").Text("No deliverable rows parsed. Expected header columns: "
-                            + "Code,Title,Discipline,Milestone,PlannedDate,RequiredSuitability."), ref message);
+                        .AddSection("NO ROWS").Text("No deliverable rows parsed: " + parse.Describe()), ref message);
                     return Result.Cancelled;
                 }
 
@@ -284,7 +290,7 @@ namespace StingTools.Commands.Delivery
                                                    || x.State == DeliveryDriftState.AtRisk
                                                    || x.State == DeliveryDriftState.SuitShort).Take(12))
                     panel.Text($"[{d.State}] {d.Code} {d.Title} (planned {d.PlannedDate:yyyy-MM-dd})");
-                if (skipped > 0) panel.Text($"{skipped} row(s) skipped (unparseable date).");
+                if (skipped > 0) panel.Text("Rows not read: " + parse.Describe());
                 if (relativeLeftOut > 0) panel.Text($"{relativeLeftOut} row(s) left out: only a relative month (M0, M1 …), no Planned Date.");
                 PresetDialog.Show(panel.Text($"CSV: {Path.GetFileName(csv)}"), ref message);
                 return Result.Succeeded;
@@ -315,10 +321,19 @@ namespace StingTools.Commands.Delivery
         /// returned so the caller REPORTS it: before, those rows vanished without a word.
         /// </summary>
         internal static List<DeliverablePlanItem> ParseMidpInteractive(string path, out int skipped, out int relativeLeftOut)
+            => ParseMidpInteractive(path, out skipped, out relativeLeftOut, out _);
+
+        /// <summary>As above, with the full parse result (E5/E7): a refused file names its
+        /// missing columns, and every skipped row is counted with its reason.</summary>
+        internal static List<DeliverablePlanItem> ParseMidpInteractive(string path, out int skipped, out int relativeLeftOut,
+            out MidpParseResult detail)
         {
-            var plan = ParseMidpCsv(path, out skipped, out int rel, null);
+            detail = ParseMidpDetailed(path, null);
+            var plan = detail.Rows;
+            skipped = detail.Skipped;
+            int rel = detail.RelativeOnly;
             relativeLeftOut = rel;
-            if (rel == 0) return plan;
+            if (rel == 0 || detail.Refused) return plan;
 
             // Input rule (PresetDialog): the step's params.m0 (yyyy-MM-dd) dates those rows when
             // set; else a person is asked below; else (unattended) they stay left out and the
@@ -335,7 +350,9 @@ namespace StingTools.Commands.Delivery
                     return plan;
                 }
                 relativeLeftOut = 0;
-                return ParseMidpCsv(path, out skipped, out _, stepM0);
+                detail = ParseMidpDetailed(path, stepM0);
+                skipped = detail.Skipped;
+                return detail.Rows;
             }
 
             var td = new Autodesk.Revit.UI.TaskDialog("MIDP — relative months")
@@ -354,8 +371,28 @@ namespace StingTools.Commands.Delivery
                          : (DateTime?)null;
             if (m0 == null) return plan;
             relativeLeftOut = 0;
-            return ParseMidpCsv(path, out skipped, out _, m0);
+            detail = ParseMidpDetailed(path, m0);
+            skipped = detail.Skipped;
+            return detail.Rows;
         }
+
+        /// <summary>E5: the date order for numeric a/b/yyyy MIDP dates. Day-first (UK / Uganda)
+        /// unless the workflow step's params.dateOrder says "mdy"; an unrecognised value is
+        /// logged and day-first is used - it never silently switches to month-first.</summary>
+        internal static MidpDateOrder MidpDateOrderSetting()
+        {
+            string raw = PresetDialog.Param("dateOrder");
+            var o = MidpCsv.ParseOrder(raw);
+            if (o == null)
+            {
+                StingLog.Warn($"Midp: params.dateOrder '{raw}' is not dmy or mdy; dates are read day-first (dd/MM/yyyy).");
+                return MidpDateOrder.DayFirst;
+            }
+            return o.Value;
+        }
+
+        internal static MidpParseResult ParseMidpDetailed(string path, DateTime? mobilisation)
+            => MidpCsv.ParseDetailed(File.ReadAllLines(path), mobilisation, MidpDateOrderSetting());
 
         /// <summary>
         /// Headers are compared NORMALISED (case, spaces, underscores and punctuation
@@ -369,7 +406,12 @@ namespace StingTools.Commands.Delivery
         /// dated by guess and never silently dropped.
         /// </summary>
         internal static List<DeliverablePlanItem> ParseMidpCsv(string path, out int skipped, out int relativeOnly, DateTime? mobilisation)
-            => MidpCsv.Parse(File.ReadAllLines(path), out skipped, out relativeOnly, mobilisation);
+        {
+            var r = ParseMidpDetailed(path, mobilisation);
+            skipped = r.Skipped;
+            relativeOnly = r.RelativeOnly;
+            return r.Rows;
+        }
 
         /// <summary>
         /// Resolve deliverables.json from the consolidated metadata root

@@ -95,6 +95,20 @@ namespace StingTools.Acc.Tests
             Assert.Empty(result.Value);
         }
 
+        // E8: the import watermark comes from ACC's clock - the pull must carry the Date header.
+        [Fact]
+        public async Task ASuccessfulPull_CarriesTheServersDateHeader()
+        {
+            using var server = LoopbackServer.Always(200, Page(1, "d-"));
+            AccIssueSync.OverrideHostForTests(server.BaseUrl);
+
+            var result = await AccIssueSync.PullIssuesAsync(FreshCreds(), pageSize: 2);
+
+            Assert.True(result.Succeeded);
+            Assert.NotNull(result.ServerDateUtc);   // the listener stamps Date on every response
+            Assert.True((result.ServerDateUtc.Value - DateTime.UtcNow).Duration() < TimeSpan.FromMinutes(5));
+        }
+
         // ── The partial case: a subset presented as the whole ──────────────────
 
         [Fact]

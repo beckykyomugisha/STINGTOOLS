@@ -45,6 +45,9 @@ namespace StingTools.V6
         public int Status { get; set; }
         public string Body { get; set; } = string.Empty;
         public byte[] Bytes { get; set; }
+        /// <summary>The response's Date header (UTC) - ACC's clock, not this workstation's (E8).
+        /// Null when the response carried none.</summary>
+        public DateTime? ServerDateUtc { get; set; }
         /// <summary>The transport error when <see cref="Status"/> is 0.</summary>
         public string Error { get; set; } = string.Empty;
         /// <summary>How many attempts were made (1 = no retry).</summary>
@@ -126,6 +129,7 @@ namespace StingTools.V6
                     resp = await Client.SendAsync(req, HttpCompletionOption.ResponseContentRead, attemptCts.Token)
                         .ConfigureAwait(false);
                     result.Status = (int)resp.StatusCode;
+                    result.ServerDateUtc = resp.Headers?.Date?.UtcDateTime;
                     if (readBytes) result.Bytes = await resp.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
                     else result.Body = await resp.Content.ReadAsStringAsync().ConfigureAwait(false);
                     result.Error = string.Empty;

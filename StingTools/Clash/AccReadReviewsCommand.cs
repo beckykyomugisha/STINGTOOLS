@@ -172,7 +172,6 @@ namespace StingTools.Core.Clash
             var comments = new Dictionary<string, string>(StringComparer.Ordinal);
             int readOk = 0;
             var dKeys = AccReviewProposals.DeliverableKeys(delRows);
-            var rKeys = AccReviewProposals.RegisterKeys(regRows);
             foreach (var f in toRead)
             {
                 var recs = AccReviews.GetApprovalStatusesAsync(creds, creds.ProjectId, f.VersionUrn).GetAwaiter().GetResult();
@@ -201,9 +200,10 @@ namespace StingTools.Core.Clash
                         comment, DateTime.Now, out string whyNone);
                     if (p == null) { notFinal[whyNone] = notFinal.TryGetValue(whyNone, out var n) ? n + 1 : 1; continue; }
                     p.ItemUrn = f.ItemUrn;
-                    p.TransmittalId = AccReviewProposals.FindTransmittal(txRows, f.VersionUrn, f.ItemUrn);
+                    p.TransmittalId = AccReviewProposals.FindTransmittal(txRows, f.VersionUrn, f.ItemUrn, out string txRefusal);
+                    if (!string.IsNullOrEmpty(txRefusal)) warnings.Add($"{f.FileName}: {txRefusal}");
                     p.DeliverableKey = AccReviewProposals.MatchDocumentKey(f.FileName, dKeys);
-                    p.RegisterDocId = AccReviewProposals.MatchDocumentKey(f.FileName, rKeys);
+                    p.RegisterDocId = AccReviewProposals.MatchRegister(f.FileName, regRows);   // E4: doc_number, file_name, doc_id
                     incoming.Add(p);
                 }
             }
@@ -428,7 +428,8 @@ namespace StingTools.Core.Clash
                     {
                         var row = TransmittalRecord.RecordReviewDecision(rows, p.TransmittalId, approve, code, DateTime.Now, user, reason, out string why);
                         if (row == null) failed.Add($"transmittal {p.TransmittalId}: {why}");
-                        else { BIMManagerEngine.SaveJsonFile(path, rows); done.Add($"transmittal {p.TransmittalId} → {row["status"]}"); }
+                        else if (BIMManagerEngine.SaveJsonFile(path, rows)) done.Add($"transmittal {p.TransmittalId} → {row["status"]}");
+                        else failed.Add($"transmittal {p.TransmittalId}: transmittals.json could not be saved (see the log)");
                     }
                 }
                 catch (Exception ex) { StingLog.Error("ACC proposal → transmittal", ex); failed.Add($"transmittal {p.TransmittalId}: {ex.Message}"); }
@@ -439,8 +440,11 @@ namespace StingTools.Core.Clash
             {
                 try
                 {
-                    BIMManagerEngine.UpdateDocumentSuitability(doc, p.RegisterDocId, code, reason);
-                    done.Add($"register {p.RegisterDocId} → {code}");
+                    // E4: found / saved / refused is reported as it is - never "→ code" for a
+                    // write that did not happen.
+                    var rr = BIMManagerEngine.UpdateDocumentSuitability(doc, p.RegisterDocId, code, reason, p.ApprovedRevision);
+                    if (rr.Ok) done.Add($"register {p.RegisterDocId} → {code}" + (rr.Status == AccRegisterApplyStatus.Unchanged ? " (already)" : ""));
+                    else failed.Add($"register {p.RegisterDocId}: {rr.Message}");
                 }
                 catch (Exception ex) { StingLog.Error("ACC proposal → register", ex); failed.Add($"register {p.RegisterDocId}: {ex.Message}"); }
             }

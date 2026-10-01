@@ -464,6 +464,132 @@ namespace StingTools.Acc.Tests
             Assert.Equal("", AccReviewProposals.FindTransmittal(rows, "urn:v:none?version=1", "urn:item:none"));
         }
 
+        // ── E4: the register row is found, judged and its write reported as it happened ──
+
+        private static JArray Register() => JArray.Parse(@"[
+              {""doc_id"":""DOC-0001"",""doc_number"":""KUT-PCE-ZZ-01-DR-A-0001"",""revision"":""C01"",""suitability"":""S3""},
+              {""doc_id"":""DOC-0002"",""file_name"":""KUT-PCE-ZZ-01-DR-M-0002-P02.pdf"",""revision"":""P02"",""suitability"":""S2""},
+              {""doc_id"":""LEGACY-7"",""revision"":""C02""}]");
+
+        [Theory]
+        [InlineData("KUT-PCE-ZZ-01-DR-A-0001-C01.pdf", "KUT-PCE-ZZ-01-DR-A-0001")]   // doc_number (Export Centre rows)
+        [InlineData("KUT-PCE-ZZ-01-DR-M-0002-P02.pdf", "KUT-PCE-ZZ-01-DR-M-0002-P02.pdf")]   // file_name (upload rows)
+        [InlineData("LEGACY-7.pdf", "LEGACY-7")]   // doc_id last
+        [InlineData("SOMETHING-ELSE.pdf", "")]
+        public void TheRegisterRow_IsMatchedByDocNumber_ThenFileName_ThenDocId(string file, string expected)
+        {
+            Assert.Equal(expected, AccReviewProposals.MatchRegister(file, Register()));
+        }
+
+        [Fact]
+        public void RegisterKeys_NowIncludeDocNumberAndFileName_NotOnlyDocId()
+        {
+            var keys = AccReviewProposals.RegisterKeys(Register());
+            Assert.Contains("KUT-PCE-ZZ-01-DR-A-0001", keys);
+            Assert.Contains("KUT-PCE-ZZ-01-DR-M-0002-P02.pdf", keys);
+            Assert.Contains("DOC-0001", keys);
+        }
+
+        [Fact]
+        public void AnApprovalProposal_CarriesTheRevisionTheApprovedFileNames()
+        {
+            var p = AccReviewProposals.FromApproval(Rec("APPROVED"), V, "KUT-PCE-ZZ-01-DR-A-0001-C01.pdf", null, "", Now, out _);
+            Assert.Equal("C01", p.ApprovedRevision);
+            var none = AccReviewProposals.FromApproval(Rec("APPROVED"), V, "notes.pdf", null, "", Now, out _);
+            Assert.Equal("", none.ApprovedRevision);
+        }
+
+        [Fact]
+        public void ARegisterRowKeyedByDocNumber_IsUpdated_WithHistory()
+        {
+            var reg = Register();
+            var r = AccRegisterSuitability.Apply(reg, "KUT-PCE-ZZ-01-DR-A-0001", "A1", "C01", "ACC review #4", "u", Now);
+            Assert.Equal(AccRegisterApplyStatus.Applied, r.Status);
+            Assert.True(r.RegisterChanged);
+            var row = (JObject)reg[0];
+            Assert.Equal("A1", (string)row["suitability"]);
+            Assert.Equal("S3", (string)row["suitability_history"][0]["from"]);
+        }
+
+        [Fact]
+        public void ARowAtAnotherRevision_IsRefused_AndLeftAlone()
+        {
+            var reg = Register();
+            var r = AccRegisterSuitability.Apply(reg, "KUT-PCE-ZZ-01-DR-A-0001", "A1", "C02", "x", "u", Now);
+            Assert.Equal(AccRegisterApplyStatus.Refused, r.Status);
+            Assert.False(r.Ok);
+            Assert.Contains("C01", r.Message);
+            Assert.Contains("C02", r.Message);
+            Assert.Equal("S3", (string)reg[0]["suitability"]);
+        }
+
+        [Fact]
+        public void AContradictedCode_IsNotStored_TheRowIsFlagged_AndTheResultSaysNotApplied()
+        {
+            var reg = Register();
+            // P02 is a preliminary revision; A1 is an authorised code.
+            var r = AccRegisterSuitability.Apply(reg, "KUT-PCE-ZZ-01-DR-M-0002-P02.pdf", "A1", "P02", "x", "u", Now);
+            Assert.Equal(AccRegisterApplyStatus.Refused, r.Status);
+            Assert.True(r.RegisterChanged);
+            Assert.Equal("S2", (string)reg[1]["suitability"]);
+            Assert.False(string.IsNullOrEmpty((string)reg[1]["iso_conflict"]));
+        }
+
+        [Fact]
+        public void AMissingRow_IsNotFound_NotSilentlyIgnored()
+        {
+            var r = AccRegisterSuitability.Apply(Register(), "NOPE", "A1", "C01", "x", "u", Now);
+            Assert.Equal(AccRegisterApplyStatus.NotFound, r.Status);
+            Assert.False(r.Ok);
+        }
+
+        [Fact]
+        public void TheSameCodeAgain_IsUnchanged_AndNeedsNoSave()
+        {
+            var r = AccRegisterSuitability.Apply(Register(), "DOC-0002", "s2", "", "x", "u", Now);
+            Assert.Equal(AccRegisterApplyStatus.Unchanged, r.Status);
+            Assert.True(r.Ok);
+            Assert.False(r.RegisterChanged);
+        }
+
+        // E3: v3's approval must not land on v1's transmittal.
+        [Fact]
+        public void TheTransmittal_ForThisVersion_WinsOverAnEarlierOneOnTheSameItem()
+        {
+            var rows = JArray.Parse(@"[
+              {""transmittal_id"":""TR-v1"",""acc_item_urn"":""urn:item:9"",""acc_version_urn"":""urn:v:9?version=1""},
+              {""transmittal_id"":""TR-v3"",""acc_item_urn"":""urn:item:9"",""acc_version_urn"":""urn:v:9?version=3""}]");
+            Assert.Equal("TR-v3", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=3", "urn:item:9"));
+            Assert.Equal("TR-v1", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=1", "urn:item:9"));
+        }
+
+        [Fact]
+        public void SeveralTransmittalsOnTheItem_AndNoneForThisVersion_IsRefusedWithAReason()
+        {
+            var rows = JArray.Parse(@"[
+              {""transmittal_id"":""TR-a"",""acc_item_urn"":""urn:item:9""},
+              {""transmittal_id"":""TR-b"",""acc_item_urn"":""urn:item:9""}]");
+            Assert.Equal("", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=4", "urn:item:9", out string why));
+            Assert.Contains("TR-a", why);
+            Assert.Contains("TR-b", why);
+        }
+
+        [Fact]
+        public void TheOnlyTransmittalOnTheItem_RecordingAnotherVersion_IsRefused()
+        {
+            var rows = JArray.Parse(@"[{""transmittal_id"":""TR-v1"",""acc_item_urn"":""urn:item:9"",""acc_version_urn"":""urn:v:9?version=1""}]");
+            Assert.Equal("", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=3", "urn:item:9", out string why));
+            Assert.Contains("TR-v1", why);
+        }
+
+        [Fact]
+        public void TheOnlyTransmittalOnTheItem_RecordingNoVersion_IsStillFound()
+        {
+            var rows = JArray.Parse(@"[{""transmittal_id"":""TR-1"",""acc_item_urn"":""urn:item:9""}]");
+            Assert.Equal("TR-1", AccReviewProposals.FindTransmittal(rows, "urn:v:9?version=3", "urn:item:9", out string why));
+            Assert.Null(why);
+        }
+
         [Fact]
         public void AnUnreadableQueue_IsAnError_NotAnEmptyQueue()
         {

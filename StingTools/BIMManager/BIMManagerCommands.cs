@@ -285,12 +285,16 @@ namespace StingTools.BIMManager
                         File.Exists(issuesPath) ? File.GetLastWriteTimeUtc(issuesPath) : DateTime.MinValue,
                         issues);
                 }
+                int noSla = 0;
                 foreach (var issue in issues)
                 {
                     string status = issue["status"]?.ToString() ?? "";
                     if (status == "CLOSED" || status == "VOID" || status == "ACCEPTED") continue;
 
-                    string priority = issue["priority"]?.ToString() ?? "MEDIUM";
+                    // E6: a row with no stated priority (an ACC import) has NO SLA - it used to
+                    // be assumed MEDIUM, so a six-week-old ACC issue read as a week overdue.
+                    string priority = IssueSchema.SlaPriority(issue as JObject);
+                    if (priority == null) { noSla++; continue; }
                     if (!SLAThresholdsHours.TryGetValue(priority, out int slaHours) || slaHours <= 0) continue;
 
                     string createdStr = issue["created_date"]?.ToString() ?? issue["date_raised"]?.ToString();
@@ -311,6 +315,8 @@ namespace StingTools.BIMManager
                         }
                     }
                 }
+                if (noSla > 0)
+                    StingLog.Info($"SLA check: {noSla} open issue(s) carry no priority (e.g. imported from ACC) — no SLA applied to them.");
             }
             catch (Exception ex) { StingLog.Warn($"SLA check failed: {ex.Message}"); }
             return overdue;
@@ -2246,52 +2252,45 @@ namespace StingTools.BIMManager
         /// When the suitability code changes, the previous value is recorded in a
         /// "suitability_history" array with timestamp and user for full audit trail.
         /// </summary>
-        internal static void UpdateDocumentSuitability(Document doc, string docId, string newSuitability, string reason = "")
+        /// <remarks>E4: the row is found by doc_number, file_name or doc_id; the code is judged
+        /// against the row's revision; and the result (found / saved / refused) is RETURNED -
+        /// it used to return void, ignore the save and swallow errors, so the caller reported
+        /// a change that had not happened. The logic is Revit-free in
+        /// <see cref="StingTools.V6.AccRegisterSuitability"/>.</remarks>
+        internal static StingTools.V6.AccRegisterApplyResult UpdateDocumentSuitability(Document doc, string docKey,
+            string newSuitability, string reason = "", string approvedRevision = "")
         {
             try
             {
                 string regPath = GetBIMManagerFilePath(doc, "document_register.json");
-                var register = LoadJsonArray(regPath);
+                // An unreadable register is not an empty one: writing over it would lose it.
+                if (!TryLoadJsonArray(regPath, out JArray register, out string loadErr))
+                    return new StingTools.V6.AccRegisterApplyResult
+                    {
+                        Status = StingTools.V6.AccRegisterApplyStatus.Refused,
+                        Message = "the document register could not be read: " + loadErr,
+                    };
 
-                var docEntry = register.FirstOrDefault(d =>
-                    string.Equals(d["doc_id"]?.ToString(), docId, StringComparison.OrdinalIgnoreCase));
-                if (docEntry == null)
-                {
-                    StingLog.Warn($"IG-03: Document '{docId}' not found in register");
-                    return;
-                }
-
-                string oldSuitability = docEntry["suitability"]?.ToString() ?? "";
-                if (string.Equals(oldSuitability, newSuitability, StringComparison.OrdinalIgnoreCase))
-                    return; // No change
-
-                // Ensure suitability_history array exists
-                if (docEntry["suitability_history"] == null || docEntry["suitability_history"].Type != JTokenType.Array)
-                    docEntry["suitability_history"] = new JArray();
-
-                var history = (JArray)docEntry["suitability_history"];
-                history.Add(new JObject
-                {
-                    ["from"] = oldSuitability,
-                    ["from_desc"] = SuitabilityCodes.TryGetValue(oldSuitability, out string fromDesc) ? fromDesc : oldSuitability,
-                    ["to"] = newSuitability,
-                    ["to_desc"] = SuitabilityCodes.TryGetValue(newSuitability, out string toDesc) ? toDesc : newSuitability,
-                    ["date"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm"),
-                    ["reason"] = reason,
-                    ["user"] = Environment.UserName
-                });
-
-                // Update current suitability
-                docEntry["suitability"] = newSuitability;
-                docEntry["suitability_desc"] = SuitabilityCodes.TryGetValue(newSuitability, out string nsDesc)
-                    ? nsDesc : newSuitability;
-
-                SaveJsonFile(regPath, register);
-                StingLog.Info($"IG-03: Document '{docId}' suitability changed {oldSuitability} → {newSuitability} ({reason})");
+                var r = StingTools.V6.AccRegisterSuitability.Apply(register, docKey, newSuitability, approvedRevision,
+                    reason, Environment.UserName, DateTime.Now,
+                    c => SuitabilityCodes.TryGetValue(c ?? "", out string d) ? d : c);
+                if (r.RegisterChanged && !SaveJsonFile(regPath, register))
+                    return new StingTools.V6.AccRegisterApplyResult
+                    {
+                        Status = StingTools.V6.AccRegisterApplyStatus.Refused,
+                        Message = "the document register could not be saved, so nothing changed (see the log)",
+                    };
+                StingLog.Info($"IG-03: Document '{docKey}' suitability {r.Status}: {r.Message} ({reason})");
+                return r;
             }
             catch (Exception ex)
             {
                 StingLog.Warn($"IG-03: Suitability history update failed: {ex.Message}");
+                return new StingTools.V6.AccRegisterApplyResult
+                {
+                    Status = StingTools.V6.AccRegisterApplyStatus.Refused,
+                    Message = "the register update failed: " + ex.Message,
+                };
             }
         }
 
@@ -5006,7 +5005,7 @@ namespace StingTools.BIMManager
             string csvPath = Path.Combine(BIMManagerEngine.GetBIMManagerDir(doc),
                 $"STING_ISSUES_{DateTime.Now:yyyyMMdd}.csv");
             var sb = new StringBuilder();
-            sb.AppendLine("Issue_ID,Type,Priority,Status,Discipline,Title,Raised_By,Date_Raised,Date_Due,Date_Closed,Assigned_To,View,Element_Count");
+            sb.AppendLine("Issue_ID,Type,Priority,Status,Discipline,Title,Raised_By,Date_Raised,Date_Due,Date_Closed,Assigned_To,View,Element_Count,ACC_Display_ID,Assigned_To_Name");
             foreach (var issue in issues)
             {
                 var ids = issue["element_ids"] as JArray;
@@ -5023,7 +5022,10 @@ namespace StingTools.BIMManager
                     BIMManagerEngine.QuoteCSV(issue["date_closed"]?.ToString()),
                     BIMManagerEngine.QuoteCSV(issue["assigned_to"]?.ToString()),
                     BIMManagerEngine.QuoteCSV(issue["view_name"]?.ToString()),
-                    ids?.Count.ToString() ?? "0"
+                    ids?.Count.ToString() ?? "0",
+                    // E6: ACC's own number and the assignee's name, appended so existing columns keep their place.
+                    BIMManagerEngine.QuoteCSV(issue["acc_display_id"]?.ToString()),
+                    BIMManagerEngine.QuoteCSV(issue["acc_assigned_to_name"]?.ToString())
                 ));
             }
             try

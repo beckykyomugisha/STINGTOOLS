@@ -100,7 +100,11 @@ namespace StingTools.V6
         /// <summary>user, company or role — required by ACC whenever an assignee is set.</summary>
         public string AssignedToType { get; set; } = string.Empty;
         public DateTime? DueDate { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        /// <summary>ACC's createdAt (UTC); null when ACC did not say. E6: it used to default to
+        /// the time of the pull, which made a six-week-old issue look new.</summary>
+        public DateTime? CreatedAt { get; set; }
+        /// <summary>ACC's createdBy (a user id); empty when ACC did not say.</summary>
+        public string CreatedBy { get; set; } = string.Empty;
         public DateTime? UpdatedAt { get; set; }
         public string LocationDescription { get; set; } = string.Empty;
         /// <summary>Custom attribute values (Issues v1 customAttributes). Sent on create only
@@ -551,7 +555,8 @@ namespace StingTools.V6
                 body["assignedTo"] = issue.AssignedToUserId;
                 body["assignedToType"] = issue.AssignedToType;
             }
-            if (issue.DueDate.HasValue) body["dueDate"] = issue.DueDate.Value.ToString("yyyy-MM-dd");
+            // E11: invariant - under th-TH the current culture wrote a Buddhist-era year (2569-…).
+            if (issue.DueDate.HasValue) body["dueDate"] = issue.DueDate.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             var attrs = (issue.CustomAttributes ?? new List<AccCustomAttributeValue>())
                 .Where(a => a != null && !string.IsNullOrEmpty(a.AttributeDefinitionId) &&
                             a.Value != null && a.Value.Type != JTokenType.Null)
@@ -733,7 +738,8 @@ namespace StingTools.V6
             AssignedToUserId = (string)(t["assignedTo"] ?? t["assigned_to"]) ?? string.Empty,
             AssignedToType = (string)t["assignedToType"] ?? string.Empty,
             DueDate = ReadDate(t["dueDate"]),
-            CreatedAt = ReadDate(t["createdAt"]) ?? DateTime.UtcNow,
+            CreatedAt = ReadDate(t["createdAt"] ?? t["created_at"]),   // E6: null when ACC omits it
+            CreatedBy = (string)(t["createdBy"] ?? t["created_by"]) ?? string.Empty,
             UpdatedAt = ReadDate(t["updatedAt"]),
             LocationDescription = (string)(t["locationDetails"] ?? t["location_description"]) ?? string.Empty,
             RootCauseId = (string)t["rootCauseId"] ?? string.Empty,
@@ -782,6 +788,7 @@ namespace StingTools.V6
 
             int offset = 0, pagesRead = 0;
             int? total = null;
+            DateTime? firstServerDate = null;   // E8: ACC's clock when the read started
             for (int page = 0; page < maxPages; page++)
             {
                 int off = offset;
@@ -815,11 +822,17 @@ namespace StingTools.V6
                         "construction/issues/v1 payload shape has changed");
 
                 foreach (var t in results) list.Add(ParseIssue(t));
+                if (pagesRead == 0) firstServerDate = resp.ServerDateUtc;
                 pagesRead++;
                 total = (int?)j["pagination"]?["totalResults"] ?? total;
 
                 bool lastPage = total.HasValue ? list.Count >= total.Value || results.Count == 0 : results.Count < pageSize;
-                if (lastPage) return AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
+                if (lastPage)
+                {
+                    var ok = AccFetchResult<List<AccIssue>>.Success(list, list.Count == 0);
+                    ok.ServerDateUtc = firstServerDate;
+                    return ok;
+                }
                 offset += results.Count;
             }
 

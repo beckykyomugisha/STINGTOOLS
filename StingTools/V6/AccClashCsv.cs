@@ -38,6 +38,27 @@ namespace StingTools.V6
             return rows;
         }
 
-        public static string Quote(string s) => "\"" + (s ?? "").Replace("\"", "\"\"") + "\"";
+        /// <summary>A quoted cell, formula-guarded (E10) - see <see cref="AccCsv.Cell"/>.</summary>
+        public static string Quote(string s) => AccCsv.Cell(s);
+    }
+
+    /// <summary>E10: the ONE CSV cell writer for the ACC reports. Every cell is quoted, and a
+    /// value that starts with = + - @ (or a tab / carriage return) is prefixed with an
+    /// apostrophe so a spreadsheet shows it as text instead of running it as a formula (CSV
+    /// injection). ACC titles, comments, document names and issue ids are third-party input.
+    /// The guard is the one AccFederatedCompliance.Csv already applied.</summary>
+    public static class AccCsv
+    {
+        public static bool NeedsFormulaGuard(string s) => !string.IsNullOrEmpty(s) && "=+-@\t\r".IndexOf(s[0]) >= 0;
+
+        /// <summary>The value with the formula guard applied, not quoted.</summary>
+        public static string Guard(string s)
+        {
+            s ??= string.Empty;
+            return NeedsFormulaGuard(s) ? "'" + s : s;
+        }
+
+        /// <summary>A quoted, formula-guarded cell.</summary>
+        public static string Cell(string s) => "\"" + Guard(s).Replace("\"", "\"\"") + "\"";
     }
 }
