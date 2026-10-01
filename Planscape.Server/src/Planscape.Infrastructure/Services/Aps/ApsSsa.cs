@@ -39,6 +39,8 @@ public static class ApsSsa
     public const string ModeSsa = "ssa";
     public const string Placeholder = "REPLACE_WITH_";
 
+    public const string KeyClientId = "Acc:Ssa:ClientId";
+    public const string KeyClientSecret = "Acc:Ssa:ClientSecret";
     public const string KeyServiceAccountId = "Acc:Ssa:ServiceAccountId";
     public const string KeyKeyId = "Acc:Ssa:KeyId";
     public const string KeyPrivateKeyPem = "Acc:Ssa:PrivateKeyPem";
@@ -101,6 +103,29 @@ public static class ApsSsa
         }
         error = null;
         return new Settings(sa, kid, pem, scopes);
+    }
+
+    /// <summary>
+    /// H-3: the SSA app's client id and secret - a SERVER-TO-SERVER APS app (the SSA overview:
+    /// "Only Server-to-Server APS apps support SSA"). It is separate from <c>Acc:ClientId</c>,
+    /// the browser-OAuth app, because one APS app cannot be both: a server-to-server app has no
+    /// redirect URI. Missing or placeholder values are named, never borrowed from Acc:ClientId.
+    /// </summary>
+    public static (string? Id, string? Secret, string? Error) AppCredentials(IConfiguration config)
+    {
+        var problems = new List<string>();
+        string Get(string key)
+        {
+            string v = (config[key] ?? "").Trim();
+            if (v.Length == 0) problems.Add($"{key} is not set");
+            else if (v.StartsWith(Placeholder, StringComparison.Ordinal)) { problems.Add($"{key} is still {v}"); v = ""; }
+            return v;
+        }
+        string id = Get(KeyClientId), secret = Get(KeyClientSecret);
+        return problems.Count > 0
+            ? (null, null, "SSA is selected for this connection (accAuthMode = ssa) but its server-to-server APS app is not configured: " +
+                           string.Join("; ", problems) + ".")
+            : (id, secret, null);
     }
 
     /// <summary>Build and sign the JWT assertion (RS256). Pure: no I/O, so it is unit-tested.</summary>

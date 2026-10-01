@@ -25,6 +25,8 @@ public partial class AccServerIntegrationTests
     private static IConfiguration SsaConfig(IConfiguration baseCfg, string? pem, string sa = "SA-TEST", string kid = "kid-test")
         => new ConfigurationBuilder().AddConfiguration(baseCfg).AddInMemoryCollection(new Dictionary<string, string?>
         {
+            [ApsSsa.KeyClientId] = "s2s-client",
+            [ApsSsa.KeyClientSecret] = "s2s-secret",
             [ApsSsa.KeyServiceAccountId] = sa,
             [ApsSsa.KeyKeyId] = kid,
             [ApsSsa.KeyPrivateKeyPem] = pem,
@@ -133,7 +135,8 @@ public partial class AccServerIntegrationTests
         Assert.False(form.ContainsKey("refresh_token"));
         string assertion = form["assertion"];
         Assert.Equal("SA-TEST", (string?)Part(assertion, 1)["sub"]);
-        Assert.Equal("cid", (string?)Part(assertion, 1)["iss"]);
+        // H-3: the SSA's own server-to-server app, not the browser-OAuth app (Acc:ClientId = "cid").
+        Assert.Equal("s2s-client", (string?)Part(assertion, 1)["iss"]);
     }
 
     [Fact]
@@ -149,8 +152,18 @@ public partial class AccServerIntegrationTests
 
         Assert.False(outcome.Success);
         Assert.False(outcome.ReconnectRequired);                // a server setting, not a person's sign-in
-        Assert.Contains(ApsSsa.KeyServiceAccountId, outcome.Error);
+        Assert.Contains(ApsSsa.KeyClientId, outcome.Error);       // its own app is named first
         Assert.Empty(fx.Http.Calls);                             // nothing sent with half a configuration
+
+        // With the app configured but not the account, the account settings are named.
+        var appOnly = new ConfigurationBuilder().AddConfiguration(fx.Config).AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [ApsSsa.KeyClientId] = "s2s-client", [ApsSsa.KeyClientSecret] = "s2s-secret",
+        }).Build();
+        var c2 = new AccConnector(appOnly, new Factory(fx.Http), NullLogger<AccConnector>.Instance);
+        var o2 = await AccTokenRefresher.EnsureFreshAsync(db, c2, conn, null, default);
+        Assert.Contains(ApsSsa.KeyServiceAccountId, o2.Error);
+        Assert.Empty(fx.Http.Calls);
     }
 
     [Fact]

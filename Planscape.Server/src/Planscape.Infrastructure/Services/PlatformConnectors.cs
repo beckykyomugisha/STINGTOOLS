@@ -50,12 +50,19 @@ public class AccConnector : IPlatformConnector
 
     public async Task<PlatformTokenResult> RefreshTokenAsync(PlatformConnection connection, CancellationToken ct = default)
     {
+        // AUT-7: a Secure Service Account connection mints its token from a signed assertion;
+        // it has no refresh token, so none of the checks below apply to it. H-3: it uses its
+        // OWN app (only server-to-server apps support SSA, and such an app has no browser
+        // sign-in), so it never borrows - or needs - the browser-OAuth app's credentials.
+        if (Aps.ApsSsa.IsSsa(connection))
+        {
+            var (ssaId, ssaSecret, appError) = Aps.ApsSsa.AppCredentials(_config);
+            if (appError != null) return new PlatformTokenResult(false, Error: appError);
+            return await MintSsaTokenAsync(connection, ssaId!, ssaSecret!, ct);
+        }
         var (id, secret) = AppCreds();
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret))
             return new PlatformTokenResult(false, Error: "Acc:ClientId / Acc:ClientSecret not configured on the server.");
-        // AUT-7: a Secure Service Account connection mints its token from a signed assertion;
-        // it has no refresh token, so none of the checks below apply to it.
-        if (Aps.ApsSsa.IsSsa(connection)) return await MintSsaTokenAsync(connection, id, secret, ct);
         if (Planscape.Infrastructure.Security.PlatformTokenProtection.IsUnreadable(connection.RefreshToken))
             return new PlatformTokenResult(false, Error: AccTokenRefresher.UnreadableTokenError);
         if (string.IsNullOrWhiteSpace(connection.RefreshToken))
