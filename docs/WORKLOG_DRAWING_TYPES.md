@@ -255,23 +255,23 @@ ad42c8bda, which includes PR #1021. The earlier rounds' PR #1021 is merged and d
 | DTW-192 | TitleBlockMigrateCsvToRecipe | Low | Corporate CSV preferred; hand-built path; wrong instruction | fix/dt-r8-auth | In progress |
 | DTW-193 | Editor push template | Low | Keeps the corporate checksum on a promoted entry | fix/dt-r8-auth | In progress |
 | DTW-194 | SheetSequenceStore.WriteAll / ResolveSheetSequence | High | ProjectInformation owned by another user: counter falls back silently, numbers collide; out-of-date PI rolls back every item | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-195 | BatchProduceCommands per-level transactions | High | One owned or out-of-date view rolls back the whole level; no failures preprocessor (modal dialogs block presets) | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-195 | BatchProduceCommands per-level transactions | High | One owned or out-of-date view rolls back the whole level; no failures preprocessor (modal dialogs block presets) | fix/dt-r8-edgeA | In progress |
 | DTW-196 | RefreshExistingView / Apply / PlaceViewOnSheet | Med-High | Re-run resets an auto-fitted view's scale and reverts a hand-changed template silently | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
 | DTW-197 | ProduceAllViews sheet-first | Med | Empty sheet made and numbered when every rule fails | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-198 | SheetNumberEngine.SafeShort on names | Med | Sheet names truncate level names (GroundFl, 'Level Level1') | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-198 | SheetNumberEngine.SafeShort on names | Med | Sheet names truncate level names (GroundFl, 'Level Level1') | fix/dt-r8-edgeA | In progress |
 | DTW-199 | PlaceViewOnSheet moved viewport | Med | Re-scales the user's view, then throws | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-200 | SheetNumberRestoreCommand | Med | After undo the history collides; no put-back; commit ignored | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-201 | DrawingSyncStylesCommand transaction | Med | One owned view rolls back everything, yet the report says re-synced | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-202 | DrawingHealTitleBlocksCommand transaction | Med | Same; audit log written for rolled-back heals | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-200 | SheetNumberRestoreCommand | Med | After undo the history collides; no put-back; commit ignored | fix/dt-r8-edgeA | In progress |
+| DTW-201 | DrawingSyncStylesCommand transaction | Med | One owned view rolls back everything, yet the report says re-synced | fix/dt-r8-edgeA | In progress |
+| DTW-202 | DrawingHealTitleBlocksCommand transaction | Med | Same; audit log written for rolled-back heals | fix/dt-r8-edgeA | In progress |
 | DTW-203 | Drawing type id change | Med | New id mints a parallel set; old sheets orphaned and unreported | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-204 | Production loops | Med | No progress or Escape inside a step; large runs look hung | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-205 | ShowResult warnings | Low-Med | Warnings beyond 20 lost (not logged) | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-204 | Production loops | Med | No progress or Escape inside a step; large runs look hung | fix/dt-r8-edgeA | In progress |
+| DTW-205 | ShowResult warnings | Low-Med | Warnings beyond 20 lost (not logged) | fix/dt-r8-edgeA | In progress |
 | DTW-206 | CropToContextBox | Med (Revit) | Box missing its level leaves an uncropped whole-floor view with only a warning | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-207 | Presence collectors | Low-Med | Count secondary design options and demolished-only elements | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-207 | Presence collectors | Low-Med | Count secondary design options and demolished-only elements | fix/dt-r8-edgeA | In progress |
 | DTW-208 | Produced view phase | Low-Med | Views take the last phase and 'Show All'; demolished elements tagged | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
 | DTW-209 | Reused sheet name | Low-Med | Sheet name not refreshed after a level rename | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-210 | BuildForExistingSheet policy | Low-Med | Heal uses the current policy, not the sheet's own number shape, after a policy switch | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
-| DTW-211 | Renumber after policy switch | Low-Med | Compacting converts issued profile sheets to ISO without saying so | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
+| DTW-210 | BuildForExistingSheet policy | Low-Med | Heal uses the current policy, not the sheet's own number shape, after a policy switch | fix/dt-r8-edgeA | In progress |
+| DTW-211 | Renumber after policy switch | Low-Med | Compacting converts issued profile sheets to ISO without saying so | fix/dt-r8-edgeA | In progress |
 | DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
 | DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | After fix/dt-r8-tb + fix/dt-r8-vg merge | Queued |
 
