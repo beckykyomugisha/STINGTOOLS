@@ -2594,6 +2594,11 @@ namespace StingTools.Core
                             && (DateTime.UtcNow - _cached.time) < _cacheTtl
                             && _cached.ctx.IsValid())
                         {
+                            // DTW-145: the tagging report reads the box-name audit from
+                            // TaggingStats; a reused context must hand it its own audit, or the
+                            // report shows whichever model was audited last.
+                            TaggingStats.CurrentScopeBoxNameProblems =
+                                _cached.ctx.ScopeBoxNameProblems ?? new List<string>();
                             return _cached.ctx;
                         }
                     }
