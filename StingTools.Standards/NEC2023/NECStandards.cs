@@ -68,6 +68,63 @@ namespace StingTools.Standards.NEC2023
         /// <summary>The refusal every BS 7671 / IEC path gives for CCA.</summary>
         public const string NoBsDataRefusal =
             "copper-clad aluminium (CCA) has no BS 7671 / IEC data in StingTools — not sized or calculated as copper or aluminium";
+
+        /// <summary>True when the text names aluminium (not copper-clad aluminium).</summary>
+        public static bool IsAluminium(string text)
+            => TryParse(text, out var m) && m == ConductorMaterial.Aluminum;
+
+        /// <summary>What <see cref="Resolve"/> returns when nothing is recorded or given.</summary>
+        public const string CopperAssumedNote = "copper assumed — no conductor material recorded";
+
+        /// <summary>
+        /// The material a command works on, and why. Order: the material RECORDED on the
+        /// element (e.g. ELC_WIRE_COND_MAT_TXT) — a fact about that element, so it wins;
+        /// else the caller's explicit setting (a panel choice); else copper, ASSUMED, and
+        /// <see cref="ResolvedConductorMaterial.Assumed"/> / <see cref="ResolvedConductorMaterial.Basis"/>
+        /// say so, for the command to show. Text that is not Cu / Al / CCA is a refusal, never copper.
+        /// </summary>
+        public static ResolvedConductorMaterial Resolve(string recorded, string setting, string recordedSource = "ELC_WIRE_COND_MAT_TXT")
+        {
+            if (!string.IsNullOrWhiteSpace(recorded))
+            {
+                if (TryParse(recorded, out var m))
+                    return new ResolvedConductorMaterial { Ok = true, Material = m, Basis = $"{Label(m)} recorded ({recordedSource})" };
+                return new ResolvedConductorMaterial
+                {
+                    Ok = false,
+                    Refusal = $"conductor material \"{recorded.Trim()}\" in {recordedSource} is not recognised (Cu, Al or CCA)",
+                };
+            }
+            if (!string.IsNullOrWhiteSpace(setting))
+            {
+                if (TryParse(setting, out var m))
+                    return new ResolvedConductorMaterial { Ok = true, Material = m, Basis = $"{Label(m)} (setting)" };
+                return new ResolvedConductorMaterial
+                {
+                    Ok = false,
+                    Refusal = $"conductor material setting \"{setting.Trim()}\" is not recognised (Cu, Al or CCA)",
+                };
+            }
+            return new ResolvedConductorMaterial
+            {
+                Ok = true, Material = ConductorMaterial.Copper, Assumed = true, Basis = CopperAssumedNote,
+            };
+        }
+    }
+
+    /// <summary>The outcome of <see cref="ConductorMaterialText.Resolve"/>.</summary>
+    public sealed class ResolvedConductorMaterial
+    {
+        /// <summary>False when the text was not recognised — the caller must refuse, with <see cref="Refusal"/>.</summary>
+        public bool Ok { get; set; }
+        public ConductorMaterial Material { get; set; }
+        /// <summary>True when nothing was recorded or set and copper was assumed. Show it.</summary>
+        public bool Assumed { get; set; }
+        /// <summary>Where the material came from, e.g. "Al recorded (ELC_WIRE_COND_MAT_TXT)".</summary>
+        public string Basis { get; set; } = "";
+        public string Refusal { get; set; }
+        /// <summary>"Cu", "Al" or "CCA"; null when not <see cref="Ok"/>.</summary>
+        public string Label => Ok ? ConductorMaterialText.Label(Material) : null;
     }
 
     /// <summary>

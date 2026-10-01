@@ -157,8 +157,9 @@ namespace StingTools.Core.Electrical
         {
             string m = NormaliseMethod(method);
             string ct = string.IsNullOrWhiteSpace(cableType) ? DefaultCableType : cableType.Trim();
+            string key = ConductorKey(material);
             return Tables.FirstOrDefault(t =>
-                string.Equals(t.Conductor, string.IsNullOrWhiteSpace(material) ? "Cu" : material.Trim(), StringComparison.OrdinalIgnoreCase)
+                string.Equals(t.Conductor, key, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(t.Insulation, (insulation ?? "").Trim(), StringComparison.OrdinalIgnoreCase)
                 && string.Equals(t.CableType, ct, StringComparison.OrdinalIgnoreCase)
                 && string.Equals(NormaliseMethod(t.InstallMethod), m, StringComparison.OrdinalIgnoreCase));
@@ -178,13 +179,20 @@ namespace StingTools.Core.Electrical
         /// When the circuit's cable is unknown this is the only honest upper bound: a device
         /// above it is too large for any cable of that size. 0 when no table has the size.
         /// </summary>
+        /// <summary>The tables' conductor key for material text: "Cu" / "Al" / "CCA" when the
+        /// text is recognised ("copper", "ALUMINIUM" …), else the text as given (matches nothing).</summary>
+        private static string ConductorKey(string material)
+            => string.IsNullOrWhiteSpace(material) ? "Cu"
+             : StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(material, out var m) ? StingTools.Standards.NEC2023.ConductorMaterialText.Label(m) : material.Trim();
+
         public double MaxTabulatedIt(string material, double csaMm2, int phases, out Bs7671CapacityTable from)
         {
             from = null;
             double best = 0;
+            string key = ConductorKey(material);
             foreach (var t in Tables)
             {
-                if (!string.Equals(t.Conductor, material, StringComparison.OrdinalIgnoreCase)) continue;
+                if (!string.Equals(t.Conductor, key, StringComparison.OrdinalIgnoreCase)) continue;
                 double it = TabulatedIt(t, csaMm2, phases);
                 if (it > best) { best = it; from = t; }
             }

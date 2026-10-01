@@ -109,13 +109,15 @@ namespace StingTools.Commands.Electrical
                 var cableSnap = StingElectricalCommandHandler.CurrentCableSizeInput;
                 string ins = cableSnap?.Insulation ?? "PVC70";
                 string method = cableSnap?.InstallMethod ?? "C";
-                string mat = cableSnap?.Material ?? "Cu";
+                // The CABLE tab's material is a setting; each circuit's recorded
+                // ELC_WIRE_COND_MAT_TXT wins, and with neither copper is assumed and said.
+                string panelMat = cableSnap?.Material;
                 string cableType = string.IsNullOrEmpty(cableSnap?.CableType)
                     ? StingTools.Core.Electrical.Bs7671Data.DefaultCableType : cableSnap.CableType;
                 var bsData = useNec ? null : StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
                 // An invalid project override leaves no tables: In ≤ Iz is then not checked, and says why.
                 string tablesBlocked = bsData != null && !string.IsNullOrEmpty(bsData.LoadError) ? bsData.LoadError : null;
-                var table = useNec || tablesBlocked != null ? null : bsData.FindTable(mat, ins, method, cableType);
+                var tableCache = new Dictionary<string, StingTools.Core.Electrical.Bs7671CapacityTable>(StringComparer.OrdinalIgnoreCase);
 
                 foreach (var sys in systems)
                 {
@@ -128,6 +130,11 @@ namespace StingTools.Commands.Electrical
 
                         double? iz = null;
                         string izBasis = null;
+                        var matR = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(sys, panelMat);
+                        string mat = matR.Ok ? matR.Label : null;
+                        StingTools.Core.Electrical.Bs7671CapacityTable table = null;
+                        if (!useNec && tablesBlocked == null && mat != null && !tableCache.TryGetValue(mat, out table))
+                            tableCache[mat] = table = bsData.FindTable(mat, ins, method, cableType);
                         string necSizeForLimit = null;
                         var necMatForLimit = StingTools.Standards.NEC2023.ConductorMaterial.Copper;
                         if (!useNec)
@@ -136,7 +143,7 @@ namespace StingTools.Commands.Electrical
                             double csa = StingTools.Core.Electrical.WireSizeParser.ParseCsaMm2(wire);
                             // Prefer the cable recorded on the circuit when a size was applied.
                             var rec = StingTools.Core.Electrical.CircuitCableRecord.Read(sys);
-                            var own = csa > 0 && tablesBlocked == null ? rec.FindTable(bsData, mat) : null;
+                            var own = csa > 0 && tablesBlocked == null && mat != null ? rec.FindTable(bsData, mat) : null;
                             double ownIt = own != null ? StingTools.Core.Electrical.Bs7671Data.TabulatedIt(own, csa, phases) : 0;
                             if (ownIt > 0)
                             {
@@ -153,6 +160,8 @@ namespace StingTools.Commands.Electrical
                                 }
                                 else izBasis = $"{csa:0.#} mm² not in {table.Cite()}";
                             }
+                            else if (csa > 0 && !matR.Ok)
+                                izBasis = matR.Refusal;
                             else if (csa > 0 && tablesBlocked != null)
                                 izBasis = tablesBlocked;
                             else if (csa > 0)
@@ -171,8 +180,8 @@ namespace StingTools.Commands.Electrical
                                         : $"wire size \"{wire}\" is not a single AWG / kcmil conductor";
                             else
                             {
-                                if (!StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(mat, out var necMat))
-                                    izBasis = $"conductor material \"{mat}\" not recognised (Cu, Al or CCA)";
+                                if (!matR.Ok || !StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(mat, out var necMat))
+                                    izBasis = matR.Refusal;
                                 else
                                 {
                                     // 240.4(D) applies to the size whatever 310.16 says — 2023 gives
@@ -191,6 +200,7 @@ namespace StingTools.Commands.Electrical
                             }
                         }
 
+                        if (matR.Ok && matR.Assumed && izBasis != null) izBasis += "; " + matR.Basis;
                         var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(
                             iA, useNec, continuous, ratings, iz, izBasis);
                         // NEC 240.4(D): 14/12/10 AWG (Cu) and 12/10 AWG (Al) have a fixed

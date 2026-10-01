@@ -131,6 +131,8 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             if (node.HierarchyLevel > 0)
             {
                 string material = string.IsNullOrEmpty(info.Material) ? "Cu" : info.Material;
+                if (string.IsNullOrEmpty(info.Material) && csa > 0)
+                    notes.Add("feeder conductor material not recorded — copper assumed");
                 lengthM = info.FeederLengthM;
                 rPerM = csa > 0 && wireTables != null ? wireTables.GetMohmPerMetre(csa, material) : 0;
                 if (csa <= 0)
@@ -212,7 +214,9 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         public double FeederCsaMm2         { get; set; }
         public double FeederLengthM        { get; set; }
         public string LengthSource         { get; set; }
-        public string Material             { get; set; } = "Cu";
+        /// <summary>"Cu" / "Al" / "CCA" recorded on the feeder; null = not recorded (copper is
+        /// assumed and the result notes say so).</summary>
+        public string Material             { get; set; }
     }
 
     public class FaultPropagationResult

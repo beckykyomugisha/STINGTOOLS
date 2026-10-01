@@ -103,8 +103,7 @@ namespace StingTools.Core.Calc
                 return r;
             }
 
-            bool aluminium = !string.IsNullOrEmpty(q.Material)
-                          && q.Material.Trim().ToUpperInvariant().StartsWith("AL");
+            bool aluminium = StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(q.Material);
             if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(q.Material))
             {
                 r.Refusal = "BS 7671 voltage drop: " + StingTools.Standards.NEC2023.ConductorMaterialText.NoBsDataRefusal + ".";

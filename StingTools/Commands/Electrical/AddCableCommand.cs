@@ -26,6 +26,12 @@ namespace StingTools.Commands.Electrical
     [Regeneration(RegenerationOption.Manual)]
     public class AddCableCommand : IExternalCommand
     {
+        /// <summary>The Appendix 4 conductor key for the cable's material text ("CU" → "Cu");
+        /// unrecognised text is passed through and matches no table, so no drop is given.</summary>
+        private static string CableMatKey(string material)
+            => StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(material, out var m)
+                ? StingTools.Standards.NEC2023.ConductorMaterialText.Label(m) : (material ?? "").Trim();
+
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
@@ -92,7 +98,7 @@ namespace StingTools.Commands.Electrical
             // the built-in corporate copy would report a drop the project has said not to use.
             var bsTables = StingTools.Commands.Electrical.CableSizer.CableSizerEngine.Bs7671Tables(doc);
             string vdBlock = !string.IsNullOrEmpty(bsTables.LoadError) ? bsTables.LoadError
-                : bsTables.RemovedKeys.Contains(StingTools.Core.Electrical.Bs7671Data.Key("Cu", "PVC70", StingTools.Core.Electrical.Bs7671Data.DefaultCableType, "C"))
+                : bsTables.RemovedKeys.Contains(StingTools.Core.Electrical.Bs7671Data.Key(CableMatKey(cable.ConductorMaterial), "PVC70", StingTools.Core.Electrical.Bs7671Data.DefaultCableType, "C"))
                     ? $"the project override {bsTables.OverrideFile} removes the PVC70 method C table" : null;
             var vd = vdBlock != null ? new VoltageDropResult { Refusal = vdBlock, Basis = vdBlock }
                 : VoltageDropSolver.Solve(new VoltageDropQuery
@@ -104,7 +110,7 @@ namespace StingTools.Commands.Electrical
                 ThreePhase = inputs.ThreePhase,
                 Material = cable.ConductorMaterial,
             },
-            bsTables.FindTable("Cu", "PVC70", "C"));
+            bsTables.FindTable(CableMatKey(cable.ConductorMaterial), "PVC70", "C"));
             cable.VoltageDropPct = vd.VoltDropPct;
 
             manifest.Save(doc);

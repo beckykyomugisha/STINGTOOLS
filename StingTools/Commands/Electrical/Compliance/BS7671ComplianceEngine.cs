@@ -151,7 +151,8 @@ namespace StingTools.Commands.Electrical.Compliance
             double faultCurrentA, double clearingTimeSec, BS7671Thresholds thresholds = null)
         {
             var th = thresholds ?? Thresholds();
-            string key = $"{material ?? "Cu"}/{(insulation ?? "PVC").ToUpperInvariant()}";
+            string matKey = StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(material, out var cm) ? StingTools.Standards.NEC2023.ConductorMaterialText.Label(cm) : (material ?? "Cu");
+            string key = $"{matKey}/{(insulation ?? "PVC").ToUpperInvariant()}";
             if (!th.AdiabaticK.TryGetValue(key, out double k)) k = 115; // Cu/PVC fallback
             double left  = Math.Pow(k * csaMm2, 2);
             double right = Math.Pow(faultCurrentA, 2) * clearingTimeSec;

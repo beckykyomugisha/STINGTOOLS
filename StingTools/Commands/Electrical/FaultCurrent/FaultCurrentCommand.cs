@@ -211,6 +211,12 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                     catch (Exception ex) { StingLog.Warn($"FaultCurrent circuit length '{node.Label}': {ex.Message}"); }
                 }
             }
+            // Conductor material recorded on the panel's feeder circuit (or the panel); text
+            // that is not Cu / Al / CCA is passed on as-is and gets no resistance.
+            var matR = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(feeder ?? (Element)fi, null);
+            info.Material = matR.Ok ? (matR.Assumed ? null : matR.Label)
+                          : ParameterHelpers.GetString(feeder ?? (Element)fi, "ELC_WIRE_COND_MAT_TXT");
+
             return info;
         }
 

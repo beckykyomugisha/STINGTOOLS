@@ -61,8 +61,10 @@ namespace StingTools.Commands.Electrical.FaultCurrent
         public double GetMohmPerMetre(double csaMm2, string material)
         {
             if (csaMm2 <= 0 || _copper.Count == 0) return 0;
-            // No copper-clad aluminium resistance is shipped: 0 (no data), never copper's.
-            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(material)) return 0;
+            // No copper-clad aluminium resistance is shipped, and text that is not Cu / Al /
+            // CCA is not copper: 0 (no data) for both, never copper's figure. Blank is copper.
+            if (!StingTools.Standards.NEC2023.ConductorMaterialText.TryParse(material, out var cm)
+                || cm == StingTools.Standards.NEC2023.ConductorMaterial.CopperCladAluminum) return 0;
             double r;
             if (csaMm2 <= _copper[0].csaMm2) r = _copper[0].mohmPerM;
             else if (csaMm2 >= _copper[^1].csaMm2) r = _copper[^1].mohmPerM;
@@ -74,7 +76,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
                 double t = (csaMm2 - lo.csaMm2) / (hi.csaMm2 - lo.csaMm2);
                 r = lo.mohmPerM + t * (hi.mohmPerM - lo.mohmPerM);
             }
-            return string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? r * _aluminiumFactor : r;
+            return StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material) ? r * _aluminiumFactor : r;
         }
     }
 
@@ -98,7 +100,7 @@ namespace StingTools.Commands.Electrical.FaultCurrent
             double tempC = !string.IsNullOrEmpty(insulation)
                 ? StingTools.Commands.Electrical.VoltageDrop.VoltageDropEngine.OperatingTempForInsulation(insulation)
                 : operatingTempC;
-            double alpha = string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase) ? AlphaAl : AlphaCu;
+            double alpha = StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material) ? AlphaAl : AlphaCu;
             return r * (1.0 + alpha * (tempC - 20.0)) * lengthM;
         }
 

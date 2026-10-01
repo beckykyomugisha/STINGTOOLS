@@ -59,7 +59,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             var doc = ctx.Doc;
             var fallback = new VDOptionsSnapshot
                        { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
-                         Material = "Cu", OperatingTempC = 70.0, Standard = "BS7671" };
+                         Material = null, OperatingTempC = 70.0, Standard = "BS7671" };
             VDOptionsSnapshot opts;
             if (WorkflowEngine.IsRunningPreset)
             {
@@ -113,7 +113,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         /// upstream distribution — leave headroom for it.</remarks>
         public static List<VDResult> Calculate(Document doc, string standard,
             double lightingLimitPct, double otherLimitPct,
-            string material = "Cu", double operatingTempC = 70.0)
+            string material = null, double operatingTempC = 70.0)
         {
             var results = new List<VDResult>();
             if (doc == null) return results;
@@ -241,7 +241,7 @@ namespace StingTools.Commands.Electrical.VoltageDrop
             }
 
             var fallback = new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0,
-                                                  Material = "Cu", OperatingTempC = 70.0 };
+                                                  Material = null, OperatingTempC = 70.0 };
             VDOptionsSnapshot opts;
             if (WorkflowEngine.IsRunningPreset)
             {

@@ -38,7 +38,7 @@ namespace StingTools.Mcp
                 PowerFactor    = args["powerFactor"]?.Value<double?>() ?? 0.85,
                 LengthM        = args["lengthM"]?.Value<double?>() ?? 0,
                 InstallMethod  = args["installMethod"]?.Value<string>() ?? "C",
-                Material       = args["material"]?.Value<string>() ?? "Cu",
+                Material       = args["material"]?.Value<string>(),   // omitted: copper, assumed and said so by the sizer
                 Insulation     = args["insulation"]?.Value<string>() ?? "PVC70",
                 CableType      = args["cableType"]?.Value<string>() ?? StingTools.Core.Electrical.Bs7671Data.DefaultCableType,
                 VDLimitPct     = args["vdLimitPct"]?.Value<double?>() ?? 3.0,

@@ -86,7 +86,8 @@ namespace StingTools.Commands.Electrical.Export
                                   $"toBus=\"{Esc(f.DownstreamPanel)}\" " +
                                   $"csaMm2=\"{f.CsaMm2:0.0}\" " +
                                   $"lengthM=\"{f.LengthM:0.00}\" " +
-                                  $"rOhm=\"{f.ResistanceOhm:0.000000}\" " +
+                                  $"material=\"{Esc(f.Material)}\" " +
+                                  (f.ResistanceKnown ? $"rOhm=\"{f.ResistanceOhm:0.000000}\" " : "") +
                                   $"xOhm=\"{f.ReactanceOhm:0.000000}\" " +
                                   $"ratingA=\"{f.RatingA:0}\"/>");
                 }

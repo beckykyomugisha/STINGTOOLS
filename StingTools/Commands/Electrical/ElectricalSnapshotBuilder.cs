@@ -387,7 +387,7 @@ namespace StingTools.Commands.Electrical
 
                 // VD scan
                 var opts = StingElectricalCommandHandler.CurrentVDOptions
-                           ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0, Material = "Cu", OperatingTempC = 70.0 };
+                           ?? new VDOptionsSnapshot { LightingLimitPct = 3.0, OtherLimitPct = 5.0, Material = null, OperatingTempC = 70.0 };
                 var vds = VoltageDropCommand.Calculate(doc, opts.Standard, opts.LightingLimitPct, opts.OtherLimitPct,
                                                        opts.Material, opts.OperatingTempC);
                 int bad = vds.Count(v => v.ExceedsThreshold);

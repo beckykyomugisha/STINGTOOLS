@@ -80,6 +80,11 @@ namespace StingTools.Commands.Electrical.Export
         public double CsaMm2          { get; set; }
         public double LengthM         { get; set; }
         public double ResistanceOhm   { get; set; }  // ρ × L / A  (Cu: ρ=0.0175 Ω·mm²/m)
+        /// <summary>False when no resistance was calculated (CCA, or an unrecognised
+        /// material): writers leave r out rather than export 0.</summary>
+        public bool   ResistanceKnown { get; set; } = true;
+        /// <summary>"Cu" / "Al" / "CCA", or "Cu (assumed)" when the circuit records none.</summary>
+        public string Material        { get; set; } = "";
         public double ReactanceOhm    { get; set; }  // 0.08 mΩ/m default
         public double RatingA         { get; set; }
     }
@@ -261,6 +266,19 @@ namespace StingTools.Commands.Electrical.Export
             return rows;
         }
 
+        /// <summary>The feeder's conductor material (ELC_WIRE_COND_MAT_TXT on its circuit; blank =
+        /// copper, assumed and labelled so) and resistivity. CCA or unrecognised text: no
+        /// resistivity is held, so no resistance is exported.</summary>
+        private static StingTools.Standards.NEC2023.ResolvedConductorMaterial FeederMaterial(
+            ElectricalSystem sys, out string text, out bool resistanceKnown, out double rho)
+        {
+            var m = StingTools.Core.Electrical.ConductorMaterialSource.ForElement(sys, null);
+            text = !m.Ok ? "unrecognised" : m.Assumed ? "Cu (assumed)" : m.Label;
+            resistanceKnown = m.Ok && m.Material != StingTools.Standards.NEC2023.ConductorMaterial.CopperCladAluminum;
+            rho = m.Ok && m.Material == StingTools.Standards.NEC2023.ConductorMaterial.Aluminum ? 0.0285 : 0.0175;
+            return m;
+        }
+
         private static List<FeederSummary> BuildFeeders(Document doc, List<PanelSummary> panels)
         {
             var rows = new List<FeederSummary>();
@@ -311,10 +329,8 @@ namespace StingTools.Commands.Electrical.Export
                                 double csa      = ParseCsa(wire);
                                 double ratingA  = SafeDouble(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
 
-                                // Determine conductor material from cable manifest if available
-                                string material = "CU";
-                                double rho = material == "AL" ? 0.0285 : 0.0175;
-                                double r   = csa > 0 ? rho * lengthM / csa : 0;
+                                var matR = FeederMaterial(sys, out string matText, out bool rKnown, out double rho);
+                                double r   = rKnown && csa > 0 ? rho * lengthM / csa : 0;
                                 double x   = 0.00008 * lengthM; // 0.08 mΩ/m
 
                                 rows.Add(new FeederSummary
@@ -324,6 +340,8 @@ namespace StingTools.Commands.Electrical.Export
                                     CsaMm2          = csa,
                                     LengthM         = lengthM,
                                     ResistanceOhm   = r,
+                                    ResistanceKnown = rKnown,
+                                    Material        = matText,
                                     ReactanceOhm    = x,
                                     RatingA         = ratingA
                                 });
@@ -360,8 +378,8 @@ namespace StingTools.Commands.Electrical.Export
                         string wire     = SafeStr(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_WIRE_SIZE_PARAM);
                         double csa      = ParseCsa(wire);
                         double ratingA  = SafeDouble(sys, BuiltInParameter.RBS_ELEC_CIRCUIT_RATING_PARAM);
-                        double rho      = 0.0175; // default CU
-                        double r        = csa > 0 ? rho * lengthM / csa : 0;
+                        FeederMaterial(sys, out string matText, out bool rKnown, out double rho);
+                        double r        = rKnown && csa > 0 ? rho * lengthM / csa : 0;
                         double x        = 0.00008 * lengthM;
 
                         rows.Add(new FeederSummary
@@ -371,6 +389,8 @@ namespace StingTools.Commands.Electrical.Export
                             CsaMm2          = csa,
                             LengthM         = lengthM,
                             ResistanceOhm   = r,
+                            ResistanceKnown = rKnown,
+                            Material        = matText,
                             ReactanceOhm    = x,
                             RatingA         = ratingA
                         });

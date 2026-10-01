@@ -53,6 +53,8 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>NEC: the device relies on the 240.4(B) next-size-up allowance over the
         /// proposed conductor's ampacity — shown to the user to confirm (DSCH-30); null otherwise.</summary>
         public string ConductorNote   { get; set; }
+        /// <summary>"copper assumed …" when no material was given; null otherwise.</summary>
+        public string MaterialNote    { get; set; }
         public double ProposedCsaMm2  { get; set; }
         public List<UnconnectedElement> Elements { get; set; } = new List<UnconnectedElement>();
         public bool   UserModified    { get; set; }
@@ -80,8 +82,9 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// <summary>Installation method for cable sizer: A1/A2/B1/B2/C/E/F. Default "C".</summary>
         public string InstallMethod     { get; set; } = "C";
 
-        /// <summary>Conductor material: "Cu" or "Al". Default "Cu".</summary>
-        public string Material          { get; set; } = "Cu";
+        /// <summary>Conductor material: "Cu", "Al" or "CCA" — the Electrical panel's CABLE tab
+        /// when the dialog passes it. Null: copper, assumed, and every proposal says so.</summary>
+        public string Material          { get; set; }
 
         /// <summary>Insulation type: "PVC70" or "XLPE90". Default "PVC70".</summary>
         public string Insulation        { get; set; } = "PVC70";
@@ -314,6 +317,8 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 Standard     = opts.Standard
             }, opts.Bs7671Tables);
             circuit.ProposedCsaMm2 = sized.RecommendedCsaMm2;
+            var matUsed = StingTools.Standards.NEC2023.ConductorMaterialText.Resolve(null, opts.Material);
+            circuit.MaterialNote = matUsed.Ok && matUsed.Assumed ? matUsed.Basis : null;
 
             // NEC 240.4 (DSCH-30): check the device against the proposed conductor. No
             // conductor (not sized) = not checked, said so; a forbidden device = refused.

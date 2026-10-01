@@ -24,7 +24,7 @@ namespace StingTools.Commands.Electrical.CableSizer
         public string InstallMethod { get; set; } = "C";
         /// <summary>Conductor material — "Cu", "Al" or "CCA" (copper-clad aluminium, NEC
         /// only: every BS 7671 path refuses it). Read by ConductorMaterialText.</summary>
-        public string Material { get; set; } = "Cu";
+        public string Material { get; set; }
         /// <summary>"PVC70" | "XLPE90" | "LSOH90" | "THWN90". On the BS 7671 path a combination
         /// with no Appendix 4 table in STING_WIRE_TABLES.json is refused, not approximated.</summary>
         public string Insulation { get; set; } = "PVC70";
@@ -231,6 +231,23 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// standard's name onto a drawing must come from that standard.</para>
         /// </summary>
         public static CableSizeResult Calculate(CableSizeInput input, Bs7671Data tables)
+        {
+            if (input != null)
+            {
+                // The one reading of the material: unrecognised text is refused; nothing given
+                // is copper, ASSUMED, and the result says so (it used to default silently).
+                var mat = StingTools.Standards.NEC2023.ConductorMaterialText.Resolve(null, input.Material);
+                if (!mat.Ok)
+                    return new CableSizeResult { Sized = false, Warning = mat.Refusal + "; nothing was sized.", DerivationNote = "No calculation performed." };
+                var r = CalculateCore(input, tables);
+                if (mat.Assumed && r != null && r.Sized)
+                    r.Warning = (string.IsNullOrEmpty(r.Warning) ? "" : r.Warning.TrimEnd() + " ") + "Conductor material: " + mat.Basis + ".";
+                return r;
+            }
+            return CalculateCore(input, tables);
+        }
+
+        private static CableSizeResult CalculateCore(CableSizeInput input, Bs7671Data tables)
         {
             var result = new CableSizeResult();
             if (input == null) { result.Warning = "Null input"; return result; }

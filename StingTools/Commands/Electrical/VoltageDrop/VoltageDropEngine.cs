@@ -177,13 +177,16 @@ namespace StingTools.Commands.Electrical.VoltageDrop
         public static double BaseResistanceMohmPerM(double csaMm2, string material)
         {
             // No copper-clad aluminium resistance is shipped: 0 (invalid), never copper's.
+            // NEC 2023 Chapter 9 Table 8, as NFPA reproduces it (CMP-6 PI report pp. 301-302/307),
+            // gives conductivity and temperature coefficient for copper and aluminium only
+            // (notes 2 and 4); no copper-clad aluminium resistance was found (checked 2026-10-02).
             if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(material)) return 0;
             double nearestKey = CopperResistanceMohmPerM.Keys
                 .OrderBy(k => Math.Abs(k - csaMm2))
                 .FirstOrDefault();
             if (nearestKey <= 0) return 0;
             double baseR = CopperResistanceMohmPerM[nearestKey];
-            return string.Equals(material, "Al", StringComparison.OrdinalIgnoreCase)
+            return StingTools.Standards.NEC2023.ConductorMaterialText.IsAluminium(material)
                 ? baseR * AluminiumResistanceFactor
                 : baseR;
         }

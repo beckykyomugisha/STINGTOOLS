@@ -51,7 +51,7 @@ namespace StingTools.Commands.Electrical.CableSizer
                     PowerFactor = snap.PowerFactor <= 0 ? 0.85 : snap.PowerFactor,
                     LengthM = snap.LengthM,
                     InstallMethod = snap.InstallMethod ?? "C",
-                    Material = snap.Material ?? "Cu",
+                    Material = snap.Material,
                     Insulation = snap.Insulation ?? "PVC70",
                     CableType = snap.CableType ?? "Multicore",
                     VDLimitPct = snap.VDLimitPct <= 0 ? 3.0 : snap.VDLimitPct,

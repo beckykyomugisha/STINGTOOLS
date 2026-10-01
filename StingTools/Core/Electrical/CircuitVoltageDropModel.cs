@@ -18,9 +18,12 @@ namespace StingTools.Core.Electrical
 
         /// <summary>The circuit's inputs: Ib, route length (else ELC_CKT_LENGTH_M), voltage,
         /// poles, conductor size (native wire size, else ELC_CKT_CSA_MM2) and its cable record.</summary>
-        public static CircuitVdInput Read(ElectricalSystem sys, string standard, string material = "Cu")
+        public static CircuitVdInput Read(ElectricalSystem sys, string standard, string material = null)
         {
-            var i = new CircuitVdInput { Standard = standard ?? "BS7671", Material = string.IsNullOrWhiteSpace(material) ? "Cu" : material };
+            var i = new CircuitVdInput { Standard = standard ?? "BS7671" };
+            // The circuit's own recorded material wins; the panel setting next; else copper,
+            // ASSUMED and said so in the basis (ConductorMaterialText.Resolve).
+            ApplyMaterial(i, ConductorMaterialSource.ForElement(sys, material));
             if (sys == null) return i;
             try { i.CurrentA = sys.get_Parameter(BuiltInParameter.RBS_ELEC_APPARENT_CURRENT_PARAM)?.AsDouble() ?? 0; }
             catch (Exception ex) { StingLog.Warn($"VD current {sys.Id}: {ex.Message}"); }
@@ -39,13 +42,23 @@ namespace StingTools.Core.Electrical
             return i;
         }
 
+        private static void ApplyMaterial(CircuitVdInput i, StingTools.Standards.NEC2023.ResolvedConductorMaterial m)
+        {
+            if (m.Ok)
+            {
+                i.Material = m.Label;
+                i.MaterialNote = m.Assumed ? m.Basis : null;
+            }
+            else { i.Material = null; i.MaterialRefusal = m.Refusal; }
+        }
+
         /// <summary>BS EN 60228 resistance at the operating temperature — the NEC path only.</summary>
         public static Func<CircuitVdInput, double> Resistance(double operatingTempC = 70.0)
             => i => VoltageDropEngine.CalculateVoltDropPercent(i.CurrentA, i.LengthM, i.CsaMm2,
                                                               i.Material, i.VoltageV, i.Phases, operatingTempC);
 
         public static CircuitVdResult Compute(ElectricalSystem sys, Bs7671Data data, string standard,
-            string material = "Cu", double operatingTempC = 70.0)
+            string material = null, double operatingTempC = 70.0)
             => CircuitVoltageDrop.Resolve(Read(sys, standard, material), data, Resistance(operatingTempC));
 
         /// <summary>
@@ -115,8 +128,7 @@ namespace StingTools.Core.Electrical
             voltageAssumed = false;
             var i = new CircuitVdInput { Standard = standard ?? "BS7671" };
             if (conduit == null) return i;
-            string mat = ParameterHelpers.GetString(conduit, "ELC_WIRE_COND_MAT_TXT");
-            i.Material = mat != null && mat.Trim().StartsWith("Al", StringComparison.OrdinalIgnoreCase) ? "Al" : "Cu";
+            ApplyMaterial(i, ConductorMaterialSource.ForElement(conduit, null));
             i.CsaMm2 = ParameterHelpers.GetDouble(conduit, "ELC_WIRE_CSA_MM2_NUM");
             i.CurrentA = ParameterHelpers.GetDouble(conduit, "ELC_WIRE_MAX_DEMAND_A");
             try { if (conduit.Location is LocationCurve lc && lc.Curve != null) i.LengthM = lc.Curve.Length * 0.3048; }
