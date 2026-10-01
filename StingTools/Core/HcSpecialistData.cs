@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json.Linq;
 
@@ -13,9 +14,11 @@ namespace StingTools.Core
     // the panel value wins, then the file, then the constant in code.
     //
     // A file value is used only where it agrees with the code's constant
-    // today; where it disagrees, the caller keeps the code value and calls
-    // KeepCode so the difference is logged rather than silently changing a
-    // result. Fields no code checks stay in the files as reference.
+    // today. Fields no code checks stay in the files as reference.
+    //
+    // STING_HC_PHARMACY_USP.json is different: it is the ONE owner of the USP
+    // <797>/<800> cascade (DSCH-25) and is read whole through UspCascadeData —
+    // no code constant backs it, and an unusable file means NOT CHECKED.
     public static class HcSpecialistData
     {
         private static readonly ConcurrentDictionary<string, JObject> _files
@@ -29,22 +32,33 @@ namespace StingTools.Core
         public static double Get(string fileName, string jsonPath, double fallback)
             => Number(fileName, jsonPath) ?? fallback;
 
-        /// <summary>
-        /// Returns <paramref name="codeValue"/> unchanged, logging once when the file
-        /// carries a different value at <paramref name="jsonPath"/>. For limits where
-        /// data and code disagree and the code value is deliberately kept.
-        /// </summary>
-        public static double KeepCode(string fileName, string jsonPath, double codeValue)
+        public const string UspFile = "STING_HC_PHARMACY_USP.json";
+        private static StingTools.Core.Validation.Healthcare.UspCascadeFile _usp;
+        private static List<string> _uspErrors = new List<string>();
+        private static bool _uspLoaded;
+
+        /// <summary>The USP &lt;797&gt;/&lt;800&gt; cascade, or null when the file is missing or
+        /// invalid (reasons in <see cref="UspCascadeErrors"/>, logged once).</summary>
+        public static StingTools.Core.Validation.Healthcare.UspCascadeFile UspCascadeData
         {
-            var data = Number(fileName, jsonPath);
-            if (data.HasValue && Math.Abs(data.Value - codeValue) > 1e-9)
-                StingLog.WarnRateLimited("HcSpecialistData." + fileName + ":" + jsonPath,
-                    $"HcSpecialistData: {fileName} {jsonPath} = {data.Value:0.###}, code keeps {codeValue:0.###} (not changed until reconciled)");
-            return codeValue;
+            get
+            {
+                if (_uspLoaded) return _usp;
+                var j = Load(UspFile);
+                _usp = StingTools.Core.Validation.Healthcare.UspCascade.Parse(
+                    j == null || !j.HasValues ? null : j.ToString(), out var errors);
+                _uspErrors = errors;
+                if (_usp == null)
+                    StingLog.Error($"HcSpecialistData: {UspFile} unusable — USP checks will report NOT CHECKED: " + string.Join("; ", errors));
+                _uspLoaded = true;
+                return _usp;
+            }
         }
 
+        public static IReadOnlyList<string> UspCascadeErrors { get { var _ = UspCascadeData; return _uspErrors; } }
+
         /// <summary>Drop cached files so an edit is picked up.</summary>
-        public static void Reload() => _files.Clear();
+        public static void Reload() { _files.Clear(); _uspLoaded = false; _usp = null; }
 
         private static double? Number(string fileName, string jsonPath)
         {

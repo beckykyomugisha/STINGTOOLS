@@ -1994,6 +1994,56 @@
         }
       ]
     },
+    "StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json": {
+      "format": "json",
+      "schemaVersion": 2,
+      "description": "DSCH-25: the one owner of the USP <797>/<800> pharmacy cascade, per room (polarity, minimum and maximum differential in inches of water column, ACH). Bound by UspCascade.Parse (JsonConvert into UspCascadeFile); an invalid file means NOT CHECKED.",
+      "readers": [
+        "StingTools/Core/Validation/Healthcare/UspCascade.cs",
+        "StingTools/Core/HcSpecialistData.cs",
+        "StingTools/Commands/Healthcare/Specialist/PharmacyUspAuditCommand.cs",
+        "StingTools/Core/Validation/Healthcare/PressureRegimeValidator.cs"
+      ],
+      "kind": "object",
+      "poco": [
+        "StingTools/Core/Validation/Healthcare/UspCascade.cs",
+        "UspCascadeFile"
+      ],
+      "req": [
+        "rooms",
+        "recertificationCycleMonths"
+      ],
+      "children": {
+        "rooms": {
+          "kind": "array-of-object",
+          "poco": [
+            "StingTools/Core/Validation/Healthcare/UspCascade.cs",
+            "UspRoomSpec"
+          ],
+          "req": [
+            "code",
+            "polarity",
+            "minInWc",
+            "achMin",
+            "source"
+          ],
+          "types": {
+            "code": "str",
+            "roomClass": "str",
+            "standard": "str",
+            "iso": "str",
+            "achMin": "num",
+            "polarity": "str",
+            "relativeTo": "str",
+            "minInWc": "num",
+            "maxInWc": "num",
+            "externalExhaust": "bool",
+            "source": "str",
+            "verify": "str"
+          }
+        }
+      }
+    },
     "StingTools/Data/IFC/ARCHICAD_IFC_MAPPING.json": {
       "format": "json",
       "schemaVersion": 1,
@@ -10360,10 +10410,6 @@
       "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_MORTUARY.json": {
-      "format": "json",
-      "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
-    },
-    "StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json": {
       "format": "json",
       "reason": "Read through Core/HcSpecialistData.Get as the default for the matching HcOptions value where it agrees with code (others logged once); the remaining fields are reference. DSCH-15 closed."
     },

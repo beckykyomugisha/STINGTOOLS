@@ -6207,12 +6207,12 @@
                                             </WrapPanel>
                                             <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                                 <TextBlock Text="ACH min" FontSize="9" VerticalAlignment="Center"/>
-                                                <Slider Grid.Column="1" x:Name="sldHcUspAch" Minimum="6" Maximum="60" Value="30" TickFrequency="1"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcUspAch" Minimum="0" Maximum="60" Value="0" TickFrequency="1" ToolTip="0 = USP limit per room from STING_HC_PHARMACY_USP.json; a value may only tighten it"/>
                                                 <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUspAch, StringFormat={}{0:F0}}" FontSize="9" VerticalAlignment="Center"/>
                                             </Grid>
                                             <Grid Margin="0,4,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                                 <TextBlock Text="ΔP (Pa)" FontSize="9" VerticalAlignment="Center"/>
-                                                <Slider Grid.Column="1" x:Name="sldHcUspDp" Minimum="-20" Maximum="20" Value="2.5" TickFrequency="0.5"/>
+                                                <Slider Grid.Column="1" x:Name="sldHcUspDp" Minimum="0" Maximum="20" Value="0" TickFrequency="0.5" ToolTip="0 = USP limit per room (4.98 Pa buffer, 2.49–7.47 Pa C-SEC); a value may only tighten the minimum"/>
                                                 <TextBlock Grid.Column="2" Text="{Binding Value, ElementName=sldHcUspDp, StringFormat={}{0:F1}}" FontSize="9" VerticalAlignment="Center"/>
                                             </Grid>
                                             <CheckBox Content="Has buffer room"  x:Name="chkHcUspBuffer"   IsChecked="True" Margin="0,4,0,0" FontSize="9"/>

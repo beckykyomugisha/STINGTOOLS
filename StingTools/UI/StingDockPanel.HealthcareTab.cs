@@ -268,8 +268,8 @@ namespace StingTools.UI
                 // Pharmacy USP
                 string uspStd = (rbHcUsp800?.IsChecked == true) ? "USP-800" : "USP-797";
                 StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.Standard",   uspStd);
-                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.AchMin",     NumStr(sldHcUspAch?.Value, 30));
-                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.DpPa",       NumStr(sldHcUspDp?.Value, 2.5));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.AchMin",     NumStr(sldHcUspAch?.Value, 0));
+                StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.DpPa",       NumStr(sldHcUspDp?.Value, 0));
                 StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.HasBuffer",  BoolStr(chkHcUspBuffer?.IsChecked));
                 StingCommandHandler.SetExtraParam("Hc.Specialist.Usp.HasAnteroom",BoolStr(chkHcUspAnteroom?.IsChecked));
 

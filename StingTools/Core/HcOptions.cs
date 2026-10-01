@@ -122,13 +122,11 @@ namespace StingTools.Core
 
         // Pharmacy USP <797> / <800>
         public static string UspStandard    => Get("Hc.Specialist.Usp.Standard", "USP-797");
-        public static double UspAchMin      => GetDouble("Hc.Specialist.Usp.AchMin",
-            HcSpecialistData.Get("STING_HC_PHARMACY_USP.json", "sterileCascade[?(@.code == 'BUF-797')].achMin", 30.0));
-        // Not read from data: STING_HC_PHARMACY_USP.json gives 5 Pa for the <797>
-        // buffer/anteroom cascade (2.5 Pa only for the <800> CSEC); the code's
-        // 2.5 Pa is kept and the difference logged.
-        public static double UspDpPa        => GetDouble("Hc.Specialist.Usp.DpPa",
-            HcSpecialistData.KeepCode("STING_HC_PHARMACY_USP.json", "sterileCascade[?(@.code == 'BUF-797')].deltaPaToAnteroomMin", 2.5));
+        // Panel OVERRIDES of the USP cascade (STING_HC_PHARMACY_USP.json owns the
+        // limits, per room). Zero = no override; an override may only tighten
+        // (UspCascade.Check ignores and reports a looser one).
+        public static double UspAchMin      => GetDouble("Hc.Specialist.Usp.AchMin", 0);
+        public static double UspDpPa        => GetDouble("Hc.Specialist.Usp.DpPa",   0);
         public static bool   UspHasBuffer   => GetBool("Hc.Specialist.Usp.HasBuffer", true);
         public static bool   UspHasAnteroom => GetBool("Hc.Specialist.Usp.HasAnteroom", true);
 

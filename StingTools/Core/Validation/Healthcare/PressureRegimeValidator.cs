@@ -39,6 +39,30 @@ namespace StingTools.Core.Validation.Healthcare
                 var rc = GetRoomClassCached(r);
                 if (string.IsNullOrEmpty(rc)) continue;
 
+                // USP pharmacy rooms: polarity, ΔP (with a maximum for <800>) and ACH
+                // come from STING_HC_PHARMACY_USP.json, the one owner (DSCH-25).
+                if (rc.StartsWith("PH-CSP-", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    var cascade = StingTools.Core.HcSpecialistData.UspCascadeData;
+                    var spec = UspCascade.ForRoomClass(cascade, rc);
+                    if (spec == null)
+                    {
+                        res.Add(new ValidationResult(r.Id, ValidationSeverity.Warning, "CLN.USP.NOT_CHECKED",
+                            $"Room {r.Name} class {rc}: NOT CHECKED — " + (cascade == null
+                                ? "STING_HC_PHARMACY_USP.json unusable: " + string.Join("; ", StingTools.Core.HcSpecialistData.UspCascadeErrors)
+                                : "no USP cascade row for this class"), Tag));
+                        continue;
+                    }
+                    foreach (var f in UspCascade.Check(spec, GetParam(r, "CLN_PRESS_REGIME_TXT"),
+                                 GetParamDouble(r, "CLN_PRESS_DELTA_DESIGN_PA_NR"), GetParamDouble(r, "HVC_AIR_CHANGES_PER_HR")))
+                    {
+                        var sev = f.Status == "FAIL" ? ValidationSeverity.Error
+                                : f.Status == "NOT CHECKED" ? ValidationSeverity.Warning : ValidationSeverity.Info;
+                        res.Add(new ValidationResult(r.Id, sev, "CLN." + f.Code, $"Room {r.Name} ({rc}): {f.Status} — {f.Message}", Tag));
+                    }
+                    continue;
+                }
+
                 // 1. Pressure regime vs HTM design table.
                 var actual = GetParam(r, "CLN_PRESS_REGIME_TXT");
                 var design = HTMStandards.GetDesignRegime(rc);

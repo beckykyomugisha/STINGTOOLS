@@ -51,8 +51,8 @@ namespace StingTools.Standards.HTM
             { "RECOV-2",      6 },
             { "WARD-INPT",    6 },
             { "ENDOSCOPY",   15 },
-            { "PH-CSP-797",  30 },
-            { "PH-CSP-800",  30 },
+            { "PH-CSP-797",  30 }, // listed so the class is known; PressureRegimeValidator checks
+            { "PH-CSP-800",  30 }, // these rooms against STING_HC_PHARMACY_USP.json, not this table
             { "MORT",         6 },
             { "POST",        15 },
             { "DECON-D",     10 },
@@ -72,8 +72,8 @@ namespace StingTools.Standards.HTM
             { "AIIR",       "NEG" },
             { "PE-PROT",    "POS" },
             { "ANTERM",     "POS" },  // generally positive between AIIR and corridor (PE flips)
-            { "PH-CSP-797", "POS" },
-            { "PH-CSP-800", "NEG" },
+            // PH-CSP-797 / PH-CSP-800 (USP pharmacy rooms): polarity, ΔP and ACH are owned by
+            // StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json (UspCascade, DSCH-25).
             { "MORT",       "NEG" },
             { "POST",       "NEG" },
             { "DECON-D",    "NEG" },
@@ -92,8 +92,7 @@ namespace StingTools.Standards.HTM
             { "AIIR",       15 },  // ≥ 2.5 Pa CDC; HTM/ASHRAE recommends ≥ 15 Pa
             { "PE-PROT",    12 },
             { "ANTERM",     10 },
-            { "PH-CSP-797",  5 },
-            { "PH-CSP-800",  3 },
+            // PH-CSP-797 / PH-CSP-800: see STING_HC_PHARMACY_USP.json (UspCascade) — not HTM values.
             { "MORT",       15 },
             { "DECON-D",    10 },
             { "HSDU-W",     10 }
