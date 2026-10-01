@@ -102,7 +102,8 @@ namespace StingTools.Core.Routing
                 if (approxDist > searchRadiusFt) continue;
 
                 string otherService = InferService(other, emergencyKw);
-                double requiredMm = RoutingRules.RequiredSeparationMm(sourceService, otherService);
+                bool crossing = AreCrossing(dropCurve, otherCurve);
+                double requiredMm = RoutingRules.RequiredSeparationMm(sourceService, otherService, crossing);
                 if (requiredMm <= 0) continue; // no rule applies
 
                 // Actual minimum distance between the two line segments —
@@ -111,8 +112,7 @@ namespace StingTools.Core.Routing
                 double actualMm = actualFt * FtToMm;
                 if (actualMm >= requiredMm) continue;
 
-                var rule = RoutingRules.SeparationRules
-                    .Where(r => r.AppliesTo(sourceService, otherService))
+                var rule = RoutingRules.RulesFor(sourceService, otherService, crossing)
                     .OrderByDescending(r => r.MinSeparationMm)
                     .FirstOrDefault();
 
@@ -185,6 +185,19 @@ namespace StingTools.Core.Routing
             if (n.Contains("EXHAUST"))     return "HVC_EX";
             if (n.Contains("SPRINK"))      return "FLS_SPK";
             return null;
+        }
+
+        /// <summary>Two straight runs whose directions are within ~17 degrees of
+        /// perpendicular cross; anything else (parallel, oblique, curved) is not
+        /// treated as a crossing, so the stricter rules keep applying.</summary>
+        private static bool AreCrossing(Curve a, Curve b)
+        {
+            try
+            {
+                if (!(a is Line la) || !(b is Line lb)) return false;
+                return Math.Abs(la.Direction.Normalize().DotProduct(lb.Direction.Normalize())) < 0.3;
+            }
+            catch { return false; }
         }
 
         private static double MinCurveDistance(Curve a, Curve b, int samples = 10)

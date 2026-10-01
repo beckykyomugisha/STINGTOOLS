@@ -193,6 +193,27 @@ namespace StingTools.Core.Routing
         /// service pair into the maximum required separation in mm.
         /// Returns 0 when no rules apply.
         /// </summary>
+        /// <summary>
+        /// The rules that govern a pair of runs. DSCH round 7: once the rules
+        /// loaded, taking the max over every rule for a pair meant a crossing
+        /// (50 mm) was judged against the parallel open-tray figure (300 mm).
+        /// When the runs are known to cross, only crossing and "any" rules apply;
+        /// otherwise crossing-only rules are left out. Enclosure is not known from
+        /// the model, so among the remaining rules the largest still wins.
+        /// </summary>
+        public static IEnumerable<SeparationRule> RulesFor(string sourceService, string targetService, bool crossing)
+            => SeparationRules.Where(r => r.AppliesTo(sourceService, targetService)
+                && (crossing
+                    ? IsGeometry(r, "crossing") || IsGeometry(r, "any")
+                    : !IsGeometry(r, "crossing")));
+
+        private static bool IsGeometry(SeparationRule r, string g)
+            => string.Equals(r.Geometry ?? "any", g, StringComparison.OrdinalIgnoreCase);
+
+        public static double RequiredSeparationMm(string sourceService, string targetService, bool crossing)
+            => RulesFor(sourceService, targetService, crossing)
+                .Select(r => r.MinSeparationMm).DefaultIfEmpty(0).Max();
+
         public static double RequiredSeparationMm(string sourceService, string targetService)
         {
             double max = 0;
