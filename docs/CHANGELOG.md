@@ -867,6 +867,79 @@ run against a live tenant yet (ROADMAP ACC-HARD-1).
 - **Not verified**: not run against a live ACC container or in Revit. `AccIssue` carries no due
   date, display id or updated-at yet (TODO in `AccIssueImportRecord`); ACC assignees are stored
   as ACC ids, not names. Nothing is pushed back to ACC.
+#### Completed (TAGFAM-3 finished: 3.5 mm copies and door boxes on all four specialist tags, run headlessly, 2026-10-01)
+
+- **Run without the Revit UI.** `pyrevit run` launches Revit 2025, runs a script and closes it, so the
+  Size Copies step no longer needs anyone at the keyboard. `tools/pyrevit/headless/run_size_copies.py` opens
+  the four families from `STING_TAG_BUILD` (env, default `Documents\STING_TAG_BUILD`), runs the Size Copies
+  pushbutton code unchanged and logs to `size_copies_run.log`; `check_size_switches.py` reports every
+  label / box association and each type's switch values and exports a PNG per type.
+- **Size Copies bug fixed.** Under pyRevit's IronPython `ElementType.Name` raises `AttributeError: Name`;
+  the first run rolled back Fire Door, Accessible Door and Room Finish with "FAILED: Name". Type names are
+  now read through `Element.Name.GetValue` with a parameter fallback. The script also no longer re-saves a
+  family it did not change, so a repeat run leaves the files — and their manifest checksums — as they were.
+- **Result.** Each family has a 2.5 mm label on `TXT_2_5` and a 3.5 mm copy on `TXT_3_5`; Fire Door and
+  Accessible Door have a four-line Tag Box per size on the same switch; each size type sets only its own
+  switch. In a throwaway project (metric template, one door, one room, nothing saved) the two door tags
+  each drew one box — small for 2.5, large for 3.5 — with "D01" at the matching size. The room tags resolve
+  their text (`101 / F: W: / C: B:` and `101 / Comp / FR min / Esc pers`) but the export did not draw any
+  room tag, the template's stock one included, so they were not seen in an image.
+- The four `.rfa` files replace the label-only versions in `Data/TagFamilies`; `STING_CONTENT_MANIFEST.json`
+  re-stamped with `tools/restamp_content_manifest.py --apply` (the TAGFAM-8 gate failed until then, as
+  designed). `StingTools.Tags.Tests` 5,158 passing.
+
+#### Completed (TAGACC-26 project_config.json keys: one registry, checked against the code, 2026-10-01)
+
+- `TagConfig.LoadFromFile` warns about any key it does not recognise ("check for typos"). Its list was kept by
+  hand inside the loader and had drifted both ways:
+  - about 70 keys the plugin really reads or writes were reported as typos — every `COST_*`, `BOQ_TENDER_*`
+    and `WARNING_SLA_*` setting, and even keys the loader itself reads (`FOLDER_CODE_SUFFIX`,
+    `DEFAULT_COLLISION_MODE`, `PROPAGATE_REV_ON_CREATE`) or `SaveToFile` writes (`CATEGORY_VISUAL_POLICY`,
+    so every saved file warned on the next load);
+  - four listed keys are read by nothing: `SEQ_LEVEL_RESET` (SEQ is never reset per level — `SeqLevelReset`
+    is only compared by the migration guard), `DD_SCHEDULE`, `DD_REQUIREMENTS`, `TRADE_DURATION_OVERRIDES`;
+  - the list was case-insensitive while every reader is case-sensitive, so `seq_scheme` passed the check and
+    did nothing.
+- `Core/ProjectConfigKeys` (Revit-free) holds the known keys, the `BOQ_TENDER_` prefix family, keys other
+  commands write with their own JSON code (checked by hand), and a `NotApplied` map. The loader warns for
+  unknown keys (case-sensitive) and separately says a not-applied key "has no effect".
+- **Gate** `ProjectConfigKeysTests`: every key read through `GetConfig*`, set through `SetConfigValue`, read at
+  the top level of `LoadFromFile` or written by `SaveToFile` is known; every known key is used by some code;
+  every not-applied key is used by none. Removing a real key fails it; adding an unused one fails it.
+  `StingTools.Tags.Tests` 5,157 passing; build 0 / 0.
+
+#### Completed (TAGACC-25 interim: unapplied discipline-profile settings are named, 2026-10-01)
+
+- Six `DISCIPLINE_PROFILES` settings load into `DisciplineProfile` and are read by nothing:
+  `CollisionMode`, `SeqScheme`, `DefaultZone`, `DefaultLoc`, `SeqIncludeZone`, `SeqPadWidth`. A project that
+  set one got no effect and no word. Implementing them changes how tokens and SEQ keys are built, so that
+  stays a decision (ROADMAP TAGACC-25). Until then `DisciplineProfile.IgnoredSettings()` names them: the
+  loader logs a warning per discipline, and *Discipline Profiles* shows "Set but NOT applied".
+- **Gate** `DisciplineProfileIgnoredSettingsTests`: every profile property is either read somewhere in the
+  plugin or listed by `IgnoredSettings()` — and an implemented one must come off the list. Dropping one name
+  fails it. `StingTools.Tags.Tests` 5,145 passing; build 0 / 0.
+- (`DisciplineProfile.FromDict`, a snake_case parser, has no callers; the loader binds the PascalCase names
+  the in-app example uses. Left in place, noted here.)
+#### Completed (TAGACC-24 the project's SEQ pad width reaches the SEQ, 2026-10-01)
+
+- `TagConfig.EffectiveSeqPad` (the width every SEQ is padded to) prefers `TagConfig.SeqPadWidth` — default 4 —
+  over `ParamRegistry.NumPad`, and the only writer of `SeqPadWidth` was the dock panel's Tokens & Depth
+  apply. Consequences: `TAG_FORMAT.num_pad` in `project_config.json` changed `NumPad` but never the SEQ;
+  the Tag Format command (TAGACC-23) likewise; and a pad chosen in the panel, saved to the file by any later
+  `SaveToFile`, was back to 4 after a restart (the panel's latch then protected the "project" format it
+  believed had loaded), so one model collected 5- and 4-digit SEQs. The auto-tagger, which never goes
+  through the panel, always used 4.
+- `ParamRegistry.ApplyTagFormatOverrides` — the one place the loader, the Tag Format command and the panel
+  all apply a format — now sets `SeqPadWidth = NumPad`, before its early return.
+- **Behaviour change:** only where a project's saved `num_pad` is not 4. New SEQ values take that width;
+  existing tags are untouched unless re-tagged with Overwrite, which already normalises to the current pad
+  (TAGACC-4). Projects on the default 4 see no change.
+- **Tests** `SeqPadSyncTests`: the method sets it after the NumPad override and before any return; nothing
+  but it and the panel writes `SeqPadWidth`. Fails against main. `StingTools.Tags.Tests` 5,142 passing;
+  build 0 / 0. **Not run in Revit.**
+- Found alongside, logged as **TAGACC-25** (open): four `DISCIPLINE_PROFILES` fields are parsed and never
+  read (`default_zone`, `default_loc`, `seq_include_zone`, `seq_pad_width`).
+
 #### Completed (TAGACC-23 Tag Format saves the format under names the loader reads, 2026-10-01)
 
 - **The bug.** `ConfigurableTagFormatCommand` saved a `TagFormatConfig` object as `TAG_FORMAT`; with no

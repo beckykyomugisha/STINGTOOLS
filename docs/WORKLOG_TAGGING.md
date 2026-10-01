@@ -7,29 +7,27 @@ gates + CI; never weaken a test; never renumber/overwrite a real model.
 
 ## Resume here
 
-1. Merge when CI is green: #1032 (TAGACC-21, already brought up to date with main and the protocol's
-   TAGACC-11 row) and #1034 (TAGACC-22). If CHANGELOG conflicts, keep both entries, newest first; keep
-   ROADMAP rows in numeric order.
-2. **NEEDS REVIT CHECK** below. The live KUT build now carries main through #1028 (see State), so
-   TAGFAM-2's second run and TAGACC-12 Part A/B can be run on it. #1 (pyRevit Size Copies) unblocks the
-   three remaining specialist `.rfa` files; after committing them, re-stamp the manifest with
-   `python tools/restamp_content_manifest.py --apply StingTools/Data/TagFamilies` (the TAGFAM-8 gate
-   fails until then — intended). #4 times TAGFAM-6.
-3. Next research: an enhancement — `AnnotationRunner` warns and falls back when a drawing type names a
-   tag family that is not loaded (likely for the TAGFAM-3 tags); offer to load it from `Data/TagFamilies`.
-   Then decide TAGFAM-7 (doubled-Tag tie-in names).
+1. Merge #1038 (TAGACC-26, project_config key registry) when CI is green; merge `origin/main` in first if
+   CHANGELOG / ROADMAP conflict (keep both, rows in numeric order).
+2. **Decision for Sting — TAGACC-25:** six `DISCIPLINE_PROFILES` settings are parsed and applied by nothing
+   (`CollisionMode`, `SeqScheme`, `DefaultZone`, `DefaultLoc`, `SeqIncludeZone`, `SeqPadWidth`). Implement
+   (changes token/SEQ building) or remove. Interim warning is live.
+3. **NEEDS REVIT CHECK** below — the live KUT build carries main through at least #1028; #1 (pyRevit Size
+   Copies) unblocks the last three specialist `.rfa` files (then re-stamp the manifest); TAGACC-12 Part A/B
+   can run on the KUT build.
+4. Next research seams (same shape as TAGACC-23/24/26 — config that loads but does nothing): other
+   `TryDeserialize` sections of `project_config.json` whose POCOs have no `JsonProperty` names
+   (`CATEGORY_VISUAL_POLICY`, `CATEGORY_TOKEN_OVERRIDES`, `SLA_THRESHOLDS`, `SHEET_MARGINS`); then the
+   AnnotationRunner auto-load enhancement; then TAGFAM-7.
 
-## State (2026-10-01, pass 2)
+## State (2026-10-01, pass 3)
 
-- Merged: #1019, #1020, #1022 TAGACC-18, #1023 TAGACC-19, #1024/#1025 worklog + TAGFAM-7 log,
-  #1026 TAGFAM-5, #1027 TAGFAM-6, #1028 TAGFAM-8, #1029 TAGFAM-6 follow-up, #1030 TAGACC-20,
-  #1031 protocol coverage.
-- Open: #1032 TAGACC-21 (proximity), #1034 TAGACC-22 (Tag Intelligence config writers).
-- Spun off (outside tagging): `cost_rates_5d.csv` fails `tools/validate_data_schemas.py` on main (a
-  `PROD` column), and no CI job runs that validator — offered as a separate task.
-- Live Revit build `C:\Dev\STING_KUT_LIVE` is maintained by the ACC-review session: redeployed at
-  `57c3b236e` with main through #1028 (build 0/0, Tags 5,221 + Acc 697 passing, 210 `.rfa`, no Seeds/).
-  It picks up later PRs as they merge.
+- Merged today: #1019, #1020, #1022–#1037 (TAGACC-18…25-interim, TAGFAM-5…8, protocol, worklogs).
+- Open: #1038 TAGACC-26.
+- Spun off (outside tagging): `cost_rates_5d.csv` fails `tools/validate_data_schemas.py` on main, and no CI
+  job runs that validator — offered as a separate task.
+- Live Revit build `C:\Dev\STING_KUT_LIVE` is maintained by the ACC-review session (redeployed at `57c3b236e`
+  with main through #1028; it picks up later PRs as they merge).
 - All work happens in worktree `.claude/worktrees/tag-families-setup-976ed0` (the session hook refuses
   writes to other worktrees); switch branches there, one branch per change from `origin/main`.
 
@@ -65,11 +63,7 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 
 ## NEEDS REVIT CHECK
 
-1. **Size copies + door boxes** — open `STING - Fire Door Tag.rfa`, `STING - Accessible Door Tag.rfa`,
-   `STING - Room Finish Tag.rfa` (and Fire Compartment, harmless — it is idempotent); pyRevit tab › Reload;
-   *STING Families › Tag Labels › Size Copies*. Read the output window: each family should report
-   "3.5 mm copy created", "-> TXT_3_5", and for doors "box 2.5 mm drawn" / "box 3.5 mm drawn", then
-   "saved". In *Family Types*, switch `2.5_…` / `3.5_…`: only that size's label (and box) shows.
+1. ~~**Size copies + door boxes**~~ **Done 2026-10-01 headlessly** (`pyrevit run tools/pyrevit/headless/run_size_copies.py --revit=2025 --purge`). Left: open any project, place a Room Finish and a Fire Compartment tag of each size type and look — the headless export drew no room tags at all, stock tag included, so they are verified by text and switches only.
 2. **TAGFAM-2 second run** (needs the redeployed KUT build): *Create Tag Fams* in a throwaway project —
    families load (hub button now `Manual`), Temporary Structure / MEP Ancillary Framing tags are accepted
    or reported.
@@ -108,6 +102,10 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 | F12 | — | SEQ | can a stale user lower the shared SEQ counters? | **Checked** — `StingSeqLockStore.Save` max-merges; renumbers leave gaps, never duplicates |
 | F13 | — | annotation | missing drawing-type tag family silent? | **Checked** — warned, then falls back to the STING family of the category; auto-load is an enhancement |
 | F14 | Med | config | Tag Rule Engine / Tag Format replaced an unparseable `project_config.json` with a one-key file | **TAGACC-22** (#1034) |
+| F15 | **High** | config | Tag Format saved TAG_FORMAT as PascalCase; loader reads snake_case — never applied, and erased the wizard's section | **TAGACC-23** (#1035) |
+| F16 | **High** | SEQ | `SeqPadWidth` only set by the dock panel — project `num_pad` never reached the SEQ; panel pad lost on restart | **TAGACC-24** (#1036) |
+| F17 | Med | config | six DISCIPLINE_PROFILES fields parsed, never read | **TAGACC-25** interim (#1037); decision open |
+| F18 | Med | config | known-key list called ~70 real keys typos, listed 4 dead keys, case-insensitive vs case-sensitive readers | **TAGACC-26** (#1038) |
 
 Lesson from F1/F2: the standing brief's "known items" were written from memory; check the code
 before planning a fix.
