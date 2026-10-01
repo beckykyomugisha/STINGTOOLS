@@ -682,7 +682,15 @@ namespace StingTools.Core.Drawing
             // an MEP model whose grids live in the linked architectural model found
             // none and placed no chain. Linked grids carry link references.
             var gridLines = ViewLinks.StraightGrids(doc, view, stats.Warnings, out int arcs);
-            var lines = gridLines.Select(g => (g.Line, g.Ref)).ToList();
+            // DTW-140: where a linked grid lies on a host grid (copy / monitor, possibly a
+            // hair off) the host one is kept — StraightGrids lists host grids first and
+            // KeepFirstOfCoincident keeps the first, as the column-grid dimensioner does.
+            // Without it the offset link copy could win and the chain measure the link.
+            var gridSegs = gridLines.Select((g, i) => new GridSeg(i,
+                g.Line.GetEndPoint(0).X, g.Line.GetEndPoint(0).Y,
+                g.Line.GetEndPoint(1).X, g.Line.GetEndPoint(1).Y)).ToList();
+            var lines = GridChainGeometry.KeepFirstOfCoincident(gridSegs)
+                .Select(i => (gridLines[i].Line, gridLines[i].Ref)).ToList();
             if (arcs > 0 && lines.Count >= 2)
                 stats.Warnings.Add($"Grid dim: {arcs} arc grid(s) cannot join a linear chain — left out.");
             if (lines.Count < 2) return;
