@@ -29,6 +29,35 @@ namespace StingTools.Mep.Tests
             Assert.Equal("TMV3", f.HealthcareRequiredScheme);
         }
 
+        /// <summary>DSCH-41. The TMV3 rows (HTM 04-01 and SHTM 04-01) are confirmed against the
+        /// primary documents: the set limits against D 08 (2017) Table 17 / SHTM Table 4, and
+        /// never-exceed = set + 2 °C against D 08 Table 17 note and §11.1.2.5 / §11.2.2.4, and
+        /// SHTM 04-01 Part A v2 §16 "Temperature testing". They carry no verify and cite the
+        /// document. The TMV2 rows could not be checked against the scheme document and keep one.</summary>
+        [Fact]
+        public void Tmv3RowsCiteTheirPrimarySourceAndTmv2RowsStayUnconfirmed()
+        {
+            var f = Shipped();
+            var d08 = new Dictionary<string, double> { ["BIDET"] = 38, ["SHOWER"] = 41, ["BASIN"] = 41, ["BATH"] = 44 };
+            foreach (var r in f.OutletLimits)
+            {
+                Assert.Equal(r.MaxSetC + 2, r.NeverExceedC);
+                if (r.Scheme == "TMV3" || r.Jurisdiction == "SCOTLAND")
+                {
+                    Assert.True(string.IsNullOrWhiteSpace(r.Verify), $"{r.Outlet}/{r.Scheme}/{r.Jurisdiction}: {r.Verify}");
+                    Assert.Contains(r.Jurisdiction == "SCOTLAND" ? "SHTM 04-01 Part A v2 (July 2014) §16" : "D 08", r.Source);
+                }
+                else
+                    Assert.False(string.IsNullOrWhiteSpace(r.Verify), $"{r.Outlet}/{r.Scheme} lost its verify without a primary source");
+            }
+            foreach (var kv in d08)   // D 08 (2017) Table 17, England TMV3 general rows
+                Assert.Equal(kv.Value, f.OutletLimits.Single(r => r.Scheme == "TMV3" && r.Jurisdiction == "" && r.Outlet == kv.Key && !r.Assisted && !r.Paediatric).MaxSetC);
+            Assert.Equal(46, f.OutletLimits.Single(r => r.Scheme == "TMV3" && r.Jurisdiction == "" && r.Outlet == "BATH" && r.Assisted).MaxSetC);
+            // Dead-leg rows nobody could read the source of keep their verify.
+            Assert.False(string.IsNullOrWhiteSpace(f.DeadLegLimits.UninsulatedHotVerify));
+            Assert.False(string.IsNullOrWhiteSpace(f.DeadLegLimits.RedundantBranchVerify));
+        }
+
         [Fact]
         public void HealthcareBathAt44PassesAt45FailsUnassisted()
         {
