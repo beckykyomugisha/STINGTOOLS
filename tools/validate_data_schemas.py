@@ -739,6 +739,12 @@ def check_coverage(reg):
             if rel not in on_disk and not os.path.isfile(os.path.join(REPO, rel)):
                 err(f"{rel}: registered under \"{section}\" in tools/data_schemas.json "
                     f"but the file does not exist. Remove the entry with the file.")
+    # A file at a path no reader uses (e.g. project_config.json inside _BIM_COORD,
+    # where nothing looks) is worse than no file: it reads as applied.
+    for f in files:
+        for pat, reason in reg.get("forbidden", {}).items():
+            if fnmatch.fnmatchcase(f, pat):
+                err(f"{f}: not allowed here - {reason}")
     for r in reg["roots"]:
         if not r.get("uniqueBasenames"):
             continue
@@ -860,7 +866,7 @@ def self_test(reg):
     in a temp copy and asserts the validator rejects it. If any case passes
     validation, the gate is not working and the build fails on that alone.
     """
-    global ROOT, errors, warnings, checked_files
+    global ROOT, errors, warnings, checked_files, tracked_files
     import shutil
     import tempfile
 
@@ -1064,8 +1070,22 @@ def self_test(reg):
             failures.append("allowances: a stale alsoAllowed entry was NOT caught")
         total += 1
 
+        # A file where no reader looks.
+        real_tracked2 = tracked_files
+        try:
+            tracked_files = lambda r: sorted(real_tracked2(r) + ["project-templates/X/_BIM_COORD/project_config.json"])
+            errors = []
+            fake4 = dict(reg)
+            fake4["structural"] = dict(reg.get("structural", {}))
+            fake4["structural"]["project-templates/X/_BIM_COORD/project_config.json"] = "json"
+            check_coverage(fake4)
+            if not any("not allowed here" in e for e in errors):
+                failures.append("forbidden: a project_config.json inside _BIM_COORD was NOT caught")
+        finally:
+            tracked_files = real_tracked2
+        total += 1
+
         # Two data files with one name: FindDataFile reads only the first.
-        global tracked_files
         real_tracked = tracked_files
         try:
             dup = "StingTools/Data/Plumbing/cost_rates_5d.csv"

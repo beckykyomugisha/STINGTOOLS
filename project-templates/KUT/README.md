@@ -53,7 +53,7 @@ that reads it — start there when building a pack for a different owner.
 | `_BIM_COORD/owner_standards.json` | Enables the `KUT-ZZZ-XX-XX-M3-A-0001` sheet-number rule; narrows discipline codes to the temple team (A/S/M/E/P/FP/LV/G); enables the `ffe-fohlio-ref` FF&E link check at severity **WARN** (non-blocking — it reports FF&E not yet linked to Fohlio, it does not fail a gate) |
 | `_BIM_COORD/lod_matrix.json` | The confirmed 6-milestone matrix, plus the tiered asset data schedule at rung 500 across 17 pinned categories. **Generated** by `tools/build_kut_lod_overlay.py` — see below |
 | `_BIM_COORD/tag_schemes.json` | Enables the KUT element identifier (`KUT-…`) with the six-building volume map (BLD1 Temple→01 … BLD6 Guard→06, EXT→00) |
-| `_BIM_COORD/project_config.json` | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack |
+| `project_config.json` (**beside the `.rvt`, not in `_BIM_COORD/`**) | Six-building `LOC_CODES` (`BLD1..BLD6` + `EXT`) + per-building sequence grouping. **The tag scheme's volume map depends on these codes existing** — this is why the file is in the same pack |
 | `_BIM_COORD/fohlio_map.json` | FF&E ↔ Fohlio mapping (`ASS_TAG_1_TXT` ↔ Item Tag; `FOHLIO_REF_TXT` link key). Used by ExLink `Fohlio_Export` / `Fohlio_Import`. Pairs with the enabled `ffe-fohlio-ref` check in `owner_standards.json`. |
 | `_BIM_COORD/sting_classification.json` | Sets CSI MasterFormat as the leading classification standard (the Owner mandates RIB SpecLink) |
 | `_BIM_COORD/climate_data.json` | **Optional.** The corporate baseline already carries Kampala; deploy this only to replace it with engineer-confirmed ASHRAE 2021 Entebbe (HUEN / 636800) values |
@@ -254,7 +254,11 @@ needs no code change.
 `docs/examples/KUT/README.md` points here rather than restating it.
 
 1. Copy this whole `_BIM_COORD/` folder into the temple project folder — all of
-   it, not a selection. (`manifest.json` is an index, harmless to copy.)
+   it, not a selection. (`manifest.json` is an index, harmless to copy.) Copy
+   `project_config.json` from this folder's root **next to the central `.rvt`**:
+   every reader of it (TagConfig, the auto-tagger, the setup wizard, the SLD
+   sync…) looks beside the model, never in `_BIM_COORD/` — inside the pack it
+   was never applied (DSCH-19).
 2. Set `PRJ_ORG_PROJECT_CODE_TXT = KUT` and `PRJ_ORG_ORIGINATOR_CODE_TXT` on
    Project Information (drives the sheet pattern + tag scheme).
 3. **Set `PLM_PRJ_PLUMBING_CODE_TXT = IPC-US` on Project Information.**

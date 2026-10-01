@@ -52,6 +52,9 @@
     "StingTools/Data/*.py": "Python script shipped as data (template validation).",
     "StingTools/Data/TagFamilies/_master": "Master tag family placeholder; binary."
   },
+  "forbidden": {
+    "*/_BIM_COORD/project_config.json": "every project_config.json reader looks BESIDE THE .rvt (then the plugin data folder), never in _BIM_COORD/; a copy there is never applied. Ship it at the template's root (DSCH-19)."
+  },
   "schemas": {
     "GUIDES/kibale-project-config/spatial_codes.json": {
       "format": "json",
@@ -10968,11 +10971,11 @@
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "project-templates/KUT/_BIM_COORD/project_config.json": {
+    "project-templates/KUT/_BIM_COORD/sting_classification.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
-    "project-templates/KUT/_BIM_COORD/sting_classification.json": {
+    "project-templates/KUT/project_config.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
     },
