@@ -169,12 +169,9 @@ namespace StingTools.Commands.Drawing
                         skipped += grp.Count();
                         continue;
                     }
-                    FamilySymbol targetSym = null;
-                    foreach (var symId in targetFamily.GetFamilySymbolIds())
-                    {
-                        targetSym = doc.GetElement(symId) as FamilySymbol;
-                        if (targetSym != null) break;
-                    }
+                    // Any type, to prove the family has one; each sheet then
+                    // takes the type matching its current type name (DTW-160).
+                    FamilySymbol targetSym = TitleBlockSlotUtils.PickSymbolByName(doc, targetFamily, null);
                     if (targetSym == null)
                     {
                         report.AppendLine($"  ✗ {targetName} loaded but has no types — skipped " + grp.Count() + " sheet(s).");
@@ -201,7 +198,10 @@ namespace StingTools.Commands.Drawing
                                     report.AppendLine($"  🔒 {sheet.SheetNumber}  locked (PRJ_TB_LOCK_BOOL) — not migrated");
                                     continue;
                                 }
-                                tb.Symbol = targetSym;
+                                // DTW-160: same-named type in the target family, else the first.
+                                var sheetSym = TitleBlockSlotUtils.PickSymbolByName(doc, targetFamily, tb.Symbol?.Name) ?? targetSym;
+                                if (!sheetSym.IsActive) { sheetSym.Activate(); doc.Regenerate(); }
+                                tb.Symbol = sheetSym;
                                 var modeParam = tb.LookupParameter("PRJ_SHEET_BIM_MODE_TXT");
                                 if (modeParam != null && !modeParam.IsReadOnly)
                                     try { modeParam.Set("BIM"); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }

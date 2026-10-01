@@ -306,13 +306,8 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
 
-            // Pick the first FamilySymbol of the target family.
-            FamilySymbol targetSym = null;
-            foreach (var symId in targetFamily.GetFamilySymbolIds())
-            {
-                targetSym = doc.GetElement(symId) as FamilySymbol;
-                if (targetSym != null) break;
-            }
+            // DTW-160: the target type with the CURRENT type's name, else the first.
+            FamilySymbol targetSym = TitleBlockSlotUtils.PickSymbolByName(doc, targetFamily, sym?.Name);
             if (targetSym == null)
             {
                 TaskDialog.Show("STING — Toggle BIM Mode",
@@ -537,6 +532,26 @@ namespace StingTools.Commands.Drawing
                     .FirstOrDefault();
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
+        }
+
+        /// <summary>DTW-160 — the type of <paramref name="family"/> named
+        /// <paramref name="preferredTypeName"/> (case-insensitive), else the first
+        /// type. A swap between sibling families (BIM ↔ NONBIM, legacy → v2.0)
+        /// keeps the sheet on the same-named type instead of whichever type
+        /// happens to be listed first. Null when the family has no types.</summary>
+        public static FamilySymbol PickSymbolByName(Document doc, Family family, string preferredTypeName)
+        {
+            if (doc == null || family == null) return null;
+            FamilySymbol first = null;
+            foreach (var symId in family.GetFamilySymbolIds())
+            {
+                if (!(doc.GetElement(symId) is FamilySymbol fs)) continue;
+                if (first == null) first = fs;
+                if (!string.IsNullOrEmpty(preferredTypeName)
+                    && string.Equals(fs.Name, preferredTypeName, StringComparison.OrdinalIgnoreCase))
+                    return fs;
+            }
+            return first;
         }
 
         public static string GetFamilyName(Document doc, Element titleBlock)
