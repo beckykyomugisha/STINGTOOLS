@@ -177,15 +177,39 @@ namespace StingTools.Core.Drawing
         };
 
         /// <summary>
-        /// Level codes for every level, unique (see <see cref="ScopeBoxPlanner.UniqueLevelCodes"/>).
-        /// The one mapping used for footprints, the saved plan and production, so a level
-        /// always gets the same code in all three.
+        /// Level codes for every level, unique, and stable across renames: a code the saved
+        /// plan binds to a level's UniqueId stays on that level (see
+        /// <see cref="ScopeBoxPlanner.StableLevelCodes"/>, DTW-90). The one mapping used for
+        /// footprints, the saved plan and production, so a level always gets the same code
+        /// in all three. Reads the saved plan itself; where a level's name and its code now
+        /// disagree it is logged.
         /// </summary>
         public static Dictionary<long, string> LevelCodes(Document doc)
-            => ScopeBoxPlanner.UniqueLevelCodes(
+        {
+            var plan = ScopeBoxPlannerService.LoadPlan(doc, out var err);
+            if (err != null) StingLog.Warn($"ScopeBoxRevit.LevelCodes: {err} — levels coded from their names only.");
+            var notes = new List<string>();
+            var codes = LevelCodes(doc, plan, notes);
+            foreach (var n in notes) StingLog.Info("Scope-box level codes: " + n);
+            return codes;
+        }
+
+        /// <summary><see cref="LevelCodes(Document)"/> against a plan already loaded; disagreements go to <paramref name="notes"/>.</summary>
+        public static Dictionary<long, string> LevelCodes(Document doc, ScopeBoxPlanFile plan, List<string> notes)
+            => ScopeBoxPlanner.StableLevelCodes(
                 new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
                     .OrderBy(l => l.Elevation).ThenBy(l => l.Id.Value)
-                    .Select(l => (l.Id.Value, ParameterHelpers.GetLevelCodeForLevel(l))));
+                    .Select(l => (l.Id.Value, l.UniqueId, l.Name, ParameterHelpers.GetLevelCodeForLevel(l))),
+                plan?.LevelIds, notes);
+
+        /// <summary>Code → UniqueId for every level, under <see cref="LevelCodes(Document, ScopeBoxPlanFile, List{string})"/>: what the saved plan records.</summary>
+        public static Dictionary<string, string> LevelIdsByCode(Document doc, IDictionary<long, string> codes)
+        {
+            var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var l in new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>())
+                if (codes.TryGetValue(l.Id.Value, out var c) && !string.IsNullOrEmpty(c)) ids[c] = l.UniqueId;
+            return ids;
+        }
 
         /// <summary>
         /// The building's extent from its fabric (walls, floors, roofs, columns …). With a

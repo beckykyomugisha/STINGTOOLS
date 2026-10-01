@@ -139,6 +139,79 @@ namespace StingTools.Tags.Tests
             Assert.Equal(new[] { "-01", "-02", "-03" }, res.Boxes.Select(b => b.Name.Substring(b.Name.Length - 3)).ToArray());
         }
 
+        // ── DTW-90: levels by UniqueId ───────────────────────────────────
+
+        private static readonly (long, string, string, string)[] TwoLevels =
+        {
+            (1, "uid-gf", "Level 0", "L00"),
+            (2, "uid-l1", "Level 1", "L01"),
+        };
+
+        [Fact]
+        public void An_old_plan_with_no_level_ids_codes_levels_as_before()
+        {
+            var notes = new List<string>();
+            var codes = ScopeBoxPlanner.StableLevelCodes(TwoLevels, null, notes);
+            Assert.Equal("L00", codes[1]);
+            Assert.Equal("L01", codes[2]);
+            Assert.Empty(notes);
+        }
+
+        [Fact]
+        public void A_renamed_level_keeps_the_code_its_boxes_were_named_with()
+        {
+            var saved = new Dictionary<string, string> { ["L00"] = "uid-gf", ["L01"] = "uid-l1" };
+            // "Level 1" renamed "First Floor" → its name now reads F1.
+            var levels = new[] { (1L, "uid-gf", "Level 0", "L00"), (2L, "uid-l1", "First Floor", "F1") };
+            var notes = new List<string>();
+            var codes = ScopeBoxPlanner.StableLevelCodes(levels, saved, notes);
+            Assert.Equal("L01", codes[2]);
+            Assert.Contains(notes, n => n.Contains("First Floor") && n.Contains("L01"));
+        }
+
+        [Fact]
+        public void An_inserted_level_that_reads_a_saved_code_does_not_take_it_from_its_level()
+        {
+            var saved = new Dictionary<string, string> { ["L00"] = "uid-gf", ["L01"] = "uid-l1" };
+            // A transfer level below Level 1 whose name also reads L01. Before, codes were
+            // handed out by elevation, so it took L01 and Level 1 became L01-2: every
+            // STING-AREA::…::L01 box and the plan's ["L01"] then meant the new level.
+            var levels = new[] { (1L, "uid-gf", "Level 0", "L00"), (3L, "uid-tr", "Level 1 transfer", "L01"), (2L, "uid-l1", "Level 1", "L01") };
+            var notes = new List<string>();
+            var codes = ScopeBoxPlanner.StableLevelCodes(levels, saved, notes);
+            Assert.Equal("L01", codes[2]);
+            Assert.Equal("L01-2", codes[3]);
+            Assert.Contains(notes, n => n.Contains("Level 1 transfer") && n.Contains("L01-2"));
+        }
+
+        [Fact]
+        public void A_saved_level_that_was_deleted_frees_its_code()
+        {
+            var saved = new Dictionary<string, string> { ["L01"] = "uid-gone" };
+            var notes = new List<string>();
+            var codes = ScopeBoxPlanner.StableLevelCodes(TwoLevels, saved, notes);
+            Assert.Equal("L01", codes[2]);
+            Assert.Contains(notes, n => n.Contains("L01") && n.Contains("no longer"));
+        }
+
+        [Fact]
+        public void The_saved_plan_records_level_ids_and_a_merge_keeps_them()
+        {
+            var req = Request(Rect(0, 0, 40, 30));
+            var res = ScopeBoxPlanner.Plan(req);
+            var file = ScopeBoxPlanFile.From(req, res, new[] { "L01" }, "Model", null,
+                new Dictionary<string, string> { ["L01"] = "uid-l1" });
+            var round = ScopeBoxPlanFile.FromJson(file.ToJson());
+            Assert.Equal("uid-l1", round.LevelIds["L01"]);
+
+            var old = ScopeBoxPlanFile.FromJson("{\"schema\":2,\"levels\":[\"L00\"],\"boxes\":[]}");
+            Assert.Null(old.LevelIds);                                         // an old plan reads
+            var merged = ScopeBoxPlanFile.Merge(
+                ScopeBoxPlanFile.FromJson("{\"schema\":2,\"levelIds\":{\"L00\":\"uid-gf\"},\"boxes\":[]}"), file);
+            Assert.Equal("uid-gf", merged.LevelIds["L00"]);
+            Assert.Equal("uid-l1", merged.LevelIds["L01"]);
+        }
+
         [Fact]
         public void A_footprint_with_no_angle_of_its_own_follows_the_grid()
         {

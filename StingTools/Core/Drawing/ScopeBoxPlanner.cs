@@ -524,6 +524,65 @@ namespace StingTools.Core.Drawing
         }
 
         /// <summary>
+        /// Level codes that stay with their level (DTW-90). Codes come from level NAMES, and
+        /// area boxes (STING-AREA::…::L01) and the saved plan (levels ["L01"]) are keyed by
+        /// code — so renaming a level, or inserting one whose name reads the same code lower
+        /// down (the "-2" de-duplication went by elevation), moved the code to another level
+        /// and orphaned every box and plan entry that used it.
+        ///
+        /// The saved plan now records each code's level UniqueId (<paramref name="savedCodeToUid"/>).
+        /// A code bound to a level still in the project stays on that level whatever its name
+        /// now reads; every other level gets its name's code, de-duplicated with "-2", "-3"…
+        /// in the order given (lowest first). Each case where the name and the bound code
+        /// disagree is reported in <paramref name="notes"/>. With no saved ids (a plan from
+        /// before this, or none) the result is exactly <see cref="UniqueLevelCodes"/>.
+        /// </summary>
+        /// <param name="levels">(element id, UniqueId, name, code read from the name), lowest level first.</param>
+        public static Dictionary<long, string> StableLevelCodes(
+            IEnumerable<(long Id, string UniqueId, string Name, string Code)> levels,
+            IDictionary<string, string> savedCodeToUid, List<string> notes)
+        {
+            var list = (levels ?? Enumerable.Empty<(long, string, string, string)>()).ToList();
+            var result = new Dictionary<long, string>();
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var savedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            string Read(string raw) => string.IsNullOrWhiteSpace(raw) ? "XX" : raw.Trim();
+
+            foreach (var kv in (savedCodeToUid ?? new Dictionary<string, string>())
+                         .Where(kv => !string.IsNullOrWhiteSpace(kv.Key) && !string.IsNullOrWhiteSpace(kv.Value))
+                         .OrderBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase))
+            {
+                var code = kv.Key.Trim();
+                var lvl = list.FirstOrDefault(l => string.Equals(l.UniqueId, kv.Value, StringComparison.OrdinalIgnoreCase));
+                if (lvl.UniqueId == null)
+                {
+                    notes?.Add($"The level the saved plan records as '{code}' is no longer in the project; '{code}' goes to whichever level's name reads it now.");
+                    continue;
+                }
+                if (result.ContainsKey(lvl.Id) || used.Contains(code)) continue;
+                result[lvl.Id] = code;
+                used.Add(code);
+                savedCodes.Add(code);
+                var reads = Read(lvl.Code);
+                if (!string.Equals(reads, code, StringComparison.OrdinalIgnoreCase))
+                    notes?.Add($"Level '{lvl.Name}' now reads '{reads}' from its name but keeps '{code}', the code its scope boxes and saved plan use.");
+            }
+
+            foreach (var l in list)
+            {
+                if (result.ContainsKey(l.Id)) continue;
+                var code = Read(l.Code);
+                var candidate = code;
+                for (int n = 2; used.Contains(candidate); n++) candidate = code + "-" + n.ToString(CultureInfo.InvariantCulture);
+                used.Add(candidate);
+                result[l.Id] = candidate;
+                if (savedCodes.Contains(code))
+                    notes?.Add($"Level '{l.Name}' reads '{code}', but the saved plan binds '{code}' to another level; this level is '{candidate}'.");
+            }
+            return result;
+        }
+
+        /// <summary>
         /// The largest seed that fits inside maxW × maxD, either way round. Ties go to the
         /// unrotated placement, then to the seed listed first, so the choice is stable.
         /// </summary>
@@ -618,6 +677,14 @@ namespace StingTools.Core.Drawing
         [JsonProperty("footprintMode")] public string FootprintMode { get; set; }
         /// <summary>Levels a level-less area box is produced on. Empty means every level.</summary>
         [JsonProperty("levels")]      public List<string> Levels { get; set; } = new List<string>();
+        /// <summary>
+        /// Level code → the level's UniqueId (DTW-90). Codes are read from level names, so a
+        /// rename or an inserted level could move a code; with this the code stays on its
+        /// level (<see cref="ScopeBoxPlanner.StableLevelCodes"/>). Absent in older plans —
+        /// they resolve by code and get ids on their next save.
+        /// </summary>
+        [JsonProperty("levelIds", NullValueHandling = NullValueHandling.Ignore)]
+        public Dictionary<string, string> LevelIds { get; set; }
         [JsonProperty("classes")]     public List<ClassEntry> Classes { get; set; } = new List<ClassEntry>();
         [JsonProperty("boxes")]       public List<BoxEntry> Boxes { get; set; } = new List<BoxEntry>();
 
@@ -655,8 +722,9 @@ namespace StingTools.Core.Drawing
 
         /// <param name="levels">Levels a level-less box is produced on.</param>
         /// <param name="failed">Names that were planned New / Moved but whose creation failed; not recorded.</param>
+        /// <param name="levelIds">Level code → UniqueId for the project's levels (DTW-90).</param>
         public static ScopeBoxPlanFile From(ScopeBoxPlanRequest req, ScopeBoxPlanResult res, IEnumerable<string> levels,
-            string footprintMode, ISet<string> failed = null)
+            string footprintMode, ISet<string> failed = null, IDictionary<string, string> levelIds = null)
         {
             var f = new ScopeBoxPlanFile
             {
@@ -664,6 +732,8 @@ namespace StingTools.Core.Drawing
                 FitFactor = req.FitFactor, OverlapM = req.OverlapM, PaddingM = req.PaddingM,
                 GridAngleDeg = req.GridAngleRad * 180.0 / Math.PI, FootprintMode = footprintMode,
                 Levels = (levels ?? Enumerable.Empty<string>()).ToList(),
+                LevelIds = levelIds == null ? null
+                    : new Dictionary<string, string>(levelIds, StringComparer.OrdinalIgnoreCase),
             };
             foreach (var c in res.Classes)
                 f.Classes.Add(new ClassEntry
@@ -728,6 +798,16 @@ namespace StingTools.Core.Drawing
                 if (n == null) { merged.Classes.Add(c); continue; }
                 foreach (var t in c.DrawingTypes.Where(t => !n.DrawingTypes.Contains(t))) n.DrawingTypes.Add(t);
                 foreach (var d in c.Disciplines.Where(d => !n.Disciplines.Contains(d))) n.Disciplines.Add(d);
+            }
+            // Level ids: the saved bindings, with the new plan's winning where both name a code
+            // (the new plan's codes were assigned honouring the saved ones, so they only differ
+            // where a saved level has since been deleted).
+            if (saved.LevelIds != null || incoming.LevelIds != null)
+            {
+                var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in saved.LevelIds ?? new Dictionary<string, string>()) ids[kv.Key] = kv.Value;
+                foreach (var kv in incoming.LevelIds ?? new Dictionary<string, string>()) ids[kv.Key] = kv.Value;
+                merged.LevelIds = ids;
             }
             return merged;
         }
