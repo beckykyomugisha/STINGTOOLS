@@ -63,11 +63,7 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 
 ## NEEDS REVIT CHECK
 
-1. **Size copies + door boxes** — open `STING - Fire Door Tag.rfa`, `STING - Accessible Door Tag.rfa`,
-   `STING - Room Finish Tag.rfa` (and Fire Compartment, harmless — it is idempotent); pyRevit tab › Reload;
-   *STING Families › Tag Labels › Size Copies*. Read the output window: each family should report
-   "3.5 mm copy created", "-> TXT_3_5", and for doors "box 2.5 mm drawn" / "box 3.5 mm drawn", then
-   "saved". In *Family Types*, switch `2.5_…` / `3.5_…`: only that size's label (and box) shows.
+1. ~~**Size copies + door boxes**~~ **Done 2026-10-01 headlessly** (`pyrevit run tools/pyrevit/headless/run_size_copies.py --revit=2025 --purge`). Left: open any project, place a Room Finish and a Fire Compartment tag of each size type and look — the headless export drew no room tags at all, stock tag included, so they are verified by text and switches only.
 2. **TAGFAM-2 second run** (needs the redeployed KUT build): *Create Tag Fams* in a throwaway project —
    families load (hub button now `Manual`), Temporary Structure / MEP Ancillary Framing tags are accepted
    or reported.

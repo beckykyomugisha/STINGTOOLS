@@ -2,6 +2,27 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-3 finished: 3.5 mm copies and door boxes on all four specialist tags, run headlessly, 2026-10-01)
+
+- **Run without the Revit UI.** `pyrevit run` launches Revit 2025, runs a script and closes it, so the
+  Size Copies step no longer needs anyone at the keyboard. `tools/pyrevit/headless/run_size_copies.py` opens
+  the four families from `STING_TAG_BUILD` (env, default `Documents\STING_TAG_BUILD`), runs the Size Copies
+  pushbutton code unchanged and logs to `size_copies_run.log`; `check_size_switches.py` reports every
+  label / box association and each type's switch values and exports a PNG per type.
+- **Size Copies bug fixed.** Under pyRevit's IronPython `ElementType.Name` raises `AttributeError: Name`;
+  the first run rolled back Fire Door, Accessible Door and Room Finish with "FAILED: Name". Type names are
+  now read through `Element.Name.GetValue` with a parameter fallback. The script also no longer re-saves a
+  family it did not change, so a repeat run leaves the files — and their manifest checksums — as they were.
+- **Result.** Each family has a 2.5 mm label on `TXT_2_5` and a 3.5 mm copy on `TXT_3_5`; Fire Door and
+  Accessible Door have a four-line Tag Box per size on the same switch; each size type sets only its own
+  switch. In a throwaway project (metric template, one door, one room, nothing saved) the two door tags
+  each drew one box — small for 2.5, large for 3.5 — with "D01" at the matching size. The room tags resolve
+  their text (`101 / F: W: / C: B:` and `101 / Comp / FR min / Esc pers`) but the export did not draw any
+  room tag, the template's stock one included, so they were not seen in an image.
+- The four `.rfa` files replace the label-only versions in `Data/TagFamilies`; `STING_CONTENT_MANIFEST.json`
+  re-stamped with `tools/restamp_content_manifest.py --apply` (the TAGFAM-8 gate failed until then, as
+  designed). `StingTools.Tags.Tests` 5,158 passing.
+
 #### Completed (TAGACC-26 project_config.json keys: one registry, checked against the code, 2026-10-01)
 
 - `TagConfig.LoadFromFile` warns about any key it does not recognise ("check for typos"). Its list was kept by
