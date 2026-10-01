@@ -861,8 +861,8 @@ namespace StingTools.Tags
 
         /// <summary>
         /// Load the COBie type map from COBIE_TYPE_MAP.csv if it exists.
-        /// CSV format: FamilyName,UniclassCode,SFG20Code,AssetType,WarrantyDurationYears,...
-        /// First row is header. Family name is the key (case-insensitive).
+        /// Keyed by the TypeCode column (case-insensitive), matched against the family
+        /// name exactly or as a contained substring; every other column becomes a property.
         /// </summary>
         private static void EnsureCobieTypeMapLoaded()
         {
@@ -879,26 +879,32 @@ namespace StingTools.Tags
                 }
 
                 var map = new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
-                string[] lines = File.ReadAllLines(csvPath);
-                if (lines.Length < 2) return;
-
-                string[] headers = StingToolsApp.ParseCsvLine(lines[0]);
-
-                for (int i = 1; i < lines.Length; i++)
+                // DSCH-2: the key column is found by header name, not assumed to be first.
+                var table = CsvTable.Parse(File.ReadAllLines(csvPath), StingToolsApp.ParseCsvLine);
+                if (table.Rows.Count == 0) return;
+                int keyCol = table.Col("TypeCode");
+                if (keyCol < 0)
                 {
-                    if (string.IsNullOrWhiteSpace(lines[i])) continue;
-                    string[] cols = StingToolsApp.ParseCsvLine(lines[i]);
+                    StingLog.Warn("EnsureCobieTypeMapLoaded: COBIE_TYPE_MAP.csv header lacks TypeCode — COBie type map not loaded");
+                    return;
+                }
+                var headers = table.Header;
+
+                foreach (var row in table.Rows)
+                {
+                    string[] cols = row.Fields;
                     if (cols.Length < 2) continue;
 
-                    string familyName = cols[0]?.Trim();
+                    string familyName = row["TypeCode"];
                     if (string.IsNullOrEmpty(familyName)) continue;
 
                     var props = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                    for (int c = 1; c < cols.Length && c < headers.Length; c++)
+                    for (int c = 0; c < cols.Length && c < headers.Count; c++)
                     {
+                        if (c == keyCol || headers[c].Length == 0) continue;
                         string val = cols[c]?.Trim() ?? "";
                         if (!string.IsNullOrEmpty(val))
-                            props[headers[c].Trim()] = val;
+                            props[headers[c]] = val;
                     }
 
                     if (props.Count > 0)
