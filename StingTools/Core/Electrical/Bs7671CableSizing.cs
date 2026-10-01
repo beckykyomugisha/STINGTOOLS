@@ -381,6 +381,8 @@ namespace StingTools.Core.Electrical
             if (input.LengthM < 0) return Refuse(r, "Length must be ≥ 0.");
 
             string material = string.IsNullOrWhiteSpace(input.Material) ? "Cu" : input.Material.Trim();
+            if (StingTools.Standards.NEC2023.ConductorMaterialText.IsCopperClad(material))
+                return Refuse(r, "BS 7671 sizing: " + StingTools.Standards.NEC2023.ConductorMaterialText.NoBsDataRefusal + ".");
             string insulation = (input.Insulation ?? "").Trim();
             string method = (input.InstallMethod ?? "").Trim();
             string cableType = string.IsNullOrWhiteSpace(input.CableType) ? Bs7671Data.DefaultCableType : input.CableType.Trim();

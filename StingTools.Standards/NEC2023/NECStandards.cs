@@ -12,12 +12,62 @@ namespace StingTools.Standards.NEC2023
     #region Supporting Classes
 
     /// <summary>
-    /// Conductor material types
+    /// Conductor material types. Copper-clad aluminium (CCA) takes the "ALUMINUM OR
+    /// COPPER-CLAD ALUMINUM" columns of NEC Table 310.16 and its own 240.4(D) limits
+    /// (14 AWG 10 A, 12 AWG 15 A, 10 AWG 25 A). No BS 7671 / IEC path in StingTools has CCA
+    /// data: those paths refuse it by name (<see cref="ConductorMaterialText.IsCopperClad"/>).
     /// </summary>
     public enum ConductorMaterial
     {
         Copper,
-        Aluminum
+        Aluminum,
+        CopperCladAluminum
+    }
+
+    /// <summary>
+    /// The one reading of conductor-material text ("Cu", "Al", "CCA" and their spelled-out
+    /// forms) into <see cref="ConductorMaterial"/>. Before it, every NEC caller tested
+    /// <c>== "Al"</c> and took anything else as copper, so an unrecognised material was
+    /// sized silently as copper. Blank is copper (the panels' and data's default);
+    /// anything unrecognised is NOT parsed and the caller must refuse.
+    /// </summary>
+    public static class ConductorMaterialText
+    {
+        public const string CopperCladAluminiumLabel = "CCA";
+
+        public static bool TryParse(string text, out ConductorMaterial material)
+        {
+            material = ConductorMaterial.Copper;
+            string t = (text ?? "").Trim().ToLowerInvariant().Replace('_', '-').Replace(' ', '-');
+            switch (t)
+            {
+                case "": case "cu": case "copper":
+                    material = ConductorMaterial.Copper; return true;
+                case "al": case "aluminium": case "aluminum":
+                    material = ConductorMaterial.Aluminum; return true;
+                case "cca": case "copper-clad-aluminium": case "copper-clad-aluminum":
+                case "copperclad-aluminium": case "copperclad-aluminum":
+                    material = ConductorMaterial.CopperCladAluminum; return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>True when the text names copper-clad aluminium.</summary>
+        public static bool IsCopperClad(string text)
+            => TryParse(text, out var m) && m == ConductorMaterial.CopperCladAluminum;
+
+        /// <summary>Short label: "Cu", "Al" or "CCA".</summary>
+        public static string Label(ConductorMaterial material) => material switch
+        {
+            ConductorMaterial.Aluminum => "Al",
+            ConductorMaterial.CopperCladAluminum => CopperCladAluminiumLabel,
+            _ => "Cu",
+        };
+
+        /// <summary>The refusal every BS 7671 / IEC path gives for CCA.</summary>
+        public const string NoBsDataRefusal =
+            "copper-clad aluminium (CCA) has no BS 7671 / IEC data in StingTools — not sized or calculated as copper or aluminium";
     }
 
     /// <summary>
@@ -189,6 +239,8 @@ namespace StingTools.Standards.NEC2023
         /// </example>
         public static int GetConductorAmpacity(string wireSize, ConductorMaterial material, int tempRating)
         {
+            // Table 310.16 heads its second column group "ALUMINUM OR COPPER-CLAD ALUMINUM":
+            // Al and CCA share it (2023 leaves its 14 AWG row blank).
             var table = material == ConductorMaterial.Copper ? _copperAmpacityTable : _aluminumAmpacityTable;
 
             if (!table.ContainsKey(wireSize))
@@ -348,9 +400,10 @@ namespace StingTools.Standards.NEC2023
         /// NFPA report reproducing the NFPA 70-2023 text: Public Input 705-NFPA 70-2023 [Section 240.4], NEC CMP-10 First Draft public-input report, pp. 321-322/533, https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P10_FD_PIResponses.pdf.
         /// The 18 / 16 AWG values carry conditions this table does not check (continuous load
         /// at most 5.6 / 8 A; a device listed and marked for the conductor, or Class CC / CF /
-        /// J / T fuses). 2023 also has 240.4(D)(3), 14 AWG copper-clad aluminium 10 A, which is
-        /// not modelled: ConductorMaterial has no copper-clad aluminium member, so a 14 AWG CCA
-        /// conductor cannot be described here at all.
+        /// J / T fuses). Copper-clad aluminium: 240.4(D)(3) 14 AWG 10 A, (D)(5) 12 AWG 15 A,
+        /// (D)(7) 10 AWG 25 A (same source). 2023 Table 310.16 gives 14 AWG CCA no ampacity,
+        /// so the sizer cannot pick it; the limit still applies to a 14 AWG CCA conductor
+        /// already in the model.
         /// </summary>
         private static readonly Dictionary<string, int> _smallConductorMaxCopper = new Dictionary<string, int>
         {
@@ -360,12 +413,21 @@ namespace StingTools.Standards.NEC2023
         {
             { "12", 15 }, { "10", 25 },
         };
+        private static readonly Dictionary<string, int> _smallConductorMaxCopperCladAluminum = new Dictionary<string, int>
+        {
+            { "14", 10 }, { "12", 15 }, { "10", 25 },
+        };
 
         /// <summary>240.4(D) limit for the size and material, A; 0 when 240.4(D) does not
         /// cover the size (the device is then governed by 240.4(B)/(C) on the ampacity).</summary>
         public static int GetSmallConductorMaxOcpd(string wireSize, ConductorMaterial material)
         {
-            var table = material == ConductorMaterial.Copper ? _smallConductorMaxCopper : _smallConductorMaxAluminum;
+            var table = material switch
+            {
+                ConductorMaterial.Copper => _smallConductorMaxCopper,
+                ConductorMaterial.CopperCladAluminum => _smallConductorMaxCopperCladAluminum,
+                _ => _smallConductorMaxAluminum,
+            };
             return wireSize != null && table.TryGetValue(wireSize, out int value) ? value : 0;
         }
 

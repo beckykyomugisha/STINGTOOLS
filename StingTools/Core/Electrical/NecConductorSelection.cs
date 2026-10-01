@@ -99,7 +99,7 @@ namespace StingTools.Core.Electrical
             sel.NeedsConfirmation = false;
             sel.Note = (string.IsNullOrEmpty(sel.Note) ? "" : sel.Note + "; ") +
                        $"OCPD {sel.ProposedA} A > the NEC 240.4(D) limit {limit} A for {size} AWG " +
-                       (material == ConductorMaterial.Aluminum ? "Al" : "Cu") + " — upsize the conductor, do not apply";
+                       ConductorMaterialText.Label(material) + " — upsize the conductor, do not apply";
             return true;
         }
     }
