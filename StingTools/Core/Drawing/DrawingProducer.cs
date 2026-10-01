@@ -84,6 +84,21 @@ namespace StingTools.Core.Drawing
         /// <summary>P-9: true when the sheet already existed and was reused.</summary>
         public bool SheetReused { get; set; }
         public List<string> Warnings { get; } = new List<string>();
+
+        /// <summary>DTW-114: what the annotation pass placed on each view this run found
+        /// already produced (and refreshed).</summary>
+        public List<AnnotationRefresh> AnnotationRefreshes { get; } = new List<AnnotationRefresh>();
+
+        public sealed class AnnotationRefresh
+        {
+            public ElementId ViewId { get; set; }
+            public string ViewName { get; set; }
+            public int Tags { get; set; }
+            public int Dims { get; set; }
+            public int SpotsAndSymbols { get; set; }
+            /// <summary>A requested pass held back on the refresh, and why; null when none.</summary>
+            public string HeldBack { get; set; }
+        }
     }
 
     public static class DrawingProducer
@@ -124,6 +139,9 @@ namespace StingTools.Core.Drawing
         // Schedule rules resolved their category by iterating ~1,400 enum
         // members and calling Category.GetCategory on each, per rule.
         [ThreadStatic] private static Dictionary<string, BuiltInCategory> _categoryByName;
+        // DTW-114: views already refreshed in this batch — a dependent's parent is
+        // reached once per scope box and is annotated once.
+        [ThreadStatic] private static HashSet<long>                   _refreshedViews;
 
         private static string CacheDocKey(Document doc)
         {
@@ -165,6 +183,7 @@ namespace StingTools.Core.Drawing
             ResetCachesCore();
             if (doc == null) return;
             _cacheDocKey = CacheDocKey(doc);
+            _refreshedViews = new HashSet<long>();   // DTW-114
             // P4: the annotation pass's loaded-symbol index + tag-type memo share
             // the batch's lifetime.
             AnnotationRunner.BeginSymbolBatch();
@@ -256,6 +275,7 @@ namespace StingTools.Core.Drawing
             _packageSheetCount  = null;
             _sheetNumberCache   = null;
             _cacheDocKey        = null;
+            _refreshedViews     = null;   // DTW-114
             _isoLevelMap        = null;   // DTW-43: levels may be renamed between batches
             _isoLevelMapDocKey  = null;
             // SLOT-5: the title-block slot map memo lives with the slot utils,
@@ -482,7 +502,9 @@ namespace StingTools.Core.Drawing
                             if (action == DependentViewAction.ReuseDependent)
                             {
                                 // A dependent takes template, scale and annotation from its
-                                // parent; only its crop is its own.
+                                // parent; only its crop is its own. DTW-114: so the parent is
+                                // what a re-run refreshes (once per batch, however many boxes).
+                                RefreshExistingView(doc, parent, dt, rule, opts, result, null);
                                 CropToContextBox(doc, existing, dt, ctx, result);
                                 return existing.Id;
                             }
@@ -491,32 +513,10 @@ namespace StingTools.Core.Drawing
                         }
                         // GAP-H: re-apply the profile so a re-run after a
                         // profile edit refreshes scale / template / pack /
-                        // stamps. SyncStyles flag (annotation off) avoids
-                        // re-tagging an already-tagged view. Returning the
-                        // raw id without Apply meant idempotent re-runs
-                        // were a permanent no-op even after pack edits.
-                        try
-                        {
-                            var refreshOpts = new DrawingTypePresentation.ApplyOptions
-                            {
-                                AnnotationOptions = new AnnotationRunOptions
-                                {
-                                    SkipAutoTag = true, SkipAutoDim = true,
-                                    SkipDecorative = true, SkipSpots = true
-                                },
-                                SkipSymbolDriftCheck = true, // idempotent refresh — batch path
-                                // The box this view is produced for: without it the
-                                // refresh re-ran the profile's own crop over the box crop.
-                                ContextScopeBox = ctx?.ScopeBox
-                            };
-                            var refreshed = DrawingTypePresentation.Apply(doc, existing, dt, refreshOpts);
-                            result.Warnings.AddRange(refreshed.Warnings);
-                            ApplyPresetViewOverrides(existing, opts, result);   // DTW-21: a re-run honours them too
-                        }
-                        catch (Exception ex)
-                        {
-                            result.Warnings.Add($"Idempotent refresh ({existing.Id}): {ex.Message}");
-                        }
+                        // stamps. DTW-114: and the annotation pack, by the same
+                        // switches as a new view — the passes are idempotent, so
+                        // only elements modelled since the last run are annotated.
+                        RefreshExistingView(doc, existing, dt, rule, opts, result, ctx?.ScopeBox);
                         return existing.Id;
                     }
                 }
@@ -684,17 +684,7 @@ namespace StingTools.Core.Drawing
                 {
                     // DTW-28: the dialog's per-part annotation boxes (tags / dims /
                     // decorative / spots) reach the runner; only the master switch did.
-                    AnnotationOptions = opts.RunAnnotation
-                        ? new AnnotationRunOptions
-                        {
-                            ViewScale = view.Scale,
-                            PackOverride = ComposeAnnotation(dt, rule, opts),
-                            SkipAutoTag    = opts.Preset?.General?.RunAutoTag == false,
-                            SkipAutoDim    = opts.Preset?.General?.RunAutoDim == false,
-                            SkipDecorative = opts.Preset?.General?.RunDecorative == false,
-                            SkipSpots      = opts.Preset?.General?.RunSpots == false,
-                        }
-                        : new AnnotationRunOptions { SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true },
+                    AnnotationOptions = BuildAnnotationOptions(view, dt, rule, opts, refresh: false, out _),
                     SkipSymbolDriftCheck = true, // batch producer — drift via standalone command
                     ContextScopeBox = ctx?.ScopeBox,
                     // DTW-97: a new view with no depth of its own takes the type's section-marker
@@ -784,6 +774,84 @@ namespace StingTools.Core.Drawing
         /// untouched. See AnnotationPackLayering for why these layer rather than
         /// replace.
         /// </summary>
+        /// <summary>
+        /// DTW-114: the annotation passes for a view, from the same switches whether the
+        /// view is new or already produced (<paramref name="refresh"/>). See
+        /// <see cref="ProductionAnnotationPolicy"/> for the one pass a refresh holds back.
+        /// </summary>
+        private static AnnotationRunOptions BuildAnnotationOptions(View view, DrawingType dt, ProductionRule rule,
+            ProduceOptions opts, bool refresh, out string heldBack)
+        {
+            var g = opts?.Preset?.General;
+            var pack = ComposeAnnotation(dt, rule, opts);
+            var choice = ProductionAnnotationPolicy.Choose(
+                runAnnotation: opts?.RunAnnotation ?? true,
+                runTags:       g?.RunAutoTag != false,
+                runDims:       g?.RunAutoDim != false,
+                runDecorative: g?.RunDecorative != false,
+                runSpots:      g?.RunSpots != false,
+                refresh:       refresh,
+                packDrawsMatchlineFrame: (pack ?? dt?.Annotation)?.MatchlineOffsetMm.HasValue == true);
+            heldBack = choice.HeldBack;
+            return new AnnotationRunOptions
+            {
+                // A new view passes its scale as created; a refresh leaves it 0 so the
+                // runner reads the scale the presentation has just applied.
+                ViewScale      = refresh || view == null ? 0 : view.Scale,
+                PackOverride   = choice.RunsAnything ? pack : null,
+                SkipAutoTag    = choice.SkipTags,
+                SkipAutoDim    = choice.SkipDims,
+                SkipDecorative = choice.SkipDecorative,
+                SkipSpots      = choice.SkipSpots,
+            };
+        }
+
+        /// <summary>
+        /// DTW-114: re-apply the drawing type's presentation to a view production found
+        /// already made — scale, template, pack, stamps and, by the same switches as a new
+        /// view, the annotation pack, so elements modelled since the first run are tagged
+        /// and dimensioned. Each view is refreshed once per batch (a dependent's parent is
+        /// reached once per box). The counts land in the log for every view and in the
+        /// report when anything was placed.
+        /// </summary>
+        private static void RefreshExistingView(Document doc, View view, DrawingType dt, ProductionRule rule,
+            ProduceOptions opts, ProduceResult result, Element contextBox)
+        {
+            if (view == null) return;
+            if (_refreshedViews != null && CacheMatchesDoc(doc) && !_refreshedViews.Add(view.Id.Value)) return;
+            try
+            {
+                var refreshOpts = new DrawingTypePresentation.ApplyOptions
+                {
+                    AnnotationOptions = BuildAnnotationOptions(view, dt, rule, opts, refresh: true, out var heldBack),
+                    SkipSymbolDriftCheck = true, // idempotent refresh — batch path
+                    // The box this view is produced for: without it the
+                    // refresh re-ran the profile's own crop over the box crop.
+                    ContextScopeBox = contextBox
+                };
+                var refreshed = DrawingTypePresentation.Apply(doc, view, dt, refreshOpts);
+                result.Warnings.AddRange(refreshed.Warnings);
+                ApplyPresetViewOverrides(view, opts, result);   // DTW-21: a re-run honours them too
+
+                int tags = refreshed.AnnotationTagsPlaced, dims = refreshed.AnnotationDimsPlaced,
+                    dec = refreshed.AnnotationDecPlaced;
+                result.AnnotationRefreshes.Add(new ProduceResult.AnnotationRefresh
+                {
+                    ViewId = view.Id, ViewName = view.Name, Tags = tags, Dims = dims, SpotsAndSymbols = dec,
+                    HeldBack = heldBack
+                });
+                StingLog.Info($"DrawingProducer refresh '{view.Name}' ({dt.Id}): {tags} tag(s), {dims} dim(s), "
+                              + $"{dec} spot/symbol(s) placed" + (heldBack != null ? "; " + heldBack : "") + ".");
+                var line = ProductionAnnotationPolicy.RefreshLine(view.Name, tags, dims, dec);
+                if (line != null) result.Warnings.Add(line);
+                if (heldBack != null) result.Warnings.Add($"'{view.Name}' (already produced): {heldBack}.");
+            }
+            catch (Exception ex)
+            {
+                result.Warnings.Add($"Idempotent refresh ({view.Id}): {ex.Message}");
+            }
+        }
+
         private static AnnotationRulePack ComposeAnnotation(DrawingType dt, ProductionRule rule, ProduceOptions opts)
         {
             AnnotationRulePack presetAll = null, presetDt = null;

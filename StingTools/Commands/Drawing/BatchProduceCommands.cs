@@ -132,13 +132,14 @@ namespace StingTools.Commands.Drawing
         /// discipline (M / E / P / FP / MG) is produced on a level only when that discipline
         /// has something there — host or linked model (MepLevelViewProducer, the presence the
         /// routed MEP default uses); any other discipline's plan only on a level holding at
-        /// least one model element. Each skipped pair is added to <paramref name="skipped"/>.
+        /// least one model element, in the host or a loaded link (DTW-122). Each skipped pair is added to <paramref name="skipped"/>.
         /// </summary>
         internal static Func<DrawingType, Level, bool> SkipEmptyLevels(Document doc, List<string> skipped)
         {
             var presence = StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
             var mep = new HashSet<string>(StingTools.Core.Mep.MepLevelViewProducer.Disciplines, StringComparer.OrdinalIgnoreCase);
             var anyModel = new Dictionary<long, bool>();
+            HashSet<long> linked = null;   // DTW-122: computed on first need, once
             return (dt, lvl) =>
             {
                 var disc = (dt?.Discipline ?? "").Trim();
@@ -146,7 +147,17 @@ namespace StingTools.Commands.Drawing
                 if (mep.Contains(disc))
                     has = presence.TryGetValue(disc, out var set) && set.Contains(lvl.Id);
                 else if (!anyModel.TryGetValue(lvl.Id.Value, out has))
-                    anyModel[lvl.Id.Value] = has = LevelHasModel(doc, lvl);
+                {
+                    // DTW-122: the host's own elements, else a linked model's on a link
+                    // level mapped here — a federated MEP host links its architecture.
+                    has = LevelHasModel(doc, lvl);
+                    if (!has)
+                    {
+                        if (linked == null) linked = LinkedModelHostLevels(doc);
+                        has = StingTools.Core.Mep.LinkedModelLevels.HasModel(false, lvl.Id.Value, linked);
+                    }
+                    anyModel[lvl.Id.Value] = has;
+                }
                 if (!has) skipped?.Add($"{dt?.Id} on {lvl.Name}");
                 return has;
             };
@@ -232,6 +243,73 @@ namespace StingTools.Commands.Drawing
             => covered == null || covered.Count == 0 ? null
              : $"Not produced per level, {covered.Count} drawing type / level pair(s) a scope box already produces: "
                + string.Join("; ", covered.Take(12)) + (covered.Count > 12 ? " …" : "");
+
+        /// <summary>
+        /// DTW-122: the host levels a loaded link holds model elements on — each link level
+        /// with at least one model element, through the instance's transform, onto the host
+        /// level at or below it (LinkLevelMapper, as MepLevelViewProducer maps linked MEP).
+        /// One pass per link document. A link that is not loaded cannot be read and is
+        /// logged; a failure counts nothing rather than guessing.
+        /// </summary>
+        private static HashSet<long> LinkedModelHostLevels(Document doc)
+        {
+            var result = new HashSet<long>();
+            try
+            {
+                var instances = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance))
+                    .Cast<RevitLinkInstance>().ToList();
+                if (instances.Count == 0) return result;
+                // Internal-origin frame on both sides, as MepLevelViewProducer does.
+                var hostLevels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .Select(l => (l.Id.Value, l.ProjectElevation)).ToList();
+                if (hostLevels.Count == 0) return result;
+
+                var perDoc = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var inst in instances)
+                {
+                    Document linkDoc = null;
+                    try { linkDoc = inst.GetLinkDocument(); }
+                    catch (Exception ex) { StingLog.Warn($"SkipEmptyLevels link '{inst.Name}': {ex.Message}"); }
+                    if (linkDoc == null) { StingLog.Info($"SkipEmptyLevels: link '{inst.Name}' is not loaded — its model is not counted."); continue; }
+
+                    var key = string.IsNullOrEmpty(linkDoc.PathName) ? linkDoc.Title : linkDoc.PathName;
+                    if (!perDoc.TryGetValue(key, out var linkZ))
+                        perDoc[key] = linkZ = OccupiedLevelElevations(linkDoc);   // one pass per link document
+                    if (linkZ.Count == 0) continue;
+
+                    Transform tf;
+                    try { tf = inst.GetTotalTransform() ?? Transform.Identity; }
+                    catch (Exception ex) { StingLog.Warn($"SkipEmptyLevels link transform '{inst.Name}': {ex.Message}"); tf = Transform.Identity; }
+                    result.UnionWith(StingTools.Core.Mep.LinkedModelLevels.HostLevels(
+                        linkZ.Select(z => tf.OfPoint(new XYZ(0, 0, z)).Z), hostLevels));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SkipEmptyLevels links: {ex.Message} — linked models not counted.");
+            }
+            return result;
+        }
+
+        /// <summary>The ProjectElevation of every level in <paramref name="linkDoc"/> holding a model element.</summary>
+        private static List<double> OccupiedLevelElevations(Document linkDoc)
+        {
+            var levelIds = new HashSet<long>();
+            foreach (var e in new FilteredElementCollector(linkDoc).WhereElementIsNotElementType())
+            {
+                try
+                {
+                    if (e is View || e.Category == null || e.Category.CategoryType != CategoryType.Model) continue;
+                    var lid = e.LevelId;
+                    if (lid != null && lid != ElementId.InvalidElementId) levelIds.Add(lid.Value);
+                }
+                catch (Exception ex) { StingLog.Warn($"SkipEmptyLevels link element {e?.Id}: {ex.Message}"); }
+            }
+            var z = new List<double>();
+            foreach (var id in levelIds)
+                if (linkDoc.GetElement(new ElementId(id)) is Level l) z.Add(l.ProjectElevation);
+            return z;
+        }
 
         private static bool LevelHasModel(Document doc, Level lvl)
         {
