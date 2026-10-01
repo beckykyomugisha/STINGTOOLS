@@ -2321,19 +2321,19 @@ namespace StingTools.Core
             var map = new Dictionary<string, List<(string, string)>>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                bool first = true;
-                foreach (string raw in System.IO.File.ReadLines(csvPath))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(System.IO.File.ReadLines(csvPath), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("PROD_CODE", "CATEGORY", "FAMILY_PATTERN");
+                if (missing.Count > 0)
                 {
-                    if (first) { first = false; continue; }
-                    string line = raw.Trim();
-                    if (string.IsNullOrEmpty(line) || line.StartsWith("#")) continue;
-
-                    // CSV: PROD_CODE,CATEGORY,FAMILY_PATTERN,DESCRIPTION,...
-                    var cols = StingToolsApp.ParseCsvLine(line);
-                    if (cols == null || cols.Length < 3) continue;
-                    string prodCode = cols[0].Trim();
-                    string category = cols[1].Trim();
-                    string pattern  = cols[2].Trim().ToUpperInvariant();
+                    StingLog.Warn($"TagConfig: {csvPath} header has no {string.Join(", ", missing)} column; PROD rules not loaded");
+                    return null;
+                }
+                foreach (var r in t.Rows)
+                {
+                    string prodCode = r["PROD_CODE"];
+                    string category = r["CATEGORY"];
+                    string pattern  = r["FAMILY_PATTERN"].ToUpperInvariant();
                     if (string.IsNullOrEmpty(prodCode) || string.IsNullOrEmpty(category) || string.IsNullOrEmpty(pattern)) continue;
 
                     if (!map.TryGetValue(category, out var list))
