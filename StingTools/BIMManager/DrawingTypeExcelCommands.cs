@@ -140,7 +140,8 @@ namespace StingTools.BIMManager
                 var projPacks = DrawingTypeExcelEngine.LoadStylePackDocFromProject(doc);
                 var packLib   = DrawingTypeExcelEngine.MergeStylePacks(corpPacks, projPacks);
 
-                using var stream = DrawingTypeExcelEngine.ExportWorkbook(dtLib, packLib);
+                var bodyFont = StingTools.Core.Branding.CorporateBrand.For(doc).Fonts.Body;
+                using var stream = DrawingTypeExcelEngine.ExportWorkbook(dtLib, packLib, bodyFont.Family, bodyFont.Size);
                 var ts   = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 var path = OutputLocationHelper.GetRoutedPath(doc, "Excel", $"DrawingTypes_Export_{ts}.xlsx");
                 File.WriteAllBytes(path, stream.ToArray());
