@@ -430,6 +430,24 @@ namespace StingTools.Acc.Tests
             Assert.Contains("issueSubtypeId is invalid", r.Detail);
         }
 
+        // E11: the due date is sent in the invariant culture. Under th-TH the current culture's
+        // calendar is Thai Buddhist, so "yyyy" wrote 2569 for 2026 and ACC got a date 543 years out.
+        [Theory]
+        [InlineData("th-TH")]
+        [InlineData("ar-SA")]
+        [InlineData("en-GB")]
+        public void BuildIssueBody_DueDate_IsInvariant_WhateverTheCulture(string culture)
+        {
+            var before = System.Threading.Thread.CurrentThread.CurrentCulture;
+            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo(culture);
+            try
+            {
+                var body = AccIssueSync.BuildIssueBody(new AccIssue { Title = "t", DueDate = new DateTime(2026, 10, 15) }, "subtype-1");
+                Assert.Equal("2026-10-15", (string)body["dueDate"]);
+            }
+            finally { System.Threading.Thread.CurrentThread.CurrentCulture = before; }
+        }
+
         [Fact]
         public void ParseIssue_ReadsV1FieldNames()
         {

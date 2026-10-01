@@ -555,7 +555,8 @@ namespace StingTools.V6
                 body["assignedTo"] = issue.AssignedToUserId;
                 body["assignedToType"] = issue.AssignedToType;
             }
-            if (issue.DueDate.HasValue) body["dueDate"] = issue.DueDate.Value.ToString("yyyy-MM-dd");
+            // E11: invariant - under th-TH the current culture wrote a Buddhist-era year (2569-…).
+            if (issue.DueDate.HasValue) body["dueDate"] = issue.DueDate.Value.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
             var attrs = (issue.CustomAttributes ?? new List<AccCustomAttributeValue>())
                 .Where(a => a != null && !string.IsNullOrEmpty(a.AttributeDefinitionId) &&
                             a.Value != null && a.Value.Type != JTokenType.Null)
