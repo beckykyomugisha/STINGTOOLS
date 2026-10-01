@@ -12,13 +12,7 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 |---|---|---|---|
 | DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
 | DTW-102 | Linked MEP runs are reported, not dimensioned | `AnnotationRunner MEP dimension passes` | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit |
-| DTW-131 | Dedup ignores level: stacked identical floors get no fixtures after the first | `DwgCaptureDedup / DwgFixtureBridge` | In progress (`fix/dt-r6a`) |
-| DTW-132 | Wizard dependents match level name only (area/STING:: code boxes skipped); area boxes get every plan type | `ProjectSetupCommand MatchLevels ~1696` | In progress (`fix/dt-r6a`) |
-| DTW-133 | SSL levels 50-150 mm below FFL become separate storeys | `IsoLevelCode tolerance 50 mm` | In progress (`fix/dt-r6a`) |
-| DTW-134 | Heal takes {lvl} from the stamp's level name (stale after a rename) | `DrawingTokenContext.BuildForExistingSheet ~262` | In progress (`fix/dt-r6a`) |
-| DTW-138 | Session-long level map cache used by retag after level edits | `ParameterHelpers _levelMap vs SheetNumbering` | In progress (`fix/dt-r6a`) |
-| DTW-141 | Expensive lookups before checking the pattern uses {vol} | `DrawingTokenContext.ApplyContextVolume` | In progress (`fix/dt-r6a`) |
-| DTW-144 | Stricter grammar drops user-typed LOC names silently (log only) | `LOC index (ParameterHelpers ~1735)` | In progress (`fix/dt-r6a`) |
+| DTW-145 | Tagging report's scope-box section can show a stale audit | `TaggingModels` | Open (low) |
 
 ## Tag family library — missing families (2026-09-30)
 

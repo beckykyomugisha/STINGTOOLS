@@ -185,20 +185,21 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-128 | SupplySchematicGenerator ~197/~109 | Low | DN printed twice per pipe; rank-3 source not marked assumed | Merged | Done |
 | DTW-129 | ParameterHelpers.DeriveSheetLevel ~4590 | Med | Sheet level stamp uses the elevation code; after DTW-105 the number uses the declared code | Merged | Done |
 | DTW-130 | AnnotationRunner matchline frame | Low | Four plain detail lines with no provenance, so a re-run adds another frame; refresh skips the whole decorative pass when a pack sets matchlineOffsetMm | Stamped frame; hold-back removed | Done |
-| DTW-131 | DwgCaptureDedup / DwgFixtureBridge | High | Dedup ignores level: stacked identical floors get no fixtures after the first | fix/dt-r6a | In progress |
-| DTW-132 | ProjectSetupCommand MatchLevels ~1696 | Med-High | Wizard dependents match level name only (area/STING:: code boxes skipped); area boxes get every plan type | fix/dt-r6a | In progress |
-| DTW-133 | IsoLevelCode tolerance 50 mm | Med | SSL levels 50-150 mm below FFL become separate storeys | fix/dt-r6a | In progress |
-| DTW-134 | DrawingTokenContext.BuildForExistingSheet ~262 | Med | Heal takes {lvl} from the stamp's level name (stale after a rename) | fix/dt-r6a | In progress |
+| DTW-131 | DwgCaptureDedup / DwgFixtureBridge | High | Dedup ignores level: stacked identical floors get no fixtures after the first | Merged | Done |
+| DTW-132 | ProjectSetupCommand MatchLevels ~1696 | Med-High | Wizard dependents match level name only (area/STING:: code boxes skipped); area boxes get every plan type | Merged | Done |
+| DTW-133 | IsoLevelCode tolerance 50 mm | Med | SSL levels 50-150 mm below FFL become separate storeys | Merged | Done |
+| DTW-134 | DrawingTokenContext.BuildForExistingSheet ~262 | Med | Heal takes {lvl} from the stamp's level name (stale after a rename) | Merged | Done |
 | DTW-135 | PrintManager / SheetTemplateEngine / AutomationEngine PDFs | Med | FileName without Combine; exported path recorded without checking it exists | Merged | Done |
 | DTW-136 | AutoNumberSheetsCommand | Med | Renumbers all sheets as XX-NNN, bypassing SheetNumbering (ISO, locks, history) | Merged | Done |
 | DTW-137 | ExportCenterEngine.ResolveProducedFile ~1523 | Low-Med | Stale earlier PDF counted when the re-export failed | Merged | Done |
-| DTW-138 | ParameterHelpers _levelMap vs SheetNumbering | Low-Med | Session-long level map cache used by retag after level edits | fix/dt-r6a | In progress |
+| DTW-138 | ParameterHelpers _levelMap vs SheetNumbering | Low-Med | Session-long level map cache used by retag after level edits | Merged | Done |
 | DTW-139 | DrawingPackageManager ~119 | Low | Package PDF names carry no revision | Merged | Done |
 | DTW-140 | AnnotationRunner.DimGrids | Low | No coincident-grid filter: an offset linked grid can beat the host | Merged | Done |
-| DTW-141 | DrawingTokenContext.ApplyContextVolume | Low | Expensive lookups before checking the pattern uses {vol} | fix/dt-r6a | In progress |
+| DTW-141 | DrawingTokenContext.ApplyContextVolume | Low | Expensive lookups before checking the pattern uses {vol} | Merged | Done |
 | DTW-142 | BatchScopeDepth across documents | Low | Nested scope on another document wipes the outer batch's claims | Merged | Done |
 | DTW-143 | ScopeBoxStyle / RenamePattern / MatchLineEngine | Low | Box names parsed by hand, not through ScopeBoxNames | Merged | Done |
-| DTW-144 | LOC index (ParameterHelpers ~1735) | Low-Med | Stricter grammar drops user-typed LOC names silently (log only) | fix/dt-r6a | In progress |
+| DTW-144 | LOC index (ParameterHelpers ~1735) | Low-Med | Stricter grammar drops user-typed LOC names silently (log only) | Merged | Done |
+| DTW-145 | TaggingModels scope-box report | Low | The report copies the latest box-name audit; it can be stale if tagging reuses a cached setup or ran on another model in between | Carry the audit on the tagging setup into the report | Open |
 
 ## Decisions
 
@@ -255,6 +256,8 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   drawing-type numbers follow the project pattern.
 - **Nested batches across documents (DTW-142).** The outer batch's caches are set aside and
   restored, not wiped.
+- **Storey band (DTW-133).** One helper, `LevelSnapBand`: levels within min(300 mm, half the
+  storey) are one storey, both for ISO codes and for link-level mapping.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 

@@ -26092,5 +26092,42 @@ research-fix loop over all of drawing production. Findings DTW-1..81 and their d
   - The lying-catch sweep counts `PresetDialog` as reporting (baseline 151 → 145).
   - The parameter contract drops `STING_SCOPE_BOX_TAG_TXT`.
 
-Build 0/0; Tags.Tests 4,748; `run_ci_gates.py --quick` 36/36; drawing-type checksums OK.
+Later rounds on the same branch (DTW-82..145):
+- **Data (DTW-60..77, 89).**
+  - `titleBlockParams` use the real family parameters, with aliases for the old labels.
+  - Templates are chosen per view kind.
+  - Missing styles are created.
+  - `* * SECTION/ELEVATION` routes added.
+  - ISO patterns no longer freeze suitability and revision.
+  - `STING_PLACER_*` and placed-viewport marks bind or move to Extensible Storage.
+- **Annotation (DTW-83..86, 114, 130, 140).**
+  - Rooms, spaces and areas get spatial tags.
+  - Linked elements and grids are annotated.
+  - Rotated grid chains work.
+  - MEP run chains cross fittings.
+  - A re-run annotates what was modelled since, without doubling.
+- **Export (DTW-87, 88, 135, 137, 139).**
+  - Every single-sheet PDF goes through one routine and is named like the Export Centre.
+  - Stale earlier PDFs are never counted.
+- **Planner and boxes (DTW-90..93, 132, 143, 144).**
+  - Levels are kept by id, and re-plans keep boxes in place.
+  - Turned LOC boxes are tiled in their own frame.
+  - One name grammar for all boxes; rejects are reported.
+- **Numbering (DTW-94, 96, 100, 105, 116, 117, 129, 133, 134, 136, 138).**
+  - One ISO level map: declared codes win; SSL and datum levels share a storey (Building Story flag).
+  - Spool, batch and auto-number sheets follow the shared numbering paths.
+  - `{vol}` carries the building.
+  - Heal and the sheet stamp agree with the number.
+- **Production (DTW-95, 99, 103, 106..110, 122).**
+  - Per-level production skips only pairs a `STING::` box covers.
+  - Legacy sheet matches check the level.
+  - Nested and cross-document batches keep their caches.
+  - Skip-empty-levels sees links.
+- **Schematics (DTW-111, 119..121, 124, 128).** Drainage stacks must cross a level; one view per
+  schematic; fit to the sheet; labels don't collide.
+- **Placement (DTW-112, 113, 131).** DWG fixture placement is idempotent per level and builds the
+  seeds it needs.
+- **Gates.** The lying-catch baseline ratcheted to 144.
+
+Build 0/0; Tags.Tests 5,080; `run_ci_gates.py --quick` 36/36; drawing-type checksums OK.
 Nothing has been run in Revit; the worklog lists the checks.
