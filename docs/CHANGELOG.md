@@ -2,6 +2,22 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-5 arrowheads resolved in the family document, 2026-10-01)
+
+- **The bug.** `MigrateTagFamiliesCommand` and `PropagateUniversalTagCommand` (clone and master priming)
+  built `TagTypeVariantWriter.BuildArrowheadLookup(doc)` once from the PROJECT and passed it into
+  `CreateStandardVariants`, which sets `LEADER_ARROWHEAD` on the FAMILY document's types. ElementIds are
+  per-document, so a project id either named some other element in the family (wrong arrowhead, or a
+  throw caught and logged per type) or nothing. `TagFamilyCreatorCommand` already resolved them in the
+  family document.
+- **The fix.** All three call sites pass `BuildArrowheadLookup(famDoc)` / `(mfd)`; the project-level lookup
+  and the parameters that threaded it are gone, so it cannot be passed again. A family that has no
+  matching arrowhead type now logs "arrowhead '…' not present" — copying arrowhead types into a family is
+  not done here.
+- **Test** `ArrowheadLookupDocumentTests`: every `TagTypeVariantWriter.CreateStandardVariants` call (4)
+  resolves the lookup inline and never from `doc`; fails against main's Migrate. `StingTools.Tags.Tests`
+  4,626 passing; build 0 errors / 0 warnings. **Not run in Revit.**
+
 #### Completed (TAGACC-19 saving tag settings keeps the rest of project_config.json, 2026-10-01)
 
 - **The bug.** `project_config.json` is shared: besides the tag maps it carries `SEQ_SCHEME`,
