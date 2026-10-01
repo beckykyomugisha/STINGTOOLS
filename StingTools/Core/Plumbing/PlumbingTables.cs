@@ -58,6 +58,7 @@ namespace StingTools.Core.Plumbing
         private static readonly object _lock = new object();
         private static JObject _drainage;
         private static JObject _supply;
+        private static JObject _tmvStandards;
         private static List<MaterialHydraulic> _materials;
         private static List<FixtureUnitRow> _fixtureUnits;
         private static List<FittingEquivLength> _fittings;
@@ -71,6 +72,42 @@ namespace StingTools.Core.Plumbing
 
         public static JObject Drainage     { get { EnsureLoaded(); return _drainage; } }
         public static JObject Supply       { get { EnsureLoaded(); return _supply;   } }
+
+        /// <summary>STING_TMV_STANDARDS.json (BS 8680 / HTM 04-01 TMV limits); empty when absent.</summary>
+        public static JObject TmvStandards
+        {
+            get
+            {
+                if (_tmvStandards != null) return _tmvStandards;
+                lock (_lock)
+                {
+                    if (_tmvStandards == null) _tmvStandards = LoadJson("STING_TMV_STANDARDS.json");
+                    return _tmvStandards;
+                }
+            }
+        }
+
+        /// <summary>
+        /// The number at a JSON path (SelectToken syntax) under <paramref name="root"/>,
+        /// or null when the root, path or value is absent or not numeric.
+        /// </summary>
+        public static double? NumberAt(JToken root, string path)
+        {
+            try
+            {
+                var t = root?.SelectToken(path);
+                if (t != null && (t.Type == JTokenType.Float || t.Type == JTokenType.Integer))
+                {
+                    double v = t.Value<double>();
+                    if (!double.IsNaN(v) && !double.IsInfinity(v)) return v;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("PlumbingTables.NumberAt", $"PlumbingTables: '{path}' unreadable: {ex.Message}");
+            }
+            return null;
+        }
         public static IReadOnlyList<MaterialHydraulic> Materials       { get { EnsureLoaded(); return _materials; } }
         public static IReadOnlyList<FixtureUnitRow>    FixtureUnits    { get { EnsureLoaded(); return _fixtureUnits; } }
         public static IReadOnlyList<FittingEquivLength> Fittings       { get { EnsureLoaded(); return _fittings; } }
@@ -80,6 +117,7 @@ namespace StingTools.Core.Plumbing
             lock (_lock)
             {
                 _drainage = _supply = null;
+                _tmvStandards = null;
                 _materials = null;
                 _fixtureUnits = null;
                 _fittings = null;

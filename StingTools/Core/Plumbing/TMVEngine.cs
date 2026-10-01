@@ -72,13 +72,59 @@ namespace StingTools.Core.Plumbing
 
     public static class TMVEngine
     {
-        // BS 8680:2022 §5 temperature limits
-        private const double BsMaxAblutionC  = 43.0;
-        private const double BsMinAblutionC  = 38.0;
+        // BS 8680:2022 §5 temperature limits. The limits the data agrees with are
+        // read from STING_TMV_STANDARDS.json (then STING_PLUMBING_SUPPLY_TABLES.json
+        // dhwTempLimitsC) with these constants as the fallback.
+        private const double BsMaxAblutionDefaultC = 43.0;
+        private const double BsMinAblutionDefaultC = 38.0;
         private const double BsMaxShowerC    = 38.0;
+        // The bath limit is NOT read from data: STING_TMV_STANDARDS.json and the
+        // supply tables carry 44 °C, this code 46 °C. The code value is kept and the
+        // difference logged once (BsMaxBathC is not yet used by any check).
         private const double BsMaxBathC      = 46.0;
         // HTM 04-01 Table 4: healthcare ablution ≤ 41°C; showers Class C mandatory
-        private const double HtmMaxAblutionC = 41.0;
+        private const double HtmMaxAblutionDefaultC = 41.0;
+
+        private static double BsMaxAblutionC =>
+            PlumbingTables.NumberAt(PlumbingTables.TmvStandards, "standards.BS_8680.maxOutletTempC.ablution")
+            ?? PlumbingTables.NumberAt(PlumbingTables.Supply, "dhwTempLimitsC.ScaldRisk")
+            ?? BsMaxAblutionDefaultC;
+
+        private static double BsMinAblutionC =>
+            PlumbingTables.NumberAt(PlumbingTables.TmvStandards, "standards.BS_8680.minOutletTempC")
+            ?? BsMinAblutionDefaultC;
+
+        private static double HtmMaxAblutionC =>
+            PlumbingTables.NumberAt(PlumbingTables.TmvStandards, "standards.HTM_04_01.healthcareRequirements.tapOutletMaxC")
+            ?? PlumbingTables.NumberAt(PlumbingTables.TmvStandards, "standards.BS_8680.maxOutletTempC.healthcare")
+            ?? PlumbingTables.NumberAt(PlumbingTables.Supply, "dhwTempLimitsC.TmvOutletMaxBasin")
+            ?? HtmMaxAblutionDefaultC;
+
+        /// <summary>BS 8680 class tolerance (°C): data tmvClasses.{A,B,C}.toleranceDegC, else 10 / 2 / 1.</summary>
+        private static double ClassTolerance(TMVClass cls)
+        {
+            string key; double fallback;
+            switch (cls)
+            {
+                case TMVClass.ClassA: key = "A"; fallback = 10.0; break;
+                case TMVClass.ClassC: key = "C"; fallback = 1.0;  break;
+                default:              key = "B"; fallback = 2.0;  break;
+            }
+            return PlumbingTables.NumberAt(PlumbingTables.TmvStandards,
+                       $"standards.BS_8680.tmvClasses.{key}.toleranceDegC") ?? fallback;
+        }
+
+        private static bool _bathDisagreementLogged;
+        private static void LogBathDisagreementOnce()
+        {
+            if (_bathDisagreementLogged) return;
+            _bathDisagreementLogged = true;
+            var data = PlumbingTables.NumberAt(PlumbingTables.TmvStandards, "standards.BS_8680.maxOutletTempC.bath")
+                    ?? PlumbingTables.NumberAt(PlumbingTables.Supply, "dhwTempLimitsC.TmvOutletMaxBath");
+            if (data.HasValue && Math.Abs(data.Value - BsMaxBathC) > 1e-9)
+                StingLog.WarnRateLimited("TMVEngine.BathLimit",
+                    $"TMVEngine: bath outlet limit in data is {data.Value:0.#} °C, code keeps {BsMaxBathC:0.#} °C (not changed until reconciled)");
+        }
 
         // Param name for Kv (optional — doesn't exist in base registry; looked up by name)
         private const string KvsParamName = "PLM_TMV_KVS";
@@ -92,6 +138,7 @@ namespace StingTools.Core.Plumbing
             if (doc == null) return result;
 
             var elements = CollectTMVElements(doc);
+            LogBathDisagreementOnce();
             bool isHealthcareProject = IsHealthcareProject(doc);
 
             foreach (var el in elements)
@@ -140,13 +187,11 @@ namespace StingTools.Core.Plumbing
             double setPoint = rec.SetOutletC > 0 ? rec.SetOutletC : 41.0;
 
             // Class-based tolerance check
-            double tolerance = rec.Class switch
-            {
-                TMVClass.ClassA => 10.0,
-                TMVClass.ClassB => 2.0,
-                TMVClass.ClassC => 1.0,
-                _               => 2.0
-            };
+            double tolerance = ClassTolerance(rec.Class);
+            double tolB = ClassTolerance(TMVClass.ClassB);
+            double tolC = ClassTolerance(TMVClass.ClassC);
+            double htmMax = HtmMaxAblutionC;
+            double bsMin = BsMinAblutionC, bsMax = BsMaxAblutionC;
 
             string stdRef;
             bool pass;
@@ -156,20 +201,20 @@ namespace StingTools.Core.Plumbing
             {
                 // HTM 04-01 §4.3 / Table 4
                 stdRef = "HTM 04-01 Table 4";
-                if (outlet > HtmMaxAblutionC)
+                if (outlet > htmMax)
                 {
                     pass   = false;
-                    reason = $"Outlet {outlet:F1}°C exceeds HTM 04-01 max {HtmMaxAblutionC}°C (ablution)";
+                    reason = $"Outlet {outlet:F1}°C exceeds HTM 04-01 max {htmMax}°C (ablution)";
                 }
-                else if (rec.Class == TMVClass.ClassC && Math.Abs(outlet - setPoint) > 1.0)
+                else if (rec.Class == TMVClass.ClassC && Math.Abs(outlet - setPoint) > tolC)
                 {
                     pass   = false;
-                    reason = $"Class C: outlet {outlet:F1}°C outside ±1°C of set-point {setPoint:F1}°C";
+                    reason = $"Class C: outlet {outlet:F1}°C outside ±{tolC:0.#}°C of set-point {setPoint:F1}°C";
                 }
-                else if (rec.Class == TMVClass.ClassB && Math.Abs(outlet - setPoint) > 2.0)
+                else if (rec.Class == TMVClass.ClassB && Math.Abs(outlet - setPoint) > tolB)
                 {
                     pass   = false;
-                    reason = $"Class B: outlet {outlet:F1}°C outside ±2°C of set-point {setPoint:F1}°C";
+                    reason = $"Class B: outlet {outlet:F1}°C outside ±{tolB:0.#}°C of set-point {setPoint:F1}°C";
                 }
                 else
                 {
@@ -182,21 +227,21 @@ namespace StingTools.Core.Plumbing
                 stdRef = "BS 8680:2022 §5.3";
                 if (rec.Class == TMVClass.ClassA)
                 {
-                    pass = outlet >= BsMinAblutionC && outlet <= BsMaxAblutionC;
+                    pass = outlet >= bsMin && outlet <= bsMax;
                     if (!pass)
-                        reason = $"Class A: outlet {outlet:F1}°C outside ablution range {BsMinAblutionC}–{BsMaxAblutionC}°C";
+                        reason = $"Class A: outlet {outlet:F1}°C outside ablution range {bsMin}–{bsMax}°C";
                 }
                 else if (rec.Class == TMVClass.ClassB)
                 {
-                    pass = Math.Abs(outlet - setPoint) <= 2.0;
+                    pass = Math.Abs(outlet - setPoint) <= tolB;
                     if (!pass)
-                        reason = $"Class B: outlet {outlet:F1}°C outside ±2°C of set-point {setPoint:F1}°C";
+                        reason = $"Class B: outlet {outlet:F1}°C outside ±{tolB:0.#}°C of set-point {setPoint:F1}°C";
                 }
                 else // ClassC
                 {
-                    pass = Math.Abs(outlet - setPoint) <= 1.0;
+                    pass = Math.Abs(outlet - setPoint) <= tolC;
                     if (!pass)
-                        reason = $"Class C: outlet {outlet:F1}°C outside ±1°C of set-point {setPoint:F1}°C";
+                        reason = $"Class C: outlet {outlet:F1}°C outside ±{tolC:0.#}°C of set-point {setPoint:F1}°C";
                 }
             }
 
