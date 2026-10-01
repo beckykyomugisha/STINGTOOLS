@@ -2053,7 +2053,7 @@
     },
     "StingTools/Data/IFC/ARCHICAD_IFC_MAPPING.json": {
       "format": "json",
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "description": "Keys derived from the C# class the reader deserialises into (DSCH round 2/3).",
       "readers": [
         "StingTools/Commands/Interop/ArchiCadIfcImportCommand.cs"
@@ -2074,7 +2074,7 @@
         "property_mappings": {
           "kind": "array-of-object",
           "poco": [
-            "StingTools/Commands/Interop/ArchiCadIfcImportCommand.cs",
+            "StingTools/Commands/Interop/ArchiCadPropertyResolver.cs",
             "AcIfcPropMapping"
           ],
           "valueRefersTo": {
