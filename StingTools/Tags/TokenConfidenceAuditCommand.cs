@@ -22,21 +22,24 @@ namespace StingTools.Tags
     // The tagging pipeline already writes provenance on every element:
     //   ASS_LOC_SOURCE_TXT       TYPE_OVERRIDE / Room / ProjectInfo / Workset /
     //                            ScopeBox / Default
-    //   ASS_ZONE_SOURCE_TXT      TYPE_OVERRIDE / Room / Default
+    //   ASS_ZONE_SOURCE_TXT      TYPE_OVERRIDE / Room / ScopeBox / Proximity /
+    //                            Default
     //   ASS_SYS_DETECT_LAYER_INT 1–7  (1–5 genuine detection, 6 category
     //                            fallback, 7 discipline default)
     //
     // This command is purely the reporting layer on top: it classifies LOC /
     // ZONE / SYS into High / Medium / Low confidence bands and surfaces the
     // silent-default cases that a completeness % hides.
+    //
+    // TAGACC-18: the bands and their reasons come from Core/TokenConfidenceBands
+    // (tested against the writer's vocabulary). Every Medium or Low fill is listed
+    // in the CSV with the reason for each token.
     // ─────────────────────────────────────────────────────────────────────────
 
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class TokenConfidenceAuditCommand : IExternalCommand
     {
-        private enum Band { High, Medium, Low }
-
         public Result Execute(ExternalCommandData cmd, ref string msg, ElementSet els)
         {
             var ctx = ParameterHelpers.GetContext(cmd);
@@ -48,15 +51,17 @@ namespace StingTools.Tags
             int tagged = 0;
             // Band totals across the three audited tokens
             int hi = 0, med = 0, low = 0;
-            // The silent-wrong-building case: literal BLD1 default AND LOC_SOURCE=Default
-            int silentBld1 = 0;
+            // The silent-wrong-building case: LOC_SOURCE=Default, whatever value the
+            // token policy's fallback wrote (it is not always BLD1).
+            int silentLoc = 0;
+            var reasonCounts = new Dictionary<string, int>(StringComparer.Ordinal);
             var discFallback = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var catFallback = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             var offenders = new List<long>();
 
             var rows = new List<string>
             {
-                "ElementId,Category,Discipline,LOC,LOC_SOURCE,ZONE,ZONE_SOURCE,SYS,SYS_LAYER,Bands"
+                "ElementId,Category,Discipline,LOC,LOC_SOURCE,LOC_BAND,LOC_REASON,ZONE,ZONE_SOURCE,ZONE_BAND,ZONE_REASON,SYS,SYS_LAYER,SYS_BAND,SYS_REASON"
             };
 
             foreach (var el in scope)
@@ -76,40 +81,41 @@ namespace StingTools.Tags
                 string sys = ParameterHelpers.GetString(el, ParamRegistry.SYS);
                 int sysLayer = ParameterHelpers.GetInt(el, ParamRegistry.SYS_DETECT_LAYER, 0);
 
-                Band locBand = ClassifyLoc(locSrc);
-                Band zoneBand = ClassifyZone(zoneSrc);
-                Band sysBand = ClassifySys(sysLayer);
+                var locC = TokenConfidenceBands.ClassifyLoc(locSrc);
+                var zoneC = TokenConfidenceBands.ClassifyZone(zoneSrc);
+                var sysC = TokenConfidenceBands.ClassifySys(sysLayer);
 
-                AddBand(locBand, ref hi, ref med, ref low);
-                AddBand(zoneBand, ref hi, ref med, ref low);
-                AddBand(sysBand, ref hi, ref med, ref low);
+                AddBand(locC.Band, ref hi, ref med, ref low);
+                AddBand(zoneC.Band, ref hi, ref med, ref low);
+                AddBand(sysC.Band, ref hi, ref med, ref low);
+                CountReason(reasonCounts, "LOC", locC);
+                CountReason(reasonCounts, "ZONE", zoneC);
+                CountReason(reasonCounts, "SYS", sysC);
 
-                bool anyLow = locBand == Band.Low || zoneBand == Band.Low || sysBand == Band.Low;
+                bool anyLow = locC.Band == ConfidenceBand.Low || zoneC.Band == ConfidenceBand.Low || sysC.Band == ConfidenceBand.Low;
+                bool anyFallback = anyLow || locC.Band == ConfidenceBand.Medium
+                                   || zoneC.Band == ConfidenceBand.Medium || sysC.Band == ConfidenceBand.Medium;
 
                 // SYS discipline-default fallback (layer 7 / unset) attributed per discipline + category
-                if (sysBand == Band.Low)
+                if (sysC.Band == ConfidenceBand.Low)
                 {
                     Bump(discFallback, disc);
                     Bump(catFallback, cat);
                 }
 
-                // Silent-wrong-building: model says BLD1 but only because nothing detected it
-                bool silent = string.Equals(loc, "BLD1", StringComparison.OrdinalIgnoreCase)
-                              && (string.IsNullOrEmpty(locSrc) || string.Equals(locSrc, "Default", StringComparison.OrdinalIgnoreCase));
-                if (silent) silentBld1++;
+                // Silent-wrong-building: the model names a building only because nothing detected one
+                if (!string.IsNullOrEmpty(loc) && TokenConfidenceBands.IsLocDefault(locSrc)) silentLoc++;
 
-                if (anyLow)
+                if (anyLow && offenders.Count < 10) offenders.Add(el.Id.Value);
+                if (anyFallback)
                 {
-                    if (offenders.Count < 10) offenders.Add(el.Id.Value);
-                    string bands = $"LOC={locBand};ZONE={zoneBand};SYS={sysBand}";
                     rows.Add(string.Join(",",
                         el.Id.Value,
                         Csv(cat),
                         Csv(disc),
-                        Csv(loc), Csv(locSrc),
-                        Csv(zone), Csv(zoneSrc),
-                        Csv(sys), sysLayer,
-                        Csv(bands)));
+                        Csv(loc), Csv(locSrc), locC.Band, Csv(locC.Reason),
+                        Csv(zone), Csv(zoneSrc), zoneC.Band, Csv(zoneC.Reason),
+                        Csv(sys), sysLayer, sysC.Band, Csv(sysC.Reason)));
                 }
             }
 
@@ -133,15 +139,23 @@ namespace StingTools.Tags
             report.AppendLine($"Scope: {scopeLabel} — {tagged} tagged element(s)");
             report.AppendLine("Confidence is per token (LOC + ZONE + SYS audited):");
             report.AppendLine($"  High (Room / TYPE_OVERRIDE / Workset / ScopeBox; SYS 1–5):  {hi}");
-            report.AppendLine($"  Medium (ProjectInfo; SYS layer 6):                          {med}");
+            report.AppendLine($"  Medium (ProjectInfo / Proximity; SYS layer 6):              {med}");
             report.AppendLine($"  Low / fallback (Default / unset; SYS layer 7):              {low}");
             if (totalBands > 0)
                 report.AppendLine($"  Low-band share: {(100.0 * low / totalBands):F1}%");
             report.AppendLine();
-            report.AppendLine($"⚠ Silent BLD1 defaults (LOC=BLD1 with no detection source): {silentBld1}");
-            report.AppendLine("   These read as 'building 1' in completeness reports but were");
+            report.AppendLine($"⚠ Silent LOC defaults (the policy fallback, nothing detected): {silentLoc}");
+            report.AppendLine("   These read as a real building in completeness reports but were");
             report.AppendLine("   never confirmed by a room, workset, scope box or project info.");
             report.AppendLine();
+
+            if (reasonCounts.Count > 0)
+            {
+                report.AppendLine("Why tokens were not detected (Medium + Low):");
+                foreach (var kv in reasonCounts.OrderByDescending(k => k.Value))
+                    report.AppendLine($"   {kv.Value,5}  {kv.Key}");
+                report.AppendLine();
+            }
 
             if (discFallback.Count > 0)
             {
@@ -164,13 +178,13 @@ namespace StingTools.Tags
                 report.AppendLine();
             }
             if (csvPath != null)
-                report.AppendLine($"CSV (one row per low-band element): {csvPath}");
+                report.AppendLine($"CSV (one row per element with a fallback, reason per token): {csvPath}");
 
             TaskDialog td = new TaskDialog("Token Confidence Audit")
             {
-                MainInstruction = low == 0 && silentBld1 == 0
+                MainInstruction = low == 0 && silentLoc == 0
                     ? "All audited tokens are detection-backed"
-                    : $"{low} low-confidence token-fills, {silentBld1} silent BLD1 default(s)",
+                    : $"{low} low-confidence token-fills, {silentLoc} silent LOC default(s)",
                 MainContent = report.ToString()
             };
             // Inside a workflow preset: the report to the log, the headline to the step message.
@@ -181,55 +195,21 @@ namespace StingTools.Tags
                     + (csvPath != null ? $"; CSV {csvPath}" : "") + ".";
             }
             else td.Show();
-            StingLog.Info($"TokenConfidenceAudit: {tagged} tagged, hi={hi} med={med} low={low}, silentBLD1={silentBld1} ({scopeLabel})");
+            StingLog.Info($"TokenConfidenceAudit: {tagged} tagged, hi={hi} med={med} low={low}, silentLOC={silentLoc} ({scopeLabel})");
             return Result.Succeeded;
         }
 
-        // High: Room / TYPE_OVERRIDE / Workset / ScopeBox.  Medium: ProjectInfo.  Low: Default / empty.
-        private static Band ClassifyLoc(string src)
+        private static void AddBand(ConfidenceBand b, ref int hi, ref int med, ref int low)
         {
-            if (string.IsNullOrEmpty(src)) return Band.Low;
-            switch (src.Trim().ToUpperInvariant())
-            {
-                case "ROOM":
-                case "TYPE_OVERRIDE":
-                case "WORKSET":
-                case "SCOPEBOX":
-                    return Band.High;
-                case "PROJECTINFO":
-                    return Band.Medium;
-                default:
-                    return Band.Low; // "Default" or unknown
-            }
-        }
-
-        // ZONE provenance is High (Room / TYPE_OVERRIDE) or Low (Default / empty); no Medium tier.
-        private static Band ClassifyZone(string src)
-        {
-            if (string.IsNullOrEmpty(src)) return Band.Low;
-            switch (src.Trim().ToUpperInvariant())
-            {
-                case "ROOM":
-                case "TYPE_OVERRIDE":
-                    return Band.High;
-                default:
-                    return Band.Low;
-            }
-        }
-
-        // SYS layers: 1–5 genuine detection (High), 6 category fallback (Medium), 7/unset discipline default (Low).
-        private static Band ClassifySys(int layer)
-        {
-            if (layer >= 1 && layer <= 5) return Band.High;
-            if (layer == 6) return Band.Medium;
-            return Band.Low; // 7 or unset (0)
-        }
-
-        private static void AddBand(Band b, ref int hi, ref int med, ref int low)
-        {
-            if (b == Band.High) hi++;
-            else if (b == Band.Medium) med++;
+            if (b == ConfidenceBand.High) hi++;
+            else if (b == ConfidenceBand.Medium) med++;
             else low++;
+        }
+
+        private static void CountReason(Dictionary<string, int> d, string token, TokenConfidence c)
+        {
+            if (c.Band == ConfidenceBand.High) return;
+            Bump(d, $"{token}: {c.Reason}");
         }
 
         private static void Bump(Dictionary<string, int> d, string key)

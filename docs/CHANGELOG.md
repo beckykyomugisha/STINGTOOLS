@@ -2,6 +2,58 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-19 saving tag settings keeps the rest of project_config.json, 2026-10-01)
+
+- **The bug.** `project_config.json` is shared: besides the tag maps it carries `SEQ_SCHEME`,
+  `SEQ_INCLUDE_LOC` / `_ZONE`, `SEQ_LEVEL_RESET`, `CDE_FIRST_LAYOUT`, `FOLDER_CODE_SUFFIX`, every
+  `COST_*` / `BOQ_TENDER_*` rate, SLA thresholds, permissions and more. Both whole-file writers
+  rebuilt it from their own key list: *Save Config to Project* wrote 13 keys (dropping even
+  `TAG_PREFIX`, `CATEGORY_SKIP`, `CATEGORY_TOKEN_OVERRIDES`, `COMPLIANCE_GATE_PCT` and the
+  auto-tagger switches), and `TagConfig.SaveToFile` — called by the Project Setup Wizard, the
+  auto-tagger toggles and Tag Ops — wrote its ~25. One click reset everything else to defaults,
+  including the SEQ keys that decide how the next tags are numbered.
+- **The fix.** `Core/ConfigFileMerge.cs` overlays the owned keys on the file as it is and keeps
+  every other key in place. `TagConfig.SaveToFile` uses it, writes through a temp file, and
+  refuses (logged, returns false) rather than overwrite a file that is not valid JSON. *Save Config
+  to Project* now calls `TagConfig.SaveToFile` — one writer. It no longer adds
+  `LEADER_CLEARANCE_MARGIN_FT` when absent (the reader defaults it to 0.5); an existing value is kept.
+- **Tests** `ConfigFileMergeTests` (10): SEQ / folder / cost / nested keys survive with their values,
+  owned keys overwrite, order kept, blank file, unreadable file refused, and a source check that both
+  writers use the merge (fails against main's sources). `StingTools.Tags.Tests` all passing; plugin
+  build 0 errors / 0 warnings. **Not run in Revit.**
+#### Completed (TAGACC-18 Token Confidence Audit reads the sources the tagger writes, 2026-10-01)
+
+- **The bug.** The Token Confidence Audit (`TokenConfidenceAudit`) classified `ASS_ZONE_SOURCE_TXT`
+  as High only for `Room` / `TYPE_OVERRIDE`. `PopulateAll` also writes `ScopeBox` (a `STING-ZONE::`
+  box) and `Proximity` (copied from the nearest tagged element) for ZONE, and `Proximity` for LOC.
+  All three fell through to **Low**, so a zone drawn as a scope box was reported as a silent default.
+  The "silent BLD1" count tested the literal `BLD1`, which the token policy's fallback need not be.
+- **The fix.** The bands live in `Core/TokenConfidenceBands.cs` (Revit-free) and each carries a
+  reason. `ScopeBox` is High for both tokens; `Proximity` is Medium (inherited, not detected). The
+  silent count is "LOC_SOURCE = Default", whatever value was written. The report lists a tally of
+  reasons, and the CSV now has one row per element with any Medium or Low token, with band and
+  reason per token (columns `*_BAND` / `*_REASON`; the old `Bands` column is gone).
+- **Tests** `TokenConfidenceBandsTests` (26 cases), including one that reads the source strings
+  `ParameterHelpers.cs` writes to `LOC_SOURCE` / `ZONE_SOURCE` and fails if the classifier does not
+  know one. With the ZONE `ScopeBox` case removed, 2 fail; with it, all pass. `StingTools.Tags.Tests`
+  4,625 passing; plugin build 0 errors / 0 warnings. **Not run in Revit.**
+#### Completed (TAGFAM-3: the four specialist tag labels, 2026-10-01)
+
+- **Built in the Revit 2025 Family Editor** on the families Create Tag Fams made (category, size
+  types and `TXT_*` switches already set), following `docs/SPECIALIST_TAG_BUILD_SHEET.md`:
+  `STING - Fire Door Tag` (5 rows), `STING - Accessible Door Tag` (8), `STING - Room Finish Tag`
+  (5), `STING - Fire Compartment Tag` (4). Each label's parameters were added from its
+  `_build\*.params.txt` file. Label type `2.5mm` (Arial 2.5 mm, transparent), **left-aligned**
+  and vertically centred — the user's ISO rule, now written into the sheet.
+- **Drawing types repointed** (DT-2): `arch-fire-strategy-A1-1to100` Doors → Fire Door Tag, Rooms →
+  Fire Compartment Tag; `arch-accessibility-A1-1to100` Doors → Accessible Door Tag;
+  `arch-floor-finishes-A1-1to100` Rooms → Room Finish Tag. Checksums re-stamped with
+  `tools/StampDrawingTypeChecksums` (3 drifted, `--check` clean).
+- **Found while building:** a calculated value cannot be named *Operation* on a door tag (doors
+  have a built-in *Operation*); Accessible Door's row is *Door operation*. Sheet updated.
+- **Not done:** the 3.5 mm label copy and the door box (sheet §Types, §Box). Tests 4,599 passing.
+  Not yet placed on a real drawing.
+
 #### Completed (TAGFAM-2 first Revit run, hub buttons, TAGFAM-4 category decisions, 2026-09-30)
 
 - **Run in Revit 2025** (this branch's build, throwaway `Project1`): the confirmation listed 211 families,

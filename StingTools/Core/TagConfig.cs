@@ -1589,12 +1589,32 @@ namespace StingTools.Core
                 data["SEQ_LOCK_MODE"] = SeqLockMode;
                 data["AUTO_CORRECT_STATUS_FROM_PHASE"] = AutoCorrectStatusFromPhase;
 
-                string json = JsonConvert.SerializeObject(data, Formatting.Indented);
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
-                File.WriteAllText(path, json);
-                StingLog.Info($"TagConfig saved to {path}");
+
+                // TAGACC-19: the file is shared with SEQ_*, folder-layout, COST_* and other
+                // keys read through GetConfigValue. Overwrite only the keys above; keep the rest.
+                string existing = File.Exists(path) ? File.ReadAllText(path) : null;
+                string json;
+                int preserved;
+                try
+                {
+                    json = ConfigFileMerge.Merge(existing, data, out preserved);
+                }
+                catch (JsonException jex)
+                {
+                    // A file we cannot read is kept, not overwritten.
+                    StingLog.Error($"TagConfig save refused: {path} is not valid JSON ({jex.Message}). " +
+                                   "Fix or move the file, then save again.", jex);
+                    return false;
+                }
+
+                string tmp = path + ".tmp";
+                File.WriteAllText(tmp, json);
+                File.Move(tmp, path, true);
+                lock (_cfgCacheLock) { _cfgCached = null; _cfgCachedPath = null; _cfgCachedMTicks = 0; }
+                StingLog.Info($"TagConfig saved to {path} ({data.Count} tag keys written, {preserved} other keys kept)");
                 return true;
             }
             catch (Exception ex)

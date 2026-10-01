@@ -59,10 +59,12 @@
          Document-keyed cache) is NOT linked, it is the Revit-bound half.
          TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
     <Compile Include="..\StingTools\Core\TagTokenPolicy.cs" Link="Core\TagTokenPolicy.cs" />
+    <Compile Include="..\StingTools\Core\TokenConfidenceBands.cs" Link="Core\TokenConfidenceBands.cs" />
     <!-- Numeric text extracted from a Revit value string. Revit-free: the culture and
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
+    <Compile Include="..\StingTools\Core\ConfigFileMerge.cs" Link="Core\ConfigFileMerge.cs" />
     <!-- Why a family refuses to load into a project. Revit-free half only: the
          collectors that read a FamilyManager and a Document live in
          Tags/SharedParamPreflight.cs. The comparison is here because every
