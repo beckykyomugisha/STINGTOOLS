@@ -136,22 +136,26 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | Merged | Done |
 | DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | Merged | Done |
 | DTW-81 | DrawingProducer.AdoptView | Med | Reported adoption even when the stamp failed; cache failure left a stale index | 08fe22fc9 | Done |
-| DTW-83 | AnnotationRunner.cs:356 / TagCategory | High | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | fix/dt-annotation | In progress |
-| DTW-84 | MEPDimensioner.cs:152 | Med | Chains never cross fittings; witness lines parallel to their references; no idempotency | fix/dt-annotation | In progress |
-| DTW-85 | AnnotationRunner / MEPDimensioner collectors | Med | Host-only: linked MEP and linked grids get no annotation, silently | fix/dt-annotation | In progress |
-| DTW-86 | AnnotationRunner.cs:686 | Low-Med | Grid chains assume world-axis grids | fix/dt-annotation | In progress |
-| DTW-87 | DrawingProduceAndExportCommand.cs:572 / DrawingPackageManager.cs:122 | High | PDFExportOptions.FileName without Combine: files reported missing, nothing registered | fix/dt-export-planner | In progress |
-| DTW-88 | DrawingProduceAndExportCommand.cs:570 | Med | PDF named number_name with no revision; P02 overwrites P01; differs from the Export Centre | fix/dt-export-planner | In progress |
+| DTW-83 | AnnotationRunner.cs:356 / TagCategory | High | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | Merged | Done |
+| DTW-84 | MEPDimensioner.cs:152 | Med | Chains never cross fittings; witness lines parallel to their references; no idempotency | Merged | Done |
+| DTW-85 | AnnotationRunner / MEPDimensioner collectors | Med | Host-only: linked MEP and linked grids get no annotation, silently | Merged | Done |
+| DTW-86 | AnnotationRunner.cs:686 | Low-Med | Grid chains assume world-axis grids | Merged | Done |
+| DTW-87 | DrawingProduceAndExportCommand.cs:572 / DrawingPackageManager.cs:122 | High | PDFExportOptions.FileName without Combine: files reported missing, nothing registered | Merged | Done |
+| DTW-88 | DrawingProduceAndExportCommand.cs:570 | Med | PDF named number_name with no revision; P02 overwrites P01; differs from the Export Centre | Merged | Done |
 | DTW-89 | STING_DRAWING_TYPES.json (9 patterns) | Med | Own ISO patterns still freeze -{suit}-{rev} | Merged | Done |
-| DTW-90 | ScopeBoxPlannerService.cs:279 / ScopeBoxPlanner.cs:343 | Med-High | Area-box levels keyed by name-derived code; a rename orphans boxes and plans | fix/dt-export-planner | In progress |
-| DTW-91 | ScopeBoxPlanner.cs:239 | Med | Re-plan after growth renumbers and moves existing boxes | fix/dt-export-planner | In progress |
-| DTW-92 | ScopeBoxRevit.cs:143 | Low-Med | Rotated LOC box uses its bounding box | fix/dt-export-planner | In progress |
-| DTW-93 | ScopeBoxBinder / ScopeBoxNames / ParameterHelpers LOC | Low | Name grammar rules differ by prefix (case, trim, spaces) | fix/dt-export-planner | In progress |
-| DTW-94 | ShopDrawingComposer.cs:474 | Med | Spool sheets ignore the sheet-number policy | fix/dt-export-planner | In progress |
-| DTW-95 | WORKFLOW_MEPDrawingProduction.json | Med | STING:: projects run both scope-box and per-level production: duplicate drawings | fix/dt-export-planner | In progress |
+| DTW-90 | ScopeBoxPlannerService.cs:279 / ScopeBoxPlanner.cs:343 | Med-High | Area-box levels keyed by name-derived code; a rename orphans boxes and plans | Merged | Done |
+| DTW-91 | ScopeBoxPlanner.cs:239 | Med | Re-plan after growth renumbers and moves existing boxes | Merged | Done |
+| DTW-92 | ScopeBoxRevit.cs:143 | Low-Med | Rotated LOC box uses its bounding box | Merged | Done |
+| DTW-93 | ScopeBoxBinder / ScopeBoxNames / ParameterHelpers LOC | Low | Name grammar rules differ by prefix (case, trim, spaces) | Merged | Done |
+| DTW-94 | ShopDrawingComposer.cs:474 | Med | Spool sheets ignore the sheet-number policy | Merged | Done |
+| DTW-95 | WORKFLOW_MEPDrawingProduction.json | Med | STING:: projects run both scope-box and per-level production: duplicate drawings | Merged | Done |
 | DTW-96 | DocAutomationExtCommands.cs:478 | Low | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | Merged (fix/dt-batchsheets) | Done |
 | DTW-97 | DrawingProducer apply options | Low | Type far clip never applied (opt-in had no caller) | Wired on new views without CustomBounds | Done |
 | DTW-98 | DrawingProducer placement | Low | STING_AUTO_PLACED_BOOL writes to viewports never land | Extensible Storage via MarkAutoPlaced | Done |
+| DTW-99 | WORKFLOW_MEPDrawingProduction / per-level producer | Med | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | fix/dt-followups2 | In progress |
+| DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | fix/dt-followups2 | In progress |
+| DTW-101 | ElementDimensioner.RunColumnToGrid | Low-Med | Column-to-grid uses host grids only | fix/dt-followups2 | In progress |
+| DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit | Open |
 
 ## Decisions
 
@@ -194,6 +198,26 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
 ## NEEDS REVIT CHECK
+
+Round 3 (DTW-83..96):
+- **Room/space/area tags.** One room tag per room at its location; a re-run places nothing; a
+  manual tag is left alone.
+- **Linked MEP plan.** Linked pipes and fixtures are tagged and follow the link; linked grids
+  are dimensioned when the host has none.
+- **Rotated grids at 30°.** Two chains, perpendicular to their sets.
+- **MEP run chain.** One chain per straight through fitting centres; check that
+  `Line.GetEndPointReference` gives usable references.
+- **Produce & Export.**
+  - PDFs exist, named by the ISO template, and are registered.
+  - Changing the revision does not overwrite the earlier PDF.
+- **Re-plan after the model grows.** Existing area boxes keep their positions and names.
+- **Planner after a level rename or clash.** Boxes still resolve to their own level, and
+  `levelIds` is in the plan file.
+- **Turned LOC box.** Tiles are turned with it, with no extra tiles.
+- **ISO spool numbers.** No clash with produced sheets.
+- **Batch Create Sheets / Documentation Package.** Numbered by the project pattern and stamped
+  per drawing type.
+
 
 - **Title-block master path (research, unverified).** Build one master-path title-block family
   from a master that already has a revision table. Expect one revision schedule, not two.
