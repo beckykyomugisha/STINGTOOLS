@@ -23,7 +23,6 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 | DTW-93 | Name grammar rules differ by prefix (case, trim, spaces) | `ScopeBoxBinder / ScopeBoxNames / ParameterHelpers LOC` | In progress (`fix/dt-export-planner`) |
 | DTW-94 | Spool sheets ignore the sheet-number policy | `ShopDrawingComposer.cs:474` | In progress (`fix/dt-export-planner`) |
 | DTW-95 | STING:: projects run both scope-box and per-level production: duplicate drawings | `WORKFLOW_MEPDrawingProduction.json` | In progress (`fix/dt-export-planner`) |
-| DTW-96 | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | `DocAutomationExtCommands.cs:478` | Queued after fix/dt-data (same file) |
 
 ## Tag family library — missing families (2026-09-30)
 

@@ -149,7 +149,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-93 | ScopeBoxBinder / ScopeBoxNames / ParameterHelpers LOC | Low | Name grammar rules differ by prefix (case, trim, spaces) | fix/dt-export-planner | In progress |
 | DTW-94 | ShopDrawingComposer.cs:474 | Med | Spool sheets ignore the sheet-number policy | fix/dt-export-planner | In progress |
 | DTW-95 | WORKFLOW_MEPDrawingProduction.json | Med | STING:: projects run both scope-box and per-level production: duplicate drawings | fix/dt-export-planner | In progress |
-| DTW-96 | DocAutomationExtCommands.cs:478 | Low | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | Queued after fix/dt-data (same file) | Queued |
+| DTW-96 | DocAutomationExtCommands.cs:478 | Low | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | Merged (fix/dt-batchsheets) | Done |
 | DTW-97 | DrawingProducer apply options | Low | Type far clip never applied (opt-in had no caller) | Wired on new views without CustomBounds | Done |
 | DTW-98 | DrawingProducer placement | Low | STING_AUTO_PLACED_BOOL writes to viewports never land | Extensible Storage via MarkAutoPlaced | Done |
 
@@ -186,6 +186,10 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   parameter to viewports or schedule instances.
 - **Far clip (DTW-65/97).** Applied only to new views without their own bounds, so a depth
   someone adjusted by hand survives Sync Styles.
+- **Batch sheets (DTW-96).** Numbered by the project pattern at creation, as the Sheet
+  Manager does, not by the drawing-type policy. The sheets are stamped when every view on them
+  shares one drawing type, so `DrawingTypes_Renumber` can move them onto the type's pattern.
+  This keeps a single creation rule for hand-assembled sheets.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
