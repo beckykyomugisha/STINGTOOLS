@@ -359,6 +359,23 @@ namespace StingTools.Acc.Tests
             AtomicFile.Discard(Path.Combine(_dir, "missing.tmp"));
         }
 
+        // F5: a set pulled once and then abandoned kept its holds alive for ever.
+        [Fact]
+        public void A_model_set_not_pulled_for_30_days_beyond_the_newest_no_longer_counts()
+        {
+            var p = new AccClashPresence();
+            p.Record("set-B", "picked once", new[] { "old|held" }, T0);
+            p.Record("set-A", "current", new[] { "a|1" }, T0.AddDays(10));
+            Assert.Contains("old|held", p.Present());                     // within 30 days: still counts
+            p.Record("set-A", "current", new[] { "a|1" }, T0.AddDays(31));
+            Assert.DoesNotContain("old|held", p.Present());                // stale: released next time
+            Assert.Contains("a|1", p.Present());
+
+            var lone = new AccClashPresence();                             // only one set, long ago:
+            lone.Record("set-B", "only", new[] { "x|y" }, T0);             // the newest always counts
+            Assert.Contains("x|y", lone.Present());
+        }
+
         [Fact]
         public void Clash_presence_is_tri_state_and_unions_model_sets()
         {

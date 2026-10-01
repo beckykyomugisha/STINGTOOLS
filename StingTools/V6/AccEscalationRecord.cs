@@ -313,14 +313,27 @@ namespace StingTools.V6
             };
         }
 
-        /// <summary>The union of every recorded set's signatures, or <c>null</c> when no complete
-        /// pull has ever been recorded - "unknown", which must not read as "nothing present".</summary>
+        /// <summary>F5: a model set whose last complete pull is this much older than the newest
+        /// one no longer counts. Otherwise a set pulled once (then switched away from, or deleted
+        /// in ACC) kept every matching hold alive for ever.</summary>
+        public static readonly TimeSpan StaleAfter = TimeSpan.FromDays(30);
+
+        /// <summary>The union of the current sets' signatures, or <c>null</c> when no complete
+        /// pull has ever been recorded - "unknown", which must not read as "nothing present".
+        /// F5: "current" is measured against the newest pull, not the clock, so the newest set
+        /// always counts and a project that has not pulled for a while is not emptied.</summary>
         public HashSet<string> Present()
         {
             if (ModelSets == null || ModelSets.Count == 0) return null;
+            var sets = ModelSets.Values.Where(s => s != null).ToList();
+            if (sets.Count == 0) return null;
+            DateTime newest = sets.Max(s => s.PulledUtc);
             var all = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var s in ModelSets.Values)
-                foreach (var sig in s?.Signatures ?? new List<string>()) all.Add(sig);
+            foreach (var s in sets)
+            {
+                if (newest - s.PulledUtc > StaleAfter) continue;
+                foreach (var sig in s.Signatures ?? new List<string>()) all.Add(sig);
+            }
             return all;
         }
 
