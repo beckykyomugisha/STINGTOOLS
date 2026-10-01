@@ -2326,6 +2326,7 @@ PV_SYSTEM_TYPE_TXT,<ALL>
 Pset_StingCost.Currency,<ALL>
 Pset_StingCost.NRM2Section,<ALL>
 Pset_StingCost.ProvisionalSum,<ALL>
+Pset_StingCost.ProvisionalSumType,<ALL>
 Pset_StingCost.RateSource,<ALL>
 Pset_StingCost.TotalCost,<ALL>
 Pset_StingCost.UnitRate,<ALL>

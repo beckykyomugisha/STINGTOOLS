@@ -10,50 +10,6 @@ using Autodesk.Revit.DB;
 
 namespace StingTools.BOQ
 {
-    public enum BOQRowSource
-    {
-        Model,
-        Manual,
-        ProvisionalSum,
-        Dayworks,       // P3.1 — daywork / time-and-material rows
-        PCSum          // P3.1 — prime-cost sum (named supplier allowance)
-    }
-
-    /// <summary>P3.1 — shared source label / parse helpers so the export label,
-    /// import parser and panel agree on one spelling per source.</summary>
-    public static class BoqSourceUtil
-    {
-        public static string Label(BOQRowSource s)
-        {
-            switch (s)
-            {
-                case BOQRowSource.Manual:         return "Manual";
-                case BOQRowSource.ProvisionalSum: return "Provisional Sum";
-                case BOQRowSource.Dayworks:       return "Dayworks";
-                case BOQRowSource.PCSum:          return "PC Sum";
-                default:                          return "Model";
-            }
-        }
-
-        /// <summary>Parse a source label (case-insensitive, substring-tolerant).
-        /// Returns Model for unrecognised input.</summary>
-        public static BOQRowSource Parse(string label)
-        {
-            string l = (label ?? "").Trim().ToLowerInvariant();
-            // "PS" is what the panel's add-row prompt offers; it used to fall
-            // through to Model (then Manual), so a typed PS never became one.
-            if (l.Contains("provisional") || l == "ps") return BOQRowSource.ProvisionalSum;
-            if (l.Contains("daywork"))     return BOQRowSource.Dayworks;
-            if (l.Contains("pc") || l.Contains("prime cost")) return BOQRowSource.PCSum;
-            if (l.Contains("manual"))      return BOQRowSource.Manual;
-            return BOQRowSource.Model;
-        }
-
-        /// <summary>True for QS-authored rows that must never be overwritten by
-        /// a model re-takeoff (everything except Model).</summary>
-        public static bool IsQsAuthored(BOQRowSource s) => s != BOQRowSource.Model;
-    }
-
     /// <summary>
     /// P2.2 — how a BOQ is grouped into sections. NRM2 supports both elemental
     /// (work-section) and locational (level / zone) bills; this enum selects
@@ -90,7 +46,7 @@ namespace StingTools.BOQ
     /// otherwise fold into the grand total as invisible zero-value lines; this
     /// surfaces them (count + a proxy monetary exposure) so they can't hide, and
     /// drives the export gate. "Could not measure" rows (measured unit, qty ≈ 0)
-    /// are counted separately. Legitimately-free categories (Rooms/Spaces/Areas)
+    /// are counted separately. Categories declared NOT MEASURED in STING_DEFAULT_COST_RATES.csv
     /// are excluded.
     /// </summary>
     public struct BoqUncostedRollup

@@ -1,4 +1,4 @@
-# v6.8 | 3685 parameter rows — Phase 188 native-type + _TXT mirror sync
+# v6.8 | 3686 parameter rows — Phase 188 native-type + _TXT mirror sync
 # v6.11 | 20260720 | +5 mirror rows (4 STING_GATE_* universal-tag badge stamps + PRJ_SHEET_SYSTEM_TXT title-block SYSTEM cell) — realigns with MR_PARAMETERS.txt (CI data-file gate)
 # v6.10 | 20260630 | +5 STING_PLACER_* symbol-placement idempotency stamps (group 37) — aligns with MR_PARAMETERS.txt
 # v6.9 | 20260630 | +30 Tier-2 element-bound params (electrical SLD/circuit, plumbing router, design-option, sheet/view, clash, IFC) — aligns with MR_PARAMETERS.txt
@@ -3694,3 +3694,4 @@ Generic Models,PLM_EXPVSL_SZ_L,b82ab713-0579-5c2d-b43e-eb89d06b9cb2,NUMBER,PLM_D
 Generic Models,PLM_PUMP_DUTY_FLOW_LPS,eb502972-2c78-57d4-b6cd-bf064bd90e13,NUMBER,PLM_DRN,Instance,"Pump duty flow, l/s, from Pump Select (head is MEP_PUMP_HEAD_M) [DSCH-42]",False,,,MULTI,1,0
 Generic Models,PLM_PUMP_MODEL_TXT,26e35f99-3472-5d3a-83f4-38290d4a9caa,TEXT,PLM_DRN,Instance,Catalogue pump (manufacturer and model) Pump Select matched to the duty point; blank when none covers it [DSCH-42],False,,,MULTI,1,0
 Generic Models,PLM_TMV_PAEDIATRIC_BOOL,f8ccc74a-0895-52d8-9627-309b1414364d,YESNO,PLM_DRN,Instance,TMV serves a paediatric bath (SHTM 04-01 Part A v2 Table 4: 40 C paediatric bath in Scotland; set Yes for baths and sinks used to bathe children) [DSCH-45],False,,,MULTI,1,0
+Generic Models,Pset_StingCost.ProvisionalSumType,1c113b05-c48e-5c70-8005-3589a36cb3dd,TEXT,CST_PROC,Instance,"STING IFC4 cost-data property set -> ProvisionalSumType: Defined / Undefined / NotDeclared on provisional sums (NRM2 2.9.1), blank otherwise [DSCH-44]",False,,,MULTI,1,0

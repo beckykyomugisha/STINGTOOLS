@@ -1003,7 +1003,8 @@ namespace StingTools.BOQ
             }
             else if (ffeTreatment == StingTools.BOQ.FfeTreatment.PcSum)
             {
-                line.Source = BOQRowSource.ProvisionalSum;
+                // DSCH-44 — a prime cost sum, not a provisional sum.
+                line.Source = StingTools.BOQ.FfeTreatment.RowSource(ffeTreatment);
                 string pcNote = "PC sum — Fohlio FF&E register" +
                     (string.IsNullOrEmpty(line.CsiSection) ? "" : $" (spec {line.CsiSection})");
                 line.Note = string.IsNullOrEmpty(line.Note) ? pcNote : $"{line.Note}; {pcNote}";
@@ -1031,7 +1032,7 @@ namespace StingTools.BOQ
             if (isPS) line.Source = BOQRowSource.ProvisionalSum;
 
             // DSCH-35 — defined / undefined (NRM2 2.9.1) from CST_PS_TYPE_TXT. Read on every
-            // PS line, including the Fohlio PC-sum route above. Blank stays Undeclared (flagged
+            // PS line (a Fohlio PC sum is not one — DSCH-44). Blank stays Undeclared (flagged
             // by the health check, never defaulted); unreadable text stays Undeclared and says so.
             if (line.Source == BOQRowSource.ProvisionalSum)
             {
@@ -3275,12 +3276,10 @@ namespace StingTools.BOQ
         //  card in both the BOQ panel and the BIM Coordination Center.
         // ══════════════════════════════════════════════════════════════════
 
-        // WP2 — categories that legitimately carry no measured cost.
-        private static readonly HashSet<string> _freeCategoryNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        { "Rooms", "Spaces", "Areas", "Zones", "HVAC Zones" };
-
+        // WP2 / DSCH-34 — categories that are never bill items. Declared NOT MEASURED
+        // in STING_DEFAULT_COST_RATES.csv; this used to be a list in code.
         private static bool IsFreeCategoryForCost(string cat)
-            => !string.IsNullOrEmpty(cat) && _freeCategoryNames.Contains(cat.Trim());
+            => Scheduling4DEngine.IsNotMeasuredCategory(cat);
 
         private static bool IsMeasuredUnit(string unit)
         {
@@ -3579,7 +3578,8 @@ namespace StingTools.BOQ
             // nobody buys it, but it is 3D model geometry, so unlike the 2D content
             // above it does not look like noise: it arrives as plausible "each" rows
             // and prices. It was classified in the CSI map as Site Improvements, which
-            // is how it survived this long.
+            // is how it survived this long. (It is also NOT MEASURED in
+            // STING_DEFAULT_COST_RATES.csv; this BIC entry is the locale-proof guard.)
             BuiltInCategory.OST_Entourage,
         };
 
@@ -3871,7 +3871,7 @@ namespace StingTools.BOQ
         {
             var list = new List<Element>();
             var excludedNames = BuildExcludedCategoryNames();
-            int excluded = 0, optionAlternates = 0, userExcluded = 0;
+            int excluded = 0, optionAlternates = 0, userExcluded = 0, notMeasured = 0;
             // WP2 — bill the MAIN model + each set's PRIMARY design option only;
             // never the alternates (which multiply quantities by the option count).
             // Configurable: set COST_BILL_PRIMARY_OPTION_ONLY = false to bill all.
@@ -3908,11 +3908,11 @@ namespace StingTools.BOQ
                 string cat = ParameterHelpers.GetCategoryName(el);
                 if (string.IsNullOrEmpty(cat)) continue;
                 if (excludedNames.Contains(cat)) { excluded++; continue; }
+                // DSCH-34 — categories the benchmark file declares NOT MEASURED
+                // (rooms, areas, analytical elements, loads, massing, containers,
+                // entourage...). The data decides; there is no list here.
+                if (Scheduling4DEngine.IsNotMeasuredCategory(cat)) { notMeasured++; continue; }
                 if (!knownCategories.Contains(cat)) continue;
-                if (cat.Equals("Rooms", StringComparison.OrdinalIgnoreCase)
-                    || cat.Equals("Spaces", StringComparison.OrdinalIgnoreCase)
-                    || cat.Equals("Areas", StringComparison.OrdinalIgnoreCase))
-                    continue;
 
                 // K-4 — user exclusion. Tested LAST, on an element that would
                 // otherwise have been billed, so the audit list is exactly "rows
@@ -3934,6 +3934,9 @@ namespace StingTools.BOQ
             if (excluded > 0)
                 StingLog.Info($"BOQ takeoff: excluded {excluded} non-measurable element(s) " +
                               "(2D content / annotation / CAD imports).");
+            if (notMeasured > 0)
+                StingLog.Info($"BOQ takeoff: {notMeasured} element(s) in NOT MEASURED categories " +
+                              "(STING_DEFAULT_COST_RATES.csv) left out of the bill.");
             if (optionAlternates > 0)
                 StingLog.Info($"BOQ takeoff: skipped {optionAlternates} non-primary design-option " +
                               "alternate(s) (COST_BILL_PRIMARY_OPTION_ONLY).");

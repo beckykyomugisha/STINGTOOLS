@@ -74,6 +74,22 @@ namespace StingTools.BOQ
         }
 
         /// <summary>
+        /// DSCH-44 — the machine token carried to Planscape Server
+        /// (QuantityLine.ProvisionalSumType) and IFC (Pset_StingCost.ProvisionalSumType):
+        /// "Defined" / "Undefined" / "NotDeclared". Unlike <see cref="Marker"/> it has
+        /// no space, so a receiver can match it exactly.
+        /// </summary>
+        public static string WireToken(ProvisionalSumType type)
+        {
+            switch (type)
+            {
+                case ProvisionalSumType.Defined: return "Defined";
+                case ProvisionalSumType.Undefined: return "Undefined";
+                default: return "NotDeclared";
+            }
+        }
+
+        /// <summary>
         /// The validation finding for one provisional-sum row, or null when it is
         /// declared. <paramref name="label"/> names the row (line ref or item name).
         /// </summary>

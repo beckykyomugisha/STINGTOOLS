@@ -4776,6 +4776,19 @@ namespace StingTools.UI
             Add("Mark as dayworks",          () => ChangeSource(vm, BOQRowSource.Dayworks));
             Add("Mark as PC sum",            () => ChangeSource(vm, BOQRowSource.PCSum));
             ctx.Items.Add(new Separator());
+            // DSCH-43 — declare the element rate override's outcome (v3 ES schema).
+            // Model rows only: the override lives on the element(s).
+            bool hasElements = vm.Underlying.Source == BOQRowSource.Model && RateOutcomeElementIds(vm).Count > 0;
+            Add("Rate: Nil",              () => SetRateOutcome(vm, "Nil", ""), enabled: hasElements);
+            Add("Rate: Included in…",     () =>
+            {
+                string reference = PromptString(
+                    "Which item carries this cost? (e.g. E10/2 or 14.3.2)", vm.Underlying.IncludedIn ?? "");
+                if (reference == null) return;   // cancelled
+                SetRateOutcome(vm, "Included", reference);
+            }, enabled: hasElements);
+            Add("Clear outcome",          () => SetRateOutcome(vm, "Clear", ""), enabled: hasElements);
+            ctx.Items.Add(new Separator());
             Add("Duplicate row",        () => DuplicateRow(vm));
             Add("Delete row",           () => DeleteRow(vm),
                 enabled: vm.Underlying.Source != BOQRowSource.Model);
@@ -4911,6 +4924,35 @@ namespace StingTools.UI
         {
             vm.Underlying.PsType = type;
             ChangeSource(vm, BOQRowSource.ProvisionalSum);
+        }
+
+        /// <summary>DSCH-43 — the element(s) a row's rate override lives on:
+        /// every constituent of an aggregated row, else the row's own element.</summary>
+        private static List<long> RateOutcomeElementIds(BOQItemViewModel vm)
+        {
+            var ids = vm.ConstituentElementIds.Where(id => id > 0).Distinct().ToList();
+            if (ids.Count == 0 && vm.RevitElementId > 0) ids.Add(vm.RevitElementId);
+            return ids;
+        }
+
+        /// <summary>
+        /// DSCH-43 — write (or clear) the v3 rate-override outcome on the row's
+        /// element(s). Runs on the Revit thread via BOQSetRateOutcomeCommand, inside
+        /// a STING transaction; the command posts what it wrote and every refusal
+        /// into the inline result region. The panel refreshes after, so the row
+        /// re-prices through the chain ("Nil" / "Incl. in …").
+        /// </summary>
+        private void SetRateOutcome(BOQItemViewModel vm, string edit, string includedIn)
+        {
+            try
+            {
+                StingCommandHandler.SetExtraParam("RateOutcomeElementIds", string.Join(",", RateOutcomeElementIds(vm)));
+                StingCommandHandler.SetExtraParam("RateOutcomeEdit", edit);
+                StingCommandHandler.SetExtraParam("RateOutcomeIncludedIn", includedIn ?? "");
+                StingCommandHandler.SetExtraParam("InlineHost", "1");
+                DispatchAction("BOQSetRateOutcome");
+            }
+            catch (Exception ex) { StingLog.Error("BOQ SetRateOutcome", ex); }
         }
 
         private void DuplicateRow(BOQItemViewModel vm)

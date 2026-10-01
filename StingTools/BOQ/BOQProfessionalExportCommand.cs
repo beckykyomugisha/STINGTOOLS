@@ -1301,7 +1301,8 @@ namespace StingTools.BOQ
 
             double total = 0;
             var sortedItems = sec.Items
-                .OrderBy(i => i.Source == BOQRowSource.ProvisionalSum ? 2 : i.Source == BOQRowSource.Manual ? 1 : 0)
+                .OrderBy(i => i.Source == BOQRowSource.ProvisionalSum ? 3 : i.Source == BOQRowSource.PCSum ? 2
+                            : i.Source == BOQRowSource.Manual ? 1 : 0)
                 .ThenBy(i => i.SortOrder)
                 .ThenBy(i => i.Category)
                 .ThenBy(i => i.ItemName)
@@ -1390,7 +1391,13 @@ namespace StingTools.BOQ
                 {
                     ws.Range(r, 2, r, 7).Style.Fill.SetBackgroundColor(XLColor.FromArgb(237, 231, 246));
                     // DSCH-35 — the NRM2 2.9.1 declaration rides on the line itself.
-                    ws.Cell(r, 3).Value = $"PROVISIONAL SUM ({ProvisionalSumTypes.Marker(item.PsType)}): " + para;
+                    ws.Cell(r, 3).Value = BoqSourceUtil.BillPrefix(item.Source, item.PsType) + para;
+                }
+                else if (item.Source == BOQRowSource.PCSum)
+                {
+                    // DSCH-44 — a prime cost sum reads as one, never as measured work.
+                    ws.Range(r, 2, r, 7).Style.Fill.SetBackgroundColor(XLColor.FromArgb(245, 240, 230));
+                    ws.Cell(r, 3).Value = BoqSourceUtil.BillPrefix(item.Source, item.PsType) + para;
                 }
                 else if (item.Source == BOQRowSource.Manual)
                 {
@@ -1835,6 +1842,45 @@ namespace StingTools.BOQ
                 // Total
                 ws.Cell(r, 3).Value = "TOTAL PROVISIONAL SUMS";
                 ws.Cell(r, 4).Value = psItems.Sum(p => p.TotalUGX);
+                ws.Range(r, 2, r, 4).Style
+                    .Fill.SetBackgroundColor(GreyLight)
+                    .Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy)
+                    .Border.SetTopBorder(XLBorderStyleValues.Medium).Border.SetTopBorderColor(Navy)
+                    .Border.SetBottomBorder(XLBorderStyleValues.Double).Border.SetBottomBorderColor(Navy);
+                ws.Cell(r, 3).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                ws.Cell(r, 4).Style.Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right)
+                    .NumberFormat.SetFormat("#,##0.00");
+                ws.Row(r).Height = 22;
+                r++;
+            }
+
+            // DSCH-44 — Prime Cost Sums, listed apart from provisional sums.
+            var pcItems = boq.AllItems.Where(i => i.Source == BOQRowSource.PCSum).ToList();
+            if (pcItems.Count > 0)
+            {
+                r += 1;
+                ws.Cell(r, 3).Value = "PRIME COST (PC) SUMS";
+                ws.Cell(r, 3).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy);
+                r++;
+                int pcIdx = 0;
+                foreach (var pc in pcItems.OrderBy(p => p.NRM2Section))
+                {
+                    pcIdx++;
+                    ws.Cell(r, 2).Value = $"PC.{pcIdx:00}";
+                    ws.Cell(r, 3).Value = string.IsNullOrEmpty(pc.ResolvedNRM2Paragraph) ? pc.ItemName : pc.ResolvedNRM2Paragraph;
+                    ws.Cell(r, 4).Value = pc.TotalUGX;
+                    ws.Cell(r, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true)
+                        .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                    ws.Cell(r, 3).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
+                        .Alignment.SetWrapText(true).Alignment.SetIndent(1);
+                    ws.Cell(r, 4).Style.Font.SetFontName(BodyFont).Font.SetFontSize(10)
+                        .NumberFormat.SetFormat("#,##0.00")
+                        .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Right);
+                    ws.Row(r).Height = 26;
+                    r++;
+                }
+                ws.Cell(r, 3).Value = "TOTAL PRIME COST SUMS";
+                ws.Cell(r, 4).Value = pcItems.Sum(p => p.TotalUGX);
                 ws.Range(r, 2, r, 4).Style
                     .Fill.SetBackgroundColor(GreyLight)
                     .Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true).Font.SetFontColor(Navy)
