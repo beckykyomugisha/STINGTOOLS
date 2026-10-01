@@ -159,6 +159,6 @@ namespace StingTools.Commands.Electrical.ArcFlash
         }
 
         private static double ParseDouble(string s) =>
-            double.TryParse(s, out double v) ? v : 0;
+            StingTools.Core.Electrical.InvariantNumber.ParseOr(s);
     }
 }
