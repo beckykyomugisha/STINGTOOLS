@@ -205,6 +205,7 @@
     <Compile Include="..\StingTools\Core\Drawing\TagRuleIdentity.cs" Link="Core\Drawing\TagRuleIdentity.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SpatialTagRouting.cs" Link="Core\Drawing\SpatialTagRouting.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Dimensioning\GridChainGeometry.cs" Link="Core\Drawing\Dimensioning\GridChainGeometry.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\Dimensioning\MepRunPlanning.cs" Link="Core\Drawing\Dimensioning\MepRunPlanning.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewFamilyTypeChoice.cs" Link="Core\Drawing\ViewFamilyTypeChoice.cs" />
     <Compile Include="..\StingTools\Core\Drawing\FaceChoice.cs" Link="Core\Drawing\FaceChoice.cs" />
     <Compile Include="..\StingTools\Core\Drawing\MaterialCalloutPlan.cs" Link="Core\Drawing\MaterialCalloutPlan.cs" />

@@ -34,6 +34,8 @@ namespace StingTools.Core.Drawing
         public const string DimColumnGrid   = "Dim.ColumnGrid";
         public const string DimGridChain    = "Dim.GridChain";
         public const string DimLevelChain   = "Dim.LevelChain";
+        public const string DimMepRun       = "Dim.MepRun";
+        public const string DimMepGridDrop  = "Dim.MepGridDrop";
         public const string MatchCaption    = "MatchLine.Caption";
         public const string DrainageIl      = "Drainage.IL";
 
