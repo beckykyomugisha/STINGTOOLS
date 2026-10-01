@@ -3,7 +3,8 @@
 // AnnotationRunner consumes an AnnotationRulePack and runs four
 // passes against a single View, in order:
 //
-//   1. Tag rules    — IndependentTag.Create per resolved rule
+//   1. Tag rules    — IndependentTag.Create per resolved rule; rooms,
+//                     spaces and areas take a SpatialElementTag (DTW-83)
 //   2. Dim rules    — chained dims across grids / levels
 //   3. Decorative   — north arrow, scale bar, key plan, matchlines
 //   4. Spot rules   — spot elevations / spot coordinates
@@ -306,7 +307,7 @@ namespace StingTools.Core.Drawing
             // AutoAnnotationRule.SkipIfTagged (default true) was read nowhere,
             // so re-running SyncStyles, a drift heal, or DrawingTypePresentation
             // .Apply doubled every tag on the view.
-            var taggedIndex = new Lazy<Dictionary<ElementId, List<string>>>(() => BuildTaggedElementIndex(doc, view, stats));
+            var taggedIndex = new Lazy<Dictionary<string, List<string>>>(() => BuildTaggedElementIndex(doc, view, stats));
 
             // One pass per (category, rule tag family, familyMatch) — not per
             // category, which silently dropped the second of two rules on one
@@ -368,6 +369,18 @@ namespace StingTools.Core.Drawing
                     // per-rule catch below swallowed it as a warning, so the
                     // whole auto-tag pass silently placed nothing. Pass the long.
                     if (!Enum.IsDefined(typeof(BuiltInCategory), cv)) continue; // skip custom categories
+
+                    // DTW-83: rooms, spaces and areas take a SpatialElementTag
+                    // (NewRoomTag / NewSpaceTag / NewAreaTag). IndependentTag.Create
+                    // on a room threw once per room (or duplicated), so the 40
+                    // shipped room / space / area rules placed nothing.
+                    var spatial = SpatialTagRouting.KindOf(((BuiltInCategory)cv).ToString());
+                    if (spatial != SpatialTagKind.None)
+                    {
+                        TagSpatialCategory(doc, view, pack, (BuiltInCategory)cv, spatial, effCat, stats, rule,
+                            taggedIndex.Value, drawingType, specialistFamilies);
+                        continue;
+                    }
                     TagCategory(doc, view, pack, (BuiltInCategory)cv, effCat, stats, rule, taggedIndex.Value, drawingType,
                         specialistFamilies);
                 }
@@ -902,13 +915,14 @@ namespace StingTools.Core.Drawing
         // TagDepthLayering / TokenProfileApplier.WriteCategoryDepths.
 
         /// <summary>
-        /// Element ids already carrying an IndependentTag in this view, each with
+        /// Hosts already carrying a tag in this view — IndependentTags and (DTW-83)
+        /// room / space / area tags — keyed by <see cref="TaggedHostKey"/>, each with
         /// the families of those tags ("" when the family cannot be read — still a
         /// tag). Built once per view and shared across every tag rule.
         /// </summary>
-        private static Dictionary<ElementId, List<string>> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
+        private static Dictionary<string, List<string>> BuildTaggedElementIndex(Document doc, View view, AnnotationRunStats stats)
         {
-            var set = new Dictionary<ElementId, List<string>>();
+            var set = new Dictionary<string, List<string>>();
             try
             {
                 foreach (var el in new FilteredElementCollector(doc, view.Id)
@@ -922,7 +936,8 @@ namespace StingTools.Core.Drawing
                         foreach (var id in tag.GetTaggedLocalElementIds())
                         {
                             if (id == null || id == ElementId.InvalidElementId) continue;
-                            if (!set.TryGetValue(id, out var fams)) set[id] = fams = new List<string>();
+                            var key = TaggedHostKey.Local(id.Value);
+                            if (!set.TryGetValue(key, out var fams)) set[key] = fams = new List<string>();
                             fams.Add(fam);
                         }
                     }
@@ -931,6 +946,7 @@ namespace StingTools.Core.Drawing
                         StingLog.Warn($"BuildTaggedElementIndex: tag {tag.Id} — {ex.Message}");
                     }
                 }
+                AddSpatialTagsToIndex(doc, view, set);
             }
             catch (Exception ex)
             {
@@ -991,7 +1007,7 @@ namespace StingTools.Core.Drawing
 
         private static void TagCategory(Document doc, View view, AnnotationRulePack pack,
             BuiltInCategory bic, string catKey, AnnotationRunStats stats,
-            AutoAnnotationRule rule = null, Dictionary<ElementId, List<string>> alreadyTagged = null,
+            AutoAnnotationRule rule = null, Dictionary<string, List<string>> alreadyTagged = null,
             DrawingType drawingType = null, ISet<string> specialistFamilies = null)
         {
             var elements = new FilteredElementCollector(doc, view.Id)
@@ -1091,7 +1107,7 @@ namespace StingTools.Core.Drawing
                 try
                 {
                     if (skipIfTagged && alreadyTagged != null
-                        && alreadyTagged.TryGetValue(el.Id, out var onElement)
+                        && alreadyTagged.TryGetValue(TaggedHostKey.Local(el.Id.Value), out var onElement)
                         && TagRuleIdentity.ShouldSkip(onElement, isSpecialistRule, placedFamily, specialistFamilies))
                     {
                         stats.Skipped++;
@@ -1163,8 +1179,9 @@ namespace StingTools.Core.Drawing
                         // same element in this run doesn't tag it twice.
                         if (alreadyTagged != null)
                         {
-                            if (!alreadyTagged.TryGetValue(el.Id, out var fams))
-                                alreadyTagged[el.Id] = fams = new List<string>();
+                            var key = TaggedHostKey.Local(el.Id.Value);
+                            if (!alreadyTagged.TryGetValue(key, out var fams))
+                                alreadyTagged[key] = fams = new List<string>();
                             fams.Add(placedFamily);
                         }
                     }
