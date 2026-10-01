@@ -430,5 +430,34 @@ namespace StingTools.Tags.Tests
             Assert.Equal(new[] { "f1", "STING_MAT_CLASS_Wood" }, names);
             Assert.Empty(ProductionEdgeDecisions.PackFilterNames(null, null));
         }
+
+        // ── DTW-228: a pack with filters disabled disables only its own filters ──
+
+        [Fact]
+        public void A_disabled_pack_disables_only_its_own_filters()
+        {
+            // RED before DTW-228: every filter on the view was disabled, MEP system
+            // colours and Visibility Centre filters included.
+            var packNames = ProductionEdgeDecisions.PackFilterNames(
+                new[] { "arch-walls-fire" }, new[] { "Concrete" });
+            var onView = new[]
+            {
+                new KeyValuePair<int, string>(1, "ARCH-WALLS-FIRE"),
+                new KeyValuePair<int, string>(2, "sting-sys-SA"),
+                new KeyValuePair<int, string>(3, "STING VIS - DISC = M"),
+                new KeyValuePair<int, string>(4, "STING_MAT_CLASS_Concrete"),
+                new KeyValuePair<int, string>(5, "User filter"),
+                new KeyValuePair<int, string>(6, null),
+            };
+            Assert.Equal(new[] { 1, 4 }, ProductionEdgeDecisions.PackFiltersOnView(onView, packNames));
+        }
+
+        [Fact]
+        public void A_pack_with_no_filters_disables_nothing()
+        {
+            var onView = new[] { new KeyValuePair<int, string>(1, "sting-sys-SA") };
+            Assert.Empty(ProductionEdgeDecisions.PackFiltersOnView(onView, ProductionEdgeDecisions.PackFilterNames(null, null)));
+            Assert.Empty(ProductionEdgeDecisions.PackFiltersOnView<int>(null, new[] { "x" }));
+        }
     }
 }

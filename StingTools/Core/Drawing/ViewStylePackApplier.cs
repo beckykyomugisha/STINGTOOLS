@@ -691,19 +691,33 @@ namespace StingTools.Core.Drawing
         }
 
         // ── Phase 137 — Pack-level filter enable flag ──
-        // FilterEnabled defaults true; when explicitly false the pack
-        // disables every filter already attached to the view.
+        // FilterEnabled defaults true; when explicitly false the pack disables its own
+        // filters on the view. DTW-228: it used to disable every filter attached to the
+        // view — MEP system colours (sting-sys-*), Visibility Centre filters (STING VIS -)
+        // and the user's own included. Only the pack's named and byMaterialClass filters
+        // are touched now (ProductionEdgeDecisions.PackFiltersOnView).
         internal static void ApplyFilterEnabled(Document doc, View view, ViewStylePack pack, PackApplyResult r)
         {
             if (pack == null || view == null) return;
             if (pack.FilterEnabled) return; // enabled — nothing to do
             try
             {
+                var own = ProductionEdgeDecisions.PackFilterNames(
+                    pack.Filters?.Select(f => f?.FilterName), pack.ByMaterialClass?.Keys);
+                var onView = new List<KeyValuePair<ElementId, string>>();
                 foreach (var fid in view.GetFilters())
+                    onView.Add(new KeyValuePair<ElementId, string>(fid, doc?.GetElement(fid)?.Name));
+                var toDisable = ProductionEdgeDecisions.PackFiltersOnView(onView, own);
+                int disabled = 0;
+                foreach (var fid in toDisable)
                 {
-                    try { view.SetFilterVisibility(fid, true); view.SetIsFilterEnabled(fid, false); }
+                    try { view.SetFilterVisibility(fid, true); view.SetIsFilterEnabled(fid, false); disabled++; }
                     catch (Exception ex) { r.Warnings.Add($"FilterEnabled disable {fid}: {ex.Message}"); }
                 }
+                int kept = onView.Count - toDisable.Count;
+                if (kept > 0)
+                    StingLog.Info($"ViewStylePack '{pack.Id}' filterEnabled=false: disabled {disabled} of its own filter(s) on "
+                        + $"'{view.Name}'; left {kept} other filter(s) as they were.");
             }
             catch (Exception ex) { r.Warnings.Add($"ApplyFilterEnabled: {ex.Message}"); }
         }

@@ -23,6 +23,42 @@ namespace StingTools.Tags.Tests
             Assert.Equal("US", AnnotationProvenance.PartOf(k));
         }
 
+        // ── DTW-102: linked MEP runs are stamped by link instance + linked element ──
+
+        [Fact]
+        public void A_linked_host_names_the_link_instance_and_the_linked_element()
+        {
+            var host = AnnotationProvenance.LinkedHost("li-0001", "pipe-0042");
+            Assert.True(AnnotationProvenance.IsLinkedHost(host));
+            Assert.True(AnnotationProvenance.TryParseLinkedHost(host, out var li, out var el));
+            Assert.Equal("li-0001", li);
+            Assert.Equal("pipe-0042", el);
+            // It is a valid key host, and HostOf gives it back for the stamped-set lookup.
+            Assert.Equal(host, AnnotationProvenance.HostOf(AnnotationProvenance.Key(host)));
+        }
+
+        [Fact]
+        public void A_linked_host_is_distinct_from_the_host_element_and_from_another_link()
+        {
+            // The same element UniqueId in the host, through link instance A and through
+            // link instance B (the model linked twice) are three different stamps.
+            var a = AnnotationProvenance.LinkedHost("li-A", "pipe-0042");
+            var b = AnnotationProvenance.LinkedHost("li-B", "pipe-0042");
+            Assert.NotEqual(a, b);
+            Assert.NotEqual("pipe-0042", a);
+            Assert.False(AnnotationProvenance.IsLinkedHost("pipe-0042"));
+            Assert.False(AnnotationProvenance.TryParseLinkedHost("pipe-0042", out _, out _));
+        }
+
+        [Fact]
+        public void A_linked_host_refuses_blank_or_separator_parts()
+        {
+            Assert.Throws<ArgumentException>(() => AnnotationProvenance.LinkedHost("", "pipe"));
+            Assert.Throws<ArgumentException>(() => AnnotationProvenance.LinkedHost("li", null));
+            Assert.Throws<ArgumentException>(() => AnnotationProvenance.LinkedHost("li|x", "pipe"));
+            Assert.Throws<ArgumentException>(() => AnnotationProvenance.LinkedHost("li", "a/b"));
+        }
+
         [Fact]
         public void Key_without_part_is_the_host()
         {

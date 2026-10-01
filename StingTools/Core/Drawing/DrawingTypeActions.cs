@@ -40,6 +40,7 @@ namespace StingTools.Core.Drawing
         public static readonly IReadOnlyList<Entry> All = new List<Entry>
         {
             new Entry(MainGroup, "Inspect", "DrawingTypes_Inspect"),
+            new Entry(MainGroup, "Self-Test", "DrawingTypes_SelfTest"),
             new Entry(MainGroup, "Type Marks (preview)", "TypeMark_Preview"),
             new Entry(MainGroup, "Type Marks (assign)", "TypeMark_Assign"),
             new Entry(MainGroup, "Type Schedules", "TypeSchedule_Create"),

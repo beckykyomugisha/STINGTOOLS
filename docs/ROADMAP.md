@@ -10,9 +10,7 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 
 | Id | Gap | Evidence | Fix |
 |---|---|---|---|
-| DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
-| DTW-102 | Linked MEP runs are reported, not dimensioned | `AnnotationRunner MEP dimension passes` | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit |
-| DTW-228 | A pack with filters disabled also disables MEP system filters on views without a template | `ViewStylePackApplier.ApplyFilterEnabled` | Open (low) |
+| DTW-82 | Nothing merged in the drawing loop has been run in Revit | `docs/WORKLOG_DRAWING_TYPES.md` NEEDS REVIT CHECK | Runnable: DOCS → DRAWING TYPES → **Self-Test** (automated, rolled back) plus `docs/DRAWING_REVIT_TEST_SCRIPT.md` (manual). Its INFO rows decide DTW-56 (Lines), DTW-166, DTW-164, DTW-170 and DTW-172 |
 
 ## Tag family library — missing families (2026-09-30)
 

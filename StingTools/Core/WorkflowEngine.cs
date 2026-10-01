@@ -1710,6 +1710,8 @@ namespace StingTools.Core
                 case "DrawingTypes_PresentationSetup": return new Commands.Drawing.PresentationStyleSetupCommand();
                 case "DrawingTypes_RegenerateTemplates": return new Commands.Drawing.RegeneratePackTemplatesCommand();
                 case "DrawingTypes_Doctor":            return new Commands.Drawing.DrawingDoctorCommand();
+                // DTW-82: preset-safe (no dialog when PresetDialog.Quiet); always rolls back.
+                case "DrawingTypes_SelfTest":          return new Commands.Drawing.DrawingSelfTestCommand();
                 case "DrawingTypes_SetupProduction":   return new Commands.Drawing.DrawingProductionSetupCommand();
                 // Headless production. Each of these asked its inputs in a dialog and so
                 // could only be clicked. Inside a preset they read the step's "params"

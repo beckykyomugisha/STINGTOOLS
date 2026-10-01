@@ -26590,3 +26590,23 @@ its five parallel branches fixed. Findings DTW-215..227; details are in
 
 Build 0/0; Tags.Tests 5,530; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
 
+#### Completed (Drawing production: open items closed, branch `fix/drawing-review-4`)
+
+- **DTW-102: linked MEP runs are dimensioned.** Run chains and grid drops walk loaded links
+  through fittings, transform into host coordinates, and reference linked geometry with
+  `CreateLinkReference`. They are stamped `link:<instance>/<element>` so re-runs skip them. A line
+  Revit refuses is counted and reported, never skipped silently.
+- **DTW-228.** A pack with filters disabled now disables only its own filters. MEP system,
+  Visibility Center and user filters are untouched.
+- **DTW-82: in-Revit Self-Test.**
+  - New command `DrawingTypes_SelfTest` (DOCS → DRAWING TYPES → Self-Test, also usable as a
+    preset step). It runs ten groups of checks on the open model inside a transaction group that
+    is always rolled back: bindings incl. Lines, the stamp round-trip, production idempotency,
+    managed V/G, AEC filters Revit accepts, solid fill, title-block size and schedule-in-slot,
+    both sheet-number policies, worksharing pre-flight, match-line idempotency and crop
+    collection.
+  - Output: PASS / FAIL / SKIP / INFO, with a CSV under the Validation route.
+  - Manual checks are in the new `docs/DRAWING_REVIT_TEST_SCRIPT.md`.
+
+Build 0/0; Tags.Tests 5,626; `run_ci_gates.py --quick` 36/36; checksums OK.
+
