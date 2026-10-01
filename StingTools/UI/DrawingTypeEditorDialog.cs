@@ -1361,43 +1361,116 @@ namespace StingTools.UI
         }
 
         // ── JSON load ──
+        /// <summary>Set when the project's view_style_packs.json exists but could
+        /// not be read. Pack save refuses while it is set (DTW-187): the editor
+        /// is not showing that file's packs, so writing would erase them.</summary>
+        private string _packOverrideError;
+
+        /// <summary>
+        /// Corporate packs with the project's own packs layered on top by id
+        /// (project wins, origin "project"), the same merge
+        /// ViewStylePackRegistry applies at runtime.
+        ///
+        /// DTW-178: this used to load the corporate file only. Save writes the
+        /// project-origin packs it holds, so every pack saved in an earlier
+        /// session was absent from the list and the next save erased it.
+        /// </summary>
         private List<ViewStylePack> LoadViewStylePacks()
         {
-            var list = new List<ViewStylePack>();
+            var merged = new List<ViewStylePack>();
+            var byId = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            JArray corporateRouting = null;
+            _packOverrideError = null;
             try
             {
                 var path = Path.Combine(StingTools.Core.StingToolsApp.DataPath ?? "", "STING_VIEW_STYLE_PACKS.json");
-                if (!File.Exists(path)) return list;
-                var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
-
-                // Keep the document header (schemaVersion / name / description /
-                // namespace / lastUpdated) so a save re-emits it rather than
-                // truncating the file to a bare pack array — but DROP routing.
-                // ViewStylePackRegistry.Merge prepends project routing over
-                // corporate, so re-emitting the corporate table into the project
-                // override would freeze all of it where it wins for ever.
-                _packDocExtra = doc?.Extra;
-                if (_packDocExtra != null)
+                if (File.Exists(path))
                 {
-                    foreach (var key in _packDocExtra.Keys
-                        .Where(k => string.Equals(k, "routing", StringComparison.OrdinalIgnoreCase))
-                        .ToList())
-                        _packDocExtra.Remove(key);
-                }
+                    var doc = JsonConvert.DeserializeObject<ViewStylePackDoc>(File.ReadAllText(path));
 
-                // Snapshot every pack as loaded, so an in-place edit to a
-                // corporate pack is detectable at save time.
-                _packSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var p in doc?.StylePacks ?? new List<ViewStylePack>())
-                {
-                    if (p?.Id == null) continue;
-                    try { _packSnapshot[p.Id] = JsonConvert.SerializeObject(p, Formatting.None); }
-                    catch (Exception ex) { StingLog.Warn($"Pack snapshot '{p.Id}': {ex.Message}"); }
+                    // Keep the document header (schemaVersion / name / description /
+                    // namespace / lastUpdated) so a save re-emits it rather than
+                    // truncating the file to a bare pack array — but DROP routing.
+                    // ViewStylePackRegistry.Merge prepends project routing over
+                    // corporate, so re-emitting the corporate table into the project
+                    // override would freeze all of it where it wins for ever.
+                    _packDocExtra = doc?.Extra;
+                    if (_packDocExtra != null)
+                    {
+                        foreach (var key in _packDocExtra.Keys
+                            .Where(k => string.Equals(k, "routing", StringComparison.OrdinalIgnoreCase))
+                            .ToList())
+                        {
+                            corporateRouting = _packDocExtra[key] as JArray;
+                            _packDocExtra.Remove(key);
+                        }
+                    }
+                    foreach (var p in doc?.StylePacks ?? new List<ViewStylePack>())
+                    {
+                        if (p == null || string.IsNullOrWhiteSpace(p.Id) || byId.ContainsKey(p.Id)) continue;
+                        if (string.IsNullOrEmpty(p.Origin)) p.Origin = "corporate";
+                        byId[p.Id] = merged.Count;
+                        merged.Add(p);
+                    }
                 }
-
-                return doc?.StylePacks ?? list;
             }
-            catch (Exception ex) { StingLog.Warn("ViewStylePacks load: " + ex.Message); return list; }
+            catch (Exception ex) { StingLog.Warn("ViewStylePacks corporate load: " + ex.Message); }
+
+            // ── Project override ─────────────────────────────────────────
+            try
+            {
+                if (_doc != null && !string.IsNullOrEmpty(_doc.PathName))
+                {
+                    var projPath = Path.Combine(StingPaths.Meta(_doc, "_BIM_COORD"), "view_style_packs.json");
+                    if (File.Exists(projPath))
+                    {
+                        var json = File.ReadAllText(projPath);
+                        var proj = JsonConvert.DeserializeObject<ViewStylePackDoc>(json);
+                        if (proj == null && !string.IsNullOrWhiteSpace(json))
+                            throw new InvalidDataException("view_style_packs.json deserialised to nothing");
+                        foreach (var p in proj?.StylePacks ?? new List<ViewStylePack>())
+                        {
+                            if (p == null || string.IsNullOrWhiteSpace(p.Id)) continue;
+                            // Everything in the override file is the project's.
+                            p.Origin = "project";
+                            if (byId.TryGetValue(p.Id, out int at)) merged[at] = p;
+                            else { byId[p.Id] = merged.Count; merged.Add(p); }
+                        }
+
+                        // Keep routing the PROJECT authored. A rule identical to a
+                        // corporate rule is a frozen copy from an older save and is
+                        // dropped, so the corporate table can change again.
+                        var projRouting = proj?.Extra?
+                            .Where(kv => string.Equals(kv.Key, "routing", StringComparison.OrdinalIgnoreCase))
+                            .Select(kv => kv.Value as JArray).FirstOrDefault(a => a != null);
+                        if (projRouting != null)
+                        {
+                            var kept = new JArray(projRouting.Where(r =>
+                                corporateRouting == null || !corporateRouting.Any(c => JToken.DeepEquals(c, r))));
+                            if (kept.Count > 0)
+                            {
+                                _packDocExtra ??= new Dictionary<string, JToken>(StringComparer.Ordinal);
+                                _packDocExtra["routing"] = kept;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _packOverrideError = ex.Message;
+                StingLog.Warn("ViewStylePacks project override load: " + ex.Message);
+            }
+
+            // Snapshot every pack AFTER the merge, so an in-place edit to a
+            // corporate pack is detectable at save time.
+            _packSnapshot = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var p in merged)
+            {
+                try { _packSnapshot[p.Id] = JsonConvert.SerializeObject(p, Formatting.None); }
+                catch (Exception ex) { StingLog.Warn($"Pack snapshot '{p.Id}': {ex.Message}"); }
+            }
+            return merged;
         }
 
         // ── POCO models for view style packs ──
@@ -3515,6 +3588,12 @@ namespace StingTools.UI
             try
             {
                 if (_packs == null) { error = "no packs were loaded."; return -1; }
+                if (_packOverrideError != null)
+                {
+                    error = "the project's view_style_packs.json could not be read when the editor opened ("
+                          + _packOverrideError + "). Saving would erase the packs in it; repair or move the file and reopen the editor.";
+                    return -1;
+                }
 
                 // A pack is written when it is project-origin OR when its
                 // serialisation has moved since load. The second case is what

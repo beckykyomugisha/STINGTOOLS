@@ -156,5 +156,35 @@ namespace StingTools.Tags.Tests
             Assert.Contains("DrawingTypeRegistry.ProjectOverrideLoadError(doc)",
                 DrawingCatalogueFixture.Source("BIMManager", "DrawingTypeExcelCommands.cs"));
         }
+
+        // ── DTW-178 ───────────────────────────────────────────────────────
+
+        private static string EditorMethod(string signature)
+        {
+            var src = DrawingCatalogueFixture.Source("UI", "DrawingTypeEditorDialog.cs");
+            int i = src.IndexOf(signature, StringComparison.Ordinal);
+            Assert.True(i >= 0, signature + " not found");
+            int j = src.IndexOf("\n        private ", i + signature.Length, StringComparison.Ordinal);
+            return src.Substring(i, (j < 0 ? src.Length : j) - i);
+        }
+
+        [Fact]
+        public void Editor_pack_load_layers_the_project_override_over_corporate()
+        {
+            var body = EditorMethod("private List<ViewStylePack> LoadViewStylePacks()");
+            Assert.Contains("STING_VIEW_STYLE_PACKS.json", body);
+            Assert.Contains("\"view_style_packs.json\"", body);
+            Assert.Contains("p.Origin = \"project\"", body);
+            // The snapshot is taken over the merged list, not the corporate one.
+            Assert.True(body.IndexOf("view_style_packs.json\"", StringComparison.Ordinal)
+                        < body.IndexOf("_packSnapshot = new", StringComparison.Ordinal));
+        }
+
+        [Fact]
+        public void Editor_pack_save_refuses_when_the_project_packs_did_not_load()
+        {
+            var body = EditorMethod("private int SaveStylePacksToProjectOverride(");
+            Assert.Contains("_packOverrideError != null", body);
+        }
     }
 }
