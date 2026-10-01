@@ -2,6 +2,26 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-26 project_config.json keys: one registry, checked against the code, 2026-10-01)
+
+- `TagConfig.LoadFromFile` warns about any key it does not recognise ("check for typos"). Its list was kept by
+  hand inside the loader and had drifted both ways:
+  - about 70 keys the plugin really reads or writes were reported as typos — every `COST_*`, `BOQ_TENDER_*`
+    and `WARNING_SLA_*` setting, and even keys the loader itself reads (`FOLDER_CODE_SUFFIX`,
+    `DEFAULT_COLLISION_MODE`, `PROPAGATE_REV_ON_CREATE`) or `SaveToFile` writes (`CATEGORY_VISUAL_POLICY`,
+    so every saved file warned on the next load);
+  - four listed keys are read by nothing: `SEQ_LEVEL_RESET` (SEQ is never reset per level — `SeqLevelReset`
+    is only compared by the migration guard), `DD_SCHEDULE`, `DD_REQUIREMENTS`, `TRADE_DURATION_OVERRIDES`;
+  - the list was case-insensitive while every reader is case-sensitive, so `seq_scheme` passed the check and
+    did nothing.
+- `Core/ProjectConfigKeys` (Revit-free) holds the known keys, the `BOQ_TENDER_` prefix family, keys other
+  commands write with their own JSON code (checked by hand), and a `NotApplied` map. The loader warns for
+  unknown keys (case-sensitive) and separately says a not-applied key "has no effect".
+- **Gate** `ProjectConfigKeysTests`: every key read through `GetConfig*`, set through `SetConfigValue`, read at
+  the top level of `LoadFromFile` or written by `SaveToFile` is known; every known key is used by some code;
+  every not-applied key is used by none. Removing a real key fails it; adding an unused one fails it.
+  `StingTools.Tags.Tests` 5,157 passing; build 0 / 0.
+
 #### Completed (TAGACC-25 interim: unapplied discipline-profile settings are named, 2026-10-01)
 
 - Six `DISCIPLINE_PROFILES` settings load into `DisciplineProfile` and are read by nothing:
