@@ -64,13 +64,15 @@ namespace StingTools.Commands.Mep
                         try { DrawingTypePresentation.Apply(doc, view, dt, runAnnotation: false); }
                         catch (Exception ex) { StingLog.Warn($"MEP coord: presentation apply: {ex.Message}"); }
                     }
-                    res = MepCoordinationEngine.ApplyToView(doc, view);
+                    // DTW-217: Presentation.Apply may just have given the view a managed
+                    // template that controls V/G filters; the filters go where they show.
+                    res = MepCoordinationEngine.ApplyThroughHost(doc, view);
                     t.Commit();
                 }
 
                 var panel = StingResultPanel.Create("MEP — Apply Coordination to View");
                 panel.SetSubtitle(
-                    $"'{view.Name}' · {res.Applied} system filter(s) applied · {res.Unmatched} unmatched" +
+                    $"'{view.Name}' · {res.Applied} system filter(s) applied {res.WhereText} · {res.Unmatched} unmatched" +
                     (dt != null ? $" · DrawingType '{dt.Id}'" : " · no DrawingType matched"));
 
                 panel.AddSection("DRAWING TYPE");
@@ -152,10 +154,7 @@ namespace StingTools.Commands.Mep
             var hosts = new System.Collections.Generic.Dictionary<ElementId, (View Host, int Views)>();
             foreach (var (v, _) in targets)
             {
-                View host = v;
-                if (Core.Visibility.VisibilityEngine.FiltersLockedByTemplate(doc, v)
-                    && doc.GetElement(v.ViewTemplateId) is View tpl)
-                    host = tpl;
+                View host = MepCoordinationEngine.FilterHost(doc, v);   // DTW-217: one rule for all three paths
                 hosts[host.Id] = hosts.TryGetValue(host.Id, out var h) ? (h.Host, h.Views + 1) : (host, 1);
             }
 

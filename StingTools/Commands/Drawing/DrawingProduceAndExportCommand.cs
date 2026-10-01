@@ -419,7 +419,13 @@ namespace StingTools.Commands.Drawing
                             // idempotency. The level is already in the key via ctx.Level.
                             var ctx = new DrawingContext { Level = level, PackageId = packageId };
                             var res = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
-                            stats.Warnings.AddRange(res.Warnings);
+                            var failure = res.TakeInto(stats.Warnings);   // DTW-216: a refused item is not kept
+                            if (failure != null)
+                            {
+                                t.RollBack();
+                                stats.Warnings.Add(ProductionEdgeDecisions.RolledBackLine($"Produce [{dt.Id}@{level.Name}]", failure));
+                                continue;
+                            }
                             // Counted only once Revit has committed: a commit a failure
                             // handler rolls back kept nothing.
                             var status = t.Commit();
@@ -477,20 +483,10 @@ namespace StingTools.Commands.Drawing
                             }
                             else
                             {
-                                var res = DrawingTypePresentation.Apply(doc, v, dt,
-                                    new DrawingTypePresentation.ApplyOptions
-                                    {
-                                        AnnotationOptions = new AnnotationRunOptions
-                                        {
-                                            SkipAutoTag   = true,
-                                            SkipAutoDim   = true,
-                                            SkipDecorative = true,
-                                            SkipSpots     = true,
-                                        },
-                                        SkipSymbolDriftCheck = true // styles re-sync pass
-                                    });
-                                if (res.ScaleApplied || res.DetailLevelApplied || res.TemplateApplied || res.PackApplied)
-                                    stats.StylesResynced++;
+                                // DTW-215: the Sync Styles re-apply, so a view production
+                                // fitted to its sheet slot keeps its fitted scale here too.
+                                var res = DrawingSyncStylesCommand.Resync(doc, v, dt, out bool changed);
+                                if (changed) stats.StylesResynced++;
                                 stats.Warnings.AddRange(res.Warnings.Select(w => $"[Styles/{v.Name}] {w}"));
                             }
                         }

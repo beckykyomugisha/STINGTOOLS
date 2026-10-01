@@ -78,6 +78,8 @@ namespace StingTools.Core.Mep
             var existingNames = new HashSet<string>(
                 new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>().Select(v => v.Name),
                 StringComparer.OrdinalIgnoreCase);
+            // DTW-217: a template shared by several produced views is coloured once per domain.
+            var coordDone = new Dictionary<string, MepCoordResult>(StringComparer.Ordinal);
 
             foreach (var disc in Disciplines)
             {
@@ -118,14 +120,20 @@ namespace StingTools.Core.Mep
 
                     // Duct/pipe systems get the classification colours; electrical
                     // inherits its colouring from the elec DrawingType's style pack.
+                    // DTW-217: through the template when Presentation.Apply just gave the
+                    // view a managed template that controls V/G filters — on the view they
+                    // were masked and still counted as applied.
+                    string via = "";
                     if (disc.Domain != MepDomain.All)
                     {
-                        var coord = MepCoordinationEngine.ApplyToView(doc, v, disc.Domain);
+                        var coord = MepCoordinationEngine.ApplyThroughHost(doc, v, null, disc.Domain, coordDone);
                         row.FiltersApplied = coord.Applied;
-                        result.Warnings.AddRange(coord.Warnings.Select(w => $"{disc.Code}: {w}"));
+                        if (coord.ViaTemplate) via = $" via template '{coord.HostName}'";
+                        if (!coord.AlreadyDone)
+                            result.Warnings.AddRange(coord.Warnings.Select(w => $"{disc.Code}: {w}"));
                     }
 
-                    row.Note = dt != null ? $"created · {dt.Id} · {row.FiltersApplied} filter(s)" : "created · no DrawingType matched";
+                    row.Note = dt != null ? $"created · {dt.Id} · {row.FiltersApplied} filter(s){via}" : "created · no DrawingType matched";
                 }
                 catch (Exception ex)
                 {

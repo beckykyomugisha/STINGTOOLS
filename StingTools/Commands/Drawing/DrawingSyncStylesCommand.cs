@@ -224,6 +224,15 @@ namespace StingTools.Commands.Drawing
                 changed = sr.TitleBlockParamsWritten > 0;
                 return sr;
             }
+            // DTW-215: a view production fitted to its sheet slot keeps the fitted scale
+            // while the type's scale is the one the fit started from — the rule a
+            // production refresh applies. Once the type's scale has changed, the type's
+            // scale is applied and the stale fit is dropped (production fits it again).
+            var holder = ProducedViewState.FitHolder(v);
+            var fit = ProducedViewState.Read(holder);
+            int keepScale = ProductionEdgeDecisions.ScaleOnResync(dt.Scale, fit?.FittedScale ?? 0,
+                fit?.FitBaseScale ?? 0, out bool dropFit);
+
             // Phase 137 — explicit annotation skips so SyncStyles
             // re-applies VG/template/managed-template state without
             // running auto-tag / auto-dim / decorative / spot passes.
@@ -233,11 +242,15 @@ namespace StingTools.Commands.Drawing
                 {
                     SkipAutoTag = true, SkipAutoDim = true, SkipDecorative = true, SkipSpots = true
                 },
-                SkipSymbolDriftCheck = true // heal pass — drift is handled separately
+                SkipSymbolDriftCheck = true, // heal pass — drift is handled separately
+                KeepScale = keepScale,
             });
+            if (dropFit && ProducedViewState.ClearFit(holder))
+                applied.Warnings.Add($"'{v.Name}': drawing type scale changed (fitted 1:{fit.FittedScale} from 1:{fit.FitBaseScale}); "
+                    + $"now 1:{dt.Scale}. Re-run production to fit it to its sheet slot again.");
             changed = applied.ScaleApplied || applied.DetailLevelApplied
                       || applied.TemplateApplied || applied.PackApplied
-                      || applied.TokenProfileApplied;
+                      || applied.TokenProfileApplied || dropFit;
             return applied;
         }
 

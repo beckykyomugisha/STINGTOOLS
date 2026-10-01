@@ -12,8 +12,7 @@ still open. Rows leave this table when their fix is merged; the worklog keeps th
 |---|---|---|---|
 | DTW-82 | Nothing merged in this loop has been run in Revit | Worklog "NEEDS REVIT CHECK" | Run the listed checks. Whether Revit accepts shared parameters on Lines (DTW-56) decides whether match-line keys move to Extensible Storage |
 | DTW-102 | Linked MEP runs are reported, not dimensioned | `AnnotationRunner MEP dimension passes` | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit |
-| DTW-215 | Sync Styles re-applies the type scale to auto-fitted views | `DrawingSyncStylesCommand` | Open (low): read `ProducedViewState` |
-| DTW-216 | Project Setup, Produce & Export and Panel/SLD placement don't roll back on a refused item | callers of `DrawingProducer` outside the item runner | Open (low) |
+| DTW-228 | A pack with filters disabled also disables MEP system filters on views without a template | `ViewStylePackApplier.ApplyFilterEnabled` | Open (low) |
 
 ## Tag family library — missing families (2026-09-30)
 
