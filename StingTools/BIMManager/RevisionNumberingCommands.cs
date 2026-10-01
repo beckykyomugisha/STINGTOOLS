@@ -119,7 +119,7 @@ namespace StingTools.BIMManager
                     (csv == null ? "" : $"\n\nReport: {csv}");
                 StingLog.Info("Revision_LeakCheck: " + summary.Replace("\n", " | "));
 
-                if (!WorkflowEngine.IsUnattended) TaskDialog.Show("STING Revision Leak Check", summary);
+                PresetDialog.Show("STING Revision Leak Check", summary, ref message);
                 if (leaks.Count > 0 && WorkflowEngine.IsRunningPreset)
                 {
                     message = $"{leaks.Count} sheet revision stamp(s) disagree with the issued revision — run RevisionSync.";

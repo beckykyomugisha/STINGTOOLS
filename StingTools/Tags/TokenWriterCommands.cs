@@ -628,6 +628,14 @@ namespace StingTools.Tags
                     report.AppendLine($"  Stale revisions: {staleRevCount} elements not at latest revision");
             }
 
+            // Inside a workflow preset nobody answers the legend offer: report and stop there
+            // (declining was always the default and changes nothing about the dashboard).
+            if (PresetDialog.Quiet)
+            {
+                PresetDialog.Show("ISO Completeness Dashboard",
+                    $"Compliance: {grandPct:F1}% | Strict: {grandStrictPct:F1}% ({grandResolved}/{grandTotal})\n" + report, ref msg);
+                return Result.Succeeded;
+            }
             TaskDialog td = new TaskDialog("ISO Completeness Dashboard");
             td.MainInstruction = $"Compliance: {grandPct:F1}% | Strict: {grandStrictPct:F1}% ({grandResolved}/{grandTotal})";
             td.MainContent = report.ToString();

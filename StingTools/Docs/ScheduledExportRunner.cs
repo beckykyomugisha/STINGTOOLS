@@ -208,9 +208,8 @@ namespace StingTools.Docs
                 StingLog.Info("ExportCenterRunSchedules: " + verdict + " — " + text.Replace("\n", " | "));
                 // R9: a workflow step reports through its result and message; a dialog only
                 // when someone is there to read it.
-                if (!WorkflowEngine.IsUnattended)
-                    TaskDialog.Show("STING Export Centre",
-                        text + (summary.FilesOk > 0 ? "\n\nSee the export folder and the STING_Export_Report CSV for details." : ""));
+                PresetDialog.Show("STING Export Centre",
+                    text + (summary.FilesOk > 0 ? "\n\nSee the export folder and the STING_Export_Report CSV for details." : ""), ref message);
                 switch (verdict)
                 {
                     case ScheduledExportVerdict.Succeeded: return Result.Succeeded;

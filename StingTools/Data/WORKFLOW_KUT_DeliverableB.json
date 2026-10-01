@@ -4,7 +4,7 @@
   "rollback_on_failure": false,
   "rollback_on_optional_failure": false,
   "steps": [
-    { "commandTag": "RetagStale", "label": "1. Re-tag stale elements changed since the last gate", "optional": true },
+    { "commandTag": "RetagStale", "params": { "scope": "project" }, "label": "1. Re-tag stale elements changed since the last gate", "optional": true },
     { "commandTag": "ValidateTags", "label": "2. Tag validation — all 8 segments present + code-valid" },
     { "commandTag": "TokenConfidenceAudit", "label": "3. Token-fill confidence — surfaces silent defaults" },
     { "commandTag": "OwnerStandards_Audit", "label": "4. Owner-standards rule pack (corporate baseline + KUT project overrides, merged by id)" },

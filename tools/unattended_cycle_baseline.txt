@@ -43,15 +43,15 @@ StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|TaskDialogResul
 # scope on an operator's behalf is a decision, not a default. The step is optional:true and
 # requiresStaleElements:true, so it is skipped when nothing is stale - which is why the
 # cycle has been runnable in practice and why this went unnoticed.
-StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|AddCommandLink|2	UNGATED - scope picker (active view / entire project), always shown. A real blocker; see the note above.
-StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|TaskDialogResult|2	UNGATED - reading that scope picker. Same construct.
+StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|AddCommandLink|2	GATED - the scope picker is built only outside a preset; inside one the step's "params": {"scope": "project"|"view"} decides, and a step without it fails (never defaulted). KUT steps set "project".
+StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|TaskDialogResult|2	GATED - reading that picker; same branch.
 
 # ── CompletenessDashboard (step 9) — NOT gated, but it blocks nothing ───────
 # A Yes/No offer to build a discipline compliance legend, shown AFTER the dashboard has been
 # computed and reported. DefaultButton is No, and declining changes nothing about the step's
 # result. It still blocks a scheduled run on a modal window, so it is recorded as ungated
 # rather than excused - but it is the mildest case here: the cycle's work is already done.
-StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|TaskDialogResult|2	UNGATED - "create a discipline compliance legend?" offered after the dashboard is reported; declining loses nothing, but it is still a modal wait.
+StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|TaskDialogResult|2	GATED - the legend offer is shown only outside a preset; inside one the dashboard goes to the step message (PresetDialog) and returns.
 
 # ══ A8 (2026-10-01): every KUT workflow + modal messages ══════════════════════
 # ACC commands are GATED (routed through AccPullClashesCommand.Report or inside a MayPrompt
@@ -67,7 +67,6 @@ StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|TaskDialogResult|8
 StingTools/BIMManager/BIMManagerCommands.cs::CDEStatusCommand|new TaskDialog|4	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # ExportModelHealthCommand — step ExportModelHealth in CoordinationCycle, DeliverableA, DeliverableB, DeliverableC, DeliverableD, GateAudit, MonthlyReport
-StingTools/BIMManager/BIMManagerCommands.cs::ExportModelHealthCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # FullComplianceDashboardCommand — step FullComplianceDashboard in DeliverableA, DeliverableB, DeliverableC, DeliverableD, GateAudit, MonthlyReport
 StingTools/BIMManager/BIMManagerCommands.cs::FullComplianceDashboardCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
@@ -76,12 +75,11 @@ StingTools/BIMManager/BIMManagerCommands.cs::FullComplianceDashboardCommand|new 
 StingTools/BIMManager/PlatformLinkCommands.cs::ACCPublishCommand|new TaskDialog|1	GATED - the suitability picker window itself (same branch as its four AddCommandLinks). Unattended uses publishSuitability or fails; closing the picker now cancels (A3).
 
 # IssueSheetsForRevisionCommand — step IssueSheetsForRevision in FortnightlyIssue
-StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialog.Show|4	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialog.Show|4	GATED - each sits behind PresetDialog.Quiet / an unattended-or-preset early return (no revision, empty plan, refused gate); the no-document guard cannot run inside a preset.
 StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|new TaskDialog|1	GATED - the 'issue to the STING-produced sheets?' confirm; RevisionIssueTargets.Plan sets NeedsConfirmation only when !PresetDialog.Quiet, so a preset never reaches it.
 StingTools/BIMManager/RevisionManagementCommands.cs::IssueSheetsForRevisionCommand|TaskDialogResult|2	GATED - reading that confirm; same branch.
 
 # RevisionLeakCheckCommand — step Revision_LeakCheck in FortnightlyIssue
-StingTools/BIMManager/RevisionNumberingCommands.cs::RevisionLeakCheckCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # AccFederatedComplianceCommand — step ACC_FederatedCompliance in CoordinationCycle
 StingTools/Clash/AccFederatedComplianceCommand.cs::AccFederatedComplianceCommand|new TaskDialog|1	GATED - the result window, shown only inside `if (policy.MayPrompt)`; unattended logs the headline and writes the reports.
@@ -95,10 +93,9 @@ StingTools/Clash/AccUploadModelCommand.cs::AccUploadLastBundleCommand|TaskDialog
 StingTools/Clash/AccUploadModelCommand.cs::AccUploadLastBundleCommand|new TaskDialog|1	GATED - the upload confirmation window; same branch as above.
 
 # ClashBcfExportCommand — step ClashBcfExport in CoordinationCycle, DeliverableB, DeliverableC
-StingTools/Clash/ClashBcfExportCommand.cs::ClashBcfExportCommand|TaskDialog.Show|3	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # ClashRunCommand — step ClashRun in CoordinationCycle, DeliverableB, DeliverableC
-StingTools/Clash/ClashRunCommand.cs::ClashRunCommand|TaskDialog.Show|3	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
+StingTools/Clash/ClashRunCommand.cs::ClashRunCommand|TaskDialog.Show|3	GATED - every message sits behind !silent, and Execute runs silent when PresetDialog.Quiet (the outcome goes to the step message).
 
 # CsiAssignCommand — step CSI_Assign in DeliverableB, DeliverableC, DeliverableD, LifecycleReconcile
 StingTools/Commands/Classification/CsiCommands.cs::CsiAssignCommand|AddCommandLink|2	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
@@ -173,15 +170,14 @@ StingTools/Commands/Validation/ProgramAuditCommand.cs::ProgramAuditCommand|new T
 StingTools/Core/WorkflowEngine.cs::WorkflowTrendCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # ExportCenterRunSchedulesCommand — step ExportCenterRunSchedules in FortnightlyIssue
-StingTools/Docs/ScheduledExportRunner.cs::ExportCenterRunSchedulesCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # ExportSheetRegisterCommand — step ExportSheetRegister in DeliverableC, DeliverableD, MonthlyReport
 StingTools/Docs/SheetTemplateCommands.cs::ExportSheetRegisterCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # SheetComplianceCheckCommand — step SheetComplianceCheck in DeliverableC, FortnightlyIssue, MonthlyReport
-StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|AddCommandLink|1	UNGATED - a choice offered in a TaskDialog, always shown. A real blocker to unattended operation.
-StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|TaskDialogResult|1	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
-StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|AddCommandLink|1	GATED - the select-non-compliant offer is built only when !PresetDialog.Quiet; the report itself goes through PresetDialog.
+StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|TaskDialogResult|1	GATED - same branch.
+StingTools/Docs/SheetTemplateCommands.cs::SheetComplianceCheckCommand|new TaskDialog|1	GATED - same branch.
 
 # RevisionSyncCommand — step RevisionSync in FortnightlyIssue
 StingTools/Docs/TitleBlockCommands.cs::RevisionSyncCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
@@ -217,8 +213,7 @@ StingTools/ExLink/FohlioFinishesCommands.cs::FohlioImportFinishesCommand|new Tas
 StingTools/Organise/TagOperationCommands.cs::AuditTagsCSVCommand|TaskDialog.Show|2	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
 
 # RetagStaleCommand — step RetagStale in CoordinationCycle, DeliverableB, DeliverableC
-StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|TaskDialog.Show|5	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.
-StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Organise/TagOperationCommands.cs::RetagStaleCommand|new TaskDialog|1	GATED - the picker window; same branch.
 
 # LoadSharedParamsCommand — step LoadSharedParams in Mobilisation
 StingTools/Tags/LoadSharedParamsCommand.cs::LoadSharedParamsCommand|TaskDialogResult|1	UNGATED - reading a dialog answer, i.e. a branch on a click. A real blocker to unattended operation.
@@ -234,7 +229,7 @@ StingTools/Tags/PreTagAuditCommand.cs::PreTagAuditCommand|new TaskDialog|1	UNGAT
 StingTools/Tags/TokenConfidenceAuditCommand.cs::TokenConfidenceAuditCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
 
 # CompletenessDashboardCommand — step CompletenessDashboard, DiscComplianceReport in CoordinationCycle, MonthlyReport
-StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|new TaskDialog|1	UNGATED - a hand-built modal result window; a scheduled run waits on it. Not routed through Report.
+StingTools/Tags/TokenWriterCommands.cs::CompletenessDashboardCommand|new TaskDialog|1	GATED - same branch as the legend offer.
 
 # ValidateTagsCommand — step ValidateTags in CoordinationCycle, DeliverableA, DeliverableB, DeliverableC, DeliverableD
 StingTools/Tags/ValidateTagsCommand.cs::ValidateTagsCommand|TaskDialog.Show|1	UNGATED - a modal message (result or error). It asks nothing, but a scheduled run waits on OK; this non-ACC command does not consult AccOperatingPolicy / Report.

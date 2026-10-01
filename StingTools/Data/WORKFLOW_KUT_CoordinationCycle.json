@@ -4,7 +4,7 @@
   "rollback_on_failure": false,
   "rollback_on_optional_failure": false,
   "steps": [
-    { "commandTag": "RetagStale", "label": "1. Re-tag stale elements before federation", "optional": true, "requiresStaleElements": true },
+    { "commandTag": "RetagStale", "params": { "scope": "project" }, "label": "1. Re-tag stale elements before federation", "optional": true, "requiresStaleElements": true },
     { "commandTag": "ValidateTags", "label": "2. ISO 19650 tag validation before publish" },
     { "commandTag": "ACC_PullClashes", "label": "3. Pull + triage ACC Model Coordination clashes", "optional": true, "failOnError": true },
     { "commandTag": "ACC_FederatedCompliance", "label": "3a. ISO 19650 tag compliance of every model in the ACC federation (read from ACC, no models opened); fails when any model could not be read", "optional": true, "failOnError": true },

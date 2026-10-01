@@ -7248,7 +7248,7 @@ namespace StingTools.BIMManager
                 var report = ModelHealthEngine.RunHealthCheck(doc);
                 string path = ModelHealthEngine.ExportReport(doc, report);
 
-                TaskDialog.Show("Model Health", $"Report exported to:\n{path}");
+                PresetDialog.Show("Model Health", $"Report exported to:\n{path}", ref message);
                 return Result.Succeeded;
             }
             catch (Exception ex)

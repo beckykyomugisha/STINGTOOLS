@@ -5783,19 +5783,38 @@ namespace StingTools.Organise
             if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
             Document doc = ctx.Doc;
 
-            // Scope dialog
-            var scopeTd = new TaskDialog("STING — Retag Stale");
-            scopeTd.MainInstruction = "Retag stale elements";
-            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Active view only");
-            scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Entire project");
-            scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
-            var scopeResult = scopeTd.Show();
+            // Scope: asked of a person; inside a workflow preset it is the step's
+            // "params": {"scope": "project" | "view"} — the workflow author's decision, never a
+            // default (a project-wide retag on someone's behalf is not a guess to make).
+            string scopeChoice;   // "view" | "project" | null (cancelled)
+            if (PresetDialog.Quiet)
+            {
+                scopeChoice = (WorkflowEngine.StepParam("scope") ?? "").Trim().ToLowerInvariant();
+                if (scopeChoice != "project" && scopeChoice != "view")
+                {
+                    message = "RetagStale in a workflow needs \"params\": {\"scope\": \"project\"} (or \"view\") on its step; " +
+                              "nothing was retagged.";
+                    StingLog.Warn("RetagStale: " + message);
+                    return Result.Failed;
+                }
+            }
+            else
+            {
+                var scopeTd = new TaskDialog("STING — Retag Stale");
+                scopeTd.MainInstruction = "Retag stale elements";
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Active view only");
+                scopeTd.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Entire project");
+                scopeTd.CommonButtons = TaskDialogCommonButtons.Cancel;
+                var picked = scopeTd.Show();
+                scopeChoice = picked == TaskDialogResult.CommandLink1 ? "view"
+                            : picked == TaskDialogResult.CommandLink2 ? "project" : null;
+            }
 
             IList<Element> scope;
-            if (scopeResult == TaskDialogResult.CommandLink1)
+            if (scopeChoice == "view")
             {
                 View view = ctx.ActiveView;
-                if (view == null) { TaskDialog.Show("STING", "No active view."); return Result.Failed; }
+                if (view == null) { PresetDialog.Show("STING", "No active view.", ref message); return Result.Failed; }
                 scope = new FilteredElementCollector(doc, view.Id)
                     .WhereElementIsNotElementType()
                     .Where(e =>
@@ -5809,7 +5828,7 @@ namespace StingTools.Organise
                     })
                     .ToList();
             }
-            else if (scopeResult == TaskDialogResult.CommandLink2)
+            else if (scopeChoice == "project")
             {
                 scope = new FilteredElementCollector(doc)
                     .WhereElementIsNotElementType()
@@ -5828,7 +5847,7 @@ namespace StingTools.Organise
 
             if (scope.Count == 0)
             {
-                TaskDialog.Show("STING", "No stale elements found.");
+                PresetDialog.Show("STING", "No stale elements found.", ref message);
                 return Result.Succeeded;
             }
 
@@ -5840,7 +5859,7 @@ namespace StingTools.Organise
                 if (popCtx == null)
                 {
                     tx.RollBack();
-                    TaskDialog.Show("STING", "Failed to build population context.");
+                    PresetDialog.Show("STING", "Failed to build population context.", ref message);
                     return Result.Failed;
                 }
                 var (existingTags, seqCounters) = TagConfig.BuildTagIndexAndCounters(doc);
@@ -5857,7 +5876,7 @@ namespace StingTools.Organise
                         if (retagged % 100 == 0 && EscapeChecker.IsEscapePressed())
                         {
                             tx.RollBack();
-                            TaskDialog.Show("STING", $"Cancelled. Retagged {retagged} before cancel.");
+                            PresetDialog.Show("STING", $"Cancelled. Retagged {retagged} before cancel.", ref message);
                             return Result.Cancelled;
                         }
 
@@ -5891,8 +5910,8 @@ namespace StingTools.Organise
 
             ComplianceScan.InvalidateCache();
             StingAutoTagger.InvalidateContext();
-            TaskDialog.Show("STING — Retag Stale",
-                $"{retagged} stale elements retagged, {failed} failed.");
+            PresetDialog.Show("STING — Retag Stale",
+                $"{retagged} stale elements retagged, {failed} failed.", ref message);
             return Result.Succeeded;
         }
     }

@@ -35,20 +35,20 @@ namespace StingTools.Core.Clash
                 var run = ClashPersistence.Load(clashesJson);
                 if (run == null || run.Clashes == null || run.Clashes.Count == 0)
                 {
-                    TaskDialog.Show("STING Clash BCF",
-                        $"No clashes to export.\n\nExpected: {clashesJson}\n\nRun clash detection first.");
+                    PresetDialog.Show("STING Clash BCF",
+                        $"No clashes to export.\n\nExpected: {clashesJson}\n\nRun clash detection first.", ref message);
                     return Result.Cancelled;
                 }
 
                 string bcfPath = ExportToBcf(doc, run.Clashes, outDir);
                 if (string.IsNullOrEmpty(bcfPath))
                 {
-                    TaskDialog.Show("STING Clash BCF",
-                        "BCF export failed — see StingTools.log for details.");
+                    PresetDialog.Show("STING Clash BCF",
+                        "BCF export failed — see StingTools.log for details.", ref message);
                     return Result.Failed;
                 }
-                TaskDialog.Show("STING Clash BCF",
-                    $"Exported {run.Clashes.Count} topic(s) to BCF 2.1.\n\nSaved: {bcfPath}");
+                PresetDialog.Show("STING Clash BCF",
+                    $"Exported {run.Clashes.Count} topic(s) to BCF 2.1.\n\nSaved: {bcfPath}", ref message);
                 return Result.Succeeded;
             }
             catch (Exception ex)

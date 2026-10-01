@@ -41,7 +41,19 @@ namespace StingTools.Core.Clash
             var uiDoc = ParameterHelpers.GetUIDoc(commandData);
             var doc = uiDoc?.Document;
             if (doc == null) { message = "No active document."; return Result.Failed; }
-            try { return ExecuteOnDocument(doc, silent: false, out _); }
+            try
+            {
+                // Inside a workflow preset nobody answers the result window: run silently and
+                // put the outcome in the step's message (area 3 — unattended KUT cycles).
+                bool quiet = PresetDialog.Quiet;
+                var r = ExecuteOnDocument(doc, silent: quiet, out var run);
+                if (quiet)
+                    message = run == null
+                        ? (r == Result.Succeeded ? "Clash run complete." : "Clash run did not run (no 3D view or no geometry - see the log).")
+                        : $"Clash run: {run.Clashes?.Count ?? 0} kept in {run.Stats?.Groups ?? 0} group(s); " +
+                          $"new {run.Stats?.New ?? 0}, active {run.Stats?.Active ?? 0}, resolved {run.Stats?.Resolved ?? 0}.";
+                return r;
+            }
             catch (Exception ex)
             {
                 StingLog.Error("ClashRunCommand.Execute", ex);
