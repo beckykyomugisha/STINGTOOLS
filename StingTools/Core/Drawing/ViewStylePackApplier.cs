@@ -61,20 +61,67 @@ namespace StingTools.Core.Drawing
             if (doc == null || view == null || pack == null) return r;
             if (view.IsTemplate) return r;
 
-            // Cannot override graphics when a view template governs the view.
-            if (view.ViewTemplateId != null && view.ViewTemplateId != ElementId.InvalidElementId)
+            // DTW-173: this used to say overrides "will be applied to the template"
+            // and then wrote them to the view — where a template that controls V/G
+            // masks them, so they never showed. Ask the template what it controls:
+            // write each part only where the view, not the template, decides.
+            var masked = TemplateControlledVg(doc, view);
+            bool vgMasked = masked.Contains(BuiltInParameter.VIS_GRAPHICS_MODEL);
+            bool filtersMasked = masked.Contains(BuiltInParameter.VIS_GRAPHICS_FILTERS);
+            bool worksetsMasked = masked.Contains(BuiltInParameter.VIS_GRAPHICS_WORKSETS);
+            if (masked.Count > 0)
             {
-                r.Warnings.Add("View has an active template — pack VG overrides will be applied to the template, not the view.");
+                var parts = new List<string>();
+                if (vgMasked) parts.Add("category overrides");
+                if (filtersMasked) parts.Add("filters");
+                if (worksetsMasked) parts.Add("workset visibility");
+                if (parts.Count > 0)
+                    r.Warnings.Add($"Pack '{pack.Id}': the view's template controls {string.Join(", ", parts)} — "
+                        + "those parts of the pack are masked and were not written. Use a managed pack, or release "
+                        + "them in the template, for the pack to show.");
             }
 
-            ApplyCategoryOverrides(doc, view, pack, r);
-            ApplyLineWeightScale(doc, view, pack, r, extraLineWeightScale);
-            ApplyFilterRules(doc, view, pack, r);
-            ApplyWorksetVisibility(doc, view, pack, r);
-            ApplyLinkOverrides(doc, view, pack, r);
+            if (!vgMasked)
+            {
+                ApplyCategoryOverrides(doc, view, pack, r);
+                ApplyLineWeightScale(doc, view, pack, r, extraLineWeightScale);
+            }
+            if (!filtersMasked) ApplyFilterRules(doc, view, pack, r);
+            if (!worksetsMasked) ApplyWorksetVisibility(doc, view, pack, r);
+            ApplyLinkOverrides(doc, view, pack, r);   // element overrides: never template-controlled
             ApplyColorFillSchemes(doc, view, pack, r);
-            ApplyFilterEnabled(doc, view, pack, r);
+            if (!filtersMasked) ApplyFilterEnabled(doc, view, pack, r);
             return r;
+        }
+
+        /// <summary>
+        /// DTW-173: the V/G template parameters the view's template controls (empty
+        /// when the view has no template). A failed read is treated as "not
+        /// controlled", i.e. the pre-DTW-173 behaviour of writing to the view.
+        /// </summary>
+        private static HashSet<BuiltInParameter> TemplateControlledVg(Document doc, View view)
+        {
+            var result = new HashSet<BuiltInParameter>();
+            if (view?.ViewTemplateId == null || view.ViewTemplateId == ElementId.InvalidElementId) return result;
+            try
+            {
+                if (!(doc.GetElement(view.ViewTemplateId) is View template)) return result;
+                var all = new HashSet<ElementId>(template.GetTemplateParameterIds());
+                var nonControlled = new HashSet<ElementId>(template.GetNonControlledTemplateParameterIds());
+                foreach (var bip in new[] { BuiltInParameter.VIS_GRAPHICS_MODEL, BuiltInParameter.VIS_GRAPHICS_FILTERS,
+                                            BuiltInParameter.VIS_GRAPHICS_WORKSETS })
+                {
+                    var id = new ElementId(bip);
+                    if (all.Contains(id) && !nonControlled.Contains(id)) result.Add(bip);
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.WarnRateLimited("ViewStylePack.TemplateControl",
+                    $"ViewStylePackApplier: reading the template's controlled parameters failed — writing to the view: {ex.Message}");
+                result.Clear();
+            }
+            return result;
         }
 
         /// <summary>
