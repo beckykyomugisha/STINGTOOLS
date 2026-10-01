@@ -347,7 +347,7 @@ namespace StingTools.Core.Drawing
             }
         }
 
-        private static XYZ GetTitleBlockOrigin(Element titleBlock)
+        internal static XYZ GetTitleBlockOrigin(Element titleBlock)
         {
             try
             {

@@ -87,10 +87,11 @@ namespace StingTools.Commands.Drawing
                 return Result.Failed;
             }
             // The slot bounds come from the family doc (origin = bottom-left
-            // corner of the paper). On the sheet, the title-block instance's
-            // location is the same origin, so slot bounds map 1:1.
-            // (Title-block instances in Revit are anchored at the family
-            // origin which by convention sits at the sheet's bottom-left.)
+            // corner of the paper). DTW-158: on the sheet they are offset by the
+            // title-block instance's LocationPoint — the same offset
+            // SheetPlacementBridge applies (P12.C). A title block moved off the
+            // sheet origin used to put every viewport off by that move.
+            var tbOrigin = StingTools.Core.Drawing.SheetPlacementBridge.GetTitleBlockOrigin(titleBlock);
 
             // 3. Survey selected views (or every unplaced view if none selected).
             var selectedIds = uiApp.ActiveUIDocument.Selection.GetElementIds();
@@ -138,8 +139,8 @@ namespace StingTools.Commands.Drawing
                             continue;
                         }
                         var bbox = slotMap[slotId];
-                        var centre = new XYZ((bbox.Min.X + bbox.Max.X) / 2.0,
-                                             (bbox.Min.Y + bbox.Max.Y) / 2.0, 0);
+                        var centre = new XYZ((bbox.Min.X + bbox.Max.X) / 2.0 + tbOrigin.X,
+                                             (bbox.Min.Y + bbox.Max.Y) / 2.0 + tbOrigin.Y, 0);
 
                         // Apply scaleHint BEFORE placing — so the viewport
                         // adopts the right scale at creation time. Wrap in
