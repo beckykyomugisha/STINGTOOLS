@@ -26453,3 +26453,44 @@ Round 8 of the drawing review loop, findings DTW-149..214; details and the Revit
 
 Build 0/0; Tags.Tests 5,367; `run_ci_gates.py --quick` 36/36; checksums OK. Not yet run in Revit.
 
+#### Completed (Data-schema drift: one registry, gated in CI, nine review rounds — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+`tools/validate_data_schemas.py` failed on `main` (`cost_rates_5d.csv` header mismatch:
+D6 had inserted `PROD`) and ran in no workflow. It now runs on every PR and push in
+`stingtools-plugin.yml` → *Validate data files*, preceded by a self-test that plants 29
+defects in temp copies of real files and fails if any goes uncaught. Full record:
+`docs/WORKLOG_DATA_SCHEMAS.md`; contributor note: `docs/DATA_SCHEMAS.md`.
+
+- **PROD kept** and declared (schema v2): it is the most specific rate key (DISC|PROD, D6).
+  `BOQ/Rates/CostRateCsv` is the one parser for the cost card, by header name; the
+  **5D Cost Trace had lost every rate** (it read the discipline letter as the USD rate),
+  and the Cost File Browser rejected the shipped format and claimed an override it never
+  applied (DSCH-1). `CostRateCsvTests` replays the column insertion.
+- **One source of truth**: `tools/data_schemas.json` registers all 633 files under
+  `StingTools/Data`, `project-templates`, `GUIDES/kibale-project-config` and `tools/` —
+  197 with a full schema (CSV columns pinned; JSON keys derived from the C# class,
+  including `[JsonProperty]` names, private aliases, fields, inheritance and partial
+  classes), 211 structural (UTF-8, line endings, strict JSON with no duplicate keys),
+  225 non-data. An unregistered file fails with the `--scaffold` command to run.
+  Also: per-row field counts, `minFields`, `refersTo` / `valueRefersTo` to
+  `MR_PARAMETERS.txt`, `docKeys` with reasons, unique file names under Data, and a stale
+  `alsoAllowed` entry fails.
+- **Eleven tools/ checks that ran in no workflow are gated**; `binding_simulator.py` gains
+  a ratchet and its stale baseline is refreshed.
+- **Silent defects fixed** (each was a value that loaded as nothing): MEP symbol
+  catalogue read in the ISO layout (no view ever matched); all 191 ArchiCAD IFC property
+  mappings unbound (plus a U-value typo and IFC booleans); routing separation rules and
+  corridor bands bound no snake_case key (separation never checked); two families never
+  got `MAT_COST_SUPPLY_NR` / `STING_EMB_CARBON_NR`; `CST_CALC_BLOCKS_NR` never
+  evaluated; material-class regexes split by a comma; BOQ client vocabulary never loaded;
+  sector-pack OH&P to a key nothing reads; electrical snapshot and demand-factor report
+  read keys their files lack; lift carbon hours; classification standard read from the
+  wrong folder; auto-tagger disc filter from a JSON array; material schema checks read
+  nothing; Kibale rate card outranked by the CSV; duplicate `WORKFLOW_PlumbingDesign`
+  labels; mixed line endings; a shadowed pump catalogue renamed to an example.
+- A geometry-aware separation refinement was **reverted** after review (it relaxed real
+  checks); the conservative rule stands — DSCH-22.
+
+Build 0/0; `run_ci_gates.py --quick` 50/50; all 16 unit-test projects green. Nothing was
+run in Revit: 16 checks are listed under NEEDS REVIT CHECK in the worklog. Open items:
+ROADMAP DSCH-1..22.

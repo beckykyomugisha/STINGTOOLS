@@ -176,3 +176,120 @@ holds, and each hit was checked by hand. No case mismatches.
    "(first template in the project)".
 10. **Demand factor report (BS 7671).** Run it with the BS 7671 standard selected;
     the description column carries each class's notes.
+
+## Round 5 — the remaining ~40 JObject / custom-parsed files
+
+Three batches (A: legends, manifests, healthcare, IFC, presets, schemas, BEP; B: LPS,
+carbon, keywords, tiers, vocabulary, symbols, brand; C: sustainability, sector packs,
+HVAC loads, MEP design, routing, pipe materials).
+
+| # | Finding | Fix |
+|---|---|---|
+| R5-1 | **Routing rules**: `SeparationRule` / `CorridorBand` had no `[JsonProperty]` for the files' snake_case keys → every separation rule required 0 mm (SeparationChecker never reported), every corridor band admitted every service at FFL+0 | `[JsonProperty]` on 8 members; registry checks both files against the classes (83 failures against the pre-fix class) |
+| R5-2 | **Sector packs**: `OVERHEAD_PROFIT_PCT` written as `BOQ_TENDER_OVERHEAD_PROFIT_PCT`; readers ask for `BOQ_TENDER_OHP_PCT`. Values written with the current culture | Mapped; invariant culture |
+| R5-3 | **BOQ client vocabulary** never loaded: the `_comment` string made the dictionary deserialisation throw | Object-valued entries only |
+| R5-4 | **Material schema checks** read `columns` / `fields`, which MATERIAL_SCHEMA.json never had → "0 columns" failure, Schema Validate checked nothing | Reads `required_columns` / `optional_columns`; it now reports `MAT_COST_UNIT_OF_MEASURE` missing from both libraries → DSCH-16 |
+| R5-5 | **Electrical carbon**: hours keyed `Lifts`, category is `Lifts / Elevators` → lifts at 3000 h not 1500 h | Key renamed |
+| R5-6 | `project_bep.json`: shipped file used as a fallback with keys it lacks; `BIMManagerCommands` writes a project's BEP over the corporate file in `DataPath`; BREEAM Man 01 and the "BIM Execution Plan" readiness check pass because the shipped file exists | ROADMAP DSCH-17 (behaviour change needs an owner) |
+| R5-7 | `TAG_PLACEMENT_PRESETS_DEFAULT.json` never loaded (loader reads a different name and shape); `family-library/manifest.json` never read (URL/SHA are constants; the dialog points at a config key nothing reads); `IFC/STING_IFC_PSET_MAPPING.json` 75 of 132 rows use keys `IfcPsetMapping` does not bind, and the class has no callers; `STING_CLIMATE_MONTHLY` sites carry no latitude (southern-hemisphere orientation backwards) | ROADMAP DSCH-18 |
+| R5-8 | Data shadowed by constants (LPS tolerable risk, `locationCd`, SPD coordination rules, pipe `manningN`, hanger spacing; brand `fonts` / page layout reach nothing) | Added to DSCH-14 |
+| R5-9 | Validator ran 1 m 51 s (class scan per array element) | Memoised: 5 s |
+
+### NEEDS REVIT CHECK (round 5)
+
+11. **Service separation is enforced.** Model a power tray and a data tray running in
+    parallel 100 mm apart → run the separation check (routing validation). Expected: a
+    violation (rule PWR_DATA_PARALLEL_ENCLOSED, 200 mm). Before: none, ever.
+12. **Auto-drop corridor bands.** Run Routing → Auto drop on a hot-water pipe; the drop
+    should target the HWS band (2800-2900 mm), not FFL+0.
+13. **Sector pack OH&P.** Apply the Healthcare sector pack → BOQ tender dialog shows its OH&P %.
+14. **BOQ client vocabulary.** Set the employer to "NHS England" and export a BOQ;
+    paragraphs use that client's terms.
+
+## Round 6 — the project overlays (KUT, Kibale) against their readers
+
+Rebased on `origin/main` first (24 new commits, clean; gate green).
+
+| # | Finding | Fix |
+|---|---|---|
+| R6-1 | **Kibale `rate_card.json` never priced anything**: compiled priority 87 is below the CSV (90) and material library (95), chain highest-first; the registry comment claimed the opposite | `GUIDES/kibale-project-config/boq_rate_policy.json` (rate card 93, as KUT); comment corrected; README row |
+| R6-2 | Kibale `AUTO_TAGGER_DISC_FILTER: ["A","S"]` → JSON text split on `,` → filter matching nothing → auto-tagger skips every element | Reader tolerates arrays; overlay uses `"A,S"` |
+| R6-3 | Kibale `SEQ_SCHEME: "DISC_SYS_LVL"` is not a scheme; dropped silently | Overlay → `Numeric` with a note; TagConfig now warns on an unknown value |
+| R6-4 | `ClassificationStandard.Load` read only raw `<rvtDir>/_BIM_COORD`, `Set` writes the consolidated `_data/coord` → choice lasted one session | Load reads `StingPaths.MetaFile` first, raw path as fallback |
+| R6-5 | KUT `project_config.json` ships inside `_BIM_COORD/`, but every reader looks beside the `.rvt` (then `data/`) → the six-building LOC codes and SEQ grouping are never applied | Template layout decision → ROADMAP DSCH-19 |
+| R6-6 | Kibale `boq_custom_templates.json`: templates sharing a category carry no variant matcher, so four are never selected; the deliberately zero "Generic Models" rate-card row is dropped (`UnitRate <= 0`) | Authoring / design → ROADMAP DSCH-19 |
+
+Gates after round 6: validator OK (633 files), self-test 27/27, `run_ci_gates.py --quick`
+50/50, all 16 unit-test projects green (Revit.SmokeTests needs a running Revit and is not
+a CI job: 8 of 13 fail without one, as on main).
+
+### NEEDS REVIT CHECK (round 6)
+
+15. **Classification standard persists.** BIM → set classification standard to CSI, close
+    and reopen the model; it is still CSI.
+16. **Kibale pricing.** With the Kibale overlay copied into `_data/coord` (incl. the new
+    `boq_rate_policy.json`), run a BOQ; wall/floor rates come from `rate_card.json`.
+
+## Round 7 — verification of rounds 1-6, and what the fixes woke up
+
+An independent review re-derived every fix (CostRateCsv gives the same 115 keys and
+rates as the old loader for the shipped file, plus the deliberate `S|FND`). No
+regressions. New defects, three of them live only because earlier fixes made data load:
+
+| # | Finding | Fix |
+|---|---|---|
+| R7-1 | ArchiCAD mappings now load: six target `PER_U_VALUE_W_M` (real: `PER_U_VALUE_W_M2K`); five target parameters defined nowhere; IFC booleans (`TRUE`, `.T.`) dropped for every YES/NO target; an unbound target wrote nothing silently | Name fixed; booleans parsed; unbound target logged once; `valueRefersTo` gate on `sting_param` (5 undefined listed → DSCH-21) |
+| R7-2 | Separation rules now load: max-over-all-rules held a crossing (50 mm) to the parallel open-tray 300 mm | `RulesFor(.., crossing)`; checker detects perpendicular straight runs |
+| R7-3 | Material schema check now reads the schema: counted thousands of empty cells as violations | `required_columns` = column presence only |
+| R7-4 | `ConfigureCostFileCommand` described a model-folder file and a layout no reader understands; Cost File Browser judged the first physical line as the header | Text corrected; browser uses `CostRateCsv.Parse` |
+| R7-5 | `STING_ELECTRICAL_CARBON` has no hours for Cooking / Water Heating / Space Heating / Process (3000 h default); `Lighting_24x7` is a category nothing produces | Not invented: → DSCH-14 |
+
+Gate: self-test 28/28. `run_ci_gates.py --quick` 50/50; Tags 5,158, Boq 1,373, Routing 80,
+Sustainability 438.
+
+### NEEDS REVIT CHECK (round 7)
+
+17. **Crossing vs parallel separation.** Repeat check 11 with the data tray crossing the
+    power tray at 90° and 100 mm apart: no violation (crossing rule, 50 mm). Parallel at
+    100 mm: violation at 300 mm (enclosure is not known from the model).
+18. **ArchiCAD IFC booleans.** Import an IFC whose `Pset_WallCommon.IsExternal` is `.T.`;
+    the mapped YES/NO parameter is set.
+
+## Round 8 — verification of round 7
+
+| # | Finding | Fix |
+|---|---|---|
+| R8-1 | **Regression from R7-2**: with `crossing`, only crossing/any rules applied, so pairs with only parallel / vertical rules (gas–power, hot–cold water, drainage over water) required 0 mm at a crossing; and the drop curve is vertical, so every horizontal neighbour read as "crossing" (power/data relaxed 300 → 50 mm) | **Reverted** (690b157a1). Conservative max restored; geometry/enclosure-aware selection → ROADMAP DSCH-22. NEEDS REVIT CHECK 17 is withdrawn |
+| R8-2 | ArchiCAD "target not found" warning fired even when the built-in fallback wrote the value | Warns only when nothing wrote |
+| R8-3 | `STING_IFC_PSET_MAPPING.json` names `ASS_TAG_1` (real: `ASS_TAG_1_TXT`); its reader has no callers | Fixed |
+| R8-4 | Registry exceptions (`alsoAllowed`) were never checked for staleness | Gate fails when an allowed name now exists; self-test 29 |
+| R8-5 | Parameter-name scan of all Data JSON (`sting_param` / `param` / `parameter` / `target` …, ~12,000 refs): no other misses (AEC filter `BIM_LOD` is a documented external name) | — |
+
+Decision recorded: when a fix's refinement cannot be made safe from the model alone
+(enclosure, true crossings), keep the conservative check and record the gap, rather
+than relax a safety check on a heuristic.
+
+## Round 9 — verification of round 8: CLEAN
+
+No defects. The revert restores `RoutingRules.cs` / `SeparationChecker.cs` byte-for-byte
+(empty diff against 3e089c39d~1) and nothing referenced the removed members;
+`missingTarget` is correct on every path; `ASS_TAG_1_TXT` exists and no other value in
+the pset map is missing; the stale-allowance walk handles refs without `alsoAllowed` and
+unreadable targets. One hardening taken from it: `STING_IFC_PSET_MAPPING.json`
+`sting_param` is now under `valueRefersTo` (reintroducing `ASS_TAG_1` fails the gate).
+
+Stopping here: a full round found nothing new.
+
+## Totals
+
+| Round | Real defects found | Fixed on this branch | Recorded (ROADMAP) |
+|---|---|---|---|
+| 1 | 10 | 10 | DSCH-1 |
+| 2 | 14 | 11 | DSCH-3..8, DSCH-12 |
+| 3 | 7 | 6 | DSCH-9, DSCH-11 |
+| 4 | 6 | 3 | DSCH-13..15 |
+| 5 | 9 | 6 | DSCH-14, DSCH-16..18 |
+| 6 | 6 | 4 | DSCH-19, DSCH-20 |
+| 7 | 5 | 4 | DSCH-14, DSCH-21 |
+| 8 | 5 (1 a regression of round 7) | 4 (incl. the revert) | DSCH-22 |
+| 9 | 0 | — | — |
