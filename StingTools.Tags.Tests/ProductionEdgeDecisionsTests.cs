@@ -12,13 +12,51 @@ namespace StingTools.Tags.Tests
     {
         // ── DTW-194 ───────────────────────────────────────────────────
 
+        // ── DTW-220: the counters gate notes, it never stops the run ─────
+
         [Fact]
-        public void A_run_that_cannot_write_the_counters_says_who_owns_them_and_that_nothing_was_guessed()
+        public void Counters_owned_by_a_colleague_do_not_stop_a_run_that_may_only_reuse_sheets()
         {
-            var line = ProductionEdgeDecisions.CountersBlockedLine("owned by Jane (Project Information)");
+            var gate = ProductionEdgeDecisions.SheetCountersGate(workshared: true, ownerIfOther: "Jane", outOfDate: false);
+            Assert.Equal(ProductionEdgeDecisions.CountersGate.NoteNewSheetsSkipped, gate);
+        }
+
+        [Fact]
+        public void Counters_changed_in_central_are_a_note_too()
+            => Assert.Equal(ProductionEdgeDecisions.CountersGate.NoteNewSheetsSkipped,
+                ProductionEdgeDecisions.SheetCountersGate(true, null, outOfDate: true));
+
+        [Theory]
+        [InlineData(false, "Jane", true)]   // not workshared: nothing to check
+        [InlineData(true, null, false)]     // free, or owned by me
+        [InlineData(true, "  ", false)]     // a blank owner is not a colleague
+        public void Writable_counters_let_the_run_proceed(bool workshared, string owner, bool outOfDate)
+        {
+            Assert.Equal(ProductionEdgeDecisions.CountersGate.Proceed,
+                ProductionEdgeDecisions.SheetCountersGate(workshared, owner, outOfDate));
+            Assert.Null(ProductionEdgeDecisions.CountersNote(workshared, owner, outOfDate));
+        }
+
+        [Fact]
+        public void The_note_names_the_owner_and_says_only_new_sheets_are_skipped()
+        {
+            var line = ProductionEdgeDecisions.CountersNote(true, "Jane", false);
             Assert.Contains("owned by Jane", line);
-            Assert.Contains("never numbered from a guess", line);
-            Assert.StartsWith("Run stopped before any drawing was produced", line);
+            Assert.Contains("new sheet numbers cannot be reserved", line, System.StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("items needing a new sheet will be skipped", line);
+            Assert.DoesNotContain("Run stopped", line);
+        }
+
+        [Fact]
+        public void The_note_for_an_out_of_date_counter_says_reload_latest()
+            => Assert.Contains("reload latest", ProductionEdgeDecisions.CountersNote(true, null, outOfDate: true));
+
+        [Fact]
+        public void Both_reasons_are_named_when_both_hold()
+        {
+            var line = ProductionEdgeDecisions.CountersNote(true, "Jane", true);
+            Assert.Contains("owned by Jane", line);
+            Assert.Contains("reload latest", line);
         }
 
         [Fact]
@@ -32,7 +70,7 @@ namespace StingTools.Tags.Tests
 
         [Fact]
         public void A_missing_reason_still_reads_as_a_reason()
-            => Assert.Contains("reason unknown", ProductionEdgeDecisions.CountersBlockedLine(null));
+            => Assert.Contains("reason unknown", ProductionEdgeDecisions.SheetNotNumberedLine("t", null));
 
         // ── DTW-197 ───────────────────────────────────────────────────
 
@@ -84,6 +122,63 @@ namespace StingTools.Tags.Tests
         public void A_placed_view_is_fitted_again_only_when_its_fit_is_missing_or_stale(
             bool pinned, bool recorded, int fitBase, int typeScale, bool expected)
             => Assert.Equal(expected, ProductionEdgeDecisions.RefitOnRerun(pinned, recorded, fitBase, typeScale));
+
+        // ── DTW-215: Sync Styles honours the fit production recorded ──
+
+        [Fact]
+        public void Sync_styles_keeps_a_fitted_scale_while_the_type_scale_is_unchanged()
+        {
+            Assert.Equal(200, ProductionEdgeDecisions.ScaleOnResync(typeScale: 100, fittedScale: 200, fitBaseScale: 100, out var drop));
+            Assert.False(drop);
+        }
+
+        [Fact]
+        public void Sync_styles_applies_a_changed_type_scale_and_drops_the_stale_fit()
+        {
+            Assert.Equal(0, ProductionEdgeDecisions.ScaleOnResync(typeScale: 50, fittedScale: 200, fitBaseScale: 100, out var drop));
+            Assert.True(drop);
+        }
+
+        [Fact]
+        public void Sync_styles_without_a_fit_applies_the_type_scale_and_drops_nothing()
+        {
+            Assert.Equal(0, ProductionEdgeDecisions.ScaleOnResync(100, 0, 0, out var drop));
+            Assert.False(drop);
+        }
+
+        [Theory]
+        [InlineData(100, 200, 100, 200)]   // fitted, type unchanged: the fitted scale is not drift
+        [InlineData(50, 200, 100, 50)]     // type changed: the type scale is expected
+        [InlineData(100, 0, 0, 100)]       // no record: the type scale
+        public void The_drift_check_expects_the_scale_sync_styles_would_keep(int typeScale, int fitted, int fitBase, int expected)
+            => Assert.Equal(expected, ProductionEdgeDecisions.ExpectedScale(typeScale, fitted, fitBase));
+
+        // ── DTW-216: every caller of the producer rolls a refused item back ──
+
+        [Fact]
+        public void A_refused_item_hands_back_its_reason_and_reports_it_once()
+        {
+            var into = new List<string> { "earlier" };
+            var failure = ProductionEdgeDecisions.TakeItem(
+                new[] { "note A", "no sheet was made", "note B" }, "no sheet was made", into);
+            Assert.Equal("no sheet was made", failure);
+            Assert.Equal(new[] { "earlier", "note A", "note B" }, into);   // the reason is the rollback line's, not a note
+        }
+
+        [Fact]
+        public void A_kept_item_passes_every_note_through_and_no_reason()
+        {
+            var into = new List<string>();
+            Assert.Null(ProductionEdgeDecisions.TakeItem(new[] { "note A" }, null, into));
+            Assert.Equal(new[] { "note A" }, into);
+        }
+
+        [Fact]
+        public void A_refused_item_line_names_the_item_and_says_nothing_was_kept()
+        {
+            var line = ProductionEdgeDecisions.RolledBackLine("Board DB-1", "no sheet was made");
+            Assert.Equal("Board DB-1: no sheet was made — rolled back; nothing of it was kept.", line);
+        }
 
         [Fact]
         public void A_replaced_template_is_named_with_the_way_to_keep_it()
@@ -270,6 +365,99 @@ namespace StingTools.Tags.Tests
             var line = ProductionEdgeDecisions.KeptOnOtherSheetLine("Power - Level 1", "E-105", "E-101");
             Assert.Contains("kept on sheet E-105", line);
             Assert.Contains("not placed on E-101", line);
+        }
+
+        // ── DTW-224: managed templates and pack filters are pre-checked ─
+
+        [Fact]
+        public void Rule_view_types_name_the_managed_templates_an_item_can_touch()
+        {
+            var vts = ProductionEdgeDecisions.ManagedTemplateViewTypes(new[] { "FloorPlan", "RCP", "Section" });
+            Assert.Contains("FloorPlan", vts);
+            Assert.Contains("EngineeringPlan", vts);   // a structural plan from a FloorPlan rule
+            Assert.Contains("CeilingPlan", vts);       // "RCP" is the STING alias
+            Assert.Contains("Section", vts);
+            Assert.DoesNotContain("ThreeD", vts);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData("Panorama")]
+        public void An_item_whose_view_types_are_not_known_checks_every_template_of_its_pack(string ruleType)
+        {
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(new[] { "FloorPlan", ruleType }));
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(new string[0]));
+            Assert.Null(ProductionEdgeDecisions.ManagedTemplateViewTypes(null));
+        }
+
+        [Fact]
+        public void A_style_element_owned_by_a_colleague_skips_the_item_with_who_holds_it()
+        {
+            var why = ProductionEdgeDecisions.StylePackBlockReason(
+                new[] { new KeyValuePair<string, string>("STING:corp-mep:FloorPlan", "Jane") }, null);
+            Assert.StartsWith("style pack template/filter owned by Jane", why);
+            Assert.Contains("'STING:corp-mep:FloorPlan'", why);
+        }
+
+        [Fact]
+        public void A_style_element_changed_in_central_says_reload_latest()
+            => Assert.Contains("reload latest",
+                ProductionEdgeDecisions.StylePackBlockReason(null, new[] { "M-Supply Air" }));
+
+        [Fact]
+        public void Free_style_elements_do_not_block()
+            => Assert.Null(ProductionEdgeDecisions.StylePackBlockReason(null, null));
+
+        // ── DTW-227: material-class filters are pre-checked too ──
+
+        [Fact]
+        public void A_packs_material_class_filters_are_among_the_filters_it_edits()
+        {
+            // RED before DTW-227: only the named filters were listed, so a material-class
+            // filter owned by a colleague failed the item at commit.
+            var names = ProductionEdgeDecisions.PackFilterNames(
+                new[] { "arch-walls-fire", " arch-doors " },
+                new[] { "Concrete", "Masonry" });
+            Assert.Equal(new[] { "arch-walls-fire", "arch-doors", "STING_MAT_CLASS_Concrete", "STING_MAT_CLASS_Masonry" }, names);
+        }
+
+        [Fact]
+        public void Blank_and_repeated_filter_names_are_listed_once()
+        {
+            var names = ProductionEdgeDecisions.PackFilterNames(
+                new[] { "f1", "", null, "F1" }, new[] { "  ", null, "Wood", "wood" });
+            Assert.Equal(new[] { "f1", "STING_MAT_CLASS_Wood" }, names);
+            Assert.Empty(ProductionEdgeDecisions.PackFilterNames(null, null));
+        }
+
+        // ── DTW-228: a pack with filters disabled disables only its own filters ──
+
+        [Fact]
+        public void A_disabled_pack_disables_only_its_own_filters()
+        {
+            // RED before DTW-228: every filter on the view was disabled, MEP system
+            // colours and Visibility Centre filters included.
+            var packNames = ProductionEdgeDecisions.PackFilterNames(
+                new[] { "arch-walls-fire" }, new[] { "Concrete" });
+            var onView = new[]
+            {
+                new KeyValuePair<int, string>(1, "ARCH-WALLS-FIRE"),
+                new KeyValuePair<int, string>(2, "sting-sys-SA"),
+                new KeyValuePair<int, string>(3, "STING VIS - DISC = M"),
+                new KeyValuePair<int, string>(4, "STING_MAT_CLASS_Concrete"),
+                new KeyValuePair<int, string>(5, "User filter"),
+                new KeyValuePair<int, string>(6, null),
+            };
+            Assert.Equal(new[] { 1, 4 }, ProductionEdgeDecisions.PackFiltersOnView(onView, packNames));
+        }
+
+        [Fact]
+        public void A_pack_with_no_filters_disables_nothing()
+        {
+            var onView = new[] { new KeyValuePair<int, string>(1, "sting-sys-SA") };
+            Assert.Empty(ProductionEdgeDecisions.PackFiltersOnView(onView, ProductionEdgeDecisions.PackFilterNames(null, null)));
+            Assert.Empty(ProductionEdgeDecisions.PackFiltersOnView<int>(null, new[] { "x" }));
         }
     }
 }

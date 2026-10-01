@@ -7,17 +7,17 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 
 ## Resume here
 
-Round 8 is merged on `fix/drawing-review-2` (PR #1040): DTW-149..214, 66 items. Open:
-DTW-82 (in-Revit checks), DTW-102 (linked MEP runs reported, not dimensioned), DTW-215 and
-DTW-216 (both low).
+Every code item is closed (DTW-1..228). One item is left: DTW-82, the in-Revit verification.
+It is now runnable: DOCS → DRAWING TYPES → **Self-Test** runs the automatable checks on the open
+model and rolls everything back (PASS / FAIL / SKIP / INFO plus a CSV under the Validation route).
+`docs/DRAWING_REVIT_TEST_SCRIPT.md` covers the manual rest (P1 first).
 
-1. Mark PR #1040 ready, merge it once CI is green, and ask the ACC session to merge main into
-   `claude/acc-work-review-gaps-7e2ac7` and redeploy STING_KUT_LIVE after Revit closes.
-2. Next pass (round 9): DTW-215 and 216, then a convergence review of the round-8 code. The
-   areas it changed most are worksharing pre-flight, ProducedViewState, lazy sheets, replaces,
-   filter hash refresh, the Excel round-trip and managed V/G.
-3. The in-Revit checks (NEEDS REVIT CHECK below) decide several design points. Run them before
-   another deep pass.
+1. Get the build live. The ACC session redeploys STING_KUT_LIVE after its user approves.
+2. Run Self-Test on a real project and work through the P1 script. The INFO rows answer the open
+   design questions: Lines bindability (DTW-56), filterable phase params (DTW-166), the
+   STRUCTURAL_MATERIAL_TYPE category (DTW-164), the template scale parameter (DTW-170), and crop
+   collection (DTW-172).
+3. Log each FAIL as a new DTW row and fix it; then round 10.
 
 ## State (2026-10-01)
 
@@ -136,7 +136,7 @@ DTW-216 (both low).
 | DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | Merged | Done |
 | DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | Merged | Done |
 | DTW-81 | DrawingProducer.AdoptView | Med | Reported adoption even when the stamp failed; cache failure left a stale index | 08fe22fc9 | Done |
-| DTW-82 | Whole loop | High | Nothing merged in this loop has been run in Revit | Run the NEEDS REVIT CHECK list | Open (needs Revit) |
+| DTW-82 | Whole loop | High | Nothing merged in this loop has been run in Revit | Self-Test command (DOCS > DRAWING TYPES > Self-Test) + docs/DRAWING_REVIT_TEST_SCRIPT.md | Ready to run in Revit |
 | DTW-83 | AnnotationRunner.cs:356 / TagCategory | High | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | Merged | Done |
 | DTW-84 | MEPDimensioner.cs:152 | Med | Chains never cross fittings; witness lines parallel to their references; no idempotency | Merged | Done |
 | DTW-85 | AnnotationRunner / MEPDimensioner collectors | Med | Host-only: linked MEP and linked grids get no annotation, silently | Merged | Done |
@@ -156,7 +156,7 @@ DTW-216 (both low).
 | DTW-99 | WORKFLOW_MEPDrawingProduction / per-level producer | Med | no_production_boxes suppresses all per-level MEP plans when any STING:: box exists; should skip only covered (type, level) pairs | Merged | Done |
 | DTW-100 | ShopDrawingComposer | Low-Med | ISO spool {lvl} from ASS_LVL_COD_TXT, not the producer's ISO level code | Merged | Done |
 | DTW-101 | ElementDimensioner.RunColumnToGrid | Low-Med | Column-to-grid uses host grids only | Merged | Done |
-| DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Accepted limit: dimensioning through a link needs link references on pipe geometry, unverified off-Revit | Open |
+| DTW-102 | AnnotationRunner MEP dimension passes | Low | Linked MEP runs are reported, not dimensioned | Merged (fix/dt-r10-a) | Done |
 | DTW-103 | DrawingProducer.FindExistingSheet ~1314/1340 | Med | Legacy name-only sheet stamp accepted with no level check (the view lookup has one), so after a level rename and reuse the new plan lands on the old level's sheet | Merged | Done |
 | DTW-104 | SheetPlacementBridge.ResolveDrawableForFamily ~357 | Med | A failed title-block spec load is cached for the session | Merged | Done |
 | DTW-105 | DrawingProducer.BuildIsoLevelMap ~2377 | Low-Med | ISO sheet level ignores project-declared level codes (spatial_codes.json), unlike tags, boxes and project-pattern sheets | Merged | Done |
@@ -269,8 +269,20 @@ DTW-216 (both low).
 | DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | Merged | Done |
 | DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | Merged | Done |
 | DTW-214 | DrawingTypeEditorDialog new pack | Low | Still adds 'scale' to managedFields (ignored since DTW-170) | Merged | Done |
-| DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Read ProducedViewState in Sync Styles | Open |
-| DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Route them through the item runner or honour Failure | Open |
+| DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Merged (fix/dt-r9-a) | Done |
+| DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Merged (fix/dt-r9-a) | Done |
+| DTW-217 | MepViewProducer:123 / MepCoordinationCommands:67 | Med-High | System filters written to a view whose managed template controls filters: masked, reported applied | Merged | Done |
+| DTW-218 | DrawingProducer.ApplyPresetVg / ApplyPresetOverrides | Med | Preset VG masked by managed templates, counted as applied | Merged | Done |
+| DTW-219 | ManagedTemplateFields phaseFilter | Med | Packs with no phase filter still control it; Show Complete (DTW-208) undone | Merged | Done |
+| DTW-220 | ProductionItemRunner sheet-counter gate | Med | Up-front Project Information gate borrows PI and blocks refresh-only re-runs | Merged | Done |
+| DTW-221 | DrawingProducer.RefreshReusedSheetName | Med | Legacy comparison uses the new name rule; pre-round-8 sheets never renamed | Merged | Done |
+| DTW-222 | ShortLevel vs Renumber | Med-Low | Long digit-ending level names change number shape; Renumber converts existing sheets | Merged | Done |
+| DTW-223 | DrawingProducer CreateSheet catch | Low | Counter burned when ViewSheet.Create throws | Merged | Done |
+| DTW-224 | WorksharingPreflight.ProductionElements | Low | Managed templates and filters edited by the run are not pre-checked | Merged | Done |
+| DTW-225 | DrawingProducer.CreateSheet numbering | Low-Med | New sheets on long digit-ending levels take the new ShortLevel shape while existing sheets use the legacy one | Merged | Done |
+| DTW-226 | ManagedTemplateSyncer vs MEP system filters | Low | Does a pack re-sync keep the system filters MEP coordination added to the template? | Merged | Done |
+| DTW-227 | WorksharingPreflight material-class filters | Low | Not pre-checked | Merged | Done |
+| DTW-228 | ViewStylePackApplier.ApplyFilterEnabled | Low | A pack with filterEnabled=false disables every filter on a view with no managed template, including MEP system filters | Merged (fix/dt-r10-a) | Done |
 
 ## Decisions
 
@@ -349,6 +361,11 @@ DTW-216 (both low).
   type's, but the replacement is reported; locking the view's style keeps the hand-picked one.
 - **Former ids (DTW-203).** `DrawingType.replaces` lists ids a type took over. Production adopts
   their views and sheets; the Doctor lists unknown ids.
+- **Counter gate (DTW-220).** A colleague holding Project Information no longer stops a run or
+  gets borrowed up front. Items that reuse their sheet proceed, and items needing a new number
+  are refused per item. Revit borrows Project Information only when a number is actually written.
+- **MEP colours (DTW-217).** System filters go to the template when it controls filters, so every
+  view using that template is coloured, and the report says so.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 

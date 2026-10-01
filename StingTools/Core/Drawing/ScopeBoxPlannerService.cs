@@ -442,7 +442,16 @@ namespace StingTools.Core.Drawing
                                 warnings.AddRange(pr.Warnings);
                                 continue;
                             }
-                            warnings.AddRange(pr.Warnings);
+                            // DTW-216: a sheet production refused (its number could not be
+                            // reserved) leaves the item unkept, like a batch item.
+                            var failure = pr.TakeInto(warnings);
+                            if (failure != null)
+                            {
+                                t.RollBack();
+                                failed++;
+                                warnings.Add(ProductionEdgeDecisions.RolledBackLine(where, failure));
+                                continue;
+                            }
                             // Counted only once Revit has committed the item: a commit a
                             // failure handler rolls back kept nothing.
                             var status = t.Commit();

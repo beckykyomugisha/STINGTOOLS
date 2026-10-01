@@ -69,6 +69,7 @@ namespace StingTools.Tags
                               (stale.Count > 12 ? $", +{stale.Count - 12} more" : "") +
                               ". Purge Unused removes any with no tags placed on them.");
 
+            var unstyled = new List<string>();
             foreach (var spec in variants)
             {
                 string typeName = spec.CanonicalTypeName;
@@ -120,14 +121,31 @@ namespace StingTools.Tags
                                   $"(TAG_PARA_STATE_{spec.DepthTier}_BOOL is absent), so it renders " +
                                   $"as depth {highestGate}");
 
-                // 2. Style BOOLs: only the matching combo = Yes
+                // 2. Style. TAGFAM-9: TAG_STYLE_CODE_TXT carries it ("2.5BOLD_BLUE");
+                //    the BOOL switches are still driven on families that have them
+                //    (only the matching combo = Yes). A type that gets neither is named.
+                string styleCode = TagStyleFamilyParams.StyleCode(spec.Size, spec.Style, spec.Colour);
+                bool styleWritten = false;
+                if (paramByName.TryGetValue(ParamRegistry.TAG_STYLE_CODE, out var codeFp))
+                {
+                    if (codeFp.StorageType == StorageType.String)
+                    {
+                        try { fm.Set(codeFp, styleCode); styleWritten = true; }
+                        catch (Exception ex) { StingLog.Warn($"Set {ParamRegistry.TAG_STYLE_CODE} on {typeName}: {ex.Message}"); }
+                    }
+                    else
+                        StingLog.Warn($"TagTypeVariantWriter: {ParamRegistry.TAG_STYLE_CODE} on {typeName} is " +
+                                      $"{codeFp.StorageType}, not Text — style code not written");
+                }
                 string activeStyle = ParamRegistry.TagStyleParamName(spec.Size, spec.Style, spec.Colour);
                 foreach (string pname in ParamRegistry.AllTagStyleParams)
                 {
                     if (!paramByName.TryGetValue(pname, out var pfp)) continue;
-                    try { SetFamilyBool(fm, pfp, string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase)); }
+                    bool on = string.Equals(pname, activeStyle, StringComparison.OrdinalIgnoreCase);
+                    try { SetFamilyBool(fm, pfp, on); if (on) styleWritten = true; }
                     catch (Exception ex) { StingLog.Warn($"Set {pname} on {typeName}: {ex.Message}"); }
                 }
+                if (!styleWritten) unstyled.Add(typeName);
 
                 // 3. Arrowhead (type param LEADER_ARROWHEAD via BuiltInParameter)
                 try
@@ -161,8 +179,23 @@ namespace StingTools.Tags
                 }
             }
 
+            LastUnstyledTypes = unstyled;
+            if (unstyled.Count > 0)
+                StingLog.Warn($"TagTypeVariantWriter: {unstyled.Count} type(s) carry no style — the family has " +
+                              $"neither {ParamRegistry.TAG_STYLE_CODE} nor the matching TAG_*_BOOL switch, so the " +
+                              "type name is the only record of its style: " + string.Join(", ", unstyled.Take(12)) +
+                              (unstyled.Count > 12 ? $", +{unstyled.Count - 12} more" : "") +
+                              ". Run Migrate Tag Families to add the code parameter.");
+
             return created;
         }
+
+        /// <summary>
+        /// TAGFAM-9: types from the most recent <see cref="CreateStandardVariants"/> call
+        /// on which no style was recorded — the family has neither TAG_STYLE_CODE_TXT nor
+        /// the type's TAG_*_BOOL switch. Callers add it to their report.
+        /// </summary>
+        public static IReadOnlyList<string> LastUnstyledTypes { get; private set; } = Array.Empty<string>();
 
         /// <summary>
         /// Set a tag-formula BOOL on a family type, regardless of whether the parameter

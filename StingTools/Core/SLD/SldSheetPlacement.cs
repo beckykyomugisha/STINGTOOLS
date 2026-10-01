@@ -51,6 +51,15 @@ namespace StingTools.Core.SLD
                 {
                     tx.Start();
                     pr = DrawingProducer.PlaceExistingView(doc, dt, new DrawingContext { Tag = contextTag, FormerDrawingTypeIds = formerDrawingTypeIds }, view);
+                    // DTW-216: a placement production refused (the sheet number could not be
+                    // reserved) is not kept — the view's stamps go with it.
+                    if (pr.Failure != null)
+                    {
+                        tx.RollBack();
+                        foreach (var w in pr.Warnings.Where(w => w != pr.Failure).Distinct()) StingLog.Warn($"SldSheetPlacement {drawingTypeId}: {w}");
+                        StingLog.Warn($"SldSheetPlacement {drawingTypeId}: {pr.Failure} — rolled back.");
+                        return $"'{view.Name}' is not on a sheet: {pr.Failure} (rolled back).";
+                    }
                     var status = tx.Commit();
                     if (status != TransactionStatus.Committed)
                     {

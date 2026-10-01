@@ -1582,7 +1582,7 @@
                             "kind":  "tagFamily",
                             "category":  "Specialty Equipment Asset",
                             "discipline":  "*",
-                            "familyFile":  "STING - Specialty Equipment Tag Asset Tag.rfa",
+                            "familyFile":  "STING - Specialty Equipment Tag Asset.rfa",
                             "checksum":  "27b2dd920035f4b574648d184f6e594acb0c92f38378fe0242d0e05c7273b1b8",
                             "status":  "built",
                             "origin":  "corporate"
@@ -1592,7 +1592,7 @@
                             "kind":  "tagFamily",
                             "category":  "Specialty Equipment General",
                             "discipline":  "*",
-                            "familyFile":  "STING - Specialty Equipment Tag General Tag.rfa",
+                            "familyFile":  "STING - Specialty Equipment Tag General.rfa",
                             "checksum":  "aa752531884e5e245e9aab6e5ea97620d33858f105eeccae499e015f83f85d1a",
                             "status":  "built",
                             "origin":  "corporate"

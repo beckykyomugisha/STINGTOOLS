@@ -55,6 +55,19 @@ namespace StingTools.Core.Mep
         public List<string> Warnings { get; } = new List<string>();
         public int Applied => Rows.Count(r => r.Applied);
         public int Unmatched => Rows.Count(r => !r.Applied);
+
+        /// <summary>DTW-217: where the filters were written — the view, or (when its
+        /// template controls V/G filters) that template.</summary>
+        public string HostName { get; set; } = "";
+        public bool ViaTemplate { get; set; }
+        /// <summary>DTW-217: the template was already coloured earlier in this batch;
+        /// this result is that earlier one.</summary>
+        public bool AlreadyDone { get; set; }
+
+        /// <summary>One clause for a report: "on the view" or "through its template 'X'".</summary>
+        public string WhereText => ViaTemplate
+            ? $"through its view template '{HostName}' (it controls V/G filters; every view using it is coloured)"
+            : "on the view";
     }
 
     public static class MepCoordinationEngine
@@ -223,6 +236,48 @@ namespace StingTools.Core.Mep
                 }
             }
             return result;
+        }
+
+        /// <summary>
+        /// DTW-217: the element a view's V/G filters must be written to. A view whose
+        /// template controls VIS_GRAPHICS_FILTERS (every managed STING:* template since
+        /// DTW-163) masks a filter added to the view, so the template is the host.
+        /// </summary>
+        public static View FilterHost(Document doc, View view)
+        {
+            if (doc == null || view == null || view.IsTemplate) return view;
+            if (StingTools.Core.Visibility.VisibilityEngine.FiltersLockedByTemplate(doc, view)
+                && doc.GetElement(view.ViewTemplateId) is View tpl)
+                return tpl;
+            return view;
+        }
+
+        /// <summary>
+        /// DTW-217: <see cref="ApplyToView(Document, View, IList{PresentSystem}, MepDomain)"/>
+        /// on the view's <see cref="FilterHost"/> — the one path every caller uses, so
+        /// a produced view under a managed template is coloured, not reported as coloured
+        /// while its template masks the filters. <paramref name="done"/> (optional, one per
+        /// batch) colours each template once per domain; a repeat returns the first result
+        /// with <see cref="MepCoordResult.AlreadyDone"/> set. Requires an open transaction.
+        /// </summary>
+        public static MepCoordResult ApplyThroughHost(Document doc, View view,
+            IList<PresentSystem> presentSystems = null, MepDomain domain = MepDomain.All,
+            IDictionary<string, MepCoordResult> done = null)
+        {
+            var host = FilterHost(doc, view);
+            if (host == null) return ApplyToView(doc, view, presentSystems, domain);
+            bool viaTemplate = host.IsTemplate && view != null && host.Id != view.Id;
+            string key = host.Id.Value.ToString() + "|" + domain;
+            if (viaTemplate && done != null && done.TryGetValue(key, out var prev))
+            {
+                prev.AlreadyDone = true;
+                return prev;
+            }
+            var res = ApplyToView(doc, host, presentSystems, domain);
+            res.HostName = host.Name;
+            res.ViaTemplate = viaTemplate;
+            if (viaTemplate && done != null) done[key] = res;
+            return res;
         }
 
         // ── resolution (the Phase D priority chain) ──────────────────────────

@@ -39,15 +39,19 @@ namespace StingTools.Core.Drawing
         internal bool Stopped { get; private set; }
 
         /// <summary>
-        /// DTW-194: the run makes sheets, whose numbers come from the counters on Project
-        /// Information. Before the first item those are checked (owned by another user, not
-        /// up to date) and borrowed; if they cannot be written the run stops with the reason
-        /// and produces nothing. Set by the production commands, not by heal / sync passes.
+        /// DTW-194/220: the run may make sheets, whose numbers come from the counters on
+        /// Project Information. Before the first item their status is read — never
+        /// borrowed — and when a colleague owns them, or they changed in central, one note
+        /// goes into the report. The run carries on: items that reuse their sheet are
+        /// produced, and an item needing a new number is refused where the number is
+        /// reserved (DrawingProducer). Set by the production commands, not by heal / sync.
         /// </summary>
         internal bool RequiresSheetCounters { get; set; }
 
         private bool _countersChecked;
-        private string _blockedLine;
+
+        /// <summary>DTW-220: the run-level note about the sheet-number counters, or null.</summary>
+        internal string CountersNote { get; private set; }
 
         /// <param name="total">Items the run will attempt; 0 = no progress window.</param>
         internal ProductionItemRunner(Document doc, string logTag, int total = 0)
@@ -80,27 +84,20 @@ namespace StingTools.Core.Drawing
 
         /// <summary>The report line for a stopped run (null when it was not stopped).</summary>
         internal string StoppedLine(string unit)
-            => _blockedLine ?? (Stopped ? ProductionRunReport.Stopped(Done, _total, unit) : null);
-
-        /// <summary>DTW-194: the reason the run was stopped before it started, or null.</summary>
-        internal string BlockedLine => _blockedLine;
+            => Stopped ? ProductionRunReport.Stopped(Done, _total, unit) : null;
 
         /// <summary>
-        /// DTW-194: once per run, before the first item — can the sheet-number counters be
-        /// written? False (and the run marked stopped) when they cannot.
+        /// DTW-220: once per run, before the first item — read (not borrow) the counters'
+        /// status and put the note, if any, at the head of <paramref name="warnings"/>.
         /// </summary>
-        private bool CountersWritable()
+        private void NoteCounters(List<string> warnings)
         {
-            if (!RequiresSheetCounters || _countersChecked) return _blockedLine == null;
+            if (!RequiresSheetCounters || _countersChecked) return;
             _countersChecked = true;
-            // CheckSheetCounters reports what it could not determine (logged) as "no block":
-            // the write itself is then the arbiter, and a refusal there fails the item.
-            string block = Preflight.CheckSheetCounters();
-            if (block == null) return true;
-            _blockedLine = ProductionEdgeDecisions.CountersBlockedLine(block);
-            Stopped = true;
-            StingLog.Warn($"{_logTag}: {_blockedLine}");
-            return false;
+            CountersNote = Preflight.SheetCountersNote();
+            if (CountersNote == null) return;
+            StingLog.Warn($"{_logTag}: {CountersNote}");
+            warnings?.Insert(0, CountersNote);
         }
 
         /// <summary>
@@ -114,13 +111,7 @@ namespace StingTools.Core.Drawing
         internal ItemResult Run(string transactionName, string label, Func<string> preflight, Action body,
             Func<TransactionStatus, string> notKept, List<string> warnings)
         {
-            if (!CountersWritable())
-            {
-                // DTW-194: nothing opened. The caller's ShouldStop() ends the loop and
-                // StoppedLine() carries the reason into its report.
-                SkippedCount++;
-                return ItemResult.Skipped;
-            }
+            NoteCounters(warnings);
             ShowProgress();
             Status(label);
             try { return RunCore(transactionName, label, preflight, body, notKept, warnings); }

@@ -38,8 +38,69 @@ namespace StingTools.Core.Drawing.Dimensioning
         public double Y1 { get; }
     }
 
+    /// <summary>What becomes of one straight line of a run (DTW-102).</summary>
+    public enum MepLineOutcome
+    {
+        /// <summary>Two or more stops with references: dimension it.</summary>
+        Dimension,
+        /// <summary>Fewer than two points on the line at all.</summary>
+        TooShort,
+        /// <summary>Enough points, but not every one survived conversion to a link reference.</summary>
+        LinkReferencesRefused,
+    }
+
+    /// <summary>
+    /// DTW-102: the linked-run count a dimension pass reports. Every linked line it
+    /// could not dimension is counted with the first reason, so a link whose
+    /// references Revit will not carry is a warning with a number, never silence.
+    /// </summary>
+    public sealed class LinkedMepTally
+    {
+        public int DimensionedCount { get; private set; }
+        public int RefRefusedCount { get; private set; }
+        public int DimRefusedCount { get; private set; }
+        public int NotDimensionedCount => RefRefusedCount + DimRefusedCount;
+        public string FirstReason { get; private set; }
+
+        public void Placed() => DimensionedCount++;
+
+        /// <summary>A line left with fewer than two link references.</summary>
+        public void RefRefused(string reason) { RefRefusedCount++; Note(reason); }
+
+        /// <summary>A line whose dimension Revit refused (NewDimension threw or returned null).</summary>
+        public void DimRefused(string reason) { DimRefusedCount++; Note(reason); }
+
+        private void Note(string reason)
+        {
+            if (FirstReason == null && !string.IsNullOrWhiteSpace(reason)) FirstReason = reason.Trim();
+        }
+
+        /// <summary>The warning for <paramref name="pass"/>, or null when every linked line was dimensioned.</summary>
+        public string Warning(string pass)
+        {
+            if (NotDimensionedCount == 0) return null;
+            return $"{pass}: {DimensionedCount} linked line(s) dimensioned through their link; {NotDimensionedCount} linked "
+                 + $"line(s) not dimensioned ({RefRefusedCount} without usable link references, {DimRefusedCount} refused by "
+                 + $"Revit) — first: {FirstReason ?? "no reason given"}. Dimension those in the MEP model.";
+        }
+    }
+
     public static class MepRunPlanning
     {
+        /// <summary>
+        /// DTW-102: what to do with a line that had <paramref name="positions"/> distinct
+        /// stop positions before references were made and <paramref name="keptWithRefs"/>
+        /// after. A host line never loses stops to references; a linked line can, when
+        /// Revit will not make a link reference for a fitting plane or pipe end — that is
+        /// a fallback to report, not a line too short to dimension. A line that lost ANY
+        /// position is not placed: its chain would silently skip a fitting.
+        /// </summary>
+        public static MepLineOutcome LineOutcome(int positions, int keptWithRefs)
+        {
+            if (positions < 2) return MepLineOutcome.TooShort;
+            return keptWithRefs >= positions ? MepLineOutcome.Dimension : MepLineOutcome.LinkReferencesRefused;
+        }
+
         /// <summary>
         /// Group <paramref name="curves"/> into runs. Two curves are in one run when
         /// they connect directly or through any chain of <paramref name="isJoint"/>

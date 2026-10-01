@@ -21,13 +21,15 @@ python tools/recount_unreachable_commands.py --check    # CI gate
 
 ## Counts — re-derived 2026-10-01
 
-- **Total IExternalCommand classes**: **1784**
-- **Reached by a dispatch layer**: **1759**
+- **Total IExternalCommand classes**: **1785**
+- **Reached by a dispatch layer**: **1760**
 - **Referenced only from non-dispatch code**: **1**
 - **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1784; the script fails if they stop adding up.
+The four buckets partition all 1785; the script fails if they stop adding up.
+
+**+1 on 2026-10-01 (origin/main #1052 merged)**: `DrawingSelfTestCommand` (`DrawingTypes_SelfTest`), reached from DOCS → DRAWING TYPES → Self-Test and its handler case.
 
 **+13 on 2026-10-01 (origin/main #1021 merged into the ACC integration branch)**: 13 more commands are declared and 13 more are reached. Separately, one command left the named-nowhere bucket and one entry is now referenced-only: `AccUploadCommandBase`, the abstract base class the ACC upload and retire commands derive from. It is never dispatched itself, and the concrete commands are reached.
 

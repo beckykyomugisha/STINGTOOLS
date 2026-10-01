@@ -234,15 +234,25 @@ namespace StingTools.Tags
                 var diag = TagStyleEngine.LastApplyDiagnostics;
                 var body = new System.Text.StringBuilder();
                 body.AppendLine($"Style: {preset.TypeName}");
-                body.AppendLine($"Parameter: {preset.ParamName}");
+                body.AppendLine($"Parameter: {preset.ParamName} / {ParamRegistry.TAG_STYLE_CODE} = {diag?.StyleCode}");
                 body.AppendLine($"Element types updated: {updated}");
+                if (diag != null && diag.NoStyleTarget > 0)
+                {
+                    // TAGFAM-9: a STING tag type with neither the style code nor the switch.
+                    body.AppendLine();
+                    body.AppendLine($"⚠ {diag.NoStyleTarget} STING tag type(s) could not record the style — " +
+                                     $"they carry neither {ParamRegistry.TAG_STYLE_CODE} nor '{diag.ActiveParam}':");
+                    foreach (string n in diag.NoStyleTargetNames.Take(10)) body.AppendLine($"  {n}");
+                    if (diag.NoStyleTarget > 10) body.AppendLine($"  … +{diag.NoStyleTarget - 10} more (see log)");
+                    body.AppendLine("Fix: run Migrate Tag Families to add the style code parameter.");
+                }
                 if (updated == 0 && diag != null)
                 {
                     body.AppendLine();
                     body.AppendLine($"Scanned {diag.Scanned} element types.");
-                    if (diag.HadAnyStyleParam == 0)
+                    if (diag.HadAnyStyleParam == 0 && diag.HadStyleCode == 0)
                     {
-                        body.AppendLine("None of them carry any TAG_*_BOOL style parameter.");
+                        body.AppendLine($"None of them carry {ParamRegistry.TAG_STYLE_CODE} or any TAG_*_BOOL style parameter.");
                         body.AppendLine("Fix: load STING-compatible tag families, or run");
                         body.AppendLine("Family Parameter Creator to inject style params into existing families.");
                     }

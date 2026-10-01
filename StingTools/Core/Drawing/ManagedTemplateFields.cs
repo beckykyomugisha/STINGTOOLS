@@ -62,15 +62,28 @@ namespace StingTools.Core.Drawing
         };
 
         /// <summary>
+        /// DTW-219: fields the template controls only when the pack names a value. A
+        /// template that controls VIEW_PHASE_FILTER without one keeps whatever the seed
+        /// view carried ("Show All"), which undid the Show Complete production gives each
+        /// view (DTW-208) — every default-field pack listed phaseFilter and none named one.
+        /// Left uncontrolled, the view keeps its own phase and phase filter.
+        /// </summary>
+        internal static readonly IReadOnlyCollection<string> ControlledOnlyWithValue =
+            new[] { "phaseFilter", "phase" };
+
+        /// <summary>
         /// The fields a managed pack actually controls: what it declares (or the
         /// syncer's defaults), minus <see cref="NeverControlled"/>, plus every
         /// field whose payload the pack carries, minus <see cref="NeverControlled"/>.
         /// Order-stable, de-duplicated. <paramref name="ignored"/> receives each
-        /// declared field that was refused.
+        /// declared field that was refused. <paramref name="hasPhaseFilter"/> /
+        /// <paramref name="hasPhase"/>: the pack names one (DTW-219) — without a value
+        /// the field is dropped silently, since listing it is the default set, not a choice.
         /// </summary>
         internal static List<string> Effective(IEnumerable<string> declared,
             bool hasVgOverrides, bool hasFilters, bool hasWorksetVisibility,
-            bool hasViewRange, Action<string> ignored = null)
+            bool hasViewRange, Action<string> ignored = null,
+            bool hasPhaseFilter = false, bool hasPhase = false)
         {
             var result = new List<string>();
             void Add(string f) { if (!result.Contains(f, StringComparer.Ordinal)) result.Add(f); }
@@ -79,6 +92,8 @@ namespace StingTools.Core.Drawing
             {
                 if (string.IsNullOrWhiteSpace(f)) continue;
                 if (NeverControlled.ContainsKey(f)) { ignored?.Invoke(f); continue; }
+                if (ControlledOnlyWithValue.Contains(f)
+                    && !(f == "phaseFilter" ? hasPhaseFilter : hasPhase)) continue;
                 Add(f);
             }
             if (hasVgOverrides)       Add("vgOverrides");
