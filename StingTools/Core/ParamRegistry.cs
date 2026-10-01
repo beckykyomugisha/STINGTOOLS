@@ -1080,52 +1080,31 @@ namespace StingTools.Core
 
         // ── Phase 179a — Plumbing enhancement (drainage / supply / system) ──
         public static string PLM_DRN_DU            => Ext("PLM_DRN_DU");
-        public static string PLM_DRN_DN_REQ        => Ext("PLM_DRN_DN_REQ");
-        public static string PLM_DRN_QWW           => Ext("PLM_DRN_QWW");
-        public static string PLM_DRN_HD_RATIO      => Ext("PLM_DRN_HD_RATIO");
         public static string PLM_DRN_INV_US        => Ext("PLM_DRN_INV_US");
         public static string PLM_DRN_INV_DS        => Ext("PLM_DRN_INV_DS");
         public static string PLM_DRN_COVER_US      => Ext("PLM_DRN_COVER_US");
         public static string PLM_DRN_COVER_DS      => Ext("PLM_DRN_COVER_DS");
         public static string PLM_HAS_TRAP          => Ext("PLM_HAS_TRAP");
-        public static string PLM_TRAP_ARM          => Ext("PLM_TRAP_ARM");
-        public static string PLM_VENT_TYPE         => Ext("PLM_VENT_TYPE");
         public static string PLM_SUP_LU_CW         => Ext("PLM_SUP_LU_CW");
         public static string PLM_SUP_LU_HW         => Ext("PLM_SUP_LU_HW");
         public static string PLM_SUP_WSFU          => Ext("PLM_SUP_WSFU");
         public static string PLM_SUP_QD            => Ext("PLM_SUP_QD");
         public static string PLM_SUP_DN_REQ        => Ext("PLM_SUP_DN_REQ");
-        public static string PLM_SUP_PRES          => Ext("PLM_SUP_PRES");
         public static string PLM_SUP_VEL           => Ext("PLM_SUP_VEL");
         public static string PLM_SUP_DP            => Ext("PLM_SUP_DP");
-        public static string PLM_DRV_PRESET        => Ext("PLM_DRV_PRESET");
         public static string PLM_EXPVSL_SZ         => Ext("PLM_EXPVSL_SZ");
-        public static string PLM_PRV_SET_BAR       => Ext("PLM_PRV_SET_BAR");
-        public static string PLM_MAT_DCW           => Ext("PLM_MAT_DCW");
-        public static string PLM_MAT_DHW           => Ext("PLM_MAT_DHW");
-        public static string PLM_MAT_DRN           => Ext("PLM_MAT_DRN");
-        public static string PLM_MAT_VNT           => Ext("PLM_MAT_VNT");
-        public static string PLM_BLDG_TYPE         => Ext("PLM_BLDG_TYPE");
-        public static string PLM_K_FACTOR          => Ext("PLM_K_FACTOR");
-        public static string PLM_STD_DRAIN         => Ext("PLM_STD_DRAIN");
-        public static string PLM_STD_SUPPLY        => Ext("PLM_STD_SUPPLY");
-        public static string PLM_AUDIT_DATE        => Ext("PLM_AUDIT_DATE");
 
         // ── Phase 179d — Plumbing network, pump, TMV, spool, real-time sizer ──
         public static string PLM_PUMP_DUTY_HEAD_M   => Ext("PLM_PUMP_DUTY_HEAD_M");
         public static string PLM_PUMP_DUTY_FLOW_LPS => Ext("PLM_PUMP_DUTY_FLOW_LPS");
         public static string PLM_PUMP_MODEL         => Ext("PLM_PUMP_MODEL");
-        public static string PLM_PUMP_EFF_PCT       => Ext("PLM_PUMP_EFF_PCT");
         // PLM_TMV_BLEND_TEMP_C is the design set-point; PLM_TMV_MEASURED_C is the
         // commissioning reading. It, the inlet temperatures and the test dates are consts
         // with the DSCH-36 parameters below. Keeping set-point and reading separate is what
         // lets the outlet check test a measured temperature at all.
-        public static string PLM_TMV_OVERDUE        => Ext("PLM_TMV_OVERDUE");
-        public static string PLM_VENT_PIPE_ID       => Ext("PLM_VENT_PIPE_ID");
         public static string PLM_PIPE_REAL_SIZE     => Ext("PLM_PIPE_REAL_SIZE");
         public static string PLM_PRESSURE_KPA       => Ext("PLM_PRESSURE_KPA");
         public static string PLM_SPOOL_NR           => Ext("PLM_SPOOL_NR");
-        public static string PLM_NETWORK_NODE_TYPE  => Ext("PLM_NETWORK_NODE_TYPE");
 
         // ── COBie / Warranty / Asset fields ──
         public static string WARR_GUAR_PARTS  => Ext("WARR_GUAR_PARTS");
@@ -3293,47 +3272,26 @@ namespace StingTools.Core
             _extendedParams["PRJ_PLUMBING_CODE"]= "PLM_PRJ_PLUMBING_CODE_TXT";
             // Phase 179a — plumbing enhancement: drainage / supply / system params.
             _extendedParams["PLM_DRN_DU"]       = "PLM_DRN_DU_NR";
-            _extendedParams["PLM_DRN_DN_REQ"]   = "PLM_DRN_DN_REQ_MM";
-            _extendedParams["PLM_DRN_QWW"]      = "PLM_DRN_QWW_LPS";
-            _extendedParams["PLM_DRN_HD_RATIO"] = "PLM_DRN_HD_RATIO_NR";
             _extendedParams["PLM_DRN_INV_US"]   = "PLM_DRN_INV_US_M";
             _extendedParams["PLM_DRN_INV_DS"]   = "PLM_DRN_INV_DS_M";
             _extendedParams["PLM_DRN_COVER_US"] = "PLM_DRN_COVER_US_M";
             _extendedParams["PLM_DRN_COVER_DS"] = "PLM_DRN_COVER_DS_M";
             _extendedParams["PLM_HAS_TRAP"]     = "PLM_HAS_TRAP_BOOL";
-            _extendedParams["PLM_TRAP_ARM"]     = "PLM_TRAP_ARM_M";
-            _extendedParams["PLM_VENT_TYPE"]    = "PLM_VENT_TYPE_TXT";
             _extendedParams["PLM_SUP_LU_CW"]    = "PLM_SUP_LU_CW_NR";
             _extendedParams["PLM_SUP_LU_HW"]    = "PLM_SUP_LU_HW_NR";
             _extendedParams["PLM_SUP_WSFU"]     = "PLM_SUP_WSFU_NR";
             _extendedParams["PLM_SUP_QD"]       = "PLM_SUP_QD_LPS";
             _extendedParams["PLM_SUP_DN_REQ"]   = "PLM_SUP_DN_REQ_MM";
-            _extendedParams["PLM_SUP_PRES"]     = "PLM_SUP_PRES_BAR";
             _extendedParams["PLM_SUP_VEL"]      = "PLM_SUP_VEL_MPS";
             _extendedParams["PLM_SUP_DP"]       = "PLM_SUP_DP_PAM";
-            _extendedParams["PLM_DRV_PRESET"]   = "PLM_DRV_PRESET_KPA";
             _extendedParams["PLM_EXPVSL_SZ"]    = "PLM_EXPVSL_SZ_L";
-            _extendedParams["PLM_PRV_SET_BAR"]  = "PLM_PRV_SET_BAR_NR";
-            _extendedParams["PLM_MAT_DCW"]      = "PLM_MAT_DCW_TXT";
-            _extendedParams["PLM_MAT_DHW"]      = "PLM_MAT_DHW_TXT";
-            _extendedParams["PLM_MAT_DRN"]      = "PLM_MAT_DRN_TXT";
-            _extendedParams["PLM_MAT_VNT"]      = "PLM_MAT_VNT_TXT";
-            _extendedParams["PLM_BLDG_TYPE"]    = "PLM_BLDG_TYPE_TXT";
-            _extendedParams["PLM_K_FACTOR"]     = "PLM_K_FACTOR_NR";
-            _extendedParams["PLM_STD_DRAIN"]    = "PLM_STD_DRAIN_TXT";
-            _extendedParams["PLM_STD_SUPPLY"]   = "PLM_STD_SUPPLY_TXT";
-            _extendedParams["PLM_AUDIT_DATE"]   = "PLM_AUDIT_DATE_TXT";
             // Phase 179d — pump, TMV, vent, spool, real-time sizer
-            _extendedParams["PLM_PUMP_DUTY_HEAD_M"]   = "PLM_PUMP_DUTY_HEAD_M";
+            _extendedParams["PLM_PUMP_DUTY_HEAD_M"]   = "MEP_PUMP_HEAD_M"; // DSCH-42: PLM_PUMP_DUTY_HEAD_M was defined nowhere
             _extendedParams["PLM_PUMP_DUTY_FLOW_LPS"] = "PLM_PUMP_DUTY_FLOW_LPS";
             _extendedParams["PLM_PUMP_MODEL"]         = "PLM_PUMP_MODEL_TXT";
-            _extendedParams["PLM_PUMP_EFF_PCT"]       = "PLM_PUMP_EFF_PCT";
-            _extendedParams["PLM_TMV_OVERDUE"]        = "PLM_TMV_OVERDUE_BOOL";
-            _extendedParams["PLM_VENT_PIPE_ID"]       = "PLM_VENT_PIPE_ID_TXT";
             _extendedParams["PLM_PIPE_REAL_SIZE"]     = "PLM_PIPE_REAL_SIZE_BOOL";
             _extendedParams["PLM_PRESSURE_KPA"]       = "PLM_PRESSURE_KPA";
-            _extendedParams["PLM_SPOOL_NR"]           = "PLM_SPOOL_NR_TXT";
-            _extendedParams["PLM_NETWORK_NODE_TYPE"]  = "PLM_NETWORK_NODE_TYPE_TXT";
+            _extendedParams["PLM_SPOOL_NR"]           = "ASS_SPOOL_NR_TXT"; // DSCH-42: PLM_SPOOL_NR_TXT was defined nowhere
             // Volume, length, head heights, function
             _extendedParams["ELE_VOLUME"] = "BLE_ELE_VOLUME_CU_M"; _extendedParams["ELE_LENGTH"] = "BLE_ELE_LENGTH_M";
             _extendedParams["DOOR_HEAD_HT"] = "BLE_DOOR_HEAD_HEIGHT_MM"; _extendedParams["DOOR_FUNC"] = "BLE_DOOR_FUNCTION_TXT";

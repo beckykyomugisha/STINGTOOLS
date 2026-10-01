@@ -226,7 +226,7 @@ namespace StingTools.Core.Plumbing
         /// subtracted. PRV / meter classification is taken from the family /
         /// type name (PRV / "PRESSURE REDUCING" / METER / WATER METER) and
         /// from PLM_VLV_BACKFLOW_TYPE_TXT when bound on the accessory. Set-
-        /// point reads from PLM_PRV_SET_BAR_NR / PLM_PRV_SET_PRESSURE_KPA;
+        /// point reads from PLM_PRV_SET_PRESSURE_KPA;
         /// meter Δp from PLM_VLV_DESIGN_DP_KPA.
         /// </summary>
         public static void AccumulatePressure(PipeNetwork net, double inletKpa, double inletElevFt)
@@ -343,14 +343,10 @@ namespace StingTools.Core.Plumbing
 
                 if (info.Kind == AccessoryKind.PRV)
                 {
-                    // Prefer the kPa shared param; fall back to bar then convert.
-                    double kpa = ReadDouble(el, ParamRegistry.PLM_PRV_SET);
-                    if (kpa <= 0)
-                    {
-                        double bar = ReadDouble(el, ParamRegistry.PLM_PRV_SET_BAR);
-                        if (bar > 0) kpa = bar * 100.0; // 1 bar = 100 kPa
-                    }
-                    info.SetPointKpa = kpa;
+                    // PLM_PRV_SET_PRESSURE_KPA is the set point. A bar fallback read
+                    // PLM_PRV_SET_BAR_NR, which no shared-parameter file defined, so it
+                    // never found a value (DSCH-42); removed rather than defined.
+                    info.SetPointKpa = ReadDouble(el, ParamRegistry.PLM_PRV_SET);
                 }
                 else if (info.Kind == AccessoryKind.WaterMeter)
                 {
