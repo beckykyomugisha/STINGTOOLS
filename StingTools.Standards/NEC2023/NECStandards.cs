@@ -99,9 +99,16 @@ namespace StingTools.Standards.NEC2023
         #region Article 310 - Conductor Sizing
 
         /// <summary>
-        /// Table 310.16 - Allowable Ampacities of Insulated Conductors
-        /// Reference: NEC 2023 Table 310.16
-        /// Temperature rating: 60°C, 75°C, and 90°C
+        /// NEC 2023 Table 310.16, Ampacities of Insulated Conductors with Not More Than Three
+        /// Current-Carrying Conductors in Raceway, Cable, or Earth (Directly Buried); 60 / 75 /
+        /// 90 °C columns. Checked row by row on 2026-10-02 against the 2023 table reproduced
+        /// unmarked by NFPA as the base of Public Inputs 1432, 221 and 773-NFPA 70-2023
+        /// [310.16] (all three agree), NEC CMP-6 First Draft public-input report pp. 78-79/307,
+        /// https://docinfofiles.nfpa.org/files/AboutTheCodes/70/70_A2025_NEC_P06_FD_PIResponses.pdf.
+        /// That check corrected seven cells: Cu 3 AWG 90 °C 110→115, Cu 600 kcmil 60 °C
+        /// 355→350, Cu 1500 kcmil 60 °C 520→525, Cu 2000 kcmil 60 °C 560→555, Al 8 AWG
+        /// 60 °C 30→35, Al 300 kcmil 60/90 °C 190/255→195/260, Al 700 kcmil 60/90 °C
+        /// 310/420→315/425. Pinned by StingTools.Tags.Tests/Nec310_16TableTests.
         /// </summary>
         private static readonly Dictionary<string, (int temp60C, int temp75C, int temp90C)> _copperAmpacityTable = new Dictionary<string, (int, int, int)>
         {
@@ -111,7 +118,7 @@ namespace StingTools.Standards.NEC2023
             { "8", (40, 50, 55) },
             { "6", (55, 65, 75) },
             { "4", (70, 85, 95) },
-            { "3", (85, 100, 110) },
+            { "3", (85, 100, 115) },
             { "2", (95, 115, 130) },
             { "1", (110, 130, 145) },
             { "1/0", (125, 150, 170) },
@@ -123,23 +130,23 @@ namespace StingTools.Standards.NEC2023
             { "350", (260, 310, 350) },
             { "400", (280, 335, 380) },
             { "500", (320, 380, 430) },
-            { "600", (355, 420, 475) },
+            { "600", (350, 420, 475) },
             { "700", (385, 460, 520) },
             { "750", (400, 475, 535) },
             { "800", (410, 490, 555) },
             { "900", (435, 520, 585) },
             { "1000", (455, 545, 615) },
             { "1250", (495, 590, 665) },
-            { "1500", (520, 625, 705) },
+            { "1500", (525, 625, 705) },
             { "1750", (545, 650, 735) },
-            { "2000", (560, 665, 750) }
+            { "2000", (555, 665, 750) }
         };
 
         private static readonly Dictionary<string, (int temp60C, int temp75C, int temp90C)> _aluminumAmpacityTable = new Dictionary<string, (int, int, int)>
         {
             { "12", (15, 20, 25) },
             { "10", (25, 30, 35) },
-            { "8", (30, 40, 45) },
+            { "8", (35, 40, 45) },
             { "6", (40, 50, 55) },
             { "4", (55, 65, 75) },
             { "3", (65, 75, 85) },
@@ -150,12 +157,12 @@ namespace StingTools.Standards.NEC2023
             { "3/0", (130, 155, 175) },
             { "4/0", (150, 180, 205) },
             { "250", (170, 205, 230) },
-            { "300", (190, 230, 255) },
+            { "300", (195, 230, 260) },
             { "350", (210, 250, 280) },
             { "400", (225, 270, 305) },
             { "500", (260, 310, 350) },
             { "600", (285, 340, 385) },
-            { "700", (310, 375, 420) },
+            { "700", (315, 375, 425) },
             { "750", (320, 385, 435) },
             { "800", (330, 395, 445) },
             { "900", (355, 425, 480) },
