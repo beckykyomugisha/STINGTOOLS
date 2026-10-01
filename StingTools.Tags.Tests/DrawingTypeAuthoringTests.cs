@@ -78,7 +78,7 @@ namespace StingTools.Tags.Tests
             var merged = DrawingRoutingMatcher.MergeRouting(corp, frozen, out int stale);
 
             Assert.Equal(corp.Count, stale);
-            Assert.Single(merged.Where(r => r.IsProjectRule));
+            Assert.Single(merged, r => r.IsProjectRule);
             Assert.Same(mine, merged[0]);
             // The corporate table survives intact behind the project rule, minus
             // only rules the project rule shadows by signature.

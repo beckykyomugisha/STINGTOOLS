@@ -942,13 +942,47 @@ namespace StingTools.BIMManager
                     Message = $"'{v}' is not a valid {name} value (allowed: {string.Join(", ", valid)})." });
         }
 
+        /// <summary>
+        /// DTW-182: read a numeric cell as a number. A number cell is read with
+        /// GetDouble — no text round-trip, so no culture. A text cell is parsed
+        /// invariant first ("0.25"), then in the current culture ("0,25" on a
+        /// de-DE / fr-FR machine). The old path called GetString() on number
+        /// cells, which formats in the CURRENT culture, then parsed invariant —
+        /// so on a comma-decimal machine every decimal was rejected or ignored.
+        /// </summary>
+        internal static bool TryReadDouble(IXLCell cell, out double value)
+        {
+            value = 0;
+            if (cell == null || cell.IsEmpty()) return false;
+            if (cell.DataType == XLDataType.Number)
+            {
+                value = cell.GetDouble();
+                return true;
+            }
+            var s = cell.GetString().Trim();
+            if (string.IsNullOrEmpty(s)) return false;
+            return double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out value)
+                || double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out value);
+        }
+
+        /// <summary>Integer cell (scale, line weight, transparency): a whole number only.</summary>
+        internal static bool TryReadInt(IXLCell cell, out int value)
+        {
+            value = 0;
+            if (!TryReadDouble(cell, out var d)) return false;
+            if (Math.Abs(d - Math.Round(d)) > 1e-9 || d > int.MaxValue || d < int.MinValue) return false;
+            value = (int)Math.Round(d);
+            return true;
+        }
+
         private static void NumberRange(IXLWorksheet ws, int r, int col, string name,
             List<ImportValidationResult> results, double min, double max)
         {
             if (col < 1) return;
-            var v = ws.Cell(r, col).GetString().Trim();
+            var cell = ws.Cell(r, col);
+            var v = cell.GetString().Trim();
             if (string.IsNullOrEmpty(v)) return;
-            if (!double.TryParse(v, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d))
+            if (!TryReadDouble(cell, out var d))
             {
                 results.Add(new ImportValidationResult { Sheet = ws.Name, Row = r, Column = name, Severity = ImportSeverity.Error,
                     Message = $"'{v}' is not a valid number for {name}." });
@@ -1074,7 +1108,7 @@ namespace StingTools.BIMManager
                 Set("DrawingType", id, "phase",       d.Phase,       ws.Cell(r,  7).GetString(), v => d.Phase = v, changes);
                 Set("DrawingType", id, "paperSize",   d.PaperSize,   ws.Cell(r,  8).GetString(), v => d.PaperSize = v, changes);
                 Set("DrawingType", id, "orientation", d.Orientation, ws.Cell(r,  9).GetString(), v => d.Orientation = v, changes);
-                if (int.TryParse(ws.Cell(r,10).GetString(), out var sc))
+                if (TryReadInt(ws.Cell(r,10), out var sc))
                     Set("DrawingType", id, "scale",   d.Scale,       sc, v => d.Scale = v, changes);
                 Set("DrawingType", id, "detailLevel",      d.DetailLevel,      ws.Cell(r,11).GetString(), v => d.DetailLevel = v, changes);
                 Set("DrawingType", id, "viewStylePackId",  d.ViewStylePackId,  ws.Cell(r,12).GetString(), v => d.ViewStylePackId = v, changes);
@@ -1085,12 +1119,12 @@ namespace StingTools.BIMManager
 
                 d.Crop ??= new DrawingCropStrategy();
                 Set("DrawingType", id, "cropMode", d.Crop.Kind, ws.Cell(r,17).GetString(), v => d.Crop.Kind = v, changes);
-                if (double.TryParse(ws.Cell(r,18).GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var mm))
+                if (TryReadDouble(ws.Cell(r,18), out var mm))
                     Set("DrawingType", id, "cropMarginMm", d.Crop.MarginMm, mm, v => d.Crop.MarginMm = v, changes);
 
                 d.Print ??= new PrintOverride();
                 Set("DrawingType", id, "printColourScheme", d.Print.ColourScheme, ws.Cell(r,19).GetString(), v => d.Print.ColourScheme = v, changes);
-                if (double.TryParse(ws.Cell(r,20).GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lws))
+                if (TryReadDouble(ws.Cell(r,20), out var lws))
                     Set("DrawingType", id, "printLineWeightScale", d.Print.LineWeightScale, (double?)lws, v => d.Print.LineWeightScale = v, changes);
                 bool halftone = string.Equals(ws.Cell(r,21).GetString().Trim(), "TRUE", StringComparison.OrdinalIgnoreCase);
                 Set("DrawingType", id, "printHalftoneLinks", d.Print.HalftoneLinks, halftone, v => d.Print.HalftoneLinks = v, changes);
@@ -1098,7 +1132,7 @@ namespace StingTools.BIMManager
                 d.Annotation ??= new AnnotationRulePack();
                 Set("DrawingType", id, "annotationDimensionStrategy", d.Annotation.DimensionStrategy, ws.Cell(r,22).GetString(), v => d.Annotation.DimensionStrategy = v, changes);
                 Set("DrawingType", id, "annotationDimensionStyle",    d.Annotation.DimensionStyle,    ws.Cell(r,23).GetString(), v => d.Annotation.DimensionStyle = v, changes);
-                if (int.TryParse(ws.Cell(r,24).GetString(), out var dus))
+                if (TryReadInt(ws.Cell(r,24), out var dus))
                     Set("DrawingType", id, "annotationDenseUntilScale", d.Annotation.DenseUntilScale, (int?)dus, v => d.Annotation.DenseUntilScale = v, changes);
 
                 // checksum column (25) not written — locked
@@ -1122,7 +1156,7 @@ namespace StingTools.BIMManager
                 Set("StylePack", id, "extends",     p.Extends,     ws.Cell(r, 5).GetString(), v => p.Extends = v, changes);
 
                 p.Appearance ??= new StylePackAppearance();
-                if (double.TryParse(ws.Cell(r, 6).GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lws))
+                if (TryReadDouble(ws.Cell(r, 6), out var lws))
                     Set("StylePack", id, "lineWeightScale", p.Appearance.LineWeightScale, (double?)lws, v => p.Appearance.LineWeightScale = v, changes);
                 Set("StylePack", id, "textStyleName",      p.Appearance.TextStyleName,      ws.Cell(r, 7).GetString(), v => p.Appearance.TextStyleName = v, changes);
                 Set("StylePack", id, "dimensionStyleName", p.Appearance.DimensionStyleName, ws.Cell(r, 8).GetString(), v => p.Appearance.DimensionStyleName = v, changes);
@@ -1160,12 +1194,12 @@ namespace StingTools.BIMManager
                 }
                 var ov = new StylePackVgOverride();
                 var pc = ws.Cell(r, 3).GetString().Trim(); if (!string.IsNullOrEmpty(pc)) ov.ProjColor = pc;
-                if (int.TryParse(ws.Cell(r, 4).GetString(), out var pw)) ov.ProjWeight = pw;
+                if (TryReadInt(ws.Cell(r, 4), out var pw)) ov.ProjWeight = pw;
                 var cc = ws.Cell(r, 5).GetString().Trim(); if (!string.IsNullOrEmpty(cc)) ov.CutColor  = cc;
-                if (int.TryParse(ws.Cell(r, 6).GetString(), out var cw)) ov.CutWeight  = cw;
+                if (TryReadInt(ws.Cell(r, 6), out var cw)) ov.CutWeight  = cw;
                 var ht = ws.Cell(r, 7).GetString().Trim();
                 if (!string.IsNullOrEmpty(ht)) ov.Halftone = string.Equals(ht, "TRUE", StringComparison.OrdinalIgnoreCase);
-                if (int.TryParse(ws.Cell(r, 8).GetString(), out var tr)) ov.Transparency = tr;
+                if (TryReadInt(ws.Cell(r, 8), out var tr)) ov.Transparency = tr;
 
                 dict[cat] = ov;
             }
@@ -1199,10 +1233,10 @@ namespace StingTools.BIMManager
                     Halftone = string.Equals(ws.Cell(r, 4).GetString().Trim(), "TRUE", StringComparison.OrdinalIgnoreCase),
                 };
                 var pc = ws.Cell(r, 5).GetString().Trim(); if (!string.IsNullOrEmpty(pc)) f.ProjColor = pc;
-                if (int.TryParse(ws.Cell(r, 6).GetString(), out var pw)) f.ProjWeight = pw;
+                if (TryReadInt(ws.Cell(r, 6), out var pw)) f.ProjWeight = pw;
                 var cc = ws.Cell(r, 7).GetString().Trim(); if (!string.IsNullOrEmpty(cc)) f.CutColor  = cc;
-                if (int.TryParse(ws.Cell(r, 8).GetString(), out var cw)) f.CutWeight  = cw;
-                if (int.TryParse(ws.Cell(r, 9).GetString(), out var tr)) f.Transparency = tr;
+                if (TryReadInt(ws.Cell(r, 8), out var cw)) f.CutWeight  = cw;
+                if (TryReadInt(ws.Cell(r, 9), out var tr)) f.Transparency = tr;
                 list.Add(f);
             }
 
@@ -1234,11 +1268,11 @@ namespace StingTools.BIMManager
                     ViewType = ws.Cell(r, 3).GetString(),
                     Required = string.Equals(ws.Cell(r,12).GetString().Trim(), "TRUE", StringComparison.OrdinalIgnoreCase),
                 };
-                if (double.TryParse(ws.Cell(r, 4).GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x)) s.NormX = x;
-                if (double.TryParse(ws.Cell(r, 5).GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y)) s.NormY = y;
-                if (double.TryParse(ws.Cell(r, 6).GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var w)) s.NormW = w;
-                if (double.TryParse(ws.Cell(r, 7).GetString(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var h)) s.NormH = h;
-                if (int.TryParse(ws.Cell(r, 8).GetString(), out var sc)) s.Scale = sc;
+                if (TryReadDouble(ws.Cell(r, 4), out var x)) s.NormX = x;
+                if (TryReadDouble(ws.Cell(r, 5), out var y)) s.NormY = y;
+                if (TryReadDouble(ws.Cell(r, 6), out var w)) s.NormW = w;
+                if (TryReadDouble(ws.Cell(r, 7), out var h)) s.NormH = h;
+                if (TryReadInt(ws.Cell(r, 8), out var sc)) s.Scale = sc;
                 var dl = ws.Cell(r, 9).GetString().Trim(); if (!string.IsNullOrEmpty(dl)) s.DetailLevel = dl;
                 var vt = ws.Cell(r,10).GetString().Trim(); if (!string.IsNullOrEmpty(vt)) s.ViewTemplate = vt;
                 var vp = ws.Cell(r,11).GetString().Trim(); if (!string.IsNullOrEmpty(vp)) s.ViewportType = vp;

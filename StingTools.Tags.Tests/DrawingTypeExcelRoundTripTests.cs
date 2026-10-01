@@ -59,6 +59,40 @@ namespace StingTools.Tags.Tests
                 errors.Count + " validation error(s):\n" + string.Join("\n", errors.Take(25)));
         }
 
+        // ── DTW-182 ───────────────────────────────────────────────────────
+
+        [Fact]
+        public void Decimal_cells_import_under_a_comma_decimal_culture()
+        {
+            var prior = CultureInfo.CurrentCulture;
+            try
+            {
+                CultureInfo.CurrentCulture = new CultureInfo("de-DE");
+                var dt = ShippedTypes();
+                var packs = ShippedPacks();
+                using var wb = Export(dt, packs);
+
+                var slots = wb.Worksheet("Slots");
+                var slotDt = slots.Cell(2, 1).GetString();
+                slots.Cell(2, 4).Value = 0.37;                       // a number cell
+                var types = wb.Worksheet("DrawingTypes");
+                int row = 2;
+                var typeId = types.Cell(row, 1).GetString();
+                types.Cell(row, 18).Value = "212,5";                  // text typed the German way
+
+                var errors = DrawingTypeExcelEngine.ValidateImport(wb, dt, packs)
+                    .Where(r => r.Severity == ImportSeverity.Error).ToList();
+                Assert.True(errors.Count == 0, string.Join("\n", errors.Take(10)));
+
+                var imp = DrawingTypeExcelEngine.ImportWorkbook(wb, dt, packs);
+                var slot = imp.UpdatedDtLib.DrawingTypes.First(t => t.Id == slotDt).Slots[0];
+                Assert.Equal(0.37, slot.NormX, 6);
+                var t0 = imp.UpdatedDtLib.DrawingTypes.First(t => t.Id == typeId);
+                Assert.Equal(212.5, t0.Crop.MarginMm, 6);
+            }
+            finally { CultureInfo.CurrentCulture = prior; }
+        }
+
         [Fact]
         public void Slot_view_types_come_from_the_runtime_vocabulary()
         {
