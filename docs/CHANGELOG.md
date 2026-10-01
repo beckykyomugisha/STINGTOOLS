@@ -2,6 +2,33 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-7 tie-in tag families renamed to their declared names, 2026-10-01)
+
+- `TieInPointFamilies` carried the verbose declared name as the suffix for Pipe, Duct and Cable Tray, so
+  `GetTieInFamilyName` missed `VariantSuffixToCsvName` and appended " Tag": the families were built and
+  shipped as `STING - Tie-In Point Tag (Duct — HVAC) Tag` etc. while the MEP tag config and
+  `PerFamilyTierMap` declare them without it. The suffixes are now `Tie-In Pipe` / `Tie-In Duct` /
+  `Tie-In Cable Tray` (keys already in `VariantSuffixToCsvName`), and the three `.rfa` files in
+  `Data/TagFamilies` were `git mv`ed to the declared names. Manifest `familyFile` entries follow (ids and
+  checksums unchanged — `restamp_content_manifest.py` reports 210/210 match).
+- One alias table: `Tags/TagFamilyNameAliases.cs` (Revit-free, `TagFamilyConfig.LegacyFamilyNames` points
+  at it) maps each old name to its canonical one and holds the matching rule — trimmed, case-insensitive,
+  "/" read as "-" (a family loaded from a file cannot carry "/", so `LV/ELV` declared is `LV-ELV` loaded).
+  `PerFamilyTierMap.Resolve` now tries exact, then legacy alias, then that match.
+- Existing projects are migrated by **in-place rename on next load**: Load Tag Families and Create Tag
+  Families (`Tags/TagFamilyLegacyRename.cs`) rename a project family that has an old name to the library
+  name when the project does not already hold the new one — placed tags stay on it, and the load then
+  updates it rather than adding a second family. When both are present it is reported and nothing is
+  changed. No family is ever deleted. Renames and conflicts are logged and listed in the load report.
+- Gate: `StingTools.Tags.Tests/TagFamilyNameGateTests` — every creator name equals its CSV /
+  `PerFamilyTierMap` declaration (after "/"-"-") or has none; no doubled "…) Tag"; every shipped `.rfa` is
+  a generated or declared name; no legacy name ships; every alias maps to a name that is generated and
+  shipped; the tier map resolves legacy and "-" spellings. RED against the main creator and library
+  (4 failing), GREEN after. Two older disagreements of the same kind (Specialty Equipment Tag Asset /
+  General) are listed as known and logged as **TAGFAM-10**. Tags suite 5,169 passed; plugin build 0/0.
+- **Not run in Revit.** The rename path (`Family.Name` set inside a transaction) is untested against a
+  real project that holds the old names.
+
 #### Completed (TAGACC-25 discipline profiles: CollisionMode applied, five settings retired, 2026-10-01)
 
 - Decision (architect, TAGACC-25): implement `CollisionMode`; retire `SeqScheme`, `SeqPadWidth`,
