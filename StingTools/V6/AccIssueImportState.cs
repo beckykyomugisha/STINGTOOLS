@@ -83,6 +83,7 @@ namespace StingTools.V6
         {
             error = string.Empty;
             if (string.IsNullOrEmpty(path)) { error = "no path (the model has never been saved)"; return false; }
+            string tmp = null;
             try
             {
                 var o = new JObject
@@ -94,13 +95,13 @@ namespace StingTools.V6
                 };
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                string tmp = path + ".tmp";
+                tmp = AtomicFile.TempFor(path);
                 File.WriteAllText(tmp, o.ToString());
                 if (File.Exists(path)) File.Replace(tmp, path, null);
                 else File.Move(tmp, path);
                 return true;
             }
-            catch (Exception ex) { error = ex.Message; return false; }
+            catch (Exception ex) { error = ex.Message; AtomicFile.Discard(tmp); return false; }
         }
 
         /// <summary>The updatedAt lower bound for the next pull, or null for a full read.

@@ -333,6 +333,32 @@ namespace StingTools.Acc.Tests
             Assert.Contains("held|sig", p.Present());
         }
 
+        // F10: two sessions on the shared KUT folder used one fixed "path.tmp" and could
+        // overwrite or delete each other's half-written file.
+        [Fact]
+        public void Every_atomic_write_uses_its_own_temp_file_and_leaves_none_behind()
+        {
+            string path = Path.Combine(_dir, "state.json");
+            string a = AtomicFile.TempFor(path), b = AtomicFile.TempFor(path);
+            Assert.NotEqual(a, b);
+            Assert.StartsWith(path + ".", a);
+            Assert.EndsWith(".tmp", a);
+
+            Assert.True(AtomicFile.TryWrite(path, "{}", out string err), err);
+            Assert.True(AtomicFile.TryWrite(path, "{\"x\":1}", out err), err);
+            Assert.Equal("{\"x\":1}", File.ReadAllText(path));
+            Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+
+            var ledger = new AccUploadLedger();
+            string lp = Path.Combine(_dir, "ledger.json");
+            Assert.True(ledger.TrySave(lp, out err), err);
+            Assert.True(ledger.TrySave(lp, out err), err);
+            Assert.Empty(Directory.GetFiles(_dir, "*.tmp"));
+
+            AtomicFile.Discard(null);                                  // no-op, never throws
+            AtomicFile.Discard(Path.Combine(_dir, "missing.tmp"));
+        }
+
         [Fact]
         public void Clash_presence_is_tri_state_and_unions_model_sets()
         {

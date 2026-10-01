@@ -93,7 +93,7 @@ namespace StingTools.V6
             try
             {
                 Directory.CreateDirectory(Dir);
-                string p = PathFor(s.Key), tmp = p + ".tmp";
+                string p = PathFor(s.Key), tmp = AtomicFile.TempFor(p);
                 File.WriteAllText(tmp, JsonConvert.SerializeObject(s, Formatting.Indented));
                 if (File.Exists(p)) File.Replace(tmp, p, null); else File.Move(tmp, p);
                 return true;

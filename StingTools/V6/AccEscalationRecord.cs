@@ -411,11 +411,24 @@ namespace StingTools.V6
     /// <summary>Write-temp-then-replace, reporting failure instead of throwing.</summary>
     internal static class AtomicFile
     {
+        /// <summary>F10: a temp name unique to this write. A fixed "path.tmp" let two sessions on
+        /// the shared project folder overwrite or delete each other's half-written file.</summary>
+        public static string TempFor(string path) => path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+
+        /// <summary>Remove a temp file a failed write left behind (best effort; the failure itself
+        /// is already being reported by the caller).</summary>
+        public static void Discard(string tmp)
+        {
+            try { if (!string.IsNullOrEmpty(tmp) && File.Exists(tmp)) File.Delete(tmp); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
+        }
+
         public static bool TryWrite(string path, string text, out string error)
         {
             error = null;
             if (string.IsNullOrEmpty(path)) { error = "no path"; return false; }
-            string tmp = path + ".tmp";
+            string tmp = TempFor(path);
             try
             {
                 string dir = Path.GetDirectoryName(path);

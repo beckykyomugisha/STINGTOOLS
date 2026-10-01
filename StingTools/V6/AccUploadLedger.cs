@@ -234,17 +234,18 @@ namespace StingTools.V6
         public bool TrySave(string path, out string error)
         {
             error = null;
+            string tmp = null;
             try
             {
                 string dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                string tmp = path + ".tmp";
+                tmp = AtomicFile.TempFor(path);
                 File.WriteAllText(tmp, JsonConvert.SerializeObject(this, Formatting.Indented));
                 if (File.Exists(path)) File.Replace(tmp, path, null);
                 else File.Move(tmp, path);
                 return true;
             }
-            catch (Exception ex) { error = ex.Message; return false; }
+            catch (Exception ex) { error = ex.Message; AtomicFile.Discard(tmp); return false; }
         }
     }
 }
