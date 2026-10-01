@@ -648,7 +648,8 @@ namespace StingTools.Core.Drawing
                         if (refs == null) continue;
                         foreach (Reference r in refs)
                         {
-                            var host = doc.GetElement(r);
+                            // Through the link, so a chain to linked grids counts (DTW-85).
+                            var host = ViewLinks.Resolve(doc, r);
                             if (host?.Category == null) continue;
                             if (host.Category.Id.Value == (long)targetCat) return true;
                         }
@@ -677,19 +678,11 @@ namespace StingTools.Core.Drawing
                 return;
             }
 
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfCategory(BuiltInCategory.OST_Grids)
-                .WhereElementIsNotElementType()
-                .Cast<Grid>()
-                .ToList();
-
-            var lines = new List<(Line Line, Reference Ref)>();
-            int arcs = 0;
-            foreach (var g in grids)
-            {
-                if (!(g.Curve is Line line)) { arcs++; continue; }   // arc grids cannot join a linear chain
-                lines.Add((line, new Reference(g)));
-            }
+            // DTW-85: the host's grids AND those of loaded links shown in the view —
+            // an MEP model whose grids live in the linked architectural model found
+            // none and placed no chain. Linked grids carry link references.
+            var gridLines = ViewLinks.StraightGrids(doc, view, stats.Warnings, out int arcs);
+            var lines = gridLines.Select(g => (g.Line, g.Ref)).ToList();
             if (arcs > 0 && lines.Count >= 2)
                 stats.Warnings.Add($"Grid dim: {arcs} arc grid(s) cannot join a linear chain — left out.");
             if (lines.Count < 2) return;
@@ -878,10 +871,16 @@ namespace StingTools.Core.Drawing
                     try
                     {
                         string fam = (doc.GetElement(tag.GetTypeId()) as FamilySymbol)?.FamilyName ?? "";
-                        foreach (var id in tag.GetTaggedLocalElementIds())
+                        // GetTaggedElementIds, not ...LocalElementIds: a tag on a
+                        // linked element is a tag too (DTW-85), keyed by link instance.
+                        foreach (var lid in tag.GetTaggedElementIds())
                         {
-                            if (id == null || id == ElementId.InvalidElementId) continue;
-                            var key = TaggedHostKey.Local(id.Value);
+                            if (lid == null) continue;
+                            long linkInst = lid.LinkInstanceId?.Value ?? -1;
+                            long linked = lid.LinkedElementId?.Value ?? -1;
+                            long hostId = lid.HostElementId?.Value ?? -1;
+                            if (hostId <= 0 && (linkInst <= 0 || linked <= 0)) continue;
+                            var key = TaggedHostKey.From(hostId, linkInst, linked);
                             if (!set.TryGetValue(key, out var fams)) set[key] = fams = new List<string>();
                             fams.Add(fam);
                         }
@@ -959,7 +958,9 @@ namespace StingTools.Core.Drawing
                 .OfCategory(bic)
                 .WhereElementIsNotElementType()
                 .ToElements();
-            if (elements.Count == 0) return;
+            // DTW-85: the same category in loaded links the view shows.
+            var linked = LinkedElementsOf(doc, view, bic, catKey, stats);
+            if (elements.Count == 0 && linked.Count == 0) return;
 
             // B1: a per-rule tagFamily wins over the pack-level TagFamilies map.
             // AutoAnnotationRule.TagFamily was declared and read nowhere, so a rule
@@ -1137,6 +1138,79 @@ namespace StingTools.Core.Drawing
                 }
                 catch (Exception ex) { stats.Warnings.Add($"TagRule create '{el.Id}': {ex.Message}"); }
             }
+
+            // ── DTW-85: linked elements. Same rule filters; the tag references the
+            // element through its link instance and sits at the element's centre
+            // mapped into host coordinates. Material tags need a face reference
+            // through the link, which this pass does not build — counted, not tried.
+            int linkedPlaced = 0, linkedFailed = 0, linkedFaces = 0;
+            string firstLinkedFailure = null;
+            foreach (var (link, les) in linked)
+            {
+                if (tagsFaces) { linkedFaces += les.Count; continue; }
+                foreach (var le in les)
+                {
+                    try
+                    {
+                        var key = TaggedHostKey.Linked(link.Instance.Id.Value, le.Id.Value);
+                        if (skipIfTagged && alreadyTagged != null
+                            && alreadyTagged.TryGetValue(key, out var onLinked)
+                            && TagRuleIdentity.ShouldSkip(onLinked, isSpecialistRule, placedFamily, specialistFamilies))
+                        {
+                            stats.Skipped++;
+                            continue;
+                        }
+                        if (familyRx != null)
+                        {
+                            var et = link.Doc.GetElement(le.GetTypeId()) as ElementType;
+                            if (!RuleFamilyFilter.Matches(familyRx, et?.FamilyName, et?.Name)) continue;
+                        }
+                        if (minSizeMm.HasValue)
+                        {
+                            // No host view for a linked element's own document: measure unviewed.
+                            bool keep = ElementSize.Keeps(le, null, minSizeMm, out bool noSize);
+                            if (noSize) unmeasured++;
+                            if (!keep) { belowMin++; stats.Skipped++; continue; }
+                        }
+
+                        var local = GetElementCentre(le);
+                        if (local == null) { stats.Skipped++; continue; }
+                        var pt = link.Transform.OfPoint(local);
+                        var linkRef = new Reference(le).CreateLinkReference(link.Instance);
+
+                        var tag = IndependentTag.Create(doc, tagTypeId, view.Id, linkRef, addLeader, orientation, pt);
+                        if (tag == null) { linkedFailed++; firstLinkedFailure ??= $"{link.Name}/{le.Id}: Revit returned no tag"; continue; }
+                        if (leader == TagLeaderMode.Free)
+                        {
+                            try { tag.LeaderEndCondition = LeaderEndCondition.Free; }
+                            catch (Exception exL)
+                            {
+                                StingLog.WarnRateLimited("AnnotationRunner.FreeLeader",
+                                    $"Free leader on linked tag {tag.Id} for {catKey}: {exL.Message} — left attached");
+                            }
+                        }
+                        linkedPlaced++;
+                        stats.TagsPlaced++;
+                        if (alreadyTagged != null)
+                        {
+                            if (!alreadyTagged.TryGetValue(key, out var fams)) alreadyTagged[key] = fams = new List<string>();
+                            fams.Add(placedFamily);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        linkedFailed++;
+                        firstLinkedFailure ??= $"{link.Name}/{le.Id}: {ex.Message}";
+                    }
+                }
+            }
+            if (linkedFailed > 0)
+                stats.Warnings.Add($"{catKey}: {linkedFailed} linked element(s) could not be tagged — first: {firstLinkedFailure}");
+            if (linkedFaces > 0)
+                stats.Warnings.Add($"{catKey}: {linkedFaces} element(s) in linked models not given material tags — " +
+                                   "material callouts through a link are not supported yet.");
+            if (linkedPlaced > 0)
+                StingLog.Info($"AnnotationRunner {catKey} in '{view.Name}': {linkedPlaced} linked element(s) tagged.");
 
             if (belowMin > 0)
                 stats.Warnings.Add($"{catKey}: {belowMin} element(s) under minSizeMm {minSizeMm:0.#} not tagged.");

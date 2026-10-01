@@ -161,6 +161,10 @@ namespace StingTools.Core.Drawing
                 }
             }
 
+            // DTW-85: rooms in loaded links; spaces / areas in links are reported.
+            TagLinkedSpatial(doc, view, bic, kind, catKey, stats, alreadyTagged, skipIfTagged, isSpecialistRule,
+                placedFamily, specialistFamilies, tagTypeId, withLeader, orientation);
+
             if (unplaced > 0)
                 stats.Warnings.Add($"{catKey}: {unplaced} unplaced or unbounded element(s) have no position to tag — run Room Audit.");
             if (failed > 0)

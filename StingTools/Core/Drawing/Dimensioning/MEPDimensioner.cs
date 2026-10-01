@@ -57,6 +57,7 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
 
             var elements = CollectMepCurves(doc, view, rule);
+            ReportLinkedMep(doc, view, rule, "MEP chain dim", result);
             if (elements.Count == 0) return;
 
             // Group by connected run — adjacency-cluster via the connector
@@ -86,13 +87,15 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
 
             var elements = CollectMepCurves(doc, view, rule);
+            ReportLinkedMep(doc, view, rule, "MEP grid-drop dim", result);
             if (elements.Count == 0) return;
 
-            var grids = new FilteredElementCollector(doc, view.Id)
-                .OfClass(typeof(Grid)).Cast<Grid>().ToList();
+            // DTW-85: host grids and the grids of loaded links the view shows — an
+            // MEP model's grids usually live in the linked architectural model.
+            var grids = ViewLinks.StraightGrids(doc, view, result.Warnings, out _);
             if (grids.Count == 0)
             {
-                result.Warnings.Add("MEP grid-drop dim: view contains no grids — skipped.");
+                result.Warnings.Add("MEP grid-drop dim: view shows no straight grids, host or linked — skipped.");
                 return;
             }
 
@@ -108,19 +111,48 @@ namespace StingTools.Core.Drawing.Dimensioning
 
         // ── Connector-graph walking ──
 
+        /// <summary>The run categories a rule covers: its own, or every MEP run category for "*".</summary>
+        private static List<BuiltInCategory> RuleCategories(AutoAnnotationRule rule)
+        {
+            var cats = new List<BuiltInCategory>();
+            if (string.IsNullOrEmpty(rule?.Category) || rule.Category == "*")
+                cats.AddRange(MepCurveCats);
+            else
+            {
+                var bic = ElementDimensioner.ResolveBic(rule.Category);
+                if (bic.HasValue) cats.Add(bic.Value);
+            }
+            return cats;
+        }
+
+        /// <summary>
+        /// DTW-85: this pass dimensions host runs only — a dimension to a linked
+        /// pipe's centreline or end needs geometry references through the link,
+        /// which it does not build. Linked runs the view shows are counted and
+        /// reported, so an MEP-in-link drawing does not read as "nothing to do".
+        /// </summary>
+        private static void ReportLinkedMep(Document doc, View view, AutoAnnotationRule rule, string label,
+            AnnotationResult result)
+        {
+            int n = 0;
+            foreach (var link in ViewLinks.InView(doc, view, null))
+            {
+                foreach (var bic in RuleCategories(rule))
+                {
+                    try { n += ViewLinks.Visible(doc, view, link, bic).Count; }
+                    catch (Exception ex) { StingLog.Warn($"{label}: link {link.Name} {bic}: {ex.Message}"); }
+                }
+            }
+            if (n > 0)
+                result.Warnings.Add($"{label}: {n} MEP run(s) in linked models not dimensioned — " +
+                                    "dimensioning linked MEP is not supported by this pass; dimension them in the MEP model.");
+        }
+
         private static List<MEPCurve> CollectMepCurves(Document doc, View view, AutoAnnotationRule rule)
         {
             // Caller can narrow to one category with rule.Category, or "*"
             // for every MEP run category.
-            var cats = new List<BuiltInCategory>();
-            if (string.IsNullOrEmpty(rule?.Category) || rule.Category == "*")
-            {
-                cats.AddRange(MepCurveCats);
-            }
-            else if (Enum.TryParse<BuiltInCategory>(rule.Category, true, out var bic))
-            {
-                cats.Add(bic);
-            }
+            var cats = RuleCategories(rule);
 
             var els = new List<MEPCurve>();
             foreach (var bic in cats)
@@ -256,7 +288,7 @@ namespace StingTools.Core.Drawing.Dimensioning
         }
 
         private static void EmitGridDrop(Document doc, View view, MEPCurve el,
-            List<Grid> grids, DimensionType dimType, AnnotationResult result)
+            List<ViewGridLine> grids, DimensionType dimType, AnnotationResult result)
         {
             if (!(el.Location is LocationCurve lc) || lc.Curve == null) return;
 
@@ -269,12 +301,12 @@ namespace StingTools.Core.Drawing.Dimensioning
             if (nearest.g == null) return;
 
             var refArr = new ReferenceArray();
-            refArr.Append(new Reference(nearest.g));
+            refArr.Append(nearest.g.Ref);
             refArr.Append(lc.Curve.Reference ?? new Reference(el));
 
             // Witness line perpendicular to the grid; offset 300mm clear so
             // the dim doesn't overlay the MEP run.
-            XYZ axis = nearest.g.Curve is Line gl ? gl.Direction : XYZ.BasisX;
+            XYZ axis = nearest.g.Line.Direction;
             var line = DimensionStrategy.BuildWitnessLine(origin, axis, GridDropOffsetMm, 1.0);
 
             try
@@ -290,11 +322,11 @@ namespace StingTools.Core.Drawing.Dimensioning
             }
         }
 
-        private static double PerpDistanceToGrid(XYZ p, Grid g)
+        private static double PerpDistanceToGrid(XYZ p, ViewGridLine g)
         {
             try
             {
-                if (!(g.Curve is Line line)) return double.MaxValue;
+                var line = g.Line;
                 var origin = line.Origin;
                 var dir = line.Direction;
                 var v = p - origin;
