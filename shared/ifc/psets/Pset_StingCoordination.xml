@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingCoordination</Name>
+    <Definition>STING coordination and model-quality state - element revision, clash triage, as-built capture, ACC issue link and model health score. Carried in a STING-owned set because none of these is a buildingSMART property (DSCH-38).</Definition>
+    <IfdGuid>uuid:a1d15c11-0009-4001-9000-000000000009</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.8.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>ISO 19650-2:2018 information container revision; STING clash triage (V6 ClashTriageEngine); Autodesk Construction Cloud Issues; STING model health dashboard</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcElement</ApplicableEntity>
+    <ApplicableEntity>IfcProject</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="Revision" cardinality="optional">
+      <Definition>Current revision code (display label, GROUP 1). See also ASS_REV_COD_TXT (GROUP 17) for the ISO 19650 tag container token. STING parameter ASS_REV_TXT. DSCH-38: moved here from Pset_ConstructionOperation.Revision, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ClashSeverity" cardinality="optional">
+      <Definition>Clash triage severity 1 (lowest) to 5 (highest). STING parameter CLASH_TRIAGE_SEVERITY_NR. DSCH-38: moved here from Pset_ConstructionOperation.ClashSeverity, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ClashResolutionStatus" cardinality="optional">
+      <Definition>Clash resolution status (PENDING / APPLIED / ACCEPTED). STING parameter CLASH_RESOLUTION_STATUS_TXT. DSCH-38: moved here from Pset_ConstructionOperation.ClashResolutionStatus, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="AsBuiltDeviation" cardinality="optional">
+      <Definition>As-built vs as-designed deviation in millimetres. STING parameter ASBUILT_DEVIATION_MM. DSCH-38: moved here from Pset_ConstructionOperation.AsBuiltDeviation, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="AsBuiltCaptureDate" cardinality="optional">
+      <Definition>ISO 8601 date when as-built data captured from Planscape mobile. STING parameter ASBUILT_CAPTURE_DATE_TXT. DSCH-38: moved here from Pset_ConstructionOperation.AsBuiltCaptureDate, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcDate</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ACCIssueId" cardinality="optional">
+      <Definition>Autodesk Construction Cloud Issue GUID for bidirectional sync. STING parameter ACC_ISSUE_ID_TXT. DSCH-38: moved here from Pset_ConstructionOperation.ACCIssueId, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcIdentifier</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ModelHealthScore" cardinality="optional">
+      <Definition>Last model health score 0 to 100. STING parameter HEALTH_SCORE_LAST_NR. DSCH-38: moved here from Pset_ConstructionOperation.ModelHealthScore, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CorporateLock>
+    <Sha256>53b1eabbbca96f38d0ac5ae93589ecffc0d04caac2b8f2611ec7d0bc97878f91</Sha256>
+    <LockedAtVersion>5.8.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

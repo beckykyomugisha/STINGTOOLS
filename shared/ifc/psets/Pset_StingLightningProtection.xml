@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StingPropertySetTemplate xmlns="https://stingtools.io/schema/ifc/psets/v1" version="1.0.0" schema_version="1">
+
+  <Identity>
+    <Name>Pset_StingLightningProtection</Name>
+    <Definition>STING lightning protection system (LPS) design, inspection and zoning data per BS EN 62305, written by the LPS commands. IFC defines no lightning-protection property set (DSCH-38).</Definition>
+    <IfdGuid>uuid:a1d15c11-000c-4001-9000-00000000000c</IfdGuid>
+  </Identity>
+
+  <Governance>
+    <Scope>corporate</Scope>
+    <Origin>baseline</Origin>
+    <SinceVersion>5.8.0</SinceVersion>
+    <Maintainer>STING Tools (Planscape)</Maintainer>
+    <StandardsBasis>BS EN 62305-1/-2/-3/-4:2011 (LPS class, risk assessment, rolling sphere, separation distance, LPZ); BS EN IEC 61643 (SPD types)</StandardsBasis>
+  </Governance>
+
+  <TemplateType>PSET_OCCURRENCEDRIVEN</TemplateType>
+
+  <Applicability>
+    <ApplicableEntity>IfcProject</ApplicableEntity>
+    <ApplicableEntity>IfcElement</ApplicableEntity>
+    <ApplicableEntity>IfcSpace</ApplicableEntity>
+  </Applicability>
+
+  <Properties>
+
+    <Property name="LightningProtectionClass" cardinality="optional">
+      <Definition>LPS class per BS EN 62305 (I / II / III / IV). STING parameter ELC_LPS_CLASS_TXT. DSCH-38: moved here from Pset_LightningProtector.LightningProtectionClass, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="RollingSphereRadius" cardinality="optional">
+      <Definition>Rolling sphere radius in metres per BS EN 62305 class (20 / 30 / 45 / 60). STING parameter ELC_LPS_ROLLING_SPHERE_RADIUS_M. DSCH-38: moved here from Pset_LightningProtector.RollingSphereRadius, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>m</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="MeshSize" cardinality="optional">
+      <Definition>Air terminal mesh grid size in metres per BS EN 62305 class. STING parameter ELC_LPS_MESH_SIZE_M. DSCH-38: moved here from Pset_LightningProtector.MeshSize, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>m</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="AirTerminalCount" cardinality="optional">
+      <Definition>Count of air terminals / lightning rods on the protected zone. STING parameter ELC_LPS_AIR_TERMINAL_COUNT_NR. DSCH-38: moved here from Pset_LightningProtector.AirTerminalCount, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="DownConductorCount" cardinality="optional">
+      <Definition>Count of down conductors per BS EN 62305 (min 2 for class IV, 4 for class I). STING parameter ELC_LPS_DOWN_CONDUCTOR_COUNT_NR. DSCH-38: moved here from Pset_LightningProtector.DownConductorCount, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="EarthElectrodeCount" cardinality="optional">
+      <Definition>Count of earth electrodes serving the LPS. STING parameter ELC_LPS_EARTH_ELECTRODE_COUNT_NR. DSCH-38: moved here from Pset_LightningProtector.EarthElectrodeCount, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcInteger</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="KcFactor" cardinality="optional">
+      <Definition>Current-distribution factor kc per BS EN 62305-3 s.6.3 (1/n with floor 0.1; stamped on Project Information by LPS Class Setup / kc Recalc). STING parameter ELC_LPS_KC_FACTOR_NR. DSCH-38: moved here from Pset_LightningProtector.KcFactor, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="InspectionIntervalMonths" cardinality="optional">
+      <Definition>Inspection interval in months (12 for class I/II, 24 for class III/IV). STING parameter ELC_LPS_INSPECTION_INTERVAL_MONTHS. DSCH-38: moved here from Pset_LightningProtector.InspectionIntervalMonths, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcInteger</DataType>
+      <Unit>month</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="LastInspectionDate" cardinality="optional">
+      <Definition>ISO 8601 date of last LPS test / inspection. STING parameter ELC_LPS_TEST_DATE_TXT. DSCH-38: moved here from Pset_LightningProtector.LastInspectionDate, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcDate</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ComplianceCertificate" cardinality="optional">
+      <Definition>Certificate reference for the LPS inspection / commissioning. STING parameter ELC_LPS_CERT_REF_TXT. DSCH-38: moved here from Pset_LightningProtector.ComplianceCertificate, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ComplianceVerdict" cardinality="optional">
+      <Definition>Plugin-written LPS compliance verdict (PASS / WARN / FAIL / SPACING FAIL / SEP DIST FAIL / EARTH FAIL). STING parameter ELC_LPS_COMPLIANCE_STATUS_TXT. DSCH-38: moved here from Pset_LightningProtector.ComplianceVerdict, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ComponentType" cardinality="optional">
+      <Definition>LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily. STING parameter ELC_LPS_ELEMENT_TYPE_TXT. DSCH-38: moved here from Pset_LightningProtectionTakeOff.ComponentType, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="EarthingResistance" cardinality="optional">
+      <Definition>Measured earth resistance in ohms (target &lt;10 ohm per BS EN 62305). STING parameter ELC_LPS_EARTH_RESISTANCE_OHM. DSCH-38: moved here from Pset_ElectricalCircuit.EarthingResistance, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>ohm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="EarthingArrangement" cardinality="optional">
+      <Definition>Earth electrode type (ROD / RING / FOUNDATION / MESH). STING parameter ELC_LPS_EARTH_TYPE_TXT. DSCH-38: moved here from Pset_LightningProtector.EarthingArrangement, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="BondingType" cardinality="optional">
+      <Definition>Equipotential bonding type (DIRECT / SPD / ISOLATING_SPARK_GAP). STING parameter ELC_LPS_BOND_TYPE_TXT. DSCH-38: moved here from Pset_LightningProtector.BondingType, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="SpdType" cardinality="optional">
+      <Definition>Surge protection device level (Type 1 / Type 2 / Type 3). STING parameter ELC_LPS_SURGE_PROTECTION_LVL_TXT. DSCH-38: moved here from Pset_LightningProtector.SpdType, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="SeparationDistance" cardinality="optional">
+      <Definition>Separation distance (s) between LPS and services in millimetres. STING parameter ELC_LPS_SEPARATION_DISTANCE_MM. DSCH-38: moved here from Pset_LightningProtector.SeparationDistance, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ConductorCrossSection" cardinality="optional">
+      <Definition>Down conductor cross section in mm2 (min 50 mm2 copper per BS EN 62305). STING parameter ELC_LPS_CONDUCTOR_CROSS_SECT_MM2. DSCH-38: moved here from Pset_CableSegmentOccurrence.CrossSection, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>mm2</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ConductorMaterial" cardinality="optional">
+      <Definition>Down conductor material (COPPER / ALUMINIUM / STEEL) for separation distance km factor. STING parameter ELC_LPS_CONDUCTOR_MATERIAL_TXT. DSCH-38: moved here from Pset_CableSegmentOccurrence.Material, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="ProtectionAngle" cardinality="optional">
+      <Definition>Protection cone half-angle in degrees per BS EN 62305 class. STING parameter ELC_LPS_PROTECTION_ANGLE_DEG. DSCH-38: moved here from Pset_LightningProtector.ProtectionAngle, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcReal</DataType>
+      <Unit>deg</Unit>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="LightningProtectionZone" cardinality="optional">
+      <Definition>Lightning protection zone per BS EN 62305-4 (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3). STING parameter ELC_LPS_ZONE_TXT. DSCH-38: moved here from Pset_SpaceLightningProtection.LightningProtectionZone, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="LpzCrossingFrom" cardinality="optional">
+      <Definition>LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 s.6.1]. STING parameter ELC_LPS_FROM_LPZ_TXT. DSCH-38: moved here from Pset_LightningProtector.LpzCrossingFrom, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="LpzCrossingTo" cardinality="optional">
+      <Definition>LPZ on the downstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 s.6.1]. STING parameter ELC_LPS_TO_LPZ_TXT. DSCH-38: moved here from Pset_LightningProtector.LpzCrossingTo, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+    <Property name="RiskAssessment" cardinality="optional">
+      <Definition>Risk assessment reference document per BS EN 62305-2. STING parameter ELC_LPS_RISK_ASSESSMENT_TXT. DSCH-38: moved here from Pset_LightningProtector.RiskAssessment, a property buildingSMART does not define (the Pset_ prefix is reserved for sets the IFC specification declares).</Definition>
+      <DataType>IfcLabel</DataType>
+      <SinceVersion>5.8.0</SinceVersion>
+    </Property>
+
+  </Properties>
+
+  <CorporateLock>
+    <Sha256>fd0773e1ab7cc37a4301e74982f2221e2c4ade85ff40b2d32d221121e5c31808</Sha256>
+    <LockedAtVersion>5.8.0</LockedAtVersion>
+    <Algorithm>sha256(canonical_json(properties_with_metadata_plus_validation_rules))</Algorithm>
+  </CorporateLock>
+
+</StingPropertySetTemplate>

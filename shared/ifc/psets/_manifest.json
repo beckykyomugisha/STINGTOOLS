@@ -3,27 +3,48 @@
   "format": "STING IFC PropertySetTemplate manifest",
   "generated_by": "tools/enums/compute_checksums.py",
   "generated_for_repo_relative_path": "shared/ifc/psets/",
-  "total_psets": 8,
+  "total_psets": 12,
   "psets": [
     {
-      "name": "Pset_StingCostManagement",
-      "file": "Pset_StingCostManagement.xml",
+      "name": "Pset_StingCoordination",
+      "file": "Pset_StingCoordination.xml",
       "kind": "pset",
       "version": "1.0.0",
       "schema_version": 1,
       "scope": "corporate",
       "origin": "baseline",
+      "since_version": "5.8.0",
+      "ifd_guid": "uuid:a1d15c11-0009-4001-9000-000000000009",
+      "standards_basis": "ISO 19650-2:2018 information container revision; STING clash triage (V6 ClashTriageEngine); Autodesk Construction Cloud Issues; STING model health dashboard",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcElement",
+        "IfcProject"
+      ],
+      "property_count": 7,
+      "validation_rule_count": 0,
+      "sha256": "53b1eabbbca96f38d0ac5ae93589ecffc0d04caac2b8f2611ec7d0bc97878f91",
+      "canonical_json_length": 1042
+    },
+    {
+      "name": "Pset_StingCostManagement",
+      "file": "Pset_StingCostManagement.xml",
+      "kind": "pset",
+      "version": "1.1.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
       "since_version": "5.7.0",
       "ifd_guid": "uuid:a1d15c11-0007-4001-9000-000000000007",
-      "standards_basis": "RICS NRM2 (2nd ed.); ICE Database v3; BS ISO 15686-5 whole-life costing; ICMS 3rd edition",
+      "standards_basis": "RICS NRM2 (2nd ed.); ICE Database v3; BS EN 15978:2011 life-cycle modules A1-C4; BS ISO 15686-5 whole-life costing; ICMS 3rd edition",
       "template_type": "PSET_TYPEDRIVENOVERRIDE",
       "applicability": [
         "IfcElement"
       ],
-      "property_count": 14,
+      "property_count": 22,
       "validation_rule_count": 0,
-      "sha256": "a4a31828c8a871252a2714df60260a5586228665b02c16cf6aa1d3bc229ef29b",
-      "canonical_json_length": 1931
+      "sha256": "2e1c63329318493c888fa830e052cf08fa1a5cb6463ac52c59c362dc4bdf446d",
+      "canonical_json_length": 2917
     },
     {
       "name": "Pset_StingDrawing",
@@ -91,6 +112,68 @@
       "validation_rule_count": 0,
       "sha256": "59dd723bd6f122ac1df1b6d55b026e91a2fac66cc27c4c83678438902f90d1c0",
       "canonical_json_length": 2864
+    },
+    {
+      "name": "Pset_StingLightningProtection",
+      "file": "Pset_StingLightningProtection.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.8.0",
+      "ifd_guid": "uuid:a1d15c11-000c-4001-9000-00000000000c",
+      "standards_basis": "BS EN 62305-1/-2/-3/-4:2011 (LPS class, risk assessment, rolling sphere, separation distance, LPZ); BS EN IEC 61643 (SPD types)",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcProject",
+        "IfcElement",
+        "IfcSpace"
+      ],
+      "property_count": 24,
+      "validation_rule_count": 0,
+      "sha256": "fd0773e1ab7cc37a4301e74982f2221e2c4ade85ff40b2d32d221121e5c31808",
+      "canonical_json_length": 3200
+    },
+    {
+      "name": "Pset_StingMEPServices",
+      "file": "Pset_StingMEPServices.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.8.0",
+      "ifd_guid": "uuid:a1d15c11-000a-4001-9000-00000000000a",
+      "standards_basis": "BS 7671 (circuit protective conductors); BS 5422 (pipe insulation); BS EN 12056-2 (drainage gradients)",
+      "template_type": "PSET_TYPEDRIVENOVERRIDE",
+      "applicability": [
+        "IfcDistributionElement"
+      ],
+      "property_count": 3,
+      "validation_rule_count": 0,
+      "sha256": "d2c106e7987c281dabcfd8396da1e404c9e04d3bca22f8f62b18175a2b94e3c4",
+      "canonical_json_length": 543
+    },
+    {
+      "name": "Pset_StingPlacement",
+      "file": "Pset_StingPlacement.xml",
+      "kind": "pset",
+      "version": "1.0.0",
+      "schema_version": 1,
+      "scope": "corporate",
+      "origin": "baseline",
+      "since_version": "5.8.0",
+      "ifd_guid": "uuid:a1d15c11-000b-4001-9000-00000000000b",
+      "standards_basis": "STING placement rules (Data/Placement/STING_PLACEMENT_RULES.*.json)",
+      "template_type": "PSET_OCCURRENCEDRIVEN",
+      "applicability": [
+        "IfcElement"
+      ],
+      "property_count": 3,
+      "validation_rule_count": 0,
+      "sha256": "8e032976b960c0ea94b4970407601ba0cedac9e374726584fd777fe5e8070232",
+      "canonical_json_length": 524
     },
     {
       "name": "Pset_StingProjectOrg",
