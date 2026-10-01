@@ -211,12 +211,35 @@ namespace StingTools.Core.Drawing
         /// <param name="seqFromNumber">Trailing digit run of the sheet number.</param>
         public static ExistingSheetTokens Resolve(
             string contextStamp, string levelStamp, int? seqStamp, int? seqFromNumber)
+            => Resolve(contextStamp, levelStamp, seqStamp, seqFromNumber, null);
+
+        /// <param name="currentLevelName">DTW-134 — the CURRENT name of the level whose
+        /// element id the context stamp carries (ProductionContextIds, "#L312"); null or
+        /// a null answer when the caller cannot look it up or the level is gone. The
+        /// stamp's name part is the name at production: after a rename the ISO level map
+        /// (keyed by current names) has no code for it, and the title block printed a
+        /// different level code than the sheet number.</param>
+        public static ExistingSheetTokens Resolve(
+            string contextStamp, string levelStamp, int? seqStamp, int? seqFromNumber,
+            Func<long, string> currentLevelName)
         {
             var t = new ExistingSheetTokens();
             var ctx = SheetProductionContext.Parse(contextStamp);
 
             if (ctx != null && !string.IsNullOrEmpty(ctx.Level))
-            { t.Level = ctx.Level; t.LevelIsName = true; t.Sources.Add("lvl<-context"); }
+            {
+                t.Level = ctx.Level; t.LevelIsName = true; t.Sources.Add("lvl<-context");
+                var ids = ProductionContextIds.Parse(contextStamp);
+                if (ids.LevelId.HasValue && currentLevelName != null)
+                {
+                    string now = currentLevelName(ids.LevelId.Value);
+                    if (!string.IsNullOrEmpty(now))
+                    {
+                        if (!string.Equals(now, t.Level, StringComparison.Ordinal)) t.Sources.Add("lvl<-context level id (renamed)");
+                        t.Level = now;
+                    }
+                }
+            }
             else if (!string.IsNullOrWhiteSpace(levelStamp) && levelStamp.IndexOf('{') < 0)
             { t.Level = levelStamp; t.Sources.Add("lvl<-PRJ_SHEET_LEVEL_TXT"); }
 

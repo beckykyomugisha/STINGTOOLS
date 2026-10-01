@@ -67,6 +67,36 @@ namespace StingTools.Tags.Tests
         }
 
         [Fact]
+        public void A_renamed_level_is_read_by_its_id_not_the_stamped_name()
+        {
+            // DTW-134 — produced on "Level 1" (#L312), since renamed "Ground Floor". The ISO
+            // map is keyed by current names, so the old name found no code and the title
+            // block printed a different level than the sheet number.
+            const string stamp = "Level 1::#L312::A01::STING-AREA::A01::L01";
+            var t = ExistingSheetTokens.Resolve(stamp, null, null, null,
+                id => id == 312 ? "Ground Floor" : null);
+            Assert.Equal("Ground Floor", t.Level);
+            Assert.True(t.LevelIsName);
+            Assert.Equal("00", SheetNumberPolicy.ExistingSheetLevelToken(SheetNumberPolicy.IsoPattern, t.Level, true,
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { { "Ground Floor", "00" } }));
+        }
+
+        [Fact]
+        public void A_deleted_level_keeps_the_stamped_name()
+        {
+            var t = ExistingSheetTokens.Resolve("Level 1::#L312::A01", null, null, null, _ => null);
+            Assert.Equal("Level 1", t.Level);
+        }
+
+        [Fact]
+        public void Heal_resolves_the_level_through_the_context_id()
+        {
+            var src = System.IO.File.ReadAllText(System.IO.Path.Combine(RepoRoot(), "StingTools", "Core", "Drawing", "DrawingTokenContext.cs"));
+            Assert.Contains("ExistingSheetTokens.Resolve(", src);
+            Assert.Contains("CurrentLevelName", src);
+        }
+
+        [Fact]
         public void Heal_builds_lvl_through_the_policy_rule()
         {
             var src = System.IO.File.ReadAllText(System.IO.Path.Combine(RepoRoot(), "StingTools", "Core", "Drawing", "DrawingTokenContext.cs"));

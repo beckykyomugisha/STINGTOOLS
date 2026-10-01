@@ -105,6 +105,11 @@ namespace StingTools.Commands.Drawing
                 var orphanIds = new List<ElementId>();
                 var orphaned = FindOrphanedContexts(doc, sheets, orphanIds);
 
+                // DTW-144: scope boxes whose STING-LOC / ZONE / AREA name the strict grammar
+                // (DTW-93) refuses. Tagging puts the elements inside them on the fallback LOC /
+                // ZONE and the planner skips them; this names them.
+                var badBoxNames = SpatialAutoDetect.AuditScopeBoxNames(doc);
+
                 var sb = new StringBuilder();
                 sb.AppendLine($"STING — Drawing Doctor");
                 sb.AppendLine($"  Total sheets: {totalSheets}");
@@ -116,7 +121,9 @@ namespace StingTools.Commands.Drawing
                 sb.AppendLine($"  Family swaps:           {familySwap.Count}");
                 sb.AppendLine($"  Stale CSV sync (>30d):  {staleSync.Count}");
                 sb.AppendLine($"  Context deleted:        {orphaned.Count}    (level / room / box gone)");
+                sb.AppendLine($"  Unparsed box names:     {badBoxNames.Count}    (STING-LOC / ZONE / AREA name refused)");
                 AppendList(sb, "Views and sheets whose production context was deleted (not removed — review, then delete or re-produce)", orphaned);
+                AppendList(sb, "Scope boxes whose STING-LOC / ZONE / AREA name does not parse (elements inside take the fallback LOC / ZONE; rename, e.g. STING-LOC::BLOCK-A)", badBoxNames);
                 AppendList(sb, "Cross-stamped sheets", crossStamped);
                 AppendList(sb, "Family swaps",         familySwap);
                 AppendList(sb, "Missing title block",  missingTb);
@@ -125,11 +132,15 @@ namespace StingTools.Commands.Drawing
 
                 var dlg = new TaskDialog("STING — Drawing Doctor")
                 {
-                    MainInstruction = $"{crossStamped.Count} cross-stamp(s), {familySwap.Count} family swap(s), {missingTb.Count} missing TB, {orphaned.Count} with a deleted context",
+                    MainInstruction = $"{crossStamped.Count} cross-stamp(s), {familySwap.Count} family swap(s), {missingTb.Count} missing TB, {orphaned.Count} with a deleted context"
+                                    + (badBoxNames.Count > 0 ? $", {badBoxNames.Count} scope-box name(s) refused" : ""),
                     MainContent = "Doctor inspects the title-block layer for divergence between the CSV-populate path and the recipe-binding path. " +
                                   "Cross-stamped sheets carry stamps from both paths — values may have diverged." +
                                   (orphaned.Count > 0
                                       ? $"\n\n{orphaned.Count} view(s)/sheet(s) were produced for a level, room or scope box that no longer exists. Nothing is deleted."
+                                      : "") +
+                                  (badBoxNames.Count > 0
+                                      ? $"\n\n{badBoxNames.Count} scope box(es) are named like a STING-LOC / ZONE / AREA box but do not parse: elements inside them were tagged with the fallback LOC / ZONE. See the details."
                                       : ""),
                     ExpandedContent = sb.ToString(),
                     CommonButtons = TaskDialogCommonButtons.Close,

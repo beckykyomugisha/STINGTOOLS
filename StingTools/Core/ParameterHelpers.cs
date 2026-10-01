@@ -1758,6 +1758,40 @@ namespace StingTools.Core
         }
 
         /// <summary>
+        /// DTW-144 — every scope box whose name claims (or nearly claims) a STING-LOC /
+        /// STING-ZONE / STING-AREA prefix and does not parse, as "'name' — reason"
+        /// (ScopeBoxNameAudit). The strict grammar (DTW-93) refuses them and the elements
+        /// inside take the fallback LOC / ZONE; this is what tagging and the Drawing Doctor
+        /// show so the refusal is seen. The latest result is handed to
+        /// <see cref="TaggingStats.CurrentScopeBoxNameProblems"/> for the tagging report.
+        /// </summary>
+        public static List<string> AuditScopeBoxNames(Document doc)
+        {
+            var problems = new List<string>();
+            if (doc == null) { TaggingStats.CurrentScopeBoxNameProblems = problems; return problems; }
+            try
+            {
+                foreach (var box in new FilteredElementCollector(doc)
+                             .OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                             .WhereElementIsNotElementType())
+                {
+                    string name = box?.Name ?? "";
+                    string why = Drawing.ScopeBoxNameAudit.Problem(name);
+                    if (why != null) problems.Add($"'{name}' — {why}");
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"AuditScopeBoxNames: {ex.Message}");
+                problems.Add($"(the scope-box names could not be checked: {ex.Message})");
+            }
+            if (problems.Count > 0)
+                StingLog.Warn($"Scope boxes whose STING-LOC/ZONE/AREA name does not parse ({problems.Count}): " + string.Join("; ", problems));
+            TaggingStats.CurrentScopeBoxNameProblems = problems;
+            return problems;
+        }
+
+        /// <summary>
         /// Phase 192 (A4) — LOC from scope-box containment. Returns the LOC code
         /// of the SMALLEST <c>STING-LOC::*</c> scope box whose plan rectangle
         /// contains the element's bounding-box centre (XY, Z ignored), or null.
@@ -2454,6 +2488,10 @@ namespace StingTools.Core
             /// ZONE twin of <see cref="ScopeBoxLocs"/>. Empty when none exist.</summary>
             public List<ScopeBoxLoc> ScopeBoxZones { get; set; }
 
+            /// <summary>DTW-144: scope boxes whose STING-LOC / ZONE / AREA name does not
+            /// parse ("'name' — reason"). Elements inside them took the fallback LOC / ZONE.</summary>
+            public List<string> ScopeBoxNameProblems { get; set; } = new List<string>();
+
             /// <summary>GAP-019: Configurable default STATUS (from project_config.json or "NEW").</summary>
             public string DefaultStatus { get; set; } = "NEW";
 
@@ -2601,6 +2639,8 @@ namespace StingTools.Core
                     // Phase 192 (A4) — STING-LOC scope-box rectangles for site elements
                     ScopeBoxLocs = SpatialAutoDetect.BuildScopeBoxLocIndex(doc),
                     ScopeBoxZones = SpatialAutoDetect.BuildScopeBoxZoneIndex(doc),
+                    // DTW-144 — named in the tagging result (TaggingStats), not only the log.
+                    ScopeBoxNameProblems = SpatialAutoDetect.AuditScopeBoxNames(doc),
                     // Apply config overrides for STATUS/REV defaults
                     DefaultStatus = !string.IsNullOrEmpty(TagConfig.StatusDefault) ? TagConfig.StatusDefault : "NEW",
                     DefaultRev = !string.IsNullOrEmpty(TagConfig.RevDefault) ? TagConfig.RevDefault : "P01",
@@ -4629,8 +4669,18 @@ namespace StingTools.Core
         private static Dictionary<string, string> BuildLevelMap(Document doc)
         {
             if (doc == null) return null;
-            string key = doc.PathName + "|" + doc.GetHashCode();
-            if (_levelMap != null && _levelMapDocKey == key) return _levelMap;
+            // DTW-138: keyed on what the map is built from — every level's id, name,
+            // elevation and storey flag, and spatial_codes.json's timestamp — not the
+            // document alone. The retag inside SheetNumbering.Apply reused a map from
+            // before a level rename / insert or a level-code edit.
+            string key;
+            try { key = LevelMapKey(doc); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"BuildLevelMap key: {ex.Message} — map rebuilt, not cached.");
+                key = null;
+            }
+            if (key != null && _levelMap != null && _levelMapDocKey == key) return _levelMap;
 
             try
             {
@@ -4649,6 +4699,46 @@ namespace StingTools.Core
                 StingLog.Warn($"BuildLevelMap: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>Last-seen spatial_codes.json timestamp per document, so an edit also
+        /// reloads SpatialCodeRegistry (which caches the file for the session).</summary>
+        private static string _levelCodesStampDocKey;
+        private static DateTime? _levelCodesStamp;
+
+        /// <summary>DTW-138 — the level-map cache key (LevelMapCacheKey).</summary>
+        private static string LevelMapKey(Document doc)
+        {
+            string docKey = doc.PathName + "|" + doc.GetHashCode();
+            var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                .Select(l =>
+                {
+                    bool? storey = null;
+                    try
+                    {
+                        var p = l.get_Parameter(BuiltInParameter.LEVEL_IS_BUILDING_STORY);
+                        if (p != null && p.HasValue) storey = p.AsInteger() != 0;
+                    }
+                    catch (Exception ex) { StingLog.WarnRateLimited("LevelMapKeyStorey", $"Level storey flag: {ex.Message}"); }
+                    return (l.Id.Value, l.Name, l.Elevation, storey);
+                })
+                .ToList();
+
+            DateTime? codesUtc = null;
+            if (!string.IsNullOrEmpty(doc.PathName))
+            {
+                string path = ProjectFolderEngine.ResolveProjectOverridePath(doc, SpatialCodeRegistry.ProjectOverrideRelPath);
+                if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                    codesUtc = System.IO.File.GetLastWriteTimeUtc(path);
+            }
+            // The registry caches the file per document; a changed timestamp means its copy
+            // is stale too, or the rebuilt map would read the old codes.
+            if (_levelCodesStampDocKey == docKey && _levelCodesStamp != codesUtc)
+                SpatialCodeRegistry.Reload(doc);
+            _levelCodesStampDocKey = docKey;
+            _levelCodesStamp = codesUtc;
+
+            return StingTools.Core.Drawing.LevelMapCacheKey.Compose(docKey, levels, codesUtc);
         }
 
         /// <summary>Build human-readable sheet narrative for SHT_TAG_7.

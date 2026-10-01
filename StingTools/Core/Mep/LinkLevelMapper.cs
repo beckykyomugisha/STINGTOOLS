@@ -24,8 +24,8 @@ namespace StingTools.Core.Mep
 {
     public static class LinkLevelMapper
     {
-        /// <summary>The largest snap band: 300 mm, in feet.</summary>
-        public const double MaxSnapBandFt = 300.0 / 304.8;
+        /// <summary>The largest snap band: 300 mm, in feet (the shared LevelSnapBand rule, DTW-133).</summary>
+        public const double MaxSnapBandFt = LevelSnapBand.MaxFt;
 
         /// <summary>
         /// The id of the nearest host level when <paramref name="elevation"/> is within the snap
@@ -51,8 +51,7 @@ namespace StingTools.Core.Mep
             double storey = double.PositiveInfinity;
             if (side >= 0 && side < levels.Count) storey = Math.Abs(levels[nearest].Item2 - levels[side].Item2);
             else if (other >= 0 && other < levels.Count) storey = Math.Abs(levels[nearest].Item2 - levels[other].Item2);
-            double band = Math.Min(MaxSnapBandFt, storey / 2.0);
-            if (Math.Abs(offset) <= band) return levels[nearest].Item1;
+            if (LevelSnapBand.Within(offset, storey, MaxSnapBandFt)) return levels[nearest].Item1;
 
             long? pick = null;
             foreach (var l in levels)

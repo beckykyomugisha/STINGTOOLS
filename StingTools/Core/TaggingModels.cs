@@ -141,6 +141,17 @@ namespace StingTools.Core
         public readonly List<string> Warnings = new List<string>();
         public readonly List<(string tag, int depth)> CollisionDetails = new List<(string, int)>();
 
+        /// <summary>DTW-144 — the scope-box names the latest tagging population context found
+        /// refused (SpatialAutoDetect.AuditScopeBoxNames sets it when the context is built,
+        /// just before a tagging run creates its stats).</summary>
+        public static IReadOnlyList<string> CurrentScopeBoxNameProblems { get; set; } = new List<string>();
+
+        /// <summary>DTW-144 — scope boxes whose STING-LOC / ZONE / AREA name does not parse,
+        /// "'name' — reason". Elements inside them took the fallback LOC / ZONE; the report
+        /// names the boxes so the refusal is not only a log line.</summary>
+        public readonly List<string> ScopeBoxNameProblems =
+            new List<string>(CurrentScopeBoxNameProblems ?? new List<string>());
+
         /// <summary>PERF-02: Inline count of elements with empty FUNC after pipeline.</summary>
         public int EmptyFuncCount { get; private set; }
         /// <summary>PERF-02: Inline count of elements with empty PROD after pipeline.</summary>
@@ -403,6 +414,15 @@ namespace StingTools.Core
                     sb.AppendLine($"                  {sample}");
                 if (RefusedTagCount > RefusedSamples.Count)
                     sb.AppendLine($"                  … +{RefusedTagCount - RefusedSamples.Count:N0} more");
+            }
+            if (ScopeBoxNameProblems.Count > 0)
+            {
+                sb.AppendLine($"  SCOPE BOXES:  {ScopeBoxNameProblems.Count:N0} STING-LOC / ZONE / AREA box name(s) do not parse — elements inside took the fallback LOC / ZONE");
+                foreach (var p in ScopeBoxNameProblems.Take(5))
+                    sb.AppendLine($"                  {p}");
+                if (ScopeBoxNameProblems.Count > 5)
+                    sb.AppendLine($"                  … +{ScopeBoxNameProblems.Count - 5:N0} more (Drawing Doctor lists them all)");
+                sb.AppendLine("                  Rename them (e.g. STING-LOC::BLOCK-A) and re-tag.");
             }
             if (AssumedTokenTagCount > 0)
             {

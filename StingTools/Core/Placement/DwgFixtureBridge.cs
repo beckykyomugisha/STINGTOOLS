@@ -70,6 +70,10 @@ namespace StingTools.Core.Placement
             // (per-layer override > category default). 0 ⇒ rule's built-in 300mm.
             public double MountingHeightMm = 0.0;
             public string HeightStandard = "";
+            // DTW-131 — the level this capture sits on (room level, else the nearest level
+            // at or below the DWG point). Recorded in the provenance stamp so a re-run on
+            // stacked identical floors matches per level, not across them.
+            public DwgCaptureDedup.CaptureLevel? Level;
         }
 
         /// <summary>Pick the (first / only, else selected) DWG import and run the bridge.
@@ -352,7 +356,8 @@ namespace StingTools.Core.Placement
                             // DTW-112 — the capture point is recorded so a re-run recognises it.
                             try { StingProvenanceSchema.Stamp(placed.Placed, EngineName,
                                 $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}|mh:{c.MountingHeightMm:F0}|" +
-                                DwgCaptureDedup.PointToken(c.Point.X, c.Point.Y)); }
+                                DwgCaptureDedup.PointToken(c.Point.X, c.Point.Y) +
+                                (c.Level?.Key != null ? "|" + DwgCaptureDedup.LevelToken(c.Level.Value.Key) : "")); }
                             catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.Stamp: {ex.Message}"); }
 
                             // I2 — post-placement hooks, inside this transaction and after the
@@ -422,6 +427,36 @@ namespace StingTools.Core.Placement
         private static List<Captured> DropAlreadyPlaced(Document doc, List<Captured> placeable, DwgFixtureBridgeResult res)
         {
             var priorByCat = new Dictionary<string, DwgCaptureDedup.PriorIndex>(StringComparer.OrdinalIgnoreCase);
+
+            // DTW-131 — the level of every capture, and of every prior instance. Matching is
+            // per level: on stacked identical floors the same plan point is a different fixture.
+            List<Level> levels;
+            try
+            {
+                levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced levels: {ex.Message}");
+                levels = new List<Level>();
+            }
+            var elevations = levels.Select(l => l.Elevation).ToList();
+            var rooms = CollectRooms(doc);
+            foreach (var c in placeable)
+            {
+                if (c.Point == null) continue;
+                Level lvl = null;
+                try { lvl = FindRoom(rooms, c.Point)?.Level; }
+                catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge capture level (room): {ex.Message}"); }
+                lvl = lvl ?? LevelAtOrBelow(levels, c.Point.Z);
+                if (lvl != null)
+                    c.Level = new DwgCaptureDedup.CaptureLevel(lvl.Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        lvl.Elevation, DwgCaptureDedup.HalfStoreyFt(elevations, lvl.Elevation));
+                else
+                    c.Level = new DwgCaptureDedup.CaptureLevel(null, c.Point.Z, DwgCaptureDedup.HalfStoreyFt(elevations, c.Point.Z));
+            }
+
             try
             {
                 foreach (var cat in placeable.Select(c => c.Category).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -443,7 +478,19 @@ namespace StingTools.Core.Placement
                             try { loc = fi.GetTransform()?.Origin; }
                             catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced transform {el.Id}: {ex.Message}"); }
                         }
-                        idx.Add(prov.RuleId, loc?.X ?? 0, loc?.Y ?? 0, loc != null);
+                        // DTW-131 — the prior's own level: its LevelId, else the level at or
+                        // below its location (a hosted instance may carry no LevelId).
+                        double? priorLevelElev = null;
+                        try
+                        {
+                            if (el.LevelId != null && el.LevelId != ElementId.InvalidElementId
+                                && doc.GetElement(el.LevelId) is Level own)
+                                priorLevelElev = own.Elevation;
+                            else if (loc != null)
+                                priorLevelElev = LevelAtOrBelow(levels, loc.Z)?.Elevation;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced level {el.Id}: {ex.Message}"); }
+                        idx.Add(prov.RuleId, loc?.X ?? 0, loc?.Y ?? 0, loc != null, priorLevelElev);
                     }
                 }
             }
@@ -458,14 +505,28 @@ namespace StingTools.Core.Placement
             var keep = new List<Captured>();
             foreach (var c in placeable)
             {
-                if (c.Point != null && priorByCat.TryGetValue(c.Category, out var idx) && idx.Count > 0
-                    && idx.IsDuplicate(c.Point.X, c.Point.Y))
+                if (c.Point != null && c.Level != null && priorByCat.TryGetValue(c.Category, out var idx) && idx.Count > 0
+                    && idx.IsDuplicate(c.Point.X, c.Point.Y, c.Level.Value))
                 { res.SkippedAlreadyPlaced++; continue; }
                 keep.Add(c);
             }
             if (res.SkippedAlreadyPlaced > 0)
-                res.Messages.Add($"Skipped {res.SkippedAlreadyPlaced} fixture(s) already placed by a previous DWG bridge run (same category and DWG point).");
+                res.Messages.Add($"Skipped {res.SkippedAlreadyPlaced} fixture(s) already placed by a previous DWG bridge run (same category, level and DWG point).");
             return keep;
+        }
+
+        /// <summary>DTW-131 — the highest level at or below <paramref name="z"/> (levels sorted
+        /// by elevation), else the lowest level, else null.</summary>
+        private static Level LevelAtOrBelow(List<Level> sortedLevels, double z)
+        {
+            if (sortedLevels == null || sortedLevels.Count == 0) return null;
+            Level best = null;
+            foreach (var l in sortedLevels)
+            {
+                if (l.Elevation <= z + 1e-6) best = l;
+                else break;
+            }
+            return best ?? sortedLevels[0];
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────
