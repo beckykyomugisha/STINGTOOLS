@@ -357,6 +357,11 @@ namespace StingTools.V6
                 }
                 url = Str(doc["links"]?["next"]?["href"]);
             }
+            // D8: the guard ran out with a next link still set — the list is not complete, and
+            // a partial folder must never read as the folder (Read Reviews would skip files).
+            if (!string.IsNullOrEmpty(url))
+                return AccFetchResult<List<AccFolderFile>>.Failure(AccFetchStatus.TransportFailed, list, 200,
+                    $"folder {folderUrn}: stopped after {MaxPages} pages ({list.Count} files) with more to read - the list is INCOMPLETE");
             return AccFetchResult<List<AccFolderFile>>.Success(list, list.Count == 0);
         }
 
@@ -502,10 +507,13 @@ namespace StingTools.V6
 
                 int total = o["pagination"]?["totalResults"]?.Type == JTokenType.Integer ? (int)o["pagination"]["totalResults"] : -1;
                 offset += results.Count;
-                if (results.Count == 0 || results.Count < PageLimit) break;
-                if (total >= 0 && offset >= total) break;
+                if (results.Count == 0 || results.Count < PageLimit) return (true, AccFetchStatus.Ok, 200, string.Empty);
+                if (total >= 0 && offset >= total) return (true, AccFetchStatus.Ok, 200, string.Empty);
             }
-            return (true, AccFetchStatus.Ok, 200, string.Empty);
+            // D8: every page was full and the guard ran out - more remain. Reporting what was
+            // read as the whole set is the empty-for-error failure in another shape.
+            return (false, AccFetchStatus.TransportFailed, 200,
+                    $"{what}: stopped after {MaxPages} pages ({offset} rows) with more to read - the list is INCOMPLETE");
         }
 
         private static string Str(JToken t)

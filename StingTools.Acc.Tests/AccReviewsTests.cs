@@ -60,6 +60,38 @@ namespace StingTools.Acc.Tests
             return s;
         }
 
+        // D8: the paging guard returned success with pages still unread.
+        [Fact]
+        public async Task APagedList_ThatOutrunsTheGuard_IsIncomplete_NotOk()
+        {
+            using var s = Serve((i, r) =>
+            {
+                var results = new JArray();
+                for (int k = 0; k < 50; k++) results.Add(new JObject { ["id"] = $"wf-{i}-{k}", ["name"] = "w", ["status"] = "ACTIVE" });
+                return new CannedResponse(200, new JObject
+                {
+                    ["results"] = results,
+                    ["pagination"] = new JObject { ["totalResults"] = 1000000 },
+                }.ToString());
+            });
+            var res = await AccReviews.ListWorkflowsAsync(Creds(), ProjectGuid);
+            Assert.False(res.Succeeded);
+            Assert.Contains("INCOMPLETE", res.Detail);
+        }
+
+        [Fact]
+        public async Task AFolderListing_ThatOutrunsTheGuard_IsIncomplete_NotOk()
+        {
+            using var s = Serve((i, r) => new CannedResponse(200, new JObject
+            {
+                ["data"] = new JArray(),
+                ["links"] = new JObject { ["next"] = new JObject { ["href"] = r.Url.GetLeftPart(UriPartial.Path) + "?page=" + (i + 1) } },
+            }.ToString()));
+            var res = await AccReviews.ListFolderFilesAsync(Creds(), ProjectGuid, "urn:adsk.wipprod:fs.folder:co.x");
+            Assert.False(res.Succeeded);
+            Assert.Contains("INCOMPLETE", res.Detail);
+        }
+
         private static string ReadBody(HttpListenerRequest r)
         {
             using var sr = new StreamReader(r.InputStream, Encoding.UTF8);
