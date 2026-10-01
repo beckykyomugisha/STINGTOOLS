@@ -283,6 +283,8 @@
     <Compile Include="..\StingTools\Core\Drawing\MatchLineGeometry.cs" Link="Core\Drawing\MatchLineGeometry.cs" />
     <!-- "Duplicate as Dependent" decisions. DrawingProducer calls this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\DependentViewPlanner.cs" Link="Core\Drawing\DependentViewPlanner.cs" />
+    <!-- DTW-114: which annotation passes production runs on a new / already-produced view. -->
+    <Compile Include="..\StingTools\Core\Drawing\ProductionAnnotationPolicy.cs" Link="Core\Drawing\ProductionAnnotationPolicy.cs" />
     <!-- Production commands' inputs inside a workflow preset. The Produce commands call this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\HeadlessProductionInputs.cs" Link="Core\Drawing\HeadlessProductionInputs.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingTypeActions.cs" Link="Core\Drawing\DrawingTypeActions.cs" />
