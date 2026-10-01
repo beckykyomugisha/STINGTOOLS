@@ -66,12 +66,11 @@ namespace StingTools.Commands.Electrical.Schematics
             {
                 tx.Start();
 
-                var view = CreateDraftingView(doc,
-                    $"STING - Fire Alarm Schematic - {DateTime.Now:yyyyMMdd}");
+                var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(doc, ViewName, out string viewError);
                 if (view == null)
                 {
                     tx.RollBack();
-                    message = "Could not create a drafting view — no Drafting ViewFamilyType found.";
+                    message = "Could not make the drafting view: " + viewError;
                     if (!PresetDialog.Quiet) TaskDialog.Show("STING Fire Alarm Schematic", message);
                     return Result.Failed;
                 }
@@ -192,7 +191,10 @@ namespace StingTools.Commands.Electrical.Schematics
         // device tag and schedule already show: FLS_SFTY_DEV_LOOP_TXT, then
         // FLS_SFTY_LOOP_NR_TXT. ELC_FIRE_LOOP_REF, read here before, was defined
         // nowhere, so every device fell into one loop.
-        private static readonly string[] LoopParams = { "FLS_SFTY_DEV_LOOP_TXT", "FLS_SFTY_LOOP_NR_TXT" };
+        private static readonly string[] LoopParams = { ParamRegistry.FLS_DEV_LOOP, ParamRegistry.FLS_LOOP_NR };
+
+        // One view, redrawn on every run: a dated name left an orphan view per day.
+        private const string ViewName = "STING - Fire Alarm Schematic";
 
         private static string LoopOf(Element e)
         {
@@ -208,20 +210,6 @@ namespace StingTools.Commands.Electrical.Schematics
         /// filed unassigned devices under a loop nobody had defined.</summary>
         private const string NoLoop = "(no loop set)";
 
-        private static ViewDrafting CreateDraftingView(Document doc, string name)
-        {
-            var vft = new FilteredElementCollector(doc)
-                .OfClass(typeof(ViewFamilyType))
-                .Cast<ViewFamilyType>()
-                .FirstOrDefault(t => t.ViewFamily == ViewFamily.Drafting);
-            if (vft == null) return null;
-            var v = ViewDrafting.Create(doc, vft.Id);
-            try { v.Name = name; } catch (Exception ex) { StingLog.Warn($"FireAlarmSchematic view name '{name}': {ex.Message}"); }
-            // 1:1 — the diagram is drawn in paper millimetres and its text is paper-sized,
-            // so the sheet shows it at the size it was drawn (as the SLD and riser do).
-            try { v.Scale = 1; } catch (Exception ex) { StingLog.Warn($"FireAlarmSchematic scale: {ex.Message}"); }
-            return v;
-        }
 
         private static double Mm(double mm) => mm / 304.8;
 

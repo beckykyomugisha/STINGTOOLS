@@ -34,6 +34,14 @@ namespace StingTools.Core.Drawing
         /// <summary>The disciplines an MEP drawing set covers when no types are named.</summary>
         public static readonly string[] MepDisciplines = { "M", "E", "P", "FP", "MG" };
 
+        /// <summary>
+        /// True for a drawing type discipline an MEP set covers. One rule for "which STING::
+        /// boxes does an MEP preset produce" (ProduceFromScopeBoxes with no types named) and
+        /// "which boxes stand in for a per-level plan" (DTW-99), so the two cannot disagree.
+        /// </summary>
+        public static bool IsMepDiscipline(string discipline)
+            => MepDisciplines.Contains((discipline ?? "").Trim(), StringComparer.OrdinalIgnoreCase);
+
         public const string DuplicateDefault      = "Duplicate";
         public const string DuplicateAsDependent  = "DuplicateAsDependent";
         public const string DuplicateWithDetailing = "DuplicateWithDetailing";

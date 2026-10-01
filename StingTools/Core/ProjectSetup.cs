@@ -155,7 +155,7 @@ namespace StingTools.Core
         public static Dictionary<string, string> DefaultCdeFirstRoutes() => new(StringComparer.OrdinalIgnoreCase)
         {
             ["PDF"] = "WIP|Drawings",
-            ["IFC"] = "WIP|Models", ["NWC"] = "WIP|Models", ["RVT"] = "WIP|Models", ["DWG"] = "WIP|Models",
+            ["IFC"] = "WIP|Models", ["NWC"] = "WIP|Models", ["RVT"] = "WIP|Models", ["DWG"] = "WIP|Models", ["DXF"] = "WIP|Models",
             ["SCHEDULE"] = "WIP|Schedules", ["EXCEL"] = "WIP|Schedules", ["CSV"] = "WIP|Schedules",
             ["BOQ"] = "WIP|BOQ",
             // MAT-SCHED: CdeFirst skips the ExportTypeToFolder fallback (GetExportPath
@@ -210,7 +210,7 @@ namespace StingTools.Core
         public static Dictionary<string, string> DefaultBimRoutes() => new(StringComparer.OrdinalIgnoreCase)
         {
             ["PDF"] = "DRAWINGS",
-            ["IFC"] = "MODELS", ["NWC"] = "MODELS", ["RVT"] = "MODELS", ["DWG"] = "MODELS",
+            ["IFC"] = "MODELS", ["NWC"] = "MODELS", ["RVT"] = "MODELS", ["DWG"] = "MODELS", ["DXF"] = "MODELS",
             ["COBIE"] = "COBIE", ["COBie"] = "COBIE", ["COBieStream"] = "COBIE",
             ["SCHEDULE"] = "SCHEDULES", ["EXCEL"] = "SCHEDULES", ["CSV"] = "SCHEDULES", ["BOQ"] = "SCHEDULES",
             ["BEP"] = "BEP",
@@ -231,7 +231,7 @@ namespace StingTools.Core
         public static Dictionary<string, string> DefaultMiniRoutes() => new(StringComparer.OrdinalIgnoreCase)
         {
             ["PDF"] = "DRAWINGS",
-            ["IFC"] = "MODELS", ["NWC"] = "MODELS", ["RVT"] = "MODELS", ["DWG"] = "MODELS",
+            ["IFC"] = "MODELS", ["NWC"] = "MODELS", ["RVT"] = "MODELS", ["DWG"] = "MODELS", ["DXF"] = "MODELS",
             ["SCHEDULE"] = "SCHEDULES", ["EXCEL"] = "SCHEDULES", ["CSV"] = "SCHEDULES", ["BOQ"] = "SCHEDULES",
             ["TRANSMITTAL"] = "DOCUMENTS", ["Transmittal"] = "DOCUMENTS",
             ["BEP"] = "DOCUMENTS",

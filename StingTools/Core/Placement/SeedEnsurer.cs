@@ -53,10 +53,65 @@ namespace StingTools.Core.Placement
                 .Where(s => !string.IsNullOrEmpty(s)), StringComparer.OrdinalIgnoreCase);
             if (doc == null || explicitSeeds.Count == 0) return result;
 
-            var loadedFamilies = LoadedFamilyNames(doc);
-            var missing = explicitSeeds.Where(s => !loadedFamilies.Contains(s)).ToList();
+            var loadedSeeds = LoadedSeedIds(doc);
+            var missing = explicitSeeds.Where(s => !loadedSeeds.Contains(s)).ToList();
             if (missing.Count > 0) BuildSeeds(doc, missing, result);
             return result;
+        }
+
+        /// <summary>
+        /// DTW-113 — seed-required mode. <see cref="EnsureSeedsForCategories(Document, IEnumerable{string})"/>
+        /// treats a category as served when ANY family of it is loaded, which is right for
+        /// the rule engine (it places whatever family the category has) but wrong for a
+        /// caller that places the SEED itself — the DWG fixture bridge resolves only the
+        /// seed family, so a project with one manufacturer basin loaded skipped every
+        /// plumbing fixture as "seed not built". With <paramref name="requireSeedFamily"/>
+        /// true the check is on the mapped seed family (STING_SEED_FAMILY_TXT marker or
+        /// family name), and a missing seed is built even when the category has other
+        /// families loaded.
+        /// </summary>
+        public static SeedEnsureResult EnsureSeedsForCategories(Document doc, IEnumerable<string> categories, bool requireSeedFamily)
+        {
+            if (!requireSeedFamily) return EnsureSeedsForCategories(doc, categories);
+            var result = new SeedEnsureResult();
+            if (doc == null || categories == null) return result;
+
+            var distinct = new HashSet<string>(categories.Where(c => !string.IsNullOrWhiteSpace(c)),
+                StringComparer.OrdinalIgnoreCase);
+            if (distinct.Count == 0) return result;
+
+            var loadedSeeds = LoadedSeedIds(doc);
+            var missing = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var cat in distinct)
+            {
+                string seedId = CategoryToSeedRegistry.Resolve(doc, cat);
+                if (string.IsNullOrWhiteSpace(seedId)) { result.CategoriesSeedless++; continue; }
+                seedId = seedId.Trim();
+                if (loadedSeeds.Contains(seedId)) { result.CategoriesAlreadyServed++; continue; }
+                missing.Add(seedId);
+            }
+            if (missing.Count > 0) BuildSeeds(doc, missing, result);
+            return result;
+        }
+
+        /// <summary>Seed ids whose family is loaded: the STING_SEED_FAMILY_TXT marker any
+        /// loaded type carries, plus every loaded family name (a seed family is named after
+        /// its seed id — the fallback for a seed built before the marker existed).</summary>
+        private static HashSet<string> LoadedSeedIds(Document doc)
+        {
+            var set = LoadedFamilyNames(doc);
+            try
+            {
+                foreach (var el in new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)))
+                {
+                    string marker = null;
+                    try { marker = el.LookupParameter("STING_SEED_FAMILY_TXT")?.AsString(); }
+                    catch (Exception ex) { StingLog.Warn($"SeedEnsurer.LoadedSeedIds {el.Id}: {ex.Message}"); }
+                    if (!string.IsNullOrWhiteSpace(marker)) set.Add(marker.Trim());
+                }
+            }
+            catch (Exception ex) { StingLog.Warn($"SeedEnsurer.LoadedSeedIds: {ex.Message}"); }
+            return set;
         }
 
         /// <summary>Build + load each seed from its Data/Seeds JSON spec (missing-only).</summary>

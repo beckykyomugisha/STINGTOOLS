@@ -39,6 +39,7 @@ namespace StingTools.Core.Placement
         public int SkippedNotHosted { get; set; }    // PlacementHostPreflight returned Skipped
         public int SkippedExplodedNoPoint { get; set; } // layer mapped but nothing capturable
         public int DedupedAgainstBlock { get; set; } // layer point coincided with a block insert
+        public int SkippedAlreadyPlaced { get; set; } // DTW-112: a previous bridge run placed this capture
         public bool DryRun { get; set; }
         public bool IncludedLineClusters { get; set; }  // the experimental cluster pass ran
         public Dictionary<string, int> PlacedByCategory { get; } =
@@ -69,6 +70,10 @@ namespace StingTools.Core.Placement
             // (per-layer override > category default). 0 ⇒ rule's built-in 300mm.
             public double MountingHeightMm = 0.0;
             public string HeightStandard = "";
+            // DTW-131 — the level this capture sits on (room level, else the nearest level
+            // at or below the DWG point). Recorded in the provenance stamp so a re-run on
+            // stacked identical floors matches per level, not across them.
+            public DwgCaptureDedup.CaptureLevel? Level;
         }
 
         /// <summary>Pick the (first / only, else selected) DWG import and run the bridge.
@@ -239,7 +244,10 @@ namespace StingTools.Core.Placement
             var categories = captured.Select(c => c.Category).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             try
             {
-                var seedRes = SeedEnsurer.EnsureSeedsForCategories(doc, categories);
+                // DTW-113 — seed-required: the bridge places the SEED family itself, so a
+                // category with some other family loaded is not "served" for it.
+                var seedRes = SeedEnsurer.EnsureSeedsForCategories(doc, categories, requireSeedFamily: true);
+                foreach (var m in seedRes.Messages) res.Messages.Add(m);
                 res.Messages.Add($"Seeds ensured: {seedRes.SeedsBuiltOrLoaded} built/loaded for {categories.Count} categor(ies).");
             }
             catch (Exception ex)
@@ -269,6 +277,17 @@ namespace StingTools.Core.Placement
                 return res;
             }
 
+            // ── DTW-112 — idempotency. A capture a previous bridge run already placed (same
+            //    category, provenance engine = this bridge, same plan point) is skipped, so a
+            //    re-run does not place every fixture twice. ──
+            placeable = DropAlreadyPlaced(doc, placeable, res);
+            if (placeable.Count == 0)
+            {
+                res.Messages.Add($"Nothing new to place: all {res.SkippedAlreadyPlaced} remaining fixture(s) were placed by a previous run.");
+                CheckPlaceInvariant(res, dryRun);
+                return res;
+            }
+
             // F4 — non-blocking height range validation (warns once per standard+height).
             ValidateHeights(placeable, res);
 
@@ -284,6 +303,10 @@ namespace StingTools.Core.Placement
             // ── 4) Place + stamp inside one transaction. ──
             var roomCache = CollectRooms(doc);
             var notHostedByReason = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // D4 rollup
+            // I2 — the same post-placement hooks FixturePlacementEngine runs (seed
+            // followsType stamping always; tag pipeline / COBie / MEP connect when the
+            // session toggles are on). Fresh per-run caches, as the engine does.
+            PostPlacementHooks.BeginRun();
             using (var t = new Transaction(doc, "STING Place DWG Fixtures"))
             {
                 t.Start();
@@ -300,6 +323,7 @@ namespace StingTools.Core.Placement
                         var rule = new PlacementRule
                         {
                             RuleId = $"dwg:{c.SeedId}",
+                            SeedId = c.SeedId ?? "",
                             CategoryFilter = c.Category,
                             VariantHint = c.Variant,
                             AnchorType = string.IsNullOrWhiteSpace(c.Anchor) ? "WALL_MIDPOINT" : c.Anchor,
@@ -329,9 +353,18 @@ namespace StingTools.Core.Placement
                                 TrySetMntHgtMm(placed.Placed, c.MountingHeightMm);
 
                             // Provenance + the source DWG block/layer + capture mode (audit) — caller owns the tx.
+                            // DTW-112 — the capture point is recorded so a re-run recognises it.
                             try { StingProvenanceSchema.Stamp(placed.Placed, EngineName,
-                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}|mh:{c.MountingHeightMm:F0}"); }
+                                $"DWG:{c.BlockName}|{c.LayerName}|seed:{c.SeedId}|var:{c.Variant}|mode:{c.Mode}|mh:{c.MountingHeightMm:F0}|" +
+                                DwgCaptureDedup.PointToken(c.Point.X, c.Point.Y) +
+                                (c.Level?.Key != null ? "|" + DwgCaptureDedup.LevelToken(c.Level.Value.Key) : "")); }
                             catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.Stamp: {ex.Message}"); }
+
+                            // I2 — post-placement hooks, inside this transaction and after the
+                            // provenance stamp, in the order the engine runs them. Without this a
+                            // DWG-placed medical-gas outlet never received MGS_GAS_TYPE_TXT.
+                            try { PostPlacementHooks.RunFor(placed.Placed, rule); }
+                            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge post-placement hook {placed.Placed.Id}: {ex.Message}"); }
                         }
                         else
                         {
@@ -347,7 +380,20 @@ namespace StingTools.Core.Placement
                         StingLog.Warn($"DwgFixtureBridge place {c.BlockName}: {ex.Message}");
                     }
                 }
-                t.Commit();
+                // DTW-124 — a commit a failure handler rolled back placed nothing; never
+                // report "Placed N" for it.
+                var status = t.Commit();
+                if (status != TransactionStatus.Committed)
+                {
+                    StingLog.Warn($"DwgFixtureBridge: placement transaction ended {status}; {res.Placed} placement(s) discarded.");
+                    res.Messages.Add($"Placement was NOT committed (transaction {status}) - Revit rolled back all {res.Placed} placement(s). Nothing was added to the model.");
+                    res.SkippedNotHosted += res.Placed;
+                    res.Placed = 0;
+                    res.PlacedIds.Clear();
+                    res.PlacedByCategory.Clear();
+                    CheckPlaceInvariant(res, dryRun: false);
+                    return res;
+                }
             }
 
             // D4 — roll up not-hosted skips by (category: reason), one line each.
@@ -368,10 +414,119 @@ namespace StingTools.Core.Placement
         private static void CheckPlaceInvariant(DwgFixtureBridgeResult res, bool dryRun)
         {
             int placedOrWouldPlace = dryRun ? res.PlacedByCategory.Values.Sum() : res.Placed;
-            int accounted = placedOrWouldPlace + res.SkippedNoSymbol + res.SkippedNotHosted;
+            int accounted = placedOrWouldPlace + res.SkippedNoSymbol + res.SkippedNotHosted + res.SkippedAlreadyPlaced;
             if (accounted != res.TotalCaptured)
                 StingLog.Warn($"DwgFixtureBridge accounting drift (captured): captured {res.TotalCaptured} != " +
-                              $"{(dryRun ? "wouldPlace" : "placed")} {placedOrWouldPlace} + noSymbol {res.SkippedNoSymbol} + notHosted {res.SkippedNotHosted} = {accounted}.");
+                              $"{(dryRun ? "wouldPlace" : "placed")} {placedOrWouldPlace} + noSymbol {res.SkippedNoSymbol} + notHosted {res.SkippedNotHosted} + alreadyPlaced {res.SkippedAlreadyPlaced} = {accounted}.");
+        }
+
+        /// <summary>DTW-112 — drop captures a previous bridge run already placed. Prior
+        /// instances are those of the capture's category whose provenance engine is this
+        /// bridge; matched on the recorded capture point (or, for instances stamped before
+        /// the point was recorded, the instance location with a wider tolerance).</summary>
+        private static List<Captured> DropAlreadyPlaced(Document doc, List<Captured> placeable, DwgFixtureBridgeResult res)
+        {
+            var priorByCat = new Dictionary<string, DwgCaptureDedup.PriorIndex>(StringComparer.OrdinalIgnoreCase);
+
+            // DTW-131 — the level of every capture, and of every prior instance. Matching is
+            // per level: on stacked identical floors the same plan point is a different fixture.
+            List<Level> levels;
+            try
+            {
+                levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .OrderBy(l => l.Elevation).ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced levels: {ex.Message}");
+                levels = new List<Level>();
+            }
+            var elevations = levels.Select(l => l.Elevation).ToList();
+            var rooms = CollectRooms(doc);
+            foreach (var c in placeable)
+            {
+                if (c.Point == null) continue;
+                Level lvl = null;
+                try { lvl = FindRoom(rooms, c.Point)?.Level; }
+                catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge capture level (room): {ex.Message}"); }
+                lvl = lvl ?? LevelAtOrBelow(levels, c.Point.Z);
+                if (lvl != null)
+                    c.Level = new DwgCaptureDedup.CaptureLevel(lvl.Id.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        lvl.Elevation, DwgCaptureDedup.HalfStoreyFt(elevations, lvl.Elevation));
+                else
+                    c.Level = new DwgCaptureDedup.CaptureLevel(null, c.Point.Z, DwgCaptureDedup.HalfStoreyFt(elevations, c.Point.Z));
+            }
+
+            try
+            {
+                foreach (var cat in placeable.Select(c => c.Category).Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    var idx = new DwgCaptureDedup.PriorIndex();
+                    priorByCat[cat] = idx;
+                    BuiltInCategory bic = BuiltInCategory.INVALID;
+                    try { bic = FixturePlacementEngine.ResolveBuiltInCategoryByName(doc, cat); }
+                    catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced category '{cat}': {ex.Message}"); }
+                    if (bic == BuiltInCategory.INVALID) continue;
+                    foreach (var el in new FilteredElementCollector(doc).OfCategory(bic)
+                                 .OfClass(typeof(FamilyInstance)).WhereElementIsNotElementType())
+                    {
+                        var prov = StingProvenanceSchema.Read(el);
+                        if (prov == null || !string.Equals(prov.Engine, EngineName, StringComparison.Ordinal)) continue;
+                        XYZ loc = (el.Location as LocationPoint)?.Point;
+                        if (loc == null && el is FamilyInstance fi)
+                        {
+                            try { loc = fi.GetTransform()?.Origin; }
+                            catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced transform {el.Id}: {ex.Message}"); }
+                        }
+                        // DTW-131 — the prior's own level: its LevelId, else the level at or
+                        // below its location (a hosted instance may carry no LevelId).
+                        double? priorLevelElev = null;
+                        try
+                        {
+                            if (el.LevelId != null && el.LevelId != ElementId.InvalidElementId
+                                && doc.GetElement(el.LevelId) is Level own)
+                                priorLevelElev = own.Elevation;
+                            else if (loc != null)
+                                priorLevelElev = LevelAtOrBelow(levels, loc.Z)?.Elevation;
+                        }
+                        catch (Exception ex) { StingLog.Warn($"DwgFixtureBridge.DropAlreadyPlaced level {el.Id}: {ex.Message}"); }
+                        idx.Add(prov.RuleId, loc?.X ?? 0, loc?.Y ?? 0, loc != null, priorLevelElev);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Without the index a re-run would duplicate — say so rather than place blind.
+                StingLog.Error("DwgFixtureBridge.DropAlreadyPlaced", ex);
+                res.Messages.Add($"Could not check for fixtures placed by a previous run ({ex.Message}); a re-run may duplicate them.");
+                return placeable;
+            }
+
+            var keep = new List<Captured>();
+            foreach (var c in placeable)
+            {
+                if (c.Point != null && c.Level != null && priorByCat.TryGetValue(c.Category, out var idx) && idx.Count > 0
+                    && idx.IsDuplicate(c.Point.X, c.Point.Y, c.Level.Value))
+                { res.SkippedAlreadyPlaced++; continue; }
+                keep.Add(c);
+            }
+            if (res.SkippedAlreadyPlaced > 0)
+                res.Messages.Add($"Skipped {res.SkippedAlreadyPlaced} fixture(s) already placed by a previous DWG bridge run (same category, level and DWG point).");
+            return keep;
+        }
+
+        /// <summary>DTW-131 — the highest level at or below <paramref name="z"/> (levels sorted
+        /// by elevation), else the lowest level, else null.</summary>
+        private static Level LevelAtOrBelow(List<Level> sortedLevels, double z)
+        {
+            if (sortedLevels == null || sortedLevels.Count == 0) return null;
+            Level best = null;
+            foreach (var l in sortedLevels)
+            {
+                if (l.Elevation <= z + 1e-6) best = l;
+                else break;
+            }
+            return best ?? sortedLevels[0];
         }
 
         // ── Helpers ──────────────────────────────────────────────────────────

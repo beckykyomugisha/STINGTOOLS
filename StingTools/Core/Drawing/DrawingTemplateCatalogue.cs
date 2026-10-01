@@ -81,6 +81,9 @@ namespace StingTools.Core.Drawing
         /// purposes need different base views keeps the first type's kind, and
         /// the conflict is reported in <see cref="DrawingTemplatePlan.NotCreatable"/>
         /// for the later ones — a template cannot serve two view types.
+        /// <para>DTW-62: a production rule's <c>viewTemplateOverride</c> is planned
+        /// too, from the kind of view the RULE makes (not the type's purpose), so a
+        /// mixed-kind type can name a template for each view it produces.</para>
         /// </summary>
         public static DrawingTemplatePlan Plan(IEnumerable<DrawingType> types)
         {
@@ -88,27 +91,13 @@ namespace StingTools.Core.Drawing
             var byName = new Dictionary<string, DrawingTemplateSpec>(StringComparer.Ordinal);
             var levels = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
-            foreach (var dt in types ?? Enumerable.Empty<DrawingType>())
+            void Add(DrawingType dt, string name, string kind, string who)
             {
-                string name = dt?.ViewTemplateName?.Trim();
-                if (string.IsNullOrEmpty(name)) continue;
-                if (IsManagedName(name))
-                {
-                    if (!plan.Managed.Contains(name)) plan.Managed.Add(name);
-                    continue;
-                }
-
-                if (!DrawingPurposeViewKind.TryResolve(dt.Purpose, out var kind))
-                {
-                    plan.NotCreatable.Add($"{name} — '{dt.Id}' has purpose '{dt.Purpose ?? "(none)"}', which maps to no view kind");
-                    continue;
-                }
                 if (!CreatableKinds.Contains(kind, StringComparer.OrdinalIgnoreCase))
                 {
-                    plan.NotCreatable.Add($"{name} — '{dt.Id}' is a {kind}; Revit cannot apply a view template to a {kind} view");
-                    continue;
+                    plan.NotCreatable.Add($"{name} — {who} is a {kind}; Revit cannot apply a view template to a {kind} view");
+                    return;
                 }
-
                 if (!byName.TryGetValue(name, out var spec))
                 {
                     spec = new DrawingTemplateSpec
@@ -123,18 +112,78 @@ namespace StingTools.Core.Drawing
                 }
                 else if (!string.Equals(spec.BaseKind, kind, StringComparison.OrdinalIgnoreCase))
                 {
-                    plan.NotCreatable.Add($"{name} — '{dt.Id}' needs a {kind} template but the name is already a " +
+                    plan.NotCreatable.Add($"{name} — {who} needs a {kind} template but the name is already a " +
                                           $"{spec.BaseKind} template (used by {string.Join(", ", spec.UsedBy)})");
-                    continue;
+                    return;
+                }
+                if (!spec.UsedBy.Contains(dt.Id)) spec.UsedBy.Add(dt.Id);
+                levels[name].Add(string.IsNullOrWhiteSpace(dt.DetailLevel) ? "Medium" : dt.DetailLevel.Trim());
+            }
+
+            foreach (var dt in types ?? Enumerable.Empty<DrawingType>())
+            {
+                if (dt == null) continue;
+                string name = dt.ViewTemplateName?.Trim();
+                if (!string.IsNullOrEmpty(name))
+                {
+                    if (IsManagedName(name))
+                    {
+                        if (!plan.Managed.Contains(name)) plan.Managed.Add(name);
+                    }
+                    else if (!DrawingPurposeViewKind.TryResolve(dt.Purpose, out var kind))
+                        plan.NotCreatable.Add($"{name} — '{dt.Id}' has purpose '{dt.Purpose ?? "(none)"}', which maps to no view kind");
+                    else
+                        Add(dt, name, kind, $"'{dt.Id}'");
                 }
 
-                spec.UsedBy.Add(dt.Id);
-                levels[name].Add(string.IsNullOrWhiteSpace(dt.DetailLevel) ? "Medium" : dt.DetailLevel.Trim());
+                if (dt.ProductionRules == null) continue;
+                foreach (var rule in dt.ProductionRules)
+                {
+                    string over = rule?.ViewTemplateOverride?.Trim();
+                    if (string.IsNullOrEmpty(over)) continue;
+                    if (IsManagedName(over))
+                    {
+                        if (!plan.Managed.Contains(over)) plan.Managed.Add(over);
+                        continue;
+                    }
+                    string ruleKind = ViewKindOf(rule.ViewType);
+                    if (ruleKind == null)
+                    {
+                        plan.NotCreatable.Add($"{over} — '{dt.Id}' rule {rule.Idx} makes '{rule.ViewType}', which is no view kind");
+                        continue;
+                    }
+                    Add(dt, over, ruleKind, $"'{dt.Id}' rule {rule.Idx}");
+                }
             }
 
             foreach (var spec in plan.Creatable)
                 spec.DetailLevel = levels[spec.Name].Count == 1 ? levels[spec.Name].First() : null;
             return plan;
+        }
+
+        /// <summary>
+        /// DTW-62: the <see cref="DrawingViewKind"/> of a Revit ViewType name as a
+        /// production rule or a live view spells it ("FloorPlan", "CeilingPlan",
+        /// "ThreeD", "DraftingView" …). Null for anything a template cannot name.
+        /// One table, so the catalogue and DrawingTypePresentation agree on which
+        /// rule a produced view came from.
+        /// </summary>
+        public static string ViewKindOf(string viewType)
+        {
+            switch ((viewType ?? "").Trim().ToLowerInvariant())
+            {
+                case "floorplan": case "plan": case "areaplan": case "engineeringplan":
+                    return DrawingViewKind.FloorPlan;
+                case "ceilingplan": case "rcp":        return DrawingViewKind.Rcp;
+                case "section":                        return DrawingViewKind.Section;
+                case "elevation":                      return DrawingViewKind.Elevation;
+                case "detail":                         return DrawingViewKind.Detail;
+                case "threed": case "3d": case "iso":  return DrawingViewKind.ThreeD;
+                case "draftingview": case "drafting":  return DrawingViewKind.Drafting;
+                case "schedule": case "panelschedule": return DrawingViewKind.Schedule;
+                case "legend":                         return DrawingViewKind.Legend;
+                default:                               return null;
+            }
         }
 
         /// <summary>

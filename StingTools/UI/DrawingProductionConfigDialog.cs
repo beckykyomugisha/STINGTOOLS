@@ -58,13 +58,17 @@ namespace StingTools.UI
         private TreeView _typesTree;
         private ListBox _contextsList;
         private ComboBox _presetCombo;
+        // DTW-22: presets load, are named, and overwrite by name.
+        private TextBox _presetName;
+        private List<DrawingProductionPreset> _presets = new List<DrawingProductionPreset>();
+        private string _loadedPresetId;
+        private TabItem _vgTab;
+        private bool _loadingPreset;
 
         // Tab 1 — general
-        private RadioButton _allLevels, _selectedLevels;
         private RadioButton _dupNormal, _dupDetailing, _dupDependent;
-        private CheckBox _idempotent, _createSheets, _createPackage, _onlyDefault, _hideUnused;
-        // Phase 137 — GRAITEC PowerPack parity toggles
-        private CheckBox _hideUnwantedSections, _hideUnwantedRebars, _hideUnwantedTags, _skipEmptyLevels;
+        private CheckBox _idempotent, _createSheets, _onlyDefault;
+        private CheckBox _skipEmptyLevels;
         private TextBox _packageId;
         private ComboBox _scaleOverride, _detailLevelOverride;
 
@@ -80,16 +84,12 @@ namespace StingTools.UI
         private ComboBox _northArrowPos, _scaleBarPos, _keyPlanPos;
 
         // Tab 4 — section
-        private RadioButton _sectPerp, _sectNS, _sectEW, _sectCustom;
-        private TextBox _sectAngle, _sectSpacing, _sectDepth, _sectFar;
-        private CheckBox _sectShowLevels, _sectShowGrids, _sectSegmented;
-        private RadioButton _sectAutoManual, _sectAutoGrid, _sectAutoRoom;
-        private RadioButton _sectOutSection, _sectOutCallout, _sectOutBoth;
+        private TextBox _sectDepth;
 
         // Tab 4 — elevation
         private CheckBox _elevN, _elevS, _elevE, _elevW;
-        private TextBox _elevOffset, _elevFar, _elevMarker;
-        private CheckBox _elevShowLevels, _elevShowGrids, _elev1Plus4;
+        private TextBox _elevOffset, _elevFar;
+        private CheckBox _elev1Plus4;
 
         public DrawingProductionConfigDialog(List<DrawingType> availableTypes, List<string> contextLabels, string commandType, Document doc)
         {
@@ -179,19 +179,20 @@ namespace StingTools.UI
                 onNone: () => SetAllContextsChecked(false),
                 label:  "levels / contexts"));
 
+            // DTW-22: picking a preset loads it into every control; Save Preset writes the
+            // controls under the name below, overwriting the preset of that name. The combo
+            // had no SelectionChanged and a save always minted a new unnamed id, so a saved
+            // preset could never be used again from here.
             stack.Children.Add(MakeHeading("Preset"));
             var presetRow = new DockPanel { LastChildFill = true, Margin = new Thickness(0,0,0,4) };
-            _presetCombo = new ComboBox();
-            _presetCombo.Items.Add("— New —");
-            try
-            {
-                foreach (var p in ProductionPresetRegistry.Load(_doc))
-                    _presetCombo.Items.Add(p.Name ?? p.Id);
-            }
-            catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            _presetCombo.SelectedIndex = 0;
+            _presetCombo = new ComboBox { ToolTip = "Load a saved preset into the dialog" };
+            _presetCombo.SelectionChanged += OnPresetPicked;
             presetRow.Children.Add(_presetCombo);
             stack.Children.Add(presetRow);
+            stack.Children.Add(MakeLabel("Preset name (Save Preset overwrites a preset of this name):"));
+            _presetName = new TextBox { Margin = new Thickness(0, 2, 0, 4) };
+            stack.Children.Add(_presetName);
+            RefreshPresetCombo(null);
 
             return stack;
         }
@@ -264,7 +265,8 @@ namespace StingTools.UI
             Grid.SetColumn(tabs, 2);
 
             tabs.Items.Add(new TabItem { Header = "General",    Content = BuildGeneralTab() });
-            tabs.Items.Add(new TabItem { Header = "VG Overrides", Content = BuildVgTab() });
+            _vgTab = new TabItem { Header = "VG Overrides", Content = BuildVgTab() };
+            tabs.Items.Add(_vgTab);
             tabs.Items.Add(new TabItem { Header = "Annotation", Content = BuildAnnotationTab() });
 
             var t4 = new TabItem { Header = "Section / Elevation", Content = BuildSectionElevTab() };
@@ -280,11 +282,9 @@ namespace StingTools.UI
             var sp = new StackPanel { Margin = new Thickness(12) };
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
 
-            sp.Children.Add(MakeCardHeader("Scope"));
-            _allLevels = new RadioButton { Content = "All levels", IsChecked = true, GroupName = "lvlScope", Margin = new Thickness(0,2,0,2) };
-            _selectedLevels = new RadioButton { Content = "Selected levels (use left context list)", GroupName = "lvlScope", Margin = new Thickness(0,2,0,2) };
-            sp.Children.Add(_allLevels);
-            sp.Children.Add(_selectedLevels);
+            // DTW-30: the "All levels / Selected levels" radios were never read — the
+            // ticked contexts in the left-hand list are what gets produced, whatever the
+            // radio said. Removed; "Select all" under that list does what "All" promised.
 
             sp.Children.Add(MakeCardHeader("View Creation"));
             _dupNormal     = new RadioButton { Content = "Duplicate",                IsChecked = true, GroupName = "dup", Margin = new Thickness(0,2,0,2) };
@@ -295,11 +295,11 @@ namespace StingTools.UI
             sp.Children.Add(_dupDependent);
             _idempotent    = new CheckBox { Content = "Skip if a view already exists for this context", IsChecked = true, Margin = new Thickness(0,4,0,2) };
             _createSheets  = new CheckBox { Content = "Create sheets",            IsChecked = true, Margin = new Thickness(0,2,0,2) };
-            _createPackage = new CheckBox { Content = "Create drawing package",   IsChecked = true, Margin = new Thickness(0,2,0,2) };
             sp.Children.Add(_idempotent);
             sp.Children.Add(_createSheets);
-            sp.Children.Add(_createPackage);
-            sp.Children.Add(MakeLabel("Package id:"));
+            // DTW-29: "Create drawing package" was never read — a package is the package id
+            // stamped on the sheets, so the id below is the whole of the choice.
+            sp.Children.Add(MakeLabel("Drawing package id:"));
             _packageId = new TextBox { Margin = new Thickness(0,2,0,4) };
             sp.Children.Add(_packageId);
 
@@ -313,22 +313,22 @@ namespace StingTools.UI
 
             sp.Children.Add(MakeCardHeader("Generation Rules"));
             _onlyDefault = new CheckBox { Content = "Generate views only for default configuration", Margin = new Thickness(0,2,0,2) };
-            _hideUnused  = new CheckBox { Content = "Hide categories with no visible elements in view", Margin = new Thickness(0,2,0,2) };
             sp.Children.Add(_onlyDefault);
-            sp.Children.Add(_hideUnused);
-            // Phase 137 — GRAITEC PowerPack "Customize Drawings" parity:
-            //   * Hide unwanted sections — strips section heads/markers off the produced VG
-            //   * Hide unwanted rebars   — strips rebar tags / location lines off the produced VG
-            //   * Hide unwanted tags     — strips tag annotations from the produced view
-            //   * Skip empty levels      — when on, levels with no model elements get no view
-            _hideUnwantedSections = new CheckBox { Content = "Hide unwanted sections (GRAITEC parity)", Margin = new Thickness(0,2,0,2) };
-            _hideUnwantedRebars   = new CheckBox { Content = "Hide unwanted rebars (GRAITEC parity)",   Margin = new Thickness(0,2,0,2) };
-            _hideUnwantedTags     = new CheckBox { Content = "Hide unwanted tags",                       Margin = new Thickness(0,2,0,2) };
-            _skipEmptyLevels      = new CheckBox { Content = "Skip levels with no model elements",       IsChecked = true, Margin = new Thickness(0,2,0,2) };
-            sp.Children.Add(_hideUnwantedSections);
-            sp.Children.Add(_hideUnwantedRebars);
-            sp.Children.Add(_hideUnwantedTags);
-            sp.Children.Add(_skipEmptyLevels);
+            // DTW-29: "Hide categories with no visible elements", "Hide unwanted sections /
+            // rebars / tags" were never read and are removed — visibility belongs to the
+            // drawing type's view style pack and template, and the VG Overrides tab. "Skip
+            // levels with no model elements" is kept and now works, for Produce Per Level:
+            // an MEP plan is skipped on a level where its discipline has nothing modelled
+            // (host or linked model), any other plan on a level with no model element.
+            if (_commandType == "PerLevel")
+            {
+                _skipEmptyLevels = new CheckBox
+                {
+                    Content = "Skip levels with nothing modelled for the drawing type's discipline",
+                    IsChecked = true, Margin = new Thickness(0,2,0,2),
+                };
+                sp.Children.Add(_skipEmptyLevels);
+            }
 
             return sv;
         }
@@ -337,7 +337,7 @@ namespace StingTools.UI
         private RevitVgEditor _vgEditor;
         private Dictionary<string, PresetCategoryOverride> _vgData;
 
-        private UIElement BuildVgTab()
+        private UIElement BuildVgTab(IEnumerable<PresetCategoryOverride> seed = null)
         {
             var dp = new DockPanel { LastChildFill = true, Margin = new Thickness(8) };
             var topBar = new TextBlock {
@@ -351,6 +351,17 @@ namespace StingTools.UI
             dp.Children.Add(topBar);
 
             _vgData = new Dictionary<string, PresetCategoryOverride>(StringComparer.OrdinalIgnoreCase);
+            // DTW-22: a loaded preset's rows are keyed as the editor's display-name fallback
+            // reads them — "Walls" for a category, "Walls/Cut Pattern"-style or the bare
+            // subcategory name for a subcategory — and re-keyed by BIC as rows bind.
+            foreach (var o in seed ?? Enumerable.Empty<PresetCategoryOverride>())
+            {
+                if (o == null) continue;
+                string key = !string.IsNullOrEmpty(o.SubCategory)
+                    ? (!string.IsNullOrEmpty(o.Category) ? $"{o.Category}/{o.SubCategory}" : o.SubCategory)
+                    : o.Category;
+                if (!string.IsNullOrEmpty(key)) _vgData[key] = o;
+            }
             _vgEditor = new RevitVgEditor(_doc, _vgData);
             dp.Children.Add(_vgEditor.Build());
             return dp;
@@ -363,11 +374,22 @@ namespace StingTools.UI
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
 
             sp.Children.Add(MakeCardHeader("Run Annotation"));
+            // DTW-28: each box maps to one AnnotationRunOptions skip flag. Ticked means
+            // "run what the drawing type's annotation pack asks for" — the pack decides what
+            // is tagged or dimensioned, the box only allows or skips that part. Spots were
+            // unticked by default, which would now switch off spot rules packs already run.
             _runAnno  = new CheckBox { Content = "Run annotation after view creation", IsChecked = true };
-            _runTags  = new CheckBox { Content = "Auto-tag elements",                 IsChecked = true };
-            _runDims  = new CheckBox { Content = "Auto-dimension (grids, levels)",    IsChecked = true };
-            _runDec   = new CheckBox { Content = "Decorative (north arrow, scale bar)", IsChecked = true };
-            _runSpots = new CheckBox { Content = "Spot elevations / coordinates",     IsChecked = false };
+            _runTags  = new CheckBox { Content = "Auto-tag elements",                 IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            _runDims  = new CheckBox { Content = "Auto-dimension (grids, levels)",    IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            _runDec   = new CheckBox { Content = "Decorative (north arrow, scale bar)", IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            _runSpots = new CheckBox { Content = "Spot elevations / coordinates",     IsChecked = true, Margin = new Thickness(16,0,0,0) };
+            RoutedEventHandler syncAnno = (s, e) =>
+            {
+                bool on = _runAnno.IsChecked == true;
+                _runTags.IsEnabled = _runDims.IsEnabled = _runDec.IsEnabled = _runSpots.IsEnabled = on;
+            };
+            _runAnno.Checked += syncAnno;
+            _runAnno.Unchecked += syncAnno;
             sp.Children.Add(_runAnno);
             sp.Children.Add(_runTags);
             sp.Children.Add(_runDims);
@@ -430,49 +452,26 @@ namespace StingTools.UI
             var sv = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = sp };
 
             bool isSection = _commandType == "Sections";
-            bool isElev    = _commandType == "ExteriorElevations" || _commandType == "InteriorElevations";
+            bool isElev    = _commandType == "ExteriorElevations";
+            bool isInterior = _commandType == "InteriorElevations";
 
             if (isSection)
             {
-                sp.Children.Add(MakeCardHeader("Cutting Direction"));
-                _sectPerp   = new RadioButton { Content = "Perpendicular to walls",  IsChecked = true,  GroupName = "cut" };
-                _sectNS     = new RadioButton { Content = "North-South + East-West",                    GroupName = "cut" };
-                _sectEW     = new RadioButton { Content = "East-West only",                              GroupName = "cut" };
-                _sectCustom = new RadioButton { Content = "Custom angle",                                GroupName = "cut" };
-                sp.Children.Add(_sectPerp);
-                sp.Children.Add(_sectNS);
-                sp.Children.Add(_sectEW);
-                sp.Children.Add(_sectCustom);
-                _sectAngle = AddTextRow(sp, "Custom angle (°):");
-
+                // DTW-23/24/25: sections are cut along the grid lines ticked on the left —
+                // the one placement Produce Sections carries out. The cutting-direction,
+                // custom-angle, spacing, far-clip, segmented, per-room / manual placement,
+                // show levels / grids and callout-output options were drawn and never read
+                // (manual placement returned "requires picking"; per room produced nothing);
+                // they are removed rather than left looking like choices.
+                sp.Children.Add(MakeCardHeader("Placement"));
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "One section along each grid line ticked in the left-hand list, cut along the grid and "
+                         + "looking across it, from 3 m below to 30 m above the grid's level.",
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 6),
+                });
                 sp.Children.Add(MakeCardHeader("Section Geometry"));
-                _sectSpacing = AddTextRow(sp, "Spacing (mm):");      _sectSpacing.Text = "5000";
-                _sectDepth   = AddTextRow(sp, "Section depth (mm):"); _sectDepth.Text   = "10000";
-                _sectFar     = AddTextRow(sp, "Far clip (mm):");      _sectFar.Text     = "10000";
-                _sectSegmented = new CheckBox { Content = "Segmented / jogged section" };
-                sp.Children.Add(_sectSegmented);
-
-                sp.Children.Add(MakeCardHeader("Auto-Placement"));
-                _sectAutoManual = new RadioButton { Content = "Manual selection (pick in model)", IsChecked = true, GroupName = "auto" };
-                _sectAutoGrid   = new RadioButton { Content = "Along grid lines",                                GroupName = "auto" };
-                _sectAutoRoom   = new RadioButton { Content = "Per room",                                        GroupName = "auto" };
-                sp.Children.Add(_sectAutoManual);
-                sp.Children.Add(_sectAutoGrid);
-                sp.Children.Add(_sectAutoRoom);
-
-                sp.Children.Add(MakeCardHeader("Annotation"));
-                _sectShowLevels = new CheckBox { Content = "Show & annotate Levels", IsChecked = true };
-                _sectShowGrids  = new CheckBox { Content = "Show & annotate Grids",  IsChecked = true };
-                sp.Children.Add(_sectShowLevels);
-                sp.Children.Add(_sectShowGrids);
-
-                sp.Children.Add(MakeCardHeader("Output"));
-                _sectOutSection = new RadioButton { Content = "Sections only",     IsChecked = true, GroupName = "out" };
-                _sectOutCallout = new RadioButton { Content = "Callouts only",                       GroupName = "out" };
-                _sectOutBoth    = new RadioButton { Content = "Sections + callout references",       GroupName = "out" };
-                sp.Children.Add(_sectOutSection);
-                sp.Children.Add(_sectOutCallout);
-                sp.Children.Add(_sectOutBoth);
+                _sectDepth = AddTextRow(sp, "Section depth — how far it looks (mm):"); _sectDepth.Text = "10000";
             }
             else if (isElev)
             {
@@ -490,18 +489,34 @@ namespace StingTools.UI
                 _elevOffset = AddTextRow(sp, "Offset from footprint (mm):"); _elevOffset.Text = "3000";
                 _elevFar    = AddTextRow(sp, "Far clip (mm):");              _elevFar.Text    = "30000";
 
-                sp.Children.Add(MakeCardHeader("Marker"));
-                _elevMarker = AddTextRow(sp, "Elevation marker family (blank = default):");
-
+                // DTW-27: the marker family and "show levels / grids" boxes were never read
+                // and are removed — the elevation view type and the drawing type's view
+                // template decide both. The markers are hosted on the plan of the ticked
+                // level nearest ground (left-hand list).
                 sp.Children.Add(MakeCardHeader("Sheet Layout"));
-                _elev1Plus4 = new CheckBox { Content = "Place all 4 elevations on one 1+4 sheet (requires 4-slot DrawingType)", IsChecked = true };
+                _elev1Plus4 = new CheckBox
+                {
+                    Content = "Put the faces on one sheet when the drawing type lays out a slot for each (needs 'Create sheets')",
+                    IsChecked = true,
+                };
                 sp.Children.Add(_elev1Plus4);
-
-                sp.Children.Add(MakeCardHeader("Annotation"));
-                _elevShowLevels = new CheckBox { Content = "Show & annotate Levels", IsChecked = true };
-                _elevShowGrids  = new CheckBox { Content = "Show & annotate Grids",  IsChecked = true };
-                sp.Children.Add(_elevShowLevels);
-                sp.Children.Add(_elevShowGrids);
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "The markers are placed on a floor plan of the ticked level nearest ground (left list). "
+                         + "Re-running reuses each face's view.",
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0), Foreground = new SolidColorBrush(Colors.Gray),
+                });
+            }
+            else if (isInterior)
+            {
+                // DTW-54: the faces come from the drawing type, so the old face checkboxes
+                // (never read for interiors) are gone.
+                sp.Children.Add(new TextBlock
+                {
+                    Text = "Each room gets the faces its drawing type asks for: the faces its elevation rules name, "
+                         + "else one per Elevation slot on its sheet. The marker is hosted on a floor plan of the room's level.",
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0),
+                });
             }
             else
             {
@@ -534,13 +549,28 @@ namespace StingTools.UI
             try
             {
                 var preset = CollectPreset();
-                if (string.IsNullOrEmpty(preset.Name))
-                    preset.Name = $"Preset {DateTime.UtcNow:yyyyMMdd-HHmmss}";
+                if (string.IsNullOrWhiteSpace(preset.Name))
+                    preset.Name = $"{_commandType} {DateTime.Now:yyyy-MM-dd HH.mm}";
                 var existing = ProductionPresetRegistry.Load(_doc) ?? new List<DrawingProductionPreset>();
+                // DTW-22: one preset per name (for this command). Saving under a name that
+                // exists overwrites it, keeping its id and creation date; a new name is a
+                // new preset.
+                var same = existing.FirstOrDefault(p => string.Equals((p.Name ?? "").Trim(), preset.Name.Trim(), StringComparison.OrdinalIgnoreCase)
+                                                     && (string.IsNullOrEmpty(p.CommandType) || string.Equals(p.CommandType, _commandType, StringComparison.OrdinalIgnoreCase)));
+                if (same != null)
+                {
+                    preset.Id = same.Id;
+                    preset.CreatedAt = same.CreatedAt ?? preset.CreatedAt;
+                }
+                else if (_loadedPresetId != null && string.Equals(preset.Id, _loadedPresetId, StringComparison.OrdinalIgnoreCase))
+                    preset.Id = NewPresetId();   // renamed: a new preset, the loaded one kept
                 existing.RemoveAll(p => string.Equals(p.Id, preset.Id, StringComparison.OrdinalIgnoreCase));
                 existing.Add(preset);
                 ProductionPresetRegistry.Save(_doc, existing);
-                MessageBox.Show(this, $"Saved preset '{preset.Name}'.", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+                _loadedPresetId = preset.Id;
+                RefreshPresetCombo(preset.Id);
+                MessageBox.Show(this, same != null ? $"Preset '{preset.Name}' updated." : $"Saved preset '{preset.Name}'.",
+                    "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
@@ -583,12 +613,12 @@ namespace StingTools.UI
         {
             var preset = new DrawingProductionPreset
             {
-                Id = $"preset-{Guid.NewGuid():N}".Substring(0, 16),
+                Id = _loadedPresetId ?? NewPresetId(),
+                Name = _presetName?.Text?.Trim(),
                 CommandType = _commandType,
                 CreatedAt = DateTime.UtcNow.ToString("o"),
                 CreatedBy = "STING",
                 CreateSheets = _createSheets?.IsChecked == true,
-                CreatePackage = _createPackage?.IsChecked == true,
                 PackageId = _packageId?.Text,
                 General = new ProductionGeneralSettings
                 {
@@ -596,11 +626,11 @@ namespace StingTools.UI
                         : _dupDependent?.IsChecked == true ? "DuplicateAsDependent" : "Duplicate",
                     Idempotent = _idempotent?.IsChecked == true,
                     RunAnnotation = _runAnno?.IsChecked == true,
-                    HideUnwantedCats = _hideUnused?.IsChecked == true,
+                    RunAutoTag    = _runTags?.IsChecked != false,
+                    RunAutoDim    = _runDims?.IsChecked != false,
+                    RunDecorative = _runDec?.IsChecked != false,
+                    RunSpots      = _runSpots?.IsChecked != false,
                     GenerateOnlyDefault = _onlyDefault?.IsChecked == true,
-                    HideUnwantedSections = _hideUnwantedSections?.IsChecked == true,
-                    HideUnwantedRebars   = _hideUnwantedRebars?.IsChecked == true,
-                    HideUnwantedTags     = _hideUnwantedTags?.IsChecked == true,
                     SkipEmptyLevels      = _skipEmptyLevels?.IsChecked != false,
                     ScaleOverride = ParseScale(_scaleOverride?.Text),
                     DetailLevelOverride = (_detailLevelOverride?.Text == "By View") ? null : _detailLevelOverride?.Text
@@ -633,30 +663,17 @@ namespace StingTools.UI
             preset.AnnotationOverrides["*"] = pack;
 
             // Section / Elevation config
-            if (_commandType == "Sections" && _sectPerp != null)
+            if (_commandType == "Sections" && _sectDepth != null)
             {
+                // DTW-23: along the ticked grid lines is the only placement; the depth is the
+                // only geometry the command reads.
                 preset.SectionConfig = new SectionProductionConfig
                 {
-                    CuttingDirection = _sectNS?.IsChecked == true ? "NorthSouth"
-                                     : _sectEW?.IsChecked == true ? "EastWest"
-                                     : _sectCustom?.IsChecked == true ? "CustomAngle"
-                                     : "Perpendicular",
-                    CustomAngleDeg = double.TryParse(_sectAngle?.Text, out var a) ? (double?)a : null,
-                    SpacingMm = double.TryParse(_sectSpacing?.Text, out var sp1) ? sp1 : 5000,
-                    DepthMm   = double.TryParse(_sectDepth?.Text,   out var dp) ? dp : 10000,
-                    FarClipMm = double.TryParse(_sectFar?.Text,     out var fc) ? fc : 10000,
-                    ShowLevels = _sectShowLevels?.IsChecked == true,
-                    ShowGrids  = _sectShowGrids?.IsChecked == true,
-                    SegmentedView = _sectSegmented?.IsChecked == true,
-                    AutoPlace = _sectAutoGrid?.IsChecked == true ? "AlongGridLines"
-                              : _sectAutoRoom?.IsChecked == true ? "PerRoom"
-                              : "ManualSelection",
-                    CalloutMode = _sectOutCallout?.IsChecked == true ? "Callout"
-                                : _sectOutBoth?.IsChecked    == true ? "Both"
-                                : "Section"
+                    AutoPlace = "AlongGridLines",
+                    DepthMm   = double.TryParse(_sectDepth.Text, out var dp) && dp > 0 ? dp : 10000,
                 };
             }
-            if ((_commandType == "ExteriorElevations" || _commandType == "InteriorElevations") && _elevN != null)
+            if (_commandType == "ExteriorElevations" && _elevN != null)
             {
                 var faces = new List<string>();
                 if (_elevN?.IsChecked == true) faces.Add("North");
@@ -668,14 +685,119 @@ namespace StingTools.UI
                     FacesTo = faces,
                     OffsetMm = double.TryParse(_elevOffset?.Text, out var off) ? off : 3000,
                     FarClipMm = double.TryParse(_elevFar?.Text, out var ef) ? ef : 30000,
-                    ShowLevels = _elevShowLevels?.IsChecked == true,
-                    ShowGrids = _elevShowGrids?.IsChecked == true,
                     UseOneFourViewSheet = _elev1Plus4?.IsChecked == true,
-                    MarkerFamily = _elevMarker?.Text
                 };
             }
 
             return preset;
+        }
+
+        private static string NewPresetId() => $"preset-{Guid.NewGuid():N}".Substring(0, 16);
+
+        /// <summary>DTW-22: the saved presets for this command (and command-less ones) in the combo.</summary>
+        private void RefreshPresetCombo(string selectId)
+        {
+            _loadingPreset = true;
+            try
+            {
+                try
+                {
+                    _presets = (ProductionPresetRegistry.Load(_doc) ?? new List<DrawingProductionPreset>())
+                        .Where(p => p != null && (string.IsNullOrEmpty(p.CommandType)
+                                 || string.Equals(p.CommandType, _commandType, StringComparison.OrdinalIgnoreCase)))
+                        .OrderBy(p => p.Name ?? p.Id, StringComparer.OrdinalIgnoreCase).ToList();
+                }
+                catch (Exception ex) { StingLog.Warn($"Production presets: {ex.Message}"); _presets = new List<DrawingProductionPreset>(); }
+                _presetCombo.Items.Clear();
+                _presetCombo.Items.Add("— New —");
+                foreach (var p in _presets) _presetCombo.Items.Add(p.Name ?? p.Id);
+                int i = selectId == null ? -1 : _presets.FindIndex(p => string.Equals(p.Id, selectId, StringComparison.OrdinalIgnoreCase));
+                _presetCombo.SelectedIndex = i < 0 ? 0 : i + 1;
+            }
+            finally { _loadingPreset = false; }
+        }
+
+        private void OnPresetPicked(object sender, SelectionChangedEventArgs e)
+        {
+            if (_loadingPreset) return;
+            int i = _presetCombo.SelectedIndex - 1;
+            if (i < 0 || i >= _presets.Count) { _loadedPresetId = null; if (_presetName != null) _presetName.Text = ""; return; }
+            try { LoadPreset(_presets[i]); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"Loading preset '{_presets[i]?.Name}': {ex.Message}");
+                MessageBox.Show(this, $"The preset could not be loaded: {ex.Message}", "Preset", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+
+        /// <summary>DTW-22: every control from <paramref name="p"/> — the inverse of CollectPreset.</summary>
+        private void LoadPreset(DrawingProductionPreset p)
+        {
+            if (p == null) return;
+            _loadedPresetId = p.Id;
+            _presetName.Text = p.Name ?? "";
+            var g = p.General ?? new ProductionGeneralSettings();
+
+            _dupDetailing.IsChecked = g.DuplicateOption == "DuplicateWithDetailing";
+            _dupDependent.IsChecked = g.DuplicateOption == "DuplicateAsDependent";
+            _dupNormal.IsChecked = _dupDetailing.IsChecked != true && _dupDependent.IsChecked != true;
+            _idempotent.IsChecked = g.Idempotent;
+            _createSheets.IsChecked = p.CreateSheets;
+            _packageId.Text = p.PackageId ?? "";
+            SelectComboText(_scaleOverride, g.ScaleOverride is int sc && sc > 0 ? $"1:{sc}" : "None");
+            SelectComboText(_detailLevelOverride, string.IsNullOrWhiteSpace(g.DetailLevelOverride) ? "By View" : g.DetailLevelOverride);
+            _onlyDefault.IsChecked = g.GenerateOnlyDefault;
+            if (_skipEmptyLevels != null) _skipEmptyLevels.IsChecked = g.SkipEmptyLevels;
+
+            _runAnno.IsChecked = g.RunAnnotation;
+            _runTags.IsChecked = g.RunAutoTag;
+            _runDims.IsChecked = g.RunAutoDim;
+            _runDec.IsChecked = g.RunDecorative;
+            _runSpots.IsChecked = g.RunSpots;
+
+            AnnotationRulePack pack = null;
+            p.AnnotationOverrides?.TryGetValue("*", out pack);
+            _tagRows.Clear(); _dimRows.Clear();
+            foreach (var r in pack?.Rules ?? new List<AutoAnnotationRule>())
+            {
+                if (r == null) continue;
+                if ((r.RuleType ?? "").IndexOf("Dim", StringComparison.OrdinalIgnoreCase) >= 0) _dimRows.Add(r);
+                else _tagRows.Add(r);
+            }
+            _northArrowFamily.Text = pack?.NorthArrowFamily ?? "";
+            SelectComboText(_northArrowPos, pack?.NorthArrowPosition);
+            _scaleBarFamily.Text = pack?.ScaleBarFamily ?? "";
+            SelectComboText(_scaleBarPos, pack?.ScaleBarPosition);
+            _keyPlanFamily.Text = pack?.KeyPlanFamily ?? "";
+            SelectComboText(_keyPlanPos, pack?.KeyPlanPosition);
+            _matchlineMm.Text = pack?.MatchlineOffsetMm?.ToString(System.Globalization.CultureInfo.CurrentCulture) ?? "";
+
+            List<PresetCategoryOverride> vg = null;
+            p.VgOverrides?.TryGetValue("*", out vg);
+            if (_vgTab != null) _vgTab.Content = BuildVgTab(vg);
+
+            if (_sectDepth != null && p.SectionConfig != null)
+                _sectDepth.Text = (p.SectionConfig.DepthMm > 0 ? p.SectionConfig.DepthMm : 10000).ToString(System.Globalization.CultureInfo.CurrentCulture);
+            if (_elevN != null && p.ElevationConfig != null)
+            {
+                var faces = new HashSet<string>(p.ElevationConfig.FacesTo ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
+                _elevN.IsChecked = faces.Contains("North"); _elevS.IsChecked = faces.Contains("South");
+                _elevE.IsChecked = faces.Contains("East");  _elevW.IsChecked = faces.Contains("West");
+                _elevOffset.Text = p.ElevationConfig.OffsetMm.ToString(System.Globalization.CultureInfo.CurrentCulture);
+                _elevFar.Text = p.ElevationConfig.FarClipMm.ToString(System.Globalization.CultureInfo.CurrentCulture);
+                _elev1Plus4.IsChecked = p.ElevationConfig.UseOneFourViewSheet;
+            }
+        }
+
+        /// <summary>Select <paramref name="text"/> in a combo, adding it when it is not an item (a saved 1:75).</summary>
+        private static void SelectComboText(ComboBox cb, string text)
+        {
+            if (cb == null) return;
+            if (string.IsNullOrWhiteSpace(text)) { if (cb.Items.Count > 0) cb.SelectedIndex = 0; return; }
+            foreach (var item in cb.Items)
+                if (string.Equals(item?.ToString(), text, StringComparison.OrdinalIgnoreCase)) { cb.SelectedItem = item; return; }
+            cb.Items.Add(text);
+            cb.SelectedItem = text;
         }
 
         private void LoadDefaults()

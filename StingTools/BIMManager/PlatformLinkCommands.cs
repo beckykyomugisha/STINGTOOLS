@@ -1268,6 +1268,11 @@ namespace StingTools.BIMManager
                 transmittals.Add(tx);
                 bool txSaved = txReadable && BIMManagerEngine.SaveJsonFile(txPath, transmittals);
                 if (!txSaved) tx = null;   // nothing recorded: the bundle carries no transmittal id
+                // What did not get recorded, for the person: a publish that reports plain success
+                // while its bookkeeping failed is the lying-catch shape (find_lying_catches.py).
+                var recordProblems = new List<string>();
+                if (!txSaved) recordProblems.Add("no transmittal was recorded for this package" +
+                                                 (txReadable ? " (transmittals.json could not be saved)" : $" ({txErr})"));
 
                 // Record WHICH bundle this was, so ACC_UploadLastBundle can upload it
                 // without a human picking a file. This command still only builds a local
@@ -1299,14 +1304,24 @@ namespace StingTools.BIMManager
                         if (string.IsNullOrEmpty(bundleRev)) StingLog.Info("ACC publish: no bundle revision recorded — " + revNote);
                     }
                     if (rec == null)
+                    {
                         StingLog.Warn("ACC publish: could not record the bundle for later upload " +
                                       "(the ZIP was not found on disk).");
+                        recordProblems.Add("the bundle was not recorded for ACC_UploadLastBundle (the ZIP was not found on disk)");
+                    }
                     else if (!V6.AccBundleRecord.TryWrite(recPath, rec, out string recErr))
+                    {
                         StingLog.Warn("ACC publish: could not record the bundle for later upload: " + recErr);
+                        recordProblems.Add("the bundle was not recorded for ACC_UploadLastBundle (" + recErr + ")");
+                    }
                     else
                         StingLog.Info("ACC publish: recorded bundle at " + recPath);
                 }
-                catch (Exception ex) { StingLog.Warn("ACC publish: bundle record: " + ex.Message); }
+                catch (Exception ex)
+                {
+                    StingLog.Warn("ACC publish: bundle record: " + ex.Message);
+                    recordProblems.Add("the bundle was not recorded for ACC_UploadLastBundle (" + ex.Message + ")");
+                }
 
 
                 long zipSize = new FileInfo(zipPath).Length;
@@ -1324,7 +1339,10 @@ namespace StingTools.BIMManager
                     $"ZIP size: {sizeStr}\n\n" +
                     $"Package: {Path.GetFileName(zipPath)}\n" +
                     $"Location: {Path.GetDirectoryName(zipPath)}\n\n" +
-                    "Upload the ZIP file to ACC/BIM 360 document management.");
+                    "Upload the ZIP file to ACC/BIM 360 document management." +
+                    (recordProblems.Count == 0 ? "" :
+                        "\n\nNOT recorded: " + string.Join("; ", recordProblems) +
+                        ". ACC_UploadLastBundle will not offer this package — upload it by hand or publish again."));
 
                 return Result.Succeeded;
             }

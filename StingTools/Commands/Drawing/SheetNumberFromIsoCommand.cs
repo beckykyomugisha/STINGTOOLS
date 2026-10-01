@@ -33,6 +33,7 @@ using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using StingTools.Core;
+using StingTools.Core.Drawing;
 
 namespace StingTools.Commands.Drawing
 {
@@ -40,15 +41,11 @@ namespace StingTools.Commands.Drawing
     [Regeneration(RegenerationOption.Manual)]
     public class SheetNumberFromIsoCommand : IExternalCommand
     {
-        /// <summary>Breadcrumb file holding every from -> to pair, so the move is
-        /// reversible.
-        ///
-        /// NOT a parameter. The obvious choice, PRJ_SHEET_PREV_NUMBER_TXT, does not
-        /// exist in MR_PARAMETERS.txt -- SetString would have returned false, the
-        /// count would have been discarded, and the dialog would have promised
-        /// reversibility that was never written anywhere. Same shape as
-        /// _data/.sting_consolidation.json, which exists for the same reason.</summary>
-        private const string HistoryFile = "sheet_number_history.json";
+        // The from -> to record is written by SheetNumbering.Apply to
+        // sheet_number_history.json (SheetNumbering.HistoryFile) — one file shared
+        // with Renumber, Tidy and Restore. NOT a parameter: PRJ_SHEET_PREV_NUMBER_TXT
+        // does not exist in MR_PARAMETERS.txt, so a SetString there wrote nothing.
+        private const string Title = "STING — Sheet Number from ISO";
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
@@ -56,7 +53,7 @@ namespace StingTools.Commands.Drawing
             var doc = uiApp?.ActiveUIDocument?.Document;
             if (doc == null)
             {
-                TaskDialog.Show("STING — Sheet Number from ISO", "No active document.");
+                PresetDialog.Show(Title, "No active document.", ref message);
                 return Result.Failed;
             }
 
@@ -68,17 +65,17 @@ namespace StingTools.Commands.Drawing
             // deserves a sentence, not an exception message.
             if (doc.IsFamilyDocument)
             {
-                TaskDialog.Show("STING — Sheet Number from ISO",
+                PresetDialog.Show(Title,
                     "This is a FAMILY document, not a project.\n\n" +
                     "Sheet numbers live in a project. Switch to the project window and " +
-                    "run this again.");
+                    "run this again.", ref message);
                 return Result.Cancelled;
             }
             if (string.IsNullOrEmpty(doc.PathName))
             {
-                TaskDialog.Show("STING — Sheet Number from ISO",
+                PresetDialog.Show(Title,
                     "This model has never been saved, so it has no project folder to " +
-                    "read or write the change record in.\n\nSave it and run this again.");
+                    "read or write the change record in.\n\nSave it and run this again.", ref message);
                 return Result.Cancelled;
             }
 
@@ -89,199 +86,190 @@ namespace StingTools.Commands.Drawing
                 .OrderBy(s => s.SheetNumber, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            var plan = new List<(ViewSheet sheet, string from, string to)>();
+            var byId = new Dictionary<string, ViewSheet>(StringComparer.Ordinal);
+            var candidates = new List<DrawingQaRules.IsoRenumberCandidate>();
             var noCode = new List<string>();
-            var unchanged = new List<string>();
 
             foreach (var s in sheets)
             {
                 string iso = ParameterHelpers.GetString(s, ParamRegistry.SHT_TAG_1);
                 if (string.IsNullOrWhiteSpace(iso)) { noCode.Add(s.SheetNumber); continue; }
-                iso = iso.Trim();
-                if (string.Equals(iso, s.SheetNumber, StringComparison.Ordinal))
-                { unchanged.Add(s.SheetNumber); continue; }
-                plan.Add((s, s.SheetNumber, iso));
+                var id = s.Id.Value.ToString();
+                byId[id] = s;
+                candidates.Add(new DrawingQaRules.IsoRenumberCandidate
+                {
+                    Id = id,
+                    Current = s.SheetNumber,
+                    Target = iso.Trim(),
+                    // DTW-11: a style-locked sheet keeps its number — the old
+                    // command renamed it regardless.
+                    Locked = DrawingTypeStamper.IsLocked(s),
+                });
             }
 
-            if (plan.Count == 0)
-            {
-                TaskDialog.Show("STING — Sheet Number from ISO",
-                    noCode.Count > 0
-                        ? $"None of the {sheets.Count} sheet(s) can be renumbered.\n\n"
-                          + $"{noCode.Count} carry no {ParamRegistry.SHT_TAG_1} — run CREATE TAGS → "
-                          + "Tag Sheets first, which assembles the ISO 19650 code from the sheet's "
-                          + "discipline, form, level, originator and revision."
-                        : "Every sheet already uses its ISO 19650 code as its sheet number.");
-                return Result.Succeeded;
-            }
+            // DTW-11: planned against EVERY sheet number, not only the targets.
+            var plan = DrawingQaRules.PlanIsoRenumber(candidates, sheets.Select(s => s.SheetNumber));
 
-            // A duplicate target would make the whole run fail halfway, leaving the
-            // set half-renumbered. Detect it BEFORE touching anything.
-            var dupes = plan.GroupBy(p => p.to, StringComparer.OrdinalIgnoreCase)
-                            .Where(g => g.Count() > 1)
-                            .ToList();
-            if (dupes.Count > 0)
+            // A duplicate target would make the run fail halfway. Detect it BEFORE
+            // touching anything.
+            if (plan.Duplicates.Count > 0)
             {
                 var sb0 = new StringBuilder();
                 sb0.AppendLine("Two or more sheets would end up with the SAME number, and Revit");
                 sb0.AppendLine("requires sheet numbers to be unique. Nothing was changed.");
                 sb0.AppendLine();
-                foreach (var g in dupes.Take(10))
-                    sb0.AppendLine($"  {g.Key}\n      from: {string.Join(", ", g.Select(x => x.from))}");
+                foreach (var g in plan.Duplicates.Take(10))
+                    sb0.AppendLine($"  {g.Key}\n      from: {string.Join(", ", g.Value)}");
                 sb0.AppendLine();
                 sb0.AppendLine("The ISO code ends with the revision, so two sheets at the same");
                 sb0.AppendLine("revision with the same discipline/level/type collide. Give them");
                 sb0.AppendLine("distinct SHT_SEQ values and re-run Tag Sheets.");
-                TaskDialog.Show("STING — Sheet Number from ISO", sb0.ToString());
+                PresetDialog.Show(Title, sb0.ToString(), ref message);
                 return Result.Failed;
             }
 
-            var preview = new StringBuilder();
-            preview.AppendLine($"{plan.Count} sheet(s) would be renumbered:");
-            preview.AppendLine();
-            foreach (var p in plan.Take(25))
-                preview.AppendLine($"  {p.from,-14} ->  {p.to}");
-            if (plan.Count > 25) preview.AppendLine($"  … and {plan.Count - 25} more");
-            if (noCode.Count > 0)
+            var skipped = new StringBuilder();
+            if (plan.Locked.Count > 0)
             {
-                preview.AppendLine();
-                preview.AppendLine($"{noCode.Count} sheet(s) have no {ParamRegistry.SHT_TAG_1} and will be left alone.");
+                skipped.AppendLine($"{plan.Locked.Count} style-locked sheet(s) keep their numbers: "
+                    + string.Join(", ", plan.Locked.Take(8)) + (plan.Locked.Count > 8 ? " …" : ""));
             }
-
-            var td = new TaskDialog("STING — Sheet Number from ISO")
+            if (plan.Held.Count > 0)
             {
-                MainInstruction = $"Replace {plan.Count} sheet number(s) with the ISO 19650 code?",
-                MainContent =
-                    "Revit's sheet number is a KEY, not just a caption: viewport references, "
-                    + "schedules, browser organisation and export filenames all use it. After this "
-                    + "they will carry the full identifier, and any reference to the old number "
-                    + "from OUTSIDE this model — an issued transmittal, a consultant's markup, a "
-                    + "file already on the CDE — will no longer match.\n\n"
-                    + "Every from -> to pair is written to " + HistoryFile + " in the project's "
-                    + "coordination folder, so the move can be reversed.\n\n"
-                    + "IT ALSO FEEDS THE IDENTIFIER BACK INTO ITS OWN INPUT: "
-                    + ParamRegistry.SHT_TAG_1 + " is assembled FROM the sheet number, so after "
-                    + "this, Tag Sheets would nest the code inside itself. That is now refused "
-                    + "rather than compounded, but it means the ISO code stops being rebuilt "
-                    + "from the sheet's tokens — it freezes at whatever it says today.\n\n"
-                    + "If you only want the identifier PRINTED, cancel and re-bind the DRG NO. "
-                    + "label in the title-block family to " + ParamRegistry.SHT_TAG_1 + " instead "
-                    + "— that changes the drawing without changing the key.",
-                CommonButtons = TaskDialogCommonButtons.Cancel,
-                DefaultButton = TaskDialogResult.Cancel,
-            };
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Show me the full list first (changes nothing)");
-            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Renumber {plan.Count} sheet(s) now");
+                skipped.AppendLine($"{plan.Held.Count} sheet(s) left unchanged — their ISO code is already another sheet's number:");
+                foreach (var h in plan.Held.Take(8)) skipped.AppendLine("  " + h);
+                if (plan.Held.Count > 8) skipped.AppendLine($"  … and {plan.Held.Count - 8} more");
+            }
+            if (noCode.Count > 0)
+                skipped.AppendLine($"{noCode.Count} sheet(s) have no {ParamRegistry.SHT_TAG_1} and will be left alone.");
 
-            var choice = td.Show();
-            if (choice == TaskDialogResult.CommandLink1)
+            if (plan.Moves.Count == 0)
             {
-                TaskDialog.Show("STING — Sheet Number from ISO (dry run)", preview.ToString());
+                PresetDialog.Show(Title,
+                    candidates.Count == 0 && noCode.Count > 0
+                        ? $"None of the {sheets.Count} sheet(s) can be renumbered.\n\n"
+                          + $"{noCode.Count} carry no {ParamRegistry.SHT_TAG_1} — run CREATE TAGS → "
+                          + "Tag Sheets first, which assembles the ISO 19650 code from the sheet's "
+                          + "discipline, form, level, originator and revision."
+                        : "No sheet needs renumbering.\n\n" + skipped, ref message);
                 return Result.Succeeded;
             }
-            if (choice != TaskDialogResult.CommandLink2) return Result.Cancelled;
 
-            int done = 0;
-            var failed = new List<string>();
-
-            using (var t = new Transaction(doc, "STING Sheet Number from ISO"))
+            var preview = new StringBuilder();
+            preview.AppendLine($"{plan.Moves.Count} sheet(s) would be renumbered:");
+            preview.AppendLine();
+            foreach (var p in plan.Moves.Take(25))
+                preview.AppendLine($"  {p.Current,-14} ->  {p.Target}");
+            if (plan.Moves.Count > 25) preview.AppendLine($"  … and {plan.Moves.Count - 25} more");
+            if (skipped.Length > 0)
             {
-                t.Start();
-
-                // TWO PASSES, via a sentinel. A one-pass rename collides the moment a
-                // target equals another sheet's current number — Revit throws, and the
-                // set is left half-renumbered with no clean way back.
-                string sentinel = "~STINGTMP~";
-                int i = 0;
-                foreach (var p in plan)
-                {
-                    try { p.sheet.SheetNumber = sentinel + (i++).ToString("D4"); }
-                    catch (Exception ex)
-                    {
-                        failed.Add($"{p.from}: could not stage ({ex.Message})");
-                        StingLog.Warn($"SheetNumberFromIso stage '{p.from}': {ex.Message}");
-                    }
-                }
-
-                foreach (var p in plan)
-                {
-                    try
-                    {
-                        p.sheet.SheetNumber = p.to;
-                        done++;
-                        StingLog.Info($"SheetNumberFromIso: '{p.from}' -> '{p.to}'");
-                    }
-                    catch (Exception ex)
-                    {
-                        failed.Add($"{p.from} -> {p.to}: {ex.Message}");
-                        StingLog.Warn($"SheetNumberFromIso '{p.from}': {ex.Message}");
-                    }
-                }
-
-                t.Commit();
+                preview.AppendLine();
+                preview.Append(skipped);
             }
 
-            string historyPath = null;
-            if (done > 0)
+            if (PresetDialog.Quiet)
             {
-                try
+                // DTW-11: the command-link dialog waited for a click nobody could give
+                // inside a preset. Replacing every sheet number is not something a
+                // preset should do by default: it plans (a dry run) unless the step
+                // says params.apply = "true".
+                if (!IsTrue(WorkflowEngine.StepParam("apply")))
                 {
-                    string dir = StingPaths.Meta(doc, "_BIM_COORD");
-                    System.IO.Directory.CreateDirectory(dir);
-                    historyPath = System.IO.Path.Combine(dir, HistoryFile);
-
-                    var log = new List<object>();
-                    if (System.IO.File.Exists(historyPath))
-                    {
-                        var existing = Newtonsoft.Json.JsonConvert
-                            .DeserializeObject<List<object>>(System.IO.File.ReadAllText(historyPath));
-                        if (existing != null) log.AddRange(existing);
-                    }
-                    log.Add(new
-                    {
-                        when = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
-                        source = ParamRegistry.SHT_TAG_1,
-                        changes = plan.Where(x => !failed.Any(f => f.StartsWith(x.from + " ", StringComparison.Ordinal)))
-                                      .Select(x => new { from = x.from, to = x.to }).ToList(),
-                    });
-                    System.IO.File.WriteAllText(historyPath,
-                        Newtonsoft.Json.JsonConvert.SerializeObject(log, Newtonsoft.Json.Formatting.Indented));
+                    PresetDialog.Show(Title + " (dry run)",
+                        "Plan only — nothing renumbered (set the step's params.apply to \"true\" to apply it).\n\n"
+                        + preview, ref message);
+                    return Result.Succeeded;
                 }
-                catch (Exception ex)
-                {
-                    // The renumber HAS happened. Saying nothing here would leave the
-                    // operator believing a reversal record exists when it does not.
-                    historyPath = null;
-                    StingLog.Warn($"SheetNumberFromIso: could not write {HistoryFile}: {ex.Message}");
-                }
+                StingLog.Info($"{Title}: preset step applies the plan (params.apply).\n{preview}");
             }
+            else
+            {
+                var td = new TaskDialog(Title)
+                {
+                    MainInstruction = $"Replace {plan.Moves.Count} sheet number(s) with the ISO 19650 code?",
+                    MainContent =
+                        "Revit's sheet number is a KEY, not just a caption: viewport references, "
+                        + "schedules, browser organisation and export filenames all use it. After this "
+                        + "they will carry the full identifier, and any reference to the old number "
+                        + "from OUTSIDE this model — an issued transmittal, a consultant's markup, a "
+                        + "file already on the CDE — will no longer match.\n\n"
+                        + "Every from -> to pair is written to " + SheetNumbering.HistoryFile + " in the project's "
+                        + "coordination folder, so the move can be reversed (Sheet_NumberRestore).\n\n"
+                        + "IT ALSO FEEDS THE IDENTIFIER BACK INTO ITS OWN INPUT: "
+                        + ParamRegistry.SHT_TAG_1 + " is assembled FROM the sheet number, so after "
+                        + "this, Tag Sheets would nest the code inside itself. That is now refused "
+                        + "rather than compounded, but it means the ISO code stops being rebuilt "
+                        + "from the sheet's tokens — it freezes at whatever it says today.\n\n"
+                        + "If you only want the identifier PRINTED, cancel and re-bind the DRG NO. "
+                        + "label in the title-block family to " + ParamRegistry.SHT_TAG_1 + " instead "
+                        + "— that changes the drawing without changing the key."
+                        + (skipped.Length > 0 ? "\n\n" + skipped : ""),
+                    CommonButtons = TaskDialogCommonButtons.Cancel,
+                    DefaultButton = TaskDialogResult.Cancel,
+                };
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Show me the full list first (changes nothing)");
+                td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, $"Renumber {plan.Moves.Count} sheet(s) now");
+
+                var choice = td.Show();
+                if (choice == TaskDialogResult.CommandLink1)
+                {
+                    TaskDialog.Show(Title + " (dry run)", preview.ToString());
+                    return Result.Succeeded;
+                }
+                if (choice != TaskDialogResult.CommandLink2) return Result.Cancelled;
+            }
+
+            // DTW-11: the ONE renumber path. SheetNumbering.Apply parks every sheet on
+            // a unique temporary number, sets the targets, PUTS A REFUSED SHEET BACK
+            // on its old number (the old two-pass rename left it on "~STINGTMP~NNNN"
+            // and committed), rebuilds the identifiers and records the history.
+            var changes = plan.Moves
+                .Where(m => byId.ContainsKey(m.Id))
+                .Select(m => new SheetNumbering.Change { Sheet = byId[m.Id], Old = m.Current, New = m.Target })
+                .ToList();
+            var outcome = SheetNumbering.Apply(doc, changes, $"{Title} ({ParamRegistry.SHT_TAG_1})");
 
             var sb = new StringBuilder();
-            sb.AppendLine($"Renumbered : {done}");
-            if (failed.Count > 0)
+            sb.AppendLine($"Renumbered : {outcome.Done}");
+            if (outcome.Failed > 0)
             {
-                sb.AppendLine($"Failed     : {failed.Count}");
+                sb.AppendLine($"Refused    : {outcome.Failed} — put back on their old numbers");
                 sb.AppendLine();
-                foreach (var f in failed.Take(12)) sb.AppendLine("  " + f);
-                sb.AppendLine();
-                sb.AppendLine("A sheet left on a ~STINGTMP~ number failed its second pass — set it");
-                sb.AppendLine("by hand, or undo the whole command (Ctrl+Z) and fix the cause first.");
+                foreach (var f in outcome.Failures.Take(12)) sb.AppendLine(f);
             }
-            if (done > 0)
+            if (skipped.Length > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine(historyPath != null
-                    ? "Reversal record: " + historyPath
+                sb.Append(skipped);
+            }
+            if (outcome.Done > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine(outcome.HistoryPath != null
+                    ? "Reversal record: " + outcome.HistoryPath
                     : "WARNING: the reversal record could NOT be written (see the STING log). "
                       + "The renumber has happened; the from -> to pairs are in the log only.");
+                if (outcome.RetagFailures.Count > 0)
+                {
+                    sb.AppendLine($"{outcome.RetagFailures.Count} identifier rebuild(s) failed:");
+                    foreach (var f in outcome.RetagFailures.Take(6)) sb.AppendLine(f);
+                }
                 sb.AppendLine();
                 sb.AppendLine("Re-stamp the QR codes: the payload is keyed on the sheet number and");
                 sb.AppendLine("every existing code now points at the old one.");
             }
 
-            StingLog.Info($"SheetNumberFromIso: {done} renumbered, {failed.Count} failed");
-            TaskDialog.Show("STING — Sheet Number from ISO", sb.ToString());
-            return failed.Count > 0 && done == 0 ? Result.Failed : Result.Succeeded;
+            StingLog.Info($"SheetNumberFromIso: {outcome.Done} renumbered, {outcome.Failed} refused, "
+                + $"{plan.Locked.Count} locked, {plan.Held.Count} held");
+            PresetDialog.Show(Title, sb.ToString(), ref message);
+            return outcome.Failed > 0 && outcome.Done == 0 ? Result.Failed : Result.Succeeded;
+        }
+
+        private static bool IsTrue(string v)
+        {
+            v = (v ?? "").Trim();
+            return v.Equals("true", StringComparison.OrdinalIgnoreCase)
+                || v.Equals("yes", StringComparison.OrdinalIgnoreCase) || v == "1";
         }
     }
 }

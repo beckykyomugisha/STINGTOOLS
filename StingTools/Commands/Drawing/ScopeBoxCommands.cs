@@ -238,10 +238,15 @@ namespace StingTools.Commands.Drawing
             };
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Views and sheets");
             td.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Views only");
+            // DTW-31: the workflow path could make each box's plan a dependent of one parent
+            // per (type, level) — params.duplicateOption — but the button could not.
+            td.AddCommandLink(TaskDialogCommandLinkId.CommandLink3, "Dependent views and sheets",
+                "One parent plan per drawing type and level; each box's plan is a dependent of it, cropped to the box.");
             td.CommonButtons = TaskDialogCommonButtons.Cancel;
             var r = td.Show();
-            if (r != TaskDialogResult.CommandLink1 && r != TaskDialogResult.CommandLink2) return null;
-            return ScopeBoxPlannerService.Produce(doc, items, sheets: r == TaskDialogResult.CommandLink1);
+            if (r != TaskDialogResult.CommandLink1 && r != TaskDialogResult.CommandLink2 && r != TaskDialogResult.CommandLink3) return null;
+            var duplicate = r == TaskDialogResult.CommandLink3 ? ViewDuplicateOption.AsDependent : ViewDuplicateOption.Duplicate;
+            return ScopeBoxPlannerService.ProduceWithOutcome(doc, items, sheets: r != TaskDialogResult.CommandLink2, duplicate).Report;
         }
     }
 }

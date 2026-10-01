@@ -57,11 +57,20 @@ namespace StingTools.Commands.Plumbing
                     dlgResult = scopeDlg.Show();
                 }
 
+                var opts = new DrainageSchematicOptions
+                {
+                    StackSpacingMm      = 2000,
+                    ShowVents           = true,
+                    ShowFixtureSymbols  = true,
+                    ShowDnLabels        = true,
+                    ShowSlopeLabels     = true
+                };
+
                 string systemFilter = "";
                 if (dlgResult == TaskDialogResult.CommandLink2)
                 {
                     // Collect system names for picker
-                    var systemNames = CollectDrainageSystemNames(ctx.Doc);
+                    var systemNames = CollectDrainageSystemNames(ctx.Doc, opts.Classifications);
                     if (!systemNames.Any())
                     {
                         TaskDialog.Show("No Systems", "No drainage/sanitary pipe systems found in project.");
@@ -83,16 +92,18 @@ namespace StingTools.Commands.Plumbing
                     return Result.Cancelled;
                 }
 
-                var opts = new DrainageSchematicOptions
+                opts.SystemNameFilter = systemFilter;
+
+                // DTW-120: fit the drawing to the slot of the sheet it goes on.
+                if (StingTools.Core.Drawing.SchematicViewFactory.TryGetSlotPaperSize(ctx.Doc,
+                        StingTools.Core.Drawing.DrawingRouteRequests.DrainageSchematic,
+                        out double slotW, out double slotH, out int typeScale, out string slotNote))
                 {
-                    SystemNameFilter    = systemFilter,
-                    StackSpacingMm      = 800,
-                    LevelHeightMm       = 3000,
-                    ShowVents           = true,
-                    ShowFixtureSymbols  = true,
-                    ShowDnLabels        = true,
-                    ShowSlopeLabels     = true
-                };
+                    opts.SlotWidthMm = slotW;
+                    opts.SlotHeightMm = slotH;
+                }
+                else StingLog.Warn($"PlumbDrainageSchematicCommand: no slot size ({slotNote}) — drawn without a fit check.");
+                if (typeScale > 0) opts.MinScale = typeScale;
 
                 // ── Generate ───────────────────────────────────────────────
                 SchematicResult schResult = null;
@@ -114,7 +125,15 @@ namespace StingTools.Commands.Plumbing
                                 ref message);
                             return Result.Cancelled;
                         }
-                        t.Commit();
+                        // DTW-124: a rolled-back commit (a failure handler, a regeneration
+                        // error) used to be reported as "created successfully".
+                        var status = t.Commit();
+                        if (status != TransactionStatus.Committed)
+                        {
+                            message = $"The drainage schematic was not saved: the transaction ended {status}.";
+                            StingLog.Warn($"PlumbDrainageSchematicCommand: commit returned {status}.");
+                            return Result.Failed;
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -147,7 +166,11 @@ namespace StingTools.Commands.Plumbing
                 var sb = new StringBuilder();
                 sb.AppendLine($"Drainage schematic created successfully.");
                 sb.AppendLine($"  {sheetLine}");
-                sb.AppendLine($"  Stacks / nodes drawn : {schResult.NodesDrawn}");
+                sb.AppendLine($"  Scale                : 1:{schResult.Scale}");
+                sb.AppendLine($"  Stacks drawn         : {schResult.NodesDrawn}");
+                sb.AppendLine($"  Branches drawn       : {schResult.BranchesDrawn}");
+                sb.AppendLine($"  Vents drawn          : {schResult.VentsDrawn}");
+                sb.AppendLine($"  Levels labelled      : {schResult.LevelsLabelled}");
                 sb.AppendLine($"  Detail lines drawn   : {schResult.LinesDrawn}");
                 sb.AppendLine($"  Annotations placed   : {schResult.AnnotationsPlaced}");
                 sb.AppendLine($"  View ID              : {schResult.ViewId?.Value}");
@@ -174,26 +197,35 @@ namespace StingTools.Commands.Plumbing
             }
         }
 
-        private static List<string> CollectDrainageSystemNames(Document doc)
+        /// <summary>
+        /// Names of the PipingSystem instances classified as drainage (Sanitary). These
+        /// are the names the schematic's system filter matches — exactly — against each
+        /// pipe's MEPSystem. (The picker used to list piping-system TYPE names of every
+        /// pipe, cold water included, one parameter read per pipe; a type name never
+        /// equals an instance name, so a pick could draw nothing.) Vent systems are not
+        /// offered: the schematic draws stacks, and finds each stack's vent itself.
+        /// </summary>
+        private static List<string> CollectDrainageSystemNames(Document doc, ICollection<PipeSystemType> classifications)
         {
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             try
             {
-                var pipes = new FilteredElementCollector(doc)
-                    .OfClass(typeof(Pipe))
+                var systems = new FilteredElementCollector(doc)
+                    .OfClass(typeof(PipingSystem))
                     .WhereElementIsNotElementType()
-                    .Cast<Pipe>();
+                    .Cast<PipingSystem>();
 
-                foreach (var p in pipes)
+                foreach (var ps in systems)
                 {
                     try
                     {
-                        var sys = p.get_Parameter(BuiltInParameter.RBS_PIPING_SYSTEM_TYPE_PARAM)?
-                                   .AsValueString() ?? "";
-                        if (!string.IsNullOrEmpty(sys))
-                            names.Add(sys);
+                        if (ps.SystemType == PipeSystemType.Vent) continue;
+                        if (classifications != null && classifications.Count > 0 && !classifications.Contains(ps.SystemType))
+                            continue;
+                        if (!string.IsNullOrWhiteSpace(ps.Name))
+                            names.Add(ps.Name.Trim());
                     }
-                    catch { /* skip */ }
+                    catch (Exception ex) { StingLog.Warn($"CollectDrainageSystemNames: system {ps.Id}: {ex.Message}"); }
                 }
             }
             catch (Exception ex)
@@ -218,8 +250,6 @@ namespace StingTools.Commands.Plumbing
         private const double ThresholdMidKpa    = 200.0;
         private const double ThresholdHighKpa   = 500.0;
 
-        // PLM_PRESSURE_KPA shared parameter name (from ParamRegistry)
-        private const string ParamPressureKpa   = "PLM_PRESSURE_KPA";
 
         public Result Execute(ExternalCommandData commandData,
                               ref string message, ElementSet elements)
@@ -289,6 +319,7 @@ namespace StingTools.Commands.Plumbing
                             .Cast<Pipe>()
                             .ToList();
 
+                        string pressureParam = ParamRegistry.PLM_PRESSURE_KPA;
                         foreach (var pipe in pipesInView)
                         {
                             double pressureKpa = GetPipePressure(pipe, network, entryPressureKpa);
@@ -334,14 +365,23 @@ namespace StingTools.Commands.Plumbing
 
                             view.SetElementOverrides(pipe.Id, ogs);
 
-                            // Write pressure parameter
+                            // Write pressure parameter — one lookup, storage-aware. PLM_PRESSURE_KPA
+                            // is TEXT in MR_PARAMETERS.txt, so Set(double) always threw and the
+                            // stamp was never written.
                             try
                             {
-                                var param = pipe.LookupParameter(ParamPressureKpa);
+                                var param = pipe.LookupParameter(pressureParam);
                                 if (param != null && !param.IsReadOnly)
-                                    param.Set(pressureKpa);
+                                {
+                                    if (param.StorageType == StorageType.String)
+                                        param.Set(pressureKpa.ToString("F0", System.Globalization.CultureInfo.InvariantCulture));
+                                    else if (param.StorageType == StorageType.Double)
+                                        param.Set(pressureKpa);
+                                    else if (param.StorageType == StorageType.Integer)
+                                        param.Set((int)Math.Round(pressureKpa));
+                                }
                             }
-                            catch { /* parameter may not exist — non-fatal */ }
+                            catch (Exception ex) { StingLog.Warn($"PlumbPressureZone: stamp pipe {pipe.Id}: {ex.Message}"); }
                         }
 
                         t.Commit();
@@ -391,25 +431,24 @@ namespace StingTools.Commands.Plumbing
         {
             try
             {
-                // Try existing PLM_PRESSURE_KPA param first
-                var param = pipe.LookupParameter(ParamPressureKpa);
-                if (param != null && param.AsDouble() > 0)
-                    return param.AsDouble();
-
-                // Look up pressure via the matching network edge (pipes are edges, not nodes)
-                long pipeIdVal = pipe.Id.Value;
-                var matchingEdge = network.Edges
-                    .FirstOrDefault(e => e.PipeId?.Value == pipeIdVal);
-                if (matchingEdge != null)
-                    return Math.Max(0, matchingEdge.To?.PressureKpa ?? matchingEdge.From?.PressureKpa ?? 0);
+                // The pipe's own network node — an O(1) lookup in the network's id index
+                // (this was a linear scan of every edge per pipe). The PLM_PRESSURE_KPA
+                // stamp is not read back: it is this command's own output, and reading it
+                // first would freeze the first run's values forever.
+                if (network.ById.TryGetValue(pipe.Id.Value, out var node)
+                    && (node.Upstream.Count + node.Downstream.Count) > 0)
+                    return Math.Max(0, node.PressureKpa);
 
                 // Estimate from Z elevation (static head from entry)
                 double elev    = pipe.get_Parameter(BuiltInParameter.Z_OFFSET_VALUE)?.AsDouble() ?? 0;
-                const double RhoGKpaPerFt = 9.807 / 0.3048 * 0.001;
+                // ρg = 9.807 kPa per metre of head = 9.807 × 0.3048 kPa per foot
+                // (was 9.807 / 0.3048 × 0.001 — about 93× too small).
+                const double RhoGKpaPerFt = 9.807 * 0.3048;
                 return Math.Max(0, entryKpa - elev * RhoGKpaPerFt);
             }
-            catch
+            catch (Exception ex)
             {
+                StingLog.Warn($"PlumbPressureZone: pressure of pipe {pipe?.Id}: {ex.Message}");
                 return entryKpa * 0.5;
             }
         }
@@ -669,7 +708,7 @@ namespace StingTools.Commands.Plumbing
                     "Schematic only (drafting view)");
                 scopeDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2,
                     "Schematic + export DXF",
-                    "Drops a .dxf into <project>/_BIM_COORD/exports/ alongside the view.");
+                    "Drops a .dxf into the project's DXF export folder alongside the view.");
                 var pick = scopeDlg.Show();
                 if (pick == TaskDialogResult.Cancel) return Result.Cancelled;
                 exportDxf = pick == TaskDialogResult.CommandLink2;
@@ -678,11 +717,22 @@ namespace StingTools.Commands.Plumbing
             // Read inlet pressure + DXF target version from project config
             var cfg = PlumbingSystemConfig.Load(doc);
             double inletKpa = Math.Max(0, cfg.SupplyPressureBarAtEntry) * 100.0;
+            // The inlet pressure counts as set only when the project has a saved plumbing
+            // configuration; otherwise it is the class default and must not be printed as
+            // a modelled pressure.
+            bool pressureConfigured = false;
+            try
+            {
+                string cfgPath = PlumbingSystemConfig.ProjectConfigPath(doc);
+                pressureConfigured = !string.IsNullOrEmpty(cfgPath) && System.IO.File.Exists(cfgPath) && inletKpa > 0;
+            }
+            catch (Exception ex) { StingLog.Warn($"PlumbSupplySchematic: plumbing config path: {ex.Message}"); }
 
             var opts = new SupplySchematicOptions
             {
                 SystemNameFilter     = "",            // all supply systems
-                InletPressureKpa     = inletKpa > 0 ? inletKpa : 300.0,
+                InletPressureKpa     = inletKpa,
+                InletPressureConfigured = pressureConfigured,
                 ExportDxf            = exportDxf,
                 DxfAutoCadVersion    = string.IsNullOrWhiteSpace(cfg.DxfAutoCadVersion)
                                           ? "R2010" : cfg.DxfAutoCadVersion,
@@ -690,6 +740,17 @@ namespace StingTools.Commands.Plumbing
                 ShowPressureLabels   = true,
                 ShowAccessorySymbols = true
             };
+
+            // DTW-120: fit the drawing to the slot of the sheet it goes on.
+            if (StingTools.Core.Drawing.SchematicViewFactory.TryGetSlotPaperSize(doc,
+                    StingTools.Core.Drawing.DrawingRouteRequests.DcwSchematic,
+                    out double slotW, out double slotH, out int typeScale, out string slotNote))
+            {
+                opts.SlotWidthMm = slotW;
+                opts.SlotHeightMm = slotH;
+            }
+            else StingLog.Warn($"PlumbSupplySchematic: no slot size ({slotNote}) — drawn without a fit check.");
+            if (typeScale > 0) opts.MinScale = typeScale;
 
             SupplySchematicResult result;
             try
@@ -709,7 +770,14 @@ namespace StingTools.Commands.Plumbing
                             ref message);
                         return Result.Cancelled;
                     }
-                    tx.Commit();
+                    // DTW-124: report a rolled-back commit, not a schematic that is not there.
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        message = $"The supply schematic was not saved: the transaction ended {status}.";
+                        StingLog.Warn($"PlumbSupplySchematic: commit returned {status}.");
+                        return Result.Failed;
+                    }
                 }
             }
             catch (Exception ex)
@@ -726,9 +794,13 @@ namespace StingTools.Commands.Plumbing
                 StingTools.Core.Drawing.DrawingRouteRequests.DcwSchematic, schView);
 
             var panel = StingResultPanel.Create("Supply Schematic (DCW)");
-            panel.SetSubtitle($"Inlet pressure: {opts.InletPressureKpa:F0} kPa");
+            panel.SetSubtitle(opts.InletPressureConfigured
+                ? $"Inlet pressure: {opts.InletPressureKpa:F0} kPa (plumbing config){(result.SourceAssumed ? " — source assumed, pressures indicative" : "")}"
+                : "Inlet pressure: not configured — pressures not shown");
+            panel.AddSection("SOURCE").Text(string.IsNullOrEmpty(result.SourceDescription) ? "—" : result.SourceDescription);
             panel.AddSection("SHEET").Text(sheetLine);
             panel.AddSection("SUMMARY")
+                 .Metric("Scale",             $"1:{result.Scale}")
                  .Metric("Pipes drawn",       result.PipesDrawn.ToString())
                  .Metric("Accessories drawn", result.AccessoriesDrawn.ToString())
                  .Metric("Fixtures drawn",    result.FixturesDrawn.ToString());

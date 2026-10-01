@@ -720,6 +720,13 @@ namespace StingTools.Core
                         { RecordSkip("the project is drawn by area boxes"); continue; }
                         if (cond == "has_sting_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.DrawingType) == 0)
                         { RecordSkip("no STING:: scope boxes"); continue; }
+                        if (cond == "no_sting_boxes" && CountScopeBoxes(doc, Drawing.ScopeBoxKind.DrawingType) > 0)
+                        { RecordSkip("the project is drawn by STING:: scope boxes"); continue; }
+                        // DTW-99: there is no "no STING:: AND no area boxes" gate for the
+                        // per-level route. DTW-95 had one, and one box of any type on any
+                        // level switched off every whole-floor plan. Per-level production now
+                        // skips only the (type, level) pairs a STING:: box produces
+                        // (PerLevelBoxCoverage), so it runs whenever area boxes are absent.
                         // Phase 39: Element count range condition (cached — count doesn't change between steps)
                         if (step.MinElementCount.HasValue || step.MaxElementCount.HasValue)
                         {
@@ -2633,6 +2640,7 @@ namespace StingTools.Core
             "has_overdue_issues", "has_placeholders", "has_stale",
             "has_unclassed_materials", "has_uncoded_materials", "has_untagged",
             "has_warnings", "has_area_boxes", "no_area_boxes", "has_sting_boxes",
+            "no_sting_boxes",
         };
 
         /// <summary>Scope boxes of one STING kind in the document (0 on any read failure, logged).</summary>
@@ -3152,7 +3160,7 @@ namespace StingTools.Core
                         {
                             new WorkflowStep { CommandTag = "BatchCreateViews", Label = "Batch Create Views" },
                             new WorkflowStep { CommandTag = "BatchCreateSheets", Label = "Batch Create Sheets" },
-                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "Auto-Number Sheets" },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "Auto-Number Sheets", Params = new Dictionary<string, string> { ["apply"] = "true" } },
                             new WorkflowStep { CommandTag = "AutoAssignTemplates", Label = "Assign View Templates" },
                             new WorkflowStep { CommandTag = "TagSheets", Label = "Tag sheets with ISO 19650 document codes" },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "Generate Drawing Register" },
@@ -3248,7 +3256,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "ValidateTags", Label = "3. Validate ISO 19650" },
                             new WorkflowStep { CommandTag = "TagRegisterExport", Label = "4. Export asset register CSV" },
                             new WorkflowStep { CommandTag = "COBieExport", Label = "5. COBie V2.4 export", MinCompliancePct = 60 },
-                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets" },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets", Params = new Dictionary<string, string> { ["apply"] = "true" } },
                             new WorkflowStep { CommandTag = "DrawingRegister", Label = "7. Drawing register" },
                             new WorkflowStep { CommandTag = "CreateRevision", Label = "8. Create weekly revision" },
                         }
@@ -3481,7 +3489,7 @@ namespace StingTools.Core
                             new WorkflowStep { CommandTag = "RoomSpaceAudit", Label = "3. Room audit (dwelling areas, Part M)" },
                             new WorkflowStep { CommandTag = "ValidateTags", Label = "4. Validate tags" },
                             new WorkflowStep { CommandTag = "SheetNamingCheck", Label = "5. Sheet naming compliance" },
-                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets by discipline" },
+                            new WorkflowStep { CommandTag = "AutoNumberSheets", Label = "6. Auto-number sheets by discipline", Params = new Dictionary<string, string> { ["apply"] = "true" } },
                             new WorkflowStep { CommandTag = "BOQExport", Label = "7. BOQ export" },
                             new WorkflowStep { CommandTag = "FullComplianceDashboard", Label = "8. Compliance dashboard" },
                         }

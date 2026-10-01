@@ -19,15 +19,17 @@ python tools/recount_unreachable_commands.py            # report
 python tools/recount_unreachable_commands.py --check    # CI gate
 ```
 
-## Counts — re-derived 2026-09-30
+## Counts — re-derived 2026-10-01
 
-- **Total IExternalCommand classes**: **1771**
-- **Reached by a dispatch layer**: **1746**
-- **Referenced only from non-dispatch code**: **0**
-- **Named nowhere outside their own file**: **11**
+- **Total IExternalCommand classes**: **1784**
+- **Reached by a dispatch layer**: **1759**
+- **Referenced only from non-dispatch code**: **1**
+- **Named nowhere outside their own file**: **10**
 - **Ambiguous — name declared twice**: **14** (under 7 names)
 
-The four buckets partition all 1771; the script fails if they stop adding up.
+The four buckets partition all 1784; the script fails if they stop adding up.
+
+**+13 on 2026-10-01 (origin/main #1021 merged into the ACC integration branch)**: 13 more commands are declared and 13 more are reached. Separately, one command left the named-nowhere bucket and one entry is now referenced-only: `AccUploadCommandBase`, the abstract base class the ACC upload and retire commands derive from. It is never dispatched itself, and the concrete commands are reached.
 
 **+1 on 2026-09-30**: `AccImportIssuesCommand` (`ACC_ImportIssues` / `AccImportIssues`), reached from the BIM Coordination Center ACC card, its handler case and `WorkflowEngine.ResolveCommand`.
 

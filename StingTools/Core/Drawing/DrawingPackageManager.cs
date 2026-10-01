@@ -116,11 +116,25 @@ namespace StingTools.Core.Drawing
             {
                 var s = ordered[i];
                 int seq = StingTools.Core.ParameterHelpers.GetInt(s, DrawingTypeStamper.PARAM_SHEET_SEQUENCE, i + 1);
-                string filename = SanitizeFilename($"{seq:D3}_{s.SheetNumber}_{s.Name}");
+                // The Export Centre's stem (ISO identifier + suitability + revision) behind
+                // the package order, so a P02 package does not overwrite P01 (DTW-139).
+                string filename = SanitizeFilename(
+                    $"{seq:D3}_{StingTools.Docs.ExportCenterEngine.DefaultSheetFileStem(doc, s)}");
                 try
                 {
-                    var opts = new PDFExportOptions { FileName = filename };
-                    doc.Export(outputDir, new List<ElementId> { s.Id }, opts);
+                    // Shared single-sheet routine (Combine = true, produced file found and
+                    // renamed); a sheet counts only when its PDF exists (DTW-87).
+                    string path = StingTools.Docs.ExportCenterEngine.ExportSingleSheetPdf(
+                        doc, s, outputDir, filename, null, out bool ok, out string renameWarning);
+                    if (!string.IsNullOrEmpty(renameWarning))
+                        result.Warnings.Add($"Export '{s.SheetNumber}': {renameWarning}");
+                    if (path == null)
+                    {
+                        result.Warnings.Add(ok
+                            ? $"Export '{s.SheetNumber}': Revit reported success but no PDF appeared in {outputDir}."
+                            : $"Export '{s.SheetNumber}': Revit reported the export as failed.");
+                        continue;
+                    }
                     result.SheetCount++;
                 }
                 catch (Exception ex2) { result.Warnings.Add($"Export '{s.SheetNumber}': {ex2.Message}"); }

@@ -77,28 +77,28 @@ namespace StingTools.Docs
                         : outputDir;
 
                     string fileName = GetISOFileName(sheet, projectCode, revision);
-                    string filePath = Path.Combine(subDir, fileName);
+                    string stem = Path.GetFileNameWithoutExtension(fileName);
+                    foreach (char c in Path.GetInvalidFileNameChars()) stem = stem.Replace(c, '_');
 
-                    // Use Revit PDF export
-                    var options = new PDFExportOptions
-                    {
-                        FileName = Path.GetFileNameWithoutExtension(fileName),
-                        Combine = false,
-                        AlwaysUseRaster = false
-                    };
+                    // Shared single-sheet routine: with Combine = false Revit ignores
+                    // FileName, so the old path recorded here never existed (DTW-135).
+                    // The routine names the file <stem>.pdf and returns the real path.
+                    string path = ExportCenterEngine.ExportSingleSheetPdf(doc, sheet, subDir, stem,
+                        o => o.AlwaysUseRaster = false, out bool revitOk, out string renameWarning);
+                    if (!string.IsNullOrEmpty(renameWarning))
+                        result.Errors.Add($"{sheet.SheetNumber}: {renameWarning}");
 
-                    var viewIds = new List<ElementId> { sheet.Id };
-                    bool success = doc.Export(subDir, viewIds, options);
-
-                    if (success)
+                    if (path != null && File.Exists(path))
                     {
                         result.Exported++;
-                        result.ExportedFiles.Add(filePath);
+                        result.ExportedFiles.Add(path);
                     }
                     else
                     {
                         result.Failed++;
-                        result.Errors.Add($"Failed to export: {sheet.SheetNumber}");
+                        result.Errors.Add(revitOk
+                            ? $"{sheet.SheetNumber}: Revit reported success but no PDF appeared in {subDir}"
+                            : $"Failed to export: {sheet.SheetNumber}");
                     }
                 }
                 catch (Exception ex)

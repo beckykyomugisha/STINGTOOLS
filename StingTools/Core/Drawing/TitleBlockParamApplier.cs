@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Autodesk.Revit.DB;
@@ -35,6 +36,12 @@ namespace StingTools.Core.Drawing
         public int CellsUnresolved { get; set; }
         /// <summary>Title-block instances skipped because PRJ_TB_LOCK_BOOL was set.</summary>
         public int LockedSkipped { get; set; }
+        /// <summary>Cells that already held the value — not re-written and not
+        /// counted in <see cref="ParamsWritten"/> (DTW-16).</summary>
+        public int ParamsUnchanged { get; set; }
+        /// <summary>Declared keys refused because they address the sheet's own
+        /// number or name (DTW-5) — those change only through SheetNumbering.</summary>
+        public List<string> SheetIdentityRefused { get; } = new List<string>();
         /// <summary>Declared keys the title-block family has no parameter for.</summary>
         public List<string> ParametersMissing { get; } = new List<string>();
         public List<string> Warnings { get; } = new List<string>();
@@ -63,6 +70,9 @@ namespace StingTools.Core.Drawing
             if (doc == null || sheet == null || dt?.TitleBlockParams == null
                 || dt.TitleBlockParams.Count == 0) return r;
             r.ParametersDeclared = dt.TitleBlockParams.Keys.Count(k => !string.IsNullOrWhiteSpace(k));
+            // DTW-18: {rev} / {suit} resolve to the sheet's own revision and
+            // suitability when it has them; a new sheet keeps the profile default.
+            tokens = WithSheetFacts(sheet, tokens);
 
             // Resolve once per key, not once per title-block instance: the
             // payload is identical for every TB on the sheet.
@@ -70,6 +80,23 @@ namespace StingTools.Core.Drawing
             foreach (var kv in dt.TitleBlockParams)
             {
                 if (string.IsNullOrWhiteSpace(kv.Key)) continue;
+                // DTW-5: a title block exposes the sheet's own Sheet Number / Sheet
+                // Name, so writing one from a profile renumbered the sheet behind
+                // SheetNumbering.Apply — no ISO policy, no lock check, no history.
+                if (DrawingQaRules.IsSheetIdentityParam(kv.Key, null))
+                {
+                    RefuseSheetIdentity(r, sheet, kv.Key);
+                    continue;
+                }
+                // DTW-60: a legacy label whose target is also declared by its real
+                // name is dropped; the real name wins.
+                if (TitleBlockParamAliases.IsShadowed(kv.Key, dt.TitleBlockParams.Keys, ParamAliases))
+                {
+                    r.Warnings.Add(
+                        $"'{kv.Key}' ignored: '{TitleBlockParamAliases.Target(kv.Key, ParamAliases)}' is declared too. " +
+                        "Remove the legacy key from the profile's titleBlockParams.");
+                    continue;
+                }
                 TitleBlockTemplateResult res;
                 try { res = ResolveTemplate(doc, kv.Value ?? "", tokens); }
                 catch (Exception ex)
@@ -110,7 +137,7 @@ namespace StingTools.Core.Drawing
                 // Heal / RevisionSync / Migrate. Skip and report, never skip
                 // silently: an unreported skip looks identical to a
                 // successful write in the result dialog.
-                if (IsTitleBlockLocked(tb))
+                if (IsTitleBlockLocked(tb, sheet))
                 {
                     r.LockedSkipped++;
                     r.Warnings.Add(
@@ -136,11 +163,20 @@ namespace StingTools.Core.Drawing
 
                 try
                 {
-                    var p = tb.LookupParameter(paramName);
+                    // DTW-60: a legacy display-label key ("Client Name") reaches
+                    // the family parameter it names through paramAliases.
+                    var p = LookupDeclared(tb, paramName);
                     if (p == null)
                     {
                         if (!r.ParametersMissing.Contains(paramName)) r.ParametersMissing.Add(paramName);
                         r.Warnings.Add($"Title block has no parameter '{paramName}'.");
+                        continue;
+                    }
+                    // DTW-5: the key may be a localised or aliased name for the
+                    // built-in sheet number / name — decide by what it IS.
+                    if (IsSheetIdentityParameter(paramName, p))
+                    {
+                        RefuseSheetIdentity(r, sheet, paramName);
                         continue;
                     }
                     if (p.IsReadOnly)
@@ -148,26 +184,45 @@ namespace StingTools.Core.Drawing
                         r.Warnings.Add($"Parameter '{paramName}' is read-only.");
                         continue;
                     }
+                    // DTW-16: a cell that already holds the value is not a write —
+                    // counting it made every Heal report "healed" on every sheet.
+                    if (CurrentValueMatches(tb, p, paramName, resolved))
+                    {
+                        r.ParamsUnchanged++;
+                        continue;
+                    }
+                    bool written;
                     switch (p.StorageType)
                     {
                         case StorageType.String:
                             // ACC-07: always set, even for empty string,
                             // so cloned/template sheets reset stale text.
-                            p.Set(resolved ?? string.Empty);
+                            written = p.Set(resolved ?? string.Empty);
                             break;
                         case StorageType.Integer:
-                            if (string.IsNullOrEmpty(resolved)) p.Set(0);
-                            else if (int.TryParse(resolved, out var iv)) p.Set(iv);
-                            else r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable.");
+                            if (string.IsNullOrEmpty(resolved)) written = p.Set(0);
+                            else if (int.TryParse(resolved, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv)) written = p.Set(iv);
+                            else { r.Warnings.Add($"'{paramName}' expects integer; '{resolved}' not parsable."); continue; }
                             break;
                         case StorageType.Double:
-                            if (string.IsNullOrEmpty(resolved)) p.Set(0.0);
-                            else if (double.TryParse(resolved, out var dv)) p.Set(dv);
-                            else r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable.");
+                            // DTW-15: parse invariant (a comma-decimal culture read
+                            // "2.5" as 25), and write in the unit the parameter's name
+                            // states — a LENGTH set raw stored feet (3000 → 3000 ft).
+                            if (string.IsNullOrEmpty(resolved))
+                                written = ParameterHelpers.SetDoubleInNamedUnit(tb, paramName, 0.0);
+                            else if (double.TryParse(resolved, NumberStyles.Float, CultureInfo.InvariantCulture, out var dv))
+                                written = ParameterHelpers.SetDoubleInNamedUnit(tb, paramName, dv);
+                            else { r.Warnings.Add($"'{paramName}' expects number; '{resolved}' not parsable."); continue; }
                             break;
                         default:
                             r.Warnings.Add($"'{paramName}' has unsupported storage type {p.StorageType}.");
                             continue;
+                    }
+                    if (!written)
+                    {
+                        // A refused write used to be counted as written.
+                        r.Warnings.Add($"'{paramName}': Revit did not accept '{resolved}'.");
+                        continue;
                     }
                     r.ParamsWritten++;
                 }
@@ -193,13 +248,19 @@ namespace StingTools.Core.Drawing
         /// fallback for projects that bound the parameter to Sheets instead.
         /// Single definition so the applier, the revision syncer and the heal
         /// command cannot drift apart on what "locked" means.
+        /// <para>DTW-6: the lock is checked on the instance AND its family type,
+        /// through the same <c>TitleBlockLock.Probe</c> the Lock / Unlock
+        /// commands use. A seed family authored with the box ticked carries the
+        /// lock on the type, and an instance-only check wrote straight through it
+        /// while the Unlock command reported the sheet locked.</para>
         /// </summary>
         public static bool IsTitleBlockLocked(Element titleBlock, ViewSheet sheet = null)
         {
             try
             {
                 if (titleBlock != null &&
-                    StingTools.Core.ParameterHelpers.GetInt(titleBlock, ParamRegistry.TB_LOCK, 0) != 0)
+                    StingTools.Commands.Drawing.TitleBlockLock.Probe(titleBlock.Document, titleBlock)
+                        != StingTools.Commands.Drawing.TitleBlockLock.LockHeldOn.None)
                     return true;
                 if (sheet != null &&
                     StingTools.Core.ParameterHelpers.GetInt(sheet, ParamRegistry.TB_LOCK, 0) != 0)
@@ -211,6 +272,81 @@ namespace StingTools.Core.Drawing
                 StingTools.Core.StingLog.Warn($"IsTitleBlockLocked: {ex.Message}");
             }
             return false;
+        }
+
+        /// <summary>
+        /// DTW-5: true when <paramref name="p"/> is the sheet's own number or
+        /// name, recognised by its BuiltInParameter (so a localised label or
+        /// an alias is still caught) as well as by the declared key.
+        /// </summary>
+        internal static bool IsSheetIdentityParameter(string key, Parameter p)
+        {
+            string bip = null;
+            try
+            {
+                if (p?.Definition is InternalDefinition idef)
+                    bip = idef.BuiltInParameter.ToString();
+            }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"IsSheetIdentityParameter '{key}': {ex.Message}"); }
+            return DrawingQaRules.IsSheetIdentityParam(key, bip);
+        }
+
+        /// <summary>
+        /// DTW-18: <paramref name="tokens"/> with the sheet's real revision (the
+        /// native SHEET_CURRENT_REVISION the revision box prints) and suitability
+        /// (PRJ_DWG_SUITABILITY_COD_TXT, what the Export Centre files by) laid over
+        /// the profile defaults. Shared by Apply and the drift detector so the
+        /// two agree on what a cell should hold.
+        /// </summary>
+        internal static Dictionary<string, string> WithSheetFacts(ViewSheet sheet, IDictionary<string, string> tokens)
+        {
+            string rev = null, suit = null;
+            if (sheet != null)
+            {
+                try { rev = sheet.get_Parameter(BuiltInParameter.SHEET_CURRENT_REVISION)?.AsString(); }
+                catch (Exception ex) { StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: revision read on '{sheet.SheetNumber}': {ex.Message}"); }
+                suit = ParameterHelpers.GetString(sheet, ParamRegistry.DWG_SUITABILITY_COD);
+            }
+            return DrawingQaRules.OverlaySheetFacts(tokens, rev, suit);
+        }
+
+        /// <summary>DTW-16: does the cell already hold <paramref name="resolved"/>,
+        /// compared the way the write would store it?</summary>
+        private static bool CurrentValueMatches(Element tb, Parameter p, string paramName, string resolved)
+        {
+            try
+            {
+                switch (p.StorageType)
+                {
+                    case StorageType.String:
+                        return string.Equals(p.AsString() ?? string.Empty, resolved ?? string.Empty, StringComparison.Ordinal);
+                    case StorageType.Integer:
+                        if (!p.HasValue) return false;
+                        if (string.IsNullOrEmpty(resolved)) return p.AsInteger() == 0;
+                        return int.TryParse(resolved, NumberStyles.Integer, CultureInfo.InvariantCulture, out var iv)
+                            && p.AsInteger() == iv;
+                    case StorageType.Double:
+                        return p.HasValue && DrawingQaRules.NumericTextEquals(
+                            ParameterHelpers.GetValueText(tb, paramName), resolved);
+                    default:
+                        return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: could not read '{paramName}' before writing: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static void RefuseSheetIdentity(TitleBlockApplyResult r, ViewSheet sheet, string key)
+        {
+            if (r.SheetIdentityRefused.Contains(key)) return;
+            r.SheetIdentityRefused.Add(key);
+            r.Warnings.Add(
+                $"Sheet '{sheet?.SheetNumber}': '{key}' not written — it is the sheet's own number/name, " +
+                "which changes only through the renumber tools (SheetNumbering.Apply). Remove the key " +
+                "from the profile's titleBlockParams.");
         }
 
         public static IDisposable Batch() => NoOpScope.Instance;
@@ -322,12 +458,18 @@ namespace StingTools.Core.Drawing
                 switch (p.StorageType)
                 {
                     case StorageType.String:  return p.AsString();
-                    case StorageType.Integer: return p.AsInteger().ToString();
-                    case StorageType.Double:  return p.AsDouble().ToString("0.###");
+                    case StorageType.Integer: return p.AsInteger().ToString(CultureInfo.InvariantCulture);
+                    // DTW-15: raw AsDouble() is internal units (a LENGTH in feet);
+                    // GetValueText gives the value in the unit the name states.
+                    case StorageType.Double:  return ParameterHelpers.GetValueText(pi, name);
                     default: return p.AsValueString();
                 }
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: Project Information '{name}' unreadable — cell left alone: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>
@@ -371,7 +513,7 @@ namespace StingTools.Core.Drawing
                     {
                         try
                         {
-                            var p = tb.LookupParameter(key);
+                            var p = LookupDeclared(tb, key);
                             if (p == null || p.IsReadOnly) continue;
                             switch (p.StorageType)
                             {
@@ -469,10 +611,59 @@ namespace StingTools.Core.Drawing
             foreach (var key in keys)
             {
                 if (string.IsNullOrWhiteSpace(key)) continue;
-                try { if (tb.LookupParameter(key) != null) return true; }
+                try { if (LookupDeclared(tb, key) != null) return true; }
                 catch { /* defensive */ }
             }
             return false;
+        }
+
+        private static IReadOnlyDictionary<string, string> _paramAliases;
+
+        /// <summary>
+        /// DTW-60: legacy display-label keys -> title-block family parameter, read
+        /// once from "paramAliases" in STING_TITLE_BLOCKS.json. Empty when the file
+        /// or the block is missing, so keys are then used exactly as written.
+        /// </summary>
+        internal static IReadOnlyDictionary<string, string> ParamAliases
+        {
+            get
+            {
+                var cached = _paramAliases;
+                if (cached != null) return cached;
+                Dictionary<string, string> map;
+                try
+                {
+                    var path = StingTools.Core.StingToolsApp.FindDataFile("STING_TITLE_BLOCKS.json");
+                    map = !string.IsNullOrEmpty(path) && System.IO.File.Exists(path)
+                        ? TitleBlockParamAliases.FromLibraryJson(System.IO.File.ReadAllText(path))
+                        : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    if (map.Count == 0)
+                        StingTools.Core.StingLog.Warn("TitleBlockParamApplier: no paramAliases in STING_TITLE_BLOCKS.json; legacy label keys will not resolve.");
+                }
+                catch (Exception ex)
+                {
+                    StingTools.Core.StingLog.Warn($"TitleBlockParamApplier: paramAliases unreadable, legacy label keys will not resolve: {ex.Message}");
+                    map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                }
+                _paramAliases = map;
+                return map;
+            }
+        }
+
+        /// <summary>
+        /// DTW-60: the title-block parameter a declared key addresses: the key as
+        /// written, else its alias target. Shared by Apply, ClearStale and the drift
+        /// detector so they agree on which cell a key means.
+        /// </summary>
+        internal static Parameter LookupDeclared(Element tb, string key)
+        {
+            if (tb == null) return null;
+            foreach (var name in TitleBlockParamAliases.Candidates(key, ParamAliases))
+            {
+                var p = tb.LookupParameter(name);
+                if (p != null) return p;
+            }
+            return null;
         }
 
     }

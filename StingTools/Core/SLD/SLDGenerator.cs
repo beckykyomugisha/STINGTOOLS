@@ -46,10 +46,10 @@ namespace StingTools.Core.SLD
 
     public static class SLDGenerator
     {
-        // The catalogue's SLD drawing type (Schematic, E / SLD). This stamped
-        // "elec-sld-A1-1to100", an id no drawing type had, so the SLD belonged to no
-        // type and no sheet. Views stamped with the old id stay where they are.
-        internal const string DrawingTypeId = "elec-sld-A1-NTS";
+        // The SLD's drawing type is the one routing gives E / SLD (DrawingRouteRequests.Sld,
+        // shipped as "elec-sld-A1-NTS") — the same id SLD_Generate places the view on a sheet
+        // of. A hard-coded id here disagreed with the sheet whenever a project re-routed E / SLD.
+        // (Before that it stamped "elec-sld-A1-1to100", an id no drawing type had.)
 
         /// <summary>
         /// Result text for the user. Zero symbols is not a quiet success: it
@@ -198,7 +198,7 @@ namespace StingTools.Core.SLD
                         layoutOpts.SymbolHeightMm / 304.8, layoutOpts.LevelOffsetMm / 304.8);
 
                     StampViewStandard(view, standardId);
-                    StampDrawingType(view);
+                    StampDrawingType(doc, view);
                     tx.Commit();
 
                     result.Success = true;
@@ -588,11 +588,11 @@ namespace StingTools.Core.SLD
             catch (Exception ex) { StingLog.Warn($"StampViewStandard: {ex.Message}"); }
         }
 
-        private static void StampDrawingType(ViewDrafting view)
+        private static void StampDrawingType(Document doc, ViewDrafting view)
         {
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, DrawingTypeId);
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, StingTools.Core.Drawing.DrawingRouteRequests.Sld));
                 // Lock: the SLD is drawn 1:1 (true-mm layout, paper-sized text). Unlocked,
                 // drift checks / Sync Styles would push the drawing-type scale back.
                 StingTools.Core.Drawing.DrawingTypeStamper.SetLocked(view, true);

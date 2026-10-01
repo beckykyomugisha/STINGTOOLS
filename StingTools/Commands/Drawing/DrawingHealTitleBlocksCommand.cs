@@ -79,6 +79,8 @@ namespace StingTools.Commands.Drawing
                 int lockedSkipped = 0;
                 int wrongFamily = 0;
                 int unresolvedCells = 0;
+                int totalUnchanged = 0;
+                var unknownType = new List<string>();
                 using (TitleBlockParamApplier.Batch())
                 using (var tx = new Transaction(doc, "STING — Heal Title Blocks"))
                 {
@@ -86,13 +88,21 @@ namespace StingTools.Commands.Drawing
                     foreach (var x in sheets)
                     {
                         var dt = DrawingTypeRegistry.Get(doc, x.DtId);
-                        if (dt == null) continue;
+                        if (dt == null)
+                        {
+                            // DTW-16: dropped silently yet counted in "of N" —
+                            // a sheet stamped with a type this project no longer
+                            // defines read as merely "not needing a heal".
+                            unknownType.Add($"{x.Sheet.SheetNumber} ({x.DtId})");
+                            continue;
+                        }
                         // T-5: one shared builder with Migrate / drift — recovers
                         // {lvl}/{mark} from the sheet's production-context stamp
                         // instead of dropping them (Heal used to pass no level).
                         var tokens = DrawingTokenContext.BuildForExistingSheet(doc, x.Sheet, dt);
                         var result = TitleBlockParamApplier.Apply(doc, x.Sheet, dt, tokens);
                         totalParams += result.ParamsWritten;
+                        totalUnchanged += result.ParamsUnchanged;
                         unresolvedCells += result.CellsUnresolved;
                         // T-3: Apply now leaves PRJ_TB_LOCK_BOOL title blocks
                         // alone. Count them so "healed N of M" doesn't quietly
@@ -107,7 +117,15 @@ namespace StingTools.Commands.Drawing
                         // destructive change and is deliberately not automatic.
                         try
                         {
-                            var wanted = TitleBlockResolver.ToConcreteFamily(doc, dt, dt.TitleBlockFamily);
+                            // DTW-17: resolve the variant first (TitleBlockVariantRules
+                            // and the "Family:Symbol" form), as Doctor and the
+                            // Validator do — the raw TitleBlockFamily flagged every
+                            // variant-routed or colon-form sheet as a wrong family.
+                            string declared = dt.TitleBlockFamily;
+                            try { declared = DrawingDispatcher.ResolveTitleBlockVariant(dt).family; }
+                            catch (Exception exVar) { StingLog.Warn($"Heal variant resolve '{dt.Id}': {exVar.Message}"); }
+                            if (string.IsNullOrWhiteSpace(declared)) declared = dt.TitleBlockFamily;
+                            var wanted = TitleBlockResolver.ToConcreteFamily(doc, dt, declared);
                             if (!string.IsNullOrWhiteSpace(wanted))
                             {
                                 foreach (var el in new FilteredElementCollector(doc, x.Sheet.Id)
@@ -150,7 +168,16 @@ namespace StingTools.Commands.Drawing
 
                 var sb = new StringBuilder();
                 sb.AppendLine($"Healed title blocks on {healed} of {sheets.Count} sheet(s).");
-                sb.AppendLine($"Total param writes: {totalParams}.");
+                sb.AppendLine($"Total param writes: {totalParams} ({totalUnchanged} cell(s) already correct, not rewritten).");
+                if (unknownType.Count > 0)
+                {
+                    sb.AppendLine($"{unknownType.Count} sheet(s) NOT healed — stamped with a drawing type this project " +
+                                  "does not define (renamed or removed profile):");
+                    foreach (var u in unknownType.Take(10)) sb.AppendLine("  " + u);
+                    if (unknownType.Count > 10) sb.AppendLine($"  …({unknownType.Count - 10} more)");
+                    StingLog.Warn($"Heal Title Blocks: {unknownType.Count} sheet(s) stamped with an unknown drawing type: " +
+                                  string.Join(", ", unknownType));
+                }
                 if (wrongFamily > 0)
                     sb.AppendLine($"{wrongFamily} sheet(s) are on the WRONG title-block family — see the audit log.");
                 if (lockedSkipped > 0)

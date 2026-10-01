@@ -842,6 +842,58 @@ run against a live tenant yet (ROADMAP ACC-HARD-1).
 - **Not verified**: not run against a live ACC container or in Revit. `AccIssue` carries no due
   date, display id or updated-at yet (TODO in `AccIssueImportRecord`); ACC assignees are stored
   as ACC ids, not names. Nothing is pushed back to ACC.
+#### Completed (TAGACC-19 saving tag settings keeps the rest of project_config.json, 2026-10-01)
+
+- **The bug.** `project_config.json` is shared: besides the tag maps it carries `SEQ_SCHEME`,
+  `SEQ_INCLUDE_LOC` / `_ZONE`, `SEQ_LEVEL_RESET`, `CDE_FIRST_LAYOUT`, `FOLDER_CODE_SUFFIX`, every
+  `COST_*` / `BOQ_TENDER_*` rate, SLA thresholds, permissions and more. Both whole-file writers
+  rebuilt it from their own key list: *Save Config to Project* wrote 13 keys (dropping even
+  `TAG_PREFIX`, `CATEGORY_SKIP`, `CATEGORY_TOKEN_OVERRIDES`, `COMPLIANCE_GATE_PCT` and the
+  auto-tagger switches), and `TagConfig.SaveToFile` — called by the Project Setup Wizard, the
+  auto-tagger toggles and Tag Ops — wrote its ~25. One click reset everything else to defaults,
+  including the SEQ keys that decide how the next tags are numbered.
+- **The fix.** `Core/ConfigFileMerge.cs` overlays the owned keys on the file as it is and keeps
+  every other key in place. `TagConfig.SaveToFile` uses it, writes through a temp file, and
+  refuses (logged, returns false) rather than overwrite a file that is not valid JSON. *Save Config
+  to Project* now calls `TagConfig.SaveToFile` — one writer. It no longer adds
+  `LEADER_CLEARANCE_MARGIN_FT` when absent (the reader defaults it to 0.5); an existing value is kept.
+- **Tests** `ConfigFileMergeTests` (10): SEQ / folder / cost / nested keys survive with their values,
+  owned keys overwrite, order kept, blank file, unreadable file refused, and a source check that both
+  writers use the merge (fails against main's sources). `StingTools.Tags.Tests` all passing; plugin
+  build 0 errors / 0 warnings. **Not run in Revit.**
+#### Completed (TAGACC-18 Token Confidence Audit reads the sources the tagger writes, 2026-10-01)
+
+- **The bug.** The Token Confidence Audit (`TokenConfidenceAudit`) classified `ASS_ZONE_SOURCE_TXT`
+  as High only for `Room` / `TYPE_OVERRIDE`. `PopulateAll` also writes `ScopeBox` (a `STING-ZONE::`
+  box) and `Proximity` (copied from the nearest tagged element) for ZONE, and `Proximity` for LOC.
+  All three fell through to **Low**, so a zone drawn as a scope box was reported as a silent default.
+  The "silent BLD1" count tested the literal `BLD1`, which the token policy's fallback need not be.
+- **The fix.** The bands live in `Core/TokenConfidenceBands.cs` (Revit-free) and each carries a
+  reason. `ScopeBox` is High for both tokens; `Proximity` is Medium (inherited, not detected). The
+  silent count is "LOC_SOURCE = Default", whatever value was written. The report lists a tally of
+  reasons, and the CSV now has one row per element with any Medium or Low token, with band and
+  reason per token (columns `*_BAND` / `*_REASON`; the old `Bands` column is gone).
+- **Tests** `TokenConfidenceBandsTests` (26 cases), including one that reads the source strings
+  `ParameterHelpers.cs` writes to `LOC_SOURCE` / `ZONE_SOURCE` and fails if the classifier does not
+  know one. With the ZONE `ScopeBox` case removed, 2 fail; with it, all pass. `StingTools.Tags.Tests`
+  4,625 passing; plugin build 0 errors / 0 warnings. **Not run in Revit.**
+#### Completed (TAGFAM-3: the four specialist tag labels, 2026-10-01)
+
+- **Built in the Revit 2025 Family Editor** on the families Create Tag Fams made (category, size
+  types and `TXT_*` switches already set), following `docs/SPECIALIST_TAG_BUILD_SHEET.md`:
+  `STING - Fire Door Tag` (5 rows), `STING - Accessible Door Tag` (8), `STING - Room Finish Tag`
+  (5), `STING - Fire Compartment Tag` (4). Each label's parameters were added from its
+  `_build\*.params.txt` file. Label type `2.5mm` (Arial 2.5 mm, transparent), **left-aligned**
+  and vertically centred — the user's ISO rule, now written into the sheet.
+- **Drawing types repointed** (DT-2): `arch-fire-strategy-A1-1to100` Doors → Fire Door Tag, Rooms →
+  Fire Compartment Tag; `arch-accessibility-A1-1to100` Doors → Accessible Door Tag;
+  `arch-floor-finishes-A1-1to100` Rooms → Room Finish Tag. Checksums re-stamped with
+  `tools/StampDrawingTypeChecksums` (3 drifted, `--check` clean).
+- **Found while building:** a calculated value cannot be named *Operation* on a door tag (doors
+  have a built-in *Operation*); Accessible Door's row is *Door operation*. Sheet updated.
+- **Not done:** the 3.5 mm label copy and the door box (sheet §Types, §Box). Tests 4,599 passing.
+  Not yet placed on a real drawing.
+
 #### Completed (TAGFAM-2 first Revit run, hub buttons, TAGFAM-4 category decisions, 2026-09-30)
 
 - **Run in Revit 2025** (this branch's build, throwaway `Project1`): the confirmation listed 211 families,
@@ -26820,3 +26872,102 @@ every `GetString` read against the parameter's data type.
 
 Build 0/0; Tags.Tests all green; `run_ci_gates.py` 0 failed. Everything new is Revit-bound where
 it touches the model and has not been run in Revit; the guide's Part E lists what to check.
+
+#### Completed (Drawing production review-and-fix loop, branch `fix/drawing-review`, PR #1021)
+
+A review of #1018 in four areas (performance, accuracy, consistency, integration), then a
+research-fix loop over all of drawing production. Findings DTW-1..81 and their decisions are in
+`docs/WORKLOG_DRAWING_TYPES.md`; items still open are in ROADMAP.
+
+- **Parameter bindings (DTW-55..59).** This was the most serious finding. The spec binds `<ALL>`
+  parameters to the core category set, which has Sheets but not Views or Lines, so every
+  drawing-type and context stamp written to a view did nothing.
+  - Production found its earlier views through those stamps, so each re-run made duplicates.
+  - Fixed: view stamps now bind to Views (and Sheets where written there), match-line keys to
+    Lines, and `TAG_SEG_MASK_TXT` is bound.
+  - The 49 AEC filters whose rule parameters did not reach their categories now do.
+  - New gate `tools/check_drawing_bindings.py`.
+- **Schematics.**
+  - Drainage and supply schematics draw only what is modelled: real stacks and vents, levels
+    from the model, and a supply source that is a meter, tank or pump; lines are counted only
+    when drawn.
+  - Electrical diagrams replace their own view on a re-run (`SchematicViewFactory`).
+  - Boards are named one way (`BoardNaming`), and door-diagram sheets are keyed by element id.
+  - The MGPS and LPS schematics no longer scan every element in the model.
+  - Arc-flash and LPS-coverage views now have drawing types.
+- **Presets.**
+  - TagAndCombine, the panel checks, placement, auto-drop, the electrical calculations,
+    sprinkler hydraulics, BOQ and COBie run unattended with step params
+    (`PresetStepInputs`).
+  - A missing input fails the step with the reason instead of opening a dialog or inventing a
+    value.
+- **Revision issue.**
+  - Clouds drawn on a sheet are found, and a step's `sheets` param wins.
+  - AutoRevisionCloud takes a `baseline` param.
+  - Issued counts depend on the commit status.
+- **QA tools (DTW-2..19).**
+  - Managed templates pick up pack edits, including inherited overrides.
+  - Sync Styles heals sheets and re-applies only views that drifted.
+  - Title-block writes no longer touch sheet numbers, and honour type-level locks.
+  - Renumber keeps ISO identifiers; ISO-from-tag goes through `SheetNumbering.Apply`.
+  - Caches are invalidated on reload; title-block revision and suitability come from the
+    sheet.
+- **Producers (DTW-20..31, 40..54).**
+  - The production dialog's options now all work or are removed.
+  - View and sheet identity is keyed on level, room and box ids, so renames no longer
+    duplicate.
+  - The ISO policy uses ISO level codes and drops the frozen `-S2-P01`.
+  - Sections and 3D views follow their scope box.
+  - Exterior and interior elevations reuse their views on re-run.
+  - Match lines move and prune with their boxes.
+  - Per-level MEP production sees linked models.
+  - The legacy scope-box producer delegates to the main one.
+- **UI (DTW-32..38).** Tooltips match behaviour; there is one scope-box producer button; the
+  Setup Wizard's dependents, sections and elevations go through drawing-type production.
+- **Performance.** Match-line sweep cache, single-pass MEP presence, a tag-symbol index, cached
+  placement rules, and O(1) pipe-pressure lookup.
+- **Gates.**
+  - `binding-spec-drift` was failing on main (#1019 changed the registry without regenerating
+    the views); fixed.
+  - The lying-catch sweep counts `PresetDialog` as reporting (baseline 151 → 145).
+  - The parameter contract drops `STING_SCOPE_BOX_TAG_TXT`.
+
+Later rounds on the same branch (DTW-82..145):
+- **Data (DTW-60..77, 89).**
+  - `titleBlockParams` use the real family parameters, with aliases for the old labels.
+  - Templates are chosen per view kind.
+  - Missing styles are created.
+  - `* * SECTION/ELEVATION` routes added.
+  - ISO patterns no longer freeze suitability and revision.
+  - `STING_PLACER_*` and placed-viewport marks bind or move to Extensible Storage.
+- **Annotation (DTW-83..86, 114, 130, 140).**
+  - Rooms, spaces and areas get spatial tags.
+  - Linked elements and grids are annotated.
+  - Rotated grid chains work.
+  - MEP run chains cross fittings.
+  - A re-run annotates what was modelled since, without doubling.
+- **Export (DTW-87, 88, 135, 137, 139).**
+  - Every single-sheet PDF goes through one routine and is named like the Export Centre.
+  - Stale earlier PDFs are never counted.
+- **Planner and boxes (DTW-90..93, 132, 143, 144).**
+  - Levels are kept by id, and re-plans keep boxes in place.
+  - Turned LOC boxes are tiled in their own frame.
+  - One name grammar for all boxes; rejects are reported.
+- **Numbering (DTW-94, 96, 100, 105, 116, 117, 129, 133, 134, 136, 138).**
+  - One ISO level map: declared codes win; SSL and datum levels share a storey (Building Story flag).
+  - Spool, batch and auto-number sheets follow the shared numbering paths.
+  - `{vol}` carries the building.
+  - Heal and the sheet stamp agree with the number.
+- **Production (DTW-95, 99, 103, 106..110, 122).**
+  - Per-level production skips only pairs a `STING::` box covers.
+  - Legacy sheet matches check the level.
+  - Nested and cross-document batches keep their caches.
+  - Skip-empty-levels sees links.
+- **Schematics (DTW-111, 119..121, 124, 128).** Drainage stacks must cross a level; one view per
+  schematic; fit to the sheet; labels don't collide.
+- **Placement (DTW-112, 113, 131).** DWG fixture placement is idempotent per level and builds the
+  seeds it needs.
+- **Gates.** The lying-catch baseline ratcheted to 144.
+
+Build 0/0; Tags.Tests 5,080; `run_ci_gates.py --quick` 36/36; drawing-type checksums OK.
+Nothing has been run in Revit; the worklog lists the checks.

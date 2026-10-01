@@ -1,6 +1,6 @@
 {
   "name": "RevisionIssue",
-  "description": "One-click revision issue chain — create the revision, cloud what changed, issue the affected sheets, refresh title blocks, and export the revision register",
+  "description": "One-click revision issue chain — create the revision, cloud what changed since the previous revision was opened, issue the affected sheets (which also refreshes the title blocks), and export the revision register",
   "rollback_on_failure": false,
   "rollback_on_optional_failure": false,
   "steps": [
@@ -11,23 +11,26 @@
     },
     {
       "commandTag": "AutoRevisionCloud",
-      "label": "2. Cloud changed elements in active view",
-      "optional": true
+      "label": "2. Cloud elements changed since the previous revision's baseline, in the active view",
+      "optional": true,
+      "params": {
+        "baseline": "previous"
+      }
     },
     {
       "commandTag": "IssueSheetsForRevision",
-      "label": "3. Assign revision to clouded sheets (else params.sheets, else STING-produced sheets) + mark issued; fails, un-issued, when there are none",
-      "optional": false
-    },
-    {
-      "commandTag": "RevisionSync",
-      "label": "4. Sync revision number/date/description to title blocks",
+      "label": "3. Assign revision to params.sheets when given, else clouded sheets, else STING-produced sheets + mark issued + sync title blocks; fails, un-issued, when there are none",
       "optional": false
     },
     {
       "commandTag": "RevisionSchedule",
-      "label": "5. Export revision register CSV",
+      "label": "4. Export revision register CSV",
       "optional": true
     }
+  ],
+  "_notes": [
+    "Step 2 runs with params.baseline = previous. Create Revision (step 1) saves the snapshot pre_rev_<number> at the moment it creates the revision, so comparing against it here would always find no changes. 'previous' skips that snapshot — only when it is the newest revision's own — and compares against the one before it, i.e. what changed since the previous revision was opened. Run on its own (no params) Auto Revision Cloud compares against the latest snapshot, which is the right baseline when the team creates a revision first and edits afterwards. On a project's first revision there is no earlier snapshot, so step 2 reports that and draws nothing.",
+    "There is no separate Revision Sync step: Issue Sheets for Revision refreshes every title block (TitleBlockRevisionSyncer.SyncAll) as it issues. Run DOCS → Rev Sync on its own only after editing a revision by hand.",
+    "Step 3 params: sheets (comma / semicolon list of sheet numbers). When given it wins over clouds — the step named the sheets. A name the model does not have is logged; if none exist the step fails and the revision stays un-issued."
   ]
 }

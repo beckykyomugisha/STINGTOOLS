@@ -49,6 +49,14 @@ namespace StingTools.Core.Plumbing
         public XYZ              Position        { get; set; }   // Revit internal feet
         public PipeNodeType     Type            { get; set; }
         public string           SystemName      { get; set; } = "";
+        /// <summary>
+        /// Piping-system classification of a pipe node (Sanitary, Vent, DCW …); null for
+        /// fittings, fixtures and equipment, and for a pipe on no system. The drainage
+        /// schematic tells a vent from a drain by this, never by a name guess.
+        /// </summary>
+        public PipeSystemType?  Classification  { get; set; }
+        /// <summary>True when the node is a Pipe element (not a fitting / accessory / fixture).</summary>
+        public bool             IsPipeElement   { get; set; }
         public double           DnMm            { get; set; }
         public double           DfuAccumulated  { get; set; }
         public double           PressureKpa     { get; set; }
@@ -238,7 +246,18 @@ namespace StingTools.Core.Plumbing
             if (inletNode == null && net.Nodes.Count > 0)
                 inletNode = net.Nodes.First();
 
-            if (inletNode == null) return;
+            AccumulatePressureFrom(net, inletNode, inletKpa, doc);
+        }
+
+        /// <summary>
+        /// As <see cref="AccumulatePressure(PipeNetwork, double, double, Document)"/>, from
+        /// a caller-chosen inlet node (e.g. the modelled water meter) instead of the
+        /// lowest termination / equipment node.
+        /// </summary>
+        public static void AccumulatePressureFrom(PipeNetwork net, PipeNode inletNode,
+            double inletKpa, Document doc)
+        {
+            if (net == null || inletNode == null) return;
             inletNode.PressureKpa = inletKpa;
 
             // BFS from inlet toward fixtures. We walk in topological-ish order
@@ -464,7 +483,15 @@ namespace StingTools.Core.Plumbing
 
             // DN from pipe diameter
             if (el is Pipe pipe)
+            {
                 node.DnMm = pipe.Diameter * FtToMm;
+                node.IsPipeElement = true;
+                try
+                {
+                    if (pipe.MEPSystem is PipingSystem ps) node.Classification = ps.SystemType;
+                }
+                catch (Exception ex) { StingLog.Warn($"PipeNetworkBuilder: classification of pipe {pipe.Id}: {ex.Message}"); }
+            }
 
             net.Nodes.Add(node);
             net.ById[id] = node;
@@ -672,29 +699,48 @@ namespace StingTools.Core.Plumbing
             return null;
         }
 
+        /// <summary>
+        /// DTW-111: a stack is a run of mostly-vertical pipe at one plan position, about a
+        /// storey tall, passing through a level (SchematicLayoutMath.StackRuns). A WC tail,
+        /// a trap drop or a vertical offset is vertical but is not a stack, and stays a
+        /// Pipe — so the fixture behind it is reached when a branch's fixtures are counted.
+        /// </summary>
         private static void ClassifyStacks(PipeNetwork net, Document doc)
         {
+            var verticals = new List<(long Id, double X, double Y, double ZMin, double ZMax)>();
             foreach (var node in net.Nodes.Where(n => n.Type == PipeNodeType.Pipe))
             {
                 try
                 {
-                    var el = doc.GetElement(node.Id);
-                    if (el is Pipe p)
+                    if (doc.GetElement(node.Id) is Pipe p && p.Location is LocationCurve lc && lc.Curve != null)
                     {
-                        var lc = p.Location as LocationCurve;
-                        if (lc?.Curve != null)
-                        {
-                            var s = lc.Curve.GetEndPoint(0);
-                            var e = lc.Curve.GetEndPoint(1);
-                            double dz    = Math.Abs(e.Z - s.Z);
-                            double total = s.DistanceTo(e);
-                            if (total > 1e-6 && dz / total > 0.8)
-                                node.Type = PipeNodeType.Stack;
-                        }
+                        var s = lc.Curve.GetEndPoint(0);
+                        var e = lc.Curve.GetEndPoint(1);
+                        if (SchematicLayoutMath.IsMostlyVertical(e.X - s.X, e.Y - s.Y, e.Z - s.Z))
+                            verticals.Add((node.Id.Value, (s.X + e.X) / 2, (s.Y + e.Y) / 2,
+                                           Math.Min(s.Z, e.Z), Math.Max(s.Z, e.Z)));
                     }
                 }
-                catch { }
+                catch (Exception ex) { StingLog.Warn($"PipeNetworkBuilder: geometry of pipe {node.Id}: {ex.Message}"); }
             }
+            if (verticals.Count == 0) return;
+
+            List<double> levels;
+            try
+            {
+                // ProjectElevation: the internal-origin datum the pipe coordinates use.
+                levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .Select(l => l.ProjectElevation).OrderBy(z => z).ToList();
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PipeNetworkBuilder: levels for stack classification: {ex.Message}");
+                levels = new List<double>();
+            }
+
+            foreach (var run in SchematicLayoutMath.StackRuns(verticals, levels))
+                foreach (var id in run)
+                    if (net.ById.TryGetValue(id, out var n)) n.Type = PipeNodeType.Stack;
         }
 
         private static List<PipeEdge> DfsPath(PipeNode current, PipeNode target, HashSet<long> visited)
@@ -722,10 +768,14 @@ namespace StingTools.Core.Plumbing
             if (string.IsNullOrWhiteSpace(filter)) return true;
             try
             {
-                string sysName = p.MEPSystem?.Name ?? "";
-                return sysName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+                // Exact: the schematic pickers list whole PipingSystem names.
+                return SchematicLayoutMath.SystemNameMatches(p.MEPSystem?.Name, filter);
             }
-            catch { return true; }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"PipeNetworkBuilder: system name of pipe {p?.Id}: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>

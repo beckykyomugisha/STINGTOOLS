@@ -651,12 +651,24 @@ namespace StingTools.Core.Clash
                 DeliverableKey = deliverableKey ?? "", StartedBy = AccReviewFiles.User(doc),
                 StartedAt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"),
             });
+            bool queueSaved = true;
+            string queueErr = "";
             try { queue.Save(AccReviewFiles.QueuePath(doc)); }
-            catch (Exception ex) { StingLog.Warn("ACC start review: queue save: " + ex.Message); }
+            catch (Exception ex)
+            {
+                // The review exists in ACC either way; what failed is STING's record of it, and
+                // without that a later Start could start a second review on the same version.
+                StingLog.Warn("ACC start review: queue save: " + ex.Message);
+                queueSaved = false;
+                queueErr = ex.Message;
+            }
+            string queueNote = queueSaved ? "" :
+                "\nSTING could NOT record this review locally (" + queueErr + "). Check ACC before " +
+                "starting another review on this file - STING will not know this one exists.";
             Say(interactive, $"ACC review started on {file.FileName}" +
                              (string.IsNullOrEmpty(r.SequenceId) ? "" : $" (review #{r.SequenceId})") + ". " +
                              "Its decision comes back through ACC_ReadReviews as a proposal." +
-                             (string.IsNullOrEmpty(r.Detail) ? "" : "\n" + r.Detail));
+                             (string.IsNullOrEmpty(r.Detail) ? "" : "\n" + r.Detail) + queueNote);
             return true;
         }
 

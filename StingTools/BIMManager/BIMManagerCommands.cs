@@ -5338,6 +5338,9 @@ namespace StingTools.BIMManager
 
     #region ── Command 10: COBie Export ──
 
+    // Workflow preset (COBieExport): no wizard, no gate dialogs. Step params (defaults in
+    // COBiePresetSettings): preset, worksheets, format (xlsx | csv | both), outputDir,
+    // exportBelowGate (false), refreshContainers (true). The report goes to the step message.
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class COBieExportCommand : IExternalCommand
@@ -5346,15 +5349,36 @@ namespace StingTools.BIMManager
             ref string message, ElementSet elements)
         {
             var ctx = ParameterHelpers.GetContext(commandData);
-            if (ctx == null) { TaskDialog.Show("STING", "No document open."); return Result.Failed; }
+            if (ctx == null) { PresetDialog.Show("STING", "No document open.", ref message); return Result.Failed; }
             Document doc = ctx.Doc;
+
+            // Workflow preset: no wizard and no gate dialogs. Settings and gate decisions come
+            // from the step's params with the wizard's defaults (COBiePresetSettings lists them).
+            bool headless = WorkflowEngine.IsRunningPreset;
+            COBieExportSettings presetSettings = null;
+            COBiePresetSettings.Gates presetGates = null;
+            var presetNotes = new List<string>();
+            if (headless && !COBiePresetSettings.Build(doc, out presetSettings, out presetGates, out var presetErr))
+            { message = "COBie export: " + presetErr; return Result.Failed; }
 
             // Phase 55: Export readiness gate — block COBie export below compliance threshold
             try
             {
                 // Use cached ComplianceScan — no forced invalidation (avoids 2-5s full scan)
                 var compResult = ComplianceScan.Scan(doc);
-                if (compResult != null && compResult.CompliancePercent < 60)
+                if (compResult != null && compResult.CompliancePercent < 60 && headless)
+                {
+                    string gateText = $"model is {compResult.CompliancePercent:F0}% tag-compliant, below the 60% COBie gate " +
+                                      $"({compResult.Untagged} untagged, {compResult.StaleCount} stale).";
+                    if (!presetGates.ExportBelowGate)
+                    {
+                        message = $"COBie export stopped: {gateText} Run the Quick Fix Cycle, or set params.exportBelowGate = true.";
+                        return Result.Failed;
+                    }
+                    presetNotes.Add($"Exported below the compliance gate (params.exportBelowGate): {gateText}");
+                    StingLog.Warn($"COBie export (preset) proceeding below compliance gate: {compResult.CompliancePercent:F0}%");
+                }
+                else if (compResult != null && compResult.CompliancePercent < 60)
                 {
                     var gateDlg = new TaskDialog("COBie Export — Compliance Gate");
                     gateDlg.MainInstruction = $"Model is only {compResult.CompliancePercent:F0}% tag-compliant";
@@ -5380,7 +5404,12 @@ namespace StingTools.BIMManager
             try
             {
                 var (warnPass, warnReason) = GapAnalysisEngine.CheckCOBieWarningQuality(doc);
-                if (!warnPass)
+                if (!warnPass && headless)
+                {
+                    presetNotes.Add($"Data-quality warnings may affect the output: {warnReason}");
+                    StingLog.Warn($"COBie export (preset) proceeding despite warning quality gate: {warnReason}");
+                }
+                else if (!warnPass)
                 {
                     var warnGateDlg = new TaskDialog("COBie Export — Warning Quality Gate");
                     warnGateDlg.MainInstruction = "Data quality warnings may affect COBie output";
@@ -5396,7 +5425,7 @@ namespace StingTools.BIMManager
             catch (Exception wqEx) { StingLog.Warn($"COBie warning quality gate: {wqEx.Message}"); }
 
             // Launch the COBie Export Wizard for interactive configuration
-            var settings = COBieExportWizard.Show(doc);
+            var settings = headless ? presetSettings : COBieExportWizard.Show(doc);
             if (settings == null) return Result.Cancelled;
 
             // R-04: Pre-export container staleness check — discipline containers
@@ -5436,7 +5465,10 @@ namespace StingTools.BIMManager
                 staleDlg.AddCommandLink(TaskDialogCommandLinkId.CommandLink2, "Export anyway", "Some Classification/ProductCode fields may be empty");
                 staleDlg.CommonButtons = TaskDialogCommonButtons.Cancel;
 
-                var staleResult = staleDlg.Show();
+                var staleResult = !headless ? staleDlg.Show()
+                    : presetGates.RefreshContainers ? TaskDialogResult.CommandLink1 : TaskDialogResult.CommandLink2;
+                if (headless && !presetGates.RefreshContainers)
+                    presetNotes.Add($"{staleContainerCount}+ element(s) had stale discipline containers — exported as they were (params.refreshContainers = false).");
                 if (staleResult == TaskDialogResult.Cancel) return Result.Cancelled;
                 if (staleResult == TaskDialogResult.CommandLink1)
                 {
@@ -5471,6 +5503,7 @@ namespace StingTools.BIMManager
                             combTx.Commit();
                         }
                         StingLog.Info($"COBie pre-export: WriteContainers ran on {allTaggable.Count} elements, {cobieSkippedContainers} skipped (incomplete tokens)");
+                        if (headless) presetNotes.Add($"Stale discipline containers rewritten before export ({allTaggable.Count} elements, {cobieSkippedContainers} with incomplete tokens skipped).");
                         // GAP-1B: Invalidate caches after pre-export WriteContainers
                         ComplianceScan.InvalidateCache();
                         StingAutoTagger.InvalidateContext();
@@ -5478,6 +5511,7 @@ namespace StingTools.BIMManager
                     catch (Exception combEx)
                     {
                         StingLog.Warn($"COBie pre-export WriteContainers failed: {combEx.Message}");
+                        if (headless) presetNotes.Add($"Rewriting the stale discipline containers FAILED ({combEx.Message}) — exported with them as they were.");
                     }
                 }
             }
@@ -5602,7 +5636,8 @@ namespace StingTools.BIMManager
             if (staleContainerCount > 0)
                 report.AppendLine($"\n  Note: {staleContainerCount}+ elements had stale containers — recommend running Combine Parameters.");
 
-            TaskDialog.Show("STING BIM Manager — COBie", report.ToString());
+            foreach (var note in presetNotes) report.AppendLine("  Note: " + note);
+            PresetDialog.Show("STING BIM Manager — COBie", report.ToString(), ref message);
             StingLog.Info($"COBie: {cobieData.Count} worksheets, {totalRows} rows");
             return Result.Succeeded;
         }

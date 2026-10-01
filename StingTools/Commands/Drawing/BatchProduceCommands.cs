@@ -101,9 +101,15 @@ namespace StingTools.Commands.Drawing
         /// Shared by Produce Per Level, Produce &amp; Export and MEP Plans Per Level.
         /// </summary>
         internal static PerLevelSelection RoutedMepPerLevel(Document doc)
+            => RoutedMepPerLevel(doc, StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc));
+
+        /// <summary>As <see cref="RoutedMepPerLevel(Document)"/>, with the discipline →
+        /// level presence the caller has already computed, so a command that needs it
+        /// for its own report does not collect every MEP element twice.</summary>
+        internal static PerLevelSelection RoutedMepPerLevel(Document doc, Dictionary<string, HashSet<ElementId>> presence)
         {
             var sel = new PerLevelSelection();
-            var presence = StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
+            presence = presence ?? StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
             var present = StingTools.Core.Mep.MepLevelViewProducer.Disciplines.Where(presence.ContainsKey).ToList();
             var routing = RoutePerLevel(doc, present);
             sel.Types = routing.Types;
@@ -119,6 +125,206 @@ namespace StingTools.Commands.Drawing
                 return false;
             };
             return sel;
+        }
+
+        /// <summary>
+        /// DTW-29: the dialog's "Skip levels with nothing modelled". A plan of an MEP
+        /// discipline (M / E / P / FP / MG) is produced on a level only when that discipline
+        /// has something there — host or linked model (MepLevelViewProducer, the presence the
+        /// routed MEP default uses); any other discipline's plan only on a level holding at
+        /// least one model element, in the host or a loaded link (DTW-122). Each skipped pair is added to <paramref name="skipped"/>.
+        /// </summary>
+        internal static Func<DrawingType, Level, bool> SkipEmptyLevels(Document doc, List<string> skipped)
+        {
+            var presence = StingTools.Core.Mep.MepLevelViewProducer.LevelsByDiscipline(doc);
+            var mep = new HashSet<string>(StingTools.Core.Mep.MepLevelViewProducer.Disciplines, StringComparer.OrdinalIgnoreCase);
+            var anyModel = new Dictionary<long, bool>();
+            HashSet<long> linked = null;   // DTW-122: computed on first need, once
+            return (dt, lvl) =>
+            {
+                var disc = (dt?.Discipline ?? "").Trim();
+                bool has;
+                if (mep.Contains(disc))
+                    has = presence.TryGetValue(disc, out var set) && set.Contains(lvl.Id);
+                else if (!anyModel.TryGetValue(lvl.Id.Value, out has))
+                {
+                    // DTW-122: the host's own elements, else a linked model's on a link
+                    // level mapped here — a federated MEP host links its architecture.
+                    has = LevelHasModel(doc, lvl);
+                    if (!has)
+                    {
+                        if (linked == null) linked = LinkedModelHostLevels(doc);
+                        has = StingTools.Core.Mep.LinkedModelLevels.HasModel(false, lvl.Id.Value, linked);
+                    }
+                    anyModel[lvl.Id.Value] = has;
+                }
+                if (!has) skipped?.Add($"{dt?.Id} on {lvl.Name}");
+                return has;
+            };
+        }
+
+        /// <summary>
+        /// The drawing-type ids a STING:: box is produced with by the box route. Inside a
+        /// workflow with no types named, ProduceFromScopeBoxes produces the MEP-bound boxes
+        /// only (HeadlessProductionInputs.IsMepDiscipline); from the dialog, any box bound to
+        /// a type in the catalogue. Shared by that filter and by per-level coverage (DTW-99)
+        /// so a box counts as covering a pair exactly when the box route draws it.
+        /// </summary>
+        internal static Func<string, bool> BoxTypeProduced(Document doc, bool mepOnly)
+            => id =>
+            {
+                var dt = DrawingTypeRegistry.Get(doc, id);
+                return dt != null && (!mepOnly || HeadlessProductionInputs.IsMepDiscipline(dt.Discipline));
+            };
+
+        /// <summary>
+        /// DTW-99: per-level production skips a (drawing type, level) pair a scope box already
+        /// produces — a STING::&lt;type&gt;::&lt;level&gt; box the box route draws, or a
+        /// STING-AREA:: box producing that type on that level — and produces every other pair.
+        /// Wraps <paramref name="inner"/> (null = every pair); each skipped pair is added to
+        /// <paramref name="covered"/> as "type on level: covered by scope box X". The decision
+        /// is PerLevelBoxCoverage (Revit-free, tested).
+        /// </summary>
+        internal static Func<DrawingType, Level, bool> SkipBoxCovered(Document doc, Func<DrawingType, Level, bool> inner,
+            List<string> covered, bool mepBoxesOnly)
+        {
+            PerLevelBoxCoverage cov;
+            try
+            {
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().ToList();
+                var codes = ScopeBoxRevit.LevelCodes(doc);
+                var levelRefs = levels.Select(l => new LevelRef
+                {
+                    Id = l.Id.Value, Name = l.Name,
+                    Code = codes.TryGetValue(l.Id.Value, out var c) ? c : null,
+                }).ToList();
+                var names = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_VolumeOfInterest)
+                    .WhereElementIsNotElementType().Select(e => e.Name ?? "").ToList();
+                var notes = new List<string>();
+                var areaCovers = new List<BoxCover>();
+                if (names.Any(n => ScopeBoxNames.Classify(n) == ScopeBoxKind.Area))
+                {
+                    // What Produce From Area Boxes would make with no types named.
+                    var plan = ScopeBoxPlannerService.LoadPlan(doc, out var planErr);
+                    if (planErr != null) notes.Add("area boxes not counted: " + planErr);
+                    else
+                    {
+                        var sel = RoutedMepPerLevel(doc);
+                        var items = ScopeBoxPlannerService.PlanProduction(doc, plan, new List<string>(),
+                            sel.Types.Select(t => t.Id).ToList(), sel.Include);
+                        areaCovers.AddRange(items.Where(i => i.Level != null && i.Type != null)
+                            .Select(i => new BoxCover { BoxName = i.Box.Name, TypeId = i.Type.Id, LevelId = i.Level.Id.Value }));
+                    }
+                }
+                cov = PerLevelBoxCoverage.Build(names, levelRefs, areaCovers, notes, BoxTypeProduced(doc, mepBoxesOnly));
+                foreach (var n in notes) StingLog.Info("Per-level box coverage: " + n);
+            }
+            catch (Exception ex)
+            {
+                // Cannot tell what the boxes cover: produce every pair rather than skip silently.
+                StingLog.Warn($"Per-level box coverage: {ex.Message} — no pair skipped for scope boxes.");
+                return inner;
+            }
+            if (cov.Count == 0) return inner;
+            return (dt, lvl) =>
+            {
+                if (inner != null && !inner(dt, lvl)) return false;
+                if (dt != null && lvl != null && cov.TryCovered(dt.Id, lvl.Id.Value, out var box))
+                {
+                    covered?.Add($"{dt.Id} on {lvl.Name}: covered by scope box {box}");
+                    return false;
+                }
+                return true;
+            };
+        }
+
+        /// <summary>One warning line for the pairs <see cref="SkipBoxCovered"/> left to the scope boxes.</summary>
+        internal static string CoveredSummary(List<string> covered)
+            => covered == null || covered.Count == 0 ? null
+             : $"Not produced per level, {covered.Count} drawing type / level pair(s) a scope box already produces: "
+               + string.Join("; ", covered.Take(12)) + (covered.Count > 12 ? " …" : "");
+
+        /// <summary>
+        /// DTW-122: the host levels a loaded link holds model elements on — each link level
+        /// with at least one model element, through the instance's transform, onto the host
+        /// level at or below it (LinkLevelMapper, as MepLevelViewProducer maps linked MEP).
+        /// One pass per link document. A link that is not loaded cannot be read and is
+        /// logged; a failure counts nothing rather than guessing.
+        /// </summary>
+        private static HashSet<long> LinkedModelHostLevels(Document doc)
+        {
+            var result = new HashSet<long>();
+            try
+            {
+                var instances = new FilteredElementCollector(doc).OfClass(typeof(RevitLinkInstance))
+                    .Cast<RevitLinkInstance>().ToList();
+                if (instances.Count == 0) return result;
+                // Internal-origin frame on both sides, as MepLevelViewProducer does.
+                var hostLevels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>()
+                    .Select(l => (l.Id.Value, l.ProjectElevation)).ToList();
+                if (hostLevels.Count == 0) return result;
+
+                var perDoc = new Dictionary<string, List<double>>(StringComparer.OrdinalIgnoreCase);
+                foreach (var inst in instances)
+                {
+                    Document linkDoc = null;
+                    try { linkDoc = inst.GetLinkDocument(); }
+                    catch (Exception ex) { StingLog.Warn($"SkipEmptyLevels link '{inst.Name}': {ex.Message}"); }
+                    if (linkDoc == null) { StingLog.Info($"SkipEmptyLevels: link '{inst.Name}' is not loaded — its model is not counted."); continue; }
+
+                    var key = string.IsNullOrEmpty(linkDoc.PathName) ? linkDoc.Title : linkDoc.PathName;
+                    if (!perDoc.TryGetValue(key, out var linkZ))
+                        perDoc[key] = linkZ = OccupiedLevelElevations(linkDoc);   // one pass per link document
+                    if (linkZ.Count == 0) continue;
+
+                    Transform tf;
+                    try { tf = inst.GetTotalTransform() ?? Transform.Identity; }
+                    catch (Exception ex) { StingLog.Warn($"SkipEmptyLevels link transform '{inst.Name}': {ex.Message}"); tf = Transform.Identity; }
+                    result.UnionWith(StingTools.Core.Mep.LinkedModelLevels.HostLevels(
+                        linkZ.Select(z => tf.OfPoint(new XYZ(0, 0, z)).Z), hostLevels));
+                }
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SkipEmptyLevels links: {ex.Message} — linked models not counted.");
+            }
+            return result;
+        }
+
+        /// <summary>The ProjectElevation of every level in <paramref name="linkDoc"/> holding a model element.</summary>
+        private static List<double> OccupiedLevelElevations(Document linkDoc)
+        {
+            var levelIds = new HashSet<long>();
+            foreach (var e in new FilteredElementCollector(linkDoc).WhereElementIsNotElementType())
+            {
+                try
+                {
+                    if (e is View || e.Category == null || e.Category.CategoryType != CategoryType.Model) continue;
+                    var lid = e.LevelId;
+                    if (lid != null && lid != ElementId.InvalidElementId) levelIds.Add(lid.Value);
+                }
+                catch (Exception ex) { StingLog.Warn($"SkipEmptyLevels link element {e?.Id}: {ex.Message}"); }
+            }
+            var z = new List<double>();
+            foreach (var id in levelIds)
+                if (linkDoc.GetElement(new ElementId(id)) is Level l) z.Add(l.ProjectElevation);
+            return z;
+        }
+
+        private static bool LevelHasModel(Document doc, Level lvl)
+        {
+            try
+            {
+                return new FilteredElementCollector(doc)
+                    .WherePasses(new ElementLevelFilter(lvl.Id))
+                    .WhereElementIsNotElementType()
+                    .Any(e => !(e is View) && e.Category != null && e.Category.CategoryType == CategoryType.Model);
+            }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SkipEmptyLevels {lvl?.Name}: {ex.Message}");
+                return true;   // cannot tell: produce rather than silently skip
+            }
         }
 
         /// <summary>
@@ -219,11 +425,39 @@ namespace StingTools.Commands.Drawing
         internal static bool Confirm(TaskDialog td)
             => Headless || td.Show() == TaskDialogResult.Ok;
 
-        internal static void ShowResult(string title, int views, int sheets, IList<string> warnings)
+        /// <summary>
+        /// What the preset changed from the drawing types' own settings, for the report —
+        /// so a scale, detail level or annotation choice made in the dialog is visible in
+        /// the outcome, not only in the saved preset. Null when it changed nothing.
+        /// </summary>
+        internal static string PresetSummary(DrawingProductionPreset preset)
+        {
+            var g = preset?.General;
+            if (g == null) return null;
+            var parts = new List<string>();
+            if (g.ScaleOverride is int s && s > 0) parts.Add($"scale 1:{s}");
+            if (!string.IsNullOrWhiteSpace(g.DetailLevelOverride)) parts.Add($"detail level {g.DetailLevelOverride}");
+            if (!g.RunAnnotation) parts.Add("no annotation");
+            else
+            {
+                var off = new List<string>();
+                if (!g.RunAutoTag) off.Add("auto-tag");
+                if (!g.RunAutoDim) off.Add("auto-dimension");
+                if (!g.RunDecorative) off.Add("decorative");
+                if (!g.RunSpots) off.Add("spots");
+                if (off.Count > 0) parts.Add("annotation without " + string.Join(", ", off));
+            }
+            return parts.Count == 0 ? null : "Preset overrides applied to every produced view: " + string.Join(", ", parts) + ".";
+        }
+
+        internal static void ShowResult(string title, int views, int sheets, IList<string> warnings,
+            DrawingProductionPreset preset = null)
         {
             var msg = new System.Text.StringBuilder();
             msg.AppendLine($"Views created: {views}");
             msg.AppendLine($"Sheets created: {sheets}");
+            var presetLine = PresetSummary(preset);
+            if (presetLine != null) msg.AppendLine(presetLine);
             if (warnings != null && warnings.Count > 0)
             {
                 msg.AppendLine();
@@ -241,6 +475,7 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
@@ -252,7 +487,6 @@ namespace StingTools.Commands.Drawing
                 // / per-DrawingType Apply call hits the (template name →
                 // ElementId) and (pack id → pack) memos.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Plan", "RCP");
                 var contextLabels = levels.Select(l => l.Name).ToList();
@@ -260,17 +494,35 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, contextLabels, "PerLevel", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
                 var pickedLevels = res.SelectedContexts
                     .Select(n => levels.FirstOrDefault(l => l.Name == n)).Where(l => l != null).ToList();
                 int views = 0, sheets = 0; var warnings = new List<string>();
-                Produce(doc, pickedTypes, pickedLevels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
-                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings);
+                var skippedEmpty = new List<string>();
+                var include = res.Preset?.General?.SkipEmptyLevels == true
+                    ? BatchProduceCommons.SkipEmptyLevels(doc, skippedEmpty)
+                    : null;
+                // DTW-99: a pair a scope box already produces is not produced again whole-floor.
+                var covered = new List<string>();
+                include = BatchProduceCommons.SkipBoxCovered(doc, include, covered, mepBoxesOnly: false);
+                Produce(doc, pickedTypes, pickedLevels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings, include);
+                var coveredLine = BatchProduceCommons.CoveredSummary(covered);
+                if (coveredLine != null) warnings.Insert(0, coveredLine);
+                if (skippedEmpty.Count > 0)
+                    warnings.Insert(0, $"Skipped {skippedEmpty.Count} drawing type / level pair(s) with nothing modelled "
+                        + "('Skip levels with nothing modelled'): " + string.Join("; ", skippedEmpty.Take(12))
+                        + (skippedEmpty.Count > 12 ? " …" : ""));
+                BatchProduceCommons.ShowResult("Produce Per Level", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceViewsPerLevel", ex); return Result.Failed; }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
 
         /// <summary>
@@ -295,10 +547,26 @@ namespace StingTools.Commands.Drawing
             var picked = levels.Where(l => names.Contains(l.Name)).ToList();
 
             int views = 0, sheets = 0; var warnings = new List<string>();
+            // DTW-99: skip only the (type, level) pairs a scope box produces — inside the MEP
+            // preset the box step draws MEP-bound STING:: boxes, so only those stand in for a
+            // whole-floor plan. The step runs whenever area boxes are absent (no_area_boxes).
+            var covered = new List<string>();
+            var skipCovered = BatchProduceCommons.SkipBoxCovered(doc, sel.Include, covered, mepBoxesOnly: true);
+            int attempted = 0;
+            Func<DrawingType, Level, bool> include = (dt, lvl) =>
+            {
+                bool go = skipCovered == null || skipCovered(dt, lvl);
+                if (go) attempted++;
+                return go;
+            };
             DrawingTypePresentation.Prewarm(doc);
             using (DrawingProducer.PrimeBatchScope(doc))
-                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, sel.Include);
+                Produce(doc, types, picked, opts, packageId, ref views, ref sheets, warnings, include);
             message = BatchProduceCommons.StepSummary("Produce Per Level", views, sheets, warnings);
+            var coveredLine = BatchProduceCommons.CoveredSummary(covered);
+            if (coveredLine != null) { StingLog.Info("Produce Per Level: " + coveredLine); message += " " + coveredLine + "."; }
+            if (attempted == 0 && covered.Count > 0)
+            { message += " Every requested pair is drawn by a scope box; nothing to produce per level."; return Result.Cancelled; }
             if (views == 0) { message += " Nothing was produced."; return Result.Failed; }
             return Result.Succeeded;
         }
@@ -353,7 +621,7 @@ namespace StingTools.Commands.Drawing
                         {
                             StingLog.Warn($"ProduceViewsPerLevel level={level.Name}: {innerEx.Message}");
                             warnings.Add($"{level.Name}: {innerEx.Message} — rolled back.");
-                            t.RollBack();
+                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                         }
                     }
                 }
@@ -368,13 +636,13 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 // P-13c / K-C5: one parser. This used to prefix-filter here and
                 // Split("::") by index below, which accepted names the binder
@@ -426,15 +694,27 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, scopes.Select(s => s.Name).ToList(), "ScopeBoxes", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var picked = res.SelectedContexts.Select(n => scopes.FirstOrDefault(s => s.Name == n)).Where(s => s != null).ToList();
-                Produce(doc, picked, bindingByName, types, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
-                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings);
+                // DTW-26: only the ticked drawing types. Every type a box was bound to was
+                // produced, ticked or not, so unticking a type in the dialog did nothing.
+                var tickedTypes = types.Where(t => res.SelectedDrawingTypeIds.Contains(t.Id, StringComparer.OrdinalIgnoreCase)).ToList();
+                int boxesLeftOut = picked.Count(s => bindingByName.TryGetValue(s.Name ?? "", out var b)
+                    && !tickedTypes.Any(t => string.Equals(t.Id, b.DrawingTypeId, StringComparison.OrdinalIgnoreCase)));
+                if (boxesLeftOut > 0)
+                    warnings.Add($"{boxesLeftOut} ticked box(es) are bound to a drawing type that is not ticked — not produced.");
+                Produce(doc, picked, bindingByName, tickedTypes, levels, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce From Scope Boxes", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceFromScopeBoxes", ex); return Result.Failed; }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
 
         /// <summary>
@@ -459,17 +739,24 @@ namespace StingTools.Commands.Drawing
             {
                 // No types named: an MEP preset produces the MEP boxes only. The A / S
                 // STING:: boxes in the same model are another team's drawings.
-                var mep = new HashSet<string>(HeadlessProductionInputs.MepDisciplines, StringComparer.OrdinalIgnoreCase);
-                var other = types.Where(t => !mep.Contains((t.Discipline ?? "").Trim())).Select(t => t.Id).ToList();
-                types = types.Where(t => mep.Contains((t.Discipline ?? "").Trim())).ToList();
+                // DTW-99: one rule with per-level coverage (BoxTypeProduced), so a box this
+                // step leaves out never stands in for a whole-floor plan either.
+                var produced = BatchProduceCommons.BoxTypeProduced(doc, mepOnly: true);
+                var other = types.Where(t => !produced(t.Id)).Select(t => t.Id).ToList();
+                types = types.Where(t => produced(t.Id)).ToList();
                 if (other.Count > 0)
                     StingLog.Info("Produce From Scope Boxes: not an M/E/P/FP/MG type, not produced (name it in params.drawingTypes to include it): "
                                   + string.Join(", ", other));
                 if (types.Count == 0 && other.Count > 0)
                 {
+                    // Failed, not Cancelled: boxes exist and this step drew none of them. A
+                    // SKIP read as "nothing to do here", and an architect's model came out of
+                    // the MEP preset with no box drawings and no reason. The per-level step
+                    // still draws the MEP plans — these boxes cover none of them.
                     message = $"Produce From Scope Boxes: the STING:: boxes are bound only to non-MEP drawing types ({string.Join(", ", other)}); "
-                            + "nothing to produce for an MEP set. Name them in params.drawingTypes to produce them.";
-                    return Result.Cancelled;
+                            + "nothing to produce for an MEP set — the MEP plans come from the per-level step. "
+                            + "Name them in params.drawingTypes to produce them.";
+                    return Result.Failed;
                 }
             }
             if (types.Count == 0)
@@ -489,6 +776,16 @@ namespace StingTools.Commands.Drawing
             List<DrawingType> types, List<Level> levels, ProduceOptions opts, string packageId,
             ref int views, ref int sheets, List<string> warnings)
         {
+            // DTW-40: a box's level segment is read as the planner names levels — the unique
+            // level code first (ScopeBoxRevit.LevelCodes, "L01"), then the name, then the
+            // name without spaces — so "Level 1", which the box grammar cannot spell, is
+            // addressable. It was matched against Level.Name only.
+            var codes = ScopeBoxRevit.LevelCodes(doc);
+            var levelRefs = levels.Select(l => new LevelRef
+            {
+                Id = l.Id.Value, Name = l.Name,
+                Code = codes.TryGetValue(l.Id.Value, out var c) ? c : null,
+            }).ToList();
             using (var tg = new TransactionGroup(doc, "STING Produce From Scope Boxes"))
             {
                 tg.Start();
@@ -497,7 +794,14 @@ namespace StingTools.Commands.Drawing
                     if (!bindingByName.TryGetValue(scope.Name ?? "", out var bnd)) continue;
                     var dt = types.FirstOrDefault(t => string.Equals(t.Id, bnd.DrawingTypeId, StringComparison.OrdinalIgnoreCase));
                     if (dt == null) continue;
-                    var lvl = levels.FirstOrDefault(l => string.Equals(l.Name, bnd.LevelCode, StringComparison.OrdinalIgnoreCase));
+                    Level lvl = null;
+                    if (!string.IsNullOrWhiteSpace(bnd.LevelCode))
+                    {
+                        var lid = LevelSegmentResolver.Resolve(bnd.LevelCode, levelRefs, out var how);
+                        lvl = lid.HasValue ? levels.FirstOrDefault(l => l.Id.Value == lid.Value) : null;
+                        if (lvl == null)
+                            warnings.Add($"{scope.Name}: level '{bnd.LevelCode}' — {how}; produced without a level.");
+                    }
 
                     // Dependent views need the level's primary plan to hang from. A box
                     // whose level code names no level is produced as an independent view
@@ -519,6 +823,19 @@ namespace StingTools.Commands.Drawing
                         try
                         {
                             var dctx = new DrawingContext { Level = lvl, ScopeBox = scope, Tag = bnd.Tag, PackageId = packageId };
+                            // DTW-41: a view the retired DrawingTypes_FromScopeBoxes producer made
+                            // for this box (stamped with the type, cropped to the box, no
+                            // production context) is adopted, not duplicated.
+                            bnd.ScopeBox = scope;
+                            var legacyView = ScopeBoxBinder.FindExistingView(doc, bnd);
+                            if (legacyView != null
+                                && string.IsNullOrEmpty(ParameterHelpers.GetString(legacyView, ParamRegistry.STING_VIEW_CONTEXT_TAG)))
+                            {
+                                var firstRule = (dt.ProductionRules ?? new List<ProductionRule>()).OrderBy(r => r.Idx).FirstOrDefault()
+                                             ?? new ProductionRule { Idx = 0 };
+                                if (DrawingProducer.AdoptView(doc, dt, dctx, firstRule, legacyView))
+                                    warnings.Add($"{scope.Name}: '{legacyView.Name}' (made by the old Generate from Scope Boxes) was adopted, not duplicated.");
+                            }
                             var pr = DrawingProducer.ProduceAllViews(doc, dt, dctx, opts);
                             warnings.AddRange(pr.Warnings);
                             var status = t.Commit();
@@ -539,7 +856,7 @@ namespace StingTools.Commands.Drawing
                         {
                             StingLog.Warn($"ProduceFromScopeBoxes box={scope.Name}: {innerEx.Message}");
                             warnings.Add($"{scope.Name}: {innerEx.Message} — rolled back.");
-                            t.RollBack();
+                            if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                         }
                     }
                 }
@@ -554,13 +871,13 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches before per-room loop.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation");
                 var rooms = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Rooms).WhereElementIsNotElementType()
@@ -577,6 +894,10 @@ namespace StingTools.Commands.Drawing
                 var dlg = new DrawingProductionConfigDialog(types, labels, "InteriorElevations", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
@@ -616,16 +937,17 @@ namespace StingTools.Commands.Drawing
                             {
                                 StingLog.Warn($"ProduceInteriorElevations room={roomLabel}: {innerEx.Message}");
                                 warnings.Add($"{roomLabel}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                             }
                         }
                     }
                     tg.Assimilate();
                 }
-                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce Interior Elevations", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceInteriorElevations", ex); return Result.Failed; }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
     }
 
@@ -635,22 +957,34 @@ namespace StingTools.Commands.Drawing
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Section");
-                var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>().ToList();
-                var labels = new List<string> { "Manual selection (pick in model)" };
-                labels.AddRange(grids.Select(g => "Grid " + g.Name));
+                // DTW-23/24: sections are cut along grid lines — the contexts are the grids,
+                // and the ticked ones are the ones produced. "Manual selection" (which
+                // returned "requires picking") and "Per room" (which produced nothing) are gone.
+                var grids = new FilteredElementCollector(doc).OfClass(typeof(Grid)).Cast<Grid>()
+                    .Where(g => g.Curve is Line).OrderBy(g => g.Name).ToList();
+                if (grids.Count == 0)
+                {
+                    TaskDialog.Show("STING", "Produce Sections cuts one section along each straight grid line, and the model has none.");
+                    return Result.Succeeded;
+                }
+                var labels = grids.Select(g => "Grid " + g.Name).ToList();
 
                 var dlg = new DrawingProductionConfigDialog(types, labels, "Sections", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed (it was primed before the
+                // dialog and never reset, so a cancelled run left the caches, and a
+                // confirmed one kept them past the command); reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var preset = res.Preset;
                 var sec = preset?.SectionConfig ?? new SectionProductionConfig();
@@ -658,17 +992,23 @@ namespace StingTools.Commands.Drawing
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
 
-                if (string.Equals(sec.AutoPlace, "ManualSelection", StringComparison.OrdinalIgnoreCase))
+                var ticked = new HashSet<string>(res.SelectedContexts ?? new List<string>(), StringComparer.Ordinal);
+                var pickedGrids = grids.Where(g => ticked.Contains("Grid " + g.Name)).ToList();
+                if (pickedGrids.Count == 0)
                 {
-                    TaskDialog.Show("STING", "Manual section selection requires picking section box regions in the model. " +
-                        "Use 'Along grid lines' or scope boxes for full automation.");
+                    TaskDialog.Show("STING", "No grid line is ticked — nothing to cut. Tick the grids to section along.");
                     return Result.Succeeded;
                 }
+                if (pickedTypes.Count == 0)
+                {
+                    TaskDialog.Show("STING", "No section drawing type is ticked — nothing to produce.");
+                    return Result.Succeeded;
+                }
+                double depthMm = sec.DepthMm > 0 ? sec.DepthMm : 10000;
 
                 IEnumerable<DrawingContext> contextsToProduce;
-                if (string.Equals(sec.AutoPlace, "AlongGridLines", StringComparison.OrdinalIgnoreCase))
                 {
-                    contextsToProduce = grids.Select(g =>
+                    contextsToProduce = pickedGrids.Select(g =>
                     {
                         try
                         {
@@ -693,16 +1033,14 @@ namespace StingTools.Commands.Drawing
                                 halfWidthFt:  len * 0.5 + 5.0 / 0.3048,
                                 bottomZ:      origin.Z - 3.0 / 0.3048,
                                 topZ:         origin.Z + 30.0 / 0.3048,
-                                depthFt:      sec.DepthMm / 304.8);
+                                depthFt:      depthMm / 304.8);
 
-                            return new DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name, PackageId = preset.PackageId };
+                            // Context tag "Grid-<name>" — the one the Setup Wizard uses too, so
+                            // either reuses the other's section.
+                            return new DrawingContext { CustomBounds = bb, Tag = "Grid-" + g.Name, PackageId = preset?.PackageId };
                         }
-                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); return null; }
-                    }).Where(x => x != null);
-                }
-                else
-                {
-                    contextsToProduce = Enumerable.Empty<DrawingContext>();
+                        catch (Exception ex) { warnings.Add($"Grid {g.Name}: no section frame — {ex.Message}"); return null; }
+                    }).Where(x => x != null).ToList();
                 }
 
                 using (var tg = new TransactionGroup(doc, "STING Produce Sections"))
@@ -731,16 +1069,17 @@ namespace StingTools.Commands.Drawing
                             {
                                 StingLog.Warn($"ProduceSections context={dctx.Tag}: {innerEx.Message}");
                                 warnings.Add($"{dctx.Tag}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                             }
                         }
                     }
                     tg.Assimilate();
                 }
-                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings);
+                BatchProduceCommons.ShowResult("Produce Sections", views, sheets, warnings, res.Preset);
                 return Result.Succeeded;
             }
             catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceSections", ex); return Result.Failed; }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
         }
     }
 
@@ -748,117 +1087,225 @@ namespace StingTools.Commands.Drawing
     [Regeneration(RegenerationOption.Manual)]
     public class ProduceExteriorElevationsCommand : IExternalCommand
     {
+        /// <summary>
+        /// DTW-27: exterior elevations are produced through DrawingProducer, so they are
+        /// idempotent (a re-run reuses each face's view — no new markers, no failing
+        /// rename), get sheets when "Create sheets" is ticked, and are presented and
+        /// stamped like every other produced drawing.
+        ///
+        /// Context tags: "Exterior-&lt;Face&gt;" (one sheet per face, rule 0), or
+        /// "Exterior" with rules 0-3 when the four go on one 1+4 sheet. Stamps are
+        /// "::::Exterior-North" / "::::Exterior". A view stamped with the older raw tag
+        /// "exterior::face::&lt;Face&gt;" (an earlier build, or the Setup Wizard) is adopted
+        /// and re-stamped, not duplicated.
+        ///
+        /// The markers are hosted on a floor plan of the ticked level nearest ground, and
+        /// each face keeps the marker index that actually looks at the building.
+        /// </summary>
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
+            bool primed = false;
             try
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
 
                 // PERF-01: pre-warm view-template + pack caches.
                 DrawingTypePresentation.Prewarm(doc);
-                DrawingProducer.PrimeBatchCaches(doc); // GAP-L
 
                 var types = BatchProduceCommons.AllTypesByPurpose(doc, "Elevation")
                     .Where(t => !(t.Name ?? "").ToLowerInvariant().Contains("interior")).ToList();
+                var levels = new FilteredElementCollector(doc).OfClass(typeof(Level)).Cast<Level>().OrderBy(l => l.Elevation).ToList();
+                if (levels.Count == 0) { TaskDialog.Show("STING", "The model has no levels to host elevation markers on."); return Result.Succeeded; }
 
-                var dlg = new DrawingProductionConfigDialog(types, new List<string> { "Building (auto-detect footprint)" }, "ExteriorElevations", doc);
+                var dlg = new DrawingProductionConfigDialog(types, levels.Select(l => l.Name).ToList(), "ExteriorElevations", doc);
                 var res = dlg.ShowAndWait();
                 if (res == null || !res.Confirmed) return Result.Succeeded;
+                // GAP-L: primed only once the dialog is confirmed; reset in finally.
+                DrawingProducer.PrimeBatchCaches(doc); primed = true;
 
                 var elev = res.Preset?.ElevationConfig ?? new ElevationProductionConfig();
                 var opts = BatchProduceCommons.BuildOptions(res.Preset);
                 int views = 0, sheets = 0; var warnings = new List<string>();
                 var pickedTypes = BatchProduceCommons.ResolveSelectedTypes(doc, res.SelectedDrawingTypeIds);
 
-                // Footprint detection
-                var walls = new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType().ToList();
-                if (walls.Count == 0)
-                {
-                    TaskDialog.Show("STING", "No walls in project — cannot derive building footprint.");
-                    return Result.Succeeded;
-                }
-                var bb = new BoundingBoxXYZ { Min = new XYZ(double.MaxValue, double.MaxValue, double.MaxValue), Max = new XYZ(double.MinValue, double.MinValue, double.MinValue) };
-                foreach (var w in walls)
-                {
-                    var wbb = w.get_BoundingBox(null);
-                    if (wbb == null) continue;
-                    bb.Min = new XYZ(Math.Min(bb.Min.X, wbb.Min.X), Math.Min(bb.Min.Y, wbb.Min.Y), Math.Min(bb.Min.Z, wbb.Min.Z));
-                    bb.Max = new XYZ(Math.Max(bb.Max.X, wbb.Max.X), Math.Max(bb.Max.Y, wbb.Max.Y), Math.Max(bb.Max.Z, wbb.Max.Z));
-                }
-                double offFt = elev.OffsetMm / 304.8;
+                // The markers' host: the ticked level nearest ground.
+                var ticked = levels.Where(l => res.SelectedContexts.Contains(l.Name)).ToList();
+                var host = ticked.OrderBy(l => Math.Abs(l.Elevation)).ThenBy(l => l.Elevation).FirstOrDefault();
+                if (host == null) { TaskDialog.Show("STING", "Tick the level whose plan should host the elevation markers."); return Result.Succeeded; }
+                if (ticked.Count > 1)
+                    warnings.Add($"Exterior elevations are made once, not per level: the markers are hosted on {host.Name} (the ticked level nearest ground).");
 
-                using (var tg = new TransactionGroup(doc, "STING Exterior Elevations"))
+                string blocker = Produce(doc, pickedTypes, host, elev, opts, res.Preset?.PackageId, ref views, ref sheets, warnings);
+                if (blocker != null) { TaskDialog.Show("STING", blocker); return Result.Succeeded; }
+                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings, res.Preset);
+                return Result.Succeeded;
+            }
+            catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }
+            finally { if (primed) DrawingProducer.ResetBatchCaches(); }   // DTW-108: only the scope this command opened
+        }
+
+        /// <summary>
+        /// DTW-80: the exterior-elevation production both DOCS → Exterior Elevations and
+        /// the Project Setup wizard run, so the two find each other's views: per-face tag
+        /// "Exterior-&lt;Face&gt;" (rule 0), or "Exterior" (rules 0-3) on a 1+4 sheet; the raw
+        /// legacy tag "exterior::face::&lt;Face&gt;" is adopted; a 1+4 run adopts per-face
+        /// views that are on no sheet, and a views-only run skips a face a 1+4 set already
+        /// draws. Markers are hosted on a plan of <paramref name="host"/>. Opens its own
+        /// transactions. Returns a message when nothing can be produced, else null.
+        /// </summary>
+        internal static string Produce(Document doc, IList<DrawingType> pickedTypes, Level host,
+            ElevationProductionConfig elev, ProduceOptions opts, string packageId,
+            ref int views, ref int sheets, List<string> warnings)
+        {
+            elev = elev ?? new ElevationProductionConfig();
+            // Footprint from the walls.
+            double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+            foreach (var w in new FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Walls).WhereElementIsNotElementType())
+            {
+                var wbb = w.get_BoundingBox(null);
+                if (wbb == null) continue;
+                minX = Math.Min(minX, wbb.Min.X); minY = Math.Min(minY, wbb.Min.Y);
+                maxX = Math.Max(maxX, wbb.Max.X); maxY = Math.Max(maxY, wbb.Max.Y);
+            }
+            if (minX > maxX) return "No walls in project — cannot derive building footprint.";
+            double offFt = elev.OffsetMm / 304.8;
+
+            var faces = new List<(string Face, ElevationStation Station)>();
+            foreach (var face in elev.FacesTo ?? new List<string>())
+            {
+                var st = ElevationFaces.ExteriorStation(face, minX, minY, maxX, maxY, offFt);
+                if (st == null) { warnings.Add($"'{face}' is not North, East, South or West — skipped."); continue; }
+                faces.Add((face, new ElevationStation { X = st.Value.X, Y = st.Value.Y, LookX = st.Value.LookX, LookY = st.Value.LookY }));
+            }
+            if (faces.Count == 0) return "No face ticked — nothing to produce.";
+
+            // Views stamped by an earlier build or by the Setup Wizard, by their raw tag;
+            // DTW-80: the producer-stamped exterior views, and which views are on a sheet.
+            // DTW-110: re-read after every job. A job adopts legacy and per-face views
+            // (re-stamping them) and places views on sheets, so a snapshot taken once let
+            // a later job adopt a view an earlier one had already put on a sheet, or adopt
+            // a legacy view twice.
+            List<(View View, string Type, string Tag)> legacy = null, elevViews = null;
+            HashSet<long> placed = null;
+            void Snapshot()
+            {
+                var all = new FilteredElementCollector(doc).OfClass(typeof(View)).Cast<View>()
+                    .Where(v => !v.IsTemplate && v.ViewType == ViewType.Elevation)
+                    .Select(v => (View: v, Type: DrawingTypeStamper.Read(v),
+                                  Tag: ParameterHelpers.GetString(v, ParamRegistry.STING_VIEW_CONTEXT_TAG) ?? ""))
+                    .ToList();
+                legacy = all.Where(x => ExteriorElevationTags.IsLegacy(x.Tag)).ToList();
+                elevViews = all.Where(x => x.Tag.IndexOf(ExteriorElevationTags.Combined, StringComparison.Ordinal) >= 0).ToList();
+                placed = new HashSet<long>(new FilteredElementCollector(doc).OfClass(typeof(Viewport))
+                    .Cast<Viewport>().Select(vp => vp.ViewId.Value));
+            }
+            Snapshot();
+
+            using (var tg = new TransactionGroup(doc, "STING Exterior Elevations"))
+            {
+                tg.Start();
+                foreach (var dt in pickedTypes)
                 {
-                    tg.Start();
-                    foreach (var face in elev.FacesTo ?? new List<string>())
+                    var elevSlots = Enumerable.Range(0, dt.Slots?.Count ?? 0)
+                        .Where(i => string.Equals(dt.Slots[i]?.ViewType, "Elevation", StringComparison.OrdinalIgnoreCase)).ToList();
+                    bool onePlusFour = elev.UseOneFourViewSheet && opts.CreateSheet;
+                    if (onePlusFour && elevSlots.Count < faces.Count)
                     {
-                        // Revit's elevation marker face indexes: N=0, E=1, S=2, W=3 (viewer-facing).
-                        int idx;
-                        XYZ origin;
-                        switch (face)
+                        warnings.Add($"{dt.Id} lays out {elevSlots.Count} elevation slot(s), not {faces.Count}: each face gets its own sheet.");
+                        onePlusFour = false;
+                    }
+
+                    // One production call per sheet: all faces on one sheet, or one per face.
+                    var jobs = new List<(string Tag, List<(string Face, ElevationStation St, int RuleIdx, int Slot)> Faces)>();
+                    if (onePlusFour)
+                        jobs.Add((ExteriorElevationTags.Combined, faces.Select((f, i) => (f.Face, f.Station, i, elevSlots[i])).ToList()));
+                    else
+                        foreach (var f in faces)
                         {
-                            case "North": idx = 0; origin = new XYZ((bb.Min.X + bb.Max.X) / 2, bb.Max.Y + offFt, 0); break;
-                            case "East":  idx = 1; origin = new XYZ(bb.Max.X + offFt, (bb.Min.Y + bb.Max.Y) / 2, 0); break;
-                            case "South": idx = 2; origin = new XYZ((bb.Min.X + bb.Max.X) / 2, bb.Min.Y - offFt, 0); break;
-                            case "West":  idx = 3; origin = new XYZ(bb.Min.X - offFt, (bb.Min.Y + bb.Max.Y) / 2, 0); break;
-                            default: continue;
+                            // DTW-80: a views-only run (the Setup Wizard) does not make a
+                            // second view of a face a 1+4 set of this type already draws.
+                            if (!opts.CreateSheet)
+                            {
+                                var inSet = elevViews.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                    && ExteriorElevationTags.IsCombinedStampFor(x.Tag, x.View.Name, f.Face));
+                                if (inSet.View != null)
+                                {
+                                    warnings.Add($"{f.Face}: '{inSet.View.Name}' (the {dt.Id} 1+4 set) already draws it — reused, not duplicated.");
+                                    views++;
+                                    continue;
+                                }
+                            }
+                            jobs.Add((ExteriorElevationTags.PerFace(f.Face), new List<(string, ElevationStation, int, int)> { (f.Face, f.Station, 0, elevSlots.Count > 0 ? elevSlots[0] : 0) }));
                         }
-                        using (var t = new Transaction(doc, $"STING Exterior Elev {face}"))
+
+                    foreach (var job in jobs)
+                    {
+                        var ctx = new DrawingContext
+                        {
+                            Tag = job.Tag, PackageId = packageId, OwnerLevel = host,
+                            RulesOverride = job.Faces.Select(f => new ProductionRule
+                            {
+                                Idx = f.RuleIdx, ViewType = "Elevation", SlotIndex = f.Slot, Required = true,
+                                NameSuffix = onePlusFour ? $" - {f.Face}" : null,
+                            }).ToList(),
+                            ElevationStations = job.Faces.ToDictionary(f => f.RuleIdx, f => f.St),
+                        };
+                        using (var t = new Transaction(doc, $"STING Exterior Elev {job.Tag} {dt.Id}"))
                         {
                             t.Start();
                             try
                             {
-                                int tv = 0;
-                                foreach (var dt in pickedTypes)
+                                foreach (var f in job.Faces)
+                                {
+                                    var rule = ctx.RulesOverride.First(r => r.Idx == f.RuleIdx);
+                                    var old = legacy.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                        && ExteriorElevationTags.IsLegacyFor(x.Tag, f.Face));
+                                    if (old.View != null && DrawingProducer.AdoptView(doc, dt, ctx, rule, old.View))
+                                        warnings.Add($"'{old.View.Name}' (stamped {ExteriorElevationTags.Legacy(f.Face)}) was adopted as {dt.Id} {job.Tag}, not duplicated.");
+                                    // DTW-80: a 1+4 run adopts the per-face view a views-only run
+                                    // (the Setup Wizard, or sheets off) made for this face, while it
+                                    // is on no sheet — a view cannot be on two sheets.
+                                    if (onePlusFour)
+                                    {
+                                        var solo = elevViews.FirstOrDefault(x => string.Equals(x.Type, dt.Id, StringComparison.OrdinalIgnoreCase)
+                                            && ExteriorElevationTags.IsPerFaceStamp(x.Tag, f.Face) && !placed.Contains(x.View.Id.Value));
+                                        if (solo.View != null && DrawingProducer.AdoptView(doc, dt, ctx, rule, solo.View))
+                                            warnings.Add($"'{solo.View.Name}' ({ExteriorElevationTags.PerFace(f.Face)}, on no sheet) was adopted into the 1+4 set of {dt.Id}, not duplicated.");
+                                    }
+                                }
+                                var pr = DrawingProducer.ProduceAllViews(doc, dt, ctx, opts);
+                                foreach (var vid in pr.ViewIds)
                                 {
                                     try
                                     {
-                                        var vft = StingTools.Core.Drawing.DrawingProducer.ResolveNamedViewFamilyType(
-                                            doc, ViewFamily.Elevation, dt.ViewFamilyTypeName, out var vftWhy);
-                                        if (vft == null) { warnings.Add("No elevation ViewFamilyType."); continue; }
-                                        if (vftWhy != null) warnings.Add($"{dt.Id}: {vftWhy}");
-                                        var ownerPlan = new FilteredElementCollector(doc).OfClass(typeof(ViewPlan)).Cast<ViewPlan>().FirstOrDefault(v => !v.IsTemplate);
-                                        if (ownerPlan == null) { warnings.Add("No owner plan for elevation marker."); continue; }
-                                        var marker = ElevationMarker.CreateElevationMarker(doc, vft.Id, origin, dt.Scale > 0 ? dt.Scale : 100);
-                                        var view = marker.CreateElevation(doc, ownerPlan.Id, idx);
-                                        try { view.Name = $"Exterior Elevation - {face} - {dt.Name}"; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                                        try
-                                        {
-                                            var fp = view.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
-                                            if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
-                                        }
-                                        catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-                                        var ar = DrawingTypePresentation.Apply(doc, view, dt, new DrawingTypePresentation.ApplyOptions
-                                        {
-                                            AnnotationOptions = new AnnotationRunOptions { ViewScale = view.Scale },
-                                            SkipSymbolDriftCheck = true // batch produce
-                                        });
-                                        warnings.AddRange(ar.Warnings);
-                                        DrawingTypeStamper.Stamp(view, dt.Id);
-                                        DrawingTypeStamper.StampPackage(view, res.Preset?.PackageId ?? dt.PackageId ?? "");
-                                        ParameterHelpers.SetString(view, ParamRegistry.STING_VIEW_CONTEXT_TAG, $"exterior::face::{face}", overwrite: true);
-                                        tv++;
+                                        var fp = doc.GetElement(vid)?.get_Parameter(BuiltInParameter.VIEWER_BOUND_OFFSET_FAR);
+                                        if (fp != null && !fp.IsReadOnly) fp.Set(elev.FarClipMm / 304.8);
                                     }
-                                    catch (Exception ex) { warnings.Add($"Exterior {face}/{dt.Name}: {ex.Message}"); }
+                                    catch (Exception ex) { warnings.Add($"{job.Tag}: far clip {elev.FarClipMm} mm not set — {ex.Message}"); }
                                 }
+                                warnings.AddRange(pr.Warnings);
                                 var status = t.Commit();
-                                if (status == TransactionStatus.Committed) views += tv;
-                                else warnings.Add($"Exterior {face}: the transaction did not commit ({status}); {tv} view(s) were not kept.");
+                                if (status == TransactionStatus.Committed)
+                                {
+                                    views += pr.ViewIds.Count;
+                                    if (pr.SheetId != ElementId.InvalidElementId && !pr.SheetReused) sheets++;
+                                }
+                                else warnings.Add($"{job.Tag} ({dt.Id}): the transaction did not commit ({status}); {pr.ViewIds.Count} view(s) were not kept.");
                             }
                             catch (Exception innerEx)
                             {
-                                StingLog.Warn($"ProduceExteriorElevations face={face}: {innerEx.Message}");
-                                warnings.Add($"Exterior {face}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                StingLog.Warn($"ProduceExteriorElevations {job.Tag}: {innerEx.Message}");
+                                warnings.Add($"{job.Tag} ({dt.Id}): {innerEx.Message} — rolled back.");
+                                if (t.GetStatus() == TransactionStatus.Started) t.RollBack();
                             }
                         }
+                        try { Snapshot(); }   // DTW-110
+                        catch (Exception ex) { StingLog.Warn($"ProduceExteriorElevations snapshot after {job.Tag}: {ex.Message}"); }
                     }
-                    tg.Assimilate();
                 }
-                BatchProduceCommons.ShowResult("Produce Exterior Elevations", views, sheets, warnings);
-                return Result.Succeeded;
+                tg.Assimilate();
             }
-            catch (Exception ex) { message = ex.Message; StingLog.Error("ProduceExteriorElevations", ex); return Result.Failed; }
+            return null;
         }
     }
 
@@ -872,7 +1319,26 @@ namespace StingTools.Commands.Drawing
             {
                 var doc = (commandData?.Application ?? StingTools.UI.StingCommandHandler.CurrentApp)?.ActiveUIDocument?.Document; if (doc == null) { message = "No active document"; return Result.Failed; }
                 
-                var packs = ViewStylePackRegistry.GetLibrary(doc).Packs.Where(p => p.IsManaged).ToList();
+                // DTW-3: resolve each pack through the registry so its Extends chain
+                // is folded in. The raw library entry of a child pack carries only
+                // its own overrides — regenerating from it minted templates without
+                // the parent's VG / filters and stamped them with the raw checksum,
+                // which the next sync then flipped back.
+                var unresolved = new List<string>();
+                var packs = new List<ViewStylePack>();
+                foreach (var raw in ViewStylePackRegistry.GetLibrary(doc).Packs)
+                {
+                    if (raw == null || string.IsNullOrWhiteSpace(raw.Id)) continue;
+                    var resolvedPack = ViewStylePackRegistry.Get(doc, raw.Id);
+                    if (resolvedPack == null)
+                    {
+                        if (raw.IsManaged) unresolved.Add(raw.Id);
+                        continue;
+                    }
+                    if (resolvedPack.IsManaged) packs.Add(resolvedPack);
+                }
+                foreach (var id in unresolved)
+                    StingLog.Warn($"Regenerate Pack Templates: managed pack '{id}' did not resolve (check its extends chain) — skipped.");
                 if (packs.Count == 0)
                 {
                     // Nothing was regenerated: Cancelled (a SKIP in a workflow report), not
@@ -894,7 +1360,9 @@ namespace StingTools.Commands.Drawing
                 }
 
                 int updated = 0; var warnings = new List<string>();
-                ManagedTemplateSyncer.InvalidateCache();
+                foreach (var id in unresolved)
+                    warnings.Add($"Managed pack '{id}' did not resolve (check its extends chain) — its templates were not regenerated.");
+                ManagedTemplateSyncer.InvalidateCache(doc);
                 using (var tg = new TransactionGroup(doc, "STING Regenerate Pack Templates"))
                 {
                     tg.Start();
@@ -921,7 +1389,7 @@ namespace StingTools.Commands.Drawing
                             {
                                 StingLog.Warn($"RegeneratePackTemplates pack={pack.Name}: {innerEx.Message}");
                                 warnings.Add($"{pack.Name}: {innerEx.Message} — rolled back.");
-                                t.RollBack();
+                                if (t.HasStarted() && !t.HasEnded()) t.RollBack();   // DTW-107
                             }
                         }
                     }

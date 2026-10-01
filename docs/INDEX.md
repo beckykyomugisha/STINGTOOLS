@@ -18,6 +18,7 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 | [`ROADMAP.md`](ROADMAP.md) | Open gaps and future work. The living backlog. |
 | [`SYSTEM_STATUS.md`](SYSTEM_STATUS.md) | What has been runtime-verified vs. written-but-unrun. |
 | [`TAGGING_ACCURACY_TEST_PROTOCOL.md`](TAGGING_ACCURACY_TEST_PROTOCOL.md) | ✅ **Current.** Revit tests for the TAGACC-1..15 tagging fixes: the automated smoke tests, the two-user worksharing check, and the Tag Rules settings. Method only; results go in `ROADMAP.md`. |
+| [`WORKLOG_TAGGING.md`](WORKLOG_TAGGING.md) | ✅ **Current.** The running worklog of the tagging review-and-fix loop: resume point, hand-done Revit steps, NEEDS REVIT CHECK, decisions, open findings. |
 | [`TAG_TEST_PROTOCOL.md`](TAG_TEST_PROTOCOL.md) | The five Revit tests that close Phases 287-293, with where each button is. Method only; results go in `ROADMAP.md`. |
 | [`TESTING_GUIDE.md`](TESTING_GUIDE.md) | How to test the plugin and server. |
 
@@ -58,6 +59,8 @@ documents cover one topic, the **current** one is marked ✅ and the superseded 
 [`QR1_REVIT_TEST_SCRIPT.md`](QR1_REVIT_TEST_SCRIPT.md) ✅ — the in-Revit checks for the sheet QR
 stamp. Everything else in the QR work is covered by tests; the `ImageType.Create` /
 `ImageInstance.Create` path is confirmed only by the compiler, and this closes it.
+[`WORKLOG_DRAWING_TYPES.md`](WORKLOG_DRAWING_TYPES.md) ✅ — the running review-and-fix log for drawing
+production: resume point, findings, decisions and the in-Revit checks still to run.
 [`DRAWING_CATALOGUE_TEST_PLAN.md`](DRAWING_CATALOGUE_TEST_PLAN.md) ✅ — test plan for the drawing
 catalogue (93 types, 36 style packs, 290 filters): §1 lists the automated checks that run on a plain
 test host, §2 the in-Revit checks that have never been run.
@@ -159,6 +162,14 @@ CI rather than reaching an issue.
 | `tools/midp_schema.py` | The MIDP/TIDP columns, permitted-value lists and drop-down column mapping. Shared by the builder and the merge tool so a return is validated against exactly what the workbook offered. |
 | `tools/check_kut_documents.py` | ✅ **The gate.** Proves the pack is internally consistent, matches the LOD overlay, names no tooling, and is a current un-edited regeneration. Run by `.github/workflows/kut-document-gate.yml`. It proves nothing about whether the requirements are *right*, and nothing about a real Revit model. |
 | `tools/merge_tidp.py` | Merges returned TIDP workbooks into the register. **Preview by default**; writes only on `--apply`; refuses a conflicting `Ref` unless told otherwise. |
+
+**Running KUT on ACC** (internal; these name the tooling and are never issued):
+
+| Doc | Status |
+|---|---|
+| [`ACC_INTEGRATION_STRATEGY.md`](ACC_INTEGRATION_STRATEGY.md) | ✅ **Current, dated 2026-09-30.** What StingTools does and does not do against ACC as the KUT CDE, measured against the deployed DLL, the working tree and main. Re-check its dated facts against `WORKLOG.md` before acting. |
+| [`KUT_ACC_DAY1_PLAYBOOK.md`](KUT_ACC_DAY1_PLAYBOOK.md) | ✅ **Current.** The Information Manager's day-1 checklist on ACC; its reasoning is in the strategy doc above. |
+| [`KUT_OPERATING_MODEL.md`](KUT_OPERATING_MODEL.md) | ✅ **Current.** How code, project data, ACC and AI agents are kept apart on KUT: repos, Cowork, snapshots and the defect loop. |
 
 ## Audits, proposals and role model
 

@@ -705,7 +705,7 @@ CBN_REFRIGERANT_GWP_KG_CO2E_DISP_TXT,9,universal-meta,<ALL>,Refrigerant global w
 CBN_RUNTIME_HRS_YR_NR,9,universal-meta,<ALL>,Equivalent annual operating hours for operational carbon calc [BS EN 16798-1:2019]
 CBN_RUNTIME_HRS_YR_NR_DISP_TXT,9,universal-meta,<ALL>,Equivalent annual operating hours for operational carbon calc — TEXT display mirror for tag labels
 CEQ_CATEGORY_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Clinical equipment category: PENDANT / BEDHEAD / IMAGING / PHARMACY / DIAL / MORT / MOBIL
-CEQ_CLINICAL_BOOL,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Counts towards clinical asset register
+CEQ_CLINICAL_BOOL,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Nurse Call Devices,Counts towards clinical asset register
 CEQ_DECON_METHOD_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Decontamination route
 CEQ_ENDO_AER_REF_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Owning automated endoscope reprocessor [H-26]
 CEQ_ENDO_CYCLE_COUNT_INT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Reprocessing cycle count [H-26]
@@ -713,7 +713,7 @@ CEQ_ENDO_LAST_REPRO_DT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|P
 CEQ_ENDO_SCOPE_ID_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Endoscope unique ID for HTM 01-06 traceability [H-26]
 CEQ_EQP_TAG,31,tag-container,<ALL>,Clinical specialist equipment ISO 19650 tag container
 CEQ_GMDN_CODE_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Global Medical Device Nomenclature code
-CEQ_INFECT_TIER_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Spaulding classification: CRITICAL / SEMI / NON-CRITICAL
+CEQ_INFECT_TIER_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Nurse Call Devices,Spaulding classification: CRITICAL / SEMI / NON-CRITICAL
 CEQ_SFG20_REF_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,SFG20 healthcare schedule id
 CEQ_TAG_7_PARA_TXT,31,tag-container,<ALL>,Clinical specialist equipment TAG7 rich narrative paragraph container
 CEQ_UMDNS_CODE_TXT,31,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,ECRI Universal Medical Device Nomenclature System code
@@ -728,8 +728,8 @@ CLASH_TRIAGE_SEVERITY_NR_DISP_TXT,20,meta-universal,<ALL>,Clash triage severity 
 CLASH_TRIAGE_SEVERITY_TXT,20,meta-universal,<ALL>,CLASH_TRIAGE_SEVERITY_NR display mirror [auto-generated]
 CLN_ADB_CODE_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,NHS ADB (Activity DataBase) room code
 CLN_ANTERM_LINKED_ID_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,ElementId of paired anteroom for AIIR/PE cascade
-CLN_BARI_DESIGN_KG_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Bariatric Safe Working Load (kg) [iHFG / HBN 04-01]
-CLN_BARI_DESIGN_KG_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,CLN_BARI_DESIGN_KG_NR display mirror [auto-generated]
+CLN_BARI_DESIGN_KG_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Nurse Call Devices|Rooms,Bariatric Safe Working Load (kg) [iHFG / HBN 04-01]
+CLN_BARI_DESIGN_KG_TXT,28,safe-prefix,Generic Models|Mechanical Equipment|Medical Equipment|Nurse Call Devices|Plumbing Fixtures|Rooms|Specialty Equipment,CLN_BARI_DESIGN_KG_NR display mirror [auto-generated]
 CLN_DEFLECTION_LIMIT_MM_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Deflection limit for sensitive equipment (mm) [H-23]
 CLN_DESIGN_ACH_INT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Cln Design Ach Int [STING]
 CLN_DESIGN_ACH_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,CLN_DESIGN_ACH_INT display mirror [auto-generated]
@@ -744,24 +744,24 @@ CLN_EQUIP_WEIGHT_KG_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|P
 CLN_FGI_REF_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,FGI Guidelines section reference
 CLN_FLOOR_LOAD_KN_M2_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Imposed floor load (kN/m2) for heavy imaging equipment [H-23]
 CLN_HBN_REF_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,HBN reference (e.g. HBN 04-01 R-1234)
-CLN_HOIST_TRACK_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Ceiling-hoist track installed
-CLN_HOIST_TRACK_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,CLN_HOIST_TRACK_BOOL display mirror [auto-generated]
+CLN_HOIST_TRACK_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms,Ceiling-hoist track installed
+CLN_HOIST_TRACK_TXT,28,safe-prefix,Mechanical Equipment|Medical Equipment|Plumbing Fixtures|Rooms|Specialty Equipment,CLN_HOIST_TRACK_BOOL display mirror [auto-generated]
 CLN_HTM_REF_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,HTM (Health Technical Memorandum) reference
-CLN_INFECT_CLASS_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,"Infection-control class: STD / AIIR / PE / CLASS-N / CLASS-P [CDC, HBN 04-01]"
+CLN_INFECT_CLASS_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms,"Infection-control class: STD / AIIR / PE / CLASS-N / CLASS-P [CDC, HBN 04-01]"
 CLN_LIGATURE_RES_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Anti-ligature design applies [HBN 03-01 / FGI Pt 2]
-CLN_LIG_RISK_LVL_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Ligature risk level: LOW / MED / HIGH / VERY-HIGH
-CLN_MRI_ZONE_INT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,MRI safety zone 1..4 [IEC 60601-2-33]
-CLN_MRI_ZONE_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,CLN_MRI_ZONE_INT display mirror [auto-generated]
+CLN_LIG_RISK_LVL_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Lighting Fixtures|Rooms,Ligature risk level: LOW / MED / HIGH / VERY-HIGH
+CLN_MRI_ZONE_INT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models|Rooms,MRI safety zone 1..4 [IEC 60601-2-33]
+CLN_MRI_ZONE_TXT,28,safe-prefix,Generic Models|Mechanical Equipment|Medical Equipment|Plumbing Fixtures|Rooms|Specialty Equipment,CLN_MRI_ZONE_INT display mirror [auto-generated]
 CLN_NOISE_NR_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Noise rating NR (when distinct from PER_ACOUSTICS_BACKGROUND_NOISE_DB)
 CLN_NOISE_NR_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,CLN_NOISE_NR_NR display mirror [auto-generated]
 CLN_NURSECALL_TYPE_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Nurse-call type: STD / EMG / ASSAULT / CARDIAC
 CLN_OCC_VISITOR_INT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Visitor headcount (clinical occupancy reuses ASS_DESIGN_OCCUPANCY_INT)
 CLN_PRESS_DELTA_DESIGN_PA_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Required design differential pressure in Pa (field-tested rides MEP_DELTA_PRESS_PA)
-CLN_PRESS_REGIME_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Pressure regime: NEG / POS / NEUTRAL [HTM 03-01 / ASHRAE 170]
+CLN_PRESS_REGIME_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms,Pressure regime: NEG / POS / NEUTRAL [HTM 03-01 / ASHRAE 170]
 CLN_PRIVACY_LVL_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Privacy level: OPEN / SEMI / SINGLE / SECURE
-CLN_RAD_CONTROLLED_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,IRR17 controlled area? [UK Ionising Radiations Regulations 2017]
+CLN_RAD_CONTROLLED_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Rooms|Walls|Windows,IRR17 controlled area? [UK Ionising Radiations Regulations 2017]
 CLN_RF_SHIELD_BOOL,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,RF Faraday cage present (MRI suite)
-CLN_ROOM_CLASS_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,"Clinical room class (OR-ULTRA, OR-CONV, OR-HYBRID, ICU, AIIR, PE-PROT, etc.) [HBN/FGI]"
+CLN_ROOM_CLASS_TXT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Rooms,"Clinical room class (OR-ULTRA, OR-CONV, OR-HYBRID, ICU, AIIR, PE-PROT, etc.) [HBN/FGI]"
 CLN_ROOM_TAG,28,tag-container,<ALL>,Clinical room ISO 19650 tag container
 CLN_RT60_TARGET_S_NR,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Reverberation T60 target (s) per HTM 08-01 [H-24]
 CLN_STRUCT_SIGN_OFF_DT,28,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Structural Engineer sign-off date [H-23]
@@ -1144,7 +1144,7 @@ ELC_CTR_WIDTH_MM,4,elc-sub,Cable Trays|Cable Tray Fittings,Cable tray width: 100
 ELC_CTR_WIDTH_TXT,4,elc-sub,Cable Trays|Cable Tray Fittings,ELC_CTR_WIDTH_MM display mirror [auto-generated]
 ELC_DIV_FCT_NR,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Elc Div Fct Nr [ISO 19650-1:2018]
 ELC_EARTHING_SYSTEM_TXT,4,project-level,Project Information,Project earthing arrangement per BS 7671 Part 3 (TN-S / TN-C-S / TT / IT); read by the earthing diagram generator.
-ELC_EES_BRANCH_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,NFPA 99 Essential Electrical System branch: LIFE-SAF / CRIT / EQP-BR / NORMAL
+ELC_EES_BRANCH_TXT,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Communication Devices|Data Devices|Lighting Devices|Lighting Fixtures,NFPA 99 Essential Electrical System branch: LIFE-SAF / CRIT / EQP-BR / NORMAL
 ELC_EMERG_COVERED_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Rooms,"Room has emergency lighting coverage (1=true, 0=false) [BS 5266-1 / BS 9999 / STING Phase 178]"
 ELC_ENERGY_COST_UGX_PA,4,elc-sub,Electrical Equipment|Electrical Circuits,Elc Energy Cost Ugx Pa [ISO 19650-1:2018]
 ELC_ENERGY_KWH_PA,4,energy-use,Electrical Equipment|Electrical Circuits|Mechanical Equipment|Lighting Fixtures,Elc Energy Kwh Pa [ISO 19650-1:2018]
@@ -1161,7 +1161,7 @@ ELC_FIX_TAG_1_TXT,4,tag-container,<ALL>,Elc fix tag 1
 ELC_FIX_TAG_2_TXT,4,elc-sub,Electrical Fixtures,Elc fix tag 2
 ELC_GEN_RUN_HRS_TGT_NR,4,elc-sub,Electrical Equipment|Electrical Circuits,Required generator runtime (h) at full load [NFPA 110]
 ELC_GEN_TEST_LOG_REF_TXT,4,elc-sub,Electrical Equipment|Electrical Circuits,Generator test log document reference [H-27 / NFPA 110]
-ELC_IPS_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Powered from Isolated Power System (NEC 517)
+ELC_IPS_BOOL,4,safe-prefix,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits|Communication Devices|Data Devices|Lighting Devices|Lighting Fixtures,Powered from Isolated Power System (NEC 517)
 ELC_IPS_LIM_BOOL,4,board-level,Electrical Equipment|Electrical Circuits,A Line Isolation Monitor is installed on this isolated power system board (NFPA 99 7.2.2.3.3 / IEC 60364-7-710 insulation monitoring); read first by IPS Validation.
 ELC_IP_RATING_TXT,4,safe-prefix,Cable Tray Fittings|Cable Trays|Conduit Fittings|Conduits|Electrical Circuits|Electrical Equipment|Electrical Fixtures|Lighting Fixtures,Elc Ip Rating Txt [ISO 19650-1:2018]
 ELC_IT_CARDIAC_BOOL,4,elc-sub,Electrical Fixtures,Cardiac-protected outlet (IT-network NEC 517.19)
@@ -1196,7 +1196,7 @@ ELC_LPS_EARTH_RESISTANCE_OHM,4,elc-sub,Electrical Equipment|Generic Models,Measu
 ELC_LPS_EARTH_RESISTANCE_TXT,4,elc-sub,Electrical Equipment|Generic Models,ELC_LPS_EARTH_RESISTANCE_OHM display mirror [auto-generated]
 ELC_LPS_EARTH_TAG_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS earth-electrode tag -- full tag for rod / ring / foundation / mesh earth electrode [BS EN 62305-3 _5.4]
 ELC_LPS_EARTH_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,Earth electrode type (ROD / RING / FOUNDATION / MESH)
-ELC_LPS_ELEMENT_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily
+ELC_LPS_ELEMENT_TYPE_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Foundations,LPS component type marker (AIR_TERMINAL / DOWN_CONDUCTOR / EARTH_ELECTRODE / BONDING_BAR / SPD); primary discriminator for CollectLpsFamily
 ELC_LPS_FROM_LPZ_TXT,4,elc-sub,Electrical Equipment|Generic Models|Cable Trays|Conduits|Ducts|Pipes|Structural Columns|Structural Framing,LPZ on the upstream side of an LPZ-crossing element (LPZ0A / LPZ0B / LPZ1 / LPZ2 / LPZ3) -- stamped by Bonding Inventory [BS EN 62305-4 _6.1]
 ELC_LPS_INSPECTION_INTERVAL_MONTHS,4,elc-sub,Electrical Equipment|Generic Models|Project Information,"Inspection interval in months (12 for class I/II, 24 for class III/IV)"
 ELC_LPS_INSPECTION_INTERVAL_MONTHS_TXT,4,elc-sub,Electrical Equipment|Generic Models|Project Information,ELC_LPS_INSPECTION_INTERVAL_MONTHS display mirror [auto-generated]
@@ -1597,7 +1597,7 @@ IFC_GLOBAL_ID_TXT,22,universal,<ALL>,Stable IFC GlobalId snapshot for cross-host
 IFC_PSET_OVERRIDE_TXT,22,universal,<ALL>,Manual IFC property set override pipe-delimited (Pset_Name=Value)
 INS_MATERIAL_TXT,5,misc-meta,<ALL>,Insulation material type (PIR/Mineral Wool/Foam/XPS) [ISO 19650-1:2018]
 IPS_BRANCH_COMPLIANT,4,curated-fallback,Electrical Equipment|Electrical Fixtures|Cable Trays|Cable Tray Fittings|Conduits|Conduit Fittings|Electrical Circuits,Ips Branch Compliant [STING]
-LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Observation line-of-sight code
+LIG_AREA_OBS_LOS_TXT,32,curated-fallback,Casework|Doors|Generic Models|Lighting Fixtures|Plumbing Fixtures|Rooms|Specialty Equipment|Windows,Observation line-of-sight code
 LIG_FIT_TAG,32,tag-container,<ALL>,Anti-ligature fitting ISO 19650 tag container
 LIG_FORCE_LIMIT_KG_NR,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Release threshold (kg)
 LIG_PRESSURE_REL_BOOL,32,curated-fallback,Casework|Doors|Lighting Fixtures|Plumbing Fixtures|Specialty Equipment|Windows,Releases under load
@@ -1729,7 +1729,7 @@ MEP_TIE_POINT_ID_TXT,9,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct
 MEP_TYPE_TXT,6,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Plm Type Txt [ISO 19650-1:2018]
 MEP_UPSTREAM_ELEMENT_TXT,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,Mep Upstream Element [ISO 19650]
 MEP_WORKING_PRESSURE_PA,5,mep-generic,Mechanical Equipment|Air Terminals|Ducts|Duct Fittings|Duct Accessories|Flex Ducts|Pipes|Pipe Fittings|Pipe Accessories|Flex Pipes|Plumbing Fixtures|Electrical Equipment|Electrical Fixtures|Cable Trays|Conduits,ArchiCAD IFC: MEP system working pressure Pa (Pset_DistributionFlowElementCommon)
-MGS_AAP_REF_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Owning area alarm panel ID
+MGS_AAP_REF_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models,Owning area alarm panel ID
 MGS_DESIGN_FLOW_LPM_NR,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,"Design flow l/min, free air [HTM 02-01]"
 MGS_DIVERSITY_PCT_NR,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Diversity factor (%) [HTM 02-01 sizing]
 MGS_EQP_TAG,29,tag-container,<ALL>,Medical gas equipment ISO 19650 tag container
@@ -1740,14 +1740,14 @@ MGS_OUTLET_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plum
 MGS_PIPE_BRAZED_BOOL,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Brazed under inert-gas purge [HTM 02-01]
 MGS_SUPPLY_TYPE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Marks this element as a medical gas supply source and says which (VIE / Manifold / Compressor / Vacuum Plant / Cylinder); read by the MGPS schematic.
 MGS_TAG_7_PARA_TXT,29,tag-container,<ALL>,Medical gas TAG7 rich narrative paragraph container
-MGS_TU_BS5682_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Terminal unit complies with BS 5682
+MGS_TU_BS5682_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Generic Models,Terminal unit complies with BS 5682
 MGS_TU_INDEXED_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Has gas-specific NIST/DISS indexing
 MGS_VERIFY_BY_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,ASSE 6030 verifier name
 MGS_VERIFY_CERT_REF_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Verification certificate reference (mirrors ELC_FAT_CERT_REF_TXT)
 MGS_VERIFY_DT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,NFPA 99 _5.1.12 verification date (ISO 8601)
-MGS_VERIFY_PASS_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Latest verification passed
+MGS_VERIFY_PASS_BOOL,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories|Pipe Fittings|Pipes,Latest verification passed
 MGS_WORKING_PRESSURE_KPA,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Mgs Working Pressure Kpa [STING]
-MGS_ZVB_REF_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)
+MGS_ZVB_REF_TXT,29,mgs-pipework,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipes|Pipe Fittings|Pipe Accessories|Generic Models,Owning zone valve box ID (denormalised; canonical link rides ASS_TIEIN_REF_TXT)
 MGS_ZV_ZONE_TXT,29,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Pipe Accessories,Marks this element as a medical gas zone valve and names the zone it isolates; read by the MGPS schematic. The owning box ID for other elements is MGS_ZVB_REF_TXT.
 MNT_ACCESS_DIR_TXT,9,equipment-level,Mechanical Equipment|Electrical Equipment|Plumbing Fixtures|Fire Protection|Specialty Equipment,"Side of the equipment the maintenance access zone is on: FRONT (default), BACK, LEFT, RIGHT, TOP or BOTTOM. Read by the maintenance clash check."
 MNT_ACCESS_REQUIREMENTS_TXT,9,universal-meta,<ALL>,Mnt Access Requirements [ISO 19650]
@@ -2387,11 +2387,11 @@ Qto_WindowBaseQuantities.Area,2,excluded,,IFC4 Qto_WindowBaseQuantities -> Area 
 Qto_WindowBaseQuantities.Height,2,excluded,,IFC4 Qto_WindowBaseQuantities -> Height [Phase 184k / P8 IFC Qto]
 Qto_WindowBaseQuantities.Perimeter,2,excluded,,IFC4 Qto_WindowBaseQuantities -> Perimeter [Phase 184k / P8 IFC Qto]
 Qto_WindowBaseQuantities.Width,2,excluded,,IFC4 Qto_WindowBaseQuantities -> Width [Phase 184k / P8 IFC Qto]
-RAD_BARRIER_TYPE_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Barrier type: PRIMARY / SECONDARY / SCATTER / LEAKAGE [NCRP 147]
-RAD_DOSE_DESIGN_GOAL_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Dose design goal: CONTROLLED (5 mGy/yr) / UNCONTROLLED (1 mGy/yr) [NCRP 147]
+RAD_BARRIER_TYPE_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Ceilings|Doors|Floors|Generic Models|Walls|Windows,Barrier type: PRIMARY / SECONDARY / SCATTER / LEAKAGE [NCRP 147]
+RAD_DOSE_DESIGN_GOAL_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Doors|Generic Models|Rooms|Walls|Windows,Dose design goal: CONTROLLED (5 mGy/yr) / UNCONTROLLED (1 mGy/yr) [NCRP 147]
 RAD_EQP_TAG,30,tag-container,<ALL>,Radiation protection ISO 19650 tag container
-RAD_LEAD_MM_NR,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Pb-equivalent thickness in this element (mm) [NCRP 147]
-RAD_LEAD_MM_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,RAD_LEAD_MM_NR display mirror [auto-generated]
+RAD_LEAD_MM_NR,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Ceilings|Doors|Floors|Walls,Pb-equivalent thickness in this element (mm) [NCRP 147]
+RAD_LEAD_MM_TXT,30,safe-prefix,Ceilings|Doors|Floors|Mechanical Equipment|Medical Equipment|Plumbing Fixtures|Specialty Equipment|Walls,RAD_LEAD_MM_NR display mirror [auto-generated]
 RAD_OCC_FACTOR_NR,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,NCRP 147 Occupancy factor T
 RAD_QE_DT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,QE sign-off date (ISO 8601)
 RAD_QE_NAME_TXT,30,safe-prefix,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Qualified Expert (medical / health physicist) signing off
@@ -2532,19 +2532,20 @@ STING_BOX_LOCATION_ID,1,universal-meta,<ALL>,Phase 139.2 -- GUID linking first-f
 STING_BRIEFCASE_EXPORT_TXT,17,universal-meta,<ALL>,Last briefcase export timestamp [ISO 19650-2:2018]
 STING_BUS_VOLTAGE_TIER,27,explicit,Views,Dominant voltage tier (LV / MV / HV) of the single line diagram drawn in this drafting view; written by SLD Generate.
 STING_CDE_STATE_TXT,27,universal-meta,<ALL>,CDE state stamp for ISO 19650-2 document lifecycle [Phase 141]
-STING_CIRCUIT_FILTER_TXT,4,universal-meta,<ALL>,Sting Circuit Filter Txt [STING]
+STING_CIRCUIT_FILTER_TXT,4,explicit,Views,Sting Circuit Filter Txt [STING]
 STING_CLUSTER_COUNT,17,universal-meta,<ALL>,Number of elements in tag cluster
 STING_CLUSTER_LABEL,17,universal-meta,<ALL>,Cluster representative label text
 STING_CLUSTER_MEMBER_POS_TXT,17,universal-meta,<ALL>,Cluster member bounding box centers (pipe-delimited)
 STING_COMPOUND_PARENT_ID,1,universal-meta,<ALL>,Parent compound-symbol element id (multi-connector grouping) [Symbols]
 STING_CONDUIT_FILL_SUMMARY_TXT,4,universal-meta,<ALL>,Conduit fill summary string for audit reporting [Electrical]
-STING_CROP_KIND_TXT,27,universal-meta,<ALL>,Crop kind stamped onto views for drift detection [Phase 183]
-STING_CROP_MARGIN_MM_TXT,27,universal-meta,<ALL>,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
+STING_CROP_KIND_TXT,27,explicit,Views,Crop kind stamped onto views for drift detection [Phase 183]
+STING_CROP_MARGIN_MM_TXT,27,explicit,Views,"Crop margin (mm, as string) stamped onto views for drift detection [Phase 183]"
 STING_DATA_HASH,1,universal-meta,<ALL>,Hash of data directory for workflow skip-if-unchanged detection
+STING_DEFAULT_TAG_STYLE_TXT,27,explicit,Views,"Default tag style preset ({size}{style}_{color}) of the view style pack, stamped on managed view templates by ManagedTemplateSyncer [DTW-59]"
 STING_DESIGN_REF_TXT,33,universal-meta,<ALL>,Original seed identity preserved when an instance is swapped to a manufacturer family. Lets schedules + audits trace which design intent every real fixture replaces.
 STING_DISPLAY_MODE,17,universal-meta,<ALL>,"Display mode (1=SEQ, 2=PROD-SEQ, 3=DISC-SYS-SEQ, 4=DISC-PROD-SEQ, 5=Full)"
-STING_DRAWING_PACKAGE_ID_TXT,27,universal-meta,<ALL>,Drawing package this view or sheet belongs to [STING DT v137]
-STING_DRAWING_TYPE_ID_TXT,27,universal-meta,<ALL>,DrawingType registry id stamped on views/sheets [Phase 113]
+STING_DRAWING_PACKAGE_ID_TXT,27,explicit,Sheets|Views,Drawing package this view or sheet belongs to [STING DT v137]
+STING_DRAWING_TYPE_ID_TXT,27,explicit,Sheets|Views,DrawingType registry id stamped on views/sheets [Phase 113]
 STING_EMB_CARBON_NR,12,universal-meta,<ALL>,"Embodied carbon kgCO2e per unit, A1-A3 GWP [Sustainability Carbon]"
 STING_FINISH_CODE_TXT,38,universal-meta,<ALL>,Resolved finish code stamped on the created finish element - joins STING_FINISH_CODES.csv [Finishes]
 STING_FINISH_SRC_ROOM_ID_TXT,38,universal-meta,<ALL>,Source room element id for a finish element created by Finish_CreateFloorsFromRooms (idempotency) [Finishes]
@@ -2555,9 +2556,9 @@ STING_GATE_QA_MSG_TXT,17,universal-meta,<ALL>,QA gate terse reason stamped by Co
 STING_GATE_QA_STATUS_INT,17,universal-meta,<ALL>,QA / sign-off gate status stamped by ComplianceScan (0=red/1=amber/2=green) — drives right universal-tag status badge
 STING_HOST_ELEMENT_ID,27,universal-meta,<ALL>,Element id of the host modelled element this symbol represents [STING Phase 175]
 STING_MASTER_SETUP_TS,13,universal-meta,<ALL>,Sting Master Setup Ts [STING]
-STING_MATCH_DIR_TXT,27,universal-meta,<ALL>,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]
-STING_MATCH_LINE_GUID_TXT,27,universal-meta,<ALL>,Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]
-STING_MATCH_REF_TXT,27,universal-meta,<ALL>,Paired sheet reference written on match-line + caption tags [STING Phase 168]
+STING_MATCH_DIR_TXT,27,explicit,Lines,Match-line direction encoding -- VERTICAL / HORIZONTAL / DOGLEG [STING Phase 168]
+STING_MATCH_LINE_GUID_TXT,27,explicit,Lines,Stable match-line pair identifier -- pairs DetailCurve + caption tag for in-place updates [STING Phase 168]
+STING_MATCH_REF_TXT,27,explicit,Lines,Paired sheet reference written on match-line + caption tags [STING Phase 168]
 STING_MAT_EPD_DATE_TXT,12,universal-meta,<ALL>,EPD publication / validity date ISO 8601 [Sustainability Carbon]
 STING_MAT_EPD_SRC_TXT,12,universal-meta,<ALL>,EPD data source / publisher reference [Sustainability Carbon]
 STING_MAT_LIFECYCLE_TXT,12,universal-meta,<ALL>,Material spec lifecycle state Draft/Reviewed/Approved/Frozen [Material Manager]
@@ -2565,19 +2566,19 @@ STING_NOGGIN_REQUIRED,1,universal-meta,<ALL>,Phase 139.2 -- flag set on a placed
 STING_NOTE_AUTHOR_TXT,17,universal-meta,<ALL>,Sticky note author [ISO 19650-2:2018]
 STING_NOTE_DATE_TXT,17,universal-meta,<ALL>,Sticky note timestamp [ISO 19650-2:2018]
 STING_P6_PCT_TXT,24,universal-meta,<ALL>,Sting P6 Pct Txt [STING]
-STING_PACK_CHECKSUM_TXT,27,universal-meta,<ALL>,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]
-STING_PACK_ID_TXT,27,universal-meta,<ALL>,ViewStylePack registry id stamped on managed view templates [Phase 137]
+STING_PACK_CHECKSUM_TXT,27,explicit,Views,SHA-256 checksum of ViewStylePack JSON for drift detection [Phase 137]
+STING_PACK_ID_TXT,27,explicit,Views,ViewStylePack registry id stamped on managed view templates [Phase 137]
 STING_PENETRATION_FIRE_RATING_TXT,34,universal-meta,<ALL>,Required fire rating at the penetration point -- copied from the host floor / wall (BS 9999 / BS 476). Empty defaults to FR60 typical floor rating.
 STING_PENETRATION_REF_TXT,34,universal-meta,<ALL>,Identifier stamped on a conduit / pipe / duct that crosses a fire-rated floor or wall. Format: FLR:<id>@<rating>. Drives FRP_PENETRATION family placement + register schedule.
-STING_PLACED_BY_SYMBOL_PLACER_BOOL,37,universal-meta,<ALL>,Idempotency stamp: instance was placed by the STING symbol placer [Symbols]
-STING_PLACER_ASSY_ID_TXT,37,universal-meta,<ALL>,Source assembly element id for the placed symbol (undo/idempotency) [Symbols]
-STING_PLACER_MEMBER_ID_TXT,37,universal-meta,<ALL>,Source assembly-member element id for the placed symbol [Symbols]
-STING_PLACER_SYMBOL_CODE_TXT,37,universal-meta,<ALL>,Resolved symbol code stamped on the placed symbol [Symbols]
-STING_PLACER_VIEW_ID_TXT,37,universal-meta,<ALL>,View id where the symbol was placed (per-view idempotency) [Symbols]
+STING_PLACED_BY_SYMBOL_PLACER_BOOL,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Idempotency stamp: instance was placed by the STING symbol placer [Symbols]
+STING_PLACER_ASSY_ID_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Source assembly element id for the placed symbol (undo/idempotency) [Symbols]
+STING_PLACER_MEMBER_ID_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Source assembly-member element id for the placed symbol [Symbols]
+STING_PLACER_SYMBOL_CODE_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,Resolved symbol code stamped on the placed symbol [Symbols]
+STING_PLACER_VIEW_ID_TXT,37,explicit,Detail Items|Generic Annotations|Generic Models|Lines,View id where the symbol was placed (per-view idempotency) [Symbols]
 STING_PREDECESSOR_TAGS_TXT,17,universal-meta,<ALL>,Predecessor element tags semicolon-delimited [ISO 19650-2:2018]
-STING_PRODUCTION_RULE_IDX_INT,27,universal-meta,<ALL>,ProductionRule index that produced this view [STING DT v137]
+STING_PRODUCTION_RULE_IDX_INT,27,explicit,Views,ProductionRule index that produced this view [STING DT v137]
 STING_RETROFIT_TS,13,universal-meta,<ALL>,Sting Retrofit Ts [STING]
-STING_SCOPE_BOX_TAG_TXT,27,universal-meta,<ALL>,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
+STING_SCOPE_BOX_TAG_TXT,27,explicit,Views,Tag segment of the STING:: scope box a view was generated from (STING::<type>::<level>::<tag>) [STING DT v137]
 STING_SEED_FAMILY_TXT,33,universal-meta,<ALL>,Seed family identifier (e.g. STING_SEED_LightingFixture). Stamped by SymbolLibraryCreator on every seed; SwapToManufacturerCommand reads it to find replacement candidates in STING_FAMILY_SWAP_REGISTRY.json.
 STING_SETUP_COMPLETE,1,universal-meta,<ALL>,Timestamp of last MasterSetup completion for idempotency check
 STING_SHEET_CONTEXT_TXT,27,universal-meta,<ALL>,Production context (level / scope box / room) this sheet was produced for [STING DT v137]
@@ -2596,7 +2597,7 @@ STING_SLEEVE_UL_SYS,15,universal-meta,<ALL>,UL or BS EN 1366-3 firestop system r
 STING_SLEEVE_WIDTH_MM,15,universal-meta,<ALL>,Rectangular sleeve clear-opening width in millimetres.
 STING_STALE_BOOL,17,universal-meta,<ALL>,Element stale flag (geometry/level changed since last tag)
 STING_STICKY_NOTE_TXT,17,universal-meta,<ALL>,Element sticky note text [ISO 19650-2:2018]
-STING_STYLE_LOCKED_BOOL,27,universal-meta,<ALL>,Style-locked flag: prevents SyncStyles from overwriting [Phase 113]
+STING_STYLE_LOCKED_BOOL,27,explicit,Sheets|Views,Style-locked flag: prevents SyncStyles from overwriting [Phase 113]
 STING_SWAP_HISTORY_TXT,33,universal-meta,<ALL>,Swap audit trail: pipe-delimited entries timestamp|operator|sourceFamily|destFamily. Append-only; SwapToManufacturerCommand prepends one entry per swap.
 STING_SYMBOL_ID,27,universal-meta,<ALL>,Symbol library concept id stamped on placed instances [STING Phase 175 / IEC 60617]
 STING_SYMBOL_LABEL_ID,27,universal-meta,<ALL>,Stable id linking SLD label / annotation to its symbol family instance [STING Phase 175]
@@ -2605,12 +2606,12 @@ STING_SYMBOL_OVERRIDE,27,universal-meta,<ALL>,Project-level symbol override id (
 STING_SYMBOL_STANDARD,27,universal-meta,<ALL>,Symbol standard variant -- IEC 60617 / IEEE 315 / ISO 14617 [STING Phase 175]
 STING_TAG3D_HOST_ID_TXT,1,universal-meta,<ALL>,Source host element id stamped on placed Tag3D family instance for idempotent re-runs (Int64 as decimal string)
 STING_TAG_POS,17,universal-meta,<ALL>,Tag position (1-16 compass positions)
-STING_TEMPLATE_CHECKSUM_TXT,11,universal-meta,<ALL>,SHA-256 checksum of view template's VG state — DriftDetector baseline [Template Manager v2]
-STING_TEMPLATE_LOCKED_BOOL,11,universal-meta,<ALL>,"When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]"
-STING_VIEW_CONTEXT_TAG_TXT,27,universal-meta,<ALL>,Production context tag written by STING per-level / sections / elevations engine [STING DT v137]
-STING_VIEW_SYMBOL_STANDARD,27,universal-meta,<ALL>,Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175]
-STING_VIEW_TAG_STYLE,17,universal-meta,<ALL>,View-level tag style routing (Discipline/Monochrome/Warm/Cool)
-STING_VIEW_TOKEN_MASK_TXT,36,universal-meta,<ALL>,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]
+STING_TEMPLATE_CHECKSUM_TXT,11,explicit,Views,SHA-256 checksum of view template's VG state — DriftDetector baseline [Template Manager v2]
+STING_TEMPLATE_LOCKED_BOOL,11,explicit,Views,"When true, Sync/AutoFix/BatchVGReset ops skip this template (user-protected) [Template Manager v2]"
+STING_VIEW_CONTEXT_TAG_TXT,27,explicit,Views,Production context tag written by STING per-level / sections / elevations engine [STING DT v137]
+STING_VIEW_SYMBOL_STANDARD,27,explicit,Views,Per-view symbol standard override -- IEC / IEEE / ISO [STING Phase 175]
+STING_VIEW_TAG_STYLE,17,explicit,Views,View-level tag style routing (Discipline/Monochrome/Warm/Cool)
+STING_VIEW_TOKEN_MASK_TXT,36,explicit,Views,Per-view tag-token visibility mask (hide ZONE etc in a view) [Tagging]
 STING_WALL_ROUTING_FLAG,34,universal-meta,<ALL>,"When set to ALLOW, tells the auto-router that conduit / pipe runs MAY pass through this wall (chase / penetration / removable cover). DENY (default) leaves the wall as a hard obstacle. Read by RoutingPathfinder.CollectObstaclesInAABB."
 STRUCT_COL_AXIAL_LOAD_KN,16,struct-col,Columns|Structural Columns,Column axial load
 STRUCT_COL_BUCKLING_CHECK_BOOL,16,struct-col,Columns|Structural Columns,Column buckling check passed
@@ -2977,7 +2978,7 @@ TAG_PARA_STATE_7_BOOL,17,annotation-only,,Paragraph depth state tier 7 [ISO 1965
 TAG_PARA_STATE_8_BOOL,17,annotation-only,,Paragraph depth state tier 8 [ISO 19650-3:2020]
 TAG_PARA_STATE_9_BOOL,17,annotation-only,,Paragraph depth state tier 9 [ISO 19650-3:2020]
 TAG_SCALE_TIER_AUTO_BOOL,17,annotation-only,,Tag scale tier auto-selection flag
-TAG_SEG_MASK_TXT,17,annotation-only,,Token segment visibility mask (8-char format e.g. 10110101)
+TAG_SEG_MASK_TXT,17,tag-host-mask,<ALL>,Token segment visibility mask (8-char format e.g. 10110101)
 TAG_STYLE_CODE_TXT,17,annotation-only,,Single consolidated tag style code (replaces 128 BOOL params)
 TAG_STYLE_SIZE_INT,17,annotation-only,,Tag text size index (2/2.5/3/3.5)
 TAG_STYLE_WEIGHT_INT,17,annotation-only,,Tag text weight index
@@ -3232,7 +3233,7 @@ WARN_CEQ_GMDN_MISSING,31,warn-mirror,Specialty Equipment|Mechanical Equipment|Pl
 WARN_CEQ_IMAGING_STRUCT_LOAD,31,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Warning: Imaging equipment slab load not verified against structural capacity [HIGH] [AISC / BS EN 1991-1-1]
 WARN_CEQ_SFG20_REF_MISSING,17,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Tag warning: maintainable asset without CEQ_SFG20_REF_TXT - SFG20 PPM schedule not bound
 WARN_CLN_ACOUSTIC_STC_LOW,28,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Warning: Clinical room STC below minimum for use class [MEDIUM] [HTM / BB93]
-WARN_CLN_AIIR_NOT_NEGATIVE,28,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC]
+WARN_CLN_AIIR_NOT_NEGATIVE,28,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment|Rooms,Warning: AIIR room not under negative pressure [CRITICAL] [HTM 03-01 / CDC]
 WARN_CLN_ANTERM_MISSING,28,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Warning: AIIR or PE room missing linked anteroom ID [HIGH] [HBN 04-01 / CDC]
 WARN_CLN_FLOOR_LOAD_INSUFFICIENT,17,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Tag warning: CLN_FLOOR_LOAD_KN_M2_NR less than CLN_EQUIP_WEIGHT_KG_NR / floor area - structural review required
 WARN_CLN_HBN_REF_MISSING,17,warn-mirror,Specialty Equipment|Mechanical Equipment|Plumbing Fixtures|Medical Equipment,Tag warning: clinical room has no CLN_HBN_REF_TXT - HBN reference missing

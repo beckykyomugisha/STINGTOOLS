@@ -259,7 +259,12 @@ namespace StingTools.Core.Lightning
             // ── 10. Stamp the drawing-type id (Phase 113 alignment) ──
             try
             {
-                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view, "elec-lps-coverage-A3");
+                // The LPS single line is an LPS schematic (air terminals → down conductors →
+                // MEB → earth electrodes), so it takes the type routing gives E / LPS_SCHEMATIC.
+                // It stamped "elec-lps-coverage-A3" — no drawing type then, and the protection-
+                // zone plan's type now — so a re-run re-stamps a view that carries it.
+                StingTools.Core.Drawing.DrawingTypeStamper.Stamp(view,
+                    StingTools.Core.Drawing.DrawingRouteResolver.IdFor(doc, StingTools.Core.Drawing.DrawingRouteRequests.LpsSchematic));
             }
             catch (Exception ex) { StingTools.Core.StingLog.Warn($"SldEngine stamp: {ex.Message}"); }
 

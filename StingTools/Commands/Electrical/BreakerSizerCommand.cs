@@ -33,6 +33,11 @@ namespace StingTools.Commands.Electrical
     /// Read-only — never writes to the model. The user reviews the table
     /// and clicks "Apply to Model" (BreakerSizerApplyCommand) to commit.
     /// </summary>
+    // Workflow preset (Calc_SizeBreakers): no dialog; the summary goes to the step message.
+    // Step params (ElectricalStepInputs.BreakerOptions): standard (BS_MCB | BS_MCCB | NEC),
+    // continuous (true | false). Defaults: the Electrical panel's BREAKER SIZING expander
+    // (re-read at the step), else BS_MCB, continuous on (NEC-only factor). The In ≤ Iz cable
+    // assumptions come from the panel's CABLE tab, else PVC70 multicore method C, Cu.
     [Transaction(TransactionMode.ReadOnly)]
     [Regeneration(RegenerationOption.Manual)]
     public class BreakerSizerCommand : IExternalCommand
@@ -42,8 +47,14 @@ namespace StingTools.Commands.Electrical
             var ctx = ParameterHelpers.GetContext(commandData);
             if (ctx == null) { message = "No active document."; return Result.Failed; }
             var doc = ctx.Doc;
-            var opts = StingElectricalCommandHandler.CurrentBreakerOptions
-                       ?? new BreakerOptionsSnapshot { Standard = "BS_MCB", ContinuousFactor = true };
+            var fallback = new BreakerOptionsSnapshot { Standard = "BS_MCB", ContinuousFactor = true };
+            BreakerOptionsSnapshot opts;
+            if (WorkflowEngine.IsRunningPreset)
+            {
+                if (!ElectricalStepInputs.BreakerOptions(fallback, out opts, out var err))
+                { message = "Breaker sizing: " + err; return Result.Failed; }
+            }
+            else opts = StingElectricalCommandHandler.CurrentBreakerOptions ?? fallback;
 
             var proposals = Compute(doc, opts.Standard, opts.ContinuousFactor);
             StingElectricalCommandHandler.LastBreakerProposals = proposals;
@@ -52,12 +63,13 @@ namespace StingTools.Commands.Electrical
                 ? "NEC 240.6(A) ratings" + (opts.ContinuousFactor ? ", ×1.25 continuous (210.20(A))" : "")
                 : "BS 7671 Reg 433.1.1: Ib ≤ In ≤ Iz (no ×1.25 continuous factor — that is an NEC rule)";
             StingLog.Info($"BreakerSizer: {proposals.Count} proposal(s), {blocked.Count} blocked ({opts.Standard}).");
-            TaskDialog.Show("STING Breaker Sizing",
+            PresetDialog.Show("STING Breaker Sizing",
                 $"{head}\n\nComputed proposals for {proposals.Count} circuit(s). " +
                 $"{blocked.Count} will NOT be applied (device larger than the cable can carry, or no rating large enough):\n" +
                 string.Join("\n", blocked.Take(10).Select(b => $"  {b.PanelName}-{b.CircuitNumber}: {b.Note}")) +
                 (blocked.Count > 10 ? $"\n  …and {blocked.Count - 10} more" : "") +
-                "\n\nClick Apply to commit the rest.");
+                (WorkflowEngine.IsRunningPreset ? "\n\nCalc_ApplyBreakers commits the rest." : "\n\nClick Apply to commit the rest."),
+                ref message);
             return Result.Succeeded;
         }
 
@@ -166,6 +178,9 @@ namespace StingTools.Commands.Electrical
     /// Writes the proposed breaker ratings back to each circuit via
     /// RBS_ELEC_CIRCUIT_RATING_PARAM. Wrapped in a single transaction.
     /// </summary>
+    // Workflow preset (Calc_ApplyBreakers): no step params — it applies the proposals the
+    // last Calc_SizeBreakers computed. Without them the step fails (put Calc_SizeBreakers
+    // earlier in the preset); the summary goes to the step message.
     [Transaction(TransactionMode.Manual)]
     [Regeneration(RegenerationOption.Manual)]
     public class BreakerSizerApplyCommand : IExternalCommand
@@ -179,6 +194,11 @@ namespace StingTools.Commands.Electrical
             var proposals = StingElectricalCommandHandler.LastBreakerProposals;
             if (proposals == null || proposals.Count == 0)
             {
+                if (WorkflowEngine.IsRunningPreset)
+                {
+                    message = "Apply breakers: no breaker proposals to apply — run Calc_SizeBreakers earlier in the preset.";
+                    return Result.Failed;
+                }
                 TaskDialog.Show("STING Electrical", "Run Preview first to compute breaker proposals.");
                 return Result.Cancelled;
             }
@@ -210,9 +230,9 @@ namespace StingTools.Commands.Electrical
                 tx.Commit();
             }
             try { ComplianceScan.InvalidateCache(); } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-            TaskDialog.Show("STING Electrical",
+            PresetDialog.Show("STING Electrical",
                 $"Applied breaker ratings to {updated} circuit(s). Skipped: {skipped}. " +
-                $"Not applied (In > Iz or no rating): {blocked}");
+                $"Not applied (In > Iz or no rating): {blocked}", ref message);
             return Result.Succeeded;
         }
     }

@@ -4,6 +4,8 @@
 // Walks the supply branch of the PipeNetwork, lays out the index leg vertically
 // (inlet at bottom, fixtures at top), draws the network plus PRV / water-meter
 // / pump / fixture symbols and labels each pipe with DN + accumulated kPa.
+// Runs of pass-through pipe collapse to one line, floors are storey rows at a
+// fixed pitch, and the scale is the smallest that fits the sheet slot (DTW-120).
 //
 // All drafting-view coordinates are in feet (Revit internal units).
 // 1 mm = 1/304.8 ft.
@@ -28,10 +30,15 @@ namespace StingTools.Core.Plumbing
         /// lowest equipment node drew whatever network it touched — drainage included.
         /// </summary>
         public PipeSystemType[] Classifications { get; set; } = { PipeSystemType.DomesticColdWater };
-        /// <summary>Horizontal spacing between adjacent branches (mm).</summary>
+        /// <summary>Spacing between adjacent columns (model mm; never narrower than the widest label).</summary>
         public double BranchSpacingMm  { get; set; } = 1000.0;
-        /// <summary>Vertical spacing per level (mm).</summary>
+        /// <summary>Drawn height of one storey (model mm); floors are drawn this far apart whatever their real height.</summary>
         public double LevelHeightMm    { get; set; } = 3000.0;
+        /// <summary>Paper size of the sheet slot the view goes in (0 = unknown: no fit check).</summary>
+        public double SlotWidthMm      { get; set; }
+        public double SlotHeightMm     { get; set; }
+        /// <summary>Smallest scale the view may take.</summary>
+        public int    MinScale         { get; set; } = 50;
         public bool   ShowDnLabels     { get; set; } = true;
         public bool   ShowPressureLabels { get; set; } = true;
         public bool   ShowAccessorySymbols { get; set; } = true;
@@ -42,6 +49,12 @@ namespace StingTools.Core.Plumbing
         public string DxfAutoCadVersion { get; set; } = "R2010";
         /// <summary>Inlet pressure (kPa) used to seed AccumulatePressure.</summary>
         public double InletPressureKpa { get; set; } = 300.0;
+        /// <summary>
+        /// True only when <see cref="InletPressureKpa"/> came from the project's saved
+        /// plumbing configuration. When false no kPa label is printed: a pressure
+        /// propagated from an assumed inlet would read as a modelled one.
+        /// </summary>
+        public bool   InletPressureConfigured { get; set; }
     }
 
     public class SupplySchematicResult
@@ -51,6 +64,12 @@ namespace StingTools.Core.Plumbing
         public int          AccessoriesDrawn  { get; set; }
         public int          FixturesDrawn     { get; set; }
         public string       DxfPath           { get; set; }
+        /// <summary>Scale the view was drawn at (chosen to fit its sheet slot).</summary>
+        public int          Scale             { get; set; }
+        /// <summary>What the network was laid out from (e.g. "water meter 12345").</summary>
+        public string       SourceDescription { get; set; } = "";
+        /// <summary>True when no meter / tank / pump / equipment was found and the lowest node was used.</summary>
+        public bool         SourceAssumed     { get; set; }
         public List<string> Warnings          { get; } = new List<string>();
     }
 
@@ -61,7 +80,7 @@ namespace StingTools.Core.Plumbing
         /// <summary>
         /// Generate the schematic. Caller owns the Transaction. When
         /// <paramref name="opts"/>.ExportDxf is true the resulting drafting
-        /// view is also exported to <c>_BIM_COORD/exports/&lt;view-name&gt;.dxf</c>;
+        /// view is also exported to the project's routed DXF export folder;
         /// the path is returned on the result.
         /// </summary>
         public static SupplySchematicResult Generate(Document doc, SupplySchematicOptions opts)
@@ -92,56 +111,140 @@ namespace StingTools.Core.Plumbing
                 return result;
             }
 
-            // 2. Identify the inlet — lowest-Z Equipment or Termination node
-            var inlet = net.Nodes
-                .Where(n => n.Type == PipeNodeType.Equipment || n.Type == PipeNodeType.Termination)
-                .OrderBy(n => n.Position?.Z ?? double.MaxValue)
+            // 2. Identify the source — a modelled water meter, tank, pump set or other
+            //    equipment connected to the network. Only when none exists is the lowest
+            //    node used, and the result says so.
+            var connected = net.Nodes.Where(n => n.Upstream.Count + n.Downstream.Count > 0).ToList();
+            var ranked = connected
+                .Select(n => new { Node = n, Sym = NodeSymbol(doc, n) })
+                .Select(x => new { x.Node, x.Sym, Rank = SchematicLayoutMath.SupplySourceRank(x.Sym, x.Node.Type == PipeNodeType.Equipment) })
+                .Where(x => x.Rank != int.MaxValue)
+                .OrderBy(x => x.Rank).ThenBy(x => x.Node.Position?.Z ?? double.MaxValue)
                 .FirstOrDefault();
-            if (inlet == null) inlet = net.Nodes.OrderBy(n => n.Position?.Z ?? 0).FirstOrDefault();
-            if (inlet == null)
+            PipeNode inlet = ranked?.Node;
+            if (inlet != null)
             {
-                result.Warnings.Add("No nodes in supply network — nothing to draw.");
-                return result;
+                result.SourceDescription = $"{SourceName(ranked.Sym, inlet)} {inlet.Id.Value}";
+                // DTW-128: other equipment is a guess at the source, not a modelled inlet.
+                if (SchematicLayoutMath.SupplySourceIsAssumed(ranked.Rank))
+                {
+                    result.SourceAssumed = true;
+                    result.SourceDescription += " (assumed)";
+                    result.Warnings.Add($"No water meter, tank or pump is connected to the network — laid out from "
+                        + $"{SourceName(ranked.Sym, inlet)} {inlet.Id.Value}; any pressures shown are indicative.");
+                }
+            }
+            else
+            {
+                inlet = (connected.Count > 0 ? connected : net.Nodes)
+                    .OrderBy(n => n.Position?.Z ?? double.MaxValue).FirstOrDefault();
+                if (inlet == null)
+                {
+                    result.Warnings.Add("No nodes in supply network — nothing to draw.");
+                    return result;
+                }
+                result.SourceAssumed = true;
+                result.SourceDescription = $"lowest node {inlet.Id.Value} (assumed)";
+                result.Warnings.Add("No water meter, tank, pump or equipment is connected to the network — laid out from "
+                    + $"the lowest node ({inlet.Id.Value}); any pressures shown are indicative.");
             }
 
-            // 3. Run pressure propagation (PRV / meter aware overload)
-            try
+            // 3. Pressure propagation (PRV / meter aware) from that source — only when
+            //    the inlet pressure was configured; an assumed one is not printed.
+            bool showPressure = opts.ShowPressureLabels && opts.InletPressureConfigured;
+            if (opts.ShowPressureLabels && !opts.InletPressureConfigured)
+                result.Warnings.Add("Pressure labels omitted: no inlet pressure is configured for this project "
+                    + "(set it in the plumbing system configuration and save).");
+            if (showPressure)
             {
-                PipeNetworkBuilder.AccumulatePressure(net, opts.InletPressureKpa,
-                    inlet.Position?.Z ?? 0, doc);
+                try
+                {
+                    PipeNetworkBuilder.AccumulatePressureFrom(net, inlet, opts.InletPressureKpa, doc);
+                }
+                catch (Exception ex)
+                {
+                    StingLog.Warn($"SupplySchematic: AccumulatePressure: {ex.Message}");
+                    result.Warnings.Add($"AccumulatePressure: {ex.Message} — pressure labels omitted.");
+                    showPressure = false;
+                }
             }
-            catch (Exception ex) { result.Warnings.Add($"AccumulatePressure: {ex.Message}"); }
 
-            // 4. Create drafting view
-            var vft = DrainageSchematicGenerator.FindDraftingViewType(doc);
-            if (vft == null)
+            // 4. Layout (DTW-120) — before the view, so its scale can be chosen to fit.
+            //    Runs of pass-through pipe and fittings collapse to one line between the
+            //    nodes worth drawing (source, branch points, ends, fixtures, valves …);
+            //    rows are storeys at a fixed pitch, not true elevation. Every element used
+            //    to take its own 20 mm column, so a horizontal run spread across the sheet.
+            var symbols = new Dictionary<long, string>();
+            string Sym(PipeNode n)
             {
-                result.Warnings.Add("No Drafting ViewFamilyType found.");
-                return result;
+                if (n == null) return null;
+                if (!symbols.TryGetValue(n.Id.Value, out var s)) symbols[n.Id.Value] = s = NodeSymbol(doc, n);
+                return s;
             }
+            var levelElevs = DrainageSchematicGenerator.CollectLevels(doc).Select(l => l.Elevation).ToList();
+            var layout = LayoutNetwork(net, inlet, levelElevs, opts, Sym);
 
-            ViewDrafting view;
-            try
+            var textType = DrainageSchematicGenerator.FindClosestTextType(doc, 2.5);
+            var (textMm, widthFactor) = DrainageSchematicGenerator.TextMetrics(textType, 2.5);
+
+            // Every label the drawing will carry, to size the columns and rows by.
+            var nodeLabels = new Dictionary<long, string>();
+            var segLabels = new Dictionary<ChainSegment, string>();
+            if (opts.ShowDnLabels)
             {
-                view = ViewDrafting.Create(doc, vft.Id);
-                bool dcwOnly = opts.Classifications != null && opts.Classifications.Length == 1
-                            && opts.Classifications[0] == PipeSystemType.DomesticColdWater;
-                view.Name = UniqueViewName(doc,
-                    $"STING - Supply Schematic{(dcwOnly ? " DCW" : "")}{(string.IsNullOrEmpty(opts.SystemNameFilter) ? "" : " " + opts.SystemNameFilter)}");
-                view.Scale = 50;
+                foreach (var id in layout.Cells.Keys)
+                {
+                    if (!net.ById.TryGetValue(id, out var n)) continue;
+                    string sym = Sym(n);
+                    if (string.IsNullOrEmpty(sym)) continue;
+                    string lbl = NodeLabel(n, sym, showPressure, result.SourceAssumed);
+                    if (!string.IsNullOrEmpty(lbl)) nodeLabels[id] = lbl;
+                }
+                var labelledPipes = new HashSet<long>();
+                foreach (var seg in layout.Segments)
+                {
+                    string lbl = SegmentLabel(net, seg, labelledPipes, showPressure, result.SourceAssumed);
+                    if (!string.IsNullOrEmpty(lbl)) segLabels[seg] = lbl;
+                }
             }
-            catch (Exception ex)
+            var allLabels = nodeLabels.Values.Concat(segLabels.Values).ToList();
+            double labelW = allLabels.Count == 0 ? 0 : allLabels.Max(l => SchematicFit.EstimateTextWidthMm(l, textMm, widthFactor));
+            double labelH = allLabels.Count == 0 ? textMm * 1.5 : allLabels.Max(l => SchematicFit.EstimateTextHeightMm(l, textMm));
+
+            int minRow = layout.Cells.Count > 0 ? layout.Cells.Values.Min(c => c.Row) : 0;
+            int maxRow = layout.Cells.Count > 0 ? layout.Cells.Values.Max(c => c.Row) : 0;
+            int minCol = layout.Cells.Count > 0 ? layout.Cells.Values.Min(c => c.Col) : 0;
+            int maxCol = layout.Cells.Count > 0 ? layout.Cells.Values.Max(c => c.Col) : 0;
+            // A column is never narrower than the widest label beside it, and a sub-row
+            // never shorter than the tallest label, so labels in neighbouring cells do not
+            // overlap; only the nominal spacing shrinks with scale.
+            double ColumnPaper(int s) => Math.Max(opts.BranchSpacingMm / s, labelW + LabelOffsetMm + 2);
+            double StoreyPaper(int s) => Math.Max(opts.LevelHeightMm / s, Math.Max(MinStoreyPaperMm, SubRowsPerStorey * (labelH + 1)));
+            var fit = SchematicFit.ChooseScale(
+                s => ((maxCol - minCol + 1) * ColumnPaper(s),
+                      (maxRow - minRow) / (double)SubRowsPerStorey * StoreyPaper(s) + labelH + 5),
+                opts.SlotWidthMm, opts.SlotHeightMm, opts.MinScale > 0 ? opts.MinScale : 50);
+            result.Scale = fit.Scale;
+            if (fit.Problem() is string fitProblem) result.Warnings.Add(fitProblem);
+
+            // 5. Drafting view — DTW-119: reused and cleared on a re-run, never "… (2)".
+            var view = StingTools.Core.Drawing.SchematicViewFactory.CreateOrReplace(
+                doc, ViewName(opts), out string viewError, fit.Scale);
+            if (view == null)
             {
-                result.Warnings.Add($"ViewDrafting.Create: {ex.Message}");
+                result.Warnings.Add(viewError ?? "The supply schematic view could not be made.");
                 return result;
             }
             result.ViewId = view.Id;
 
-            // 5. Layout: simple Reingold-Tilford-ish — index leg straight up,
-            //    side branches fanning out left/right at each junction.
-            var coords = LayoutNetwork(net, inlet, opts);
+            // Paper mm × the view's real scale: glyphs print at their paper size.
+            int scale = view.Scale;
+            double P(double paperMm) => SchematicLayoutMath.PaperMmToModelFt(paperMm, scale);
+            double colFt = P(ColumnPaper(scale));
+            double subRowFt = P(StoreyPaper(scale)) / SubRowsPerStorey;
+            var coords = layout.Cells.ToDictionary(kv => kv.Key,
+                kv => new XYZ((kv.Value.Col - minCol) * colFt, (kv.Value.Row - minRow) * subRowFt, 0));
 
-            var textType = FindOrCreateTextType(doc, 3.0);
             var (solidId, dashedId) = GetLineStyleIds(doc);
 
             // Build the symbol-family cache once per generation. Maps each
@@ -150,35 +253,45 @@ namespace StingTools.Core.Plumbing
             // fall through to the geometric glyph fallback below.
             var symbolMap = ResolveSymbolFamilies(doc);
 
-            // 6. Draw edges
-            foreach (var edge in net.Edges)
+            // 6. Draw the runs: straight, or an L (along the parent's row, then up or
+            //    down the child's column). DTW-128: each pipe's DN is labelled once.
+            var drawnPipes = new HashSet<long>();
+            foreach (var seg in layout.Segments)
             {
-                if (edge.From == null || edge.To == null) continue;
-                if (!coords.TryGetValue(edge.From.Id.Value, out var p0)) continue;
-                if (!coords.TryGetValue(edge.To.Id.Value,   out var p1)) continue;
+                if (!coords.TryGetValue(seg.From, out var p0)) continue;
+                if (!coords.TryGetValue(seg.To,   out var p1)) continue;
+                net.ById.TryGetValue(seg.From, out var fromNode);
 
-                bool isReturn = (edge.From.SystemName ?? "").IndexOf("RETURN", StringComparison.OrdinalIgnoreCase) >= 0
-                              || (edge.From.SystemName ?? "").IndexOf("RECIRC", StringComparison.OrdinalIgnoreCase) >= 0;
-                TryDrawDetailLine(doc, view, p0, p1, isReturn ? dashedId : solidId, result);
-                result.PipesDrawn++;
+                bool isReturn = (fromNode?.SystemName ?? "").IndexOf("RETURN", StringComparison.OrdinalIgnoreCase) >= 0
+                              || (fromNode?.SystemName ?? "").IndexOf("RECIRC", StringComparison.OrdinalIgnoreCase) >= 0;
+                var style = isReturn ? dashedId : solidId;
+                bool drawn;
+                var corner = new XYZ(p1.X, p0.Y, 0);
+                if (Math.Abs(p0.X - p1.X) < 1e-9 || Math.Abs(p0.Y - p1.Y) < 1e-9)
+                    drawn = TryDrawDetailLine(doc, view, p0, p1, style, result);
+                else
+                    drawn = TryDrawDetailLine(doc, view, p0, corner, style, result)
+                          & TryDrawDetailLine(doc, view, corner, p1, style, result);
+                if (!drawn) continue;
+                foreach (var id in new[] { seg.From }.Concat(seg.Through).Concat(new[] { seg.To }))
+                    if (net.ById.TryGetValue(id, out var n) && n.IsPipeElement) drawnPipes.Add(id);
 
-                if (opts.ShowDnLabels && edge.DnMm > 0)
+                if (segLabels.TryGetValue(seg, out var lbl))
                 {
-                    var mid = new XYZ((p0.X + p1.X) / 2.0 + 0.4 * MmToFt * 100,
-                                      (p0.Y + p1.Y) / 2.0, 0);
-                    string label = $"DN{(int)Math.Round(edge.DnMm)}";
-                    if (opts.ShowPressureLabels && edge.To.PressureKpa > 0)
-                        label += $"\n{edge.To.PressureKpa:F0} kPa";
-                    TryPlaceTextNote(doc, view, mid, label,
-                        textType?.Id ?? ElementId.InvalidElementId, result);
+                    XYZ at = Math.Abs(p0.Y - p1.Y) > 1e-9
+                        ? new XYZ(p1.X + P(2), (p0.Y + p1.Y) / 2.0 + P(labelH / 2), 0)   // beside the vertical leg
+                        : new XYZ((p0.X + p1.X) / 2.0, p0.Y + P(labelH + 1), 0);         // above the horizontal run
+                    TryPlaceTextNote(doc, view, at, lbl, textType?.Id ?? ElementId.InvalidElementId, result);
                 }
             }
+            result.PipesDrawn = drawnPipes.Count;
 
             // 7. Draw node markers (fixtures, PRVs, meters, pumps)
-            foreach (var node in net.Nodes)
+            foreach (var kv in coords)
             {
-                if (!coords.TryGetValue(node.Id.Value, out var p)) continue;
-                string sym = NodeSymbol(doc, node);
+                if (!net.ById.TryGetValue(kv.Key, out var node)) continue;
+                var p = kv.Value;
+                string sym = Sym(node);
                 if (string.IsNullOrEmpty(sym)) continue;
 
                 if (opts.ShowAccessorySymbols)
@@ -191,20 +304,16 @@ namespace StingTools.Core.Plumbing
                     if (!placed)
                     {
                         // Fall back to geometric glyph
-                        DrawSymbol(doc, view, p, sym, solidId, result);
+                        DrawSymbol(doc, view, p, sym, P(3), solidId, result);
                     }
                     if (sym == "FX") result.FixturesDrawn++;
                     else             result.AccessoriesDrawn++;
                 }
 
-                if (opts.ShowDnLabels)
-                {
-                    string lbl = NodeLabel(node, sym);
-                    if (!string.IsNullOrEmpty(lbl))
-                        TryPlaceTextNote(doc, view,
-                            new XYZ(p.X + 1.2 * MmToFt * 100, p.Y, 0), lbl,
-                            textType?.Id ?? ElementId.InvalidElementId, result);
-                }
+                if (nodeLabels.TryGetValue(kv.Key, out var lbl))
+                    TryPlaceTextNote(doc, view,
+                        new XYZ(p.X + P(LabelOffsetMm), p.Y + P(labelH / 2), 0), lbl,
+                        textType?.Id ?? ElementId.InvalidElementId, result);
             }
 
             // 8. DXF export (optional)
@@ -212,7 +321,7 @@ namespace StingTools.Core.Plumbing
             {
                 try
                 {
-                    string dir = ResolveExportDir(doc);
+                    string dir = ResolveExportDir(doc, out string why);
                     if (!string.IsNullOrEmpty(dir))
                     {
                         Directory.CreateDirectory(dir);
@@ -226,11 +335,12 @@ namespace StingTools.Core.Plumbing
                     }
                     else
                     {
-                        result.Warnings.Add("Project not saved — DXF export skipped.");
+                        result.Warnings.Add("DXF export skipped: " + why);
                     }
                 }
                 catch (Exception ex)
                 {
+                    StingLog.Warn($"SupplySchematic: DXF export: {ex.Message}");
                     result.Warnings.Add($"DXF export: {ex.Message}");
                 }
             }
@@ -240,44 +350,75 @@ namespace StingTools.Core.Plumbing
 
         // ── Layout ────────────────────────────────────────────────────────────
 
-        private static Dictionary<long, XYZ> LayoutNetwork(
-            PipeNetwork net, PipeNode inlet, SupplySchematicOptions opts)
+        // Rows per storey: a node sits at the nearest quarter storey above its level.
+        private const int    SubRowsPerStorey = 4;
+        private const double MinStoreyPaperMm = 16;
+        private const double LabelOffsetMm    = 4;
+
+        private sealed class SupplyLayout
         {
-            var coords = new Dictionary<long, XYZ>();
-            double dx = opts.BranchSpacingMm * MmToFt;
-            double dy = opts.LevelHeightMm   * MmToFt;
-
-            // BFS: row = depth from inlet, col = lateral offset (centred on the
-            // parent's column). Each (row, col) is multiplied by (dx, dy) to
-            // produce the final drafting-view coordinate.
-            var visited = new HashSet<long>();
-            var queue   = new Queue<(PipeNode node, int row, int col)>();
-            queue.Enqueue((inlet, 0, 0));
-
-            while (queue.Count > 0)
-            {
-                var (node, row, col) = queue.Dequeue();
-                if (visited.Contains(node.Id.Value)) continue;
-                visited.Add(node.Id.Value);
-                coords[node.Id.Value] = new XYZ(col * dx, row * dy, 0);
-
-                int childIx = 0;
-                var children = node.Upstream.Concat(node.Downstream)
-                    .Select(e => e.From == node ? e.To : e.From)
-                    .Where(n => n != null && !visited.Contains(n.Id.Value))
-                    .Distinct()
-                    .ToList();
-
-                foreach (var child in children)
-                {
-                    int childCol = children.Count == 1 ? col : col + childIx - children.Count / 2;
-                    queue.Enqueue((child, row + 1, childCol));
-                    childIx++;
-                }
-            }
-            return coords;
+            public Dictionary<long, (int Row, int Col)> Cells = new Dictionary<long, (int Row, int Col)>();
+            public List<ChainSegment> Segments = new List<ChainSegment>();
         }
 
+        /// <summary>
+        /// Cells of the nodes worth drawing — the source, branch points and ends, and
+        /// anything with a symbol — and the runs between them. A node with exactly two
+        /// neighbours and no symbol (a pipe, a coupling, an elbow) is passed through.
+        /// </summary>
+        private static SupplyLayout LayoutNetwork(PipeNetwork net, PipeNode inlet,
+            IReadOnlyList<double> levelElevs, SupplySchematicOptions opts, Func<PipeNode, string> sym)
+        {
+            var layout = new SupplyLayout();
+            IEnumerable<long> Nbrs(long id)
+            {
+                if (!net.ById.TryGetValue(id, out var n)) yield break;
+                foreach (var e in n.Upstream)   if (e.From != null) yield return e.From.Id.Value;
+                foreach (var e in n.Downstream) if (e.To   != null) yield return e.To.Id.Value;
+            }
+            bool Keep(long id)
+            {
+                if (!net.ById.TryGetValue(id, out var n)) return true;
+                return Nbrs(id).Distinct().Count() != 2 || !string.IsNullOrEmpty(sym(n));
+            }
+
+            long start = inlet.Id.Value;
+            layout.Segments = SchematicFit.CollapseChains(start, Nbrs, Keep);
+
+            double z0 = inlet.Position?.Z ?? 0;
+            double fallbackStoreyFt = Math.Max(1.0, opts.LevelHeightMm) * MmToFt;
+            int RowOf(long id)
+            {
+                double z = net.ById.TryGetValue(id, out var n) && n.Position != null ? n.Position.Z : z0;
+                return (int)Math.Round(SchematicFit.StoreyRow(levelElevs, z, fallbackStoreyFt) * SubRowsPerStorey);
+            }
+            layout.Cells = SchematicFit.LayoutTree(start, layout.Segments, RowOf);
+            return layout;
+        }
+
+        /// <summary>
+        /// DN label of a run: its pipes' DNs in order (each once), and the pressure at the
+        /// pipe nearest its far end. Null when every pipe in it was already labelled.
+        /// </summary>
+        private static string SegmentLabel(PipeNetwork net, ChainSegment seg, HashSet<long> labelledPipes,
+            bool showPressure, bool sourceAssumed)
+        {
+            var pipes = new[] { seg.From }.Concat(seg.Through).Concat(new[] { seg.To })
+                .Select(id => net.ById.TryGetValue(id, out var n) ? n : null)
+                .Where(n => n != null && n.IsPipeElement && n.DnMm > 0)
+                .ToList();
+            var fresh = pipes.Where(n => labelledPipes.Add(n.Id.Value)).ToList();
+            if (fresh.Count == 0) return null;
+            var dns = new List<int>();
+            foreach (var n in fresh)
+            {
+                int dn = (int)Math.Round(n.DnMm);
+                if (dns.Count == 0 || dns[dns.Count - 1] != dn) dns.Add(dn);
+            }
+            string label = "DN" + string.Join("/", dns);
+            string kpa = showPressure ? SchematicLayoutMath.PressureLabel(fresh[fresh.Count - 1].PressureKpa, true, sourceAssumed) : null;
+            return kpa != null ? label + "\n" + kpa : label;
+        }
         // ── Node classification + symbol mapping ──────────────────────────────
 
         private static string NodeSymbol(Document doc, PipeNode node)
@@ -306,19 +447,32 @@ namespace StingTools.Core.Plumbing
                     }
                 }
             }
-            catch { }
+            catch (Exception ex) { StingLog.Warn($"SupplySchematic: classify node {node.Id}: {ex.Message}"); }
             return null;
         }
 
-        private static string NodeLabel(PipeNode node, string sym)
+        private static string SourceName(string sym, PipeNode node)
         {
             switch (sym)
             {
-                case "PRV": return node.PressureKpa > 0 ? $"PRV ({node.PressureKpa:F0} kPa)" : "PRV";
+                case "MTR": return "water meter";
+                case "TK":  return "tank";
+                case "PMP": return "pump";
+                default:    return node.Type == PipeNodeType.Equipment ? "equipment" : "node";
+            }
+        }
+
+        private static string NodeLabel(PipeNode node, string sym, bool showPressure, bool sourceAssumed)
+        {
+            string kpa = showPressure ? SchematicLayoutMath.PressureLabel(node.PressureKpa, true, sourceAssumed) : null;
+            string With(string name) => kpa != null ? $"{name} ({kpa})" : name;
+            switch (sym)
+            {
+                case "PRV": return With("PRV");
                 case "MTR": return "WM";
-                case "PMP": return node.PressureKpa > 0 ? $"PUMP ({node.PressureKpa:F0} kPa)" : "PUMP";
+                case "PMP": return With("PUMP");
                 case "TK":  return "TANK";
-                case "FX":  return node.PressureKpa > 0 ? $"FX ({node.PressureKpa:F0} kPa)" : "FX";
+                case "FX":  return With("FX");
                 case "CK":  return "CV";
                 case "V":   return "V";
                 default:    return "";
@@ -327,18 +481,32 @@ namespace StingTools.Core.Plumbing
 
         // ── Drawing primitives ────────────────────────────────────────────────
 
-        private static void TryDrawDetailLine(Document doc, View view, XYZ p0, XYZ p1,
+        /// <summary>Draws one detail line; true only when it was created.</summary>
+        private static bool TryDrawDetailLine(Document doc, View view, XYZ p0, XYZ p1,
             ElementId styleId, SupplySchematicResult r)
         {
             try
             {
-                if (p0.DistanceTo(p1) < 1e-6) return;
+                if (p0.DistanceTo(p1) < 1e-6) return false;
                 var line = Line.CreateBound(p0, p1);
                 var dc = doc.Create.NewDetailCurve(view, line);
                 if (styleId != null && styleId != ElementId.InvalidElementId)
-                    dc.LineStyle = doc.GetElement(styleId) as GraphicsStyle;
+                {
+                    try { dc.LineStyle = doc.GetElement(styleId) as GraphicsStyle; }
+                    catch (Exception ex)
+                    {
+                        StingLog.Warn($"SupplySchematic: line style: {ex.Message}");
+                        if (r.Warnings.Count < 20) r.Warnings.Add($"A line was drawn without its line style: {ex.Message}");
+                    }
+                }
+                return true;
             }
-            catch (Exception ex) { r.Warnings.Add($"detail line: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SupplySchematic: detail line failed: {ex.Message}");
+                r.Warnings.Add($"detail line: {ex.Message}");
+                return false;
+            }
         }
 
         private static void TryPlaceTextNote(Document doc, View view, XYZ p, string text,
@@ -352,16 +520,20 @@ namespace StingTools.Core.Plumbing
                 if (typeId == null || typeId == ElementId.InvalidElementId) return;
                 TextNote.Create(doc, view.Id, p, text, typeId);
             }
-            catch (Exception ex) { r.Warnings.Add($"text note: {ex.Message}"); }
+            catch (Exception ex)
+            {
+                StingLog.Warn($"SupplySchematic: text note failed: {ex.Message}");
+                r.Warnings.Add($"text note: {ex.Message}");
+            }
         }
 
         private static void DrawSymbol(Document doc, View view, XYZ centre, string sym,
-            ElementId styleId, SupplySchematicResult r)
+            double sizeFt, ElementId styleId, SupplySchematicResult r)
         {
-            // Compact glyph: a small square (60 mm × 60 mm) per symbol, drawn
-            // with detail lines so it works on any project without bespoke
-            // detail families.
-            double h = 60 * MmToFt / 2.0;
+            // Compact glyph: a small square per symbol (sizeFt = paper mm × view
+            // scale), drawn with detail lines so it works on any project without
+            // bespoke detail families.
+            double h = sizeFt / 2.0;
             var tl = new XYZ(centre.X - h, centre.Y + h, 0);
             var tr = new XYZ(centre.X + h, centre.Y + h, 0);
             var br = new XYZ(centre.X + h, centre.Y - h, 0);
@@ -466,45 +638,40 @@ namespace StingTools.Core.Plumbing
             return (solid, dashed == ElementId.InvalidElementId ? solid : dashed);
         }
 
-        private static TextNoteType FindOrCreateTextType(Document doc, double heightMm)
+        /// <summary>The view's name: one per classification and system filter, so a re-run reuses it.</summary>
+        internal static string ViewName(SupplySchematicOptions opts)
         {
-            try
-            {
-                return new FilteredElementCollector(doc).OfClass(typeof(TextNoteType))
-                    .Cast<TextNoteType>().FirstOrDefault();
-            }
-            catch { return null; }
+            bool dcwOnly = opts?.Classifications != null && opts.Classifications.Length == 1
+                        && opts.Classifications[0] == PipeSystemType.DomesticColdWater;
+            return "STING - Supply Schematic" + (dcwOnly ? " DCW" : "")
+                 + (string.IsNullOrWhiteSpace(opts?.SystemNameFilter) ? "" : " " + opts.SystemNameFilter.Trim());
         }
 
-        private static string UniqueViewName(Document doc, string baseName)
+        /// <summary>
+        /// The project's routed DXF export folder, or null with the real reason in
+        /// <paramref name="why"/> (not a blanket "project not saved").
+        /// </summary>
+        private static string ResolveExportDir(Document doc, out string why)
         {
+            why = null;
+            if (string.IsNullOrEmpty(doc?.PathName))
+            {
+                why = "the project has not been saved, so it has no export folder.";
+                return null;
+            }
             try
             {
-                var existing = new HashSet<string>(
-                    new FilteredElementCollector(doc).OfClass(typeof(View))
-                    .Cast<View>().Select(v => v.Name ?? ""),
-                    StringComparer.OrdinalIgnoreCase);
-                if (!existing.Contains(baseName)) return baseName;
-                for (int i = 2; i < 1000; i++)
-                {
-                    var candidate = $"{baseName} ({i})";
-                    if (!existing.Contains(candidate)) return candidate;
-                }
+                string dir = StingPaths.Export(doc, "DXF");
+                if (string.IsNullOrEmpty(dir))
+                    why = "no export folder could be resolved for DXF.";
+                return dir;
             }
-            catch { }
-            return baseName + " " + DateTime.UtcNow.Ticks;
-        }
-
-        private static string ResolveExportDir(Document doc)
-        {
-            try
+            catch (Exception ex)
             {
-                if (string.IsNullOrEmpty(doc?.PathName)) return null;
-                var dir = global::StingTools.Core.StingPaths.ModelDir(doc);
-                if (string.IsNullOrEmpty(dir)) return null;
-                return StingPaths.MetaFile(doc, "_BIM_COORD", "exports");
+                StingLog.Warn($"SupplySchematic: resolving the DXF export folder: {ex.Message}");
+                why = $"the DXF export folder could not be resolved: {ex.Message}";
+                return null;
             }
-            catch { return null; }
         }
 
         private static string Sanitise(string s)

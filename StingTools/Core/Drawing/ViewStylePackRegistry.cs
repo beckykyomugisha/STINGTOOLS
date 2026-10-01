@@ -117,6 +117,13 @@ namespace StingTools.Core.Drawing
                 if (_cache.ContainsKey(key)) _cache.Remove(key);
                 if (_resolvedCache.ContainsKey(key)) _resolvedCache.Remove(key);
             }
+            // DTW-2: downstream caches hold packs (or ids derived from them)
+            // resolved against the library just dropped. Without this, an edited
+            // pack never reached its STING:* managed template in-session.
+            try { ManagedTemplateSyncer.InvalidateCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ViewStylePackRegistry.Reload: managed-template cache not cleared -- pack edits may not reach STING:* templates: {ex.Message}"); }
+            try { DrawingTypePresentation.InvalidatePackCache(doc); }
+            catch (Exception ex) { StingTools.Core.StingLog.Warn($"ViewStylePackRegistry.Reload: pack cache not cleared -- stale pack resolution possible: {ex.Message}"); }
             // Phase 183 — snapshot + diff so Inspect / SyncStyles can
             // surface pack edits to the user. See LiveProfileSync.
             try { LiveProfileSync.OnRegistryReloaded(doc); }

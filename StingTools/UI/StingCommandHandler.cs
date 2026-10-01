@@ -2765,6 +2765,19 @@ namespace StingTools.UI
                         RunCommand<Core.WorkflowPresetCommand>(app);
                         break;
                     }
+                    // Data/WORKFLOW_*.json presets on the SETUP quick-workflow combo. Their
+                    // "name" is the tag suffix verbatim; the space reconstruction above
+                    // would turn "MEPDrawingSetup" into "MEPDrawing Setup", which matches
+                    // no preset and falls through to the picker.
+                    case "RunWorkflow_MEPDrawingSetup":
+                    case "RunWorkflow_MEPDrawingProduction":
+                    case "RunWorkflow_MEPPreIssue":
+                    case "RunWorkflow_RevisionIssue":
+                    {
+                        SetExtraParam("WorkflowPresetName", tag.Substring("RunWorkflow_".Length));
+                        RunCommand<Core.WorkflowPresetCommand>(app);
+                        break;
+                    }
                     case "SaveExtendedBaseline":
                     {
                         var d = app.ActiveUIDocument?.Document;
@@ -6605,11 +6618,11 @@ namespace StingTools.UI
                         if (!vpOk)  { missingVp++;  miss.Add($"  {t.Id}  →  viewport type '{t.ViewportTypeName}'"); }
                     }
                 }
-                TaskDialog.Show("Drawing Types — Sync Styles",
+                TaskDialog.Show("Drawing Types — Audit Style Refs",
                     $"OK: {ok}\nMissing view templates: {missingTpl}\nMissing viewport types: {missingVp}\n\n" +
                     (miss.Count == 0 ? "All references resolved." : string.Join("\n", miss.Take(40))));
             }
-            catch (Exception ex) { StingLog.Error("DrawingTypes_SyncStyles", ex); }
+            catch (Exception ex) { StingLog.Error("DrawingTypes_AuditStyleRefs", ex); }
         }
 
         private static void DrawingTypesFromScopeBoxesInline(UIApplication app)

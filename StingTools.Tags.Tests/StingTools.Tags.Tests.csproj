@@ -59,12 +59,14 @@
          Document-keyed cache) is NOT linked, it is the Revit-bound half.
          TestHelpers/StingLogShim.cs is picked up by the SDK's default Compile glob. -->
     <Compile Include="..\StingTools\Core\TagTokenPolicy.cs" Link="Core\TagTokenPolicy.cs" />
+    <Compile Include="..\StingTools\Core\TokenConfidenceBands.cs" Link="Core\TokenConfidenceBands.cs" />
     <!-- Numeric text extracted from a Revit value string. Revit-free: the culture and
          separator cases are exactly the ones that look obvious and are not. -->
     <Compile Include="..\StingTools\Core\UnitValueText.cs" Link="Core\UnitValueText.cs" />
     <Compile Include="..\StingTools\Core\CoordLogFormat.cs" Link="Core\CoordLogFormat.cs" />
     <Compile Include="..\StingTools\Core\CloudProjectRoot.cs" Link="Core\CloudProjectRoot.cs" />
     <Compile Include="..\StingTools\Core\WorksharedProjectRoot.cs" Link="Core\WorksharedProjectRoot.cs" />
+    <Compile Include="..\StingTools\Core\ConfigFileMerge.cs" Link="Core\ConfigFileMerge.cs" />
     <!-- Why a family refuses to load into a project. Revit-free half only: the
          collectors that read a FamilyManager and a Document live in
          Tags/SharedParamPreflight.cs. The comparison is here because every
@@ -201,6 +203,8 @@
     <Compile Include="..\StingTools\Core\Drawing\SheetDisciplineConfig.cs" Link="Core\Drawing\SheetDisciplineConfig.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetFormResolver.cs" Link="Core\Drawing\SheetFormResolver.cs" />
     <Compile Include="..\StingTools\Core\Drawing\IsoLevelCode.cs" Link="Core\Drawing\IsoLevelCode.cs" />
+    <!-- DTW-129: the sheet level stamp takes the code the ISO sheet number takes. -->
+    <Compile Include="..\StingTools\Core\Drawing\SheetLevelCode.cs" Link="Core\Drawing\SheetLevelCode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTidy.cs" Link="Core\Drawing\SheetNumberTidy.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Iso19650Suitability.cs" Link="Core\Drawing\Iso19650Suitability.cs" />
     <!-- Export discipline sub-folder matching (A -> A_Architectural). Revit-free. -->
@@ -209,6 +213,9 @@
     <Compile Include="..\StingTools\Core\Drawing\AnnotationProvenance.cs" Link="Core\Drawing\AnnotationProvenance.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagSizeVariant.cs" Link="Core\Drawing\TagSizeVariant.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TagRuleIdentity.cs" Link="Core\Drawing\TagRuleIdentity.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SpatialTagRouting.cs" Link="Core\Drawing\SpatialTagRouting.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\Dimensioning\GridChainGeometry.cs" Link="Core\Drawing\Dimensioning\GridChainGeometry.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\Dimensioning\MepRunPlanning.cs" Link="Core\Drawing\Dimensioning\MepRunPlanning.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewFamilyTypeChoice.cs" Link="Core\Drawing\ViewFamilyTypeChoice.cs" />
     <Compile Include="..\StingTools\Core\Drawing\FaceChoice.cs" Link="Core\Drawing\FaceChoice.cs" />
     <Compile Include="..\StingTools\Core\Drawing\MaterialCalloutPlan.cs" Link="Core\Drawing\MaterialCalloutPlan.cs" />
@@ -219,6 +226,7 @@
          TitleBlockParamApplier / TitleBlockResolver / TitleBlockFactory. -->
     <Compile Include="..\StingTools\Core\Drawing\TitleBlockTemplate.cs" Link="Core\Drawing\TitleBlockTemplate.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TitleBlockFamilyNaming.cs" Link="Core\Drawing\TitleBlockFamilyNaming.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\TitleBlockParamAliases.cs" Link="Core\Drawing\TitleBlockParamAliases.cs" />
     <Compile Include="..\StingTools\Core\Drawing\TitleBlockSeedRemap.cs" Link="Core\Drawing\TitleBlockSeedRemap.cs" />
     <!-- The annotation rule-kind vocabulary + the sheet-number policy + the
          style-pack routing predicate. All three are Revit-free on purpose, so
@@ -244,14 +252,20 @@
     <Compile Include="..\StingTools\Core\Drawing\AnnotationRuleResolution.cs" Link="Core\Drawing\AnnotationRuleResolution.cs" />
     <Compile Include="..\StingTools\Core\Drawing\RevitCategoryTree.cs" Link="Core\Drawing\RevitCategoryTree.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberPolicy.cs" Link="Core\Drawing\SheetNumberPolicy.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SlotViewTypeCompatibility.cs" Link="Core\Drawing\SlotViewTypeCompatibility.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ExteriorElevationTags.cs" Link="Core\Drawing\ExteriorElevationTags.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberEngine.cs" Link="Core\Drawing\SheetNumberEngine.cs" />
     <Compile Include="..\StingTools\Core\Drawing\SheetNumberTokens.cs" Link="Core\Drawing\SheetNumberTokens.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\DrawingQaRules.cs" Link="Core\Drawing\DrawingQaRules.cs" />
     <Compile Include="..\StingTools\BIMManager\ExportRegisterUpsert.cs" Link="BIMManager\ExportRegisterUpsert.cs" />
     <Compile Include="..\StingTools\BIMManager\TransmittalRecord.cs" Link="BIMManager\TransmittalRecord.cs" />
     <Compile Include="..\StingTools\Core\Drawing\AnnotationPackLayering.cs" Link="Core\Drawing\AnnotationPackLayering.cs" />
     <Compile Include="..\StingTools\Core\Drawing\RuleFamilyFilter.cs" Link="Core\Drawing\RuleFamilyFilter.cs" />
     <Compile Include="..\StingTools\Core\Drawing\Utf8Mojibake.cs" Link="Core\Drawing\Utf8Mojibake.cs" />
     <Compile Include="..\StingTools\Core\Plumbing\InvertMath.cs" Link="Core\Plumbing\InvertMath.cs" />
+    <!-- Drainage / supply schematic rules: real stacks, real vents, Level labels,
+         paper-scaled glyphs, collision-free layout, honest pressure labels. -->
+    <Compile Include="..\StingTools\Core\Plumbing\SchematicLayoutMath.cs" Link="Core\Plumbing\SchematicLayoutMath.cs" />
     <!-- D-7: the purpose -> view-kind table. DrawingProducer and
          GenerateFromScopeBoxesCommand call this same file, so
          DrawingPurposeViewKindTests exercises the code that runs in Revit. -->
@@ -265,6 +279,8 @@
          DrawingCatalogueGateTests gates the shipped JSON with runtime code. -->
     <Compile Include="..\StingTools\Core\Drawing\DrawingRoutingMatcher.cs" Link="Core\Drawing\DrawingRoutingMatcher.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingRouteRequests.cs" Link="Core\Drawing\DrawingRouteRequests.cs" />
+    <!-- Board name + per-board sheet keys. PanelViewSchedule and PanelDoorDiagram call this same file. -->
+    <Compile Include="..\StingTools\Core\Drawing\BoardNaming.cs" Link="Core\Drawing\BoardNaming.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingSlotGeometry.cs" Link="Core\Drawing\DrawingSlotGeometry.cs" />
     <!-- Scope-box planner: grammar, sizing, seed choice, tiling, saved plan and colours.
          ScopeBoxPlannerDialog and the ScopeBox_* commands call these same files. -->
@@ -277,6 +293,8 @@
     <Compile Include="..\StingTools\Core\Drawing\MatchLineGeometry.cs" Link="Core\Drawing\MatchLineGeometry.cs" />
     <!-- "Duplicate as Dependent" decisions. DrawingProducer calls this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\DependentViewPlanner.cs" Link="Core\Drawing\DependentViewPlanner.cs" />
+    <!-- DTW-114: which annotation passes production runs on a new / already-produced view. -->
+    <Compile Include="..\StingTools\Core\Drawing\ProductionAnnotationPolicy.cs" Link="Core\Drawing\ProductionAnnotationPolicy.cs" />
     <!-- Production commands' inputs inside a workflow preset. The Produce commands call this same file. -->
     <Compile Include="..\StingTools\Core\Drawing\HeadlessProductionInputs.cs" Link="Core\Drawing\HeadlessProductionInputs.cs" />
     <Compile Include="..\StingTools\Core\Drawing\DrawingTypeActions.cs" Link="Core\Drawing\DrawingTypeActions.cs" />
@@ -290,12 +308,39 @@
     <Compile Include="..\StingTools\Core\Drawing\TemporaryBaseViews.cs" Link="Core\Drawing\TemporaryBaseViews.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ExistingViewPlacement.cs" Link="Core\Drawing\ExistingViewPlacement.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ViewContextTag.cs" Link="Core\Drawing\ViewContextTag.cs" />
+    <!-- fix/dt-producers: the Revit-free decisions behind the producers (level segment,
+         context identity, batch name ledger, unique view name, section from box, match-line
+         upkeep, link levels, elevation faces). DrawingProducer and the commands call these files. -->
+    <Compile Include="..\StingTools\Core\Drawing\LevelSegmentResolver.cs" Link="Core\Drawing\LevelSegmentResolver.cs" />
+    <!-- DTW-99: which (drawing type, level) pairs a scope box already produces. -->
+    <Compile Include="..\StingTools\Core\Drawing\PerLevelBoxCoverage.cs" Link="Core\Drawing\PerLevelBoxCoverage.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ProductionContextKey.cs" Link="Core\Drawing\ProductionContextKey.cs" />
+    <!-- DTW-118/123: the ids read back out of a context stamp. -->
+    <Compile Include="..\StingTools\Core\Drawing\ProductionContextIds.cs" Link="Core\Drawing\ProductionContextIds.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\BatchNameLedger.cs" Link="Core\Drawing\BatchNameLedger.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\BatchScopeDepth.cs" Link="Core\Drawing\BatchScopeDepth.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ViewNameUniquifier.cs" Link="Core\Drawing\ViewNameUniquifier.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\SectionFromBox.cs" Link="Core\Drawing\SectionFromBox.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\MatchLineUpkeep.cs" Link="Core\Drawing\MatchLineUpkeep.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ElevationFaces.cs" Link="Core\Drawing\ElevationFaces.cs" />
+    <Compile Include="..\StingTools\Core\Mep\LinkLevelMapper.cs" Link="Core\Mep\LinkLevelMapper.cs" />
+    <Compile Include="..\StingTools\Core\LevelSnapBand.cs" Link="Core\LevelSnapBand.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\LevelMapCacheKey.cs" Link="Core\Drawing\LevelMapCacheKey.cs" />
+    <Compile Include="..\StingTools\Core\Drawing\ScopeBoxNameAudit.cs" Link="Core\Drawing\ScopeBoxNameAudit.cs" />
+    <!-- DTW-122: skip-empty-levels counts linked models for non-MEP plans. -->
+    <Compile Include="..\StingTools\Core\Mep\LinkedModelLevels.cs" Link="Core\Mep\LinkedModelLevels.cs" />
+    <!-- DTW-112: the DWG fixture bridge's re-run dedup. -->
+    <Compile Include="..\StingTools\Core\Placement\DwgCaptureDedup.cs" Link="Core\Placement\DwgCaptureDedup.cs" />
     <Compile Include="..\StingTools\Core\Panels\PanelSheetPlacementMode.cs" Link="Core\Panels\PanelSheetPlacementMode.cs" />
     <!-- Revit-free halves of fix/review-six: Seeds_Build's preset mode, and which stamped
          sheets Produce & Export covers. -->
     <Compile Include="..\StingTools\Core\Symbols\SeedBuildPresetMode.cs" Link="Core\Symbols\SeedBuildPresetMode.cs" />
     <Compile Include="..\StingTools\Core\Drawing\ExportSheetScope.cs" Link="Core\Drawing\ExportSheetScope.cs" />
     <Compile Include="..\StingTools\Core\StepMessage.cs" Link="Core\StepMessage.cs" />
+    <!-- Inputs a command reads from a workflow step's params instead of a dialog
+         (Place Fixtures, Auto-drop, the Calc_* / Cable commands, sprinkler hydraulics,
+         BOQ and COBie export). Those commands call this same file. -->
+    <Compile Include="..\StingTools\Core\PresetStepInputs.cs" Link="Core\PresetStepInputs.cs" />
     <None Include="..\StingTools\Data\STING_DRAWING_TYPES.json" Link="Data\STING_DRAWING_TYPES.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -408,6 +453,8 @@
     <Compile Include="..\StingTools\Commands\Electrical\Export\CimIdAllocator.cs" Link="Commands\Electrical\Export\CimIdAllocator.cs" />
     <!-- CAD-2: interactive DWG pickers + type factory width matching (Revit-free half). -->
     <Compile Include="..\StingTools\Model\DwgPickGeometry.cs" Link="Model\DwgPickGeometry.cs" />
+    <!-- P3: which MEP disciplines one element counts towards (LevelsByDiscipline's single pass). -->
+    <Compile Include="..\StingTools\Core\Mep\MepPresenceClassifier.cs" Link="Core\Mep\MepPresenceClassifier.cs" />
   </ItemGroup>
 
 </Project>

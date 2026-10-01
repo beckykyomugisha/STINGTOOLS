@@ -358,12 +358,18 @@ namespace StingTools.BIMManager
         /// <summary>Load the most recent snapshot from disk.</summary>
         internal static Dictionary<long, Dictionary<string, string>> LoadLatestSnapshot(Document doc)
         {
-            string dir = GetRevisionDir(doc);
-            var files = Directory.GetFiles(dir, "snapshot_*.json")
-                .OrderByDescending(f => File.GetLastWriteTime(f))
-                .ToList();
+            var files = ListSnapshotFilesNewestFirst(doc);
             if (files.Count == 0) return null;
             return LoadSnapshotFile(files[0]);
+        }
+
+        /// <summary>Saved tag snapshot files, newest first.</summary>
+        internal static List<string> ListSnapshotFilesNewestFirst(Document doc)
+        {
+            string dir = GetRevisionDir(doc);
+            return Directory.GetFiles(dir, "snapshot_*.json")
+                .OrderByDescending(f => File.GetLastWriteTime(f))
+                .ToList();
         }
 
         internal static Dictionary<long, Dictionary<string, string>> LoadSnapshotFile(string path)
@@ -1146,27 +1152,6 @@ namespace StingTools.BIMManager
                 var doc = _ctx.Doc;
                 var view = doc.ActiveView;
 
-                // Load previous snapshot
-                var prevSnapshot = RevisionEngine.LoadLatestSnapshot(doc);
-                if (prevSnapshot == null)
-                {
-                    PresetDialog.Show("StingTools Auto Revision Cloud",
-                        "No previous tag snapshot found.\n\n" +
-                        "Use 'Create Revision' first to take a baseline snapshot.", ref message);
-                    return Result.Succeeded;
-                }
-
-                // Take current snapshot
-                var currentSnapshot = RevisionEngine.TakeTagSnapshot(doc);
-                var changes = RevisionEngine.CompareSnapshots(prevSnapshot, currentSnapshot);
-
-                if (changes.Count == 0)
-                {
-                    PresetDialog.Show("StingTools Auto Revision Cloud",
-                        "No tag changes detected since last snapshot.", ref message);
-                    return Result.Succeeded;
-                }
-
                 // Get the latest revision to associate clouds with
                 var latestRevision = new FilteredElementCollector(doc)
                     .OfClass(typeof(Revision))
@@ -1178,6 +1163,45 @@ namespace StingTools.BIMManager
                 {
                     PresetDialog.Show("StingTools Auto Revision Cloud",
                         "No revisions exist. Create a revision first.", ref message);
+                    return Result.Succeeded;
+                }
+                string latestRevNum = "";
+                try { latestRevNum = latestRevision.RevisionNumber ?? ""; }
+                catch (Exception rnEx) { StingLog.Warn($"AutoRevisionCloud revision number read: {rnEx.Message}"); }
+
+                // Pick the baseline snapshot. Standalone ("latest", the default) it is
+                // the newest snapshot — normally the one Create Revision took when this
+                // revision was opened. The RevisionIssue preset runs Create Revision
+                // immediately before this step and passes baseline = "previous", so
+                // the new revision's own (identical) snapshot is skipped and the
+                // previous revision's baseline is used — see RevisionSnapshotBaseline.
+                var snapshotFiles = RevisionEngine.ListSnapshotFilesNewestFirst(doc);
+                int baseIdx = RevisionSnapshotBaseline.Pick(snapshotFiles,
+                    WorkflowEngine.StepParam("baseline"), latestRevNum, out string baseReason);
+                if (baseIdx < 0 && baseReason.StartsWith("unknown baseline", StringComparison.Ordinal))
+                {
+                    // A mistyped step param is an error, never a silent "no changes".
+                    message = $"Auto Revision Cloud: {baseReason}.";
+                    StingLog.Warn(message);
+                    return Result.Failed;
+                }
+                if (baseIdx < 0)
+                {
+                    PresetDialog.Show("StingTools Auto Revision Cloud",
+                        $"No baseline to compare against: {baseReason}.", ref message);
+                    return Result.Succeeded;
+                }
+                StingLog.Info($"AutoRevisionCloud baseline: {baseReason}");
+                var prevSnapshot = RevisionEngine.LoadSnapshotFile(snapshotFiles[baseIdx]);
+
+                // Take current snapshot
+                var currentSnapshot = RevisionEngine.TakeTagSnapshot(doc);
+                var changes = RevisionEngine.CompareSnapshots(prevSnapshot, currentSnapshot);
+
+                if (changes.Count == 0)
+                {
+                    PresetDialog.Show("StingTools Auto Revision Cloud",
+                        $"No tag changes detected against the baseline — {baseReason}.", ref message);
                     return Result.Succeeded;
                 }
 
@@ -1563,23 +1587,32 @@ namespace StingTools.BIMManager
                     .Where(c => c.RevisionId == targetRev.Id)
                     .ToList();
 
+                // A cloud lives either in a view placed on a sheet (OwnerViewId = that
+                // view) or directly on the sheet (OwnerViewId = the sheet). The second
+                // case used to be missed, and the plan then fell back to every
+                // STING-stamped sheet. Map view → sheet(s) once (a legend can sit on
+                // several sheets) instead of walking every viewport per cloud.
+                var sheetIds = new HashSet<ElementId>(sheets.Select(s => s.Id));
+                var sheetsByView = new Dictionary<ElementId, List<ElementId>>();
+                foreach (var sheet in sheets)
+                {
+                    foreach (ElementId vpId in sheet.GetAllViewports())
+                    {
+                        if (!(doc.GetElement(vpId) is Viewport vp)) continue;
+                        if (!sheetsByView.TryGetValue(vp.ViewId, out var list))
+                            sheetsByView[vp.ViewId] = list = new List<ElementId>();
+                        list.Add(sheet.Id);
+                    }
+                }
+
                 var sheetsWithClouds = new HashSet<ElementId>();
                 foreach (var cloud in clouds)
                 {
-                    if (cloud.OwnerViewId != ElementId.InvalidElementId)
-                    {
-                        // Find which sheet this view is on
-                        foreach (var sheet in sheets)
-                        {
-                            var vpIds = sheet.GetAllViewports();
-                            foreach (ElementId vpId in vpIds)
-                            {
-                                var vp = doc.GetElement(vpId) as Viewport;
-                                if (vp != null && vp.ViewId == cloud.OwnerViewId)
-                                    sheetsWithClouds.Add(sheet.Id);
-                            }
-                        }
-                    }
+                    var owner = cloud.OwnerViewId;
+                    if (owner == null || owner == ElementId.InvalidElementId) continue;
+                    if (sheetIds.Contains(owner)) { sheetsWithClouds.Add(owner); continue; }
+                    if (sheetsByView.TryGetValue(owner, out var onSheets))
+                        foreach (var sid in onSheets) sheetsWithClouds.Add(sid);
                 }
 
                 // BCC inline form: "IssueSheetsForRevision|A-001,A-100|2026-07-19|S1"
@@ -1738,7 +1771,18 @@ namespace StingTools.BIMManager
                     // Mark revision as issued
                     targetRev.Issued = true;
 
-                    tx.Commit();
+                    // Count only what Revit kept. A commit that fails or is rolled
+                    // back by a failure handler leaves the sheets and the revision
+                    // untouched, so reporting "N sheets issued" would be false.
+                    var status = tx.Commit();
+                    if (status != TransactionStatus.Committed)
+                    {
+                        message = $"Revision {revNum} not issued: the transaction ended {status} " +
+                            "(Revit rolled it back — see the warnings it reported).";
+                        StingLog.Warn($"IssueSheets: {message}");
+                        if (!PresetDialog.Quiet) TaskDialog.Show("StingTools Issue Sheets", message);
+                        return Result.Failed;
+                    }
                 }
 
                 // Refresh title blocks at the exact moment sheets are issued, so
