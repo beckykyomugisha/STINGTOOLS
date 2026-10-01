@@ -82,7 +82,12 @@ namespace StingTools.Acc.Tests
         {
             Assert.False(AccOperatingPolicy.Interactive().SevenFieldNaming);                        // no settings file
             Assert.False(Load("{\"unattended\":false}").SevenFieldNaming);                           // settings, no ACC project
-            Assert.True(Load("{\"projectId\":\"b.1\"}").SevenFieldNaming);                           // ACC configured
+            // H-4: ACC configured but no attributes -> 9-field, so suitability/revision stay in the name.
+            Assert.False(Load("{\"projectId\":\"b.1\"}").SevenFieldNaming);
+            Assert.True(Load("{\"projectId\":\"b.1\",\"docsAttributes\":true}").SevenFieldNaming);   // they travel as attributes
+            Assert.True(Load("{\"projectId\":\"b.1\",\"fileNamingFields\":7}").SevenFieldNaming);     // said explicitly: honoured
+            Assert.True(Load("{\"projectId\":\"b.1\",\"fileNamingFields\":7}").SevenFieldWithoutAttributes);   // ...and warned on
+            Assert.False(Load("{\"projectId\":\"b.1\",\"docsAttributes\":true}").SevenFieldWithoutAttributes);
             Assert.False(Load("{\"projectId\":\"b.1\",\"fileNamingFields\":9}").SevenFieldNaming);   // opted out
             Assert.True(Load("{\"fileNamingFields\":7}").SevenFieldNaming);
             var bad = Load("{\"fileNamingFields\":8}");

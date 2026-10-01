@@ -297,7 +297,7 @@ prompting, and the card shows *"could NOT be read (…carries key(s) this build 
 | `docsAttributes` | bool | **no** | Uploads stamp ISO 19650 metadata (document number, suitability, revision, CDE state, originator, transmittal) as ACC custom attributes (§3.4). Missing attributes are reported on the upload result |
 | `docsAttributesCreateMissing` | bool | **no** | Let STING create a missing attribute definition on the folder. Off: definitions are the ACC admin's |
 | `docsAttributeNames` | object `{documentNumber, suitability, revision, cdeState, originator, transmittalId → name}` | **no** | The ACC attribute names STING writes to (§3.4); a role not given keeps its default |
-| `fileNamingFields` | int `7` or `9` | **no** | 7 = ISO 19650 name only (suitability/revision travel as attributes); 9 = name carries them. Unset = 7 whenever ACC is configured (§3.3) |
+| `fileNamingFields` | int `7` or `9` | **no** | 7 = ISO 19650 name only (suitability/revision travel as attributes); 9 = name carries them. Unset = 7 only when ACC is configured AND `docsAttributes` is true (so suitability/revision always travel one way); otherwise 9. `ACC_SelfCheck` warns on 7 without attributes (§3.3) |
 | `uploadUnattended` | bool | **no** | May `ACC_UploadLastBundle` upload without a person confirming, on an unattended project? Off: opt-in twice (unattended AND this) |
 | `uploadAllowReissue` | bool | **no** | May `ACC_UploadModel` / `ACC_UploadLastBundle` send CHANGED content under a document number + revision already sent? Off (default): refused — revise the sheet. The Export Centre's equivalent is its profile option. An identical file is always skipped, never re-sent |
 | `escalateDueDays` | int ≥ 0 | **no** | Due date on escalated issues, in days from today |

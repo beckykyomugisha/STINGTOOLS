@@ -738,8 +738,14 @@ namespace StingTools.V6
                 const string title = "ISO 19650 custom attributes";
                 if (!_p.DocsAttributes)
                 {
-                    Add("6.2", title, AccCheckStatus.Skipped, "not checked: docsAttributes is off in the project's ACC settings, so uploads stamp no attributes.",
-                        "Nothing to do unless ISO 19650 metadata on ACC documents is required.");
+                    // H-4: with 7-field names AND no attributes, suitability and revision reach ACC nowhere.
+                    if (_p.SevenFieldWithoutAttributes)
+                        Add("6.2", title, AccCheckStatus.Warn,
+                            "fileNamingFields is 7 (file names WITHOUT suitability and revision) but docsAttributes is off, so uploads stamp no attributes either: issued documents will carry no suitability or revision anywhere in ACC.",
+                            "Set \"docsAttributes\": true (and create the attributes on the CDE folders, or set docsAttributesCreateMissing), or set \"fileNamingFields\": 9.");
+                    else
+                        Add("6.2", title, AccCheckStatus.Skipped, "not checked: docsAttributes is off in the project's ACC settings, so uploads stamp no attributes. File names carry suitability and revision (9-field).",
+                            "Nothing to do unless ISO 19650 metadata on ACC documents is required.");
                     return;
                 }
                 if (folders.Count == 0)

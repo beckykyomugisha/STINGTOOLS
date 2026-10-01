@@ -326,13 +326,23 @@ namespace StingTools.V6
 
         /// <summary>True when exports for this project should use the 7-field name and an ACC
         /// upload must refuse a name that embeds suitability/revision: said explicitly
-        /// (fileNamingFields 7), or — with the setting absent — whenever the project's ACC
-        /// settings are configured (a project, a folder or CDE folders), because an ACC item is
-        /// matched by file name and a revision-bearing name makes every revision a new item.</summary>
+        /// (fileNamingFields 7), or — with the setting absent — when the project's ACC settings
+        /// are configured (a project, a folder or CDE folders) AND <see cref="DocsAttributes"/> is
+        /// on, because an ACC item is matched by file name and a revision-bearing name makes every
+        /// revision a new item.
+        ///
+        /// H-4: the implied form used to ignore docsAttributes (default off), so saving a project
+        /// id on the ACC card dropped suitability and revision from every issued file name while
+        /// nothing stamped them as attributes either - an issued PDF carried them nowhere in ACC.
+        /// Now they always travel one way: in the name, or as attributes.</summary>
         public bool SevenFieldNaming =>
             FileNamingFields == 7 ||
-            (FileNamingFields == null && Source == AccPolicySource.Loaded &&
+            (FileNamingFields == null && Source == AccPolicySource.Loaded && DocsAttributes &&
              (ProjectId.Length > 0 || FolderUrn.Length > 0 || CdeFolders.Count > 0));
+
+        /// <summary>H-4: 7-field names asked for explicitly while nothing stamps the attributes -
+        /// suitability and revision then reach ACC nowhere. Self-check warns on it.</summary>
+        public bool SevenFieldWithoutAttributes => SevenFieldNaming && !DocsAttributes;
 
         /// <summary>Due date for an escalated clash issue, in days from today; null = none.</summary>
         public int? EscalateDueDays { get; private set; }
