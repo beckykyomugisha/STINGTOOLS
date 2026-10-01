@@ -820,8 +820,6 @@ namespace StingTools.Core.Drawing
 
                 try { view.Name = MakeUniqueViewName(doc, viewName, view.Id, result); }
                 catch (Exception ex) { result.Warnings.Add($"Naming view '{viewName}': {ex.Message} — it keeps Revit's default name."); }
-                if (rule.ScaleOverride.HasValue) try { view.Scale = rule.ScaleOverride.Value; } catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
-
                 var applyOpts = new DrawingTypePresentation.ApplyOptions
                 {
                     // DTW-28: the dialog's per-part annotation boxes (tags / dims /
@@ -832,11 +830,15 @@ namespace StingTools.Core.Drawing
                     // DTW-97: a new view with no depth of its own takes the type's section-marker
                     // far clip. Not on refresh (a depth someone adjusted stays) and not when the
                     // caller built the section box (CustomBounds carries its own depth).
-                    ApplyTypeFarClip = ctx?.CustomBounds == null
+                    ApplyTypeFarClip = ctx?.CustomBounds == null,
+                    KeepScale = rule.ScaleOverride > 0 && PrimaryViewIdValue(view) < 0 ? rule.ScaleOverride.Value : 0,   // DTW-212
                 };
                 var presResult = DrawingTypePresentation.Apply(doc, view, dt, applyOpts);
                 result.Warnings.AddRange(presResult.Warnings);
 
+                // DTW-212: the rule's scale was set before Apply, which reset it to the
+                // type's. Applied after, like the preset's overrides below.
+                ApplyRuleScaleOverride(view, rule, result);
                 ApplyPresetVg(doc, view, dt, opts, result);
                 ApplyPresetViewOverrides(view, opts, result);
 
@@ -856,6 +858,22 @@ namespace StingTools.Core.Drawing
         /// A dependent's scale belongs to its parent and is left alone; a view whose
         /// template controls scale or detail level refuses the write, and that is reported.
         /// </summary>
+        /// <summary>
+        /// DTW-212: a production rule's scaleOverride, applied after the drawing type's
+        /// presentation (which sets the type's scale). A dependent's scale is its parent's.
+        /// </summary>
+        private static void ApplyRuleScaleOverride(View view, ProductionRule rule, ProduceResult result)
+        {
+            if (view == null || rule?.ScaleOverride is not int scale || scale <= 0 || PrimaryViewIdValue(view) >= 0) return;
+            try
+            {
+                if (view.Scale != scale) view.Scale = scale;
+                if (view.Scale != scale)
+                    result.Warnings.Add($"'{view.Name}': rule scale 1:{scale} did not take (its view template controls scale).");
+            }
+            catch (Exception ex) { result.Warnings.Add($"'{view.Name}': rule scale 1:{scale} not applied — {ex.Message}"); }
+        }
+
         private static void ApplyPresetViewOverrides(View view, ProduceOptions opts, ProduceResult result)
         {
             var g = opts?.Preset?.General;
@@ -965,7 +983,7 @@ namespace StingTools.Core.Drawing
             {
                 // DTW-196: a view production fitted to its slot keeps that scale (until the
                 // type's own scale changes); a rule's scaleOverride is applied after Apply.
-                int keepScale = 0;
+                int keepScale = rule?.ScaleOverride > 0 && PrimaryViewIdValue(view) < 0 ? rule.ScaleOverride.Value : 0;   // DTW-212
                 if (rule?.ScaleOverride.HasValue != true)
                 {
                     var st = ProducedViewState.Read(view);
@@ -983,6 +1001,7 @@ namespace StingTools.Core.Drawing
                 };
                 var refreshed = DrawingTypePresentation.Apply(doc, view, dt, refreshOpts);
                 result.Warnings.AddRange(refreshed.Warnings);
+                ApplyRuleScaleOverride(view, rule, result);     // DTW-212
                 ApplyPresetViewOverrides(view, opts, result);   // DTW-21: a re-run honours them too
 
                 int tags = refreshed.AnnotationTagsPlaced, dims = refreshed.AnnotationDimsPlaced,
