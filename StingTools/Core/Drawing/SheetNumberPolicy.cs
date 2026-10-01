@@ -273,5 +273,77 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public static string ResolvePattern(DrawingType dt, SheetNumberPolicyKind policy)
             => ResolvePattern(dt, policy, out _);
+
+        // ── DTW-117: the building in {vol} ─────────────────────────────────────
+        //
+        // On a multi-building job every sheet took the drawing type's IsoNaming.Volume
+        // ("01"), so two buildings' ground-floor plans differed only in their sequence
+        // number. A sheet produced from a box inside a STING-LOC building now carries
+        // that building in {vol}: the project's own LOC -> volume map when it has one
+        // (_BIM_COORD/sheet_volumes.json), else the LOC code itself, cut to the
+        // characters an ISO field may hold.
+
+        /// <summary>The project override that maps a STING-LOC code to an ISO volume code.</summary>
+        public const string VolumeMapFileName = "sheet_volumes.json";
+
+        private static readonly Regex _volToken = new Regex(@"\{vol\}", RegexOptions.IgnoreCase);
+
+        /// <summary>True when <paramref name="pattern"/> names {vol}.</summary>
+        public static bool PatternUsesVolume(string pattern)
+            => !string.IsNullOrEmpty(pattern) && _volToken.IsMatch(pattern);
+
+        /// <summary>The ISO volume code for building <paramref name="loc"/>: the mapped value
+        /// when <paramref name="locToVolume"/> names it, else the LOC code upper-cased with
+        /// everything but A-Z and 0-9 removed (a '-' would split the ISO field). Null when
+        /// there is no LOC or nothing of it survives.</summary>
+        public static string VolumeForLoc(string loc, IDictionary<string, string> locToVolume)
+        {
+            if (string.IsNullOrWhiteSpace(loc)) return null;
+            string key = loc.Trim();
+            if (locToVolume != null)
+                foreach (var kv in locToVolume)
+                    if (string.Equals(kv.Key?.Trim(), key, StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(kv.Value))
+                        return SanitiseVolume(kv.Value);
+            return SanitiseVolume(key);
+        }
+
+        private static string SanitiseVolume(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in raw.Trim().ToUpperInvariant())
+                if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')) sb.Append(c);
+            return sb.Length == 0 ? null : sb.ToString();
+        }
+
+        /// <summary>
+        /// Parse <see cref="VolumeMapFileName"/>: a JSON object of LOC code to volume code,
+        /// either at the root or under "volumes" — <c>{"volumes": {"BLDA": "01", "BLDB": "02"}}</c>.
+        /// An unreadable file is an error, not an empty map: the caller says so instead of
+        /// numbering every building from its LOC code without a word.
+        /// </summary>
+        public static Dictionary<string, string> ParseVolumeMap(string json, out string error)
+        {
+            error = null;
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(json)) return map;
+            try
+            {
+                var root = Newtonsoft.Json.Linq.JToken.Parse(json) as Newtonsoft.Json.Linq.JObject;
+                if (root == null) { error = "not a JSON object"; return map; }
+                var obj = root["volumes"] as Newtonsoft.Json.Linq.JObject ?? root;
+                foreach (var p in obj.Properties())
+                {
+                    if (p.Value.Type == Newtonsoft.Json.Linq.JTokenType.String
+                        || p.Value.Type == Newtonsoft.Json.Linq.JTokenType.Integer)
+                        map[p.Name] = p.Value.ToString();
+                    else if (!string.Equals(p.Name, "volumes", StringComparison.OrdinalIgnoreCase))
+                        error = (error == null ? "" : error + "; ") + $"'{p.Name}' is not a text value";
+                }
+            }
+            catch (JsonException ex) { error = ex.Message; }
+            return map;
+        }
     }
 }
