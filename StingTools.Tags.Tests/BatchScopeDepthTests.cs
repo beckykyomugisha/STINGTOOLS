@@ -41,13 +41,49 @@ namespace StingTools.Tags.Tests
             Assert.True(d.Exit());
         }
 
+        // DTW-142: a nested scope on another document used to re-prime over the outer
+        // batch's caches (wiping its STACK-1 claims) and, on exit, leave the scope on the
+        // inner document. The outer caches are now set aside and handed back.
+
         [Fact]
-        public void A_nested_scope_on_another_document_primes_but_does_not_reset()
+        public void A_nested_scope_on_another_document_sets_the_outer_caches_aside()
         {
             var d = new BatchScopeDepth();
-            Assert.True(d.Enter("a"));
-            Assert.True(d.Enter("b"));
-            Assert.False(d.Exit());
+            int captured = 0;
+            Assert.True(d.Enter("a", () => { captured++; return "caches of a"; }));
+            Assert.Equal(0, captured);                 // nothing to set aside at the outermost
+            Assert.True(d.Enter("b", () => { captured++; return "caches of a"; }));
+            Assert.Equal(1, captured);
+            Assert.Equal("b", d.DocKey);
+        }
+
+        [Fact]
+        public void Leaving_the_other_document_resets_its_caches_and_restores_the_outer()
+        {
+            var d = new BatchScopeDepth();
+            d.Enter("a", () => "unused");
+            d.Enter("b", () => "caches of a");
+            Assert.True(d.Exit(out object outer));     // the inner document's caches go
+            Assert.Equal("caches of a", outer);        // and the outer batch's come back
+            Assert.Equal("a", d.DocKey);
+            Assert.Equal(1, d.Depth);
+            Assert.True(d.Exit(out object none));      // the outermost exit resets, nothing to restore
+            Assert.Null(none);
+            Assert.Null(d.DocKey);
+        }
+
+        [Fact]
+        public void Same_document_nesting_inside_the_other_document_is_still_counted()
+        {
+            var d = new BatchScopeDepth();
+            d.Enter("a", () => "x");
+            d.Enter("b", () => "caches of a");
+            Assert.False(d.Enter("B", () => "never"));  // same document as the top scope
+            Assert.Equal(3, d.Depth);
+            Assert.False(d.Exit(out object o1));
+            Assert.Null(o1);
+            Assert.True(d.Exit(out object o2));
+            Assert.Equal("caches of a", o2);
             Assert.True(d.Exit());
         }
 
