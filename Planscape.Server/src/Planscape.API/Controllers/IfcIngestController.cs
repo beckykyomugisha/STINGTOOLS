@@ -57,7 +57,7 @@ public class IfcIngestController : ControllerBase
 
     // Loaded once (lazy) and cached for the lifetime of the process.
     // Thread-safe because List<T> is only read after initialisation.
-    private static IReadOnlyList<PsetMappingEntry>? _psetMapping;
+    private static IReadOnlyList<IfcPsetMappingTable.Entry>? _psetMapping;
     private static readonly object _psetMappingLock = new();
 
     private readonly PlanscapeDbContext _db;
@@ -332,7 +332,8 @@ public class IfcIngestController : ControllerBase
     /// so re-running ingest after a model revision updates rather than
     /// duplicates.
     ///
-    /// Property mapping is driven by STING_IFC_PSET_MAPPING.json.
+    /// Property mapping is driven by shared/ifc/mappings/STING_IFC_PSET_MAPPING.json
+    /// (IfcPsetMappingTable.Resolve: rows in file order, first non-empty wins).
     /// The mapping supports three lookup modes:
     ///   Standard  — bag["pset_name.property_name"]
     ///   quantity_type:true — bag["pset_name.property_name"] (quantities
@@ -365,39 +366,12 @@ public class IfcIngestController : ControllerBase
         {
             if (string.IsNullOrEmpty(el.GlobalId)) continue;
 
-            // Resolve the ISO 19650 tag from the flattened property bag.
-            // Standard lookup: "{pset_name}.{property_name}" for both
-            // regular properties and quantity sets (ingester stores both
-            // under the same key convention).
-            // scan_all_psets: search for ".{property_name}" suffix anywhere.
-            var props = el.Properties;
-
-            string? ResolveParam(string paramName)
-            {
-                var entries = mapping.Where(m => m.StingParam == paramName);
-                foreach (var m in entries)
-                {
-                    if (m.ScanAllPsets)
-                    {
-                        var suffix = $".{m.PropertyName}";
-                        var hit = props.Keys
-                            .FirstOrDefault(k => k.EndsWith(suffix, StringComparison.Ordinal));
-                        if (hit != null && props.TryGetValue(hit, out var sv) && !string.IsNullOrEmpty(sv)) return sv;
-                    }
-                    else
-                    {
-                        // quantity_type and standard pset entries both use
-                        // the same "pset_name.property_name" bag key.
-                        var key = $"{m.PsetName}.{m.PropertyName}";
-                        if (props.TryGetValue(key, out var pv) && !string.IsNullOrEmpty(pv)) return pv;
-                    }
-                }
-                return null;
-            }
-
-            var tag1 = ResolveParam("ASS_TAG_1")
-                    ?? props.GetValueOrDefault("Pset_Common.Tag")
-                    ?? props.GetValueOrDefault("IfcTag")
+            // Resolve the ISO 19650 tag from the flattened property bag, through
+            // the shared mapping only (DSCH-24): Pset_StingTags.FullTag first. The
+            // old hardcoded fallbacks (Pset_Common.Tag, the IfcElement.Tag
+            // attribute) are gone — neither carries a STING tag.
+            var tag1 = IfcPsetMappingTable.Resolve(
+                           mapping, el.Properties, IfcPsetMappingTable.TagParam, el.IfcType)
                     ?? "";
 
             if (existing.TryGetValue(el.GlobalId, out var row))
@@ -441,13 +415,11 @@ public class IfcIngestController : ControllerBase
     }
 
     /// <summary>
-    /// Load and cache the PSET mapping from STING_IFC_PSET_MAPPING.json.
-    /// The file supports two key-naming conventions:
-    ///   Legacy  — ifc_pset / ifc_property / sting_param
-    ///   New     — pset_name / property_name / sting_param (+ quantity_type, scan_all_psets)
-    /// Both are normalised into PsetMappingEntry.
+    /// Load and cache the PSET mapping (DSCH-24: the one file linked from
+    /// shared/ifc/mappings/). A missing or invalid file is logged as an ERROR and
+    /// disables mapping for this process; it is never replaced by built-in values.
     /// </summary>
-    private IReadOnlyList<PsetMappingEntry> LoadPsetMapping()
+    private IReadOnlyList<IfcPsetMappingTable.Entry> LoadPsetMapping()
     {
         if (_psetMapping != null) return _psetMapping;
         lock (_psetMappingLock)
@@ -456,79 +428,28 @@ public class IfcIngestController : ControllerBase
 
             if (!System.IO.File.Exists(PsetMappingPath))
             {
-                _logger.LogWarning("PSET mapping file not found at {Path}; property mapping disabled", PsetMappingPath);
-                _psetMapping = Array.Empty<PsetMappingEntry>();
+                _logger.LogError("PSET mapping file not found at {Path}; IFC ingest will not resolve STING tags", PsetMappingPath);
+                _psetMapping = Array.Empty<IfcPsetMappingTable.Entry>();
                 return _psetMapping;
             }
 
             try
             {
-                var json = System.IO.File.ReadAllText(PsetMappingPath);
-                // Deserialise as raw JsonElement array so we can handle
-                // both key-naming conventions in one pass.
-                var raw = JsonSerializer.Deserialize<JsonElement[]>(json,
-                    new JsonSerializerOptions { AllowTrailingCommas = true });
-
-                var list = new List<PsetMappingEntry>();
-                if (raw != null)
-                {
-                    foreach (var item in raw)
-                    {
-                        // Support both legacy (ifc_pset/ifc_property) and new
-                        // (pset_name/property_name) field names.
-                        var psetName  = GetStr(item, "pset_name")   ?? GetStr(item, "ifc_pset")     ?? "";
-                        var propName  = GetStr(item, "property_name") ?? GetStr(item, "ifc_property") ?? "";
-                        var stingParam = GetStr(item, "sting_param") ?? "";
-                        if (string.IsNullOrEmpty(stingParam) || string.IsNullOrEmpty(propName)) continue;
-
-                        list.Add(new PsetMappingEntry(
-                            PsetName:     psetName,
-                            PropertyName: propName,
-                            StingParam:   stingParam,
-                            QuantityType: GetBool(item, "quantity_type"),
-                            ScanAllPsets: GetBool(item, "scan_all_psets"),
-                            ElementTypes: GetStringArray(item, "element_types")));
-                    }
-                }
-                _psetMapping = list;
-                _logger.LogInformation("PSET mapping loaded: {Count} entries from {Path}", list.Count, PsetMappingPath);
+                _psetMapping = IfcPsetMappingTable.Parse(System.IO.File.ReadAllText(PsetMappingPath));
+                _logger.LogInformation("PSET mapping loaded: {Count} entries from {Path}", _psetMapping.Count, PsetMappingPath);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to load PSET mapping from {Path}", PsetMappingPath);
-                _psetMapping = Array.Empty<PsetMappingEntry>();
+                _logger.LogError(ex, "Failed to load PSET mapping from {Path}; IFC ingest will not resolve STING tags", PsetMappingPath);
+                _psetMapping = Array.Empty<IfcPsetMappingTable.Entry>();
             }
             return _psetMapping;
         }
     }
 
-    private static string? GetStr(JsonElement el, string key) =>
-        el.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
-
-    private static bool GetBool(JsonElement el, string key) =>
-        el.TryGetProperty(key, out var v) && v.ValueKind == JsonValueKind.True;
-
-    private static string[]? GetStringArray(JsonElement el, string key)
-    {
-        if (!el.TryGetProperty(key, out var v) || v.ValueKind != JsonValueKind.Array) return null;
-        return v.EnumerateArray()
-                .Where(e => e.ValueKind == JsonValueKind.String)
-                .Select(e => e.GetString()!)
-                .ToArray();
-    }
-
     private Guid GetTenantId() =>
         Guid.TryParse(User.FindFirst("tenant_id")?.Value, out var id) ? id : Guid.Empty;
 
-    // ── PSET mapping model ────────────────────────────────────────────────────
-
-    private sealed record PsetMappingEntry(
-        string   PsetName,
-        string   PropertyName,
-        string   StingParam,
-        bool     QuantityType,    // true → read from IIfcElementQuantity bag
-        bool     ScanAllPsets,    // true → scan all pset keys for property name suffix
-        string[]? ElementTypes);  // null → applies to all element types
 
     // ── Gap 6: ElementGlobalIdRegistry writer ────────────────────────────────
 

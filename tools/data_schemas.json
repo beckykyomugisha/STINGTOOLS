@@ -42,6 +42,12 @@
         ".yml",
         ".yaml"
       ]
+    },
+    {
+      "path": "shared/ifc/mappings",
+      "extensions": [
+        ".json"
+      ]
     }
   ],
   "nonData": {
@@ -2031,21 +2037,6 @@
       "docKeys": {
         "description": "Documentation only: shown to people reading the file; no reader binds it.",
         "quantity_set_warning": "Documentation only: shown to people reading the file; no reader binds it."
-      }
-    },
-    "StingTools/Data/IFC/STING_IFC_PSET_MAPPING.json": {
-      "format": "json",
-      "schemaVersion": 1,
-      "description": "IFC pset <-> STING parameter map (JArray root). Plugin reader V6/IfcPsetMapping.cs (export scaffolding, no caller yet) binds both ifc_pset/ifc_property and pset_name/property_name. The live consumer is the server's own copy (Planscape.Server/.../Data/IFC/STING_IFC_PSET_MAPPING.json), which differs - ROADMAP DSCH-24. sting_param must name a real parameter.",
-      "readers": [
-        "StingTools/V6/IfcPsetMapping.cs"
-      ],
-      "kind": "array-of-object",
-      "valueRefersTo": {
-        "sting_param": {
-          "kind": "shared-param-names",
-          "file": "StingTools/Data/MR_PARAMETERS.txt"
-        }
       }
     },
     "StingTools/Data/LUX_TARGETS_EN12464.csv": {
@@ -10152,6 +10143,58 @@
         }
       }
     },
+    "shared/ifc/mappings/STING_IFC_PSET_MAPPING.json": {
+      "format": "json",
+      "schemaVersion": 2,
+      "description": "IFC pset <-> STING parameter map (JArray root). ONE copy (DSCH-24): linked into the plugin's data/IFC/ (StingTools.csproj) and Planscape.API's Data/IFC/ (Planscape.API.csproj); see singleCopy. Rows are ordered: export takes the first non-import row per parameter (and entity), ingest tries rows in order and the first non-empty value wins. One field spelling: pset_name / property_name (the retired ifc_pset / ifc_property is refused by both readers). A row whose IFC target is not confirmed against the buildingSMART IFC4 / IFC4X3 definitions carries a 'verify' note.",
+      "readers": [
+        "StingTools/V6/IfcPsetMapping.cs",
+        "Planscape.Server/src/Planscape.API/Services/IfcPsetMappingTable.cs"
+      ],
+      "kind": "array-of-object",
+      "keys": [
+        "sting_param",
+        "pset_name",
+        "property_name",
+        "ifc_data_type",
+        "ifc_entity",
+        "element_types",
+        "quantity_type",
+        "scan_all_psets",
+        "direction",
+        "notes",
+        "verify"
+      ],
+      "req": [
+        "sting_param",
+        "pset_name",
+        "property_name",
+        "direction"
+      ],
+      "types": {
+        "sting_param": "str",
+        "pset_name": "str",
+        "property_name": "str",
+        "ifc_data_type": "str",
+        "ifc_entity": "str",
+        "element_types": "list-of-str",
+        "quantity_type": "bool",
+        "scan_all_psets": "bool",
+        "direction": "str",
+        "notes": "str",
+        "verify": "str"
+      },
+      "docKeys": {
+        "notes": "Documentation only: read into IfcPsetEntry.Notes, used by no decision.",
+        "verify": "Read into IfcPsetEntry.Verify; marks an IFC target that is not yet confirmed against the buildingSMART definitions."
+      },
+      "valueRefersTo": {
+        "sting_param": {
+          "kind": "shared-param-names",
+          "file": "StingTools/Data/MR_PARAMETERS.txt"
+        }
+      }
+    },
     "tools/tester-kit/licence-issuer/testers.csv": {
       "format": "csv-table",
       "schemaVersion": 1,
@@ -10980,6 +11023,12 @@
     "tools/tests/fixtures/globalid_corpus.json": {
       "format": "json",
       "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+    }
+  },
+  "singleCopy": {
+    "STING_IFC_PSET_MAPPING.json": {
+      "path": "shared/ifc/mappings/STING_IFC_PSET_MAPPING.json",
+      "reason": "DSCH-24: the plugin and the server each kept a copy and the two drifted (the only row the server used named a parameter that does not exist). The one file is linked into both builds; a second tracked file with this name is a fork."
     }
   }
 }
