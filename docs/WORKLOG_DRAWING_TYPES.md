@@ -269,8 +269,16 @@ DTW-216 (both low).
 | DTW-212 | CreatePresentedView ScaleOverride | Low | Rule scaleOverride overwritten by the type scale | Merged | Done |
 | DTW-213 | DrawingProducer.Alive | Low (Revit) | Reused ElementIds after rollback mis-hold names and claims | Merged | Done |
 | DTW-214 | DrawingTypeEditorDialog new pack | Low | Still adds 'scale' to managedFields (ignored since DTW-170) | Merged | Done |
-| DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Read ProducedViewState in Sync Styles | Open |
-| DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Route them through the item runner or honour Failure | Open |
+| DTW-215 | DrawingSyncStylesCommand | Low | Sync Styles re-applies the type scale to auto-fitted views; only production refresh keeps the fitted scale (ProducedViewState) | Merged (fix/dt-r9-a) | Done |
+| DTW-216 | Project Setup / Produce & Export / Panel-SLD placement | Low | Callers outside ProductionItemRunner don't roll back on ProduceResult.Failure; they only report it | Merged (fix/dt-r9-a) | Done |
+| DTW-217 | MepViewProducer:123 / MepCoordinationCommands:67 | Med-High | System filters written to a view whose managed template controls filters: masked, reported applied | fix/dt-r9-b | In progress |
+| DTW-218 | DrawingProducer.ApplyPresetVg / ApplyPresetOverrides | Med | Preset VG masked by managed templates, counted as applied | fix/dt-r9-b | In progress |
+| DTW-219 | ManagedTemplateFields phaseFilter | Med | Packs with no phase filter still control it; Show Complete (DTW-208) undone | fix/dt-r9-b | In progress |
+| DTW-220 | ProductionItemRunner sheet-counter gate | Med | Up-front Project Information gate borrows PI and blocks refresh-only re-runs | fix/dt-r9-c | In progress |
+| DTW-221 | DrawingProducer.RefreshReusedSheetName | Med | Legacy comparison uses the new name rule; pre-round-8 sheets never renamed | fix/dt-r9-b | In progress |
+| DTW-222 | ShortLevel vs Renumber | Med-Low | Long digit-ending level names change number shape; Renumber converts existing sheets | fix/dt-r9-b | In progress |
+| DTW-223 | DrawingProducer CreateSheet catch | Low | Counter burned when ViewSheet.Create throws | fix/dt-r9-b | In progress |
+| DTW-224 | WorksharingPreflight.ProductionElements | Low | Managed templates and filters edited by the run are not pre-checked | fix/dt-r9-c | In progress |
 
 ## Decisions
 
