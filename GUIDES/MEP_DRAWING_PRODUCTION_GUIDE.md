@@ -1,6 +1,7 @@
 # MEP Modelling and Drawing Production with StingTools: the Fastest Order
 
-**Updated:** 2026-09-30, after the gap-closing work in PR #1018, re-checked against the code
+**Updated:** 2026-10-01, after the drawing-production review loop (production dialog,
+re-runs, sheet numbering, schematics, linked models), re-checked against the code
 (first written 2026-09-24).
 **Nothing here has been run end-to-end in Revit.** It is a reading of the code. Where a step
 depends on code nobody has run, or where the code does less than its dialog suggests, it says
@@ -13,6 +14,15 @@ The one rule behind the order: **every step feeds the next.**
 - Sheets must exist before match lines can quote their numbers.
 
 Do the steps out of order and the later ones run without errors, but produce blanks.
+
+> **Upgrading a project that already has STING drawings? Re-run Load Shared Parameters
+> first** (SETUP → DRAWING PRODUCTION → "1 Params", or CREATE TAGS → "Load Params").
+> Production now finds its own views and sheets by a stamp bound to **Views**, and match
+> lines find theirs by keys bound to **Lines**. A project whose parameters were loaded by an
+> older build has neither binding, so every stamp is silently dropped: a re-run cannot find
+> what it made before and **duplicates every view and sheet**, and Match Lines: Generate
+> adds a second set of lines. Loading only adds bindings; it changes no existing value.
+> Check it worked: a produced view's Properties show `STING_DRAWING_TYPE_ID_TXT`.
 
 **Contents**
 - Part A: The fastest route from empty project to issued MEP set
@@ -39,7 +49,7 @@ backgrounds (link, or model from DWG) → seeds → place → route → systems 
 |---|---|
 | Name levels as short ISO codes with **no spaces**: `B1`, `GF`, `L01` … | `{lvl}` in sheet numbers is the raw level name, and scope-box names forbid spaces. The wizard now warns about a level name with spaces and offers to rename it to its short code (`L02 - Office` → `L02`). |
 | Fill in **Project Information → Number**, plus `PRJ_PROJECT_COD_TXT` and `PRJ_ORG_ORIGINATOR_CODE_TXT` | Otherwise `{project}` / `{originator}` stay as literal braces. Revit rejects that number and the sheet keeps its default. This hits `mep-plan`, `elec-power` and the spool types. |
-| Decide on sheet numbering: per drawing type (default) or ISO 19650-2 | One project setting, `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` (`profile` or `iso`), which the wizard now sets. A typo reads as `profile`; production warns about it. |
+| Decide on sheet numbering: per drawing type (default) or ISO 19650-2 | One project setting, `PRJ_ORG_SHEET_NUMBER_POLICY_TXT` (`profile` or `iso`), which the wizard now sets. A typo reads as `profile`; production warns about it. Under `iso` the level segment is the ISO storey code (`00` ground, `01` up, `B1` down), not the level name; see "Sheet numbers" in A7. |
 | Get the consultant DWGs **imported**, not only linked, if you will model from them | The MEP converter and Explode work only on imports (Part B). |
 
 ## A1. SETUP → ★ Project Setup Wizard
@@ -94,7 +104,13 @@ This is one click for everything drawing production needs, run as a 12-step work
 
 If the wizard already ran it, you don't need to run it again, except after a plugin update:
 new features add parameters, and **a parameter that isn't bound makes every write to it a
-silent no-op.**
+silent no-op.** After this update at least run step 1 ("1 Params"): it binds the production
+stamps to views and the match-line keys to lines (see the note at the top). Without it,
+re-running production duplicates views and sheets.
+
+Pre-flight (step 12) fails only on errors in drawing types this project uses (stamped on a
+view or sheet, or routed per level for a modelled discipline). Errors in types it never
+produces are listed but do not stop the run.
 
 Then, once, for MEP colours: **HVAC panel → SYS → "Build types"**, then **"Gen filters"**.
 
@@ -153,9 +169,17 @@ every level it spans. So you draw one box per area of the building, not one per 
    - It lists each box as New / Exists / Moved / Mismatch / NoSeed.
 3. **Create boxes**: copies the seeds as `STING-AREA::<class>-<nn>[::<level>]` and saves the
    plan to `_BIM_COORD/scope_box_plan.json`.
-4. **"Produce From Areas"** (or **"Produce views…"** in the planner): views and sheets for
-   every area box × level × type, cropped to the box. A plan that would not crop to its box is
-   rolled back and reported.
+   - **Re-planning after the model grows keeps existing boxes where they are.** New tiles
+     are laid on the same grid and numbered after the highest existing one. A box no tile
+     covers any more is named in a warning and left in the model; it is never moved.
+   - **Levels are kept by id** (`levelIds` in the plan file), so renaming a level does not
+     orphan its boxes or their plan.
+   - **A turned `STING-LOC::` box** is tiled in its own frame: the area boxes are laid square
+     to it, and its bounding box no longer adds tiles that spill onto the next building.
+4. **"Produce From Areas"** (or **"Produce views…"** in the planner): every area box × level ×
+   type, cropped to the box. It asks for **"Views and sheets"**, **"Views only"** or
+   **"Dependent views and sheets"**. A plan that would not crop to its box is rolled back and
+   reported.
 5. **"Colour Boxes"** tints boxes by size class, discipline, building, level or kind, so you
    can check the layout. **"Clear Box Colours"** removes the tint.
 
@@ -181,7 +205,14 @@ off every sheet, and each box's view a dependent of it cropped to the box.
 | `STING-AREA::<code>[::<level>]` | "Produce From Areas" | See above |
 | `STING-SEED::<w>x<d>` | The planner | A seed; never produced from |
 | `STING-LOC::<code>` | Tagging | Sets the LOC (building) token when room and workset detection fall back to the default. Smallest containing box wins; must be unrotated. |
-| `STING-ZONE::<code>` | Tagging | Sets the ZONE token the same way. Codes use A–Z, 0–9, `.`, `_`, `-` only, because the code goes straight into the tag; an invalid one is ignored and flagged in the Scope Box Manager. |
+| `STING-ZONE::<code>` | Tagging | Sets the ZONE token the same way. Must be unrotated, like LOC boxes. |
+
+**One name rule for every kind.** The prefix ignores case (`sting-area::` works), spaces
+around the name and around each `::` part are ignored, and each part may use only A–Z, 0–9,
+`.`, `_` and `-`. Tagging, the planner and production all read names by this one rule, so a
+box cannot mean one thing to tagging and another to production. A name that breaks it is
+ignored; the Scope Box Manager flags a broken `STING::`, area or zone name.
+
 
 ZONE comes from room Department / Name / Number or the workset name first, then the smallest
 `STING-ZONE::` box containing the element, otherwise `Z01`. Risers and ceiling voids are the
@@ -199,7 +230,8 @@ Tick **only** the MEP types you need (Part D lists them).
 One click creates the view, stamps it, crops it, applies the template / style pack,
 auto-annotates, creates the sheet and fills the title block. **Re-runs reuse** existing views
 and sheets, because they are matched by stamp, not by name. So produce again freely after
-model changes.
+model changes (but see the upgrade note at the top: the stamps need Load Shared Parameters).
+The dialog, re-runs, sheet numbers and linked models are covered at the end of this section.
 
 Then, in this order:
 1. **DOCS → "Match Lines: Generate"**. It needs the sheets first, because the captions quote
@@ -209,28 +241,127 @@ Then, in this order:
    reuse the sheets). Revit cannot place a native panel schedule by API, so those still need
    dragging.
 3. **Electrical panel → SLD → "▶ Generate SLD Drafting View"**, and **"▶ Generate Riser
-   Diagram"**, then the **SCHEMATICS** section (fire alarm, earthing, lightning protection,
-   MGPS, panel door) and Plumbing DOCS **"Supply Schematic"** / **"Drainage Schematic"**.
+   Diagram"**, then the **SCHEMATICS** section ("▶ Fire Alarm Schematic", "▶ Earthing
+   Diagram", "▶ Lightning Protection Schematic", "▶ Medical Gas (MGPS) Schematic", "▶ Panel
+   Door Diagram") and Plumbing panel → DOCS **"Supply Schematic"** / **"Drainage Schematic"**.
    Build the SLD symbols first. Each diagram command looks its sheet type up through the
-   routing table (so a project can re-route it) and draws only from what is modelled. Each view is now put on its own stamped sheet
-   (`elec-sld-A1-NTS`; the riser on an `elec-riser-A3-1to200` sheet), and a re-run replaces
-   the old view on that sheet.
+   routing table (so a project can re-route it) and draws only from what is modelled. Each
+   view is put on its own stamped sheet (`elec-sld-A1-NTS`; the riser on an
+   `elec-riser-A3-1to200` sheet). A re-run reuses and redraws its own view, so it stays on
+   its sheet and no orphan "Drafting 1" copies pile up.
+   - **Drainage Schematic** draws only real stacks: a vertical run at least 2 m tall (about a
+     storey) that crosses a level. WC tails and trap drops are branches, not stacks. Vents
+     are drawn only where a vent pipe is modelled, and floors carry the level names.
+   - **Supply Schematic** starts from a modelled water meter, tank or pump set; failing
+     those it says the source is assumed. Pressures are printed only when the project's
+     plumbing configuration is saved, and each pipe's DN is printed once.
+   - Both plumbing schematics choose the scale that fits the sheet's slot.
 4. The schedule drawing types: `mech-equip-schedule-A3`, `elec-panel-schedule-A3`,
    `valve-schedule-A3`, `plumb-pressure-schedule-A3`, `penetration-register-A1`.
 
 **One click for the whole set:** **QUICK WORKFLOWS → "MEP drawing production" → "Run
 preset"** (the `MEPDrawingProduction` preset) tags the project (whole project; Tag & Combine
-takes `params.scope`), then produces from area boxes when the project has them, per level
-when it doesn't, and from `STING::` boxes when there are any; then colours every produced MEP
-plan by system with the filters `MEPDrawingSetup` built (`MEP_ApplyMepCoordination` with
-`params.scope = produced`; a view whose template controls filters is coloured through the
-template), then match lines, panel templates, schedules, schedule sheets and the diagrams.
+takes `params.scope`), then produces:
+- from area boxes, when the project has them;
+- from `STING::` boxes bound to an M / E / P / FP / MG drawing type, when there are any. If
+  every `STING::` box is bound to another discipline's type, this step fails and says so
+  (name those types in `params.drawingTypes` to produce them);
+- per level, when there are no area boxes. A (drawing type, level) pair a `STING::` box
+  already produces is skipped and reported; every other pair is produced.
+
+Then it colours every produced MEP plan by system with the filters `MEPDrawingSetup` built
+(`MEP_ApplyMepCoordination` with `params.scope = produced`; a view whose template controls
+filters is coloured through the template), then match lines, panel templates, schedules,
+schedule sheets and the diagrams.
+
 It shows no dialogs (every step was checked; see C7): each step's result goes into the
 workflow report and the full text into the STING log. Re-runs reuse everything by stamp.
 
 Style sync ("Sync Styles") and production re-runs keep each view's scope-box crop: the box is
 recovered from the view's own context stamp, so re-applying a drawing type no longer replaces
 a box crop with the type's default crop.
+
+### The production dialog
+
+Produce Per Level, Produce From Scope Boxes, Produce Sections, Exterior Elevations and
+Interior Elevations open the same dialog. Tick drawing types and contexts (levels, boxes or
+grids) on the left. Every option on the tabs is now read:
+- **General:** Duplicate / Duplicate with Detailing / Duplicate as Dependent; "Skip if a view
+  already exists for this context"; "Create sheets"; drawing package id; **scale and detail
+  level overrides**. Produce Per Level adds **"Skip levels with nothing modelled for the
+  drawing type's discipline"**: an MEP plan is skipped on a level where its discipline has
+  nothing modelled, in the host or a linked model; any other plan on a level with no model
+  element at all. The result lists the skipped levels.
+- **VG Overrides:** the overrides you set apply to every drawing type in the run.
+- **Annotation:** "Run annotation after view creation" and its four parts (tags, dimensions,
+  decorative, spot elevations) each switch that part on or off. Ticked means "do what the
+  drawing type's annotation pack asks for".
+- **Presets:** "Save Preset" saves under the name typed; the same name overwrites it. Pick a
+  preset in the list to load it back, VG overrides included.
+
+Options that did nothing have been removed: section direction, angle, spacing, segmented and
+per-room / manual placement; "hide unwanted" and "hide empty categories"; "create drawing
+package" (the package id is the choice); and the All / Selected levels radios (tick the
+levels, or use "Select all").
+
+### Sections and elevations
+
+Under **DOCS → 📐 DRAWING TYPES → Production**:
+- **Produce Sections** cuts one section along each **ticked** grid line, looking across it,
+  from 3 m below to 30 m above the grid's level. "Section depth" sets how far it looks
+  (default 10 m).
+- **On a scope box**, a section drawing type cuts through the box along its long side, and a
+  3D type is boxed by it.
+- **Exterior Elevations** makes the ticked faces once, with markers on the plan of the
+  ticked level nearest ground. Re-running reuses each face's view (including the ones the
+  Setup Wizard made). Sheets are optional ("Create sheets"); when the drawing type lays out
+  a slot for each face, the four go on one sheet ("Put the faces on one sheet…").
+- **Interior Elevations** gives each room the faces its drawing type asks for (the faces its
+  elevation rules name, else one per elevation slot on its sheet), on one marker hosted on a
+  plan of the room's own level.
+
+### Re-running after model changes
+
+- Views and sheets are found by a stamp keyed on the level's and box's identity, not their
+  names. **Renaming a level or a scope box does not make new views, sheets or numbers**; the
+  existing ones are reused.
+- A re-run annotates what was modelled since: new elements are tagged and dimensioned, and
+  spot elevations and the decorative pass (north arrow, scale bar, key plan, flow arrows,
+  match-line frame) are refreshed. Every pass skips what it already placed, so nothing is
+  doubled.
+- Views and sheets whose level, room or box was deleted are not touched; the Doctor lists
+  them (A8).
+
+### Sheet numbers
+
+- **`profile` policy (default):** each drawing type's own pattern.
+- **`iso` policy:** `{project}-{originator}-{vol}-{lvl}-{type}-{role}-{seq:D4}`. There is no
+  `-S2-P01` tail any more: suitability and revision are on the title block, read from the
+  sheet. Only new sheets take this form; existing numbers are not rewritten.
+- **The ISO level code** comes from the level's height: the storey nearest datum is `00`,
+  those above `01`, `02` …, those below `B1`, `B2` … A name that states a code keeps it
+  (`GF` is `00`, a roof level is `RF`). A code the project declares in
+  `_BIM_COORD/spatial_codes.json` wins (the same code tags and box names use). Levels within
+  50 mm of each other share one code, and a level with Building Story off takes the code of
+  the storey it sits in.
+- **`{vol}`** is the building when the view sits in a `STING-LOC::` box: the volume mapped to
+  that LOC code in `_BIM_COORD/sheet_volumes.json` (for example `{ "BLD1": "V1" }`), else the
+  LOC code itself.
+- **Spool sheets** follow the same policy.
+- **DOCS → "Batch Sheets"** (under "Manual view / sheet creation") and **"Doc Package"**
+  number with the project pattern, as the Sheet Manager does. A sheet whose views all share
+  one drawing type is stamped with it, so "Renumber" can later move it onto that type's
+  pattern.
+- **"Renumber"** (Advanced drawing-type ops) closes gaps in each drawing type's sequence.
+  Under the `profile` policy a sheet that already carries a full ISO identifier keeps it.
+
+### Linked models
+
+- MEP in a linked model counts: per-level production makes the plans for the levels where
+  the link has that discipline's elements.
+- Linked elements are tagged (rooms included), and linked grids are dimensioned when the view
+  shows them.
+- Linked MEP runs are **reported, not dimensioned**. Dimension them in the MEP model.
 
 ## A8. QA
 
@@ -241,8 +372,15 @@ a box crop with the type's default crop.
 4. **CREATE TAGS → "Valid"** (tag validation).
 5. **DOCS → "Match Lines: Validate"**.
 
+The Doctor also lists **views and sheets whose level, room or scope box has been deleted**.
+Production never revisits those, so review them and delete or re-produce; the Doctor deletes
+nothing.
+
 Run **"Heal TBs"** and **"Renumber"** (same expander as Doctor) only if something was
-reported. **QUICK WORKFLOWS → "MEP pre-issue checks" → "Run preset"** (the `MEPPreIssue`
+reported. Heal TBs writes the drawing type's values into the title-block family's real
+parameters. It never changes the sheet number (that is Renumber's job), skips a title block
+locked on its instance or its type, and takes revision and suitability from the sheet, not
+from the drawing type's defaults. **QUICK WORKFLOWS → "MEP pre-issue checks" → "Run preset"** (the `MEPPreIssue`
 preset) runs steps 1–5 in one go, without dialogs.
 
 ## A9. Issue
@@ -267,6 +405,14 @@ preset) runs steps 1–5 in one go, without dialogs.
    revision. (Option 1, "Produce + Finalize +
    Export", now asks which plan drawing types to produce, with those of the disciplines in the
    model pre-ticked.)
+   - PDFs are named the way the Export Centre names them: the sheet's ISO identifier,
+     suitability and revision. A new revision therefore never overwrites the last issue's
+     PDF.
+   - Each PDF is filed like an Export Centre export: in the sheet's discipline folder, under
+     the CDE state its suitability gives.
+   - A sheet is recorded only if its PDF really exists; one Revit reports as written but
+     that is not on disk is listed as a warning instead.
+
 3. **BIM → Issue Deliverable / Create Transmittal** (runs in a preset too: `params.suitability`,
    default S3).
 
@@ -685,9 +831,9 @@ each item.
 | Below-ground drainage layouts | ✅ | `plumb-drainage-A1-1to100` |
 | Rainwater | ✅ | `plumb-rwd-layout-A1-1to100`; SuDS `plumb-suds-A1-1to500` |
 | Cold / hot water layouts | ✅ | `plumb-water-supply-A1-1to100` |
-| Cold water schematic | ✅ | Plumbing DOCS **"Supply Schematic"** (domestic cold water systems only), placed on a `plumb-dcw-schematic-A1-NTS` sheet at 1:50 |
+| Cold water schematic | ✅ | Plumbing DOCS **"Supply Schematic"** (domestic cold water systems only), placed on a `plumb-dcw-schematic-A1-NTS` sheet at the scale that fits its slot |
 | Hot water / LTHW schematics | 📐 | `plumb-dhw-schematic-A1-NTS`, `plumb-lthw-schematic-A1-NTS` — draw by hand |
-| Drainage schematic | ✅ | Plumbing DOCS **"Drainage Schematic"** (sanitary and vent systems), placed on a `plumb-drainage-schematic-A1` sheet at 1:50 |
+| Drainage schematic | ✅ | Plumbing DOCS **"Drainage Schematic"** (sanitary and vent systems; real stacks only), placed on a `plumb-drainage-schematic-A1` sheet at the scale that fits its slot |
 | Vent riser | 📐 | `plumb-vent-riser-A3-NTS` — draw by hand |
 | Water treatment plant | ✅ | `plumb-water-treatment-A1-1to50` |
 | Valve and pressure schedules | ✅ | `valve-schedule-A3`, `plumb-pressure-schedule-A3` |
@@ -715,7 +861,8 @@ riser schematics) are the drawings to plan hand time for.
 | Tick every type in "⚡ Produce & Export" option 1 | It offers all plan types, architectural and structural included. Keep the pre-ticked MEP ones. |
 | Convert a DWG with nested blocks or xrefs | Their geometry is not read. Explode first. |
 | Generate match lines before sheets exist | The captions are left empty. |
-| Tag after producing | The annotations are blank. |
+| Tag after producing | The annotations are blank. (A re-run of production then fills them in.) |
+| Re-run production on an upgraded project before "Load Params" | The stamps are not bound to views, so every view and sheet is made again. |
 | Rebuild seeds in a live project without warning the team | 58 catalogue parameters (IP rating, ports, flow rate …) are now type parameters: a value typed on one placed element is replaced by its type's value. Give such an element its own type. |
 
 ## What is left
@@ -723,27 +870,63 @@ riser schematics) are the drawings to plan hand time for.
 - **Schematics nothing draws:** HVAC, hot water / LTHW, vent riser, fire riser and the ESS power
   riser have drawing types but no generator (📐 in Part D).
 - **No earthing / lightning-protection layout plan type** (the schematics exist).
+- **Linked MEP runs are reported, not dimensioned.** Dimensioning through a link needs link
+  references on pipe and duct geometry that cannot be checked outside Revit. Dimension them
+  in the MEP model.
 - **Photometric parameters** (`ELC_PHOTO_*`) are type parameters in the seed families but bound
   as instance parameters in the project; which wins in a loaded family needs a Revit check.
 
 ## Needs a Revit run before it is trusted
 
-The code for all of this is written and unit-tested where it can be; none of it has run in
-Revit yet:
-- the CAD Wizard's full conversion on a real DWG, and the Pick tools
-- the wizard's stamped views / sheets (plans, scope-box dependents, grid sections, exterior
-  elevations), level rename and scope-box rename
-- area-box match lines, dependent views, crop recovery on Sync Styles
-- the three MEP presets end to end with no dialogs
-- SLD / riser / schematic / panel schedule sheets (and whether a large plumbing schematic fits
-  an A1 slot at 1:50)
-- revision issue of freshly produced sheets, and PDFs reaching the transmittal
-- the `RevisionIssue` preset's clouds against the previous revision's snapshot, and issue of
-  a sheet whose cloud is drawn on the sheet itself
-- colouring produced MEP plans through their view templates (`MEP_ApplyMepCoordination`,
-  `scope = produced`)
-- medical-gas pack placement placing the seed types with the gas stamped
-- temporary base views for templates
-- medical-gas placement in a hospital model (and none in a residential one)
-- the seed type-swap updater and the renamed-type migration
-- the rebuilt seed families with their corrected parameter names and scopes
+The code for all of this is written and unit-tested where it can be; none of the drawing
+production changes has run in Revit yet. In a real model, check:
+- **Bindings (do these first).** After "Load Params", `STING_DRAWING_TYPE_ID_TXT` shows in a
+  produced view's properties, and re-producing makes no duplicate views. The match-line keys
+  resolve on lines (the STING log shows 1/1, not 0/1); if Revit refuses shared parameters on
+  lines, the keys have to move into the element's own storage. Healthcare filters create
+  without warnings.
+- **Re-runs.** Rename "Level 1" to "Ground Floor" and re-run per-level production: no new
+  views, sheets or numbers. A `STING::<type>::L01` box on a level named "Level 1" produces on
+  that level. A re-run tags and dimensions only what was added, and draws no second
+  match-line frame.
+- **The production dialog.** Presets save, reload and overwrite by name; VG, scale, detail and
+  annotation options apply; "Skip levels…" lists the skipped levels, MEP in a link included.
+- **Sections and elevations.** Only ticked grids are cut; a section type on a box cuts through
+  it and a 3D type is boxed by it. Exterior elevations run twice without duplicates, and 1+4
+  puts four faces on one sheet. Interior elevations share one marker, on the room's own plan.
+- **Annotation.** One room tag per room, none on a re-run, manual tags left alone. Linked
+  pipes and fixtures are tagged and follow the link; linked grids are dimensioned. Grids at
+  30° get two chains, each square to its set. MEP run chains go through fitting centres.
+- **Scope boxes.** Re-planning after the model grows keeps existing boxes and names; after a
+  level rename the boxes still resolve to their level and `levelIds` is in the plan file; a
+  turned LOC box gets turned tiles and no extra ones. Moving a box and running Generate moves
+  its match lines; deleting a plan prunes its curves; a 2×2 area-box grid run twice has no
+  duplicate lines or captions.
+- **Sheet numbers.** Under `iso`, new numbers have no `-S2-P01` tail, existing sheets are
+  unchanged and the counter continues; ISO spool numbers do not clash with produced sheets;
+  Batch Sheets / Doc Package number by the project pattern and are stamped.
+- **Produce & Export.** The PDFs exist, are named by the ISO identifier, suitability and
+  revision, are registered, and a new revision does not overwrite the old PDF. Export one
+  sheet and confirm the file name Revit wrote.
+- **Schematics.** SLD, riser and panel schedule sheets are placed, and reused on a re-run.
+  Run Fire Alarm Schematic twice: one view, still on its sheet, no "Drafting
+  N". Drainage: stacks at their real levels, vents only where modelled, no invented branches,
+  and no view (with the reason) when there is no stack. Supply: the meter is the source, no
+  kPa labels without a saved plumbing configuration, glyphs about 3 mm on paper, and a large
+  network fits its sheet. Rename a board and re-run Panel Door Diagram: the same sheet.
+- **Presets and issue.** `MEPDrawingProduction` end to end with no dialogs, colouring produced
+  plans by system (through the view template where it controls filters). The
+  `RevisionIssue` preset's clouds against the previous revision, and issue of a sheet whose
+  cloud is drawn on the sheet itself (only that sheet is issued). PDFs reaching the
+  transmittal.
+- **Modelling.** The CAD Wizard's full conversion on a real DWG, and the Pick tools (a wall
+  picked where one face is split by a door spans only the overlap). The wizard's stamped
+  views and sheets, level rename and scope-box rename. Crop recovery on Sync Styles.
+  Temporary base views for templates.
+- **Seeds and medical gas.** Medical-gas seeds placed from a DWG and by the rule pack carry
+  the gas and product code; none are placed in a residential model. The seed type-swap
+  updater, the renamed-type migration, and the rebuilt seed families' parameter names and
+  scopes. A seed luminaire's `ELC_PHOTO_*` values read from an instance.
+- A title block built from a master that already has a revision table shows one revision
+  schedule, not two.
+
