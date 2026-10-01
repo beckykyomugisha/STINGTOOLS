@@ -320,36 +320,16 @@ namespace StingTools.Tags
 
             try
             {
-                var config = new Dictionary<string, object>
+                // TAGACC-19: one writer. TagConfig.SaveToFile writes every key TagConfig owns
+                // and keeps the rest of the file (SEQ_*, folder layout, COST_*, ...). This used
+                // to build its own 13-key dictionary and write it over the whole file.
+                if (!TagConfig.SaveToFile(path))
                 {
-                    { "DISC_MAP", TagConfig.DiscMap },
-                    { "SYS_MAP", TagConfig.SysMap },
-                    { "PROD_MAP", TagConfig.ProdMap },
-                    { "FUNC_MAP", TagConfig.FuncMap },
-                    { "LOC_CODES", TagConfig.LocCodes },
-                    { "ZONE_CODES", TagConfig.ZoneCodes },
-                    { "TAG_FORMAT", new Dictionary<string, object>
-                        {
-                            { "separator", TagConfig.Separator },
-                            { "num_pad", TagConfig.NumPad },
-                            { "segment_order", TagConfig.SegmentOrder }
-                        }
-                    },
-                    // GAP-UI-01: Advanced settings — included so users can see and edit them in the JSON
-                    { "AUTO_CORRECT_STATUS_FROM_PHASE", TagConfig.AutoCorrectStatusFromPhase },
-                    // Tagging behaviour switches (TAGACC-4 / -5). This save rewrites the file,
-                    // so leaving them out would silently reset them to their defaults.
-                    { "RENUMBER_ON_OVERWRITE", TagConfig.RenumberOnOverwrite },
-                    { "RETAG_MOVED_ELEMENTS", TagConfig.RetagMovedElements },
-                    { "SEQ_LOCK_MODE", TagConfig.SeqLockMode },
-                    // GAP-UI-02: Leader clearance margin — persisted at whatever the current config value is
-                    { "LEADER_CLEARANCE_MARGIN_FT", TagConfig.GetConfigDouble("LEADER_CLEARANCE_MARGIN_FT", 0.5) },
-                };
-
-                string json = JsonConvert.SerializeObject(config, Formatting.Indented);
-                string tmpPath = path + ".tmp";
-                File.WriteAllText(tmpPath, json);
-                File.Move(tmpPath, path, true);
+                    TaskDialog.Show("Save Failed",
+                        $"Could not save config:\n{path}\n\nIf the file is not valid JSON it was left untouched — " +
+                        "fix or move it and save again. Details are in the STING log.");
+                    return;
+                }
 
                 // GAP-6B: Reload config immediately after save so changes take effect
                 try

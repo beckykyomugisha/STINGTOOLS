@@ -31,6 +31,7 @@ What remains is listed under **Residual**
 | TAGACC-15 | ~~P3~~ **Done 2026-09-29** | A room Department whose whole value is a declared ZONE code is that zone at any length ("A"); free text still never matches a one-letter code. |
 | TAGACC-16 | ~~P3~~ **Mostly done 2026-09-29** | The 28 remaining `Category.Name` reads that are LOOKUPS (against `DiscMap`, known-category lists, category filters) now use `GetCategoryName`, so they match on a non-English Revit. About 60 remain that only DISPLAY the name (log lines, report columns, "Unknown" fallbacks); on a localised Revit they show the translated name, which is correct for a reader and does not affect a tag. |
 | TAGACC-17 | ~~P3~~ **Done 2026-09-29** | Deferred elements are retried after Reload Latest as well as after this user's sync (`DocumentReloadedLatest`), and duplicates are repaired at the same point. A user who neither syncs nor reloads still waits; nothing can refresh their copy of the counters. |
+| TAGACC-19 | ~~P1~~ **Done 2026-10-01** | Save Config to Project and `TagConfig.SaveToFile` (wizard, auto-tagger toggles) rewrote `project_config.json` from their own key list, resetting SEQ_*, folder-layout, COST_* and every other key; both now merge (`Core/ConfigFileMerge`). |
 
 **Settings.** RETAG_MOVED_ELEMENTS, RENUMBER_ON_OVERWRITE, AUTO_CORRECT_STATUS_FROM_PHASE and
 SEQ_LOCK_MODE are switched from the **Tag Rules** button (TAGGING tab, beside Batch Tag) and
