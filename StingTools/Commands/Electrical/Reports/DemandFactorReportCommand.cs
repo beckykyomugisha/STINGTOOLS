@@ -154,7 +154,9 @@ namespace StingTools.Commands.Electrical.Reports
                     {
                         LoadClass   = lc["class"]?.ToString() ?? "Other",
                         Rule        = lc["rule"]?.ToString() ?? "",
-                        Description = lc["description"]?.ToString() ?? "",
+                        // The BS7671_2018 classes carry "notes", not "description"
+                        // (DSCH round 4) - the BS 7671 report's column was blank.
+                        Description = (lc["description"] ?? lc["notes"])?.ToString() ?? "",
                         Continuous  = lc["continuousLoad"]?.Value<bool>() ?? false
                     };
                     if (lc["factors"] is JArray fac)
