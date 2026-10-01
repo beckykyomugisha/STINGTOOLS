@@ -33,15 +33,26 @@ has **not been re-measured**.
 - **Expected effect.** ~36 parameters per door tag instead of 163, so ~28 s instead of ~124 s at 0.78 s each.
   Propagated families inherit whatever the universal master carries, so they keep its switches until the
   master is rebuilt.
-- **Known gap (pre-existing, not changed here).** Create Tag Families' `AddSharedParameters` adds every
-  parameter as INSTANCE, so on a family built only by that path the type-level writers cannot reach
-  `TAG_STYLE_CODE_TXT` (the switches had the same problem). Migrate Tag Families / Family Parameter Creator
-  add style parameters as TYPE.
+- **Create Tag Families adds type-level parameters as TYPE.** Its `AddSharedParameters` (which also serves
+  declared families and the tie-in loops) passed `isInstance: true` for every parameter, so on a family built
+  that way `TAG_STYLE_CODE_TXT` — now the only record of a new family's style — had no per-type value, and the
+  depth gates and box / leader parameters were undrivable for the same reason. One rule now decides TYPE vs
+  INSTANCE for all three adding paths: `Core/TagFamilyParamScope.cs` (Revit-free) via
+  `TagFamilyConfig.IsTypeScopedParam`. TYPE: the depth gates, `StyleParams` (code, opted-in switches, box /
+  leader / scale / depth), `STING_TAG_POS`, the depth cache, any `TAG_BOX_*` / `TAG_LEADER_*` and any style
+  switch. Everything else (`ASS_TAG_*` containers, tokens, description, label params) stays INSTANCE.
+  Migrate's old rule (everything but `ASS_TAG*` is type) and Family Parameter Creator's inline set gave the
+  same answer for their lists and now call the shared rule. Parameters already on a family are not re-scoped.
+- **Remaining (logged on TAGFAM-9).** Colour schemes, switch-by-discipline, the scale tiers and
+  `TokenProfileApplier` still set only switches, so on a switch-less family they record no style.
 - **Tests.** `StingTools.Tags.Tests/TagStyleFamilyParamsTests.cs`, 29 cases: the shipped field binds through
   the real parser with nothing rejected, every entry is a valid code, `StyleParams` carries no switch the
   catalogue does not list and is composed from the catalogue, `TAG_STYLE_CODE_TXT` leads the list and is TEXT in
   `MR_PARAMETERS.txt`, the writers and conformance check use it. **RED against `origin/main`: 9 of 29 failing;
-  GREEN: 29 of 29.** Full Tags suite 5,205 passing, 0 failing.
+  GREEN: 29 of 29.** `TagFamilyParamScopeTests.cs`, 22 cases: the TYPE / INSTANCE rule by name (including
+  `TAG_7_SECTION_VISIBLE_A_BOOL` staying INSTANCE, which tightened the switch-shape match), and that
+  `AddSharedParameters`, Migrate and Family Parameter Creator all call it. **RED against the first commit of
+  this branch: 5 of 22 failing; GREEN: 22 of 22.** Full Tags suite 5,227 passing, 0 failing.
 
 #### Completed (TAGACC-25 discipline profiles: CollisionMode applied, five settings retired, 2026-10-01)
 

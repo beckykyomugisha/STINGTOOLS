@@ -46,12 +46,15 @@ namespace StingTools.Core
         public static string SwitchParamName(string code) => $"TAG_{code}_BOOL";
 
         /// <summary>True for a name in the TAG_{size}{style}_{colour}_BOOL switch matrix shape.</summary>
+        /// <remarks>Strict on purpose: TAG_7_SECTION_VISIBLE_A_BOOL also starts "TAG_" + a
+        /// digit and is a per-element TAG7 toggle, not a style switch.</remarks>
         public static bool LooksLikeSwitch(string paramName)
-            => !string.IsNullOrEmpty(paramName)
-               && paramName.StartsWith("TAG_", StringComparison.Ordinal)
-               && paramName.EndsWith("_BOOL", StringComparison.Ordinal)
-               && paramName.Length > 9
-               && char.IsDigit(paramName[4]);
+            => !string.IsNullOrEmpty(paramName) && SwitchShape.IsMatch(paramName);
+
+        private static readonly System.Text.RegularExpressions.Regex SwitchShape =
+            new System.Text.RegularExpressions.Regex(
+                @"^TAG_\d+(\.\d+)?(NOM|BOLD|ITALIC|BOLDITALIC)_[A-Z]+_BOOL$",
+                System.Text.RegularExpressions.RegexOptions.CultureInvariant);
 
         /// <summary>
         /// Parse a style code against the catalogue's dimensions. Accepts the code

@@ -274,6 +274,7 @@ namespace StingTools.Commands.TagStudio
             var existing = new HashSet<string>(
                 fm.GetParameters().Select(p => p.Definition.Name),
                 StringComparer.OrdinalIgnoreCase);
+            var typeScoped = TagFamilyConfig.TypeScopedParamNames();
 
             foreach (string paramName in wanted)
             {
@@ -290,10 +291,10 @@ namespace StingTools.Commands.TagStudio
                 }
                 if (extDef == null) continue;
 
-                // Style/visibility/depth-tier params are TYPE params.
-                bool isInstance = false;
-                if (paramName.StartsWith("ASS_TAG", StringComparison.OrdinalIgnoreCase))
-                    isInstance = true; // tag container values come from the instance
+                // Style/visibility/depth-tier params are TYPE params; tag containers
+                // (ASS_TAG_*) come from the instance. One rule for every tag-family path
+                // (TagFamilyConfig.IsTypeScopedParam -> TagFamilyParamScope).
+                bool isInstance = !TagFamilyConfig.IsTypeScopedParam(paramName, typeScoped);
 
                 try
                 {
