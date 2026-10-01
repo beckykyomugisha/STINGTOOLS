@@ -8787,8 +8787,12 @@ namespace StingTools.UI
                     Prod = r.Prod,
                     MatCode = r.MatCode,
                     Discipline = r.Discipline,
-                    RateUGX = r.RateUgx.HasValue ? r.RateUgx.Value.ToString("N0", inv) : "—",
-                    RateUSD = r.RateUsd.HasValue ? r.RateUsd.Value.ToString("N2", inv) : "—",
+                    RateUGX = r.Outcome != StingTools.BOQ.Rates.RateOutcome.Priced
+                        ? StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(r.Outcome, r.IncludedIn)
+                        : r.RateUgx.HasValue ? r.RateUgx.Value.ToString("N0", inv) : "—",
+                    RateUSD = r.Outcome != StingTools.BOQ.Rates.RateOutcome.Priced
+                        ? StingTools.BOQ.Rates.RateOutcomeToken.BillRateText(r.Outcome, r.IncludedIn)
+                        : r.RateUsd.HasValue ? r.RateUsd.Value.ToString("N2", inv) : "—",
                     Unit = r.Unit,
                     Description = r.Description
                 }).ToList();
