@@ -2,6 +2,23 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-3: the four specialist tag labels, 2026-10-01)
+
+- **Built in the Revit 2025 Family Editor** on the families Create Tag Fams made (category, size
+  types and `TXT_*` switches already set), following `docs/SPECIALIST_TAG_BUILD_SHEET.md`:
+  `STING - Fire Door Tag` (5 rows), `STING - Accessible Door Tag` (8), `STING - Room Finish Tag`
+  (5), `STING - Fire Compartment Tag` (4). Each label's parameters were added from its
+  `_build\*.params.txt` file. Label type `2.5mm` (Arial 2.5 mm, transparent), **left-aligned**
+  and vertically centred — the user's ISO rule, now written into the sheet.
+- **Drawing types repointed** (DT-2): `arch-fire-strategy-A1-1to100` Doors → Fire Door Tag, Rooms →
+  Fire Compartment Tag; `arch-accessibility-A1-1to100` Doors → Accessible Door Tag;
+  `arch-floor-finishes-A1-1to100` Rooms → Room Finish Tag. Checksums re-stamped with
+  `tools/StampDrawingTypeChecksums` (3 drifted, `--check` clean).
+- **Found while building:** a calculated value cannot be named *Operation* on a door tag (doors
+  have a built-in *Operation*); Accessible Door's row is *Door operation*. Sheet updated.
+- **Not done:** the 3.5 mm label copy and the door box (sheet §Types, §Box). Tests 4,599 passing.
+  Not yet placed on a real drawing.
+
 #### Completed (TAGFAM-2 first Revit run, hub buttons, TAGFAM-4 category decisions, 2026-09-30)
 
 - **Run in Revit 2025** (this branch's build, throwaway `Project1`): the confirmation listed 211 families,

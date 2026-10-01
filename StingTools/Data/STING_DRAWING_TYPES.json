@@ -2433,7 +2433,7 @@
       "id": "arch-floor-finishes-A1-1to100",
       "name": "Floor Finishes Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "bf09b70b38a662525a5f7073e632f18b3b733721a4f5c3023a977287e306a3de",
+      "checksum": "48063c91f82758de991d13e7923cdc1cf285953bdf703344178fd22be4518dfe",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2491,7 +2491,7 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "Rooms": "STING - Room Tag"
+          "Rooms": "STING - Room Finish Tag"
         },
         "rules": [
           {
@@ -2555,7 +2555,7 @@
       "id": "arch-fire-strategy-A1-1to100",
       "name": "Fire Strategy Plan — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "aa20925f1abd418f5aa4526beb6bf76373979e3d68cf60cc00979e911fbaaabd",
+      "checksum": "18de67288e78a4a5adfee6ccef9d7f9d42bc4ae78ba93d021f7b781f0425e47f",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2613,8 +2613,8 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "Rooms": "STING - Room Tag",
-          "Doors": "STING - Door Tag"
+          "Rooms": "STING - Fire Compartment Tag",
+          "Doors": "STING - Fire Door Tag"
         },
         "rules": [
           {
@@ -2673,7 +2673,7 @@
       "id": "arch-accessibility-A1-1to100",
       "name": "Accessibility Plan (Part M) — A1 @ 1:100",
       "origin": "corporate",
-      "checksum": "6c7fdc71f7578077d02cd1c528979bf5e88a99146beab272d803092302b634d6",
+      "checksum": "7969925f8551e55f18b4562d105ba92926ebf85de7d41b9b37cbfbef65708fbf",
       "purpose": "Plan",
       "discipline": "A",
       "paperSize": "A1",
@@ -2731,7 +2731,7 @@
       ],
       "annotation": {
         "tagFamilies": {
-          "Doors": "STING - Door Tag",
+          "Doors": "STING - Accessible Door Tag",
           "Rooms": "STING - Room Tag"
         },
         "rules": [
