@@ -515,7 +515,8 @@ namespace StingTools.BOQ
         private void BuildProvisionalSumsSheet(IXLWorksheet ws, BOQDocument boq)
         {
             BannerRow(ws, "Provisional Sums — open PCs awaiting instruction");
-            string[] cols = { "PS Ref", "NRM2 §", "Category", "Description", "Unit", "Quantity",
+            // DSCH-35 — "Type" is the NRM2 2.9.1 declaration: Defined / Undefined / NOT DECLARED.
+            string[] cols = { "PS Ref", "NRM2 §", "Category", "Description", "Type", "Unit", "Quantity",
                 "Rate UGX", "Rate USD", "Total UGX", "Status", "Note" };
             WriteHeader(ws, 3, cols);
             int row = 4;
@@ -527,22 +528,36 @@ namespace StingTools.BOQ
                 ws.Cell(row, 3).Value = it.Category;
                 ws.Cell(row, 4).Value = it.ResolvedNRM2Paragraph;
                 ws.Cell(row, 4).Style.Alignment.WrapText = true;
-                ws.Cell(row, 5).Value = it.Unit;
-                ws.Cell(row, 6).Value = it.Quantity;
-                ws.Cell(row, 7).Value = it.RateUGX;
-                ws.Cell(row, 8).Value = it.RateUSD;
-                ws.Cell(row, 9).Value = it.TotalUGX;
-                ws.Cell(row, 10).Value = ExtractStatus(it.Note);
-                ws.Cell(row, 11).Value = it.Note;
+                ws.Cell(row, 5).Value = ProvisionalSumTypes.Marker(it.PsType);
+                if (it.PsType == ProvisionalSumType.Undeclared)
+                    ws.Cell(row, 5).Style.Font.SetBold().Font.SetFontColor(XLColor.Red);
+                ws.Cell(row, 6).Value = it.Unit;
+                ws.Cell(row, 7).Value = it.Quantity;
+                ws.Cell(row, 8).Value = it.RateUGX;
+                ws.Cell(row, 9).Value = it.RateUSD;
+                ws.Cell(row, 10).Value = it.TotalUGX;
+                ws.Cell(row, 11).Value = ExtractStatus(it.Note);
+                ws.Cell(row, 12).Value = it.Note;
                 row++;
             }
             if (psRows.Count == 0)
                 ws.Cell(4, 1).Value = "No provisional sums registered on this project.";
             else
             {
-                ws.Cell(row + 1, 8).Value = "PS total";
-                ws.Cell(row + 1, 9).FormulaA1 = $"SUM(I4:I{row - 1})";
-                ws.Range(row + 1, 8, row + 1, 9).Style.Font.SetBold();
+                ws.Cell(row + 1, 9).Value = "PS total";
+                ws.Cell(row + 1, 10).FormulaA1 = $"SUM(J4:J{row - 1})";
+                ws.Range(row + 1, 9, row + 1, 10).Style.Font.SetBold();
+
+                // DSCH-35 — the preamble note: what Defined / Undefined mean for preliminaries.
+                int undeclared = psRows.Count(i => i.PsType == ProvisionalSumType.Undeclared);
+                int noteRow = row + 3;
+                foreach (string clause in ProvisionalSumTypes.PreambleClauses(undeclared))
+                {
+                    ws.Cell(noteRow, 1).Value = clause;
+                    ws.Range(noteRow, 1, noteRow, cols.Length).Merge().Style.Alignment.WrapText = true;
+                    ws.Row(noteRow).Height = 30;
+                    noteRow++;
+                }
             }
             ws.Range(3, 1, 3, cols.Length).SetAutoFilter();
             ws.SheetView.FreezeRows(3);

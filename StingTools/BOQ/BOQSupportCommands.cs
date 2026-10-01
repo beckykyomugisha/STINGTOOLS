@@ -773,12 +773,21 @@ namespace StingTools.BOQ
                     RateConfidence = 70,
                     Note = $"Added via BOQ panel ({BoqSourceUtil.Label(source)})"
                 };
+                // DSCH-35 — a PS row carries its NRM2 2.9.1 declaration; blank or unreadable
+                // input stays Undeclared (shown NOT DECLARED and flagged), never a default.
+                if (source == BOQRowSource.ProvisionalSum)
+                {
+                    string psRaw = StingCommandHandler.GetExtraParam("ManualRowPsType");
+                    if (ProvisionalSumTypes.TryParse(psRaw, out var psType)) newRow.PsType = psType;
+                    else if (!string.IsNullOrWhiteSpace(psRaw)) newRow.Note += "; " + ProvisionalSumTypes.UnreadableNote(psRaw);
+                }
                 store.ManualRows.Add(newRow);
                 BOQCostManager.SaveManualRows(ctx.Doc, store.ManualRows, store.ProjectBudgetUGX);
                 UI.StingResultPanel.Create("Manual row added")
                     .AddSection("ROW")
                     .Metric("Item", newRow.ItemName)
-                    .Metric("Type", newRow.Category)
+                    .Metric("Type", newRow.Source == BOQRowSource.ProvisionalSum
+                        ? $"{newRow.Category} ({ProvisionalSumTypes.Marker(newRow.PsType)})" : newRow.Category)
                     .Metric("Quantity", $"{newRow.Quantity:N3} {newRow.Unit}")
                     .Metric("Rate", $"UGX {newRow.RateUGX:N0}")
                     .Show();
@@ -1077,7 +1086,7 @@ namespace StingTools.BOQ
                         try { el = ctx.Doc.GetElement(new ElementId(m.ModeledRow.RevitElementId)); }
                         catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); continue; }
                         if (el == null) continue;
-                        ParameterHelpers.SetInt(el, "CST_PROVISIONAL_SUM", 0, overwrite: true);
+                        ParameterHelpers.SetInt(el, ParamRegistry.CST_PROVISIONAL_SUM, 0, overwrite: true);
                         ParameterHelpers.SetString(el, "CST_RATE_SOURCE", "PromotedFromPS", overwrite: true);
                     }
                     tx.Commit();
