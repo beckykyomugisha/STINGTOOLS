@@ -2727,3 +2727,11 @@ The R1–R14 findings table (file, line, severity, commit) is in `WORKLOG.md`. R
 
 - **REVWF-1 — transmission is not a state (R8).** Issue Sheets records the issue date on deliverables and the register, and proposes RESPONDED on issues, when Revit issues the revision. A later export or ACC upload that fails does not undo that. Revit locks an issued revision, so the Revit issue is the issue event. What is missing is a separate "transmitted" state (register `transmitted_utc`, set by the Export Centre upload and ACC_UploadLastBundle on success) so MIDP drift and the IM can tell "issued, not yet in the CDE" apart from "in the CDE".
 - **REVWF-2 — verify in Revit (NEEDS MANUAL CHECK).** These have not been run in Revit: the fortnightly preset stopping at step 1 or 2 without publishing, the locked-title-block LOCKED report, supersede archiving a ledgered PDF+DWG, and the Per-Sheet # / Leak Chk buttons. See WORKLOG, "NEEDS MANUAL CHECK".
+
+### ACC-adjacent audit (2026-10-01) — C1–C10
+
+The table is in `WORKLOG.md`. C1–C5 and C7–C10 are fixed (see CHANGELOG). Open:
+
+- **ACC-ADJ-C6 — Revit PDF byte-stability (NEEDS MANUAL CHECK).** If two exports of an unchanged sheet differ, the ledger can never skip them as identical. They land as HELD (reported, not failing). A normalised PDF hash would let them skip.
+- **DOCX-REG-1 — show IsoNote in the Document Manager grid.** The unified register now carries why a suitability is not a recorded code (conflict / not set / S0 default), but `DocItemVM.Suitability` also drives CDE logic, so a display marker needs its own column.
+- **ACC-SRV-11 — issues created and resolved between sweeps never reach ACC.** AccSyncService creates only OPEN/IN_PROGRESS issues. An issue raised and closed inside one interval is never pushed. Decide whether closed-but-never-pushed issues should be created closed, or reported.

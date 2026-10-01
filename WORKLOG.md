@@ -3,9 +3,9 @@
 Standing task (2026-10-01): unattended loop — resume → research → record → fix → verify → commit → merge → update ROADMAP/WORKLOG → repeat. Priority: (1) ACC integration, (2) everything ACC touches, (3) rest of the codebase.
 
 ## Resume here
-1. Fix the area-2 findings C1–C10 below, highest first. C1 (P0) is store quarantine: PluginSchemaVersion turns JSON-array stores into objects.
-2. Deploy the INTEGRATION branch (it now contains origin/main incl. #1019) to `C:\Dev\STING_KUT_LIVE` once `tasklist | grep Revit` is empty: `git -C C:/Dev/STING_KUT_LIVE checkout --detach <integration head>`, then deploy.bat, then the verification in "Deploy".
-3. After C1–C10, area 3: route the UNGATED dialogs in `tools/unattended_cycle_baseline.txt` through PresetDialog (now on this branch).
+1. Deploy the INTEGRATION branch (`claude/acc-work-review-gaps-7e2ac7`, = origin/main + all ACC work) to `C:\Dev\STING_KUT_LIVE` once `tasklist | grep Revit` is empty. Revit has been open all session. Verify per "Deploy".
+2. Area 3, continued: the 74 UNGATED lines in `tools/unattended_cycle_baseline.txt`. Next: Mobilisation (CDEStatus, LoadSharedParams, CreateFilters/Worksets), Deliverable A–D (LOD, ProgramAudit, OwnerStandards, DeviceCoordination, Fohlio), LifecycleReconcile (CSI, SpecLink, Niagara, KUT valuation), MonthlyReport. Pattern: PresetDialog.Show(..., ref message); a picker reads WorkflowEngine.StepParam and fails when the param is missing.
+3. Then a fresh deeper ACC audit pass (round 3): auth/token expiry, paging and rate limits across every ACC client (AccHttp consumers), the BCC ACC card end to end, and webhooks.
 
 ## Branches
 - **Integration branch:** `claude/acc-work-review-gaps-7e2ac7` (worktree `.claude/worktrees/acc-work-review-gaps-7e2ac7`). Not pushed.
@@ -55,12 +55,12 @@ ACC seam audit A1–A16: all fixed (see "Findings (done)"). Open work is the rev
 | C2 | Export→ACC | ScheduledExportRunner.cs:105-113; ScheduledExportSummary Verdict; ExportCenterEngine.cs:1165; StingExportCenterDialog.cs:1794 | P0 | ACC upload failures only Warnings: step 5 green while nothing reached ACC; dialog Take(8) can hide the ACC line | **Done** d476d088a: ExportAccUploadTally; Verdict fails on blocked/failed (refused in a preset); HELD re-issues reported not fatal; ACC line first |
 | C3 | Issues→server | PlanscapeServerClient.cs:624-646; IssueStore.cs:452-517 | P1 | No Idempotency-Key on create (timeout during cold start → duplicate BimIssue → both pushed to ACC); reconcile writes stale snapshot over concurrent server_code | **Done** e2a9969d2: X-Idempotency-Key per (project, issue id); reconcile stamps per row under lock; server replay test (tenant double) |
 | C4 | JSON stores | BIMManagerCommands.cs:775-838 | P1 | LoadJsonArray: unreadable → empty (then overwritten); SaveJsonFile swallows → "SENT" claimed after failed save | **Done** db0dbaa13: JsonStoreFile (Replace keeps .bak, moves unreadable aside; TryLoadArray); SaveJsonFile→bool; ACC-path writers refuse/report |
-| C5 | Ledger key | V6/AccUploadLedger.cs:103-137 | P1 | Key ignores suitability/folder: S2→S3 or WIP→SHARED under same revision skipped/refused | Suitability in the key; status change = upload to new folder |
-| C6 | Hash stability | AccUploadGate.cs:83-112 | P2 | Revit PDFs likely not byte-stable → re-exports refused not skipped | NEEDS MANUAL CHECK (hash twice); then decide |
-| C7 | Unified register | Core/DocumentRegisterMerge.cs:44-146 | P2 | Ignores suitability_defaulted/iso_unset/IsoConflict; backfills cleared suitability | Carry flags; no backfill over IsoConflict |
+| C5 | Ledger key | V6/AccUploadLedger.cs:103-137 | P1 | Key ignores suitability/folder: S2→S3 or WIP→SHARED under same revision skipped/refused | **Done** 9b9302b81: suitability-aware ledger check; UploadStatusChange; legacy entries keep the old rule |
+| C6 | Hash stability | AccUploadGate.cs:83-112 | P2 | Revit PDFs likely not byte-stable → re-exports refused not skipped | NEEDS MANUAL CHECK (see below); mitigated by C2 HELD category (re-exports never fail a step) |
+| C7 | Unified register | Core/DocumentRegisterMerge.cs:44-146 | P2 | Ignores suitability_defaulted/iso_unset/IsoConflict; backfills cleared suitability | **Done** 573cd50f3: no backfill over IsoConflict/default; IsoNote in CSV + canonical. Grid marker = ROADMAP DOCX-REG-1 |
 | C8 | Register pairing | RevisionIssueCompletion.cs:177-179 | P2 | ApplyToRegister keeps a contradicted stale suitability (R5 guard missing there) | **Done** af0b67309: ApplyToRegister clears a contradicted code + iso_conflict + report |
-| C9 | CDE routing | AccModelUpload.cs:263-290; ExportCenterEngine.cs:1148 | P2 | No cdeFolders → every state to one folder; row drops FolderReason | Append folder reason; refuse WIP without cdeFolders unless opted in |
-| C10 | Server push | Planscape.Server AccSyncService.cs:398-485 | P2 | Planscape edits (status/title) never reach ACC after first push | PATCH mapped issues updated since last push, or report divergence |
+| C9 | CDE routing | AccModelUpload.cs:263-290; ExportCenterEngine.cs:1148 | P2 | No cdeFolders → every state to one folder; row drops FolderReason | **Done** c4d960d03: WIP refused without cdeFolders (UnroutedWipRefusal); rows name their folder |
+| C10 | Server push | Planscape.Server AccSyncService.cs:398-485 | P2 | Planscape edits (status/title) never reach ACC after first push | **Done** 1760fcf38: PATCH mapped Planscape-born issues edited since last push; never reopen an ACC close; legacy baseline; precision bug caught by the test |
 
 ## Findings (done)
 - 2026-10-01 audit fixes on `claude/acc-audit-fixes-y` (not pushed): **A7** `eec4bf778` (review on the live tip version) ·
@@ -128,4 +128,8 @@ Seam audit (2026-10-01):
 - **C1:** the schema gate skips array roots (no sidecar versioning). Array stores have never carried `$schemaVersion`, and versioning them would mean changing every reader. Projects already hit can recover from `*.corrupt.*` (NEEDS MANUAL CHECK).
 - **C2 held vs refused:** a "re-issue without a revision change" is HELD and reported, never failing the step. Byte-unstable PDFs (C6) would otherwise fail every whole-set scheduled run. Only unset or contradictory ISO fields, which are content problems, fail a preset.
 - **C4 scope:** `LoadJsonArray` keeps its read-as-empty contract for its 56 callers. The fix makes the following save non-destructive (the unreadable file is moved aside, and a `.bak` now really exists). Only the ACC-path writers switch to the refusing `TryLoadJsonArray`; the rest can migrate incrementally.
+- **C5:** suitability became part of the ledger decision, not of the key, so existing ledgers stay valid. Legacy entries with no suitability keep the old rule.
+- **C9:** WIP without cdeFolders is refused, not opted in by a new key. ISO 19650 keeps WIP out of shared areas, and the fix is mapping cdeFolders (a key that already exists).
+- **C10:** the status is withheld (and reported) whenever ACC last said closed and Planscape says anything else, completed included. Undoing ACC's close is never the sync's call.
+- **Area 3 RetagStale:** the scope is a step param, failing when missing, not defaulted. KUT steps set "project" because their labels say "since the last gate".
 - **CHANGELOG merge conflicts:** always keep both entries (tool: scratchpad keepboth.py refuses >1 region).
