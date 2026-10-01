@@ -408,12 +408,26 @@ def type_ok(value, expected):
     return True
 
 
+class _ExactKeys(dict):
+    """lower-case -> declared spelling; `key in exact` is true only for the exact
+    declared spelling (or a key the declaration does not cover at all, which the
+    unknown-key check above has already reported)."""
+    def __contains__(self, key):
+        d = dict.get(self, key.lower())
+        return d is None or d == key
+
+
 def validate_object(obj, schema, where):
     if not isinstance(obj, dict):
         err(f"{where}: expected an object, found {type(obj).__name__}")
         return
 
     allowed = allowed_keys(schema, where)
+    exact = None
+    if "poco" not in schema and "keys" in schema:
+        declared = list(schema["keys"]) + list(schema.get("docKeys", {}))
+        exact = {k.lower(): k for k in declared}
+        exact = _ExactKeys(exact)
     types = schema.get("types", {})
     children = {k.lower(): v for k, v in schema.get("children", {}).items()}
 
@@ -424,6 +438,15 @@ def validate_object(obj, schema, where):
             err(f"{where}: UNKNOWN KEY '{key}' — nothing reads it, so its value "
                 f"is silently discarded at load. Fix the spelling or add the "
                 f"member to the type.")
+            continue
+        if exact is not None and key not in exact:
+            # A hand-declared key list describes a JObject / dictionary reader, which
+            # looks keys up by EXACT name: 'heatingWindMS' is silently ignored where
+            # 'heatingWindMs' is read. (A POCO is bound by Newtonsoft ignoring case,
+            # so this applies only to "keys" schemas.)
+            err(f"{where}: KEY '{key}' differs only in case from the declared "
+                f"'{exact[key.lower()]}' — a reader that looks it up by name will "
+                f"not find it. Use the declared spelling.")
             continue
         if key in types and value is not None and not type_ok(value, types[key]):
             err(f"{where}.{key}: expected {types[key]}, found {type(value).__name__}")
@@ -1080,6 +1103,15 @@ def self_test(reg):
     def drop_comment_header(text):
         return "".join(ln for ln in text.splitlines(True) if not ln.startswith("# Parameter_Name"))
 
+    def wind_key_wrong_case(doc):
+        for site in doc.get("sites", []):
+            if "heatingWindMs" in site:
+                site["heatingWindMS"] = site.pop("heatingWindMs")
+                return doc
+        raise AssertionError("no site carries heatingWindMs")
+
+    json_case(D + "STING_CLIMATE_DATA.json", "key differs only in case from a hand-declared key",
+              wind_key_wrong_case)
     text_case(D + "Labour/STING_LABOUR_RATES.csv", "header commented out - first data row read as header",
               comment_out_header)
     text_case(D + "RESOLVED_BINDINGS.csv", "headerInComment declared but the comment header is gone",
