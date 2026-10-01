@@ -210,6 +210,26 @@ namespace StingTools.Core.Drawing
             return pick != null && !string.Equals(pick, currentFilter, StringComparison.OrdinalIgnoreCase) ? pick : null;
         }
 
+        // ── DTW-209: a reused sheet's name follows a level rename ──────
+
+        /// <summary>
+        /// The new name for a REUSED sheet, or null to leave it. Production refreshes the
+        /// name only when it still is the one production gave: equal to the stored
+        /// generated name, or — for a sheet produced before that was stored — equal to the
+        /// pattern resolved with the level name in its old context stamp. A name edited by
+        /// hand, or a style-locked sheet, is left alone.
+        /// </summary>
+        internal static string ReusedSheetRename(string currentName, string storedGenerated, string legacyExpected,
+            string expectedNow, bool locked)
+        {
+            if (locked || string.IsNullOrWhiteSpace(expectedNow)) return null;
+            if (string.Equals(currentName, expectedNow, StringComparison.Ordinal)) return null;
+            bool generated = !string.IsNullOrEmpty(storedGenerated)
+                ? string.Equals(currentName, storedGenerated, StringComparison.Ordinal)
+                : legacyExpected != null && string.Equals(currentName, legacyExpected, StringComparison.Ordinal);
+            return generated ? expectedNow : null;
+        }
+
         // ── DTW-199: a view moved to another sheet stays there ─────────
 
         /// <summary>The report line for a view kept on the sheet someone moved it to.</summary>

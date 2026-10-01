@@ -93,6 +93,9 @@ namespace StingTools.Core.Drawing
         /// </summary>
         public string Failure { get; set; }
 
+        /// <summary>DTW-209: the reused sheet's context stamp before this run re-stamped it.</summary>
+        internal string PriorSheetStamp { get; set; }
+
         internal void Fail(string reason)
         {
             if (string.IsNullOrWhiteSpace(reason)) return;
@@ -424,7 +427,11 @@ namespace StingTools.Core.Drawing
             {
                 var found = FindSheetForRequest(doc, dt, ctx, result,
                     opts.Idempotent ? rules.Where(r => r != null).Select(r => r.Idx).ToList() : null);
-                if (found != null) { result.SheetId = found; sheetKnown = true; }
+                if (found != null)
+                {
+                    result.SheetId = found; sheetKnown = true;
+                    if (opts.OverrideSheetName == null) RefreshReusedSheetName(doc, dt, ctx, found, result);   // DTW-209
+                }
                 else
                 {
                     // DTW-194: a new sheet will need a number. When the counters cannot be
@@ -505,6 +512,51 @@ namespace StingTools.Core.Drawing
                 DiscardEmptySheet(doc, dt, newSheet, result);
 
             return result;
+        }
+
+        /// <summary>
+        /// DTW-209: a reused sheet kept the name it was given, so after a level rename it
+        /// still said "Level 1". Its name is re-derived and replaced — reported — when it is
+        /// still the name production gave it (ProductionEdgeDecisions.ReusedSheetRename);
+        /// a hand-edited name or a style-locked sheet is left alone.
+        /// </summary>
+        private static void RefreshReusedSheetName(Document doc, DrawingType dt, DrawingContext ctx, ElementId sheetId,
+            ProduceResult result)
+        {
+            try
+            {
+                if (!(doc.GetElement(sheetId) is ViewSheet sheet)) return;
+                // A sheet with no context stamp may be shared by several contexts (the
+                // parameter unbound); renaming it per context would flip its name each item.
+                if (DrawingTypeStamper.ReadSheetContext(sheet) == null) return;
+                var pattern = dt.SheetNamePattern ?? "";
+                int seq = 0;
+                try { seq = sheet.LookupParameter(DrawingTypeStamper.PARAM_SHEET_SEQUENCE)?.AsInteger() ?? 0; }
+                catch (Exception ex) { StingLog.Warn($"RefreshReusedSheetName seq {sheet.Id}: {ex.Message}"); }
+                if (seq <= 0 && pattern.IndexOf("{seq", StringComparison.OrdinalIgnoreCase) >= 0) return;   // cannot rebuild it
+
+                var tokens = BuildTokenDict(doc, dt, ctx, seq);
+                var expected = GeneratedSheetName(dt, ctx, ctx.Level?.Name, seq, tokens);
+                var stored = ProducedViewState.Read(sheet)?.GeneratedSheetName;
+                string legacy = null;
+                if (string.IsNullOrEmpty(stored))
+                {
+                    var oldLevel = ProductionContextIds.LevelName(result.PriorSheetStamp ?? DrawingTypeStamper.ReadSheetContext(sheet));
+                    if (!string.IsNullOrEmpty(oldLevel)) legacy = GeneratedSheetName(dt, ctx, oldLevel, seq, tokens);
+                }
+                var rename = ProductionEdgeDecisions.ReusedSheetRename(sheet.Name, stored, legacy, expected,
+                    DrawingTypeStamper.IsLocked(sheet));
+                if (rename != null)
+                {
+                    var old = sheet.Name;
+                    sheet.Name = rename;
+                    result.Warnings.Add($"Sheet {sheet.SheetNumber} renamed '{old}' → '{rename}' (its generated name changed — e.g. the level was renamed).");
+                }
+                // Remember what production calls it now, so a later hand edit is recognised.
+                if (string.Equals(sheet.Name, expected, StringComparison.Ordinal) && stored != expected)
+                    ProducedViewState.RecordSheetName(sheet, expected);
+            }
+            catch (Exception ex) { result.Warnings.Add($"Refreshing the name of sheet {sheetId}: {ex.Message}"); }
         }
 
         /// <summary>DTW-206: a rule that makes a plan-family view (floor, ceiling, area,
@@ -1878,6 +1930,7 @@ namespace StingTools.Core.Drawing
             try
             {
                 var stamped = DrawingTypeStamper.ReadSheetContext(sheet);
+                if (result != null) result.PriorSheetStamp = stamped;   // DTW-209
                 if (stamped == null || string.Equals(stamped, sheetCtx, StringComparison.Ordinal)) return;
                 if (DrawingTypeStamper.StampSheetContext(sheet, sheetCtx))
                 {
@@ -2059,6 +2112,8 @@ namespace StingTools.Core.Drawing
                 // number's "GroundFl"); DTW-51: and the area when the pattern omits it.
                 var sheetName = opts.OverrideSheetName ?? GeneratedSheetName(dt, ctx, ctx.Level?.Name, seq, tokens);
                 sheet.Name = sheetName;
+                // DTW-209: remembered, so a reuse after a level rename can tell it from a hand edit.
+                if (opts.OverrideSheetName == null) ProducedViewState.RecordSheetName(sheet, sheet.Name);
             }
             catch (Exception ex) { result.Warnings.Add($"SheetName: {ex.Message}"); }
 

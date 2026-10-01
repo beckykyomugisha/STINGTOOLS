@@ -234,6 +234,34 @@ namespace StingTools.Tags.Tests
         public void Otherwise_the_filter_is_left(string pack, string current, bool templateControls)
             => Assert.Null(ProductionEdgeDecisions.ProductionPhaseFilter(pack, current, templateControls, RevitFilters));
 
+        // ── DTW-209 ───────────────────────────────────────────────────
+
+        [Fact]
+        public void A_generated_name_follows_the_level_rename()
+            => Assert.Equal("Power - Ground Floor", ProductionEdgeDecisions.ReusedSheetRename(
+                "Power - Level 0", storedGenerated: "Power - Level 0", legacyExpected: null, expectedNow: "Power - Ground Floor", locked: false));
+
+        [Fact]
+        public void A_hand_edited_name_is_left_alone()
+            => Assert.Null(ProductionEdgeDecisions.ReusedSheetRename(
+                "Power - Entrance Hall", "Power - Level 0", null, "Power - Ground Floor", false));
+
+        [Fact]
+        public void A_sheet_from_before_the_record_is_renamed_only_when_it_matches_its_old_level()
+        {
+            Assert.Equal("Power - Ground Floor", ProductionEdgeDecisions.ReusedSheetRename(
+                "Power - Level 0", null, legacyExpected: "Power - Level 0", "Power - Ground Floor", false));
+            Assert.Null(ProductionEdgeDecisions.ReusedSheetRename(
+                "Power - Lobby", null, "Power - Level 0", "Power - Ground Floor", false));
+            Assert.Null(ProductionEdgeDecisions.ReusedSheetRename(
+                "Power - Level 0", null, null, "Power - Ground Floor", false));
+        }
+
+        [Fact]
+        public void A_locked_sheet_keeps_its_name()
+            => Assert.Null(ProductionEdgeDecisions.ReusedSheetRename(
+                "Power - Level 0", "Power - Level 0", null, "Power - Ground Floor", locked: true));
+
         // ── DTW-199 ───────────────────────────────────────────────────
 
         [Fact]
