@@ -219,7 +219,9 @@ namespace StingTools.BOQ
                     if (tcfg.IncludeDocumentControl)
                         BuildDocumentControlSheet(wb.Worksheets.Add("Document Control"), meta);
                     if (tcfg.IncludePreliminaries)
-                        BuildPreliminariesSheet(wb.Worksheets.Add("Preliminaries"), meta);
+                        BuildPreliminariesSheet(wb.Worksheets.Add("Preliminaries"), meta,
+                            boq.AllItems.Count(i => i.Source == BOQRowSource.ProvisionalSum
+                                                    && i.PsType == ProvisionalSumType.Undeclared));
                     if (tcfg.IncludePreambles)
                         BuildPreamblesSheet(wb.Worksheets.Add("Preambles"), boq, tcfg);
 
@@ -709,7 +711,7 @@ namespace StingTools.BOQ
         //  commonly used by senior QSs. Project-specific tokens substituted.
         // ══════════════════════════════════════════════════════════════════
 
-        private void BuildPreliminariesSheet(IXLWorksheet ws, ProjectMeta m)
+        private void BuildPreliminariesSheet(IXLWorksheet ws, ProjectMeta m, int psUndeclared)
         {
             ws.PageSetup.PageOrientation = XLPageOrientation.Portrait;
             ws.PageSetup.PaperSize = XLPaperSize.A4Paper;
@@ -829,9 +831,14 @@ namespace StingTools.BOQ
                     "Provisional Sums (Defined and Undefined in the sense of NRM2) are included in the Bills for work that cannot be measured at "
                     + "the time of tender. The Contractor shall expend these sums only on the written instruction of the Contract Administrator "
                     + "and shall include pricing for main contractor's profit, attendance and on-costs against each Provisional Sum.",
+                }
+                // DSCH-35 — what the Defined / Undefined marker on each sum means (NRM2 2.9.1).
+                .Concat(ProvisionalSumTypes.PreambleClauses(psUndeclared))
+                .Concat(new[]
+                {
                     $"A contractual Contingency of {m.ContingencyPct:F1}% has been added to the Sub-total in the Grand Summary. Contingency shall be "
                     + "expended only on the written instruction of the Contract Administrator and shall be reconciled at Final Account.",
-                }),
+                }).ToArray()),
             };
 
             foreach (var (code, title, clauses) in sections)
@@ -1382,7 +1389,8 @@ namespace StingTools.BOQ
                 if (item.Source == BOQRowSource.ProvisionalSum)
                 {
                     ws.Range(r, 2, r, 7).Style.Fill.SetBackgroundColor(XLColor.FromArgb(237, 231, 246));
-                    ws.Cell(r, 3).Value = "PROVISIONAL SUM: " + para;
+                    // DSCH-35 — the NRM2 2.9.1 declaration rides on the line itself.
+                    ws.Cell(r, 3).Value = $"PROVISIONAL SUM ({ProvisionalSumTypes.Marker(item.PsType)}): " + para;
                 }
                 else if (item.Source == BOQRowSource.Manual)
                 {
@@ -1811,8 +1819,8 @@ namespace StingTools.BOQ
                 {
                     idx++;
                     ws.Cell(r, 2).Value = $"PS.{idx:00}";
-                    ws.Cell(r, 3).Value = string.IsNullOrEmpty(ps.ResolvedNRM2Paragraph)
-                        ? ps.ItemName : ps.ResolvedNRM2Paragraph;
+                    ws.Cell(r, 3).Value = $"[{ProvisionalSumTypes.Marker(ps.PsType)}] "
+                        + (string.IsNullOrEmpty(ps.ResolvedNRM2Paragraph) ? ps.ItemName : ps.ResolvedNRM2Paragraph);
                     ws.Cell(r, 4).Value = ps.TotalUGX;
                     ws.Cell(r, 2).Style.Font.SetFontName(HeadFont).Font.SetFontSize(10).Font.SetBold(true)
                         .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);

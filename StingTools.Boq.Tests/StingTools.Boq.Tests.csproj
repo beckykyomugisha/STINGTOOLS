@@ -26,6 +26,7 @@
     <Compile Include="..\StingTools\BOQ\WasteTable.cs" Link="WasteTable.cs" />
     <Compile Include="..\StingTools\BOQ\ErpFormats.cs" Link="ErpFormats.cs" />
     <Compile Include="..\StingTools\BOQ\MeasuredAddition.cs" Link="MeasuredAddition.cs" />
+    <Compile Include="..\StingTools\BOQ\ProvisionalSumType.cs" Link="ProvisionalSumType.cs" />
     <Compile Include="..\StingTools\UI\MaterialLookupParser.cs" Link="UI\MaterialLookupParser.cs" />
     <Compile Include="..\StingTools\BOQ\BiogenicCarbon.cs" Link="BiogenicCarbon.cs" />
     <Compile Include="..\StingTools\BOQ\CarbonQuantity.cs" Link="CarbonQuantity.cs" />

@@ -1027,8 +1027,23 @@ namespace StingTools.BOQ
             }
 
             // Mark provisional sums on the element if configured via existing parameter.
-            bool isPS = ParameterHelpers.GetInt(el, "CST_PROVISIONAL_SUM", 0) == 1;
+            bool isPS = ParameterHelpers.GetInt(el, ParamRegistry.CST_PROVISIONAL_SUM, 0) == 1;
             if (isPS) line.Source = BOQRowSource.ProvisionalSum;
+
+            // DSCH-35 — defined / undefined (NRM2 2.9.1) from CST_PS_TYPE_TXT. Read on every
+            // PS line, including the Fohlio PC-sum route above. Blank stays Undeclared (flagged
+            // by the health check, never defaulted); unreadable text stays Undeclared and says so.
+            if (line.Source == BOQRowSource.ProvisionalSum)
+            {
+                string psRaw = ParameterHelpers.GetString(el, ParamRegistry.CST_PS_TYPE_TXT);
+                if (ProvisionalSumTypes.TryParse(psRaw, out var psType))
+                    line.PsType = psType;
+                else if (!string.IsNullOrWhiteSpace(psRaw))
+                {
+                    string psNote = ProvisionalSumTypes.UnreadableNote(psRaw);
+                    line.Note = string.IsNullOrEmpty(line.Note) ? psNote : $"{line.Note}; {psNote}";
+                }
+            }
 
             return line;
         }
@@ -3399,6 +3414,11 @@ namespace StingTools.BOQ
             if (uncosted.LowConfidenceCount > 0)
                 score.Recommendations.Add($"{uncosted.LowConfidenceCount} row(s) priced below the export confidence floor ({MinRateConfidenceForExport():F0}).");
 
+            // DSCH-35 — undeclared provisional sums cost a point each (max 5); listed below.
+            var psUndeclared = ps.Where(i => i.PsType == ProvisionalSumType.Undeclared).ToList();
+            if (psUndeclared.Count > 0)
+                score.OverallScore = Math.Max(0, score.OverallScore - Math.Min(5, psUndeclared.Count));
+
             score.Grade = score.OverallScore >= 85 ? "Excellent"
                 : score.OverallScore >= 70 ? "Good"
                 : score.OverallScore >= 50 ? "Fair" : "Poor";
@@ -3416,6 +3436,18 @@ namespace StingTools.BOQ
                 score.Recommendations.Add("Set a project budget via the BOQ panel Budget button.");
             if (psMissing > 0)
                 score.Recommendations.Add($"Add scope notes to {psMissing} provisional sum(s) before handover.");
+
+            // DSCH-35 — a provisional sum must be declared Defined or Undefined (NRM2 2.9.1):
+            // it decides whether preliminaries are deemed allowed. Flagged, never defaulted.
+            if (psUndeclared.Count > 0)
+            {
+                foreach (var row in psUndeclared.Take(5))
+                    score.Issues.Add(ProvisionalSumTypes.Finding(row.PsType,
+                        string.IsNullOrWhiteSpace(row.BOQLineRef) ? row.ItemName : row.BOQLineRef));
+                if (psUndeclared.Count > 5)
+                    score.Issues.Add($"... and {psUndeclared.Count - 5} more provisional sum(s) not declared Defined / Undefined.");
+                score.Recommendations.Add("Declare each provisional sum Defined or Undefined (CST_PS_TYPE_TXT, or the BOQ panel row menu) before tender issue.");
+            }
             if (carbonPct < 50)
                 score.Recommendations.Add("Carbon coverage below 50% — populate MAT_CARBON_FACTOR on primary materials.");
             return score;

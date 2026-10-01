@@ -4770,7 +4770,9 @@ namespace StingTools.UI
             ctx.Items.Add(new Separator());
             Add("Mark as modeled",           () => ChangeSource(vm, BOQRowSource.Model));
             Add("Mark as manual / unmodeled", () => ChangeSource(vm, BOQRowSource.Manual));
-            Add("Mark as provisional sum",   () => ChangeSource(vm, BOQRowSource.ProvisionalSum));
+            // DSCH-35 — a provisional sum is entered with its NRM2 2.9.1 declaration.
+            Add("Mark as provisional sum — Defined",   () => ChangeToProvisionalSum(vm, ProvisionalSumType.Defined));
+            Add("Mark as provisional sum — Undefined", () => ChangeToProvisionalSum(vm, ProvisionalSumType.Undefined));
             Add("Mark as dayworks",          () => ChangeSource(vm, BOQRowSource.Dayworks));
             Add("Mark as PC sum",            () => ChangeSource(vm, BOQRowSource.PCSum));
             ctx.Items.Add(new Separator());
@@ -4903,6 +4905,12 @@ namespace StingTools.UI
             vm.Underlying.Source = src;
             PersistManualRows();
             RefreshDisplay();
+        }
+
+        private void ChangeToProvisionalSum(BOQItemViewModel vm, ProvisionalSumType type)
+        {
+            vm.Underlying.PsType = type;
+            ChangeSource(vm, BOQRowSource.ProvisionalSum);
         }
 
         private void DuplicateRow(BOQItemViewModel vm)
@@ -5378,6 +5386,10 @@ namespace StingTools.UI
             string section = PromptString("Section number:", "22");
             string disc = PromptString("Discipline code (A/S/M/E/P/FP/PS):", "A");
             string type = PromptString("Row type (Manual / PS / Dayworks / PC Sum):", "Manual");
+            // DSCH-35 — no default: a blank answer leaves the sum NOT DECLARED (flagged).
+            string psType = BoqSourceUtil.Parse(type) == BOQRowSource.ProvisionalSum
+                ? PromptString("Provisional sum type — Defined or Undefined (NRM2 2.9.1):", "")
+                : "";
 
             if (!double.TryParse(qtyStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double qty)) qty = 1;
             if (!double.TryParse(rateStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double rate)) rate = 0;
@@ -5389,6 +5401,7 @@ namespace StingTools.UI
             StingCommandHandler.SetExtraParam("ManualRowSection", section ?? "22");
             StingCommandHandler.SetExtraParam("ManualRowDisc", disc ?? "A");
             StingCommandHandler.SetExtraParam("ManualRowSource", type ?? "Manual");
+            StingCommandHandler.SetExtraParam("ManualRowPsType", psType ?? "");
             DispatchAction("BOQAddManualRow");
         }
 
@@ -6988,7 +7001,10 @@ namespace StingTools.UI
             {
                 switch (_item.Source)
                 {
-                    case BOQRowSource.ProvisionalSum: return "PS";
+                    case BOQRowSource.ProvisionalSum:
+                        // DSCH-35 — D / U, or "?" while undeclared.
+                        return _item.PsType == ProvisionalSumType.Defined ? "PS-D"
+                             : _item.PsType == ProvisionalSumType.Undefined ? "PS-U" : "PS ?";
                     case BOQRowSource.Manual:         return "Manual";
                     case BOQRowSource.Dayworks:       return "Daywk";
                     case BOQRowSource.PCSum:          return "PC";

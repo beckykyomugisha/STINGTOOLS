@@ -40,7 +40,9 @@ namespace StingTools.BOQ
         public static BOQRowSource Parse(string label)
         {
             string l = (label ?? "").Trim().ToLowerInvariant();
-            if (l.Contains("provisional")) return BOQRowSource.ProvisionalSum;
+            // "PS" is what the panel's add-row prompt offers; it used to fall
+            // through to Model (then Manual), so a typed PS never became one.
+            if (l.Contains("provisional") || l == "ps") return BOQRowSource.ProvisionalSum;
             if (l.Contains("daywork"))     return BOQRowSource.Dayworks;
             if (l.Contains("pc") || l.Contains("prime cost")) return BOQRowSource.PCSum;
             if (l.Contains("manual"))      return BOQRowSource.Manual;
@@ -217,6 +219,15 @@ namespace StingTools.BOQ
         public string Note;
         public string SourceModel;          // "" / null = host; else the linked model Title (Group by Source model)
         public BOQRowSource Source;
+
+        /// <summary>DSCH-35 — for a <see cref="BOQRowSource.ProvisionalSum"/> row: Defined or
+        /// Undefined in the sense of NRM2 2.9.1 (whether the contractor is deemed to have allowed
+        /// for programming, planning and preliminaries). Undeclared is never read as either: the
+        /// bill shows "NOT DECLARED" and the health check flags it. Older rows deserialise as
+        /// Undeclared, which is the truth about them. Written as text in the JSON stores.</summary>
+        [Newtonsoft.Json.JsonConverter(typeof(Newtonsoft.Json.Converters.StringEnumConverter))]
+        public ProvisionalSumType PsType = ProvisionalSumType.Undeclared;
+
         public string SnapshotRef;
         public long RevitElementId = -1;    // -1 for manual/PS rows
         public string UniqueId;             // Revit UniqueId (cross-doc, survives Revit save/reopen)
@@ -408,6 +419,7 @@ namespace StingTools.BOQ
                 Note = this.Note,
                 SourceModel = this.SourceModel,
                 Source = this.Source,
+                PsType = this.PsType,             // DSCH-35
                 SnapshotRef = this.SnapshotRef,
                 RevitElementId = this.RevitElementId,
                 UniqueId = this.UniqueId,

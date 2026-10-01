@@ -2667,6 +2667,7 @@ PARAM	6196f318-c337-4faf-b608-785afba40921	CST_RATE_SOURCE	TEXT		2	1	Rate source
 PARAM	e2efb537-c07e-4e2d-b61a-4b186c33abe4	CST_BOQ_SNAPSHOT_REF	TEXT		2	1	Snapshot label when this element was last costed [ISO 19650-3:2020]	0
 PARAM	981c4d13-349b-473c-a4b5-71e0b1f4d878	CST_PROVISIONAL_SUM	YESNO		2	1	True if this element represents a provisional sum [ISO 19650-3:2020]	1
 PARAM	34880114-bc94-4008-a2c5-05a08adcc7d5	CST_PS_DESCRIPTION	TEXT		2	1	Provisional sum scope description [ISO 19650-3:2020]	1
+PARAM	963d74eb-a24f-5d19-8a69-11f29cc15676	CST_PS_TYPE_TXT	TEXT		2	1	Provisional sum type: Defined or Undefined (NRM2 2.9.1; defined = contractor deemed to have allowed for programming, planning and preliminaries) [DSCH-35]	1
 PARAM	52512f2c-ecdf-4f7b-8128-a8c99222aa0d	CST_EMBODIED_CARBON_KG	NUMBER		2	1	Embodied carbon in kgCO2e for this element [ISO 19650-3:2020]	0
 PARAM	661c0e9a-753f-4f6b-b40a-449995ec081b	CST_LIFECYCLE_COST_UGX	NUMBER		2	1	Whole-life cost estimate in UGX (capital + maintenance NPV 25yr) [ISO 19650-3:2020]	0
 PARAM	9b7bb8b4-173b-47b9-ade4-3d77766f3728	CST_RATE_CONFIDENCE	INTEGER		2	1	Rate confidence score 0-100 (source reliability) [ISO 19650-3:2020]	0

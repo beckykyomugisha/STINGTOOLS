@@ -4074,6 +4074,10 @@ namespace StingTools.Core
         public const string PLM_RECIRC_DELTA_T_K_GUID        = "b0ae4e71-3170-55ff-9c47-5e559ee12943";
         public const string PLM_FIX_TYPE_TXT                 = "PLM_FIX_TYPE_TXT";
         public const string PLM_FIX_TYPE_TXT_GUID            = "825bb253-9c4b-5051-bd48-8b50ebdbd40b";
+        public const string CST_PROVISIONAL_SUM              = "CST_PROVISIONAL_SUM";
+        public const string CST_PROVISIONAL_SUM_GUID         = "981c4d13-349b-473c-a4b5-71e0b1f4d878";
+        public const string CST_PS_TYPE_TXT                  = "CST_PS_TYPE_TXT";
+        public const string CST_PS_TYPE_TXT_GUID             = "963d74eb-a24f-5d19-8a69-11f29cc15676";
         public const string PLM_TMV_ASSISTED_BOOL            = "PLM_TMV_ASSISTED_BOOL";
         public const string PLM_TMV_ASSISTED_BOOL_GUID       = "ac32041d-b1f2-5bfc-86bd-80622407b94b";
         public const string PLM_TMV_TYPE_TXT                 = "PLM_TMV_TYPE_TXT";
