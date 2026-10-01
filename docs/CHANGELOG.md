@@ -14,6 +14,25 @@ Phase-by-phase history of completed work on the StingTools plugin, Planscape Ser
   fails it. `StingTools.Tags.Tests` 5,145 passing; build 0 / 0.
 - (`DisciplineProfile.FromDict`, a snake_case parser, has no callers; the loader binds the PascalCase names
   the in-app example uses. Left in place, noted here.)
+#### Completed (TAGACC-24 the project's SEQ pad width reaches the SEQ, 2026-10-01)
+
+- `TagConfig.EffectiveSeqPad` (the width every SEQ is padded to) prefers `TagConfig.SeqPadWidth` — default 4 —
+  over `ParamRegistry.NumPad`, and the only writer of `SeqPadWidth` was the dock panel's Tokens & Depth
+  apply. Consequences: `TAG_FORMAT.num_pad` in `project_config.json` changed `NumPad` but never the SEQ;
+  the Tag Format command (TAGACC-23) likewise; and a pad chosen in the panel, saved to the file by any later
+  `SaveToFile`, was back to 4 after a restart (the panel's latch then protected the "project" format it
+  believed had loaded), so one model collected 5- and 4-digit SEQs. The auto-tagger, which never goes
+  through the panel, always used 4.
+- `ParamRegistry.ApplyTagFormatOverrides` — the one place the loader, the Tag Format command and the panel
+  all apply a format — now sets `SeqPadWidth = NumPad`, before its early return.
+- **Behaviour change:** only where a project's saved `num_pad` is not 4. New SEQ values take that width;
+  existing tags are untouched unless re-tagged with Overwrite, which already normalises to the current pad
+  (TAGACC-4). Projects on the default 4 see no change.
+- **Tests** `SeqPadSyncTests`: the method sets it after the NumPad override and before any return; nothing
+  but it and the panel writes `SeqPadWidth`. Fails against main. `StingTools.Tags.Tests` 5,142 passing;
+  build 0 / 0. **Not run in Revit.**
+- Found alongside, logged as **TAGACC-25** (open): four `DISCIPLINE_PROFILES` fields are parsed and never
+  read (`default_zone`, `default_loc`, `seq_include_zone`, `seq_pad_width`).
 
 #### Completed (TAGACC-23 Tag Format saves the format under names the loader reads, 2026-10-01)
 
