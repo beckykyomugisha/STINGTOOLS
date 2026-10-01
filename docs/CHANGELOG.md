@@ -26712,3 +26712,29 @@ implemented on seven parallel branches and merged. Detail: `docs/WORKLOG_DATA_SC
 
 Unconfirmed figures ship with a `verify` note (ROADMAP DSCH-41). Not run in Revit: ten checks under
 *NEEDS REVIT CHECK (specialist batch)*. Open: ROADMAP DSCH-30..41.
+
+#### Completed (DSCH-30..42 code-only follow-ups — branch `claude/data-schema-drift-validators-a30f10`, 2026-10-01)
+
+Every open data-schema item that needs only code, on eight parallel branches. Detail:
+`docs/WORKLOG_DATA_SCHEMAS.md`, section *Code-only follow-ups DSCH-30..42*.
+
+- **Electrical**: NEC 240.4(B)/(C) conductor rules in every NEC sizing path; 240.4(D) upsizes the
+  conductor instead of returning a breaker below the sizing current (a 17 A continuous load got
+  20 A on 12 AWG); the Circuit Wizard no longer re-sizes NEC circuits to BS 7671 at Create; one
+  `ElectricalStandardId.IsNec` predicate; Z535 safety-alert symbol on arc-flash labels.
+- **Water safety**: Scottish SHTM 04-01 TMV limits (bath 43 C) selected by
+  `PRJ_ORG_HEALTH_HTM_REGION_TXT`; five TMV parameters defined so measurements reach the check;
+  USP ante-room and C-SCA rooms audited; one owner for pharmacy ventilation.
+- **Cost**: provisional sums record Defined / Undefined (NRM2 2.9) through to both exports; the
+  element rate-override storage (ES v3) can hold Nil / Included without deleting old entries.
+- **Tagging and workflow**: SEQ allocation honours `SEQ_RANGE_ALLOCATION` and refuses past the
+  maximum; queued workflow presets now actually run (on Idling); Fix Duplicates can no longer
+  write a duplicate.
+- **IFC**: STING `DEMOLISHED` and IFC `DEMOLISH` translate both ways in plugin and server.
+- **Parameters (DSCH-42)**: 56 lookups that silently read and wrote nothing are mapped, defined or
+  deleted, including the Batch Tag token-lock check; `tools/check_ext_keys.py` gates them.
+  Parameter descriptions now sync from MR_PARAMETERS.txt (150 drifted rows corrected).
+- **Gates**: a wide declared-but-uncalled scan under its own ratchet (60).
+
+Not run in Revit: ten checks under *NEEDS REVIT CHECK (code-only batch)*. Open: ROADMAP DSCH-34,
+37, 41, 43..47.

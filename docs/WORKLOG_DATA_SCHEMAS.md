@@ -451,3 +451,54 @@ data (ROADMAP DSCH-41). Older claims that `TemplateManager.LoadCategoryBindings`
 8. SEQ range: an out-of-range SEQ is flagged by Validate Tags.
 9. Smart Tag Placement with category multipliers other than 1.0: offsets scale.
 10. IFC ingest on the server: the tag is read from `Pset_StingTags.FullTag`.
+
+## Code-only follow-ups DSCH-30..42 (2026-10-01)
+
+At the owner's request ("continue"), every open item that needs only code was implemented on
+parallel branches cut from 8f9ec0fa6 and merged here: dsch-impl-elec2, -params, -hc2, -pssum,
+-esrate, -ifcstatus, -seqrange, -gatewide. DSCH-34, 37, 41 and the 65 IFC verify rows stay with
+the sign-off list. While working, the agents found and fixed further defects:
+
+- **NEC sizing could undersize the breaker**: `CalculateNec` capped the device at a table
+  labelled 240.4(D) after selection, so a 17 A continuous load got 12 AWG with a 20 A breaker,
+  and the table also capped 8 AWG to 4/0 with unsourced values. It now upsizes the conductor
+  (`NecConductorSelection.Pick`); an invariant sweep over 1-300 A proves the device is never
+  below the sizing current.
+- **The Circuit Wizard re-sized NEC circuits to BS 7671 at Create** (`PendingOptions.Standard`
+  defaulted to "BS"). Every exact `"NEC"` compare now goes through `ElectricalStandardId.IsNec`;
+  the busbar sizer gave 1050 A where 1400 A was expected for "NEC2023".
+- **Queued workflow presets never ran**: the document-open drain dequeued a preset but never
+  raised it. The queue is now drained on Idling.
+- **Fix Duplicates could write a duplicate tag** after a SEQ pad overflow.
+- **`BoqSourceUtil.Parse("PS")` made a manual row**, though the add-row prompt suggests "PS".
+- **`Plumb_TMVRegister` and the Water Safety Plan** now carry jurisdiction notes; a Scottish
+  bath fails above 43 C (SHTM 04-01 Table 4, read from the primary PDF).
+- **`HTM_04_01_HOT_DELIVERY_C` cited a commissioning clause** (Section 15.16 is about who witnesses
+  commissioning); it had no callers and was deleted.
+- **DSCH-42** (new, closed): 56 parameter lookups silently read and wrote nothing, including the
+  Batch Tag token-lock check, COBie type fields and the COBie Attribute sheet (GetString on
+  NUMBER / CURRENCY). Fixed and gated by `tools/check_ext_keys.py`. Thirty descriptions damaged
+  by an old ASCII sanitiser now read "s.6.3" / "um/s" (the file is not proven to round-trip
+  non-ASCII through Revit).
+
+Binding simulator after the merge: 3,684 declared / 3,525 bound / 159 skipped / 0 conflicts.
+
+### NEEDS REVIT CHECK (code-only batch)
+
+1. NEC cable / feeder sizer: 17 A continuous gives 10 AWG / 25 A, derivation says "upsized past
+   12 AWG"; Circuit Wizard on NEC keeps NEC sizing after Create; Breaker Sizer blocks a 12 AWG
+   circuit above 20 A and lists next-size-up circuits for confirmation.
+2. Arc-flash label sheet: the Z535 triangle draws left of the header in the signal-word colours.
+3. USP audit on PH-CSP-*-ANTE / -CSCA rooms; overrides apply to the primary room only.
+4. TMV register with `PRJ_ORG_HEALTH_HTM_REGION_TXT` = SHTM: a 44 C TMV3 bath fails; blank
+   region shows the England-assumed note; the new TMV parameters bind and reach the check.
+5. Provisional sums: `CST_PS_TYPE_TXT` binds; Defined / Undefined / blank show in the panel and
+   both exports; the health check lists undeclared sums.
+6. Element rate override v3: an old v2 override still prices; a Nil override shows "Nil";
+   save / reopen keeps v3; `Cost_MigrateESEntities` copies v1 forward without deleting.
+7. SEQ range: with `"E": [10000, 19999]` the first E element is 10000; a full group refuses with
+   a stats warning.
+8. Workflow triggers run on idle, never twice within 30 s, never while a preset runs.
+9. Batch Tag no longer overwrites a locked token; the COBie type push and Attribute sheet carry
+   the newly mapped fields.
+10. Server IFC ingest: `Status = NOTKNOWN` logs an unmapped-value warning.
