@@ -10110,7 +10110,7 @@
     },
     "StingTools/Data/HEALTHCARE_ALERT_ROUTING.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/HEALTHCARE_PACK_PROFILES.json": {
       "format": "json",
@@ -10122,39 +10122,39 @@
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_BEHAVIOURAL.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_DIALYSIS.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_HBO.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_HSDU.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_HYBRID_OR.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_LIGATURE_RULES.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_MATERNITY.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_MORTUARY.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Healthcare/Specialist/STING_HC_PHARMACY_USP.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/IFC/STING_IFC_PSET_MAPPING.json": {
       "format": "json",
@@ -10202,7 +10202,7 @@
     },
     "StingTools/Data/MedGas/STING_MEDGAS_FAB_RULES.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "Read only by StingTools.Tags.Tests/MedGasSeedTaggingTests.cs, never by the plugin. ROADMAP DSCH-15."
     },
     "StingTools/Data/PARAGRAPH_PRESETS.json": {
       "format": "json",
@@ -10266,7 +10266,7 @@
     },
     "StingTools/Data/Plumbing/LEGIONELLA_REPORT_TEMPLATE.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Plumbing/STING_PIPE_MATERIALS_HYDRAULIC.json": {
       "format": "json",
@@ -10286,7 +10286,7 @@
     },
     "StingTools/Data/Plumbing/STING_TMV_STANDARDS.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/Routing/MEP_INSULATION_PARAMS.json": {
       "format": "json",
@@ -10318,7 +10318,7 @@
     },
     "StingTools/Data/STING_ARC_FLASH_PPE.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/STING_BS7671_DISCONNECTION.json": {
       "format": "json",
@@ -10374,7 +10374,7 @@
     },
     "StingTools/Data/STING_EXTERNAL_FORMATS.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/STING_FAMILY_SWAP_REGISTRY.json": {
       "format": "json",
@@ -10578,7 +10578,7 @@
     },
     "StingTools/Data/STING_US_PRESET_OVERLAY.json": {
       "format": "json",
-      "reason": "Strict JSON (no duplicate keys). No POCO-derived key schema yet."
+      "reason": "NO READER in the plugin (DSCH round 4: no load by name, enumeration or built name). Strict-JSON checks only. ROADMAP DSCH-15 - wire a reader or delete the file."
     },
     "StingTools/Data/STING_VARIATION_LIABILITY_MAP.json": {
       "format": "json",
