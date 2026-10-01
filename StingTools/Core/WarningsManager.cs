@@ -953,6 +953,11 @@ namespace StingTools.Core
             // one audit entry and at most one server push per genuine scan.
             WarningSnapshotRecorder.RecordScan(doc, report);
 
+            // DSCH-27: OnWarningThreshold triggers were loaded from project_config.json and
+            // never checked. Every genuine scan checks them now (15-minute debounce).
+            try { WorkflowScheduler.CheckWarningThresholdTriggers(doc, report.Total); }
+            catch (Exception ex) { StingLog.Warn($"Warning-threshold triggers: {ex.Message}"); }
+
             return report;
         }
 

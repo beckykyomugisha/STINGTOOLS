@@ -151,7 +151,8 @@ namespace StingTools.Core
             }
         }
 
-        /// <summary>Check warning threshold triggers.</summary>
+        /// <summary>Check warning threshold triggers. Called by WarningsEngine.ScanWarnings
+        /// after every genuine scan and by the morning briefing.</summary>
         public static void CheckWarningThresholdTriggers(Document doc, int warningCount)
         {
             if (doc == null) return;

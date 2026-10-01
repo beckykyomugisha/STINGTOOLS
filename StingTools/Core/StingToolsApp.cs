@@ -1550,6 +1550,7 @@ namespace StingTools.Core
                     int warnCount = doc.GetWarnings()?.Count ?? 0;
                     briefing.AppendLine($"\nModel Warnings: {warnCount}");
                     if (warnCount > 100) { briefing.AppendLine("  (HIGH warning count — run Warnings Auto-Fix)"); hasAlerts = true; }
+                    WorkflowScheduler.CheckWarningThresholdTriggers(doc, warnCount);
                 }
                 catch (Exception wEx) { StingLog.Warn($"Morning briefing warnings: {wEx.Message}"); }
 
