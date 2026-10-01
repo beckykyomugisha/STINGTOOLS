@@ -170,6 +170,28 @@ namespace StingTools.Core.Drawing
             return ShortLevel(levelName);
         }
 
+        // ── DTW-210: an existing sheet's {lvl} follows its own number ──
+
+        /// <summary>True when <paramref name="sheetNumber"/> is a full ISO 19650 identifier,
+        /// with or without its suitability / revision tail.</summary>
+        public static bool IsIsoShapedNumber(string sheetNumber)
+            => Iso19650DocumentCode.LooksAssembled(sheetNumber)
+            || Iso19650DocumentCode.LooksAssembled(SheetNumberPolicy.StripStatusSuffix(sheetNumber));
+
+        /// <summary>
+        /// {lvl} for re-stamping an EXISTING sheet's title block. Decided by the shape of
+        /// the sheet's own number — an ISO-shaped number carries the ISO level code, any
+        /// other the level name — not by the policy in force today. After a policy switch
+        /// the current policy described sheets numbered under the old one, and their
+        /// title blocks stopped matching their numbers. <paramref name="levelIsName"/>
+        /// false (a value from the profile, not a level name) is returned unchanged.
+        /// </summary>
+        public static string ExistingSheetLevel(string sheetNumber, string level, bool levelIsName,
+            IDictionary<string, string> isoCodesByName)
+            => SheetNumberPolicy.ExistingSheetLevelToken(
+                IsIsoShapedNumber(sheetNumber) ? SheetNumberPolicy.IsoPattern : null,
+                level, levelIsName, isoCodesByName);
+
         /// <summary>
         /// The pattern resolved in every token except the sequence, which is
         /// left as <see cref="SeqSentinel"/>, then tidied. The shape every
