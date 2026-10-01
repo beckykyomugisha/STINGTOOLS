@@ -351,8 +351,11 @@ namespace StingTools.Core
         /// discipline models number into disjoint ranges. Loaded from SEQ_RANGE_ALLOCATION
         /// in project_config.json by SeqRangeAllocationParser:
         /// {"M": [1, 9999], "E": [10000, 19999]} or {"M": {"min": 1, "max": 9999}}.
-        /// Checked by ISO19650Validator.ValidateElement (ValidateSeqRange); SEQ allocation
-        /// does not yet start at the range minimum.</summary>
+        /// Checked by ISO19650Validator.ValidateElement (ValidateSeqRange) and applied at
+        /// allocation (DSCH-39, SeqAssigner.AssignNext via SeqRangeFor): the range covers
+        /// every counter of that DISC, a new counter starts at the minimum, and the number
+        /// after the maximum is refused (stats warning, element not tagged). A DISC with no
+        /// entry numbers 1 to the pad capacity, as before.</summary>
         public static Dictionary<string, (int Min, int Max)> SeqRangeAllocation { get; internal set; }
             = new Dictionary<string, (int, int)>(StringComparer.OrdinalIgnoreCase);
 
@@ -408,6 +411,13 @@ namespace StingTools.Core
                 return range;
             return whole;
         }
+
+        /// <summary>DSCH-39: the allocated range for <paramref name="disc"/>, or null when
+        /// SEQ_RANGE_ALLOCATION has no entry for it (allocation is then unconstrained).
+        /// The one lookup every SEQ allocator passes to SeqAssigner.AssignNext.</summary>
+        public static (int Min, int Max)? SeqRangeFor(string disc)
+            => !string.IsNullOrEmpty(disc) && SeqRangeAllocation.TryGetValue(disc, out var r)
+                ? r : ((int Min, int Max)?)null;
 
         /// <summary>FUT-01: Validate a SEQ number is within the range allocated to a DISC code.
         /// Returns null if valid (or no allocation is defined), error message if out of range.</summary>
@@ -2982,6 +2992,9 @@ namespace StingTools.Core
             tagBody += Separator;
             string tagSuffix = string.IsNullOrEmpty(TagSuffix) ? string.Empty : Separator + TagSuffix;
 
+            // DSCH-39: the SEQ_RANGE_ALLOCATION entry for this DISC (null = none).
+            var seqRange = SeqRangeFor(disc);
+
             // Snapshot the counter so any later failure can restore it.
             int seqPreAlloc = sequenceCounters.TryGetValue(seqKey, out int _preAlloc) ? _preAlloc : 0;
 
@@ -3020,10 +3033,13 @@ namespace StingTools.Core
                     seq = storedSeq;
                     tag = candidate;
                     // Keep the counter ahead of every number in use, so a later
-                    // allocation in this group cannot hand the same one out.
+                    // allocation in this group cannot hand the same one out. A held
+                    // number outside the DISC's range does not move it (DSCH-39): it
+                    // cannot collide with an in-range allocation, and one above the
+                    // maximum would otherwise block the whole group.
                     int held = int.TryParse(storedSeq, out int n) ? n
                              : CurrentSeqScheme == SeqScheme.Alpha ? FromAlpha(storedSeq) : 0;
-                    if (held > seqPreAlloc) sequenceCounters[seqKey] = held;
+                    if (held > seqPreAlloc && SeqAssigner.InRange(held, seqRange)) sequenceCounters[seqKey] = held;
                 }
                 else
                 {
@@ -3063,7 +3079,7 @@ namespace StingTools.Core
                 SeqResult seqRes = SeqAssigner.AssignNext(
                     seqKey, sequenceCounters, tagBody, tagSuffix,
                     CurrentSeqScheme, seqPad, seqSchemeContext,
-                    MaxCollisionDepth, existingTags);
+                    MaxCollisionDepth, existingTags, range: seqRange);
 
                 if (!seqRes.Success)
                 {
@@ -3075,6 +3091,10 @@ namespace StingTools.Core
                             $"SEQ overflow in collision loop: group {seqKey} exceeded pad-{seqPad} capacity — skipping element {el.Id}",
                         SeqFailureReason.SafetyExhausted =>
                             $"Collision safety limit ({MaxCollisionDepth}) exhausted for group {seqKey} — element {el.Id} skipped to prevent a duplicate tag",
+                        SeqFailureReason.RangeExhausted =>
+                            $"SEQ range full: group {seqKey} has no number left in the SEQ_RANGE_ALLOCATION range {seqRange?.Min}-{seqRange?.Max} for DISC '{disc}' — element {el.Id} not tagged (widen the range in project_config.json)",
+                        SeqFailureReason.ReservationOutsideRange =>
+                            $"SEQ reserved by the server for group {seqKey} is outside the SEQ_RANGE_ALLOCATION range {seqRange?.Min}-{seqRange?.Max} for DISC '{disc}' — element {el.Id} not tagged",
                         _ => $"SEQ assignment failed for element {el.Id}",
                     };
                     if (seqRes.Failure == SeqFailureReason.SafetyExhausted) StingLog.Error(why);

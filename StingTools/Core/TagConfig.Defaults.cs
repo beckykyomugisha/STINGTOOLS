@@ -217,15 +217,20 @@ namespace StingTools.Core
                 string scanLoc = SeqIncludeLoc ? ParameterHelpers.GetString(elem, ParamRegistry.LOC) : null;
                 string key = SeqAssigner.BuildSeqKey(disc, sys, lvl, scanZone, scanLoc, SeqIncludeZone, SeqIncludeLoc);
 
+                // DSCH-39: a number outside the DISC's SEQ_RANGE_ALLOCATION range does
+                // not seed the counter (its tag is still in the collision index).
+                var discRange = SeqRangeFor(disc);
                 if (int.TryParse(seqStr, out int seqNum) && seqNum >= 0)
                 {
-                    if (!maxSeq.TryGetValue(key, out int curMax) || seqNum > curMax)
+                    if (SeqAssigner.InRange(seqNum, discRange)
+                        && (!maxSeq.TryGetValue(key, out int curMax) || seqNum > curMax))
                         maxSeq[key] = seqNum;
                 }
                 else if (CurrentSeqScheme == SeqScheme.Alpha && !string.IsNullOrEmpty(seqStr))
                 {
                     int alphaNum = FromAlpha(seqStr);
-                    if (alphaNum > 0 && (!maxSeq.TryGetValue(key, out int curAlphaMax) || alphaNum > curAlphaMax))
+                    if (alphaNum > 0 && SeqAssigner.InRange(alphaNum, discRange)
+                        && (!maxSeq.TryGetValue(key, out int curAlphaMax) || alphaNum > curAlphaMax))
                         maxSeq[key] = alphaNum;
                 }
             }
