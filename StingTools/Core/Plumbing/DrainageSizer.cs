@@ -209,6 +209,15 @@ namespace StingTools.Core.Plumbing
                 if (string.IsNullOrEmpty(mat)) mat = pipe.PipeType?.Name ?? "";
             }
             catch (Exception ex) { StingLog.Warn($"Suppressed: {ex.Message}"); }
+            // A material key from STING_PIPE_MATERIALS_HYDRAULIC.json (e.g.
+            // UPVC_DRAIN, VIT_CLAY) takes that file's Manning n; anything else
+            // keeps the name heuristic below.
+            try
+            {
+                var known = PlumbingTables.GetMaterial((mat ?? "").Trim());
+                if (known != null && known.ManningN > 0) return known.ManningN;
+            }
+            catch (Exception ex) { StingLog.WarnRateLimited("DrainageSizer.ManningN", $"Material lookup '{mat}': {ex.Message}"); }
             mat = (mat ?? "").ToUpperInvariant();
             if (mat.Contains("CLAY") || mat.Contains("CONCRETE")) return 0.013;
             if (mat.Contains("CAST") || mat.Contains("CI"))       return 0.011;
