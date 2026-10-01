@@ -71,6 +71,9 @@ namespace StingTools.Core.Drawing
                             || (pack.ByMaterialClass != null && pack.ByMaterialClass.Count > 0),
                 hasWorksetVisibility: !string.IsNullOrWhiteSpace(pack.WorksetVisibility),
                 hasViewRange: pack.ViewRange != null,
+                // DTW-219: phase / phase filter are controlled only when the pack names one.
+                hasPhaseFilter: !string.IsNullOrWhiteSpace(pack.PhaseFilter),
+                hasPhase: !string.IsNullOrWhiteSpace(pack.Phase),
                 ignored: f =>
                 {
                     // DTW-170: logged once per pack per session, not per view.

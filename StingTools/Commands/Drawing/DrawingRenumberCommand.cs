@@ -88,8 +88,22 @@ namespace StingTools.Commands.Drawing
 
                     // The sequence is read against the number's own shape. An ISO
                     // number ends in a revision, so the last digit run is not it.
-                    int? current = SheetNumberEngine.ExtractSequence(s.SheetNumber, template)
-                                ?? SheetNumberEngine.ExtractSequence(SheetNumberPolicy.StripStatusSuffix(s.SheetNumber), template);
+                    // DTW-222: DTW-198 changed {lvl} in non-ISO numbers to ShortLevel, so a
+                    // sheet numbered before it on a long, digit-ending level ("E-Basement-004"
+                    // where today gives "E-Basemen1-…") is not in today's template. It is
+                    // still the same numbering, not a shape change: it is read, compacted and
+                    // renumbered in its own shape, so it does not move to the new one.
+                    string legacyTemplate = null, legacyLevel = null;
+                    if (LegacyLevelShape.NumberShapeChanged(pattern, levelName))
+                    {
+                        legacyLevel = LegacyLevelShape.NumberLevel(pattern, levelName, dt.IsoNaming?.Level);
+                        legacyTemplate = SheetNumberEngine.Template(pattern, dt.Discipline ?? "", legacyLevel,
+                            dt.System ?? "", tag ?? "", tag ?? "", dt.Purpose ?? "", probeTokens);
+                    }
+                    var match = LegacyLevelShape.MatchTemplate(s.SheetNumber, template, legacyTemplate);
+                    int? current = match.Sequence;
+                    bool keepsLegacyShape = match.Legacy;
+                    if (keepsLegacyShape) template = match.Template;
                     // DTW-211: a number not in its pattern's shape is converted, not compacted.
                     bool shapeChange = !current.HasValue;
                     if (!current.HasValue)
@@ -110,9 +124,13 @@ namespace StingTools.Commands.Drawing
                         Locked = DrawingTypeStamper.IsLocked(s),
                         ShapeChange = shapeChange,
                         Issued = shapeChange && HasIssuedRevision(doc, s),
-                        NumberFor = seq => SheetNumberTidy.Collapse(DrawingProducer.SubstituteTokens(
-                            pattern, dt, levelName, tag, seq,
-                            DrawingProducer.BuildTokenDict(doc, dt, levelName, tag, pkg, seq))),
+                        NumberFor = keepsLegacyShape
+                            ? (Func<int, string>)(seq => SheetNumberTidy.Collapse(DrawingProducer.ApplyTokenPattern(
+                                pattern, dt.Discipline ?? "", legacyLevel, dt.System ?? "", tag ?? "", tag ?? "",
+                                dt.Purpose ?? "", seq, DrawingProducer.BuildTokenDict(doc, dt, levelName, tag, pkg, seq))))
+                            : seq => SheetNumberTidy.Collapse(DrawingProducer.SubstituteTokens(
+                                pattern, dt, levelName, tag, seq,
+                                DrawingProducer.BuildTokenDict(doc, dt, levelName, tag, pkg, seq))),
                     });
                 }
 

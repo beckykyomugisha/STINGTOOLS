@@ -74,6 +74,47 @@ namespace StingTools.Tags.Tests
             Assert.DoesNotContain(ManagedTemplateFields.BipNamesFor(eff), n => n.StartsWith("VIS_GRAPHICS_"));
         }
 
+        // DTW-219: a template that controls VIEW_PHASE_FILTER with no value of the pack's
+        // keeps the seed view's ("Show All"), undoing the Show Complete production sets
+        // (DTW-208). Phase and phase filter are controlled only when the pack names one.
+        [Fact]
+        public void PhaseFilterWithoutAValueIsNotControlled()
+        {
+            var eff = ManagedTemplateFields.Effective(new[] { "detailLevel", "phaseFilter", "phase" },
+                false, false, false, false);
+            Assert.DoesNotContain("phaseFilter", eff);
+            Assert.DoesNotContain("phase", eff);
+            Assert.DoesNotContain("VIEW_PHASE_FILTER", ManagedTemplateFields.BipNamesFor(eff));
+            Assert.DoesNotContain("VIEW_PHASE", ManagedTemplateFields.BipNamesFor(eff));
+            Assert.Contains("detailLevel", eff);
+        }
+
+        [Fact]
+        public void PhaseFilterWithAValueIsControlled()
+        {
+            var eff = ManagedTemplateFields.Effective(new[] { "phaseFilter", "phase" },
+                false, false, false, false, hasPhaseFilter: true, hasPhase: true);
+            Assert.Contains("VIEW_PHASE_FILTER", ManagedTemplateFields.BipNamesFor(eff));
+            Assert.Contains("VIEW_PHASE", ManagedTemplateFields.BipNamesFor(eff));
+        }
+
+        [Fact]
+        public void NoShippedManagedPackWithoutAPhaseFilterControlsIt()
+        {
+            var lib = JsonConvert.DeserializeObject<ViewStylePackLibrary>(
+                File.ReadAllText(Path.Combine(RepoRoot(), "StingTools", "Data", "STING_VIEW_STYLE_PACKS.json")));
+            var failures = new List<string>();
+            foreach (var p in lib.Packs.Where(p => p.IsManaged))
+            {
+                // What the syncer passes when a pack lists no fields of its own.
+                var declared = p.ManagedFields ?? new List<string> { "detailLevel", "discipline", "visualStyle", "phaseFilter" };
+                var eff = ManagedTemplateFields.Effective(declared, false, false, false, false,
+                    hasPhaseFilter: !string.IsNullOrWhiteSpace(p.PhaseFilter), hasPhase: !string.IsNullOrWhiteSpace(p.Phase));
+                if (string.IsNullOrWhiteSpace(p.PhaseFilter) && eff.Contains("phaseFilter")) failures.Add(p.Id);
+            }
+            Assert.True(failures.Count == 0, "Managed packs controlling a phase filter they do not name: " + string.Join(", ", failures));
+        }
+
         // DTW-170: scale belongs to DrawingType.Scale; a template controlling
         // VIEW_SCALE pins every assigned view to the seed's scale.
         [Fact]
