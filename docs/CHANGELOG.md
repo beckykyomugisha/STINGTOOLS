@@ -2,6 +2,24 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGACC-23 Tag Format saves the format under names the loader reads, 2026-10-01)
+
+- **The bug.** `ConfigurableTagFormatCommand` saved a `TagFormatConfig` object as `TAG_FORMAT`; with no
+  `JsonProperty` names it serialised as `Separator` / `NumPad` / `SegmentOrder`. `TagConfig.LoadFromFile`
+  reads `separator` / `num_pad` / `segment_order` from a case-sensitive dictionary, so a format set there was
+  never applied — the dialog said "Settings saved" and the next tag used the old one. Worse, the save
+  replaced the whole section, so the format the Project Setup Wizard had written (through
+  `TagConfig.SaveToFile`, lowercase) was lost and the project reverted to defaults on the next load. The
+  command also never applied the format in the current session.
+- **The fix.** `TagFormatConfig` moves to `Tags/TagFormatConfig.cs` (Revit-free) with the loader's names
+  pinned as constants; the loader and `SaveToFile` use the same constants. The command applies the saved
+  format immediately (`ParamRegistry.ApplyTagFormatOverrides`, as loading does). A `TAG_FORMAT` written in
+  the old names is logged on load ("never applied … re-save it") rather than applied: switching a project to
+  a format nobody has seen take effect would change how its tags are built.
+- **Tests** `TagFormatConfigTests` (4): serialised names, reading the `SaveToFile` shape, recognising the old
+  section, and the loader / saver using the shared keys. Dropping the `JsonProperty` names fails 2.
+  `StingTools.Tags.Tests` 5,108 passing; build 0 / 0. **Not run in Revit.**
+
 #### Completed (TAGACC-20 SYS connector rules are testable, 2026-10-01)
 
 - An audit of which TAGACC fixes have a test or protocol step found TAGACC-7 / 8 with none: the rules
