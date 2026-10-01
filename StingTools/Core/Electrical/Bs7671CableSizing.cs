@@ -620,12 +620,35 @@ namespace StingTools.Core.Electrical
             /// <summary>True when the proposed device would not be protected by the cable (In &gt; Iz),
             /// or when no standard rating is large enough. A blocked proposal must not be applied.</summary>
             public bool Blocked { get; set; }
+            /// <summary>NEC only: the device is above the conductor ampacity under the
+            /// 240.4(B) next-size-up allowance, which holds only when conditions this code
+            /// cannot see are met (<see cref="Nec2404BConfirmText"/>). Not blocked, but not a
+            /// clean pass either — the caller must show it.</summary>
+            public bool NeedsConfirmation { get; set; }
+            /// <summary>False when the conductor was not checked against the device
+            /// (no ampacity / Iz was available).</summary>
+            public bool ConductorChecked { get; set; }
             public string Note { get; set; } = "";
         }
 
-        /// <param name="isNec">NEC: next 240.6(A) rating ≥ Ib (×1.25 when continuous).
-        /// BS 7671: next rating ≥ Ib, never ×1.25.</param>
-        /// <param name="izA">Effective cable capacity Iz when known; null/≤0 when not.</param>
+        /// <summary>NEC 240.4(B)/(C) boundary: the next-size-up allowance stops at 800 A.</summary>
+        public const int Nec2404MaxNextSizeUpA = 800;
+
+        /// <summary>The 240.4(B) conditions this code cannot verify from the model.
+        /// Paraphrased from NEC 2023 240.4(B)(1) and the 240.4(B)(2) "without overload trip
+        /// adjustments above its rating" wording — VERIFY against the printed NFPA 70-2023
+        /// (DSCH-30 sign-off: an NEC-qualified engineer).</summary>
+        public const string Nec2404BConfirmText =
+            "confirm 240.4(B)(1): the conductors are not part of a branch circuit supplying more than one " +
+            "receptacle for cord-and-plug-connected portable loads, and no adjustable trip is set above the " +
+            "conductor ampacity [VERIFY wording against NFPA 70-2023 240.4(B)]";
+
+        /// <param name="isNec">NEC: next 240.6(A) rating ≥ Ib (×1.25 when continuous), then
+        /// the conductor check of 240.4(B)/(C) when <paramref name="izA"/> is given.
+        /// BS 7671: next rating ≥ Ib, never ×1.25, then In ≤ Iz.</param>
+        /// <param name="izA">BS 7671: effective cable capacity Iz. NEC: the conductor
+        /// ampacity after 310.15 correction. Null/≤0 when not known — the conductor is then
+        /// reported as NOT checked, never passed.</param>
         public static Selection Select(double ibA, bool isNec, bool continuous, int[] ratingsA, double? izA, string izBasis = null)
         {
             var s = new Selection();
@@ -642,8 +665,19 @@ namespace StingTools.Core.Electrical
                 return s;
             }
             s.ProposedA = proposed;
+            if (isNec)
+            {
+                string basis = string.IsNullOrEmpty(izBasis) ? "" : $" [{izBasis}]";
+                if (izA.HasValue && izA.Value > 0)
+                    NecConductorCheck(s, proposed, izA.Value, ratingsA, basis, notes);
+                else
+                    notes.Add("conductor NOT checked: no conductor ampacity available, so NEC 240.4 was not applied" + basis);
+                s.Note = string.Join("; ", notes);
+                return s;
+            }
             if (izA.HasValue && izA.Value > 0)
             {
+                s.ConductorChecked = true;
                 if (proposed > izA.Value)
                 {
                     s.Blocked = true;
@@ -652,9 +686,64 @@ namespace StingTools.Core.Electrical
                 }
                 else notes.Add($"In {proposed} A ≤ Iz {izA.Value:0.#} A" + (string.IsNullOrEmpty(izBasis) ? "" : $" [{izBasis}]"));
             }
-            else if (!isNec) notes.Add("cable size unknown — In ≤ Iz not checked");
+            else notes.Add("cable size unknown — In ≤ Iz not checked");
             s.Note = string.Join("; ", notes);
             return s;
+        }
+
+        /// <summary>
+        /// NEC 240.4 conductor protection (DSCH-30), applied to the proposed device.
+        /// <list type="bullet">
+        /// <item>Device ≤ ampacity: protected.</item>
+        /// <item>Device &gt; 800 A and &gt; ampacity: blocked — 240.4(C) requires ampacity ≥ rating.</item>
+        /// <item>Device ≤ 800 A and &gt; ampacity: 240.4(B) permits the next higher standard
+        /// rating only when (2) the ampacity does not itself correspond to a standard rating
+        /// and the device IS the next one above it, and (1) the circuit is not a multi-outlet
+        /// receptacle branch circuit for cord-and-plug portable loads. (2) and (3) are checked
+        /// here; (1) and adjustable-trip settings are left to the engineer and the result is
+        /// marked <see cref="Selection.NeedsConfirmation"/> — never a silent pass.</item>
+        /// </list>
+        /// 240.4(D) small-conductor limits and 240.4(E)-(G) taps / transformer secondaries /
+        /// specific applications are not decided here.
+        /// </summary>
+        internal static void NecConductorCheck(Selection s, int proposed, double ampacityA, int[] ratingsA,
+            string basis, List<string> notes)
+        {
+            s.ConductorChecked = true;
+            if (proposed <= ampacityA + 1e-9)
+            {
+                notes.Add($"OCPD {proposed} A ≤ conductor ampacity {ampacityA:0.#} A [NEC 240.4]{basis}");
+                return;
+            }
+            if (proposed > Nec2404MaxNextSizeUpA)
+            {
+                s.Blocked = true;
+                notes.Add($"OCPD {proposed} A > conductor ampacity {ampacityA:0.#} A, and above {Nec2404MaxNextSizeUpA} A " +
+                          "NEC 240.4(C) requires ampacity ≥ the device rating — upsize or parallel the conductors, do not apply" + basis);
+                return;
+            }
+            var ratings = ratingsA ?? new int[0];
+            bool ampacityIsStandard = ratings.Any(r => Math.Abs(r - ampacityA) < 1e-6);
+            if (ampacityIsStandard)
+            {
+                s.Blocked = true;
+                notes.Add($"OCPD {proposed} A > conductor ampacity {ampacityA:0.#} A, and {ampacityA:0.#} A is itself a " +
+                          "standard rating, so the 240.4(B)(2) next-size-up allowance does not apply — use the " +
+                          $"{ampacityA:0.#} A device or upsize the conductor; do not apply" + basis);
+                return;
+            }
+            int nextAbove = ratings.Where(r => r > ampacityA).DefaultIfEmpty(0).Min();
+            if (nextAbove != proposed)
+            {
+                s.Blocked = true;
+                notes.Add($"OCPD {proposed} A is more than one standard rating above the conductor ampacity " +
+                          $"{ampacityA:0.#} A (next higher is {nextAbove} A) — NEC 240.4(B) does not permit it; " +
+                          "upsize the conductor, do not apply" + basis);
+                return;
+            }
+            s.NeedsConfirmation = true;
+            notes.Add($"OCPD {proposed} A > conductor ampacity {ampacityA:0.#} A under the NEC 240.4(B) next-size-up " +
+                      $"allowance (≤ {Nec2404MaxNextSizeUpA} A, ampacity not a standard rating) — " + Nec2404BConfirmText + basis);
         }
     }
 
@@ -711,5 +800,34 @@ namespace StingTools.Core.Electrical
 
         private static double ToDouble(string s)
             => double.TryParse(s.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : 0;
+
+        private static readonly Regex NecKcmil = new Regex(@"(\d{3,4})\s*(?:kcmil|mcm)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex NecHash = new Regex(@"#\s*(\d{1,4}(?:/0)?)", RegexOptions.CultureInvariant);
+        private static readonly Regex NecAwg = new Regex(@"(\d{1,2}(?:/0)?)\s*AWG", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        private static readonly Regex Sets = new Regex(@"\bsets?\b|\bparallel\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+        /// <summary>
+        /// The NEC trade size of the FIRST (phase) conductor in a wire-size string, keyed as
+        /// NEC Table 310.16 keys it: "12", "1/0", "250" (kcmil). Null when no AWG / kcmil
+        /// designation is found, or when the string describes parallel sets — the ampacity
+        /// of a parallel run is not one conductor's, so it must not be read as one.
+        /// "#500" (three or more digits after #) is read as kcmil.
+        /// </summary>
+        public static string ParseNecSize(string wireSize)
+        {
+            if (string.IsNullOrWhiteSpace(wireSize) || Sets.IsMatch(wireSize)) return null;
+            var candidates = new List<(int Index, string Size)>();
+            var k = NecKcmil.Match(wireSize);
+            if (k.Success) candidates.Add((k.Index, k.Groups[1].Value));
+            var h = NecHash.Match(wireSize);
+            if (h.Success) candidates.Add((h.Index, h.Groups[1].Value));
+            var a = NecAwg.Match(wireSize);
+            if (a.Success) candidates.Add((a.Index, a.Groups[1].Value));
+            if (candidates.Count == 0) return null;
+            string size = candidates.OrderBy(c => c.Index).First().Size;
+            if (!size.Contains("/") && int.TryParse(size, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n)
+                && n > 40 && n < 250) return null;   // neither an AWG gauge nor a kcmil size
+            return size;
+        }
     }
 }

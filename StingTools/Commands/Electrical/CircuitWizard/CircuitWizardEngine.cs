@@ -50,6 +50,9 @@ namespace StingTools.Commands.Electrical.CircuitWizard
         /// A circuit carrying this must not be created.
         /// </summary>
         public string RatingRefusal   { get; set; }
+        /// <summary>NEC: the device relies on the 240.4(B) next-size-up allowance over the
+        /// proposed conductor's ampacity — shown to the user to confirm (DSCH-30); null otherwise.</summary>
+        public string ConductorNote   { get; set; }
         public double ProposedCsaMm2  { get; set; }
         public List<UnconnectedElement> Elements { get; set; } = new List<UnconnectedElement>();
         public bool   UserModified    { get; set; }
@@ -296,6 +299,25 @@ namespace StingTools.Commands.Electrical.CircuitWizard
                 Standard     = opts.Standard
             }, opts.Bs7671Tables);
             circuit.ProposedCsaMm2 = sized.RecommendedCsaMm2;
+
+            // NEC 240.4 (DSCH-30): check the device against the proposed conductor. No
+            // conductor (not sized) = not checked, said so; a forbidden device = refused.
+            circuit.ConductorNote = null;
+            if (nec && circuit.ProposedRatingA > 0)
+            {
+                var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(iA, isNec: true, continuous: false,
+                    VoltageDropEngine.BreakerSizesNEC,
+                    sized.Sized && sized.ConductorAmpacityA > 0 ? sized.ConductorAmpacityA : (double?)null,
+                    sized.Sized ? sized.CsaLabel : "conductor not sized: " + sized.Warning);
+                if (sel.Blocked)
+                {
+                    circuit.ProposedRatingA = 0;
+                    circuit.UtilisationPct = 0;
+                    circuit.RatingRefusal = "NEC 240.4: " + sel.Note;
+                }
+                else if (sel.NeedsConfirmation || !sel.ConductorChecked)
+                    circuit.ConductorNote = sel.Note;
+            }
         }
 
         /// <summary>Backwards-compatibility shim — delegates to the options overload.</summary>

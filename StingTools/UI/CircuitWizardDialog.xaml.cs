@@ -279,6 +279,11 @@ namespace StingTools.UI
                     "\n\nSplit or remove them first.");
                 return;
             }
+            var toConfirm = Proposals.Where(p => p.Source.ConductorNote != null).ToList();
+            if (toConfirm.Count > 0)
+                MessageBoxAlt($"{toConfirm.Count} proposed circuit(s) need the NEC 240.4 conductor check confirmed:\n" +
+                    string.Join("\n", toConfirm.Take(10).Select(p => $"  {p.ProposedLabel}: {p.Source.ConductorNote}")) +
+                    (toConfirm.Count > 10 ? $"\n  …and {toConfirm.Count - 10} more" : ""));
             CircuitWizardCommand.PendingCircuits = Proposals.Select(p => p.Source).ToList();
             CircuitWizardCommand.PendingPanelName = panel;
             try { StingElectricalCommandHandler.Instance?.SetCommand("Circuit_CreateWizard"); }

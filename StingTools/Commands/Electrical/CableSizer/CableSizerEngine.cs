@@ -94,6 +94,12 @@ namespace StingTools.Commands.Electrical.CableSizer
         /// reported only; null where it does not apply. Never used to choose the size.</summary>
         public double? LoadCorrectedVoltDropPct { get; set; }
         public string LoadCorrectionNote { get; set; } = "";
+        /// <summary>NEC: Table 310.16 ampacity of the chosen size after 310.15 correction (A).
+        /// 0 on the BS 7671 path and when not sized.</summary>
+        public double ConductorAmpacityA { get; set; }
+        /// <summary>NEC: the proposed OCPD rests on the 240.4(B) next-size-up allowance,
+        /// whose receptacle-circuit condition an engineer must confirm (DSCH-30).</summary>
+        public bool OcpdNeedsConfirmation { get; set; }
     }
 
     /// <summary>
@@ -414,9 +420,13 @@ namespace StingTools.Commands.Electrical.CableSizer
                 result.Sized = true;
 
                 // 240.6(A) standard rating (STING_WIRE_TABLES.json NEC_OCPD, the one copy —
-                // DSCH-25), then the 240.4(D) small-conductor ceiling. No rating large
+                // DSCH-25), checked against the conductor ampacity under 240.4(B)/(C)
+                // (DSCH-30), then the 240.4(D) small-conductor ceiling. No rating large
                 // enough (or the list did not load) is a refusal, never the largest rating.
-                int breaker = VoltageDropEngine.NextStandardBreakerSizeNEC(sizingCurrent);
+                var sel = StingTools.Core.Electrical.ProtectiveDeviceSelection.Select(
+                    iB, isNec: true, continuous: input.ContinuousLoad, VoltageDropEngine.BreakerSizesNEC,
+                    ampacity, $"{NecSizeLabel(awg)} Table 310.16 @75°C corrected");
+                int breaker = sel.ProposedA;
                 if (breaker <= 0)
                 {
                     result.Sized = false;
@@ -424,6 +434,14 @@ namespace StingTools.Commands.Electrical.CableSizer
                         (VoltageDropEngine.BreakerSizesLoadError != null
                             ? " — " + VoltageDropEngine.BreakerSizesLoadError
                             : "; specify the overcurrent device manually.");
+                    return result;
+                }
+                if (sel.Blocked)
+                {
+                    // Not reachable with the ampacity-first ladder above (the conductor already
+                    // carries the sizing current), but never apply a device 240.4 forbids.
+                    result.Sized = false;
+                    result.Warning = "NEC 240.4: " + sel.Note;
                     return result;
                 }
                 int maxForSize = StingTools.Standards.NEC2023.NECStandards.GetMaximumBreakerSize(awg);
@@ -442,12 +460,20 @@ namespace StingTools.Commands.Electrical.CableSizer
                         "NEC 210.19(A) Informational Note 4 RECOMMENDS 3% (5% overall) but does not " +
                         "require it, so the conductor was not upsized. Upsize deliberately if the " +
                         "project specification makes the limit binding.";
+                // A 240.4(D) cap leaves the device at or below the ampacity: nothing to confirm.
+                bool confirm = sel.NeedsConfirmation && breaker == sel.ProposedA;
+                result.ConductorAmpacityA = ampacity;
+                result.OcpdNeedsConfirmation = confirm;
+                if (confirm)
+                    result.Warning = (string.IsNullOrEmpty(result.Warning) ? "" : result.Warning + " ") +
+                                     "CONFIRM: " + sel.Note;
 
                 result.DerivationNote =
                     $"Ib={iB:0.0}A" + (input.ContinuousLoad ? $", x1.25 continuous = {sizingCurrent:0.0}A [210.19(A)(1)]" : "") +
                     $", Table 310.16 @75°C corrected to {ampacity:0.0}A " +
                     $"(ta={input.AmbientTempC:0}°C [310.15(B)(1)], {ccc} CCC [310.15(C)(1)]), " +
-                    $"OCPD {breaker}A [240.6(A)" + (maxForSize > 0 ? " capped by 240.4(D)" : "") + "] — " +
+                    $"OCPD {breaker}A [240.6(A)" + (maxForSize > 0 && breaker < sel.ProposedA ? " capped by 240.4(D)" : "") +
+                    (confirm ? ", 240.4(B) next size up — confirm" : ", 240.4 conductor check passed") + "] — " +
                     result.StandardBasis;
                 return result;
             }
