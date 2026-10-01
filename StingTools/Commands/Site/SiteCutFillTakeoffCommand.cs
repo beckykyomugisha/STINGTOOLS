@@ -440,13 +440,18 @@ namespace StingTools.Commands.Site
             {
                 string path = StingToolsApp.FindDataFile("STING_DEFAULT_COST_RATES.csv");
                 if (string.IsNullOrEmpty(path) || !File.Exists(path)) return 0;
-                foreach (var line in File.ReadAllLines(path))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("Category", "RatePerUnit_USD");
+                if (missing.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("#")) continue;
-                    var f = StingToolsApp.ParseCsvLine(line);
-                    if (f == null || f.Length < 2) continue;
-                    if (!string.Equals(f[0]?.Trim(), categoryKey, StringComparison.OrdinalIgnoreCase)) continue;
-                    if (double.TryParse(f[1]?.Trim(), NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
+                    StingLog.Warn($"BenchmarkRate: {Path.GetFileName(path)} header has no {string.Join(", ", missing)} column(s).");
+                    return 0;
+                }
+                foreach (var row in t.Rows)
+                {
+                    if (!string.Equals(row["Category"], categoryKey, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (double.TryParse(row["RatePerUnit_USD"], NumberStyles.Any, CultureInfo.InvariantCulture, out double v))
                         return v;
                 }
             }

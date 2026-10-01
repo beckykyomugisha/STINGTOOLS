@@ -158,26 +158,25 @@ namespace StingTools.BIMManager
                         $"Restore data/STING_DEFAULT_COST_RATES.csv or run Cost_ReloadRules after restoring.");
                     return rates;
                 }
-                bool headerSeen = false;
-                foreach (string raw in System.IO.File.ReadAllLines(path))
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(System.IO.File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                var missing = t.Missing("Category", "RatePerUnit_USD", "Unit");
+                if (missing.Count > 0)
                 {
-                    if (string.IsNullOrWhiteSpace(raw)) continue;
-                    string line = raw.TrimStart();
-                    if (line.StartsWith("#")) continue;
-                    var cols = StingToolsApp.ParseCsvLine(raw);
-                    if (cols == null || cols.Length < 3) continue;
-                    if (!headerSeen)
-                    {
-                        // First non-comment line is the header.
-                        headerSeen = true;
-                        if (cols[0].Equals("Category", StringComparison.OrdinalIgnoreCase)) continue;
-                    }
-                    string cat = cols[0].Trim();
-                    if (!double.TryParse(cols[1], System.Globalization.NumberStyles.Any,
+                    StingLog.Warn($"Scheduling4DEngine.LoadDefaultCostRatesCsv: {System.IO.Path.GetFileName(path)} " +
+                        $"header has no {string.Join(", ", missing)} column(s) — using {rates.Count} emergency entries.");
+                    return rates;
+                }
+                int descCol = t.Col("Description");
+                foreach (var row in t.Rows)
+                {
+                    if (row.Count < 3) continue;
+                    string cat = row["Category"];
+                    if (!double.TryParse(row["RatePerUnit_USD"], System.Globalization.NumberStyles.Any,
                             System.Globalization.CultureInfo.InvariantCulture, out double rate))
                         continue;
-                    string unit = cols[2].Trim();
-                    string desc = cols.Length > 3 ? cols[3].Trim() : cat;
+                    string unit = row["Unit"];
+                    string desc = descCol >= 0 && row.Count > descCol ? row["Description"] : cat;
                     rates[cat] = (rate, unit, desc);
                 }
                 StingLog.Info($"Scheduling4DEngine.LoadDefaultCostRatesCsv: merged CSV → {rates.Count} default cost rates ({System.IO.Path.GetFileName(path)} + inline).");
