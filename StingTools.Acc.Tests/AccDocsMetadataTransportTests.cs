@@ -103,5 +103,26 @@ namespace StingTools.Acc.Tests
             Assert.True(w.Succeeded, w.Detail);
             Assert.Equal(1, tokens);
         }
+
+        // H-8: moving the Docs calls onto AccHttp (AUT-4) made a Retry-After over 60 s fail at
+        // once; the old path waited the capped 60 s and retried. That behaviour is kept.
+        [Fact]
+        public async Task WithCredentials_ALongRetryAfter_IsCappedAndRetried_NotAFailure()
+        {
+            var waits = new List<TimeSpan>();
+            AccHttp.DelayHook = t => { waits.Add(t); return Task.CompletedTask; };
+            using var server = new LoopbackServer((i, req) => i == 0
+                ? new CannedResponse(429, "{}").With("Retry-After", "300")
+                : new CannedResponse(200, Defs));
+            AccIssueSync.OverrideHostForTests(server.BaseUrl);
+            AccDocsMetadata.OverrideHostForTests(server.BaseUrl);
+            var creds = H.Creds();
+
+            var r = await AccDocsMetadata.ListDefinitionsAsync(creds.AccessToken, H.Project, Folder, creds);
+
+            Assert.True(r.Succeeded, r.Detail);
+            Assert.Equal(AccHttp.MaxWait, Assert.Single(waits));
+            Assert.Equal(2, server.RequestCount);
+        }
     }
 }

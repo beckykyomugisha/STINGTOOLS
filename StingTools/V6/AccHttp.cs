@@ -103,7 +103,8 @@ namespace StingTools.V6
             CancellationToken ct = default,
             TimeSpan? timeout = null,
             int maxAttempts = DefaultMaxAttempts,
-            bool readBytes = false)
+            bool readBytes = false,
+            bool capLongWaits = false)
         {
             var result = new AccHttpResponse();
             bool refreshedFor401 = false;
@@ -167,6 +168,10 @@ namespace StingTools.V6
                     if (!retryable || attempt == maxAttempts - 1) return result;
 
                     var wait = retryAfter ?? Backoff(attempt);
+                    // H-8: a caller that preferred to wait (the Docs attribute stamp after an
+                    // upload, whose old transport capped the wait and retried) waits MaxWait
+                    // and tries again rather than failing at once.
+                    if (wait > MaxWait && capLongWaits) wait = MaxWait;
                     if (wait > MaxWait)
                     {
                         StingLog.Warn($"AccHttp: HTTP {s} asked to wait {wait.TotalSeconds:F0} s — more than {MaxWait.TotalSeconds:F0} s, not waiting");

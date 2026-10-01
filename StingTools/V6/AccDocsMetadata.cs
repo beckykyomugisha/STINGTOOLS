@@ -386,7 +386,11 @@ namespace StingTools.V6
                     req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
                     if (jsonBody != null) req.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
                     return req;
-                }, creds, idempotent, timeout: TimeSpan.FromSeconds(60), maxAttempts: MaxAttempts).ConfigureAwait(false);
+                // H-8: keep the old path's rate-limit behaviour - cap a long Retry-After at
+                // MaxRetryWait and retry - and one extra attempt so a 401 refresh does not use
+                // up one of the 429 retries the token-only path had.
+                }, creds, idempotent, timeout: TimeSpan.FromSeconds(60), maxAttempts: MaxAttempts + 1,
+                   capLongWaits: true).ConfigureAwait(false);
                 if (sent.Auth != null && !sent.Auth.Ok)
                     return new Resp { Status = 0, Failure = AccFetchStatus.AuthFailed, Detail = "not signed in to ACC: " + sent.Auth.Detail };
                 if (sent.Status == 0)
