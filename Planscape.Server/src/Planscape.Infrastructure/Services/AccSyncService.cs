@@ -61,6 +61,9 @@ public class AccSyncService
     public const string KeyIssueStatusAt = "accIssueStatusAt";
     /// <summary>Per mapped issue: the Planscape UpdatedAt last pushed to ACC (C10).</summary>
     public const string KeyIssuePushedAt = "accIssuePushedAt";
+    /// <summary>E2: per mapped issue, what was last pushed (status, title hash, description
+    /// hash), so an update sends only what changed in Planscape since.</summary>
+    public const string KeyIssuePushedState = "accIssuePushedState";
     /// <summary>D2: issues whose create may have landed in ACC although no answer came back
     /// (timeout, transport error, 5xx), with when the attempt was made. Never re-posted blind.</summary>
     public const string KeyIssuePendingVerify = "accIssuePendingVerify";
@@ -70,7 +73,7 @@ public class AccSyncService
     public const string KeyWebhookHooks  = "accWebhookHooks";
 
     /// <summary>ConfigJson keys only the server writes. A client PUT must not replace them.</summary>
-    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePendingVerify, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
+    public static readonly IReadOnlyList<string> ServerOwnedConfigKeys = new[] { KeyIssueMap, KeyIssueStatus, KeyIssueStatusAt, KeyIssuePushedAt, KeyIssuePushedState, KeyIssuePendingVerify, KeyWebhookHooks, AccWebhookService.KeySecretSetBy };
 
     // Documented Issues v1 POST limits.
     private const int TitleMax = 100;
@@ -475,6 +478,9 @@ public class AccSyncService
             {
                 map[key] = accId!;
                 pushedAt[key] = issue.UpdatedAt;
+                var states = cfg[KeyIssuePushedState] as JObject ?? new JObject();
+                states[key] = AccIssueUpdatePlan.Snapshot.Of(issue.Title, issue.Description, issue.Status).ToJson();
+                cfg[KeyIssuePushedState] = states;
                 pushed++;
                 // Persist the mapping NOW: the issue exists in ACC from this moment.
                 cfg[KeyIssueMap] = JObject.FromObject(map);
@@ -559,6 +565,7 @@ public class AccSyncService
         var lastStatus = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (cfg[KeyIssueStatus] is JObject js)
             foreach (var kv in js) if (kv.Value?.Type == JTokenType.String) lastStatus[kv.Key] = kv.Value.Value<string>()!;
+        var pushedState = cfg[KeyIssuePushedState] as JObject ?? new JObject();
 
         bool dirty = false;
         foreach (var issue in mapped)
@@ -569,19 +576,38 @@ public class AccSyncService
             if (AccOriginId(issue) != null || string.Equals(issue.Source, "acc", StringComparison.OrdinalIgnoreCase)) continue;
             // A mapping from before this change has no baseline: record one, PATCH nothing
             // (a first run must not rewrite every ACC issue from Planscape).
-            if (!pushedAt.TryGetValue(key, out var at)) { pushedAt[key] = issue.UpdatedAt; dirty = true; continue; }
+            var prev = AccIssueUpdatePlan.Snapshot.From(pushedState[key] as JObject);
+            if (!pushedAt.TryGetValue(key, out var at) || prev == null)
+            {
+                // No baseline (a mapping from before C10/E2): record what Planscape holds now and
+                // PATCH nothing — a first run must not rewrite every ACC issue from Planscape.
+                pushedAt[key] = issue.UpdatedAt;
+                pushedState[key] = AccIssueUpdatePlan.Snapshot.Of(issue.Title, issue.Description, issue.Status).ToJson();
+                dirty = true;
+                continue;
+            }
             if (issue.UpdatedAt <= at) continue;
 
-            var freshUpd = await RefreshMidRunAsync(conn, ct);
-            if (freshUpd != null) { failures.Add($"{issue.IssueCode} (update): {freshUpd}"); break; }
-            var decision = AccIssueUpdatePlan.Plan(issue.Title, issue.Description, issue.Status,
+            var decision = AccIssueUpdatePlan.Plan(prev, issue.Title, issue.Description, issue.Status,
                 lastStatus.TryGetValue(accId, out var st) ? st : null);
             if (decision.StatusWithheld) diverged++;
+            if (decision.Body.Count == 0)
+            {
+                // UpdatedAt moved but nothing ACC carries changed (or only a withheld status):
+                // nothing to send, and nothing of ACC's is touched.
+                pushedAt[key] = issue.UpdatedAt;
+                pushedState[key] = decision.Next.ToJson();
+                dirty = true;
+                continue;
+            }
+            var freshUpd = await RefreshMidRunAsync(conn, ct);
+            if (freshUpd != null) { failures.Add($"{issue.IssueCode} (update): {freshUpd}"); break; }
             var (ok, error) = await PatchIssueAsync(http, conn, accId, decision.Body, region, ct);
             if (ok)
             {
                 updated++;
                 pushedAt[key] = issue.UpdatedAt;
+                pushedState[key] = decision.Next.ToJson();
                 dirty = true;
             }
             else
@@ -593,6 +619,7 @@ public class AccSyncService
         if (dirty)
         {
             cfg[KeyIssuePushedAt] = PushedAtJson(pushedAt);
+            cfg[KeyIssuePushedState] = pushedState;
             conn.ConfigJson = cfg.ToString(Newtonsoft.Json.Formatting.None);
             await _db.SaveChangesAsync(ct);
         }
@@ -979,11 +1006,18 @@ public class AccSyncService
         return (inc.ToString(Newtonsoft.Json.Formatting.None), null);
     }
 
-    internal static string MapStatus(string s) => s switch
+    /// <summary>The ACC Issues status for a create: a known Planscape status, else "open".</summary>
+    internal static string MapStatus(string s) => MapStatusOrNull(s) ?? "open";
+
+    /// <summary>E2: case-insensitive; IN_PROGRESS is its own ACC status (it was sent as
+    /// "open"); an unknown status maps to null and is never sent on an update.</summary>
+    internal static string? MapStatusOrNull(string? s) => (s ?? "").Trim().Replace(" ", "_").ToUpperInvariant() switch
     {
+        "OPEN" => "open",
+        "IN_PROGRESS" or "INPROGRESS" => "in_progress",
         "RESOLVED" => "completed",
-        "CLOSED"   => "closed",
-        _ => "open",
+        "CLOSED" => "closed",
+        _ => null,
     };
 
     private static string Truncate(string? s, int n)
@@ -1047,21 +1081,61 @@ public class AccSyncService
 /// </summary>
 public static class AccIssueUpdatePlan
 {
-    public sealed record Decision(JObject Body, bool StatusWithheld);
-
-    public static Decision Plan(string? title, string? description, string? planscapeStatus, string? accLastStatus)
+    /// <summary>What was last pushed for one issue: its Planscape status, and hashes of the
+    /// title and description as sent (truncated as ACC receives them).</summary>
+    public sealed record Snapshot(string Status, string TitleHash, string DescriptionHash)
     {
-        var body = new JObject
+        public static Snapshot Of(string? title, string? description, string? status)
+            => new((status ?? "").Trim().ToUpperInvariant(), Hash(Trunc(title, 100)), Hash(Trunc(description, 1000)));
+
+        public static Snapshot? From(JObject? o)
+            => o == null ? null : new((string?)o["s"] ?? "", (string?)o["t"] ?? "", (string?)o["d"] ?? "");
+
+        public JObject ToJson() => new() { ["s"] = Status, ["t"] = TitleHash, ["d"] = DescriptionHash };
+    }
+
+    public sealed record Decision(JObject Body, bool StatusWithheld, Snapshot Next);
+
+    /// <summary>
+    /// E2: send only what changed in Planscape since <paramref name="previous"/> was pushed.
+    /// Title and description go when their text changed. The status goes only when Planscape's
+    /// status changed AND ACC still shows the value pushed last time: if the ACC assignee has
+    /// moved it since (in_progress, completed, closed…) that is the later fact, so the status is
+    /// withheld and the divergence reported. An unknown Planscape status is never sent.
+    /// </summary>
+    public static Decision Plan(Snapshot previous, string? title, string? description, string? planscapeStatus, string? accLastStatus)
+    {
+        var now = Snapshot.Of(title, description, planscapeStatus);
+        var body = new JObject();
+        if (now.TitleHash != previous.TitleHash) body["title"] = Trunc(title, 100);
+        if (now.DescriptionHash != previous.DescriptionHash) body["description"] = Trunc(description, 1000);
+
+        bool withheld = false;
+        var next = now;
+        if (!string.Equals(now.Status, previous.Status, StringComparison.Ordinal))
         {
-            ["title"] = Trunc(title, 100),
-            ["description"] = Trunc(description, 1000),
-        };
-        string target = AccSyncService.MapStatus(planscapeStatus ?? "");
-        bool accClosed = string.Equals(accLastStatus, "closed", StringComparison.OrdinalIgnoreCase);
-        bool withhold = accClosed && !string.Equals(target, "closed", StringComparison.OrdinalIgnoreCase);
-        if (!withhold) body["status"] = target;
-        return new Decision(body, withhold);
+            string? target = AccSyncService.MapStatusOrNull(planscapeStatus);
+            string? expected = AccSyncService.MapStatusOrNull(previous.Status);
+            bool accMoved = accLastStatus != null && expected != null &&
+                            !string.Equals(accLastStatus, expected, StringComparison.OrdinalIgnoreCase);
+            if (target == null) next = now with { Status = previous.Status };
+            else if (string.Equals(accLastStatus, target, StringComparison.OrdinalIgnoreCase)) { /* ACC already agrees */ }
+            else if (accMoved || string.Equals(accLastStatus, "closed", StringComparison.OrdinalIgnoreCase) && target != "closed")
+            {
+                withheld = true;
+                next = now with { Status = previous.Status };
+            }
+            else body["status"] = target;
+        }
+        return new Decision(body, withheld, next);
     }
 
     private static string Trunc(string? s, int n) => string.IsNullOrEmpty(s) ? "" : (s!.Length > n ? s.Substring(0, n) : s);
+
+    private static string Hash(string s)
+    {
+        var b = System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(s ?? ""));
+        return Convert.ToHexString(b, 0, 8);
+    }
 }
+

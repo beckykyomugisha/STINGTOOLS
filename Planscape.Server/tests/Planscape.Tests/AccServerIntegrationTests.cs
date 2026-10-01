@@ -324,8 +324,12 @@ public partial class AccServerIntegrationTests
         Assert.EndsWith("/issues/acc-1", patch.Url);
         var body = JObject.Parse(patch.Body!);
         Assert.Equal("Retitled in Planscape", (string?)body["title"]);
-        // acc-1 read back as "closed" (StubAcc's first id); Planscape closed it too, so the status goes.
-        Assert.Equal("closed", (string?)body["status"]);
+        // E2: only what changed goes. acc-1 already reads "closed" in ACC (StubAcc's first id)
+        // and Planscape closed it too, so there is no status to send; the description did
+        // not change, so it is not sent either.
+        Assert.Null(body["status"]);
+        Assert.Null(body["description"]);
+        Assert.Equal(0, r.Diverged);
 
         // Nothing changed since: no second PATCH.
         fx.Http.Calls.Clear();
@@ -352,10 +356,9 @@ public partial class AccServerIntegrationTests
         using (var db = fx.Db()) r = await fx.Service(db).SyncProjectAsync(fx.ProjectId);
 
         var body = JObject.Parse(Assert.Single(fx.Http.Calls, c => c.Method == HttpMethod.Patch).Body!);
-        Assert.Null(body["status"]);                     // withheld: would reopen
+        Assert.Null(body["status"]);                     // Planscape's status did not change: never sent
+        Assert.Null(body["title"]);                      // nor did the title
         Assert.Equal("more detail", (string?)body["description"]);
-        Assert.Equal(1, r.Diverged);
-        Assert.Contains("closed in ACC", r.Error);
     }
 
     [Fact]
@@ -379,16 +382,35 @@ public partial class AccServerIntegrationTests
         Assert.NotNull(cfg[AccSyncService.KeyIssuePushedAt]?[issueId.ToString()]);
     }
 
+    // E2: the plan sends only what changed in Planscape and never undoes ACC's own status moves.
     [Theory]
-    [InlineData("OPEN", "closed", true)]
-    [InlineData("OPEN", "open", false)]
-    [InlineData("CLOSED", "closed", false)]
-    [InlineData("OPEN", null, false)]
-    public void The_update_plan_withholds_only_a_reopen(string planscape, string? acc, bool withheld)
+    // previous Planscape status, new Planscape status, ACC's last status, expected status sent (null = none), withheld
+    [InlineData("OPEN", "OPEN", "in_progress", null, false)]        // Planscape unchanged: ACC's in_progress kept
+    [InlineData("OPEN", "CLOSED", "open", "closed", false)]         // ACC still as pushed: the close goes
+    [InlineData("OPEN", "CLOSED", "in_progress", null, true)]       // ACC moved since: withheld, reported
+    [InlineData("OPEN", "IN_PROGRESS", "open", "in_progress", false)] // IN_PROGRESS is its own status (was 'open')
+    [InlineData("OPEN", "closed", "open", "closed", false)]         // case-insensitive
+    [InlineData("OPEN", "RESOLVED", "completed", null, false)]      // ACC already agrees: nothing to send
+    [InlineData("CLOSED", "OPEN", "closed", null, true)]            // never reopen an ACC close
+    [InlineData("OPEN", "WEIRD", "open", null, false)]              // unknown status never sent
+    public void The_update_plan_sends_status_only_when_safe(string prev, string now, string acc, string? sent, bool withheld)
     {
-        var d = AccIssueUpdatePlan.Plan("t", "d", planscape, acc);
+        var previous = AccIssueUpdatePlan.Snapshot.Of("t", "d", prev);
+        var d = AccIssueUpdatePlan.Plan(previous, "t", "d", now, acc);
+        Assert.Equal(sent, (string?)d.Body["status"]);
         Assert.Equal(withheld, d.StatusWithheld);
-        Assert.Equal(withheld, d.Body["status"] == null);
+        Assert.Null(d.Body["title"]);
+        Assert.Null(d.Body["description"]);
+    }
+
+    [Fact]
+    public void Unchanged_text_is_not_resent_and_a_changed_title_is()
+    {
+        var previous = AccIssueUpdatePlan.Snapshot.Of("Duct clash L2", "Move the duct", "OPEN");
+        Assert.Empty(AccIssueUpdatePlan.Plan(previous, "Duct clash L2", "Move the duct", "OPEN", "open").Body);
+        var d = AccIssueUpdatePlan.Plan(previous, "Duct clash L2 (grid C4)", "Move the duct", "OPEN", "open");
+        Assert.Equal("Duct clash L2 (grid C4)", (string?)d.Body["title"]);
+        Assert.Single(d.Body);
     }
 
     [Fact]
