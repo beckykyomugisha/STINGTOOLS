@@ -321,6 +321,12 @@ namespace StingTools.Core.Drawing
             public string Bucket;
             public int? CurrentSeq;
             public bool Locked;
+            /// <summary>DTW-211: the current number is not in the shape of the pattern the
+            /// policy now gives this sheet (e.g. a profile-era number under the ISO policy) —
+            /// renumbering it CONVERTS it rather than closing a gap.</summary>
+            public bool ShapeChange;
+            /// <summary>DTW-211: the sheet carries an issued revision.</summary>
+            public bool Issued;
             /// <summary>This sheet's number for a given sequence, built from its
             /// OWN tokens (level, mark), so compaction never erases identity.</summary>
             public Func<int, string> NumberFor;
@@ -347,6 +353,12 @@ namespace StingTools.Core.Drawing
             /// <summary>DTW-7: sheets kept on their number because it is a full
             /// ISO 19650 identifier and the policy is not ISO. Reported, never moved.</summary>
             public List<string> IsoPreserved { get; } = new List<string>();
+            /// <summary>DTW-211: the moves that change a sheet's number SHAPE (a conversion
+            /// to the policy's pattern), listed apart from gap-closing moves.</summary>
+            public List<RenumberMove> Conversions { get; } = new List<RenumberMove>();
+            /// <summary>DTW-211: issued sheets a conversion would have renumbered, kept
+            /// because the caller did not opt in to converting issued sheets.</summary>
+            public List<string> IssuedKept { get; } = new List<string>();
         }
 
         /// <summary>
@@ -367,13 +379,36 @@ namespace StingTools.Core.Drawing
         /// mover in place instead; pinning repeats until the plan is conflict-free,
         /// so what is returned can be applied without Revit rejecting any of it.
         /// </summary>
+        /// <para>DTW-211: a sheet whose number is not in its pattern's shape
+        /// (<see cref="RenumberItem.ShapeChange"/>) is converted, not compacted; such moves
+        /// are listed in <see cref="RenumberPlan.Conversions"/>. An ISSUED sheet is never
+        /// converted unless <paramref name="convertIssued"/> — its number is on drawings
+        /// already sent out; it is pinned and listed in <see cref="RenumberPlan.IssuedKept"/>.</para>
         public static RenumberPlan PlanRenumber(IReadOnlyList<RenumberItem> items, IEnumerable<string> allNumbers,
-            SheetNumberPolicyKind policy = SheetNumberPolicyKind.Profile)
+            SheetNumberPolicyKind policy = SheetNumberPolicyKind.Profile, bool convertIssued = false)
+        {
+            var plan = PlanRenumberCore(items, allNumbers, policy, convertIssued);
+            if (items == null) return plan;
+            var shape = new HashSet<string>(items.Where(i => i.ShapeChange).Select(i => i.Id), StringComparer.Ordinal);
+            plan.Conversions.AddRange(plan.Moves.Where(m => shape.Contains(m.Id)));
+            return plan;
+        }
+
+        private static RenumberPlan PlanRenumberCore(IReadOnlyList<RenumberItem> items, IEnumerable<string> allNumbers,
+            SheetNumberPolicyKind policy, bool convertIssued)
         {
             var plan = new RenumberPlan();
             if (items == null || items.Count == 0) return plan;
 
             var pinned = new HashSet<string>(items.Where(i => i.Locked).Select(i => i.Id), StringComparer.Ordinal);
+            if (!convertIssued)
+                foreach (var i in items)
+                {
+                    if (i.Locked || !i.ShapeChange || !i.Issued || PinsIsoIdentifier(i.CurrentNumber, policy)) continue;
+                    pinned.Add(i.Id);
+                    plan.IssuedKept.Add($"{i.CurrentNumber}: issued (has an issued revision); kept — converting it to the " +
+                                        $"{policy} numbering would change the number on drawings already sent out.");
+                }
             foreach (var i in items)
             {
                 if (i.Locked || !PinsIsoIdentifier(i.CurrentNumber, policy)) continue;
