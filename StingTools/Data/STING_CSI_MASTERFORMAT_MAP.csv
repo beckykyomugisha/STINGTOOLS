@@ -119,7 +119,7 @@
 # which refuses a code that appears nowhere else in this file, refuses a stale
 # sheet, and records the reviewer's note beside the answer. See ROADMAP LIFE-2.
 # ---------------------------------------------------------------------------
-Category,FamilyRegex,TypeRegex,Sys,Section,Title,Nrm2,Unit
+Category,FamilyRegex,TypeRegex,Sys,Section,Title,Nrm2,Unit,Material,Phase
 Doors,,,,08 11 00,Metal Doors and Frames,20,each
 Doors,(?i)wood,,,08 14 00,Wood Doors and Frames,20,
 Doors,(?i)glass|alum|storefront,,,08 41 00,Entrances and Storefronts,20,
