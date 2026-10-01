@@ -11,7 +11,7 @@
       "Lighting_24x7": { "weekday": 24, "weekend": 24, "annualH": 8760 },
       "Small Power":   { "annualH": 2600, "_note": "Plug load duty cycle ~30% over working hours" },
       "HVAC":          { "annualH": 4400, "_note": "CIBSE TM52 — heating + cooling combined" },
-      "Lifts":         { "annualH": 1500 },
+      "Lifts / Elevators":         { "annualH": 1500 },
       "EV Charging":   { "annualH": 2000 },
       "IT / Server":   { "annualH": 8760, "_note": "Continuous" },
       "General":       { "annualH": 3000 }
