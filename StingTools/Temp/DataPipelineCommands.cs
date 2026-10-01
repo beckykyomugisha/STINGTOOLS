@@ -1994,7 +1994,10 @@ namespace StingTools.Temp
                     var cols = StingToolsApp.ParseCsvLine(trimmed);
                     if (cols.Length >= 2 && !string.IsNullOrEmpty(cols[0]))
                     {
-                        if (double.TryParse(cols[1], out double rate) && rate > 0)
+                        // Invariant: BOQ_TEMPLATE.csv is authored with '.' decimals; the
+                        // current culture reads "1.5" as 15 on a comma-decimal Windows locale.
+                        if (double.TryParse(cols[1], System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture, out double rate) && rate > 0)
                             rates[cols[0].Trim()] = rate;
                     }
                 }
