@@ -88,17 +88,22 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
             try
             {
-                var lines = File.ReadAllLines(path);
-                if (lines.Length < 2) return;
-                for (int i = 1; i < lines.Length; i++)
+                // DSCH-2: columns by header name, not position.
+                var t = CsvTable.Parse(File.ReadAllLines(path), StingToolsApp.ParseCsvLine);
+                if (t.HeaderLine == 0) return;
+                var missing = t.Missing("MaterialClassPattern", "UniclassCode", "UniclassTitle");
+                if (missing.Count > 0)
                 {
-                    var line = lines[i];
-                    if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
-                    var f = StingToolsApp.ParseCsvLine(line);
-                    if (f == null || f.Length < 3) continue;
-                    string pat = (f[0] ?? "").Trim();
-                    string code = (f[1] ?? "").Trim();
-                    string title = (f[2] ?? "").Trim();
+                    StingLog.Warn($"MaterialUniclassMapper: {path} header has no {string.Join(", ", missing)} column; file skipped.");
+                    return;
+                }
+                int last = Math.Max(t.Col("UniclassTitle"), Math.Max(t.Col("MaterialClassPattern"), t.Col("UniclassCode")));
+                foreach (var r in t.Rows)
+                {
+                    if (r.Count <= last) continue;
+                    string pat = r["MaterialClassPattern"];
+                    string code = r["UniclassCode"];
+                    string title = r["UniclassTitle"];
                     if (string.IsNullOrEmpty(pat) || string.IsNullOrEmpty(code)) continue;
                     try
                     {
