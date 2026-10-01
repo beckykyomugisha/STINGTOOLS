@@ -17,7 +17,14 @@
     "                          \u00e2\u2020\u2019 DST=true for N-hemi DST observers; S-hemi",
     "                          observers are in their winter on July \u00e2\u2020\u2019 false).",
     "BlockLoadEngine adds these to convert local-clock 'hour' to solar",
-    "time so the solar-noon hour aligns with the actual sun position."
+    "time so the solar-noon hour aligns with the actual sun position.",
+    "",
+    "Design wind (infiltration only): optional per-site heatingWindMs / coolingWindMs, m/s,",
+    "  = ASHRAE 2021 Fundamentals Ch. 14 mean coincident wind speed at 10 m,",
+    "  heating = MCWS to 99.6 % DB, cooling = MCWS to 0.4 % DB. Transcribe from the licensed",
+    "  ASHRAE tables (record the station in source); never estimate. NEVER a structural",
+    "  design wind (BS EN 1991-1-4 vb,0). Absent: 4.0 m/s is assumed and reported (DesignWind.cs).",
+    "  The legacy key designWindMs is still read for both days. No site below carries them yet."
   ],
   "sites": [
     {

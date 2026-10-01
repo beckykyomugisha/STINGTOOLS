@@ -94,25 +94,13 @@ namespace StingTools.Core.Climate
         /// local→solar conversion.</summary>
         public bool ObservesDstInSummer { get; set; } = false;
 
-        /// <summary>Annual-mean wind speed at 10 m, m/s. ASHRAE 2021 column
-        /// "Wsf" (wind speed at the cooling design hour). Used by the
-        /// CIBSE Guide A §4.6 stack + wind infiltration model. Defaults to
-        /// 3.0 m/s when not in the site record (representative UK mean);
-        /// <see cref="DesignWindAssumed"/> says when that happened.</summary>
-        public double DesignWindMs
-        {
-            get => _designWindMs ?? DefaultDesignWindMs;
-            set => _designWindMs = value;
-        }
-        private double? _designWindMs;
-
-        /// <summary>The wind speed used when a site record carries no designWindMs.</summary>
-        public const double DefaultDesignWindMs = 3.0;
-
-        /// <summary>True when no wind speed was recorded for this site, so
-        /// <see cref="DesignWindMs"/> is the <see cref="DefaultDesignWindMs"/>
-        /// assumption rather than site data. Callers that use the wind must say so.</summary>
-        public bool DesignWindAssumed => !_designWindMs.HasValue;
+        /// <summary>Design wind speeds for the infiltration model, per design day:
+        /// ASHRAE 2021 Fundamentals Ch. 14 mean coincident wind speed at 10 m
+        /// ("MCWS to 99.6 % DB" heating, "MCWS to 0.4 % DB" cooling). Absent from
+        /// the site record, <see cref="DesignWind.DefaultMs"/> (4.0 m/s) is used and
+        /// the Assumed flag is set — callers that use the wind must say so.
+        /// NEVER a structural design wind (BS EN 1991-1-4 vb,0); see DesignWind.cs.</summary>
+        public SiteDesignWind Wind { get; set; } = new SiteDesignWind();
 
         /// <summary>
         /// Air density at the cooling design dry-bulb, corrected for
@@ -297,10 +285,12 @@ namespace StingTools.Core.Climate
                     UtcOffsetHours      = (double?)s["utcOffsetHours"] ?? 0,
                     ObservesDstInSummer = (bool?)s["observesDstInSummer"] ?? false
                 };
-                // Only a recorded wind speed is set; absent, DesignWindMs reads the
-                // 3.0 m/s default and DesignWindAssumed stays true.
-                var windMs = (double?)s["designWindMs"];
-                if (windMs.HasValue) site.DesignWindMs = windMs.Value;
+                // Only recorded wind speeds are set; absent, the 4.0 m/s default is
+                // used and the Assumed flag stays true (DesignWind.cs).
+                site.Wind = DesignWind.FromSiteRecord(s);
+                if (site.Wind.RejectedKeys.Count > 0)
+                    StingTools.Core.StingLog.Warn($"ClimateRegistry: site '{site.Id}' {string.Join(", ", site.Wind.RejectedKeys)} " +
+                                  "is not a positive number (m/s) — ignored, design wind treated as not recorded");
                 // Project override replaces an existing entry with the same id
                 int existing = data.Sites.FindIndex(x => string.Equals(x.Id, site.Id, StringComparison.OrdinalIgnoreCase));
                 if (existing >= 0) data.Sites[existing] = site;
