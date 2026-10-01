@@ -63,13 +63,17 @@ second Revit; the Claude desktop window can sit over Revit and swallow clicks.
 
 ## NEEDS REVIT CHECK
 
-1. ~~**Size copies + door boxes**~~ **Done 2026-10-01 headlessly** (`pyrevit run tools/pyrevit/headless/run_size_copies.py --revit=2025 --purge`). Left: open any project, place a Room Finish and a Fire Compartment tag of each size type and look — the headless export drew no room tags at all, stock tag included, so they are verified by text and switches only.
-2. **TAGFAM-2 second run** (needs the redeployed KUT build): *Create Tag Fams* in a throwaway project —
-   families load (hub button now `Manual`), Temporary Structure / MEP Ancillary Framing tags are accepted
-   or reported.
-3. **TAGACC-12** — `pwsh tools/run_revit_smoke.ps1`, then protocol Part B with two users.
-4. **TAGFAM-6 timing** — on the next *Create Tag Fams* run, note seconds per family from the STING log
-   (`AddSharedParameters: added …` lines are one per family) and compare with ~300 s on 2026-09-30.
+1. ~~Size copies + door boxes~~ **Done 2026-10-01 headlessly** (`pyrevit run tools/pyrevit/headless/run_size_copies.py
+   --revit=2025 --purge`, #1041). Left: one look at a Room Finish and a Fire Compartment tag of each size in a project —
+   the headless export drew no room tags at all (stock tag included).
+2. **TAGFAM-2 second run** — *Create Tag Fams* in a throwaway project on the KUT build (now main through #1028).
+3. **TAGACC-12** — Part A **ran 2026-10-01** on origin/main `a7b7cff50` (`tools/run_revit_smoke.ps1`, add-in manifest
+   moved aside for the run and restored): **all 4 tagging-accuracy tests pass**, harness integrity passes. 4 annotation
+   smoke tests did not: drainage-invert moved-pipe notes, wall-length curved-wall warning (both real, being fixed on
+   `claude/annotation-smoke-fixes`), and 2 spot-slope tests inconclusive (the metric template's slope type cannot be
+   applied / deleted). Part B (two users on a central model) still needs two people.
+4. ~~TAGFAM-6 timing~~ **Measured 2026-10-01**: 124 s per door tag, ~0.78 s per parameter in Revit's `AddParameter`;
+   see TAGFAM-6 / TAGFAM-9.
 
 ## Decisions
 

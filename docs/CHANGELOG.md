@@ -2,6 +2,20 @@
 
 Phase-by-phase history of completed work on the StingTools plugin, Planscape Server, and Planscape Mobile. See [`../CLAUDE.md`](../CLAUDE.md) for current architecture and [`ROADMAP.md`](ROADMAP.md) for open gaps.
 
+#### Completed (TAGFAM-6 measured: the shared-parameter cost is Revit's, 2026-10-01)
+
+- Timed headlessly in Revit 2025 against the `origin/main` build (`pyrevit run
+  tools/pyrevit/headless/time_add_shared_params.py`; it loads `STING_DLL` or the smoke-test build and
+  calls `CreateTagFamiliesCommand.AddSharedParameters` by reflection on a throwaway Metric Door Tag family,
+  nothing saved). Door Tag, 163 parameters, 3,668-definition `MR_PARAMETERS.txt`:
+  - lookup alone — old per-name walk **2.42 s**, index (#1027 / #1029) **0.03 s**;
+  - `AddSharedParameters` end to end — **123.8 s**.
+- `profile_add_params.py` isolates it: `FamilyManager.AddParameter` costs ~0.78 s per parameter whether in
+  one transaction (127.5 s), with a full parameter scan before each add as `TagParamInjector` does
+  (130.1 s, the scans 0.1 s), or in transactions of 20 (131.0 s). **The earlier TAGFAM-6 entries
+  overstated what the index fix would do: it removed ~2 % of the time.** The lever left is the number of
+  parameters per family — logged as TAGFAM-9 for a decision.
+
 #### Completed (TAGFAM-3 finished: 3.5 mm copies and door boxes on all four specialist tags, run headlessly, 2026-10-01)
 
 - **Run without the Revit UI.** `pyrevit run` launches Revit 2025, runs a script and closes it, so the
