@@ -102,7 +102,17 @@ namespace StingTools.Core.Routing
                 if (approxDist > searchRadiusFt) continue;
 
                 string otherService = InferService(other, emergencyKw);
-                double requiredMm = RoutingRules.RequiredSeparationMm(sourceService, otherService);
+                // DSCH-22: the rule that governs THIS geometry (SeparationGeometry),
+                // not the largest rule for the pair - a crossing is held to the
+                // crossing rule. Never 0 mm while the pair has any rule.
+                bool crossing = otherCurve is Line otherLine
+                    && SeparationGeometry.IsCrossing(ToSeg(dropCurve), ToSeg(otherLine));
+                var governing = SeparationGeometry.Governing(
+                    RoutingRules.SeparationRules
+                        .Where(r => r.AppliesTo(sourceService, otherService))
+                        .Select(r => (r.Geometry, r.MinSeparationMm, r.Id)),
+                    crossing);
+                double requiredMm = governing?.Mm ?? 0;
                 if (requiredMm <= 0) continue; // no rule applies
 
                 // Actual minimum distance between the two line segments —
@@ -112,9 +122,7 @@ namespace StingTools.Core.Routing
                 if (actualMm >= requiredMm) continue;
 
                 var rule = RoutingRules.SeparationRules
-                    .Where(r => r.AppliesTo(sourceService, otherService))
-                    .OrderByDescending(r => r.MinSeparationMm)
-                    .FirstOrDefault();
+                    .FirstOrDefault(r => r.Id == governing?.Id);
 
                 findings.Add(new SeparationViolation
                 {
@@ -185,6 +193,12 @@ namespace StingTools.Core.Routing
             if (n.Contains("EXHAUST"))     return "HVC_EX";
             if (n.Contains("SPRINK"))      return "FLS_SPK";
             return null;
+        }
+
+        private static SeparationGeometry.Seg ToSeg(Line l)
+        {
+            XYZ a = l.GetEndPoint(0), b = l.GetEndPoint(1);
+            return new SeparationGeometry.Seg(a.X, a.Y, a.Z, b.X, b.Y, b.Z);
         }
 
         private static double MinCurveDistance(Curve a, Curve b, int samples = 10)
