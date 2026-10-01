@@ -419,6 +419,8 @@ public class AccWebhookService
                 var next = j["links"]?["next"];
                 url = next?.Type == JTokenType.Object ? (string?)next["href"] : next?.Type == JTokenType.String ? (string?)next : null;
             }
+            // D8: a next link left over at the guard means the list is not complete.
+            if (url != null) return (null, $"stopped after 100 pages ({items.Count} entries) with more to read - the list is INCOMPLETE.");
             return (items, null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

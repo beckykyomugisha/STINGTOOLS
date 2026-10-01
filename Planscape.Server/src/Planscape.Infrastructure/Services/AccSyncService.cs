@@ -291,6 +291,7 @@ public class AccSyncService
         var http = _httpFactory.CreateClient();
         var types = new List<JToken>();
         const int limit = 100;
+        bool complete = false;
         for (int offset = 0, page = 0; page < 50; offset += limit, page++)
         {
             string url = $"{ApsEndpoints.IssuesProjectUrl(_config, conn.ExternalProjectId)}/issue-types?include=subtypes&limit={limit}&offset={offset}";
@@ -306,8 +307,10 @@ public class AccSyncService
             if (results == null) return (null, "ACC issue-types response had no results array.");
             types.AddRange(results);
             int? total = (int?)j["pagination"]?["totalResults"];
-            if (results.Count < limit || (total.HasValue && types.Count >= total.Value)) break;
+            if (results.Count < limit || (total.HasValue && types.Count >= total.Value)) { complete = true; break; }
         }
+        // D8: fifty full pages and never a last one — the types list is not complete.
+        if (!complete) return (null, $"ACC issue types: stopped after 50 pages ({types.Count}) with more to read - the list is INCOMPLETE.");
 
         var options = new List<SubtypeOption>();
         foreach (var t in types)
@@ -847,6 +850,9 @@ public class AccSyncService
             var next = j["links"]?["next"];
             url = next?.Type == JTokenType.Object ? (string?)next["href"] : next?.Type == JTokenType.String ? (string?)next : null;
         }
+        // D8: the guard ran out with a next link still set — more remain. A part of the list
+        // must never read as the list (a webhook subscribe would miss folders, a hub its projects).
+        if (url != null) return (null, $"stopped after 100 pages ({items.Count} entries) with more to read - the list is INCOMPLETE.");
         return (items, null);
     }
 

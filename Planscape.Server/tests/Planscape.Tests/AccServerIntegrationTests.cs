@@ -188,6 +188,29 @@ public partial class AccServerIntegrationTests
         Assert.Equal(AccSyncService.StatusOk, (await fx.ReadConnAsync()).LastSyncStatus);
     }
 
+    // ── D8: a paged list that outruns its guard is INCOMPLETE, never a partial OK ──
+    [Fact]
+    public async Task A_DM_list_that_never_ends_is_incomplete_not_ok()
+    {
+        var fx = new Fx();
+        await fx.SeedAsync(openIssues: 0);
+        int n = 0;
+        fx.Http.Respond = (req, _) =>
+        {
+            int i = Interlocked.Increment(ref n);
+            return Json(HttpStatusCode.OK, new
+            {
+                data = new[] { new { id = $"b.hub-{i}", attributes = new { name = $"Hub {i}" } } },
+                links = new { next = new { href = $"https://aps.test/project/v1/hubs?page[number]={i + 1}" } },
+            });
+        };
+        using var db = fx.Db();
+        var (hubs, err) = await fx.Service(db).ListHubsAsync(fx.ProjectId, CancellationToken.None);
+        Assert.Null(hubs);
+        Assert.Contains("INCOMPLETE", err);
+        Assert.Equal(100, n);
+    }
+
     // ── D2: a create with no answer is verified, never re-posted blind ─────
 
     /// <summary>ACC stub where the issue POST times out; the createdAt search returns
