@@ -114,27 +114,27 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-57 | TAG_SEG_MASK_TXT | High | No binding row: token-profile segment masks of 18 types do nothing | Merged ea43a06ab | Done |
 | DTW-58 | STING_AEC_FILTERS.json healthcare (46) | High | Rule params not bound to the filters' categories, so filter creation fails | Merged ea43a06ab | Done |
 | DTW-59 | STING_DEFAULT_TAG_STYLE_TXT | Med | Written to templates but unregistered | Merged ea43a06ab | Done |
-| DTW-60 | titleBlockParams keys (114 types) | High | Keys are display labels no title-block family has; ~10-13 warnings per sheet, nothing written | fix/dt-data | In progress |
-| DTW-61 | mep-coord-A1-1to50 | Med-High | 3 production rules, 1 slot: ISO and section stacked on the plan | fix/dt-data | In progress |
-| DTW-62 | spool / mep-coord / pres-3d / clar-markup | Med | One view template for mixed view kinds, so it throws and falls back | fix/dt-data | In progress |
-| DTW-63 | DrawingProducer.cs:1277 SLOT-3 | Med | Raw string view-type compare: spurious mismatch warning on most sheets | fix/dt-followups | In progress |
-| DTW-64 | STING_MATCH_LINES.json caption text type / line style | Med | Created by nothing: captions silently skipped | fix/dt-data | In progress |
-| DTW-65 | sectionMarker on 14 types | Med | Families created by nothing; markPrefix/bubble/farClip read by nothing | fix/dt-data | In progress |
-| DTW-66 | legend-A3 | Low-Med | Routed type can never be produced | fix/dt-data | In progress |
-| DTW-67 | DocAutomationExtCommands.cs:1763,1882 | Low-Med | Resolve("*",…,Section/Elevation) matches no rule | fix/dt-data | In progress |
-| DTW-68 | Pack viewTemplate / textStyleName | Low | Names created and read by nothing; dead effectiveTemplateName | fix/dt-data | In progress |
-| DTW-69 | Routing semantics | Low | S DETAIL → rebar detail; P PLAN → drainage; E/P SECTION → M types | fix/dt-data | In progress |
-| DTW-70 | Sheet-number codes | Low | SCH / PR / EL mean two things; possible profile collisions | fix/dt-data | In progress |
-| DTW-71 | Id convention | Low | Ids missing paper/scale suffix; inconsistent prefixes | fix/dt-data | In progress |
-| DTW-72 | {mark} in per-level type names | Low | Prints XX | fix/dt-data | In progress |
-| DTW-73 | CLAUDE.md catalogue counts | Low | Says 93 types / 113 rules; data has 114 / 141 | fix/dt-data | In progress |
-| DTW-74 | ProjectSetupCommand.CreateTwoSectionsPerScopeBox | Med | Wizard "two building sections per scope box" still makes unstamped sections | fix/dt-followups | In progress |
-| DTW-75 | STING_AUTO_PLACED_BOOL | Med | Written to viewports and schedule instances, not bound there | fix/dt-data | In progress |
-| DTW-76 | STING_PLACER_* | Med | <ALL> but written to detail lines and annotations; the group override is unreachable when spec-driven | fix/dt-data | In progress |
-| DTW-77 | WARN_STING_PACK_DRIFT | Low | View warning bound to elements | fix/dt-data | In progress |
+| DTW-60 | titleBlockParams keys (114 types) | High | Keys are display labels no title-block family has; ~10-13 warnings per sheet, nothing written | Merged | Done |
+| DTW-61 | mep-coord-A1-1to50 | Med-High | 3 production rules, 1 slot: ISO and section stacked on the plan | Merged | Done |
+| DTW-62 | spool / mep-coord / pres-3d / clar-markup | Med | One view template for mixed view kinds, so it throws and falls back | Merged | Done |
+| DTW-63 | DrawingProducer.cs:1277 SLOT-3 | Med | Raw string view-type compare: spurious mismatch warning on most sheets | Merged | Done |
+| DTW-64 | STING_MATCH_LINES.json caption text type / line style | Med | Created by nothing: captions silently skipped | Merged | Done |
+| DTW-65 | sectionMarker on 14 types | Med | Families created by nothing; markPrefix/bubble/farClip read by nothing | Merged | Done |
+| DTW-66 | legend-A3 | Low-Med | Routed type can never be produced | Merged | Done |
+| DTW-67 | DocAutomationExtCommands.cs:1763,1882 | Low-Med | Resolve("*",…,Section/Elevation) matches no rule | Merged | Done |
+| DTW-68 | Pack viewTemplate / textStyleName | Low | Names created and read by nothing; dead effectiveTemplateName | Merged | Done |
+| DTW-69 | Routing semantics | Low | S DETAIL → rebar detail; P PLAN → drainage; E/P SECTION → M types | Merged | Done |
+| DTW-70 | Sheet-number codes | Low | SCH / PR / EL mean two things; possible profile collisions | Merged | Done |
+| DTW-71 | Id convention | Low | Ids missing paper/scale suffix; inconsistent prefixes | Merged | Done |
+| DTW-72 | {mark} in per-level type names | Low | Prints XX | Merged | Done |
+| DTW-73 | CLAUDE.md catalogue counts | Low | Says 93 types / 113 rules; data has 114 / 141 | Merged | Done |
+| DTW-74 | ProjectSetupCommand.CreateTwoSectionsPerScopeBox | Med | Wizard "two building sections per scope box" still makes unstamped sections | Merged | Done |
+| DTW-75 | STING_AUTO_PLACED_BOOL | Med | Written to viewports and schedule instances, not bound there | Merged | Done |
+| DTW-76 | STING_PLACER_* | Med | <ALL> but written to detail lines and annotations; the group override is unreachable when spec-driven | Merged | Done |
+| DTW-77 | WARN_STING_PACK_DRIFT | Low | View warning bound to elements | Merged | Done |
 | DTW-78 | ManagedTemplateSyncer.cs:576 | Low | Literal parameter name instead of the ParamRegistry constant | 5da278b68 | Done |
-| DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | fix/dt-followups | In progress |
-| DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | fix/dt-followups | In progress |
+| DTW-79 | DrawingTokenContext.BuildForExistingSheet | Med | Heal fills {lvl} with the level name under the ISO policy, disagreeing with the number | Merged | Done |
+| DTW-80 | ProjectSetupCommand elevations | Med | Wizard looks for the raw exterior::face:: tag; the producer re-stamps it as Exterior-<Face> | Merged | Done |
 | DTW-81 | DrawingProducer.AdoptView | Med | Reported adoption even when the stamp failed; cache failure left a stale index | 08fe22fc9 | Done |
 | DTW-83 | AnnotationRunner.cs:356 / TagCategory | High | Room/space/area rules use IndependentTag, so each throws or duplicates; existing room tags unseen | fix/dt-annotation | In progress |
 | DTW-84 | MEPDimensioner.cs:152 | Med | Chains never cross fittings; witness lines parallel to their references; no idempotency | fix/dt-annotation | In progress |
@@ -142,7 +142,7 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-86 | AnnotationRunner.cs:686 | Low-Med | Grid chains assume world-axis grids | fix/dt-annotation | In progress |
 | DTW-87 | DrawingProduceAndExportCommand.cs:572 / DrawingPackageManager.cs:122 | High | PDFExportOptions.FileName without Combine: files reported missing, nothing registered | fix/dt-export-planner | In progress |
 | DTW-88 | DrawingProduceAndExportCommand.cs:570 | Med | PDF named number_name with no revision; P02 overwrites P01; differs from the Export Centre | fix/dt-export-planner | In progress |
-| DTW-89 | STING_DRAWING_TYPES.json (9 patterns) | Med | Own ISO patterns still freeze -{suit}-{rev} | fix/dt-data | In progress |
+| DTW-89 | STING_DRAWING_TYPES.json (9 patterns) | Med | Own ISO patterns still freeze -{suit}-{rev} | Merged | Done |
 | DTW-90 | ScopeBoxPlannerService.cs:279 / ScopeBoxPlanner.cs:343 | Med-High | Area-box levels keyed by name-derived code; a rename orphans boxes and plans | fix/dt-export-planner | In progress |
 | DTW-91 | ScopeBoxPlanner.cs:239 | Med | Re-plan after growth renumbers and moves existing boxes | fix/dt-export-planner | In progress |
 | DTW-92 | ScopeBoxRevit.cs:143 | Low-Med | Rotated LOC box uses its bounding box | fix/dt-export-planner | In progress |
@@ -150,6 +150,8 @@ presets, binding files and docs. This file is the handover: a fresh session cont
 | DTW-94 | ShopDrawingComposer.cs:474 | Med | Spool sheets ignore the sheet-number policy | fix/dt-export-planner | In progress |
 | DTW-95 | WORKFLOW_MEPDrawingProduction.json | Med | STING:: projects run both scope-box and per-level production: duplicate drawings | fix/dt-export-planner | In progress |
 | DTW-96 | DocAutomationExtCommands.cs:478 | Low | BatchCreateSheets / DocumentationPackage bypass SheetNumbering and the policy; unstamped | Queued after fix/dt-data (same file) | Queued |
+| DTW-97 | DrawingProducer apply options | Low | Type far clip never applied (opt-in had no caller) | Wired on new views without CustomBounds | Done |
+| DTW-98 | DrawingProducer placement | Low | STING_AUTO_PLACED_BOOL writes to viewports never land | Extensible Storage via MarkAutoPlaced | Done |
 
 ## Decisions
 
@@ -175,6 +177,15 @@ presets, binding files and docs. This file is the handover: a fresh session cont
   A hand-authored Yes row now replaces an `<ALL>` binding in the resolver.
 - **Lying-catch gate.** `PresetDialog.Show` counts as reporting the outcome (it shows the dialog
   or fills `message`). Baseline ratcheted 151 → 145.
+- **Routing semantics / codes / ids (DTW-69..71, data agent).** No data change. There is no
+  general structural-detail or plumbing-plan type to route to, the ambiguous codes cannot
+  collide (different segment positions, template-keyed counters), and ids are never renamed.
+- **WARN_STING_PACK_DRIFT (DTW-77).** Left `<ALL>`: nothing writes it, and its only reader is a
+  tag label on elements.
+- **STING_AUTO_PLACED_BOOL (DTW-75/98).** Moved to Extensible Storage: Revit binds no shared
+  parameter to viewports or schedule instances.
+- **Far clip (DTW-65/97).** Applied only to new views without their own bounds, so a depth
+  someone adjusted by hand survives Sync Styles.
 - **ISO number (DTW-44).** Suitability and revision leave the container id (ISO 19650 keeps them
   as metadata). Only new sheets use the new pattern; existing numbers are not rewritten.
 
