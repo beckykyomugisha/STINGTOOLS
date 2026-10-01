@@ -251,6 +251,19 @@ namespace StingTools.Tags.Tests
                     ["doc_number"] = "PRJ-004", ["suitability"] = "XX", ["iso_unset"] = new JArray("suitability", "revision"),
                 }).IsoNote);
 
+        // DOCX-REG-1: the Document Manager shows the register's note beside a row only when
+        // the row displays the suitability that note explains.
+        [Theory]
+        [InlineData("S0", "", "S0", "S0 default (no code recorded)", "S0 default (no code recorded)")]
+        [InlineData("s3", "", "S3", "conflict: P02 cannot carry A1", "conflict: P02 cannot carry A1")]
+        [InlineData("S4", "", "S0", "S0 default (no code recorded)", "")]   // row's own code: not annotated
+        [InlineData("S0", "kept", "S0", "other", "kept")]                     // existing note wins
+        [InlineData("S0", "", "S0", "", "")]                                  // nothing to carry
+        [InlineData(null, null, null, null, "")]
+        public void TheRegisterNoteFollowsOnlyTheSameSuitability(string rowSuit, string rowNote,
+            string regSuit, string regNote, string expected)
+            => Assert.Equal(expected, RegisterEntry.NoteForRow(rowSuit, rowNote, regSuit, regNote));
+
         [Fact]
         public void AllThreeResolversShareTheSameRule()
         {

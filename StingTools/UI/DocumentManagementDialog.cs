@@ -72,6 +72,11 @@ namespace StingTools.UI
         public bool IsOverdue { get; set; }            // GAP GRID-02: past SLA
         public string StatusHistory { get; set; }      // GAP PERSIST-02: status change log
         public string Suitability { get; set; }        // S0-S7 code
+        /// <summary>DOCX-REG-1: why <see cref="Suitability"/> is not a recorded code, from the
+        /// register (DocumentRegisterMerge.RegisterEntry.IsoNote: "conflict: …", "not set: …",
+        /// "S0 default …"). Display only — Suitability still drives CDE logic, so the marker
+        /// lives here and never in Suitability itself.</summary>
+        public string IsoNote { get; set; }
         public string CreatedBy { get; set; }          // GAP PERSIST-01: audit trail
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -1428,6 +1433,8 @@ namespace StingTools.UI
             gridView.Columns.Add(MakeCol("Status", "Status", 52));
             gridView.Columns.Add(MakeCol("CDE", "CDE", 62));
             gridView.Columns.Add(MakeCol("Rev", "Revision", 36));
+            gridView.Columns.Add(MakeCol("Suit", "Suitability", 36));
+            gridView.Columns.Add(MakeCol("ISO note", "IsoNote", 110));   // DOCX-REG-1
             gridView.Columns.Add(MakeCol("Disc", "Discipline", 32));
             gridView.Columns.Add(MakeCol("Folder", "Folder", 90));
             gridView.Columns.Add(MakeCol("Fmt", "FileFormat", 35));
@@ -1499,6 +1506,7 @@ namespace StingTools.UI
             if (!string.IsNullOrEmpty(item.Status)) sb.AppendLine($"Status: {item.Status}");
             if (!string.IsNullOrEmpty(item.CDE)) sb.AppendLine($"CDE: {item.CDE}");
             if (!string.IsNullOrEmpty(item.Suitability)) sb.AppendLine($"Suitability: {item.Suitability}");
+            if (!string.IsNullOrEmpty(item.IsoNote)) sb.AppendLine($"ISO note: {item.IsoNote}");
             if (!string.IsNullOrEmpty(item.Revision)) sb.AppendLine($"Revision: {item.Revision}");
             if (!string.IsNullOrEmpty(item.AssignedTo)) sb.AppendLine($"Assigned to: {item.AssignedTo}");
             if (!string.IsNullOrEmpty(item.Date)) sb.AppendLine($"Date: {item.Date}");
@@ -2005,14 +2013,15 @@ namespace StingTools.UI
             };
             if (dlg.ShowDialog() != true) return;
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine("Type,ID,Title,Status,CDE,Suitability,Rev,Disc,Folder,Format,Size,Date,Priority,Age,Elements,Assigned,SLA,Overdue,CreatedBy");
+            sb.AppendLine("Type,ID,Title,Status,CDE,Suitability,Rev,Disc,Folder,Format,Size,Date,Priority,Age,Elements,Assigned,SLA,Overdue,CreatedBy,IsoNote");
             foreach (var obj in _view)
             {
                 if (obj is DocItemVM it)
                     sb.AppendLine($"\"{it.Type}\",\"{it.Id}\",\"{it.Title?.Replace("\"", "\"\"")}\",\"{it.Status}\",\"{it.CDE}\"," +
                         $"\"{it.Suitability}\",\"{it.Revision}\",\"{it.Discipline}\",\"{it.Folder}\",\"{it.FileFormat}\"," +
                         $"\"{it.Size}\",\"{it.Date}\",\"{it.Priority}\",\"{it.Aging}\",\"{it.ElementCount}\"," +
-                        $"\"{it.AssignedTo}\",\"{it.SLADeadline}\",\"{it.IsOverdue}\",\"{it.CreatedBy}\"");
+                        $"\"{it.AssignedTo}\",\"{it.SLADeadline}\",\"{it.IsOverdue}\",\"{it.CreatedBy}\"," +
+                        $"\"{it.IsoNote?.Replace("\"", "\"\"")}\"");
             }
             OutputLocationHelper.WriteAllTextAtomic(dlg.FileName, sb.ToString());
             if (_doc != null) ProjectFolderEngine.LogActivity(_doc, "EXPORT_CSV", Path.GetFileName(dlg.FileName), $"{_view.Count} rows");
@@ -5588,7 +5597,7 @@ namespace StingTools.UI
                     if (existing != null)
                     {
                         EnrichFromRegister(existing, docType, typeDesc, statusCode, statusDesc,
-                            m.Revision, m.Suitability, m.CreatedBy);
+                            m.Revision, m.Suitability, m.CreatedBy, m.IsoNote);
                         continue;
                     }
 
@@ -5604,6 +5613,7 @@ namespace StingTools.UI
                         FilePath = m.FilePath ?? "",
                         FileFormat = m.FileFormat ?? "",
                         Suitability = m.Suitability ?? "",
+                        IsoNote = m.IsoNote ?? "",
                         CreatedBy = m.CreatedBy ?? "",
                         Category = "DOCUMENT", Folder = "15_REGISTERS"
                     });
@@ -5649,7 +5659,7 @@ namespace StingTools.UI
                     if (existing != null)
                     {
                         EnrichFromRegister(existing, r.Type, typeDesc, r.Status, statusDesc,
-                            r.Revision, r.Suitability, r.CreatedBy);
+                            r.Revision, r.Suitability, r.CreatedBy, r.IsoNote);
                         continue;
                     }
                     _allItems.Add(new DocItemVM
@@ -5666,6 +5676,7 @@ namespace StingTools.UI
                         FileFormat = r.FileFormat,
                         CreatedBy = r.CreatedBy,
                         Suitability = r.Suitability,
+                        IsoNote = r.IsoNote ?? "",
                         Category = "DOCUMENT", Folder = "15_REGISTERS"
                     });
                 }
@@ -5684,7 +5695,8 @@ namespace StingTools.UI
         /// that document. Only blanks are filled: the file row's CDE comes from the
         /// folder the file is actually in, which is the fact on disk and wins.</summary>
         private static void EnrichFromRegister(DocItemVM row, string type, string typeDesc,
-            string status, string statusDesc, string revision, string suitability, string createdBy)
+            string status, string statusDesc, string revision, string suitability, string createdBy,
+            string isoNote = "")
         {
             if (row == null || row.Category != "DOCUMENT") return;
             if (!string.IsNullOrEmpty(type) && (string.IsNullOrEmpty(row.Type) || row.Type == row.FileFormat))
@@ -5694,6 +5706,9 @@ namespace StingTools.UI
             if (string.IsNullOrEmpty(row.Revision)) row.Revision = revision ?? "";
             if (string.IsNullOrEmpty(row.Suitability)) row.Suitability = suitability ?? "";
             if (string.IsNullOrEmpty(row.CreatedBy)) row.CreatedBy = createdBy ?? "";
+            // The note explains the register's suitability; carry it only when the row shows
+            // that same suitability, so a file row's own code is never annotated by another's.
+            row.IsoNote = Core.RegisterEntry.NoteForRow(row.Suitability, row.IsoNote, suitability, isoNote);
         }
 
         /// <summary>Does this register row carry <paramref name="id"/> under any of the
@@ -6769,6 +6784,7 @@ namespace StingTools.UI
                     sb.AppendLine($"Status:      {item.Status} ({item.StatusDesc})");
                     sb.AppendLine($"CDE:         {item.CDE}");
                     sb.AppendLine($"Suitability: {item.Suitability}");
+                    if (!string.IsNullOrEmpty(item.IsoNote)) sb.AppendLine($"ISO note:    {item.IsoNote}");
                     sb.AppendLine($"Revision:    {item.Revision}");
                     sb.AppendLine($"Date:        {item.Date}");
                     sb.AppendLine($"Discipline:  {item.Discipline}");

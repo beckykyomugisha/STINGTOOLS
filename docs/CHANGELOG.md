@@ -26971,3 +26971,18 @@ Later rounds on the same branch (DTW-82..145):
 
 Build 0/0; Tags.Tests 5,080; `run_ci_gates.py --quick` 36/36; drawing-type checksums OK.
 Nothing has been run in Revit; the worklog lists the checks.
+
+#### Document Manager shows the register's ISO note (DOCX-REG-1, 2026-10-01)
+
+The unified register already says why a suitability is not a recorded code: a conflict with
+the revision, an unset field, or the S0 default. The Document Manager now shows it.
+
+- The grid has a **Suit** column and an **ISO note** column. The note is display only and
+  has its own field (`DocItemVM.IsoNote`), because `Suitability` still drives CDE logic.
+- The note also appears in the details pane, the document info dialog and the CSV export,
+  where it is the last column. Existing columns keep their order.
+- A file row gets the register's note only when the row shows the suitability that the note
+  explains (`RegisterEntry.NoteForRow`). A file row with its own code is never annotated
+  with another row's note.
+
+Build 0/0; Tags.Tests 5,217 (6 new cases). Not yet checked in Revit.

@@ -42,6 +42,18 @@ namespace StingTools.Core
         /// <summary>The suitability is the register's S0 convention, not a recorded code.</summary>
         public bool SuitabilityDefaulted { get; set; }
         public bool HasIsoConflict => IsoNote.StartsWith("conflict", StringComparison.Ordinal);
+
+        /// <summary>DOCX-REG-1: the ISO note a display row may carry from this register entry.
+        /// The note explains the register's suitability, so it applies only when the row shows
+        /// that same suitability; a row already carrying a note keeps it. Never invents one.</summary>
+        public static string NoteForRow(string rowSuitability, string rowNote,
+                                        string registerSuitability, string registerNote)
+        {
+            if (!string.IsNullOrEmpty(rowNote)) return rowNote;
+            if (string.IsNullOrEmpty(registerNote)) return rowNote ?? "";
+            return string.Equals((rowSuitability ?? "").Trim(), (registerSuitability ?? "").Trim(),
+                                 StringComparison.OrdinalIgnoreCase) ? registerNote : (rowNote ?? "");
+        }
     }
 
     /// <summary>Pure row-mapping + merge logic behind <see cref="DocumentRegister"/>.</summary>

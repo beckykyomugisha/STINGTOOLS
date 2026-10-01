@@ -2752,5 +2752,5 @@ The R1–R14 findings table (file, line, severity, commit) is in `WORKLOG.md`. R
 The table is in `WORKLOG.md`. C1–C5 and C7–C10 are fixed (see CHANGELOG). Open:
 
 - **ACC-ADJ-C6 — Revit PDF byte-stability (NEEDS MANUAL CHECK).** If two exports of an unchanged sheet differ, the ledger can never skip them as identical. They land as HELD (reported, not failing). A normalised PDF hash would let them skip.
-- **DOCX-REG-1 — show IsoNote in the Document Manager grid.** The unified register now carries why a suitability is not a recorded code (conflict / not set / S0 default), but `DocItemVM.Suitability` also drives CDE logic, so a display marker needs its own column.
+- ~~**DOCX-REG-1 — show IsoNote in the Document Manager grid.**~~ **Closed 2026-10-01** — see CHANGELOG "Document Manager shows the register's ISO note".
 - **ACC-SRV-11 — issues created and resolved between sweeps never reach ACC.** AccSyncService creates only OPEN/IN_PROGRESS issues. An issue raised and closed inside one interval is never pushed. Decide whether closed-but-never-pushed issues should be created closed, or reported.
